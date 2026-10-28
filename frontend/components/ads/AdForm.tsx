@@ -1,0 +1,773 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+import { Button }     from '@/components/shared/ui/Button';
+import { Input }      from '@/components/shared/ui/Input';
+import {
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
+} from '@/components/shared/ui/Select';
+import { FormField }  from '@/components/shared/forms/FormField';
+import { FormSteps }  from '@/components/shared/forms/FormSteps';
+import { ImageUpload } from '@/components/shared/forms/ImageUpload';
+import { PriceInput }  from '@/components/shared/forms/PriceInput';
+import { CITIES, CONDITION_LABELS, MAX_IMAGES, ROUTES } from '@/lib/constants';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+import { useCategories } from '@/hooks/queries/useCategories';
+import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
+import { AdPublisherPicker, type PublisherMode } from '@/components/ads/AdPublisherPicker';
+import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
+import { useFormDraftAttachments } from '@/hooks/useFormDraftAttachments';
+import { useUnsavedChangesWarning } from '@/hooks/useUnsavedChangesWarning';
+import { FormDraftStatus } from '@/components/shared/forms/FormDraftStatus';
+import { PublishMutationErrorNotice } from '@/components/shared/forms/PublishMutationErrorNotice';
+import { getAdDraft } from '@/lib/offlineAdDrafts';
+import {
+  setActiveOfflineDraftId,
+  adFieldsFromDraftPayload,
+} from '@/lib/offlineDraftResume';
+import { AdFormPreview } from '@/components/ads/AdFormPreview';
+import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
+import { parseApiError } from '@/lib/errorParser';
+import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
+import { reconcileImages } from '@/lib/reconcileImages';
+import type { Ad, AdFormValues, AdFormMode, UpdateAdPayload } from '@/types/ad.types';
+import { toast } from 'sonner';
+
+interface Props {
+  mode: AdFormMode;
+  ad?: Ad;
+}
+
+const EMPTY: AdFormValues = {
+  title: '', description: '', price: '', isNegotiable: false,
+  condition: '', city: '', categoryId: '', images: [], existingImages: [],
+};
+
+interface Errors {
+  title?: string; description?: string; city?: string;
+  images?: string; condition?: string;
+}
+
+// FIX P1-11: the persisted slice of AdFormValues — everything except
+// `images`/`existingImages`, which either hold live File objects (not
+// JSON-serializable) or, in edit mode, mirror server data that's
+// already safe (reloading the real ad is more reliable than trusting
+// a stale draft of it). Draft autosave is create-mode only for this
+// reason — see the comment where useFormDraft is called below.
+type DraftValues = Omit<AdFormValues, 'images' | 'existingImages'>;
+
+export function AdForm({ mode, ad }: Props) {
+  const { data: categories } = useCategories();
+  const searchParams = useSearchParams();
+  const offlineDraftId = searchParams.get('draftId');
+  // UX-FIX P3-10b: real upload progress (0-100) for the images actually
+  // being sent in this submission, shown in ImageUpload while it's in
+  // flight instead of leaving the user with only the button's static
+  // "جارٍ الحفظ…" label for however long a multi-photo upload takes on a
+  // slow connection. null when no upload is in progress.
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const createAd = useCreateAd((p) => setUploadProgress(p));
+  const updateAd = useUpdateAd(ad?.id ?? '');
+  const addImages = useAddAdImages((p) => setUploadProgress(p));
+  const removeImage = useRemoveAdImage();
+  const reorderImages = useReorderAdImages();
+  const [isSavingImages, setIsSavingImages] = useState(false);
+  const isSubmittingRef = useRef(false);
+  const isPending = createAd.isPending || updateAd.isPending
+    || addImages.isPending || removeImage.isPending || reorderImages.isPending || isSavingImages;
+
+  // FIX I-04: snapshot of the ad's images as they were when the form
+  // mounted, so we can diff against `values.existingImages` on submit
+  // to know which ones the user actually removed.
+  const [originalImages] = useState<string[]>(() => ad?.images ?? []);
+
+  // FIX P1-11: in create mode only, seed initial state from a saved
+  // draft if one exists (see useFormDraft below for how it got
+  // there). Falls back to EMPTY exactly as before when there's no
+  // draft, so this is a strict addition — nothing changes for a
+  // first-time visit to the form.
+  // Offline IndexedDB resume (?draftId=) is applied async in useEffect
+  // below and takes priority over localStorage useFormDraft.
+  const [values, setValues] = useState<AdFormValues>(() => {
+    if (ad) {
+      return {
+        title: ad.title, description: ad.description,
+        price: ad.price ?? '', isNegotiable: ad.isNegotiable,
+        condition: ad.condition ?? '', city: ad.city,
+        categoryId: ad.categoryId ?? '', images: [],
+        existingImages: ad.images,
+      };
+    }
+    if (offlineDraftId) return EMPTY; // wait for IndexedDB load
+    const draft = readFormDraft<DraftValues>('ad:create');
+    return draft ? { ...EMPTY, ...draft } : EMPTY;
+  });
+  // FIX P0-2: snapshot of the form's initial values, used to detect
+  // unsaved changes before discarding via "إلغاء". Compares the
+  // text/select fields directly and treats any new file selected or
+  // any existing image removed/reordered as dirty too — cheaper and
+  // just as reliable as a deep-equal here since `images` holds live
+  // File objects that aren't meaningfully comparable by value anyway.
+  const [initialValues, setInitialValues] = useState<AdFormValues>(() => values);
+
+  // استئناف مسودة IndexedDB من مركز المزامنة (?draftId=)
+  useEffect(() => {
+    if (!offlineDraftId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const d = await getAdDraft(offlineDraftId);
+        if (cancelled || !d) return;
+        if ((d.kind ?? 'ad') !== 'ad') return;
+        const fields = adFieldsFromDraftPayload(d.payload);
+        setValues((prev) => ({
+          ...prev,
+          ...fields,
+          images: [],
+          // keep existing server images in edit mode; offline previews
+          // are display-only and not re-uploadable as Files
+          existingImages: prev.existingImages,
+        }));
+        setInitialValues((prev) => ({
+          ...prev,
+          ...fields,
+          images: [],
+          existingImages: prev.existingImages,
+        }));
+        setActiveOfflineDraftId(d.id);
+        const labels = d.payload.imageLabels;
+        if (Array.isArray(labels) && labels.length > 0) {
+          toast.message('استُعيدت حقول المسودة', {
+            description: 'أعد اختيار الصور إن لزم — النسخ الأصلية غير محفوظة في المسودة المحلية.',
+          });
+        } else {
+          toast.message('استُعيدت المسودة المحلية');
+        }
+      } catch {
+        /* ignore — form stays empty / server-seeded */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [offlineDraftId]);
+
+  // TRACK-AD-STORE: personal vs store publisher (create mode only)
+  const [publisherMode, setPublisherMode] = useState<PublisherMode>('personal');
+  const [publisherStoreId, setPublisherStoreId] = useState<string | null>(null);
+  const isDirty =
+    values.title !== initialValues.title ||
+    values.description !== initialValues.description ||
+    values.price !== initialValues.price ||
+    values.isNegotiable !== initialValues.isNegotiable ||
+    values.condition !== initialValues.condition ||
+    values.city !== initialValues.city ||
+    values.categoryId !== initialValues.categoryId ||
+    values.images.length > 0 ||
+    values.existingImages.length !== initialValues.existingImages.length ||
+    values.existingImages.some((url, i) => url !== initialValues.existingImages[i]);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  // FIX P1-11: periodically persists title/description/price/etc (not
+  // images — see DraftValues above) to localStorage while the user is
+  // actively filling out a *new* ad, so an accidental navigation away
+  // doesn't lose everything. Edit mode is intentionally excluded:
+  // there's already a real saved ad to fall back to, and restoring a
+  // stale draft over freshly-fetched server data would be confusing
+  // rather than helpful.
+  const { clearDraft, lastSavedAt, isSaving, saveError } = useFormDraft<DraftValues>(
+    'ad:create',
+    {
+      title: values.title, description: values.description, price: values.price,
+      isNegotiable: values.isNegotiable, condition: values.condition,
+      city: values.city, categoryId: values.categoryId,
+    },
+    { enabled: mode === 'create' },
+  );
+  const { attachmentError, isSavingAttachments, savedAttachmentCount, clearAttachments, retrySaveAttachments } = useFormDraftAttachments(
+    'ad:create',
+    values.images,
+    (images) => setValues((current) => ({ ...current, images })),
+    { enabled: mode === 'create' },
+  );
+  const combinedDraftError = saveError ?? attachmentError;
+  const combinedDraftSaving = isSaving || isSavingAttachments;
+  async function clearDraftAndAttachments() {
+    clearDraft();
+    await clearAttachments();
+  }
+
+
+  // P2: Unsaved image attachments must also trigger the unsaved-changes
+  // warning — otherwise a user who fails to persist image bytes (quota,
+  // IndexedDB unavailable, files too large) can navigate away and lose
+  // them silently. Text-draft errors are covered by FormDraftStatus.
+  useUnsavedChangesWarning(isDirty || Boolean(attachmentError));
+
+  // SW-HISTORY-GUARD-01: history.back() leaves the app entirely when
+  // the user opened /ads/create via a deep link (notification, bookmark,
+  // share) — the SPA has no previous in-app entry to return to. This
+  // guard falls back to the ads list in that case, matching what the
+  // user expects ("take me back somewhere related") instead of dumping
+  // them on a blank tab or the previous unrelated website.
+  const router = useRouter();
+  function goBackSafely() {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      history.back();
+    } else {
+      signalNavigationStart(ROUTES.myAds);
+      router.push(ROUTES.myAds);
+    }
+  }
+
+  function handleCancel() {
+    if (isDirty) {
+      setShowCancelConfirm(true);
+    } else {
+      if (mode === 'create') clearDraftAndAttachments();
+      goBackSafely();
+    }
+  }
+
+  const [errors, setErrors] = useState<Errors>({});
+  // FIX P1-12: previously the submit button was simply disabled
+  // (isFormIncomplete) with zero indication of *why* until the user
+  // guessed and hit submit anyway — validate() only ran there. Now
+  // tracks which fields the user has actually left (blurred) so each
+  // one's error can surface the moment they move on from it, not only
+  // after a full submit attempt. hasSubmitted covers fields the user
+  // never focused at all (e.g. tabbing straight to submit).
+  const [touched, setTouched] = useState<Partial<Record<keyof Errors, boolean>>>({});
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  // UX phase-3: multi-step wizard for create mode only (edit stays one page).
+  const [step, setStep] = useState(1);
+  const isWizard = mode === 'create';
+  const totalSteps = 3;
+
+  // FIX M-1: field-level errors from the backend's Zod validation (400
+  // responses), separate from `errors` (client-side pre-submit checks).
+  // Kept apart so a fresh submit attempt clears stale server errors via
+  // validate()'s own setErrors() without this needing to know about that
+  // state, and so a field can show either source without one silently
+  // overwriting the other. See the field lookup helper below.
+  const [serverErrors, setServerErrors] = useState<Record<string, string[]> | undefined>();
+
+  // Field-level errors come from the mutation's own `error` state rather
+  // than a per-call onError passed to mutate(): useCreateAd/useUpdateAd
+  // already toast a generic message via their own onError, and mutate()
+  // here is called with just the payload (single argument).
+  useEffect(() => {
+    const err = mode === 'create' ? createAd.error : updateAd.error;
+    if (err) setServerErrors(parseApiError(err).fieldErrors);
+  }, [createAd.error, updateAd.error, mode]);
+
+  // Release the re-entrancy guard once the create mutation settles either
+  // way (the edit-mode path resets it itself at the end of submitEdit,
+  // right after updateAd.mutate() is actually called — see that
+  // function's own comment).
+  useEffect(() => {
+    if (mode === 'create' && !createAd.isPending) {
+      isSubmittingRef.current = false;
+    }
+  }, [mode, createAd.isPending]);
+
+  // FIX P1-12: pulled out of validate() so it can run for a single
+  // field on blur without needing a full setErrors() pass — validate()
+  // below now just calls this for every field at once on submit.
+  function computeErrors(): Errors {
+    const e: Errors = {};
+    if (!values.title.trim())        e.title       = 'عنوان الإعلان مطلوب';
+    else if (values.title.length < 5) e.title      = 'العنوان قصير جداً (5 أحرف على الأقل)';
+    if (!values.description.trim())  e.description = 'وصف الإعلان مطلوب';
+    else if (values.description.length < 20) e.description = 'الوصف قصير جداً (20 حرفاً على الأقل)';
+    if (!values.city)                e.city        = 'المدينة مطلوبة';
+    // FIX BUG-IMG-REQ-01: re-enabled to match backend/ads.controller.ts's
+    // createAd, which already requires at least one image unconditionally
+    // (see TRACK-IMG-HOSTING / FIX PROD-AUDIT-01 there) — this had been
+    // left disabled here from an earlier phase where the backend check
+    // was disabled too, so a user could submit with zero photos and the
+    // request would always fail server-side with a confusing generic
+    // error. Edit mode is unaffected: existingImages already covers an
+    // ad that had photos before this session's edits.
+    if (values.images.length === 0 && values.existingImages.length === 0)
+      e.images = 'أضف صورة واحدة على الأقل';
+    return e;
+  }
+
+  /** Client-side error takes priority (it's live, pre-submit); falls back to the backend's. */
+  function fieldError(field: keyof Errors): string | undefined {
+    // FIX P1-12: only surface a client-side error once the user has
+    // actually interacted with this field (blurred it) or tried to
+    // submit — otherwise every required field would show red before
+    // the user has had any chance to fill it in.
+    if (!touched[field] && !hasSubmitted) return undefined;
+    return errors[field] ?? serverErrors?.[field]?.[0];
+  }
+
+  function handleBlur(field: keyof Errors) {
+    setTouched((t) => ({ ...t, [field]: true }));
+    setErrors(computeErrors());
+  }
+
+  function set<K extends keyof AdFormValues>(key: K, val: AdFormValues[K]) {
+    setValues((v) => ({ ...v, [key]: val }));
+  }
+
+  function validate() {
+    const e = computeErrors();
+    setHasSubmitted(true);
+    setErrors(e);
+    setServerErrors(undefined);
+    return Object.keys(e).length === 0;
+  }
+
+  // UX-FIX: mirrors validate()'s required-field rules read-only (title/
+  // description/city/images — see FIX BUG-IMG-REQ-01 above) so the
+  // submit button is disabled before the user even tries, instead of
+  // only surfacing the images error after a submit attempt.
+  const isFormIncomplete =
+    !values.title.trim() ||
+    values.title.length < 5 ||
+    !values.description.trim() ||
+    values.description.length < 20 ||
+    !values.city ||
+    (values.images.length === 0 && values.existingImages.length === 0);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (isSubmittingRef.current) return;
+    if (!validate()) return;
+
+    if (mode === 'create') {
+      isSubmittingRef.current = true;
+      setUploadProgress(values.images.length > 0 ? 0 : null);
+      const payload = {
+        title:        values.title.trim(),
+        description:  values.description.trim(),
+        // PARSEFLOAT-GUARD-01: 'values.price' is a free-text input —
+        // a stray char ('12k', '١٢') makes parseFloat return NaN, which
+        // JSON.stringify turns into null and the backend rejects with a
+        // generic "invalid price". Guard here so the field is either a
+        // real number or omitted, matching how the form's own validator
+        // (which already rejects non-numeric) expects it to behave.
+        price: (() => {
+          if (!values.price) return undefined;
+          const n = parseFloat(values.price);
+          return Number.isFinite(n) && n > 0 ? n : undefined;
+        })(),
+        isNegotiable: values.isNegotiable,
+        condition:    values.condition || undefined,
+        city:         values.city,
+        categoryId:   values.categoryId || undefined,
+        images:       values.images,
+        ...(publisherMode === 'store' && publisherStoreId
+          ? { storeId: publisherStoreId }
+          : {}),
+      };
+      // UX-FIX P3-10b: reset the bar once the request settles either way —
+      // onSuccess already navigates away, but onError leaves the user on
+      // the form, where a progress bar frozen at some earlier percentage
+      // would be confusing next to the (now re-enabled) submit button.
+      // FIX P1-11: clear the draft once the ad is actually created —
+      // onSettled (not onSuccess) would also fire on failure and wipe
+      // a draft the user still needs, so this stays scoped to onSuccess.
+      createAd.mutate(payload, {
+        onSuccess: () => clearDraftAndAttachments(),
+        onSettled: () => setUploadProgress(null),
+      });
+      return;
+    }
+
+    if (!ad) return;
+
+    // FIX BUG-07: this used to fire removeImage/addImages inside
+    // updateAd's onSuccess without awaiting either — but updateAd's own
+    // onSuccess (in useAdMutations.ts) already navigates away as soon
+    // as the PATCH resolves, before the image calls had any chance to
+    // finish. One could silently fail after the user had already left
+    // the page, with no visible error and a half-applied edit. Now the
+    // image changes are awaited first (each still reports its own
+    // error via its hook's onError if it fails), and updateAd — the
+    // step that actually navigates — only runs once both have
+    // resolved, so a failure surfaces on the page the user is still
+    // looking at, and the successful case updates the ad's fields last
+    // (so the images we just confirmed are already what a subsequent
+    // getAdById would return, rather than the redirect racing ahead).
+    isSubmittingRef.current = true;
+    void submitEdit(ad);
+  }
+
+  async function submitEdit(currentAd: Ad) {
+    setIsSavingImages(true);
+
+    // T792 — build the ad-fields payload up front so the catch block
+    // below can fire updateAd.mutate() itself if the image steps fail
+    // due to a network error. Without this, an offline edit that
+    // changes both text AND images lost the text edits: addImages
+    // threw first, the catch block returned, updateAd.mutate() never
+    // ran, and useUpdateAd's own onError — the only place a draft is
+    // saved — was never invoked.
+    const payload = {
+      title:        values.title.trim(),
+      description:  values.description.trim(),
+      price:        values.price ? parseFloat(values.price) : undefined,
+      isNegotiable: values.isNegotiable,
+      condition:    values.condition || undefined,
+      city:         values.city,
+      categoryId:   values.categoryId || undefined,
+    } satisfies UpdateAdPayload;
+
+    try {
+      // Shared with the other two entity forms — see lib/reconcileImages.ts
+      // for the ordering rules (EPIC 1.5 add-before-remove, Gap #11 reorder).
+      await reconcileImages(
+        { originalImages, existingImages: values.existingImages, newFiles: values.images },
+        {
+          addImages: (files) => addImages.mutateAsync({ id: currentAd.id, files }),
+          removeImage: (imageUrl) => removeImage.mutateAsync({ id: currentAd.id, imageUrl }),
+          reorderImages: (images) => reorderImages.mutateAsync({ id: currentAd.id, images }),
+          onUploadStart: () => setUploadProgress(0),
+        },
+      );
+    } catch (err) {
+      // T792 — a network failure here means updateAd will also fail
+      // offline. Firing it anyway lets useUpdateAd's onError save the
+      // text edits as an offline draft, instead of losing them because
+      // only the image step was attempted. A non-network failure
+      // (4xx — bad image, payload mismatch) is the case where we DO
+      // need to stop: the user must fix the offending input before
+      // the ad's own fields should be saved.
+      if (isNetworkLikeFailure(parseApiError(err))) {
+        isSubmittingRef.current = false;
+        setIsSavingImages(false);
+        setUploadProgress(null);
+        updateAd.mutate(payload);
+        return;
+      }
+      // Each mutation's own onError already toasted a specific message
+      // and invalidated whatever partially succeeded; stop here so a
+      // failed image step doesn't still trigger the ad-details PATCH
+      // and navigate the user away from a half-applied edit.
+      isSubmittingRef.current = false;
+      setIsSavingImages(false);
+      setUploadProgress(null);
+      return;
+    }
+
+    // FIX: isSubmittingRef.current used to be reset to false inside a
+    // `finally` block that ran BEFORE updateAd.mutate() below — opening
+    // a re-entrancy window where the submit button was already
+    // re-enabled (isPending had dropped) while the actual PATCH call
+    // hadn't fired yet, letting a fast double-click/double-submit slip
+    // past the guard and call updateAd.mutate() more than once. The
+    // guard now only clears once the whole submit — image
+    // reconciliation AND the final updateAd call — has actually been
+    // issued.
+    setIsSavingImages(false);
+    setUploadProgress(null);
+
+    updateAd.mutate(payload);
+    isSubmittingRef.current = false;
+  }
+
+
+  function canProceedFromStep(s: number): boolean {
+    if (s === 1) {
+      // Align with computeErrors minima so "التالي" doesn't skip real validation
+      return values.title.trim().length >= 5 && values.description.trim().length >= 20;
+    }
+    if (s === 2) {
+      return Boolean(values.city.trim());
+    }
+    return true;
+  }
+
+  function goNextStep() {
+    setHasSubmitted(true);
+    if (step === 1) {
+      handleBlur('title');
+      handleBlur('description');
+    }
+    if (step === 2) {
+      handleBlur('city');
+    }
+    if (!canProceedFromStep(step)) {
+      if (step === 1) {
+        toast.error('أكمل العنوان (5 أحرف على الأقل) والوصف (20 حرفًا على الأقل)');
+      } else if (step === 2) {
+        toast.error('اختر المدينة للمتابعة');
+      }
+      return;
+    }
+    setHasSubmitted(false);
+    setStep((s) => Math.min(totalSteps, s + 1));
+    // Bring the new step into view on mobile after advancing
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  function goPrevStep() {
+    setHasSubmitted(false);
+    setStep((s) => Math.max(1, s - 1));
+  }
+
+  const formElement = (
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
+      {mode === 'create' && (
+        <AdPublisherPicker
+          mode={publisherMode}
+          storeId={publisherStoreId}
+          onChange={(m, id) => {
+            setPublisherMode(m);
+            setPublisherStoreId(id);
+          }}
+        />
+      )}
+
+      <FormDraftStatus savedAt={lastSavedAt} saving={combinedDraftSaving} saveError={combinedDraftError} onRetry={!saveError && attachmentError ? retrySaveAttachments : undefined} enabled={mode === 'create'} />
+      {mode === 'create' && savedAttachmentCount > 0 && !attachmentError && !isSavingAttachments && <p className="text-xs text-muted-foreground" role="status">تم حفظ {savedAttachmentCount} من الصور محليًا لاستعادتها دون اتصال.</p>}
+      <PublishMutationErrorNotice error={mode === 'create' ? createAd.error : updateAd.error} />
+
+      {isWizard && (
+        <div className="-mx-1 space-y-3 rounded-xl border border-border bg-card/95 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/90 sm:static sm:shadow-xs">
+          <FormSteps
+            navLabel="خطوات نشر الإعلان"
+            steps={[
+              { id: 'basics', label: 'الأساسيات', description: 'العنوان والوصف' },
+              { id: 'details', label: 'التصنيف والسعر', description: 'المدينة والفئة والسعر' },
+              { id: 'photos', label: 'الصور والنشر', description: 'الصور ومراجعة النشر' },
+            ]}
+            current={step - 1}
+            onStepClick={(index) => {
+              // Allow jumping back to completed steps only
+              if (index + 1 < step) {
+                setHasSubmitted(false);
+                setStep(index + 1);
+              }
+            }}
+          />
+          <div
+            className="h-1.5 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-valuenow={step}
+            aria-valuemin={1}
+            aria-valuemax={totalSteps}
+            aria-label="تقدم خطوات النشر"
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-all duration-300"
+              style={{ width: `${(step / totalSteps) * 100}%` }}
+            />
+          </div>
+          <p className="text-center text-xs text-muted-foreground">
+            الخطوة {step} من {totalSteps}
+          </p>
+        </div>
+      )}
+
+      {/* Basic info — wizard step 1 */}
+      <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 1 ? "hidden" : ""}`}>
+        <h2 className="font-semibold">معلومات الإعلان</h2>
+
+        <FormField label="عنوان الإعلان" htmlFor="title" required error={fieldError('title')}>
+          {/* UX-02 FIX: was maxLength={100} — backend's createAdSchema
+              (ads.validation.ts) allows title up to 200 chars, so this
+              silently blocked the last 100 chars a user was entitled to
+              type, with no error or explanation. */}
+          <Input id="title" value={values.title} maxLength={200}
+            onChange={(e) => set('title', e.target.value)}
+            onBlur={() => handleBlur('title')}
+            placeholder="مثال: سيارة تويوتا كامري 2019 نظيفة" />
+        </FormField>
+
+        {/* FIX-ADFLOW-02: counter was a second child of FormField, so the
+            auto-clone path (UX-FIX P2-11) skipped aria-invalid /
+            aria-describedby on the textarea. Move the count into `hint`
+            so the field has a single element child and screen readers
+            announce the error on focus. */}
+        <FormField
+          label="الوصف"
+          htmlFor="desc"
+          required
+          error={fieldError('description')}
+          hint={`${values.description.length}/5000`}
+        >
+          <textarea id="desc" value={values.description} maxLength={5000} rows={5}
+            onChange={(e) => set('description', e.target.value)}
+            onBlur={() => handleBlur('description')}
+            placeholder="اكتب تفاصيل الإعلان بوضوح..."
+            className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+        </FormField>
+      </div>
+
+      {/* Classification — wizard step 2 */}
+      <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 2 ? "hidden" : ""}`}>
+        <h2 className="font-semibold">التصنيف والموقع</h2>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* FIX BUG-XX: was a bare label + Select outside FormField, so
+              this field never got aria-describedby/aria-invalid wiring
+              like every sibling field in this form. categoryId has no
+              required-field validation today (not in the Errors type
+              or validate()/isFormIncomplete above), so there's no error
+              to surface yet — but FormField's auto-clone (UX-FIX P2-11)
+              still wires the a11y attributes and keeps this field
+              structurally consistent with the rest of the form. */}
+          <FormField label="الفئة" htmlFor="categoryId">
+            <Select value={values.categoryId} onValueChange={(v) => set('categoryId', v)}>
+              <SelectTrigger id="categoryId">
+                <SelectValue placeholder="اختر فئة" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories?.map((cat) => (
+                  <SelectGroup key={cat.id}>
+                    <SelectLabel>{cat.nameAr}</SelectLabel>
+                    <SelectItem value={cat.id}>{cat.nameAr}</SelectItem>
+                    {cat.children?.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>— {c.nameAr}</SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
+          </FormField>
+
+          <FormField label="المدينة" htmlFor="city" required error={fieldError('city')}>
+            <Select value={values.city} onValueChange={(v) => { set('city', v); handleBlur('city'); }}>
+              <SelectTrigger id="city">
+                <SelectValue placeholder="اختر مدينتك" />
+              </SelectTrigger>
+              <SelectContent>
+                {CITIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </FormField>
+        </div>
+
+        <p className="rounded-lg border border-primary/15 bg-primary/5 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+          <span className="font-medium text-foreground">نصيحة للظهور:</span>
+          {' '}
+          اختيار المدينة الصحيحة يساعد المشترين القريبين على إيجاد إعلانك أولًا.
+          إن أضفت موقعًا أدق لاحقًا (إحداثيات) يظهر إعلانك ضمن نطاق «قريب منك» بشكل أفضل.
+        </p>
+
+        <div className="space-y-1.5">
+          <label htmlFor="condition" className="text-sm font-medium">حالة المنتج</label>
+          <Select value={values.condition} onValueChange={(v) => set('condition', v as typeof values.condition)}>
+            <SelectTrigger id="condition">
+              <SelectValue placeholder="غير محدد" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(CONDITION_LABELS).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Pricing — wizard step 2 */}
+      <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 2 ? "hidden" : ""}`}>
+        <h2 className="font-semibold">السعر</h2>
+        <PriceInput
+          value={values.price}
+          onChange={(v) => set('price', v)}
+          isNegotiable={values.isNegotiable}
+          onNegotiableChange={(v) => set('isNegotiable', v)}
+        />
+      </div>
+
+      {/* Images — wizard step 3 */}
+      <div className={`space-y-4 rounded-xl border border-border bg-card p-4 shadow-xs ${isWizard && step !== 3 ? "hidden" : ""}`}>
+        <h2 className="font-semibold">الصور</h2>
+        <p className="text-xs text-muted-foreground">أضف صورة واحدة على الأقل لنشر الإعلان</p>
+        {/* FIX-ADFLOW-01: submit is disabled via isFormIncomplete when there
+            are zero images, so the user never reaches validate()/hasSubmitted
+            and fieldError('images') stayed invisible. Surface the same rule
+            on the last wizard step (and after any submit attempt) so the
+            disabled «نشر الإعلان» button is explained, not silent. */}
+        {(fieldError('images') ||
+          (isWizard && step === totalSteps && values.images.length === 0 && values.existingImages.length === 0)) && (
+          <p className="text-sm text-destructive" role="alert">
+            {fieldError('images') ?? 'أضف صورة واحدة على الأقل'}
+          </p>
+        )}
+        <ImageUpload
+          value={values.images}
+          existingUrls={values.existingImages}
+          maxFiles={MAX_IMAGES}
+          onChange={(files) => set('images', files)}
+          onRemoveExisting={(url) => set('existingImages', values.existingImages.filter((u) => u !== url))}
+          onReorderExisting={(reordered) => set('existingImages', reordered)}
+          uploadProgress={uploadProgress}
+        />
+
+        {/* Live card preview — last chance to catch weak title/price/photo.
+            lg+ only shows this once: the CreateFormLayout sidebar handles
+            it there (visible across all 3 steps, not just this one), so
+            this inline copy is mobile/tablet-only to avoid showing the
+            same card twice on desktop at this step. */}
+        <AdFormPreview values={values} className="pt-2 md:hidden" />
+      </div>
+
+      {/* Submit / wizard navigation — sticky on mobile for thumb reach */}
+      <div className="sticky bottom-[calc(4.25rem+env(safe-area-inset-bottom,0px))] z-40 -mx-1 border-t bg-background/95 p-3 shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur supports-[backdrop-filter]:bg-background/90 sm:static sm:bottom-auto sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Button type="button" variant="outline" onClick={handleCancel}>إلغاء</Button>
+          <div className="flex flex-wrap gap-2">
+            {isWizard && step > 1 && (
+              <Button type="button" variant="outline" onClick={goPrevStep}>
+                السابق
+              </Button>
+            )}
+            {isWizard && step < totalSteps && (
+              <Button type="button" className="min-w-[7rem] font-semibold" onClick={goNextStep}>
+                التالي
+              </Button>
+            )}
+            {(!isWizard || step === totalSteps) && (
+              <Button type="submit" className="min-w-[8rem] font-semibold" disabled={isFormIncomplete} loading={isPending} loadingText="جارٍ الحفظ…">
+                {mode === 'create' ? 'نشر الإعلان' : 'حفظ التعديلات'}
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* FIX P0-2: confirm before discarding unsaved changes — this is a
+          long form (title, description up to 5000 chars, images,
+          category) and a single accidental tap on "إلغاء" (common on
+          mobile) previously discarded everything with no way back. */}
+      <ConfirmDialog
+        open={showCancelConfirm}
+        onOpenChange={setShowCancelConfirm}
+        title="تجاهل التغييرات؟"
+        description="لديك تغييرات غير محفوظة في هذا النموذج. إذا تابعت، ستفقد كل ما أدخلته."
+        confirmLabel="تجاهل التغييرات"
+        cancelLabel="متابعة التعديل"
+        destructive
+        onConfirm={() => {
+          // FIX P1-11: an explicit "discard changes" confirmation is a
+          // clear enough signal to also drop the autosaved draft —
+          // otherwise it would silently resurrect on the next visit
+          // to /ads/create despite the user just having said no to
+          // exactly that content.
+          if (mode === 'create') clearDraftAndAttachments();
+          goBackSafely();
+        }}
+      />
+    </form>
+  );
+
+  // FIX DESKTOP-WIDTH-02: previously create-mode only (see the removed
+  // comment's reasoning — edit mode "already has a real saved ad to
+  // look at"). In practice that meant leaving the app to check, which
+  // is worse than a live preview reflecting the in-progress edit. The
+  // wizard/step-hiding above is still gated on isWizard (mode ===
+  // 'create' only) — this only extends the lg+ form+preview split
+  // itself, unrelated to the step wizard, to edit mode's flat form too.
+  return <CreateFormLayout form={formElement} preview={<AdFormPreview values={values} />} />;
+}

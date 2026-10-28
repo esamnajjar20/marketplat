@@ -1,0 +1,47 @@
+# ═══════════════════════════════════════════════════════════════════
+# Cloudflare Workers Assets — Custom Headers
+# https://developers.cloudflare.com/workers/static-assets/headers/
+#
+# Why this file:
+# - Workers Assets default cache-control is "max-age=0, must-revalidate"
+# - Content-hashed assets under /_next/static/* are safe to cache 1 year
+# - Without this, every page load re-downloads all JS/CSS chunks
+# ═══════════════════════════════════════════════════════════════════
+
+# Next.js content-hashed assets — immutable, 1 year
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Next.js image optimizer
+/_next/image*
+  Cache-Control: public, max-age=60, s-maxage=60
+
+# Fonts — immutable, 1 year
+/*.woff
+  Cache-Control: public, max-age=31536000, immutable
+/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+/*.ttf
+  Cache-Control: public, max-age=31536000, immutable
+
+# Favicon + PWA manifest — align with Next.js config (browser 1 hour)
+/favicon.ico
+  Cache-Control: public, max-age=3600
+/manifest.webmanifest
+  Cache-Control: public, max-age=3600
+
+# SEO files — 1 hour
+/robots.txt
+  Cache-Control: public, max-age=3600
+/sitemap.xml
+  Cache-Control: public, max-age=3600
+
+# Service Worker — never cache (must always fetch fresh for updates)
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# Cache policy (SW imports) — 1 hour
+/cache-policy.js
+  Cache-Control: public, max-age=3600
+/cache-contract.js
+  Cache-Control: public, max-age=3600

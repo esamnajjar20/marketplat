@@ -1,0 +1,90 @@
+/**
+ * SEO helpers — generate consistent Metadata objects for Next.js pages.
+ *
+ * Usage:
+ *   export const metadata = buildMetadata({ title: 'My Page' });
+ *   export const metadata = buildAdMetadata(ad);
+ */
+import type { Metadata } from 'next';
+import { APP_NAME, APP_URL } from './constants';
+
+/**
+ * Default social-share image (1200×630) served from public/. Used whenever a
+ * page has no image of its own, so WhatsApp/Facebook/X previews never render
+ * as a bare text card. Relative on purpose: `metadataBase` in the root layout
+ * resolves it to an absolute URL.
+ */
+export const DEFAULT_OG_IMAGE = '/og-default.png';
+
+interface BaseMetadataOptions {
+  title: string;
+  description?: string;
+  path?: string;
+  noIndex?: boolean;
+  image?: string;
+}
+
+/** Generic metadata builder used across non-entity pages. */
+export function buildMetadata({
+  title,
+  description,
+  path = '',
+  noIndex = false,
+  image,
+}: BaseMetadataOptions): Metadata {
+  const url = `${APP_URL}${path}`;
+  const ogImages = image
+    ? [{ url: image }]
+    : [{ url: DEFAULT_OG_IMAGE, width: 1200, height: 630, alt: APP_NAME }];
+
+  return {
+    title,
+    description,
+    alternates: { canonical: url },
+    robots: noIndex
+      ? { index: false, follow: false }
+      : { index: true, follow: true },
+    openGraph: {
+      title:       `${title} | ${APP_NAME}`,
+      description,
+      url,
+      siteName:    APP_NAME,
+      type:        'website',
+      images:      ogImages,
+    },
+    twitter: {
+      card:        'summary_large_image',
+      title:       `${title} | ${APP_NAME}`,
+      description,
+      images:      [image ?? DEFAULT_OG_IMAGE],
+    },
+  };
+}
+
+/** Build rich OG metadata for an ad detail page. */
+export function buildAdMetadata(ad: {
+  id: string;
+  title: string;
+  description: string;
+  images: string[];
+  price: string | null;
+  city: string;
+}): Metadata {
+  return buildMetadata({
+    title:       ad.title,
+    description: ad.description.slice(0, 160),
+    path:        `/ads/${ad.id}`,
+    image:       ad.images[0],
+  });
+}
+
+export function buildCategoryMetadata(category: {
+  slug: string;
+  name: string;
+}): Metadata {
+  return buildMetadata({
+    title:       `${category.name} — ${APP_NAME}`,
+    description: `Browse the best ${category.name} listings on ${APP_NAME}.`,
+    path:        `/categories/${category.slug}`,
+  });
+}

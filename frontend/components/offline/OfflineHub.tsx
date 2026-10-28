@@ -1,0 +1,728 @@
+'use client';
+import { reportBackgroundFailure } from '../../lib/backgroundTask';
+
+/**
+ * OFFLINE-HUB-01 — مركز الأوفلاين: one page for everything offline.
+ *
+ * Tabs: مساحة · محفوظات · دفع · جاهزية · مزامنة · مسودات.
+ *
+ * Deliberate design choices:
+ *  - Tab bodies are STATICALLY imported, never next/dynamic (SW warming).
+ *  - Tab switching is client state + history.replaceState, NOT router.push.
+ *  - Signed-out visitors only get GUEST_OFFLINE_TABS.
+ *
+ * UX +2:
+ *  - حالة الاتصال والطابور تظهر فقط داخل تبويب المزامنة
+ *  - Badges على التبويبات
+ *  - تسميات أوضح للمستخدم
+ *  - تبويبات sticky بارتفاع لمس أفضل
+ */
+
+import { useCallback, useEffect, useState } from 'react';
+import {
+  Download,
+  FileText,
+  RefreshCw,
+  HardDrive,
+  Flame,
+  CreditCard,
+  Wifi,
+  WifiOff,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useAuthStore, selectUser, selectIsHydrated } from '@/store/auth.store';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
+import { usePendingDraftsCount } from '@/hooks/usePendingDraftsCount';
+import { useQueuedRequestCount } from '@/hooks/useQueuedRequestCount';
+import { getQueuedRequestCounts } from '@/lib/offlineQueue';
+import { requestQueueReplay } from '@/lib/offlineQueue';
+import {
+  getWifiOnlySync,
+  setWifiOnlySync,
+  shouldAutoSyncNow,
+  describeNetworkForSync,
+} from '@/lib/offlineHubPrefs';
+import {
+  listOfflineActivity,
+  logOfflineActivity,
+  clearOfflineActivity,
+  formatActivityTime,
+  getActivityKindLabel,
+  type OfflineActivityEntry,
+} from '@/lib/offlineActivityLog';
+import { Button } from '@/components/shared/ui/Button';
+import { SavedOfflineAdsPageClient } from '@/components/ads/SavedOfflineAdsPageClient';
+import { DownloadsPageClient } from '@/components/downloads/DownloadsPageClient';
+import { DraftsCenterClient } from '@/components/settings/DraftsCenterClient';
+import { SyncCenterClient } from '@/components/settings/SyncCenterClient';
+import { StorageManagementClient } from '@/components/settings/StorageManagementClient';
+import { OfflineControlClient } from '@/components/settings/OfflineControlClient';
+import { SavedPaymentsPageClient } from '@/components/payments/SavedPaymentsPageClient';
+import {
+  DEFAULT_OFFLINE_TAB,
+  resolveOfflineTab,
+  visibleOfflineTabs,
+  type OfflineTab,
+} from '@/lib/offlineHubTabs';
+
+const TAB_META: Record<
+  OfflineTab,
+  { label: string; shortLabel: string; Icon: typeof Download }
+> = {
+  saved: { label: 'محفوظاتي', shortLabel: 'محفوظات', Icon: Download },
+  drafts: { label: 'مسودات', shortLabel: 'مسودات', Icon: FileText },
+  sync: { label: 'المزامنة', shortLabel: 'مزامنة', Icon: RefreshCw },
+  storage: { label: 'المساحة', shortLabel: 'مساحة', Icon: HardDrive },
+  payments: { label: 'الدفع والبطاقات', shortLabel: 'دفع', Icon: CreditCard },
+  warming: { label: 'جاهزية بدون نت', shortLabel: 'جاهزية', Icon: Flame },
+};
+
+function Intro({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-4">
+      <h2 className="text-base font-extrabold tracking-tight text-foreground sm:text-lg">{title}</h2>
+      <p className="mt-1 max-w-xl text-xs leading-relaxed text-muted-foreground sm:text-sm">{children}</p>
+    </div>
+  );
+}
+
+type SyncTabProps = {
+  isSignedIn: boolean;
+  isOnline: boolean;
+  pendingQueue: number;
+  failedQueue: number;
+  draftsCount: number;
+  wifiOnly: boolean;
+  networkLabel: string;
+  activity: OfflineActivityEntry[];
+  retrying: boolean;
+  onWifiOnlyChange: (value: boolean) => void;
+  onGoDrafts: () => void;
+  onRetryAll: () => void;
+  onClearActivity: () => void;
+};
+
+function TabBody({ tab, syncProps }: { tab: OfflineTab; syncProps: SyncTabProps }) {
+  switch (tab) {
+    case 'saved':
+      return (
+        <div className="space-y-8">
+          <section>
+            <Intro title="المحفوظات المتاحة دون اتصال">
+              الإعلانات والمنتجات والخدمات والمتاجر التي حفظتها يدويًا على هذا الجهاز.
+            </Intro>
+            <SavedOfflineAdsPageClient />
+          </section>
+          <section>
+            <Intro title="كتالوجات المتاجر المحمّلة">
+              تنزيلات مستقلة عن المحفوظات اليدوية، وتبقى متاحة للتصفح دون اتصال.
+            </Intro>
+            <DownloadsPageClient />
+          </section>
+        </div>
+      );
+    case 'drafts':
+      return (
+        <section>
+          <Intro title="مسوداتك على هذا الجهاز">
+            كل ما بدأته ولم يُنشر بعد — يبقى هنا ويعمل بدون نت. أكملها ثم أرسلها عند الاتصال.
+          </Intro>
+          <DraftsCenterClient />
+        </section>
+      );
+
+    case 'sync':
+      return (
+        <SyncTabBody
+          isSignedIn={syncProps.isSignedIn}
+          isOnline={syncProps.isOnline}
+          pendingQueue={syncProps.pendingQueue}
+          failedQueue={syncProps.failedQueue}
+          draftsCount={syncProps.draftsCount}
+          wifiOnly={syncProps.wifiOnly}
+          networkLabel={syncProps.networkLabel}
+          activity={syncProps.activity}
+          retrying={syncProps.retrying}
+          onWifiOnlyChange={syncProps.onWifiOnlyChange}
+          onGoDrafts={syncProps.onGoDrafts}
+          onRetryAll={syncProps.onRetryAll}
+          onClearActivity={syncProps.onClearActivity}
+        />
+      );
+    case 'payments':
+      return (
+        <section>
+          <Intro title="الدفع والبطاقات المحفوظة">
+            جهات الدفع وبطاقات النت المحفوظة على جهازك. ابحث وانسخ واستخدم USSD عند توفره، حتى بدون إنترنت.
+          </Intro>
+          <SavedPaymentsPageClient embedded />
+        </section>
+      );
+    case 'storage':
+      return (
+        <section>
+          <Intro title="مساحة التخزين">
+            راقب ما يستهلكه التطبيق على جهازك، وحرّر مساحة دون حذف محفوظاتك اليدوية.
+          </Intro>
+          <StorageManagementClient />
+        </section>
+      );
+    case 'warming':
+    default:
+      return (
+        <section>
+          <Intro title="جاهزية التطبيق بدون نت">
+            اختر مستوى التجهيز مسبقاً حتى تفتح الصفحات الأساسية عند انقطاع الاتصال. المحفوظات
+            والتنزيلات اليدوية لا تُمس بهذه الإعدادات.
+          </Intro>
+          <OfflineControlClient />
+        </section>
+      );
+  }
+}
+
+
+function WifiOnlyToggle({
+  enabled,
+  onChange,
+  networkLabel,
+}: {
+  enabled: boolean;
+  onChange: (v: boolean) => void;
+  networkLabel: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#EAE3D6] bg-white p-3.5 dark:border-border dark:bg-card">
+      <div className="min-w-0 flex-1 text-start">
+        <p className="text-sm font-extrabold text-foreground">مزامنة تلقائية على Wi‑Fi فقط</p>
+        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+          عند التفعيل لن يُرسل المعلّق على بيانات الجوال. شبكتك الآن:{' '}
+          <span className="font-semibold text-foreground">{networkLabel}</span>
+        </p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        onClick={() => onChange(!enabled)}
+        className={cn(
+          'relative h-7 w-12 shrink-0 rounded-full transition-colors',
+          enabled ? 'bg-[#397F56]' : 'bg-[#E8E2D6]',
+        )}
+      >
+        <span
+          className={cn(
+            'absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-[inset-inline-start] duration-200',
+            enabled ? 'inset-inline-start-5' : 'inset-inline-start-0.5',
+          )}
+        />
+        <span className="sr-only">مزامنة على Wi‑Fi فقط</span>
+      </button>
+    </div>
+  );
+}
+
+function ActivityPanel({
+  items,
+  onClear,
+}: {
+  items: OfflineActivityEntry[];
+  onClear: () => void;
+}) {
+  if (items.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-[#EAE3D6] bg-white p-3.5 dark:border-border dark:bg-card">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-sm font-extrabold text-foreground">آخر النشاط</p>
+        <button
+          type="button"
+          onClick={onClear}
+          className="inline-flex h-8 items-center rounded-full border border-[#EAE3D6] px-3 text-xs font-bold text-[#1F4D33] dark:border-border dark:text-primary"
+        >
+          مسح السجل
+        </button>
+      </div>
+      <ul className="space-y-2">
+        {items.map((e) => (
+          <li key={e.id} className="flex items-start justify-between gap-2 text-xs">
+            <div className="min-w-0">
+              <span className="font-medium text-foreground">{getActivityKindLabel(e.kind)}</span>
+              <span className="text-muted-foreground"> — {e.message}</span>
+            </div>
+            <time className="shrink-0 tabular-nums text-muted-foreground" dateTime={new Date(e.at).toISOString()}>
+              {formatActivityTime(e.at)}
+            </time>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function StatusHero({
+  isOnline,
+  pendingQueue,
+  failedQueue,
+  draftsCount,
+  isSignedIn,
+  onGoDrafts,
+  onRetryAll,
+  retrying,
+}: {
+  isOnline: boolean;
+  pendingQueue: number;
+  failedQueue: number;
+  draftsCount: number;
+  isSignedIn: boolean;
+  onGoDrafts: () => void;
+  onRetryAll: () => void;
+  retrying: boolean;
+}) {
+  const needsAttention = failedQueue > 0 || pendingQueue > 0 || draftsCount > 0;
+
+  let headline: string;
+  let detail: string;
+  if (!isOnline) {
+    headline = 'أنت غير متصل حالياً';
+    detail = needsAttention
+      ? 'ما حفظته أو أعددته للإرسال سيُحاول عند عودة الإنترنت.'
+      : 'يمكنك تصفح المحفوظات والصفحات المُجهَّزة مسبقاً.';
+  } else if (failedQueue > 0) {
+    headline = `${failedQueue} عملية تحتاج انتباهك`;
+    detail = 'بعض الإرسالات فشلت. يمكنك إعادة المحاولة أو تعديل المسودة.';
+  } else if (pendingQueue > 0) {
+    headline = `${pendingQueue} بانتظار الإرسال`;
+    detail = 'الاتصال متاح — يمكنك إرسال المعلّق الآن.';
+  } else if (draftsCount > 0) {
+    headline = `${draftsCount} مسودة غير مكتملة`;
+    detail = 'أكمل المسودات من تبويب المسودات ثم انشرها.';
+  } else {
+    headline = 'كل شيء مُزامَن';
+    detail = isSignedIn
+      ? 'لا يوجد شيء بانتظار الإرسال. يمكنك متابعة العمل، وسنوضح أي تغيير يحتاج مزامنة.'
+      : 'تصفح المحفوظات أو جهّز التطبيق للعمل بدون نت.';
+  }
+
+  return (
+    <div
+      className={cn(
+        'rounded-2xl border p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)]',
+        !isOnline && 'border-warning/35 bg-warning/[0.06]',
+        isOnline && failedQueue > 0 && 'border-destructive/30 bg-destructive/[0.04]',
+        isOnline && failedQueue === 0 && pendingQueue > 0 && 'border-[#CFE0D5] bg-[#E8F1EC] dark:border-primary/25 dark:bg-primary/10',
+        isOnline && failedQueue === 0 && pendingQueue === 0 && 'border-[#EAE3D6] bg-white dark:border-border dark:bg-card',
+      )}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="flex flex-wrap items-center gap-2">
+            {isOnline ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-success/15 px-2 py-0.5 text-2xs font-semibold text-success dark:text-success">
+                <Wifi className="h-3.5 w-3.5" aria-hidden />
+                متصل
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-2xs font-semibold text-warning-strong dark:text-warning">
+                <WifiOff className="h-3.5 w-3.5" aria-hidden />
+                بدون نت
+              </span>
+            )}
+            {isOnline && failedQueue === 0 && pendingQueue === 0 && draftsCount === 0 && (
+              <CheckCircle2 className="h-4 w-4 text-success dark:text-success" aria-hidden />
+            )}
+            {failedQueue > 0 && (
+              <AlertCircle className="h-4 w-4 text-destructive" aria-hidden />
+            )}
+          </div>
+          <p className="text-base font-semibold tracking-tight">{headline}</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">{detail}</p>
+
+          {isSignedIn && (pendingQueue > 0 || failedQueue > 0 || draftsCount > 0) && (
+            <ul className="mt-2 flex flex-wrap gap-2 text-2xs text-muted-foreground sm:text-xs">
+              {pendingQueue > 0 && (
+                <li className="rounded-md bg-muted/80 px-2 py-1">معلّق: {pendingQueue}</li>
+              )}
+              {failedQueue > 0 && (
+                <li className="rounded-md bg-destructive/10 px-2 py-1 text-destructive">
+                  فشل: {failedQueue}
+                </li>
+              )}
+              {draftsCount > 0 && (
+                <li className="rounded-md bg-muted/80 px-2 py-1">مسودات: {draftsCount}</li>
+              )}
+            </ul>
+          )}
+        </div>
+
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[10rem]">
+          {isOnline && pendingQueue > 0 && (
+            <Button
+              className="min-h-11 w-full rounded-full bg-[#397F56] font-bold text-white hover:bg-[#397F56]/90"
+              onClick={onRetryAll}
+              loading={retrying}
+              loadingText="جاري الإرسال…"
+            >
+              إرسال المعلّق الآن
+            </Button>
+          )}
+          {isOnline && (pendingQueue > 0 || draftsCount > 0) && (
+            <Button
+              variant="outline"
+              className="min-h-11 w-full rounded-full border-[#CFE0D5] bg-white font-bold text-[#1F4D33] dark:border-border"
+              onClick={onGoDrafts}
+            >
+              عرض المسودات
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SyncTabBody({
+  isSignedIn,
+  isOnline,
+  pendingQueue,
+  failedQueue,
+  draftsCount,
+  wifiOnly,
+  networkLabel,
+  activity,
+  retrying,
+  onWifiOnlyChange,
+  onGoDrafts,
+  onRetryAll,
+  onClearActivity,
+}: SyncTabProps) {
+  return (
+    <div className="space-y-5">
+      {isSignedIn && (
+        <WifiOnlyToggle
+          enabled={wifiOnly}
+          networkLabel={networkLabel}
+          onChange={onWifiOnlyChange}
+        />
+      )}
+      <StatusHero
+        isOnline={isOnline}
+        pendingQueue={isSignedIn ? pendingQueue : 0}
+        failedQueue={isSignedIn ? failedQueue : 0}
+        draftsCount={isSignedIn ? draftsCount : 0}
+        isSignedIn={isSignedIn}
+        onGoDrafts={onGoDrafts}
+        onRetryAll={onRetryAll}
+        retrying={retrying}
+      />
+      <ActivityPanel items={activity} onClear={onClearActivity} />
+      {isSignedIn ? (
+        <SyncCenterClient />
+      ) : (
+        <div className="rounded-2xl border border-dashed border-border/70 bg-muted/20 px-4 py-6 text-center" role="status" aria-live="polite">
+          <p className="text-sm font-medium">المزامنة متاحة بعد تسجيل الدخول</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            لن نعرض أو نقرأ طابور الإرسال أو المسودات الخاصة بأي حساب من جلسة ضيف.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function TabBadge({ count, tone = 'default', label }: { count: number; tone?: 'default' | 'danger'; label: string }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className={cn(
+        'ms-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-extrabold tabular-nums',
+        tone === 'danger'
+          ? 'bg-destructive text-destructive-foreground'
+          : 'bg-[#397F56] text-white',
+        tone === 'default' && 'group-data-[selected=false]:bg-[#E8F1EC] group-data-[selected=false]:text-[#1F4D33]',
+      )}
+    >
+      <span aria-hidden="true">{count > 99 ? '99+' : count}</span>
+      <span className="sr-only">{label}: {count}</span>
+    </span>
+  );
+}
+
+export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
+  const user = useAuthStore(selectUser);
+  const isHydrated = useAuthStore(selectIsHydrated);
+  const isSignedIn = user != null;
+  const isOnline = useOnlineStatus();
+  const draftsCount = usePendingDraftsCount(user?.id);
+  const pendingQueue = useQueuedRequestCount();
+  const [failedQueue, setFailedQueue] = useState(0);
+  const [retrying, setRetrying] = useState(false);
+  const [wifiOnly, setWifiOnly] = useState(false);
+  const [activity, setActivity] = useState<OfflineActivityEntry[]>([]);
+  const [networkLabel, setNetworkLabel] = useState('—');
+
+  const [requested, setRequested] = useState<OfflineTab>(initialTab ?? DEFAULT_OFFLINE_TAB);
+
+  useEffect(() => {
+    if (initialTab) setRequested(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
+    setWifiOnly(getWifiOnlySync());
+    setActivity(listOfflineActivity(8));
+    setNetworkLabel(describeNetworkForSync());
+    // analytics soft (optional)
+    function onPrefs() {
+      setWifiOnly(getWifiOnlySync());
+        setNetworkLabel(describeNetworkForSync());
+    }
+    function onActivity() {
+      setActivity(listOfflineActivity(8));
+    }
+    window.addEventListener('offline-hub:prefs-changed', onPrefs);
+    window.addEventListener('offline-hub:activity', onActivity);
+    const unsubscribeNetwork = subscribeNetworkLifecycle((event) => {
+      if (event.type === 'online' || event.type === 'offline' || event.type === 'connection-change') onPrefs();
+    });
+    return () => {
+      window.removeEventListener('offline-hub:prefs-changed', onPrefs);
+      window.removeEventListener('offline-hub:activity', onActivity);
+      unsubscribeNetwork();
+    };
+  }, [initialTab]);
+
+  useEffect(() => {
+    let cancelled = false;
+    function refreshFailed() {
+      getQueuedRequestCounts()
+        .then((c) => {
+          if (!cancelled) setFailedQueue(c.failed);
+        })
+        .catch((error) => reportBackgroundFailure('frontend/components/offline/OfflineHub.tsx', error));
+    }
+    refreshFailed();
+    function onSwMessage(event: MessageEvent) {
+      if (event.data?.type === 'QUEUE_REPLAYED') refreshFailed();
+    }
+    window.addEventListener('offline-queue:queued', refreshFailed);
+    const unsubscribeNetwork = subscribeNetworkLifecycle((event) => {
+      if (event.type === 'online') refreshFailed();
+    });
+    navigator.serviceWorker?.addEventListener('message', onSwMessage);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('offline-queue:queued', refreshFailed);
+      unsubscribeNetwork();
+      navigator.serviceWorker?.removeEventListener('message', onSwMessage);
+    };
+  }, []);
+
+  const tabs = visibleOfflineTabs(isSignedIn);
+  const active: OfflineTab =
+    tabs.includes(requested) || !isHydrated ? requested : (tabs[0] ?? DEFAULT_OFFLINE_TAB);
+
+  const select = useCallback((tab: OfflineTab) => {
+    setRequested(tab);
+    try {
+      const url = new URL(window.location.href);
+      url.pathname = '/offline';
+      url.searchParams.set('tab', tab);
+      window.history.replaceState(window.history.state, '', url.toString());
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    function onPop() {
+      const t = resolveOfflineTab(window.location.search, window.location.pathname);
+      if (t) setRequested(t);
+    }
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const onPanelClickCapture = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+        return;
+      }
+      const a = (e.target as HTMLElement).closest?.('a');
+      if (!a) return;
+      try {
+        const url = new URL(a.href, window.location.href);
+        if (url.origin !== window.location.origin || url.pathname !== '/offline') return;
+        const t = resolveOfflineTab(url.search, url.pathname);
+        if (!t) return;
+        e.preventDefault();
+        e.stopPropagation();
+        select(t);
+        window.scrollTo({ top: 0 });
+      } catch {
+        /* ignore */
+      }
+    },
+    [select],
+  );
+
+  async function onRetryAll() {
+    setRetrying(true);
+    try {
+      logOfflineActivity('queue_retry', 'طلب إعادة إرسال المعلّق يدوياً');
+      await requestQueueReplay();
+    } catch {
+      logOfflineActivity('sync_fail', 'فشلت إعادة الإرسال');
+    } finally {
+      setRetrying(false);
+      getQueuedRequestCounts()
+        .then((c) => setFailedQueue(c.failed))
+        .catch((error) => reportBackgroundFailure('frontend/components/offline/OfflineHub.tsx', error));
+      setActivity(listOfflineActivity(8));
+    }
+  }
+
+  // ترتيب التبويبات كما في التصميم المرجعي
+  const orderedTabs = (['saved', 'drafts', 'sync', 'storage', 'payments', 'warming'] as const).filter(
+    (tab) => tabs.includes(tab),
+  );
+
+  return (
+    <section
+      aria-label="مركز الأوفلاين"
+      className="mx-auto w-full max-w-6xl bg-[#FBF9F4] text-start dark:bg-background"
+      dir="rtl"
+    >
+      <header className="mb-3 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl font-extrabold tracking-tight sm:text-2xl">مركز الأوفلاين</h1>
+          <p className="mt-0.5 max-w-3xl text-xs leading-relaxed text-muted-foreground sm:text-sm">
+            كل ما يعمل على جهازك بدون إنترنت في مكان واحد.
+          </p>
+        </div>
+        {isOnline ? (
+          <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#E8F1EC] px-3 text-xs font-bold text-[#1F4D33]">
+            <Wifi className="h-3.5 w-3.5" aria-hidden />
+            متصل
+          </span>
+        ) : (
+          <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-amber-50 px-3 text-xs font-bold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+            <WifiOff className="h-3.5 w-3.5" aria-hidden />
+            بدون نت
+          </span>
+        )}
+      </header>
+
+      <div
+        role="tablist"
+        aria-label="أقسام مركز الأوفلاين"
+        className={cn(
+          'sticky top-2 z-20 -mx-1 mb-5 flex snap-x snap-mandatory gap-0.5 overflow-x-auto overscroll-x-contain border-b border-[#EAE3D6] bg-[#FBF9F4]/95 dark:border-border dark:bg-background/95',
+          '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+        )}
+      >
+        {orderedTabs.map((tab) => {
+          const { label, shortLabel, Icon } = TAB_META[tab];
+          const selected = tab === active;
+          const badge =
+            tab === 'drafts'
+              ? draftsCount
+              : tab === 'sync'
+                ? pendingQueue + failedQueue
+                : 0;
+          const badgeTone = tab === 'sync' && failedQueue > 0 ? 'danger' : 'default';
+          return (
+            <button
+              key={tab}
+              type="button"
+              role="tab"
+              id={`offline-tab-${tab}`}
+              aria-selected={selected}
+              aria-controls={`offline-panel-${tab}`}
+              data-selected={selected}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => select(tab)}
+              onKeyDown={(event) => {
+                if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+                event.preventDefault();
+                const currentIndex = tabs.indexOf(tab);
+                const isRtl = document.documentElement.dir === 'rtl' || getComputedStyle(event.currentTarget).direction === 'rtl';
+                let nextIndex = currentIndex;
+                if (event.key === 'Home') nextIndex = 0;
+                else if (event.key === 'End') nextIndex = tabs.length - 1;
+                else if (event.key === 'ArrowRight') nextIndex = (currentIndex + (isRtl ? -1 : 1) + tabs.length) % tabs.length;
+                else if (event.key === 'ArrowLeft') nextIndex = (currentIndex + (isRtl ? 1 : -1) + tabs.length) % tabs.length;
+                const nextTab = tabs[nextIndex];
+                if (nextTab) {
+                  select(nextTab);
+                  window.requestAnimationFrame(() => document.getElementById(`offline-tab-${nextTab}`)?.focus());
+                }
+              }}
+              className={cn(
+                'group flex min-h-10 snap-start shrink-0 items-center justify-center gap-1.5 border-b-2 px-3 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                selected
+                  ? 'border-[#397F56] font-extrabold text-[#1F4D33] dark:border-primary dark:text-primary'
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
+              )}
+            >
+              <Icon className="h-4 w-4 shrink-0" aria-hidden={true} />
+              <span className="sm:hidden">{shortLabel}</span>
+              <span className="hidden sm:inline">{label}</span>
+              {isSignedIn && (
+                <TabBadge
+                  count={badge}
+                  tone={badgeTone}
+                  label={tab === 'drafts' ? 'مسودات غير مكتملة' : failedQueue > 0 ? 'عمليات مزامنة معلّقة أو فاشلة' : 'عمليات بانتظار المزامنة'}
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div
+        role="tabpanel"
+        id={`offline-panel-${active}`}
+        className="scroll-mt-24"
+        aria-labelledby={`offline-tab-${active}`}
+        onClickCapture={onPanelClickCapture}
+      >
+        <TabBody
+          tab={active}
+          syncProps={{
+            isSignedIn,
+            isOnline,
+            pendingQueue,
+            failedQueue,
+            draftsCount,
+            wifiOnly,
+            networkLabel,
+            activity,
+            retrying,
+            onWifiOnlyChange: (v) => {
+              setWifiOnlySync(v);
+              setWifiOnly(v);
+              if (v && !shouldAutoSyncNow()) {
+                logOfflineActivity(
+                  'sync_skipped_wifi',
+                  'المزامنة التلقائية مؤجلة حتى Wi‑Fi (الإعداد مفعّل)',
+                );
+                setActivity(listOfflineActivity(8));
+              }
+            },
+            onGoDrafts: () => select('drafts'),
+            onRetryAll: () => void onRetryAll(),
+            onClearActivity: () => {
+              clearOfflineActivity();
+              setActivity([]);
+            },
+          }}
+        />
+      </div>
+    </section>
+  );
+}

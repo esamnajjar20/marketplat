@@ -1,0 +1,232 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+let mode: 'off' | 'fast' | 'full' = 'fast';
+vi.mock('@/lib/warmingPreferences', () => ({ getWarmingMode: () => mode }));
+vi.mock('@/lib/connectionQuality', () => ({
+  getAverageRequestMs: () => null,
+  getConsecutiveFailures: () => 0,
+  getConnectionQuality: () => 'unknown',
+}));
+vi.mock('../../../lib/warmingPreferences', () => ({ getWarmingMode: () => mode }));
+vi.mock('../../../lib/connectionQuality', () => ({
+  getAverageRequestMs: () => null,
+  getConsecutiveFailures: () => 0,
+  getConnectionQuality: () => 'unknown',
+}));
+
+let networkPolicy = {
+  tier: 'fast' as string,
+  quality: 'unknown',
+  saveData: false,
+  effectiveType: '4g',
+  downlinkMbps: 10,
+  rttMs: null,
+  consecutiveFailures: 0,
+  allowPrefetch: true,
+  allowBackgroundWarming: true,
+  allowBackgroundSync: true,
+  allowOriginalImages: true,
+  pageSizeMultiplier: 1,
+  maxPrefetchDistancePx: 800,
+  maxPrefetchConcurrency: 2,
+  queueConcurrency: 1,
+  uploadConcurrency: 2,
+  uploadTimeoutMs: 30_000,
+  uploadRetryDelaysMs: [1000],
+  requestTimeoutMs: 15_000,
+};
+vi.mock('../../../lib/networkPolicy', () => ({
+  getNetworkPolicy: () => {
+    // Keep the mock faithful to the real policy: the planner consumes the
+    // resolved network policy, not navigator.connection directly.
+    const connection = (globalThis.navigator as Navigator & { connection?: { effectiveType?: string; downlink?: number } }).connection;
+    if (!connection) return networkPolicy;
+    const verySlow = connection.effectiveType === '2g' || connection.effectiveType === 'slow-2g' ||
+      (typeof connection.downlink === 'number' && connection.downlink < 0.4);
+    const slow = !verySlow && connection.effectiveType === '3g';
+    if (!verySlow && !slow) return networkPolicy;
+    return {
+      ...networkPolicy,
+      tier: verySlow ? 'very-slow' : 'slow',
+      queueConcurrency: 1,
+      requestTimeoutMs: 25_000,
+    };
+  },
+}));
+
+import {
+  getWarmingPlan,
+  selectRoutesByPlan,
+  ROUTE_BUDGETS,
+  PINNED_OFFLINE_ROUTES,
+} from '../../../lib/offlineWarmingPlanner';
+import { CORE_ROUTES, PERSONAL_SHELL_ROUTES_ESSENTIAL } from '../../../lib/offlineRouteShells';
+
+describe('offline warming route budgets (FIX WARM-LIGHT-01)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    mode = 'fast';
+    networkPolicy = {
+      ...networkPolicy,
+      tier: 'fast',
+      saveData: false,
+      allowBackgroundWarming: true,
+      effectiveType: '4g',
+      downlinkMbps: 10,
+    };
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true },
+      configurable: true,
+    });
+  });
+
+  it("'fast' warms a bounded number of routes per list, not the whole app", () => {
+    const plan = getWarmingPlan();
+    const pub = selectRoutesByPlan(plan, [...CORE_ROUTES], 'public');
+    const per = selectRoutesByPlan(plan, [...PERSONAL_SHELL_ROUTES_ESSENTIAL], 'personal');
+    // WARM-PINNED-OFFLINE-01: pinned offline/sync/storage routes are extra to the budget.
+    const pinnedPub = PINNED_OFFLINE_ROUTES.filter((r) => CORE_ROUTES.includes(r as never)).length;
+    const pinnedPer = PINNED_OFFLINE_ROUTES.filter((r) =>
+      PERSONAL_SHELL_ROUTES_ESSENTIAL.includes(r as never),
+    ).length;
+    expect(pub).toHaveLength(ROUTE_BUDGETS.core.public + pinnedPub);
+    expect(per).toHaveLength(ROUTE_BUDGETS.core.personal + pinnedPer);
+    expect(pub.length + per.length).toBeLessThanOrEqual(30);
+    // essentials survive the cut
+    expect(pub).toEqual(expect.arrayContaining(['/offline', '/', '/ads', '/shared']));
+    expect(per).toEqual(expect.arrayContaining(['/messages', '/ads/create']));
+  });
+
+  it('keeps baseline marketplace routes in the first public warming tranche despite usage signals', () => {
+    mode = 'fast';
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true, connection: { effectiveType: '2g', downlink: 0.05 } },
+      configurable: true,
+    });
+    localStorage.setItem('marketplat:navigation-usage:v1', JSON.stringify({
+      '/about': { count: 12, lastUsed: Date.now() },
+      '/contact': { count: 12, lastUsed: Date.now() },
+    }));
+    const routes = selectRoutesByPlan(getWarmingPlan(), [...CORE_ROUTES], 'public');
+    expect(routes.slice(0, 8)).toEqual(['/offline', '/', '/ads', '/products', '/search', '/requests', '/stores', '/services']);
+  });
+
+  it("the merged offline hub ('/offline') is always selected, first, on every tier", () => {
+    for (const m of ['fast', 'full'] as const) {
+      mode = m;
+      for (const conn of [undefined, { effectiveType: '2g' }, { effectiveType: '3g' }]) {
+        Object.defineProperty(globalThis, 'navigator', {
+          value: { onLine: true, connection: conn },
+          configurable: true,
+        });
+        const pub = selectRoutesByPlan(getWarmingPlan(), [...CORE_ROUTES], 'public');
+        expect(pub[0]).toBe('/offline');
+      }
+    }
+  });
+
+  it('routes that now redirect into the hub are never warmed (they would fail atomically)', () => {
+    const redirecting = ['/saved-ads', '/downloads', '/settings/sync', '/settings/storage', '/settings/offline', '/settings/drafts'];
+    for (const r of redirecting) {
+      expect(CORE_ROUTES).not.toContain(r);
+      expect(PERSONAL_SHELL_ROUTES_ESSENTIAL).not.toContain(r);
+    }
+  });
+
+  it("'full' remains bounded by the adaptive budget when connection quality is unknown", () => {
+    mode = 'full';
+    // Force unknown tier so adaptive maxRouteCount stays at 8 (not full/fast 60)
+    networkPolicy = {
+      ...networkPolicy,
+      tier: 'unknown',
+      allowBackgroundWarming: true,
+      saveData: false,
+    };
+    const plan = getWarmingPlan();
+    // PINNED_OFFLINE_ROUTES (/offline) sits outside the adaptive budget
+    expect(selectRoutesByPlan(plan, [...CORE_ROUTES], 'public').length).toBeLessThanOrEqual(9);
+    expect(selectRoutesByPlan(plan, [...PERSONAL_SHELL_ROUTES_ESSENTIAL], 'personal').length).toBeLessThanOrEqual(3);
+  });
+
+  it("'off' selects nothing", () => {
+    mode = 'off';
+    expect(selectRoutesByPlan(getWarmingPlan(), [...CORE_ROUTES])).toEqual([]);
+  });
+
+  it("on a normal link, the plan follows the user's mode (4g / no connection API)", () => {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true, connection: { effectiveType: '4g', downlink: 10 } },
+      configurable: true,
+    });
+    mode = 'fast';
+    expect(getWarmingPlan()).toMatchObject({ tier: 'core', reason: 'user-fast', concurrency: 1 });
+    mode = 'full';
+    expect(getWarmingPlan()).toMatchObject({ tier: 'full', reason: 'user-full' });
+  });
+
+  // FIX WARM-ADAPTIVE-01: 2g / slow-2g / very low downlink throttle to critical
+  it("2g throttles 'fast' but keeps explicit 'full' scope", () => {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true, connection: { effectiveType: '2g', downlink: 0.05 } },
+      configurable: true,
+    });
+    mode = 'fast';
+    expect(getWarmingPlan()).toMatchObject({
+      tier: 'critical',
+      reason: 'user-fast-very-slow',
+      concurrency: 1,
+      minRoutes: ROUTE_BUDGETS.critical.public + ROUTE_BUDGETS.critical.personal,
+    });
+    mode = 'full';
+    expect(getWarmingPlan()).toMatchObject({
+      tier: 'full',
+      reason: 'user-full-very-slow-paced',
+      concurrency: 1,
+      interRouteDelayMs: 2500,
+      requestTimeoutMs: 25_000,
+    });
+  });
+
+  it("slow-2g and downlink < 0.4 also force critical", () => {
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true, connection: { effectiveType: 'slow-2g' } },
+      configurable: true,
+    });
+    mode = 'fast';
+    expect(getWarmingPlan().tier).toBe('critical');
+
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true, connection: { effectiveType: '3g', downlink: 0.3 } },
+      configurable: true,
+    });
+    expect(getWarmingPlan().tier).toBe('critical');
+  });
+
+  it('saveData and being offline still disable warming, whatever the mode', () => {
+    mode = 'full';
+    networkPolicy = { ...networkPolicy, saveData: true, allowBackgroundWarming: false };
+    expect(getWarmingPlan().tier).toBe('none');
+    networkPolicy = { ...networkPolicy, saveData: false, tier: 'offline', allowBackgroundWarming: false };
+    expect(getWarmingPlan().tier).toBe('none');
+  });
+});
+
+  it("3g throttles 'fast' to critical while preserving full scope (FIX WARM-ADAPTIVE-3G-01)", () => {
+    networkPolicy = {
+      ...networkPolicy,
+      // getWarmingPlan consumes getNetworkPolicy()'s normalized tier; the
+      // navigator mock alone does not affect this test's mocked policy.
+      tier: 'slow',
+      saveData: false,
+      allowBackgroundWarming: true,
+      consecutiveFailures: 0,
+    };
+    Object.defineProperty(globalThis, 'navigator', {
+      value: { onLine: true, connection: { effectiveType: '3g', downlink: 0.8 } },
+      configurable: true,
+    });
+    mode = 'fast';
+    expect(getWarmingPlan()).toMatchObject({ tier: 'critical', reason: 'user-fast-slow' });
+    mode = 'full';
+    expect(getWarmingPlan()).toMatchObject({ tier: 'full', reason: 'user-full-slow-paced', concurrency: 1 });
+  });

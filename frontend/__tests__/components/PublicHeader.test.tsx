@@ -1,0 +1,128 @@
+/**
+ * __tests__/components/PublicHeader.test.tsx
+ *
+ * PublicHeader renders on every public page (home, search, category,
+ * ad detail) and had zero coverage. Focus: the isAuthenticated branch
+ * (login/register buttons vs. "أضف" + UserMenu — CREATE-SHEET: the
+ * primary conversion CTA was renamed from "نشر إعلان" to "أضف" once it
+ * started opening CreateSheet's three-destination picker instead of
+ * linking straight to /ads/create), since that's
+ * the component's only real conditional logic — everything else is
+ * static markup delegated to child components (Logo, SearchBar,
+ * UserMenu, MobileNav), which are mocked here since each either has
+ * its own dedicated test file or is trivial presentational markup.
+ */
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { PublicHeader } from '@/components/layout/PublicHeader';
+import { useAuthStore } from '@/store/auth.store';
+
+vi.mock('@/store/auth.store', () => ({
+  selectLastKnownRoles: (s: any) => s?.lastKnownRoles ?? null,
+  selectIsAdminTier: (s: any) => Boolean(s?.isAdmin),
+  selectUser: (s: any) => s?.user ?? null,
+  selectIsAuthenticated: (s: any) => Boolean(s?.isAuthenticated),
+  selectIsHydrated: (s: any) => Boolean(s?.isHydrated),
+  selectHydratedUser: (s: any) => (s?.isHydrated ? s.user : null),
+  selectHasAccessToken: (s: any) => Boolean(s?.accessToken),
+  getState: vi.fn(() => ({})),
+  useAuthStore: vi.fn(),
+  selectIsAuthenticated: (s: { isAuthenticated: boolean }) => s.isAuthenticated,
+  selectHasAccessToken: (s: any) => Boolean(s?.accessToken ?? s?.hasAccessToken),
+  selectHydratedUser: (s: any) => (s?.isHydrated ? s.user : null),
+  selectHydratedIsAuthenticated: (s: any) => (s?.isHydrated ? Boolean(s?.isAuthenticated ?? s?.user) : false),
+  selectIsAuthResolving: (s: any) => Boolean(s?.isAuthResolving),
+  selectIsHydrated: (s: any) => Boolean(s?.isHydrated),
+  selectAccessToken: (s: any) => s?.accessToken,
+  selectUser: (s: any) => s?.user,
+  selectIsAdmin: (s: any) => Boolean(s?.isAdmin ?? (s?.user?.role === 'ADMIN' || s?.user?.role === 'MODERATOR')),
+}));
+
+vi.mock('@/components/layout/SearchBar', () => ({
+  SearchBar: () => <div data-testid="search-bar" />,
+}));
+
+vi.mock('@/components/layout/UserMenu', () => ({
+  UserMenu: () => <div data-testid="user-menu" />,
+}));
+
+vi.mock('@/components/layout/MobileNav', () => ({
+  MobileNav: () => <div data-testid="mobile-nav" />,
+}));
+
+// NotificationBell (useMyNotifications/useUnreadNotificationCount, both
+// react-query) only renders in the isAuthenticated branch — unmocked, it
+// throws for lack of a QueryClientProvider the moment that branch is
+// exercised. Not what this file is testing, so stub it like the others.
+vi.mock('@/components/layout/NotificationBell', () => ({
+  NotificationBell: () => <div data-testid="notification-bell" />,
+}));
+
+// MessagesLink reads useUnreadConversationCount() (also react-query) —
+// same reasoning as NotificationBell above.
+vi.mock('@/components/layout/MessagesLink', () => ({
+  MessagesLink: () => <div data-testid="messages-link" />,
+}));
+
+const mockUseAuthStore = vi.mocked(useAuthStore);
+
+function mockAuthState(isAuthenticated: boolean) {
+  mockUseAuthStore.mockImplementation((selector) =>
+    selector({ isAuthenticated, isHydrated: true, user: isAuthenticated ? { id: 'u1', name: 'أحمد', role: 'USER' } : null } as never),
+  );
+}
+
+describe('PublicHeader', () => {
+  it('shows login and register buttons when not authenticated', () => {
+    mockAuthState(false);
+    render(<PublicHeader />);
+
+    expect(screen.getByText('تسجيل الدخول')).toBeInTheDocument();
+    expect(screen.getByText('إنشاء حساب')).toBeInTheDocument();
+    expect(screen.queryByText('نشر إعلان')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'قائمة المستخدم' })).not.toBeInTheDocument();
+  });
+
+  it('shows "أضف" and UserMenu when authenticated, hiding auth buttons', () => {
+    mockAuthState(true);
+    render(<PublicHeader />);
+
+    expect(screen.getByText('أضف')).toBeInTheDocument();
+    expect(screen.getByTestId('user-menu')).toBeInTheDocument();
+    expect(screen.queryByText('تسجيل الدخول')).not.toBeInTheDocument();
+    expect(screen.queryByText('إنشاء حساب')).not.toBeInTheDocument();
+  });
+
+  it('renders the logo linking to the home route', () => {
+    mockAuthState(false);
+    render(<PublicHeader />);
+
+    const homeLink = screen.getAllByRole('link').find((a) => a.getAttribute('href') === '/');
+    expect(homeLink).toBeDefined();
+  });
+
+  it('renders both a desktop and a mobile search bar', () => {
+    mockAuthState(false);
+    render(<PublicHeader />);
+
+    // One SearchBar for md+ screens, one for the mobile row below the header.
+    expect(screen.getAllByTestId('search-bar')).toHaveLength(2);
+  });
+
+  it('renders the mobile nav trigger', () => {
+    mockAuthState(false);
+    render(<PublicHeader />);
+
+    expect(screen.getByTestId('mobile-nav')).toBeInTheDocument();
+  });
+
+  // UX-FIX: showSearch={false} is (auth)/layout.tsx's own opt-out for
+  // login/register/forgot-password/reset-password — a search bar makes
+  // no sense mid-auth-flow.
+  it('hides both search bars when showSearch is false', () => {
+    mockAuthState(false);
+    render(<PublicHeader showSearch={false} />);
+
+    expect(screen.queryByTestId('search-bar')).not.toBeInTheDocument();
+  });
+});

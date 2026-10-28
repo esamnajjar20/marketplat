@@ -1,0 +1,550 @@
+/**
+ * __tests__/unit/lib/offlineQueue.test.ts
+ *
+ * getQueuedRequestCount switched from a raw store.count()
+ * to getAll()+filter so it can exclude status:'failed' rows (see lib/offlineQueue.ts
+ * for why raw count() was actively misleading). Tests below mock getAll()
+ * instead of count() accordingly, and cover the new pending/failed split and
+ * the generic failed-request retry/discard helpers.
+ *
+ * IndexedDB request handlers (onsuccess/onerror/onupgradeneeded) are
+ * assigned by production code *after* open() returns, so the mock must
+ * fire those events on a later macrotask (setTimeout) — not microtask —
+ * or the handlers are still null when the event runs.
+ */
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+import {
+  getQueuedRequestCount,
+  getQueuedRequestCounts,
+  listFailedRequests,
+  retryFailedRequest,
+  discardFailedRequest,
+  requestQueueReplay,
+  enqueueOfflineMutationFallback,
+  getQueueFailureGuidance,
+  queueFailureAction,
+} from '@/lib/offlineQueue';
+
+vi.mock('@/lib/offlineUserScope', () => ({
+  getCurrentOfflineUserId: vi.fn(() => 'user-a'),
+}));
+
+interface FakeIDBRequest {
+  result: unknown;
+  error: unknown;
+  onsuccess: ((ev?: unknown) => void) | null;
+  onerror: ((ev?: unknown) => void) | null;
+  onupgradeneeded: ((ev?: unknown) => void) | null;
+}
+
+function scheduleSuccess(req: FakeIDBRequest, beforeSuccess?: () => void) {
+  setTimeout(() => {
+    beforeSuccess?.();
+    req.onsuccess?.(undefined);
+  }, 0);
+}
+
+function scheduleError(req: FakeIDBRequest) {
+  setTimeout(() => {
+    req.onerror?.(undefined);
+  }, 0);
+}
+
+/** يبني mock كامل لـ indexedDB.open يرجّع getAll() بنتيجة `rows` معطاة. */
+function mockIndexedDbWithRows(rows: unknown[]) {
+  const getAllReq: FakeIDBRequest = {
+    result: rows,
+    error: null,
+    onsuccess: null,
+    onerror: null,
+    onupgradeneeded: null,
+  };
+  const store = {
+    getAll: vi.fn(() => {
+      scheduleSuccess(getAllReq);
+      return getAllReq;
+    }),
+  };
+  const tx = { objectStore: vi.fn(() => store) };
+  const db = {
+    objectStoreNames: { contains: () => true },
+    transaction: vi.fn(() => tx),
+  };
+  const openReq: FakeIDBRequest = {
+    result: db,
+    error: null,
+    onsuccess: null,
+    onerror: null,
+    onupgradeneeded: null,
+  };
+  Object.defineProperty(globalThis, 'indexedDB', {
+    value: {
+      open: vi.fn(() => {
+        scheduleSuccess(openReq);
+        return openReq;
+      }),
+    },
+    configurable: true,
+    writable: true,
+  });
+  return { db, store };
+}
+
+describe('offlineQueue', () => {
+  const originalIndexedDB = globalThis.indexedDB;
+  const originalNavigator = globalThis.navigator;
+
+  beforeEach(() => {
+    window.localStorage.setItem('marketplace-auth', JSON.stringify({ state: { user: { id: 'user-a' } } }));
+  });
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, 'indexedDB', {
+      value: originalIndexedDB,
+      configurable: true,
+      writable: true,
+    });
+    Object.defineProperty(globalThis, 'navigator', {
+      value: originalNavigator,
+      configurable: true,
+      writable: true,
+    });
+    window.localStorage.removeItem('marketplace-auth');
+  });
+
+  describe('enqueueOfflineMutationFallback', () => {
+    // offlineMutationPolicy only allows POST create endpoints (exact path)
+    // with an operationId — not PATCH edits.
+    const baseInput = {
+      url: '/api/v1/ads',
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer never-store-this' },
+      body: JSON.stringify({ title: 'created offline' }),
+      ownerUserId: 'user-a',
+      needsAuth: true,
+      needsCsrf: true,
+      operationId: 'op-create-ad-1',
+    };
+
+    it('reports a storage-quota failure instead of claiming the mutation was saved', async () => {
+      const openReq: FakeIDBRequest = {
+        result: undefined,
+        error: new DOMException('storage full', 'QuotaExceededError'),
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      };
+      Object.defineProperty(globalThis, 'indexedDB', {
+        value: { open: vi.fn(() => { scheduleError(openReq); return openReq; }) },
+        configurable: true,
+        writable: true,
+      });
+      const storageError = vi.fn();
+      window.addEventListener('marketplat:local-error', storageError, { once: true });
+      await expect(enqueueOfflineMutationFallback(baseInput)).resolves.toMatchObject({
+        queued: false,
+        reason: 'storage-quota',
+        operationId: baseInput.operationId,
+      });
+      expect(storageError).toHaveBeenCalledOnce();
+    });
+
+    it('refuses to queue work owned by a different account', async () => {
+      await expect(enqueueOfflineMutationFallback({ ...baseInput, ownerUserId: 'user-b' }))
+        .resolves.toMatchObject({ queued: false, reason: 'missing-or-stale-owner' });
+    });
+
+    it('persists an owned mutation without persisting live auth or CSRF tokens', async () => {
+      const stored: Array<Record<string, unknown>> = [];
+      const tx: Record<string, unknown> = {
+        objectStore: () => ({
+          add: (entry: Record<string, unknown>) => { stored.push(entry); return {}; },
+          // The durable-queue now runs a dedup guard (`store.getAll()`) before
+          // inserting. Return an empty result set so the insert path runs, and
+          // schedule its onsuccess on the microtask queue (it runs before the
+          // tx.oncomplete macrotask scheduled in db.transaction below).
+          getAll: () => {
+            const req = { result: [] as unknown[], onsuccess: null as (() => void) | null, onerror: null };
+            queueMicrotask(() => req.onsuccess?.());
+            return req;
+          },
+        }),
+        oncomplete: null,
+        onerror: null,
+        onabort: null,
+      };
+      const db = {
+        objectStoreNames: { contains: () => true },
+        transaction: () => {
+          // Defer tx.oncomplete to a macrotask so getAll().onsuccess (queued
+          // as a microtask) has already inserted the row before the promise
+          // resolves — matching real IndexedDB ordering.
+          setTimeout(() => (tx.oncomplete as (() => void) | null)?.(), 0);
+          return tx;
+        },
+        close: vi.fn(),
+      };
+      const openReq: FakeIDBRequest = { result: db, error: null, onsuccess: null, onerror: null, onupgradeneeded: null };
+      Object.defineProperty(globalThis, 'indexedDB', {
+        value: { open: vi.fn(() => { scheduleSuccess(openReq); return openReq; }) },
+        configurable: true,
+        writable: true,
+      });
+
+      await expect(enqueueOfflineMutationFallback(baseInput)).resolves.toMatchObject({ queued: true });
+      expect(stored).toHaveLength(1);
+      expect(stored[0]).toMatchObject({ status: 'pending', ownerUserId: 'user-a', method: 'POST' });
+      const storedHeaders = stored[0]?.headers as Record<string, string>;
+      expect(storedHeaders.authorization).toBeUndefined();
+      expect(storedHeaders['x-csrf-token']).toBeUndefined();
+      expect(stored[0]?.body).toBe(baseInput.body);
+    });
+
+    it('does not queue authentication, presence, analytics, or batch transport calls', async () => {
+      for (const url of [
+        '/api/v1/auth/login',
+        '/api/v1/users/me/presence',
+        '/api/v1/analytics/events',
+        '/api/v1/batch',
+      ]) {
+        // The queue policy may reject these before the explicit deny-list;
+        // the contract that matters is that none is ever persisted.
+        await expect(enqueueOfflineMutationFallback({ ...baseInput, url }))
+          .resolves.toMatchObject({ queued: false });
+      }
+    });
+
+    it('rejects bodies beyond the documented queue budget instead of claiming they were saved', async () => {
+      const oversized = new Blob([new Uint8Array(6 * 1024 * 1024 + 1)]);
+      await expect(enqueueOfflineMutationFallback({ ...baseInput, body: oversized }))
+        .resolves.toMatchObject({ queued: false, reason: 'body-too-large' });
+    });
+  });
+
+  describe('getQueuedRequestCount', () => {
+    it('returns 0 when indexedDB is unavailable', async () => {
+      Object.defineProperty(globalThis, 'indexedDB', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      });
+
+      await expect(getQueuedRequestCount()).resolves.toBe(0);
+    });
+
+    it('counts only pending rows, excluding status:failed', async () => {
+      mockIndexedDbWithRows([
+        { ownerUserId: 'user-a', id: 1, url: 'https://api.example.com/ads', method: 'POST', queuedAt: 1, status: 'pending' },
+        { ownerUserId: 'user-a', id: 2, url: 'https://api.example.com/ads/2', method: 'PATCH', queuedAt: 2, status: 'failed' },
+        // no status field at all () — must still count as pending.
+        { ownerUserId: 'user-a', id: 3, url: 'https://api.example.com/ads/3', method: 'DELETE', queuedAt: 3 },
+      ]);
+
+      await expect(getQueuedRequestCount()).resolves.toBe(2);
+    });
+
+    it('creates the object store on upgradeneeded when missing', async () => {
+      const createObjectStore = vi.fn();
+      const getAllReq: FakeIDBRequest = {
+        result: [],
+        error: null,
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      };
+      const db = {
+        objectStoreNames: { contains: () => false },
+        createObjectStore,
+        transaction: vi.fn(() => ({
+          objectStore: () => ({
+            getAll: () => {
+              scheduleSuccess(getAllReq);
+              return getAllReq;
+            },
+          }),
+        })),
+      };
+      const openReq: FakeIDBRequest = {
+        result: db,
+        error: null,
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      };
+      Object.defineProperty(globalThis, 'indexedDB', {
+        value: {
+          open: vi.fn(() => {
+            scheduleSuccess(openReq, () => {
+              openReq.onupgradeneeded?.(undefined);
+            });
+            return openReq;
+          }),
+        },
+        configurable: true,
+        writable: true,
+      });
+
+      await expect(getQueuedRequestCount()).resolves.toBe(0);
+      expect(createObjectStore).toHaveBeenCalledWith('requests', {
+        keyPath: 'id',
+        autoIncrement: true,
+      });
+    });
+
+    it('returns 0 when the open request fails', async () => {
+      const openReq: FakeIDBRequest = {
+        result: null,
+        error: new Error('open failed'),
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      };
+      Object.defineProperty(globalThis, 'indexedDB', {
+        value: {
+          open: vi.fn(() => {
+            scheduleError(openReq);
+            return openReq;
+          }),
+        },
+        configurable: true,
+        writable: true,
+      });
+
+      await expect(getQueuedRequestCount()).resolves.toBe(0);
+    });
+
+    it('returns 0 when the getAll request fails', async () => {
+      const getAllReq: FakeIDBRequest = {
+        result: [],
+        error: new Error('getAll failed'),
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      };
+      const db = {
+        objectStoreNames: { contains: () => true },
+        transaction: vi.fn(() => ({
+          objectStore: () => ({
+            getAll: () => {
+              scheduleError(getAllReq);
+              return getAllReq;
+            },
+          }),
+        })),
+      };
+      const openReq: FakeIDBRequest = {
+        result: db,
+        error: null,
+        onsuccess: null,
+        onerror: null,
+        onupgradeneeded: null,
+      };
+      Object.defineProperty(globalThis, 'indexedDB', {
+        value: {
+          open: vi.fn(() => {
+            scheduleSuccess(openReq);
+            return openReq;
+          }),
+        },
+        configurable: true,
+        writable: true,
+      });
+
+      await expect(getQueuedRequestCount()).resolves.toBe(0);
+    });
+  });
+
+  describe('getQueuedRequestCounts', () => {
+    it('splits pending vs failed', async () => {
+      mockIndexedDbWithRows([
+        { ownerUserId: 'user-a', id: 1, url: 'https://api.example.com/ads', method: 'POST', queuedAt: 1, status: 'pending' },
+        { ownerUserId: 'user-a', id: 2, url: 'https://api.example.com/ads/2', method: 'PATCH', queuedAt: 2, status: 'failed' },
+        { ownerUserId: 'user-a', id: 3, url: 'https://api.example.com/ads/3', method: 'PATCH', queuedAt: 3, status: 'failed' },
+      ]);
+
+      await expect(getQueuedRequestCounts()).resolves.toEqual({ pending: 1, failed: 2 });
+    });
+
+    it('returns zeros when indexedDB is unavailable', async () => {
+      Object.defineProperty(globalThis, 'indexedDB', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      });
+
+      await expect(getQueuedRequestCounts()).resolves.toEqual({ pending: 0, failed: 0 });
+    });
+  });
+
+  describe('listFailedRequests', () => {
+    it('returns failed non-message rows only, oldest first', async () => {
+      mockIndexedDbWithRows([
+        {
+          ownerUserId: 'user-a',
+          id: 5,
+          url: 'https://api.example.com/api/v1/ads/5',
+          method: 'PATCH',
+          queuedAt: 200,
+          status: 'failed',
+          lastError: { status: 403, message: 'محظور' },
+        },
+        {
+          // رسالة محادثة فاشلة — يجب استبعادها (لها واجهتها الخاصة بالفقاعة).
+          ownerUserId: 'user-a',
+          id: 6,
+          url: 'https://api.example.com/api/v1/conversations/conv-1/messages',
+          method: 'POST',
+          queuedAt: 50,
+          status: 'failed',
+        },
+        {
+          ownerUserId: 'user-a',
+          id: 4,
+          url: 'https://api.example.com/api/v1/products/4',
+          method: 'DELETE',
+          queuedAt: 100,
+          status: 'failed',
+        },
+        {
+          ownerUserId: 'user-a',
+          id: 7,
+          url: 'https://api.example.com/api/v1/ads/7',
+          method: 'POST',
+          queuedAt: 300,
+          status: 'pending',
+        },
+      ]);
+
+      const result = await listFailedRequests();
+      expect(result.map((r) => r.id)).toEqual([4, 5]);
+      expect(result[1].lastError).toEqual({ status: 403, message: 'محظور' });
+    });
+
+    it('returns an empty list when indexedDB is unavailable', async () => {
+      Object.defineProperty(globalThis, 'indexedDB', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      });
+
+      await expect(listFailedRequests()).resolves.toEqual([]);
+    });
+  });
+
+  describe('retryFailedRequest / discardFailedRequest', () => {
+    it('retryFailedRequest posts RETRY_QUEUE_ITEM with the given id', async () => {
+      const postMessage = vi.fn();
+      Object.defineProperty(globalThis, 'navigator', {
+        value: { serviceWorker: { ready: Promise.resolve({ active: { postMessage } }) } },
+        configurable: true,
+        writable: true,
+      });
+
+      await retryFailedRequest(9);
+      expect(postMessage).toHaveBeenCalledWith({ type: 'RETRY_QUEUE_ITEM', id: 9, ownerUserId: 'user-a' });
+    });
+
+    it('discardFailedRequest posts DISCARD_QUEUE_ITEM with the given id', async () => {
+      const postMessage = vi.fn();
+      Object.defineProperty(globalThis, 'navigator', {
+        value: { serviceWorker: { ready: Promise.resolve({ active: { postMessage } }) } },
+        configurable: true,
+        writable: true,
+      });
+
+      await discardFailedRequest(9);
+      expect(postMessage).toHaveBeenCalledWith({ type: 'DISCARD_QUEUE_ITEM', id: 9, ownerUserId: 'user-a' });
+    });
+
+    it('both no-op when serviceWorker is not supported', async () => {
+      Object.defineProperty(globalThis, 'navigator', {
+        value: {},
+        configurable: true,
+        writable: true,
+      });
+
+      await expect(retryFailedRequest(1)).resolves.toBeUndefined();
+      await expect(discardFailedRequest(1)).resolves.toBeUndefined();
+    });
+  });
+
+  describe('requestQueueReplay', () => {
+    it('no-ops when serviceWorker is not supported', async () => {
+      Object.defineProperty(globalThis, 'navigator', {
+        value: {},
+        configurable: true,
+        writable: true,
+      });
+
+      await expect(requestQueueReplay()).resolves.toBeUndefined();
+    });
+
+    it('posts REPLAY_QUEUE_NOW to the active service worker', async () => {
+      const postMessage = vi.fn();
+      Object.defineProperty(globalThis, 'navigator', {
+        value: {
+          serviceWorker: {
+            ready: Promise.resolve({ active: { postMessage } }),
+          },
+        },
+        configurable: true,
+        writable: true,
+      });
+
+      await requestQueueReplay();
+
+      expect(postMessage).toHaveBeenCalledWith({ type: 'REPLAY_QUEUE_NOW' });
+    });
+
+    it('tolerates a registration with no active worker', async () => {
+      Object.defineProperty(globalThis, 'navigator', {
+        value: {
+          serviceWorker: {
+            ready: Promise.resolve({ active: null }),
+          },
+        },
+        configurable: true,
+        writable: true,
+      });
+
+      await expect(requestQueueReplay()).resolves.toBeUndefined();
+    });
+  });
+
+  describe('failure guidance for offline replay', () => {
+    const item = (status?: number) => ({
+      id: 1,
+      url: 'https://example.test/api/v1/products',
+      method: 'POST',
+      queuedAt: 1,
+      status: 'failed' as const,
+      lastError: status === undefined ? undefined : { status, message: 'server message' },
+    });
+
+    it('recommends correcting invalid data instead of blind retry', () => {
+      const guidance = getQueueFailureGuidance(item(422));
+      expect(guidance.category).toBe('invalid-data');
+      expect(guidance.nextStep).toContain('صحح الحقول');
+      expect(queueFailureAction(item(422))).toBe('edit');
+    });
+
+    it('explains conflicts and discourages duplicate submission', () => {
+      const guidance = getQueueFailureGuidance(item(409));
+      expect(guidance.category).toBe('conflict');
+      expect(guidance.nextStep).toContain('لا تكرر الطلب');
+      expect(queueFailureAction(item(409))).toBe('edit');
+    });
+
+    it('distinguishes rate limits and server failures as retry-later cases', () => {
+      expect(getQueueFailureGuidance(item(429)).category).toBe('rate-limit');
+      expect(getQueueFailureGuidance(item(503)).category).toBe('server');
+      expect(queueFailureAction(item(429))).toBe('retry');
+      expect(queueFailureAction(item(503))).toBe('retry');
+    });
+
+    it('does not imply a known cause when the server status is absent', () => {
+      expect(getQueueFailureGuidance(item()).category).toBe('unknown');
+    });
+  });
+
+});
