@@ -5,6 +5,7 @@ const store = vi.hoisted(() => ({
   acknowledgeFavoriteState: vi.fn(),
   listPendingFavoriteStates: vi.fn(),
   writeFavoriteAdIds: vi.fn(),
+  findFavoriteState: vi.fn().mockResolvedValue(null), // إضافة الدالة المفقودة
 }));
 
 const api = vi.hoisted(() => ({
