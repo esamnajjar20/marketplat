@@ -1,11 +1,12 @@
 import * as SQLite from 'expo-sqlite';
 import { ApiError, apiRequest } from '@/api/client';
 import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
+import { OUTBOX_DATABASE_NAME, OUTBOX_MAX_ATTEMPTS, OUTBOX_MAX_PENDING, computeRetryDelayMs } from '@/storage/outbox';
 
 type OrderPayload = { items: { productId: string; quantity: number }[]; recipientName: string; recipientPhone: string; shippingCity: string; shippingAddress: string; buyerNote?: string; idempotencyKey: string };
 export type PendingOrderOutboxItem = { id: string; ownerId: string; payload: OrderPayload; createdAt: number; attempts: number; lastError: string | null; nextAttemptAt: number; state: string };
 type Row = { id: string; owner_id: string; payload_json: string; created_at: number; attempts: number; last_error: string | null; next_attempt_at: number; state: string; lease_until: number };
-const DB_NAME = 'marketplat-public-cache.db'; const MAX_PENDING = 50; const MAX_ATTEMPTS = 8;
+const DB_NAME = OUTBOX_DATABASE_NAME; const MAX_PENDING = OUTBOX_MAX_PENDING; const MAX_ATTEMPTS = OUTBOX_MAX_ATTEMPTS;
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 const activeSyncByOwner = new Map<string, Promise<'synced' | 'discarded' | 'nothing-due' | 'retry-scheduled' | 'login-required'>>();
 async function database() {
@@ -92,7 +93,7 @@ export async function syncNextMarketplaceOrder(input: { isOnline: boolean; token
         await db.runAsync("DELETE FROM marketplace_order_outbox WHERE id=? AND owner_id=? AND state='processing'", head.id, input.ownerId);
         return 'discarded' as const;
       }
-      const attempts = head.attempts + 1; const delay = Math.min(60 * 60_000, 5000 * 2 ** Math.min(attempts - 1, 10));
+      const attempts = head.attempts + 1; const delay = computeRetryDelayMs(attempts);
       const message = (error instanceof Error ? error.message : 'تعذرت مزامنة الطلب.').slice(0, 500);
       await db.runAsync("UPDATE marketplace_order_outbox SET state='pending',attempts=?,last_error=?,next_attempt_at=?,lease_until=0 WHERE id=? AND owner_id=?", attempts, message, Date.now()+delay, head.id, input.ownerId);
       return error instanceof ApiError && (error.status === 401 || error.status === 403) ? 'login-required' as const : 'retry-scheduled' as const;

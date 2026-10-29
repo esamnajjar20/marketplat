@@ -1,4 +1,5 @@
 import { router, type Href } from 'expo-router';
+import { routes, TAB_ROUTES } from '@/lib/routes';
 
 /**
  * مساعدات تنقل سلس:
@@ -35,15 +36,26 @@ export function replaceScreen(path: Href | string): void {
 }
 
 /** رجوع آمن */
-export function goBack(fallback: Href | string = '/'): void {
+export function goBack(fallback: Href | string = routes.tabs.home): void {
   if (!allowNav()) return;
   if (router.canGoBack()) router.back();
   else router.replace(fallback as Href);
 }
 
 /** مسارات التبويبات الرئيسية — للتنقل بدون animation stacking مفرط */
-export const TAB_PATHS = new Set(['/', '/explore', '/add', '/messages', '/account']);
+export const TAB_PATHS = new Set<string>(TAB_ROUTES);
 
 export function isTabPath(path: string): boolean {
   return TAB_PATHS.has(path);
 }
+
+/** اختصارات شائعة */
+export const nav = {
+  home: () => goTab(routes.tabs.home),
+  explore: () => goTab(routes.tabs.explore),
+  messages: () => goTab(routes.tabs.messages),
+  account: () => goTab(routes.tabs.account),
+  login: () => openScreen(routes.auth.login),
+  adDetail: (id: string) => openScreen(routes.ads.detail(id)),
+  thread: (id: string) => openScreen(routes.messages.thread(id)),
+} as const;

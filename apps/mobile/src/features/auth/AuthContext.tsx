@@ -1,22 +1,43 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+/**
+ * مزوّد المصادقة — منطق الجلسة والتنظيف مفصولان إلى:
+ * - session-storage.ts
+ * - private-data-cleanup.ts
+ */
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { Alert } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
 import { ApiError, setRefreshHandler, setTokenUpdater } from '@/api/client';
-import { loginWithPassword, logoutSession, refreshAccessSession, registerAccount, cancelRefreshing, type AuthUser } from './auth.api';
+import {
+  loginWithPassword,
+  logoutSession,
+  refreshAccessSession,
+  registerAccount,
+  cancelRefreshing,
+  type AuthUser,
+} from './auth.api';
 import { mergeGuestFavoritesIntoAccount } from '@/features/ads/favorites.store';
-import { clearPrivateMobileData, countPendingPrivateMobileOperations } from '@/storage/public-cache';
-
-const SECURE_SESSION_KEY = 'marketplat.mobile.session.v1';
-const PRIVATE_CLEANUP_REQUIRED_KEY = 'marketplat.mobile.private-cleanup-required.v1';
-let privateCleanupBlockedInMemory = false;
-const ACCESS_TOKEN_FALLBACK_TTL_SECONDS = 15 * 60;
-
-type PersistedSession = {
-  user: AuthUser;
-  accessToken: string;
-  csrfToken: string | null;
-  expiresAt: number;
-};
+import { countPendingPrivateMobileOperations } from '@/storage/public-cache';
+import {
+  ACCESS_TOKEN_FALLBACK_TTL_SECONDS,
+  clearPersistedSession,
+  readPersistedSession,
+  sessionExpiry,
+  writePersistedSession,
+  type PersistedSession,
+} from './session-storage';
+import {
+  cleanupOnLogout,
+  ensurePrivateStorageClean,
+  tryCleanupBeforeRestore,
+} from './private-data-cleanup';
 
 export type AuthState = {
   user: AuthUser | null;
@@ -26,46 +47,17 @@ export type AuthState = {
   isRestoring: boolean;
   expiresAt: number | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (input: { name: string; email: string; password: string; phone?: string; city?: string }) => Promise<void>;
+  register: (input: {
+    name: string;
+    email: string;
+    password: string;
+    phone?: string;
+    city?: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
-
-function sessionExpiry(expiresIn?: number): number {
-  const seconds = Number.isFinite(expiresIn) && (expiresIn ?? 0) > 0
-    ? Math.floor(expiresIn as number)
-    : ACCESS_TOKEN_FALLBACK_TTL_SECONDS;
-  return Date.now() + seconds * 1000;
-}
-
-function isPersistedSession(value: unknown): value is PersistedSession {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as Partial<PersistedSession>;
-  return typeof candidate.accessToken === 'string'
-    && candidate.accessToken.length > 0
-    && typeof candidate.expiresAt === 'number'
-    && typeof candidate.csrfToken !== 'undefined'
-    && !!candidate.user
-    && typeof candidate.user.id === 'string'
-    && typeof candidate.user.email === 'string'
-    && typeof candidate.user.name === 'string';
-}
-
-async function ensurePrivateStorageClean(): Promise<void> {
-  const required = privateCleanupBlockedInMemory
-    ? 'required'
-    : await SecureStore.getItemAsync(PRIVATE_CLEANUP_REQUIRED_KEY).catch(() => 'required');
-  if (!required) return;
-  try {
-    await clearPrivateMobileData();
-    await SecureStore.deleteItemAsync(PRIVATE_CLEANUP_REQUIRED_KEY);
-    privateCleanupBlockedInMemory = false;
-  } catch {
-    privateCleanupBlockedInMemory = true;
-    throw new Error('تعذر تنظيف بيانات الحساب السابق بأمان. لا يمكن تسجيل الدخول قبل نجاح تنظيف التخزين المحلي.');
-  }
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -74,74 +66,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isBusy, setIsBusy] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
-  // Refs mirror latest state so the interceptor's tokenUpdater callback
-  // can persist to SecureStore without stale closures.
+
   const userRef = useRef<AuthUser | null>(null);
   const csrfRef = useRef<string | null>(null);
 
-  const persist = useCallback(async (session: PersistedSession) => {
-    // Update in-memory state first: this run's session works even if SecureStore
-    // is unavailable (device full, OS error). Next cold start won't restore it,
-    // but the user is not left with a 'login failed' state while the server
-    // already issued a session.
+  const applySession = useCallback((session: PersistedSession) => {
     setUser(session.user);
     setAccessToken(session.accessToken);
     setCsrfToken(session.csrfToken);
     setExpiresAt(session.expiresAt);
-    try {
-      await SecureStore.setItemAsync(SECURE_SESSION_KEY, JSON.stringify(session));
-    } catch {
-      // Persistence failed — session lives only in memory for this run.
-    }
   }, []);
+
+  const persist = useCallback(
+    async (session: PersistedSession) => {
+      applySession(session);
+      await writePersistedSession(session);
+    },
+    [applySession],
+  );
 
   const clearPersisted = useCallback(async () => {
     setUser(null);
     setAccessToken(null);
     setCsrfToken(null);
     setExpiresAt(null);
-    await SecureStore.deleteItemAsync(SECURE_SESSION_KEY).catch(() => undefined);
+    await clearPersistedSession();
   }, []);
 
-  useEffect(() => { userRef.current = user; }, [user]);
-  useEffect(() => { csrfRef.current = csrfToken; }, [csrfToken]);
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+  useEffect(() => {
+    csrfRef.current = csrfToken;
+  }, [csrfToken]);
 
+  // استعادة الجلسة عند الإقلاع
   useEffect(() => {
     let mounted = true;
     const restore = async () => {
-      let cached: PersistedSession | null = null;
-      try {
-        const cleanupRequired = await SecureStore.getItemAsync(PRIVATE_CLEANUP_REQUIRED_KEY).catch(() => 'required');
-        if (cleanupRequired || privateCleanupBlockedInMemory) {
-          try {
-            await clearPrivateMobileData();
-            await SecureStore.deleteItemAsync(PRIVATE_CLEANUP_REQUIRED_KEY);
-            privateCleanupBlockedInMemory = false;
-          } catch {
-            privateCleanupBlockedInMemory = true;
-            await clearPersisted();
-            if (mounted) setIsRestoring(false);
-            return;
-          }
-        }
-      } catch { /* Fail closed below by not restoring a cached session. */ }
-      try {
-        const raw = await SecureStore.getItemAsync(SECURE_SESSION_KEY);
-        if (raw) {
-          const parsed: unknown = JSON.parse(raw);
-          if (isPersistedSession(parsed)) cached = parsed;
-          else await SecureStore.deleteItemAsync(SECURE_SESSION_KEY);
-        }
-      } catch {
-        // A secure-storage or decoding failure must not crash the app or log secrets.
-        cached = null;
+      const { blocked } = await tryCleanupBeforeRestore();
+      if (blocked) {
+        await clearPersisted();
+        if (mounted) setIsRestoring(false);
+        return;
       }
 
+      let cached = await readPersistedSession();
+
       if (cached && cached.expiresAt > Date.now() && mounted) {
-        setUser(cached.user);
-        setAccessToken(cached.accessToken);
-        setCsrfToken(cached.csrfToken);
-        setExpiresAt(cached.expiresAt);
+        applySession(cached);
       }
 
       try {
@@ -154,25 +127,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             expiresAt: sessionExpiry(refreshed.expiresIn),
           });
         } else if (mounted) {
-          // No saved user profile is available; a refresh response intentionally contains tokens only.
-          // Do not manufacture user identity from a token. Ask the user to sign in again.
           await clearPersisted();
         }
       } catch (error) {
-        const unauthorized = error instanceof ApiError && (error.status === 401 || error.status === 403);
+        const unauthorized =
+          error instanceof ApiError && (error.status === 401 || error.status === 403);
         if (mounted && (!cached || cached.expiresAt <= Date.now() || unauthorized)) {
           await clearPersisted();
         }
-        // If refresh failed because the device is offline, retain a still-valid secure access token.
       } finally {
         if (mounted) setIsRestoring(false);
       }
     };
     void restore();
-    return () => { mounted = false; };
-  }, [clearPersisted, persist]);
+    return () => {
+      mounted = false;
+    };
+  }, [applySession, clearPersisted, persist]);
 
-  // Proactively refresh the access token 60s before expiry to avoid 401 storms.
+  // تجديد استباقي قبل انتهاء الصلاحية بـ 60 ثانية
   useEffect(() => {
     if (!expiresAt || expiresAt <= Date.now()) return;
     const delay = Math.max(0, expiresAt - Date.now() - 60_000);
@@ -180,8 +153,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const timer = setTimeout(async () => {
       try {
         const refreshed = await refreshAccessSession();
-        // Session may have changed (logout / switch account) during the await.
-        // Writing the refreshed tokens under the wrong user corrupts both sessions.
         if (!userIdAtSchedule || !userRef.current || userRef.current.id !== userIdAtSchedule) return;
         await persist({
           user: userRef.current,
@@ -190,14 +161,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           expiresAt: sessionExpiry(refreshed.expiresIn),
         });
       } catch {
-        // Silent — interceptor or manual re-login will handle it.
+        // Silent — interceptor أو إعادة تسجيل الدخول
       }
     }, delay);
     return () => clearTimeout(timer);
-  }, [expiresAt, user, csrfToken, persist]);
+  }, [expiresAt, user, persist]);
 
-  // Register transparent refresh handlers so apiRequest can retry on 401
-  // without importing auth.api directly (avoids circular dependency).
+  // ربط refresh مع طبقة الـ API
   useEffect(() => {
     setRefreshHandler(async () => {
       const refreshed = await refreshAccessSession();
@@ -210,19 +180,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenUpdater((newToken, newCsrf, newExpiresIn) => {
       setAccessToken(newToken);
       if (newCsrf !== undefined) setCsrfToken(newCsrf);
-      // Always persist — if the server omitted expiresIn, fall back to the
-      // session TTL so a restart never restores a stale rotated token.
-      const newExpiresAt = typeof newExpiresIn === 'number' && newExpiresIn > 0
-        ? Date.now() + newExpiresIn * 1000
-        : Date.now() + ACCESS_TOKEN_FALLBACK_TTL_SECONDS * 1000;
+      const newExpiresAt =
+        typeof newExpiresIn === 'number' && newExpiresIn > 0
+          ? Date.now() + newExpiresIn * 1000
+          : Date.now() + ACCESS_TOKEN_FALLBACK_TTL_SECONDS * 1000;
       setExpiresAt(newExpiresAt);
       if (userRef.current) {
-        void SecureStore.setItemAsync(SECURE_SESSION_KEY, JSON.stringify({
+        void writePersistedSession({
           user: userRef.current,
           accessToken: newToken,
           csrfToken: newCsrf ?? csrfRef.current,
           expiresAt: newExpiresAt,
-        } satisfies PersistedSession)).catch(() => undefined);
+        });
       }
     });
     return () => {
@@ -231,44 +200,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
-    await ensurePrivateStorageClean();
-    setIsBusy(true);
-    try {
-      const session = await loginWithPassword(email, password);
-      await persist({
-        user: session.user,
-        accessToken: session.accessToken,
-        csrfToken: session.csrfToken ?? null,
-        expiresAt: sessionExpiry(session.expiresIn),
-      });
-      // Merge any favorites the user starred while anonymous.
-      // Failures are non-fatal — the sign-in itself already succeeded.
-      await mergeGuestFavoritesIntoAccount(session.user.id).catch(() => undefined);
-    } finally {
-      setIsBusy(false);
-    }
-  }, [persist]);
+  const login = useCallback(
+    async (email: string, password: string) => {
+      await ensurePrivateStorageClean();
+      setIsBusy(true);
+      try {
+        const session = await loginWithPassword(email, password);
+        await persist({
+          user: session.user,
+          accessToken: session.accessToken,
+          csrfToken: session.csrfToken ?? null,
+          expiresAt: sessionExpiry(session.expiresIn),
+        });
+        await mergeGuestFavoritesIntoAccount(session.user.id).catch(() => undefined);
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [persist],
+  );
 
-  const register = useCallback(async (input: { name: string; email: string; password: string; phone?: string; city?: string }) => {
-    await ensurePrivateStorageClean();
-    setIsBusy(true);
-    try {
-      const session = await registerAccount(input);
-      await persist({ user: session.user, accessToken: session.accessToken, csrfToken: session.csrfToken ?? null, expiresAt: sessionExpiry(session.expiresIn) });
-      // New users may already have guest favorites from before sign-up.
-      await mergeGuestFavoritesIntoAccount(session.user.id).catch(() => undefined);
-    } finally { setIsBusy(false); }
-  }, [persist]);
+  const register = useCallback(
+    async (input: {
+      name: string;
+      email: string;
+      password: string;
+      phone?: string;
+      city?: string;
+    }) => {
+      await ensurePrivateStorageClean();
+      setIsBusy(true);
+      try {
+        const session = await registerAccount(input);
+        await persist({
+          user: session.user,
+          accessToken: session.accessToken,
+          csrfToken: session.csrfToken ?? null,
+          expiresAt: sessionExpiry(session.expiresIn),
+        });
+        await mergeGuestFavoritesIntoAccount(session.user.id).catch(() => undefined);
+      } finally {
+        setIsBusy(false);
+      }
+    },
+    [persist],
+  );
 
   const logout = useCallback(async () => {
-    // Logging out previously deleted queued offline writes without warning. Count
-    // durable operations first and require explicit confirmation before discarding.
     let pendingOperations = 0;
     try {
       pendingOperations = await countPendingPrivateMobileOperations();
     } catch {
-      Alert.alert('تعذر التحقق من العمليات المحلية', 'لم نتمكن من التأكد مما إذا كانت هناك عمليات بانتظار المزامنة. لم يتم تسجيل الخروج حتى لا تفقد بيانات محلية دون قصد.');
+      Alert.alert(
+        'تعذر التحقق من العمليات المحلية',
+        'لم نتمكن من التأكد مما إذا كانت هناك عمليات بانتظار المزامنة. لم يتم تسجيل الخروج حتى لا تفقد بيانات محلية دون قصد.',
+      );
       return;
     }
     if (pendingOperations > 0) {
@@ -285,38 +271,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (!shouldDiscard) return;
     }
+
     const token = accessToken;
     const csrf = csrfToken;
     setIsBusy(true);
-    // Prevent an in-flight refresh from clobbering local state after logout.
     cancelRefreshing();
     try {
       if (token) await logoutSession(token, csrf ?? undefined);
     } catch {
-      // Server-side session invalidation failed (offline, 5xx). Local credentials
-      // are still removed in finally. Callers treat this as successful logout.
+      // إبطال الجلسة على الخادم فشل — نُكمل المسح المحلي
     } finally {
-      // Credentials must always be cleared. If DB cleanup fails, persist a lock that
-      // blocks the next login/restore until cleanup succeeds, preventing cross-account exposure.
-      let cleanupFailed = false;
-      try {
-        await clearPrivateMobileData();
-        await SecureStore.deleteItemAsync(PRIVATE_CLEANUP_REQUIRED_KEY);
-        privateCleanupBlockedInMemory = false;
-      } catch {
-        cleanupFailed = true;
-        privateCleanupBlockedInMemory = true;
-        await SecureStore.setItemAsync(PRIVATE_CLEANUP_REQUIRED_KEY, 'required').catch(() => undefined);
-      }
+      const { cleanupFailed } = await cleanupOnLogout();
       await clearPersisted();
       setIsBusy(false);
       if (cleanupFailed) {
-        Alert.alert('تعذر تنظيف التخزين المحلي', 'تم إنهاء الجلسة المحلية، لكن لم يكتمل حذف بيانات الحساب. سيُمنع تسجيل الدخول التالي حتى ينجح التنظيف. إذا استمرت المشكلة، امسح بيانات التطبيق من إعدادات الجهاز قبل استخدام حساب آخر.');
+        Alert.alert(
+          'تعذر تنظيف التخزين المحلي',
+          'تم إنهاء الجلسة المحلية، لكن لم يكتمل حذف بيانات الحساب. سيُمنع تسجيل الدخول التالي حتى ينجح التنظيف. إذا استمرت المشكلة، امسح بيانات التطبيق من إعدادات الجهاز قبل استخدام حساب آخر.',
+        );
       }
     }
   }, [accessToken, csrfToken, clearPersisted]);
 
-  const value = useMemo(() => ({ user, accessToken, csrfToken, isBusy, isRestoring, expiresAt, login, register, logout }), [user, accessToken, csrfToken, isBusy, isRestoring, expiresAt, login, register, logout]);
+  const value = useMemo(
+    () => ({
+      user,
+      accessToken,
+      csrfToken,
+      isBusy,
+      isRestoring,
+      expiresAt,
+      login,
+      register,
+      logout,
+    }),
+    [user, accessToken, csrfToken, isBusy, isRestoring, expiresAt, login, register, logout],
+  );
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

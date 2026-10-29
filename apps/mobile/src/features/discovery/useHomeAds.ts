@@ -1,3 +1,7 @@
+/**
+ * تحميل إعلانات الصفحة الرئيسية مع كاش محلي و pagination.
+ * المرحلة 5: logger + queryKeys + error-reporting.
+ */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError } from '@/api/client';
 import {
@@ -5,6 +9,9 @@ import {
   fetchPublicAds,
   getCachedPublicAdsWithMetadata,
 } from '@/features/ads/ads.api';
+import { queryKeys } from '@/lib/queryKeys';
+import { logger } from '@/lib/logger';
+import { captureException } from '@/lib/error-reporting';
 
 export type HomeAdFilters = {
   city?: string;
@@ -22,6 +29,17 @@ type Options = {
   filters: HomeAdFilters;
   sort: HomeAdSort;
 };
+
+export function homeAdsQueryKey(options: Options) {
+  return queryKeys.home.ads({
+    search: options.search,
+    city: options.filters.city,
+    minPrice: options.filters.minPrice,
+    maxPrice: options.filters.maxPrice,
+    sortBy: options.sort.sortBy,
+    sortOrder: options.sort.sortOrder,
+  });
+}
 
 export function useHomeAds({ search, filters, sort }: Options) {
   const [ads, setAds] = useState<AdListItem[]>([]);
@@ -98,11 +116,13 @@ export function useHomeAds({ search, filters, sort }: Options) {
       } catch (error) {
         if (!isCurrent()) return;
         if (!hasCachedData) {
-          setErrorMessage(
+          const message =
             error instanceof ApiError || error instanceof Error
               ? error.message
-              : 'تعذر تحميل الإعلانات. حاول مرة أخرى.',
-          );
+              : 'تعذر تحميل الإعلانات. حاول مرة أخرى.';
+          setErrorMessage(message);
+          logger.warn('home-ads', message);
+          captureException(error, { scope: 'useHomeAds' });
         }
       } finally {
         if (isCurrent()) {
@@ -129,8 +149,10 @@ export function useHomeAds({ search, filters, sort }: Options) {
       });
       setPage(result.page || nextPage);
       setTotalPages(result.totalPages ?? totalPages);
-    } catch {
-      /* keep current list */
+    } catch (error) {
+      logger.warn('home-ads', 'loadMore failed', {
+        message: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       loadingMoreRef.current = false;
       setLoadingMore(false);
@@ -160,5 +182,6 @@ export function useHomeAds({ search, filters, sort }: Options) {
     loadMoreAds,
     markImageFailed,
     setErrorMessage,
+    queryKey: homeAdsQueryKey({ search, filters, sort }),
   };
 }

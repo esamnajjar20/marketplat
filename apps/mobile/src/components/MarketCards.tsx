@@ -1,21 +1,9 @@
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppImage } from '@/components/AppImage';
 import { colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 
-/**
- * بطاقة موحّدة لعناصر السوق في القوائم (منتج / خدمة / متجر / إعلان).
- * RTL: الصورة يمينًا، النص يسارًا بصريًا عبر row-reverse.
- */
-export function CatalogCard({
-  title,
-  subtitle,
-  meta,
-  price,
-  imageUri,
-  glyph = '◇',
-  onPress,
-  badge,
-}: {
+type CatalogCardProps = {
   title: string;
   subtitle?: string;
   meta?: string;
@@ -24,7 +12,23 @@ export function CatalogCard({
   glyph?: string;
   onPress: () => void;
   badge?: string;
-}) {
+};
+
+/**
+ * بطاقة موحّدة لعناصر السوق في القوائم (منتج / خدمة / متجر / إعلان).
+ * RTL: الصورة يمينًا، النص يسارًا بصريًا عبر row-reverse.
+ * مغلّفة بـ React.memo لتقليل إعادة الرسم في القوائم الطويلة.
+ */
+function CatalogCardComponent({
+  title,
+  subtitle,
+  meta,
+  price,
+  imageUri,
+  glyph = '◇',
+  onPress,
+  badge,
+}: CatalogCardProps) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -65,20 +69,21 @@ export function CatalogCard({
   );
 }
 
-/**
- * بطاقة إعلان أفقية (صورة + عنوان + سعر) — للرئيسية والقوائم.
- */
-export function AdCard({
-  title,
-  price,
-  meta,
-  imageUri,
-  isFavorite,
-  isNegotiable,
-  onPress,
-  onToggleFavorite,
-  onImageError,
-}: {
+export const CatalogCard = memo(CatalogCardComponent, (prev, next) => {
+  return (
+    prev.title === next.title &&
+    prev.subtitle === next.subtitle &&
+    prev.meta === next.meta &&
+    prev.price === next.price &&
+    prev.imageUri === next.imageUri &&
+    prev.glyph === next.glyph &&
+    prev.badge === next.badge &&
+    prev.onPress === next.onPress
+  );
+});
+CatalogCard.displayName = 'CatalogCard';
+
+type AdCardProps = {
   title: string;
   price: string;
   meta?: string;
@@ -88,7 +93,23 @@ export function AdCard({
   onPress: () => void;
   onToggleFavorite?: () => void;
   onImageError?: () => void;
-}) {
+};
+
+/**
+ * بطاقة إعلان أفقية (صورة + عنوان + سعر) — للرئيسية والقوائم.
+ * مغلّفة بـ React.memo: لا تُعاد رسمها إلا عند تغيّر بيانات الإعلان أو حالة المفضلة.
+ */
+function AdCardComponent({
+  title,
+  price,
+  meta,
+  imageUri,
+  isFavorite,
+  isNegotiable,
+  onPress,
+  onToggleFavorite,
+  onImageError,
+}: AdCardProps) {
   return (
     <View style={styles.adCard}>
       {onToggleFavorite ? (
@@ -142,6 +163,21 @@ export function AdCard({
     </View>
   );
 }
+
+export const AdCard = memo(AdCardComponent, (prev, next) => {
+  return (
+    prev.title === next.title &&
+    prev.price === next.price &&
+    prev.meta === next.meta &&
+    prev.imageUri === next.imageUri &&
+    prev.isFavorite === next.isFavorite &&
+    prev.isNegotiable === next.isNegotiable &&
+    prev.onPress === next.onPress &&
+    prev.onToggleFavorite === next.onToggleFavorite &&
+    prev.onImageError === next.onImageError
+  );
+});
+AdCard.displayName = 'AdCard';
 
 const styles = StyleSheet.create({
   card: {
