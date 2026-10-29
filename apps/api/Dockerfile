@@ -10,7 +10,6 @@ WORKDIR /repo
 # Copy every workspace manifest so pnpm can validate the root lockfile.
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/package.json
-COPY frontend/package.json ./frontend/package.json
 COPY apps/mobile/package.json ./apps/mobile/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
 
