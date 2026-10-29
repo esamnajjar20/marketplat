@@ -20,8 +20,6 @@
 .DS_Store
 
 # Legacy duplicate trees are not part of the apps/* monorepo build
-/backend
-/frontend
 
 # Local npm lockfiles are not used by the pnpm workspace images
 **/package-lock.json
