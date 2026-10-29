@@ -7,7 +7,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
 import { fetchAdDetail } from '@/features/ads/ads.api';
 import { createAd, updateAd, removeAdImage, reorderAdImages, PartialAdUpdateError, type AdDraft, type SelectedAdImage } from '@/features/ads/manage-ads.api';
-import { fetchPublicCategories, flattenPublicCategories, type PublicCategory } from '@/features/categories/categories.api';
+import type { PublicCategory } from '@/features/categories/categories.api';
+import { useAdEditorCategories } from '@/features/ads/useAdEditorCategories';
 import { useAuth } from '@/features/auth/AuthContext';
 import { cleanupStaleUnreferencedAdImages, persistSelectedAdImage, removePersistedAdImageIfUnused } from '@/storage/persist-ad-image';
 import { clearAdDraft, loadAdDraft, saveAdDraft, clearAdEditDraft, loadAdEditDraft, saveAdEditDraft } from '@/storage/ad-draft-store';
@@ -27,14 +28,12 @@ export default function AdEditorScreen() {
   const [loading, setLoading] = useState(Boolean(id));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [categories, setCategories] = useState<PublicCategory[]>([]);
-  const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const { categories, categoriesError } = useAdEditorCategories();
   const [pickingImages, setPickingImages] = useState(false);
   const [draftCompleted, setDraftCompleted] = useState(false);
   const [draftOwnerReady, setDraftOwnerReady] = useState<string | null>(null);
   // Reclaim only old, unreferenced files; this never blocks editing or network work.
   useEffect(() => { void cleanupStaleUnreferencedAdImages().catch(() => undefined); }, []);
-  useEffect(() => { let active = true; fetchPublicCategories().then((items) => { if (active) setCategories(flattenPublicCategories(items)); }).catch((e) => { if (active) setCategoriesError(e instanceof Error ? e.message : 'تعذر تحميل التصنيفات.'); }); return () => { active = false; }; }, []);
   // New-ad drafts are scoped by account and restored from SQLite after app restart.
   useEffect(() => {
     let active = true;

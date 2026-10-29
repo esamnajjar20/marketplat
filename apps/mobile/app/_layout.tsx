@@ -12,9 +12,13 @@ import { OutboxSyncLifecycleBridge } from '@/storage/OutboxSyncLifecycleBridge';
 import { FavoritesSyncLifecycleBridge } from '@/features/ads/FavoritesSyncLifecycleBridge';
 import { ChatMessageOutboxLifecycleBridge } from '@/storage/ChatMessageOutboxLifecycleBridge';
 import { OfflineBanner } from '@/components/MobileUI';
+import { captureException, initErrorReporting } from '@/lib/error-reporting';
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   if (__DEV__) console.error('[ErrorBoundary]', error);
+  useEffect(() => {
+    captureException(error, { boundary: 'root' });
+  }, [error]);
   return (
     <View
       style={{
@@ -77,7 +81,15 @@ function RootChrome({ children }: { children: ReactNode }) {
 export default function RootLayout() {
   // Allow native RTL for Arabic system locales; don't force a global flip because
   // this app intentionally uses row-reverse in many manually mirrored components.
-  useEffect(() => { I18nManager.allowRTL(true); }, []);
+  useEffect(() => {
+    I18nManager.allowRTL(true);
+  }, []);
+
+  // Crash reporting: no-op without DSN / package; see docs/mobile/checklists/SENTRY-SETUP.md
+  useEffect(() => {
+    initErrorReporting({ dsn: process.env.EXPO_PUBLIC_SENTRY_DSN });
+  }, []);
+
   return (
     <ConnectivityProvider>
       <AuthProvider>

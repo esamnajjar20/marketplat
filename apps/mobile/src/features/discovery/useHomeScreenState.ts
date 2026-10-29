@@ -74,6 +74,9 @@ export function useHomeScreenState() {
     if (next.sortOrder) setSortOrder(next.sortOrder);
   }, []);
 
+  /** Alias for screens that still call clearFilters */
+  const clearFilters = resetFilters;
+
   return {
     query,
     setQuery,
@@ -93,9 +96,12 @@ export function useHomeScreenState() {
     filterError,
     applyFilters,
     resetFilters,
+    clearFilters,
 
     sortBy,
+    setSortBy,
     sortOrder,
+    setSortOrder,
     setSort,
 
     favoriteIds,

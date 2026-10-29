@@ -1,8 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { router } from 'expo-router';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,35 +12,51 @@ import {
 } from 'react-native';
 import { AppImage } from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { AdListItem } from '@/features/ads/ads.api';
 import { colors, radius, spacing, typography, ux } from '@/theme/tokens';
 import { EmptyState, ErrorState, LoadingState, SectionHeader, SkeletonList } from '@/components/MobileUI';
 import { AdCard } from '@/components/MarketCards';
 import { useAuth } from '@/features/auth/AuthContext';
-import { enqueueFavoriteState, readFavoriteAdIds, writeFavoriteAdIds } from '@/features/ads/favorites.store';
-import type { ServiceListing } from '@/features/services/services.api';
 import HomeCommunitySections from '@/features/discovery/HomeCommunitySections';
 import HomeMarketplaceSections from '@/features/discovery/HomeMarketplaceSections';
 import { formatPrice, formatServicePrice } from '@/features/discovery/homeFormatters';
 import { useHomeAds } from '@/features/discovery/useHomeAds';
 import { useHomeServices } from '@/features/discovery/useHomeServices';
-import { homeFilterSchema, validate } from '@/lib/validation';
+import { useHomeScreenState } from '@/features/discovery/useHomeScreenState';
 import { useOnlineResync } from '@/lib/useOnlineResync';
 
+/**
+ * Home — orchestration only (Phase 2).
+ * State: useHomeScreenState (search/filters/sort/favorites)
+ * Data: useHomeAds + useHomeServices
+ */
 export default function HomeScreen() {
   const { user, logout, isBusy, isRestoring } = useAuth();
-  const [query, setQuery] = useState('');
-  const [submittedSearch, setSubmittedSearch] = useState('');
-  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
-  const favoriteIdsRef = useRef<string[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
-  const [cityInput, setCityInput] = useState('');
-  const [minPriceInput, setMinPriceInput] = useState('');
-  const [maxPriceInput, setMaxPriceInput] = useState('');
-  const [filters, setFilters] = useState<{ city?: string; minPrice?: number; maxPrice?: number }>({});
-  const [filterError, setFilterError] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'createdAt' | 'price' | 'views'>('createdAt');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+
+  const {
+    query,
+    setQuery,
+    submittedSearch,
+    submitSearch,
+    clearSearch,
+    showFilters,
+    setShowFilters,
+    cityInput,
+    setCityInput,
+    minPriceInput,
+    setMinPriceInput,
+    maxPriceInput,
+    setMaxPriceInput,
+    filters,
+    filterError,
+    applyFilters,
+    clearFilters,
+    sortBy,
+    setSortBy,
+    sortOrder,
+    setSortOrder,
+    favoriteIds,
+    toggleFavorite,
+  } = useHomeScreenState();
 
   const {
     ads,
@@ -72,66 +87,12 @@ export default function HomeScreen() {
   useEffect(() => {
     loadServicesRef.current = loadServices;
   }, [loadServices]);
-  const applyFilters = useCallback(() => {
-    const checked = validate(homeFilterSchema, {
-      city: cityInput,
-      minPrice: minPriceInput,
-      maxPrice: maxPriceInput,
-    });
-    if (!checked.ok) {
-      setFilterError(checked.message);
-      return;
-    }
-    setFilterError(null);
-    setFilters({
-      city: checked.data.city || undefined,
-      minPrice: checked.data.minPrice ? Number(checked.data.minPrice) : undefined,
-      maxPrice: checked.data.maxPrice ? Number(checked.data.maxPrice) : undefined,
-    });
-    setShowFilters(false);
-  }, [cityInput, minPriceInput, maxPriceInput]);
 
   const resyncPublic = useCallback(() => {
     void loadAdsRef.current(true);
     void loadServicesRef.current(true);
   }, []);
   useOnlineResync(resyncPublic);
-
-  useEffect(() => {
-    let active = true;
-    readFavoriteAdIds(user?.id).then((ids) => {
-      if (!active) return;
-      favoriteIdsRef.current = ids;
-      setFavoriteIds(ids);
-    });
-    return () => { active = false; };
-  }, [user?.id]);
-
-  // Mirror favoriteIds into ref for race-safe toggles.
-  useEffect(() => { favoriteIdsRef.current = favoriteIds; }, [favoriteIds]);
-
-  const toggleFavorite = useCallback(async (id: string) => {
-    // Read from ref (not state) to guarantee latest value on rapid double-tap.
-    const previous = favoriteIdsRef.current;
-    const wasFavorited = previous.includes(id);
-    const favorited = !wasFavorited;
-    const next = favorited ? [...previous, id] : previous.filter((item) => item !== id);
-    favoriteIdsRef.current = next;
-    setFavoriteIds(next);
-    try {
-      if (user?.id) {
-        const operationId = `fav-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-        await enqueueFavoriteState({ userId: user.id, adId: id, favorited, previousFavorited: wasFavorited, operationId });
-      }
-      await writeFavoriteAdIds(next, user?.id);
-    } catch (error) {
-      const cached = await readFavoriteAdIds(user?.id);
-      favoriteIdsRef.current = cached;
-      setFavoriteIds(cached);
-      Alert.alert('تعذر حفظ المفضلة', error instanceof Error ? error.message : 'لم يتم حفظ التغيير على الجهاز.');
-    }
-  }, [user?.id]);
-
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -174,14 +135,14 @@ export default function HomeScreen() {
               accessibilityLabel="ابحث عن إعلان"
               value={query}
               onChangeText={setQuery}
-              onSubmitEditing={() => { setSubmittedSearch(query.trim()); }}
+              onSubmitEditing={() => { submitSearch(); }}
               placeholder="ابحث عن إعلان أو سلعة…"
               placeholderTextColor={colors.muted}
               returnKeyType="search"
               style={styles.searchInput}
               textAlign="right"
             />
-            {query.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel="مسح البحث" onPress={() => { setQuery(''); setSubmittedSearch(''); }}><Text style={styles.clearSearch}>×</Text></Pressable>}
+            {query.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel="مسح البحث" onPress={() => { clearSearch(); }}><Text style={styles.clearSearch}>×</Text></Pressable>}
           </View>
         </View>
 
@@ -227,7 +188,7 @@ export default function HomeScreen() {
             <Pressable accessibilityRole="button" accessibilityState={{ selected: sortBy === 'price' }} onPress={() => { setSortBy('price'); setSortOrder('asc'); }} style={[styles.filterChip, sortBy === 'price' && styles.filterChipSelected]}><Text style={[styles.filterText, sortBy === 'price' && styles.filterTextSelected]}>الأقل سعرًا</Text></Pressable>
             <Pressable accessibilityRole="button" accessibilityState={{ selected: sortBy === 'views' }} onPress={() => { setSortBy('views'); setSortOrder('desc'); }} style={[styles.filterChip, sortBy === 'views' && styles.filterChipSelected]}><Text style={[styles.filterText, sortBy === 'views' && styles.filterTextSelected]}>الأكثر مشاهدة</Text></Pressable>
           </View>
-          <View style={styles.filterActions}><Pressable accessibilityRole="button" onPress={() => { setCityInput(''); setMinPriceInput(''); setMaxPriceInput(''); setFilters({}); setFilterError(null); setSortBy('createdAt'); setSortOrder('desc'); }} style={styles.clearFiltersButton}><Text style={styles.clearFiltersText}>مسح</Text></Pressable><Pressable accessibilityRole="button" onPress={applyFilters} style={styles.applyFiltersButton}><Text style={styles.applyFiltersText}>تطبيق الفلاتر</Text></Pressable></View>
+          <View style={styles.filterActions}><Pressable accessibilityRole="button" onPress={() => { clearFilters(); setSortBy('createdAt'); setSortOrder('desc'); }} style={styles.clearFiltersButton}><Text style={styles.clearFiltersText}>مسح</Text></Pressable><Pressable accessibilityRole="button" onPress={applyFilters} style={styles.applyFiltersButton}><Text style={styles.applyFiltersText}>تطبيق الفلاتر</Text></Pressable></View>
         </View> : null}
 
         {adsSavedAt !== null && !loading ? (
