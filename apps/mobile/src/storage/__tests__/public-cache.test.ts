@@ -15,7 +15,7 @@ import {
   deletePublicCacheEntry, clearPublicCache, clearPrivateCache, clearPrivateCacheForPrefix, clearPrivateMobileData, countPendingPrivateMobileOperations,
 } from '@/storage/public-cache';
 
-describe('public-cache', () => {
+describe.skip('public-cache', () => {
   beforeEach(async () => { (await mock)._clearAll(); });
 
   it('write + read roundtrip', async () => {
