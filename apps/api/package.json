@@ -103,7 +103,7 @@
     "winston": "^3.11.0",
     "winston-daily-rotate-file": "^4.7.1",
     "winston-transport": "^4.7.0",
-    "zod": "^3.22.0"
+    "zod": "^4.6.6"
   },
   "optionalDependencies": {
     "bcrypt": "^5.1.1"
