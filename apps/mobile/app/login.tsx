@@ -7,6 +7,7 @@ import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Field, Notice, PrimaryButton } from '@/components/MobileUI';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { loginSchema, validate } from '@/lib/validation';
 
 export default function LoginScreen() {
   const { login, isBusy } = useAuth();
@@ -15,18 +16,14 @@ export default function LoginScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const submit = async () => {
-    const normalizedEmail = email.trim();
-    if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
-      setErrorMessage('أدخل بريدًا إلكترونيًا صحيحًا.');
-      return;
-    }
-    if (!password) {
-      setErrorMessage('أدخل كلمة المرور.');
+    const checked = validate(loginSchema, { email, password });
+    if (!checked.ok) {
+      setErrorMessage(checked.message);
       return;
     }
     setErrorMessage(null);
     try {
-      await login(normalizedEmail, password);
+      await login(checked.data.email, checked.data.password);
       setPassword('');
       router.replace('/');
     } catch (error) {

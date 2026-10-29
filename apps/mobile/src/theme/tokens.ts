@@ -5,35 +5,36 @@
  */
 
 export const colors = {
-  // نص
-  ink: '#172033',
-  muted: '#6B7280',
-  // علامة تجارية
-  brand: '#176B5B',
-  brandDark: '#105447',
-  brandSoft: '#E7F4F0',
-  brandSoftActive: '#D4EDE5',
-  // خلفيات
-  canvas: '#F5F7F8',
+  // نص — متوافق مع هوية الويب (سوق غزة)
+  ink: '#241E18',
+  muted: '#6B635A',
+  // علامة تجارية: زيتوني
+  brand: '#2F5D45',
+  brandDark: '#244A37',
+  brandSoft: '#E8F0EB',
+  brandSoftActive: '#D5E5DB',
+  // خلفيات: كريمي دافئ
+  canvas: '#FBF6EE',
   surface: '#FFFFFF',
   // حدود
-  border: '#E4E8EC',
-  borderStrong: '#C8E2DA',
-  // تمييز
-  accent: '#F4B942',
+  border: '#E8E0D4',
+  borderStrong: '#C9D6CE',
+  // تمييز: تيراكوتا
+  accent: '#BE5A32',
+  accentSoft: '#F8EBE5',
   // حالات
   danger: '#B42318',
   dangerSoft: '#FCE8E6',
   dangerBorder: '#F5C2BE',
-  success: '#176B5B',
-  successSoft: '#E7F4F0',
-  successBorder: '#C8E2DA',
+  success: '#2F5D45',
+  successSoft: '#E8F0EB',
+  successBorder: '#C9D6CE',
   info: '#1D4E89',
   infoSoft: '#EAF2FB',
   infoBorder: '#C6DAF1',
-  warning: '#B54708',
-  warningSoft: '#FEF4E6',
-  warningBorder: '#F7D9A8',
+  warning: '#BE5A32',
+  warningSoft: '#F8EBE5',
+  warningBorder: '#E8C4B4',
   // ثابت
   white: '#FFFFFF',
   black: '#000000',
@@ -121,14 +122,14 @@ export const elevation = {
     elevation: 0,
   },
   sm: {
-    shadowColor: '#172033',
+    shadowColor: '#241E18',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 3,
     elevation: 1,
   },
   md: {
-    shadowColor: '#172033',
+    shadowColor: '#241E18',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,

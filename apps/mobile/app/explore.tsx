@@ -1,15 +1,16 @@
+import { FlatList, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import { Text, View } from 'react-native';
 import { ListRow, PageShell, SectionHeader } from '@/components/MobileUI';
 import { colors, spacing, typography } from '@/theme/tokens';
+import { marketListPerf } from '@/lib/listPerformance';
 
 type Destination = { title: string; description: string; path: string };
 type DestinationGroup = { title: string; subtitle: string; items: Destination[] };
 
 const groups: DestinationGroup[] = [
   {
-    title: 'الإعلانات والبحث',
-    subtitle: 'اعثر على ما تبحث عنه بسرعة',
+    title: 'الإعلانات والطلبات',
+    subtitle: 'ابدأ من هنا للتصفح أو البحث',
     items: [
       { title: 'كل الإعلانات', description: 'تصفح أحدث الإعلانات المنشورة في السوق', path: '/' },
       { title: 'البحث المتقدم', description: 'ابحث بالاسم والسعر والمدينة والتصنيف', path: '/search' },
@@ -49,24 +50,31 @@ const groups: DestinationGroup[] = [
 
 export default function ExploreScreen() {
   return (
-    <PageShell title="استكشف السوق">
-      <Text style={{ textAlign: 'right', ...typography.body, color: colors.muted }}>
-        رتّبنا الصفحات حسب ما تريد فعله حتى تصل إلى القسم المطلوب بخطوات أقل.
-      </Text>
-
-      {groups.map((group) => (
-        <View key={group.title} style={{ gap: spacing.md }}>
-          <SectionHeader title={group.title} subtitle={group.subtitle} />
-          {group.items.map((item) => (
-            <ListRow
-              key={item.path}
-              title={item.title}
-              description={item.description}
-              onPress={() => router.push(item.path as never)}
-            />
-          ))}
-        </View>
-      ))}
+    <PageShell title="استكشف السوق" scroll={false}>
+      <FlatList
+        data={groups}
+        keyExtractor={(group) => group.title}
+        {...marketListPerf}
+        contentContainerStyle={{ paddingBottom: 48, gap: spacing.xl }}
+        ListHeaderComponent={
+          <Text style={{ textAlign: 'right', ...typography.body, color: colors.muted, marginBottom: spacing.md }}>
+            رتّبنا الصفحات حسب ما تريد فعله حتى تصل إلى القسم المطلوب بخطوات أقل.
+          </Text>
+        }
+        renderItem={({ item: group }) => (
+          <View style={{ gap: spacing.md }}>
+            <SectionHeader title={group.title} subtitle={group.subtitle} />
+            {group.items.map((item) => (
+              <ListRow
+                key={item.path}
+                title={item.title}
+                description={item.description}
+                onPress={() => router.push(item.path as never)}
+              />
+            ))}
+          </View>
+        )}
+      />
     </PageShell>
   );
 }

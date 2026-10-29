@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import NetInfo from '@react-native-community/netinfo';
 import { router } from 'expo-router';
 import {
   ActivityIndicator,
   Alert,
-  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -13,45 +11,27 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { AppImage } from '@/components/AppImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ApiError } from '@/api/client';
-import { AdListItem, fetchPublicAds, getCachedPublicAdsWithMetadata } from '@/features/ads/ads.api';
+import type { AdListItem } from '@/features/ads/ads.api';
 import { colors, radius, spacing, typography, ux } from '@/theme/tokens';
 import { EmptyState, ErrorState, LoadingState, SectionHeader, SkeletonList } from '@/components/MobileUI';
 import { AdCard } from '@/components/MarketCards';
 import { useAuth } from '@/features/auth/AuthContext';
 import { enqueueFavoriteState, readFavoriteAdIds, writeFavoriteAdIds } from '@/features/ads/favorites.store';
-import { fetchServiceListings, getCachedServiceListings, type ServiceListing } from '@/features/services/services.api';
+import type { ServiceListing } from '@/features/services/services.api';
 import HomeCommunitySections from '@/features/discovery/HomeCommunitySections';
 import HomeMarketplaceSections from '@/features/discovery/HomeMarketplaceSections';
-
-function formatPrice(price: AdListItem['price']): string {
-  if (price === null || price === undefined || price === '') return 'السعر عند التواصل';
-  const numericPrice = Number(price);
-  if (!Number.isFinite(numericPrice)) return String(price);
-  return `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(numericPrice)} ₪`;
-}
-
-function formatServicePrice(item: ServiceListing): string {
-  if (item.pricingType === 'NEGOTIABLE' || item.price == null) return 'السعر عند الاتفاق';
-  const price = Number(item.price);
-  if (!Number.isFinite(price)) return 'السعر عند الاتفاق';
-  return `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(price)} ₪${item.pricingType === 'STARTING_FROM' ? ' وما فوق' : ''}`;
-}
+import { formatPrice, formatServicePrice } from '@/features/discovery/homeFormatters';
+import { useHomeAds } from '@/features/discovery/useHomeAds';
+import { useHomeServices } from '@/features/discovery/useHomeServices';
+import { homeFilterSchema, validate } from '@/lib/validation';
+import { useOnlineResync } from '@/lib/useOnlineResync';
 
 export default function HomeScreen() {
   const { user, logout, isBusy, isRestoring } = useAuth();
   const [query, setQuery] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
-  const [ads, setAds] = useState<AdListItem[]>([]);
-  const [serviceItems, setServiceItems] = useState<ServiceListing[]>([]);
-  const [servicesLoading, setServicesLoading] = useState(true);
-  const [servicesError, setServicesError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [adsSavedAt, setAdsSavedAt] = useState<number | null>(null);
-  const [adsFromCache, setAdsFromCache] = useState(false);
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const favoriteIdsRef = useRef<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -62,174 +42,41 @@ export default function HomeScreen() {
   const [filterError, setFilterError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'createdAt' | 'price' | 'views'>('createdAt');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [failedImageIds, setFailedImageIds] = useState<string[]>([]);
-  const adsRequestSequence = useRef(0);
-  const connectivityRef = useRef<boolean | null>(null);
-  const servicesRequestSequence = useRef(0);
 
-  const loadAds = useCallback(async (isRefresh = false) => {
-    const requestSequence = ++adsRequestSequence.current;
-    const isCurrentRequest = () => requestSequence === adsRequestSequence.current;
-    if (isRefresh) setRefreshing(true);
-    setErrorMessage(null);
-    setLoadingMore(false);
-    setPage(1);
-    setTotalPages(1);
-    const options = { page: 1, limit: 8, search: submittedSearch, categoryId: undefined } as {
-      page: number; limit: number; search: string; categoryId: string | undefined;
-      city?: string; minPrice?: number; maxPrice?: number;
-      sortBy: 'createdAt' | 'price' | 'views'; sortOrder: 'asc' | 'desc';
-    };
-    Object.assign(options, { city: filters.city, minPrice: filters.minPrice, maxPrice: filters.maxPrice, sortBy, sortOrder });
-    let hasCachedData = false;
-    try {
-      const cached = await getCachedPublicAdsWithMetadata(options);
-      if (!isCurrentRequest()) return;
-      if (cached) {
-        hasCachedData = true;
-        setAds(cached.result.items);
-        setPage(cached.result.page || 1);
-        setTotalPages(cached.result.totalPages ?? (cached.result.items.length >= options.limit ? 2 : 1));
-        setAdsSavedAt(cached.savedAt);
-        setAdsFromCache(true);
-        setLoading(false);
-      }
-    } catch { /* Cache is optional; continue with network. */ }
-    if (!hasCachedData && !isRefresh) setLoading(true);
-    try {
-      const result = await fetchPublicAds(options);
-      if (!isCurrentRequest()) return;
-      setAds(result.items);
-      setFailedImageIds([]);
-      setPage(result.page || 1);
-      setTotalPages(result.totalPages ?? (result.items.length >= options.limit ? (result.page || 1) + 1 : (result.page || 1)));
-      setAdsFromCache(false);
-      const latestCache = await getCachedPublicAdsWithMetadata(options);
-      if (!isCurrentRequest()) return;
-      if (latestCache) {
-        setAdsSavedAt(latestCache.savedAt);
-      }
-    } catch (error) {
-      if (!isCurrentRequest()) return;
-      if (!hasCachedData) setErrorMessage(error instanceof ApiError || error instanceof Error
-        ? error.message
-        : 'تعذر تحميل الإعلانات. حاول مرة أخرى.');
-    } finally {
-      if (isCurrentRequest()) {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
-  }, [submittedSearch, filters, sortBy, sortOrder]);
+  const {
+    ads,
+    loading,
+    refreshing,
+    errorMessage,
+    adsSavedAt,
+    adsFromCache,
+    page,
+    totalPages,
+    loadingMore,
+    failedImageIds,
+    loadAds,
+    loadMoreAds,
+    markImageFailed,
+  } = useHomeAds({
+    search: submittedSearch,
+    filters,
+    sort: { sortBy, sortOrder },
+  });
+  const { serviceItems, servicesLoading, servicesError, loadServices } = useHomeServices();
 
-  const loadingMoreRef = useRef(false);
-  const loadMoreAds = useCallback(async () => {
-    if (loadingMoreRef.current || loading || page >= totalPages) return;
-    loadingMoreRef.current = true;
-    setLoadingMore(true);
-    setErrorMessage(null);
-    const requestSequence = adsRequestSequence.current;
-    const nextPage = page + 1;
-    const options = { page: nextPage, limit: 8, search: submittedSearch, categoryId: undefined } as {
-      page: number; limit: number; search: string; categoryId: string | undefined;
-      city?: string; minPrice?: number; maxPrice?: number;
-      sortBy: 'createdAt' | 'price' | 'views'; sortOrder: 'asc' | 'desc';
-    };
-    Object.assign(options, { city: filters.city, minPrice: filters.minPrice, maxPrice: filters.maxPrice, sortBy, sortOrder });
-    try {
-      const result = await fetchPublicAds(options);
-      if (requestSequence !== adsRequestSequence.current) return;
-      setAds((current) => {
-        const seen = new Set(current.map((item) => item.id));
-        return [...current, ...result.items.filter((item) => !seen.has(item.id))];
-      });
-      setPage(result.page || nextPage);
-      setTotalPages(result.totalPages ?? (result.items.length >= options.limit ? nextPage + 1 : nextPage));
-    } catch (error) {
-      if (requestSequence === adsRequestSequence.current) {
-        setErrorMessage(error instanceof Error ? error.message : 'تعذر تحميل المزيد من الإعلانات.');
-      }
-    } finally {
-      loadingMoreRef.current = false;
-      if (requestSequence === adsRequestSequence.current) setLoadingMore(false);
-    }
-  }, [loading, page, totalPages, submittedSearch, filters, sortBy, sortOrder]);
-
-  const applyFilters = useCallback(() => {
-    const minText = minPriceInput.trim();
-    const maxText = maxPriceInput.trim();
-    const min = minText ? Number(minText) : undefined;
-    const max = maxText ? Number(maxText) : undefined;
-    if ((minText && (!Number.isFinite(min) || min! < 0)) || (maxText && (!Number.isFinite(max) || max! < 0))) {
-      setFilterError('أدخل أسعارًا رقمية صحيحة وغير سالبة.');
-      return;
-    }
-    if (min !== undefined && max !== undefined && min > max) {
-      setFilterError('الحد الأدنى للسعر لا يمكن أن يتجاوز الحد الأعلى.');
-      return;
-    }
-    setFilterError(null);
-    setFilters({ city: cityInput.trim() || undefined, minPrice: min, maxPrice: max });
-    setShowFilters(false);
-  }, [cityInput, minPriceInput, maxPriceInput]);
-
-  const loadServices = useCallback(async (refresh = false) => {
-    const requestSequence = ++servicesRequestSequence.current;
-    const isCurrentRequest = () => requestSequence === servicesRequestSequence.current;
-    if (refresh) setServicesError(null);
-    let hasCachedData = false;
-    try {
-      const cached = await getCachedServiceListings({ page: 1, limit: 8, search: '' });
-      if (!isCurrentRequest()) return;
-      if (cached) {
-        hasCachedData = true;
-        setServiceItems(cached.slice(0, 8));
-        setServicesLoading(false);
-      }
-    } catch { /* Cache is optional. */ }
-    try {
-      const result = await fetchServiceListings({ page: 1, limit: 8, search: '' });
-      if (!isCurrentRequest()) return;
-      setServiceItems(result.slice(0, 8));
-      setServicesError(null);
-    } catch (error) {
-      if (isCurrentRequest() && !hasCachedData) setServicesError(error instanceof Error ? error.message : 'تعذر تحميل الخدمات.');
-    } finally {
-      if (isCurrentRequest()) setServicesLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { void loadAds(); }, [loadAds]);
-  useEffect(() => { void loadServices(); }, [loadServices]);
-
-  // Re-sync public read-only data after a real offline -> online transition.
-  // Keep the previous connectivity value across renders so changing search/filter
-  // subscriptions cannot masquerade as a reconnect.
-  // Refs prevent NetInfo listener re-subscription on every filter change.
   const loadAdsRef = useRef(loadAds);
   const loadServicesRef = useRef(loadServices);
-  useEffect(() => { loadAdsRef.current = loadAds; }, [loadAds]);
-  useEffect(() => { loadServicesRef.current = loadServices; }, [loadServices]);
-
   useEffect(() => {
-    void NetInfo.fetch().then((state) => {
-      const online = state.isConnected === true && state.isInternetReachable !== false;
-      connectivityRef.current = online;
-    });
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      const online = state.isConnected === true && state.isInternetReachable !== false;
-      const previous = connectivityRef.current;
-      connectivityRef.current = online;
-      if (previous === false && online) {
-        void loadAdsRef.current(true);
-        void loadServicesRef.current(true);
-      }
-    });
-    return () => { unsubscribe(); };
+    loadAdsRef.current = loadAds;
+  }, [loadAds]);
+  useEffect(() => {
+    loadServicesRef.current = loadServices;
+  }, [loadServices]);
+  const resyncPublic = useCallback(() => {
+    void loadAdsRef.current(true);
+    void loadServicesRef.current(true);
   }, []);
+  useOnlineResync(resyncPublic);
 
   useEffect(() => {
     let active = true;
@@ -400,7 +247,7 @@ export default function HomeScreen() {
                   isNegotiable={Boolean(ad.isNegotiable)}
                   onPress={() => router.push(`/ads/${encodeURIComponent(ad.id)}`)}
                   onToggleFavorite={() => { void toggleFavorite(ad.id); }}
-                  onImageError={() => setFailedImageIds((current) => current.includes(ad.id) ? current : [...current, ad.id])}
+                  onImageError={() => markImageFailed(ad.id)}
                 />
               );
             })}
@@ -420,7 +267,7 @@ export default function HomeScreen() {
             const imageUri = item.images?.find((url) => typeof url === 'string' && /^https?:\/\//i.test(url));
             const provider = item.provider?.businessName || item.provider?.sellerProfile?.displayName || 'مقدم خدمة';
             return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`عرض الخدمة: ${item.title}`} onPress={() => router.push(`/services/${encodeURIComponent(item.id)}`)} style={styles.serviceCard}>
-              {imageUri ? <Image source={{ uri: imageUri }} style={styles.serviceImage} resizeMode="cover" /> : <View style={styles.serviceImagePlaceholder}><Text style={styles.servicePlaceholderGlyph}>✦</Text></View>}
+              {imageUri ? <AppImage uri={imageUri} style={styles.serviceImage} resizeMode="cover" /> : <View style={styles.serviceImagePlaceholder}><Text style={styles.servicePlaceholderGlyph}>✦</Text></View>}
               <View style={styles.serviceInfo}><Text numberOfLines={2} style={styles.serviceTitle}>{item.title}</Text><Text numberOfLines={1} style={styles.serviceProvider}>{provider}</Text><Text style={styles.servicePrice}>{formatServicePrice(item)}</Text></View>
             </Pressable>;
           })}</View> : null}

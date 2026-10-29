@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { denseListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -189,7 +190,10 @@ export default function NotificationsScreen() {
       ) : error ? (
         <ErrorState title="تعذر تحميل الإشعارات" description={error} onAction={() => void load()} />
       ) : (
-        <ScrollView
+        <FlatList
+          data={items}
+          keyExtractor={(item) => item.id}
+          {...denseListPerf}
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl
@@ -198,16 +202,14 @@ export default function NotificationsScreen() {
               tintColor={colors.brand}
             />
           }
-        >
-          {items.length === 0 ? (
+          ListEmptyComponent={
             <EmptyState
               title="لا توجد إشعارات بعد"
               description="ستظهر هنا تحديثات حسابك ونشاطك في MarketPlat."
             />
-          ) : (
-            items.map((item) => (
-              <Pressable
-                key={item.id}
+          }
+          renderItem={({ item }) => (
+<Pressable
                 accessibilityRole="button"
                 onPress={() => { void open(item); }}
                 style={[styles.card, !item.readAt && styles.unread]}
@@ -232,9 +234,9 @@ export default function NotificationsScreen() {
                 </View>
                 {!item.readAt ? <View style={styles.dot} /> : null}
               </Pressable>
-            ))
           )}
-        </ScrollView>
+          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+        />
       )}
     </SafeAreaView>
   );

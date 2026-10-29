@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { ApiError } from '@/api/client';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
 import { colors, typography } from '@/theme/tokens';
+import { registerSchema, validate } from '@/lib/validation';
 
 export default function RegisterScreen() {
   const { register, isBusy } = useAuth();
@@ -16,31 +17,23 @@ export default function RegisterScreen() {
   const [error, setError] = useState('');
 
   const submit = async () => {
-    const e = email.trim().toLowerCase();
-    if (name.trim().length < 2) {
-      setError('اكتب اسمًا من حرفين على الأقل.');
+    const checked = validate(registerSchema, { name, email, password, phone, city });
+    if (!checked.ok) {
+      setError(checked.message);
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
-      setError('أدخل بريدًا إلكترونيًا صحيحًا.');
-      return;
-    }
-    if (password.length < 8) {
-      setError('كلمة المرور يجب أن تكون 8 أحرف على الأقل.');
-      return;
-    }
-    if (phone.trim() && !/^\+?[0-9]{9,15}$/.test(phone.trim())) {
+    if (checked.data.phone && !/^\+?[0-9]{9,15}$/.test(checked.data.phone)) {
       setError('رقم الهاتف يجب أن يحتوي على 9 إلى 15 رقمًا.');
       return;
     }
     setError('');
     try {
       await register({
-        name: name.trim(),
-        email: e,
-        password,
-        ...(phone.trim() ? { phone: phone.trim() } : {}),
-        ...(city.trim() ? { city: city.trim() } : {}),
+        name: checked.data.name,
+        email: checked.data.email.trim().toLowerCase(),
+        password: checked.data.password,
+        ...(checked.data.phone ? { phone: checked.data.phone } : {}),
+        ...(checked.data.city ? { city: checked.data.city } : {}),
       });
       setPassword('');
       router.replace('/');

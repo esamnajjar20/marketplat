@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { SectionHeader } from '@/components/MobileUI';
@@ -9,6 +9,7 @@ import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce
 import { fetchServiceListings, type ServiceListing } from '@/features/services/services.api';
 import { fetchOpenRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
 import { useAuth } from '@/features/auth/AuthContext';
+import { AppImage } from '@/components/AppImage';
 
 type SectionData = { products: ProductSummary[]; services: ServiceListing[]; requests: MarketplaceRequest[] };
 
@@ -53,7 +54,7 @@ function EmptySection({ label, offline }: { label: string; offline: boolean }) {
 function MiniCard({ title, subtitle, image, price, glyph, onPress }: { title: string; subtitle: string; image?: string | null; price?: string | null; glyph: string; onPress: () => void }) {
   const [imageFailed, setImageFailed] = useState(false);
   return <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} style={{ width: 158, minHeight: 190, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface, overflow: 'hidden' }}>
-    {image && !imageFailed ? <Image source={{ uri: image }} onError={() => setImageFailed(true)} resizeMode="cover" style={{ width: '100%', height: 88, backgroundColor: colors.brandSoft }} /> : <View style={{ width: '100%', height: 88, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}><Text style={{ color: colors.brand, fontSize: 30, fontWeight: '900' }}>{glyph}</Text></View>}
+    {image && !imageFailed ? <AppImage uri={image} onError={() => setImageFailed(true)} resizeMode="cover" style={{ width: '100%', height: 88, backgroundColor: colors.brandSoft }} /> : <View style={{ width: '100%', height: 88, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}><Text style={{ color: colors.brand, fontSize: 30, fontWeight: '900' }}>{glyph}</Text></View>}
     <View style={{ flex: 1, padding: spacing.sm, gap: 5, alignItems: 'flex-end' }}>
       <Text numberOfLines={2} style={{ width: '100%', minHeight: 36, color: colors.ink, fontSize: 13, lineHeight: 18, fontWeight: '800', textAlign: 'right' }}>{title}</Text>
       <Text numberOfLines={1} style={{ width: '100%', color: colors.muted, fontSize: 11, textAlign: 'right' }}>{subtitle}</Text>
@@ -153,7 +154,7 @@ export default function HomeMarketplaceSections() {
       <Text style={{ color: colors.ink, fontSize: 16, fontWeight: '900', textAlign: 'right' }}>تابع طلباتك ومشترياتك</Text>
       <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 19, textAlign: 'right' }}>وصل سريع للطلبات التي أنشأتها، وطلبات الشراء ومتابعة حالتها دون استعلامات إضافية من الرئيسية.</Text>
       <View style={{ flexDirection: 'row-reverse', gap: spacing.sm }}>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/orders')} style={{ flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800' }}>طلباتي ومشترياتي</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/orders')} style={{ flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.white, fontSize: 12, fontWeight: '800' }}>طلباتي ومشترياتي</Text></Pressable>
         <Pressable accessibilityRole="button" onPress={() => router.push('/my-requests')} style={{ flex: 1, minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.brand, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontSize: 12, fontWeight: '800' }}>طلبات السوق التي أنشأتها</Text></Pressable>
       </View>
     </View> : <Pressable accessibilityRole="button" onPress={() => router.push('/login')} style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.md, gap: spacing.xs }}>

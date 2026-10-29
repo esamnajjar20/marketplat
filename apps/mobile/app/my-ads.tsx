@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { marketListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNetInfo } from '@react-native-community/netinfo';
@@ -139,37 +140,41 @@ export default function MyAdsScreen() {
       ) : error ? (
         <ErrorState title="تعذر تحميل الإعلانات" description={error} onAction={() => void load()} />
       ) : (
-        <ScrollView contentContainerStyle={styles.list}>
-          {ads.length === 0 ? (
+        <FlatList
+          data={ads}
+          keyExtractor={(ad) => ad.id}
+          {...marketListPerf}
+          contentContainerStyle={styles.list}
+          ListEmptyComponent={
             <EmptyState
               title="لم تنشر أي إعلان بعد"
               description="ابدأ بنشر إعلانك الأول ليظهر في السوق."
               actionLabel="إضافة إعلان"
               onAction={() => router.push('/ad-editor')}
             />
-          ) : (
-            ads.map((ad) => (
-              <SectionCard key={ad.id}>
-                <Text style={styles.adTitle}>{ad.title}</Text>
-                <Text style={styles.meta}>
-                  {[ad.city, ad.status || 'الحالة غير متاحة'].filter(Boolean).join(' · ')}
-                </Text>
-                <View style={styles.actions}>
-                  <SecondaryButton
-                    label="تعديل"
-                    onPress={() => router.push({ pathname: '/ad-editor', params: { id: ad.id } })}
-                  />
-                  <PrimaryButton
-                    label={busyId === ad.id ? 'جارٍ الحذف…' : online ? 'حذف' : 'حفظ طلب الحذف'}
-                    variant="danger"
-                    busy={busyId === ad.id}
-                    onPress={() => remove(ad)}
-                  />
-                </View>
-              </SectionCard>
-            ))
+          }
+          renderItem={({ item: ad }) => (
+            <SectionCard>
+              <Text style={styles.adTitle}>{ad.title}</Text>
+              <Text style={styles.meta}>
+                {[ad.city, ad.status || 'الحالة غير متاحة'].filter(Boolean).join(' · ')}
+              </Text>
+              <View style={styles.actions}>
+                <SecondaryButton
+                  label="تعديل"
+                  onPress={() => router.push({ pathname: '/ad-editor', params: { id: ad.id } })}
+                />
+                <PrimaryButton
+                  label={busyId === ad.id ? 'جارٍ الحذف…' : online ? 'حذف' : 'حفظ طلب الحذف'}
+                  variant="danger"
+                  busy={busyId === ad.id}
+                  onPress={() => remove(ad)}
+                />
+              </View>
+            </SectionCard>
           )}
-        </ScrollView>
+          ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        />
       )}
     </SafeAreaView>
   );

@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { marketListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNetInfo } from '@react-native-community/netinfo';
@@ -161,35 +162,47 @@ export default function FavoritesScreen() {
           onAction={() => router.replace('/')}
         />
       ) : (
-        <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.count}>{items.length} إعلان محفوظ</Text>
-          <View style={styles.list}>
-            {items.map((record) => {
-              const ad = record.ad;
-              const title = ad?.title || 'إعلان محفوظ';
-              const imageUri = ad?.images?.find(
-                (url) => typeof url === 'string' && /^https?:\/\//i.test(url),
-              );
-              return (
-                <AdCard
-                  key={record.adId}
-                  title={title}
-                  price={priceLabel(ad?.price)}
-                  meta={[ad?.city, ad?.category?.nameAr || ad?.category?.name]
-                    .filter(Boolean)
-                    .join(' · ') || 'إعلان محلي'}
-                  imageUri={imageUri}
-                  isFavorite
-                  isNegotiable={Boolean(ad?.isNegotiable)}
-                  onPress={() => router.push(`/ads/${encodeURIComponent(record.adId)}`)}
-                  onToggleFavorite={
-                    busyId === record.adId ? undefined : () => remove(record)
-                  }
-                />
-              );
-            })}
-          </View>
-        </ScrollView>
+        <FlatList
+          data={items}
+          keyExtractor={(record) => record.adId}
+          {...marketListPerf}
+          contentContainerStyle={styles.content}
+          ListHeaderComponent={
+            items.length > 0 ? <Text style={styles.count}>{items.length} إعلان محفوظ</Text> : null
+          }
+          ListEmptyComponent={
+            <EmptyState
+              title="لا توجد عناصر في المفضلة"
+              description="أضف إعلانات إلى المفضلة من صفحات التفاصيل."
+              actionLabel="تصفح الإعلانات"
+              onAction={() => router.push('/')}
+            />
+          }
+          renderItem={({ item: record }) => {
+            const ad = record.ad;
+            const title = ad?.title || 'إعلان محفوظ';
+            const imageUri = ad?.images?.find(
+              (url) => typeof url === 'string' && /^https?:\/\//i.test(url),
+            );
+            return (
+              <AdCard
+                title={title}
+                price={priceLabel(ad?.price)}
+                meta={[ad?.city, ad?.category?.nameAr || ad?.category?.name]
+                  .filter(Boolean)
+                  .join(' · ') || 'إعلان محلي'}
+                imageUri={imageUri}
+                isFavorite
+                isNegotiable={Boolean(ad?.isNegotiable)}
+                onPress={() => router.push(`/ads/${encodeURIComponent(record.adId)}`)}
+                onToggleFavorite={
+                  busyId === record.adId ? undefined : () => remove(record)
+                }
+              />
+            );
+          }}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        />
       )}
     </SafeAreaView>
   );

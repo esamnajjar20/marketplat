@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { marketListPerf } from '@/lib/listPerformance';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { fetchServiceListings, getCachedServiceListings, type ServiceListing } from '@/features/services/services.api';
@@ -72,60 +73,68 @@ export default function ServicesScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <AppHeader title="الخدمات" />
-      <ScrollView
+      <FlatList
+        data={loading || error ? [] : items}
+        keyExtractor={(item) => item.id}
+        {...marketListPerf}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />
         }
-      >
-        <Text style={styles.subtitle}>اعثر على مقدم الخدمة المناسب</Text>
-        <SearchBar
-          value={query}
-          onChangeText={setQuery}
-          onSubmit={() => setSubmitted(query.trim())}
-          placeholder="ابحث عن خدمة…"
-          accessibilityLabel="ابحث عن خدمة"
-        />
-
-        <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>خدمات متاحة</Text>
-          <Text style={styles.count}>{items.length} نتيجة</Text>
-        </View>
-
-        {loading ? (
-          <SkeletonList count={4} />
-        ) : error ? (
-          <ErrorState title="تعذر تحميل الخدمات" description={error} onAction={() => void load()} />
-        ) : items.length === 0 ? (
-          <EmptyState
-            title="لا توجد خدمات مطابقة"
-            description="جرّب كلمات بحث مختلفة أو اسحب الشاشة للأسفل للتحديث."
-          />
-        ) : (
-          <View style={styles.list}>
-            {items.map((item) => {
-              const image = item.images?.find((uri) => /^https?:\/\//i.test(uri));
-              const provider =
-                item.provider?.businessName ||
-                item.provider?.sellerProfile?.displayName ||
-                'مقدم خدمة';
-              return (
-                <CatalogCard
-                  key={item.id}
-                  title={item.title}
-                  subtitle={`${provider}${item.provider?.sellerProfile?.verified ? ' · موثّق' : ''}`}
-                  price={priceLabel(item)}
-                  meta={item.category?.nameAr || item.category?.name || undefined}
-                  imageUri={image}
-                  glyph="✦"
-                  onPress={() => router.push(`/services/${encodeURIComponent(item.id)}`)}
-                />
-              );
-            })}
+        ListHeaderComponent={
+          <View style={{ gap: spacing.md }}>
+            <Text style={styles.subtitle}>اعثر على مقدم الخدمة المناسب</Text>
+            <SearchBar
+              value={query}
+              onChangeText={setQuery}
+              onSubmit={() => setSubmitted(query.trim())}
+              placeholder="ابحث عن خدمة…"
+              accessibilityLabel="ابحث عن خدمة"
+            />
+            {loading ? (
+              <SkeletonList count={4} />
+            ) : error ? (
+              <ErrorState title="تعذر تحميل الخدمات" description={error} onAction={() => void load()} />
+            ) : (
+              <View style={styles.sectionRow}>
+                <Text style={styles.sectionTitle}>خدمات متاحة</Text>
+                <Text style={styles.count}>{items.length} نتيجة</Text>
+              </View>
+            )}
           </View>
-        )}
-      </ScrollView>
+        }
+        ListEmptyComponent={
+          !loading && !error ? (
+            <EmptyState title="لا توجد خدمات مطابقة" description="جرّب كلمات بحث مختلفة أو اسحب للتحديث." />
+          ) : null
+        }
+        renderItem={({ item }) => {
+          const image = item.images?.find((uri) => typeof uri === 'string' && /^https?:\/\//i.test(uri));
+          return (
+            <CatalogCard
+              title={item.title}
+              subtitle={`${item.provider?.businessName || item.provider?.sellerProfile?.displayName || 'مقدم خدمة'}${item.city ? ` · ${item.city}` : ''}`}
+              price={priceLabel(item)}
+              meta={item.category?.nameAr || item.category?.name || undefined}
+              imageUri={image}
+              glyph="✦"
+              onPress={() => router.push(`/services/${encodeURIComponent(item.id)}`)}
+            />
+          );
+        }}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ListFooterComponent={
+          !loading && !error && items.length > 0 && page < totalPages ? (
+            <PrimaryButton
+              label={loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}
+              onPress={() => void loadMore()}
+              busy={loadingMore}
+              variant="secondary"
+            />
+          ) : null
+        }
+      />
     </SafeAreaView>
   );
 }

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchStores, type StoreSummary } from '@/features/commerce/commerce.api';
 import { fetchStoryFeed, type StoryGroup } from '@/features/stories/stories.api';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
+import { AppImage } from '@/components/AppImage';
 
 const PUBLIC_STORES_CACHE_KEY = 'home:public-stores:v1';
 const PUBLIC_STORES_TTL_MS = 10 * 60 * 1000;
@@ -27,7 +28,7 @@ function StoreCard({ store }: { store: StoreSummary }) {
       style={{ width: 174, minHeight: 204, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface, overflow: 'hidden' }}
     >
       {imageUri ? (
-        <Image source={{ uri: imageUri }} resizeMode="cover" onError={() => setImageFailed(true)} style={{ height: 88, width: '100%', backgroundColor: colors.brandSoft }} />
+        <AppImage uri={imageUri} resizeMode="cover" onError={() => setImageFailed(true)} style={{ height: 88, width: '100%', backgroundColor: colors.brandSoft }} />
       ) : (
         <View style={{ height: 88, width: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}>
           <Text style={{ color: colors.brand, fontSize: 28, fontWeight: '900' }}>م</Text>
@@ -189,7 +190,7 @@ export default function HomeCommunitySections() {
                   style={{ width: 78, alignItems: 'center', gap: 6 }}
                 >
                   <View style={{ width: 68, height: 68, borderRadius: 34, padding: 3, borderWidth: 2, borderColor: group.hasUnseen ? colors.brand : colors.border, alignItems: 'center', justifyContent: 'center' }}>
-                    {avatar ? <Image source={{ uri: avatar }} onError={() => setFailedStoryAvatars((current) => current.includes(group.user.id) ? current : [...current, group.user.id])} style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.brandSoft }} /> : <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontWeight: '900', fontSize: 20 }}>{group.user.name?.trim()?.charAt(0) || 'م'}</Text></View>}
+                    {avatar ? <AppImage uri={avatar} onError={() => setFailedStoryAvatars((current) => current.includes(group.user.id) ? current : [...current, group.user.id])} style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.brandSoft }} /> : <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontWeight: '900', fontSize: 20 }}>{group.user.name?.trim()?.charAt(0) || 'م'}</Text></View>}
                   </View>
                   <Text numberOfLines={1} style={{ width: '100%', color: colors.ink, fontSize: 11, fontWeight: group.hasUnseen ? '800' : '500', textAlign: 'center' }}>{group.user.name}</Text>
                 </Pressable>

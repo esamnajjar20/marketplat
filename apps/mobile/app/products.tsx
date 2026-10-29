@@ -1,5 +1,6 @@
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { marketListPerf } from '@/lib/listPerformance';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -122,73 +123,76 @@ export default function ProductsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <AppHeader title={title} />
-      <ScrollView
+      <FlatList
+        data={loading || error ? [] : items}
+        keyExtractor={(item) => item.id}
+        {...marketListPerf}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />
         }
-      >
-        <Text style={styles.subtitle}>{subtitle}</Text>
-        <SearchBar
-          value={query}
-          onChangeText={setQuery}
-          onSubmit={() => setSubmitted(query.trim())}
-          placeholder="ابحث عن منتج…"
-          accessibilityLabel="ابحث عن منتج"
-        />
-        <View style={styles.actions}>
-          <SecondaryButton label="المتاجر" onPress={() => router.push('/stores')} />
-          {storeId ? (
-            <SecondaryButton
-              label="العودة للمتجر"
-              onPress={() => router.push({ pathname: '/stores/[id]', params: { id: storeId } })}
+        ListHeaderComponent={
+          <View style={{ gap: spacing.md }}>
+            <Text style={styles.subtitle}>{subtitle}</Text>
+            <SearchBar
+              value={query}
+              onChangeText={setQuery}
+              onSubmit={() => setSubmitted(query.trim())}
+              placeholder="ابحث عن منتج…"
+              accessibilityLabel="ابحث عن منتج"
             />
-          ) : null}
-          {user && hasStore === true ? (
-            <PrimaryButton label="+ إضافة منتج" onPress={() => router.push('/product-editor')} />
-          ) : null}
-        </View>
-
-        <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>منتجات متاحة</Text>
-          <Text style={styles.count}>{items.length} نتيجة</Text>
-        </View>
-
-        {loading ? (
-          <SkeletonList count={4} />
-        ) : error ? (
-          <ErrorState title="تعذر تحميل المنتجات" description={error} onAction={() => void load()} />
-        ) : items.length === 0 ? (
-          <EmptyState title="لا توجد منتجات مطابقة" description="جرّب كلمات بحث مختلفة أو اسحب للتحديث." />
-        ) : (
-          <View style={styles.list}>
-            {items.map((item) => {
-              const image = item.images?.find((uri) => typeof uri === 'string' && /^https?:\/\//i.test(uri));
-              return (
-                <CatalogCard
-                  key={item.id}
-                  title={item.name}
-                  subtitle={item.store?.name || item.category?.nameAr || item.category?.name || 'منتج'}
-                  price={price(item)}
-                  imageUri={image}
-                  glyph="▣"
-                  onPress={() => router.push(`/products/${encodeURIComponent(item.id)}`)}
+            <View style={styles.actions}>
+              <SecondaryButton label="المتاجر" onPress={() => router.push('/stores')} />
+              {storeId ? (
+                <SecondaryButton
+                  label="العودة للمتجر"
+                  onPress={() => router.push({ pathname: '/stores/[id]', params: { id: storeId } })}
                 />
-              );
-            })}
+              ) : null}
+              {user && hasStore === true ? (
+                <PrimaryButton label="+ إضافة منتج" onPress={() => router.push('/product-editor')} />
+              ) : null}
+            </View>
+            {loading ? (
+              <SkeletonList count={4} />
+            ) : error ? (
+              <ErrorState title="تعذر التحميل" description={error} onAction={() => void load()} />
+            ) : (
+              <View style={styles.sectionRow}>
+                <Text style={styles.sectionTitle}>النتائج</Text>
+                <Text style={styles.count}>{items.length} نتيجة</Text>
+              </View>
+            )}
           </View>
+        }
+        ListEmptyComponent={
+          !loading && !error ? (
+            <EmptyState title="لا توجد منتجات مطابقة" description="جرّب كلمات بحث مختلفة أو اسحب للتحديث." />
+          ) : null
+        }
+        renderItem={({ item }) => (
+              <CatalogCard
+                title={item.name}
+                subtitle={item.store?.name || item.category?.nameAr || item.category?.name || 'منتج'}
+                price={price(item)}
+                imageUri={item.images?.find((uri) => typeof uri === 'string' && /^https?:\/\//i.test(uri))}
+                glyph="▣"
+                onPress={() => router.push(`/products/${encodeURIComponent(item.id)}`)}
+              />
         )}
-
-        {!loading && !error && items.length > 0 && page < totalPages ? (
-          <PrimaryButton
-            label={loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}
-            onPress={() => void loadMore()}
-            busy={loadingMore}
-            variant="secondary"
-          />
-        ) : null}
-      </ScrollView>
+        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ListFooterComponent={
+          !loading && !error && items.length > 0 && page < totalPages ? (
+            <PrimaryButton
+              label={loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}
+              onPress={() => void loadMore()}
+              busy={loadingMore}
+              variant="secondary"
+            />
+          ) : null
+        }
+      />
     </SafeAreaView>
   );
 }

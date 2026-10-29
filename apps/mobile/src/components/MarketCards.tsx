@@ -1,4 +1,5 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { AppImage } from '@/components/AppImage';
 import { colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 
 /**
@@ -32,7 +33,7 @@ export function CatalogCard({
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
       {imageUri ? (
-        <Image source={{ uri: imageUri }} style={styles.image} resizeMode="cover" />
+        <AppImage uri={imageUri} style={styles.image} resizeMode="cover" />
       ) : (
         <View style={styles.imagePlaceholder}>
           <Text style={styles.glyph}>{glyph}</Text>
@@ -110,8 +111,8 @@ export function AdCard({
         style={styles.adMain}
       >
         {imageUri ? (
-          <Image
-            source={{ uri: imageUri }}
+          <AppImage
+            uri={imageUri}
             style={styles.adImage}
             resizeMode="cover"
             onError={onImageError}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { FlatList, View } from 'react-native';
 import { router } from 'expo-router';
 import { fetchPublicCategories, type PublicCategory } from '@/features/categories/categories.api';
 import {
@@ -8,6 +9,8 @@ import {
   LoadingState,
   PageShell,
 } from '@/components/MobileUI';
+import { marketListPerf } from '@/lib/listPerformance';
+import { spacing } from '@/theme/tokens';
 
 export default function CategoriesScreen() {
   const [items, setItems] = useState<PublicCategory[]>([]);
@@ -31,26 +34,31 @@ export default function CategoriesScreen() {
   }, [load]);
 
   return (
-    <PageShell title="تصنيفات السوق">
+    <PageShell title="تصنيفات السوق" scroll={false}>
       {loading ? (
         <LoadingState message="جاري تحميل التصنيفات…" />
       ) : error ? (
         <ErrorState title="تعذر تحميل التصنيفات" description={error} onAction={() => void load()} />
-      ) : items.length === 0 ? (
-        <EmptyState title="لا توجد تصنيفات نشطة" />
       ) : (
-        items.map((category) => (
-          <ListRow
-            key={category.id}
-            title={category.nameAr || category.name}
-            description={
-              category.children?.length ? `${category.children.length} تصنيف فرعي` : undefined
-            }
-            onPress={() =>
-              router.push(`/categories/${encodeURIComponent(category.id)}` as never)
-            }
-          />
-        ))
+        <FlatList
+          data={items}
+          keyExtractor={(item) => item.id}
+          {...marketListPerf}
+          contentContainerStyle={{ paddingBottom: 32 }}
+          ListEmptyComponent={<EmptyState title="لا توجد تصنيفات نشطة" />}
+          renderItem={({ item: category }) => (
+            <ListRow
+              title={category.nameAr || category.name}
+              description={
+                category.children?.length ? `${category.children.length} تصنيف فرعي` : undefined
+              }
+              onPress={() =>
+                router.push(`/categories/${encodeURIComponent(category.id)}` as never)
+              }
+            />
+          )}
+          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+        />
       )}
     </PageShell>
   );

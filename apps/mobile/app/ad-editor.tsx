@@ -13,6 +13,7 @@ import { cleanupStaleUnreferencedAdImages, persistSelectedAdImage, removePersist
 import { clearAdDraft, loadAdDraft, saveAdDraft, clearAdEditDraft, loadAdEditDraft, saveAdEditDraft } from '@/storage/ad-draft-store';
 import { enqueueMutation } from '@/storage/mutation-outbox';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { adEditorSchema, validate } from '@/lib/validation';
 import { AppHeader, Field, Notice, PrimaryButton, LoadingState, SectionCard } from '@/components/MobileUI';
 
 const emptyDraft: AdDraft = { title: '', description: '', price: '', city: '', categoryId: '', isNegotiable: false, images: [] };
@@ -98,13 +99,15 @@ export default function AdEditorScreen() {
   const set = (key: keyof AdDraft, value: string | boolean) => setDraft((current) => ({ ...current, [key]: value }));
   const submit = async () => {
     if (!accessToken) { Alert.alert('يلزم تسجيل الدخول', 'سجّل الدخول ثم حاول مجددًا.'); return; }
-    if (!id && draft.images.length === 0) { setError('أضف صورة واحدة على الأقل للإعلان.'); return; }
-    if (draft.title.trim().length < 3 || draft.description.trim().length < 10 || draft.city.trim().length < 2) {
-      setError('أدخل عنوانًا من 3 أحرف على الأقل، ووصفًا من 10 أحرف، ومدينة صحيحة.'); return;
-    }
-    if (draft.price.trim() && (!Number.isFinite(Number(draft.price)) || Number(draft.price) <= 0 || !/^\d+(\.\d{1,2})?$/.test(draft.price.trim()))) {
-      setError('السعر يجب أن يكون رقمًا موجبًا وبحد أقصى منزلتين عشريتين.'); return;
-    }
+        if (!id && draft.images.length === 0) { setError('أضف صورة واحدة على الأقل للإعلان.'); return; }
+    const checked = validate(adEditorSchema, {
+      title: draft.title,
+      description: draft.description,
+      city: draft.city,
+      price: draft.price,
+      categoryId: draft.categoryId,
+    });
+    if (!checked.ok) { setError(checked.message); return; }
     setSaving(true); setError(null);
     try {
       if (id) {

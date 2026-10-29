@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { marketListPerf } from '@/lib/listPerformance';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { fetchStores, type StoreSummary } from '@/features/commerce/commerce.api';
@@ -88,60 +89,66 @@ export default function StoresScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <AppHeader title="المتاجر" />
-      <ScrollView
+      <FlatList
+        data={loading || error ? [] : items}
+        keyExtractor={(item) => item.id}
+        {...marketListPerf}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />
         }
-      >
-        <Text style={styles.subtitle}>اكتشف المتاجر المحلية ومنتجاتها</Text>
-        <SearchBar
-          value={query}
-          onChangeText={setQuery}
-          onSubmit={() => setSubmitted(query.trim())}
-          placeholder="ابحث باسم المتجر أو المدينة…"
-          accessibilityLabel="ابحث عن متجر"
-        />
-
-        <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>متاجر متاحة</Text>
-          <Text style={styles.count}>{items.length} نتيجة</Text>
-        </View>
-
-        {loading ? (
-          <LoadingState message="جاري تحميل المتاجر…" />
-        ) : error ? (
-          <ErrorState title="تعذر تحميل المتاجر" description={error} onAction={() => void load()} />
-        ) : items.length === 0 ? (
-          <EmptyState title="لا توجد متاجر مطابقة" description="جرّب بحثًا آخر أو اسحب الشاشة للتحديث." />
-        ) : (
-          <View style={styles.list}>
-            {items.map((store) => (
-              <CatalogCard
-                key={store.id}
-                title={store.name}
-                subtitle={store.description || 'متجر محلي على MarketPlat'}
-                meta={`${store.city || 'الموقع غير محدد'}${
-                  typeof store._count?.products === 'number' ? ` · ${store._count.products} منتج` : ''
-                }`}
-                imageUri={store.logoUrl}
-                glyph="▣"
-                onPress={() => router.push(`/stores/${encodeURIComponent(store.id)}`)}
-              />
-            ))}
+        ListHeaderComponent={
+          <View style={{ gap: spacing.md }}>
+            <Text style={styles.subtitle}>اكتشف المتاجر المحلية ومنتجاتها</Text>
+            <SearchBar
+              value={query}
+              onChangeText={setQuery}
+              onSubmit={() => setSubmitted(query.trim())}
+              placeholder="ابحث باسم المتجر أو المدينة…"
+              accessibilityLabel="ابحث عن متجر"
+            />
+            {loading ? (
+              <LoadingState message="جاري تحميل المتاجر…" />
+            ) : error ? (
+              <ErrorState title="تعذر تحميل المتاجر" description={error} onAction={() => void load()} />
+            ) : (
+              <View style={styles.sectionRow}>
+                <Text style={styles.sectionTitle}>متاجر متاحة</Text>
+                <Text style={styles.count}>{items.length} نتيجة</Text>
+              </View>
+            )}
           </View>
-        )}
-
-        {!loading && !error && items.length > 0 && page < totalPages ? (
-          <PrimaryButton
-            label={loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}
-            onPress={() => void loadMore()}
-            busy={loadingMore}
-            variant="secondary"
+        }
+        ListEmptyComponent={
+          !loading && !error ? (
+            <EmptyState title="لا توجد متاجر مطابقة" description="جرّب بحثًا آخر أو اسحب الشاشة للتحديث." />
+          ) : null
+        }
+        renderItem={({ item: store }) => (
+          <CatalogCard
+            title={store.name}
+            subtitle={store.description || 'متجر محلي على MarketPlat'}
+            meta={`${store.city || 'الموقع غير محدد'}${
+              typeof store._count?.products === 'number' ? ` · ${store._count.products} منتج` : ''
+            }`}
+            imageUri={store.logoUrl}
+            glyph="▣"
+            onPress={() => router.push(`/stores/${encodeURIComponent(store.id)}`)}
           />
-        ) : null}
-      </ScrollView>
+        )}
+        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ListFooterComponent={
+          !loading && !error && items.length > 0 && page < totalPages ? (
+            <PrimaryButton
+              label={loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}
+              onPress={() => void loadMore()}
+              busy={loadingMore}
+              variant="secondary"
+            />
+          ) : null
+        }
+      />
     </SafeAreaView>
   );
 }

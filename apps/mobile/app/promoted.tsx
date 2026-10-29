@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { marketListPerf } from '@/lib/listPerformance';
+import { AppImage } from '@/components/AppImage';
 import { router } from 'expo-router';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -87,83 +89,86 @@ export default function PromotedScreen() {
   };
 
   return (
-    <PageShell title="العروض والمنتجات المروجة">
-      <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 21 }}>
-        منتجات مرتبطة بعروض ترويجية نشطة أو مجدولة حسب بيانات الخادم.
-      </Text>
-      {loading ? (
-        <ActivityIndicator color={colors.brand} />
-      ) : error && items.length === 0 ? (
-        <>
-          <Notice>{error}</Notice>
-          <PrimaryButton label="إعادة المحاولة" onPress={() => void load()} />
-        </>
-      ) : items.length === 0 ? (
-        <Notice tone="muted">لا توجد منتجات مروجة حاليًا.</Notice>
-      ) : (
-        <>
-          {items.map((item) => (
-            <Pressable
-              key={item.id}
-              onPress={() => router.push(`/products/${encodeURIComponent(item.id)}`)}
-            >
-              <SectionCard>
-                <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 14 }}>
-                  {item.images?.[0] ? (
-                    <Image
-                      source={{ uri: item.images[0] }}
-                      style={{
-                        width: 92,
-                        height: 92,
-                        borderRadius: 14,
-                        backgroundColor: colors.border,
-                      }}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View
-                      style={{
-                        width: 92,
-                        height: 92,
-                        borderRadius: 14,
-                        backgroundColor: colors.brandSoft,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Text style={{ color: colors.brand, fontSize: 28 }}>◇</Text>
-                    </View>
-                  )}
-                  <View style={{ flex: 1, alignItems: 'flex-end', gap: 7, paddingVertical: 3 }}>
-                    <Text
-                      style={{ color: colors.ink, fontWeight: '800', fontSize: 15, textAlign: 'right' }}
-                      numberOfLines={2}
-                    >
-                      {item.name}
-                    </Text>
-                    <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'right' }}>
-                      {item.store?.name || 'متجر'}
-                    </Text>
-                    <Text style={{ color: colors.brand, fontWeight: '900' }}>{price(item)}</Text>
-                    <Text style={{ color: colors.muted, fontSize: 12 }}>
-                      {item.availability === 'OUT_OF_STOCK' ? 'غير متوفر' : 'عرض ترويجي'}
-                    </Text>
+    <PageShell title="العروض والمنتجات المروجة" scroll={false}>
+      <FlatList
+        data={loading && items.length === 0 ? [] : items}
+        keyExtractor={(item) => item.id}
+        {...marketListPerf}
+        contentContainerStyle={{ paddingBottom: 48, gap: 12 }}
+        ListHeaderComponent={
+          <View style={{ gap: 12, marginBottom: 8 }}>
+            <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 21 }}>
+              منتجات مرتبطة بعروض ترويجية نشطة أو مجدولة حسب بيانات الخادم.
+            </Text>
+            {loading && items.length === 0 ? <ActivityIndicator color={colors.brand} /> : null}
+            {error && items.length === 0 ? (
+              <>
+                <Notice>{error}</Notice>
+                <PrimaryButton label="إعادة المحاولة" onPress={() => void load()} />
+              </>
+            ) : null}
+          </View>
+        }
+        ListEmptyComponent={
+          !loading && !error ? <Notice tone="muted">لا توجد منتجات مروجة حاليًا.</Notice> : null
+        }
+        renderItem={({ item }) => (
+          <Pressable onPress={() => router.push(`/products/${encodeURIComponent(item.id)}`)}>
+            <SectionCard>
+              <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 14 }}>
+                {item.images?.[0] ? (
+                  <AppImage
+                    uri={item.images[0]}
+                    style={{ width: 92, height: 92, borderRadius: 14, backgroundColor: colors.border }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: 92,
+                      height: 92,
+                      borderRadius: 14,
+                      backgroundColor: colors.brandSoft,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text style={{ color: colors.brand, fontSize: 28 }}>◇</Text>
                   </View>
+                )}
+                <View style={{ flex: 1, alignItems: 'flex-end', gap: 7, paddingVertical: 3 }}>
+                  <Text
+                    style={{ color: colors.ink, fontWeight: '800', fontSize: 15, textAlign: 'right' }}
+                    numberOfLines={2}
+                  >
+                    {item.name}
+                  </Text>
+                  <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'right' }}>
+                    {item.store?.name || 'متجر'}
+                  </Text>
+                  <Text style={{ color: colors.brand, fontWeight: '900' }}>{price(item)}</Text>
+                  <Text style={{ color: colors.muted, fontSize: 12 }}>
+                    {item.availability === 'OUT_OF_STOCK' ? 'غير متوفر' : 'عرض ترويجي'}
+                  </Text>
                 </View>
-              </SectionCard>
-            </Pressable>
-          ))}
-          {error ? <Notice>{error}</Notice> : null}
-          {page < totalPages ? (
-            <PrimaryButton
-              label={loadingMore ? 'جارٍ تحميل المزيد…' : 'تحميل المزيد'}
-              variant="secondary"
-              busy={loadingMore}
-              onPress={() => void more()}
-            />
-          ) : null}
-        </>
-      )}
+              </View>
+            </SectionCard>
+          </Pressable>
+        )}
+        ListFooterComponent={
+          <View style={{ gap: 10, marginTop: 8 }}>
+            {error && items.length > 0 ? <Notice>{error}</Notice> : null}
+            {page < totalPages ? (
+              <PrimaryButton
+                label={loadingMore ? 'جارٍ تحميل المزيد…' : 'تحميل المزيد'}
+                variant="secondary"
+                busy={loadingMore}
+                onPress={() => void more()}
+              />
+            ) : null}
+          </View>
+        }
+      />
     </PageShell>
   );
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { marketListPerf } from '@/lib/listPerformance';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { colors, radius, spacing } from '@/theme/tokens';
@@ -78,7 +79,13 @@ export default function MySalesScreen() {
 
   if (!user) return <SafeAreaView style={s.safe} edges={['top']}><View style={s.state}><Text style={s.title}>مبيعاتي</Text><Text style={s.muted}>سجّل الدخول لعرض سجل مبيعاتك.</Text><Pressable onPress={() => router.push('/login')} style={s.primary}><Text style={s.primaryText}>تسجيل الدخول</Text></Pressable></View></SafeAreaView>;
 
-  return <SafeAreaView style={s.safe} edges={['top']}><ScrollView contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} />}>
+  return <SafeAreaView style={s.safe} edges={['top']}><FlatList
+data={items}
+keyExtractor={(sale)=>sale.id}
+{...marketListPerf}
+contentContainerStyle={s.content}
+refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} />}
+ListHeaderComponent={<>
     <View style={s.header}><Pressable accessibilityRole="button" onPress={() => router.back()} style={s.back}><Text style={s.backText}>→</Text></Pressable><View style={s.headerText}><Text style={s.title}>مبيعاتي</Text><Text style={s.subtitle}>سجل عمليات البيع والمدفوعات والمبالغ المستحقة.</Text></View></View>
     <Text style={s.sectionTitle}>ملخص المبيعات</Text>
     <View style={s.segmentRow}>{periodOptions.map(option => <Pressable key={option.value} accessibilityRole="button" accessibilityState={{ selected: period === option.value }} onPress={() => setPeriod(option.value)} style={[s.segment, period === option.value && s.segmentActive]}><Text style={[s.segmentText, period === option.value && s.segmentTextActive]}>{option.label}</Text></Pressable>)}</View>
@@ -94,13 +101,16 @@ export default function MySalesScreen() {
       <View style={s.listHeading}><Text style={s.sectionTitle}>سجل عمليات البيع</Text><Text style={s.count}>{items.length ? `المعروض ${items.length}` : 'لا توجد نتائج'}</Text></View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>{statusOptions.map(option => <Pressable key={option.value} onPress={() => setStatus(option.value)} style={[s.filter, status === option.value && s.filterActive]}><Text style={[s.filterText, status === option.value && s.filterTextActive]}>{option.label}</Text></Pressable>)}</ScrollView>
       {error ? <Text style={s.error}>{error}</Text> : null}
-      {items.length === 0 ? <View style={s.state}><Text style={s.emptyTitle}>لا توجد مبيعات هنا بعد</Text><Text style={s.muted}>ستظهر عمليات البيع المسجلة في حسابك في هذه القائمة.</Text></View> : items.map(sale => <View key={sale.id} style={s.saleCard}>
+      </>}
+ListEmptyComponent={<View style={s.state}><Text style={s.emptyTitle}>لا توجد مبيعات هنا بعد</Text><Text style={s.muted}>ستظهر عمليات البيع المسجلة في حسابك في هذه القائمة.</Text></View>}
+renderItem={({item:sale})=>(<View style={s.saleCard}>
         <View style={s.saleTop}><Text style={s.saleTotal}>{money(sale.totalPrice, sale.currency)}</Text><Text style={[s.status, sale.paymentStatus === 'OVERDUE' && s.statusDanger, sale.paymentStatus === 'PAID' && s.statusPaid]}>{statusLabel[sale.paymentStatus] || sale.paymentStatus}</Text></View>
         <Text style={s.saleName}>{sale.entityTitle}</Text>
         <Text style={s.saleMeta}>العميل: {sale.buyerName}{sale.invoiceNumber ? ` · فاتورة ${sale.invoiceNumber}` : ''}</Text>
         <Text style={s.saleMeta}>التاريخ: {dateLabel(sale.soldAt)} · الكمية: {sale.quantity}</Text>
         <View style={s.amountRow}><Text style={s.amountLabel}>المحصّل: {money(sale.paidAmount, sale.currency)}</Text><Text style={[s.amountLabel, Number(sale.dueAmount) > 0 && s.dueValue]}>المتبقي: {money(sale.dueAmount, sale.currency)}</Text></View>
       </View>)}
+ListFooterComponent={<>
       {page < totalPages ? <Pressable disabled={loadingMore || loading} onPress={() => void loadMore()} style={[s.moreButton, (loadingMore || loading) && s.disabled]}><Text style={s.moreText}>{loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}</Text></Pressable> : null}
       <Text style={s.sectionTitle}>أدوات إدارة المبيعات</Text>
       <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 }}>
@@ -108,7 +118,8 @@ export default function MySalesScreen() {
       </View>
       <Text style={s.footnote}>الملخص للفترة المحددة، بينما سجل العمليات يعرض أحدث المبيعات المطابقة للفلتر.</Text>
     </>}
-  </ScrollView></SafeAreaView>;
+  </>}
+/></SafeAreaView>;
 }
 
 const s = StyleSheet.create({
