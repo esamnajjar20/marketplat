@@ -59,17 +59,15 @@ jobs:
         shell: bash
         run: |
           echo "EXPO_PUBLIC_API_URL=https://marketplat-api.esamnajjar6.workers.dev" >> $GITHUB_ENV
-<<<<<<< Updated upstream
-=======
 
       - name: Run Expo Prebuild (for native SQLCipher & Crypto)
         working-directory: apps/mobile
         run: npx expo prebuild --clean --platform android --no-install
->>>>>>> Stashed changes
+
 
       - name: Build Release APK
         working-directory: apps/mobile/android
-        run: ./gradlew --no-daemon assembleRelease
+        run: ./gradlew --no-daemon assembleRelease -PreactNativeArchitectures=arm64-v8a
 
       - name: Find APK
         id: apk
