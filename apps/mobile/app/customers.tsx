@@ -141,7 +141,7 @@ export default function CustomersScreen() {
             {loading ? <ActivityIndicator color={colors.brand} /> : null}
           </View>
         }
-        ListEmptyComponent={!loading ? <Notice tone="muted">لا يوجد عملاء بعد.</Notice> : null}
+        ListEmptyComponent={!loading ? <Notice tone="muted">لا يوجد عملاء بعد.</Notice> : undefined}
         renderItem={({ item }) => (
           <SectionCard>
             <Text style={{ textAlign: 'right', fontSize: 16, fontWeight: '900', color: colors.ink }}>{item.name}</Text>

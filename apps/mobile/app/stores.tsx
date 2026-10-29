@@ -123,7 +123,7 @@ export default function StoresScreen() {
         ListEmptyComponent={
           !loading && !error ? (
             <EmptyState title="لا توجد متاجر مطابقة" description="جرّب بحثًا آخر أو اسحب الشاشة للتحديث." />
-          ) : null
+          ) : undefined
         }
         renderItem={({ item: store }) => (
           <CatalogCard
@@ -146,7 +146,7 @@ export default function StoresScreen() {
               busy={loadingMore}
               variant="secondary"
             />
-          ) : null
+          ) : undefined
         }
       />
     </SafeAreaView>

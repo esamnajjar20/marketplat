@@ -107,14 +107,14 @@ export default function ServicesScreen() {
         ListEmptyComponent={
           !loading && !error ? (
             <EmptyState title="لا توجد خدمات مطابقة" description="جرّب كلمات بحث مختلفة أو اسحب للتحديث." />
-          ) : null
+          ) : undefined
         }
         renderItem={({ item }) => {
           const image = item.images?.find((uri) => typeof uri === 'string' && /^https?:\/\//i.test(uri));
           return (
             <CatalogCard
               title={item.title}
-              subtitle={`${item.provider?.businessName || item.provider?.sellerProfile?.displayName || 'مقدم خدمة'}${item.city ? ` · ${item.city}` : ''}`}
+              subtitle={`${item.provider?.businessName || item.provider?.sellerProfile?.displayName || 'مقدم خدمة'}`}
               price={priceLabel(item)}
               meta={item.category?.nameAr || item.category?.name || undefined}
               imageUri={image}
@@ -124,16 +124,6 @@ export default function ServicesScreen() {
           );
         }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        ListFooterComponent={
-          !loading && !error && items.length > 0 && page < totalPages ? (
-            <PrimaryButton
-              label={loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}
-              onPress={() => void loadMore()}
-              busy={loadingMore}
-              variant="secondary"
-            />
-          ) : null
-        }
       />
     </SafeAreaView>
   );

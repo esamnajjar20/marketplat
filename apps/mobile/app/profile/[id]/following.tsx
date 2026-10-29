@@ -53,7 +53,7 @@ export default function FollowingScreen() {
           </View>
         }
         ListEmptyComponent={
-          !loading && !error ? <Notice tone="muted">لا توجد حسابات يتابعها هذا المستخدم.</Notice> : null
+          !loading && !error ? <Notice tone="muted">لا توجد حسابات يتابعها هذا المستخدم.</Notice> : undefined
         }
         renderItem={({ item }) => {
           const person = item.target!;

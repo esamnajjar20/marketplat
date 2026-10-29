@@ -87,7 +87,7 @@ export default function ServiceProvidersScreen() {
           </View>
         }
         ListEmptyComponent={
-          !loading && !error ? <Notice tone="muted">لا توجد ملفات مقدمي خدمات مطابقة.</Notice> : null
+          !loading && !error ? <Notice tone="muted">لا توجد ملفات مقدمي خدمات مطابقة.</Notice> : undefined
         }
         renderItem={({ item: p }) => (
           <Pressable onPress={() => router.push({ pathname: '/service-providers/[id]', params: { id: p.id } })}>

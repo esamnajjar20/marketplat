@@ -128,7 +128,7 @@ export default function DebtsScreen() {
           </View>
         }
         ListEmptyComponent={
-          !loading && !error ? <Notice tone="success">لا توجد مبالغ مستحقة حاليًا.</Notice> : null
+          !loading && !error ? <Notice tone="success">لا توجد مبالغ مستحقة حاليًا.</Notice> : undefined
         }
         renderItem={({ item: sale }) => (
           <Pressable onPress={() => router.push({ pathname: '/sales/[id]', params: { id: sale.id } })}>

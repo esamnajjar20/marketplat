@@ -72,6 +72,25 @@ export default function HomeScreen() {
   useEffect(() => {
     loadServicesRef.current = loadServices;
   }, [loadServices]);
+  const applyFilters = useCallback(() => {
+    const checked = validate(homeFilterSchema, {
+      city: cityInput,
+      minPrice: minPriceInput,
+      maxPrice: maxPriceInput,
+    });
+    if (!checked.ok) {
+      setFilterError(checked.message);
+      return;
+    }
+    setFilterError(null);
+    setFilters({
+      city: checked.data.city || undefined,
+      minPrice: checked.data.minPrice ? Number(checked.data.minPrice) : undefined,
+      maxPrice: checked.data.maxPrice ? Number(checked.data.maxPrice) : undefined,
+    });
+    setShowFilters(false);
+  }, [cityInput, minPriceInput, maxPriceInput]);
+
   const resyncPublic = useCallback(() => {
     void loadAdsRef.current(true);
     void loadServicesRef.current(true);

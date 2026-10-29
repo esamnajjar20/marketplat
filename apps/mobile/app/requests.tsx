@@ -102,7 +102,7 @@ export default function RequestsScreen() {
         ListEmptyComponent={
           !loading && !error ? (
             <EmptyState title="لا توجد طلبات" description="جرّب تغيير الفلاتر أو أنشئ طلبًا جديدًا." />
-          ) : null
+          ) : undefined
         }
         renderItem={({ item }) => (
           <SectionCard onPress={() => router.push(`/requests/${encodeURIComponent(item.id)}`)}>
@@ -121,7 +121,7 @@ export default function RequestsScreen() {
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListFooterComponent={
-          !loading && items.length > 0 ? <Notice tone="muted">{items.length} طلب مفتوح</Notice> : null
+          !loading && items.length > 0 ? <Notice tone="muted">{items.length} طلب مفتوح</Notice> : undefined
         }
       />
     </PageShell>

@@ -50,7 +50,7 @@ export default function FollowersScreen() {
             {error ? <Notice>{error}</Notice> : null}
           </View>
         }
-        ListEmptyComponent={!loading && !error ? <Notice tone="muted">لا يوجد متابعون بعد.</Notice> : null}
+        ListEmptyComponent={!loading && !error ? <Notice tone="muted">لا يوجد متابعون بعد.</Notice> : undefined}
         renderItem={({ item }) => {
           const person = item.follower!;
           return (

@@ -169,7 +169,7 @@ export default function ProductsScreen() {
         ListEmptyComponent={
           !loading && !error ? (
             <EmptyState title="لا توجد منتجات مطابقة" description="جرّب كلمات بحث مختلفة أو اسحب للتحديث." />
-          ) : null
+          ) : undefined
         }
         renderItem={({ item }) => (
               <CatalogCard
@@ -190,7 +190,7 @@ export default function ProductsScreen() {
               busy={loadingMore}
               variant="secondary"
             />
-          ) : null
+          ) : undefined
         }
       />
     </SafeAreaView>

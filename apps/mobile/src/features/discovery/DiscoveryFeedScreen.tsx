@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMixedRecommendations, type RecommendationItem } from './discovery.api';
 import { colors, radius, spacing } from '@/theme/tokens';
+import { AppImage } from '@/components/AppImage';
 
 type Kind = 'ad' | 'product' | 'service';
 type FeedRow = { item: RecommendationItem; kind: Kind };

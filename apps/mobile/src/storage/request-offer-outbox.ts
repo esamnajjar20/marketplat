@@ -6,7 +6,7 @@ export type PendingRequestOfferItem = { id: string; ownerId: string; payload: Of
 type Row = { id: string; owner_id: string; payload_json: string; created_at: number; attempts: number; last_error: string | null; next_attempt_at: number; state: string; lease_until: number };
 const DB_NAME = 'marketplat-public-cache.db'; const MAX_PENDING = 50; const MAX_ATTEMPTS = 8;
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-let activeSync: Promise<'synced' | 'nothing-due' | 'retry-scheduled' | 'login-required'> | null = null;
+let activeSync: Promise<'synced' | 'discarded' | 'nothing-due' | 'retry-scheduled' | 'login-required'> | null = null;
 async function database() {
   if (!dbPromise) dbPromise = SQLite.openDatabaseAsync(DB_NAME).then(async db => {
     await db.execAsync(`CREATE TABLE IF NOT EXISTS request_offer_outbox (

@@ -49,7 +49,7 @@ export default function MyOffersScreen() {
           </View>
         }
         ListEmptyComponent={
-          accessToken && !loading && !error ? <Notice tone="muted">لم تقدم أي عروض بعد.</Notice> : null
+          accessToken && !loading && !error ? <Notice tone="muted">لم تقدم أي عروض بعد.</Notice> : undefined
         }
         renderItem={({ item: i }) => (
           <Pressable

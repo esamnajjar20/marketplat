@@ -103,7 +103,7 @@ ListHeaderComponent={<>
       {error ? <Text style={s.error}>{error}</Text> : null}
       </>}
 ListEmptyComponent={<View style={s.state}><Text style={s.emptyTitle}>لا توجد مبيعات هنا بعد</Text><Text style={s.muted}>ستظهر عمليات البيع المسجلة في حسابك في هذه القائمة.</Text></View>}
-renderItem={({item:sale})=>(<View style={s.saleCard}>
+renderItem={({item:sale}: {item: SaleRecord})=>(<View style={s.saleCard}>
         <View style={s.saleTop}><Text style={s.saleTotal}>{money(sale.totalPrice, sale.currency)}</Text><Text style={[s.status, sale.paymentStatus === 'OVERDUE' && s.statusDanger, sale.paymentStatus === 'PAID' && s.statusPaid]}>{statusLabel[sale.paymentStatus] || sale.paymentStatus}</Text></View>
         <Text style={s.saleName}>{sale.entityTitle}</Text>
         <Text style={s.saleMeta}>العميل: {sale.buyerName}{sale.invoiceNumber ? ` · فاتورة ${sale.invoiceNumber}` : ''}</Text>

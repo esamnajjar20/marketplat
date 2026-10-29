@@ -68,7 +68,7 @@ export default function StoreInvitesScreen() {
               {error ? <Notice>{error}</Notice> : null}
             </View>
           }
-          ListEmptyComponent={!loading ? <Notice tone="muted">لا توجد دعوات معلقة لحسابك.</Notice> : null}
+          ListEmptyComponent={!loading ? <Notice tone="muted">لا توجد دعوات معلقة لحسابك.</Notice> : undefined}
           renderItem={({ item }) => (
             <SectionCard>
               <Text style={{ textAlign: 'right', fontSize: 16, fontWeight: '900', color: colors.ink }}>

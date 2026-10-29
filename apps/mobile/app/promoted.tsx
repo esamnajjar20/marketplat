@@ -110,7 +110,7 @@ export default function PromotedScreen() {
           </View>
         }
         ListEmptyComponent={
-          !loading && !error ? <Notice tone="muted">لا توجد منتجات مروجة حاليًا.</Notice> : null
+          !loading && !error ? <Notice tone="muted">لا توجد منتجات مروجة حاليًا.</Notice> : undefined
         }
         renderItem={({ item }) => (
           <Pressable onPress={() => router.push(`/products/${encodeURIComponent(item.id)}`)}>

@@ -50,7 +50,7 @@ const ShellBody = function ShellBody({
       {body}
     </SafeAreaView>
   );
-});
+}
 
 export function PageShell({
   title,

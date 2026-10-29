@@ -8,7 +8,7 @@ const DB_NAME = 'marketplat-public-cache.db';
 const MAX_PENDING = 50;
 const MAX_ATTEMPTS = 8;
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-let activeSync: Promise<'synced' | 'nothing-due' | 'retry-scheduled' | 'login-required'> | null = null;
+let activeSync: Promise<'synced' | 'discarded' | 'nothing-due' | 'retry-scheduled' | 'login-required'> | null = null;
 async function database() {
   if (!dbPromise) dbPromise = SQLite.openDatabaseAsync(DB_NAME).then(async (db) => {
     await db.execAsync(`CREATE TABLE IF NOT EXISTS request_create_outbox (

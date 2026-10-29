@@ -84,7 +84,7 @@ export default function BlockedUsersScreen() {
             </View>
           }
           ListEmptyComponent={
-            !loading ? <Notice tone="muted">لا يوجد مستخدمون محظورون حاليًا.</Notice> : null
+            !loading ? <Notice tone="muted">لا يوجد مستخدمون محظورون حاليًا.</Notice> : undefined
           }
           renderItem={({ item }) => {
             const person = item.blocked!;

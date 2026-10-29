@@ -130,7 +130,7 @@ export default function ActivityScreen() {
           </View>
         }
         ListEmptyComponent={
-          !loading ? <Notice tone="muted">لا توجد أحداث مطابقة.</Notice> : null
+          !loading ? <Notice tone="muted">لا توجد أحداث مطابقة.</Notice> : undefined
         }
         renderItem={({ item }) => (
           <SectionCard>
@@ -152,7 +152,7 @@ export default function ActivityScreen() {
         ListFooterComponent={
           hasMore ? (
             <PrimaryButton label="تحميل المزيد" onPress={() => void loadMore()} busy={more} variant="secondary" />
-          ) : null
+          ) : undefined
         }
       />
     </PageShell>

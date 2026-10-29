@@ -168,7 +168,7 @@ export default function FavoritesScreen() {
           {...marketListPerf}
           contentContainerStyle={styles.content}
           ListHeaderComponent={
-            items.length > 0 ? <Text style={styles.count}>{items.length} إعلان محفوظ</Text> : null
+            items.length > 0 ? <Text style={styles.count}>{items.length} إعلان محفوظ</Text> : undefined
           }
           ListEmptyComponent={
             <EmptyState

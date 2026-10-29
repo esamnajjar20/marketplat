@@ -48,7 +48,7 @@ export default function PublicStoreCollectionsScreen() {
             {error ? <Notice>{error}</Notice> : null}
           </View>
         }
-        ListEmptyComponent={!loading && !error ? <Notice tone="muted">لم ينشر المتجر مجموعات منتجات بعد.</Notice> : null}
+        ListEmptyComponent={!loading && !error ? <Notice tone="muted">لم ينشر المتجر مجموعات منتجات بعد.</Notice> : undefined}
         renderItem={({ item }) => (
           <Pressable onPress={() => router.push({ pathname: '/collections/[id]', params: { id: item.id } })}>
             <SectionCard>

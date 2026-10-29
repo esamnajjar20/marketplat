@@ -184,7 +184,7 @@ export default function SavedSearchesScreen() {
               {error ? <Notice>{error}</Notice> : null}
             </View>
           }
-          ListEmptyComponent={!loading ? <Notice tone="muted">لا توجد عمليات بحث محفوظة.</Notice> : null}
+          ListEmptyComponent={!loading ? <Notice tone="muted">لا توجد عمليات بحث محفوظة.</Notice> : undefined}
           renderItem={({ item: i }) => (
             <SectionCard>
               <Text style={{ textAlign: 'right', fontWeight: '800', color: colors.ink }}>{i.label}</Text>

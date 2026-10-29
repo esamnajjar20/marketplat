@@ -46,7 +46,7 @@ export default function CollectionProductsScreen() {
           </View>
         }
         ListEmptyComponent={
-          !loading && !error ? <Notice tone="muted">لا توجد منتجات متاحة في هذه المجموعة.</Notice> : null
+          !loading && !error ? <Notice tone="muted">لا توجد منتجات متاحة في هذه المجموعة.</Notice> : undefined
         }
         renderItem={({ item }) => (
           <Pressable onPress={() => router.push({ pathname: '/products/[id]', params: { id: item.id } })}>

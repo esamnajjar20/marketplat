@@ -114,7 +114,7 @@ export default function InstallmentsScreen() {
         ListEmptyComponent={
           !loading ? (
             <Notice tone="muted">لا توجد أقساط {kind === 'overdue' ? 'متأخرة' : 'قادمة'}.</Notice>
-          ) : null
+          ) : undefined
         }
         renderItem={({ item }) => {
           const remaining = Math.max(0, Number(item.amount) - Number(item.paidAmount));
