@@ -1,10 +1,17 @@
 import * as SecureStore from 'expo-secure-store';
+import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
 
 const FAVORITES_KEY_PREFIX = 'marketplat.mobile.favorite-ad-ids.v2';
 const LEGACY_FAVORITES_KEY = 'marketplat.mobile.favorite-ad-ids.v1';
+function secureStoreKeyPart(value: string): string {
+  // expo-secure-store only accepts [A-Za-z0-9._-] in keys; account IDs can
+  // contain colons or other characters. UTF-8 hex is deterministic and safe.
+  const bytes = new TextEncoder().encode(value);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('') || 'empty';
+}
 function favoritesKey(userId?: string | null): string {
-  const scope = userId?.trim() ? `user:${userId.trim()}` : 'guest';
-  return `${FAVORITES_KEY_PREFIX}:${scope}`;
+  const scope = userId?.trim() ? `user-${secureStoreKeyPart(userId.trim())}` : 'guest';
+  return `${FAVORITES_KEY_PREFIX}-${scope}`;
 }
 
 /** Cache favorites separately for each signed-in account; guest data is never read as account data. */
@@ -40,7 +47,7 @@ let favoritesQueueDb: Promise<SQLite.SQLiteDatabase> | null = null;
 async function queueDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!favoritesQueueDb) {
     favoritesQueueDb = (async () => {
-      const db = await SQLite.openDatabaseAsync(FAVORITES_QUEUE_DB);
+      const db = await openEncryptedDatabaseAsync(FAVORITES_QUEUE_DB);
       await db.execAsync(`
         CREATE TABLE IF NOT EXISTS favorite_state_outbox (
           user_id TEXT NOT NULL,

@@ -12,7 +12,7 @@ import { sendOutboxCreateAd, sendOutboxDeleteAd, sendOutboxUpdateAd } from './ou
 import { decideOutboxHeadAction } from './outbox-sync-policy';
 
 const OUTBOX_LEASE_DURATION_MS = 60_000;
-let activeSync: Promise<OutboxSyncResult> | null = null;
+const activeSyncByOwner = new Map<string, Promise<OutboxSyncResult>>();
 
 export type OutboxSyncResult =
   | { status: 'synced'; id: string; acknowledged: true }
@@ -109,11 +109,13 @@ export function syncNextOutboxMutation(
   csrfToken?: string | null,
   ownerId?: string | null,
 ): Promise<OutboxSyncResult> {
-  if (activeSync) return activeSync;
+  const key = ownerId?.trim() || '__missing_owner__';
+  const existing = activeSyncByOwner.get(key);
+  if (existing) return existing;
   const work = runNextOutboxMutation(token, csrfToken, ownerId);
-  activeSync = work;
+  activeSyncByOwner.set(key, work);
   void work.finally(() => {
-    if (activeSync === work) activeSync = null;
+    if (activeSyncByOwner.get(key) === work) activeSyncByOwner.delete(key);
   }).catch(() => {
     // The caller receives the original rejection; this branch prevents an
     // unhandled rejection from the cleanup promise.

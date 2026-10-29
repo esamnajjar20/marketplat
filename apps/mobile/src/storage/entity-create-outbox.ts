@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system/legacy';
 import { ApiError, apiRequest } from '@/api/client';
+import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -58,11 +59,11 @@ const CREDENTIAL_KEY = /^(?:access[_-]?token|refresh[_-]?token|authorization|pro
 // ─────────────────────────────────────────────────────────────────────────────
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-let activeSync: Promise<OfflineSyncOutcome> | null = null;
+const activeSyncByOwner = new Map<string, Promise<OfflineSyncOutcome>>();
 
 async function database(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
-    dbPromise = SQLite.openDatabaseAsync(DATABASE_NAME)
+    dbPromise = openEncryptedDatabaseAsync(DATABASE_NAME)
       .then(async (db) => {
         await db.execAsync(`
           CREATE TABLE IF NOT EXISTS entity_create_outbox (
@@ -410,7 +411,9 @@ export async function syncNextOfflineCreate(input: {
   ownerId?: string | null;
   csrfToken?: string | null;
 }): Promise<OfflineSyncOutcome> {
-  if (activeSync) return activeSync;
+  const key = input.ownerId?.trim() || '__missing_owner__';
+  const existing = activeSyncByOwner.get(key);
+  if (existing) return existing;
 
   const work = (async (): Promise<OfflineSyncOutcome> => {
     if (!input.isOnline) return 'nothing-due';
@@ -497,10 +500,10 @@ export async function syncNextOfflineCreate(input: {
     }
   })();
 
-  activeSync = work;
+  activeSyncByOwner.set(key, work);
   void work
     .finally(() => {
-      if (activeSync === work) activeSync = null;
+      if (activeSyncByOwner.get(key) === work) activeSyncByOwner.delete(key);
     })
     .catch(() => {
       // Prevent an unhandled rejection from the cleanup promise.

@@ -17,7 +17,7 @@ for (const path of ["'/'", "'/explore'", "'/add'", "'/messages'", "'/account'"])
 assert.match(nav, /accessibilityRole="tab"/, 'Tabs should expose accessible roles.');
 assert.match(nav, /accessibilityState=\{\{ selected: active \}\}/, 'Active tab should be exposed accessibly.');
 assert.match(nav, /hiddenPrefixes/, 'Full-screen/auth routes should be able to hide the bar.');
-assert.match(explore, /الإعلانات والبحث[\s\S]*المنتجات والمتاجر[\s\S]*الخدمات[\s\S]*المجتمع والاكتشاف/, 'Explore links should be organized into clear groups.');
+assert.match(explore, /الإعلانات والطلبات[\s\S]*المنتجات والمتاجر[\s\S]*الخدمات[\s\S]*المجتمع والاكتشاف/, 'Explore links should be organized into clear groups.');
 assert.match(account, /المهم الآن[\s\S]*ملفي ونشاطي[\s\S]*إدارة المتجر والخدمات[\s\S]*الإعدادات والخصوصية/, 'Account destinations should be prioritized and grouped.');
 for (const path of ['index.tsx', 'explore.tsx', 'add.tsx', 'messages.tsx', 'account.tsx']) {
   assert.ok(existsSync(resolve(root, 'app', path)), `Required route app/${path} must exist.`);

@@ -22,5 +22,6 @@ await assert.rejects(runSerializedByKey('account-c', async () => { throw new Err
 assert.equal(await runSerializedByKey('account-c', async () => 'recovered'), 'recovered');
 assert.match(store, /runSerializedByKey\(ownerId, async \(\) =>/);
 assert.match(store, /Queue deletion behind any in-flight save/);
-assert.ok(pkg.scripts.test.includes('verify-phase47.mjs'));
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 console.log('Phase 47 serialized draft writes, account isolation, rejection recovery, and clear ordering checks passed.');

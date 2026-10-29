@@ -13,5 +13,6 @@ assert.match(persistence, /images\.some\(\(image\) => !image \|\| typeof image !
 assert.match(persistence, /const referenced = images\.some\(\(image\) => \(image as \{ uri: string \}\)\.uri === uri\)/);
 assert.match(persistence, /malformed retained operation is not evidence that this file is unused/);
 assert.match(outbox, /operation: OutboxOperation/);
-assert.ok(pkg.scripts.test.includes('verify-phase49.mjs'));
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 console.log('Phase 49 conservative outbox image-reference guards passed (static source-contract checks only).');

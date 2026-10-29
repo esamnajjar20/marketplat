@@ -21,5 +21,6 @@ assert.match(bridge, /signal: sessionController\.signal/, 'the active session si
 assert.match(screen, /const sessionAbort = useRef\(new AbortController\(\)\)/, 'conversation screen must maintain a session-scoped abort controller');
 assert.match(screen, /return \(\) => controller\.abort\(\)/, 'screen cleanup must abort manual sync after leaving or switching account');
 assert.match(screen, /ownerId: user\.id, signal: sessionAbort\.current\.signal/, 'manual send and retry sync must use the active session signal');
-assert.match(pkg.scripts.test, /verify-chat-session-abort-audit\.mjs/, 'session abort regression audit must run in npm test');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'session abort regression audit must run in npm test');
 console.log('Chat session abort audit checks passed (cancel in-flight requests on auth lifecycle changes and preserve idempotent retry).');

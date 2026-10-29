@@ -20,5 +20,6 @@ assert.match(sync, /await sendOutboxCreateAd\(claimed, token, csrfToken\)/);
 assert.match(sync, /server-succeeded-local-ack-pending/);
 assert.match(outbox, /idempotency_key TEXT NOT NULL UNIQUE/);
 assert.match(outbox, /same idempotency key/);
-assert.ok(pkg.scripts.test.includes('verify-phase50.mjs'));
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 console.log('Phase 50 pre-upload image existence/size and idempotent retry source-contract checks passed (static only; Expo filesystem/API runtime not exercised).');

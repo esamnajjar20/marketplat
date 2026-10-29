@@ -12,5 +12,6 @@ assert.match(outbox, /DELETE FROM mutation_outbox WHERE state != 'processing'/);
 assert.match(sync, /const latestHead = await getOldestOutboxMutation\(ownerId\)/);
 assert.match(sync, /latestHead\.state === 'processing'/);
 assert.match(sync, /status: 'already-processing'/);
-assert.match(pkg.scripts.test, /verify-phase37\.mjs/);
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 console.log('Phase 37 FIFO retry gating, in-flight preservation, and claim-race source-contract checks passed (static only).');

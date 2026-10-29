@@ -1,9 +1,12 @@
 import * as SQLite from 'expo-sqlite';
+import * as FileSystem from 'expo-file-system/legacy';
+import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
 
 const DATABASE_NAME = 'marketplat-public-cache.db';
 const MAX_ENTRY_CHARS = 500_000;
+const MAX_ENTRY_BYTES = 1_500_000;
 const MAX_ENTRIES = 100;
-const MAX_TOTAL_CHARS = 3_000_000;
+const MAX_TOTAL_BYTES = 6_000_000;
 
 type CacheRow = { value_json: string; saved_at: number };
 
@@ -13,17 +16,32 @@ let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
 async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!databasePromise) {
     databasePromise = (async () => {
-      const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
+      const db = await openEncryptedDatabaseAsync(DATABASE_NAME);
       await db.execAsync(`
         PRAGMA journal_mode = WAL;
         CREATE TABLE IF NOT EXISTS public_cache (
           cache_key TEXT PRIMARY KEY NOT NULL,
           value_json TEXT NOT NULL,
           saved_at INTEGER NOT NULL,
-          size_chars INTEGER NOT NULL
+          size_chars INTEGER NOT NULL,
+          size_bytes INTEGER NOT NULL DEFAULT 0
         );
         CREATE INDEX IF NOT EXISTS public_cache_saved_at_idx ON public_cache(saved_at);
       `);
+      // Upgrade databases created before byte-aware eviction was introduced.
+      const columns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(public_cache)');
+      if (!columns.some((column) => column.name === 'size_bytes')) {
+        await db.execAsync('ALTER TABLE public_cache ADD COLUMN size_bytes INTEGER NOT NULL DEFAULT 0');
+        const rows = await db.getAllAsync<{ cache_key: string; value_json: string }>(
+          'SELECT cache_key, value_json FROM public_cache',
+        );
+        for (const row of rows) {
+          await db.runAsync(
+            'UPDATE public_cache SET size_bytes = ? WHERE cache_key = ?',
+            utf8ByteLength(row.value_json), row.cache_key,
+          );
+        }
+      }
       return db;
     })().catch((error) => {
       databasePromise = null;
@@ -85,17 +103,18 @@ export async function writePublicCache<T>(key: string, value: T): Promise<void> 
   if (!key.trim() || key.length > 300) return;
   try {
     const serialized = JSON.stringify(value);
-    if (serialized.length > MAX_ENTRY_CHARS) return;
+    if (serialized.length > MAX_ENTRY_CHARS || utf8ByteLength(serialized) > MAX_ENTRY_BYTES) return;
     const db = await getDatabase();
     const now = Date.now();
     await db.runAsync(
-      `INSERT INTO public_cache (cache_key, value_json, saved_at, size_chars)
-       VALUES (?, ?, ?, ?)
+      `INSERT INTO public_cache (cache_key, value_json, saved_at, size_chars, size_bytes)
+       VALUES (?, ?, ?, ?, ?)
        ON CONFLICT(cache_key) DO UPDATE SET
          value_json = excluded.value_json,
          saved_at = excluded.saved_at,
-         size_chars = excluded.size_chars`,
-      key, serialized, now, serialized.length,
+         size_chars = excluded.size_chars,
+         size_bytes = excluded.size_bytes`,
+      key, serialized, now, serialized.length, utf8ByteLength(serialized),
     );
 
     // Bound cache growth: evict oldest entries first, never evict auth data (not stored here).
@@ -104,10 +123,10 @@ export async function writePublicCache<T>(key: string, value: T): Promise<void> 
          SELECT cache_key FROM public_cache ORDER BY saved_at DESC LIMIT -1 OFFSET ?
        )`, MAX_ENTRIES,
     );
-    const total = await db.getFirstAsync<{ total_chars: number }>(
-      'SELECT COALESCE(SUM(size_chars), 0) AS total_chars FROM public_cache',
+    const total = await db.getFirstAsync<{ total_bytes: number }>(
+      'SELECT COALESCE(SUM(size_bytes), 0) AS total_bytes FROM public_cache',
     );
-    if ((total?.total_chars ?? 0) > MAX_TOTAL_CHARS) {
+    if ((total?.total_bytes ?? 0) > MAX_TOTAL_BYTES) {
       await db.runAsync(
         `DELETE FROM public_cache WHERE cache_key IN (
            SELECT cache_key FROM public_cache ORDER BY saved_at ASC
@@ -193,4 +212,77 @@ export async function clearPrivateCache(): Promise<void> {
   } catch {
     // Cache invalidation is best-effort; the server remains authoritative.
   }
+}
+
+
+/** Count durable writes before logout so the UI can ask before discarding them. */
+export async function countPendingPrivateMobileOperations(): Promise<number> {
+  const db = await getDatabase();
+  const queueTables = [
+    'mutation_outbox', 'entity_create_outbox', 'chat_message_outbox',
+    'chat_media_outbox', 'request_create_outbox', 'marketplace_order_outbox',
+    'request_offer_outbox', 'favorite_state_outbox',
+  ];
+  let total = 0;
+  for (const table of queueTables) {
+    const exists = await db.getFirstAsync<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", table,
+    );
+    if (!exists) continue;
+    // Table names are a fixed allowlist above, never user input. Rows in these
+    // durable outboxes represent writes not yet acknowledged by the server.
+    const count = await db.getFirstAsync<{ count: number }>(`SELECT COUNT(*) AS count FROM ${table}`);
+    total += Math.max(0, Number(count?.count ?? 0));
+  }
+  return total;
+}
+
+/**
+ * Clear every account-scoped snapshot and queued private operation on logout.
+ * The SQL deletes are atomic: a database error must not be reported as successful cleanup.
+ * Missing tables are allowed for older app versions; other SQL errors propagate.
+ */
+export async function clearPrivateMobileData(): Promise<void> {
+  const db = await getDatabase();
+  const accountTables = [
+    'mutation_outbox',
+    'entity_create_outbox',
+    'offline_creation_reference_cache',
+    'chat_message_outbox',
+    'chat_media_outbox',
+    'chat_message_cache',
+    'request_create_outbox',
+    'marketplace_order_outbox',
+    'request_offer_outbox',
+    'favorite_state_outbox',
+    'ad_drafts',
+    'ad_edit_drafts',
+  ];
+  const mediaUris: string[] = [];
+  const ownedDirectory = `${FileSystem.documentDirectory ?? ''}marketplat-chat-media-outbox/`;
+
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    for (const table of accountTables) {
+      const exists = await txn.getFirstAsync<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", table,
+      );
+      if (!exists) continue;
+      if (table === 'chat_media_outbox') {
+        const rows = await txn.getAllAsync<{ uri: string }>('SELECT uri FROM chat_media_outbox');
+        for (const row of rows) {
+          if (FileSystem.documentDirectory && ownedDirectory.length > FileSystem.documentDirectory.length
+            && typeof row.uri === 'string' && row.uri.startsWith(ownedDirectory)) mediaUris.push(row.uri);
+        }
+      }
+      await txn.runAsync(`DELETE FROM ${table}`);
+    }
+
+    const cacheExists = await txn.getFirstAsync<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'public_cache'",
+    );
+    if (cacheExists) await txn.runAsync("DELETE FROM public_cache WHERE cache_key LIKE 'api-private:%'");
+  });
+
+  // Only delete files after the DB transaction committed. Never delete arbitrary file:// or content:// URIs.
+  await Promise.all(mediaUris.map((uri) => FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined)));
 }

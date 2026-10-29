@@ -17,5 +17,6 @@ assert.match(queue, /operation_id TEXT NOT NULL UNIQUE/, 'operation IDs must be 
 assert.match(screen, /enqueueChatMessage\(\{ ownerId: user\.id, conversationId: id, body, operationId \}\)/, 'screen must persist the message before network sync');
 assert.match(sync, /sendMessage\(item\.conversationId, item\.body, snapshot\.token, snapshot\.csrfToken, item\.operationId, snapshot\.signal\)/, 'outbox sync must reuse the durable operation ID');
 assert.match(sync, /deferChatMessage\(item\.operationId, ownerId, error\)/, 'failed messages must remain queued with retry metadata');
-assert.match(pkg.scripts.test, /verify-chat-idempotent-retry-audit\.mjs/, 'idempotent retry audit should run in npm test');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'idempotent retry audit should run in npm test');
 console.log('Chat idempotent retry audit checks passed (durable queue preserves stable operation IDs across retries).');

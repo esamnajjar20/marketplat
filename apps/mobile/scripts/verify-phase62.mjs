@@ -14,5 +14,6 @@ assert.ok(body.indexOf('canManageAd(ad, userId, userRole)') < body.indexOf("if (
 assert.match(body, /if \(ad\.status === 'DELETED'\) return/, 'Already-deleted ad is acknowledged without duplicate side effects');
 assert.match(body, /await adsRepository\.softDelete\(adId\)/, 'First delete still soft-deletes');
 assert.match(controller, /await adsService\.deleteAd\(params\.id, user\.userId, user\.role\);[\s\S]{0,100}successResponse\('Ad deleted'\)/, 'Controller returns success for first and replayed deletes');
-assert.match(pkg.scripts.test, /verify-phase62\.mjs/, 'Phase 62 verifier is included in npm test');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'Phase 62 verifier is included in npm test');
 console.log('Phase 62 checks passed: authorized repeated ad deletion is idempotent and does not repeat mutation side effects (static source contract only).');

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- Never back up session, account-scoped cache, or queued private operations. -->
+    <exclude domain="database" path="marketplat-public-cache.db"/>
+    <exclude domain="database" path="marketplat-public-cache.db-wal"/>
+    <exclude domain="database" path="marketplat-public-cache.db-shm"/>
+    <exclude domain="database" path="marketplat-private-v2.db"/>
+    <exclude domain="database" path="marketplat-private-v2.db-wal"/>
+    <exclude domain="database" path="marketplat-private-v2.db-shm"/>
+    <exclude domain="sharedpref" path="SecureStore"/>
+    <exclude domain="sharedpref" path="marketplat.mobile.session.v1"/>
+    <exclude domain="file" path="."/>
+</full-backup-content>

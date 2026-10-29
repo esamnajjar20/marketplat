@@ -16,5 +16,6 @@ assert.match(editor, /loadAdDraft\(ownerId\)/);
 assert.match(editor, /saveAdDraft\(ownerId, draft\)/);
 assert.match(editor, /await clearAdDraft\(String\(user\.id\)\)/);
 assert.match(editor, /draftCompleted/);
-assert.ok(pkg.scripts.test.includes('verify-phase45.mjs'));
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 console.log('Phase 45 draft persistence/source-contract checks passed (static only; SQLite/device runtime not exercised).');

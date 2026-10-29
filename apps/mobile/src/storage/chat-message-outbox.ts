@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
 
 const DATABASE_NAME = 'marketplat-public-cache.db';
 const MAX_PENDING = 50;
@@ -30,7 +31,7 @@ type ChatMessageOutboxRow = {
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 async function database(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
-    dbPromise = SQLite.openDatabaseAsync(DATABASE_NAME).then(async (db) => {
+    dbPromise = openEncryptedDatabaseAsync(DATABASE_NAME).then(async (db) => {
       await db.execAsync(`
         CREATE TABLE IF NOT EXISTS chat_message_outbox (
           id TEXT PRIMARY KEY NOT NULL,

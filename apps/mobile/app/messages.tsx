@@ -94,7 +94,9 @@ export default function MessagesScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <AppHeader
-        title="المحادثات"
+        title={counts.messages > 0
+          ? `المحادثات (${counts.messages > 99 ? '99+' : counts.messages})`
+          : 'المحادثات'}
         right={
           <Pressable accessibilityRole="button" onPress={() => router.push('/notifications')} hitSlop={8}>
             <Text style={styles.link}>

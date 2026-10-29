@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import { ApiError, apiRequest } from '@/api/client';
+import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
 
 type RequestPayload = { type: 'SERVICE' | 'PRODUCT' | 'RENTAL'; categoryId: string; title: string; description: string; city?: string; budgetMin?: number; budgetMax?: number };
 export type PendingRequestOutboxItem = { id: string; ownerId: string; payload: RequestPayload; createdAt: number; attempts: number; lastError: string | null; nextAttemptAt: number };
@@ -8,9 +9,9 @@ const DB_NAME = 'marketplat-public-cache.db';
 const MAX_PENDING = 50;
 const MAX_ATTEMPTS = 8;
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-let activeSync: Promise<'synced' | 'discarded' | 'nothing-due' | 'retry-scheduled' | 'login-required'> | null = null;
+const activeSyncByOwner = new Map<string, Promise<'synced' | 'discarded' | 'nothing-due' | 'retry-scheduled' | 'login-required'>>();
 async function database() {
-  if (!dbPromise) dbPromise = SQLite.openDatabaseAsync(DB_NAME).then(async (db) => {
+  if (!dbPromise) dbPromise = openEncryptedDatabaseAsync(DB_NAME).then(async (db) => {
     await db.execAsync(`CREATE TABLE IF NOT EXISTS request_create_outbox (
       id TEXT PRIMARY KEY NOT NULL, owner_id TEXT NOT NULL, payload_json TEXT NOT NULL,
       created_at INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT,
@@ -67,7 +68,9 @@ export async function retryMarketplaceRequest(id: string, ownerId?: string | nul
 }
 
 export async function syncNextMarketplaceRequest(input: { isOnline: boolean; token?: string | null; ownerId?: string | null; csrfToken?: string | null }): Promise<'synced' | 'discarded' | 'nothing-due' | 'retry-scheduled' | 'login-required'> {
-  if (activeSync) return activeSync;
+  const key = input.ownerId?.trim() || '__missing_owner__';
+  const existing = activeSyncByOwner.get(key);
+  if (existing) return existing;
   const work = (async () => {
     if (!input.isOnline) return 'nothing-due' as const;
     if (!input.token?.trim() || !input.ownerId?.trim()) return 'login-required' as const;
@@ -98,7 +101,7 @@ export async function syncNextMarketplaceRequest(input: { isOnline: boolean; tok
       return error instanceof ApiError && (error.status === 401 || error.status === 403) ? 'login-required' as const : 'retry-scheduled' as const;
     }
   })();
-  activeSync = work;
-  void work.finally(() => { if (activeSync === work) activeSync = null; }).catch(() => undefined);
+  activeSyncByOwner.set(key, work);
+  void work.finally(() => { if (activeSyncByOwner.get(key) === work) activeSyncByOwner.delete(key); }).catch(() => undefined);
   return work;
 }

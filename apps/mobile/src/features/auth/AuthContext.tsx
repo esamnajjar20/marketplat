@@ -1,10 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { ApiError, setRefreshHandler, setTokenUpdater } from '@/api/client';
 import { loginWithPassword, logoutSession, refreshAccessSession, registerAccount, cancelRefreshing, type AuthUser } from './auth.api';
 import { mergeGuestFavoritesIntoAccount } from '@/features/ads/favorites.store';
+import { clearPrivateMobileData, countPendingPrivateMobileOperations } from '@/storage/public-cache';
 
 const SECURE_SESSION_KEY = 'marketplat.mobile.session.v1';
+const PRIVATE_CLEANUP_REQUIRED_KEY = 'marketplat.mobile.private-cleanup-required.v1';
+let privateCleanupBlockedInMemory = false;
 const ACCESS_TOKEN_FALLBACK_TTL_SECONDS = 15 * 60;
 
 type PersistedSession = {
@@ -46,6 +50,21 @@ function isPersistedSession(value: unknown): value is PersistedSession {
     && typeof candidate.user.id === 'string'
     && typeof candidate.user.email === 'string'
     && typeof candidate.user.name === 'string';
+}
+
+async function ensurePrivateStorageClean(): Promise<void> {
+  const required = privateCleanupBlockedInMemory
+    ? 'required'
+    : await SecureStore.getItemAsync(PRIVATE_CLEANUP_REQUIRED_KEY).catch(() => 'required');
+  if (!required) return;
+  try {
+    await clearPrivateMobileData();
+    await SecureStore.deleteItemAsync(PRIVATE_CLEANUP_REQUIRED_KEY);
+    privateCleanupBlockedInMemory = false;
+  } catch {
+    privateCleanupBlockedInMemory = true;
+    throw new Error('تعذر تنظيف بيانات الحساب السابق بأمان. لا يمكن تسجيل الدخول قبل نجاح تنظيف التخزين المحلي.');
+  }
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -91,6 +110,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true;
     const restore = async () => {
       let cached: PersistedSession | null = null;
+      try {
+        const cleanupRequired = await SecureStore.getItemAsync(PRIVATE_CLEANUP_REQUIRED_KEY).catch(() => 'required');
+        if (cleanupRequired || privateCleanupBlockedInMemory) {
+          try {
+            await clearPrivateMobileData();
+            await SecureStore.deleteItemAsync(PRIVATE_CLEANUP_REQUIRED_KEY);
+            privateCleanupBlockedInMemory = false;
+          } catch {
+            privateCleanupBlockedInMemory = true;
+            await clearPersisted();
+            if (mounted) setIsRestoring(false);
+            return;
+          }
+        }
+      } catch { /* Fail closed below by not restoring a cached session. */ }
       try {
         const raw = await SecureStore.getItemAsync(SECURE_SESSION_KEY);
         if (raw) {
@@ -198,6 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
+    await ensurePrivateStorageClean();
     setIsBusy(true);
     try {
       const session = await loginWithPassword(email, password);
@@ -216,6 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [persist]);
 
   const register = useCallback(async (input: { name: string; email: string; password: string; phone?: string; city?: string }) => {
+    await ensurePrivateStorageClean();
     setIsBusy(true);
     try {
       const session = await registerAccount(input);
@@ -226,6 +262,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [persist]);
 
   const logout = useCallback(async () => {
+    // Logging out previously deleted queued offline writes without warning. Count
+    // durable operations first and require explicit confirmation before discarding.
+    let pendingOperations = 0;
+    try {
+      pendingOperations = await countPendingPrivateMobileOperations();
+    } catch {
+      Alert.alert('تعذر التحقق من العمليات المحلية', 'لم نتمكن من التأكد مما إذا كانت هناك عمليات بانتظار المزامنة. لم يتم تسجيل الخروج حتى لا تفقد بيانات محلية دون قصد.');
+      return;
+    }
+    if (pendingOperations > 0) {
+      const shouldDiscard = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'عمليات بانتظار المزامنة',
+          `يوجد ${pendingOperations} عملية محفوظة على هذا الجهاز ولم يؤكد الخادم استلامها. إذا تابعت تسجيل الخروج فسيتم حذفها من الجهاز ولن تُرسل لاحقًا. اتصل بالإنترنت وانتظر المزامنة، أو اختر المتابعة لحذفها صراحةً.`,
+          [
+            { text: 'العودة للمزامنة', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'حذف العمليات والخروج', style: 'destructive', onPress: () => resolve(true) },
+          ],
+          { cancelable: true, onDismiss: () => resolve(false) },
+        );
+      });
+      if (!shouldDiscard) return;
+    }
     const token = accessToken;
     const csrf = csrfToken;
     setIsBusy(true);
@@ -237,8 +296,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Server-side session invalidation failed (offline, 5xx). Local credentials
       // are still removed in finally. Callers treat this as successful logout.
     } finally {
+      // Credentials must always be cleared. If DB cleanup fails, persist a lock that
+      // blocks the next login/restore until cleanup succeeds, preventing cross-account exposure.
+      let cleanupFailed = false;
+      try {
+        await clearPrivateMobileData();
+        await SecureStore.deleteItemAsync(PRIVATE_CLEANUP_REQUIRED_KEY);
+        privateCleanupBlockedInMemory = false;
+      } catch {
+        cleanupFailed = true;
+        privateCleanupBlockedInMemory = true;
+        await SecureStore.setItemAsync(PRIVATE_CLEANUP_REQUIRED_KEY, 'required').catch(() => undefined);
+      }
       await clearPersisted();
       setIsBusy(false);
+      if (cleanupFailed) {
+        Alert.alert('تعذر تنظيف التخزين المحلي', 'تم إنهاء الجلسة المحلية، لكن لم يكتمل حذف بيانات الحساب. سيُمنع تسجيل الدخول التالي حتى ينجح التنظيف. إذا استمرت المشكلة، امسح بيانات التطبيق من إعدادات الجهاز قبل استخدام حساب آخر.');
+      }
     }
   }, [accessToken, csrfToken, clearPersisted]);
 

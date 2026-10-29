@@ -6,6 +6,9 @@ const mock = vi.hoisted(async () => {
 });
 
 vi.mock('expo-sqlite', async () => await mock);
+vi.mock('@/storage/encrypted-database', async () => ({
+  openEncryptedDatabaseAsync: async () => (await mock).openDatabaseAsync('marketplat-private-v2.db'),
+}));
 
 import {
   enqueueMutation,
@@ -40,7 +43,7 @@ function input(overrides: Record<string, unknown> = {}) {
 }
 
 const db = () => mock;
-const rawDb = async () => (await mock).getRawDb('marketplat-public-cache.db')!;
+const rawDb = async () => (await mock).getRawDb('marketplat-private-v2.db')!;
 
 // ── Enqueue ────────────────────────────────────────────────────────
 describe('enqueueMutation', () => {

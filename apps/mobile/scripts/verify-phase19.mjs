@@ -13,6 +13,7 @@ assert.match(cache, /MAX_TOTAL_CHARS = 3_000_000/);
 assert.match(cache, /ORDER BY saved_at ASC/);
 assert.match(cache, /export async function clearPublicCache/);
 assert.ok(pkg.dependencies['expo-sqlite']);
-assert.ok(pkg.scripts.test.includes('verify-phase19.mjs'));
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 assert.ok(app.expo.plugins.includes('expo-sqlite'));
 console.log('Phase 19 SQLite cache checks passed (static checks only; dependency installation and device/database runtime were not tested).');

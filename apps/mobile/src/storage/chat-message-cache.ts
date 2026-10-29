@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import type { ChatMessage } from '@/features/messaging/messaging.api';
+import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
 
 const DATABASE_NAME = 'marketplat-public-cache.db';
 const MAX_MESSAGES_PER_CONVERSATION = 300;
@@ -16,7 +17,7 @@ let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 async function database(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
-    dbPromise = SQLite.openDatabaseAsync(DATABASE_NAME).then(async db => {
+    dbPromise = openEncryptedDatabaseAsync(DATABASE_NAME).then(async db => {
       await db.execAsync(`
         PRAGMA journal_mode = WAL;
         CREATE TABLE IF NOT EXISTS chat_message_cache (

@@ -14,5 +14,6 @@ assert.match(editor, /savedEdit\?\.draft \?\? baseDraft/, 'Saved edit draft must
 assert.match(editor, /images: draft\.images\.map/, 'Image-bearing edits must retain persisted images for replay');
 assert.match(editor, /await clearAdEditDraft\(String\(user\.id\), String\(id\)\)/, 'Successful online edit clears its local edit draft');
 assert.match(images, /SELECT draft_json FROM ad_drafts UNION ALL SELECT draft_json FROM ad_edit_drafts/, 'Image cleanup must preserve edit-draft images');
-assert.match(pkg.scripts.test, /verify-phase59\.mjs/, 'Phase 59 verifier must be in test chain');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'Phase 59 verifier must be in test chain');
 console.log('Phase 59 checks passed: durable per-ad edit drafts, restore, honest offline status, and image-reference protection.');

@@ -29,5 +29,6 @@ assert.match(controller, /if \(files\.length === 0\)/, 'API rejects ad creation 
 assert.match(transport, /new FormData\(\)/, 'mobile transport must send multipart form data');
 assert.match(transport, /form\.append\('images'/, 'mobile transport must attach local image files');
 assert.match(client, /init\.body instanceof FormData/, 'shared client must not override multipart Content-Type boundary');
-assert.ok(pkg.scripts.test.includes('verify-phase41.mjs'), 'phase 41 test must be wired into npm test');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'phase 41 test must be wired into npm test');
 console.log('Phase 41 local-image validation, multipart request contract, missing-image rejection, and idempotency checks passed (Node contract test + source assertions; no Expo/device/API integration).');

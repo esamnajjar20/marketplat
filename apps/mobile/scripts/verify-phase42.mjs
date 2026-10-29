@@ -18,5 +18,6 @@ assert.ok(picker.includes('image\\/(jpeg|jpg|png|webp)'), 'picker should not adv
 assert.doesNotThrow(() => toOutboxCreateAdRequest(item({ uri: 'file:///documents/a.webp', type: 'image/webp', sizeBytes: 1024 })));
 assert.throws(() => toOutboxCreateAdRequest(item({ uri: 'file:///documents/a.heic', type: 'image/heic' })), /غير مدعوم من الخادم/);
 assert.throws(() => toOutboxCreateAdRequest(item({ uri: 'file:///documents/a.jpg', type: 'image/jpeg', sizeBytes: 5 * 1024 * 1024 + 1 })), /يتجاوز الحد المسموح/);
-assert.ok(pkg.scripts.test.includes('verify-phase42.mjs'), 'phase 42 verifier must be part of npm test');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'phase 42 verifier must be part of npm test');
 console.log('Phase 42 API image MIME/size compatibility checks passed (Node contract tests + source assertions; no real image upload or device test).');

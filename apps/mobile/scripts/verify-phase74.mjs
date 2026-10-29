@@ -11,7 +11,7 @@ assert.match(store, /PRAGMA table_info\(favorite_state_outbox\)/, 'existing SQLi
 assert.match(store, /COALESCE\(favorite_state_outbox\.previous_favorited, excluded\.previous_favorited\)/, 'coalesced taps retain the original baseline');
 assert.match(store, /previousFavorited: row\.previous_favorited === null \|\| row\.previous_favorited === undefined \? null/, 'legacy rows with unknown baseline stay explicitly unknown');
 assert.match(detail, /previousFavorited: isFavorite/, 'detail screen records state before the first queued intent');
-assert.match(home, /previousFavorited: previous\.includes\(id\)/, 'home screen records state before the first queued intent');
+assert.match(home, /previousFavorited\s*:\s*wasFavorited/, 'home screen records state before the first queued intent');
 assert.match(queue, /if \(!online \|\| !accessToken \|\| !user\?\.id\)/, 'cancellation requires an authenticated online session');
 assert.match(queue, /const serverIds = await fetchFavoriteAdIds\(accessToken\)/, 'cancellation reconciles against authoritative server state');
 assert.match(queue, /const pending = await listPendingFavoriteStates\(user\.id\)/, 'remaining queued intents are preserved after reconciliation');

@@ -16,5 +16,6 @@ assert.doesNotMatch(home, /getCachedPublicCategories/, 'Homepage should avoid a 
 assert.match(home, /getCachedServiceListings/, 'Homepage should retain a cache-first services section.');
 assert.match(detail, /await getCachedAdDetail\(id\)/);
 assert.match(detail, /if \(!hasCachedAd\) setErrorMessage/);
-assert.ok(pkg.scripts.test.includes('verify-phase50.mjs'));
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 console.log('Phase 51 local-first cache-first rendering and homepage information hierarchy checks passed (static only; Expo/SQLite/network/device runtime not exercised).');

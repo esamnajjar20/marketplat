@@ -10,5 +10,6 @@ assert.match(contract, /\^\[A-Za-z0-9\]\[A-Za-z0-9\._:-\]\{0,127\}\$/, 'client v
 assert.match(middleware, /OFFLINE_OPERATION_ID_PATTERN/, 'API middleware validates offline operation IDs');
 assert.match(middleware, /x-offline-op-id/, 'API reads X-Offline-Op-Id');
 assert.match(service, /where: \{ offlineOperationId \}/, 'ad service looks up prior creation by offline operation ID');
-assert.ok(pkg.scripts.test.includes('verify-phase27.mjs'), 'phase 27 check is wired into mobile test command');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'phase 27 check is wired into mobile test command');
 console.log('Phase 27 mobile/API outbox transport contract checks passed (static checks only; no live HTTP/DB integration).');

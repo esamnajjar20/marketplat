@@ -16,5 +16,6 @@ for (const token of [
 assert.ok(sync.indexOf('await sendOutboxCreateAd') < sync.indexOf('await acknowledgeMutation'), 'Outbox must be acknowledged only after transport success');
 assert.ok(sync.indexOf('await markMutationFailed') < sync.indexOf('return { status: \'retry-scheduled\''), 'Failures must be recorded before returning retry status');
 assert.ok(transport.includes("response.success !== true") && transport.includes('response.data === undefined'), 'Transport must validate successful API envelope');
-assert.ok(pkg.scripts.test.includes('verify-phase29.mjs'), 'Phase 29 verifier must be included in npm test');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'Phase 29 verifier must be included in npm test');
 console.log('Phase 29 outbox lifecycle checks passed (static source checks; no native SQLite/API integration).');

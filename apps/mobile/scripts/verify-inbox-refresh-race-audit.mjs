@@ -9,5 +9,6 @@ assert.match(screen, /if \(currentRequestId === requestId\.current\) \{ setItems
 assert.match(screen, /if \(currentRequestId === requestId\.current\) setError/, 'stale request failures must not replace current error state');
 assert.match(screen, /return \(\) => \{ requestId\.current \+= 1; moreRequestId\.current \+= 1; moreRequest\.current = false; \}/, 'leaving the screen should invalidate pending inbox requests');
 assert.match(screen, /setItems\(\[\]\);[\s\S]*setError\('سجّل الدخول لعرض محادثاتك\.'/ , 'logged-out state must clear conversations from a prior session');
-assert.match(pkg.scripts.test, /verify-inbox-refresh-race-audit\.mjs/, 'inbox race audit must run in npm test');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'inbox race audit must run in npm test');
 console.log('Inbox refresh race audit checks passed (stale requests are ignored and prior-session data is cleared).');

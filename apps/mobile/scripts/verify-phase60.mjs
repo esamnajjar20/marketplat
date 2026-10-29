@@ -8,5 +8,6 @@ assert.match(screen, /operation: 'delete-ad'/, 'Offline delete must be persisted
 assert.match(screen, /لم يُحذف الإعلان/, 'UI must explicitly say no server deletion occurred');
 assert.match(screen, /disabled=\{busyId === ad\.id\}/, 'Delete action remains disabled only while the operation is being saved or sent');
 assert.match(screen, /deleteAd\(ad\.id, accessToken, csrfToken\)/, 'Online delete keeps using the existing API path');
-assert.match(pkg.scripts.test, /verify-phase60\.mjs/, 'Phase 60 verifier must be in npm test chain');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'Phase 60 verifier must be in npm test chain');
 console.log('Phase 60 regression checks passed: deletion UI remains explicit and now queues offline requests in Phase 63.');

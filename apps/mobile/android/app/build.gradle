@@ -104,15 +104,26 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Production credentials are supplied only through local environment or CI secrets.
+        // Never commit a release keystore or its passwords.
+        if (System.getenv('MARKETPLAT_RELEASE_STORE_FILE')) {
+            release {
+                storeFile file(System.getenv('MARKETPLAT_RELEASE_STORE_FILE'))
+                storePassword System.getenv('MARKETPLAT_RELEASE_STORE_PASSWORD')
+                keyAlias System.getenv('MARKETPLAT_RELEASE_KEY_ALIAS')
+                keyPassword System.getenv('MARKETPLAT_RELEASE_KEY_PASSWORD')
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Test builds retain debug signing so the existing internal-test workflow works.
+            // Production releases MUST run :app:verifyProductionSigning and provide all four
+            // MARKETPLAT_RELEASE_* environment variables before building/publishing.
+            signingConfig System.getenv('MARKETPLAT_RELEASE_STORE_FILE') ? signingConfigs.release : signingConfigs.debug
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
@@ -134,8 +145,8 @@ android {
         abi {
             enable true
             reset()
-            include "arm64-v8a"
-            universalApk false
+            include "armeabi-v7a", "arm64-v8a"
+            universalApk true
         }
     }
 }
@@ -186,5 +197,29 @@ dependencies {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
+    }
+}
+
+// Explicit guard for release pipelines intended for public distribution.
+// Existing internal test workflows may continue to build release variants with debug signing,
+// but a production pipeline must call this task before assembleRelease/bundleRelease.
+tasks.register('verifyProductionSigning') {
+    group = 'verification'
+    description = 'Fails unless a private production signing keystore and all credentials are configured.'
+    doLast {
+        def required = [
+            'MARKETPLAT_RELEASE_STORE_FILE',
+            'MARKETPLAT_RELEASE_STORE_PASSWORD',
+            'MARKETPLAT_RELEASE_KEY_ALIAS',
+            'MARKETPLAT_RELEASE_KEY_PASSWORD'
+        ]
+        def missing = required.findAll { !System.getenv(it)?.trim() }
+        if (!missing.isEmpty()) {
+            throw new GradleException("Production signing is not configured. Missing environment variables: ${missing.join(', ')}")
+        }
+        def store = file(System.getenv('MARKETPLAT_RELEASE_STORE_FILE'))
+        if (!store.isFile()) {
+            throw new GradleException("Production keystore file does not exist: ${store}")
+        }
     }
 }

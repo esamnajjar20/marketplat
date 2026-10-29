@@ -6,6 +6,9 @@ const mock = vi.hoisted(async () => {
 });
 
 vi.mock('expo-sqlite', async () => await mock);
+vi.mock('@/storage/encrypted-database', async () => ({
+  openEncryptedDatabaseAsync: async () => (await mock).openDatabaseAsync('marketplat-private-v2.db'),
+}));
 
 import {
   enqueueChatMessage, listChatMessagesForOwner, listDueChatMessages,
@@ -78,7 +81,7 @@ describe('chat-message-outbox', () => {
     const exhausted = await enqueueChatMessage({ ownerId: OWNER, conversationId: CONV, body: 'exhausted', operationId: opId() });
     const ready = await enqueueChatMessage({ ownerId: OWNER, conversationId: CONV, body: 'ready', operationId: opId() });
     const m = await mock;
-    const raw = m.getRawDb('marketplat-public-cache.db')!;
+    const raw = m.getRawDb('marketplat-private-v2.db')!;
     raw.prepare('UPDATE chat_message_outbox SET attempts = ?, next_attempt_at = 0 WHERE id = ?').run(CHAT_OUTBOX_MAX_ATTEMPTS, exhausted.id);
     const due = await listDueChatMessages(OWNER, Date.now());
     expect(due.map((x) => x.id)).toEqual([ready.id]);
@@ -87,7 +90,7 @@ describe('chat-message-outbox', () => {
   it('listDue excludes next_attempt_at in future', async () => {
     const future = await enqueueChatMessage({ ownerId: OWNER, conversationId: CONV, body: 'future', operationId: opId() });
     const m = await mock;
-    const raw = m.getRawDb('marketplat-public-cache.db')!;
+    const raw = m.getRawDb('marketplat-private-v2.db')!;
     raw.prepare('UPDATE chat_message_outbox SET next_attempt_at = ? WHERE id = ?').run(Date.now() + 60_000, future.id);
     expect(await listDueChatMessages(OWNER, Date.now())).toHaveLength(0);
   });
@@ -109,7 +112,7 @@ describe('chat-message-outbox', () => {
     const msg = await enqueueChatMessage({ ownerId: OWNER, conversationId: CONV, body: 'x', operationId: opId() });
     expect(await retryChatMessage(msg.operationId, OWNER)).toBe(false);
     const m = await mock;
-    const raw = m.getRawDb('marketplat-public-cache.db')!;
+    const raw = m.getRawDb('marketplat-private-v2.db')!;
     raw.prepare('UPDATE chat_message_outbox SET attempts = ? WHERE id = ?').run(CHAT_OUTBOX_MAX_ATTEMPTS, msg.id);
     expect(await retryChatMessage(msg.operationId, OWNER)).toBe(true);
   });

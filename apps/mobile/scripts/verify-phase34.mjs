@@ -8,5 +8,6 @@ assert.ok(outbox.includes("state IN ('pending','failed')"), 'Discard must not re
 assert.ok(outbox.includes('export async function discardOutboxMutation'), 'Explicit discard API must exist');
 assert.ok(sync.includes("status: 'blocked-by-unsupported'"), 'Blocked operation must be reported explicitly');
 assert.ok(sync.includes('...decision, count: all.filter'), 'Blocked result must identify the oldest blocking operation');
-assert.ok(pkg.scripts.test.includes('verify-phase34.mjs'), 'Phase 34 verifier must be wired into npm test');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'Phase 34 verifier must be wired into npm test');
 console.log('Phase 34 outbox queue-management checks passed (static source checks only).');

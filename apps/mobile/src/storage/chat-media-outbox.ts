@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system/legacy';
+import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
 
 const DATABASE_NAME = 'marketplat-public-cache.db';
 const MEDIA_DIRECTORY = `${FileSystem.documentDirectory ?? ''}marketplat-chat-media-outbox/`;
@@ -12,7 +13,7 @@ export type ChatMediaOutboxItem = { id: string; ownerId: string; conversationId:
 type Row = { id: string; owner_id: string; conversation_id: string; kind: string; uri: string; file_name: string; mime_type: string; size_bytes: number; operation_id: string; created_at: number; attempts: number; next_attempt_at: number; last_error: string | null };
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 async function database() {
-  if (!dbPromise) dbPromise = SQLite.openDatabaseAsync(DATABASE_NAME).then(async db => {
+  if (!dbPromise) dbPromise = openEncryptedDatabaseAsync(DATABASE_NAME).then(async db => {
     await db.execAsync(`CREATE TABLE IF NOT EXISTS chat_media_outbox (id TEXT PRIMARY KEY NOT NULL, owner_id TEXT NOT NULL, conversation_id TEXT NOT NULL, kind TEXT NOT NULL, uri TEXT NOT NULL, file_name TEXT NOT NULL, mime_type TEXT NOT NULL, size_bytes INTEGER NOT NULL, operation_id TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at INTEGER NOT NULL DEFAULT 0, last_error TEXT); CREATE INDEX IF NOT EXISTS chat_media_outbox_owner_created_idx ON chat_media_outbox(owner_id, created_at);`);
     return db;
   }).catch(error => { dbPromise = null; throw error; });
@@ -58,4 +59,34 @@ export async function discardChatMedia(operationId: string, ownerId: string): Pr
  *  (400/404/422). Deletes immediately so the queue doesn't loop forever. */
 export async function discardRejectedChatMedia(operationId: string, ownerId: string): Promise<boolean> {
   return acknowledgeChatMedia(operationId, ownerId).then(() => true).catch(() => false);
+}
+
+
+const ORPHAN_MEDIA_MIN_AGE_MS = 24 * 60 * 60 * 1_000;
+
+/** Delete only old app-owned media files that are not referenced by any queued operation. */
+export async function cleanupStaleChatMediaFiles(
+  now = Date.now(),
+  minimumAgeMs = ORPHAN_MEDIA_MIN_AGE_MS,
+): Promise<{ scanned: number; deleted: number; retained: number }> {
+  if (!FileSystem.documentDirectory) return { scanned: 0, deleted: 0, retained: 0 };
+  const directory = await FileSystem.getInfoAsync(MEDIA_DIRECTORY).catch(() => ({ exists: false } as { exists: boolean }));
+  if (!directory.exists || !('isDirectory' in directory) || !directory.isDirectory) return { scanned: 0, deleted: 0, retained: 0 };
+  const db = await database();
+  const referencedRows = await db.getAllAsync<{ uri: string }>('SELECT uri FROM chat_media_outbox');
+  const referenced = new Set(referencedRows.map(row => row.uri));
+  const names = await FileSystem.readDirectoryAsync(MEDIA_DIRECTORY);
+  let scanned = 0; let deleted = 0; let retained = 0;
+  for (const name of names) {
+    if (!name || name.includes('/') || name.includes('\\') || name === '.' || name === '..') continue;
+    const uri = `${MEDIA_DIRECTORY}${name}`;
+    const info = await FileSystem.getInfoAsync(uri).catch(() => ({ exists: false } as { exists: boolean }));
+    if (!info.exists || ('isDirectory' in info && info.isDirectory) || !('modificationTime' in info) || typeof info.modificationTime !== 'number') continue;
+    if (now - info.modificationTime * 1_000 < minimumAgeMs) continue;
+    scanned += 1;
+    if (referenced.has(uri)) { retained += 1; continue; }
+    try { await FileSystem.deleteAsync(uri, { idempotent: true }); deleted += 1; }
+    catch { retained += 1; }
+  }
+  return { scanned, deleted, retained };
 }

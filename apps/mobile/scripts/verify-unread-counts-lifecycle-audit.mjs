@@ -17,5 +17,6 @@ assert.match(inbox, /counts\.notifications > 0/, 'inbox header should expose unr
 assert.match(notifications, /useUnreadCounts\(\)/, 'notification screen should subscribe to unread counts');
 assert.match(notifications, /void refreshUnreadCounts\(\)/, 'mark-read actions should refresh the server-backed count');
 assert.match(notifications, /counts\.notifications > 0/, 'notification screen should display unread count');
-assert.match(pkg.scripts.test, /verify-unread-counts-lifecycle-audit\.mjs/, 'unread-count lifecycle audit must run in npm test');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'unread-count lifecycle audit must run in npm test');
 console.log('Unread-count lifecycle audit checks passed (focus, foreground, stale responses, sign-out and mark-read refresh).');

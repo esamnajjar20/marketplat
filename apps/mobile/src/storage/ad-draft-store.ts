@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import type { AdDraft } from '@/features/ads/manage-ads.api';
 import { runSerializedByKey } from './draft-operation-queue.mjs';
+import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
 
 const DATABASE_NAME = 'marketplat-public-cache.db';
 const MAX_DRAFT_CHARS = 100_000;
@@ -10,7 +11,7 @@ let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 async function database(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = (async () => {
-      const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
+      const db = await openEncryptedDatabaseAsync(DATABASE_NAME);
       await db.execAsync(`CREATE TABLE IF NOT EXISTS ad_drafts (
         owner_id TEXT PRIMARY KEY NOT NULL,
         draft_json TEXT NOT NULL,

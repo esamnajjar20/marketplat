@@ -6,6 +6,9 @@ const mock = vi.hoisted(async () => {
 });
 
 vi.mock('expo-sqlite', async () => await mock);
+vi.mock('@/storage/encrypted-database', async () => ({
+  openEncryptedDatabaseAsync: async () => (await mock).openDatabaseAsync('marketplat-private-v2.db'),
+}));
 
 import {
   saveAdDraft, loadAdDraft, clearAdDraft,

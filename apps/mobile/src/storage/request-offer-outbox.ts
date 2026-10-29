@@ -1,14 +1,15 @@
 import * as SQLite from 'expo-sqlite';
 import { ApiError, apiRequest } from '@/api/client';
+import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
 
 type OfferPayload = { requestId: string; price: number; message?: string; operationId: string };
 export type PendingRequestOfferItem = { id: string; ownerId: string; payload: OfferPayload; createdAt: number; attempts: number; lastError: string | null; nextAttemptAt: number; state: string };
 type Row = { id: string; owner_id: string; payload_json: string; created_at: number; attempts: number; last_error: string | null; next_attempt_at: number; state: string; lease_until: number };
 const DB_NAME = 'marketplat-public-cache.db'; const MAX_PENDING = 50; const MAX_ATTEMPTS = 8;
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
-let activeSync: Promise<'synced' | 'discarded' | 'nothing-due' | 'retry-scheduled' | 'login-required'> | null = null;
+const activeSyncByOwner = new Map<string, Promise<'synced' | 'discarded' | 'nothing-due' | 'retry-scheduled' | 'login-required'>>();
 async function database() {
-  if (!dbPromise) dbPromise = SQLite.openDatabaseAsync(DB_NAME).then(async db => {
+  if (!dbPromise) dbPromise = openEncryptedDatabaseAsync(DB_NAME).then(async db => {
     await db.execAsync(`CREATE TABLE IF NOT EXISTS request_offer_outbox (
       id TEXT PRIMARY KEY NOT NULL, owner_id TEXT NOT NULL, payload_json TEXT NOT NULL,
       created_at INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, last_error TEXT,
@@ -48,7 +49,9 @@ export async function discardRejectedRequestOffer(id: string, ownerId?: string |
 
 export async function retryRequestOffer(id: string, ownerId?: string | null): Promise<boolean> { if (!id.trim() || !ownerId?.trim()) return false; const db = await database(); const r = await db.runAsync("UPDATE request_offer_outbox SET attempts=0,last_error=NULL,next_attempt_at=0,state='pending',lease_until=0 WHERE id=? AND owner_id=? AND state='pending' AND attempts>=?", id, ownerId, MAX_ATTEMPTS); return r.changes === 1; }
 export async function syncNextRequestOffer(input: { isOnline: boolean; token?: string | null; ownerId?: string | null; csrfToken?: string | null }): Promise<'synced' | 'discarded' | 'nothing-due' | 'retry-scheduled' | 'login-required'> {
-  if (activeSync) return activeSync;
+  const key = input.ownerId?.trim() || '__missing_owner__';
+  const existing = activeSyncByOwner.get(key);
+  if (existing) return existing;
   const work = (async () => {
     if (!input.isOnline) return 'nothing-due' as const; if (!input.token?.trim() || !input.ownerId?.trim()) return 'login-required' as const;
     const db = await database(); const now = Date.now(); await db.runAsync("UPDATE request_offer_outbox SET state='pending',lease_until=0,next_attempt_at=MAX(next_attempt_at,?) WHERE state='processing' AND lease_until<=?", now + 5000, now); const head = await db.getFirstAsync<Row>('SELECT * FROM request_offer_outbox WHERE owner_id=? ORDER BY created_at ASC LIMIT 1', input.ownerId);
@@ -69,5 +72,5 @@ export async function syncNextRequestOffer(input: { isOnline: boolean; token?: s
       await db.runAsync("UPDATE request_offer_outbox SET state='pending',attempts=?,last_error=?,next_attempt_at=?,lease_until=0 WHERE id=? AND owner_id=?", attempts, message, Date.now()+delay, head.id, input.ownerId);
       return error instanceof ApiError && (error.status === 401 || error.status === 403) ? 'login-required' as const : 'retry-scheduled' as const;
     }
-  })(); activeSync = work; void work.finally(() => { if (activeSync === work) activeSync = null; }).catch(() => undefined); return work;
+  })(); activeSyncByOwner.set(key, work); void work.finally(() => { if (activeSyncByOwner.get(key) === work) activeSyncByOwner.delete(key); }).catch(() => undefined); return work;
 }

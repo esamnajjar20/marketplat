@@ -15,7 +15,10 @@
           "cameraPermission": "اسمح لـ MarketPlat باستخدام الكاميرا لالتقاط صور للإعلانات."
         }
       ],
-      "expo-sqlite",
+      [
+        "expo-sqlite",
+        { "useSQLCipher": true }
+      ],
       "expo-secure-store",
       "expo-splash-screen",
       [
@@ -43,6 +46,7 @@
     },
     "android": {
       "package": "com.marketplat.mobile",
+      "supportsRTL": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FBF6EE"

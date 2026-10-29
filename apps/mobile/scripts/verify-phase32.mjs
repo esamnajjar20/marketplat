@@ -11,5 +11,6 @@ assert.ok(layoutText.indexOf('<AuthProvider>') < layoutText.indexOf('<OutboxSync
 for (const token of ['NetInfo.addEventListener', 'isConnected === true', 'isInternetReachable !== false', 'startOutboxSyncLifecycle', 'getSnapshot: () => ({ ...latest.current })', 'if (isRestoring) return;']) {
   assert.ok(bridgeText.includes(token), `Phase 32 application wiring missing: ${token}`);
 }
-assert.ok(pkg.scripts.test.includes('verify-phase32.mjs'), 'Phase 32 verifier must be wired into npm test');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'Phase 32 verifier must be wired into npm test');
 console.log('Phase 32 app-level auth/connectivity wiring checks passed (static checks only).');

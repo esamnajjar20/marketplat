@@ -11,5 +11,6 @@ for (const token of [
 ]) assert.ok(sync.includes(token), `Phase 30 guarded-sync contract missing: ${token}`);
 assert.ok(sync.indexOf('if (!input.isOnline)') < sync.indexOf('syncNextOutboxMutation(input.token'), 'Offline guard must run before the sync worker');
 assert.ok(sync.indexOf("if (!input.token?.trim() || !input.ownerId?.trim())") < sync.indexOf('syncNextOutboxMutation(input.token'), 'Session guard must run before the sync worker');
-assert.ok(pkg.scripts.test.includes('verify-phase30.mjs'), 'Phase 30 verifier must be included in npm test');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'Phase 30 verifier must be included in npm test');
 console.log('Phase 30 guarded outbox entry checks passed (static source checks only).');

@@ -10,5 +10,6 @@ for (const token of ['let activeSync:', 'if (activeSync) return activeSync;', 'a
 for (const token of ['AppState.addEventListener', "state === 'active'", 'subscribeConnectivity', 'options.getSnapshot()', 'appStateSubscription.remove()', 'unsubscribeConnectivity();', 'stopped = true;']) {
   assert.ok(lifecycle.includes(token), `Phase 31 lifecycle contract missing: ${token}`);
 }
-assert.ok(pkg.scripts.test.includes('verify-phase31.mjs'), 'Phase 31 verifier must be included in npm test');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'Phase 31 verifier must be included in npm test');
 console.log('Phase 31 lifecycle and single-flight checks passed (static source checks only).');

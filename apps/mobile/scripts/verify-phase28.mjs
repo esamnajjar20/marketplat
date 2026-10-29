@@ -13,5 +13,6 @@ assert.match(transport, /response\.success !== true/, 'invalid API envelopes mus
 assert.match(transport, /does not acknowledge\/delete/, 'transport must not delete local work before caller validates success');
 assert.match(contract, /item\.operation !== 'create-ad'/, 'only supported create operations are allowed');
 assert.match(client, /export async function apiRequest/, 'transport uses shared timeout/error handling client');
-assert.ok(pkg.scripts.test.includes('verify-phase28.mjs'), 'phase 28 check is wired into test command');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'phase 28 check is wired into test command');
 console.log('Phase 28 outbox transport checks passed (static source checks; no live API/database integration).');

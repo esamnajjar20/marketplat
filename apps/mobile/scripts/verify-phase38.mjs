@@ -15,5 +15,6 @@ assert.match(outbox, /ORDER BY created_at ASC, id ASC LIMIT \?/);
 assert.match(sync, /decideOutboxHeadAction\(candidate, Date\.now\(\)\)/);
 assert.match(sync, /await sendOutboxCreateAd\(claimed, token, csrfToken\)/);
 assert.match(sync, /await acknowledgeMutation\(claimed\.id, leaseOwner\)/);
-assert.match(pkg.scripts.test, /verify-phase38\.mjs/);
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 console.log('Phase 38 executable FIFO policy cases passed (pure policy only; SQLite/API runtime not exercised).');

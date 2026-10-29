@@ -16,5 +16,6 @@ assert.match(policy, /candidate\.nextAttemptAt > now/);
 assert.match(screen, /const isHead = items\[0\]\?\.id === item\.id/);
 assert.match(screen, /const canRetry = exhausted && isHead && \(item\.operation === 'create-ad' \|\| item\.operation === 'delete-ad'\)/);
 assert.match(screen, /المحاولة التالية بعد/);
-assert.match(pkg.scripts.test, /verify-phase36\.mjs/);
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 console.log('Phase 36 FIFO-head/backoff/exhaustion source-contract checks passed (static only; SQLite/API runtime not exercised).');

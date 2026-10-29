@@ -6,10 +6,13 @@ const mock = vi.hoisted(async () => {
 });
 
 vi.mock('expo-sqlite', async () => await mock);
+vi.mock('@/storage/encrypted-database', async () => ({
+  openEncryptedDatabaseAsync: async () => (await mock).openDatabaseAsync('marketplat-private-v2.db'),
+}));
 
 import {
   writePublicCache, readPublicCache, readPublicCacheEntry,
-  deletePublicCacheEntry, clearPublicCache, clearPrivateCache, clearPrivateCacheForPrefix,
+  deletePublicCacheEntry, clearPublicCache, clearPrivateCache, clearPrivateCacheForPrefix, clearPrivateMobileData, countPendingPrivateMobileOperations,
 } from '@/storage/public-cache';
 
 describe('public-cache', () => {
@@ -89,6 +92,56 @@ describe('public-cache', () => {
     await writePublicCache('api-private:user1:/api/v1/orders/1', { a: 1 });
     await clearPrivateCacheForPrefix('not-a-valid-prefix', 'user1');
     expect(await readPublicCache('api-private:user1:/api/v1/orders/1')).toEqual({ a: 1 });
+  });
+
+  it('clearPrivateMobileData removes account cache and private outboxes but preserves public cache', async () => {
+    await writePublicCache('api-public:ads', { items: ['public'] });
+    await writePublicCache('api-private:user1:/api/v1/users/me', { name: 'Private User' });
+    const db = await (await mock).openDatabaseAsync('marketplat-private-v2.db');
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS mutation_outbox (id TEXT PRIMARY KEY, payload TEXT);
+      CREATE TABLE IF NOT EXISTS chat_message_outbox (id TEXT PRIMARY KEY, payload TEXT);
+      CREATE TABLE IF NOT EXISTS ad_drafts (owner_id TEXT PRIMARY KEY, draft_json TEXT, updated_at INTEGER);
+      CREATE TABLE IF NOT EXISTS favorite_state_outbox (user_id TEXT, ad_id TEXT, favorited INTEGER, operation_id TEXT, updated_at INTEGER);
+    `);
+    await db.runAsync('INSERT INTO mutation_outbox (id, payload) VALUES (?, ?)', 'm1', '{}');
+    await db.runAsync('INSERT INTO chat_message_outbox (id, payload) VALUES (?, ?)', 'c1', '{}');
+    await db.runAsync('INSERT INTO ad_drafts (owner_id, draft_json, updated_at) VALUES (?, ?, ?)', 'user1', '{}', Date.now());
+    await db.runAsync('INSERT INTO favorite_state_outbox (user_id, ad_id, favorited, operation_id, updated_at) VALUES (?, ?, ?, ?, ?)', 'user1', 'ad1', 1, 'op1', Date.now());
+
+    await clearPrivateMobileData();
+
+    expect(await readPublicCache('api-public:ads')).toEqual({ items: ['public'] });
+    expect(await readPublicCache('api-private:user1:/api/v1/users/me')).toBeNull();
+    expect(await db.getFirstAsync('SELECT id FROM mutation_outbox WHERE id = ?', 'm1')).toBeNull();
+    expect(await db.getFirstAsync('SELECT id FROM chat_message_outbox WHERE id = ?', 'c1')).toBeNull();
+    expect(await db.getFirstAsync('SELECT owner_id FROM ad_drafts WHERE owner_id = ?', 'user1')).toBeNull();
+    expect(await db.getFirstAsync('SELECT user_id FROM favorite_state_outbox WHERE user_id = ?', 'user1')).toBeNull();
+  });
+
+  it('counts queued private writes before logout confirmation', async () => {
+    const db = await (await mock).openDatabaseAsync('marketplat-private-v2.db');
+    await db.execAsync(`
+      CREATE TABLE IF NOT EXISTS mutation_outbox (id TEXT PRIMARY KEY, payload TEXT);
+      CREATE TABLE IF NOT EXISTS chat_message_outbox (id TEXT PRIMARY KEY, payload TEXT);
+    `);
+    await db.runAsync('INSERT INTO mutation_outbox (id, payload) VALUES (?, ?)', 'm1', '{}');
+    await db.runAsync('INSERT INTO mutation_outbox (id, payload) VALUES (?, ?)', 'm2', '{}');
+    await db.runAsync('INSERT INTO chat_message_outbox (id, payload) VALUES (?, ?)', 'c1', '{}');
+    expect(await countPendingPrivateMobileOperations()).toBe(3);
+  });
+
+  it('tracks UTF-8 bytes and evicts by aggregate byte size', async () => {
+    const { getPublicCacheStats } = await import('@/storage/public-cache');
+    // Each entry is under the per-entry byte limit, while five entries exceed
+    // the aggregate limit when emoji are correctly counted as four UTF-8 bytes.
+    const payload = { value: '🙂'.repeat(350_000) };
+    for (let index = 0; index < 5; index += 1) {
+      await writePublicCache(`api-public:utf8-${index}`, payload);
+    }
+    const stats = await getPublicCacheStats();
+    expect(stats.sizeBytes).toBeLessThanOrEqual(6_000_000);
+    expect(stats.entries).toBeLessThan(5);
   });
 
   it('clearPublicCache empties entire table', async () => {

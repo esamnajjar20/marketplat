@@ -15,5 +15,6 @@ assert.match(screen, /إعادة المحاولة/, 'screen must expose an expli
 assert.match(screen, /حذف الرسالة غير المرسلة/, 'discard must require a confirmation');
 assert.match(screen, /retryChatMessage\(operationId, user\.id\)/, 'manual retry must reset the durable queue row');
 assert.match(screen, /discardFailedChatMessage\(operationId, user\.id\)/, 'discard action must use the authenticated owner ID');
-assert.match(pkg.scripts.test, /verify-chat-dead-letter-recovery-audit\.mjs/, 'dead-letter recovery audit must run in npm test');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'dead-letter recovery audit must run in npm test');
 console.log('Chat dead-letter recovery audit checks passed (manual retry, confirmed discard, and account-scoped queue operations).');

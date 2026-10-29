@@ -4,16 +4,20 @@ This is the first **scaffold** for a native mobile client. It is intentionally s
 
 ## Current scope
 
-- Expo Router entry point and a single Arabic, RTL-oriented starter screen.
-- Responsive category browsing and local category filtering.
-- Public ad listing connected to the existing `GET /api/v1/ads` endpoint, including loading, empty, error/retry, pull-to-refresh, and title search on submit.
-- Ad detail screen connected to the existing `GET /api/v1/ads/:id` endpoint, with images, price, description, category/location, and available seller metadata.
-- Central color/spacing tokens.
-- API transport helper with timeout, JSON error handling, request-id preservation, and optional bearer token.
-- SecureStore-backed session restoration, refresh attempt, and local logout cleanup (native cookie persistence is not yet device-verified).
-- Static readiness checks for workspace, Expo identifiers, routes, session storage, API timeout, and required test scripts (`pnpm --filter @marketplat/mobile test`).
+The mobile client has grown beyond the original starter scaffold. The repository currently includes Expo Router screens and feature modules for authentication, marketplace browsing and details, seller/store flows, sales and orders, requests/offers, messaging, media uploads, offline SQLite cache and mutation outboxes, and chat live-stream fallback behavior. Treat the source tree and automated tests as the source of truth for the exact implementation status of each feature; the original scaffold checklist below is intentionally not used as a current feature inventory.
 
-The category data and featured-listing empty state are explicitly placeholder UI. Authentication has an initial login/session implementation, but refresh-cookie behavior is not yet verified on physical Android/iOS devices. Uploads, chat, push notifications, full offline persistence, and background synchronization are **not implemented yet**. The ad detail screen is read-only; seller contact and favorites are not implemented yet. The public list and detail screen use the existing ads endpoints; no backend route was added or changed. Category IDs in the starter category tiles remain illustrative and are not mapped to backend category IDs.
+Important limitations that still require device/server validation:
+
+- **SQLite encryption:** Android/iOS config now requests SQLCipher and all native database access goes through a single keyed opener with a one-time legacy export path. This requires a rebuilt native binary (not Expo Go). Do not distribute until the migration is tested on a copy of a real legacy database and `PRAGMA cipher_version` is confirmed on device. Web storage is not SQLCipher-encrypted.
+- **Logout with pending writes:** logout now checks durable queues and requires a clear choice before deleting unacknowledged operations. Returning to sync cancels logout; choosing deletion permanently discards those local queued writes.
+- **Local file retention:** stale app-owned chat-media files are removed only after 24 hours and only if no queued operation references them. Draft/outbox-referenced ad images remain protected by the existing conservative cleanup.
+- **Crash reporting is not production-ready yet:** the app still needs a native mobile crash-reporting SDK, a configured DSN, and a verified test event. Do not infer that the existing UI ErrorBoundary provides remote crash reporting.
+
+- Refresh-cookie persistence and session restoration must be tested on physical Android and iOS devices against the deployed backend.
+- Live SSE streaming depends on native `fetch` exposing a readable response body; when unsupported, the client must use its polling fallback.
+- Offline writes can remain queued locally. Logging out clears account-scoped cached snapshots and queued private operations on this device; unsynchronized changes should be reviewed before logging out.
+- The Android release signing configuration is for internal testing only and uses the debug signing key. Do not publish it to an app store.
+- Production crash reporting and push-notification delivery must be treated as separate deployment capabilities and verified before claiming production support.
 
 ## Requirements
 
@@ -100,3 +104,15 @@ The static scaffold/API-wiring check does not require network access. An Expo/Me
 - Updated this README to reflect the current authentication work rather than the earlier Phase 4 scaffold status.
 - Environment validation attempted `corepack pnpm@10.18.0 install --lockfile-only --ignore-scripts`, but Corepack could not reach `registry.npmjs.org` (`EAI_AGAIN`). No lockfile was generated and no dependency installation was completed.
 - Node.js `v22.16.0` is present, but pnpm itself is not installed in this environment. Therefore TypeScript, Expo Doctor/Metro, native builds, and real API/device tests remain unverified.
+
+
+## Production Android signing
+
+The existing `assembleRelease`/`bundleRelease` test workflows intentionally retain debug signing when no production signing environment is supplied. This is **not suitable for store publication**. Configure these environment variables from a private keystore and CI secrets:
+
+- `MARKETPLAT_RELEASE_STORE_FILE` — path to the private `.jks`/`.keystore` file available to the build runner
+- `MARKETPLAT_RELEASE_STORE_PASSWORD`
+- `MARKETPLAT_RELEASE_KEY_ALIAS`
+- `MARKETPLAT_RELEASE_KEY_PASSWORD`
+
+Before any public release build, run `cd apps/mobile/android && ./gradlew :app:verifyProductionSigning` and then build the intended release artifact. Never commit the keystore or passwords. Increment `versionCode` for every published Android release.

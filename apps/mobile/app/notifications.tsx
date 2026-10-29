@@ -164,7 +164,9 @@ export default function NotificationsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <AppHeader
-        title="الإشعارات"
+        title={counts.notifications > 0
+          ? `الإشعارات (${counts.notifications > 99 ? '99+' : counts.notifications})`
+          : 'الإشعارات'}
         right={
           user ? (
             <Pressable

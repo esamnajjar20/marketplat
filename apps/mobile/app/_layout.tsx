@@ -1,7 +1,7 @@
 import '@/lib/network-config';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { I18nManager, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '@/components/BottomNavigation';
 import { StatusBar } from 'expo-status-bar';
@@ -75,6 +75,9 @@ function RootChrome({ children }: { children: ReactNode }) {
 }
 
 export default function RootLayout() {
+  // Allow native RTL for Arabic system locales; don't force a global flip because
+  // this app intentionally uses row-reverse in many manually mirrored components.
+  useEffect(() => { I18nManager.allowRTL(true); }, []);
   return (
     <ConnectivityProvider>
       <AuthProvider>

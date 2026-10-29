@@ -16,6 +16,6 @@ assert.match(backendService, /if \(!query\.before\)/, 'notification-read side ef
 assert.match(cache, /PRIMARY KEY \(owner_id, conversation_id, message_id\)/, 'cached messages must be isolated by account and conversation');
 assert.match(cache, /MAX_MESSAGES_PER_CONVERSATION = 300/, 'local history cache must be bounded');
 assert.match(screen, /readCachedChatMessages\(user\.id, id\)/, 'screen must render account-scoped cached history before waiting for network');
-assert.match(screen, /saveCachedChatMessages\(user\?\.id \?\? '', id, page\.items\)/, 'newest server page must refresh the local cache');
+assert.match(screen, /if \(user\?\.id\) void saveCachedChatMessages\(user\.id, id, pageR\.value\.items\)/, 'newest server page must refresh the local cache');
 assert.match(screen, /previousConnectivity\.current === false && connected/, 'reconnection must trigger one catch-up fetch instead of periodic polling');
 console.log('Chat pagination/offline audit passed (cursor COUNT avoided, read side effects reduced, account-scoped SQLite history, reconnect catch-up).');

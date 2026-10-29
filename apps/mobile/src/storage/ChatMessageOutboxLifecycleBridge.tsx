@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useIsOnline } from '@/lib/connectivity';
 import { syncChatMessageOutbox, type ChatOutboxSyncSnapshot } from '@/features/messaging/chat-message-outbox-sync';
+import { cleanupStaleChatMediaFiles } from '@/storage/chat-media-outbox';
 
 /** Persisted chat messages sync when connectivity returns or the app resumes.
  *  Connectivity is provided by ConnectivityProvider (single NetInfo listener for the app). */
@@ -10,6 +11,8 @@ export function ChatMessageOutboxLifecycleBridge() {
   const { accessToken, csrfToken, user, isRestoring } = useAuth();
   const isOnline = useIsOnline();
   const latest = useRef<ChatOutboxSyncSnapshot>({ isOnline: false, token: null, ownerId: null, csrfToken: null });
+
+  useEffect(() => { void cleanupStaleChatMediaFiles().catch(() => undefined); }, []);
 
   useEffect(() => {
     latest.current = { ...latest.current, token: accessToken, csrfToken, ownerId: user?.id ?? null, isOnline };

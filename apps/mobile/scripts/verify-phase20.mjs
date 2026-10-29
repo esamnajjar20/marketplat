@@ -13,5 +13,6 @@ assert.match(outbox, /export async function enqueueMutation/);
 assert.match(outbox, /export async function claimMutation/);
 assert.match(outbox, /export async function acknowledgeMutation/);
 assert.match(outbox, /Never store auth tokens\/cookies here/);
-assert.ok(pkg.scripts.test.includes('verify-phase20.mjs'));
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 console.log('Phase 20 outbox contract checks passed (static source checks only; SQLite runtime and server idempotency were not tested).');

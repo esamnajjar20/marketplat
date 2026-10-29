@@ -6,7 +6,7 @@ const screen = readFileSync(new URL('../app/messages/[id].tsx', import.meta.url)
 const cache = readFileSync(new URL('../src/storage/chat-message-cache.ts', import.meta.url), 'utf8');
 const client = readFileSync(new URL('../src/api/client.ts', import.meta.url), 'utf8');
 
-assert.match(stream, /Authorization:\s*`Bearer \$\{options\.token\}`/, 'SSE must use the current bearer token');
+assert.match(stream, /Authorization:\s*`Bearer \$\{currentToken\}`/, 'SSE must use the current bearer token');
 assert.match(stream, /Last-Event-ID/, 'SSE reconnects must send the last replay ID');
 assert.match(stream, /response\.body[\s\S]*getReader/, 'SSE must consume the response stream instead of JSON parsing');
 assert.match(stream, /Math\.min\(30_000/, 'reconnect delay must be bounded');

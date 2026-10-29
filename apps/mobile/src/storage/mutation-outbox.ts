@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
 
 const DATABASE_NAME = 'marketplat-public-cache.db';
 const MAX_PENDING = 50;
@@ -45,7 +46,7 @@ let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 async function database(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = (async () => {
-      const db = await SQLite.openDatabaseAsync(DATABASE_NAME);
+      const db = await openEncryptedDatabaseAsync(DATABASE_NAME);
       await db.execAsync(`
         CREATE TABLE IF NOT EXISTS mutation_outbox (
           id TEXT PRIMARY KEY NOT NULL,

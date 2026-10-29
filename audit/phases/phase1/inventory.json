@@ -1,0 +1,3089 @@
+[
+  {
+    "path": "apps/mobile/.env.example",
+    "category": "Config/build/support",
+    "extension": ".example",
+    "size_bytes": 296,
+    "sha256": "b043797dc8cc746a8becb0a5c8dc54906e2bcfe3bac305c930f7fd0251f22ec0"
+  },
+  {
+    "path": "apps/mobile/.gitignore",
+    "category": "Config/build/support",
+    "extension": "[no extension]",
+    "size_bytes": 179,
+    "sha256": "7a7964339dd0d855d27f021fbc76b3f18b6b267410e0dbfa49edc4224877b6cd"
+  },
+  {
+    "path": "apps/mobile/BOTTOM-NAVIGATION-ORGANIZATION-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1422,
+    "sha256": "43abd1f88762a19af540a887be1c8521f1a4444bd8bee879e92e178e2eb1ceea"
+  },
+  {
+    "path": "apps/mobile/CHAT-LIVE-STREAM-PHASE2-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 2400,
+    "sha256": "e4242e5b5c50cf8a4b2d7b098f9d03717d1b6e4b6fda1dda9031cb9ba42985dc"
+  },
+  {
+    "path": "apps/mobile/CHAT-LOW-BANDWIDTH-PHASE1-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 4303,
+    "sha256": "9da9d1be3551542ed46e6548d42d4d8c8969fce035c26f67f1a87247c68f9642"
+  },
+  {
+    "path": "apps/mobile/CHAT-MEDIA-OUTBOX-PHASE4-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1986,
+    "sha256": "8a1593fb7fdd55acb7f87211226629fbfd6419c57a8e610f10ed0f693f63abc5"
+  },
+  {
+    "path": "apps/mobile/CHAT-NATIVE-PARITY-PHASE3-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 2382,
+    "sha256": "1a3eff338efe13b66e90f8e6c989b807b1d895b8a362a7c8d6944008f7d944b4"
+  },
+  {
+    "path": "apps/mobile/DESIGN-SYSTEM-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 3016,
+    "sha256": "33f53758e2452f2d4a2dd7d68814a84b2b42c9725b9c719b2c7a235f8f2d8dfa"
+  },
+  {
+    "path": "apps/mobile/GROUP-1-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1496,
+    "sha256": "f6dbdf7f7b42b9d74554cf5bfd1b76bda1fda63fdab6e1ace596d58dbd52e68a"
+  },
+  {
+    "path": "apps/mobile/GROUP-10-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1588,
+    "sha256": "9c716afc914fcc43dc58ee14c06ec016c63ca35e0f3fbf3c2092d60292495165"
+  },
+  {
+    "path": "apps/mobile/GROUP-11-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1599,
+    "sha256": "970c0061f63d6b471b6df72704723f3a76d7bf9e2ea68052d3ae1e07c05b5db4"
+  },
+  {
+    "path": "apps/mobile/GROUP-12-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1315,
+    "sha256": "9beb412230f130c1c1eebc6d43deb97f1b98f1bee407754a6880855c781a476a"
+  },
+  {
+    "path": "apps/mobile/GROUP-13-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1137,
+    "sha256": "824dca18f70e12d1e3309248a2e3f0d68d0edfa092fad81f2cff5ae0e3a0bfc2"
+  },
+  {
+    "path": "apps/mobile/GROUP-14-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1604,
+    "sha256": "71d4f09f3f88be6e3a9c50f0ccbe7677ec00cdd0a3f5cf78f2c160c0b1484560"
+  },
+  {
+    "path": "apps/mobile/GROUP-15-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1496,
+    "sha256": "2ad04812b7e71cdf393829a544a55b8e1801ce7d4beec80c956506e1bd2105ea"
+  },
+  {
+    "path": "apps/mobile/GROUP-16-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1476,
+    "sha256": "be3b5299082cc185f73d1eeb7dea85eed0b57bf6855b6f7ce8a2a14d36da239c"
+  },
+  {
+    "path": "apps/mobile/GROUP-17-QUALITY-AUDIT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 3391,
+    "sha256": "32521e4fd1b307d149b1c6c617a5bab5a537c2d03edc15230d3be6e87f2e6b0a"
+  },
+  {
+    "path": "apps/mobile/GROUP-18-QUALITY-AUDIT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1503,
+    "sha256": "43ed7814f46561b556306f44d885db170a11d24346f83d5afe6cfbf6e57edc4f"
+  },
+  {
+    "path": "apps/mobile/GROUP-2-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 2375,
+    "sha256": "fa062f091c458beefe6748c2e0b3f57d6921c016ec53745ea2161d615206a450"
+  },
+  {
+    "path": "apps/mobile/GROUP-3-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1348,
+    "sha256": "7aaac9c044619787fea55a67bda41aa2444f4df6b4e50624d11399c2ceae96aa"
+  },
+  {
+    "path": "apps/mobile/GROUP-4-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1536,
+    "sha256": "e01237a1eca626c8f160d8aedf78fd9fedaae9a5185a37f6bb3c2bb31243dfd2"
+  },
+  {
+    "path": "apps/mobile/GROUP-5-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1860,
+    "sha256": "49cd1ace342bef2f587a029c52d1dd884a862b96f7e661776a68ec0c073a60c3"
+  },
+  {
+    "path": "apps/mobile/GROUP-6-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1948,
+    "sha256": "54e989a4b4399b534f1962be51336a3155bdaf3c3ef6cbe878ef4196643425f2"
+  },
+  {
+    "path": "apps/mobile/GROUP-7-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1856,
+    "sha256": "0d9dc7f7b58f81a16c737bceb318d5cc92733f1c7deb834fc9b7872390c6ddab"
+  },
+  {
+    "path": "apps/mobile/GROUP-8-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1902,
+    "sha256": "bdb998b669a783c8dd3232116cdf482a482dd40928bbb2d207d03ca70d6e2933"
+  },
+  {
+    "path": "apps/mobile/GROUP-9-DESIGN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1662,
+    "sha256": "9fc3f3feeedc6b98b789d3cc11dea2b3fa29f90181783277d49d654e64f068ff"
+  },
+  {
+    "path": "apps/mobile/HOME-MIXED-SECTION-REMOVAL-NAVIGATION-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 2129,
+    "sha256": "4a8a598c460efab29a79427088568db0f04fe3666d438b043fc209ff53a3243a"
+  },
+  {
+    "path": "apps/mobile/HOME-PAGE-COMMUNITY-SECTIONS-REPORT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1460,
+    "sha256": "799e338d115dbfa863b67d2bac98beb7c85478f7ba6d3bdd3d6dc17a88664ae1"
+  },
+  {
+    "path": "apps/mobile/HOME-PAGE-IMPROVEMENT-REPORT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 2281,
+    "sha256": "c179bf3580930f80936d8442c3398195af090c8b2bd53e6b9d6c9331cb42f43f"
+  },
+  {
+    "path": "apps/mobile/HOME-PAGE-UX-PHASE10-REPORT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1417,
+    "sha256": "636e2e5fa937a605e25061b707792955c55edd8f02d1555d704728f1e4af8afe"
+  },
+  {
+    "path": "apps/mobile/HOME-PAGE-UX-PHASE11-REPORT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1370,
+    "sha256": "b1c8724a6427cb7632806eb5ef953bdd2a97c304d65c6e06d4000229fbe16145"
+  },
+  {
+    "path": "apps/mobile/HOME-PAGE-UX-PHASE12-REPORT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1229,
+    "sha256": "d99bc059996a87c22b9edbcde82a2d15cc4aa393e7804205e122b8427d74ce05"
+  },
+  {
+    "path": "apps/mobile/HOME-PAGE-UX-PHASE13-REPORT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1351,
+    "sha256": "78e15fd2c4b3b0045daa8dad27fc2861053126a349e5478d77e6c50026150e44"
+  },
+  {
+    "path": "apps/mobile/HOME-PAGE-UX-PHASE14-REPORT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1405,
+    "sha256": "a2a6f293f711f420a2f22e9c534e11ac6d4a45372cec101ede5c845c4d82a887"
+  },
+  {
+    "path": "apps/mobile/HOME-PAGE-UX-PHASE3-REPORT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1632,
+    "sha256": "4bcde4293c0cc1fff68157f4ba36cd69b096e15b2144715033a2312d019a2e26"
+  },
+  {
+    "path": "apps/mobile/HOME-PAGE-UX-PHASE4-REPORT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1444,
+    "sha256": "dd2a6c52a2007c68e71c11892a05885b7a7cd8ac64327f7a24d050c7d2ef2a23"
+  },
+  {
+    "path": "apps/mobile/HOME-PAGE-UX-PHASE5-REPORT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1392,
+    "sha256": "0a7f720528fa39259cd26135828cafb2a5470950e2f4d72cd818625411c27126"
+  },
+  {
+    "path": "apps/mobile/HOME-PAGE-UX-PHASE6-REPORT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1636,
+    "sha256": "8844725f4de38e11c0dd79eaeea7fd58f61fc81fb09998879b780857c882eed9"
+  },
+  {
+    "path": "apps/mobile/HOME-PAGE-UX-PHASE7-REPORT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1176,
+    "sha256": "194b6192dd1ff2592a7ddd1eab68d16cba8c18c0688d270c5562324784214065"
+  },
+  {
+    "path": "apps/mobile/HOME-PAGE-UX-PHASE8-REPORT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1500,
+    "sha256": "b694219e6499c53f5ffc9003bd9da7b0627bb4f7e5d89950200a2deb25bcb856"
+  },
+  {
+    "path": "apps/mobile/HOME-PAGE-UX-PHASE9-REPORT-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1241,
+    "sha256": "b4ad595e53f651c547bd6c62ae8a7112436fe88fafc8073cbc43d2720ac7240e"
+  },
+  {
+    "path": "apps/mobile/HOMEPAGE-MARKETPLACE-SECTIONS-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 2861,
+    "sha256": "0913786a2f94e99ac926f0c0f2e435f323f0c31767bccb9f2a5ab60a11bee38f"
+  },
+  {
+    "path": "apps/mobile/LIGHTWEIGHT-PERF-PASS-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1792,
+    "sha256": "3996e6c4f9ce9b3c413c109a1256992abea660f0443cf8b782fd395329319514"
+  },
+  {
+    "path": "apps/mobile/MERGED-ALL-PASSES-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 562,
+    "sha256": "d5ed6e2a3e1843e9ccf96eb132c544f39eaf62b6884f25aefeccce859c3ecbbe"
+  },
+  {
+    "path": "apps/mobile/MOBILE_ACCOUNT_STORAGE_STORE_FIXES_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 4593,
+    "sha256": "d60b8c878b9803e4ff0187880979961ff0b07ba8b5210a57afebb04e314a7eae"
+  },
+  {
+    "path": "apps/mobile/MOBILE_ACCOUNT_STORAGE_STORE_REPORT_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 3064,
+    "sha256": "191e620299e20935dc7061b1362a90d6ddba537396bdb04efacb2f7dcd8c284c"
+  },
+  {
+    "path": "apps/mobile/MOBILE_DISCOVERY_ADD_COMPLETION_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 3287,
+    "sha256": "f53827a4820efd47116c689cfc13b96db3b603cc948f3732da826b6fab0c036e"
+  },
+  {
+    "path": "apps/mobile/MOBILE_FEATURE_ORDERS_REPORT_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 3703,
+    "sha256": "d8f0e69224dca0521ec9d1ee2f644ee69cbf40c069dbd7a9a00b7809bba2e6e5"
+  },
+  {
+    "path": "apps/mobile/MOBILE_FEATURE_PHASE2_REPORT_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 3659,
+    "sha256": "342de602e27654b8818ea2fd673cd5119a429d2b23c3b068ff3435349ef81420"
+  },
+  {
+    "path": "apps/mobile/MOBILE_FEATURE_PHASE3_REPORT_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 4179,
+    "sha256": "82208db35a9e28500e7f5c7afeb736610031bf2e06bbebc1af9d71f1ac0f168a"
+  },
+  {
+    "path": "apps/mobile/MOBILE_FEATURE_PHASE4_REPORT_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 2331,
+    "sha256": "47c5c9ffce6a084e0cc6fe2aa00e05411e951dbd43c5b1b7c62965cb0a98a5d1"
+  },
+  {
+    "path": "apps/mobile/MOBILE_FEATURE_PHASE5_REPORT_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1998,
+    "sha256": "1b2279eb7c1223462e7b054f8f1fef27df2f79d17cd61e2360d5f5fbbe8f3132"
+  },
+  {
+    "path": "apps/mobile/MOBILE_FEATURE_PHASE6_REPORT_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 2352,
+    "sha256": "159d85717c91108075c26525cf2fa8e40fd78cc696d60db2ac1a0a4ec27e7064"
+  },
+  {
+    "path": "apps/mobile/MOBILE_FEATURE_PHASE7_REPORT_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 2718,
+    "sha256": "a3dca479c8da7d2fbd433d47d29a143776cf64e12d1fe4018a801059b853173a"
+  },
+  {
+    "path": "apps/mobile/MOBILE_MY_SALES_FEATURE_REPORT_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 2315,
+    "sha256": "d41bd39bc5c657209a5fd89a9cd30979921b61ba9a5449fd92d729b16adb04d6"
+  },
+  {
+    "path": "apps/mobile/MOBILE_REMAINING_PAGES_REPORT_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 2473,
+    "sha256": "368a5cb4be736b7ad0390b1d2ba7720eff4fc7a70a8a342b31e5f58ab403602e"
+  },
+  {
+    "path": "apps/mobile/MOBILE_STORE_PAGES_REPORT_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1510,
+    "sha256": "70ab610b0066b66b4580d4848f23617ab0ae7146f834af1460b46bc0ba9747c5"
+  },
+  {
+    "path": "apps/mobile/MOBILE_STORE_SERVICES_COMPLETION_REPORT_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 3955,
+    "sha256": "7d72cac9afce9138a351c76b438b818b7052aa6f4585dcbc47576b21a59ffe81"
+  },
+  {
+    "path": "apps/mobile/MOBILE_STORE_SERVICES_INTEGRATION_AUDIT_AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 7709,
+    "sha256": "9fe32166cff3d7aad5a9814fa3ac7fde28d4757cd396e02652dedb473f43f688"
+  },
+  {
+    "path": "apps/mobile/NAVIGATION-AND-INFORMATION-HIERARCHY-PHASE19-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 5144,
+    "sha256": "e7f5a8fbbf8f69c06b260075fc8a3080fd0cfa2458d61eb5d10ca14f72102a49"
+  },
+  {
+    "path": "apps/mobile/PHASE1-DESIGN-SYSTEM-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 2753,
+    "sha256": "d69147e60bc87eb8191915767d2338fc4af05ba0cc6e75ca9fdbf9fcb8c07466"
+  },
+  {
+    "path": "apps/mobile/PHASE2-DETAIL-HOME-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 2438,
+    "sha256": "f74510afdcc9be8297da41572588d31e3527b5d325c06d51bf2685ca224e4593"
+  },
+  {
+    "path": "apps/mobile/PHASE3-LISTS-ADD-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1096,
+    "sha256": "6cd1fbd464ce51fbcf74848e3be17155c0c20b5556a5d968f8cd1e40973b724f"
+  },
+  {
+    "path": "apps/mobile/PHASE4-GOVERNANCE-POLISH-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1654,
+    "sha256": "c06934655f2841dea9100717f4e5defc8319c1d2834eb4c4243a08879e3b120a"
+  },
+  {
+    "path": "apps/mobile/PHASE5-CONSISTENCY-GAP-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1173,
+    "sha256": "ae6ef7d42ce98c646877e41edfe3bbf718b85f9ceb483e22395021b0ee528890"
+  },
+  {
+    "path": "apps/mobile/PHASE6-REMAINING-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1126,
+    "sha256": "08c99839698f77b6cf3cf97007cb2d48e92c5b8fc638f099fc1e41e2c6fed4fe"
+  },
+  {
+    "path": "apps/mobile/PHASE7-ZERO-HEX-COMPLETE-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1143,
+    "sha256": "9b7a88cbf341996ad8b5ef57171977769fd19883b94ff96a804d9c9da68bb0c5"
+  },
+  {
+    "path": "apps/mobile/PHASE8-POLISH-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 433,
+    "sha256": "26d04d2375fb33c4c41b2dd5c433a58cf5a3302a3ecdc7f343e946b72d1eeaa1"
+  },
+  {
+    "path": "apps/mobile/REACT-NATIVE-FULL-AUDIT-PLAN-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 13067,
+    "sha256": "005e2e84357c11889eb3a7d1c602c9e24308afb1b41617c824772272efed64d7"
+  },
+  {
+    "path": "apps/mobile/README.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 10589,
+    "sha256": "99048c726257f81d995a1086424b38ea119872669324a70fcc75e15ba55f7979"
+  },
+  {
+    "path": "apps/mobile/SECURITY-HARDENING-PHASE20-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 7694,
+    "sha256": "1e17fc46fb3da535e90584c060eb8b51bbf59c529a787908cc397b4b7367620f"
+  },
+  {
+    "path": "apps/mobile/UX-IMPROVEMENTS-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 1995,
+    "sha256": "bac5bb20a3a783d097ee0b773528c3eb535a53cccb61f97735286dca090c61b1"
+  },
+  {
+    "path": "apps/mobile/UX-NAV-SMOOTH-AR.md",
+    "category": "Documentation/reports",
+    "extension": ".md",
+    "size_bytes": 916,
+    "sha256": "05f6fae208299165f2bf2522b1bc983780de1dc93d2bc1032d20d4726f841311"
+  },
+  {
+    "path": "apps/mobile/android/.gitignore",
+    "category": "Native Android project",
+    "extension": "[no extension]",
+    "size_bytes": 219,
+    "sha256": "7639d55a8193d22af47ec678c4c58051d5a61ab5ae8c86131bb5136292738c01"
+  },
+  {
+    "path": "apps/mobile/android/app/build.gradle",
+    "category": "Native Android project",
+    "extension": ".gradle",
+    "size_bytes": 10269,
+    "sha256": "5f5b9815576c168bd6451976c3afd8d4b149aaa12e3dabe53266e7f0e3abf222"
+  },
+  {
+    "path": "apps/mobile/android/app/debug.keystore",
+    "category": "Native Android project",
+    "extension": ".keystore",
+    "size_bytes": 2257,
+    "sha256": "221e0a3106aa4c3ccc154e0a418b55020b3f9ea6e84f92e8749cd9e2f39f5e58"
+  },
+  {
+    "path": "apps/mobile/android/app/proguard-rules.pro",
+    "category": "Native Android project",
+    "extension": ".pro",
+    "size_bytes": 1081,
+    "sha256": "fa50ef2c0de0787e22e0e4c153bb84051ce7c99ac931956b47405b343d18749e"
+  },
+  {
+    "path": "apps/mobile/android/app/src/debug/AndroidManifest.xml",
+    "category": "Native Android project",
+    "extension": ".xml",
+    "size_bytes": 374,
+    "sha256": "fb1795032c764d975376e1612ab7022058eca2268a45efbe731a47a5d3ac0f60"
+  },
+  {
+    "path": "apps/mobile/android/app/src/debugOptimized/AndroidManifest.xml",
+    "category": "Native Android project",
+    "extension": ".xml",
+    "size_bytes": 374,
+    "sha256": "fb1795032c764d975376e1612ab7022058eca2268a45efbe731a47a5d3ac0f60"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/AndroidManifest.xml",
+    "category": "Native Android project",
+    "extension": ".xml",
+    "size_bytes": 2712,
+    "sha256": "b4494a95b5ea16d9a296fb747c9ba384842a9b239c320d79a17e9140ad07b67a"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/java/com/marketplat/mobile/MainActivity.kt",
+    "category": "Native Android project",
+    "extension": ".kt",
+    "size_bytes": 2191,
+    "sha256": "f67526e35fc163f7ff384384bfce29f88293442e3d46f0c0a8aeda1d1592e2cf"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/java/com/marketplat/mobile/MainApplication.kt",
+    "category": "Native Android project",
+    "extension": ".kt",
+    "size_bytes": 1493,
+    "sha256": "b05c65d7193c43071f25753395ae32c64d2471f3d339912d579e084d414470a1"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/drawable-hdpi/splashscreen_logo.png",
+    "category": "Native Android project",
+    "extension": ".png",
+    "size_bytes": 20754,
+    "sha256": "721c895579cb08ec4c9a0fe7dadafe9a97c33ef758d3578ad5e8b540de59f974"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/drawable-mdpi/splashscreen_logo.png",
+    "category": "Native Android project",
+    "extension": ".png",
+    "size_bytes": 12863,
+    "sha256": "f84b9b17a4a1c7d7dd840cd272c07a6c3fd66d5a9826b64bb53facb6f176bc24"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/drawable-xhdpi/splashscreen_logo.png",
+    "category": "Native Android project",
+    "extension": ".png",
+    "size_bytes": 29081,
+    "sha256": "e1c5250e339add5ed7849cb0859d052edb9781abb91db049e68ae3a4059247d7"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/drawable-xxhdpi/splashscreen_logo.png",
+    "category": "Native Android project",
+    "extension": ".png",
+    "size_bytes": 47123,
+    "sha256": "23d97ccb41a821ee345b2c5bb0c9bdab730a751a9227925acbf0af021dc38a9b"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/drawable-xxxhdpi/splashscreen_logo.png",
+    "category": "Native Android project",
+    "extension": ".png",
+    "size_bytes": 66529,
+    "sha256": "be9fac5c4cda48c41dce592288c486524bba3e4ca7fa00c0a04a46928154b5bf"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/drawable/ic_launcher_background.xml",
+    "category": "Native Android project",
+    "extension": ".xml",
+    "size_bytes": 245,
+    "sha256": "51fca95679d075ddbe2b9fe7ad2efb5ef545c5770a9ad6cafe8bf610c18c67be"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/drawable/rn_edit_text_material.xml",
+    "category": "Native Android project",
+    "extension": ".xml",
+    "size_bytes": 1917,
+    "sha256": "738e3aaad53180caba1419a6d5db8465a0742662fe59a4bbaf05f1061cbc3390"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml",
+    "category": "Native Android project",
+    "extension": ".xml",
+    "size_bytes": 257,
+    "sha256": "03d70962a0beea2bb6ab1a838b015d90da6c33adb045ff85f7b198aca70df08d"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml",
+    "category": "Native Android project",
+    "extension": ".xml",
+    "size_bytes": 257,
+    "sha256": "03d70962a0beea2bb6ab1a838b015d90da6c33adb045ff85f7b198aca70df08d"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 3643,
+    "sha256": "a274fb809aa69b335a1c4346fdcf2e7c8fda2f4f461a1c31ec8da3619409f749"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 7841,
+    "sha256": "7c3467b5f5d1b3a86a0c98c90129c76f7c0f84b83220a6b4beb7ce2195d2652d"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 4400,
+    "sha256": "74a7b01636ccc03eb09ac473ba3a99f5aa03e8ce34c7f1e6f559c8f76269c9b7"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 2200,
+    "sha256": "37ebba9d82634a9c72242377993071363fdefffcac27d0f2e9e1bee0eac87170"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 4625,
+    "sha256": "31211bd8e64168e43239e6df9d6f56003d06cba5d899f3a29d777a8e1437adce"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 2666,
+    "sha256": "ea7df1863cd3d51a70152c4f314ee2ff4904639efaaf212c8c766a5a179f61b7"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 5314,
+    "sha256": "0ad04fd5c8e16fe15db5127a77c717a3f3787ffbdc5d75e2f48d1cc542053ee7"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 10713,
+    "sha256": "854218cbc8e0909b7e898fb5dc71617bd82dd0f1459b80b4613344f5000a3397"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 6359,
+    "sha256": "da8d6b2a3211b76095fffe60292c583ccf729d4d2597d1643b1696c6fb5579ea"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 8949,
+    "sha256": "0c408d527bbc9ce169fc2f8a94a8ac61c2ab86730552dbf6af43b10f5b8c7563"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 19092,
+    "sha256": "b3773b437913074a08a94848c68b86997800b03e2b5993228fa3c0852289d7a7"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 10489,
+    "sha256": "71ce76e486b9c5f6c26800e9b399e5a380da825b6e077094fd149971b1dc91db"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 13163,
+    "sha256": "67f2ae85b35c9515ca739e8637db754cf3da763db7a3171fbeb2e570d5499b00"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 28470,
+    "sha256": "120c6816c4051489879de2d96c6c07565a638434f5e6aba8d22f5b30bd35ec08"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.webp",
+    "category": "Native Android project",
+    "extension": ".webp",
+    "size_bytes": 15301,
+    "sha256": "9ff9893b7ad4f53e6bf4d8ea4ff9000d4ab59f4431154581ed6ebe6829467ca2"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/values-night/colors.xml",
+    "category": "Native Android project",
+    "extension": ".xml",
+    "size_bytes": 12,
+    "sha256": "c30a9f37e6b34372e1db8c812d64a18719acf7c52c11ff2f7e5e5ed5e05c2072"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/values/colors.xml",
+    "category": "Native Android project",
+    "extension": ".xml",
+    "size_bytes": 172,
+    "sha256": "8ef0dc14e3b90028118469b6081a2388cdc9ff0df3417d52a7a793a1a2ad1d47"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/values/strings.xml",
+    "category": "Native Android project",
+    "extension": ".xml",
+    "size_bytes": 70,
+    "sha256": "7fd396b5a1d1eef5a02970144e138322c61e181a4f1a28bed2247eb6725f1a22"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/values/styles.xml",
+    "category": "Native Android project",
+    "extension": ".xml",
+    "size_bytes": 592,
+    "sha256": "e40414258372e05336fde31cd6a59ba286f0735dcc548fec42180b59af12b0f0"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/xml/secure_store_backup_rules.xml",
+    "category": "Native Android project",
+    "extension": ".xml",
+    "size_bytes": 747,
+    "sha256": "376f391e3fe4a0ff9831df0537135298039052cb60de1438b61a1be10b33409d"
+  },
+  {
+    "path": "apps/mobile/android/app/src/main/res/xml/secure_store_data_extraction_rules.xml",
+    "category": "Native Android project",
+    "extension": ".xml",
+    "size_bytes": 1370,
+    "sha256": "d06fd0450238dc62cdd719c3d9273b2c86fb1361786bdf0d079f693ce4af58d6"
+  },
+  {
+    "path": "apps/mobile/android/build.gradle",
+    "category": "Native Android project",
+    "extension": ".gradle",
+    "size_bytes": 695,
+    "sha256": "75a5f5c454dde7aa9b2f5ba030dd8c82606b778acd037156057b111a0616b344"
+  },
+  {
+    "path": "apps/mobile/android/gradle.properties",
+    "category": "Native Android project",
+    "extension": ".properties",
+    "size_bytes": 3530,
+    "sha256": "8d3e0065ac6668192e79db532061dafd7db78ae08595e67931aa0356eeed354d"
+  },
+  {
+    "path": "apps/mobile/android/gradle/wrapper/gradle-wrapper.jar",
+    "category": "Native Android project",
+    "extension": ".jar",
+    "size_bytes": 46175,
+    "sha256": "b3a875ddc1f044746e1b1a55f645584505f4a10438c1afea9f15e92a7c42ec13"
+  },
+  {
+    "path": "apps/mobile/android/gradle/wrapper/gradle-wrapper.properties",
+    "category": "Native Android project",
+    "extension": ".properties",
+    "size_bytes": 252,
+    "sha256": "70fa201501995e6f45c0c475def71093f8115849344c48322ca997cfddba8534"
+  },
+  {
+    "path": "apps/mobile/android/gradlew",
+    "category": "Native Android project",
+    "extension": "[no extension]",
+    "size_bytes": 8618,
+    "sha256": "fb68debc1b1acf8ec55dc0d5e5495e1dedd0bd6b61f304bee61613eeb2bd9b92"
+  },
+  {
+    "path": "apps/mobile/android/gradlew.bat",
+    "category": "Native Android project",
+    "extension": ".bat",
+    "size_bytes": 3093,
+    "sha256": "982f1b2979dd2d13505c11e92192ab43eef338242ca61587f86f8d7fbc86f67b"
+  },
+  {
+    "path": "apps/mobile/android/settings.gradle",
+    "category": "Native Android project",
+    "extension": ".gradle",
+    "size_bytes": 1263,
+    "sha256": "012bcb9e52b0e43979a403923e9e5030334cf183e7d3252bb4404a7fd74d0886"
+  },
+  {
+    "path": "apps/mobile/app.json",
+    "category": "Config/build/support",
+    "extension": ".json",
+    "size_bytes": 1775,
+    "sha256": "145a0457a1ffd1de8643c833a3113e227215e280dc26eefd17609f89df706bfa"
+  },
+  {
+    "path": "apps/mobile/app/_layout.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 5028,
+    "sha256": "98dee4c9963f282c191f1bd94539acc835071e31b26d0ee76dcf8715364161e3"
+  },
+  {
+    "path": "apps/mobile/app/account.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 7610,
+    "sha256": "5b95fcdf9a4dae23495e29930c4f1ae007be78af4828662b9d435ae2da47f437"
+  },
+  {
+    "path": "apps/mobile/app/activity.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 6315,
+    "sha256": "d29510a8aa6ad473cb2b4e23c6517d761104ead41586cf9953ed0864cb1faaac"
+  },
+  {
+    "path": "apps/mobile/app/ad-editor.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 26824,
+    "sha256": "6b31a0f29bbf7ba08127ada74431ec8db6f18ac88809e3171bbe869438cabc4a"
+  },
+  {
+    "path": "apps/mobile/app/add.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 2576,
+    "sha256": "efee30966c0532e8caa042f06d92cec561550f3e901357795e0d85d425cadeae"
+  },
+  {
+    "path": "apps/mobile/app/ads/[id].tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 14580,
+    "sha256": "ab514368dc913ef1c252185a9e16213156142a0aa3b4333c0f4b6dcbc059fa5b"
+  },
+  {
+    "path": "apps/mobile/app/appointment-create.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3186,
+    "sha256": "bb8188ccdabb0c2452b695bf85998d812f07c2731c72235bcadd847c1a18fa01"
+  },
+  {
+    "path": "apps/mobile/app/appointments.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3438,
+    "sha256": "75dd1750204f29418a3676864c0157775d16c150648325c312f8fbbe38d0c794"
+  },
+  {
+    "path": "apps/mobile/app/blocked-users.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 5160,
+    "sha256": "7c5a6aa1b279a8dffc9d1674132d4b51eb94aa2775982fac33987519718439ed"
+  },
+  {
+    "path": "apps/mobile/app/categories.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 2148,
+    "sha256": "a14d13c0ad2e88a498e2bdcf20296603f2e9f0b7e7e3a4258de75b89509a0cdb"
+  },
+  {
+    "path": "apps/mobile/app/categories/[id].tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3774,
+    "sha256": "64a265f71d0985f026abe12512ad995038c04c30fbd950b4cf075246ef05e5dd"
+  },
+  {
+    "path": "apps/mobile/app/collections/[id].tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3083,
+    "sha256": "cee791f5a69a80c9cbd33c9a2c391060c21bfcdab323c44c43a40accfeb5b664"
+  },
+  {
+    "path": "apps/mobile/app/customers.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 6516,
+    "sha256": "bc691d4b4725662e671e6bcce4ef29f2001492da5330487c89f686c9739a02bb"
+  },
+  {
+    "path": "apps/mobile/app/debts.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 7378,
+    "sha256": "5227ffb625495ceee7a6a7f6ba98c5b975b106909529c9cdb2b655964521e977"
+  },
+  {
+    "path": "apps/mobile/app/explore.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 4125,
+    "sha256": "89d68610df538f99c182ba75076c22406167fbe9ea4f80a1d39f22b69b1c9f65"
+  },
+  {
+    "path": "apps/mobile/app/favorites.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 8486,
+    "sha256": "4bb747244b359243c52a97399b065ecc511b1213c0084cd27ab36acbf0761cd6"
+  },
+  {
+    "path": "apps/mobile/app/followed-stores.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 5482,
+    "sha256": "8d076192c6798425ebc1dc5c992081a692192ecb03603f56ac9832e8b4a9fbb5"
+  },
+  {
+    "path": "apps/mobile/app/forgot-password.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 1621,
+    "sha256": "12c96064ef6694e05be147460820f69e0fadaf60d1c13e7d899fdb99aaefc558"
+  },
+  {
+    "path": "apps/mobile/app/index.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 28075,
+    "sha256": "d7a5adac8bce392d8babb57de655aea81463b8bfd4c4ae989e81155626771186"
+  },
+  {
+    "path": "apps/mobile/app/installments.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 7622,
+    "sha256": "3e8e5b569812c4634a207e27e0b08d39504cd6a87944016863f3a449e2bad628"
+  },
+  {
+    "path": "apps/mobile/app/login.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 4785,
+    "sha256": "434c45df0077cb7cda2151eb96032872b6e62e046219a143b3c9493d2b29d561"
+  },
+  {
+    "path": "apps/mobile/app/messages.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 12791,
+    "sha256": "e6f34cc25a33e99e4df109249fe858e6f16c4c2aaf2d177db7550f9c395253d1"
+  },
+  {
+    "path": "apps/mobile/app/messages/[id].tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 40445,
+    "sha256": "6a3b9322abdf839e17646d2ecf1bb46173c938a23ce1eeecf1a4cb70b334d798"
+  },
+  {
+    "path": "apps/mobile/app/my-ads.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 7723,
+    "sha256": "1f95a21cc714135a727e1aaf052a6f8941ddcbb2062cf0e2e2810bdac9328ea0"
+  },
+  {
+    "path": "apps/mobile/app/my-offers.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3182,
+    "sha256": "609b7ff2fd16ab6f4678451b5cd8760162ca9c33a6fe382de50a3be94b95d9ca"
+  },
+  {
+    "path": "apps/mobile/app/my-products.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 6186,
+    "sha256": "e940be99e6dcb909ca98dfcd79156602e4c5872e9e8c12caccf6dd8c9018a3de"
+  },
+  {
+    "path": "apps/mobile/app/my-reports.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 2754,
+    "sha256": "962fc4dedf70cd874bf4648b1fb0598503374f6959dce7b31006855c896da067"
+  },
+  {
+    "path": "apps/mobile/app/my-requests.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 1961,
+    "sha256": "df3247a92bc811ae7caa07d2f0f8588884c114e15852ce115e4973a1307c552b"
+  },
+  {
+    "path": "apps/mobile/app/my-sales.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 15198,
+    "sha256": "c5feb5a35a07ffc994d1403d3ada64473d298a8750ec392bdff492825bb1b45a"
+  },
+  {
+    "path": "apps/mobile/app/my-services.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3089,
+    "sha256": "2f45eac89bc57c8793364fc320fc5f096664e9aa95307407053bee67b566aa5d"
+  },
+  {
+    "path": "apps/mobile/app/my-store-analytics.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 5904,
+    "sha256": "a11c054b70cf78dd9d0f681bdb8dde0282df517183ac3689cce7c5de50c77507"
+  },
+  {
+    "path": "apps/mobile/app/my-store.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 13559,
+    "sha256": "8b52bf33565dcc461e5debebb1773a777feb65cfa51d2476b2fe8340290aedb8"
+  },
+  {
+    "path": "apps/mobile/app/notifications.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 10659,
+    "sha256": "96783b01c9d1fe1470cc6868b2468894fe1360ee39feb1090bbec0d00e954d70"
+  },
+  {
+    "path": "apps/mobile/app/offline-queue.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 32961,
+    "sha256": "b2ef8453e4a0eea02b848fe36df40e8e68db936c94895c60b31e9f9e0ad1e1df"
+  },
+  {
+    "path": "apps/mobile/app/order-checkout.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 12879,
+    "sha256": "23e5be10641324e0aa21ebae40953e7517713e6d849eb5a861f7b718672cf543"
+  },
+  {
+    "path": "apps/mobile/app/orders.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 6825,
+    "sha256": "6a79e57aa2ad286c45841f86331b443ad51188045dc512e7543d73da77f7d81b"
+  },
+  {
+    "path": "apps/mobile/app/orders/[id].tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 8613,
+    "sha256": "28d1ef2f54cf25f0cf5beb0f3195a14aaaab708e16be799255bb6e532aeda0e7"
+  },
+  {
+    "path": "apps/mobile/app/product-categories.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 2500,
+    "sha256": "741e956c06670df19db1024c6c583d3358a9a713beb61297e4fc7365732109f8"
+  },
+  {
+    "path": "apps/mobile/app/product-editor.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 10341,
+    "sha256": "51516e85ae8b822f6631818cf9e1a0ae9087032fe56955806a6eb3a20d5ce30b"
+  },
+  {
+    "path": "apps/mobile/app/products.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 8670,
+    "sha256": "f1904080abbee0946dafa1c49aeae4f28ea5d87241d4f6382db36a7dd596660e"
+  },
+  {
+    "path": "apps/mobile/app/products/[id].tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 8093,
+    "sha256": "f205021007d231523fe072e60ff200d4fe6fd2a1eab28312377e1ec8ac3bccea"
+  },
+  {
+    "path": "apps/mobile/app/profile.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 7398,
+    "sha256": "3dc18c82c57865b2c6ccef2eb6a323269ec1a024c39beb177e98a6d2c4561a92"
+  },
+  {
+    "path": "apps/mobile/app/profile/[id].tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 7385,
+    "sha256": "3b5e0c6912660a0716c69b3858570f4e8836ca883a70394ec1fd7b8412d01a9a"
+  },
+  {
+    "path": "apps/mobile/app/profile/[id]/followers.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3877,
+    "sha256": "a1b8e6113bfc9a6a97fbadbba71df1365f4ca66e5b368e011a418e36252d65ce"
+  },
+  {
+    "path": "apps/mobile/app/profile/[id]/following.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3981,
+    "sha256": "effe58009d24a9b27573d432394ed12948cf26479e9c580f844d80e951140bb5"
+  },
+  {
+    "path": "apps/mobile/app/promoted.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 6600,
+    "sha256": "1b9b372b51afb3603a7921b52e67776c559a2b268d9a9b66073e83264e9cdaff"
+  },
+  {
+    "path": "apps/mobile/app/register.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3294,
+    "sha256": "868ddc226b9d56270ac872e055203010bd3c17ea2c2c78880df317016b151ed0"
+  },
+  {
+    "path": "apps/mobile/app/report/[targetType]/[targetId].tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 4656,
+    "sha256": "f0c16894e79b99db8a920c77cbc57d5a7bae31a4a662892eca3958261fe0c485"
+  },
+  {
+    "path": "apps/mobile/app/request-create.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 5567,
+    "sha256": "0e8514ac1f692bd6706b2fec4f2ba2bab0b7a5eae2febe6ff164b2c45f06b863"
+  },
+  {
+    "path": "apps/mobile/app/requests.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 5316,
+    "sha256": "b4e407ad2a0c791d7ea86ca63dcfd8f54f4462adf457b83d5607b0147f438211"
+  },
+  {
+    "path": "apps/mobile/app/requests/[id].tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 6577,
+    "sha256": "ffd45eef19de988ce333167beb8c4c654de7427526f902042cec6e445152d645"
+  },
+  {
+    "path": "apps/mobile/app/reset-password.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 2073,
+    "sha256": "403d5d67e6b7cd52f3e5f101bc6d337c1c9e4927d1f942e1295b07bae55411af"
+  },
+  {
+    "path": "apps/mobile/app/sale-create.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 10205,
+    "sha256": "14b93b2f313f8832296dad08da2940d017515287d4a3950894e54b26ef91f867"
+  },
+  {
+    "path": "apps/mobile/app/sales/[id].tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 6679,
+    "sha256": "c0b57d5a531d392098ecb3fd886f6a3386f1caa5c285beefab52aca0130072ce"
+  },
+  {
+    "path": "apps/mobile/app/sales/[id]/receipt.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 4727,
+    "sha256": "425270701e16039d3cc6422bfb12979d8442e593e5c893d3074eba913d2cecfc"
+  },
+  {
+    "path": "apps/mobile/app/saved-searches.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 7861,
+    "sha256": "fb16232c131ad1edf98590eee51362d4b40c731eecbd1434d184f69c9c751563"
+  },
+  {
+    "path": "apps/mobile/app/search.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 10836,
+    "sha256": "46b06cdb102b3eab8499ed0c42e0c204475e340234c001a5ee65fca5707d91db"
+  },
+  {
+    "path": "apps/mobile/app/seller-orders.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 6153,
+    "sha256": "04afcd9c28e62382cefa367f7979b02e85d046737e42b6246e86f3f7329ea3cd"
+  },
+  {
+    "path": "apps/mobile/app/seller-profile.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3770,
+    "sha256": "66fa275f9def888e96e8eb201f4aa00e7bd561e852c3c207f0be7caba414be0f"
+  },
+  {
+    "path": "apps/mobile/app/sellers-ranking.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3957,
+    "sha256": "96301b95a69886685c5891bc8457b37b8cf2564d082d40ba474dd7016c1d4b2b"
+  },
+  {
+    "path": "apps/mobile/app/service-editor.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 9560,
+    "sha256": "a8965ebb62b1150fa53f5a22f60bb3379c717f853a94ff8f89761d4a2d24117d"
+  },
+  {
+    "path": "apps/mobile/app/service-images.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 5125,
+    "sha256": "1347e60d056f8c5d81eed86f3f49d544f2b6866546b2469b0e1d575d0526d78f"
+  },
+  {
+    "path": "apps/mobile/app/service-provider-analytics.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3717,
+    "sha256": "9241adec1e4dd6055861545be62293295f3b9b58c7c3b8455dbae43bee196f03"
+  },
+  {
+    "path": "apps/mobile/app/service-provider-hours.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 4477,
+    "sha256": "8b555c4150cc4d7ecb40cc2b0ba32919ae2d1388f378f66d26fd109976ad1040"
+  },
+  {
+    "path": "apps/mobile/app/service-provider-profile.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 7674,
+    "sha256": "79cb46db2bb719807bb8b0cef343c2f05e08c5d0aa3cf6c5133b6545fe7ae1bd"
+  },
+  {
+    "path": "apps/mobile/app/service-providers.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 5748,
+    "sha256": "d67ab705afae1595809117551e0ad39c9e39152a5e1c6ac66771d3f9e708d2a3"
+  },
+  {
+    "path": "apps/mobile/app/service-providers/[id].tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3523,
+    "sha256": "de7389246e6c3f4c595e80007e7755cb1a654319c31c6ae40fbaf2afeda35bd0"
+  },
+  {
+    "path": "apps/mobile/app/service-requests.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 12559,
+    "sha256": "5f182a853ddaa801019576a411764b4ad26ddb4082ccd7e86474c6ae7f327fc1"
+  },
+  {
+    "path": "apps/mobile/app/service-reviews.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 4575,
+    "sha256": "dadf0afb1d52ad383c2109dcd321d505a3c1e0720db34f8b7a995eb5911465f3"
+  },
+  {
+    "path": "apps/mobile/app/service-types.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 4271,
+    "sha256": "cde97460ade81a2d74e293a01af6bc80cff14bd7268868072b6720a276013804"
+  },
+  {
+    "path": "apps/mobile/app/services.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 5506,
+    "sha256": "20d6da90b844670f1fc22d2a4e0f1899a5a6b00404eb2bc6eee9e6db027a0d41"
+  },
+  {
+    "path": "apps/mobile/app/services/[id].tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 6450,
+    "sha256": "2072bb46db87dbfca6f11f45ab06a60189c894b4d0aa6c5a36b8d0493a497a74"
+  },
+  {
+    "path": "apps/mobile/app/settings.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 10674,
+    "sha256": "dc3254a3a99deb2e7848aa1f87ea77680bc3429c834d697e5aeb8877eea603e1"
+  },
+  {
+    "path": "apps/mobile/app/storage.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 8965,
+    "sha256": "2115794a5737d0e1e7c2a595f901ec57881e8f1b2b628eced3ebc377f3bd61a9"
+  },
+  {
+    "path": "apps/mobile/app/store-collections-public.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3060,
+    "sha256": "1d24e284a9b13f5e0d567fb6d7165c2757f40abcbba472f1f6cf329f32731736"
+  },
+  {
+    "path": "apps/mobile/app/store-collections.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 9572,
+    "sha256": "aca57cb1b3583e16bf9caf411f1905b661bc66eadcc843d9beb78f696550126c"
+  },
+  {
+    "path": "apps/mobile/app/store-hours.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 4579,
+    "sha256": "99d245170635d0611d8dfb483f26b4ea4d14a84a0a68d9181a36b14f3a6e3526"
+  },
+  {
+    "path": "apps/mobile/app/store-invites.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 3375,
+    "sha256": "b1dbe449a461cd033ac944a106345c0d22cc805d65c314d704f27eb636034b35"
+  },
+  {
+    "path": "apps/mobile/app/store-promotions.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 7898,
+    "sha256": "508ddf0b9d3179ec475bbad1cb5030ec08dd2bfd80fef9f264a16548d1999224"
+  },
+  {
+    "path": "apps/mobile/app/store-team.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 4938,
+    "sha256": "44bfbbd2b0a5957adcb47bb9655c3a338abe1bad050fbcf5f2d3604428066ab1"
+  },
+  {
+    "path": "apps/mobile/app/stores.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 6333,
+    "sha256": "24a6667b63d261d6c118f875002efcef6b1a88078985e00ce2ecd0819180f414"
+  },
+  {
+    "path": "apps/mobile/app/stores/[id].tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 19319,
+    "sha256": "ca8ead69ab9d75b04c10b5c4c47b7a5dd46443aca39cd55e5824bd3f75627745"
+  },
+  {
+    "path": "apps/mobile/app/stories.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 10423,
+    "sha256": "654bd0f6c68c5448ccd2f22350f7ee336622fef304c8664cc578a7da416364f2"
+  },
+  {
+    "path": "apps/mobile/app/stories/[id].tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 7709,
+    "sha256": "ba4781aa00c92d5a8fcdf80a43142ef06c509f6998a3971d1f16967862c8cea6"
+  },
+  {
+    "path": "apps/mobile/app/story-create.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 4543,
+    "sha256": "b6db80aef8e740f0ce5c2745e26f6df8febe2396cb54ef4a20b67048de8cac88"
+  },
+  {
+    "path": "apps/mobile/app/suggestions.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 357,
+    "sha256": "589f70edb16612c562e68409ffeaad5feedf555f7f515a14700dfeaeeba5321a"
+  },
+  {
+    "path": "apps/mobile/app/trending.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 363,
+    "sha256": "a9fca0a4dafcaa10d37e72e9b3fb59c16981febc56fb4f0d2f2b8390f235ecfc"
+  },
+  {
+    "path": "apps/mobile/app/verify-email.tsx",
+    "category": "Expo Router screens/routes",
+    "extension": ".tsx",
+    "size_bytes": 2462,
+    "sha256": "cdc04902d706343dbc3f6995bd1f257f56e116f6fc6cfcc4c596f9555ebf0e3e"
+  },
+  {
+    "path": "apps/mobile/assets/adaptive-icon.png",
+    "category": "App assets",
+    "extension": ".png",
+    "size_bytes": 108506,
+    "sha256": "1667042f2dbb27eb3dd87acd64352d13c16bddb57e27d1d54199bf3db082efc9"
+  },
+  {
+    "path": "apps/mobile/assets/icon.png",
+    "category": "App assets",
+    "extension": ".png",
+    "size_bytes": 162950,
+    "sha256": "7965577d212a7b264cee4aa79b930a27136715abbdbe3ff6252f819743a06a37"
+  },
+  {
+    "path": "apps/mobile/assets/splash-icon.png",
+    "category": "App assets",
+    "extension": ".png",
+    "size_bytes": 104468,
+    "sha256": "cbd913dae7b10edf3935114a0e371be898599e3c62494706ad6407d86cec9572"
+  },
+  {
+    "path": "apps/mobile/expo-env.d.ts",
+    "category": "Config/build/support",
+    "extension": ".ts",
+    "size_bytes": 110,
+    "sha256": "6fc02634da46d3edc5a88eec9173ba6bf709726be3cba83c73ebd8e859d5c147"
+  },
+  {
+    "path": "apps/mobile/package.json",
+    "category": "Config/build/support",
+    "extension": ".json",
+    "size_bytes": 1466,
+    "sha256": "78729543ba1020cf0aabc229e26e3b5ccdd3737d5e81bef5b2d1ee1553444c34"
+  },
+  {
+    "path": "apps/mobile/scripts/run-all-verifications.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1761,
+    "sha256": "3ecb2659e00b24270d43b349d6ff8214a266895a3114fadb4716083fe31644cd"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-account-storage-store.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 3302,
+    "sha256": "cd6c6025594481eeebaca41ea8a195b4e9cba88f62ae53b215206e4e6c1b8b54"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-app-journey-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2733,
+    "sha256": "0cb47c59effd6c612734431d2a4b9a0c1494466b6e50b52c37f9611af0f19608"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-bottom-navigation-organization.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2085,
+    "sha256": "b430863d8b7ac82dcbcceab0406de77ff88e300ffcd4355bb5bc73a51929f488"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-chat-dead-letter-recovery-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2047,
+    "sha256": "a9b310fb070ab4cbf0b75c051a2425dee4a7b7b73693a28e588521e5b7538d63"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-chat-idempotent-retry-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2294,
+    "sha256": "c855ba268324ccba81727036fb96d03189f7742ac40a1547a589684115f6b204"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-chat-live-stream-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2091,
+    "sha256": "c1e0daa3eb8444f45d8820ca2581f60488f4c7114af607b20b580b63af00f06c"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-chat-media-outbox-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2079,
+    "sha256": "60c7370797b3715bad038743e4803c4b0b0ac5b99c94351f0cb12da7bf26fc42"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-chat-pagination-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2244,
+    "sha256": "b2b50b317b9630932dca965d58df9a5fb0f41ae6838e8dc61322fd251881fa84"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-chat-persistent-outbox-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2605,
+    "sha256": "fbdd4d66fefc91183bc509bff0e749e5b0b9a212ad072a14d7932920a4ed2736"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-chat-refresh-race-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1442,
+    "sha256": "09000938073911a02a9d3ea7232f3605fbd27628f6146c95a0056a7de7c8fac2"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-chat-session-abort-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2822,
+    "sha256": "8d44b94c05c63e241152b6403c6a5857501570596e8bf3dd85dcaf54f483d971"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-checkout-flow-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1106,
+    "sha256": "a4eb7f2bbaec327fbf2ad2efd486f8836af1ff44cd2203767159805e9e02e915"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-conversation-pagination-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2058,
+    "sha256": "a098eaf6298ba4e62fdf992df47bca4b4b0a4f88e67b32c9360e7d42bb2825d7"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-design-tokens-no-raw-hex.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1885,
+    "sha256": "35f3fe6b659ffdb81c1df2e88467ebd9c9d165796363f998c81f9ce9a648eb37"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-discovery-add-pages.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1800,
+    "sha256": "dd47a4539dba2ea5c677ceb220e3905fec2def73203e225f100a3b8ef002f9bc"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-discovery-phase2.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2392,
+    "sha256": "48b591494266d27c3db433a2836762d117e718f1199324b6ad60536d6ed5c946"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-feature-my-sales.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 915,
+    "sha256": "6c62121819c60660b58506c19bf7d067883035130218899d20a2a9a6c808f475"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-feature-orders.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2819,
+    "sha256": "b2bed2766becbace16e567867f0b1137a3f292f6fb1835b10fd9ef543bb954bf"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-feature-phase1.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1565,
+    "sha256": "9b9c16d337478c7d0cf69fd4140de4ac9632a72479a8e4d9d39b514c7b0dde8b"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-feature-phase2.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1684,
+    "sha256": "3c08c0d6706ae2871f21d3e005523937470f4e3609e5af7f7c369304561ee07a"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-feature-phase3.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1696,
+    "sha256": "fe2a2372dc5572ebe4e78f2027b6d9b5dabfc7c262c317cbf25253073b771871"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-feature-phase4.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1685,
+    "sha256": "6a7bf7004fd14ddf8c031421150a6aa1fd744087ab3620153b20356111d1059e"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-feature-phase5.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1443,
+    "sha256": "ebfddeaea0945decd436b82fc2e3cb92fa92a38051c127790626f693375103b5"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-feature-phase6.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1610,
+    "sha256": "a7c73d30bd1dda998c87e4416b47ba97120b8e217ffa1cb904b79b6a829fcb0f"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-feature-phase7.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1701,
+    "sha256": "434c96b9b361dd6189da060df2f1bc458f3a6c827af01d395efaf7f08def7986"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-feature-remaining-account-pages.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2069,
+    "sha256": "75a9f2474c514db41027969527dfe2c7f0ee7805884e01335f32ad49fad7779b"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-feature-remaining-pages.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2494,
+    "sha256": "86396a7da21b4a5a61bac48dc4adb9c0291a7d3056ca57a462bd12933dcf065c"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-feature-store-pages.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1009,
+    "sha256": "af375dfe106a184a17304e52e42210bdee78d0dae9c80d4aa4e04e7a938d4271"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-feature-store-services-completion.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2167,
+    "sha256": "e42e35d3e2c1cdf7867fe6d2cbe8458b3826818e52f32eb4e1c41778c4ded8c6"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-community-sections.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1085,
+    "sha256": "6e44b764efaa9b02a646a1b65c321ba429978235a2a60fee5a69a81e0d0eee98"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-marketplace-sections.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2210,
+    "sha256": "34cfaccc1e1604ad7efd379cfecd57220a2fa4a2fa68f04bf12af7744c27aba7"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-mixed-removal-navigation.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2830,
+    "sha256": "df2a5d604772e6961f5a96d57c1ae27fc9584444cc52ddd718f6e5d3abf52bdb"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-multi-section.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1761,
+    "sha256": "91d9327cf931ab3a3ed371aa3e921da4e4371f981ae36112ce9fe66bef6fca91"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-ux-phase10.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2013,
+    "sha256": "57c51403444268f6b44b4e91d43913ad324fcd9e24340b9b539bf6d493c18dee"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-ux-phase11.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1938,
+    "sha256": "ae3c4009817b733ae4664e43fc9b7b741059111956137cc3671c9fd2c7406a2f"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-ux-phase12.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1863,
+    "sha256": "a6623b40a70f687574e02157e03adefe39a14b460807ee7e861d084fc67df4f2"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-ux-phase13.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1611,
+    "sha256": "ca2f56e753f6890f58fb09123a22ae51e23e8f03f8fd6d2304d8103f1693f5fc"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-ux-phase14.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1424,
+    "sha256": "1cc44ec45d9be499dcbfcadf8c1a08a88b2a39c73654f85a7e1fb15c79f649ca"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-ux-phase3.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1346,
+    "sha256": "5bb4a7319355c1a9c13d7294df62a6d711ae264ab151743b6d718db96c4f1e33"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-ux-phase4.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1097,
+    "sha256": "d579037c042282936d79459b8e3554de40af3fa90b4ca72cd3aebb55b94dd7d6"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-ux-phase5.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1809,
+    "sha256": "0d4d1fa51d9d0fcc84d863c3b4e09018a5ffb900820bb789b51dc342fbd027b2"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-ux-phase6.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1105,
+    "sha256": "4a87310c6aab15c3306297b6decc909a69a1d8045212a8dbb1b34179fa67914d"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-ux-phase7.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1504,
+    "sha256": "9499dc719e3e2cd6f9037bfde366ef22214ffac84f966a568cd4b906d9457284"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-ux-phase8.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1255,
+    "sha256": "a210ea8499d3e3340b1f281e8c06ddb92957449e890d7a4cca3a9a04f79c4e42"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-homepage-ux-phase9.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1277,
+    "sha256": "3c0e7537bd0b9bb88cf1eacb23b51ddd98a42bbe87beb1282f69302a2b3d1b90"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-inbox-refresh-race-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1401,
+    "sha256": "13fea2c20b26f477248a4a28c5a67fab82f855303bd1e0a230caeb938831d67e"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-mutation-csrf-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2983,
+    "sha256": "a66d6104dcd2ef807e97a920145316ad105d43e964c925ff3486d6e1cfe4bc6b"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-native-chat-parity-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2845,
+    "sha256": "f06abbad4128d7cd140249c356b72ab5e54c119957d8141f3309f07ca4d6ed43"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-navigation-information-hierarchy.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 3765,
+    "sha256": "5953fedf4f6ddcab15c07ba2250f117c7abc9e45a8f2d7c51bfc7151c0030879"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-notification-destinations-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1877,
+    "sha256": "e3a33cd84babf6d9fe767edecc4d5c487fdd33d8b28a34807bab07973db8eb62"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-offline-first-all-creations.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1942,
+    "sha256": "828ee913ea8ca140a780faac848900e74fe30611d92b17300a2d8f39f3131341"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-offline-first-deep-audit-fixes.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1652,
+    "sha256": "f2fc35440c49fd4fcdae435e7b6672759ba8020c134e6c00c97e415d30d72f67"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-offline-first-marketplace-order-outbox.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1622,
+    "sha256": "8e28cc399e336af7f3041b7d1fe4fe688671375ef5883c4de574d4d04ef140be"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-offline-first-private-feature-cache.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1585,
+    "sha256": "e99abf1462dd26c1bf73842d343b0daabe28c0449f755ffc5529c8596294e351"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-offline-first-private-profile-cache.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1548,
+    "sha256": "6481323d8d52b6e20eba934aa45ecaa58ad465a5e5423987ccbf7c42683785da"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-offline-first-public-cache.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 798,
+    "sha256": "4e7de0ee61b1aa668882ea08dd22c37d6ff8540b4081106de5c72373611e89e3"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-offline-first-request-offer-outbox.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1956,
+    "sha256": "20ca676ea03cabaf9aef3436a96ac57114c3b18640c76f3de0f07ad739dc519e"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-offline-first-request-outbox.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1325,
+    "sha256": "fbe0274e47cc5b8ee5552ecae7d61cf658d9732afd06d8591bb9fd66151657f1"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-order-cancellation-stage-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 761,
+    "sha256": "2242298e81e53fdc9078c1818d38983a275fea73c8a0171d8d7a5f5100001e81"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase10.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2542,
+    "sha256": "38aa9fdad6b1b6b130c9b87e78394f559bb2a55ef930b3b91efbf010a75463c4"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase11.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 4439,
+    "sha256": "798fd95ef0977e0a0245be54232ea67f50cc75ea535ea8e2279352b5d6dd4122"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase12.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2817,
+    "sha256": "232612d851d7cb1c9beadc17e801aeca471a016f1c65348a18514fd35ec761b3"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase13.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1641,
+    "sha256": "64cec327712191db59e87597b3d63cc7a61af9310e2ec1e78395d90c9ac94b49"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase14.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1246,
+    "sha256": "9cedfced70e9ea6c61b0f7dbb5498725f81c03f6cd33b498a4a7341e60442e21"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase15.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1602,
+    "sha256": "5d5a26efae1ec94f6eef2968d9070f34b708359a9211c6dfb05ebd0bfd09c969"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase17.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 933,
+    "sha256": "12d71c5832a62d162675aac1303f24f4a42d178db31ab1520f0b7c093f5f99e3"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase18.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1497,
+    "sha256": "0203318d386da1d66356e14622b919beb782d3aae5da74a70c4397a286704309"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase19.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1101,
+    "sha256": "10ca2162fd74ce89ab04e9ac7aceb663b46f3aa282ae9b011c28560e5288ba7d"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase20.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1325,
+    "sha256": "9958376eaeff877dc35c2bd00ffb8a87093cf5e6ad90b8c2caccfe2222da5a7a"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase21.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 957,
+    "sha256": "7c16251f083c849ea65dd53e114bfe5aaba8beb04fe048d2ea3d6e215c2d8c1f"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase22.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1505,
+    "sha256": "b860711afc512b3d8cf9ca85a3e079601599e96934ebd7679c709b259c9a678a"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase23.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1011,
+    "sha256": "125147cc6b11156f742c5ef8f3c8810a55d5e8afacb2102479e7279e353c6c76"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase24.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1137,
+    "sha256": "6e89ee661b505d08237299fe2e2db7cd90c2ce7fb86a057c0547ea3711d10d7c"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase25.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1245,
+    "sha256": "40498d98466d6f88b109a6d19b0d7cb4626de812d0e42bda8728460b37eba7fc"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase26.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1520,
+    "sha256": "c7476a200323d5137a02270d7d0dd7b4b10d87c114af92dc6d78f29aa4962c8a"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase27.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1447,
+    "sha256": "3ac7e5bd7e773c5f5a047bf51fca5bb48b43c99866e13731fefa376d535ae647"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase28.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1652,
+    "sha256": "6108e6b8acf9ca4400e4aa322e3193b4031a3992a2dbdee7df4506b0117f4f92"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase29.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1796,
+    "sha256": "55cf1594ae8cfd9e044f0f91304eaa823037ab6c8ec1a70232301151b0a53374"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase30.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1237,
+    "sha256": "df6b3cbb61c6fd8f2e4b9486bbd46325037c9b509327e982095361a0db37b75d"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase31.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1120,
+    "sha256": "813e0aecfd26f90f8729cbe9b4db9e7ee56cd4398b74323df1dfd5af7eb7c629"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase32.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1260,
+    "sha256": "c4dcf87f5d428e8eb7fcf8364f571fa317c33142c1ee085ed2cb0f4d503ddc50"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase33.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1087,
+    "sha256": "e4ca64a6bc88e925fc6aab07c4fd8dc323a051c58c6ff05116cbbefa3bd53106"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase34.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1124,
+    "sha256": "a7cf0858e145483ceba9305b63b4cadc174cd5e339178c416265160b75052808"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase35.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1029,
+    "sha256": "167850a6b8a23535bd685ba1377a408cf58816ffd7e861f75253c09e6f2702bc"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase36.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1441,
+    "sha256": "77949c3d8ccd7d69d10ca404b09aa68387ad3611786e1234d1051de85a8f9a51"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase37.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1086,
+    "sha256": "543d171a2aa1744f5bc0f76c22ac5afb8b96e4f31c992138801da655b844c432"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase38.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1778,
+    "sha256": "ad7c8dcbc99576b14d4c24b15722384adf9c4f298af025b7552beac17962f5fd"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase39.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1563,
+    "sha256": "9c9d8d3deec2d8df0dbd40d20d1695c2c306fa5e1e7853d0e1851996ad4340e9"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase40.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2268,
+    "sha256": "1fb65267dbd0e18a27a6edcea3de55956ca5a98b5a5cdbca43c4fab7ee353cc5"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase41.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 3372,
+    "sha256": "2e7a09d58d4d109345214b13acba93004593141843d752db8bb6bc4d6440315b"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase42.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1950,
+    "sha256": "53a64573331e26eb36a808cc1bedfebfa2a1e6b4453cb3ccc1f78a25a69e88a3"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase43.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1261,
+    "sha256": "6fcfd7b4011e0229c8da1a89c19f20da8347853b31d9b0cf390adeddec04b1b3"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase44.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1041,
+    "sha256": "b9d0a1fe09f29097560ee0f1b22cb52f9ad48bc83f341e06b90c3935bac5c66b"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase45.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1327,
+    "sha256": "53d5a172cd8fa6463b3531b853952f0ba84cc63a72762f155e6955d3aec491ed"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase46.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1481,
+    "sha256": "f6ffd1e896cd60ac0f47b5915dfffb5d511a0df2f5ca79bcbe0b6b43b011f7a7"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase47.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1680,
+    "sha256": "fca00fc4bd4ff8e4c0d4e7357d88212a1967ded47f73e25f37201d07ff546c7e"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase48.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1202,
+    "sha256": "6868fa839532fc4625324fc3f6b7ae01e7591bbdcf94a65cace060556643e0da"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase49.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1417,
+    "sha256": "114e9391c9b29f361cfc5bac2674da7848264ff4c6f785dab81bb726c29942cd"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase50.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1750,
+    "sha256": "1f705481c56f2bd4ff6b274dadf36afc39859a93366c976e5e768ab8d2d54916"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase51.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1542,
+    "sha256": "de68ead97d110676c1d1c1fdf73afbdfd15e5df664d2de57f06678333ff4286a"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase52.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 993,
+    "sha256": "1e044a3c2b671fcc2a89614b39219f450106eaa08245520801b54d5794a5f97f"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase53.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1223,
+    "sha256": "e855b65b3bde3b2ab0e276f91ecb5d51690b29f62278cabf5848ef93784551c0"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase54.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1067,
+    "sha256": "fa289fd55ae5279dfa7a4c565def801bb71d5b3f18b5085084d3277346f6de8d"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase55.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1240,
+    "sha256": "546aea29bf27ac793fddba3a5a34de5529d313a3929f01fffb1b8cfde160b23d"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase56.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1561,
+    "sha256": "264059726a6983e139e452c26063cf002c067c478ecd2de1ab6849d02ab31025"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase57.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1451,
+    "sha256": "97f0469a1f5d2df392a9a3f5d7b9d77d405080c795f862ec15b310e519689a65"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase58.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2656,
+    "sha256": "8647e6b5b1ef99ea5b2d2074ab4ab3a7758a0193d16b6e7657b691761d602c6f"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase59.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1665,
+    "sha256": "74a7ae4a56631672ced2fbe0a64d91bec7ba60a7bf4acd9d5b81e474a49caa17"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase60.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1256,
+    "sha256": "4c68cd3bca8a1126d1c7b4a3741e603e850ba67243729243aa0cef45a258fa5a"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase61.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2815,
+    "sha256": "833969319b14d8786fc80192b059f9588144d466018af53d8aa7de4c7f6d10d1"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase62.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1655,
+    "sha256": "5c2b326321f6017104b29148e8638acaba6ef36882f34a357d0fc4886131abd6"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase63.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2231,
+    "sha256": "da331e62a90173e11cf3a1cf8e581d152f20e4689a314bbb8bc68d357d09db40"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase64.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1975,
+    "sha256": "70ba0603d2cc54419d7347053e189eb687a1c50908afed08a91266d96449f3df"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase65.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1474,
+    "sha256": "6c8bad76ee1f09b146ea4dd4be0599fa244adb403af5d0d6b07ff3bae6bea774"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase66.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1555,
+    "sha256": "cd7e23e50d4cedc2efcf163a3e26617e133dde1dc7845548bbce6b96de00baa0"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase67.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1440,
+    "sha256": "f400b305e231897d7f142e69e8d5f00e9505c71997398aae706c55270ce6eca5"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase68.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1061,
+    "sha256": "8ff755931cca4de7cc81919024ee6cba568bafc9994cef94de028f79a0296db2"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase69.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1693,
+    "sha256": "4581ea136729323a3440b69adeab404705358f1a4e73a7eb45fcb86de129921b"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase7.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1482,
+    "sha256": "ac664a2e6c276a6e4ca31029df02c3b46c95bb04cd6f82391f487dc95c521bec"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase70.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1581,
+    "sha256": "026b6bbf0ec518ffb3fc7ccf9237a29e30fb9d97c15ac56824c09f5d5b09534b"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase71.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1396,
+    "sha256": "47969ba352a241a688e4c823f826d80e93154de479f98cffae5f0a7828b62e31"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase72.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1641,
+    "sha256": "b87ca8aa9661e7f13b32a5a8bfb5d0ab0d503a233307def4f9b87232027ced6c"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase73.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1676,
+    "sha256": "709dcb53edf6acac17868afd8fbca4491680d42781e66b6a153760850cd7bc5d"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase74.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2155,
+    "sha256": "180d2f5348553cea6db8b37ccc9b0b7d2ee3bb2f3e2190749d9b097266ac8dfb"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase75.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1570,
+    "sha256": "06292ba2b8bf9bb5d6c0176c188b394749547ad37aa5b3321d0ac1c5ef97bfc7"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase76.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1642,
+    "sha256": "9f229b0b9c46d3c0ca297f9af41ed2140c5c6327b31219f1f3057fee2b306c77"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase77.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1955,
+    "sha256": "8639a3fcfcb2247050a2a40dca2049d810f0d65953d393a85853685196dd9426"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase78.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2556,
+    "sha256": "d15560871809e873c1823d044790204748e9ef8dfcdcbab0df03c50f5ada8d9a"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase79.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 3973,
+    "sha256": "f9971dbd0ea7fd5fbb498959caac11e38f6c009376e1a36d418ba44193a4d478"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase8.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1814,
+    "sha256": "75ff51b27c53cf3de1c06992ea5aff544997acf26e88c13c61906fc9be5662aa"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-phase9.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1876,
+    "sha256": "67169e818875d10c09f5f5391a7bffd9db7f5ffa471e774b5ca42e154be246e2"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-product-contact-flow.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1261,
+    "sha256": "d3ec2d626f5ae6b20d35d25d4f4a8faabadad3de98d29ca6b95c9804cff6d75d"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-release-config.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1978,
+    "sha256": "db54515148a02cbe05076221b1c68372ec6619bd8ed1bd9cdfb3a77705002f17"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-remaining-pages-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 854,
+    "sha256": "0e6909a84e403140489fb441753920cdaedaff48dfe09d693a947e13da58b2fb"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-sale-create-single-multiple.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1530,
+    "sha256": "b606f03aa65eaac808c51e1bfac16bf1ed55facf98f5452fccbe2ade7e36bd90"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-scaffold.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1615,
+    "sha256": "de3b117128a60a00b2e5926528d17efcce96aada70305f779e1f7f0294645f3b"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-social-profile-phase1.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1998,
+    "sha256": "c80c3a3d18504c2e74beb6f01d39c24b0b7d97b290f0c433db5132a177d43f15"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-store-services-audit-fixes.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 1405,
+    "sha256": "eeed9931ede5852a7071831fd743dcef8dc1bd3ab7b2c64d8019d30374e223de"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-stories-deep-links-phase3.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2293,
+    "sha256": "0906f3bee247c61d1463d32a88000cc46a39c0336c7f92c421eec93bab842212"
+  },
+  {
+    "path": "apps/mobile/scripts/verify-unread-counts-lifecycle-audit.mjs",
+    "category": "Verification/audit scripts",
+    "extension": ".mjs",
+    "size_bytes": 2037,
+    "sha256": "108fd55112d4fa477372cd423615244d269054ed07e9aba956e210fc818f4f16"
+  },
+  {
+    "path": "apps/mobile/src/api/client.ts",
+    "category": "API client",
+    "extension": ".ts",
+    "size_bytes": 11986,
+    "sha256": "83df4f58cdaa54930424d6252714048aea2e97b152872cf3bd0423f1687b0c02"
+  },
+  {
+    "path": "apps/mobile/src/components/AppImage.tsx",
+    "category": "Shared UI components",
+    "extension": ".tsx",
+    "size_bytes": 1469,
+    "sha256": "19a3c1ba136d282d185c3564d5c7de74bd85148c77670c746b137b9e7a496fdc"
+  },
+  {
+    "path": "apps/mobile/src/components/BottomNavigation.tsx",
+    "category": "Shared UI components",
+    "extension": ".tsx",
+    "size_bytes": 5280,
+    "sha256": "c9b8146a9bc66d676dfc96d40f1aa55230d15a6688b96ece8b1094d0a282d1a8"
+  },
+  {
+    "path": "apps/mobile/src/components/Icons.tsx",
+    "category": "Shared UI components",
+    "extension": ".tsx",
+    "size_bytes": 1012,
+    "sha256": "8f453351ffa3dd002d8276093c8911bcaacfe44453ea74a8e1021f54d7f1b817"
+  },
+  {
+    "path": "apps/mobile/src/components/MarketCards.tsx",
+    "category": "Shared UI components",
+    "extension": ".tsx",
+    "size_bytes": 6536,
+    "sha256": "03375044688412160a55674a802fea3aa2df706da0a93abcf07f55b2524c4ac9"
+  },
+  {
+    "path": "apps/mobile/src/components/MobileUI.tsx",
+    "category": "Shared UI components",
+    "extension": ".tsx",
+    "size_bytes": 25958,
+    "sha256": "8d773eed61579aee4f5e3b871bfbe311b8264d8f38cdbd011862034ba79dd245"
+  },
+  {
+    "path": "apps/mobile/src/features/account/account.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 4448,
+    "sha256": "1141a8961ebc526e55ad4f0765b2ca61df00210924324fcad23e3a8b57bab016"
+  },
+  {
+    "path": "apps/mobile/src/features/account/saved-searches.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 1557,
+    "sha256": "d995fc2b1c8cdf2a216976f0d569fdd708d72f6a04ff728d166aa3df5ef246e8"
+  },
+  {
+    "path": "apps/mobile/src/features/account/seller.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 1574,
+    "sha256": "02c1e7b36e2dc3e8b12b3305e3e71613fbb78aa66f771d36fa03291a146780c9"
+  },
+  {
+    "path": "apps/mobile/src/features/account/social.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 6185,
+    "sha256": "c4f1259594366ed086be32256b902e35954cff7b7906e86b511d12e58effc650"
+  },
+  {
+    "path": "apps/mobile/src/features/ads/FavoritesSyncLifecycleBridge.tsx",
+    "category": "Feature modules",
+    "extension": ".tsx",
+    "size_bytes": 2358,
+    "sha256": "451ce5c0604dce6c07ae1b2f012279cb15daea2e99b391dc5a199242c4189688"
+  },
+  {
+    "path": "apps/mobile/src/features/ads/ads.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 7439,
+    "sha256": "d97c5eecc67b2071b356b2efe6a3577bd793a73665209c79cff1466dbc7a5958"
+  },
+  {
+    "path": "apps/mobile/src/features/ads/favorites-sync-lifecycle.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 5689,
+    "sha256": "78079e839f2d37eb5a85615f0861ede9ee405e445c48bc149d1ef5c91f40131f"
+  },
+  {
+    "path": "apps/mobile/src/features/ads/favorites.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 4137,
+    "sha256": "47df3f0dfb6925f77c70a2b2557cb31c69a4048fdd50e5cb2d9c7dd5bf7bac1b"
+  },
+  {
+    "path": "apps/mobile/src/features/ads/favorites.store.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 10788,
+    "sha256": "76410d07686d716abe5029d8a696c941ac544fc8f7cd40cd5c5a19468f33b17e"
+  },
+  {
+    "path": "apps/mobile/src/features/ads/manage-ads.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 6145,
+    "sha256": "319e5a14bd065dc08aa215226497e5dd6fd326a9eb5ea3eb6a225b7d077b2457"
+  },
+  {
+    "path": "apps/mobile/src/features/appointments/appointments.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 1687,
+    "sha256": "faf81ccb988fe5698db87b2565e45db254d2d4f29debc455cf9f1e7f633c0791"
+  },
+  {
+    "path": "apps/mobile/src/features/auth/AuthContext.tsx",
+    "category": "Feature modules",
+    "extension": ".tsx",
+    "size_bytes": 14523,
+    "sha256": "7c5e10a74b093336f57622256cdfe2c3ac545cf4ce16576cd80b22e7fd423e83"
+  },
+  {
+    "path": "apps/mobile/src/features/auth/auth.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 5513,
+    "sha256": "66de3e859bb101834e34dded5742fa82be35678b9b8e21d08595c7150d1647bb"
+  },
+  {
+    "path": "apps/mobile/src/features/categories/categories.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 2263,
+    "sha256": "f84295c74cae6e1cff8d6489b6db50f000dd40ac0db2c98e12684b619d5b2127"
+  },
+  {
+    "path": "apps/mobile/src/features/commerce/commerce.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 12181,
+    "sha256": "12e8561ef95fe313cf7a8653c360a735b29e92c4fa78a887849955b3e4c6a22c"
+  },
+  {
+    "path": "apps/mobile/src/features/commerce/orders.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 4114,
+    "sha256": "82cc9daadf7b68237e73c328b65fa4ee26c023d75aec7a9e11a007961a886acf"
+  },
+  {
+    "path": "apps/mobile/src/features/commerce/store-management.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 8512,
+    "sha256": "cb4e34a50e329308e737ce97ba6f9f53ee1ad60e660a3ba078554cc5275bf90b"
+  },
+  {
+    "path": "apps/mobile/src/features/discovery/DiscoveryFeedScreen.tsx",
+    "category": "Feature modules",
+    "extension": ".tsx",
+    "size_bytes": 5878,
+    "sha256": "41561d0e0c8a864abcda0f1d5ecd2be6ebe20bbe423381e9e0fb1f8066efeacb"
+  },
+  {
+    "path": "apps/mobile/src/features/discovery/HomeCommunitySections.tsx",
+    "category": "Feature modules",
+    "extension": ".tsx",
+    "size_bytes": 11300,
+    "sha256": "686817c1f6ef4dc82f068b908cee2005ffd133b42dbdb7c1511b252ef8af016c"
+  },
+  {
+    "path": "apps/mobile/src/features/discovery/HomeMarketplaceSections.tsx",
+    "category": "Feature modules",
+    "extension": ".tsx",
+    "size_bytes": 14850,
+    "sha256": "4eaaff2bccb3af8959bec04fc60e7490027af9d144f3684f331706b99bfa6a4e"
+  },
+  {
+    "path": "apps/mobile/src/features/discovery/discovery.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 4044,
+    "sha256": "ab5024b2e352eeda6f7c01e8e4efbfae540330a59ba74992b134c5c726618137"
+  },
+  {
+    "path": "apps/mobile/src/features/discovery/homeFormatters.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 1044,
+    "sha256": "c931c3c8c7e98331e8684e4e039ad91db646523ad77c76f442ec6ee1e179f167"
+  },
+  {
+    "path": "apps/mobile/src/features/discovery/useHomeAds.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 4939,
+    "sha256": "bbe98b546c90bcca173790b1adfaa0c2f9b19bea7b999c547347e107431404a2"
+  },
+  {
+    "path": "apps/mobile/src/features/discovery/useHomeServices.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 1692,
+    "sha256": "89563645aa01cb88af835b9dc4ddd164daeed5803af8e8b2bfe2f3ab9c36482e"
+  },
+  {
+    "path": "apps/mobile/src/features/messaging/chat-live-stream.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 7721,
+    "sha256": "b635e437ad32333b691aa1cda048bd1609e0c89f814904f2e0637e7205381f5d"
+  },
+  {
+    "path": "apps/mobile/src/features/messaging/chat-media-outbox-sync.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 3261,
+    "sha256": "bd891faa8d458a53e096db4bdf09e178b2b733f2dc6fe09e5aa892ac3a46327d"
+  },
+  {
+    "path": "apps/mobile/src/features/messaging/chat-message-outbox-sync.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 3529,
+    "sha256": "f1e056f784f8b65e6956e8921c22028bbda03007b962fe50c16f0fcb53f245b6"
+  },
+  {
+    "path": "apps/mobile/src/features/messaging/messaging.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 11787,
+    "sha256": "e8093418aa0350a3415da82df8ab1a94d9a11afd8090105e44228e617bd9546e"
+  },
+  {
+    "path": "apps/mobile/src/features/messaging/useUnreadCounts.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 1406,
+    "sha256": "e6ab9a2d83fbde266babc16c3550fae56082d79bdbaecb6eff9e61e872a171c2"
+  },
+  {
+    "path": "apps/mobile/src/features/requests/requests.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 6001,
+    "sha256": "1a33a343c746cf7e0a1a2de27f550a3d5f7be76eb75591acc8dc135f5ad77128"
+  },
+  {
+    "path": "apps/mobile/src/features/sales/sales-extra.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 5884,
+    "sha256": "9514e8a0ac45097a0ac96553112d38215809b1374541e7811ef3cc28cdf5edee"
+  },
+  {
+    "path": "apps/mobile/src/features/sales/sales.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 3160,
+    "sha256": "2ecfcbda383dc1220c7fdd7b3769c806554b5c7e3482ca3fadea213de6134fed"
+  },
+  {
+    "path": "apps/mobile/src/features/services/providers.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 5400,
+    "sha256": "cac2c85b8aed8360828c88547f3870a4ce94f7881ab851ccea9338267fcfe5db"
+  },
+  {
+    "path": "apps/mobile/src/features/services/service-management.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 4065,
+    "sha256": "74ad5c6f9be8c9565ce4a2bd057ed850e000450e98bf2587df99c30e1586e1ca"
+  },
+  {
+    "path": "apps/mobile/src/features/services/services.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 9526,
+    "sha256": "97e0fd8c95b1c2541493c6ea5af425f602f384bf2c4bddd8a295e2cb64c6102d"
+  },
+  {
+    "path": "apps/mobile/src/features/sharing/deep-links.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 1266,
+    "sha256": "418747d86a68dfe60684c78887b6abd7bcdd69b44c894a85a637e1651c3505bb"
+  },
+  {
+    "path": "apps/mobile/src/features/stories/stories.api.ts",
+    "category": "Feature modules",
+    "extension": ".ts",
+    "size_bytes": 3141,
+    "sha256": "4a4d1afd0b381ac0f297ede0c7cdad36307cd30a72712b5edb5996ee041e7db7"
+  },
+  {
+    "path": "apps/mobile/src/lib/connectivity.tsx",
+    "category": "Core libraries",
+    "extension": ".tsx",
+    "size_bytes": 1504,
+    "sha256": "52803f4a7673a0720199023cbe8f319f231f7847143c91ba8302dd714849cd1b"
+  },
+  {
+    "path": "apps/mobile/src/lib/listPerformance.ts",
+    "category": "Core libraries",
+    "extension": ".ts",
+    "size_bytes": 995,
+    "sha256": "14f0ce4e97ebe9ef0a41d830deb428cffc2dfa60f6768a7d1a08a50a423877af"
+  },
+  {
+    "path": "apps/mobile/src/lib/navigation.ts",
+    "category": "Core libraries",
+    "extension": ".ts",
+    "size_bytes": 1461,
+    "sha256": "4fc63f88c459c42a04d8a1d6c498d9e008215f34e4088bbd74079ba66efd69dc"
+  },
+  {
+    "path": "apps/mobile/src/lib/network-config.ts",
+    "category": "Core libraries",
+    "extension": ".ts",
+    "size_bytes": 1086,
+    "sha256": "e3af3a2f2bcfdc801f6e8809c8e6b77c1a41ffdb63c06e7a4188aa5c0a4108fe"
+  },
+  {
+    "path": "apps/mobile/src/lib/useOnlineResync.ts",
+    "category": "Core libraries",
+    "extension": ".ts",
+    "size_bytes": 1123,
+    "sha256": "f614ddd6e4939e78f8ac0a1957530d319d67ee281e2804bcee5c843d83879339"
+  },
+  {
+    "path": "apps/mobile/src/lib/validation.ts",
+    "category": "Core libraries",
+    "extension": ".ts",
+    "size_bytes": 3796,
+    "sha256": "1d5639276c63fd8747f727bce5ab8fc3aec6e803baeda9f3e2689ebe9381f930"
+  },
+  {
+    "path": "apps/mobile/src/storage/ChatMessageOutboxLifecycleBridge.tsx",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".tsx",
+    "size_bytes": 1991,
+    "sha256": "64d1ff8e99464593af6cfc92298ef7588a602a4eb0d24c95c6454bee86612691"
+  },
+  {
+    "path": "apps/mobile/src/storage/OutboxSyncLifecycleBridge.tsx",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".tsx",
+    "size_bytes": 1220,
+    "sha256": "15eea2d277c4f72ed4ce0677a2964ff968e3e7957b4957b9946364a19d6120ad"
+  },
+  {
+    "path": "apps/mobile/src/storage/__tests__/ad-draft-store.test.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 7468,
+    "sha256": "1f530cc1f2bd55af34597012413bb74d1ada34741fd10930f1e96b4d02bc5d2c"
+  },
+  {
+    "path": "apps/mobile/src/storage/__tests__/chat-message-outbox.test.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 6877,
+    "sha256": "ce560cc07213b3dd2adfbb23bd2bbf6e95abd35456c839ac30b979a3ae6a7887"
+  },
+  {
+    "path": "apps/mobile/src/storage/__tests__/favorites-sync-lifecycle.test.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 9859,
+    "sha256": "cae3de475a20d8cc0fd73b642e58065e1b17b3e509bf279a48c61154ce53fe9f"
+  },
+  {
+    "path": "apps/mobile/src/storage/__tests__/helpers/sqlite-mock.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 2485,
+    "sha256": "615a4003a4f42d12c4f5f6cb9b5c02e9fc9bb275d18c3d7883a6cfefe314c569"
+  },
+  {
+    "path": "apps/mobile/src/storage/__tests__/mutation-outbox.test.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 14318,
+    "sha256": "7d064884442a2ba97012e3df0c436e616201e2ff3c81e38e7b18d4181367dda8"
+  },
+  {
+    "path": "apps/mobile/src/storage/__tests__/outbox-sync-lifecycle.test.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 5872,
+    "sha256": "13cc2c17f49e328a4c4653ec583bfb579a311265c38439bc783f81b841c449e1"
+  },
+  {
+    "path": "apps/mobile/src/storage/__tests__/outbox-sync-policy.test.mjs",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".mjs",
+    "size_bytes": 3052,
+    "sha256": "58ff2a72fa6df9b08f74b18bdf774936c6f412d85730ce415d82bf45af5c0a4c"
+  },
+  {
+    "path": "apps/mobile/src/storage/__tests__/outbox-transport-contract.test.mjs",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".mjs",
+    "size_bytes": 5865,
+    "sha256": "eaaaaeae4649fc725be381b005fcf9934abf54fd7562dbcf115ad35bca798ef4"
+  },
+  {
+    "path": "apps/mobile/src/storage/__tests__/public-cache.test.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 7987,
+    "sha256": "16fbbbf86a9f1a4eeacb60ea70b5a42f64900113b96bd4f05e06687a5ea30cc9"
+  },
+  {
+    "path": "apps/mobile/src/storage/ad-draft-store.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 8716,
+    "sha256": "b03356d846c9a4dcaac7743403e9663a6cad259757212443d17b8e691a492ffb"
+  },
+  {
+    "path": "apps/mobile/src/storage/chat-media-outbox.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 9779,
+    "sha256": "9462af30f5ccef3c682a35628f7dbcada3ada77a3701c82ee41c9f97044b7d21"
+  },
+  {
+    "path": "apps/mobile/src/storage/chat-message-cache.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 6753,
+    "sha256": "8714f83d169afafb0bdd3b1aa4a71ddfafce0c6569e0c4223bf0ddbf835bb252"
+  },
+  {
+    "path": "apps/mobile/src/storage/chat-message-outbox.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 8427,
+    "sha256": "7225355a76caceb54360c5d157558a0b1a53e6f273d333bf5221b16889b68b36"
+  },
+  {
+    "path": "apps/mobile/src/storage/draft-operation-queue.d.mts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".mts",
+    "size_bytes": 97,
+    "sha256": "9271bfed751ee9b4636c5948cdc2c1f3d5a7780656516a79c6dbe5f2ac28960c"
+  },
+  {
+    "path": "apps/mobile/src/storage/draft-operation-queue.mjs",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".mjs",
+    "size_bytes": 708,
+    "sha256": "e5355658348479a535c0653debed6a4128a85190531a95e10a6c48a484b891e6"
+  },
+  {
+    "path": "apps/mobile/src/storage/encrypted-database.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 6700,
+    "sha256": "933af616cbdc666d95d7ccd05a09cffe3b6987d0da1a0da5ff5efe210ee0616f"
+  },
+  {
+    "path": "apps/mobile/src/storage/entity-create-outbox.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 20670,
+    "sha256": "c934b06fd913ef77481acdec46afc72223572c404f89efc310ac7fb897c996f3"
+  },
+  {
+    "path": "apps/mobile/src/storage/mutation-outbox.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 15640,
+    "sha256": "bc75c882f488ff2ae93f9e1a3fa384027b7d9e94a23deb0c3d962a9e751235e0"
+  },
+  {
+    "path": "apps/mobile/src/storage/order-outbox.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 10112,
+    "sha256": "c76e8ebf996fa70df9550a1405dc0e1384975e09425224f74f636f0da549c41f"
+  },
+  {
+    "path": "apps/mobile/src/storage/outbox-sync-lifecycle.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 7072,
+    "sha256": "6aa498c42c074782fa4b228d7d7cbd10fc4520bfb332655fce288495789e7c28"
+  },
+  {
+    "path": "apps/mobile/src/storage/outbox-sync-policy.d.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 635,
+    "sha256": "1de270bb8925fe2206fadd8276843667d7c018931e4e6c18b0cfdd0ec12a0282"
+  },
+  {
+    "path": "apps/mobile/src/storage/outbox-sync-policy.mjs",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".mjs",
+    "size_bytes": 1003,
+    "sha256": "244616a14788767eee6165242046f4cddcfbc671baf6e59b10dd866d0fb25682"
+  },
+  {
+    "path": "apps/mobile/src/storage/outbox-sync.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 6740,
+    "sha256": "0f9d949199a91205e27cbd75683dd5570baa6423a47b07c270b3800a40ee69cf"
+  },
+  {
+    "path": "apps/mobile/src/storage/outbox-transport-contract.d.mts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".mts",
+    "size_bytes": 408,
+    "sha256": "8a34d0e7322bb1c964cda09e8e9cfc8718f0b2b74eb918bfe613bbabaebdd756"
+  },
+  {
+    "path": "apps/mobile/src/storage/outbox-transport-contract.mjs",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".mjs",
+    "size_bytes": 3149,
+    "sha256": "46ec08931be9078399ab64dcffaca83d849cc8a311b3688c5137e346c65e3b3a"
+  },
+  {
+    "path": "apps/mobile/src/storage/outbox-transport-contract.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 269,
+    "sha256": "0f9a4449d4631db01ccc074a5cabad7b27f3e6cbf6f01b115c98a93e92f391b8"
+  },
+  {
+    "path": "apps/mobile/src/storage/outbox-transport.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 8186,
+    "sha256": "3306fa8cf8dc5ee9f678275a6f130e1ee7da458c1db53a729309d8166bf707d6"
+  },
+  {
+    "path": "apps/mobile/src/storage/persist-ad-image.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 6805,
+    "sha256": "0eba2957821dd228dc467caca3838acef5db1766c0eedc8532f64e7cc171a946"
+  },
+  {
+    "path": "apps/mobile/src/storage/public-cache.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 11705,
+    "sha256": "3129060a7cd53c72924475fa3ccb7e2857b688dd59d7c569acbc00952772107e"
+  },
+  {
+    "path": "apps/mobile/src/storage/public-image-cache.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 4122,
+    "sha256": "e22bdb86ac33abf5bef0433ae763ec8bf02f953e47ae48440a735c2b2fac4b34"
+  },
+  {
+    "path": "apps/mobile/src/storage/request-offer-outbox.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 9255,
+    "sha256": "8392b099cb72aa41ca7b8a3b3b895fb31ed64e5f9f69f688a1e756a00decf995"
+  },
+  {
+    "path": "apps/mobile/src/storage/request-outbox.ts",
+    "category": "Local storage/offline/outbox/tests",
+    "extension": ".ts",
+    "size_bytes": 9371,
+    "sha256": "0d6ea93afde24945e93458a0c1326c4c11b24e6d16eb6802547fc6e1cec7e5b3"
+  },
+  {
+    "path": "apps/mobile/src/theme/index.ts",
+    "category": "Theme/design tokens",
+    "extension": ".ts",
+    "size_bytes": 26,
+    "sha256": "552563951b698ac6cda6e67db73109101132e9ebaf80d4f5f7a879694cb83f5e"
+  },
+  {
+    "path": "apps/mobile/src/theme/tokens.ts",
+    "category": "Theme/design tokens",
+    "extension": ".ts",
+    "size_bytes": 3784,
+    "sha256": "f70df70226c82eed12aeb5e40598cefd8c6cf1a24301b6a225ba820d7248fd12"
+  },
+  {
+    "path": "apps/mobile/tsconfig.json",
+    "category": "Config/build/support",
+    "extension": ".json",
+    "size_bytes": 284,
+    "sha256": "4b7fca0099ebe757b846b6036d73609115e234ba0d4ad485f06a320929e47706"
+  },
+  {
+    "path": "apps/mobile/vitest.config.ts",
+    "category": "Config/build/support",
+    "extension": ".ts",
+    "size_bytes": 547,
+    "sha256": "e0b9daf75fa8053cb290b0795c38707bb1d1970e2370a17a7a05e8fcab9931be"
+  }
+]

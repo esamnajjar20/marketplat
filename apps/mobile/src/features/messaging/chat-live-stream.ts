@@ -48,6 +48,19 @@ function wait(ms: number, signal: AbortSignal): Promise<boolean> {
   });
 }
 
+const MAX_SSE_BUFFER_BYTES = 1_000_000;
+const MAX_SSE_FRAME_BYTES = 256_000;
+const MAX_SSE_CHUNK_BYTES = 512_000;
+
+function utf8ByteLength(value: string): number {
+  let bytes = 0;
+  for (const character of value) {
+    const point = character.codePointAt(0) ?? 0;
+    bytes += point <= 0x7f ? 1 : point <= 0x7ff ? 2 : point <= 0xffff ? 3 : 4;
+  }
+  return bytes;
+}
+
 function parseFrame(frame: string): { eventName: string; id: string | null; data: string } | null {
   let eventName = 'message';
   let id: string | null = null;
@@ -129,11 +142,20 @@ export function subscribeChatLiveStream(options: ChatLiveStreamOptions): () => v
         try {
           while (!stopped && !outer.signal.aborted) {
             const chunk = await reader.read();
-            if (chunk.done) break;
+            if (chunk.done) {
+              buffer += decoder.decode();
+              break;
+            }
+            if (chunk.value.byteLength > MAX_SSE_CHUNK_BYTES) {
+              throw new Error('SSE network chunk exceeded the client safety limit');
+            }
             buffer += decoder.decode(chunk.value, { stream: true });
             let boundary = buffer.search(/\r?\n\r?\n/);
             while (boundary >= 0) {
               const frame = buffer.slice(0, boundary);
+              if (utf8ByteLength(frame) > MAX_SSE_FRAME_BYTES) {
+                throw new Error('SSE frame exceeded the client safety limit');
+              }
               const separator = buffer.slice(boundary).match(/^\r?\n\r?\n/)?.[0] ?? '\n\n';
               buffer = buffer.slice(boundary + separator.length);
               const parsed = parseFrame(frame);
@@ -144,10 +166,16 @@ export function subscribeChatLiveStream(options: ChatLiveStreamOptions): () => v
                   const event = payload as ChatLiveEvent;
                   if (parsed.eventName === 'resync') event.type = 'resync';
                   if (parsed.eventName === 'connected') event.type = 'connected';
-                  options.onEvent(event, parsed.id);
+                  try { options.onEvent(event, parsed.id); } catch {
+                    // Consumer bugs must not tear down the transport and cause a reconnect loop.
+                  }
                 }
               }
               boundary = buffer.search(/\r?\n\r?\n/);
+            }
+            if (utf8ByteLength(buffer) > MAX_SSE_BUFFER_BYTES) {
+              // Reject a missing-delimiter/oversized frame instead of retaining unbounded memory.
+              throw new Error('SSE frame exceeded the client safety limit');
             }
           }
         } finally {

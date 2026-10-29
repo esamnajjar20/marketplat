@@ -14,7 +14,7 @@ const checks = [
   ['ads cache successful results', (ads.includes('writePublicCache(cacheKey, result)') || ads.includes('writePublicCache(cacheKey, cachedResult)'))],
   ['categories fallback to cache', categories.includes("readPublicCache<PublicCategory[]>('categories')")],
   ['categories cache successful results', categories.includes("writePublicCache('categories', categories)")],
-  ['phase 18 test is wired', pkg.scripts.test.includes('verify-phase18.mjs')],
+  ['test runner discovers verifier files', pkg.scripts.test.includes('run-all-verifications.mjs') && read('scripts/run-all-verifications.mjs').includes("f.startsWith('verify-')")],
 ];
 const failed = checks.filter(([, ok]) => !ok);
 for (const [name, ok] of checks) console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`);
