@@ -16,6 +16,7 @@ salesRouter.get('/chart', salesController.chart);
 salesRouter.get('/compare', salesController.compare);
 salesRouter.get('/top', salesController.top);
 salesRouter.get('/dashboard', salesController.dashboard);
+salesRouter.get('/reports.csv', salesController.reportCsv);
 salesRouter.get('/reports', salesController.report);
 salesRouter.get('/smart-insights', salesController.smartInsights);
 salesRouter.post('/automation/run', salesController.automationRun);

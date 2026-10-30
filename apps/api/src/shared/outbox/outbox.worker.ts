@@ -15,6 +15,7 @@ import { pushService, type PushPayload } from '../utils/pushService';
 import { pushSubscriptionsRepository } from '../utils/pushSubscriptionsRepository';
 import { fcmDeviceTokensRepository } from '../utils/fcmDeviceTokensRepository';
 import { fcmPushService } from '../utils/fcmPushService';
+import { isGoWorkerFcmPushEnabled, sendFcmTargetViaGo } from '../go-worker/fcmPush';
 import { env } from '../../config/env';
 import { bumpGeneration } from '../utils/swrCache';
 
@@ -911,6 +912,14 @@ async function processPushDispatchBatch(): Promise<number> {
                 return { target, outcome };
               }
               if (target.channel === 'FCM') {
+                if (isGoWorkerFcmPushEnabled()) {
+                  const outcome = await sendFcmTargetViaGo({
+                    userId: dispatch.userId,
+                    targetId: target.targetId,
+                    payload,
+                  });
+                  return { target, outcome };
+                }
                 if (!env.fcm.isConfigured) return { target, outcome: 'unconfigured' as const };
                 const token = await fcmDeviceTokensRepository.findByIdForUser(
                   target.targetId,

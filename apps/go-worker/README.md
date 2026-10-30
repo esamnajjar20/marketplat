@@ -141,6 +141,7 @@ Phase 6 extends the worker beyond retention and reports. The following routes ar
 
 | Workload | Go endpoint | Frequency / behaviour |
 |---|---|---|
+| Seller sales CSV export | `POST /internal/exports/sales.csv` | Express authenticates and validates seller filters, then streams a bounded (max 5,000 rows) Go-generated CSV; Express Prisma fallback remains available |
 | Weekly ad/store/service view reports | `/internal/jobs/weekly-ad-views`, `/weekly-store-views`, `/weekly-service-views` | scheduled; creates notification + durable push-dispatch and advances exact view snapshots in one transaction |
 | Seller response metrics | `/internal/jobs/seller-response-metrics` | scheduled; set-based CTE/UPDATE over the rolling 90-day window |
 | Daily sales reminder, overdue debt, overdue installments, weekly sales report | `/internal/jobs/sales-daily-reminder`, `/sales-debt-reminder`, `/sales-overdue-installments`, `/weekly-sales-report` | scheduled; idempotent notification + push-dispatch writes in one transaction |
@@ -152,7 +153,7 @@ Both Redis buffer routes use the primary Redis instance (`GO_WORKER_REDIS_URL` /
 
 The sales notification workflow `.github/workflows/sales-notifications.yml` now triggers hourly; the API script selects jobs using `Asia/Gaza` local time. Configure `GO_WORKER_URL` and `GO_WORKER_TOKEN` in GitHub Actions secrets, using a public HTTPS Go URL reachable from the runner. The Render Express service should use its private service URL when supported.
 
-Go creates the database-side notification handoffs; Express continues delivering Web Push and FCM through its existing provider libraries, retries, device target leases, and delivery ledger. BullMQ fan-out and email fallback processors remain Express-owned. This phase does not move synchronous Search, Search Facets, Home Feed, payment/order/auth flows, or Cloudflare Worker code: these paths are either request-latency-sensitive, share the same PostgreSQL bottleneck, or contain provider/security behaviour that must be migrated as a separately verified design. No Mobile or Cloudflare Worker files are changed.
+Go creates the database-side notification handoffs and, behind an explicit feature flag, sends per-device FCM for durable outbox targets and BullMQ `fcm` jobs. Express continues to own the dispatch/delivery ledger, leases, retry scheduling, Web Push, email fallback, and the inline FCM fallback used when the queue is disabled or unavailable. This phase does not move synchronous Search, Search Facets, Home Feed, payment/order/auth flows, or Cloudflare Worker code: these paths are either request-latency-sensitive, share the same PostgreSQL bottleneck, or contain provider/security behaviour that must be migrated as a separately verified design. No Mobile or Cloudflare Worker files are changed.
 
 
 ## Phase 7 — listing and request lifecycle sweeps
@@ -308,3 +309,21 @@ Go service, and inspect the job logs. A successful Go response reports
 `promotion lifecycle job completed` or `cleanup expired stories job completed`;
 Cloudinary failures should increment `mediaDeleteFailed` while keeping the
 corresponding story rows for a later retry.
+
+## Opt-in FCM delivery pilot (durable outbox and BullMQ targets)
+
+The Go service can send one FCM delivery target through Firebase HTTP v1 while Express continues to own the durable dispatch and per-device delivery ledger. This is deliberately opt-in and disabled by default.
+
+Configure the Go service with the same Firebase service-account variables already used by the API:
+
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_CLIENT_EMAIL`
+- `FIREBASE_PRIVATE_KEY` (PEM; literal `\n` sequences are accepted)
+
+Keep the Firebase service-account variables configured in Express while the inline fallback remains active, and install the same three variables on the Go service. Deploy the Go service first, verify its internal route with a real test device, and only then set `GO_WORKER_FCM_PUSH_ENABLED=true` in the Express API environment. The flag defaults to false; leave it false to keep all per-device FCM sends on the existing Firebase Admin SDK path in Express.
+
+When enabled, both FCM targets claimed by the durable `notification_push_dispatches` worker and per-device `fcm` jobs handled by the BullMQ notification worker use `POST /internal/push/fcm/send`. BullMQ still owns its retry schedule. The inline fire-and-forget `notifyUser` fallback (used when the queue is disabled/unavailable) remains Express-owned in this phase. Express sends only `userId`, the opaque `targetId`, and the notification payload. Go loads the current token from `fcm_device_tokens` with both `id` and `userId`; the raw device token and service-account key never cross the Express-to-Go request or appear in logs. The endpoint requires the existing `Authorization: Bearer <GO_WORKER_TOKEN>` internal credential.
+
+Go obtains and caches a short-lived OAuth access token, sends the FCM HTTP v1 message, and returns one of `sent`, `gone`, `transient`, `failed`, `unconfigured`, or `missing`. Only an explicit FCM `UNREGISTERED` response is treated as a dead token. The stale-token cleanup uses a compare-and-delete predicate on the exact token read, so a concurrent token rotation is not deleted. Other permanent provider errors are not mislabeled as invalid tokens.
+
+Express retains dispatch/target leases, retries, backoff, delivery outcomes, and dead-letter handling. A Go transport error or ambiguous timeout is returned to the existing durable retry path; it is **not** followed by an immediate Express send, because Go may already have submitted the message to FCM. FCM delivery therefore remains at-least-once under ambiguous network failures, not exactly-once. Keep the feature flag disabled until Go credentials and a real test device have been verified.

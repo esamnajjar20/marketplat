@@ -5,9 +5,12 @@ import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { logger } from '../utils/logger';
 
 type StreamCsvWithFallbackOptions = {
-  jobName: 'admin-users-csv' | 'admin-reports-csv';
-  path: '/internal/exports/users.csv' | '/internal/exports/reports.csv';
-  filename: 'users.csv' | 'reports.csv';
+  jobName: 'admin-users-csv' | 'admin-reports-csv' | 'seller-sales-csv';
+  path: '/internal/exports/users.csv' | '/internal/exports/reports.csv' | '/internal/exports/sales.csv';
+  filename: 'users.csv' | 'reports.csv' | 'sales-report.csv';
+  query?: Record<string, string | undefined>;
+  method?: 'GET' | 'POST';
+  body?: Record<string, string | undefined>;
   response: ExpressResponse;
   runExpressFallback: () => Promise<string>;
   timeoutMs?: number;
@@ -32,6 +35,9 @@ export async function streamCsvWithGoFallback({
   filename,
   response,
   runExpressFallback,
+  query,
+  method = 'GET',
+  body,
   timeoutMs = 15_000,
 }: StreamCsvWithFallbackOptions): Promise<'go' | 'express'> {
   const baseUrl = process.env.GO_WORKER_URL?.trim().replace(/\/+$/, '');
@@ -40,10 +46,22 @@ export async function streamCsvWithGoFallback({
   if (baseUrl && token) {
     let streamStarted = false;
     try {
-      const workerResponse = await fetch(`${baseUrl}${path}`, {
-        method: 'GET',
+      const workerUrl = new URL(`${baseUrl}${path}`);
+      for (const [key, value] of Object.entries(query ?? {})) {
+        if (value !== undefined && value !== '') workerUrl.searchParams.set(key, value);
+      }
+      const requestHeaders: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+        Accept: 'text/csv',
+      };
+      if (body) requestHeaders['Content-Type'] = 'application/json';
+      const workerResponse = await fetch(workerUrl, {
+        method,
         redirect: 'error',
-        headers: { Authorization: `Bearer ${token}`, Accept: 'text/csv' },
+        headers: requestHeaders,
+        body: body ? JSON.stringify(Object.fromEntries(
+          Object.entries(body).filter((entry): entry is [string, string] => entry[1] !== undefined)
+        )) : undefined,
         signal: AbortSignal.timeout(timeoutMs),
       });
 

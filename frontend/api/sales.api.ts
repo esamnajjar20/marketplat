@@ -16,6 +16,7 @@ export const salesApi = {
     apiClient.get<ApiResponse<SalesSummary>>('/sales/summary', { ...config, params: { period } }),
   dashboard: (config?: AxiosRequestConfig) => (config ? apiClient.get<ApiResponse<SalesDashboard>>('/sales/dashboard', config) : apiClient.get<ApiResponse<SalesDashboard>>('/sales/dashboard')),
   report: (params?: SalesReportQueryParams, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<SalesReport>>('/sales/reports', { ...config, params }),
+  exportReportCsv: (params?: SalesReportQueryParams, config?: AxiosRequestConfig) => apiClient.get<Blob>('/sales/reports.csv', { ...config, params, responseType: 'blob' }),
   debtSummary: (config?: AxiosRequestConfig) => (config ? apiClient.get<ApiResponse<{totalDue:number;overdueDue:number;dueToday:number;debtorCount:number}>>('/sales/debts/summary', config) : apiClient.get<ApiResponse<{totalDue:number;overdueDue:number;dueToday:number;debtorCount:number}>>('/sales/debts/summary')),
   debts: (params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<{ rows: SaleRecord[]; totalCount: number; page: number; limit: number; totalPages: number; hasNextPage: boolean; hasPrevPage: boolean }>>('/sales/debts', { ...config, params }),
   addPayment: (id: string, payload: { amount: number; method: import('@/types/sale.types').SaleTransferMethod; transferRef?: string; note?: string }) => apiClient.post<ApiResponse<SaleRecord>>(`/sales/${id}/payments`, payload),

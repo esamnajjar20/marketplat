@@ -25,11 +25,13 @@ import (
 	"marketplat/apps/go-worker/internal/analyticsretention"
 	"marketplat/apps/go-worker/internal/authtokenretention"
 	"marketplat/apps/go-worker/internal/failedtaskretention"
+	"marketplat/apps/go-worker/internal/fcmpush"
 	"marketplat/apps/go-worker/internal/notificationdigest"
 	"marketplat/apps/go-worker/internal/notificationretention"
 	"marketplat/apps/go-worker/internal/promotionlifecycle"
 	"marketplat/apps/go-worker/internal/rediswire"
 	"marketplat/apps/go-worker/internal/requestexpiry"
+	"marketplat/apps/go-worker/internal/salesexport"
 	"marketplat/apps/go-worker/internal/salesinsights"
 	"marketplat/apps/go-worker/internal/salesjobs"
 	"marketplat/apps/go-worker/internal/sellerresponse"
@@ -73,6 +75,7 @@ type server struct {
 	batchSize        int
 	logger           *slog.Logger
 	cloudinary       *storycleanup.Client
+	fcmPush          *fcmpush.Client
 	jobGates         sync.Map // map[int64]*sync.Mutex; process-local fast gate before the DB advisory lock.
 }
 
@@ -149,7 +152,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	s := &server{db: db, redisConfig: redisConfig, cacheRedisConfig: cacheRedisConfig, token: token, retentionDays: retentionDays, batchSize: batchSize, logger: logger, cloudinary: storycleanup.NewClient(os.Getenv("CLOUDINARY_CLOUD_NAME"), os.Getenv("CLOUDINARY_API_KEY"), os.Getenv("CLOUDINARY_API_SECRET"))}
+	s := &server{db: db, redisConfig: redisConfig, cacheRedisConfig: cacheRedisConfig, token: token, retentionDays: retentionDays, batchSize: batchSize, logger: logger, cloudinary: storycleanup.NewClient(os.Getenv("CLOUDINARY_CLOUD_NAME"), os.Getenv("CLOUDINARY_API_KEY"), os.Getenv("CLOUDINARY_API_SECRET")), fcmPush: fcmpush.NewFromEnv()}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
 	mux.HandleFunc("POST /internal/jobs/analytics-retention", s.runAnalyticsRetention)
@@ -159,6 +162,7 @@ func main() {
 	mux.HandleFunc("POST /internal/jobs/notification-digest", s.runNotificationDigest)
 	mux.HandleFunc("GET /internal/exports/users.csv", s.exportUsersCSV)
 	mux.HandleFunc("GET /internal/exports/reports.csv", s.exportReportsCSV)
+	mux.HandleFunc("POST /internal/exports/sales.csv", s.exportSalesCSV)
 	mux.HandleFunc("POST /internal/reports/sales-insights", s.getSalesInsights)
 	mux.HandleFunc("POST /internal/jobs/weekly-ad-views", s.runWeeklyAdViews)
 	mux.HandleFunc("POST /internal/jobs/weekly-store-views", s.runWeeklyStoreViews)
@@ -177,6 +181,7 @@ func main() {
 	mux.HandleFunc("POST /internal/jobs/promotion-lifecycle", s.runPromotionLifecycle)
 	mux.HandleFunc("POST /internal/jobs/cleanup-expired-stories", s.runCleanupExpiredStories)
 	mux.HandleFunc("POST /internal/outbox/execute-event", s.executeOutboxEvent)
+	mux.HandleFunc("POST /internal/push/fcm/send", s.sendFcmPush)
 
 	addr := strings.TrimSpace(os.Getenv("GO_WORKER_ADDR"))
 	if addr == "" {
@@ -195,6 +200,75 @@ func main() {
 		logger.Error("HTTP server failed", "error", err)
 		os.Exit(1)
 	}
+}
+
+type fcmPushRequest struct {
+	UserID   string          `json:"userId"`
+	TargetID string          `json:"targetId"`
+	Payload  fcmpush.Payload `json:"payload"`
+}
+
+func (s *server) sendFcmPush(w http.ResponseWriter, r *http.Request) {
+	if !authorized(r, s.token) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	var request fcmPushRequest
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "request body must contain one JSON object"})
+		return
+	}
+	request.UserID = strings.TrimSpace(request.UserID)
+	request.TargetID = strings.TrimSpace(request.TargetID)
+	if request.UserID == "" || len(request.UserID) > 128 || request.TargetID == "" || len(request.TargetID) > 128 ||
+		strings.TrimSpace(request.Payload.Title) == "" || len(request.Payload.Title) > 256 || len(request.Payload.Body) > 4096 ||
+		len(request.Payload.URL) > 2048 || len(request.Payload.Tag) > 256 {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid push target or payload"})
+		return
+	}
+
+	if s.fcmPush == nil || !s.fcmPush.Configured() {
+		writeJSON(w, http.StatusOK, map[string]string{"outcome": string(fcmpush.OutcomeUnconfigured)})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 14*time.Second)
+	defer cancel()
+	var token string
+	err := s.db.QueryRowContext(ctx, `
+		SELECT "token" FROM "fcm_device_tokens"
+		WHERE "id" = $1 AND "userId" = $2
+		LIMIT 1
+	`, request.TargetID, request.UserID).Scan(&token)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeJSON(w, http.StatusOK, map[string]string{"outcome": "missing"})
+		return
+	}
+	if err != nil {
+		s.logger.Warn("FCM target lookup failed")
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "push target lookup unavailable"})
+		return
+	}
+
+	outcome := s.fcmPush.Send(ctx, token, request.Payload)
+	if outcome == fcmpush.OutcomeGone {
+		// Compare the exact token read above so a concurrent token rotation is
+		// never deleted because the previous token was reported as UNREGISTERED.
+		if _, deleteErr := s.db.ExecContext(ctx, `
+			DELETE FROM "fcm_device_tokens"
+			WHERE "id" = $1 AND "userId" = $2 AND "token" = $3
+		`, request.TargetID, request.UserID, token); deleteErr != nil {
+			s.logger.Warn("FCM stale-token prune failed after provider rejection")
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"outcome": string(outcome)})
 }
 
 func (s *server) health(w http.ResponseWriter, r *http.Request) {
@@ -688,24 +762,66 @@ func (s *server) getSalesInsights(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
-type adminCSVWriter func(context.Context, io.Writer) error
+type csvWriter func(context.Context, io.Writer) error
 
 func (s *server) exportUsersCSV(w http.ResponseWriter, r *http.Request) {
-	s.streamAdminCSV(w, r, "users.csv", func(ctx context.Context, dst io.Writer) error {
+	s.streamCSV(w, r, "users.csv", func(ctx context.Context, dst io.Writer) error {
 		return adminexport.WriteUsersCSV(ctx, s.db, dst)
 	})
 }
 
 func (s *server) exportReportsCSV(w http.ResponseWriter, r *http.Request) {
-	s.streamAdminCSV(w, r, "reports.csv", func(ctx context.Context, dst io.Writer) error {
+	s.streamCSV(w, r, "reports.csv", func(ctx context.Context, dst io.Writer) error {
 		return adminexport.WriteReportsCSV(ctx, s.db, dst)
 	})
 }
 
-// streamAdminCSV completes the bounded database query into a temporary file
+func (s *server) exportSalesCSV(w http.ResponseWriter, r *http.Request) {
+	if !authorized(r, s.token) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	var payload struct {
+		UserID  string `json:"userId"`
+		StoreID string `json:"storeId"`
+		Status  string `json:"status"`
+		From    string `json:"from"`
+		To      string `json:"to"`
+		Limit   string `json:"limit"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&payload); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid sales export request"})
+		return
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid sales export request"})
+		return
+	}
+	values := url.Values{
+		"userId":  {payload.UserID},
+		"storeId": {payload.StoreID},
+		"status":  {payload.Status},
+		"from":    {payload.From},
+		"to":      {payload.To},
+		"limit":   {payload.Limit},
+	}
+	options, err := salesexport.ParseOptions(values)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid sales export parameters"})
+		return
+	}
+	s.streamCSV(w, r, "sales-report.csv", func(ctx context.Context, dst io.Writer) error {
+		return salesexport.WriteCSV(ctx, s.db, dst, options)
+	})
+}
+
+// streamCSV completes the bounded database query into a temporary file
 // before sending response headers. This lets Express safely fall back if Go's
 // DB query fails, without ever mixing two partial CSV bodies in one response.
-func (s *server) streamAdminCSV(w http.ResponseWriter, r *http.Request, filename string, writeCSV adminCSVWriter) {
+func (s *server) streamCSV(w http.ResponseWriter, r *http.Request, filename string, writeCSV csvWriter) {
 	if !authorized(r, s.token) {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return

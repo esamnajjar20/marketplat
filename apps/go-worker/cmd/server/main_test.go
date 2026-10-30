@@ -20,6 +20,7 @@ func testHandler() http.Handler {
 	mux.HandleFunc("GET /internal/exports/reports.csv", s.exportReportsCSV)
 	mux.HandleFunc("POST /internal/reports/sales-insights", s.getSalesInsights)
 	mux.HandleFunc("POST /internal/outbox/execute-event", s.executeOutboxEvent)
+	mux.HandleFunc("POST /internal/push/fcm/send", s.sendFcmPush)
 	mux.HandleFunc("POST /internal/jobs/activity-buffer-flush", s.runActivityBufferFlush)
 	mux.HandleFunc("POST /internal/jobs/views-buffer-flush", s.runViewsBufferFlush)
 	mux.HandleFunc("POST /internal/jobs/expire-open-requests", s.runExpireOpenRequests)
@@ -587,5 +588,65 @@ func TestStoryCleanupEndpointFallsBackWhenGoCloudinaryCredentialsAreMissing(t *t
 	testHandler().ServeHTTP(recorder, req)
 	if recorder.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusServiceUnavailable, recorder.Body.String())
+	}
+}
+
+func TestFcmPushEndpointRequiresInternalAuthorization(t *testing.T) {
+	cases := []struct {
+		name   string
+		header string
+	}{
+		{name: "missing"},
+		{name: "wrong token", header: "Bearer wrong"},
+		{name: "wrong scheme", header: "Basic test-secret"},
+		{name: "empty bearer", header: "Bearer "},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/internal/push/fcm/send", strings.NewReader(`{"userId":"user","targetId":"device","payload":{"title":"Hello","body":"World"}}`))
+			if tc.header != "" {
+				req.Header.Set("Authorization", tc.header)
+			}
+			recorder := httptest.NewRecorder()
+			testHandler().ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+			}
+		})
+	}
+}
+
+func TestFcmPushEndpointRejectsInvalidBodiesBeforeDatabaseAccess(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{name: "invalid JSON", body: `{`},
+		{name: "unknown field", body: `{"userId":"user","targetId":"device","payload":{"title":"Hello","body":"World","token":"must-not-be-accepted"}}`},
+		{name: "multiple JSON values", body: `{"userId":"user","targetId":"device","payload":{"title":"Hello","body":"World"}} {}`},
+		{name: "missing target identity", body: `{"userId":"","targetId":"device","payload":{"title":"Hello","body":"World"}}`},
+		{name: "missing title", body: `{"userId":"user","targetId":"device","payload":{"title":"","body":"World"}}`},
+		{name: "oversized body", body: `{"userId":"user","targetId":"device","payload":{"title":"Hello","body":"` + strings.Repeat("x", 9*1024) + `"}}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/internal/push/fcm/send", strings.NewReader(tc.body))
+			req.Header.Set("Authorization", "Bearer test-secret")
+			recorder := httptest.NewRecorder()
+			testHandler().ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestFcmPushEndpointReportsUnconfiguredWithoutQueryingDeviceToken(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/internal/push/fcm/send", strings.NewReader(`{"userId":"user","targetId":"device","payload":{"title":"Hello","body":"World"}}`))
+	req.Header.Set("Authorization", "Bearer test-secret")
+	recorder := httptest.NewRecorder()
+	testHandler().ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"outcome":"unconfigured"`) {
+		t.Fatalf("unexpected response: status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
 }

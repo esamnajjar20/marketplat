@@ -17,6 +17,7 @@ import { redis } from '../../config/redis';
 import { logger } from '../utils/logger';
 import { pushService } from '../utils/pushService';
 import { fcmPushService } from '../utils/fcmPushService';
+import { isGoWorkerFcmPushEnabled, sendFcmTargetViaGo } from '../go-worker/fcmPush';
 import { pushSubscriptionsRepository } from '../utils/pushSubscriptionsRepository';
 import { fcmDeviceTokensRepository } from '../utils/fcmDeviceTokensRepository';
 import { emailService } from '../utils/emailService';
@@ -64,9 +65,10 @@ export async function processFanout(job: Job<FanoutJobData>): Promise<void> {
     }
   }
 
+  const useGoFcm = isGoWorkerFcmPushEnabled();
   const [web, native] = await Promise.all([
     env.webPush.isConfigured ? pushSubscriptionsRepository.findManyByUserId(userId) : [],
-    env.fcm.isConfigured ? fcmDeviceTokensRepository.findManyByUserId(userId) : [],
+    useGoFcm || env.fcm.isConfigured ? fcmDeviceTokensRepository.findManyByUserId(userId) : [],
   ]);
   if (!env.webPush.isConfigured) {
     logger.warn('[PUSH NOT SENT — VAPID not configured] Would have sent push', {
@@ -74,7 +76,7 @@ export async function processFanout(job: Job<FanoutJobData>): Promise<void> {
       title: payload.title,
     });
   }
-  if (!env.fcm.isConfigured) {
+  if (!useGoFcm && !env.fcm.isConfigured) {
     logger.warn('[FCM PUSH NOT SENT — Firebase not configured] Would have sent push', {
       userId,
       title: payload.title,
@@ -108,6 +110,13 @@ export async function processWeb(job: Job<WebJobData>): Promise<void> {
 
 export async function processFcm(job: Job<FcmJobData>): Promise<void> {
   const { userId, tokenId, payload } = job.data;
+  if (isGoWorkerFcmPushEnabled()) {
+    const outcome = await sendFcmTargetViaGo({ userId, targetId: tokenId, payload });
+    if (outcome === 'transient') throw new Error('FCM transient failure via Go worker');
+    if (outcome === 'unconfigured') throw new Error('FCM provider is not configured on Go worker');
+    return;
+  }
+
   const tok = await fcmDeviceTokensRepository.findByIdForUser(tokenId, userId);
   if (!tok) return;
 

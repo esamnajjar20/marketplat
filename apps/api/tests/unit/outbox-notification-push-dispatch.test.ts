@@ -50,7 +50,9 @@ describe('durable notification push dispatch handoff', () => {
     expect(source).toContain("SET \"status\" = ${outcome === 'sent' ? 'SENT' : 'GONE'}, \"processedAt\" = NOW()");
     expect(source).toContain('PUSH_TARGET_MAX_ATTEMPTS = 12');
     expect(pushService).toContain('sendToSubscriptionForOutbox');
+    expect(source).toContain('sendFcmTargetViaGo({');
     expect(source).toContain('fcmPushService.sendToToken(token, payload)');
+    expect(source).toContain('isGoWorkerFcmPushEnabled()');
     expect(targetMigration).not.toMatch(/\"(endpoint|p256dh|auth|token)\"/i);
   });
 

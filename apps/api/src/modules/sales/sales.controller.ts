@@ -3,6 +3,8 @@ import { salesService } from './sales.service';
 import { salesAutomationService } from './salesAutomation.service';
 import { salesInsightsService } from './salesInsights.service';
 import { requestJsonWithGoFallback } from '../../shared/go-worker/requestJsonWithFallback';
+import { streamCsvWithGoFallback } from '../../shared/go-worker/streamCsvWithFallback';
+import { buildSalesReportCsv } from './salesReportCsv';
 import {
   createSaleSchema,
   updateSaleSchema,
@@ -250,6 +252,33 @@ export const salesController = {
       res.json(
         successResponse('Sales report fetched', await salesService.report(user.userId, query))
       );
+    } catch (e) {
+      next(e);
+    }
+  },
+  reportCsv: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = requireUser(req);
+      const { query } = reportQuerySchema.parse({ query: req.query });
+      await streamCsvWithGoFallback({
+        jobName: 'seller-sales-csv',
+        path: '/internal/exports/sales.csv',
+        filename: 'sales-report.csv',
+        method: 'POST',
+        response: res,
+        body: {
+          userId: user.userId,
+          from: query.from?.toISOString(),
+          to: query.to?.toISOString(),
+          storeId: query.storeId,
+          status: query.status,
+          limit: String(query.limit),
+        },
+        runExpressFallback: async () => {
+          const report = await salesService.report(user.userId, query);
+          return buildSalesReportCsv(report.rows);
+        },
+      });
     } catch (e) {
       next(e);
     }
