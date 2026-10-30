@@ -22,6 +22,12 @@ func testHandler() http.Handler {
 	mux.HandleFunc("POST /internal/outbox/execute-event", s.executeOutboxEvent)
 	mux.HandleFunc("POST /internal/jobs/activity-buffer-flush", s.runActivityBufferFlush)
 	mux.HandleFunc("POST /internal/jobs/views-buffer-flush", s.runViewsBufferFlush)
+	mux.HandleFunc("POST /internal/jobs/expire-open-requests", s.runExpireOpenRequests)
+	mux.HandleFunc("POST /internal/jobs/demote-stale-boosts", s.runDemoteStaleBoosts)
+	mux.HandleFunc("POST /internal/jobs/expire-service-requests", s.runExpireServiceRequests)
+	mux.HandleFunc("POST /internal/jobs/expire-ads", s.runExpireAds)
+	mux.HandleFunc("POST /internal/jobs/promotion-lifecycle", s.runPromotionLifecycle)
+	mux.HandleFunc("POST /internal/jobs/cleanup-expired-stories", s.runCleanupExpiredStories)
 	return securityHeaders(mux)
 }
 
@@ -457,5 +463,129 @@ func TestBufferFlushEndpointsRejectMalformedBodiesBeforeDatabaseAccess(t *testin
 				t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
 			}
 		})
+	}
+}
+
+func TestExpireOpenRequestsEndpointRequiresAuthorization(t *testing.T) {
+	for _, header := range []string{"", "Bearer wrong", "Basic test-secret", "Bearer "} {
+		req := httptest.NewRequest(http.MethodPost, "/internal/jobs/expire-open-requests", strings.NewReader(`{}`))
+		if header != "" {
+			req.Header.Set("Authorization", header)
+		}
+		recorder := httptest.NewRecorder()
+		testHandler().ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusUnauthorized {
+			t.Fatalf("header %q: status = %d, want %d", header, recorder.Code, http.StatusUnauthorized)
+		}
+	}
+}
+
+func TestExpireOpenRequestsEndpointRejectsMalformedBodiesBeforeDatabaseAccess(t *testing.T) {
+	for _, body := range []string{"", `{`, `null`, `[]`, `{"unexpected":true}`, `{} {}`, `{"padding":"` + strings.Repeat("x", 2048) + `"}`} {
+		req := httptest.NewRequest(http.MethodPost, "/internal/jobs/expire-open-requests", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer test-secret")
+		recorder := httptest.NewRecorder()
+		testHandler().ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusBadRequest {
+			t.Fatalf("body %q: status = %d, want %d; response=%s", body, recorder.Code, http.StatusBadRequest, recorder.Body.String())
+		}
+	}
+}
+
+func TestDemoteStaleBoostsEndpointRequiresAuthorization(t *testing.T) {
+	for _, header := range []string{"", "Bearer wrong", "Basic test-secret", "Bearer "} {
+		req := httptest.NewRequest(http.MethodPost, "/internal/jobs/demote-stale-boosts", strings.NewReader(`{"staleBoostDays":60}`))
+		if header != "" {
+			req.Header.Set("Authorization", header)
+		}
+		recorder := httptest.NewRecorder()
+		testHandler().ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusUnauthorized {
+			t.Fatalf("header %q: status = %d, want %d", header, recorder.Code, http.StatusUnauthorized)
+		}
+	}
+}
+
+func TestDemoteStaleBoostsEndpointRejectsInvalidBodiesBeforeDatabaseAccess(t *testing.T) {
+	for _, body := range []string{
+		"", `{`, `null`, `[]`, `{"unexpected":true}`, `{"staleBoostDays":0}`,
+		`{"staleBoostDays":3651}`, `{"staleBoostDays":"60"}`, `{"dryRun":"true"}`,
+		`{"staleBoostDays":60} {}`, `{"padding":"` + strings.Repeat("x", 2048) + `"}`,
+	} {
+		req := httptest.NewRequest(http.MethodPost, "/internal/jobs/demote-stale-boosts", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer test-secret")
+		recorder := httptest.NewRecorder()
+		testHandler().ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusBadRequest {
+			t.Fatalf("body %q: status = %d, want %d; response=%s", body, recorder.Code, http.StatusBadRequest, recorder.Body.String())
+		}
+	}
+}
+
+func TestServiceRequestExpiryEndpointRejectsMissingAuthorization(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/internal/jobs/expire-service-requests", strings.NewReader(`{}`))
+	recorder := httptest.NewRecorder()
+	testHandler().ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestServiceRequestExpiryEndpointRequiresEmptyJSONBody(t *testing.T) {
+	for _, body := range []string{``, `null`, `[]`, `{"ttlDays":30}`, `{} {}`} {
+		req := httptest.NewRequest(http.MethodPost, "/internal/jobs/expire-service-requests", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer test-secret")
+		recorder := httptest.NewRecorder()
+		testHandler().ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusBadRequest {
+			t.Fatalf("body %q: status = %d, want %d; body=%s", body, recorder.Code, http.StatusBadRequest, recorder.Body.String())
+		}
+	}
+}
+
+func TestAdExpiryEndpointRejectsMissingAuthorization(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/internal/jobs/expire-ads", strings.NewReader(`{}`))
+	recorder := httptest.NewRecorder()
+	testHandler().ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestAdExpiryEndpointRequiresEmptyJSONBody(t *testing.T) {
+	for _, body := range []string{``, `null`, `[]`, `{"batchSize":100}`, `{} {}`} {
+		req := httptest.NewRequest(http.MethodPost, "/internal/jobs/expire-ads", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer test-secret")
+		recorder := httptest.NewRecorder()
+		testHandler().ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusBadRequest {
+			t.Fatalf("body %q: status = %d, want %d; body=%s", body, http.StatusBadRequest, recorder.Code, recorder.Body.String())
+		}
+	}
+}
+
+func TestNewLifecycleEndpointsRequireBearerAuthorization(t *testing.T) {
+	for _, path := range []string{
+		"/internal/jobs/promotion-lifecycle",
+		"/internal/jobs/cleanup-expired-stories",
+	} {
+		t.Run(path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{}`))
+			recorder := httptest.NewRecorder()
+			testHandler().ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+			}
+		})
+	}
+}
+
+func TestStoryCleanupEndpointFallsBackWhenGoCloudinaryCredentialsAreMissing(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/internal/jobs/cleanup-expired-stories", strings.NewReader(`{}`))
+	req.Header.Set("Authorization", "Bearer test-secret")
+	recorder := httptest.NewRecorder()
+	testHandler().ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusServiceUnavailable, recorder.Body.String())
 	}
 }

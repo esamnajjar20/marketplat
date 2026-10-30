@@ -154,3 +154,157 @@ The sales notification workflow `.github/workflows/sales-notifications.yml` now 
 
 Go creates the database-side notification handoffs; Express continues delivering Web Push and FCM through its existing provider libraries, retries, device target leases, and delivery ledger. BullMQ fan-out and email fallback processors remain Express-owned. This phase does not move synchronous Search, Search Facets, Home Feed, payment/order/auth flows, or Cloudflare Worker code: these paths are either request-latency-sensitive, share the same PostgreSQL bottleneck, or contain provider/security behaviour that must be migrated as a separately verified design. No Mobile or Cloudflare Worker files are changed.
 
+
+## Phase 7 — listing and request lifecycle sweeps
+
+Phase 7 offloads two additional scheduled jobs that are database-only or whose
+non-database side effects can safely remain owned by Express:
+
+| Workload | Go endpoint | Behaviour |
+|---|---|---|
+| Expire open marketplace requests | `/internal/jobs/expire-open-requests` | Changes only `OPEN` requests with a non-NULL `expiresAt <= now` to `EXPIRED`, in batches of 1,000. Requests with no expiry and requests already accepted/cancelled are preserved. |
+| Demote stale ad boosts | `/internal/jobs/demote-stale-boosts` | Clears `isFeatured` and `isPinned` only for `ACTIVE` ads whose `updatedAt` is older than the API-supplied `staleBoostDays` (default 60), in batches of 1,000. The ad status and other fields are unchanged. Supports the API's `DRY_RUN` setting. |
+
+Both jobs use the Go process-local gate plus session-level PostgreSQL advisory
+locks `731904296` (open request expiry) and `731904297` (stale boost demotion).
+The Express fallbacks use the same IDs with transaction-scoped advisory locks and
+bounded SQL batches. The partial indexes in migration `20261030120000_go_worker_phase7_lifecycle_indexes` support both candidate scans. They are created concurrently and intentionally are not represented in `schema.prisma` because Prisma 5.22 does not model partial indexes.
+
+For stale boost demotion, Express remains responsible for the ads Redis
+cache-generation bump and Cloudflare edge purge. The Go-success hook runs only
+after a validated successful response; failure of that best-effort hook never
+causes Express to repeat the already-committed database job. The Express
+fallback performs the same cache refresh after its database batches commit.
+
+The promotion lifecycle and expired-story cleanup are handled by the Go-first
+jobs added in Phases 10–11 below. Express retains equivalent SQL/Cloudinary
+fallbacks using the same advisory locks. Story cleanup additionally requires
+the Go service to receive `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and
+`CLOUDINARY_API_SECRET`; if they are absent, the Go endpoint returns `503` and
+Express performs the fallback when its own Cloudinary environment is configured.
+The daily GitHub Actions workflow receives the matching Cloudinary secrets for
+that fallback path.
+
+## Phase 8 — stale service-request expiry
+
+`POST /internal/jobs/expire-service-requests` moves only service requests with
+`status = PENDING` and `createdAt` older than the existing seven-day TTL to
+`EXPIRED`. It preserves the `respondedAt IS NULL` system-expiry marker and
+rechecks the status/age in the write statement so a concurrently answered
+request is not overwritten. Work is bounded to 200 rows per SQL statement and
+at most 50 batches per run, matching the former Express ceiling of 10,000 rows.
+
+For customers whose `serviceQuotes` preference allows notifications (missing
+preference keys still default to enabled), the same SQL statement also inserts
+the `SERVICE_REQUEST_UPDATE` in-app notification and its durable push-dispatch
+row. This closes the old crash gap between changing the request status and
+creating the notification. Push delivery remains in the existing Express push
+worker/provider path. Express performs unread-count invalidation, SSE delivery,
+and the existing email-fallback scheduling only after the committed write. If
+Go is unavailable, Express runs an equivalent parameterized SQL fallback under
+the same advisory lock.
+
+The Go handler and Express fallback share advisory lock `731904298`. The
+existing `service_requests(status, createdAt)` index supports the ordered due
+scan; no schema migration or new Render environment variable is required. The
+scheduled-job entry remains `report:expire-service-requests`.
+
+
+## Phase 9 — ad expiry warnings and terminal expiry
+
+`POST /internal/jobs/expire-ads` handles the same daily 60-day ad lifecycle as
+the former Express script. It first warns eligible `ACTIVE` ads with
+`flaggedForReview = FALSE`, a non-null `expiresAt` within the next seven days,
+and `expirationNotifiedAt IS NULL`. It then transitions all due `ACTIVE` ads
+with `expiresAt <= now` to `EXPIRED` (including flagged ads, matching the old
+script). Both paths use ordered, `SKIP LOCKED` batches of 500, with a maximum
+of 20 batches per path in one run.
+
+Each warning marker or terminal status change and its matching in-app
+notification plus durable push-dispatch row commit atomically. Notification
+keys are stable per ad/event to prevent duplicate in-app rows. Express still
+performs unread-cache invalidation, SSE and email-fallback scheduling after
+commit. After one or more ads become `EXPIRED`, Express also runs the existing
+ads/home cache-generation bump followed by the Cloudflare edge purge. A failure
+in these post-commit operations is logged and never causes the DB lifecycle
+job to be repeated.
+
+The Go handler and Express SQL fallback share advisory lock `731904299`.
+There are no new migrations or environment variables. The existing
+`report:expire-ads` scheduled entry continues to invoke the same script.
+
+
+## Phase 10 — promotion lifecycle
+
+`POST /internal/jobs/promotion-lifecycle` now handles all three promotion
+transitions: `SCHEDULED -> ACTIVE`, the one-time 24-hour expiry warning, and
+`ACTIVE -> EXPIRED`. It preserves the original notification audiences and copy:
+owner lifecycle notifications are sent only when the owner's
+`notificationPreferences.myPromotions` value is explicitly `true`; missing or
+false values do not receive those owner notifications, matching the original
+script's raw-SQL check. On the start transition, all store followers receive the same in-app and
+durable-push notification, regardless of `storeUpdates`. This deliberately
+retains the legacy `myPromotionsExpiring.ts` behavior: its `notifyFollowers`
+path did not filter followers by notification preferences.
+
+Each transition and its notifications / durable push-dispatch rows are written
+in a single PostgreSQL statement per batch. Stable idempotency keys prevent
+re-runs from duplicating owner or follower notifications. The started event
+is independent of the owner's preference: store followers still receive it
+when the owner has opted out. Batch size is 100, up to 50 batches per
+lifecycle phase per run. If the ceiling is reached, the next 15-minute run
+continues the backlog.
+
+The Go and Express implementations share advisory lock `731904301`. The
+Express script `report:promotion-lifecycle` remains the coordinator and SQL
+fallback. `.github/workflows/promotion-lifecycle.yml` runs it every 15 minutes;
+configure GitHub Actions secrets `GO_WORKER_URL` and `GO_WORKER_TOKEN` so the
+GitHub-hosted runner can reach the public HTTPS Go Worker URL. Keep the Render
+Express service's own `GO_WORKER_URL` set to its preferred private worker URL.
+The workflow still needs `DATABASE_URL` and `REDIS_URL` for its Express fallback
+and post-commit unread-cache / SSE publication. The promotion workflow no longer
+needs VAPID or Firebase credentials because provider delivery is handed to the
+existing durable notification-push worker.
+
+Migration `20261030130000_go_worker_phase10_lifecycle_indexes` adds three
+partial indexes for scheduled starts, active expiry, and active-unwarned
+expiry. They use `CREATE INDEX CONCURRENTLY` to avoid blocking writes, so the
+migration runner must not wrap this migration in an explicit transaction. Apply
+it through the existing Prisma migration deployment before activating this
+version. No new secret is introduced for this phase.
+
+## Phase 11 — expired-story media cleanup
+
+`POST /internal/jobs/cleanup-expired-stories` selects expired stories in
+`(expiresAt, id)` order and deletes their Cloudinary image before deleting the
+story row. A Cloudinary failure leaves the row intact; a database failure after
+a successful Cloudinary delete also leaves the row for retry. Cloudinary's
+`not found` response is treated as success so the second case is idempotent.
+The worker uses the signed Upload API `/image/destroy` request with SHA-1
+signature, bounded HTTP timeout, bounded parallel deletion, and a per-run cap
+of 300 candidate rows. Story media uploads use the image resource type, so the
+cleanup matches the existing `deleteMedia(publicId)` default.
+
+The Go and Express implementations share advisory lock `731904300`. The
+existing daily `report:cleanup-stories` entry now calls the Go worker first;
+if Go is unavailable or its Cloudinary credentials are missing, Express uses
+the existing Cloudinary SDK and the same retry rule. Configure `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and
+`CLOUDINARY_API_SECRET` as secret environment variables on the Go Worker Render
+service. Also add those three GitHub Actions secrets for the daily workflow's
+Express fallback; `.github/workflows/cron.yml` passes them only to the scheduled
+job process. Use the same account values as the Express Render service. The
+daily runner also requires `GO_WORKER_URL` (public HTTPS URL reachable from
+GitHub Actions) and `GO_WORKER_TOKEN`. These secrets are never sent to the
+browser or written to job logs.
+
+## Production verification still required
+
+Unit tests and static checks do not prove that the SQL runs against the actual
+Aiven schema, that the Cloudinary credentials are accepted by the production
+account, or that Render has both deployed versions. After applying migration
+`20261030130000_go_worker_phase10_lifecycle_indexes`, deploy the Go Worker and
+Express API from the same revision, set the three Cloudinary variables on the
+Go service, and inspect the job logs. A successful Go response reports
+`promotion lifecycle job completed` or `cleanup expired stories job completed`;
+Cloudinary failures should increment `mediaDeleteFailed` while keeping the
+corresponding story rows for a later retry.

@@ -20,16 +20,22 @@ import (
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"marketplat/apps/go-worker/internal/activitybuffer"
+	"marketplat/apps/go-worker/internal/adexpiry"
 	"marketplat/apps/go-worker/internal/adminexport"
 	"marketplat/apps/go-worker/internal/analyticsretention"
 	"marketplat/apps/go-worker/internal/authtokenretention"
 	"marketplat/apps/go-worker/internal/failedtaskretention"
 	"marketplat/apps/go-worker/internal/notificationdigest"
 	"marketplat/apps/go-worker/internal/notificationretention"
+	"marketplat/apps/go-worker/internal/promotionlifecycle"
 	"marketplat/apps/go-worker/internal/rediswire"
+	"marketplat/apps/go-worker/internal/requestexpiry"
 	"marketplat/apps/go-worker/internal/salesinsights"
 	"marketplat/apps/go-worker/internal/salesjobs"
 	"marketplat/apps/go-worker/internal/sellerresponse"
+	"marketplat/apps/go-worker/internal/serviceexpiry"
+	"marketplat/apps/go-worker/internal/staleboosts"
+	"marketplat/apps/go-worker/internal/storycleanup"
 	"marketplat/apps/go-worker/internal/viewsbuffer"
 	"marketplat/apps/go-worker/internal/weeklyreports"
 )
@@ -50,6 +56,12 @@ const (
 	weeklySalesReportLockID     int64 = 731904293
 	activityBufferLockID        int64 = 731904294
 	viewsBufferLockID           int64 = 731904295
+	openRequestExpiryLockID     int64 = 731904296
+	staleBoostDemotionLockID    int64 = 731904297
+	serviceRequestExpiryLockID  int64 = 731904298
+	adExpiryLockID              int64 = 731904299
+	storyCleanupLockID          int64 = 731904300
+	promotionLifecycleLockID    int64 = 731904301
 )
 
 type server struct {
@@ -60,6 +72,7 @@ type server struct {
 	retentionDays    int
 	batchSize        int
 	logger           *slog.Logger
+	cloudinary       *storycleanup.Client
 	jobGates         sync.Map // map[int64]*sync.Mutex; process-local fast gate before the DB advisory lock.
 }
 
@@ -136,7 +149,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	s := &server{db: db, redisConfig: redisConfig, cacheRedisConfig: cacheRedisConfig, token: token, retentionDays: retentionDays, batchSize: batchSize, logger: logger}
+	s := &server{db: db, redisConfig: redisConfig, cacheRedisConfig: cacheRedisConfig, token: token, retentionDays: retentionDays, batchSize: batchSize, logger: logger, cloudinary: storycleanup.NewClient(os.Getenv("CLOUDINARY_CLOUD_NAME"), os.Getenv("CLOUDINARY_API_KEY"), os.Getenv("CLOUDINARY_API_SECRET"))}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
 	mux.HandleFunc("POST /internal/jobs/analytics-retention", s.runAnalyticsRetention)
@@ -157,6 +170,12 @@ func main() {
 	mux.HandleFunc("POST /internal/jobs/weekly-sales-report", s.runWeeklySalesReport)
 	mux.HandleFunc("POST /internal/jobs/activity-buffer-flush", s.runActivityBufferFlush)
 	mux.HandleFunc("POST /internal/jobs/views-buffer-flush", s.runViewsBufferFlush)
+	mux.HandleFunc("POST /internal/jobs/expire-open-requests", s.runExpireOpenRequests)
+	mux.HandleFunc("POST /internal/jobs/demote-stale-boosts", s.runDemoteStaleBoosts)
+	mux.HandleFunc("POST /internal/jobs/expire-service-requests", s.runExpireServiceRequests)
+	mux.HandleFunc("POST /internal/jobs/expire-ads", s.runExpireAds)
+	mux.HandleFunc("POST /internal/jobs/promotion-lifecycle", s.runPromotionLifecycle)
+	mux.HandleFunc("POST /internal/jobs/cleanup-expired-stories", s.runCleanupExpiredStories)
 	mux.HandleFunc("POST /internal/outbox/execute-event", s.executeOutboxEvent)
 
 	addr := strings.TrimSpace(os.Getenv("GO_WORKER_ADDR"))
@@ -816,12 +835,132 @@ func (s *server) runViewsBufferFlush(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *server) runExpireOpenRequests(w http.ResponseWriter, r *http.Request) {
+	s.runLockedSQLJob(w, r, openRequestExpiryLockID, "expire open requests", func(ctx context.Context, conn *sql.Conn) (any, error) {
+		return requestexpiry.Run(ctx, conn, requestexpiry.DefaultBatchSize, time.Now().UTC())
+	})
+}
+
+func (s *server) runExpireAds(w http.ResponseWriter, r *http.Request) {
+	s.runLockedSQLJob(w, r, adExpiryLockID, "expire ads", func(ctx context.Context, conn *sql.Conn) (any, error) {
+		return adexpiry.Run(ctx, conn, adexpiry.DefaultBatchSize, time.Now().UTC())
+	})
+}
+
+func (s *server) runExpireServiceRequests(w http.ResponseWriter, r *http.Request) {
+	s.runLockedSQLJob(w, r, serviceRequestExpiryLockID, "expire stale service requests", func(ctx context.Context, conn *sql.Conn) (any, error) {
+		return serviceexpiry.Run(ctx, conn, serviceexpiry.DefaultTTLDays, serviceexpiry.DefaultBatchSize, time.Now().UTC())
+	})
+}
+
+func (s *server) runPromotionLifecycle(w http.ResponseWriter, r *http.Request) {
+	s.runLockedSQLJobWithTimeout(w, r, promotionLifecycleLockID, "promotion lifecycle", 8*time.Minute, func(ctx context.Context, conn *sql.Conn) (any, error) {
+		return promotionlifecycle.Run(ctx, conn, promotionlifecycle.DefaultBatchSize, time.Now().UTC())
+	})
+}
+
+func (s *server) runCleanupExpiredStories(w http.ResponseWriter, r *http.Request) {
+	if !authorized(r, s.token) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	if s.cloudinary == nil || !s.cloudinary.Configured() {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "Cloudinary credentials are not configured on Go worker"})
+		return
+	}
+	s.runLockedSQLJobWithTimeout(w, r, storyCleanupLockID, "cleanup expired stories", 8*time.Minute, func(ctx context.Context, conn *sql.Conn) (any, error) {
+		return storycleanup.Run(ctx, conn, s.cloudinary, storycleanup.DefaultBatchSize, time.Now().UTC())
+	})
+}
+
+func (s *server) runDemoteStaleBoosts(w http.ResponseWriter, r *http.Request) {
+	if !authorized(r, s.token) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	var request *struct {
+		StaleBoostDays *int  `json:"staleBoostDays"`
+		DryRun         *bool `json:"dryRun"`
+	}
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil || request == nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "request body must contain one JSON object"})
+		return
+	}
+	staleDays := staleboosts.DefaultStaleDays
+	if request.StaleBoostDays != nil {
+		staleDays = *request.StaleBoostDays
+	}
+	if staleDays < 1 || staleDays > staleboosts.MaxStaleDays {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "staleBoostDays must be between 1 and 3650"})
+		return
+	}
+	dryRun := false
+	if request.DryRun != nil {
+		dryRun = *request.DryRun
+	}
+
+	releaseLocalGate, gateAcquired := s.tryLocalJobGate(staleBoostDemotionLockID)
+	if !gateAcquired {
+		writeJSON(w, http.StatusConflict, map[string]string{"status": "already-running"})
+		return
+	}
+	defer releaseLocalGate()
+
+	conn, err := s.db.Conn(r.Context())
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "database unavailable"})
+		return
+	}
+	defer conn.Close()
+
+	var acquired bool
+	if err := conn.QueryRowContext(r.Context(), `SELECT pg_try_advisory_lock($1)`, staleBoostDemotionLockID).Scan(&acquired); err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "could not acquire job lock"})
+		return
+	}
+	if !acquired {
+		writeJSON(w, http.StatusConflict, map[string]string{"status": "already-running"})
+		return
+	}
+
+	locked := true
+	unlock := func() {
+		if locked {
+			locked = false
+			releaseAdvisoryLock(conn, staleBoostDemotionLockID, "stale boost demotion", s.logger)
+		}
+	}
+	defer unlock()
+
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
+	result, err := staleboosts.Run(ctx, conn, staleDays, staleboosts.DefaultBatchSize, dryRun, time.Now().UTC())
+	cancel()
+	unlock()
+	if err != nil {
+		s.logger.Error("stale boost demotion job failed", "error", err, "updated", result.Updated, "batches", result.Batches)
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "stale boost demotion failed"})
+		return
+	}
+	s.logger.Info("stale boost demotion completed", "result", result)
+	writeJSON(w, http.StatusOK, result)
+}
+
 type lockedJobRunner func(context.Context, *sql.Conn) (any, error)
 
 // runLockedSQLJob is the shared control plane for write-capable scheduled jobs.
 // The Go and Express implementations use the same PostgreSQL advisory lock;
 // timeout ambiguity therefore cannot start two copies of the same job.
 func (s *server) runLockedSQLJob(w http.ResponseWriter, r *http.Request, lockID int64, name string, run lockedJobRunner) {
+	s.runLockedSQLJobWithTimeout(w, r, lockID, name, 90*time.Second, run)
+}
+
+func (s *server) runLockedSQLJobWithTimeout(w http.ResponseWriter, r *http.Request, lockID int64, name string, timeout time.Duration, run lockedJobRunner) {
 	if !authorized(r, s.token) {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
 		return
@@ -870,7 +1009,7 @@ func (s *server) runLockedSQLJob(w http.ResponseWriter, r *http.Request, lockID 
 	}
 	defer unlock()
 
-	ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	result, err := run(ctx, conn)
 	cancel()
 	unlock()

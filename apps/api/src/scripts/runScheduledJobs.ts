@@ -10,7 +10,6 @@ type Job = {
 };
 
 const JOBS: Job[] = [
-  { name: 'report:promotion-lifecycle', hour: -1, minute: 0 },
   { name: 'report:expire-ads', hour: -1, minute: 0 },
   { name: 'report:notification-digest', hour: 7, minute: 0 },
   { name: 'report:seller-response-metrics', hour: 3, minute: 0 },

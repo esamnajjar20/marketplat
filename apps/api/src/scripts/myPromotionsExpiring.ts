@@ -1,323 +1,357 @@
-import { reportBackgroundFailure } from '../shared/utils/backgroundTask';
 /**
- * Promotion lifecycle notifications — PROMO-1 (of the
- * promotions design doc, deferred at MVP time: "هذه ليست ضرورية في
- * MVP"). Closes two things in one run:
- *
- *   1. The status-transition sweep promotions.service.ts's resolveStatus
- *      doc comment mentions — SCHEDULED rows whose startsAt has passed
- *      become ACTIVE, ACTIVE rows whose endsAt has passed become
- *      EXPIRED, using promotionsRepository's findDueForActivation/
- *      findDueForExpiry (built when the Promotion module was first
- *      added, unused until this script). Individual reads/writes
- *      already self-correct via resolveStatus regardless of whether
- *      this script has run recently — this sweep keeps the *stored*
- *      status column itself accurate for anything that queries it
- *      directly (e.g. products.repository.ts's hasPromotion filter),
- *      not just anything that goes through promotionsService.
- *
- *   2. Three lifecycle notifications to the store owner (NOT
- *      buyers/favoriters — there is no favoriting mechanism for
- *      Promotion, only for Ad):
- *        - started:  a SCHEDULED promotion just became ACTIVE
- *        - expiring: an ACTIVE promotion's endsAt is within
- *                     EXPIRY_WARNING_HOURS and hasn't been warned about
- *                     yet (Promotion.expiryWarnedAt IS NULL)
- *        - expired:  an ACTIVE promotion just became EXPIRED
- *      All three use NotificationType PROMOTION_STATUS_CHANGE — see
- *      that enum value's schema.prisma doc for why it's distinct from
- *      the existing PROMOTION type (admin broadcast newsletter, wrong
- *      audience/trigger for this). Gated by the same
- *      notificationPreferences jsonb ->> pattern
- *      weeklyAdViewsReport.ts already established for adViews, under a
- *      new `myPromotions` key (users.validation.ts).
- *
- * NOT run automatically by the app process — same as
- * weeklyAdViewsReport.ts, must be invoked by an external scheduler:
- *   every 15 minutes: cd /app && npm run report:promotion-lifecycle >> /var/log/promotion-lifecycle.log 2>&1
- * (every 15 minutes — unlike the weekly report, "started"/"expired"
- * notifications are time-sensitive enough that a once-a-week cadence
- * would make them arrive hours or days late; nothing here assumes a
- * particular interval beyond "frequently enough that a promotion
- * starting/expiring is noticed reasonably soon after it happens.")
- *
- * Idempotent by design against re-runs:
- *   - started/expired: only rows returned by findDueForActivation/
- *     findDueForExpiry are processed, and each row's status is
- *     advanced to ACTIVE/EXPIRED as part of the same iteration — a
- *     row already ACTIVE or EXPIRED is never returned by those queries
- *     again, so it can't be double-notified.
- *   - expiring: gated on expiryWarnedAt IS NULL and set immediately
- *     after a successful notification — a row already warned is
- *     excluded from findExpiringSoon on the next run regardless of how
- *     many times the script runs before endsAt actually arrives.
- *
- * Usage:
- *   npm run build && npm run report:promotion-lifecycle
- * (mirrors weeklyAdViewsReport.ts's build-then-run convention.)
+ * Go-first promotion lifecycle sweep. State transitions, owner/follower in-app
+ * notifications, and durable push dispatches are one SQL statement per batch.
+ * Express fallback shares the exact advisory lock and SQL semantics.
  */
-import { PrismaClient, Promotion } from '@prisma/client';
+import { prisma } from '../config/prisma';
+import { redis, cacheRedis } from '../config/redis';
 import { logger } from '../shared/utils/logger';
-import { pushService } from '../shared/utils/pushService';
+import { executeWithGoFallback, runAdvisoryLockedBatch } from '../shared/go-worker/executeWithFallback';
+import { publishDurableNotifications } from '../shared/go-worker/publishDurableNotifications';
+import { shutdownNotificationStream } from '../shared/utils/notificationStream';
 
-const prisma = new PrismaClient();
+const BATCH_SIZE = 100;
+const MAX_BATCHES = 50;
+const PROMOTION_LIFECYCLE_LOCK_ID = 731904301n;
+const WARNING_WINDOW_HOURS = 24;
 
-const EXPIRY_WARNING_HOURS = 24;
-
-interface OwnerContext {
-  userId: string;
-  productName: string;
+interface PromotionLifecycleResult {
+  started: number;
+  expiring: number;
+  expired: number;
+  notified: number;
+  startedBatches: number;
+  expiringBatches: number;
+  expiredBatches: number;
+  limitReached: boolean;
+  evaluatedAt: string;
+  warningCutoff: string;
+  notificationIds: string[];
 }
 
-/**
- * Same raw-SQL-for-jsonb-and-join reasoning as weeklyAdViewsReport.ts's
- * findOwnerDeltas: notificationPreferences ->> 'myPromotions' isn't
- * expressible through Prisma's typed where-clauses, and this needs to
- * reach through Promotion -> StoreDetails -> SellerProfile -> User in
- * one query rather than N+1 Prisma relation loads per promotion.
- */
-async function resolveOwnerContext(promotion: Promotion): Promise<OwnerContext | null> {
-  const rows = await prisma.$queryRaw<{ userId: string; productName: string }[]>`
-    SELECT u."id" AS "userId", p."name" AS "productName"
-    FROM "store_details" sd
+interface PromotionBatchRow { promotionId: string; notificationId: string | null }
+
+function isResult(value: unknown): value is PromotionLifecycleResult {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const result = value as Record<string, unknown>;
+  const counts = ['started', 'expiring', 'expired', 'notified', 'startedBatches', 'expiringBatches', 'expiredBatches'];
+  return counts.every(key => Number.isSafeInteger(result[key]) && (result[key] as number) >= 0) &&
+    typeof result.limitReached === 'boolean' &&
+    typeof result.evaluatedAt === 'string' && Number.isFinite(Date.parse(result.evaluatedAt)) &&
+    typeof result.warningCutoff === 'string' && Number.isFinite(Date.parse(result.warningCutoff)) &&
+    Array.isArray(result.notificationIds) && result.notificationIds.every(id => typeof id === 'string' && id.length > 0) &&
+    result.notified === result.notificationIds.length;
+}
+
+const STARTED_BATCH_SQL = String.raw`
+WITH due AS (
+    SELECT p."id", p."storeId", p."productId", p."title", product."name" AS "productName"
+    FROM "promotions" p
+    INNER JOIN "products" product ON product."id" = p."productId"
+    WHERE p."status" = 'SCHEDULED'
+      AND p."startsAt" <= $1
+    ORDER BY p."startsAt" ASC, p."id" ASC
+    LIMIT $2
+    FOR UPDATE OF p SKIP LOCKED
+), started AS (
+    UPDATE "promotions" p
+    SET "status" = 'ACTIVE', "updatedAt" = $1
+    FROM due
+    WHERE p."id" = due."id"
+      AND p."status" = 'SCHEDULED'
+      AND p."startsAt" <= $1
+    RETURNING p."id", p."storeId", p."productId", p."title", due."productName"
+), owner_recipients AS (
+    SELECT
+        s."id" AS "promotionId", s."storeId", s."productId", u."id" AS "userId",
+        'PROMOTION_STATUS_CHANGE'::text AS "notificationType",
+        'بدأ عرضك'::text AS "notificationTitle",
+        LEFT('بدأ العرض "' || s."title" || '" على "' || s."productName" || '"', 500) AS "notificationBody",
+        jsonb_build_object('promotionId', s."id", 'productId', s."productId", 'event', 'started') AS "notificationData",
+        '/my-store?tab=promotions'::text AS "pushUrl",
+        'promotion-' || s."id" || '-started' AS "pushTag",
+        'promotion-started-owner:' || s."id" AS "idempotencyKey"
+    FROM started s
+    INNER JOIN "store_details" sd ON sd."id" = s."storeId"
     INNER JOIN "seller_profiles" sp ON sp."id" = sd."sellerProfileId"
     INNER JOIN "users" u ON u."id" = sp."userId"
-    INNER JOIN "products" p ON p."id" = ${promotion.productId}
-    WHERE sd."id" = ${promotion.storeId}
-      AND (u."notificationPreferences" ->> 'myPromotions') = 'true'
-  `;
-  return rows[0] ?? null;
+    WHERE u."notificationPreferences" ->> 'myPromotions' = 'true'
+), follower_recipients AS (
+    SELECT
+        s."id" AS "promotionId", s."storeId", s."productId", u."id" AS "userId",
+        'STORE_PROMOTION_STARTED'::text AS "notificationType",
+        'عرض جديد'::text AS "notificationTitle",
+        LEFT('عرض جديد على "' || s."productName" || '": ' || s."title", 500) AS "notificationBody",
+        jsonb_build_object('storeId', s."storeId", 'promotionId', s."id", 'productId', s."productId") AS "notificationData",
+        '/stores/' || s."storeId" AS "pushUrl",
+        'store-promotion-' || s."id" AS "pushTag",
+        'store-promotion-started:' || s."id" || ':' || u."id" AS "idempotencyKey"
+    FROM started s
+    INNER JOIN "store_followers" sf ON sf."storeId" = s."storeId"
+    INNER JOIN "users" u ON u."id" = sf."userId"
+
+), recipients AS (
+    SELECT * FROM owner_recipients
+    UNION ALL
+    SELECT * FROM follower_recipients
+), inserted AS (
+    INSERT INTO "notifications"
+        ("id", "idempotencyKey", "userId", "type", "title", "body", "data", "createdAt")
+    SELECT
+        'go_' || md5(random()::text || clock_timestamp()::text || r."idempotencyKey"),
+        r."idempotencyKey", r."userId", r."notificationType"::"NotificationType",
+        r."notificationTitle", r."notificationBody", r."notificationData", NOW()
+    FROM recipients r
+    ON CONFLICT ("idempotencyKey") DO NOTHING
+    RETURNING "id", "idempotencyKey", "userId", "type", "title", "body", "data"
+), dispatch AS (
+    INSERT INTO "notification_push_dispatches"
+        ("id", "notificationId", "userId", "payload", "idempotencyKey")
+    SELECT
+        'go_' || md5(random()::text || clock_timestamp()::text || n."id"),
+        n."id", n."userId",
+        jsonb_build_object(
+            'title', n."title", 'body', n."body",
+            'url', r."pushUrl", 'tag', r."pushTag", 'type', n."type"::text
+        ),
+        'notification-push:' || n."id"
+    FROM inserted n
+    INNER JOIN recipients r ON r."idempotencyKey" = n."idempotencyKey"
+    ON CONFLICT ("idempotencyKey") DO NOTHING
+    RETURNING "id"
+)
+SELECT s."id" AS "promotionId", inserted."id" AS "notificationId"
+FROM started s
+LEFT JOIN inserted ON inserted."idempotencyKey" = 'promotion-started-owner:' || s."id"
+    OR (split_part(inserted."idempotencyKey", ':', 1) = 'store-promotion-started'
+        AND split_part(inserted."idempotencyKey", ':', 2) = s."id")
+ORDER BY s."id" ASC, inserted."id" ASC
+`;
+const EXPIRING_BATCH_SQL = String.raw`
+WITH due AS (
+    SELECT p."id", p."storeId", p."productId", p."title", product."name" AS "productName"
+    FROM "promotions" p
+    INNER JOIN "products" product ON product."id" = p."productId"
+    WHERE p."status" = 'ACTIVE'
+      AND p."endsAt" > $1
+      AND p."endsAt" <= $2
+      AND p."expiryWarnedAt" IS NULL
+    ORDER BY p."endsAt" ASC, p."id" ASC
+    LIMIT $3
+    FOR UPDATE OF p SKIP LOCKED
+), warned AS (
+    UPDATE "promotions" p
+    SET "expiryWarnedAt" = $1, "updatedAt" = $1
+    FROM due
+    WHERE p."id" = due."id"
+      AND p."status" = 'ACTIVE'
+      AND p."expiryWarnedAt" IS NULL
+    RETURNING p."id", p."storeId", p."productId", p."title", due."productName"
+), recipients AS (
+    SELECT
+        w."id" AS "promotionId", w."storeId", w."productId", u."id" AS "userId",
+        'PROMOTION_STATUS_CHANGE'::"NotificationType" AS "notificationType",
+        'عرضك سينتهي قريباً'::text AS "notificationTitle",
+        LEFT('سينتهي العرض "' || w."title" || '" على "' || w."productName" || '" خلال 24 ساعة', 500) AS "notificationBody",
+        jsonb_build_object('promotionId', w."id", 'productId', w."productId", 'event', 'expiring') AS "notificationData",
+        '/my-store?tab=promotions'::text AS "pushUrl",
+        'promotion-' || w."id" || '-expiring' AS "pushTag",
+        'promotion-expiring-owner:' || w."id" AS "idempotencyKey"
+    FROM warned w
+    INNER JOIN "store_details" sd ON sd."id" = w."storeId"
+    INNER JOIN "seller_profiles" sp ON sp."id" = sd."sellerProfileId"
+    INNER JOIN "users" u ON u."id" = sp."userId"
+    WHERE u."notificationPreferences" ->> 'myPromotions' = 'true'
+), inserted AS (
+    INSERT INTO "notifications"
+        ("id", "idempotencyKey", "userId", "type", "title", "body", "data", "createdAt")
+    SELECT
+        'go_' || md5(random()::text || clock_timestamp()::text || r."idempotencyKey"),
+        r."idempotencyKey", r."userId", r."notificationType",
+        r."notificationTitle", r."notificationBody", r."notificationData", NOW()
+    FROM recipients r
+    ON CONFLICT ("idempotencyKey") DO NOTHING
+    RETURNING "id", "idempotencyKey", "userId", "type", "title", "body", "data"
+), dispatch AS (
+    INSERT INTO "notification_push_dispatches"
+        ("id", "notificationId", "userId", "payload", "idempotencyKey")
+    SELECT
+        'go_' || md5(random()::text || clock_timestamp()::text || n."id"),
+        n."id", n."userId",
+        jsonb_build_object(
+            'title', n."title", 'body', n."body",
+            'url', '/my-store?tab=promotions', 'tag', 'promotion-' || (n."data" ->> 'promotionId') || '-expiring',
+            'type', n."type"::text
+        ),
+        'notification-push:' || n."id"
+    FROM inserted n
+    ON CONFLICT ("idempotencyKey") DO NOTHING
+    RETURNING "id"
+)
+SELECT w."id" AS "promotionId", inserted."id" AS "notificationId"
+FROM warned w
+LEFT JOIN inserted ON inserted."idempotencyKey" = 'promotion-expiring-owner:' || w."id"
+ORDER BY w."id" ASC
+`;
+const EXPIRED_BATCH_SQL = String.raw`
+WITH due AS (
+    SELECT p."id", p."storeId", p."productId", p."title", product."name" AS "productName"
+    FROM "promotions" p
+    INNER JOIN "products" product ON product."id" = p."productId"
+    WHERE p."status" = 'ACTIVE'
+      AND p."endsAt" <= $1
+    ORDER BY p."endsAt" ASC, p."id" ASC
+    LIMIT $2
+    FOR UPDATE OF p SKIP LOCKED
+), expired AS (
+    UPDATE "promotions" p
+    SET "status" = 'EXPIRED', "updatedAt" = $1
+    FROM due
+    WHERE p."id" = due."id"
+      AND p."status" = 'ACTIVE'
+      AND p."endsAt" <= $1
+    RETURNING p."id", p."storeId", p."productId", p."title", due."productName"
+), recipients AS (
+    SELECT
+        e."id" AS "promotionId", e."storeId", e."productId", u."id" AS "userId",
+        'PROMOTION_STATUS_CHANGE'::"NotificationType" AS "notificationType",
+        'انتهى عرضك'::text AS "notificationTitle",
+        LEFT('انتهى العرض "' || e."title" || '" على "' || e."productName" || '"', 500) AS "notificationBody",
+        jsonb_build_object('promotionId', e."id", 'productId', e."productId", 'event', 'expired') AS "notificationData",
+        '/my-store?tab=promotions'::text AS "pushUrl",
+        'promotion-' || e."id" || '-expired' AS "pushTag",
+        'promotion-expired-owner:' || e."id" AS "idempotencyKey"
+    FROM expired e
+    INNER JOIN "store_details" sd ON sd."id" = e."storeId"
+    INNER JOIN "seller_profiles" sp ON sp."id" = sd."sellerProfileId"
+    INNER JOIN "users" u ON u."id" = sp."userId"
+    WHERE u."notificationPreferences" ->> 'myPromotions' = 'true'
+), inserted AS (
+    INSERT INTO "notifications"
+        ("id", "idempotencyKey", "userId", "type", "title", "body", "data", "createdAt")
+    SELECT
+        'go_' || md5(random()::text || clock_timestamp()::text || r."idempotencyKey"),
+        r."idempotencyKey", r."userId", r."notificationType",
+        r."notificationTitle", r."notificationBody", r."notificationData", NOW()
+    FROM recipients r
+    ON CONFLICT ("idempotencyKey") DO NOTHING
+    RETURNING "id", "idempotencyKey", "userId", "type", "title", "body", "data"
+), dispatch AS (
+    INSERT INTO "notification_push_dispatches"
+        ("id", "notificationId", "userId", "payload", "idempotencyKey")
+    SELECT
+        'go_' || md5(random()::text || clock_timestamp()::text || n."id"),
+        n."id", n."userId",
+        jsonb_build_object(
+            'title', n."title", 'body', n."body",
+            'url', '/my-store?tab=promotions', 'tag', 'promotion-' || (n."data" ->> 'promotionId') || '-expired',
+            'type', n."type"::text
+        ),
+        'notification-push:' || n."id"
+    FROM inserted n
+    ON CONFLICT ("idempotencyKey") DO NOTHING
+    RETURNING "id"
+)
+SELECT e."id" AS "promotionId", inserted."id" AS "notificationId"
+FROM expired e
+LEFT JOIN inserted ON inserted."idempotencyKey" = 'promotion-expired-owner:' || e."id"
+ORDER BY e."id" ASC
+`;
+
+async function publishNotifications(notificationIds: string[]): Promise<void> {
+  await publishDurableNotifications(prisma, notificationIds, '[promotion-lifecycle]');
 }
 
-// STORE-FOLLOWER-NOTIFICATIONS (Foundation v1): deliberately independent
-// of resolveOwnerContext above — that one is filtered to only the
-// owner's own `myPromotions` opt-in, but a store follower's interest in
-// "this store started a new offer" has nothing to do with whether the
-// store *owner* has opted into their own lifecycle notifications, so
-// this can't reuse that query's product-name lookup.
-async function resolveProductName(productId: string): Promise<string | null> {
-  const product = await prisma.product.findUnique({
-    where: { id: productId },
-    select: { name: true },
-  });
-  return product?.name ?? null;
-}
+async function runFallbackPhase(
+  phase: 'started' | 'expiring' | 'expired',
+  query: string,
+  args: unknown[],
+  notificationIds: string[],
+): Promise<{ processed: number; batches: number; limitReached: boolean; busy: boolean }> {
+  const processedPromotions = new Set<string>();
+  let batches = 0;
+  let limitReached = false;
 
-async function notifyFollowers(promotion: Promotion, productName: string): Promise<void> {
-  const followers = await prisma.storeFollower.findMany({
-    where: { storeId: promotion.storeId },
-    select: { userId: true },
-  });
-  if (followers.length === 0) return;
-  const followerIds = followers.map(f => f.userId);
-  const title = 'عرض جديد';
-  const body = `عرض جديد على "${productName}": ${promotion.title}`;
-
-  // PUSH-AWAIT-CRON-01: awaited (unlike request-path producers) — this is
-  // a short-lived process that calls process.exit() when main() settles,
-  // so a fire-and-forget push (and its 1.5s retry) was killed mid-flight.
-  // Same push-then-createMany shape as
-  // notifications.service.ts's fanOutSameContentNotification — kept
-  // inline (raw PrismaClient, no notificationsRepository import) for
-  // the same standalone-process reasoning as every other write in this
-  // script.
-  await pushService
-    .notifyUsers(followerIds, {
-      title,
-      body,
-      url: `/stores/${promotion.storeId}`,
-      tag: `store-promotion-${promotion.id}`,
-      type: 'STORE_PROMOTION_STARTED',
-    })
-    .catch(error => reportBackgroundFailure('apps/api/src/scripts/myPromotionsExpiring.ts', error));
-
-  await prisma.notification.createMany({
-    data: followerIds.map(userId => ({
-      userId,
-      type: 'STORE_PROMOTION_STARTED',
-      title,
-      body,
-      data: {
-        storeId: promotion.storeId,
-        promotionId: promotion.id,
-        productId: promotion.productId,
-      },
-    })),
-  });
-}
-
-async function notify(
-  userId: string,
-  title: string,
-  body: string,
-  promotion: Promotion,
-  event: 'started' | 'expiring' | 'expired'
-): Promise<void> {
-  // Fire-and-forget push alongside the in-app write, same convention
-  // as every other producer in notifications.service.ts and
-  // weeklyAdViewsReport.ts — a push failure must never block or fail
-  // the in-app notification.
-  await pushService
-    .notifyUser(userId, {
-      title,
-      body,
-      url: '/my-store?tab=promotions',
-      tag: `promotion-${promotion.id}-${event}`,
-      type: 'PROMOTION_STATUS_CHANGE',
-    })
-    .catch(error => reportBackgroundFailure('apps/api/src/scripts/myPromotionsExpiring.ts', error));
-
-  await prisma.notification.create({
-    data: {
-      userId,
-      type: 'PROMOTION_STATUS_CHANGE',
-      title,
-      body,
-      data: {
-        promotionId: promotion.id,
-        productId: promotion.productId,
-        event,
-      },
-    },
-  });
-}
-
-async function processStarted(now: Date): Promise<number> {
-  const due = await prisma.promotion.findMany({
-    where: { status: 'SCHEDULED', startsAt: { lte: now } },
-  });
-  let sent = 0;
-  for (const promotion of due) {
-    try {
-      const owner = await resolveOwnerContext(promotion);
-      // Status advances regardless of whether the owner is opted in to
-      // notifications — the sweep's job (1) is independent of job (2).
-      await prisma.promotion.update({
-        where: { id: promotion.id },
-        data: { status: 'ACTIVE' },
-      });
-      if (owner) {
-        await notify(
-          owner.userId,
-          'بدأ عرضك',
-          `بدأ العرض "${promotion.title}" على "${owner.productName}"`,
-          promotion,
-          'started'
-        );
-        sent += 1;
-      }
-      // STORE-FOLLOWER-NOTIFICATIONS (Foundation v1): fan out to every
-      // follower of the store, independent of the owner block above —
-      // see resolveProductName's doc comment for why this can't reuse
-      // owner.productName (that lookup is gated on the owner's own
-      // opt-in, followers' interest isn't).
-      const productName = await resolveProductName(promotion.productId);
-      if (productName) {
-        await notifyFollowers(promotion, productName);
-      }
-    } catch (err) {
-      logger.error('[promotionLifecycle] failed processing started promotion', {
-        err,
-        promotionId: promotion.id,
-      });
+  for (let batchIndex = 0; batchIndex < MAX_BATCHES; batchIndex += 1) {
+    const batch = await runAdvisoryLockedBatch(
+      prisma,
+      PROMOTION_LIFECYCLE_LOCK_ID,
+      tx => tx.$queryRawUnsafe<PromotionBatchRow[]>(query, ...args),
+      { transactionTimeoutMs: 30_000 },
+    );
+    if (!batch.acquired) {
+      logger.info(`[promotion-lifecycle] Express fallback stopped; another runner owns the lock`, { phase, processed: processedPromotions.size });
+      return { processed: processedPromotions.size, batches, limitReached, busy: true };
     }
+
+    for (const row of batch.value) {
+      processedPromotions.add(row.promotionId);
+      if (row.notificationId) notificationIds.push(row.notificationId);
+    }
+    if (batch.value.length === 0) break;
+    batches += 1;
+    const currentBatchPromotions = new Set(batch.value.map(row => row.promotionId)).size;
+    if (currentBatchPromotions < BATCH_SIZE) break;
+    if (batchIndex === MAX_BATCHES - 1) limitReached = true;
   }
-  return sent;
+  return { processed: processedPromotions.size, batches, limitReached, busy: false };
 }
 
-async function processExpiring(now: Date): Promise<number> {
-  const threshold = new Date(now.getTime() + EXPIRY_WARNING_HOURS * 60 * 60 * 1000);
-  const due = await prisma.promotion.findMany({
-    where: {
-      status: 'ACTIVE',
-      endsAt: { gt: now, lte: threshold },
-      expiryWarnedAt: null,
-    },
-  });
-  let sent = 0;
-  for (const promotion of due) {
-    try {
-      const owner = await resolveOwnerContext(promotion);
-      if (owner) {
-        await notify(
-          owner.userId,
-          'عرضك سينتهي قريباً',
-          `سينتهي العرض "${promotion.title}" على "${owner.productName}" خلال ${EXPIRY_WARNING_HOURS} ساعة`,
-          promotion,
-          'expiring'
-        );
-        sent += 1;
-      }
-      // Marked regardless of opt-in — an owner who opts in later
-      // shouldn't get a stale warning for a window that's already
-      // half-elapsed; they'll still get the "expired" notification.
-      await prisma.promotion.update({
-        where: { id: promotion.id },
-        data: { expiryWarnedAt: now },
-      });
-    } catch (err) {
-      logger.error('[promotionLifecycle] failed processing expiring promotion', {
-        err,
-        promotionId: promotion.id,
-      });
-    }
-  }
-  return sent;
-}
+async function runExpressFallback(): Promise<'completed' | 'busy'> {
+  const now = new Date();
+  const warningCutoff = new Date(now.getTime() + WARNING_WINDOW_HOURS * 60 * 60 * 1_000);
+  const notificationIds: string[] = [];
 
-async function processExpired(now: Date): Promise<number> {
-  const due = await prisma.promotion.findMany({
-    where: { status: 'ACTIVE', endsAt: { lte: now } },
-  });
-  let sent = 0;
-  for (const promotion of due) {
-    try {
-      const owner = await resolveOwnerContext(promotion);
-      await prisma.promotion.update({
-        where: { id: promotion.id },
-        data: { status: 'EXPIRED' },
-      });
-      if (owner) {
-        await notify(
-          owner.userId,
-          'انتهى عرضك',
-          `انتهى العرض "${promotion.title}" على "${owner.productName}"`,
-          promotion,
-          'expired'
-        );
-        sent += 1;
-      }
-    } catch (err) {
-      logger.error('[promotionLifecycle] failed processing expired promotion', {
-        err,
-        promotionId: promotion.id,
-      });
-    }
+  const started = await runFallbackPhase('started', STARTED_BATCH_SQL, [now, BATCH_SIZE], notificationIds);
+  if (started.busy) {
+    await publishNotifications(notificationIds);
+    return 'busy';
   }
-  return sent;
+  const expiring = await runFallbackPhase('expiring', EXPIRING_BATCH_SQL, [now, warningCutoff, BATCH_SIZE], notificationIds);
+  if (expiring.busy) {
+    await publishNotifications(notificationIds);
+    return 'busy';
+  }
+  const expired = await runFallbackPhase('expired', EXPIRED_BATCH_SQL, [now, BATCH_SIZE], notificationIds);
+  await publishNotifications(notificationIds);
+  if (expired.busy) return 'busy';
+
+  const limitReached = started.limitReached || expiring.limitReached || expired.limitReached;
+  logger.info('[promotion-lifecycle] Express fallback completed', {
+    started: started.processed, expiring: expiring.processed, expired: expired.processed,
+    notified: notificationIds.length, startedBatches: started.batches,
+    expiringBatches: expiring.batches, expiredBatches: expired.batches,
+    limitReached, evaluatedAt: now.toISOString(), warningCutoff: warningCutoff.toISOString(),
+  });
+  return 'completed';
 }
 
 async function main(): Promise<void> {
-  const now = new Date();
-
-  const startedSent = await processStarted(now);
-  const expiringSent = await processExpiring(now);
-  const expiredSent = await processExpired(now);
-
-  logger.info(
-    `[promotionLifecycle] started=${startedSent} expiring=${expiringSent} expired=${expiredSent}`
-  );
+  await executeWithGoFallback<PromotionLifecycleResult>({
+    jobName: 'promotion-lifecycle',
+    path: '/internal/jobs/promotion-lifecycle',
+    body: {},
+    validateResult: isResult,
+    runExpressFallback,
+    onGoSuccess: async result => {
+      await publishNotifications(result.notificationIds);
+      if (result.limitReached) {
+        logger.warn('[promotion-lifecycle] reached a per-phase batch ceiling; remaining promotions will be picked up by the next 15-minute run', result);
+      }
+    },
+  });
 }
 
 main()
-  .catch(err => {
-    logger.error('[promotionLifecycle] run failed', err);
+  .catch(error => {
+    logger.error('[promotion-lifecycle] job failed', { error });
     process.exitCode = 1;
   })
   .finally(async () => {
-    await prisma.$disconnect();
-    // Same explicit-exit reasoning as weeklyAdViewsReport.ts — a
-    // cron-invoked script needs its exit code observed, not left to a
-    // possibly-hanging event loop.
-    process.exit(process.exitCode ?? 0);
+    await Promise.allSettled([
+      prisma.$disconnect(),
+      shutdownNotificationStream(),
+      redis.quit(),
+      ...(cacheRedis !== redis ? [cacheRedis.quit()] : []),
+    ]);
   });

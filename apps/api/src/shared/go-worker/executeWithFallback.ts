@@ -59,6 +59,8 @@ export interface ExecuteWithGoFallbackOptions<TResult> {
   /** Must use the same PostgreSQL advisory lock as the Go implementation. */
   runExpressFallback: () => Promise<'completed' | 'busy'>;
   timeoutMs?: number;
+  /** Runs only after a validated Go success; failures here never trigger a duplicate fallback. */
+  onGoSuccess?: (result: TResult) => void | Promise<void>;
 }
 
 /**
@@ -103,6 +105,18 @@ export async function executeWithGoFallback<TResult>(
         }
 
         if (options.validateResult(result)) {
+          // The remote job is already committed. A post-success hook (for
+          // example, cache invalidation) must never cause Express to rerun the
+          // write job if that hook fails.
+          if (options.onGoSuccess) {
+            try {
+              await options.onGoSuccess(result);
+            } catch (error) {
+              logger.error(`[${options.jobName}] post-success hook failed; Go job remains completed`, {
+                errorType: error instanceof Error ? error.name : 'unknown',
+              });
+            }
+          }
           logger.info(`[${options.jobName}] Go worker completed`, result);
           return 'go';
         }

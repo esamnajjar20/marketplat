@@ -415,6 +415,20 @@ export async function publishNotificationEventsToMany(
   );
 }
 
+/** Close the module-owned Redis subscriber when a short-lived maintenance
+ * process publishes its final event. Long-lived API workers do not call this. */
+export async function shutdownNotificationStream(): Promise<void> {
+  const current = subscriber;
+  subscriber = null;
+  redisReady = null;
+  if (!current) return;
+  try {
+    await current.quit();
+  } catch {
+    current.disconnect();
+  }
+}
+
 export async function publishNotificationEventToMany(
   userIds: string[],
   event: LiveStreamEvent
