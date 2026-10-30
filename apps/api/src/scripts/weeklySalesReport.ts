@@ -1,32 +1,29 @@
-import { prisma } from '../config/prisma';
-import { notificationsService } from '../modules/notifications/notifications.service';
-async function main() {
-  const end = new Date();
-  const start = new Date(end);
-  start.setDate(start.getDate() - 7);
-  const rows = await prisma.saleRecord.groupBy({
-    by: ['sellerId'],
-    where: { soldAt: { gte: start, lt: end } },
-    _count: { id: true },
-    _sum: { totalPrice: true, refundedAmount: true },
+import { PrismaClient } from '@prisma/client';
+import { logger } from '../shared/utils/logger';
+import { executeTransactionalJobWithGoFallback } from '../shared/go-worker/transactionalJobFallback';
+import { runSalesNotificationExpressFallback } from '../shared/go-worker/scheduledJobFallbacks';
+
+const prisma = new PrismaClient();
+const LOCK_ID = 731904293n;
+
+type Result = { job: 'weekly-report'; notificationsCreated: number; pushDispatchesCreated: number; evaluatedAt: string };
+const isResult = (value: unknown): value is Result => {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return row.job === 'weekly-report' && Number.isSafeInteger(row.notificationsCreated) &&
+    Number.isSafeInteger(row.pushDispatchesCreated) && typeof row.evaluatedAt === 'string' &&
+    Number.isFinite(Date.parse(row.evaluatedAt));
+};
+
+async function main(): Promise<void> {
+  await executeTransactionalJobWithGoFallback(prisma, {
+    jobName: 'weekly-sales-report', path: '/internal/jobs/weekly-sales-report', lockId: LOCK_ID,
+    validateResult: isResult,
+    runExpressFallback: tx => runSalesNotificationExpressFallback(tx, 'weekly-report'),
   });
-  const weekKey = new Date(end);
-  weekKey.setHours(0, 0, 0, 0);
-  for (const r of rows) {
-    const revenue = Number(r._sum.totalPrice ?? 0) - Number(r._sum.refundedAmount ?? 0);
-    await notificationsService.createSellerAlertOnce(
-      r.sellerId,
-      'weeklySalesReport',
-      'SALES_WEEKLY_REPORT',
-      'تقرير مبيعاتك الأسبوعي',
-      `سجلت ${r._count.id} مبيعة بإيرادات صافية ${revenue.toFixed(2)} ₪ خلال آخر 7 أيام.`,
-      weekKey
-    );
-  }
 }
-main()
-  .catch(e => {
-    console.error(e);
-    process.exitCode = 1;
-  })
-  .finally(async () => prisma.$disconnect());
+
+main().catch(error => {
+  logger.error('[weeklySalesReport] run failed', { error });
+  process.exitCode = 1;
+}).finally(async () => prisma.$disconnect());

@@ -1,113 +1,29 @@
-import { reportBackgroundFailure } from '../shared/utils/backgroundTask';
-/**
- * Weekly store-views report for store owners.
- * Cron example: 0 9 * * 1  npm run report:weekly-store-views
- *
- * Uses StoreDetails.views / viewsAtLastReport and opts in via the same
- * notificationPreferences.adViews key as weekly ad reports (sellers who
- * want view digests).
- */
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../shared/utils/logger';
-import { pushService } from '../shared/utils/pushService';
+import { executeTransactionalJobWithGoFallback } from '../shared/go-worker/transactionalJobFallback';
+import { runWeeklyViewsExpressFallback } from '../shared/go-worker/scheduledJobFallbacks';
 
 const prisma = new PrismaClient();
+const LOCK_ID = 731904287n;
 
-interface OwnerDelta {
-  userId: string;
-  totalDelta: number;
-  storeId: string;
-}
-
-async function findOwnerDeltas(): Promise<OwnerDelta[]> {
-  const rows = await prisma.$queryRaw<{ userId: string; totalDelta: bigint; storeId: string }[]>`
-    SELECT
-      sp."userId" AS "userId",
-      (s."views" - s."viewsAtLastReport") AS "totalDelta",
-      s."id" AS "storeId"
-    FROM "store_details" s
-    INNER JOIN "seller_profiles" sp ON sp."id" = s."sellerProfileId"
-    INNER JOIN "users" u ON u."id" = sp."userId"
-    WHERE s."status" = 'ACTIVE'
-      AND s."views" > s."viewsAtLastReport"
-      AND (u."notificationPreferences" ->> 'adViews') = 'true'
-  `;
-
-  return rows
-    .map(r => ({
-      userId: r.userId,
-      totalDelta: Number(r.totalDelta),
-      storeId: r.storeId,
-    }))
-    .filter(r => r.totalDelta > 0);
-}
-
-async function advanceBaseline(storeIds: string[]): Promise<void> {
-  if (storeIds.length === 0) return;
-  await prisma.$executeRaw`
-    UPDATE "store_details"
-    SET "viewsAtLastReport" = "views"
-    WHERE "id" = ANY(${storeIds})
-  `;
-}
+type Result = { kind: 'stores'; notificationsCreated: number; baselinesAdvanced: number; ownersConsidered: number; runKey: string };
+const isResult = (value: unknown): value is Result => {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return row.kind === 'stores' && Number.isSafeInteger(row.notificationsCreated) &&
+    Number.isSafeInteger(row.baselinesAdvanced) && Number.isSafeInteger(row.ownersConsidered) &&
+    typeof row.runKey === 'string';
+};
 
 async function main(): Promise<void> {
-  const deltas = await findOwnerDeltas();
-
-  if (deltas.length === 0) {
-    logger.info('[weeklyStoreViewsReport] nothing to report');
-    return;
-  }
-
-  let sent = 0;
-  for (const { userId, totalDelta, storeId } of deltas) {
-    const title = 'تقرير مشاهدات متجرك الأسبوعي';
-    const body =
-      totalDelta === 1
-        ? 'حصل متجرك على مشاهدة جديدة هذا الأسبوع'
-        : `حصل متجرك على ${totalDelta} مشاهدة جديدة هذا الأسبوع`;
-
-    try {
-      await pushService
-        .notifyUser(userId, {
-          title,
-          body,
-          url: '/my-store?tab=analytics',
-          tag: 'weekly-store-views-report',
-          type: 'WEEKLY_STORE_VIEWS_REPORT',
-        })
-        .catch(error =>
-          reportBackgroundFailure('apps/api/src/scripts/weeklyStoreViewsReport.ts', error)
-        );
-
-      await prisma.notification.create({
-        data: {
-          userId,
-          type: 'WEEKLY_STORE_VIEWS_REPORT',
-          title,
-          body,
-          data: { totalDelta, storeId },
-        },
-      });
-      await advanceBaseline([storeId]);
-      sent += 1;
-    } catch (err) {
-      logger.error('[weeklyStoreViewsReport] failed to send report', {
-        err,
-        userId,
-      });
-    }
-  }
-
-  logger.info(`[weeklyStoreViewsReport] sent ${sent}/${deltas.length} report(s)`);
+  await executeTransactionalJobWithGoFallback(prisma, {
+    jobName: 'weekly-store-views', path: '/internal/jobs/weekly-store-views', lockId: LOCK_ID,
+    validateResult: isResult,
+    runExpressFallback: tx => runWeeklyViewsExpressFallback(tx, 'stores'),
+  });
 }
 
-main()
-  .catch(err => {
-    logger.error('[weeklyStoreViewsReport] run failed', err);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-    process.exit(process.exitCode ?? 0);
-  });
+main().catch(error => {
+  logger.error('[weeklyStoreViewsReport] run failed', { error });
+  process.exitCode = 1;
+}).finally(async () => prisma.$disconnect());

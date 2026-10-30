@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/prisma';
 import { auditLog } from '../../shared/utils/auditLog';
 import { adminService } from './admin.service';
+import { streamCsvWithGoFallback } from '../../shared/go-worker/streamCsvWithFallback';
 import { notificationsService } from '../notifications';
 import { successResponse } from '../../shared/types/api-response.types';
 import { runBulk } from '../../shared/utils/bulkRunner';
@@ -322,10 +323,13 @@ export const adminController = {
 
   exportUsersCsv: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const csv = await adminService.exportUsersCsv();
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', 'attachment; filename="users.csv"');
-      res.status(200).send(csv);
+      await streamCsvWithGoFallback({
+        jobName: 'admin-users-csv',
+        path: '/internal/exports/users.csv',
+        filename: 'users.csv',
+        response: res,
+        runExpressFallback: () => adminService.exportUsersCsv(),
+      });
     } catch (error) {
       next(error);
     }
@@ -333,10 +337,13 @@ export const adminController = {
 
   exportReportsCsv: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const csv = await adminService.exportReportsCsv();
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', 'attachment; filename="reports.csv"');
-      res.status(200).send(csv);
+      await streamCsvWithGoFallback({
+        jobName: 'admin-reports-csv',
+        path: '/internal/exports/reports.csv',
+        filename: 'reports.csv',
+        response: res,
+        runExpressFallback: () => adminService.exportReportsCsv(),
+      });
     } catch (error) {
       next(error);
     }

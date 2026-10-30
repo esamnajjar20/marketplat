@@ -3,6 +3,7 @@ import { redis } from '../../config/redis';
 import { prisma } from '../../config/prisma';
 import { logger } from './logger';
 import { env } from '../../config/env';
+import { executeWithGoFallback, runAdvisoryLockedBatch, type GoWorkerOutcome } from '../go-worker/executeWithFallback';
 
 const VIEWS_PREFIX = 'views_buffer:';
 const FLUSH_INTERVAL = 60_000; // flush to DB every 60 seconds
@@ -16,6 +17,44 @@ const FLUSH_INTERVAL = 60_000; // flush to DB every 60 seconds
 const VIEWS_BUFFER_TTL_SECONDS = 24 * 60 * 60;
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 let flushInFlight: Promise<void> | null = null;
+let workerFlushInFlight: Promise<GoWorkerOutcome> | null = null;
+const VIEWS_BUFFER_LOCK_ID = 731904295n;
+
+function isViewsFlushResult(value: unknown): value is { keysScanned: number; adsUpdated: number; viewsApplied: number; keysRestored: number } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const result = value as Record<string, unknown>;
+  return ['keysScanned', 'adsUpdated', 'viewsApplied', 'keysRestored'].every(key =>
+    typeof result[key] === 'number' && Number.isFinite(result[key])
+  );
+}
+
+async function flushUsingWorker(): Promise<GoWorkerOutcome> {
+  if (workerFlushInFlight) return workerFlushInFlight;
+  const task = (async () => {
+    return executeWithGoFallback({
+      jobName: 'views-buffer-flush',
+      path: '/internal/jobs/views-buffer-flush',
+      body: {},
+      validateResult: isViewsFlushResult,
+      timeoutMs: 8_000,
+      runExpressFallback: async () => {
+        const outcome = await runAdvisoryLockedBatch(
+          prisma,
+          VIEWS_BUFFER_LOCK_ID,
+          async () => viewsBuffer.flush(),
+          { maxWaitMs: 2_000, transactionTimeoutMs: 95_000 }
+        );
+        return outcome.acquired ? 'completed' : 'busy';
+      },
+    });
+  })();
+  workerFlushInFlight = task;
+  try {
+    return await task;
+  } finally {
+    if (workerFlushInFlight === task) workerFlushInFlight = null;
+  }
+}
 const MAX_KEYS_PER_FLUSH_BATCH = 100;
 const MAX_CONCURRENT_DB_UPDATES = 20;
 
@@ -197,8 +236,7 @@ export const viewsBuffer = {
   startFlushTimer: (): void => {
     if (flushTimer) return;
     flushTimer = setInterval(() => {
-      viewsBuffer
-        .flush()
+      flushUsingWorker()
         .catch(error => reportBackgroundFailure('apps/api/src/shared/utils/viewsBuffer.ts', error));
     }, FLUSH_INTERVAL);
     flushTimer.unref(); // don't keep process alive
@@ -210,8 +248,8 @@ export const viewsBuffer = {
       clearInterval(flushTimer);
       flushTimer = null;
     }
-    // Final flush on shutdown
-    await viewsBuffer.flush();
+    // Final flush on shutdown still uses the same Go-first / Express fallback path.
+    await flushUsingWorker();
   },
 };
 

@@ -1,35 +1,29 @@
-import { prisma } from '../config/prisma';
-import { notificationsService } from '../modules/notifications/notifications.service';
+import { PrismaClient } from '@prisma/client';
+import { logger } from '../shared/utils/logger';
+import { executeTransactionalJobWithGoFallback } from '../shared/go-worker/transactionalJobFallback';
+import { runSalesNotificationExpressFallback } from '../shared/go-worker/scheduledJobFallbacks';
 
-async function main() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  const sellers = await prisma.user.findMany({
-    where: { isActive: true, sellerProfile: { isNot: null } },
-    select: { id: true },
+const prisma = new PrismaClient();
+const LOCK_ID = 731904290n;
+
+type Result = { job: 'daily-reminder'; notificationsCreated: number; pushDispatchesCreated: number; evaluatedAt: string };
+const isResult = (value: unknown): value is Result => {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return row.job === 'daily-reminder' && Number.isSafeInteger(row.notificationsCreated) &&
+    Number.isSafeInteger(row.pushDispatchesCreated) && typeof row.evaluatedAt === 'string' &&
+    Number.isFinite(Date.parse(row.evaluatedAt));
+};
+
+async function main(): Promise<void> {
+  await executeTransactionalJobWithGoFallback(prisma, {
+    jobName: 'sales-daily-reminder', path: '/internal/jobs/sales-daily-reminder', lockId: LOCK_ID,
+    validateResult: isResult,
+    runExpressFallback: tx => runSalesNotificationExpressFallback(tx, 'daily-reminder'),
   });
-  const existingToday = await prisma.saleRecord.findMany({
-    where: { soldAt: { gte: start, lt: end } },
-    distinct: ['sellerId'],
-    select: { sellerId: true },
-  });
-  const active = new Set(existingToday.map(x => x.sellerId));
-  for (const seller of sellers)
-    if (!active.has(seller.id))
-      await notificationsService.createSellerAlertOnce(
-        seller.id,
-        'salesAlerts',
-        'SALES_DAILY_REMINDER',
-        'لم تسجّل مبيعات اليوم',
-        'لم تسجّل مبيعة اليوم. هل تريد تسجيل عملية بيع الآن؟',
-        start
-      );
 }
-main()
-  .catch(e => {
-    console.error(e);
-    process.exitCode = 1;
-  })
-  .finally(async () => prisma.$disconnect());
+
+main().catch(error => {
+  logger.error('[dailySalesReminder] run failed', { error });
+  process.exitCode = 1;
+}).finally(async () => prisma.$disconnect());

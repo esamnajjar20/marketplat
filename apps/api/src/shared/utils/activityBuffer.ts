@@ -4,6 +4,7 @@ import { prisma } from '../../config/prisma';
 import { logger } from './logger';
 import crypto from 'crypto';
 import type { CreateActivityInput } from '../../modules/activity/activity.repository';
+import { executeWithGoFallback, runAdvisoryLockedBatch, type GoWorkerOutcome } from '../go-worker/executeWithFallback';
 
 // activityService.record() used to call
 // activityRepository.create() directly — one INSERT per user action
@@ -56,6 +57,44 @@ const MAX_DRAIN_ITERATIONS = 100;
 
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 let flushInFlight: Promise<void> | null = null;
+let workerFlushInFlight: Promise<GoWorkerOutcome> | null = null;
+const ACTIVITY_BUFFER_LOCK_ID = 731904294n;
+
+function isActivityFlushResult(value: unknown): value is { popped: number; inserted: number; invalid: number; requeued: number } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const result = value as Record<string, unknown>;
+  return ['popped', 'inserted', 'invalid', 'requeued'].every(key =>
+    typeof result[key] === 'number' && Number.isFinite(result[key])
+  );
+}
+
+async function flushUsingWorker(): Promise<GoWorkerOutcome> {
+  if (workerFlushInFlight) return workerFlushInFlight;
+  const task = (async () => {
+    return executeWithGoFallback({
+      jobName: 'activity-buffer-flush',
+      path: '/internal/jobs/activity-buffer-flush',
+      body: {},
+      validateResult: isActivityFlushResult,
+      timeoutMs: 8_000,
+      runExpressFallback: async () => {
+        const outcome = await runAdvisoryLockedBatch(
+          prisma,
+          ACTIVITY_BUFFER_LOCK_ID,
+          async () => activityBuffer.flush(),
+          { maxWaitMs: 2_000, transactionTimeoutMs: 95_000 }
+        );
+        return outcome.acquired ? 'completed' : 'busy';
+      },
+    });
+  })();
+  workerFlushInFlight = task;
+  try {
+    return await task;
+  } finally {
+    if (workerFlushInFlight === task) workerFlushInFlight = null;
+  }
+}
 
 export const activityBuffer = {
   /**
@@ -214,8 +253,7 @@ export const activityBuffer = {
   startFlushTimer: (): void => {
     if (flushTimer) return;
     flushTimer = setInterval(() => {
-      activityBuffer
-        .flush()
+      flushUsingWorker()
         .catch(error =>
           reportBackgroundFailure('apps/api/src/shared/utils/activityBuffer.ts', error)
         );
@@ -238,7 +276,8 @@ export const activityBuffer = {
     let remaining = await redis.llen(BUFFER_KEY).catch(() => 0);
     let iterations = 0;
     while (remaining > 0 && iterations < MAX_DRAIN_ITERATIONS) {
-      await activityBuffer.flush();
+      const outcome = await flushUsingWorker();
+      if (outcome === 'busy') break;
       remaining = await redis.llen(BUFFER_KEY).catch(() => 0);
       iterations++;
     }

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { salesService } from './sales.service';
 import { salesAutomationService } from './salesAutomation.service';
 import { salesInsightsService } from './salesInsights.service';
+import { requestJsonWithGoFallback } from '../../shared/go-worker/requestJsonWithFallback';
 import {
   createSaleSchema,
   updateSaleSchema,
@@ -290,9 +291,66 @@ export const salesController = {
   smartInsights: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = requireUser(req);
-      res.json(
-        successResponse('Sales smart insights fetched', await salesInsightsService.get(user.userId))
-      );
+      type SalesInsightsResult = Awaited<ReturnType<typeof salesInsightsService.get>>;
+      const isSalesInsightsResult = (value: unknown): value is SalesInsightsResult => {
+        if (!value || typeof value !== 'object') return false;
+        const result = value as Record<string, unknown>;
+        const kpis = result.kpis as Record<string, unknown> | undefined;
+        const forecast = result.forecast as Record<string, unknown> | undefined;
+        const isNumber = (candidate: unknown): candidate is number =>
+          typeof candidate === 'number' && Number.isFinite(candidate);
+        return (
+          typeof result.generatedAt === 'string' && Number.isFinite(Date.parse(result.generatedAt)) &&
+          result.periodDays === 30 &&
+          Boolean(kpis) &&
+          isNumber(kpis?.revenue) &&
+          isNumber(kpis?.previousRevenue) &&
+          isNumber(kpis?.revenueChange) &&
+          isNumber(kpis?.orders) &&
+          isNumber(kpis?.averageTicket) &&
+          isNumber(kpis?.overdueAmount) &&
+          isNumber(kpis?.lowStockProducts) &&
+          Boolean(forecast) &&
+          isNumber(forecast?.next30DaysRevenue) &&
+          forecast?.method === '30-day run-rate adjusted by 7-day trend' &&
+          Array.isArray(result.topProducts) &&
+          result.topProducts.every(item => {
+            if (!item || typeof item !== 'object') return false;
+            const product = item as Record<string, unknown>;
+            return (
+              typeof product.title === 'string' &&
+              isNumber(product.revenue) &&
+              isNumber(product.cost) &&
+              isNumber(product.quantity) &&
+              isNumber(product.profit) &&
+              isNumber(product.margin)
+            );
+          }) &&
+          Array.isArray(result.insights) &&
+          result.insights.every(item => {
+            if (!item || typeof item !== 'object') return false;
+            const insight = item as Record<string, unknown>;
+            return (
+              typeof insight.id === 'string' &&
+              typeof insight.severity === 'string' &&
+              typeof insight.category === 'string' &&
+              typeof insight.title === 'string' &&
+              typeof insight.body === 'string' &&
+              isNumber(insight.metric) &&
+              typeof insight.unit === 'string'
+            );
+          })
+        );
+      };
+      const insights = await requestJsonWithGoFallback<SalesInsightsResult>({
+        jobName: 'sales-smart-insights',
+        path: '/internal/reports/sales-insights',
+        body: { userId: user.userId },
+        validateResult: isSalesInsightsResult,
+        timeoutMs: 2_500,
+        runExpressFallback: () => salesInsightsService.get(user.userId),
+      });
+      res.json(successResponse('Sales smart insights fetched', insights));
     } catch (e) {
       next(e);
     }

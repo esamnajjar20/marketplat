@@ -8,6 +8,8 @@ name: Scheduled Jobs (daily)
 # 04:00 UTC = 06:00 or 07:00 Gaza depending on DST — a quiet hour with
 # low traffic so the runner never competes with user requests.
 on:
+  schedule:
+    - cron: '0 4 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -17,7 +19,8 @@ concurrency:
 jobs:
   run-due-jobs:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Jobs execute sequentially and can fall back to bounded Express batches.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
@@ -47,3 +50,5 @@ jobs:
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
           REDIS_URL: ${{ secrets.REDIS_URL }}
           ANALYTICS_RETENTION_DAYS: '90'
+          GO_WORKER_URL: ${{ secrets.GO_WORKER_URL }}
+          GO_WORKER_TOKEN: ${{ secrets.GO_WORKER_TOKEN }}

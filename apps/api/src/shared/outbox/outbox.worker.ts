@@ -201,9 +201,169 @@ function preferenceAllowsSavedSearch(value: unknown): boolean {
     : true;
 }
 
+
+interface GoOutboxNotification {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  body: string;
+  data: unknown;
+}
+
+interface GoOutboxResult {
+  eventId: string;
+  eventType: string;
+  processed: true;
+  created: GoOutboxNotification[];
+}
+
+function isGoOutboxNotification(value: unknown): value is GoOutboxNotification {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  return typeof row.id === 'string' && typeof row.userId === 'string' &&
+    typeof row.type === 'string' && typeof row.title === 'string' &&
+    typeof row.body === 'string' &&
+    (row.data === null || (typeof row.data === 'object' && !Array.isArray(row.data)));
+}
+
+function isGoOutboxResult(value: unknown, event: OutboxEvent): value is GoOutboxResult {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  return row.eventId === event.id && row.eventType === event.eventType && row.processed === true &&
+    Array.isArray(row.created) && row.created.every(isGoOutboxNotification);
+}
+
+/**
+ * A Go call can time out after the remote transaction has begun. Both Go and
+ * this fallback acquire the same transaction-scoped event lock, so Express
+ * never races a still-running Go transaction when deciding to fall back.
+ */
+async function tryAcquireOutboxExecutionLock(
+  tx: Prisma.TransactionClient,
+  eventId: string
+): Promise<boolean> {
+  const rows = await tx.$queryRaw<Array<{ locked: boolean }>>`
+    SELECT pg_try_advisory_xact_lock(
+      hashtextextended(${'marketplat-outbox:' + eventId}, 0)
+    ) AS locked
+  `;
+  return rows[0]?.locked === true;
+}
+
+/**
+ * Ask Go to perform the transactional database part of selected outbox events.
+ * Express retains the lease heartbeat and all post-commit Redis/SSE/provider
+ * work. When the Go response is ambiguous, inspect the durable event row before
+ * deciding whether the existing Express processor should run.
+ */
+async function tryExecuteOutboxEventInGo(
+  event: OutboxEvent,
+  workerId: string
+): Promise<GoOutboxResult | null> {
+  const baseUrl = process.env.GO_WORKER_URL?.trim().replace(/\/+$/, '');
+  const token = process.env.GO_WORKER_TOKEN?.trim();
+  if (!baseUrl || !token) return null;
+
+  try {
+    const response = await fetch(`${baseUrl}/internal/outbox/execute-event`, {
+      method: 'POST',
+      redirect: 'error',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ eventId: event.id, workerId }),
+      signal: AbortSignal.timeout(95_000),
+    });
+
+    if (response.ok) {
+      const result: unknown = await response.json().catch(() => undefined);
+      if (isGoOutboxResult(result, event)) return result;
+      logger.warn('Go outbox processor returned an invalid success payload; checking durable event state', {
+        eventId: event.id,
+        eventType: event.eventType,
+      });
+    } else {
+      logger.warn('Go outbox processor failed; checking durable event state before Express fallback', {
+        eventId: event.id,
+        eventType: event.eventType,
+        status: response.status,
+      });
+    }
+  } catch (error) {
+    logger.warn('Go outbox processor unavailable; checking durable event state before Express fallback', {
+      eventId: event.id,
+      eventType: event.eventType,
+      errorType: error instanceof Error ? error.name : 'unknown',
+    });
+  }
+
+  const state = await prisma.outboxEvent.findUnique({
+    where: { id: event.id },
+    select: { processedAt: true, lockedBy: true },
+  });
+  if (!state) throw new Error(`Outbox event ${event.id} disappeared while processing`);
+  if (state.processedAt) {
+    const created = event.eventType === 'USER_ACTIVITY_RECORD'
+      ? []
+      : await prisma.notification.findMany({
+          where: { idempotencyKey: { startsWith: `outbox:${event.id}:` } },
+          select: { id: true, userId: true, type: true, title: true, body: true, data: true },
+        });
+    return {
+      eventId: event.id,
+      eventType: event.eventType,
+      processed: true,
+      created: created.map(row => ({ ...row, data: row.data })),
+    };
+  }
+  if (state.lockedBy !== workerId) {
+    throw new Error(`Outbox event ${event.id} lease is no longer owned by this worker`);
+  }
+  return null;
+}
+
+async function publishOutboxNotifications(
+  created: GoOutboxNotification[],
+  eventId: string,
+  label: string
+): Promise<void> {
+  if (created.length === 0) return;
+  const recipientIds = Array.from(new Set(created.map(row => row.userId)));
+  await invalidateUnreadCachesBestEffort(recipientIds, eventId);
+  try {
+    void publishNotificationEventsToMany(
+      created.map(row => ({
+        userId: row.userId,
+        event: {
+          type: 'notification' as const,
+          action: 'created' as const,
+          notificationId: row.id,
+          notificationType: row.type as NotificationType,
+          title: row.title,
+          body: row.body,
+          data: asLiveData(row.data),
+        },
+      }))
+    ).catch(error => logger.warn(`${label} outbox SSE publish failed after durable commit`, {
+      eventId,
+      error,
+    }));
+  } catch (error) {
+    logger.warn(`${label} outbox SSE publish failed after durable commit`, { eventId, error });
+  }
+}
+
 async function processSavedSearchMatchEvent(event: OutboxEvent, workerId: string): Promise<void> {
   const payload = parseSavedSearchMatchPayload(event.payload);
+  const goResult = await tryExecuteOutboxEventInGo(event, workerId);
+  if (goResult) {
+    await publishOutboxNotifications(goResult.created, event.id, 'Saved-search');
+    return;
+  }
   const created = await prisma.$transaction(async tx => {
+    if (!(await tryAcquireOutboxExecutionLock(tx, event.id))) return [];
     const userIds = Array.from(new Set(payload.matches.map(match => match.userId)));
     const users = userIds.length
       ? await tx.user.findMany({
@@ -273,39 +433,11 @@ async function processSavedSearchMatchEvent(event: OutboxEvent, workerId: string
     return inserted;
   });
 
-  if (!created.length) return;
-  const recipientIds = Array.from(new Set(created.map(row => row.userId)));
-  await invalidateUnreadCachesBestEffort(recipientIds, event.id);
-  try {
-    void publishNotificationEventsToMany(
-      created.map(row => ({
-        userId: row.userId,
-        event: {
-          type: 'notification' as const,
-          action: 'created' as const,
-          notificationId: row.id,
-          notificationType: row.type,
-          title: row.title,
-          body: row.body,
-          data: asLiveData(row.data),
-        },
-      }))
-    ).catch(error =>
-      logger.warn('Saved-search outbox SSE publish failed after durable commit', {
-        eventId: event.id,
-        error,
-      })
-    );
-  } catch (error) {
-    logger.warn('Saved-search outbox SSE publish failed after durable commit', {
-      eventId: event.id,
-      error,
-    });
-  }
-  // Push handoff is written to notification_push_dispatches in the same transaction
-  // as the durable notification rows and source-event acknowledgement. The dedicated
-  // dispatcher below resumes after process crashes; SSE remains best-effort because
-  // the durable notification API is the source of truth for reconnect/resync.
+  await publishOutboxNotifications(
+    created.map(row => ({ ...row, data: row.data })),
+    event.id,
+    'Saved-search'
+  );
 }
 
 /**
@@ -329,8 +461,19 @@ async function withLeaseHeartbeat<T>(
       WHERE "id" = ${event.id} AND "lockedBy" = ${workerId} AND "processedAt" IS NULL
       RETURNING "id"
     `
-      .then(rows => {
+      .then(async rows => {
         if (rows.length !== 1) {
+          // A delegated Go transaction may have committed the acknowledgement
+          // just before this heartbeat reached PostgreSQL. That is completion,
+          // not a stolen lease, so avoid a false-positive ownership warning.
+          const state = await prisma.outboxEvent.findUnique({
+            where: { id: event.id },
+            select: { processedAt: true },
+          });
+          if (state?.processedAt) {
+            clearInterval(timer);
+            return;
+          }
           logger.warn('Outbox lease heartbeat found that event ownership was lost', {
             eventId: event.id,
             eventType: event.eventType,
@@ -384,7 +527,10 @@ async function claimBatch(workerId: string): Promise<OutboxEvent[]> {
 
 async function processActivityEvent(event: OutboxEvent, workerId: string): Promise<void> {
   const payload = parseActivityPayload(event.payload);
+  const goResult = await tryExecuteOutboxEventInGo(event, workerId);
+  if (goResult) return;
   await prisma.$transaction(async tx => {
+    if (!(await tryAcquireOutboxExecutionLock(tx, event.id))) return;
     await tx.userActivity.createMany({
       data: [
         {
@@ -426,7 +572,13 @@ function asLiveData(value: unknown): Record<string, unknown> | null {
 
 async function processFollowedActivityEvent(event: OutboxEvent, workerId: string): Promise<void> {
   const payload = parseFollowedActivityPayload(event.payload);
+  const goResult = await tryExecuteOutboxEventInGo(event, workerId);
+  if (goResult) {
+    await publishOutboxNotifications(goResult.created, event.id, 'Followed-activity');
+    return;
+  }
   const created = await prisma.$transaction(async tx => {
+    if (!(await tryAcquireOutboxExecutionLock(tx, event.id))) return [];
     const targetConditions = payload.targets.map(target => ({
       targetType: target.targetType,
       targetId: target.targetId,
@@ -488,37 +640,11 @@ async function processFollowedActivityEvent(event: OutboxEvent, workerId: string
     return inserted;
   });
 
-  if (!created.length) return;
-  const recipientIds = Array.from(new Set(created.map(row => row.userId)));
-  // Cache invalidation is best-effort and must not short-circuit post-commit SSE/push.
-  await invalidateUnreadCachesBestEffort(recipientIds, event.id);
-  try {
-    void publishNotificationEventsToMany(
-      created.map(row => ({
-        userId: row.userId,
-        event: {
-          type: 'notification' as const,
-          action: 'created' as const,
-          notificationId: row.id,
-          notificationType: row.type,
-          title: row.title,
-          body: row.body,
-          data: asLiveData(row.data),
-        },
-      }))
-    ).catch(error =>
-      logger.warn('Outbox notification SSE publish failed after durable commit', {
-        eventId: event.id,
-        error,
-      })
-    );
-  } catch (error) {
-    logger.warn('Outbox notification SSE publish failed after durable commit', {
-      eventId: event.id,
-      error,
-    });
-  }
-  // Push dispatch intents were committed atomically with notification rows above.
+  await publishOutboxNotifications(
+    created.map(row => ({ ...row, data: row.data })),
+    event.id,
+    'Followed-activity'
+  );
 }
 
 interface NotificationPushDispatchRow {
@@ -1282,6 +1408,9 @@ async function processCacheGenerationBumpEvent(
   event: OutboxEvent,
   workerId: string
 ): Promise<void> {
+  const goResult = await tryExecuteOutboxEventInGo(event, workerId);
+  if (goResult) return;
+
   const payload = event.payload;
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     throw new Error('Cache-generation outbox payload must be an object');
@@ -1308,24 +1437,30 @@ async function processCacheGenerationBumpEvent(
   // then all required sibling sources, and only then dependent caches. This is
   // important when a single mutation hides multiple namespaces: no event may
   // invalidate the homepage while a sibling namespace can still be stale.
-  const succeeded = await bumpGeneration(genKey, { persistRetry: false });
-  if (!succeeded) throw new Error(`Redis generation bump failed for ${genKey}`);
-  for (const requiredGenKey of (requiredValue as string[] | undefined) ?? []) {
-    const requiredSucceeded = await bumpGeneration(requiredGenKey, { persistRetry: false });
-    if (!requiredSucceeded)
-      throw new Error(`Redis required generation bump failed for ${requiredGenKey}`);
-  }
-  for (const dependentGenKey of (dependentValue as string[] | undefined) ?? []) {
-    const dependentSucceeded = await bumpGeneration(dependentGenKey, { persistRetry: false });
-    if (!dependentSucceeded)
-      throw new Error(`Redis dependent generation bump failed for ${dependentGenKey}`);
-  }
-  const acknowledged = await prisma.outboxEvent.updateMany({
-    where: { id: event.id, lockedBy: workerId, processedAt: null },
-    data: { processedAt: new Date(), lockedAt: null, lockedBy: null, lastError: null },
+  await prisma.$transaction(async tx => {
+    if (!(await tryAcquireOutboxExecutionLock(tx, event.id))) return;
+    // The transaction lock is shared with Go. It is held while cache keys are
+    // invalidated and the durable event is acknowledged, so an ambiguous HTTP
+    // timeout cannot cause the two implementations to run this event together.
+    const succeeded = await bumpGeneration(genKey, { persistRetry: false });
+    if (!succeeded) throw new Error(`Redis generation bump failed for ${genKey}`);
+    for (const requiredGenKey of (requiredValue as string[] | undefined) ?? []) {
+      const requiredSucceeded = await bumpGeneration(requiredGenKey, { persistRetry: false });
+      if (!requiredSucceeded)
+        throw new Error(`Redis required generation bump failed for ${requiredGenKey}`);
+    }
+    for (const dependentGenKey of (dependentValue as string[] | undefined) ?? []) {
+      const dependentSucceeded = await bumpGeneration(dependentGenKey, { persistRetry: false });
+      if (!dependentSucceeded)
+        throw new Error(`Redis dependent generation bump failed for ${dependentGenKey}`);
+    }
+    const acknowledged = await tx.outboxEvent.updateMany({
+      where: { id: event.id, lockedBy: workerId, processedAt: null },
+      data: { processedAt: new Date(), lockedAt: null, lockedBy: null, lastError: null },
+    });
+    if (acknowledged.count !== 1)
+      throw new Error('Outbox lease lost before cache-generation acknowledgement');
   });
-  if (acknowledged.count !== 1)
-    throw new Error('Outbox lease lost before cache-generation acknowledgement');
 }
 
 export async function processOutboxBatch(

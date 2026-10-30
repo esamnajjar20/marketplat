@@ -45,6 +45,9 @@ export const salesInsightsService = {
         }),
         prisma.saleItem.findMany({
           where: { sale: { sellerId: userId, soldAt: { gte: start30 } } },
+          // Keep the 5,000-row cap deterministic and aligned with the Go SQL
+          // report path so failover does not change which sale items are sampled.
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
           select: {
             productId: true,
             title: true,
