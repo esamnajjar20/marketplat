@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 import { assertLegacyDataPreserved, type SqliteMigrationDatabase } from '@/storage/sqlite-migration-integrity';
+import * as Crypto from 'expo-crypto';
 
 /** All account/private queues and the public cache share one encrypted native database. */
 export const ENCRYPTED_DATABASE_NAME = 'marketplat-private-v2.db';
@@ -30,11 +31,7 @@ async function databaseExists(name: string): Promise<boolean> {
 }
 
 function createRandomKeyHex(): string {
-  const cryptoApi = globalThis.crypto;
-  if (!cryptoApi?.getRandomValues) {
-    throw new Error('لا يمكن إنشاء مفتاح تشفير آمن على هذا الجهاز؛ لم يتم فتح قاعدة البيانات.');
-  }
-  const bytes = cryptoApi.getRandomValues(new Uint8Array(32));
+  const bytes = Crypto.getRandomBytes(32);
   return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
