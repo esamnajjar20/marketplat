@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchServiceRequest, respondToServiceRequest, type ServiceRequest } from '@/features/services/services.api';
@@ -70,7 +71,7 @@ export default function ServiceRequestDetailScreen() {
 
   const actionButton = (label: string, action: Action, tone: 'primary' | 'secondary' | 'danger' = 'primary', confirmation?: string) => <Pressable key={action} accessibilityRole="button" disabled={!!busy} onPress={() => Alert.alert(label, confirmation || `هل تريد تنفيذ «${label}»؟`, [{ text: 'إلغاء', style: 'cancel' }, { text: 'متابعة', style: tone === 'danger' ? 'destructive' : 'default', onPress: () => void runAction(action) }])} style={[s.action, tone === 'secondary' && s.secondary, tone === 'danger' && s.danger, busy && s.disabled]}><Text style={[s.actionText, tone === 'secondary' && s.secondaryText, tone === 'danger' && s.dangerText]}>{busy === action ? 'جارٍ التحديث…' : label}</Text></Pressable>;
 
-  return <SafeAreaView style={s.safe} edges={['top']}>
+  return <SafeAreaView style={s.safe} edges={['top'] as const}>
     <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel="رجوع" onPress={() => router.back()} style={s.back}><Text style={s.backText}>→</Text></Pressable><Text style={s.headerTitle}>تفاصيل طلب الخدمة</Text><Pressable accessibilityRole="button" onPress={() => void load(true)} style={s.refresh}><Text style={s.refreshText}>{refreshing ? '…' : 'تحديث'}</Text></Pressable></View>
     {loading ? <View style={s.state}><Text style={s.muted}>جارٍ تحميل تفاصيل الطلب…</Text></View> : error ? <View style={s.state}><Text style={s.error}>{error}</Text><Pressable style={s.action} onPress={() => !accessToken ? router.push('/login') : void load()}><Text style={s.actionText}>{accessToken ? 'إعادة المحاولة' : 'تسجيل الدخول'}</Text></Pressable></View> : request ? <ScrollView contentContainerStyle={s.content}>
       <View style={s.card}>

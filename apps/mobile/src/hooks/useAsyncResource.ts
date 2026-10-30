@@ -76,7 +76,6 @@ export function useAsyncResource<T>(
     if (manual) return;
     void reload();
     // key يُعيد التشغيل عند تغيّر الاعتماديات الخارجية
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, manual]);
 
   return { data, loading, refreshing, error, reload, setData };

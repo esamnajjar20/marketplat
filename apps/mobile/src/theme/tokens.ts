@@ -6,34 +6,37 @@
 
 export const colors = {
   // نص — متوافق مع هوية الويب (سوق غزة)
-  ink: '#241E18',
+  ink: '#241E19',
   muted: '#6B635A',
   // علامة تجارية: زيتوني
-  brand: '#2F5D45',
+  brand: '#397F56',
   brandDark: '#244A37',
   brandSoft: '#E8F0EB',
   brandSoftActive: '#D5E5DB',
   // خلفيات: كريمي دافئ
-  canvas: '#FBF6EE',
+  canvas: '#FDFCF9',
   surface: '#FFFFFF',
   // حدود
   border: '#E8E0D4',
   borderStrong: '#C9D6CE',
   // حدود أكثر وضوحًا لعناصر التحكم التي تعتمد على المحيط البصري.
   controlBorder: '#7C8A80',
-  focus: '#2F5D45',
+  focus: '#397F56',
   // Overlays مصممة للمحتوى المتراكب فوق الصور/الفيديو، بدل rgba مبعثرة في الشاشات.
   mediaControlOverlay: 'rgba(255, 255, 255, 0.91)',
+  mediaCounterOverlay: 'rgba(0, 0, 0, 0.55)',
+  mediaCloseOverlay: 'rgba(0, 0, 0, 0.55)',
+  fullscreenBackdrop: 'rgba(0, 0, 0, 0.95)',
   storyProgressTrack: 'rgba(255, 255, 255, 0.30)',
   storyNavigationOverlay: 'rgba(0, 0, 0, 0.26)',
   // تمييز: تيراكوتا
-  accent: '#BE5A32',
+  accent: '#AD531F',
   accentSoft: '#F8EBE5',
   // حالات
   danger: '#B42318',
   dangerSoft: '#FCE8E6',
   dangerBorder: '#F5C2BE',
-  success: '#2F5D45',
+  success: '#397F56',
   successSoft: '#E8F0EB',
   successBorder: '#C9D6CE',
   info: '#1D4E89',
@@ -56,6 +59,8 @@ export const spacing = {
   xl: 24,
   xxl: 32,
   xxxl: 40,
+  x4l: 48,
+  x5l: 64,
 } as const;
 
 export const radius = {
@@ -64,6 +69,11 @@ export const radius = {
   lg: 22,
   xl: 28,
   pill: 999,
+  control: 12,
+  card: 14,
+  modal: 16,
+  shell: 20,
+  hero: 24,
 } as const;
 
 /** أحجام وأوزان الخط — RTL-first (textAlign يُضبط في المكوّنات) */
@@ -130,14 +140,14 @@ export const elevation = {
     elevation: 0,
   },
   sm: {
-    shadowColor: '#241E18',
+    shadowColor: '#241E19',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,
     shadowRadius: 3,
     elevation: 1,
   },
   md: {
-    shadowColor: '#241E18',
+    shadowColor: '#241E19',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,

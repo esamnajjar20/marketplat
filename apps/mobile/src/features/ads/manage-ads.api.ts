@@ -74,7 +74,7 @@ export async function createAd(draft: AdDraft, token: string, csrfToken?: string
   body.append('isNegotiable', String(draft.isNegotiable));
   const response = await apiRequest<Envelope<ManagedAd>>('/api/v1/ads', {
     method: 'POST', body, token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
-    responseSchema: criticalAdEnvelopeResponseSchema as import('zod').ZodType<Envelope<ManagedAd>>,
+    responseSchema: criticalAdEnvelopeResponseSchema as unknown as import('zod').ZodType<Envelope<ManagedAd>>,
   });
   const created = requireEnvelopeData(response, 'تعذر إنشاء الإعلان.');
   await invalidateAdCaches(created.id);
@@ -91,7 +91,7 @@ export async function updateAd(id: string, draft: AdDraft, token: string, csrfTo
   const response = await apiRequest<Envelope<ManagedAd>>(`/api/v1/ads/${encodeURIComponent(id)}`, {
     method: 'PATCH', body: JSON.stringify(payload), token,
     headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
-    responseSchema: criticalAdEnvelopeResponseSchema as import('zod').ZodType<Envelope<ManagedAd>>,
+    responseSchema: criticalAdEnvelopeResponseSchema as unknown as import('zod').ZodType<Envelope<ManagedAd>>,
   });
   const updated = requireEnvelopeData(response, 'تعذر تحديث الإعلان.');
   // The fields PATCH has already succeeded, even if the subsequent image upload fails.
@@ -104,7 +104,7 @@ export async function updateAd(id: string, draft: AdDraft, token: string, csrfTo
     const imageResponse = await apiRequest<Envelope<ManagedAd>>(`/api/v1/ads/${encodeURIComponent(id)}/images`, {
       method: 'POST', body: form, token,
       headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
-      responseSchema: criticalAdEnvelopeResponseSchema as import('zod').ZodType<Envelope<ManagedAd>>,
+      responseSchema: criticalAdEnvelopeResponseSchema as unknown as import('zod').ZodType<Envelope<ManagedAd>>,
     });
     try {
       const imageUpdated = requireEnvelopeData(imageResponse, 'تم تحديث البيانات لكن تعذّر رفع الصور. افتح التعديل مجددًا للتحقق من الإعلان.');

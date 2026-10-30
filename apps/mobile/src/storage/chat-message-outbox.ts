@@ -171,7 +171,7 @@ export async function listChatMessagesForOwner(ownerId: string): Promise<ChatMes
   return rows.map(mapRow);
 }
 
-export async function listDueChatMessages(ownerId: string): Promise<ChatMessageOutboxItem[]> {
+export async function listDueChatMessages(ownerId: string, now: number = Date.now()): Promise<ChatMessageOutboxItem[]> {
   if (!ownerId.trim()) return [];
   const db = await database();
   const rows = await db.getAllAsync<ChatMessageOutboxRow>(
@@ -179,7 +179,7 @@ export async function listDueChatMessages(ownerId: string): Promise<ChatMessageO
      WHERE owner_id = ? AND next_attempt_at <= ? AND attempts < ?
      ORDER BY created_at ASC, id ASC LIMIT ?`,
     ownerId,
-    Date.now(),
+    now,
     OUTBOX_MAX_ATTEMPTS,
     OUTBOX_MAX_PENDING,
   );
@@ -236,4 +236,35 @@ export async function countPendingChatMessages(ownerId?: string | null): Promise
     ownerId,
   );
   return row?.count ?? 0;
+}
+
+
+/** User-initiated retry: resets attempts to 0 and clears backoff. */
+export async function retryChatMessage(operationId: string, ownerId: string): Promise<boolean> {
+  if (!operationId.trim() || !ownerId.trim()) return false;
+  const db = await database();
+  const result = await db.runAsync(
+    `UPDATE chat_message_outbox
+     SET attempts = 0, next_attempt_at = 0, last_error = NULL
+     WHERE operation_id = ? AND owner_id = ? AND attempts >= ?`,
+    operationId, ownerId, OUTBOX_MAX_ATTEMPTS,
+  );
+  return result.changes === 1;
+}
+
+/** User-confirmed discard of a failed (exhausted) message. */
+export async function discardFailedChatMessage(operationId: string, ownerId: string): Promise<boolean> {
+  if (!operationId.trim() || !ownerId.trim()) return false;
+  const db = await database();
+  const result = await db.runAsync(
+    `DELETE FROM chat_message_outbox
+     WHERE operation_id = ? AND owner_id = ? AND attempts >= ?`,
+    operationId, ownerId, OUTBOX_MAX_ATTEMPTS,
+  );
+  return result.changes === 1;
+}
+
+/** Called by sync worker when server permanently rejects a message. */
+export async function discardRejectedChatMessage(operationId: string, ownerId: string): Promise<boolean> {
+  return acknowledgeChatMessage(operationId, ownerId);
 }

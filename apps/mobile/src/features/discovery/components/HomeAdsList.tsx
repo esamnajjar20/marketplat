@@ -42,7 +42,7 @@ export function HomeAdsList({
         {...adListProps}
         renderItem={({ item }) => {
           const imageUri =
-            item.coverImageUrl && !failedImageIds.includes(item.id) ? item.coverImageUrl : null;
+            item.images?.[0] && !failedImageIds.includes(item.id) ? item.images?.[0] : null;
           return (
             <AdCard
               title={item.title}
@@ -69,8 +69,8 @@ export function HomeAdsList({
             </Pressable>
           ) : loadingMore ? (
             <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.lg }} />
-          ) : null
-        }
+          ) : undefined
+             }
       />
     </View>
   );

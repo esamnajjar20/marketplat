@@ -3,7 +3,7 @@
  * A release may explicitly opt in to sanitized warn/error output, but never debug/info.
  */
 const SENSITIVE_KEY = /password|passwd|token|authorization|cookie|secret|api[_-]?key|csrf|bearer|session/i;
-const KEY_VALUE_SECRET = /(\b(?:access[_-]?token|refresh[_-]?token|token|authorization|set-cookie|cookie|csrf(?:[_-]?token)?|password|passwd|secret|api[_-]?key)\b\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;]+)/gi;
+const KEY_VALUE_SECRET = /(\b(?:access[_-]?token|refresh[_-]?token|token|authorization|set-cookie|cookie|csrf(?:[_-]?token)?|password|passwd|secret|api[_-]?key)\b\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;&#]+)/gi;
 const BEARER_SECRET = /\bBearer\s+[A-Za-z0-9._~+\/-]+=*/gi;
 const QUERY_SECRET = /([?&](?:access[_-]?token|refresh[_-]?token|token|csrf(?:[_-]?token)?|api[_-]?key|key)=)[^&#\s]*/gi;
 function productionLogsEnabled(): boolean {

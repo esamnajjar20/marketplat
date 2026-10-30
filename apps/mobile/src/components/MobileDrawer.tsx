@@ -11,8 +11,8 @@ import {
   Text,
   View,
   useWindowDimensions,
-  type ReactNode,
 } from 'react-native';
+import type { ReactNode } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   createContext,
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
   },
   edgeGestureDisabled: { display: 'none' },
   scrim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: colors.black,
   },
   drawer: {

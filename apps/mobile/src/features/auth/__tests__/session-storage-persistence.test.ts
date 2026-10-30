@@ -14,7 +14,7 @@ const session: PersistedSession = {
   accessToken: 'test-token',
   csrfToken: null,
   expiresAt: Date.now() + 60_000,
-  user: { id: 'user-1', email: 'test@example.test', name: 'Tester' },
+  user: { id: 'user-1', email: 'test@example.test', name: 'Tester', role: 'USER' },
 };
 
 beforeEach(() => {
