@@ -3,6 +3,7 @@ import {
   runAdvisoryLockedBatch,
 } from '../../../src/shared/go-worker/executeWithFallback';
 import type { PrismaClient, Prisma } from '@prisma/client';
+import { logger } from '../../../src/shared/utils/logger';
 
 jest.mock('../../../src/shared/utils/logger', () => ({
   logger: {
@@ -70,6 +71,41 @@ describe('Go worker fallback coordinator', () => {
       'https://worker.example/internal/jobs/test',
       expect.objectContaining({ method: 'POST' })
     );
+  });
+
+  it('logs useful redacted transport diagnostics when fetch fails', async () => {
+    process.env.GO_WORKER_URL = 'https://worker.example/private-path';
+    process.env.GO_WORKER_TOKEN = 'test-token-must-not-leak';
+
+    const cause = Object.assign(
+      new Error('connect ECONNREFUSED https://worker.example/private-path?token=test-token-must-not-leak'),
+      { code: 'ECONNREFUSED', syscall: 'connect' }
+    );
+    const fetchError = new TypeError('fetch failed') as TypeError & { cause?: unknown };
+    fetchError.cause = cause;
+    jest.spyOn(globalThis, 'fetch').mockRejectedValue(fetchError);
+    const runExpressFallback = jest.fn().mockResolvedValue('completed');
+
+    const outcome = await executeWithGoFallback<TestResult>({
+      jobName: 'test-job',
+      path: '/internal/jobs/test',
+      body: {},
+      validateResult: isTestResult,
+      runExpressFallback,
+    });
+
+    expect(outcome).toBe('express');
+    expect(runExpressFallback).toHaveBeenCalledTimes(1);
+
+    const warningCall = (logger.warn as jest.Mock).mock.calls.find(([message]) =>
+      String(message).includes('Go worker unavailable')
+    );
+    expect(warningCall).toBeDefined();
+    const diagnosticText = JSON.stringify(warningCall?.[1]);
+    expect(diagnosticText).toContain('ECONNREFUSED');
+    expect(diagnosticText).toContain('connect');
+    expect(diagnosticText).not.toContain('worker.example');
+    expect(diagnosticText).not.toContain('test-token-must-not-leak');
   });
 
   it('treats Go 409 as already running and never starts a duplicate fallback', async () => {

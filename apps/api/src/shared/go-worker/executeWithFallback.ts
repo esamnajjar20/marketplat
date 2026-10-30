@@ -3,6 +3,50 @@ import { logger } from '../utils/logger';
 
 export type GoWorkerOutcome = 'go' | 'express' | 'busy';
 
+type ErrorDetails = Record<string, unknown>;
+
+function asErrorRecord(value: unknown): Record<string, unknown> | undefined {
+  if (typeof value !== 'object' || value === null) return undefined;
+  return value as Record<string, unknown>;
+}
+
+/** Keep useful transport diagnostics while never logging credentials or full URLs. */
+function safeDiagnosticText(value: unknown): string | undefined {
+  if (typeof value !== 'string' || value.length === 0) return undefined;
+
+  let safe = value;
+  const token = process.env.GO_WORKER_TOKEN?.trim();
+  if (token) safe = safe.split(token).join('[redacted]');
+
+  safe = safe
+    .replace(/\bBearer\s+[^\s,;]+/gi, 'Bearer [redacted]')
+    .replace(/https?:\/\/[^\s\"'<>]+/gi, '[url]');
+
+  return safe.slice(0, 240);
+}
+
+function getSafeFetchErrorDetails(error: unknown): ErrorDetails {
+  const errorRecord = asErrorRecord(error);
+  const causeRecord = asErrorRecord(errorRecord?.cause);
+  const details: ErrorDetails = {
+    errorType: typeof errorRecord?.name === 'string' ? errorRecord.name : 'unknown',
+  };
+
+  const errorMessage = safeDiagnosticText(errorRecord?.message);
+  const causeMessage = safeDiagnosticText(causeRecord?.message);
+  const causeType = typeof causeRecord?.name === 'string' ? causeRecord.name : undefined;
+  const causeCode = safeDiagnosticText(causeRecord?.code);
+  const causeSyscall = safeDiagnosticText(causeRecord?.syscall);
+
+  if (errorMessage) details.errorMessage = errorMessage;
+  if (causeType) details.causeType = causeType;
+  if (causeCode) details.causeCode = causeCode;
+  if (causeSyscall) details.causeSyscall = causeSyscall;
+  if (causeMessage) details.causeMessage = causeMessage;
+
+  return details;
+}
+
 export interface ExecuteWithGoFallbackOptions<TResult> {
   /** Stable, low-cardinality job name used only for operational logs. */
   jobName: string;
@@ -72,10 +116,12 @@ export async function executeWithGoFallback<TResult>(
         });
       }
     } catch (error) {
-      // Never include the worker URL, Authorization header, or token in logs.
-      logger.warn(`[${options.jobName}] Go worker unavailable; using Express fallback`, {
-        errorType: error instanceof Error ? error.name : 'unknown',
-      });
+      // Include only bounded, redacted transport diagnostics. Never log the
+      // worker URL, Authorization header, or GO_WORKER_TOKEN.
+      logger.warn(
+        `[${options.jobName}] Go worker unavailable; using Express fallback`,
+        getSafeFetchErrorDetails(error)
+      );
     }
   } else {
     logger.info(`[${options.jobName}] Go worker is not configured; using Express fallback`);
