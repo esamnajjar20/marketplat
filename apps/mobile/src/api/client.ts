@@ -1,4 +1,7 @@
 import { clearPrivateCache, clearPrivateCacheForPrefix, deletePublicCacheEntry, readPublicCache, writePublicCache } from '@/storage/public-cache';
+import type { ZodType } from 'zod';
+import { parseApiResponse } from '@/api/response-validation';
+import { API_BASE_URL_ERROR, getConfiguredApiBaseUrl } from '@/lib/api-base-url';
 /** Minimal API transport. Set EXPO_PUBLIC_API_URL in apps/mobile/.env before connecting real screens. */
 export class ApiError extends Error {
   constructor(
@@ -27,12 +30,32 @@ function tagFromCache<T>(value: T): CachedResult<T> {
   return value as CachedResult<T>;
 }
 
-const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/$/, '');
+/** Cache contents are also untrusted input and must satisfy the same schema as live responses. */
+async function readValidatedCache<T>(
+  cacheKey: string,
+  responseSchema?: ZodType<T>,
+): Promise<CachedResult<T> | null> {
+  try {
+    const cached: unknown = await readPublicCache<unknown>(cacheKey);
+    if (!cached || !isSuccessfulPublicEnvelope(cached)) return null;
+    if (responseSchema) {
+      const parsed = parseApiResponse(responseSchema, cached);
+      if (!parsed.success) return null;
+      return tagFromCache(parsed.data) as CachedResult<T>;
+    }
+    return tagFromCache(cached as T);
+  } catch {
+    // A cache read is best-effort. It must never hide the real network/config error.
+    return null;
+  }
+}
+
+const API_BASE_URL = getConfiguredApiBaseUrl();
 
 /** Public API origin used by authenticated streaming transports as well as JSON requests. */
 export function getApiBaseUrl(): string {
   if (!API_BASE_URL) {
-    throw new ApiError('عنوان API غير مضبوط. أضف EXPO_PUBLIC_API_URL إلى ملف البيئة.');
+    throw new ApiError(API_BASE_URL_ERROR);
   }
   return API_BASE_URL;
 }
@@ -115,23 +138,25 @@ function isSuccessfulPublicEnvelope(value: unknown): boolean {
   return Boolean(value && typeof value === 'object' && (value as { success?: unknown }).success === true);
 }
 
-export type ApiRequestOptions = Omit<RequestInit, 'signal'> & {
+export type ApiRequestOptions<T = unknown> = Omit<RequestInit, 'signal'> & {
   timeoutMs?: number;
   token?: string;
   /** Optional caller cancellation (e.g. auth session changed) in addition to the request timeout. */
   signal?: AbortSignal;
   /** Stable authenticated account ID; required for explicitly allow-listed private offline reads. */
   cacheOwnerId?: string;
+  /** Runtime validation for untrusted JSON returned by security/commerce-critical endpoints. */
+  responseSchema?: ZodType<T>;
   /** @internal — set internally to prevent infinite 401 retry loops. */
   _retried?: boolean;
 };
 
-export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> = {}): Promise<T> {
   if (!path.startsWith('/')) {
     throw new ApiError('يجب أن يبدأ مسار API بعلامة /.');
   }
 
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, token, headers, signal: externalSignal, cacheOwnerId, _retried, ...init } = options;
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, token, headers, signal: externalSignal, cacheOwnerId, responseSchema, _retried, ...init } = options;
   const cacheKey = publicGetCacheKey(path, init.method ?? 'GET', Boolean(token?.trim()))
     ?? privateGetCacheKey(path, init.method ?? 'GET', token, cacheOwnerId);
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -139,10 +164,10 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
   if (!API_BASE_URL) {
     if (cacheKey) {
-      const cached = await readPublicCache<T>(cacheKey);
-      if (cached && isSuccessfulPublicEnvelope(cached)) return tagFromCache(cached);
+      const cached = await readValidatedCache<T>(cacheKey, responseSchema);
+      if (cached) return cached;
     }
-    throw new ApiError('عنوان API غير مضبوط. أضف EXPO_PUBLIC_API_URL إلى ملف البيئة.');
+    throw new ApiError(API_BASE_URL_ERROR);
   }
   const controller = new AbortController();
   const abortFromCaller = () => controller.abort();
@@ -201,8 +226,18 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
       const requestId = typeof body.requestId === 'string' ? body.requestId : undefined;
       throw new ApiError(message, response.status, requestId);
     }
-    if (cacheKey && isSuccessfulPublicEnvelope(payload)) {
-      await writePublicCache(cacheKey, payload);
+    let validatedPayload: unknown = payload;
+    if (responseSchema) {
+      const parsed = parseApiResponse(responseSchema, payload);
+      if (!parsed.success) {
+        // Treat malformed 2xx responses as an upstream contract error. Do not cache
+        // the bad payload or fall back to potentially misleading stale data.
+        throw new ApiError('استجابة الخادم لا تطابق مخطط البيانات المتوقع.', 502);
+      }
+      validatedPayload = parsed.data;
+    }
+    if (cacheKey && isSuccessfulPublicEnvelope(validatedPayload)) {
+      await writePublicCache(cacheKey, validatedPayload);
     } else if (init.method && init.method.toUpperCase() !== 'GET' && token) {
       // Targeted cache invalidation: only clear the affected resource tree.
       // A mutation on /api/v1/orders invalidates all cached /orders/* keys for
@@ -238,13 +273,13 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
         }
       }
     }
-    return payload as T;
+    return validatedPayload as T;
   } catch (error) {
     // Fall back only for explicitly allow-listed read endpoints. Private cache keys include
     // the caller-supplied account ID; mutations are always excluded.
     if (cacheKey && !(error instanceof ApiError && error.status !== undefined)) {
-      const cached = await readPublicCache<T>(cacheKey);
-      if (cached && isSuccessfulPublicEnvelope(cached)) return tagFromCache(cached);
+      const cached = await readValidatedCache<T>(cacheKey, responseSchema);
+      if (cached) return cached;
     }
     if (error instanceof ApiError) throw error;
     if (error instanceof Error && error.name === 'AbortError') {

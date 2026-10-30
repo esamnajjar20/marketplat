@@ -15,15 +15,9 @@ import {
   SearchBar,
   SecondaryButton,
 } from '@/components/MobileUI';
-import { CatalogCard } from '@/components/MarketCards';
+import { ProductCard } from '@/components/ui/ProductCard';
 import { colors, spacing, typography } from '@/theme/tokens';
 
-function price(item: ProductSummary) {
-  const v = Number(item.effectivePrice?.price ?? item.effectivePrice?.amount ?? item.discountPrice ?? item.price);
-  return Number.isFinite(v)
-    ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(v)} ₪`
-    : 'السعر عند التواصل';
-}
 
 export default function ProductsScreen() {
   const { user, accessToken } = useAuth();
@@ -172,12 +166,9 @@ export default function ProductsScreen() {
           ) : undefined
         }
         renderItem={({ item }) => (
-              <CatalogCard
-                title={item.name}
-                subtitle={item.store?.name || item.category?.nameAr || item.category?.name || 'منتج'}
-                price={price(item)}
-                imageUri={item.images?.find((uri) => typeof uri === 'string' && /^https?:\/\//i.test(uri))}
-                glyph="▣"
+              <ProductCard
+                product={{ id: item.id, name: item.name, price: item.effectivePrice?.price ?? item.discountPrice ?? item.price, images: item.images, category: item.category }}
+                layout="row"
                 onPress={() => router.push(`/products/${encodeURIComponent(item.id)}`)}
               />
         )}

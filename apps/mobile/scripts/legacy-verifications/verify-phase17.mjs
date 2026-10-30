@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
+const client = read('../src/api/client.ts');
+const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(client, /Number\.isFinite\(timeoutMs\)/);
+assert.match(client, /timeoutMs <= 0/);
+assert.match(client, /content-type/);
+assert.match(client, /response\.status === 401/);
+assert.match(client, /response\.status === 403/);
+assert.match(client, /تعذر الوصول إلى الخادم/);
+assert.match(client, /clearTimeout\(timeout\)/);
+assert.match(client, /credentials: options\.credentials \?\? 'include'/);
+assert.match(packageJson.scripts.test, /verify-phase17\.mjs/);
+console.log('Phase 17 API resilience checks passed (static source checks only; no TypeScript, live network, or native device test performed).');

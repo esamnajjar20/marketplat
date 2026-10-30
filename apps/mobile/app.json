@@ -12,12 +12,14 @@
         "expo-image-picker",
         {
           "photosPermission": "اسمح لـ MarketPlat بالوصول إلى صورك لإرفاقها بإعلاناتك.",
-          "cameraPermission": "اسمح لـ MarketPlat باستخدام الكاميرا لالتقاط صور للإعلانات."
+          "cameraPermission": false
         }
       ],
       [
         "expo-sqlite",
-        { "useSQLCipher": true }
+        {
+          "useSQLCipher": true
+        }
       ],
       "expo-secure-store",
       "expo-splash-screen",
@@ -49,9 +51,12 @@
       "supportsRTL": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FBF6EE"
+        "backgroundColor": "#FDFCF9"
       },
-      "versionCode": 1
+      "versionCode": 1,
+      "blockedPermissions": [
+        "android.permission.VIBRATE"
+      ]
     },
     "ios": {
       "bundleIdentifier": "com.marketplat.mobile",
@@ -61,7 +66,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FBF6EE"
+      "backgroundColor": "#FDFCF9"
     }
   }
 }

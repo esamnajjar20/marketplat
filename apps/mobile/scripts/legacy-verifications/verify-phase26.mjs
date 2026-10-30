@@ -1,0 +1,13 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const source = readFileSync(new URL('../src/storage/mutation-outbox.ts', import.meta.url), 'utf8');
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(source, /export async function listExhaustedMutations\(ownerId\?: string \| null\)/, 'exhausted failures can be surfaced for an account');
+assert.match(source, /owner_id = \? AND state = 'failed' AND attempts >= \? ORDER BY created_at ASC, id ASC LIMIT \?/, 'only this account\'s exhausted failed rows are listed');
+assert.match(source, /export async function retryExhaustedMutation\(id: string, ownerId\?: string \| null\): Promise<boolean>/, 'explicit user retry is available and account-scoped');
+assert.match(source, /state = 'pending', attempts = 0, next_attempt_at = 0, last_error = NULL[\s\S]*?owner_id = \? AND state = 'failed' AND attempts >= \?/, 'manual retry is account-scoped and resets retry budget only for exhausted failed rows');
+assert.match(source, /idempotency_key TEXT NOT NULL UNIQUE/, 'retry retains original unique idempotency key rather than generating a new one');
+assert.match(source, /return result\.changes === 1/, 'retry reports whether it actually changed a row');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'phase 26 check is wired into mobile test command');
+console.log('Phase 26 exhausted-mutation recovery contract checks passed (static checks only; SQLite runtime not executed).');

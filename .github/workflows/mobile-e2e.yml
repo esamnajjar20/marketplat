@@ -1,0 +1,109 @@
+name: Mobile E2E (staging credentials required)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_staging_test:
+        description: 'Confirm these credentials target a test/staging account and API, not a production account.'
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-e2e-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  critical-journey:
+    if: ${{ inputs.confirm_staging_test == true && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # Configure this as a protected GitHub Environment; keep production
+    # credentials out of this environment entirely.
+    environment: staging
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4
+        with:
+          version: 10.18.0
+          run_install: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+          cache-dependency-path: apps/mobile/android/gradle/wrapper/gradle-wrapper.properties
+      # Exact-host allowlisting prevents an accidentally configured production
+      # URL from being used as an E2E target. Set this variable to the staging
+      # API hostname only (without scheme, port, or path).
+      - name: Validate staging target
+        env:
+          MOBILE_E2E_API_URL: ${{ secrets.MOBILE_E2E_API_URL }}
+          MOBILE_E2E_STAGING_API_HOST: ${{ vars.MOBILE_E2E_STAGING_API_HOST }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const raw = process.env.MOBILE_E2E_API_URL;
+          const allowedHost = (process.env.MOBILE_E2E_STAGING_API_HOST || '').trim().toLowerCase();
+          const productionHosts = new Set([
+            'marketplat.esamnajjar6.workers.dev',
+            'marketplat-api.esamnajjar6.workers.dev',
+          ]);
+          if (!raw || !allowedHost) throw new Error('Staging API URL/host is not configured.');
+          if (productionHosts.has(allowedHost)) throw new Error('Production host cannot be configured as the staging allowlist.');
+          let url;
+          try { url = new URL(raw); } catch { throw new Error('Staging API URL is invalid.'); }
+          if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || url.port) {
+            throw new Error('E2E target must be an HTTPS origin without credentials, query, or fragment.');
+          }
+          if (url.pathname !== '/' && url.pathname !== '') throw new Error('E2E target must be an API origin, not a path.');
+          if (url.hostname.toLowerCase() !== allowedHost || productionHosts.has(url.hostname.toLowerCase())) {
+            throw new Error('E2E API host does not match the protected staging allowlist.');
+          }
+          NODE
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Generate Android native project
+        env:
+          EXPO_PUBLIC_API_URL: ${{ secrets.MOBILE_E2E_API_URL }}
+        run: pnpm --filter @marketplat/mobile exec expo prebuild --platform android --no-install
+      - name: Build debug APK
+        working-directory: apps/mobile/android
+        env:
+          EXPO_PUBLIC_API_URL: ${{ secrets.MOBILE_E2E_API_URL }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      - name: Setup Maestro CLI
+        uses: remarkablemark/setup-maestro-cli@868633700b615c0566cf3f0231ef79919c6dbd39 # v1.0.24
+        with:
+          version: 2.11.0
+      - name: Run critical journey in Android emulator
+        uses: reactivecircus/android-emulator-runner@cad321644df6d8cf1985a42767272ff068adb9cb # v2.38.0
+        env:
+          EXPO_PUBLIC_API_URL: ${{ secrets.MOBILE_E2E_API_URL }}
+          MAESTRO_EMAIL: ${{ secrets.MOBILE_E2E_EMAIL }}
+          MAESTRO_PASSWORD: ${{ secrets.MOBILE_E2E_PASSWORD }}
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          script: |
+            set -euo pipefail
+            test -n "$MAESTRO_EMAIL" || { echo 'Missing staging E2E email'; exit 1; }
+            test -n "$MAESTRO_PASSWORD" || { echo 'Missing staging E2E password'; exit 1; }
+            adb install apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk
+            maestro test apps/mobile/.maestro/critical-journey.yaml

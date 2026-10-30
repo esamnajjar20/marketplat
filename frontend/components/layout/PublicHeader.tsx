@@ -121,7 +121,7 @@ export function PublicHeader({ showSearch = true, showMenuTrigger: _showMenuTrig
               prefetch={false}
               href={ROUTES.search}
               aria-label="بحث"
-              className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                 <circle cx="11" cy="11" r="7" />

@@ -93,7 +93,8 @@
     "ux:loading-unification-audit": "node scripts/loading-unification-audit.mjs && npm run ux:loading-system-audit && npm run ux:route-navigation-loading-audit",
     "cards:unification-phase4-audit": "node scripts/card-unification-phase4-audit.mjs",
     "build:version": "node scripts/generate-build-id.mjs",
-    "audit:script-references": "node scripts/package-script-reference-audit.mjs"
+    "audit:script-references": "node scripts/package-script-reference-audit.mjs",
+    "a11y:visibility-audit": "node scripts/accessibility-visibility-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

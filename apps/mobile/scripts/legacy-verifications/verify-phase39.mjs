@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const outbox = await readFile(new URL('../src/storage/mutation-outbox.ts', import.meta.url), 'utf8');
+const sync = await readFile(new URL('../src/storage/outbox-sync.ts', import.meta.url), 'utf8');
+assert.match(outbox, /lease_owner TEXT/);
+assert.match(outbox, /lease_until INTEGER NOT NULL DEFAULT 0/);
+assert.match(outbox, /state = 'processing' AND lease_until <= \?/);
+assert.match(outbox, /lease_owner = \?, lease_until = \?/);
+assert.match(outbox, /AND lease_owner = \?/);
+assert.match(outbox, /export async function recoverExpiredOutboxLeases/);
+assert.match(sync, /await recoverExpiredOutboxLeases\(\)/);
+assert.match(outbox, /export async function claimMutation\(id: string, leaseOwner: string, leaseDurationMs = 60_000, ownerId\?: string \| null\)/);
+assert.match(outbox, /export async function markMutationFailed\(id: string, reason: string, leaseOwner: string\)/);
+assert.match(outbox, /export async function acknowledgeMutation\(id: string, leaseOwner: string\)/);
+assert.match(sync, /const leaseOwner = `outbox-\$\{Date\.now\(\)\}-\$\{Math\.random\(\)\.toString\(36\)\.slice\(2, 12\)\}`/);
+assert.match(sync, /claimMutation\(candidate\.id, leaseOwner, OUTBOX_LEASE_DURATION_MS, ownerId\)/);
+assert.match(sync, /markMutationFailed\(claimed\.id, message, leaseOwner\)/);
+assert.match(sync, /acknowledgeMutation\(claimed\.id, leaseOwner\)/);
+console.log('Phase 39 lease ownership source-contract checks passed (static only; SQLite/API concurrency not exercised).');

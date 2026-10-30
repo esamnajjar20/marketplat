@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { AppImage } from '@/components/AppImage';
+import { DrawerMenuButton } from '@/components/MobileDrawer';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radius, spacing, typography, ux } from '@/theme/tokens';
 import { EmptyState, ErrorState, LoadingState, SectionHeader, SkeletonList } from '@/components/MobileUI';
@@ -110,6 +111,7 @@ export default function HomeScreen() {
             </View>
           </View>
           <View style={styles.headerActions}>
+            <DrawerMenuButton />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={user ? 'تسجيل الخروج' : 'تسجيل الدخول'}
@@ -158,7 +160,7 @@ export default function HomeScreen() {
             <Text style={styles.quickArrow}>‹</Text>
           </Pressable>
           <Pressable accessibilityRole="button" onPress={() => router.push(user ? '/add' : '/login')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
-            <View style={[styles.quickIcon, { backgroundColor: colors.warningSoft }]}><Text style={[styles.quickGlyph, { color: colors.warning }]}>＋</Text></View>
+            <View style={[styles.quickIcon, { backgroundColor: colors.warningSoft }]}><Text style={[styles.quickGlyph, { color: colors.warningText }]}>＋</Text></View>
             <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>إضافة جديد</Text><Text style={styles.quickSubtitle}>انشر إعلانًا أو أضف منتجًا أو خدمة</Text></View>
             <Text style={styles.quickArrow}>‹</Text>
           </Pressable>
@@ -240,9 +242,22 @@ export default function HomeScreen() {
           <View style={styles.sectionHeader}>
             <SectionHeader title="خدمات قريبة منك" actionLabel="كل الخدمات" onAction={() => router.push('/services')} />
           </View>
-          {servicesLoading && serviceItems.length === 0 ? <View style={styles.serviceState}><ActivityIndicator size="small" color={colors.brand} /><Text style={styles.helperText}>جاري تحميل الخدمات…</Text></View> : null}
-          {!servicesLoading && servicesError && serviceItems.length === 0 ? <View style={styles.serviceState}><Text style={styles.helperText}>تعذر تحميل الخدمات الآن.</Text><Pressable accessibilityRole="button" onPress={() => { void loadServices(true); }}><Text style={styles.link}>إعادة المحاولة</Text></Pressable></View> : null}
-          {!servicesLoading && !servicesError && serviceItems.length === 0 ? <View style={styles.serviceState}><Text style={styles.helperText}>لا توجد خدمات متاحة حاليًا.</Text><Pressable accessibilityRole="button" onPress={() => router.push('/services')}><Text style={styles.link}>تصفح الخدمات</Text></Pressable></View> : null}
+          {servicesLoading && serviceItems.length === 0 ? <LoadingState message="جاري تحميل الخدمات…" /> : null}
+          {!servicesLoading && servicesError && serviceItems.length === 0 ? (
+            <ErrorState
+              title="تعذر تحميل الخدمات الآن"
+              description={servicesError}
+              onAction={() => { void loadServices(true); }}
+            />
+          ) : null}
+          {!servicesLoading && !servicesError && serviceItems.length === 0 ? (
+            <EmptyState
+              title="لا توجد خدمات متاحة حاليًا"
+              description="يمكنك تصفح صفحة الخدمات للاطلاع على الخيارات المتاحة."
+              actionLabel="تصفح الخدمات"
+              onAction={() => router.push('/services')}
+            />
+          ) : null}
           {serviceItems.length > 0 ? <View style={styles.serviceList}>{serviceItems.map((item) => {
             const imageUri = item.images?.find((url) => typeof url === 'string' && /^https?:\/\//i.test(url));
             const provider = item.provider?.businessName || item.provider?.sellerProfile?.displayName || 'مقدم خدمة';
@@ -356,6 +371,6 @@ const styles = StyleSheet.create({
   retryText: { color: colors.white, fontWeight: '800' },
   helperText: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center' },
   notice: { backgroundColor: colors.warningSoft, borderColor: colors.warningBorder, borderWidth: 1, borderRadius: radius.md, padding: spacing.lg, gap: spacing.xs },
-  noticeTitle: { color: colors.warning, fontSize: 13, fontWeight: '800', textAlign: 'right' },
-  noticeText: { color: colors.warning, fontSize: 12, lineHeight: 19, textAlign: 'right' },
+  noticeTitle: { color: colors.warningText, fontSize: 13, fontWeight: '800', textAlign: 'right' },
+  noticeText: { color: colors.warningText, fontSize: 12, lineHeight: 19, textAlign: 'right' },
 });

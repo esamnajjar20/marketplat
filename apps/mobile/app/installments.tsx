@@ -143,6 +143,7 @@ export default function InstallmentsScreen() {
                 قيمة القسط: {money(item.amount)} · المدفوع: {money(item.paidAmount)}
               </Text>
               <TextInput
+                accessibilityLabel={`مبلغ تحصيل القسط ${item.installmentNo}`}
                 value={amounts[item.id] ?? String(remaining)}
                 onChangeText={(v) => setAmounts((old) => ({ ...old, [item.id]: v }))}
                 keyboardType="decimal-pad"

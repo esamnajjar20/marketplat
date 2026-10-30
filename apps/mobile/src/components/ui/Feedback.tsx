@@ -13,6 +13,8 @@ export function Notice({
 }) {
   return (
     <View
+      accessibilityRole={tone === 'error' || tone === 'warning' ? 'alert' : 'text'}
+      accessibilityLiveRegion={tone === 'muted' ? 'none' : 'polite'}
       style={[
         s.notice,
         tone === 'success' && s.success,
@@ -27,7 +29,7 @@ export function Notice({
           tone === 'success' && { color: colors.success },
           tone === 'muted' && { color: colors.muted },
           tone === 'info' && { color: colors.ink },
-          tone === 'warning' && { color: colors.warning },
+          tone === 'warning' && { color: colors.warningText },
         ]}
       >
         {children}
@@ -80,7 +82,9 @@ export function Chip({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected: !!selected }}
+      accessibilityLabel={label}
+      accessibilityState={{ selected: !!selected, disabled: !onPress }}
+      disabled={!onPress}
       onPress={onPress}
       style={({ pressed }) => [s.chip, selected && s.chipSelected, pressed && s.pressed]}
     >
@@ -91,7 +95,7 @@ export function Chip({
 
 export function LoadingState({ message = 'جاري التحميل…' }: { message?: string }) {
   return (
-    <View style={s.stateBox}>
+    <View accessibilityRole="progressbar" accessibilityLabel={message} accessibilityLiveRegion="polite" style={s.stateBox}>
       <ActivityIndicator size="large" color={colors.brand} />
       <Text style={s.stateMessage}>{message}</Text>
     </View>
@@ -110,11 +114,11 @@ export function EmptyState({
   onAction?: () => void;
 }) {
   return (
-    <View style={s.stateBox}>
+    <View accessibilityLiveRegion="polite" style={s.stateBox}>
       <View style={s.stateIconWrap}>
         <Text style={s.stateIcon}>◇</Text>
       </View>
-      <Text style={s.stateTitle}>{title}</Text>
+      <Text accessibilityRole="header" style={s.stateTitle}>{title}</Text>
       {description ? <Text style={s.stateMessage}>{description}</Text> : null}
       {actionLabel && onAction ? (
         <View style={{ marginTop: spacing.md, alignSelf: 'stretch' }}>
@@ -137,11 +141,11 @@ export function ErrorState({
   onAction?: () => void;
 }) {
   return (
-    <View style={s.stateBox}>
+    <View accessibilityRole="alert" accessibilityLiveRegion="polite" style={s.stateBox}>
       <View style={[s.stateIconWrap, s.stateIconError]}>
         <Text style={[s.stateIcon, { color: colors.danger }]}>!</Text>
       </View>
-      <Text style={s.stateTitle}>{title}</Text>
+      <Text accessibilityRole="header" style={s.stateTitle}>{title}</Text>
       {description ? <Text style={s.stateMessage}>{description}</Text> : null}
       {onAction ? (
         <View style={{ marginTop: spacing.md, alignSelf: 'stretch' }}>

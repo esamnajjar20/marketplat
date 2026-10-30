@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+const root = new URL('../', import.meta.url);
+const read = (path) => readFile(new URL(path, root), 'utf8');
+const bridge = await read('src/features/ads/FavoritesSyncLifecycleBridge.tsx');
+const lifecycle = await read('src/features/ads/favorites-sync-lifecycle.ts');
+const store = await read('src/features/ads/favorites.store.ts');
+assert.match(bridge, /result\.status === 'deferred'/, 'bridge observes deferred lifecycle sync outcomes');
+assert.match(bridge, /result\.reason\.startsWith\('تغيّرت جلسة تسجيل الدخول'/, 'only auth-session invalidation triggers an automatic retry');
+assert.match(bridge, /setTimeout\(\(\) => \{ if \(mounted\) void syncFavoritesIfReady\(\{ \.\.\.snapshot\.current \}\); \}, 0\)/, 'retry uses the latest auth/network snapshot after prior sync settles');
+assert.match(bridge, /if \(mounted\) return|if \(!mounted\) return/, 'unmounted lifecycle bridge does not start fresh work');
+assert.match(lifecycle, /if \(!sessionStillCurrent\(\)\) return deferForSessionChange\(\)/, 'stale session stops before further queued operations');
+assert.match(store, /PRIMARY KEY \(user_id, ad_id\)/, 'queue remains isolated by account and ad');
+assert.match(store, /WHERE user_id = \? AND ad_id = \? AND operation_id = \?/g, 'acknowledgement and discard use operation identity');
+console.log('Phase 76 passed: an auth-invalidated sync retries once with the latest lifecycle snapshot after the previous sync settles.');
+console.log('Static contract checks only; live race simulation and device/API tests remain required.');

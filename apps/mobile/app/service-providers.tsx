@@ -5,6 +5,7 @@ import { fetchServiceProviders, type ProviderSummary } from '@/features/services
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
+import { RatingStars } from '@/components/ui/RatingStars';
 
 export default function ServiceProvidersScreen() {
   const [items, setItems] = useState<ProviderSummary[]>([]);
@@ -98,9 +99,7 @@ export default function ServiceProvidersScreen() {
               <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 21 }} numberOfLines={3}>
                 {p.description || 'لا يوجد وصف.'}
               </Text>
-              <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700' }}>
-                ★ {p.sellerProfile?.averageRating ?? '—'} · {p.sellerProfile?.totalRatings ?? 0} تقييم
-              </Text>
+              <RatingStars score={p.sellerProfile?.averageRating} count={p.sellerProfile?.totalRatings} />
               <Text style={{ textAlign: 'right', color: colors.muted, fontSize: 13 }}>
                 مناطق الخدمة: {p.serviceAreaCities?.join('، ') || 'غير محددة'}
               </Text>

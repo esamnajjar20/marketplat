@@ -23,6 +23,13 @@ export const glyphs = {
   notification: '◔',
   check: '✓',
   warning: '!',
+  menu: '☰',
+  settings: '⚙',
+  help: '؟',
+  ads: '▣',
+  orders: '▤',
+  logout: '↪',
+  login: '→',
 } as const;
 
 export type GlyphName = keyof typeof glyphs;

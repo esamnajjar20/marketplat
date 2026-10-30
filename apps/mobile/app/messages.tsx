@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -15,19 +15,10 @@ import {
   SearchBar,
   SkeletonList,
 } from '@/components/MobileUI';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { colors, spacing, typography } from '@/theme/tokens';
+import ConversationListItem from '@/features/messaging/ConversationListItem';
 
 type Filter = 'all' | 'unread' | 'archived';
-function preview(conversation: ConversationItem): string {
-  const message = conversation.lastMessage;
-  if (!message) return conversation.ad?.title ? `بخصوص: ${conversation.ad.title}` : 'ابدأ المحادثة بإرسال رسالة.';
-  if (message.deletedAt) return 'تم حذف هذه الرسالة';
-  if (message.body?.trim()) return message.body.trim();
-  if (message.imageUrl) return '📷 صورة';
-  if (message.audioUrl) return '🎙️ رسالة صوتية';
-  if (message.fileUrl) return '📎 ملف مرفق';
-  return 'رسالة جديدة';
-}
 export default function MessagesScreen() {
   const { user, accessToken, csrfToken } = useAuth();
   const { counts } = useUnreadCounts();
@@ -91,6 +82,58 @@ export default function MessagesScreen() {
     finally { setBusyFlagId(null); }
   }, [accessToken, csrfToken, busyFlagId]);
 
+  const openConversation = useCallback((conversationId: string) => {
+    router.push({ pathname: '/messages/[id]', params: { id: conversationId } });
+  }, []);
+  const renderConversation = useCallback(({ item }: { item: ConversationItem }) => (
+    <ConversationListItem item={item} currentUserId={user?.id} onPress={openConversation} />
+  ), [openConversation, user?.id]);
+  const keyExtractor = useCallback((item: ConversationItem) => item.id, []);
+  const onRefresh = useCallback(() => { void load(true); }, [load]);
+  const listHeader = useMemo(() => (
+    <View style={styles.headerContent}>
+      <SearchBar
+        value={search}
+        onChangeText={setSearch}
+        onSubmit={() => {}}
+        placeholder="ابحث عن شخص أو رسالة…"
+        accessibilityLabel="البحث في المحادثات"
+      />
+      <View style={styles.filters}>
+        {([
+          ['all', 'الكل'],
+          ['unread', 'غير مقروءة'],
+          ['archived', 'الأرشيف'],
+        ] as const).map(([value, label]) => (
+          <Chip
+            key={value}
+            label={label}
+            selected={filter === value}
+            onPress={() => setFilter(value)}
+          />
+        ))}
+      </View>
+      {error ? <Text style={styles.moreError}>{error}</Text> : null}
+    </View>
+  ), [error, filter, search]);
+  const listFooter = useMemo(() => (
+    <View style={styles.footer}>
+      {hasMore ? (
+        <PrimaryButton
+          label={loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}
+          variant="secondary"
+          busy={loadingMore}
+          onPress={() => { void loadMore(); }}
+        />
+      ) : null}
+      {loadingMore ? <Text style={styles.footerStatus} accessibilityLiveRegion="polite">جارٍ تحميل المحادثات…</Text> : null}
+      {loadMoreError ? <Text style={styles.moreError}>{loadMoreError}</Text> : null}
+    </View>
+  ), [hasMore, loadMore, loadMoreError, loadingMore]);
+  const listEmpty = useMemo(() => (
+    <EmptyState title="لا توجد محادثات" description="ابدأ مراسلة بائع من صفحة الإعلان أو المنتج." />
+  ), []);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <AppHeader
@@ -120,130 +163,43 @@ export default function MessagesScreen() {
       ) : error && !items.length ? (
         <ErrorState title="تعذر تحميل المحادثات" description={error} onAction={() => void load()} />
       ) : (
-        <ScrollView
+        <FlatList
+          data={visibleItems}
+          renderItem={renderConversation}
+          keyExtractor={keyExtractor}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty}
+          ListFooterComponent={listFooter}
           contentContainerStyle={styles.content}
+          ItemSeparatorComponent={ConversationSeparator}
           keyboardShouldPersistTaps="handled"
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />
           }
-        >
-          <SearchBar
-            value={search}
-            onChangeText={setSearch}
-            onSubmit={() => {}}
-            placeholder="ابحث عن شخص أو رسالة…"
-            accessibilityLabel="البحث في المحادثات"
-          />
-          <View style={styles.filters}>
-            {([
-              ['all', 'الكل'],
-              ['unread', 'غير مقروءة'],
-              ['archived', 'الأرشيف'],
-            ] as const).map(([value, label]) => (
-              <Chip
-                key={value}
-                label={label}
-                selected={filter === value}
-                onPress={() => setFilter(value)}
-              />
-            ))}
-          </View>
-          {error ? <Text style={styles.moreError}>{error}</Text> : null}
-
-          {visibleItems.length === 0 ? (
-            <EmptyState title="لا توجد محادثات" description="ابدأ مراسلة بائع من صفحة الإعلان أو المنتج." />
-          ) : (
-            <View style={styles.list}>
-              {visibleItems.map((item) => {
-                const other = item.buyerId === user?.id ? item.seller : item.buyer;
-                const unread = item.unreadCount ?? 0;
-                return (
-                  <Pressable
-                    key={item.id}
-                    accessibilityRole="button"
-                    onPress={() => router.push({ pathname: '/messages/[id]', params: { id: item.id } })}
-                    style={[styles.card, unread > 0 && styles.unread]}
-                  >
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>{(other?.name || '?').slice(0, 1)}</Text>
-                    </View>
-                    <View style={styles.cardBody}>
-                      <View style={styles.cardTop}>
-                        <Text style={styles.name} numberOfLines={1}>
-                          {other?.name || 'مستخدم'}
-                          {item.mySettings?.pinnedAt ? ' 📌' : ''}
-                        </Text>
-                        {unread > 0 ? (
-                          <View style={styles.badge}>
-                            <Text style={styles.badgeText}>{unread > 99 ? '99+' : unread}</Text>
-                          </View>
-                        ) : null}
-                      </View>
-                      <Text style={styles.preview} numberOfLines={2}>
-                        {preview(item)}
-                      </Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-
-          {hasMore ? (
-            <PrimaryButton
-              label={loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}
-              variant="secondary"
-              busy={loadingMore}
-              onPress={() => {
-                void loadMore();
-              }}
-            />
-          ) : null}
-          {loadMoreError ? <Text style={styles.moreError}>{loadMoreError}</Text> : null}
-        </ScrollView>
+          onEndReached={() => { if (hasMore && !loadingMore) void loadMore(); }}
+          onEndReachedThreshold={0.35}
+          initialNumToRender={12}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          accessibilityLabel="قائمة المحادثات"
+        />
       )}
     </SafeAreaView>
   );
 }
 
+function ConversationSeparator() {
+  return <View style={styles.separator} />;
+}
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   link: { color: colors.brand, ...typography.captionStrong },
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48 },
+  content: { flexGrow: 1, padding: spacing.lg, paddingBottom: 48 },
+  headerContent: { gap: spacing.md, paddingBottom: spacing.md },
   filters: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
-  list: { gap: spacing.sm },
-  card: {
-    flexDirection: 'row-reverse',
-    gap: spacing.md,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  unread: { borderColor: colors.borderStrong, backgroundColor: colors.brandSoft },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.brandSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { color: colors.brand, fontWeight: '900', fontSize: 16 },
-  cardBody: { flex: 1, gap: 4 },
-  cardTop: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  name: { ...typography.bodyStrong, color: colors.ink, flex: 1, textAlign: 'right' },
-  preview: { ...typography.caption, color: colors.muted, textAlign: 'right', lineHeight: 18 },
-  badge: {
-    minWidth: 22,
-    height: 22,
-    borderRadius: 11,
-    paddingHorizontal: 6,
-    backgroundColor: colors.brand,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  badgeText: { color: colors.white, fontSize: 11, fontWeight: '900' },
+  separator: { height: spacing.sm },
+  footer: { gap: spacing.sm, paddingTop: spacing.md },
+  footerStatus: { ...typography.caption, color: colors.muted, textAlign: 'center' },
   moreError: { ...typography.caption, color: colors.danger, textAlign: 'right' },
 });

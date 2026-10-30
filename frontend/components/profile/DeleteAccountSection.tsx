@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * usersApi.deleteMe() / backend DELETE /users/me were both
- * fully implemented and tested (usersService.deleteMe: deactivates the
+ * usersApi.deleteMe() / backend POST /users/me/delete-confirmed are
+ * implemented with password re-authentication (usersService.deleteMe: deactivates the
  * user, cascades their ACTIVE ads to DELETED, revokes every refresh
  * token) but had no UI anywhere — see useUpdateProfile.ts's
  * useDeleteAccount. This is an irreversible, destructive action, so
@@ -22,16 +22,18 @@ const CONFIRM_WORD = 'حذف';
 export function DeleteAccountSection() {
   const [open, setOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const deleteAccount = useDeleteAccount();
 
   function handleOpen() {
     setConfirmText('');
+    setCurrentPassword('');
     setOpen(true);
   }
 
   function handleDelete() {
-    if (confirmText !== CONFIRM_WORD) return;
-    deleteAccount.mutate();
+    if (confirmText !== CONFIRM_WORD || !currentPassword.trim()) return;
+    deleteAccount.mutate(currentPassword);
   }
 
   // block Escape / overlay-click / cancel-button close while
@@ -42,6 +44,10 @@ export function DeleteAccountSection() {
   function handleOpenChange(next: boolean) {
     if (deleteAccount.isPending) return;
     setOpen(next);
+    if (!next) {
+      setConfirmText('');
+      setCurrentPassword('');
+    }
   }
 
   return (
@@ -78,6 +84,20 @@ export function DeleteAccountSection() {
           </DialogHeader>
           <div className="space-y-4 py-1">
             <div className="space-y-1.5">
+              <label htmlFor="delete-current-password" className="text-sm font-medium">
+                كلمة المرور الحالية لإعادة تأكيد هويتك
+              </label>
+              <Input
+                id="delete-current-password"
+                type="password"
+                autoComplete="current-password"
+                className="h-11 rounded-xl"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                placeholder="كلمة المرور الحالية"
+              />
+            </div>
+            <div className="space-y-1.5">
               <label htmlFor="confirm-delete" className="text-sm font-medium">
                 اكتب <span className="font-bold">{CONFIRM_WORD}</span> للتأكيد
               </label>
@@ -102,7 +122,7 @@ export function DeleteAccountSection() {
                 variant="destructive"
                 className="h-11 flex-1 rounded-xl font-bold"
                 onClick={handleDelete}
-                disabled={confirmText !== CONFIRM_WORD}
+                disabled={confirmText !== CONFIRM_WORD || !currentPassword.trim()}
                 loading={deleteAccount.isPending}
                 loadingText="جارٍ الحذف…"
               >

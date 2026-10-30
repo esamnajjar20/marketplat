@@ -1,9 +1,8 @@
 /**
- * طبقة إبلاغ أخطاء — جاهزة لـ Sentry.
+ * طبقة إبلاغ أخطاء موحّدة.
  *
- * التفعيل:
- *   npx expo install @sentry/react-native
- *   ثم في _layout: initErrorReporting({ dsn: process.env.EXPO_PUBLIC_SENTRY_DSN })
+ * لا يتم استيراد Sentry في وقت البناء قبل إضافته فعليًا إلى workspace/lockfile.
+ * يمكن تمرير reporter من تهيئة native بعد تثبيت SDK؛ وبدون ذلك يبقى التسجيل محليًا.
  */
 import { logger } from '@/lib/logger';
 
@@ -13,48 +12,34 @@ type ErrorReporter = {
 };
 
 let reporter: ErrorReporter | null = null;
+let initialized = false;
 
 export type InitErrorReportingOptions = {
   dsn?: string;
-  /** حقن مخصّص (اختبارات) */
+  /** Adapter injected by the native crash-reporting integration or tests. */
   custom?: ErrorReporter;
 };
 
 /**
- * يحاول تحميل Sentry إن وُجدت الحزمة وdsn، وإلا يبقى التسجيل المحلي فقط.
+ * Starts error reporting without creating a hard Metro dependency on an SDK that
+ * is not installed. This deliberately does not pretend that a DSN alone activates Sentry.
  */
 export function initErrorReporting(options: InitErrorReportingOptions = {}): void {
+  if (initialized && !options.custom) return;
+  initialized = true;
+
   if (options.custom) {
     reporter = options.custom;
+    logger.info('error-reporting', 'Custom error reporter initialized');
     return;
   }
-  if (!options.dsn) {
-    reporter = null;
-    return;
-  }
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const Sentry = require('@sentry/react-native') as {
-      init: (o: { dsn: string; tracesSampleRate?: number }) => void;
-      captureException: (e: unknown) => void;
-      captureMessage: (m: string) => void;
-      setContext: (name: string, ctx: Record<string, unknown>) => void;
-    };
-    Sentry.init({ dsn: options.dsn, tracesSampleRate: 0.15 });
-    reporter = {
-      captureException: (error, context) => {
-        if (context) Sentry.setContext('extra', context);
-        Sentry.captureException(error);
-      },
-      captureMessage: (message, context) => {
-        if (context) Sentry.setContext('extra', context);
-        Sentry.captureMessage(message);
-      },
-    };
-    logger.info('error-reporting', 'Sentry initialized');
-  } catch {
-    logger.warn('error-reporting', 'Sentry package not installed; local logging only');
-    reporter = null;
+
+  reporter = null;
+  if (options.dsn) {
+    logger.warn(
+      'error-reporting',
+      'Crash-reporting DSN is configured but no native reporter adapter is installed; using local logging only',
+    );
   }
 }
 
@@ -64,7 +49,7 @@ export function captureException(error: unknown, context?: Record<string, unknow
   try {
     reporter?.captureException(error, context);
   } catch {
-    /* ignore */
+    /* Reporting must never crash the application. */
   }
 }
 
@@ -73,6 +58,6 @@ export function captureMessage(message: string, context?: Record<string, unknown
   try {
     reporter?.captureMessage(message, context);
   } catch {
-    /* ignore */
+    /* Reporting must never crash the application. */
   }
 }

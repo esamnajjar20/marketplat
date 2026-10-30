@@ -41,6 +41,8 @@ const groups: DestinationGroup[] = [
     items: [
       { title: 'الملف الشخصي', description: 'تعديل بيانات الملف والصورة ورقم الهاتف', path: '/profile', requiresAuth: true },
       { title: 'مفضلتي', description: 'الرجوع إلى الإعلانات التي حفظتها', path: '/favorites' },
+      { title: 'المحفوظات المحلية للدفع', description: 'جهات الدفع وبطاقات الإنترنت على هذا الجهاز', path: '/saved-payments' },
+      { title: 'الأشخاص الذين أتابعهم', description: 'إدارة الحسابات التي تتابعها', path: '/following', requiresAuth: true },
       { title: 'عمليات البحث المحفوظة', description: 'الوصول إلى عمليات البحث التي احتفظت بها', path: '/saved-searches', requiresAuth: true },
       { title: 'المتاجر التي أتابعها', description: 'اكتشف آخر تحديثات المتاجر التي تتابعها', path: '/followed-stores', requiresAuth: true },
       { title: 'النشاط', description: 'مراجعة نشاط الحساب', path: '/activity', requiresAuth: true },
@@ -59,6 +61,7 @@ const groups: DestinationGroup[] = [
       { title: 'المواعيد', description: 'متابعة مواعيد الخدمات والحجوزات', path: '/appointments', requiresAuth: true },
       { title: 'ملف مقدم الخدمة', description: 'إدارة بيانات نشاط الخدمات', path: '/service-provider-profile', requiresAuth: true },
       { title: 'إحصاءات المتجر', description: 'مراجعة الزيارات والمتابعين وأداء المنتجات', path: '/my-store-analytics', requiresAuth: true },
+      { title: 'لوحة البائع', description: 'ملخص حالة المتجر والمهام والإحصاءات', path: '/seller-dashboard', requiresAuth: true },
     ],
   },
   {
@@ -107,12 +110,15 @@ export default function AccountHubScreen() {
         {!user ? (
           <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
         ) : null}
+        {user?.needsProfileCompletion ? (
+          <PrimaryButton label="أكمل ملفك الشخصي" variant="secondary" onPress={() => router.push('/complete-profile')} />
+        ) : null}
       </SectionCard>
 
       {groups.map((group) => (
         <View key={group.title} style={{ gap: spacing.md }}>
           <SectionHeader title={group.title} subtitle={group.subtitle} />
-          {group.items.map((item) => (
+          {group.items.filter((item) => item.path !== '/complete-profile').map((item) => (
             <ListRow
               key={item.path}
               title={item.title}

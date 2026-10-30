@@ -94,9 +94,9 @@ describe('usersApi', () => {
     expect(apiClient.patch).toHaveBeenCalledWith('/users/me', { name: 'New Name' });
   });
 
-  it('deleteMe → DELETE /users/me', async () => {
-    await usersApi.deleteMe();
-    expect(apiClient.delete).toHaveBeenCalledWith('/users/me');
+  it('deleteMe → POST /users/me/delete-confirmed with password re-auth', async () => {
+    await usersApi.deleteMe('current-password');
+    expect(apiClient.post).toHaveBeenCalledWith('/users/me/delete-confirmed', { currentPassword: 'current-password' });
   });
 
   it('changePassword → POST /users/me/password', async () => {

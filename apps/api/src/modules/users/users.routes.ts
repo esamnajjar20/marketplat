@@ -14,7 +14,20 @@ usersRouter.use(usersRateLimit);
 usersRouter.get('/me/bootstrap', authenticate, usersController.getBootstrap);
 usersRouter.get('/me', authenticate, usersController.getMe);
 usersRouter.patch('/me', authenticate, usersController.updateMe);
-usersRouter.delete('/me', authenticate, usersController.deleteMe);
+// Both the legacy DELETE and the explicit confirmation endpoint require
+// password re-authentication. Never expose usersService.deleteMe directly.
+usersRouter.delete(
+  '/me',
+  authenticate,
+  changePasswordRateLimit,
+  usersController.deleteMeWithReauth
+);
+usersRouter.post(
+  '/me/delete-confirmed',
+  authenticate,
+  changePasswordRateLimit,
+  usersController.deleteMeWithReauth
+);
 // stricter, fail-closed rate limit on top of the general
 // usersRateLimit — see changePasswordRateLimit's definition for why.
 usersRouter.post(

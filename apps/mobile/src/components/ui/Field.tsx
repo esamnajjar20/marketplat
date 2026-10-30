@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Text, TextInput, View, type TextInputProps } from 'react-native';
 import { colors } from '@/theme/tokens';
 import { uiStyles as s } from './styles';
@@ -17,6 +18,7 @@ export function Field({
   onSubmitEditing,
   autoFocus,
   error,
+  accessibilityHint,
 }: {
   label: string;
   value: string;
@@ -32,7 +34,9 @@ export function Field({
   onSubmitEditing?: TextInputProps['onSubmitEditing'];
   autoFocus?: boolean;
   error?: string;
+  accessibilityHint?: string;
 }) {
+  const [focused, setFocused] = useState(false);
   return (
     <View style={s.field}>
       <Text style={s.label}>{label}</Text>
@@ -47,7 +51,11 @@ export function Field({
         maxLength={maxLength}
         editable={editable}
         accessibilityLabel={label}
+        accessibilityHint={error ? `${accessibilityHint ? `${accessibilityHint}. ` : ''}${error}` : accessibilityHint}
+        accessibilityState={{ disabled: !editable }}
         selectionColor={colors.brand}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         textAlign="right"
         textAlignVertical={multiline ? 'top' : 'center'}
         autoCapitalize={
@@ -65,9 +73,9 @@ export function Field({
         returnKeyType={returnKeyType}
         onSubmitEditing={onSubmitEditing}
         autoFocus={autoFocus}
-        style={[s.input, multiline && s.textarea, !editable && s.inputDisabled, error && s.inputError]}
+        style={[s.input, multiline && s.textarea, focused && s.inputFocused, !editable && s.inputDisabled, error && s.inputError]}
       />
-      {error ? <Text style={s.fieldError}>{error}</Text> : null}
+      {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={s.fieldError}>{error}</Text> : null}
     </View>
   );
 }

@@ -64,7 +64,7 @@
  *   on every load after the first this session.
  */
 
-import { Suspense, useState } from 'react';
+import { Suspense, useId, useState } from 'react';
 import Link           from 'next/link';
 import { usePathname } from 'next/navigation';
 import { WithSearch } from '@/components/layout/WithSearch';
@@ -121,7 +121,7 @@ function NavLink({
       prefetch={false}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'flex h-10 items-center gap-2.5 text-[13px] transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        'flex min-h-11 items-center gap-2.5 text-[13px] transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         indent
           ? cn(
               'ms-3 border-inline-start-2 py-0 pe-3 ps-3',
@@ -161,6 +161,7 @@ function DisclosureGroup({
   // landing on e.g. /my-services/requests doesn't hide the very link
   // that got them there.
   const [isOpen, setIsOpen] = useState(isAnyChildActive);
+  const panelId = useId();
   const Icon = group.icon;
 
   return (
@@ -169,8 +170,9 @@ function DisclosureGroup({
         type="button"
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
+        aria-controls={panelId}
         className={cn(
-          'flex h-10 w-full items-center gap-2.5 rounded-[10px] px-3 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none',
+          'flex min-h-11 w-full items-center gap-2.5 rounded-[10px] px-3 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none',
           isAnyChildActive
             ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
             : 'font-semibold text-[#6B6459] hover:bg-[#FBF9F4] hover:text-[#1F4D33]',
@@ -182,8 +184,7 @@ function DisclosureGroup({
           ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[#6B6459]" aria-hidden={true} />
           : <ChevronLeft className="h-3.5 w-3.5 shrink-0 text-[#6B6459]" aria-hidden={true} />}
       </button>
-      {isOpen && (
-        <div className="mt-0.5 flex flex-col gap-0.5 pb-1">
+      <div id={panelId} hidden={!isOpen} className="mt-0.5 flex flex-col gap-0.5 pb-1">
           {group.children.map((child) => (
             <NavLink
               key={child.href}
@@ -194,8 +195,7 @@ function DisclosureGroup({
               onNavigate={() => onNavigate?.(child.href)}
             />
           ))}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -22,11 +22,47 @@ async function database() {
   return dbPromise;
 }
 function validatePayload(value: unknown): asserts value is OrderPayload {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('بيانات الطلب المحفوظ غير صالحة.');
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('بيانات الطلب المحفوظ غير صالحة.');
+  }
   const p = value as Record<string, unknown>;
-  if (!Array.isArray(p.items) || p.items.length < 1 || p.items.length > 50 || p.items.some((v) => !v || typeof v !== 'object' || typeof (v as any).productId !== 'string' || !(v as any).productId.trim() || !Number.isInteger((v as any).quantity) || (v as any).quantity < 1 || (v as any).quantity > 100) || typeof p.recipientName !== 'string' || p.recipientName.trim().length < 2 || p.recipientName.length > 160 || typeof p.recipientPhone !== 'string' || p.recipientPhone.trim().length < 6 || p.recipientPhone.length > 40 || typeof p.shippingCity !== 'string' || p.shippingCity.trim().length < 2 || p.shippingCity.length > 100 || typeof p.shippingAddress !== 'string' || p.shippingAddress.trim().length < 4 || p.shippingAddress.length > 500 || (p.buyerNote !== undefined && (typeof p.buyerNote !== 'string' || p.buyerNote.length > 1000)) || typeof p.idempotencyKey !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{7,119}$/.test(p.idempotencyKey)) throw new Error('بيانات الطلب لا تطابق قواعد الحفظ دون اتصال.');
-  if (new Set(p.items.map((v: any) => v.productId)).size !== p.items.length) throw new Error('ادمج الكميات المكررة للمنتج قبل حفظ الطلب.');
+  const itemsValid = Array.isArray(p.items)
+    && p.items.length >= 1
+    && p.items.length <= 50
+    && p.items.every((item: unknown) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+      const row = item as Record<string, unknown>;
+      return typeof row.productId === 'string'
+        && row.productId.trim().length > 0
+        && typeof row.quantity === 'number'
+        && Number.isInteger(row.quantity)
+        && row.quantity >= 1
+        && row.quantity <= 100;
+    });
+  const fieldsValid = typeof p.recipientName === 'string'
+    && p.recipientName.trim().length >= 2
+    && p.recipientName.length <= 160
+    && typeof p.recipientPhone === 'string'
+    && p.recipientPhone.trim().length >= 6
+    && p.recipientPhone.length <= 40
+    && typeof p.shippingCity === 'string'
+    && p.shippingCity.trim().length >= 2
+    && p.shippingCity.length <= 100
+    && typeof p.shippingAddress === 'string'
+    && p.shippingAddress.trim().length >= 4
+    && p.shippingAddress.length <= 500
+    && (p.buyerNote === undefined || (typeof p.buyerNote === 'string' && p.buyerNote.length <= 1000))
+    && typeof p.idempotencyKey === 'string'
+    && /^[A-Za-z0-9][A-Za-z0-9._:-]{7,119}$/.test(p.idempotencyKey);
+  if (!itemsValid || !fieldsValid) {
+    throw new Error('بيانات الطلب لا تطابق قواعد الحفظ دون اتصال.');
+  }
+  const productIds = (p.items as Array<{ productId: string }>).map((item) => item.productId);
+  if (new Set(productIds).size !== productIds.length) {
+    throw new Error('ادمج الكميات المكررة للمنتج قبل حفظ الطلب.');
+  }
 }
+
 function mapRow(row: Row): PendingOrderOutboxItem {
   let payload: OrderPayload;
   try { const parsed: unknown = JSON.parse(row.payload_json); validatePayload(parsed); payload = parsed; }

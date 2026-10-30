@@ -12,9 +12,10 @@ export type ServiceListing = {
   category?: { id?: string; name?: string; nameAr?: string | null } | null;
 };
 export type ServiceRequest = {
-  id: string; listingId?: string; details?: string; status?: string; quotedPrice?: number | string | null; agreedPrice?: number | string | null; createdAt?: string;
-  listing?: { id?: string; title?: string } | null; customer?: { name?: string; displayName?: string } | null;
-  provider?: { businessName?: string; sellerProfile?: { displayName?: string | null } } | null;
+  id: string; listingId?: string; customerId?: string; details?: string; attachedImages?: string[]; status?: string; quotedPrice?: number | string | null; agreedPrice?: number | string | null; createdAt?: string; updatedAt?: string; respondedAt?: string | null; disputeReason?: string | null;
+  appointment?: { id?: string; scheduledStart?: string; scheduledEnd?: string; status?: string; notes?: string | null } | null;
+  listing?: { id?: string; title?: string; description?: string | null; images?: string[]; price?: number | string | null; pricingType?: string; durationEstimate?: string | null; serviceType?: { capabilities?: Record<string, unknown> | null } | null; provider?: { id?: string; businessName?: string | null; sellerProfile?: { userId?: string; displayName?: string | null } | null } | null } | null; customer?: { id?: string; name?: string; displayName?: string; avatarUrl?: string | null } | null;
+  provider?: { businessName?: string; sellerProfile?: { userId?: string; displayName?: string | null } } | null;
 };
 function readData<T>(response: Envelope<T>, fallback: string): T {
   if (!response || response.success !== true || response.data === undefined) throw new Error(response?.message || fallback);
@@ -55,6 +56,14 @@ export async function fetchServiceListing(id: string): Promise<ServiceListing> {
   await writePublicCache(`service-listing:${id}`, item);
   return item;
 }
+export async function fetchServiceRequest(id: string, token: string): Promise<ServiceRequest> {
+  if (!id.trim()) throw new Error('معرّف طلب الخدمة غير صالح.');
+  const response = await apiRequest<Envelope<ServiceRequest>>(`/api/v1/service-requests/${encodeURIComponent(id)}`, { token });
+  const item = readData(response, 'تعذر تحميل تفاصيل طلب الخدمة.');
+  if (!item || item.id !== id) throw new Error('استجابة تفاصيل طلب الخدمة غير صالحة.');
+  return item;
+}
+
 export async function fetchServiceRequests(token: string, incoming = false): Promise<ServiceRequest[]> {
   const response = await apiRequest<Envelope<ServiceRequest[]>>(`/api/v1/service-requests/${incoming ? 'incoming' : 'me'}?page=1&limit=50`, { token });
   const items = readData(response, 'تعذر تحميل طلبات الخدمات.');
@@ -69,9 +78,9 @@ export async function createServiceRequest(listingId: string, details: string, t
   return readData(response, 'تعذر إرسال طلب الخدمة.');
 }
 
-export async function respondToServiceRequest(id: string, action: 'ACCEPTED' | 'REJECTED', token: string, csrfToken?: string | null): Promise<ServiceRequest> {
+export async function respondToServiceRequest(id: string, action: 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED', token: string, csrfToken?: string | null, extra?: { quotedPrice?: number; agreedPrice?: number; disputeReason?: string }): Promise<ServiceRequest> {
   const response = await apiRequest<Envelope<ServiceRequest>>(`/api/v1/service-requests/${encodeURIComponent(id)}/respond`, {
-    method: 'PATCH', token, body: JSON.stringify({ action }),
+    method: 'PATCH', token, body: JSON.stringify({ action, ...extra }),
     headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
   });
   return readData(response, 'تعذر تحديث حالة الطلب.');

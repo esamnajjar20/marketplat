@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const syncPath = new URL('../src/storage/outbox-sync.ts', import.meta.url);
+const packagePath = new URL('../package.json', import.meta.url);
+const sync = fs.readFileSync(syncPath, 'utf8');
+const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+assert.ok(sync.includes('const candidate: OutboxItem | null = await getOldestOutboxMutation(ownerId)'), 'Worker must inspect the true oldest queued item, including backoff/exhausted rows');
+assert.ok(sync.includes("decision.status === 'blocked-by-unsupported'"), 'Worker must stop on an unsupported oldest operation through the pure policy');
+assert.ok(sync.includes('Preserve strict FIFO ordering'), 'FIFO behavior must be documented');
+assert.ok(!sync.includes("due.find((item) => item.operation === 'create-ad')"), 'Worker must not skip older unsupported mutations');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'Phase 33 verifier must be wired into npm test');
+console.log('Phase 33 FIFO outbox ordering checks passed (static source checks only).');

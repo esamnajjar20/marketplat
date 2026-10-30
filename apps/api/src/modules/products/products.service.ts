@@ -70,6 +70,32 @@ function getFreeProductLimit(store: {
 // comment for the full reconciliation rule.
 export type ProductWithEffectivePrice<T> = T & { effectivePrice: EffectivePrice };
 
+/**
+ * Public product reads may show which payment rails a seller accepts, but must
+ * never send private account holder names or account numbers to anonymous
+ * clients. Keep only the display-safe id/kind/label fields in public payloads.
+ */
+function sanitizePublicProductPaymentMethods<T extends { store: { sellerProfile: { paymentMethods?: unknown } | null } | null }>(product: T): T {
+  if (!product.store) return product;
+  const profile = product.store.sellerProfile;
+  if (!profile) return product;
+  const methods = Array.isArray(profile.paymentMethods)
+    ? profile.paymentMethods.flatMap((value) => {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
+        const row = value as Record<string, unknown>;
+        if (typeof row.id !== 'string' || typeof row.kind !== 'string' || typeof row.label !== 'string') return [];
+        return [{ id: row.id, kind: row.kind, label: row.label }];
+      })
+    : [];
+  return {
+    ...product,
+    store: {
+      ...product.store,
+      sellerProfile: { ...profile, paymentMethods: methods },
+    },
+  } as T;
+}
+
 function deriveAvailabilityFromStock(
   stock: number | null | undefined,
   fallback: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK' | undefined
@@ -331,7 +357,7 @@ export const productsService = {
     query: GetProductsQuery
   ): Promise<PaginatedResult<ProductWithEffectivePrice<ProductWithStore>>> => {
     // Redis SWR cache; see publicListCache.ts.
-    return cachedPublicList('products', query, async () => {
+    const result = await cachedPublicList('products', query, async () => {
       const { products, total } = await productsRepository.findMany(query);
       // PROMO-1: one batched query for the whole page's live promotions
       // rather than N+1 — see promotionsService.getEffectivePrices.
@@ -344,6 +370,9 @@ export const productsService = {
       const limit = query.limit ?? 20;
       return { items, meta: buildPaginationMeta(total, page, limit) };
     });
+    // Redact after cache retrieval too, so payloads cached before this fix
+    // cannot continue exposing account numbers until the cache naturally expires.
+    return { ...result, items: result.items.map(sanitizePublicProductPaymentMethods) };
   },
 
   // FEAT-FAVORITE-POLYMORPHIC PR2: facade for cross-module use
@@ -374,7 +403,10 @@ export const productsService = {
     // state. Checked here rather than folded into findPublicById's
     // query so a suspended seller browsing their own dashboard (which
     // doesn't go through this path) is unaffected.
-    if (product.store.sellerProfile.suspended) {
+    if (!product.store) {
+      throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+    }
+    if (product.store.sellerProfile?.suspended) {
       throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
     }
     // SEC-FIX: same gap, different trigger — an admin blocking a store
@@ -393,7 +425,7 @@ export const productsService = {
         reportBackgroundFailure('apps/api/src/modules/products/products.service.ts', error)
       );
     const effectivePrice = await promotionsService.getEffectivePrice(product);
-    return { ...product, effectivePrice };
+    return sanitizePublicProductPaymentMethods({ ...product, effectivePrice });
   },
 
   updateProduct: async (

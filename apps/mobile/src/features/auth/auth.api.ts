@@ -1,4 +1,5 @@
 import { apiRequest } from '@/api/client';
+import { authEnvelopeResponseSchema, refreshEnvelopeResponseSchema } from '@/api/response-schemas';
 
 export type AuthUser = {
   id: string;
@@ -32,6 +33,7 @@ export async function loginWithPassword(email: string, password: string): Promis
     method: 'POST',
     credentials: 'include',
     body: JSON.stringify({ email: email.trim(), password }),
+    responseSchema: authEnvelopeResponseSchema as import('zod').ZodType<AuthEnvelope>,
   });
   const data = response?.data;
   const accessToken = data?.tokens?.accessToken;
@@ -71,6 +73,7 @@ async function performAccessRefresh(signal?: AbortSignal): Promise<RefreshedAcce
     method: 'POST',
     credentials: 'include',
     signal,
+    responseSchema: refreshEnvelopeResponseSchema as import('zod').ZodType<RefreshEnvelope>,
   });
   const accessToken = response?.data?.tokens?.accessToken;
   if (response?.success !== true || typeof accessToken !== 'string' || !accessToken) {
@@ -133,6 +136,7 @@ export async function registerAccount(input: RegisterInput): Promise<AuthSession
       ...(input.phone ? { phone: input.phone.trim() } : {}),
       ...(input.city ? { city: input.city.trim() } : {}),
     }),
+    responseSchema: authEnvelopeResponseSchema as import('zod').ZodType<AuthEnvelope>,
   });
   const data = response?.data;
   const accessToken = data?.tokens?.accessToken;

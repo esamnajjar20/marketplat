@@ -159,41 +159,53 @@ describe('usersController', () => {
     });
   });
 
-  describe('deleteMe', () => {
-    it('returns 200 on success', async () => {
-      const req = mockRequest();
+  describe('deleteMeWithReauth', () => {
+    it('requires a current password and deletes only after service re-auth succeeds', async () => {
+      const req = mockRequest({ body: { currentPassword: 'current-password' } });
       const res = mockResponse();
       const next = mockNext();
-      (usersService.deleteMe as jest.Mock).mockResolvedValue(undefined);
+      (usersService.deleteMeWithReauth as jest.Mock).mockResolvedValue(undefined);
 
-      await usersController.deleteMe(req, res, next);
+      await usersController.deleteMeWithReauth(req, res, next);
 
+      expect(usersService.deleteMeWithReauth).toHaveBeenCalledWith('user-1', 'current-password');
       expect(res.status).toHaveBeenCalledWith(200);
-      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true }));
+    });
+
+    it('rejects a missing current password before reaching the service', async () => {
+      const req = mockRequest({ body: {} });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await usersController.deleteMeWithReauth(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(usersService.deleteMeWithReauth).not.toHaveBeenCalled();
     });
 
     it('calls next(error) when unauthenticated', async () => {
-      const req = mockRequest();
+      const req = mockRequest({ body: { currentPassword: 'current-password' } });
       const res = mockResponse();
       const next = mockNext();
-      (requireUser as jest.Mock).mockImplementation(() => {
-        throw new UnauthorizedError();
-      });
+      (requireUser as jest.Mock).mockImplementation(() => { throw new UnauthorizedError(); });
 
-      await usersController.deleteMe(req, res, next);
+      await usersController.deleteMeWithReauth(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
     });
 
-    it('calls next(error) when the service throws NotFoundError', async () => {
-      const req = mockRequest();
+    it('forwards re-authentication failures without deleting the account', async () => {
+      const req = mockRequest({ body: { currentPassword: 'wrong-password' } });
       const res = mockResponse();
       const next = mockNext();
-      (usersService.deleteMe as jest.Mock).mockRejectedValue(new NotFoundError('User not found'));
+      (usersService.deleteMeWithReauth as jest.Mock).mockRejectedValue(
+        new BadRequestError('Current password is incorrect', 'CURRENT_PASSWORD_INVALID')
+      );
 
-      await usersController.deleteMe(req, res, next);
+      await usersController.deleteMeWithReauth(req, res, next);
 
-      expect(next).toHaveBeenCalledWith(expect.any(NotFoundError));
+      expect(next).toHaveBeenCalledWith(expect.any(BadRequestError));
+      expect(res.status).not.toHaveBeenCalledWith(200);
     });
   });
 

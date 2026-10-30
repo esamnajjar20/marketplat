@@ -14,7 +14,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
   return (
     <div className="flex min-h-screen min-h-dvh min-w-0 flex-col">
       <PublicHeader />
-      <main id="main-content" className="min-w-0 flex-1 pb-16 md:pb-0">
+      <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 pb-16 md:pb-0">
         <PageTransition>
           <ScrollRestore />
           {children}

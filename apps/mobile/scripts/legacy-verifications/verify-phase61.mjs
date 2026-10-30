@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+
+const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
+const mobileSync = read('../src/storage/outbox-sync.ts');
+const transport = read('../src/storage/outbox-transport.ts');
+const contract = read('../src/storage/outbox-transport-contract.mjs');
+const apiController = read('../../api/src/modules/ads/ads.controller.ts');
+const apiService = read('../../api/src/modules/ads/ads.service.ts');
+const routes = read('../../api/src/modules/ads/ads.routes.ts');
+const queueScreen = read('../app/offline-queue.tsx');
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+
+assert.match(mobileSync, /decision\.status === 'blocked-by-unsupported'/, 'Unsupported FIFO head must stop replay');
+assert.match(mobileSync, /decision\.status !== 'send-delete-ad'/, 'Worker must explicitly route supported delete operations');
+assert.match(contract, /item\.operation !== 'create-ad'/, 'Create transport contract remains limited to create operations');
+assert.match(transport, /sendOutboxCreateAd/, 'Current transport is specifically the create-ad transport');
+assert.match(apiController, /offlineOpId[\s\S]{0,260}adsService\.createAd/, 'Create endpoint forwards offline operation identity');
+assert.match(apiService, /offlineOperationId[\s\S]{0,700}findUnique\([\s\S]{0,100}offlineOperationId/, 'Create service checks for an already-created operation');
+assert.match(routes, /adsRouter\.delete\('\/:id', authenticate, adsController\.deleteAd\)/, 'Delete endpoint is authenticated');
+const deleteHandler = apiController.slice(apiController.indexOf('deleteAd: async'));
+assert.doesNotMatch(deleteHandler, /x-offline-op-id|X-Offline-Op-Id/, 'Delete endpoint does not currently consume offline operation identity');
+const deleteService = apiService.slice(apiService.indexOf('deleteAd: async'));
+assert.match(deleteService, /if \(!ad\) throw new NotFoundError/, 'Missing ads still return not found');
+assert.match(deleteService, /if \(ad\.status === 'DELETED'\) return/, 'Repeated authorized delete is idempotent after a lost acknowledgement');
+assert.match(queueScreen, /يتضمن هذا التعديل صورًا محفوظة محليًا/, 'UI explains image-bearing updates that remain unsupported');
+assert.match(queueScreen, /ستتوقف العمليات الأحدث|قد توقف عملية أقدم غير مدعومة المزامنة/, 'UI explains FIFO blocking behavior using either accepted Arabic wording');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'Phase 61 verifier is included in npm test');
+console.log('Phase 61 regression checks passed: create idempotency exists; image-bearing update replay remains blocked; delete replay is safe at the API service boundary.');

@@ -22,3 +22,4 @@ export {
 export { SearchBar } from './SearchBar';
 export { DetailScaffold } from './DetailScaffold';
 export { uiStyles } from './styles';
+export { ProductCard } from './ProductCard';

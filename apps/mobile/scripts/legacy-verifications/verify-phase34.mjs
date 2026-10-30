@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const outbox = fs.readFileSync(new URL('../src/storage/mutation-outbox.ts', import.meta.url), 'utf8');
+const sync = fs.readFileSync(new URL('../src/storage/outbox-sync.ts', import.meta.url), 'utf8');
+const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url)));
+assert.ok(outbox.includes('export async function listAllOutboxMutations'), 'Queue management must expose retained rows');
+assert.ok(outbox.includes("state IN ('pending','failed')"), 'Discard must not remove a processing row');
+assert.ok(outbox.includes('export async function discardOutboxMutation'), 'Explicit discard API must exist');
+assert.ok(sync.includes("status: 'blocked-by-unsupported'"), 'Blocked operation must be reported explicitly');
+assert.ok(sync.includes('...decision, count: all.filter'), 'Blocked result must identify the oldest blocking operation');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'Phase 34 verifier must be wired into npm test');
+console.log('Phase 34 outbox queue-management checks passed (static source checks only).');

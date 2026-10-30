@@ -1,0 +1,44 @@
+appId: com.marketplat.mobile
+---
+- launchApp:
+    clearState: true
+- assertVisible: "MarketPlat"
+- tapOn: "تسجيل الدخول"
+- assertVisible: "البريد الإلكتروني"
+- tapOn: "البريد الإلكتروني"
+- inputText: ${MAESTRO_EMAIL}
+- tapOn: "كلمة المرور"
+- inputText: ${MAESTRO_PASSWORD}
+- tapOn: "تسجيل الدخول"
+- assertVisible:
+    text: "إضافة جديد"
+    timeout: 30000
+- tapOn: "إضافة جديد"
+- tapOn: "إضافة إعلان"
+- assertVisible: "عنوان الإعلان"
+- tapOn: "عنوان الإعلان"
+- inputText: "Maestro draft validation"
+- tapOn: "وصف الإعلان"
+- inputText: "هذه مسودة اختبار آلية لتأكيد حفظ النموذج محليًا."
+- tapOn: "مدينة الإعلان"
+- inputText: "غزة"
+- hideKeyboard
+- extendedWaitUntil:
+    visible: "تم حفظ المسودة على الجهاز"
+    timeout: 10000
+- back
+- tapOn: "إضافة جديد"
+- tapOn: "إضافة إعلان"
+- assertVisible: "عنوان الإعلان"
+- assertVisible: "Maestro draft validation"
+- assertVisible: "هذه مسودة اختبار آلية لتأكيد حفظ النموذج محليًا."
+- extendedWaitUntil:
+    visible: "تم حفظ المسودة على الجهاز"
+    timeout: 10000
+- back
+- tapOn: "الرئيسية"
+- assertVisible: "تسجيل الخروج"
+- tapOn: "تسجيل الخروج"
+- assertVisible:
+    text: "تسجيل الدخول"
+    timeout: 20000

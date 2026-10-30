@@ -78,8 +78,8 @@ export const usersApi = {
   updateMe: (payload: UpdateProfilePayload) =>
     apiClient.patch<ApiResponse<User>>('/users/me', payload),
 
-  deleteMe: () =>
-    apiClient.delete<ApiResponse<null>>('/users/me'),
+  deleteMe: (currentPassword: string) =>
+    apiClient.post<ApiResponse<null>>('/users/me/delete-confirmed', { currentPassword }),
 
   /**
    * POST /users/me/password — changes the authenticated user's password.

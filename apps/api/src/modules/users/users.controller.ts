@@ -4,6 +4,7 @@ import {
   updateProfileSchema,
   getUserByIdSchema,
   changePasswordSchema,
+  deleteMeWithReauthSchema,
   updateNotificationPreferencesSchema,
   getPresenceSchema,
 } from './users.validation';
@@ -88,10 +89,11 @@ export const usersController = {
     }
   },
 
-  deleteMe: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  deleteMeWithReauth: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      await usersService.deleteMe(user.userId);
+      const { body } = deleteMeWithReauthSchema.parse({ body: req.body });
+      await usersService.deleteMeWithReauth(user.userId, body.currentPassword);
       res.status(200).json(successResponse('Account deactivated'));
     } catch (error) {
       next(error);

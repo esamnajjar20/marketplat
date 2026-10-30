@@ -2,6 +2,7 @@ import { type ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { goBack } from '@/lib/navigation';
 import { uiStyles as s } from './styles';
+import { DrawerMenuButton } from '@/components/MobileDrawer';
 
 export function AppHeader({
   title,
@@ -40,7 +41,11 @@ export function AppHeader({
       <Text style={s.title} numberOfLines={1}>
         {title}
       </Text>
-      <View style={s.headerRight}>{right ?? <View style={s.headerSpacer} />}</View>
+      <View style={[s.headerRight, styles.headerActions]}>{right ?? null}<DrawerMenuButton /></View>
     </View>
   );
 }
+
+const styles = {
+  headerActions: { flexDirection: 'row' as const, gap: 8, minWidth: 44, alignItems: 'center' as const, justifyContent: 'center' as const },
+};

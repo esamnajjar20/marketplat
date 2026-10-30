@@ -7,7 +7,7 @@ function dataOf<T>(response: Envelope<T>, fallback: string): T {
   return response.data;
 }
 export type StoreSummary = {
-  id: string; name: string; description?: string | null; city?: string | null; address?: string | null;
+  id: string; name: string; slug?: string | null; description?: string | null; city?: string | null; address?: string | null;
   logoUrl?: string | null; coverImageUrl?: string | null; status?: string; plan?: string;
   phone?: string | null; _count?: { products?: number; followers?: number };
   owner?: { name?: string | null; displayName?: string | null } | null;
@@ -18,11 +18,15 @@ export type StoreSummary = {
 };
 export type ProductSummary = {
   id: string; name: string; description?: string | null; price: number | string;
-  discountPrice?: number | string | null; effectivePrice?: { price?: number | string; amount?: number | string } | null;
+  discountPrice?: number | string | null; effectivePrice?: { price?: number | string; amount?: number | string; originalPrice?: number | string } | null;
   images?: string[]; availability?: string; status?: string; stockQuantity?: number | null;
   category?: { id?: string; name?: string; nameAr?: string | null } | null;
-  store?: { id?: string; name?: string; logoUrl?: string | null; city?: string | null; sellerProfile?: { userId?: string } | null } | null;
-  createdAt?: string;
+  createdAt?: string; views?: number; attributes?: Record<string, unknown> | null;
+  store?: {
+    id?: string; name?: string; logoUrl?: string | null; city?: string | null; phone?: string | null;
+    sellerProfile?: { userId?: string; paymentMethods?: unknown; averageRating?: number | string | null; totalRatings?: number; verified?: boolean; user?: { name?: string | null } } | null;
+    storeType?: { fields?: { id?: string; key: string; label?: string | null; labelAr?: string | null; pageLabelAr?: string | null; type?: string; scope?: string; isActive?: boolean; options?: { value?: unknown; label?: string; labelAr?: string }[] | null }[] | null } | null;
+  } | null;
 };
 export type ProductCategory = { id: string; name: string; nameAr?: string | null; slug?: string; parentId?: string | null; isActive?: boolean; children?: ProductCategory[] };
 export type PageResult<T> = { items: T[]; page: number; totalPages: number; total: number };

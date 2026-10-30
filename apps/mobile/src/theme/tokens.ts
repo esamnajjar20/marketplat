@@ -19,6 +19,13 @@ export const colors = {
   // حدود
   border: '#E8E0D4',
   borderStrong: '#C9D6CE',
+  // حدود أكثر وضوحًا لعناصر التحكم التي تعتمد على المحيط البصري.
+  controlBorder: '#7C8A80',
+  focus: '#2F5D45',
+  // Overlays مصممة للمحتوى المتراكب فوق الصور/الفيديو، بدل rgba مبعثرة في الشاشات.
+  mediaControlOverlay: 'rgba(255, 255, 255, 0.91)',
+  storyProgressTrack: 'rgba(255, 255, 255, 0.30)',
+  storyNavigationOverlay: 'rgba(0, 0, 0, 0.26)',
   // تمييز: تيراكوتا
   accent: '#BE5A32',
   accentSoft: '#F8EBE5',
@@ -32,7 +39,8 @@ export const colors = {
   info: '#1D4E89',
   infoSoft: '#EAF2FB',
   infoBorder: '#C6DAF1',
-  warning: '#BE5A32',
+  warning: '#BE5A32', // إبراز زخرفي/عناصر كبيرة
+  warningText: '#A34826', // نص تحذيري يحقق WCAG AA على الخلفيات الفاتحة
   warningSoft: '#F8EBE5',
   warningBorder: '#E8C4B4',
   // ثابت
@@ -148,7 +156,7 @@ export const sizes = {
   avatarSm: 36,
   avatarMd: 48,
   avatarLg: 64,
-  chipHeight: 32,
+  chipHeight: 44,
 } as const;
 
 export type ColorToken = keyof typeof colors;

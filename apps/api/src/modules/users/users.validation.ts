@@ -148,3 +148,13 @@ export const updateNotificationPreferencesSchema = z.object({
 export type UpdateNotificationPreferencesInput = z.infer<
   typeof updateNotificationPreferencesSchema
 >['body'];
+
+
+/** Re-authentication is mandatory before an irreversible account deletion. */
+export const deleteMeWithReauthSchema = z.object({
+  body: z.object({
+    currentPassword: z.string().min(1, 'Current password is required').max(128),
+  }),
+});
+
+export type DeleteMeWithReauthInput = z.infer<typeof deleteMeWithReauthSchema>['body'];

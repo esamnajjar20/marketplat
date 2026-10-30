@@ -55,6 +55,7 @@ export type AuthState = {
     city?: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (patch: Partial<AuthUser>) => void;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -69,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const userRef = useRef<AuthUser | null>(null);
   const csrfRef = useRef<string | null>(null);
+  const persistenceWarningShown = useRef(false);
 
   const applySession = useCallback((session: PersistedSession) => {
     setUser(session.user);
@@ -77,25 +79,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setExpiresAt(session.expiresAt);
   }, []);
 
+  const warnSessionPersistence = useCallback(() => {
+    if (persistenceWarningShown.current) return;
+    persistenceWarningShown.current = true;
+    Alert.alert(
+      'تعذّر حفظ الجلسة على الجهاز',
+      'تعمل الجلسة الحالية في الذاكرة، لكن التخزين الآمن لم يؤكد حفظها. قد تحتاج إلى تسجيل الدخول مجددًا بعد إغلاق التطبيق.',
+    );
+  }, []);
+
   const persist = useCallback(
-    async (session: PersistedSession) => {
+    async (session: PersistedSession): Promise<boolean> => {
       applySession(session);
-      await writePersistedSession(session);
+      const saved = await writePersistedSession(session);
+      if (!saved) warnSessionPersistence();
+      return saved;
     },
-    [applySession],
+    [applySession, warnSessionPersistence],
   );
 
-  const clearPersisted = useCallback(async () => {
+  const clearPersisted = useCallback(async (): Promise<boolean> => {
+    // Clear in-memory access first. SecureStore failures must remain observable to logout.
     setUser(null);
     setAccessToken(null);
     setCsrfToken(null);
     setExpiresAt(null);
-    await clearPersistedSession();
+    return clearPersistedSession();
   }, []);
 
   useEffect(() => {
     userRef.current = user;
   }, [user]);
+
+  const updateUser = useCallback((patch: Partial<AuthUser>) => { setUser(current => current ? { ...current, ...patch } : current); }, []);
   useEffect(() => {
     csrfRef.current = csrfToken;
   }, [csrfToken]);
@@ -106,7 +122,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const restore = async () => {
       const { blocked } = await tryCleanupBeforeRestore();
       if (blocked) {
-        await clearPersisted();
+        const removed = await clearPersisted();
+        if (mounted && !removed) {
+          Alert.alert('تعذّر حذف جلسة محفوظة', 'لم يؤكد التخزين الآمن حذف الجلسة. تحقّق من حالة تسجيل الخروج قبل مشاركة الجهاز.');
+        }
         if (mounted) setIsRestoring(false);
         return;
       }
@@ -127,13 +146,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             expiresAt: sessionExpiry(refreshed.expiresIn),
           });
         } else if (mounted) {
-          await clearPersisted();
+          const removed = await clearPersisted();
+          if (!removed) {
+            Alert.alert('تعذّر حذف جلسة محفوظة', 'لم يؤكد التخزين الآمن حذف الجلسة القديمة. تحقّق من حالة تسجيل الخروج قبل مشاركة الجهاز.');
+          }
         }
       } catch (error) {
         const unauthorized =
           error instanceof ApiError && (error.status === 401 || error.status === 403);
         if (mounted && (!cached || cached.expiresAt <= Date.now() || unauthorized)) {
-          await clearPersisted();
+          const removed = await clearPersisted();
+          if (mounted && !removed) {
+            Alert.alert(
+              'تعذّر حذف جلسة محفوظة',
+              'لم يؤكد التخزين الآمن حذف الجلسة غير الصالحة. أعد فتح التطبيق وتأكد من حالة تسجيل الدخول قبل مشاركة الجهاز.',
+            );
+          }
         }
       } finally {
         if (mounted) setIsRestoring(false);
@@ -191,6 +219,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           accessToken: newToken,
           csrfToken: newCsrf ?? csrfRef.current,
           expiresAt: newExpiresAt,
+        }).then((saved) => {
+          if (!saved) warnSessionPersistence();
         });
       }
     });
@@ -198,7 +228,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRefreshHandler(null);
       setTokenUpdater(null);
     };
-  }, []);
+  }, [warnSessionPersistence]);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -282,13 +312,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // إبطال الجلسة على الخادم فشل — نُكمل المسح المحلي
     } finally {
       const { cleanupFailed } = await cleanupOnLogout();
-      await clearPersisted();
+      const sessionRemoved = await clearPersisted();
       setIsBusy(false);
-      if (cleanupFailed) {
-        Alert.alert(
-          'تعذر تنظيف التخزين المحلي',
-          'تم إنهاء الجلسة المحلية، لكن لم يكتمل حذف بيانات الحساب. سيُمنع تسجيل الدخول التالي حتى ينجح التنظيف. إذا استمرت المشكلة، امسح بيانات التطبيق من إعدادات الجهاز قبل استخدام حساب آخر.',
-        );
+      if (cleanupFailed || !sessionRemoved) {
+        const warnings = [
+          cleanupFailed
+            ? 'لم يكتمل حذف بيانات الحساب الخاصة. سيُمنع تسجيل الدخول التالي حتى ينجح التنظيف.'
+            : '',
+          !sessionRemoved
+            ? 'لم يؤكد التخزين الآمن حذف جلسة الدخول المحفوظة. أعد فتح التطبيق وتأكد من أنك ما زلت مسجّل الخروج قبل مشاركة الجهاز.'
+            : '',
+        ].filter(Boolean);
+        Alert.alert('اكتمل الخروج مع تحذير', `${warnings.join('\n\n')} إذا استمرت المشكلة، امسح بيانات التطبيق من إعدادات الجهاز قبل استخدام حساب آخر.`);
       }
     }
   }, [accessToken, csrfToken, clearPersisted]);
@@ -304,8 +339,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       logout,
+      updateUser,
     }),
-    [user, accessToken, csrfToken, isBusy, isRestoring, expiresAt, login, register, logout],
+    [user, accessToken, csrfToken, isBusy, isRestoring, expiresAt, login, register, logout, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

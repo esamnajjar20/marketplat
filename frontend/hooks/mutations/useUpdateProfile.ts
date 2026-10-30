@@ -132,7 +132,8 @@ export function useUpdateNotificationPreferences(options?: { silent?: boolean })
 }
 
 /**
- * FIX INTEG-08: DELETE /users/me — permanently deactivates the account.
+ * FIX INTEG-08: POST /users/me/delete-confirmed — permanently deactivates the account.
+ * The legacy DELETE /users/me route uses the same password re-auth contract.
  * The backend has already revoked every refresh token and deactivated
  * the user by the time this resolves, so there is no session left to
  * keep: clear local state the same way useChangePassword does, then
@@ -148,8 +149,8 @@ export function useDeleteAccount() {
   const router        = useRouter();
 
   return useMutation({
-    mutationFn: () => usersApi.deleteMe(),
-    onSuccess: () => {
+    mutationFn: (currentPassword: string) => usersApi.deleteMe(currentPassword),
+    onSuccess: async () => {
       logout();
       clearAuthCookies();
       // FIX ACCOUNT-DELETE-CLEANUP-PARITY: this block used to run a
@@ -165,7 +166,7 @@ export function useDeleteAccount() {
       // offline messages from that account. clearSensitiveLocalData()
       // covers all of them (see lib/authCleanup.ts) plus the SW clear
       // and notifications clear that were already here.
-      clearSensitiveLocalData();
+      await clearSensitiveLocalData();
       toast.success('تم حذف حسابك بنجاح');
       signalNavigationStart(ROUTES.home);
       router.push(ROUTES.home);

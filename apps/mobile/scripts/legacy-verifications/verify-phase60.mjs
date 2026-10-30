@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+const screen = readFileSync(new URL('../app/my-ads.tsx', import.meta.url), 'utf8');
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(screen, /import \{ useNetInfo \} from '@react-native-community\/netinfo'/, 'My Ads must observe current connectivity');
+assert.match(screen, /const online = netInfo\.isConnected === true && netInfo\.isInternetReachable !== false/, 'Delete must require positive connectivity');
+assert.match(screen, /operation: 'delete-ad'/, 'Offline delete must be persisted as an explicit queued operation');
+assert.match(screen, /لم يُحذف الإعلان/, 'UI must explicitly say no server deletion occurred');
+assert.match(screen, /disabled=\{busyId === ad\.id\}/, 'Delete action remains disabled only while the operation is being saved or sent');
+assert.match(screen, /deleteAd\(ad\.id, accessToken, csrfToken\)/, 'Online delete keeps using the existing API path');
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'Phase 60 verifier must be in npm test chain');
+console.log('Phase 60 regression checks passed: deletion UI remains explicit and now queues offline requests in Phase 63.');

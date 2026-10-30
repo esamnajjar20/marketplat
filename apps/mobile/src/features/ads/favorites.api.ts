@@ -92,3 +92,38 @@ export async function fetchFavoriteAds(token: string): Promise<FavoriteRecord[]>
   }
   return records;
 }
+
+
+export type FavoriteEntityType = 'ads' | 'products' | 'stores' | 'services';
+
+/** Use the backend's existing polymorphic favorite endpoint (no per-card list fetches). */
+export async function checkFavoriteEntity(
+  entityType: FavoriteEntityType, entityId: string, token: string,
+): Promise<boolean> {
+  if (!entityId.trim()) throw new Error('معرّف المحتوى غير صالح.');
+  const response = await apiRequest<Envelope<{ isFavorited?: boolean }>>(
+    `/api/v1/favorites/${entityType}/${encodeURIComponent(entityId)}/check`, { token },
+  );
+  if (response?.success !== true || typeof response.data?.isFavorited !== 'boolean') {
+    throw new Error('تعذر التحقق من حالة المفضلة.');
+  }
+  return response.data.isFavorited;
+}
+
+export async function toggleFavoriteEntity(
+  entityType: FavoriteEntityType, entityId: string, token: string, csrfToken?: string | null,
+): Promise<'added' | 'removed'> {
+  if (!entityId.trim()) throw new Error('معرّف المحتوى غير صالح.');
+  const response = await apiRequest<Envelope<{ action?: 'added' | 'removed' }>>(
+    `/api/v1/favorites/${entityType}/${encodeURIComponent(entityId)}`, {
+      method: 'POST', token,
+      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
+      body: JSON.stringify({}),
+    },
+  );
+  const action = response?.data?.action;
+  if (response?.success !== true || (action !== 'added' && action !== 'removed')) {
+    throw new Error('لم يؤكد الخادم تحديث المفضلة.');
+  }
+  return action;
+}

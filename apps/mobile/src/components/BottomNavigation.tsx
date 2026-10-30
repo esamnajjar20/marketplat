@@ -121,6 +121,6 @@ const styles = StyleSheet.create({
   glyph: { color: colors.muted, fontSize: 22, lineHeight: 26, fontWeight: '700' },
   activeGlyph: { color: colors.brandDark },
   addGlyph: { fontSize: 30, lineHeight: 32, color: colors.brand, fontWeight: '500' },
-  label: { color: colors.muted, fontSize: 10, fontWeight: '700' },
+  label: { color: colors.muted, ...typography.overline, fontWeight: '800' },
   activeLabel: { color: colors.brandDark, fontWeight: '900' },
 });

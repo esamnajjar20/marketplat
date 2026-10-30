@@ -38,7 +38,8 @@ describe('Users API — extended coverage', () => {
 
       const deleteRes = await request(app)
         .delete('/api/v1/users/me')
-        .set('Authorization', `Bearer ${accessToken}`);
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: 'TestPassword123!' });
 
       expect(deleteRes.status).toBe(200);
 
@@ -54,6 +55,31 @@ describe('Users API — extended coverage', () => {
       expect(user?.isActive).toBe(false);
       expect(user?.email).toBe(`deleted-${userId}@deleted.invalid`);
       expect(await prisma.user.findUnique({ where: { email } })).toBeNull();
+    });
+
+    it('rejects an authenticated request when the current password is missing', async () => {
+      const user = await createTestUser();
+      const res = await request(app)
+        .delete('/api/v1/users/me')
+        .set('Authorization', `Bearer ${user.accessToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('VALIDATION_ERROR');
+      const unchanged = await prisma.user.findUnique({ where: { id: user.id } });
+      expect(unchanged?.isActive).toBe(true);
+    });
+
+    it('rejects an authenticated request when the current password is incorrect', async () => {
+      const user = await createTestUser();
+      const res = await request(app)
+        .post('/api/v1/users/me/delete-confirmed')
+        .set('Authorization', `Bearer ${user.accessToken}`)
+        .send({ currentPassword: 'not-the-password' });
+
+      expect(res.status).toBe(400);
+      expect(res.body.code).toBe('CURRENT_PASSWORD_INVALID');
+      const unchanged = await prisma.user.findUnique({ where: { id: user.id } });
+      expect(unchanged?.isActive).toBe(true);
     });
 
     it('returns 401 without token', async () => {

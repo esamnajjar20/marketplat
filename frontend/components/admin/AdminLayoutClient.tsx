@@ -133,7 +133,7 @@ export function AdminLayoutClient({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col overflow-hidden">
         <AdminHeader />
         {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink. */}
-        <main id="main-content" className="flex-1 overflow-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5 md:p-6">
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-5 md:p-6">
           <PageTransition>{children}</PageTransition>
         </main>
       </div>

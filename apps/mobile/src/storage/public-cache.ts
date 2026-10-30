@@ -186,6 +186,21 @@ export async function deletePublicCacheEntry(key: string): Promise<void> {
   }
 }
 
+/** Delete a namespace of public cached reads after a resource mutation. Prefix matching is literal. */
+export async function deletePublicCacheEntriesByPrefix(prefix: string): Promise<void> {
+  if (!prefix.trim() || prefix.length > 280) return;
+  try {
+    const db = await getDatabase();
+    await db.runAsync(
+      'DELETE FROM public_cache WHERE substr(cache_key, 1, ?) = ?',
+      prefix.length,
+      prefix,
+    );
+  } catch {
+    // Cache invalidation is best-effort; network mutations remain authoritative.
+  }
+}
+
 /** Scoped private-cache invalidation: only keys for one resource prefix and one account.
  *  Use this instead of clearPrivateCache() when a mutation is confined to one domain
  *  (orders, requests, appointments, sales). Reduces unnecessary cache wipes. */
@@ -257,6 +272,9 @@ export async function clearPrivateMobileData(): Promise<void> {
     'favorite_state_outbox',
     'ad_drafts',
     'ad_edit_drafts',
+    // Device-only payment contacts belong to the signed-in account and must not survive logout.
+    'mobile_saved_payees',
+    'mobile_saved_net_cards',
   ];
   const mediaUris: string[] = [];
   const ownedDirectory = `${FileSystem.documentDirectory ?? ''}marketplat-chat-media-outbox/`;

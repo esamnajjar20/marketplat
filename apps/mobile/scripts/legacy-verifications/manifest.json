@@ -1,0 +1,610 @@
+{
+  "baseline": "before repair, 2026-10-29",
+  "source": "node scripts/run-all-verifications.mjs",
+  "baseline_passed": 57,
+  "baseline_failed": 86,
+  "entries": [
+    {
+      "file": "verify-chat-dead-letter-recovery-audit.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /export const CHAT_OUTBOX_MAX_ATTEMPTS = 8/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-chat-persistent-outbox-audit.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /MAX_PENDING = 50/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-discovery-add-pages.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /categoryId\\}\\)/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-feature-phase1.mjs",
+      "category": "unclassified-legacy-failure",
+      "observed_signal": "FAIL service detail screen: missing markers router.push({ pathname: '/service-requests'PASS service requests screenPASS service APIPASS home discovery entry points",
+      "reason": "The verifier failed in the baseline run but its output does not safely identify a current runtime defect. Review before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-feature-phase4.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: true,operator: '=='}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-feature-phase5.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: true,operator: '=='}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-feature-phase6.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: true,operator: '=='}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-feature-phase7.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /owner_id TEXT/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-feature-remaining-account-pages.mjs",
+      "category": "unclassified-legacy-failure",
+      "observed_signal": "PASS sale receipt screenPASS extra account APIsPASS account hub navigationPASS sales navigation",
+      "reason": "The verifier failed in the baseline run but its output does not safely identify a current runtime defect. Review before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-community-sections.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /fetchStores\\(\\{ page: 1, limit: 6 \\}\\)/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-marketplace-sections.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /fetchProducts\\(\\{ page: 1, limit: 4/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-mixed-removal-navigation.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /fetchPublicAds\\(options\\)/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-multi-section.mjs",
+      "category": "stale-path",
+      "observed_signal": "syscall: 'open',path: '/mnt/data/work_mobile/marketplat-main/apps/mobile/src/features/discovery/HomeMarketplaceHighlights.tsx'}Node.js v22.16.0",
+      "reason": "The verifier references a path that is absent in the current repository layout.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-ux-phase10.mjs",
+      "category": "stale-path",
+      "observed_signal": "syscall: 'open',path: '/mnt/data/work_mobile/marketplat-main/apps/mobile/src/features/discovery/HomeMarketplaceHighlights.tsx'}Node.js v22.16.0",
+      "reason": "The verifier references a path that is absent in the current repository layout.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-ux-phase11.mjs",
+      "category": "stale-path",
+      "observed_signal": "syscall: 'open',path: '/mnt/data/work_mobile/marketplat-main/apps/mobile/src/features/discovery/HomeMarketplaceHighlights.tsx'}Node.js v22.16.0",
+      "reason": "The verifier references a path that is absent in the current repository layout.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-ux-phase12.mjs",
+      "category": "stale-path",
+      "observed_signal": "syscall: 'open',path: '/mnt/data/work_mobile/marketplat-main/apps/mobile/src/features/discovery/HomeMarketplaceHighlights.tsx'}Node.js v22.16.0",
+      "reason": "The verifier references a path that is absent in the current repository layout.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-ux-phase13.mjs",
+      "category": "stale-path",
+      "observed_signal": "syscall: 'open',path: '/mnt/data/work_mobile/marketplat-main/apps/mobile/src/features/discovery/HomeMarketplaceHighlights.tsx'}Node.js v22.16.0",
+      "reason": "The verifier references a path that is absent in the current repository layout.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-ux-phase14.mjs",
+      "category": "stale-path",
+      "observed_signal": "syscall: 'open',path: '/mnt/data/work_mobile/marketplat-main/apps/mobile/src/features/discovery/HomeMarketplaceHighlights.tsx'}Node.js v22.16.0",
+      "reason": "The verifier references a path that is absent in the current repository layout.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-ux-phase3.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /تصفية وترتيب النتائج/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-ux-phase4.mjs",
+      "category": "stale-path",
+      "observed_signal": "syscall: 'open',path: '/mnt/data/work_mobile/marketplat-main/apps/mobile/src/features/discovery/HomeMarketplaceHighlights.tsx'}Node.js v22.16.0",
+      "reason": "The verifier references a path that is absent in the current repository layout.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-ux-phase5.mjs",
+      "category": "stale-path",
+      "observed_signal": "syscall: 'open',path: '/mnt/data/work_mobile/marketplat-main/apps/mobile/src/features/discovery/HomeMarketplaceHighlights.tsx'}Node.js v22.16.0",
+      "reason": "The verifier references a path that is absent in the current repository layout.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-ux-phase6.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /const networkState = await NetInfo\\.fetch\\(\\)/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-ux-phase7.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /const \\[refreshNotice, setRefreshNotice\\] = useState<string \\| null>\\(null\\)/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-ux-phase8.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /useMemo, useRef/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-homepage-ux-phase9.mjs",
+      "category": "stale-path",
+      "observed_signal": "syscall: 'open',path: '/mnt/data/work_mobile/marketplat-main/apps/mobile/src/features/discovery/HomeMarketplaceHighlights.tsx'}Node.js v22.16.0",
+      "reason": "The verifier references a path that is absent in the current repository layout.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-mutation-csrf-audit.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /startConversationWithUser\\([^\\n]+csrfToken\\)/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-native-chat-parity-audit.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: 0,operator: 'strictEqual'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-navigation-information-hierarchy.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /isBottomNavigationHidden\\(pathname\\)/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-offline-first-all-creations.mjs",
+      "category": "unclassified-legacy-failure",
+      "observed_signal": "at ModuleJob.run (node:internal/modules/esm/module_job:274:25)at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)Node.js v22.16.0",
+      "reason": "The verifier failed in the baseline run but its output does not safely identify a current runtime defect. Review before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-offline-first-deep-audit-fixes.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /UPDATE entity_create_outbox SET state='pending',lease_until=0,next_attempt_at=MAX\\(next_attempt_at,\\?\\) WHERE state='processing' AND lease_until<=\\?/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-order-cancellation-stage-audit.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /\\(order\\.status==='PENDING'\\|\\|order\\.status==='CONFIRMED'\\)\\?<Pressable[^>]*onPress=\\{\\(\\)=>confirmChange\\('CANCELLED'/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase10.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /refreshInFlight\\s*=\\s*performAccessRefresh\\(\\)\\.finally/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase11.mjs",
+      "category": "unclassified-legacy-failure",
+      "observed_signal": "ENVIRONMENT NOTE: Mobile node_modules is absent; no Metro or native build can be claimed.Node.js: 22.16.0pnpm executable: not detected from environmentNo network request, dependency installation, TypeScript compilation, Expo build, or device test is performed by this script.",
+      "reason": "The verifier failed in the baseline run but its output does not safely identify a current runtime defect. Review before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase12.mjs",
+      "category": "unclassified-legacy-failure",
+      "observed_signal": "- Refresh requests must be coalesced and the in-flight reference reset.- Login must announce errors and prevent duplicate submissions while busy.Node.js: 22.16.0This script does not test native cookie persistence, a live API, or an Android/iOS device.",
+      "reason": "The verifier failed in the baseline run but its output does not safely identify a current runtime defect. Review before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase13.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /const options = \\{ page: 1, limit: 8, search: submittedSearch, categoryId: undefined \\}/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase14.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /Alert\\.alert\\('حذف الإعلان'/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase15.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /fetchPublicCategories/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase17.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /verify-phase17\\.mjs/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase19.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /MAX_TOTAL_CHARS = 3_000_000/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase20.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /CREATE TABLE IF NOT EXISTS mutation_outbox/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase21.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /if \\(result\\.changes !== 1\\) return null/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase22.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /DELETE FROM mutation_outbox WHERE id = \\? AND state = 'processing'/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase23.mjs",
+      "category": "stale-path",
+      "observed_signal": "syscall: 'open',path: '/mnt/data/work_mobile/marketplat-main/MONOREPO_PHASE23_REPORT_AR.md'}Node.js v22.16.0",
+      "reason": "The verifier references a path that is absent in the current repository layout.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase24.mjs",
+      "category": "stale-path",
+      "observed_signal": "syscall: 'open',path: '/mnt/data/work_mobile/marketplat-main/MONOREPO_PHASE24_REPORT_AR.md'}Node.js v22.16.0",
+      "reason": "The verifier references a path that is absent in the current repository layout.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase25.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /MAX_ATTEMPTS = 8/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase26.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /owner_id = \\? AND state = 'failed' AND attempts >= \\? ORDER BY created_at ASC, id ASC LIMIT \\?/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase29.mjs",
+      "category": "broken-verifier",
+      "observed_signal": "at ModuleJob.run (node:internal/modules/esm/module_job:274:25)at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)Node.js v22.16.0",
+      "reason": "The verifier itself throws a runtime ReferenceError; it does not currently provide a trustworthy assertion result.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase30.mjs",
+      "category": "broken-verifier",
+      "observed_signal": "at ModuleJob.run (node:internal/modules/esm/module_job:274:25)at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)Node.js v22.16.0",
+      "reason": "The verifier itself throws a runtime ReferenceError; it does not currently provide a trustworthy assertion result.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase31.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: true,operator: '=='}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase32.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: true,operator: '=='}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase33.mjs",
+      "category": "broken-verifier",
+      "observed_signal": "at ModuleJob.run (node:internal/modules/esm/module_job:274:25)at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)Node.js v22.16.0",
+      "reason": "The verifier itself throws a runtime ReferenceError; it does not currently provide a trustworthy assertion result.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase34.mjs",
+      "category": "broken-verifier",
+      "observed_signal": "at ModuleJob.run (node:internal/modules/esm/module_job:274:25)at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:644:26)at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)Node.js v22.16.0",
+      "reason": "The verifier itself throws a runtime ReferenceError; it does not currently provide a trustworthy assertion result.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase35.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /state = 'processing'/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase36.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /ORDER BY created_at ASC, id ASC LIMIT 1/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase37.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /older\\.owner_id = mutation_outbox\\.owner_id/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase38.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /ORDER BY created_at ASC, id ASC LIMIT \\?/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase39.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /lease_owner TEXT/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase41.mjs",
+      "category": "broken-verifier",
+      "observed_signal": "^ReferenceError: readFileSync is not definedat file:///mnt/data/work_mobile/marketplat-main/apps/mobile/scripts/verify-phase41.mjs:33:8Node.js v22.16.0",
+      "reason": "The verifier itself throws a runtime ReferenceError; it does not currently provide a trustworthy assertion result.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase42.mjs",
+      "category": "broken-verifier",
+      "observed_signal": "^ReferenceError: readFileSync is not definedat file:///mnt/data/work_mobile/marketplat-main/apps/mobile/scripts/verify-phase42.mjs:22:8Node.js v22.16.0",
+      "reason": "The verifier itself throws a runtime ReferenceError; it does not currently provide a trustworthy assertion result.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase43.mjs",
+      "category": "broken-verifier",
+      "observed_signal": "^ReferenceError: readFileSync is not definedat file:///mnt/data/work_mobile/marketplat-main/apps/mobile/scripts/verify-phase43.mjs:18:8Node.js v22.16.0",
+      "reason": "The verifier itself throws a runtime ReferenceError; it does not currently provide a trustworthy assertion result.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase44.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /listAllOutboxMutations\\(\\)/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase45.mjs",
+      "category": "broken-verifier",
+      "observed_signal": "^ReferenceError: readFileSync is not definedat file:///mnt/data/work_mobile/marketplat-main/apps/mobile/scripts/verify-phase45.mjs:20:8Node.js v22.16.0",
+      "reason": "The verifier itself throws a runtime ReferenceError; it does not currently provide a trustworthy assertion result.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase46.mjs",
+      "category": "broken-verifier",
+      "observed_signal": "^ReferenceError: readFileSync is not definedat file:///mnt/data/work_mobile/marketplat-main/apps/mobile/scripts/verify-phase46.mjs:17:8Node.js v22.16.0",
+      "reason": "The verifier itself throws a runtime ReferenceError; it does not currently provide a trustworthy assertion result.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase47.mjs",
+      "category": "broken-verifier",
+      "observed_signal": "^ReferenceError: readFileSync is not definedat file:///mnt/data/work_mobile/marketplat-main/apps/mobile/scripts/verify-phase47.mjs:26:8Node.js v22.16.0",
+      "reason": "The verifier itself throws a runtime ReferenceError; it does not currently provide a trustworthy assertion result.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase48.mjs",
+      "category": "broken-verifier",
+      "observed_signal": "^ReferenceError: readFileSync is not definedat file:///mnt/data/work_mobile/marketplat-main/apps/mobile/scripts/verify-phase48.mjs:16:8Node.js v22.16.0",
+      "reason": "The verifier itself throws a runtime ReferenceError; it does not currently provide a trustworthy assertion result.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase49.mjs",
+      "category": "broken-verifier",
+      "observed_signal": "^ReferenceError: readFileSync is not definedat file:///mnt/data/work_mobile/marketplat-main/apps/mobile/scripts/verify-phase49.mjs:17:8Node.js v22.16.0",
+      "reason": "The verifier itself throws a runtime ReferenceError; it does not currently provide a trustworthy assertion result.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase50.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /idempotency_key TEXT NOT NULL UNIQUE/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase51.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /await getCachedPublicAdsWithMetadata\\(options\\)/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase52.mjs",
+      "category": "broken-verifier",
+      "observed_signal": "^ReferenceError: readFileSync is not definedat file:///mnt/data/work_mobile/marketplat-main/apps/mobile/scripts/verify-phase52.mjs:17:8Node.js v22.16.0",
+      "reason": "The verifier itself throws a runtime ReferenceError; it does not currently provide a trustworthy assertion result.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase53.mjs",
+      "category": "broken-verifier",
+      "observed_signal": "^ReferenceError: readFileSync is not definedat file:///mnt/data/work_mobile/marketplat-main/apps/mobile/scripts/verify-phase53.mjs:16:8Node.js v22.16.0",
+      "reason": "The verifier itself throws a runtime ReferenceError; it does not currently provide a trustworthy assertion result.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase54.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /getCachedPublicAdsWithMetadata\\(options\\)/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase55.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /getCachedPublicAdsWithMetadata\\(options\\)/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase56.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /setAdsSavedAt\\(cached.savedAt\\)/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase57.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /import NetInfo from '@react-native-community\\/netinfo'/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase58.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /idempotency_key TEXT NOT NULL UNIQUE/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase60.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /disabled=\\{busyId === ad\\.id\\}/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase61.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /decision\\.status !== 'send-delete-ad'/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase7.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /fetchServiceListings/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase70.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /user:\\$\\{userId\\.trim\\(\\)\\}/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase71.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /enqueueFavoriteState\\(\\{[^}]*previousFavorited: previous\\.includes\\(id\\)[^}]*\\}\\)/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase74.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /previousFavorited\\s*:\\s*wasFavorited/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase76.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /result\\.status === 'deferred'/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase79.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /PRIVATE_CLEANUP_REQUIRED_KEY/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-phase9.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /expo-secure-store/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-product-contact-flow.mjs",
+      "category": "unclassified-legacy-failure",
+      "observed_signal": "FAIL product contact preserves product contextFAIL successful contact navigates to the conversationPASS messaging API uses supported userId and context fieldsPASS product response type exposes store seller user id",
+      "reason": "The verifier failed in the baseline run but its output does not safely identify a current runtime defect. Review before reactivation.",
+      "status": "quarantined-not-passing"
+    },
+    {
+      "file": "verify-scaffold.mjs",
+      "category": "stale-contract-or-unconfirmed-regression",
+      "observed_signal": "expected: /fetchPublicAds/,operator: 'match'}Node.js v22.16.0",
+      "reason": "The text-based assertion fails against the current implementation. This is not treated as proof of a runtime defect; revalidate its intended behavior and replace with a behavioral test before reactivation.",
+      "status": "quarantined-not-passing"
+    }
+  ]
+}

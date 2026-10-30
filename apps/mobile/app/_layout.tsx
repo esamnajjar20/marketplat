@@ -4,6 +4,7 @@ import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { I18nManager, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '@/components/BottomNavigation';
+import { MobileDrawerProvider } from '@/components/MobileDrawer';
 import { StatusBar } from 'expo-status-bar';
 import { colors, spacing, typography } from '@/theme/tokens';
 import { AuthProvider } from '@/features/auth/AuthContext';
@@ -66,15 +67,17 @@ function RootChrome({ children }: { children: ReactNode }) {
   // BottomNavigation self-manages visibility via isBottomNavigationHidden.
   const isOnline = useIsOnline();
   return (
-    <View style={{ flex: 1, backgroundColor: colors.canvas }}>
-      {!isOnline ? (
-        <SafeAreaView edges={['top']} style={{ backgroundColor: colors.warningSoft }}>
-          <OfflineBanner visible />
-        </SafeAreaView>
-      ) : null}
-      {children}
-      <BottomNavigation />
-    </View>
+    <MobileDrawerProvider>
+      <View style={{ flex: 1, backgroundColor: colors.canvas }}>
+        {!isOnline ? (
+          <SafeAreaView edges={['top']} style={{ backgroundColor: colors.warningSoft }}>
+            <OfflineBanner visible />
+          </SafeAreaView>
+        ) : null}
+        {children}
+        <BottomNavigation />
+      </View>
+    </MobileDrawerProvider>
   );
 }
 

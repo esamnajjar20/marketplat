@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+const root = resolve(new URL('..', import.meta.url).pathname);
+const required = ['app/favorites.tsx', 'app/ad-editor.tsx', 'src/features/ads/manage-ads.api.ts', 'src/features/ads/favorites.api.ts'];
+for (const file of required) assert.ok(existsSync(resolve(root, file)), `Missing Phase 4 file: ${file}`);
+const api = readFileSync(resolve(root, 'src/features/ads/manage-ads.api.ts'), 'utf8');
+assert.ok(api.includes("method: 'DELETE'") && api.includes('/images'), 'Image deletion contract missing');
+assert.ok(api.includes("method: 'PUT'") && api.includes('/images/reorder'), 'Image reorder contract missing');
+const editor = readFileSync(resolve(root, 'app/ad-editor.tsx'), 'utf8');
+for (const token of ['originalImages', 'existingImages', 'removeAdImage', 'reorderAdImages', 'إدارة الصور الحالية تتطلب اتصالًا بالإنترنت']) assert.ok(editor.includes(token), `Missing editor image-management behavior: ${token}`);
+const favorites = readFileSync(resolve(root, 'app/favorites.tsx'), 'utf8');
+for (const token of ['fetchFavoriteAds', 'setFavoriteAdState', 'enqueueFavoriteState', "pathname: '/ads/[id]'", 'إزالة من المفضلة']) assert.ok(favorites.includes(token), `Missing favorites behavior: ${token}`);
+const account = readFileSync(resolve(root, 'app/account.tsx'), 'utf8');
+assert.ok(account.includes("path: '/favorites'"), 'Favorites navigation missing from the account hub');
+console.log('Phase 4 static verification passed (image management, paginated favorites, offline removal queue, navigation).');

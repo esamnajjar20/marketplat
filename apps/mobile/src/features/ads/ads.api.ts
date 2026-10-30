@@ -41,7 +41,7 @@ export type AdListResult = {
   totalPages?: number;
 };
 
-type PublicAdsOptions = { page?: number; limit?: number; search?: string; categoryId?: string; city?: string; minPrice?: number; maxPrice?: number; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc' };
+type PublicAdsOptions = { page?: number; limit?: number; search?: string; categoryId?: string; storeId?: string; city?: string; minPrice?: number; maxPrice?: number; condition?: 'NEW' | 'USED' | 'REFURBISHED'; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc' };
 
 export function publicAdsCacheKey(options: PublicAdsOptions = {}): string {
   const params = new URLSearchParams();
@@ -49,6 +49,8 @@ export function publicAdsCacheKey(options: PublicAdsOptions = {}): string {
   params.set('limit', String(options.limit ?? 8));
   if (options.search?.trim()) params.set('search', options.search.trim());
   if (options.categoryId) params.set('categoryId', options.categoryId);
+  if (options.storeId) params.set('storeId', options.storeId);
+  if (options.condition) params.set('condition', options.condition);
   if (options.city?.trim()) params.set('city', options.city.trim());
   if (options.minPrice !== undefined) params.set('minPrice', String(options.minPrice));
   if (options.maxPrice !== undefined) params.set('maxPrice', String(options.maxPrice));
@@ -77,6 +79,8 @@ export async function fetchPublicAds(options: PublicAdsOptions = {}): Promise<Ad
   params.set('limit', String(options.limit ?? 8));
   if (options.search?.trim()) params.set('search', options.search.trim());
   if (options.categoryId) params.set('categoryId', options.categoryId);
+  if (options.storeId) params.set('storeId', options.storeId);
+  if (options.condition) params.set('condition', options.condition);
   if (options.city?.trim()) params.set('city', options.city.trim());
   if (options.minPrice !== undefined) params.set('minPrice', String(options.minPrice));
   if (options.maxPrice !== undefined) params.set('maxPrice', String(options.maxPrice));

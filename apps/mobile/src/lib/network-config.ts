@@ -1,24 +1,25 @@
 /**
- * إعداد مركزي لـ NetInfo — يعمل قبل أي استدعاء آخر.
- * يُستورد كأول سطر في app/_layout.tsx.
- *
- * السبب: NetInfo افتراضياً يفحص clients3.google.com، وهو محجوب في شبكات غزة.
- * النتيجة: التطبيق يعتقد أنه offline رغم وجود إنترنت.
- * الحل: نفحص خادمنا (Worker) بدلاً من Google.
+ * Configure native connectivity checks against the same API origin used by apiRequest.
+ * When the API origin is missing/invalid, use native reachability instead of probing a
+ * different hard-coded server and incorrectly reporting the configured API as available.
+ * Imported before the app tree is rendered.
  */
 import NetInfo from '@react-native-community/netinfo';
+import { getApiReachabilityUrl } from '@/lib/api-base-url';
 
-// Prefer the same base URL as apiRequest so staging/prod environments only
-// need to change EXPO_PUBLIC_API_URL (no hardcoded host duplication).
-const API_BASE_URL = (process.env.EXPO_PUBLIC_API_URL ?? '').replace(/\/$/, '');
-const reachabilityUrl = API_BASE_URL
-  ? `${API_BASE_URL}/api/v1/categories`
-  : 'https://marketplat-api.esamnajjar6.workers.dev/api/v1/categories';
+const reachabilityUrl = getApiReachabilityUrl();
 
-NetInfo.configure({
-  reachabilityUrl,
-  reachabilityTest: async (response) => response.status === 200,
-  reachabilityShortTimeout: 10 * 1000,
-  reachabilityLongTimeout: 60 * 1000,
-  reachabilityRequestTimeout: 20 * 1000,
-});
+if (reachabilityUrl) {
+  NetInfo.configure({
+    reachabilityUrl,
+    reachabilityTest: async (response) => response.status === 200,
+    reachabilityShortTimeout: 10 * 1000,
+    reachabilityLongTimeout: 60 * 1000,
+    reachabilityRequestTimeout: 20 * 1000,
+    useNativeReachability: false,
+  });
+} else {
+  NetInfo.configure({
+    useNativeReachability: true,
+  });
+}

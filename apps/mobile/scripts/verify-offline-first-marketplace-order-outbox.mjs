@@ -9,7 +9,7 @@ const queue = read('app/offline-queue.tsx');
 const checks = [
   ['durable SQLite order queue is account-scoped', outbox.includes('marketplace_order_outbox') && outbox.includes('owner_id=?')],
   ['order retry reuses the server idempotency key', outbox.includes("'X-Offline-Op-Id': payload.idempotencyKey") && outbox.includes('JSON.stringify(payload)')],
-  ['queue validates delivery data and product quantities', outbox.includes('validatePayload') && outbox.includes('quantity > 100')],
+  ['queue validates delivery data and product quantities', outbox.includes('validatePayload') && outbox.includes('row.quantity <= 100') && outbox.includes('Number.isInteger(row.quantity)')],
   ['order queue is triggered by app lifecycle sync', lifecycle.includes('syncNextMarketplaceOrder')],
   ['checkout queues only transport failures without HTTP status', checkout.includes('e instanceof ApiError && e.status === undefined')],
   ['offline queue exposes saved orders and cancellation', queue.includes('listPendingMarketplaceOrders') && queue.includes('discardMarketplaceOrder')],

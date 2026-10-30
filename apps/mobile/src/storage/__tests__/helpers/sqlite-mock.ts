@@ -18,7 +18,7 @@ type DatabaseSyncInstance = {
 type MockDb = DatabaseSyncInstance;
 
 function wrapDb(db: MockDb) {
-  const adapter: any = {
+  const adapter: any /* intentional-any: recursive mock adapter refers to itself in transaction callback */ = {
     async execAsync(sql: string): Promise<void> { db.exec(sql); },
     async runAsync(sql: string, ...params: unknown[]) {
       const stmt = db.prepare(sql);

@@ -14,7 +14,11 @@
     "verify:apk:test": "node ./scripts/verify-release-config.mjs",
     "test:storage": "node --test src/storage/__tests__/*.test.mjs",
     "test:sqlite": "vitest run",
-    "verify:phase2": "node ./scripts/verify-phase2-build-config.mjs"
+    "verify:phase2": "node ./scripts/verify-phase2-build-config.mjs",
+    "test:all": "pnpm run test && pnpm run test:storage && pnpm run test:sqlite",
+    "lint": "eslint \"app/**/*.{ts,tsx}\" \"src/**/*.{ts,tsx}\" --max-warnings=0 && node ./scripts/lint-mobile.mjs",
+    "verify:production-signing": "cd android && ./gradlew :app:verifyProductionSigning",
+    "verify:a11y": "node ./scripts/verify-design-system-a11y.mjs"
   },
   "dependencies": {
     "@expo/dom-webview": "~58.0.2",
@@ -43,6 +47,9 @@
   },
   "devDependencies": {
     "@types/react": "~19.3.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.1",
     "typescript": "~5.7.0",
     "vitest": "^2.1.9"
   }

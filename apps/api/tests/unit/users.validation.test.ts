@@ -1,4 +1,8 @@
-import { updateProfileSchema, updateNotificationPreferencesSchema } from '../../src/modules/users/users.validation';
+import {
+  updateProfileSchema,
+  updateNotificationPreferencesSchema,
+  deleteMeWithReauthSchema,
+} from '../../src/modules/users/users.validation';
 
 describe('users.validation', () => {
   describe('updateProfileSchema', () => {
@@ -58,5 +62,19 @@ describe('users.validation', () => {
         /At least one preference must be provided/
       );
     });
+  });
+});
+
+
+describe('deleteMeWithReauthSchema', () => {
+  it('accepts a non-empty current password', () => {
+    expect(deleteMeWithReauthSchema.parse({ body: { currentPassword: 'current-password' } }).body.currentPassword)
+      .toBe('current-password');
+  });
+
+  it('rejects a missing or empty password', () => {
+    expect(() => deleteMeWithReauthSchema.parse({ body: {} })).toThrow();
+    expect(() => deleteMeWithReauthSchema.parse({ body: { currentPassword: '' } })).toThrow();
+    expect(() => deleteMeWithReauthSchema.parse({ body: { currentPassword: 'x'.repeat(129) } })).toThrow();
   });
 });

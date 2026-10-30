@@ -1,7 +1,6 @@
 # Mobile — Sentry / crash reporting setup
 
-Scaffold already exists: `apps/mobile/src/lib/error-reporting.ts`  
-Wire-up in root layout is part of Phase 1 code patch.
+The error-reporting boundary is wired to the root ErrorBoundary, but the native Sentry SDK is **not installed** in this repository yet. The current adapter intentionally avoids a static `require('@sentry/react-native')` so Metro does not fail resolving a missing package. A configured DSN alone does not send events; the app logs a warning and remains local-only until the SDK and native adapter are integrated.
 
 ## Install (from repo root, with workspace deps)
 
@@ -12,7 +11,7 @@ npx expo install @sentry/react-native
 # pnpm --filter @marketplat/mobile exec expo install @sentry/react-native
 ```
 
-Update lockfile and commit.
+Update `apps/mobile/package.json` and `pnpm-lock.yaml` through pnpm, then commit both together. Do not hand-edit the SDK lock graph.
 
 ## Env
 
@@ -26,8 +25,7 @@ EXPO_PUBLIC_SENTRY_DSN=https://<key>@o<org>.ingest.sentry.io/<project>
 
 ## Runtime
 
-`initErrorReporting({ dsn: process.env.EXPO_PUBLIC_SENTRY_DSN })` runs once from root `_layout.tsx`.  
-`ErrorBoundary` should call `captureException(error)`.
+`initErrorReporting({ dsn: process.env.EXPO_PUBLIC_SENTRY_DSN })` runs once from root `_layout.tsx`; `ErrorBoundary` calls `captureException(error)`. Until the SDK adapter is registered, this produces local logs only, not a Sentry event.
 
 ## Verification
 
@@ -38,7 +36,7 @@ EXPO_PUBLIC_SENTRY_DSN=https://<key>@o<org>.ingest.sentry.io/<project>
 
 ## Checklist
 
-- [ ] `@sentry/react-native` in package.json + lockfile  
+- [ ] Install `@sentry/react-native` and resolve Expo SDK compatibility with `pnpm` (blocked in the current offline repair environment)  
 - [ ] DSN in build env / EAS secrets  
 - [ ] `initErrorReporting` called at startup  
 - [ ] ErrorBoundary reports to Sentry  

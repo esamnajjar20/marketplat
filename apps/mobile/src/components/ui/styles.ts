@@ -100,7 +100,7 @@ export const uiStyles = StyleSheet.create({
   input: {
     minHeight: sizes.inputHeight,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.controlBorder,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,
@@ -109,6 +109,7 @@ export const uiStyles = StyleSheet.create({
   },
   textarea: { minHeight: 120, paddingVertical: spacing.md },
   inputDisabled: { opacity: 0.6 },
+  inputFocused: { borderColor: colors.focus ?? colors.brand, borderWidth: 2, paddingHorizontal: spacing.md - 1 },
   inputError: { borderColor: colors.danger },
   fieldError: { textAlign: 'right', ...typography.caption, color: colors.danger },
 
@@ -124,7 +125,7 @@ export const uiStyles = StyleSheet.create({
   secondary: {
     backgroundColor: colors.brandSoft,
     borderWidth: 1,
-    borderColor: colors.borderStrong,
+    borderColor: colors.controlBorder,
   },
   secondaryText: { color: colors.brand },
   danger: { backgroundColor: colors.danger },
@@ -132,7 +133,7 @@ export const uiStyles = StyleSheet.create({
   ghost: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.controlBorder,
   },
   ghostText: { color: colors.ink },
   buttonDisabled: { opacity: 0.55 },
@@ -165,17 +166,18 @@ export const uiStyles = StyleSheet.create({
 
   chip: {
     minHeight: sizes.chipHeight,
+    minWidth: sizes.touchTarget,
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.controlBorder,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
   chipSelected: {
     backgroundColor: colors.brandSoft,
-    borderColor: colors.borderStrong,
+    borderColor: colors.brand,
   },
   chipText: { ...typography.captionStrong, color: colors.muted },
   chipTextSelected: { color: colors.brandDark },
@@ -223,7 +225,7 @@ export const uiStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '800',
     lineHeight: 18,
-    color: colors.warning,
+    color: colors.warningText,
     textAlign: 'center',
   },
 
@@ -235,7 +237,7 @@ export const uiStyles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.controlBorder,
     backgroundColor: colors.surface,
   },
   searchIcon: { color: colors.muted, fontSize: 18, fontWeight: '700' },
@@ -245,8 +247,11 @@ export const uiStyles = StyleSheet.create({
     fontSize: typography.body.fontSize,
     paddingVertical: spacing.sm,
   },
-  searchClear: { color: colors.muted, fontSize: 22, paddingHorizontal: 4 },
+  searchClearButton: { minWidth: sizes.touchTarget, minHeight: sizes.touchTarget, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm },
+  searchClear: { color: colors.muted, fontSize: 22, lineHeight: 28, paddingHorizontal: spacing.sm },
   searchBtn: {
+    minHeight: sizes.touchTarget,
+    justifyContent: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radius.sm,

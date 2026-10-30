@@ -75,5 +75,14 @@ jobs:
       - name: Cloudflare Worker JavaScript syntax checks
         run: pnpm --filter @marketplat/cf-api-proxy type-check
 
-      - name: Mobile scaffold and phase checks
+      - name: Mobile lint (ESLint + supplemental rules)
+        run: pnpm --filter @marketplat/mobile lint
+
+      - name: Mobile maintained static contract checks
         run: pnpm --filter @marketplat/mobile test
+
+      - name: Mobile storage/outbox tests
+        run: pnpm --filter @marketplat/mobile test:storage
+
+      - name: Mobile SQLite/API validation tests
+        run: pnpm --filter @marketplat/mobile test:sqlite

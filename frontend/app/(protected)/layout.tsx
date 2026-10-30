@@ -227,6 +227,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
         {/* DESKTOP-AUDIT-02: id targeted by the root layout's SkipLink. */}
         <main
           id="main-content"
+          tabIndex={-1}
           className={isImmersiveTask
             ? 'flex min-h-0 min-w-0 flex-1 flex-col p-0'
             : 'min-w-0 flex-1 px-4 py-4 pb-20 md:p-6 md:pb-6 lg:p-8'}

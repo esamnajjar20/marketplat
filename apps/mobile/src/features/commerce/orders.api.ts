@@ -1,4 +1,5 @@
 import { apiRequest } from '@/api/client';
+import { criticalOrderEnvelopeResponseSchema, criticalOrderListEnvelopeResponseSchema } from '@/api/response-schemas';
 import type { PageResult } from './commerce.api';
 
 export type MarketplaceOrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
@@ -24,19 +25,19 @@ function page<T>(response: Envelope<T[]>, fallback: string, requestedPage: numbe
   return { items, page: meta?.page ?? requestedPage, totalPages: meta?.totalPages ?? requestedPage, total: meta?.total ?? items.length };
 }
 export async function createMarketplaceOrder(input: { items: { productId: string; quantity: number }[]; recipientName: string; recipientPhone: string; shippingCity: string; shippingAddress: string; buyerNote?: string; idempotencyKey: string }, token: string, csrfToken?: string | null) {
-  return unwrap(await apiRequest<Envelope<MarketplaceOrder>>('/api/v1/orders', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر إنشاء الطلب.');
+  return unwrap(await apiRequest<Envelope<MarketplaceOrder>>('/api/v1/orders', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input), responseSchema: criticalOrderEnvelopeResponseSchema as import('zod').ZodType<Envelope<MarketplaceOrder>> }), 'تعذر إنشاء الطلب.');
 }
 export async function fetchMyOrders(token: string, pageNo = 1, status?: MarketplaceOrderStatus, ownerId?: string | null) {
   const params = new URLSearchParams({ page: String(pageNo), limit: '20' }); if (status) params.set('status', status);
-  return page(await apiRequest<Envelope<MarketplaceOrder[]>>(`/api/v1/orders/mine?${params}`, { token, cacheOwnerId: ownerId ?? undefined }), 'تعذر تحميل طلباتك.', pageNo);
+  return page(await apiRequest<Envelope<MarketplaceOrder[]>>(`/api/v1/orders/mine?${params}`, { token, cacheOwnerId: ownerId ?? undefined, responseSchema: criticalOrderListEnvelopeResponseSchema as import('zod').ZodType<Envelope<MarketplaceOrder[]>> }), 'تعذر تحميل طلباتك.', pageNo);
 }
 export async function fetchSellerOrders(token: string, pageNo = 1, status?: MarketplaceOrderStatus, ownerId?: string | null) {
   const params = new URLSearchParams({ page: String(pageNo), limit: '20' }); if (status) params.set('status', status);
-  return page(await apiRequest<Envelope<MarketplaceOrder[]>>(`/api/v1/orders/seller?${params}`, { token, cacheOwnerId: ownerId ?? undefined }), 'تعذر تحميل طلبات المتجر.', pageNo);
+  return page(await apiRequest<Envelope<MarketplaceOrder[]>>(`/api/v1/orders/seller?${params}`, { token, cacheOwnerId: ownerId ?? undefined, responseSchema: criticalOrderListEnvelopeResponseSchema as import('zod').ZodType<Envelope<MarketplaceOrder[]>> }), 'تعذر تحميل طلبات المتجر.', pageNo);
 }
 export async function fetchMarketplaceOrder(id: string, token: string, ownerId?: string | null) {
-  return unwrap(await apiRequest<Envelope<MarketplaceOrder>>(`/api/v1/orders/${encodeURIComponent(id)}`, { token, cacheOwnerId: ownerId ?? undefined }), 'تعذر تحميل تفاصيل الطلب.');
+  return unwrap(await apiRequest<Envelope<MarketplaceOrder>>(`/api/v1/orders/${encodeURIComponent(id)}`, { token, cacheOwnerId: ownerId ?? undefined, responseSchema: criticalOrderEnvelopeResponseSchema as import('zod').ZodType<Envelope<MarketplaceOrder>> }), 'تعذر تحميل تفاصيل الطلب.');
 }
 export async function updateMarketplaceOrderStatus(id: string, status: MarketplaceOrderStatus, token: string, csrfToken?: string | null, sellerNote?: string) {
-  return unwrap(await apiRequest<Envelope<MarketplaceOrder>>(`/api/v1/orders/${encodeURIComponent(id)}/status`, { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({ status, sellerNote }) }), 'تعذر تحديث حالة الطلب.');
+  return unwrap(await apiRequest<Envelope<MarketplaceOrder>>(`/api/v1/orders/${encodeURIComponent(id)}/status`, { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({ status, sellerNote }), responseSchema: criticalOrderEnvelopeResponseSchema as import('zod').ZodType<Envelope<MarketplaceOrder>> }), 'تعذر تحديث حالة الطلب.');
 }

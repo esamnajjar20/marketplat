@@ -34,12 +34,12 @@ export function SearchBar({
           accessibilityRole="button"
           accessibilityLabel="مسح البحث"
           onPress={() => onChangeText('')}
-          hitSlop={8}
+          style={s.searchClearButton}
         >
           <Text style={s.searchClear}>×</Text>
         </Pressable>
       ) : null}
-      <Pressable accessibilityRole="button" onPress={onSubmit} style={s.searchBtn}>
+      <Pressable accessibilityRole="button" accessibilityLabel="تنفيذ البحث" onPress={onSubmit} style={s.searchBtn}>
         <Text style={s.searchBtnText}>بحث</Text>
       </Pressable>
     </View>

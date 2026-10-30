@@ -3,7 +3,7 @@
  * Runs every scripts/verify-*.mjs sequentially and prints a summary.
  * Replaces the 5000-character inline test command in package.json.
  */
-import { readdir } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -15,11 +15,21 @@ const files = (await readdir(__dirname))
   .sort();
 
 if (files.length === 0) {
-  console.log('⚠️  No verify-*.mjs scripts found.');
-  process.exit(0);
+  console.log('⚠️  No active verify-*.mjs scripts found.');
+  process.exit(1);
 }
 
-console.log(`\nRunning ${files.length} verification scripts...\n`);
+let legacyCount = 0;
+try {
+  const legacyManifest = JSON.parse(await readFile(join(__dirname, 'legacy-verifications', 'manifest.json'), 'utf8'));
+  legacyCount = Array.isArray(legacyManifest.entries) ? legacyManifest.entries.length : 0;
+} catch {
+  console.warn('⚠️  Legacy verification manifest missing; quarantine status cannot be summarized.');
+}
+
+console.log(`\nActive verification checks: ${files.length}`);
+console.log(`Quarantined historical checks (not counted as passed): ${legacyCount}`);
+console.log('The quarantined scripts are preserved in scripts/legacy-verifications/ with diagnosis metadata.\n');
 
 let passed = 0;
 const failures = [];
@@ -48,7 +58,7 @@ for (const f of files) {
 
 const failed = failures.length;
 console.log(`\n${'═'.repeat(70)}`);
-console.log(`  Total: ${files.length}  |  ✅ ${passed}  |  ❌ ${failed}`);
+console.log(`  Active: ${files.length}  |  ✅ ${passed}  |  ❌ ${failed}  |  Quarantined historical (not passed): ${legacyCount}`);
 console.log(`${'═'.repeat(70)}\n`);
 
 if (failed > 0) {

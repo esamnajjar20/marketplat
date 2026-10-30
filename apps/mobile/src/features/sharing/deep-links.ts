@@ -14,3 +14,10 @@ export async function shareMarketPlatResource(resource: ShareableResource, id: s
   const url = createMarketPlatDeepLink(resource, id, extra);
   await Share.share({ message: `${title.trim() || 'شاهد هذا المحتوى على MarketPlat'}\n${url}`, url, title: 'مشاركة على MarketPlat' });
 }
+
+/** Shares the compact v1 offline QR payload through the native receiver route. */
+export async function shareSharedPayload(encodedPayload: string, title: string): Promise<void> {
+  if (!encodedPayload || encodedPayload.length > 12000 || !/^[A-Za-z0-9_-]+$/.test(encodedPayload)) throw new Error('بيانات المشاركة غير صالحة.');
+  const url = `${Linking.createURL('shared')}#d=${encodedPayload}`;
+  await Share.share({ message: `${title.trim() || 'محتوى تمت مشاركته'}\n${url}`, url, title: 'مشاركة بدون إنترنت' });
+}

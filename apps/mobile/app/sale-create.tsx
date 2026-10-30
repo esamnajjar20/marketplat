@@ -4,7 +4,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createSale } from '@/features/sales/sales.api';
-import { enqueueOfflineCreate } from '@/storage/entity-create-outbox';
+import { enqueueOfflineCreate } from '@/storage/outbox-manager';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
 import { colors, radius, spacing } from '@/theme/tokens';
 

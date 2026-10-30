@@ -1,14 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
-import {
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
   acknowledgeFavoriteState,
@@ -22,7 +14,9 @@ import { ApiError } from '@/api/client';
 import { fetchAdDetail, getCachedAdDetail } from '@/features/ads/ads.api';
 import type { AdDetail } from '@/features/ads/ads.api';
 import { startConversationFromAd } from '@/features/messaging/messaging.api';
-import { shareMarketPlatResource } from '@/features/sharing/deep-links';
+import { ShareButton } from '@/components/ui/ShareButton';
+import { MediaGallery } from '@/components/ui/MediaGallery';
+import { SaveOfflineButton } from '@/components/ui/SaveOfflineButton';
 import {
   Badge,
   DetailScaffold,
@@ -48,7 +42,6 @@ function formatDate(value?: string): string | null {
 }
 
 export default function AdDetailScreen() {
-  const { width } = useWindowDimensions();
   const { user, accessToken, csrfToken } = useAuth();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -242,20 +235,7 @@ export default function AdDetailScreen() {
   return (
     <DetailScaffold
       title="تفاصيل الإعلان"
-      right={
-        ad ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="مشاركة الإعلان"
-            onPress={() => {
-              void shareMarketPlatResource('ads', ad.id, ad.title);
-            }}
-            hitSlop={8}
-          >
-            <Text style={styles.headerAction}>مشاركة</Text>
-          </Pressable>
-        ) : undefined
-      }
+      right={ad ? <ShareButton resource="ads" id={ad.id} title={ad.title} /> : undefined}
       loading={loading}
       loadingMessage="جاري تحميل تفاصيل الإعلان…"
       error={errorMessage}
@@ -266,29 +246,7 @@ export default function AdDetailScreen() {
     >
       {ad ? (
         <>
-          {images.length > 0 ? (
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.imageGallery}
-            >
-              {images.map((uri, index) => (
-                <Image
-                  key={`${uri}-${index}`}
-                  source={{ uri }}
-                  style={[styles.heroImage, { width }]}
-                  resizeMode="cover"
-                  accessibilityLabel={`صورة ${index + 1} للإعلان`}
-                />
-              ))}
-            </ScrollView>
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Text style={styles.placeholderIcon}>◇</Text>
-              <Text style={styles.placeholderText}>لا توجد صور متاحة</Text>
-            </View>
-          )}
+          <MediaGallery images={images} title={ad.title} />
 
           <View style={styles.pad}>
             <SectionCard>
@@ -302,6 +260,9 @@ export default function AdDetailScreen() {
               {ad.isNegotiable ? <Badge label="السعر قابل للتفاوض" tone="brand" /> : null}
               {formatDate(ad.createdAt) ? (
                 <Text style={styles.date}>تاريخ النشر: {formatDate(ad.createdAt)}</Text>
+              ) : null}
+              {typeof ad.views === 'number' ? (
+                <Text style={styles.date}>المشاهدات: {new Intl.NumberFormat('ar').format(ad.views)}</Text>
               ) : null}
 
               <PrimaryButton
@@ -319,6 +280,7 @@ export default function AdDetailScreen() {
                 variant="secondary"
               />
               {favoriteMessage ? <Notice tone="muted">{favoriteMessage}</Notice> : null}
+              <SaveOfflineButton id={ad.id} kind="ad" title={ad.title} payload={{ id: ad.id, title: ad.title, description: ad.description, price: ad.price, city: ad.city, condition: ad.condition, createdAt: ad.createdAt, images }} />
               {conversationMessage ? <Notice tone="error">{conversationMessage}</Notice> : null}
             </SectionCard>
 
@@ -327,6 +289,11 @@ export default function AdDetailScreen() {
               <Text style={styles.description}>
                 {ad.description?.trim() || 'لم يضف صاحب الإعلان وصفاً إضافياً.'}
               </Text>
+            </SectionCard>
+
+            <SectionCard>
+              <Text style={styles.sectionTitle}>نصائح السلامة</Text>
+              <Text style={styles.description}>التقِ بالبائع في مكان عام وآمن، وافحص السلعة قبل الدفع. لا تشارك كلمات المرور أو رموز التحقق، وتجنب التحويل المسبق إلى جهة لا تثق بها. احتفظ بالمحادثة وإثبات الدفع.</Text>
             </SectionCard>
 
             <SectionCard>
@@ -371,17 +338,6 @@ export default function AdDetailScreen() {
 
 const styles = StyleSheet.create({
   headerAction: { color: colors.brand, ...typography.captionStrong },
-  imageGallery: { flexDirection: 'row-reverse' },
-  heroImage: { height: 300, backgroundColor: colors.border },
-  imagePlaceholder: {
-    height: 220,
-    backgroundColor: colors.brandSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-  },
-  placeholderIcon: { fontSize: 40, color: colors.brand },
-  placeholderText: { ...typography.caption, color: colors.muted },
   pad: { paddingHorizontal: spacing.md, gap: spacing.md },
   price: { color: colors.brand, fontSize: 22, fontWeight: '900', textAlign: 'right' },
   title: {

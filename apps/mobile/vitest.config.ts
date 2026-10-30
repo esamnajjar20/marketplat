@@ -3,7 +3,12 @@ import path from 'node:path';
 
 export default defineConfig({
   test: {
-    include: ['src/storage/__tests__/**/*.test.ts'],
+    include: [
+      'src/storage/__tests__/**/*.test.ts',
+      'src/api/__tests__/**/*.test.ts',
+      'src/lib/__tests__/**/*.test.ts',
+      'src/features/auth/__tests__/**/*.test.ts',
+    ],
     exclude: ['**/*.test.mjs', '**/node_modules/**'],
     environment: 'node',
     globals: false,

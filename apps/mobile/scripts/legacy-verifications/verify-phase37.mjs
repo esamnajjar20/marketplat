@@ -1,0 +1,17 @@
+import { readFileSync } from 'node:fs';
+import { strict as assert } from 'node:assert';
+const outbox = readFileSync(new URL('../src/storage/mutation-outbox.ts', import.meta.url), 'utf8');
+const sync = readFileSync(new URL('../src/storage/outbox-sync.ts', import.meta.url), 'utf8');
+const pkgPath = new URL('../package.json', import.meta.url);
+const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+assert.match(outbox, /retryExhaustedMutation/);
+assert.match(outbox, /NOT EXISTS\s*\(/);
+assert.match(outbox, /older\.owner_id = mutation_outbox\.owner_id/);
+assert.match(outbox, /older\.created_at < mutation_outbox\.created_at/);
+assert.match(outbox, /DELETE FROM mutation_outbox WHERE state != 'processing'/);
+assert.match(sync, /const latestHead = await getOldestOutboxMutation\(ownerId\)/);
+assert.match(sync, /latestHead\.state === 'processing'/);
+assert.match(sync, /status: 'already-processing'/);
+assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
+console.log('Phase 37 FIFO retry gating, in-flight preservation, and claim-race source-contract checks passed (static only).');

@@ -196,6 +196,7 @@ export function BottomNav() {
         aria-expanded={exploreOpen}
         aria-current={isExploreActive ? 'page' : undefined}
         aria-haspopup="dialog"
+        aria-label="استكشاف الإعلانات والمنتجات والخدمات والمتاجر"
         className={cn(
           'relative flex min-h-[52px] min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-[11px] transition-colors duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           isExploreActive ? 'font-extrabold text-primary' : 'font-semibold text-muted-foreground hover:text-primary',
@@ -218,7 +219,7 @@ export function BottomNav() {
             prefetch={false}
             aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) ? 'page' : undefined}
             className={cn(
-              'flex w-full flex-col items-center justify-center gap-0.5 py-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+              'flex min-h-[52px] w-full flex-col items-center justify-center gap-0.5 py-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
               pathname.startsWith(ROUTES.userProfile(user.id))
                 ? 'font-extrabold text-primary'
                 : 'font-semibold text-muted-foreground hover:text-primary',
@@ -245,8 +246,11 @@ export function BottomNav() {
           <button
             type="button"
             onClick={toggleMobileNav}
+            aria-label="فتح القائمة"
+            aria-expanded={mobileNavOpen}
+            aria-controls="mobile-nav-drawer"
             className={cn(
-              'flex w-full flex-col items-center justify-center gap-0.5 py-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+              'flex min-h-[52px] w-full flex-col items-center justify-center gap-0.5 py-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
               mobileNavOpen ? 'font-extrabold text-primary' : 'font-semibold text-muted-foreground hover:text-primary',
             )}
           >

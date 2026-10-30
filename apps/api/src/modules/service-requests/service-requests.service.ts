@@ -349,7 +349,18 @@ export const serviceRequestsService = {
       throw new ConflictError(`Cannot transition from ${request.status} to ${action}`);
     }
 
-    const actorRequired = TRANSITION_ACTOR[`${request.status}->${action}`];
+    // A quote-based request has a two-party transition: the provider sends
+    // the quote (ACCEPTED + quotedPrice), then the customer approves it
+    // (IN_PROGRESS). Fixed-price requests still require the provider to
+    // start work. Resolve this capability-specific actor before enforcing
+    // the shared transition table so the customer approval isn't blocked.
+    const capabilities = getServiceTypeCapabilities(request.listing.serviceType?.capabilities);
+    const requiresQuote = capabilities.requestQuote === true;
+    const transitionKey = `${request.status}->${action}`;
+    const actorRequired: Actor | undefined =
+      transitionKey === 'ACCEPTED->IN_PROGRESS' && requiresQuote
+        ? 'customer'
+        : TRANSITION_ACTOR[transitionKey];
     const callerRole: Actor = isProvider ? 'provider' : 'customer';
     if (actorRequired && actorRequired !== 'either' && actorRequired !== callerRole) {
       throw new ForbiddenError(
@@ -369,8 +380,6 @@ export const serviceRequestsService = {
     // through, after the actor check) rather than at the schema level,
     // because the requirement depends on request.status — a fact the
     // schema cannot see.
-    const capabilities = getServiceTypeCapabilities(request.listing.serviceType?.capabilities);
-    const requiresQuote = capabilities.requestQuote === true;
     if (action === 'ACCEPTED' && requiresQuote && extra?.quotedPrice === undefined) {
       throw new BadRequestError(
         'quotedPrice is required when accepting a quote-based request.',

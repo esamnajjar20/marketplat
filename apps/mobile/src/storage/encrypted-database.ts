@@ -2,6 +2,7 @@ import * as SQLite from 'expo-sqlite';
 import * as SecureStore from 'expo-secure-store';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
+import { assertLegacyDataPreserved, type SqliteMigrationDatabase } from '@/storage/sqlite-migration-integrity';
 
 /** All account/private queues and the public cache share one encrypted native database. */
 export const ENCRYPTED_DATABASE_NAME = 'marketplat-private-v2.db';
@@ -61,6 +62,19 @@ async function openKeyed(name: string, keyHex: string): Promise<SQLite.SQLiteDat
   }
 }
 
+async function verifyLegacyCopyBeforeRemoval(keyHex: string): Promise<void> {
+  if (!(await databaseExists(LEGACY_DATABASE_NAME))) return;
+  const legacy = await SQLite.openDatabaseAsync(LEGACY_DATABASE_NAME);
+  let encrypted: SQLite.SQLiteDatabase | null = null;
+  try {
+    encrypted = await openKeyed(ENCRYPTED_DATABASE_NAME, keyHex);
+    await assertLegacyDataPreserved(legacy as unknown as SqliteMigrationDatabase, encrypted as unknown as SqliteMigrationDatabase);
+  } finally {
+    await legacy.closeAsync().catch(() => undefined);
+    await encrypted?.closeAsync().catch(() => undefined);
+  }
+}
+
 async function migrateLegacyDatabase(keyHex: string): Promise<void> {
   // Open the old database without a key. SQLCipher accepts legacy plaintext SQLite files.
   // The key is hex-only and the destination name is a fixed constant, never user input.
@@ -83,7 +97,9 @@ async function migrateLegacyDatabase(keyHex: string): Promise<void> {
   const encrypted = await openKeyed(ENCRYPTED_DATABASE_NAME, keyHex);
   await encrypted.execAsync('PRAGMA journal_mode = DELETE;');
   await encrypted.closeAsync();
-  // Delete the old plaintext database only after successful keyed open and schema read.
+  // A keyed open/schema read alone is insufficient: verify every legacy user table
+  // and its row count before destroying the only plaintext copy.
+  await verifyLegacyCopyBeforeRemoval(keyHex);
   await SQLite.deleteDatabaseAsync(LEGACY_DATABASE_NAME);
 }
 
@@ -113,6 +129,9 @@ async function openEncryptedDatabase(): Promise<SQLite.SQLiteDatabase> {
     await encrypted.execAsync('PRAGMA busy_timeout = 8000; PRAGMA journal_mode = WAL;');
     await encrypted.closeAsync();
     if (await databaseExists(LEGACY_DATABASE_NAME)) {
+      // A previous run may have been interrupted; preserve the source until every
+      // legacy table and row count is confirmed in the encrypted database.
+      await verifyLegacyCopyBeforeRemoval(keyHex);
       await SQLite.deleteDatabaseAsync(LEGACY_DATABASE_NAME);
     }
   } else {

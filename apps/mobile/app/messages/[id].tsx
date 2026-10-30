@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, FlatList, Image, KeyboardAvoidingView, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
@@ -9,15 +9,15 @@ import NetInfo from '@react-native-community/netinfo';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteChatMessage, fetchConversation, fetchMessagesPage, setMessageMark, signalChatTyping, type ChatMessage, type ConversationItem } from '@/features/messaging/messaging.api';
 import { syncChatMediaOutbox } from '@/features/messaging/chat-media-outbox-sync';
-import { createChatMediaOperationId, enqueueChatMedia, listChatMediaOutbox, type ChatMediaKind } from '@/storage/chat-media-outbox';
-import { CHAT_OUTBOX_MAX_ATTEMPTS, discardFailedChatMessage, enqueueChatMessage, listChatMessagesForConversation, retryChatMessage } from '@/storage/chat-message-outbox';
+import { createChatMediaOperationId, enqueueChatMedia, listChatMediaOutbox, type ChatMediaKind } from '@/storage/outbox-manager';
+import { discardFailedChatMessage, enqueueChatMessage, listChatMessagesForConversation, retryChatMessage } from '@/storage/outbox-manager';
 import { subscribeChatOutboxSent, syncChatMessageOutbox } from '@/features/messaging/chat-message-outbox-sync';
 import { subscribeChatLiveStream, type ChatLiveEvent } from '@/features/messaging/chat-live-stream';
 import { markCachedChatMessageDeleted, readCachedChatMessages, saveCachedChatMessages } from '@/storage/chat-message-cache';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { colors, radius, spacing } from '@/theme/tokens';
+import ConversationMessageRow, { type ConversationScreenMessage } from '@/features/messaging/ConversationMessageRow';
 
-type ScreenMessage = ChatMessage & { outboxAttempts?: number; outboxLastError?: string | null };
-function messageTime(value: string): string { try { return new Intl.DateTimeFormat('ar', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)); } catch { return ''; } }
+type ScreenMessage = ConversationScreenMessage;
 
 function mergeFetchedMessages(fetched: ScreenMessage[], current: ScreenMessage[]): ScreenMessage[] {
   const byId = new Map<string, ScreenMessage>();
@@ -37,7 +37,7 @@ function replaceOptimisticMessage(current: ScreenMessage[], tempId: string, sent
 
 export default function ConversationScreen() {
   const params = useLocalSearchParams<{ id: string }>(); const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { user, accessToken, csrfToken } = useAuth(); const audioRecorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, directory: 'document' }); const sessionAbort = useRef(new AbortController()); const [conversation, setConversation] = useState<ConversationItem | null>(null); const [messages, setMessages] = useState<ScreenMessage[]>([]); const [draft, setDraft] = useState(''); const [searchOpen, setSearchOpen] = useState(false); const [messageSearch, setMessageSearch] = useState(''); const [uploadingImage, setUploadingImage] = useState(false); const [isRecordingAudio, setIsRecordingAudio] = useState(false); const [pendingMediaCount, setPendingMediaCount] = useState(0); const [partyTyping, setPartyTyping] = useState(false); const lastTypingSignalAt = useRef(0); const typingActive = useRef(false); const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null); const [loading, setLoading] = useState(true); const [sending, setSending] = useState(false); const [loadingOlder, setLoadingOlder] = useState(false); const [nextCursor, setNextCursor] = useState<string | null>(null); const olderRequest = useRef(false); const hasLoadedOlder = useRef(false); const activeConversationId = useRef(id); const hasRenderableMessages = useRef(false); const previousConnectivity = useRef<boolean | null>(null); const [error, setError] = useState<string | null>(null); const listRef = useRef<FlatList<ChatMessage>>(null); const loadSequence = useRef(0); const initialScrollDone = useRef(false); const userScrolledAway = useRef(false);
+  const { user, accessToken, csrfToken } = useAuth(); const audioRecorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, directory: 'document' }); const sessionAbort = useRef(new AbortController()); const [conversation, setConversation] = useState<ConversationItem | null>(null); const [messages, setMessages] = useState<ScreenMessage[]>([]); const [draft, setDraft] = useState(''); const [searchOpen, setSearchOpen] = useState(false); const [messageSearch, setMessageSearch] = useState(''); const [uploadingImage, setUploadingImage] = useState(false); const [isRecordingAudio, setIsRecordingAudio] = useState(false); const [pendingMediaCount, setPendingMediaCount] = useState(0); const [partyTyping, setPartyTyping] = useState(false); const lastTypingSignalAt = useRef(0); const typingActive = useRef(false); const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null); const [loading, setLoading] = useState(true); const [sending, setSending] = useState(false); const [loadingOlder, setLoadingOlder] = useState(false); const [nextCursor, setNextCursor] = useState<string | null>(null); const olderRequest = useRef(false); const hasLoadedOlder = useRef(false); const activeConversationId = useRef(id); const hasRenderableMessages = useRef(false); const previousConnectivity = useRef<boolean | null>(null); const [error, setError] = useState<string | null>(null); const listRef = useRef<FlatList<ScreenMessage>>(null); const loadSequence = useRef(0); const initialScrollDone = useRef(false); const userScrolledAway = useRef(false);
   const load = useCallback(async (showLoader = true) => {
     if (activeConversationId.current !== id) {
       activeConversationId.current = id;
@@ -377,11 +377,114 @@ export default function ConversationScreen() {
   const other = conversation && user ? (conversation.buyerId === user.id ? conversation.seller : conversation.buyer) : null;
   return <SafeAreaView style={styles.safe} edges={['top','bottom']}><KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <View style={styles.header}><Pressable onPress={() => router.back()} accessibilityRole="button"><Text style={styles.link}>رجوع</Text></Pressable><View style={styles.headerCenter}><Text numberOfLines={1} style={styles.heading}>{other?.name || 'المحادثة'}</Text>{conversation?.ad?.title ? <Text numberOfLines={1} style={styles.context}>{conversation.ad.title}</Text> : null}{partyTyping ? <Text style={styles.typing}>يكتب الآن…</Text> : null}</View><Pressable onPress={() => setSearchOpen(value => !value)} accessibilityRole="button"><Text style={styles.link}>{searchOpen ? 'إغلاق البحث' : 'بحث'}</Text></Pressable></View>
-    {searchOpen ? <View style={styles.searchBar}><TextInput value={messageSearch} onChangeText={setMessageSearch} placeholder="ابحث في الرسائل المحمّلة…" placeholderTextColor={colors.muted} style={styles.searchInput} textAlign="right"/><Text style={styles.searchCount}>{normalizedSearch ? `${visibleMessages.length} نتيجة` : 'بحث محلي دون طلبات إضافية'}</Text></View> : null}
+    {searchOpen ? <View style={styles.searchBar}><TextInput accessibilityLabel="البحث في الرسائل المحمّلة" value={messageSearch} onChangeText={setMessageSearch} placeholder="ابحث في الرسائل المحمّلة…" placeholderTextColor={colors.muted} style={styles.searchInput} textAlign="right"/><Text style={styles.searchCount}>{normalizedSearch ? `${visibleMessages.length} نتيجة` : 'بحث محلي دون طلبات إضافية'}</Text></View> : null}
     {loading ? <View style={styles.center}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جاري تحميل الرسائل…</Text></View> : error ? <View style={styles.center}><Text style={styles.title}>تعذر فتح المحادثة</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void load()}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View> : <>
-      <FlatList ref={listRef} data={visibleMessages} keyExtractor={(item) => item.id} contentContainerStyle={styles.messages} keyboardShouldPersistTaps="handled" maintainVisibleContentPosition={{ minIndexForVisible: 0 }} onContentSizeChange={() => { if (!initialScrollDone.current && messages.length > 0) requestAnimationFrame(() => requestAnimationFrame(() => { if (initialScrollDone.current || loadingOlder || userScrolledAway.current) return; listRef.current?.scrollToEnd({ animated: false }); initialScrollDone.current = true; })); }} onScroll={(event) => { const offset = event.nativeEvent.contentOffset.y; const distanceFromBottom = event.nativeEvent.contentSize.height - event.nativeEvent.layoutMeasurement.height - offset; userScrolledAway.current = distanceFromBottom > 120; if (offset <= 40) void loadOlder(); }} scrollEventThrottle={250} ListHeaderComponent={loadingOlder ? <ActivityIndicator size="small" color={colors.brand} /> : nextCursor ? <Text style={styles.olderHint}>اسحب إلى الأعلى لتحميل الرسائل الأقدم</Text> : undefined} ListEmptyComponent={<Text style={styles.muted}>لا توجد رسائل بعد. ابدأ المحادثة برسالة واضحة.</Text>} renderItem={({ item }) => { const mine = item.senderId === user?.id; return <Pressable onLongPress={() => performMessageAction(item)} delayLongPress={350} style={[styles.bubble, mine ? styles.mine : styles.theirs]}><>{item.imageUrl && !item.deletedAt ? <Image source={{ uri: item.imageUrl }} resizeMode="cover" style={styles.messageImage}/> : null}{item.audioUrl && !item.deletedAt ? <Pressable accessibilityRole="button" style={styles.mediaAction} onPress={() => void Linking.openURL(item.audioUrl!).catch(() => Alert.alert('تعذر فتح الصوت','تحقق من الاتصال وحاول مجددًا.'))}><Text style={styles.mediaActionText}>▶ تشغيل الرسالة الصوتية</Text></Pressable> : null}{item.fileUrl && !item.deletedAt ? <Pressable accessibilityRole="button" style={styles.mediaAction} onPress={() => void Linking.openURL(item.fileUrl!).catch(() => Alert.alert('تعذر فتح الملف','تحقق من الاتصال وحاول مجددًا.'))}><Text style={styles.mediaActionText}>📎 فتح الملف المرفق</Text></Pressable> : null}<Text style={[styles.messageText, mine && styles.mineText]}>{item.deletedAt ? 'تم حذف هذه الرسالة' : item.body || (item.imageUrl ? '📷 صورة مرفقة' : item.audioUrl ? '🎙️ رسالة صوتية' : item.fileUrl ? '📎 ملف مرفق' : 'رسالة')}</Text><Text style={[styles.time, mine && styles.mineTime]}>{messageTime(item.createdAt)}{item.isPinned ? ' · 📌' : ''}{item.isStarredByMe ? ' · ⭐' : ''}{item.id.startsWith('pending-') ? (item.outboxAttempts !== undefined && item.outboxAttempts >= CHAT_OUTBOX_MAX_ATTEMPTS ? ' · تعذّر الإرسال' : ' · بانتظار المزامنة') : ''}</Text>{item.id.startsWith('pending-') && item.outboxAttempts !== undefined && item.outboxAttempts >= CHAT_OUTBOX_MAX_ATTEMPTS ? <View style={styles.failedActions}><Pressable accessibilityRole="button" onPress={() => void retryFailedMessage(item)}><Text style={styles.failedAction}>إعادة المحاولة</Text></Pressable><Pressable accessibilityRole="button" onPress={() => confirmDiscardFailedMessage(item)}><Text style={styles.failedDelete}>حذف</Text></Pressable></View> : null}</> </Pressable>; }} />
+      <FlatList ref={listRef} data={visibleMessages} keyExtractor={(item) => item.id} contentContainerStyle={styles.messages} keyboardShouldPersistTaps="handled" maintainVisibleContentPosition={{ minIndexForVisible: 0 }} onContentSizeChange={() => { if (!initialScrollDone.current && messages.length > 0) requestAnimationFrame(() => requestAnimationFrame(() => { if (initialScrollDone.current || loadingOlder || userScrolledAway.current) return; listRef.current?.scrollToEnd({ animated: false }); initialScrollDone.current = true; })); }} onScroll={(event) => { const offset = event.nativeEvent.contentOffset.y; const distanceFromBottom = event.nativeEvent.contentSize.height - event.nativeEvent.layoutMeasurement.height - offset; userScrolledAway.current = distanceFromBottom > 120; if (offset <= 40) void loadOlder(); }} scrollEventThrottle={250} ListHeaderComponent={loadingOlder ? <ActivityIndicator size="small" color={colors.brand} /> : nextCursor ? <Text style={styles.olderHint}>اسحب إلى الأعلى لتحميل الرسائل الأقدم</Text> : undefined} ListEmptyComponent={<Text style={styles.muted}>لا توجد رسائل بعد. ابدأ المحادثة برسالة واضحة.</Text>} renderItem={({ item }) => (
+        <ConversationMessageRow
+          message={item}
+          isMine={item.senderId === user?.id}
+          onLongPress={performMessageAction}
+          onRetry={retryFailedMessage}
+          onDiscard={confirmDiscardFailedMessage}
+        />
+      )} />
       <>{pendingMediaCount > 0 ? <Text style={styles.pendingMedia}>مرفقات محفوظة للإرسال: {pendingMediaCount}</Text> : null}<View style={styles.composer}><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void chooseAndSendImage()} style={[styles.attach, uploadingImage && styles.disabled]}><Text style={styles.attachText}>{uploadingImage ? '…' : '＋ صورة'}</Text></Pressable><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void chooseAndSendFile()} style={[styles.attach, uploadingImage && styles.disabled]}><Text style={styles.attachText}>＋ ملف</Text></Pressable><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void toggleAudioRecording()} style={[styles.attach, isRecordingAudio && styles.recording, uploadingImage && styles.disabled]}><Text style={styles.attachText}>{isRecordingAudio ? '■ إيقاف' : '🎙 صوت'}</Text></Pressable><TextInput value={draft} onChangeText={setDraft} placeholder="اكتب رسالتك…" placeholderTextColor={colors.muted} multiline maxLength={2000} textAlign="right" style={styles.input} accessibilityLabel="نص الرسالة"/><Pressable accessibilityRole="button" disabled={!draft.trim() || sending} onPress={() => void submit()} style={[styles.send, (!draft.trim() || sending) && styles.disabled]}><Text style={styles.sendText}>{sending ? '…' : 'إرسال'}</Text></Pressable></View></>
     </>}
   </KeyboardAvoidingView></SafeAreaView>;
 }
-const styles = StyleSheet.create({safe:{flex:1,backgroundColor:colors.canvas},flex:{flex:1},header:{minHeight:60,paddingHorizontal:spacing.md,flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:colors.surface,borderBottomWidth:1,borderBottomColor:colors.border,gap:spacing.sm},headerCenter:{flex:1,alignItems:'center'},typing:{fontSize:10,color:colors.brand,marginTop:2},searchBar:{paddingHorizontal:spacing.md,paddingVertical:spacing.sm,backgroundColor:colors.surface,borderBottomWidth:1,borderBottomColor:colors.border,gap:4},searchInput:{minHeight:40,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,paddingHorizontal:spacing.md,color:colors.ink,backgroundColor:colors.canvas},searchCount:{fontSize:10,color:colors.muted,textAlign:'right'},heading:{fontSize:16,fontWeight:'900',color:colors.ink},context:{fontSize:11,color:colors.muted,marginTop:2},link:{color:colors.brand,fontWeight:'800',padding:spacing.sm},center:{flex:1,alignItems:'center',justifyContent:'center',padding:spacing.xl,gap:spacing.md},title:{fontSize:17,fontWeight:'900',color:colors.ink},muted:{fontSize:13,color:colors.muted,textAlign:'center',lineHeight:21},primary:{backgroundColor:colors.brand,borderRadius:radius.md,padding:spacing.md},primaryText:{color:colors.white,fontWeight:'800'},messages:{padding:spacing.md,gap:spacing.sm,flexGrow:1,justifyContent:'flex-end'},olderHint:{fontSize:11,color:colors.muted,textAlign:'center',paddingVertical:spacing.sm},bubble:{maxWidth:'84%',paddingHorizontal:spacing.md,paddingVertical:spacing.sm,borderRadius:radius.md,gap:4},mine:{alignSelf:'flex-end',backgroundColor:colors.brand,borderBottomRightRadius:4},theirs:{alignSelf:'flex-start',backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,borderBottomLeftRadius:4},messageText:{fontSize:15,lineHeight:22,color:colors.ink,textAlign:'right'},mineText:{color:colors.white},messageImage:{width:220,height:180,borderRadius:radius.sm,marginBottom:4,backgroundColor:colors.canvas},mediaAction:{paddingHorizontal:spacing.sm,paddingVertical:spacing.sm,borderRadius:radius.sm,backgroundColor:colors.brandSoft,alignSelf:'flex-start'},mediaActionText:{fontSize:12,fontWeight:'800',color:colors.brand},time:{fontSize:10,color:colors.muted,textAlign:'left'},mineTime:{color:colors.brandSoft},failedActions:{flexDirection:'row',justifyContent:'flex-end',gap:spacing.md,marginTop:spacing.xs},failedAction:{fontSize:11,fontWeight:'900',color:colors.brand},failedDelete:{fontSize:11,fontWeight:'900',color:colors.danger},attach:{minHeight:44,alignItems:'center',justifyContent:'center',paddingHorizontal:spacing.sm,borderRadius:radius.lg,borderWidth:1,borderColor:colors.border,backgroundColor:colors.canvas},attachText:{fontSize:12,fontWeight:'800',color:colors.brand},pendingMedia:{fontSize:11,color:colors.brand,textAlign:'right',paddingHorizontal:spacing.md,paddingVertical:4,backgroundColor:colors.surface},recording:{backgroundColor:colors.danger,borderColor:colors.danger},composer:{flexDirection:'row-reverse',alignItems:'flex-end',gap:spacing.sm,padding:spacing.md,backgroundColor:colors.surface,borderTopWidth:1,borderTopColor:colors.border},input:{flex:1,maxHeight:110,minHeight:44,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,paddingHorizontal:spacing.md,paddingVertical:spacing.sm,color:colors.ink,backgroundColor:colors.canvas},send:{height:44,alignItems:'center',justifyContent:'center',paddingHorizontal:spacing.lg,borderRadius:radius.lg,backgroundColor:colors.brand},sendText:{color:colors.white,fontWeight:'900'},disabled:{opacity:.45}});
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  flex: { flex: 1 },
+  header: {
+    minHeight: 60,
+    paddingHorizontal: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: spacing.sm,
+  },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  typing: { fontSize: 10, color: colors.brand, marginTop: 2 },
+  searchBar: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    gap: 4,
+  },
+  searchInput: {
+    minHeight: 40,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    color: colors.ink,
+    backgroundColor: colors.canvas,
+  },
+  searchCount: { fontSize: 10, color: colors.muted, textAlign: 'right' },
+  heading: { fontSize: 16, fontWeight: '900', color: colors.ink },
+  context: { fontSize: 11, color: colors.muted, marginTop: 2 },
+  link: { color: colors.brand, fontWeight: '800', padding: spacing.sm },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
+  title: { fontSize: 17, fontWeight: '900', color: colors.ink },
+  muted: { fontSize: 13, color: colors.muted, textAlign: 'center', lineHeight: 21 },
+  primary: { backgroundColor: colors.brand, borderRadius: radius.md, padding: spacing.md },
+  primaryText: { color: colors.white, fontWeight: '800' },
+  messages: { padding: spacing.md, gap: spacing.sm, flexGrow: 1, justifyContent: 'flex-end' },
+  olderHint: { fontSize: 11, color: colors.muted, textAlign: 'center', paddingVertical: spacing.sm },
+  attach: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.canvas,
+  },
+  attachText: { fontSize: 12, fontWeight: '800', color: colors.brand },
+  pendingMedia: {
+    fontSize: 11,
+    color: colors.brand,
+    textAlign: 'right',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 4,
+    backgroundColor: colors.surface,
+  },
+  recording: { backgroundColor: colors.danger, borderColor: colors.danger },
+  composer: {
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-end',
+    gap: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  input: {
+    flex: 1,
+    maxHeight: 110,
+    minHeight: 44,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    color: colors.ink,
+    backgroundColor: colors.canvas,
+  },
+  send: {
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    backgroundColor: colors.brand,
+  },
+  sendText: { color: colors.white, fontWeight: '900' },
+  disabled: { opacity: 0.45 },
+});

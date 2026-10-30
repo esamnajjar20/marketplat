@@ -44,4 +44,22 @@ test.describe('Arabic accessibility and responsive layout', () => {
     await expect(page.locator('main').first()).toBeVisible();
     await expect(page).toHaveTitle(/\S+/);
   });
+
+  test('public and authentication route shells expose a semantic main landmark', async ({ page }) => {
+    for (const routePath of ['/', '/search', '/products', '/services', '/stores', '/login', '/register', '/forgot-password']) {
+      await page.goto(routePath);
+      await expect(page.locator('main#main-content'), `${routePath} should expose the main content landmark`).toBeVisible();
+      await expect(page.locator('main#main-content')).toHaveAttribute('tabindex', '-1');
+    }
+  });
+
+  test('skip link is the first keyboard stop and moves focus to page content', async ({ page }) => {
+    await page.goto('/login');
+    await page.keyboard.press('Tab');
+    const skipLink = page.locator('a[href="#main-content"]').first();
+    await expect(skipLink).toBeFocused();
+    await expect(skipLink).toContainText('تخطي إلى المحتوى الرئيسي');
+    await page.keyboard.press('Enter');
+    await expect.poll(() => page.evaluate(() => document.activeElement?.id)).toBe('main-content');
+  });
 });

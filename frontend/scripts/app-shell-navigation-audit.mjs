@@ -8,6 +8,7 @@ const bottomNav = read('components/layout/BottomNav.tsx');
 const protectedLayout = read('app/(protected)/layout.tsx');
 const publicLayout = read('app/(public)/layout.tsx');
 const packageJson = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
+const adminSidebar = read('components/admin/AdminSidebar.tsx');
 
 const checks = [
   ['sidebar links use at least 44px minimum height', /min-h-11 items-center/.test(sidebar)],
@@ -23,6 +24,10 @@ const checks = [
   ['conversation thread avoids bottom-nav overlap', /isConversationThread\s*\|\|/.test(protectedLayout) && /\{!isImmersiveTask && <BottomNav \/>\}/.test(protectedLayout)],
   ['protected shell includes skip-link target', /id="main-content"/.test(protectedLayout)],
   ['public shell includes main-content skip-link target', /id="main-content"/.test(publicLayout)],
+  ['admin sidebar links keep 44px targets on desktop and mobile', /min-h-11[^'\"]*text-\[13px\]/.test(adminSidebar) && !/md:min-h-\[34px\]/.test(adminSidebar)],
+  ['admin navigation search is a 44px labelled control', /className=\"min-h-11 w-full/.test(adminSidebar) && /aria-label=\"بحث في قائمة الإدارة\"/.test(adminSidebar)],
+  ['admin drawer announces expanded state and controls dialog', /aria-expanded=\{open\}/.test(adminSidebar) && /aria-controls=\"admin-navigation-dialog\"/.test(adminSidebar) && /id=\"admin-navigation-dialog\"/.test(adminSidebar)],
+  ['auth shell exposes a main landmark and skip-link target', /<main id=\"main-content\"/.test(read('app/(auth)/layout.tsx'))],
   ['audit command is registered in package scripts', packageJson.scripts?.['app-shell:navigation-audit'] === 'node scripts/app-shell-navigation-audit.mjs'],
 ];
 

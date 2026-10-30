@@ -5,7 +5,7 @@ import { Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createMarketplaceRequest, fetchRequestCategories } from '@/features/requests/requests.api';
-import { enqueueMarketplaceRequest } from '@/storage/request-outbox';
+import { enqueueMarketplaceRequest } from '@/storage/outbox-manager';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
 import { colors } from '@/theme/tokens';
 type Kind='SERVICE'|'PRODUCT'|'RENTAL';

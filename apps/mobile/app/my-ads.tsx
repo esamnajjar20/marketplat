@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { ApiError } from '@/api/client';
 import { deleteAd, fetchMyAds, type ManagedAd } from '@/features/ads/manage-ads.api';
-import { enqueueMutation } from '@/storage/mutation-outbox';
+import { enqueueMutation } from '@/storage/outbox-manager';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
   AppHeader,

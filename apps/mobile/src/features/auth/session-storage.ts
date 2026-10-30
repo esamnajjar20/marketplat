@@ -50,14 +50,22 @@ export async function readPersistedSession(): Promise<PersistedSession | null> {
   }
 }
 
-export async function writePersistedSession(session: PersistedSession): Promise<void> {
+export async function writePersistedSession(session: PersistedSession): Promise<boolean> {
   try {
     await SecureStore.setItemAsync(SECURE_SESSION_KEY, JSON.stringify(session));
+    return true;
   } catch {
-    // Persistence failed — caller keeps in-memory session for this run.
+    // The in-memory session may still be usable, but callers must not claim it survives restart.
+    return false;
   }
 }
 
-export async function clearPersistedSession(): Promise<void> {
-  await SecureStore.deleteItemAsync(SECURE_SESSION_KEY).catch(() => undefined);
+export async function clearPersistedSession(): Promise<boolean> {
+  try {
+    await SecureStore.deleteItemAsync(SECURE_SESSION_KEY);
+    return true;
+  } catch {
+    // Logout callers need to know that the device did not confirm removal of the saved session.
+    return false;
+  }
 }

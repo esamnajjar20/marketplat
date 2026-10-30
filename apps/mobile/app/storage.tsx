@@ -5,7 +5,7 @@ import { PageShell, Notice, PrimaryButton, SectionCard } from '@/components/Mobi
 import { useAuth } from '@/features/auth/AuthContext';
 import { clearPublicCache, getPublicCacheStats, type PublicCacheStats } from '@/storage/public-cache';
 import { getAdDraftStorageSummary, type AdDraftStorageSummary } from '@/storage/ad-draft-store';
-import { countUnownedOutboxMutations, listAllOutboxMutations } from '@/storage/mutation-outbox';
+import { countUnownedOutboxMutations, listAllOutboxMutations } from '@/storage/outbox-manager';
 import { listPendingFavoriteStates } from '@/features/ads/favorites.store';
 import { colors } from '@/theme/tokens';
 

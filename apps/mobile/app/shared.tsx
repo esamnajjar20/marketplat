@@ -1,0 +1,12 @@
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Linking, Text } from 'react-native';
+import { PageShell, Notice, SectionCard, PrimaryButton } from '@/components/MobileUI';
+import { decodeSharedPayload, sharedPayloadFromUrl, type SharedPayload } from '@/features/sharing/shared-payload';
+import { colors, spacing, typography } from '@/theme/tokens';
+
+type State = { status: 'loading' } | { status: 'empty' } | { status: 'invalid' } | { status: 'ok'; payload: SharedPayload };
+export default function SharedScreen() {
+  const [state,setState] = useState<State>({status:'loading'});
+  useEffect(()=>{let active=true; const consume=(url:string|null)=>{if(!active)return; const encoded=sharedPayloadFromUrl(url); if(!encoded){setState({status:'empty'});return;} const payload=decodeSharedPayload(encoded); setState(payload?{status:'ok',payload}:{status:'invalid'});}; void Linking.getInitialURL().then(consume).catch(()=>consume(null)); const sub=Linking.addEventListener('url',event=>consume(event.url)); return()=>{active=false;sub.remove();};},[]);
+  return <PageShell title="محتوى تمت مشاركته">{state.status==='loading'?<ActivityIndicator color={colors.brand}/>:state.status==='empty'?<Notice>لا توجد بيانات مشاركة في هذا الرابط. امسح رمز المشاركة مرة أخرى أو افتح الرابط من المتصفح.</Notice>:state.status==='invalid'?<Notice>تعذر قراءة بيانات المشاركة. قد يكون الرمز تالفًا أو من إصدار أحدث.</Notice>:<><Notice tone="success">تم فك بيانات المشاركة محليًا. لا حاجة لاتصال لعرض هذه البطاقة.</Notice><SectionCard><Text style={{textAlign:'right',fontWeight:'800',color:colors.brand}}>{({ad:'إعلان',product:'منتج',service:'خدمة',store:'متجر'})[state.payload.kind]}</Text><Text style={{...typography.title,color:colors.ink,textAlign:'right',marginTop:spacing.sm}}>{state.payload.title}</Text>{state.payload.price?<Text style={{...typography.subtitle,color:colors.brand,textAlign:'right',marginTop:spacing.sm}}>{state.payload.price} ₪</Text>:null}<Text style={{color:colors.muted,textAlign:'right',marginTop:spacing.sm}}>{[state.payload.city,state.payload.extra].filter(Boolean).join(' · ')}</Text>{state.payload.desc?<Text style={{color:colors.ink,textAlign:'right',lineHeight:24,marginTop:spacing.md}}>{state.payload.desc}</Text>:null}</SectionCard><PrimaryButton label="العودة إلى السوق" onPress={()=>{void Linking.openURL('marketplat://');}}/></>}</PageShell>;
+}

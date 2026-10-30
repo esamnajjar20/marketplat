@@ -18,7 +18,7 @@
  *     visible immediately rather than no feedback until it settles
  *
  *  useDeleteAccount ():
- *   - calls usersApi.deleteMe with no arguments
+ *   - calls usersApi.deleteMe with current-password re-authentication
  *   - on success: clears the auth store (logout), the two auth cookies,
  *     the entire query cache, shows a success toast, and redirects home
  *     — the backend has already revoked every session by the time this
@@ -34,6 +34,7 @@ import { useUpdateProfile, useUploadAvatar, useDeleteAccount } from '@/hooks/mut
 import { usersApi } from '@/api/users.api';
 import { useAuthStore } from '@/store/auth.store';
 import { toast } from 'sonner';
+import { clearSensitiveLocalData } from '@/lib/authCleanup';
 
 const mockRouterPush = vi.fn();
 vi.mock('next/navigation', () => ({
@@ -50,6 +51,12 @@ vi.mock('@/api/users.api', () => ({
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), promise: vi.fn() },
+}));
+
+vi.mock('@/lib/authCleanup', () => ({
+  clearSensitiveLocalData: vi.fn().mockResolvedValue(undefined),
+  clearServiceWorkerApiCache: vi.fn().mockResolvedValue(undefined),
+  unbindPushBindings: vi.fn().mockResolvedValue(undefined),
 }));
 
 function createWrapper() {
@@ -71,6 +78,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Seed the store with a logged-in user so () has something to patch.
   useAuthStore.getState().setAuth(mockUser, mockTokens);
+  vi.mocked(clearSensitiveLocalData).mockResolvedValue(undefined);
 });
 
 describe('useUpdateProfile', () => {
@@ -214,32 +222,52 @@ describe('useUploadAvatar', () => {
 });
 
 describe('useDeleteAccount', () => {
-  it('calls usersApi.deleteMe with no arguments', async () => {
+  it('calls usersApi.deleteMe with current-password re-authentication', async () => {
     (usersApi.deleteMe as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: null } });
 
     const { result } = renderHook(() => useDeleteAccount(), { wrapper: createWrapper() });
-    act(() => { result.current.mutate(); });
+    act(() => { result.current.mutate('current-password'); });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(usersApi.deleteMe).toHaveBeenCalledWith();
+    expect(usersApi.deleteMe).toHaveBeenCalledWith('current-password');
   });
 
   it('logs the user out of the local session on success', async () => {
     (usersApi.deleteMe as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: null } });
 
     const { result } = renderHook(() => useDeleteAccount(), { wrapper: createWrapper() });
-    act(() => { result.current.mutate(); });
+    act(() => { result.current.mutate('current-password'); });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
     expect(useAuthStore.getState().user).toBeNull();
   });
 
+  it('awaits sensitive local-data cleanup before showing success or redirecting', async () => {
+    (usersApi.deleteMe as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: null } });
+    let finishCleanup!: () => void;
+    vi.mocked(clearSensitiveLocalData).mockImplementationOnce(
+      () => new Promise<void>((resolve) => { finishCleanup = resolve; }),
+    );
+
+    const { result } = renderHook(() => useDeleteAccount(), { wrapper: createWrapper() });
+    act(() => { result.current.mutate('current-password'); });
+
+    await waitFor(() => expect(clearSensitiveLocalData).toHaveBeenCalledOnce());
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(mockRouterPush).not.toHaveBeenCalled();
+
+    act(() => { finishCleanup(); });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(toast.success).toHaveBeenCalledWith('تم حذف حسابك بنجاح');
+    expect(mockRouterPush).toHaveBeenCalledWith('/');
+  });
+
   it('shows a success toast and redirects to the home page on success', async () => {
     (usersApi.deleteMe as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: null } });
 
     const { result } = renderHook(() => useDeleteAccount(), { wrapper: createWrapper() });
-    act(() => { result.current.mutate(); });
+    act(() => { result.current.mutate('current-password'); });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(toast.success).toHaveBeenCalledWith('تم حذف حسابك بنجاح');
@@ -250,7 +278,7 @@ describe('useDeleteAccount', () => {
     (usersApi.deleteMe as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 
     const { result } = renderHook(() => useDeleteAccount(), { wrapper: createWrapper() });
-    act(() => { result.current.mutate(); });
+    act(() => { result.current.mutate('current-password'); });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(toast.error).toHaveBeenCalled();

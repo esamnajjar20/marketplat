@@ -86,8 +86,17 @@ jobs:
       - name: Check mobile TypeScript
         run: pnpm --filter @marketplat/mobile run type-check
 
-      - name: Run mobile static tests
+      - name: Run mobile lint
+        run: pnpm --filter @marketplat/mobile run lint
+
+      - name: Run maintained mobile static contract tests
         run: pnpm --filter @marketplat/mobile run test
+
+      - name: Run durable-storage/outbox tests
+        run: pnpm --filter @marketplat/mobile run test:storage
+
+      - name: Run SQLite migration and API response tests
+        run: pnpm --filter @marketplat/mobile run test:sqlite
 
       - name: Verify Expo configuration
         working-directory: apps/mobile

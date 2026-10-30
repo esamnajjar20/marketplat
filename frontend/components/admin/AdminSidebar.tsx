@@ -86,7 +86,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           placeholder="بحث في القائمة…"
-          className="h-[34px] w-full rounded-[9px] border border-[#D9D1C3] bg-card pe-3 ps-8 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="min-h-11 w-full rounded-[9px] border border-input bg-card pe-3 ps-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="بحث في قائمة الإدارة"
         />
       </div>
@@ -108,7 +108,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             aria-current={isActive ? 'page' : undefined}
             className={cn(
               // Design match: ~34px height, rounded-[9px], active = soft green + extrabold
-              'flex min-h-11 items-center gap-2.5 rounded-[9px] px-2.5 py-1.5 text-[13px] font-semibold transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:min-h-[34px]',
+              'flex min-h-11 items-center gap-2.5 rounded-[9px] px-2.5 py-1.5 text-[13px] font-semibold transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ',
               isActive
                 ? 'bg-primary-soft text-[#1F4D33] font-extrabold'
                 : 'text-foreground hover:bg-muted/80',
@@ -144,7 +144,24 @@ function MobileDrawer() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const wasOpenRef = useRef(false);
   useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    if (open) {
+      wasOpenRef.current = true;
+      const firstFocusable = panelRef.current?.querySelector<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])',
+      );
+      firstFocusable?.focus();
+      return;
+    }
+    if (wasOpenRef.current) {
+      wasOpenRef.current = false;
+      triggerRef.current?.focus();
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -186,9 +203,13 @@ function MobileDrawer() {
   return (
     <>
       <button
+        ref={triggerRef}
+        type="button"
         onClick={() => setOpen(true)}
-        className="lg:hidden fixed top-3 end-3 z-[70] flex h-9 w-9 items-center justify-center rounded-[10px] border border-[#EAE3D6] bg-card text-[#4A433A] shadow-sm"
+        className="lg:hidden fixed top-3 end-3 z-[70] flex h-11 w-11 items-center justify-center rounded-[10px] border border-border bg-card text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         aria-label="فتح القائمة"
+        aria-expanded={open}
+        aria-controls="admin-navigation-dialog"
       >
         <Menu className="h-5 w-5" />
       </button>
@@ -198,6 +219,7 @@ function MobileDrawer() {
         createPortal(
           <div
             className="lg:hidden fixed inset-0 z-[100]"
+            id="admin-navigation-dialog"
             role="dialog"
             aria-modal="true"
             aria-label="قائمة الإدارة"
@@ -209,7 +231,7 @@ function MobileDrawer() {
             <div ref={panelRef} className="absolute inset-y-0 start-0 z-[101] h-full w-[min(300px,88vw)] overflow-y-auto border-e border-[#EAE3D6] bg-card shadow-xl">
               <button
                 onClick={() => setOpen(false)}
-                className="absolute top-3 end-3 z-[102] min-h-10 min-w-10 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="absolute top-3 end-3 z-[102] flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 aria-label="إغلاق القائمة"
               >
                 <X className="h-5 w-5" />

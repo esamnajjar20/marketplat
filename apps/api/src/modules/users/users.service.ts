@@ -213,8 +213,33 @@ export const usersService = {
     return updated;
   },
 
-  // D-01: cascade ACTIVE ads to DELETED + S-04: revoke all tokens
-  // + see below for both.
+  /**
+   * Re-authenticate with the account password before deleting an account.
+   * OAuth-only users are deliberately rejected until a provider re-auth
+   * flow is implemented; an access token alone is not sufficient.
+   */
+  deleteMeWithReauth: async (userId: string, currentPassword: string): Promise<void> => {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, passwordHash: true, isActive: true },
+    });
+    if (!user || !user.isActive) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    if (!user.passwordHash) {
+      throw new BadRequestError(
+        'This account has no local password. Re-authentication with the linked identity provider is required.',
+        'OAUTH_REAUTH_REQUIRED'
+      );
+    }
+    const valid = await comparePassword(currentPassword, user.passwordHash);
+    if (!valid) {
+      throw new BadRequestError('Current password is incorrect', 'CURRENT_PASSWORD_INVALID');
+    }
+    await usersService.deleteMe(userId);
+  },
+
+  // D-01: cascade ACTIVE ads to DELETED + S-04: revoke all tokens.
+  // This is an internal operation; HTTP controllers must call
+  // deleteMeWithReauth rather than expose this method directly.
   deleteMe: async (userId: string): Promise<void> => {
     const user = await usersRepository.findById(userId);
     if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');

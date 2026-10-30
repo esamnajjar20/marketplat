@@ -31,7 +31,7 @@ const SNAP: FavoritesSyncSnapshot = {
 };
 
 function pending(adId: string, favorited: boolean, operationId = `op-${adId}`) {
-  return { userId: 'user-1', adId, favorited, operationId } as any;
+  return { userId: 'user-1', adId, favorited, operationId } as any /* intentional-any: fixture object mirrors a narrow test-only store record */;
 }
 
 describe('favorites-sync-lifecycle', () => {
@@ -144,7 +144,7 @@ describe('favorites-sync-lifecycle', () => {
 
   // ── Cross-account guard ─────────────────────────────────────────
   it('skips ops belonging to a different account', async () => {
-    const foreign = { userId: 'other-user', adId: 'ad-x', favorited: true, operationId: 'op-x' } as any;
+    const foreign = { userId: 'other-user', adId: 'ad-x', favorited: true, operationId: 'op-x' } as any /* intentional-any: fixture models a foreign-account queue record */;
     store.listPendingFavoriteStates
       .mockResolvedValueOnce([foreign])
       .mockResolvedValueOnce([])

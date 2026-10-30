@@ -130,6 +130,51 @@ describe('UsersService', () => {
     });
   });
 
+  describe('deleteMeWithReauth', () => {
+    it('deletes the account only when the current password matches', async () => {
+      const currentHash = await hashPassword('correct-delete-password');
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+        id: 'user-1', passwordHash: currentHash, isActive: true,
+      } as any);
+      const deleteSpy = jest.spyOn(usersService, 'deleteMe').mockResolvedValue(undefined);
+
+      await usersService.deleteMeWithReauth('user-1', 'correct-delete-password');
+
+      expect(deleteSpy).toHaveBeenCalledWith('user-1');
+    });
+
+    it('rejects an incorrect password without deleting the account', async () => {
+      const currentHash = await hashPassword('correct-delete-password');
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+        id: 'user-1', passwordHash: currentHash, isActive: true,
+      } as any);
+      const deleteSpy = jest.spyOn(usersService, 'deleteMe').mockResolvedValue(undefined);
+
+      await expect(usersService.deleteMeWithReauth('user-1', 'wrong-password'))
+        .rejects.toThrow(BadRequestError);
+      expect(deleteSpy).not.toHaveBeenCalled();
+    });
+
+    it('fails closed for OAuth-only users without a local password', async () => {
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+        id: 'user-1', passwordHash: null, isActive: true,
+      } as any);
+      const deleteSpy = jest.spyOn(usersService, 'deleteMe').mockResolvedValue(undefined);
+
+      await expect(usersService.deleteMeWithReauth('user-1', 'anything'))
+        .rejects.toThrow(BadRequestError);
+      expect(deleteSpy).not.toHaveBeenCalled();
+    });
+
+    it('rejects deleted or missing accounts', async () => {
+      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+        id: 'user-1', passwordHash: 'hash', isActive: false,
+      } as any);
+      await expect(usersService.deleteMeWithReauth('user-1', 'anything'))
+        .rejects.toThrow(NotFoundError);
+    });
+  });
+
   describe('changePassword', () => {
     it('updates the password hash when the current password is correct', async () => {
       const currentHash = await hashPassword('correct-current-password');
