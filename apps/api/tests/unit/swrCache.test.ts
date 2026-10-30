@@ -30,7 +30,7 @@ function setup(over: Partial<SwrOptions<Payload>> = {}, buildMs = 5) {
   let version = 'A';
   let builds = 0;
   const options: SwrOptions<Payload> = {
-    name: 'test',
+    name: 'home',
     key: 'k',
     hardGenKey: 'gen:hard',
     softTtlMs: () => 50,
@@ -54,11 +54,19 @@ describe('swrCache (FIX SWR-ENGINE-01)', () => {
     Object.values(fake.redis).forEach(fn => fn.mockClear());
   });
 
-  it('builds on a miss, then serves a hit without rebuilding', async () => {
+  it('builds on a miss, then serves a hit without rebuilding and reports both events', async () => {
     const { options, builds } = setup();
     expect((await swrGetWithStatus(options)).status).toBe('miss');
     expect((await swrGetWithStatus(options)).status).toBe('hit');
     expect(builds()).toBe(1);
+    expect(cacheMetrics.snapshot().home).toMatchObject({ miss: 1, hit: 1, servedFromCache: 0.5 });
+  });
+
+  it('collapses an unexpected dynamic metric label into the bounded unknown bucket', () => {
+    (cacheMetrics.record as (name: string, event: 'hit') => void)('users:profile:user-123', 'hit');
+    (cacheMetrics.record as (name: string, event: 'hit') => void)('users:profile:user-456', 'hit');
+    expect(cacheMetrics.snapshot()).toMatchObject({ unknown: { hit: 2 } });
+    expect(Object.keys(cacheMetrics.snapshot())).toEqual(['unknown']);
   });
 
   it('reads value + generations in ONE mget (no second round trip)', async () => {
@@ -187,7 +195,7 @@ describe('swrCache (FIX SWR-ENGINE-01)', () => {
     fake.redis.mget.mockRejectedValueOnce(new Error('redis down'));
     const { options } = setup();
     expect((await swrGetWithStatus(options)).status).toBe('bypass');
-    expect(cacheMetrics.snapshot().test.bypass).toBe(1);
+    expect(cacheMetrics.snapshot().home.bypass).toBe(1);
   });
 
   it('uncacheable queries skip Redis but are still singleflighted', async () => {
@@ -205,7 +213,7 @@ describe('swrCache (FIX SWR-ENGINE-01)', () => {
     expect((await swrGetWithStatus(options)).status).toBe('stale');
     await sleep(20);
     expect(builds()).toBe(1);
-    expect(cacheMetrics.snapshot().test.lock_skip).toBe(1);
+    expect(cacheMetrics.snapshot().home.lock_skip).toBe(1);
   });
 
   it('releases its own lock after refreshing so the next refresh is not blocked', async () => {
@@ -231,7 +239,7 @@ describe('swrCache (FIX SWR-ENGINE-01)', () => {
     fail = true;
     expect((await swrGetWithStatus(options)).status).toBe('stale');
     await sleep(20);
-    expect(cacheMetrics.snapshot().test.refresh_fail).toBe(1);
+    expect(cacheMetrics.snapshot().home.refresh_fail).toBe(1);
     expect(fake.__store.has('k:refresh-lock')).toBe(false);
   });
 
@@ -299,12 +307,18 @@ describe('swrCache (FIX SWR-ENGINE-01)', () => {
     });
   });
 
+  it('records successful generation invalidations in the stable generation metric', async () => {
+    await expect(bumpGeneration('gen:hard')).resolves.toBe(true);
+    expect(cacheMetrics.snapshot().generation.generation_bump_ok).toBe(1);
+  });
+
   it('bumpGeneration never throws and reports failure', async () => {
     // bumpGeneration tries twice before giving up.
     fake.redis.set
       .mockRejectedValueOnce(new Error('redis down'))
       .mockRejectedValueOnce(new Error('redis down'));
     await expect(bumpGeneration('gen:hard')).resolves.toBe(false);
+    expect(cacheMetrics.snapshot().generation.generation_bump_fail).toBe(1);
     const { prisma } = require('../../src/config/prisma');
     expect(prisma.outboxEvent.create).toHaveBeenCalledWith(expect.objectContaining({
       data: expect.objectContaining({ eventType: 'CACHE_GENERATION_BUMP', aggregateId: 'gen:hard' }),

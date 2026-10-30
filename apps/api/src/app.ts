@@ -25,6 +25,10 @@ const app = express();
 
 // M-01: trust proxy as number (1 = one trusted hop: nginx/Cloudflare)
 app.set('trust proxy', env.security.trustProxy);
+// Keep Express's conditional GET behavior explicit: JSON responses receive
+// weak ETags, and private `no-cache` routes can answer matching validators
+// with 304 without exposing them to shared caches.
+app.set('etag', 'weak');
 
 // ── Security ──────────────────────────────────────────
 app.use(helmet());
@@ -89,7 +93,7 @@ app.use(
       'X-Offline-Op-Id',
       'Last-Event-ID',
     ],
-    exposedHeaders: ['X-Request-Id'],
+    exposedHeaders: ['X-Request-Id', 'X-Cache'],
   })
 );
 

@@ -36,6 +36,17 @@ describe('userCache', () => {
     expect(redis.del).toHaveBeenCalledWith('user_cache:u1');
   });
 
+  it('invalidate bumps only the canonical private profile generation for that user', async () => {
+    const setSpy = jest.spyOn(redis, 'set');
+    await userCache.invalidate('u-profile-1');
+
+    expect(setSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/^ck:v1:private:user-profile:/),
+      expect.any(String)
+    );
+    expect(setSpy.mock.calls[0][0]).toContain('u-profile-1');
+  });
+
   // Cross-worker invalidation (PM2 cluster mode): invalidate() must
   // also publish the userId so other workers drop their L1 entry.
   it('invalidate publishes the userId on the invalidation channel', async () => {

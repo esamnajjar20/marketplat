@@ -12,7 +12,7 @@ import { CACHE_POLICY } from '@/lib/cachePolicy';
 /** Default thresholds (ms). Override per-call when a surface needs tighter TTL. */
 export const OFFLINE_STALE_AFTER_MS = {
   list: CACHE_POLICY.publicLive.offline.staleAfterMs,
-  profile: CACHE_POLICY.personal.offline.staleAfterMs,
+  profile: CACHE_POLICY.privateUserProfile.offline.staleAfterMs,
   messages: CACHE_POLICY.messages.offline.staleAfterMs,
   hard: CACHE_POLICY.personal.offline.hardAfterMs,
 } as const;

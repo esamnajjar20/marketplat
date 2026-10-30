@@ -1,4 +1,4 @@
-/** Canonical cache identity algorithm. Keep frontend/backend copies byte-for-byte equivalent. */
+/** Canonical cache identity algorithm. Keep frontend/API/shared copies byte-for-byte equivalent. */
 export const CACHE_KEY_ALGORITHM_VERSION = 1 as const;
 export type CanonicalScope = 'public' | 'personal' | 'private';
 export function stableSerialize(value: unknown): string {

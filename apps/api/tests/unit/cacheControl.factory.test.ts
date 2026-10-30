@@ -6,7 +6,7 @@ describe('cacheControl factory', () => {
 
   it('omits stale-while-revalidate when not provided', () => {
     const req = {} as Request;
-    const res = { setHeader: jest.fn() } as unknown as Response;
+    const res = { setHeader: jest.fn(), vary: jest.fn() } as unknown as Response;
     const middleware = cacheControl(120);
 
     middleware(req, res, next);

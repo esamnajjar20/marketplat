@@ -11,7 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { authApi } from '@/api/auth.api';
 import { usersApi } from '@/api/users.api';
 import { queryKeys } from '@/lib/queryKeys';
-import { CACHE_TTL } from '@/lib/constants';
+import { CACHE_POLICY } from '@/lib/cachePolicy';
 import {
   useAuthStore,
   selectIsAuthenticated,
@@ -43,7 +43,7 @@ export function useMe() {
   const query = useQuery({
     queryKey: queryKeys.auth.me(),
     queryFn: ({ signal }) => usersApi.getMe({ signal }).then((r) => r.data.data),
-    staleTime: CACHE_TTL.userProfile,
+    staleTime: CACHE_POLICY.privateUserProfile.client.staleTimeMs,
     // FIX AUTH-401-STORM-01: لا تطلب API بلا access token حقيقي.
     enabled: isAuthenticated && hasToken,
     ...(cached ? { initialData: cached.data, initialDataUpdatedAt: new Date(cached.savedAt).getTime() } : {}),

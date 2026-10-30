@@ -586,6 +586,9 @@ export const authService = {
         // has legitimately proven control of both identities, so
         // linking is correct.
         const linked = await authRepository.linkGoogleAccount(byEmail.id, profile.googleId);
+        // GET /users/me includes provider/googleId; invalidate the private
+        // profile representation before warming the auth/session projection.
+        await userCache.invalidate(linked.id);
         const { result, sessionId } = await issueSession(linked, ip, userAgent);
 
         auditLog({
@@ -1186,9 +1189,9 @@ export const authService = {
       }),
     ]);
 
-    userCache
-      .invalidate(record.userId)
-      .catch(error => reportBackgroundFailure('apps/api/src/modules/auth/auth.service.ts', error));
+    // The verified flag is part of GET /users/me. Await invalidation so
+    // the next authenticated read cannot observe the pre-verification profile.
+    await userCache.invalidate(record.userId);
     auditLog({
       event: AuditEvent.EMAIL_VERIFIED,
       userId: record.userId,

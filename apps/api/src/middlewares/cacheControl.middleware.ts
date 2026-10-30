@@ -3,33 +3,62 @@ import { cachePolicy } from '../shared/cache/cachePolicy';
 import { purgeAwareSharedMaxAge } from '../shared/cache/edgePurge';
 
 /**
- * Sets Cache-Control headers for public, cacheable responses.
- * Use on GET endpoints that return data safe to cache in CDN/browser.
- *
- * @param maxAge     seconds to cache in browser/CDN
- * @param swr        stale-while-revalidate seconds (optional)
+ * Safe default for every API response. Public routes must explicitly opt in
+ * with CACHE.SHORT/MEDIUM/STATIC/PUBLIC_HOME. This closes omissions where a
+ * newly-added authenticated GET accidentally inherits browser/CDN defaults.
  */
+function varyByAuthState(res: Response): void {
+  // Response.vary() appends without discarding dimensions already installed
+  // by CORS (notably Origin) or another upstream middleware.
+  res.vary('Authorization');
+  res.vary('Cookie');
+}
+
+export const privateApiCacheDefault = (
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  res.setHeader('Cache-Control', 'private, no-store');
+  varyByAuthState(res);
+  next();
+};
+
+/**
+ * Private validator-only cache. Express generates the ETag for JSON responses
+ * and automatically returns 304 on a matching If-None-Match. `private` blocks
+ * shared caches; `no-cache` requires revalidation before a browser reuses it.
+ * Use only on low-volatility responses whose body is safe for private storage.
+ */
+const privateRevalidate = (_req: Request, res: Response, next: NextFunction): void => {
+  res.setHeader('Cache-Control', 'private, no-cache, no-transform');
+  varyByAuthState(res);
+  next();
+};
+
 export const cacheControl =
   (maxAge: number, swr?: number, sharedMaxAge?: number) =>
   (req: Request, res: Response, next: NextFunction): void => {
     const headers = req.headers ?? {};
     const cookie = headers.cookie ?? '';
-    const hasSessionCookie = /(?:^|;\s*)(?:refreshToken|app_has_session)=/.test(cookie);
-    const hasAuth = Boolean(headers.authorization || hasSessionCookie);
+    const hasAuthCookie = /(?:^|;\s*)(?:refreshToken|app_has_session|app_access_token)=/.test(
+      cookie
+    );
+    const hasAuth = Boolean(headers.authorization || hasAuthCookie);
     // Authenticated responses are never shared-cacheable. This avoids relying
     // on a CDN's interpretation of Vary: Authorization and prevents a token-
     // fragmented public cache from retaining viewer-specific fields.
     if (hasAuth) {
-      res.setHeader('Cache-Control', 'private, no-cache, no-transform');
-      res.setHeader('Vary', 'Authorization, Cookie');
+      res.setHeader('Cache-Control', 'private, no-store');
+      varyByAuthState(res);
     } else {
       const directives = [`public`, `max-age=${maxAge}`];
       if (sharedMaxAge) directives.push(`s-maxage=${sharedMaxAge}`);
       if (swr) directives.push(`stale-while-revalidate=${swr}`);
       res.setHeader('Cache-Control', directives.join(', '));
-      // Even public responses should declare the auth dimension explicitly:
-      // intermediaries must not reuse a response across authorization states.
-      res.setHeader('Vary', 'Authorization');
+      // Even public responses declare both auth dimensions explicitly so a
+      // browser/intermediary cannot reuse across a cookie-varying request.
+      varyByAuthState(res);
     }
     next();
   };
@@ -51,8 +80,8 @@ export const cachePolicyControl =
     const policy = cachePolicy(policyName);
     const http = policy.http;
     if (http.maxAgeSec === 0) {
-      res.setHeader('Cache-Control', 'no-store');
-      res.setHeader('Vary', 'Authorization, Cookie');
+      res.setHeader('Cache-Control', 'private, no-store');
+      varyByAuthState(res);
       next();
       return;
     }
@@ -65,13 +94,16 @@ export const cachePolicyControl =
       directives.push(`stale-while-revalidate=${http.staleWhileRevalidateSec}`);
     const hasAuth = Boolean(
       _req.headers?.authorization ||
-      /(?:^|;\s*)(?:refreshToken|app_has_session)=/.test(_req.headers?.cookie ?? '')
+      /(?:^|;\s*)(?:refreshToken|app_has_session|app_access_token)=/.test(
+        _req.headers?.cookie ?? ''
+      )
     );
     if (hasAuth) {
-      res.setHeader('Cache-Control', 'private, no-cache, no-transform');
-      res.setHeader('Vary', 'Authorization, Cookie');
+      res.setHeader('Cache-Control', 'private, no-store');
+      varyByAuthState(res);
     } else {
       res.setHeader('Cache-Control', directives.join(', '));
+      varyByAuthState(res);
     }
     next();
   };
@@ -134,12 +166,14 @@ export const CACHE = {
   MESSAGES: cachePolicyControl('messages'),
   SECURITY: cachePolicyControl('security'),
   STREAM: (_req: Request, res: Response, next: NextFunction): void => {
-    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Cache-Control', 'private, no-store, no-transform');
+    varyByAuthState(res);
     next();
   },
   NONE: (_req: Request, res: Response, next: NextFunction): void => {
-    res.setHeader('Cache-Control', 'no-store');
-    if (typeof res.removeHeader === 'function') res.removeHeader('Vary');
+    res.setHeader('Cache-Control', 'private, no-store');
+    varyByAuthState(res);
     next();
   },
+  PRIVATE_REVALIDATE: privateRevalidate,
 };

@@ -1,8 +1,42 @@
 import client from 'prom-client';
 import { register } from './metricsRegistry';
 
+/** Stable cache labels only. Never use user IDs, cache keys, URLs or query values here. */
+export type CacheMetricName =
+  | 'ads:list'
+  | 'generation'
+  | 'home'
+  | 'home:feed'
+  | 'list:products'
+  | 'list:service-listings'
+  | 'list:service-providers'
+  | 'list:stores'
+  | 'recommendations'
+  | 'users:profile';
+
+const CACHE_NAMES: ReadonlySet<string> = new Set([
+  'ads:list',
+  'generation',
+  'home',
+  'home:feed',
+  'list:products',
+  'list:service-listings',
+  'list:service-providers',
+  'list:stores',
+  'recommendations',
+  'users:profile',
+]);
+
 export type CacheEvent =
-  'hit' | 'stale' | 'miss' | 'bypass' | 'refresh_ok' | 'refresh_fail' | 'lock_skip';
+  | 'hit'
+  | 'stale'
+  | 'miss'
+  | 'bypass'
+  | 'refresh_ok'
+  | 'refresh_fail'
+  | 'lock_skip'
+  | 'generation_bump_ok'
+  | 'generation_bump_fail';
 const EVENTS: readonly CacheEvent[] = [
   'hit',
   'stale',
@@ -11,10 +45,21 @@ const EVENTS: readonly CacheEvent[] = [
   'refresh_ok',
   'refresh_fail',
   'lock_skip',
+  'generation_bump_ok',
+  'generation_bump_fail',
 ];
 type Counters = Record<CacheEvent, number>;
 const counters = new Map<string, Counters>();
 const empty = (): Counters => Object.fromEntries(EVENTS.map(e => [e, 0])) as Counters;
+
+/**
+ * Runtime guard as well as a TypeScript union: JavaScript callers, tests, or a
+ * future unsafe cast must not be able to create one Prometheus label per user,
+ * URL, cache key, or arbitrary query. Unknown labels collapse into one bucket.
+ */
+function normalizeCacheName(name: string): CacheMetricName | 'unknown' {
+  return CACHE_NAMES.has(name) ? (name as CacheMetricName) : 'unknown';
+}
 
 const eventsTotal = new client.Counter({
   name: 'app_cache_events_total',
@@ -32,17 +77,18 @@ const operationDuration = new client.Histogram({
 
 export const cacheMetrics = {
   record(name: string, event: CacheEvent): void {
-    let c = counters.get(name);
+    const safeName = normalizeCacheName(name);
+    let c = counters.get(safeName);
     if (!c) {
       c = empty();
-      counters.set(name, c);
+      counters.set(safeName, c);
     }
     c[event] += 1;
-    eventsTotal.inc({ cache: name, event });
+    eventsTotal.inc({ cache: safeName, event });
   },
   observeDuration(name: string, event: CacheEvent, seconds: number): void {
     if (!Number.isFinite(seconds) || seconds < 0) return;
-    operationDuration.observe({ cache: name, event }, seconds);
+    operationDuration.observe({ cache: normalizeCacheName(name), event }, seconds);
   },
   snapshot(): Record<string, Counters & { servedFromCache: number }> {
     const out: Record<string, Counters & { servedFromCache: number }> = {};
@@ -57,5 +103,7 @@ export const cacheMetrics = {
   },
   reset(): void {
     counters.clear();
+    eventsTotal.reset();
+    operationDuration.reset();
   },
 };

@@ -3,7 +3,7 @@ import * as redisConfig from '../../config/redis';
 import { prisma } from '../../config/prisma';
 import { logger } from './logger';
 import { guardedCache, withCacheTimeout } from './cacheGuard';
-import { cacheMetrics } from './cacheMetrics';
+import { cacheMetrics, type CacheMetricName } from './cacheMetrics';
 
 /**
  * one stale-while-revalidate engine shared by every public
@@ -44,7 +44,7 @@ export type SwrStatus = 'hit' | 'stale' | 'miss' | 'bypass';
 
 export interface SwrOptions<T> {
   /** Metrics label, e.g. "home", "ads:list". */
-  name: string;
+  name: CacheMetricName;
   key: string;
   hardGenKey: string;
   softGenKey?: string;
@@ -131,15 +131,22 @@ export async function bumpGeneration(
   } = {}
 ): Promise<boolean> {
   const persistRetry = options.persistRetry ?? true;
+  const startedAt = process.hrtime.bigint();
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       // Timeout only (no circuit breaker): an invalidation must still be
       // attempted while the breaker is open, otherwise entries written before
       // the outage could be read as fresh after the breaker closes.
       await withCacheTimeout(() => cacheClient().set(genKey, newToken()));
+      const elapsedSeconds = Number(process.hrtime.bigint() - startedAt) / 1_000_000_000;
+      cacheMetrics.record('generation', 'generation_bump_ok');
+      cacheMetrics.observeDuration('generation', 'generation_bump_ok', elapsedSeconds);
       return true;
     } catch (error) {
       if (attempt === 1) {
+        const elapsedSeconds = Number(process.hrtime.bigint() - startedAt) / 1_000_000_000;
+        cacheMetrics.record('generation', 'generation_bump_fail');
+        cacheMetrics.observeDuration('generation', 'generation_bump_fail', elapsedSeconds);
         logger.error(
           `[swr] generation bump failed for "${genKey}" — invalidation is not guaranteed; stale data may remain until the entry hard TTL expires`,
           error

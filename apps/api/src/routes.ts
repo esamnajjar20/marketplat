@@ -42,7 +42,7 @@ import { followsRouter } from './modules/follows';
 import { storiesRouter } from './modules/stories';
 import { csrfProtection } from './middlewares/csrf.middleware';
 import { createReadBatchHandler } from './shared/utils/readBatchRouter';
-import { CACHE } from './middlewares/cacheControl.middleware';
+import { CACHE, privateApiCacheDefault } from './middlewares/cacheControl.middleware';
 
 export const router = Router();
 
@@ -57,6 +57,11 @@ export const router = Router();
 // why that scoping is what keeps this safe for pure Bearer-token
 // clients (API integrations, this repo's own integration tests) that
 // never went through the cookie-issuing login/refresh flow at all.
+// API-wide safe default: every response is private/no-store unless a public
+// route explicitly opts into a public CACHE policy below. This makes a newly
+// added authenticated GET safe by default instead of relying on each author
+// remembering CACHE.NONE.
+router.use(privateApiCacheDefault);
 router.use(csrfProtection);
 
 // READ-BATCH: explicit opt-in transport for pages that intentionally group

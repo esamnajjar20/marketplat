@@ -35,6 +35,7 @@ import { authApi } from '@/api/auth.api';
 import { usersApi } from '@/api/users.api';
 import { useAuthStore } from '@/store/auth.store';
 import { toast } from 'sonner';
+import { clearSensitiveLocalData, clearServiceWorkerApiCache, unbindPushBindings } from '@/lib/authCleanup';
 
 const mockPush = vi.fn();
 vi.mock('next/navigation', () => ({
@@ -56,6 +57,12 @@ vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock('@/lib/authCleanup', () => ({
+  clearSensitiveLocalData: vi.fn().mockResolvedValue(undefined),
+  clearServiceWorkerApiCache: vi.fn().mockResolvedValue(undefined),
+  unbindPushBindings: vi.fn().mockResolvedValue(undefined),
+}));
+
 function createWrapper() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -75,11 +82,51 @@ const mockAuthResult = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(clearSensitiveLocalData).mockResolvedValue(undefined);
+  vi.mocked(clearServiceWorkerApiCache).mockResolvedValue(undefined);
+  vi.mocked(unbindPushBindings).mockResolvedValue(undefined);
   useAuthStore.getState().logout();
   document.cookie = 'app_access_token=; max-age=0';
   document.cookie = 'app_user_role=; max-age=0';
   (usersApi.getMe as ReturnType<typeof vi.fn>).mockResolvedValue({
     data: { data: { id: 'user-1', name: 'Ahmed', email: 'a@example.com', role: 'USER', avatarUrl: null, city: null } },
+  });
+});
+
+describe('useLogin session isolation', () => {
+  it('clears User A local private caches before committing User B as the active account', async () => {
+    useAuthStore.getState().setAuth(
+      { id: 'user-1', name: 'User A', email: 'a@example.com', role: 'USER' } as any,
+      { accessToken: 'access-a' },
+    );
+    (clearSensitiveLocalData as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      expect(useAuthStore.getState().user?.id).toBe('user-1');
+    });
+    (authApi.login as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { ...mockAuthResult, user: { ...mockAuthResult.user, id: 'user-2', name: 'User B', email: 'b@example.com' } } },
+    });
+    (usersApi.getMe as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { id: 'user-2', name: 'User B', email: 'b@example.com', role: 'USER', avatarUrl: null, city: null } },
+    });
+
+    const { result } = renderHook(() => useLogin(), { wrapper: createWrapper() });
+    act(() => { result.current.mutate({ email: 'b@example.com', password: 'pw' }); });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(clearSensitiveLocalData).toHaveBeenCalledTimes(1);
+    expect(useAuthStore.getState().user?.id).toBe('user-2');
+  });
+
+  it('does not wipe pending offline work when the same account signs in again', async () => {
+    useAuthStore.getState().setAuth(mockAuthResult.user as any, mockAuthResult.tokens);
+    (authApi.login as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: mockAuthResult } });
+
+    const { result } = renderHook(() => useLogin(), { wrapper: createWrapper() });
+    act(() => { result.current.mutate({ email: 'a@example.com', password: 'pw' }); });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(clearSensitiveLocalData).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().user?.id).toBe('user-1');
   });
 });
 

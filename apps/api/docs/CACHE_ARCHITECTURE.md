@@ -27,7 +27,13 @@
 قوائم `publicLive` (ads/products/stores/service-listings/service-providers) hard TTL لها 90ث، بينما دورة التسخين 240ث؛ كانت المفاتيح المسخَّنة تنتهي قبل الدورة التالية بنحو 150ث (باردة ~60% من الوقت). الآن الأشكال المسخَّنة بالضبط (المعرّفة في `shared/cache/warmedListQueries.ts`) تأخذ hard TTL = 600ث، وأي استعلام آخر (فلاتر/بحث/صفحات أعمق) يبقى على 90ث. الإبطال لا يتأثر لأنه بالأجيال لا بالـ TTL. عند تغيير شكل استعلام مُسخَّن في الفرونت (`lib/warmingQueryContract.ts`) حدّث `warmedListQueries.ts` معه، وإلا يصبح المفتاح المسخَّن مفتاحًا مختلفًا (بارد).
 
 ## القياس
-`cacheMetrics` (لكل namespace): `hit / stale / miss / bypass / refresh_ok / refresh_fail / lock_skip` + نسبة `servedFromCache`. تُطبع في اللوج كل دورة تسخين بوسم `[cache-metrics]`. مؤشرات الصحة: `miss` المنخفض على `home`، و`bypass` قرب الصفر (وإلا فـ Redis بطيء/معطّل)، و`refresh_fail` صفر.
+`cacheMetrics` يعرض في Prometheus:
+- `app_cache_events_total{cache,event}`: `hit / stale / miss / bypass / refresh_ok / refresh_fail / lock_skip`، إضافة إلى `generation_bump_ok / generation_bump_fail`.
+- `app_cache_operation_duration_seconds{cache,event}`: زمن قراءة SWR أو إبطال الجيل حسب النتيجة.
+
+أسماء `cache` محصورة في قائمة ثابتة (`ads:list`, `home`, `home:feed`, `list:*`, `recommendations`, `users:profile`, `generation`). أي اسم غير معروف يتحول إلى `unknown` بدل إنشاء label غير محدود. لا تستخدم userId أو cache key أو URL أو query كـ label. تبقى لقطة `[cache-metrics]` في سجل التسخين، ويمكن بناء لوحات Grafana من Prometheus مباشرة. استعلامات PromQL المقترحة موجودة في `docs/CACHE_PROMETHEUS_QUERIES.md`.
+
+مؤشرات الصحة: نسبة `hit+stale` من `hit+stale+miss+bypass`، و`bypass` (تعطل/بطء Redis)، و`refresh_fail`، وفشل `generation_bump_fail`، وزمن p95. لا تعتبر نسبة hit جيدة إذا ارتفع فشل الإبطال؛ correctness أهم من hit ratio.
 
 ## عند إضافة mutation جديد
 بعد كتابة الـ DB: إن كان يجب **إخفاء** كيان → `bumpAdsCacheVersionAndHome()` (إعلانات) أو `hidePublicEntities(ns)` (غيرها). تعديل عادي → `bumpAdsCacheVersion()` أو `bumpPublicListCache(ns)`.
@@ -47,3 +53,12 @@
 - هذا يمنع warmup من إعادة ملء الذاكرة ببيانات قليلة الأهمية فور إخلائها. أما الإخلاء الفعلي على Redis المخصص للكاش فيجب أن يكون `allkeys-lru` أو `allkeys-lfu`؛ عند بلوغ `maxmemory` يختار Redis الإدخالات الأقل استخدامًا/الأقل تكرارًا تلقائيًا.
 - لا تُحذف مفاتيح الجيل أو الأقفال يدويًا حسب الاسم؛ إزالتها عشوائيًا قد تضعف دلالات الإبطال أو التزامن. لا يتم إجراء أي حذف يدوي من Redis الأساسي الذي يحتوي الجلسات ومحددات المعدل.
 - عند عدم ضبط `REDIS_CACHE_HOST`، يستخدم الكاش Redis الأساسي كما هو. في هذا الوضع لا يمكن إعطاء أولوية إخلاء منفصلة بأمان؛ أوصي بتكوين خدمة Valkey/Redis منفصلة بسياسة إخلاء `allkeys-lru` للكاش القابل لإعادة البناء، مع إبقاء الأساسي `noeviction`.
+
+
+## الكاش الشخصي (تحديث 2026-10)
+
+- كل استجابات `/api/v1` تبدأ افتراضيًا بـ `Cache-Control: private, no-store` و`Vary: Authorization, Cookie`. المسار العام لا يصبح قابلًا لكاش CDN إلا إذا اختار Middleware عامًا صراحةً (`CACHE.SHORT/MEDIUM/STATIC/PUBLIC_HOME`).
+- الاستثناء المحدود هو `GET /users/me`: `private, no-cache` مع ETag ضعيف من Express. المتصفح يعيد التحقق في كل استخدام؛ إن لم تتغير الاستجابة يرجع `304` بلا Body. ويُظهر `X-Cache` حالة Redis (`HIT/STALE/MISS/BYPASS`) للتشخيص. وجود ETag لا يعني تجاوز التحقق من المصادقة.
+- ملف المستخدم محفوظ في Redis بمفتاح Canonical خاص يتضمن `userId`، بمدة freshness ناعمة 20 ثانية ± 3 ثوانٍ وحد أقصى 60 ثانية. TanStack Query يحتفظ به لدقيقتين، والنسخة المحلية Offline مرتبطة بهوية صاحبها وتعد حديثة 15 دقيقة ولا تستخدم بعد 24 ساعة. كل `userCache.invalidate(userId)` يبطل كاش الملف عبر Generation مستقل؛ الكتابة القديمة التي تتداخل مع الإبطال لا تستطيع إعادة إدخال نسخة قديمة.
+- لا نكاش استجابات الطلبات/السلة/الرسائل/الإشعارات/المبيعات وCRM والمواعيد أو بيانات الأعضاء الحساسة في Redis Response Cache. وينطبق ذلك حالياً على المفضلة والمتابعات والمجموعات الشخصية أيضاً: لديها Query Cache محلي ضمن جلسة المستخدم، لكن لا نضيف لها Redis Response Cache قبل حصر جميع عمليات الكتابة (toggle/state/list membership/reorder/follow) وربطها بإبطال ذري. تبقى `private, no-store` حتى تتوفر خطة إبطال واضحة لكل كتابة.
+- كاش Cloudflare للبيانات المحمية غير مفعّل ولا نستخدم KV لكل مستخدم. الطلبات الحاملة لـ Authorization/Cookie تبقى خارج الكاش المشترك.

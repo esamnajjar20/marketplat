@@ -14,14 +14,14 @@ for (const p of [
   'shared/cache/cacheKey.ts',
   'frontend/lib/cache/cache-contract.json',
   'frontend/lib/cache/cacheKey.ts',
-  'backend/src/shared/cache/cache-contract.json',
-  'backend/src/shared/cache/cacheKey.ts',
+  'apps/api/src/shared/cache/cache-contract.json',
+  'apps/api/src/shared/cache/cacheKey.ts',
   'frontend/public/cache-contract.js',
   'frontend/public/sw.js',
   'frontend/lib/offlineStoragePressure.ts',
   'frontend/lib/cache/queryCacheInvalidation.ts',
-  'backend/src/shared/utils/swrCache.ts',
-  'backend/src/shared/utils/cacheMetrics.ts',
+  'apps/api/src/shared/utils/swrCache.ts',
+  'apps/api/src/shared/utils/cacheMetrics.ts',
   'frontend/scripts/cache-contract-audit.mjs',
   'frontend/scripts/cache-performance-audit.mjs',
 ]) if (!exists(p)) fail(`required file missing: ${p}`);
@@ -30,13 +30,13 @@ if (failures.length) { failures.forEach((m) => console.error(`[cache-final] FAIL
 
 const contract = JSON.parse(read('shared/cache/cache-contract.json'));
 const domains = Object.keys(contract.domains);
-if (domains.length !== 23) fail(`expected 23 canonical domains, got ${domains.length}`); else pass('23 canonical cache domains present');
+if (domains.length !== 24) fail(`expected 24 canonical domains, got ${domains.length}`); else pass('24 canonical cache domains present');
 if (contract.keyAlgorithmVersion !== 1) fail('unexpected cache key algorithm version');
 
 const fk = read('frontend/lib/cache/cacheKey.ts');
-const bk = read('backend/src/shared/cache/cacheKey.ts');
+const bk = read('apps/api/src/shared/cache/cacheKey.ts');
 const sk = read('shared/cache/cacheKey.ts');
-if (fk !== sk || bk !== sk) fail('cache-key implementations diverge'); else pass('frontend/backend/shared cache-key implementations match');
+if (fk !== sk || bk !== sk) fail('cache-key implementations diverge'); else pass('frontend/API/shared cache-key implementations match');
 
 const sw = read('frontend/public/sw.js');
 if (!sw.includes("type === 'TRIM_DISPOSABLE_CACHES'")) fail('W11 coordinated disposable-cache trim missing');
@@ -48,13 +48,13 @@ const pressure = read('frontend/lib/offlineStoragePressure.ts');
 if (!pressure.includes("postMessage({ type: 'TRIM_DISPOSABLE_CACHES' })")) fail('browser pressure guard bypasses SW lifecycle coordinator');
 else pass('storage pressure delegates disposable cleanup to SW');
 
-const metrics = read('backend/src/shared/utils/cacheMetrics.ts');
-const swr = read('backend/src/shared/utils/swrCache.ts');
+const metrics = read('apps/api/src/shared/utils/cacheMetrics.ts');
+const swr = read('apps/api/src/shared/utils/swrCache.ts');
 if (!metrics.includes('app_cache_operation_duration_seconds') || !swr.includes('cacheMetrics.observeDuration')) fail('W10 cache latency instrumentation incomplete');
 else pass('W10 cache latency telemetry is wired to SWR outcomes');
 
-const warmupMetrics = read('backend/src/shared/utils/metrics.ts');
-const warmup = read('backend/src/shared/utils/cacheWarmup.ts');
+const warmupMetrics = read('apps/api/src/shared/utils/metrics.ts');
+const warmup = read('apps/api/src/shared/utils/cacheWarmup.ts');
 if (!warmupMetrics.includes('cache_warmup_tasks_total') || !warmupMetrics.includes('cache_warmup_task_duration_seconds')) fail('cache warmup telemetry definitions missing');
 else if (!warmup.includes('cacheWarmupTasksTotal.inc') || !warmup.includes('cacheWarmupTaskDurationSeconds.observe')) fail('cache warmup telemetry is not wired to task outcomes');
 else pass('cache warmup telemetry is defined and wired');

@@ -5,6 +5,7 @@ import { UpdateProfileInput, UpdateNotificationPreferencesInput } from './users.
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { userCache } from '../../shared/utils/userCache';
+import { getCachedUserProfile, getCachedUserProfileWithStatus } from '../../shared/utils/userProfileCache';
 import { tokenStore } from '../../shared/utils/tokenStore';
 import { getTokenRemainingTTL } from '../../shared/utils/jwt';
 import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
@@ -42,11 +43,19 @@ export const usersService = {
   ): Promise<Record<string, { online: boolean; lastSeenAt: string | null }>> =>
     presence.getPresence(userIds),
 
-  getMe: async (userId: string): Promise<SafeUser> => {
-    const user = await usersRepository.findById(userId);
-    if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
-    return user;
-  },
+  getMeWithCacheStatus: async (userId: string) =>
+    getCachedUserProfileWithStatus(userId, async () => {
+      const user = await usersRepository.findById(userId);
+      if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+      return user;
+    }),
+
+  getMe: async (userId: string): Promise<SafeUser> =>
+    getCachedUserProfile(userId, async () => {
+      const user = await usersRepository.findById(userId);
+      if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+      return user;
+    }),
 
   /**
    * GET /users/me/bootstrap — one round-trip for post-login shell data

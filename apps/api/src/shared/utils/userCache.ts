@@ -1,6 +1,7 @@
 import { redis } from '../../config/redis';
 import { prisma } from '../../config/prisma';
 import { logger } from './logger';
+import { invalidateCachedUserProfile } from './userProfileCache';
 import type Redis from 'ioredis';
 
 const USER_CACHE_PREFIX = 'user_cache:';
@@ -198,16 +199,27 @@ export const userCache = {
     bumpGen(userId);
     inflightMap.delete(userId); // new callers must not join a stale fetch
     l1Del(userId);
-    try {
-      await redis.del(getUserCacheKey(userId));
-      // Fan out to the OTHER workers so their L1 entries drop too.
-      // Subscribers run l1Del only — the Redis key is already gone.
-      await redis.publish(INVALIDATION_CHANNEL, userId);
-    } catch (err) {
-      // Covers both del and publish. If either fails, other workers'
-      // L1 entries stay stale up to L1_TTL_MS — logging (replacing the
-      // previous silent catch) makes that window visible in the logs.
-      logger.warn('userCache.invalidate failed', { userId, err });
+    // Delete the auth projection before publishing. Other workers clear only
+    // their L1 entry when they receive this message; publishing first would let
+    // a racing worker repopulate its L1 from the not-yet-deleted Redis value.
+    const [authDelete, profileGeneration] = await Promise.allSettled([
+      redis.del(getUserCacheKey(userId)),
+      // The profile response has its own canonical per-user generation. Run it
+      // alongside the auth delete so one failure cannot skip the other.
+      invalidateCachedUserProfile(userId),
+    ]);
+
+    // Publish only after the delete attempt has settled, preserving the
+    // original cross-worker ordering. Even if DEL fails, publication still
+    // clears remote L1 entries and the error remains visible in logs.
+    const publish = await Promise.allSettled([
+      redis.publish(INVALIDATION_CHANNEL, userId),
+    ]);
+
+    for (const result of [authDelete, profileGeneration, ...publish]) {
+      if (result.status === 'rejected') {
+        logger.warn('userCache.invalidate failed', { userId, err: result.reason });
+      }
     }
   },
 

@@ -4,11 +4,11 @@
 
 `shared/cache-policy.json` is the canonical policy. The build syncs it to:
 
-- `apps/web/lib/cache-policy.json` — typed browser consumers.
+- `frontend/lib/cache-policy.json` — typed browser consumers.
 - `apps/api/src/shared/cache/cache-policy.json` — typed server consumers.
-- `apps/web/public/cache-policy.js` — classic Service Worker runtime.
+- `frontend/public/cache-policy.js` — classic Service Worker runtime.
 
-`apps/web/scripts/cache-layer-audit.mjs` fails when any generated copy drifts.
+`frontend/scripts/cache-layer-audit.mjs` fails when any generated copy drifts.
 
 ## Layers
 
@@ -32,15 +32,15 @@
 
 ## Invalidation
 
-Mutations use `apps/web/lib/cache/cacheInvalidationRegistry.ts` for local and Service Worker invalidation. The Service Worker now implements the `INVALIDATE_API_CACHE` message that the frontend already emitted; it removes matching entries from both the shared API cache and per-user API buckets.
+Mutations use `frontend/lib/cache/cacheInvalidationRegistry.ts` for local and Service Worker invalidation. The Service Worker now implements the `INVALIDATE_API_CACHE` message that the frontend already emitted; it removes matching entries from both the shared API cache and per-user API buckets.
 
 Server-side public Redis caches use generation tokens instead of deleting keys while a refresh may still be in flight. This prevents a pre-mutation refresh from resurrecting stale data.
 
 ## Authentication boundary
 
-Anonymous public responses may be shared through HTTP cache. Requests carrying an access token or a real session cookie receive `private, no-cache, no-transform`; they are never shared through a CDN/browser HTTP cache. The Service Worker may still keep a per-user copy for weak/offline connectivity.
+Anonymous public responses may be shared through HTTP cache only when a route explicitly opts into a public CACHE policy. Every `/api/v1` response otherwise defaults to `private, no-store`. An authenticated `GET /users/me` is the narrow validator exception: it uses `private, no-cache, no-transform`, `Vary: Authorization, Cookie`, and Express weak ETags, so a matching representation can return 304 but is never shared through a CDN. The Service Worker may retain only its explicitly user-partitioned offline data; logout clears those buckets.
 
-CSRF-only cookies do not force a public response into the private path; only `Authorization`, `refreshToken`, or `app_has_session` indicate a session.
+CSRF-only cookies do not force a public response into the private path; `Authorization`, `refreshToken`, `app_has_session`, and the client-readable `app_access_token` indicate a session. Public responses retain `Vary: Authorization, Cookie` as an additional boundary.
 
 ## Operational rules
 
@@ -56,9 +56,9 @@ CSRF-only cookies do not force a public response into the private path; only `Au
 
 The cache system now has a single logical contract in `shared/cache/cache-contract.json`.
 
-- **Identity:** `shared/cache/cacheKey.ts` defines the canonical key algorithm used by frontend and backend.
+- **Identity:** `shared/cache/cacheKey.ts` defines the canonical key algorithm used by frontend and API.
 - **Domains:** every cache domain declares namespace, scope (`public`, `personal`, `private`) and policy.
-- **Invalidation:** mutation path prefixes, affected cache domains, and offline slots are defined once in the contract and consumed by apps/web/backend registries and the Service Worker.
+- **Invalidation:** mutation path prefixes, affected cache domains, and offline slots are defined once in the contract and consumed by frontend/API registries and the Service Worker.
 - **HTTP ownership:** route middleware owns `Cache-Control`; controllers must not define cache TTLs or directives.
 - **Service Worker:** invalidation accepts canonical domains and resolves them back to physical URL prefixes while retaining exact prefix deletion for compatibility.
 - **Audit:** `npm run cache:audit` validates policy copies, contract copies, key-algorithm parity, invalidation parity, HTTP ownership, and SW integration.
@@ -73,17 +73,34 @@ The cache system now has a single logical contract in `shared/cache/cache-contra
 ## CACHE-W7..W9 — Storage Pressure, Contract Audit, and Correctness
 
 - **W7:** browser quota pressure is a shared budget across Cache Storage/IndexedDB. Warning pressure reduces background warming to public data; critical pressure pauses warming after best-effort cleanup of reconstructable caches. The Service Worker progressively trims API/image caches at 90%/95% quota and never targets durable offline-write/user-owned caches.
-- **W8:** `apps/web/scripts/cache-contract-audit.mjs` validates domain scopes, query prefixes, invalidation references, and generated contract parity.
+- **W8:** `frontend/scripts/cache-contract-audit.mjs` validates domain scopes, query prefixes, invalidation references, and generated contract parity.
 - **W9:** regression coverage verifies API-version mutation routing, unmapped-path no-op behavior, quota boundaries, and per-user ownership of offline JSON/list caches.
 
 ## CACHE-W10..W12 — Server Invalidation Boundary, Observability Hardening, Final Audit
 
 - **W10:** `apps/api/src/shared/cache/serverCacheInvalidation.ts` is the canonical server-side entry point for public-list generation invalidation. It resolves mutation paths from the shared contract and refuses to globally invalidate personal/private domains. The store-types mutation path now uses this boundary instead of hard-coding a Redis generation namespace.
 - **W11:** SWR telemetry is emitted at the actual `swrGetWithStatus()` decision points (`hit`, `stale`, `miss`, `bypass`) and during background refresh/lock contention. Metrics remain in the application Prometheus registry and use bounded logical cache/event labels rather than request/user identifiers.
-- **W12:** `apps/web/scripts/cache-final-audit.mjs` performs the release gate across contract parity, key-algorithm parity, W4-W9 artifacts, server invalidation boundary, public-list canonical identity, HTTP ownership, Service Worker contract usage, and cache telemetry. `cache:contract-audit` and `cache:final-audit` are exposed as explicit package scripts.
+- **W12:** `frontend/scripts/cache-final-audit.mjs` performs the release gate across contract parity, key-algorithm parity, W4-W9 artifacts, server invalidation boundary, public-list canonical identity, HTTP ownership, Service Worker contract usage, and cache telemetry. `cache:contract-audit` and `cache:final-audit` are exposed as explicit package scripts.
 
 ## CACHE-W10..W12 — Performance, Lifecycle, Final Hardening
 
 - **W10 — cache performance telemetry:** the Redis SWR boundary records monotonic operation duration into `app_cache_operation_duration_seconds`, using bounded `cache`/`event` labels and fixed latency buckets. This is measurement infrastructure; production before/after latency must be read from the deployed Prometheus data rather than inferred statically.
 - **W11 — coordinated browser lifecycle:** critical storage-pressure cleanup delegates to the Service Worker through `TRIM_DISPOSABLE_CACHES`. The SW trims disposable API/image layers according to pressure instead of deleting their entire caches. Protected layers such as core, saved ads, personal shells and the offline queue are excluded.
-- **W12 — final architecture gate:** `cache-final-audit.mjs` verifies the canonical 23-domain contract, key parity, lifecycle coordinator, storage-pressure delegation and W10 telemetry. The frontend exposes `cache:contract-audit`, `cache:performance-audit` and `cache:final-audit` scripts for repeatable CI/local checks.
+- **W12 — final architecture gate:** `cache-final-audit.mjs` verifies the canonical 24-domain contract, key parity, lifecycle coordinator, storage-pressure delegation and W10 telemetry. The frontend exposes `cache:contract-audit`, `cache:performance-audit` and `cache:final-audit` scripts for repeatable CI/local checks.
+
+
+## Private profile cache and validators (2026-10)
+
+- `GET /users/me` is the only general profile response placed in Redis. Its key is `marketplat:private:user-profile:v1:<userId>:payload`; no request path, token, or shared user key can address another user's payload.
+- The entry is SWR-backed (20s soft freshness / 60s hard TTL) and uses a per-user generation token. Every `userCache.invalidate(userId)` also bumps this generation. If Redis is unavailable, the existing `CACHE_GENERATION_BUMP` outbox retry path is used; an in-flight stale build cannot overwrite a newer generation.
+- `GET /users/me` uses `private, no-cache` plus `Vary: Authorization, Cookie`. Express weak ETags provide a 304 response only after the request has revalidated. The route exposes `X-Cache: HIT|STALE|MISS|BYPASS` for Redis diagnostics. This reduces repeated response transfer and Redis avoids repeated profile DB reads while fresh; the 304 itself does not imply a DB-free request.
+- Orders, cart, messages, notifications, sales/CRM, appointments, store/member data, and other volatile or sensitive GETs remain `private, no-store`. Do not add a generic response cache to these endpoints without a concrete invalidation contract.
+- `/api/v1` defaults to `private, no-store`. Public routes must explicitly opt in with a public CACHE preset. Auth-bearing requests on public routes are forced to private/no-store.
+
+
+## Authenticated profile response cache hardening (2026-10)
+
+- Every `/api/v1` response begins with `private, no-store`; a public route must explicitly opt in through a public `CACHE` preset. Any request carrying Authorization or a session cookie is forced back to `private, no-store` even on a public route.
+- `GET /users/me` is the only authenticated profile response using validator-only browser caching (`private, no-cache, no-transform` with `Vary: Authorization, Cookie`). Express weak ETags allow 304 only after request revalidation; no shared CDN caching is enabled.
+- The profile Redis entry uses canonical private cache identity and the `privateUserProfile` policy (20s soft TTL ± 3s jitter, 60s hard TTL). Its payload and generation keys are scoped by user ID and invalidated with the auth user cache generation. TanStack Query uses a 120s stale time for this self-profile; the local offline snapshot is owner-bound, fresh for 15 minutes, and hard-expired after 24 hours.
+- All writes affecting `SafeUser` must call `userCache.invalidate`. This includes profile/preferences/avatar/password changes, email verification, OAuth identity linking, account deletion and sales-cost tracking settings. Orders, carts, messages, notifications and other volatile personal data remain no-store and are not placed in generic response cache.

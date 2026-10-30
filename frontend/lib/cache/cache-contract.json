@@ -237,6 +237,12 @@
       "scope": "private",
       "policy": "security",
       "queryPrefixes": []
+    },
+    "userProfile": {
+      "namespace": "user-profile",
+      "scope": "private",
+      "policy": "privateUserProfile",
+      "queryPrefixes": []
     }
   },
   "invalidation": [
@@ -385,7 +391,8 @@
       ],
       "domains": [
         "profile",
-        "recommendations"
+        "recommendations",
+        "userProfile"
       ],
       "local": [
         "profile"

@@ -16,6 +16,15 @@ describe('unified cache policy', () => {
     expect(policy.security.http.maxAgeSec).toBe(0);
   });
 
+  it('keeps the private user-profile cache per-user and bounded across cache layers', () => {
+    expect(policy.privateUserProfile.server.softTtlMs).toBe(20_000);
+    expect(policy.privateUserProfile.server.hardTtlSec).toBe(60);
+    expect(policy.privateUserProfile.http.maxAgeSec).toBe(0);
+    expect(policy.privateUserProfile.client.staleTimeMs).toBe(120_000);
+    expect(policy.privateUserProfile.offline.staleAfterMs).toBe(900_000);
+    expect(policy.privateUserProfile.offline.hardAfterMs).toBe(86_400_000);
+  });
+
   it('keeps Service Worker storage bounded', () => {
     expect(policy.storage.serviceWorker.apiEntries).toBeGreaterThan(0);
     expect(policy.storage.serviceWorker.staticBytes).toBeGreaterThan(0);

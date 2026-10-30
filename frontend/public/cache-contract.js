@@ -238,6 +238,12 @@ self.MARKET_CACHE_CONTRACT = {
       "scope": "private",
       "policy": "security",
       "queryPrefixes": []
+    },
+    "userProfile": {
+      "namespace": "user-profile",
+      "scope": "private",
+      "policy": "privateUserProfile",
+      "queryPrefixes": []
     }
   },
   "invalidation": [
@@ -386,7 +392,8 @@ self.MARKET_CACHE_CONTRACT = {
       ],
       "domains": [
         "profile",
-        "recommendations"
+        "recommendations",
+        "userProfile"
       ],
       "local": [
         "profile"

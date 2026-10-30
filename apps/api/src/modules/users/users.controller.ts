@@ -18,7 +18,8 @@ export const usersController = {
   getMe: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const result = await usersService.getMe(user.userId);
+      const { value: result, status } = await usersService.getMeWithCacheStatus(user.userId);
+      res.setHeader('X-Cache', status.toUpperCase());
       res.status(200).json(successResponse('Profile fetched', result));
     } catch (error) {
       next(error);

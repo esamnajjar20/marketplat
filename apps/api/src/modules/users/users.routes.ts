@@ -4,6 +4,7 @@ import { authenticate } from '../../middlewares/auth.middleware';
 import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { usersRateLimit, changePasswordRateLimit } from '../../middlewares/rateLimit.middleware';
 import { uploadMiddleware } from '../../middlewares/upload.middleware';
+import { CACHE } from '../../middlewares/cacheControl.middleware';
 
 export const usersRouter = Router();
 
@@ -12,7 +13,7 @@ usersRouter.use(usersRateLimit);
 // Protected — /me MUST be registered before /:id
 // Express matches routes in order; if /:id comes first, GET /me matches it with id="me"
 usersRouter.get('/me/bootstrap', authenticate, usersController.getBootstrap);
-usersRouter.get('/me', authenticate, usersController.getMe);
+usersRouter.get('/me', authenticate, CACHE.PRIVATE_REVALIDATE, usersController.getMe);
 usersRouter.patch('/me', authenticate, usersController.updateMe);
 // Both the legacy DELETE and the explicit confirmation endpoint require
 // password re-authentication. Never expose usersService.deleteMe directly.
@@ -51,5 +52,5 @@ usersRouter.patch('/me/presence', authenticate, usersController.touchPresence);
 usersRouter.get('/presence', authenticate, usersController.getPresence);
 
 // Public — after /me and /presence so those literal strings are not intercepted
-usersRouter.get('/:id', usersController.getUserById);
-usersRouter.get('/:id/ads', usersController.getUserAds);
+usersRouter.get('/:id', CACHE.MEDIUM, usersController.getUserById);
+usersRouter.get('/:id/ads', CACHE.SHORT, usersController.getUserAds);

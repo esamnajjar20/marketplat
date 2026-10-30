@@ -1,4 +1,5 @@
 import { prisma } from '../../config/prisma';
+import { userCache } from '../../shared/utils/userCache';
 import { Prisma, SalePaymentStatus } from '@prisma/client';
 import { salesRepository } from './sales.repository';
 import { invoicesService } from './invoices.service';
@@ -298,6 +299,7 @@ export const salesService = {
       data: { salesCostTrackingEnabled: input.enabled },
       select: { salesCostTrackingEnabled: true },
     });
+    await userCache.invalidate(userId);
     return { enabled: user.salesCostTrackingEnabled };
   },
 

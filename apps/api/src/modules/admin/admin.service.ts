@@ -461,13 +461,12 @@ export const adminService = {
         { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
       );
 
-      // If deactivating: immediately invalidate all active sessions + cache
-      if (!isActive) {
-        await Promise.all([
-          userCache.invalidate(userId),
-          tokenStore.deleteAllRefreshTokens(userId),
-        ]);
-      }
+      // The cached SafeUser includes isActive. Invalidate on BOTH transitions:
+      // activation must evict a previously cached inactive auth projection too,
+      // otherwise the reactivated user can remain rejected until its cache TTL.
+      const invalidations: Promise<unknown>[] = [userCache.invalidate(userId)];
+      if (!isActive) invalidations.push(tokenStore.deleteAllRefreshTokens(userId));
+      await Promise.all(invalidations);
 
       auditLog({
         event: AuditEventType.ADMIN_USER_STATUS_CHANGED,

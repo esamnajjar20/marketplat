@@ -166,5 +166,25 @@
       "messagesPerConversation": 150,
       "savedAdsExplicit": 50
     }
+  },
+  "privateUserProfile": {
+    "server": {
+      "softTtlMs": 20000,
+      "softJitterMs": 3000,
+      "hardTtlSec": 60,
+      "lockTtlMs": 5000
+    },
+    "http": {
+      "maxAgeSec": 0,
+      "staleWhileRevalidateSec": 0
+    },
+    "client": {
+      "staleTimeMs": 120000,
+      "gcTimeMs": 600000
+    },
+    "offline": {
+      "staleAfterMs": 900000,
+      "hardAfterMs": 86400000
+    }
   }
 }
