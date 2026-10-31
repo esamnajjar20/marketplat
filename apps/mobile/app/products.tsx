@@ -34,6 +34,7 @@ export default function ProductsScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const requestSequence = useRef(0);
@@ -87,7 +88,7 @@ export default function ProductsScreen() {
     if (loadingMore || loading || page >= totalPages) return;
     const sequence = requestSequence.current;
     setLoadingMore(true);
-    setError(null);
+    setLoadMoreError(null);
     try {
       const result = await fetchProducts({ page: page + 1, limit: 30, search: submitted, storeId, categoryId });
       if (sequence === requestSequence.current) {
@@ -100,7 +101,7 @@ export default function ProductsScreen() {
       }
     } catch (e) {
       if (sequence === requestSequence.current) {
-        setError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من المنتجات.');
+        setLoadMoreError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من المنتجات.');
       }
     } finally {
       if (sequence === requestSequence.current) setLoadingMore(false);
@@ -118,7 +119,7 @@ export default function ProductsScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <AppHeader title={title} />
       <FlatList
-        data={loading || error ? [] : items}
+        data={items}
         keyExtractor={(item) => item.id}
         {...marketListPerf}
         contentContainerStyle={styles.content}
@@ -150,7 +151,7 @@ export default function ProductsScreen() {
             </View>
             {loading ? (
               <SkeletonList count={4} />
-            ) : error ? (
+            ) : error && items.length === 0 ? (
               <ErrorState title="تعذر التحميل" description={error} onAction={() => void load()} />
             ) : (
               <View style={styles.sectionRow}>
@@ -161,7 +162,7 @@ export default function ProductsScreen() {
           </View>
         }
         ListEmptyComponent={
-          !loading && !error ? (
+          !loading && !error && items.length === 0 ? (
             <EmptyState title="لا توجد منتجات مطابقة" description="جرّب كلمات بحث مختلفة أو اسحب للتحديث." />
           ) : undefined
         }
@@ -174,13 +175,16 @@ export default function ProductsScreen() {
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListFooterComponent={
-          !loading && !error && items.length > 0 && page < totalPages ? (
-            <PrimaryButton
-              label={loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}
-              onPress={() => void loadMore()}
-              busy={loadingMore}
-              variant="secondary"
-            />
+          !loading && items.length > 0 && page < totalPages ? (
+            <View style={{ gap: spacing.sm }}>
+              {loadMoreError ? <ErrorState title="تعذر تحميل المزيد" description={loadMoreError} onAction={() => void loadMore()} /> : null}
+              <PrimaryButton
+                label={loadingMore ? 'جاري التحميل…' : loadMoreError ? 'إعادة تحميل المزيد' : 'تحميل المزيد'}
+                onPress={() => void loadMore()}
+                busy={loadingMore}
+                variant="secondary"
+              />
+            </View>
           ) : undefined
         }
       />

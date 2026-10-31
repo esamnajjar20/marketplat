@@ -9,25 +9,26 @@ import { colors, radius, spacing, typography } from '@/theme/tokens';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton } from '@/components/MobileUI';
 
 export default function StoriesScreen() {
-  const { user, accessToken, csrfToken } = useAuth();
+  const { user, getAccessToken, csrfToken } = useAuth();
   const [groups, setGroups] = useState<StoryGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const seq = useRef(0);
+  const hasGroupsRef = useRef(false);
   const load = useCallback(async () => {
-    if (!accessToken) { setGroups([]); setLoading(false); return; }
+    const token = getAccessToken();
+    if (!token) { setGroups([]); hasGroupsRef.current = false; setLoading(false); return; }
     const current = ++seq.current;
-    setLoading(true); setError('');
-    try { const data = await fetchStoryFeed(accessToken); if (current !== seq.current) return; setGroups(data); }
+    if (!hasGroupsRef.current) setLoading(true); setError('');
+    try { const data = await fetchStoryFeed(token); if (current !== seq.current) return; hasGroupsRef.current = data.length > 0; setGroups(data); }
     catch (e) { if (current === seq.current) setError(e instanceof Error ? e.message : 'تعذر تحميل القصص.'); }
     finally { if (current === seq.current) setLoading(false); }
-  }, [accessToken]);
+  }, [getAccessToken]);
   useFocusEffect(useCallback(() => { void load(); return () => { seq.current += 1; }; }, [load]));
   const addStory = async () => {
-    if (!accessToken) { router.push('/login'); return; }
+    if (!getAccessToken()) { router.push('/login'); return; }
     Alert.alert('إضافة قصة', 'اختر طريقة نشر القصة', [
-      { text: 'إلغاء', style: 'cancel' },
       { text: 'قصة نصية', onPress: () => router.push('/story-create') },
       { text: 'صورة للمتابعين', onPress: () => { void (async () => {
         setBusy(true); setError('');
@@ -40,7 +41,8 @@ export default function StoriesScreen() {
           if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) throw new Error('حجم الصورة يجب ألا يتجاوز 5 ميغابايت.');
           const mime = asset.mimeType || 'image/jpeg';
           if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) throw new Error('اختر صورة JPEG أو PNG أو WebP.');
-          await createStory({ visibility: 'FOLLOWERS' }, { uri: asset.uri, fileName: asset.fileName, mimeType: mime }, accessToken, csrfToken);
+          const token = getAccessToken(); if (!token) { router.push('/login'); return; }
+          await createStory({ visibility: 'FOLLOWERS' }, { uri: asset.uri, fileName: asset.fileName, mimeType: mime }, token, csrfToken);
           await load(); Alert.alert('تم النشر', 'نُشرت القصة وستنتهي صلاحيتها بعد 24 ساعة.');
         } catch (e) { setError(e instanceof Error ? e.message : 'تعذر نشر القصة.'); }
         finally { setBusy(false); }
@@ -56,7 +58,8 @@ export default function StoriesScreen() {
           if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) throw new Error('حجم الصورة يجب ألا يتجاوز 5 ميغابايت.');
           const mime = asset.mimeType || 'image/jpeg';
           if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) throw new Error('اختر صورة JPEG أو PNG أو WebP.');
-          await createStory({ visibility: 'PUBLIC' }, { uri: asset.uri, fileName: asset.fileName, mimeType: mime }, accessToken, csrfToken);
+          const token = getAccessToken(); if (!token) { router.push('/login'); return; }
+          await createStory({ visibility: 'PUBLIC' }, { uri: asset.uri, fileName: asset.fileName, mimeType: mime }, token, csrfToken);
           await load(); Alert.alert('تم النشر', 'نُشرت القصة العامة وستنتهي صلاحيتها بعد 24 ساعة.');
         } catch (e) { setError(e instanceof Error ? e.message : 'تعذر نشر القصة.'); }
         finally { setBusy(false); }
@@ -66,8 +69,8 @@ export default function StoriesScreen() {
   return <SafeAreaView style={styles.safe} edges={['top']}>
       <AppHeader title="القصص" />
     <View style={styles.header}><Pressable onPress={() => router.back()}><Text style={styles.link}>رجوع</Text></Pressable><Text style={styles.heading}>القصص</Text><Pressable disabled={busy} onPress={() => void addStory()}><Text style={styles.link}>{busy ? 'جارٍ النشر…' : '+ قصة'}</Text></Pressable></View>
-    {!accessToken ? <View style={styles.center}><Text style={styles.title}>سجّل الدخول لمشاهدة القصص</Text><Text style={styles.muted}>يمكنك فتح القصص العامة عبر رابط مشاركة مباشر.</Text><Pressable style={styles.primary} onPress={() => router.push('/login')}><Text style={styles.primaryText}>تسجيل الدخول</Text></Pressable></View>
-      : loading ? <View style={styles.center}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جارٍ تحميل القصص…</Text></View>
+    {!getAccessToken() ? <View style={styles.center}><Text style={styles.title}>سجّل الدخول لمشاهدة القصص</Text><Text style={styles.muted}>يمكنك فتح القصص العامة عبر رابط مشاركة مباشر.</Text><Pressable style={styles.primary} onPress={() => router.push('/login')}><Text style={styles.primaryText}>تسجيل الدخول</Text></Pressable></View>
+      : loading && groups.length === 0 ? <View style={styles.center}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جارٍ تحميل القصص…</Text></View>
       : <ScrollView contentContainerStyle={styles.content}>
         {error ? <View style={styles.error}><Text style={styles.errorText}>{error}</Text><Pressable onPress={() => void load()}><Text style={styles.link}>إعادة المحاولة</Text></Pressable></View> : null}
         <Pressable style={styles.addCard} onPress={() => void addStory()}><View style={styles.addCircle}><Text style={styles.plus}>＋</Text></View><View style={{ flex: 1 }}><Text style={styles.cardTitle}>أضف قصتك</Text><Text style={styles.muted}>صورة أو نص، وتختفي بعد 24 ساعة</Text></View></Pressable>

@@ -7,7 +7,7 @@ import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/Mobi
 import { colors, radius, spacing, typography } from '@/theme/tokens';
 
 export default function DeleteAccountScreen() {
-  const { user, accessToken, csrfToken, logout } = useAuth();
+  const { user, accessToken, csrfToken, forceLocalSignOut } = useAuth();
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [busy, setBusy] = useState(false);
@@ -22,7 +22,7 @@ export default function DeleteAccountScreen() {
         if (busy) return;
         setBusy(true); setError('');
         void deleteAccountAfterReauthentication(password, accessToken, csrfToken)
-          .then(async () => { await logout().catch(() => undefined); Alert.alert('تم تعطيل الحساب', 'تم حذف بيانات التعريف الشخصية وتعطيل الحساب.'); router.replace('/'); })
+          .then(async () => { await forceLocalSignOut(); Alert.alert('تم تعطيل الحساب', 'تم حذف بيانات التعريف الشخصية وتعطيل الحساب.'); router.replace('/'); })
           .catch((e) => setError(e instanceof Error ? e.message : 'تعذر حذف الحساب.'))
           .finally(() => setBusy(false));
       } },

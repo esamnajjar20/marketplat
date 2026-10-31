@@ -15,3 +15,5 @@ blockedUsersRouter.post(
   userBlockRateLimit,
   blockedUsersController.toggleBlock
 );
+// Explicit, idempotent unblock avoids a stale client accidentally re-blocking.
+blockedUsersRouter.delete('/:userId', authenticate, userBlockRateLimit, blockedUsersController.unblock);

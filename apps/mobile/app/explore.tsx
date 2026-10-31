@@ -14,6 +14,8 @@ const groups: DestinationGroup[] = [
     items: [
       { title: 'كل الإعلانات', description: 'تصفح أحدث الإعلانات المنشورة في السوق', path: '/' },
       { title: 'البحث المتقدم', description: 'ابحث بالاسم والسعر والمدينة والتصنيف', path: '/search' },
+      { title: 'موجز المتابعة', description: 'شاهد أحدث الإعلانات والمنتجات والخدمات ممن تتابعهم', path: '/following-feed' },
+      { title: 'مقترح لك', description: 'اكتشف محتوى مخصصًا لك', path: '/for-you' },
       { title: 'تصنيفات السوق', description: 'انتقل مباشرة إلى نوع الإعلان المناسب', path: '/categories' },
       { title: 'طلبات السوق', description: 'اعرف ما يبحث عنه الآخرون وقدّم عرضًا مناسبًا', path: '/requests' },
     ],

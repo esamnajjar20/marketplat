@@ -1,3 +1,6 @@
+import { fetch as expoFetch } from 'expo/fetch';
+import { z } from 'zod';
+import { chatMessageResponseSchema } from '@/api/response-schemas';
 import { getApiBaseUrl } from '@/api/client';
 
 export type ChatLiveEvent = {
@@ -47,6 +50,16 @@ function wait(ms: number, signal: AbortSignal): Promise<boolean> {
     signal.addEventListener('abort', abort, { once: true });
   });
 }
+
+const chatLiveEventSchema = z.object({
+  type: z.string().min(1).max(80).optional(),
+  conversationId: z.string().min(1).optional(),
+  message: chatMessageResponseSchema.optional(),
+  messageId: z.string().min(1).optional(),
+  deletedAt: z.string().optional(),
+  userId: z.string().min(1).optional(),
+  isTyping: z.boolean().optional(),
+}).passthrough();
 
 const MAX_SSE_BUFFER_BYTES = 1_000_000;
 const MAX_SSE_FRAME_BYTES = 256_000;
@@ -106,7 +119,7 @@ export function subscribeChatLiveStream(options: ChatLiveStreamOptions): () => v
         const lastEventId = options.getLastEventId();
         const currentToken = options.getToken ? options.getToken() : options.token;
         if (!currentToken) { stopped = true; return; }
-        const response = await fetch(`${baseUrl}/api/v1/notifications/stream`, {
+        const response = await expoFetch(`${baseUrl}/api/v1/notifications/stream`, {
           method: 'GET',
           headers: {
             Accept: 'text/event-stream',
@@ -162,8 +175,9 @@ export function subscribeChatLiveStream(options: ChatLiveStreamOptions): () => v
               if (parsed) {
                 let payload: unknown;
                 try { payload = JSON.parse(parsed.data); } catch { payload = null; }
-                if (payload && typeof payload === 'object') {
-                  const event = payload as ChatLiveEvent;
+                const validatedEvent = chatLiveEventSchema.safeParse(payload);
+                if (validatedEvent.success) {
+                  const event = validatedEvent.data as ChatLiveEvent;
                   if (parsed.eventName === 'resync') event.type = 'resync';
                   if (parsed.eventName === 'connected') event.type = 'connected';
                   try { options.onEvent(event, parsed.id); } catch {

@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { goBack } from '@/lib/navigation';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Field, Notice, PrimaryButton } from '@/components/MobileUI';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
 import { loginSchema, validate } from '@/lib/validation';
+import { getSafeAuthRedirect } from '@/lib/safe-auth-redirect';
 
 export default function LoginScreen() {
   const { login, isBusy } = useAuth();
+  const { redirect } = useLocalSearchParams<{ redirect?: string | string[] }>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -25,7 +27,10 @@ export default function LoginScreen() {
     try {
       await login(checked.data.email, checked.data.password);
       setPassword('');
-      router.replace('/');
+      const target = getSafeAuthRedirect(redirect);
+      if (target) router.replace(target);
+      else if (router.canGoBack()) router.back();
+      else router.replace('/');
     } catch (error) {
       setErrorMessage(
         error instanceof ApiError || error instanceof Error
@@ -85,7 +90,7 @@ export default function LoginScreen() {
         <Pressable accessibilityRole="button" onPress={() => router.push('/forgot-password')} style={styles.linkBtn}>
           <Text style={styles.link}>نسيت كلمة المرور؟</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/register')} style={styles.linkBtn}>
+        <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/register', params: redirect ? { redirect: Array.isArray(redirect) ? redirect[0] : redirect } : undefined })} style={styles.linkBtn}>
           <Text style={styles.link}>إنشاء حساب جديد</Text>
         </Pressable>
 

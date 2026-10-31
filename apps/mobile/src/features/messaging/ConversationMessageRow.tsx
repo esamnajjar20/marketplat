@@ -3,6 +3,7 @@ import { Alert, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-
 import type { ChatMessage } from '@/features/messaging/messaging.api';
 import { CHAT_OUTBOX_MAX_ATTEMPTS } from '@/storage/outbox-manager';
 import { colors, radius, spacing } from '@/theme/tokens';
+import { isAllowedMediaUrl } from '@/lib/safe-media-url';
 
 export type ConversationScreenMessage = ChatMessage & {
   outboxAttempts?: number;
@@ -63,9 +64,15 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
           accessibilityRole="button"
           accessibilityLabel="تشغيل الرسالة الصوتية"
           style={styles.mediaAction}
-          onPress={() => void Linking.openURL(message.audioUrl!).catch(() =>
-            Alert.alert('تعذر فتح الصوت', 'تحقق من الاتصال وحاول مجددًا.'),
-          )}
+          onPress={() => {
+            if (!isAllowedMediaUrl(message.audioUrl)) {
+              Alert.alert('رابط مرفق غير موثوق', 'رفض التطبيق فتح هذا الرابط لأن مصدره غير مسموح.');
+              return;
+            }
+            void Linking.openURL(message.audioUrl).catch(() =>
+              Alert.alert('تعذر فتح الصوت', 'تحقق من الاتصال وحاول مجددًا.'),
+            );
+          }}
         >
           <Text style={styles.mediaActionText}>▶ تشغيل الرسالة الصوتية</Text>
         </Pressable>
@@ -76,9 +83,15 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
           accessibilityRole="button"
           accessibilityLabel="فتح الملف المرفق"
           style={styles.mediaAction}
-          onPress={() => void Linking.openURL(message.fileUrl!).catch(() =>
-            Alert.alert('تعذر فتح الملف', 'تحقق من الاتصال وحاول مجددًا.'),
-          )}
+          onPress={() => {
+            if (!isAllowedMediaUrl(message.fileUrl)) {
+              Alert.alert('رابط مرفق غير موثوق', 'رفض التطبيق فتح هذا الرابط لأن مصدره غير مسموح.');
+              return;
+            }
+            void Linking.openURL(message.fileUrl).catch(() =>
+              Alert.alert('تعذر فتح الملف', 'تحقق من الاتصال وحاول مجددًا.'),
+            );
+          }}
         >
           <Text style={styles.mediaActionText}>📎 فتح الملف المرفق</Text>
         </Pressable>

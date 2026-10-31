@@ -23,6 +23,7 @@ export default function StoresScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [moreError, setMoreError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const requestSequence = useRef(0);
@@ -34,6 +35,7 @@ export default function StoresScreen() {
       if (refresh) setRefreshing(true);
       else setLoading(true);
       setError(null);
+      setMoreError(null);
       try {
         const result = await fetchStores({ page: 1, limit: 30, search: submitted });
         if (sequence === requestSequence.current) {
@@ -66,7 +68,7 @@ export default function StoresScreen() {
     if (loadingMore || loading || page >= totalPages) return;
     const sequence = requestSequence.current;
     setLoadingMore(true);
-    setError(null);
+    setMoreError(null);
     try {
       const result = await fetchStores({ page: page + 1, limit: 30, search: submitted });
       if (sequence === requestSequence.current) {
@@ -79,7 +81,7 @@ export default function StoresScreen() {
       }
     } catch (e) {
       if (sequence === requestSequence.current) {
-        setError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من المتاجر.');
+        setMoreError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من المتاجر.');
       }
     } finally {
       if (sequence === requestSequence.current) setLoadingMore(false);
@@ -90,7 +92,7 @@ export default function StoresScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <AppHeader title="المتاجر" />
       <FlatList
-        data={loading || error ? [] : items}
+        data={items}
         keyExtractor={(item) => item.id}
         {...marketListPerf}
         contentContainerStyle={styles.content}
@@ -105,6 +107,7 @@ export default function StoresScreen() {
               value={query}
               onChangeText={setQuery}
               onSubmit={() => setSubmitted(query.trim())}
+              onClear={() => setSubmitted('')}
               placeholder="ابحث باسم المتجر أو المدينة…"
               accessibilityLabel="ابحث عن متجر"
             />
@@ -121,7 +124,7 @@ export default function StoresScreen() {
           </View>
         }
         ListEmptyComponent={
-          !loading && !error ? (
+          !loading && !error && items.length === 0 ? (
             <EmptyState title="لا توجد متاجر مطابقة" description="جرّب بحثًا آخر أو اسحب الشاشة للتحديث." />
           ) : undefined
         }
@@ -139,13 +142,13 @@ export default function StoresScreen() {
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListFooterComponent={
-          !loading && !error && items.length > 0 && page < totalPages ? (
-            <PrimaryButton
-              label={loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}
-              onPress={() => void loadMore()}
-              busy={loadingMore}
-              variant="secondary"
-            />
+          !loading && items.length > 0 ? (
+            <View style={{ gap: spacing.sm }}>
+              {moreError ? <ErrorState title="تعذر تحميل المزيد" description={moreError} onAction={() => void loadMore()} /> : null}
+              {!moreError && page < totalPages ? (
+                <PrimaryButton label={loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'} onPress={() => void loadMore()} busy={loadingMore} variant="secondary" />
+              ) : null}
+            </View>
           ) : undefined
         }
       />

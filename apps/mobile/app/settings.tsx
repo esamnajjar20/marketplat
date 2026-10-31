@@ -30,7 +30,7 @@ function getDeviceTimeZone(): string | null {
 }
 function validTime(value: string): boolean { return /^([01]?\d|2[0-3]):[0-5]\d$/.test(value); }
 export default function SettingsScreen() {
-  const { accessToken, csrfToken, logout, isBusy, user } = useAuth();
+  const { accessToken, getAccessToken, csrfToken, logout, isBusy, user } = useAuth();
   const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFS);
   const [loadingPreferences, setLoadingPreferences] = useState(true);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
@@ -39,10 +39,11 @@ export default function SettingsScreen() {
   const [message, setMessage] = useState('');
   const deviceTimeZone = useMemo(() => getDeviceTimeZone(), []);
   const load = useCallback(async () => {
-    if (!accessToken) { setLoadingPreferences(false); setPreferencesLoaded(false); return; }
+    const token = getAccessToken();
+    if (!token) { setLoadingPreferences(false); setPreferencesLoaded(false); return; }
     setLoadingPreferences(true); setPreferencesLoaded(false); setError(''); setMessage('');
     try {
-      const profile = await fetchMyProfile(accessToken, user?.id);
+      const profile = await fetchMyProfile(token, user?.id);
       const saved = profile.notificationPreferences ?? {};
       const merged: Preferences = { ...DEFAULT_PREFS };
       for (const key of Object.keys(DEFAULT_PREFS)) {
@@ -54,7 +55,7 @@ export default function SettingsScreen() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر تحميل الإعدادات. أعد المحاولة قبل الحفظ.');
     } finally { setLoadingPreferences(false); }
-  }, [accessToken, user?.id]);
+  }, [getAccessToken, user?.id]);
   useEffect(() => { void load(); }, [load]);
   const toggle = (key: string, value: boolean) => setPrefs((p) => ({ ...p, [key]: value }));
   const save = async () => {
@@ -64,13 +65,15 @@ export default function SettingsScreen() {
     }
     setBusy(true); setError(''); setMessage('');
     try {
-      const saved = await updateNotificationPreferences(prefs, accessToken, csrfToken, user?.id);
+      const token = getAccessToken();
+      if (!token) { router.push('/login'); return; }
+      const saved = await updateNotificationPreferences(prefs, token, csrfToken, user?.id);
       setPrefs((current) => ({ ...current, ...(saved.notificationPreferences ?? {}) }));
       setMessage('تم حفظ تفضيلات الإشعارات.');
     } catch (e) { setError(e instanceof Error ? e.message : 'تعذر حفظ الإعدادات.'); }
     finally { setBusy(false); }
   };
-  const confirmLogout = () => Alert.alert('تسجيل الخروج', 'سيتم إنهاء الجلسة المحلية والخروج من الحساب على هذا الجهاز.', [{ text: 'إلغاء', style: 'cancel' }, { text: 'تسجيل الخروج', style: 'destructive', onPress: () => { void logout().catch(() => undefined).finally(() => router.replace('/')); } }]);
+  const confirmLogout = () => Alert.alert('تسجيل الخروج', 'سيتم إنهاء الجلسة المحلية والخروج من الحساب على هذا الجهاز.', [{ text: 'إلغاء', style: 'cancel' }, { text: 'تسجيل الخروج', style: 'destructive', onPress: () => { void logout().then((result) => { if (result !== 'cancelled') router.replace('/'); }).catch(() => undefined); } }]);
   return <PageShell title="الإعدادات">
     {!accessToken ? <><Notice>سجّل الدخول لإدارة إعدادات الحساب.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /></> : <>
       {loadingPreferences ? <SectionCard><Text style={{ textAlign: 'center', color: colors.muted }}>جارٍ تحميل تفضيلات الإشعارات…</Text></SectionCard> : null}

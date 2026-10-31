@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -6,6 +6,10 @@ import { fetchInstallments, payInstallment, type InstallmentRow } from '@/featur
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
+import { ApiError } from '@/api/client';
+import { createMobileOperationId } from '@/lib/operation-id';
+import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
+import { formatSafeDate } from '@/lib/date-format';
 
 const money = (n: unknown) =>
   `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(n) || 0)} ₪`;
@@ -19,6 +23,7 @@ export default function InstallmentsScreen() {
   const [busyId, setBusyId] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const paymentOperationsRef = useRef<Record<string, { amount: number; id: string }>>({});
 
   const load = useCallback(async () => {
     if (!accessToken) {
@@ -56,13 +61,24 @@ export default function InstallmentsScreen() {
           setBusyId(item.id);
           setError('');
           setMessage('');
-          void payInstallment(item.id, amount, accessToken, csrfToken)
+          const existing = paymentOperationsRef.current[item.id];
+          const operation = existing?.amount === amount
+            ? existing
+            : { amount, id: createMobileOperationId(`installment-${item.id}`) };
+          paymentOperationsRef.current[item.id] = operation;
+          void payInstallment(item.id, amount, accessToken, csrfToken, operation.id)
             .then(() => {
+              delete paymentOperationsRef.current[item.id];
               setMessage('تم تسجيل الدفعة بنجاح.');
               setAmounts((old) => ({ ...old, [item.id]: '' }));
               return load();
             })
-            .catch((e) => setError(e instanceof Error ? e.message : 'تعذر تسجيل الدفعة.'))
+            .catch((e) => {
+              if (e instanceof ApiError && e.status !== undefined && e.status >= 400 && e.status < 500) {
+                delete paymentOperationsRef.current[item.id];
+              }
+              setError(e instanceof Error ? e.message : 'تعذر تسجيل الدفعة.');
+            })
             .finally(() => setBusyId(''));
         },
       },
@@ -137,7 +153,7 @@ export default function InstallmentsScreen() {
                 العميل: {item.sale?.customer?.name || item.sale?.buyerName || 'غير محدد'}
               </Text>
               <Text style={{ textAlign: 'right', color: colors.muted }}>
-                القسط رقم {item.installmentNo} · الاستحقاق {new Date(item.dueDate).toLocaleDateString('ar')}
+                القسط رقم {item.installmentNo} · الاستحقاق {formatSafeDate(item.dueDate, 'date')}
               </Text>
               <Text style={{ textAlign: 'right', color: colors.muted }}>
                 قيمة القسط: {money(item.amount)} · المدفوع: {money(item.paidAmount)}
@@ -145,7 +161,7 @@ export default function InstallmentsScreen() {
               <TextInput
                 accessibilityLabel={`مبلغ تحصيل القسط ${item.installmentNo}`}
                 value={amounts[item.id] ?? String(remaining)}
-                onChangeText={(v) => setAmounts((old) => ({ ...old, [item.id]: v }))}
+                onChangeText={(v) => setAmounts((old) => ({ ...old, [item.id]: normalizeNumericInput(v) }))}
                 keyboardType="decimal-pad"
                 placeholder="مبلغ التحصيل"
                 textAlign="right"

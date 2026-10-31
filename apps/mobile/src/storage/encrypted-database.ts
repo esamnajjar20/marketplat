@@ -76,11 +76,19 @@ async function migrateLegacyDatabase(keyHex: string): Promise<void> {
   // Open the old database without a key. SQLCipher accepts legacy plaintext SQLite files.
   // The key is hex-only and the destination name is a fixed constant, never user input.
   const legacy = await SQLite.openDatabaseAsync(LEGACY_DATABASE_NAME);
+  const destinationPath = databasePath(ENCRYPTED_DATABASE_NAME);
+  if (!destinationPath) {
+    await legacy.closeAsync().catch(() => undefined);
+    throw new Error('تعذر تحديد مسار قاعدة البيانات المشفرة على الجهاز.');
+  }
+  // ATTACH resolves relative paths against the native process working directory,
+  // which is not guaranteed to be SQLite.defaultDatabaseDirectory.
+  const escapedDestinationPath = destinationPath.replace(/'/g, "''");
   try {
     await assertSqlCipher(legacy);
     await legacy.execAsync('PRAGMA journal_mode = DELETE;');
     await legacy.execAsync(
-      `ATTACH DATABASE '${ENCRYPTED_DATABASE_NAME}' AS encrypted KEY "x'${keyHex}'";\n` +
+      `ATTACH DATABASE '${escapedDestinationPath}' AS encrypted KEY "x'${keyHex}'";\n` +
       `SELECT sqlcipher_export('encrypted');\n` +
       'DETACH DATABASE encrypted;'
     );
@@ -131,7 +139,7 @@ async function openEncryptedDatabase(): Promise<SQLite.SQLiteDatabase> {
       await verifyLegacyCopyBeforeRemoval(keyHex);
       await SQLite.deleteDatabaseAsync(LEGACY_DATABASE_NAME);
     }
-  } else {
+  } else if (await databaseExists(LEGACY_DATABASE_NAME)) {
     await migrateLegacyDatabase(keyHex);
   }
 

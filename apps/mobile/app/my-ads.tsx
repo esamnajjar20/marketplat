@@ -5,8 +5,8 @@ import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { ApiError } from '@/api/client';
-import { deleteAd, fetchMyAds, type ManagedAd } from '@/features/ads/manage-ads.api';
-import { enqueueMutation } from '@/storage/outbox-manager';
+import { deleteAd, fetchMyAdsPage, type ManagedAd } from '@/features/ads/manage-ads.api';
+import { enqueueMutation, listAllOutboxMutations } from '@/storage/outbox-manager';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
   AppHeader,
@@ -20,33 +20,52 @@ import {
 import { colors, spacing, typography } from '@/theme/tokens';
 
 export default function MyAdsScreen() {
-  const { user, accessToken, csrfToken } = useAuth();
+  const { user, getAccessToken, csrfToken, isRestoring } = useAuth();
   const netInfo = useNetInfo();
   const online = netInfo.isConnected === true && netInfo.isInternetReachable !== false;
   const [ads, setAds] = useState<ManagedAd[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<string>>(() => new Set());
+  const [failedDeleteIds, setFailedDeleteIds] = useState<Set<string>>(() => new Set());
+  const [queueReadError, setQueueReadError] = useState('');
+  const [moreError, setMoreError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const seq = useRef(0);
+  const hasLoadedRef = useRef(false);
   const load = useCallback(async () => {
     const current = ++seq.current;
-    if (!accessToken) {
+    const token = getAccessToken();
+    if (isRestoring) return;
+    if (!token) {
       setLoading(false);
       setError('سجّل الدخول لعرض إعلاناتك.');
       return;
     }
-    setLoading(true);
+    if (!hasLoadedRef.current) setLoading(true);
     setError(null);
     try {
-      const next = await fetchMyAds(accessToken);
-      if (current === seq.current) setAds(next);
+      const result = await fetchMyAdsPage(token, 1, 30);
+      if (current === seq.current) { setAds(result.items); setPage(result.page); setTotalPages(result.totalPages); }
+      if (user?.id) {
+        try {
+          const queued = await listAllOutboxMutations(String(user.id), { unlimited: true });
+          const deletes = queued.filter((mutation) => mutation.operation === 'delete-ad');
+          setPendingDeleteIds(new Set(deletes.map((mutation) => mutation.resourceId)));
+          setFailedDeleteIds(new Set(deletes.filter((mutation) => mutation.state === 'failed').map((mutation) => mutation.resourceId)));
+          setQueueReadError('');
+        } catch { setQueueReadError('تعذر قراءة حالة عمليات الحذف المحفوظة. افتح مركز العمليات للتحقق منها.'); }
+      }
     } catch (e) {
       if (current === seq.current) setError(e instanceof Error ? e.message : 'تعذر تحميل إعلاناتك.');
     } finally {
-      if (current === seq.current) setLoading(false);
+      if (current === seq.current) { hasLoadedRef.current = true; setLoading(false); }
     }
-  }, [accessToken]);
+  }, [getAccessToken, isRestoring, user?.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -54,6 +73,14 @@ export default function MyAdsScreen() {
       return () => { seq.current += 1; };
     }, [load]),
   );
+
+  const loadMore = async () => {
+    const token = getAccessToken(); if (!token || loadingMore || page >= totalPages) return;
+    const current = seq.current; setLoadingMore(true); setMoreError(null);
+    try { const result = await fetchMyAdsPage(token, page + 1, 30); if (current === seq.current) { setAds((old) => { const ids = new Set(old.map((item) => item.id)); return [...old, ...result.items.filter((item) => !ids.has(item.id))]; }); setPage(result.page); setTotalPages(result.totalPages); } }
+    catch (e) { if (current === seq.current) setMoreError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من الإعلانات.'); }
+    finally { if (current === seq.current) setLoadingMore(false); }
+  };
 
   const remove = (ad: ManagedAd) => {
     Alert.alert(
@@ -67,7 +94,8 @@ export default function MyAdsScreen() {
           text: online ? 'حذف' : 'حفظ طلب الحذف',
           style: 'destructive',
           onPress: () => {
-            if (!accessToken || !user?.id) return;
+            const token = getAccessToken();
+            if (!token || !user?.id || busyId) return;
             setBusyId(ad.id);
             const enqueueOfflineDelete = () =>
               enqueueMutation({
@@ -78,21 +106,19 @@ export default function MyAdsScreen() {
                 payload: { title: ad.title },
                 idempotencyKey: `offline-op:delete:${ad.id}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`,
               }).then(() => {
-                // Mark visually so the user knows the delete is queued.
-                setAds((current) => current.map((item) =>
-                  item.id === ad.id ? { ...item, status: 'قيد الحذف — بانتظار المزامنة' } : item,
-                ));
+                // Keep queue state separate from server-owned status fields.
+                setPendingDeleteIds((current) => new Set(current).add(ad.id));
                 Alert.alert(
                   'تم حفظ طلب الحذف',
                   'لم يُحذف الإعلان من الخادم بعد. سيُرسل طلب الحذف عند عودة الاتصال وتوفر جلسة دخول صالحة.',
                 );
               });
             const work = online
-              ? deleteAd(ad.id, accessToken, csrfToken)
+              ? deleteAd(ad.id, token, csrfToken)
                   .then(() => setAds((current) => current.filter((item) => item.id !== ad.id)))
                   .catch((err) => {
                     // Session expired mid-action — preserve delete intent in outbox.
-                    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+                    if (err instanceof ApiError && (err.status === undefined || err.status === 401)) {
                       return enqueueOfflineDelete();
                     }
                     throw err;
@@ -128,7 +154,9 @@ export default function MyAdsScreen() {
         }
       />
 
-      {!user ? (
+      {isRestoring ? (
+        <LoadingState message="جارٍ استعادة الجلسة…" />
+      ) : !user ? (
         <EmptyState
           title="سجّل الدخول أولًا"
           description="إدارة إعلاناتك تتطلب حسابًا مسجّلًا."
@@ -137,7 +165,7 @@ export default function MyAdsScreen() {
         />
       ) : loading ? (
         <LoadingState message="جاري تحميل إعلاناتك…" />
-      ) : error ? (
+      ) : error && ads.length === 0 ? (
         <ErrorState title="تعذر تحميل الإعلانات" description={error} onAction={() => void load()} />
       ) : (
         <FlatList
@@ -145,6 +173,7 @@ export default function MyAdsScreen() {
           keyExtractor={(ad) => ad.id}
           {...marketListPerf}
           contentContainerStyle={styles.list}
+          ListHeaderComponent={error || queueReadError ? <View style={{ gap: spacing.sm }}>{error ? <ErrorState title="تعذر تحديث الإعلانات" description={error} onAction={() => void load()} /> : null}{queueReadError ? <Text style={{ color: colors.danger, textAlign: 'right' }}>{queueReadError}</Text> : null}</View> : null}
           ListEmptyComponent={
             <EmptyState
               title="لم تنشر أي إعلان بعد"
@@ -157,7 +186,7 @@ export default function MyAdsScreen() {
             <SectionCard>
               <Text style={styles.adTitle}>{ad.title}</Text>
               <Text style={styles.meta}>
-                {[ad.city, ad.status || 'الحالة غير متاحة'].filter(Boolean).join(' · ')}
+                {[ad.city, failedDeleteIds.has(ad.id) ? 'تعذر الحذف — راجع مركز العمليات' : pendingDeleteIds.has(ad.id) ? 'قيد الحذف — بانتظار المزامنة' : ({ ACTIVE: 'نشط', PENDING: 'قيد المراجعة', SOLD: 'مباع', EXPIRED: 'منتهي', REJECTED: 'مرفوض', DELETED: 'محذوف' } as Record<string, string>)[ad.status || ''] || ad.status || 'الحالة غير متاحة'].filter(Boolean).join(' · ')}
               </Text>
               <View style={styles.actions}>
                 <SecondaryButton
@@ -165,15 +194,22 @@ export default function MyAdsScreen() {
                   onPress={() => router.push({ pathname: '/ad-editor', params: { id: ad.id } })}
                 />
                 <PrimaryButton
-                  label={busyId === ad.id ? 'جارٍ الحذف…' : online ? 'حذف' : 'حفظ طلب الحذف'}
+                  label={failedDeleteIds.has(ad.id) ? 'مراجعة عملية الحذف' : pendingDeleteIds.has(ad.id) ? 'بانتظار المزامنة' : busyId === ad.id ? 'جارٍ الحذف…' : online ? 'حذف' : 'حفظ طلب الحذف'}
                   variant="danger"
                   busy={busyId === ad.id}
-                  onPress={() => remove(ad)}
+                  disabled={busyId === ad.id || pendingDeleteIds.has(ad.id)}
+                  onPress={() => failedDeleteIds.has(ad.id) ? router.push('/offline-queue') : remove(ad)}
                 />
               </View>
             </SectionCard>
           )}
           ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+          ListFooterComponent={ads.length ? (
+            <View style={{ gap: spacing.sm }}>
+              {moreError ? <ErrorState title="تعذر تحميل المزيد" description={moreError} onAction={() => void loadMore()} /> : null}
+              {page < totalPages ? <PrimaryButton label={loadingMore ? 'جارٍ التحميل…' : 'تحميل المزيد'} variant="secondary" busy={loadingMore} onPress={() => void loadMore()} /> : null}
+            </View>
+          ) : null}
         />
       )}
     </SafeAreaView>

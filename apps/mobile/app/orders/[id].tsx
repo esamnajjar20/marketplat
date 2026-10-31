@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Alert, Image, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   fetchMarketplaceOrder,
@@ -15,6 +15,7 @@ import {
   SectionCard,
 } from '@/components/MobileUI';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { AppImage } from '@/components/AppImage';
 
 const labels: Record<string, string> = {
   PENDING: 'بانتظار تأكيد المتجر',
@@ -36,36 +37,42 @@ const nextStatus: Partial<Record<MarketplaceOrderStatus, MarketplaceOrderStatus>
 };
 
 export default function OrderDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { user, accessToken, csrfToken, isRestoring } = useAuth();
+  const tokenRef = useRef(accessToken);
+  tokenRef.current = accessToken;
   const [order, setOrder] = useState<MarketplaceOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
-    if (!id || !accessToken) return;
+    const token = tokenRef.current;
+    if (!id) { setLoading(false); setOrder(null); setError('معرّف الطلب غير صالح.'); return; }
+    if (!token) { setLoading(false); setOrder(null); setError('سجّل الدخول لعرض تفاصيل الطلب.'); return; }
     setLoading(true);
     setError('');
     try {
-      setOrder(await fetchMarketplaceOrder(id, accessToken, user?.id));
+      setOrder(await fetchMarketplaceOrder(id, token, user?.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر تحميل الطلب.');
     } finally {
       setLoading(false);
     }
-  }, [id, accessToken, user?.id]);
+  }, [id, user?.id]);
 
   useEffect(() => {
     if (!isRestoring) void load();
   }, [load, isRestoring]);
 
-  const changeStatus = async (status: MarketplaceOrderStatus) => {
-    if (!order || !accessToken) return;
+  const changeStatus = async (status: MarketplaceOrderStatus, sellerNote?: string) => {
+    const token = tokenRef.current;
+    if (!order || !token) return;
     setBusy(true);
     setError('');
     try {
-      setOrder(await updateMarketplaceOrderStatus(order.id, status, accessToken, csrfToken));
+      setOrder(await updateMarketplaceOrderStatus(order.id, status, token, csrfToken, sellerNote));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر تحديث حالة الطلب.');
     } finally {
@@ -73,10 +80,10 @@ export default function OrderDetailScreen() {
     }
   };
 
-  const confirmChange = (status: MarketplaceOrderStatus, title: string, message: string) =>
+  const confirmChange = (status: MarketplaceOrderStatus, title: string, message: string, sellerNote?: string) =>
     Alert.alert(title, message, [
       { text: 'رجوع', style: 'cancel' },
-      { text: 'تأكيد', onPress: () => void changeStatus(status) },
+      { text: 'تأكيد', style: status === 'CANCELLED' ? 'destructive' : 'default', onPress: () => void changeStatus(status, sellerNote) },
     ]);
 
   const isSeller = !!user && order?.sellerId === user.id;
@@ -93,23 +100,20 @@ export default function OrderDetailScreen() {
         void load();
       }}
       footer={
-        order && isSeller && advance ? (
-          <PrimaryButton
-            label={`تحديث الحالة → ${labels[advance] || advance}`}
-            busy={busy}
-            onPress={() =>
-              confirmChange(advance, 'تحديث حالة الطلب', `تحويل الطلب إلى «${labels[advance]}»؟`)
-            }
-          />
-        ) : order && isBuyer && order.status === 'PENDING' ? (
-          <PrimaryButton
-            label="إلغاء الطلب"
-            variant="danger"
-            busy={busy}
-            onPress={() =>
-              confirmChange('CANCELLED', 'إلغاء الطلب', 'هل تريد إلغاء هذا الطلب؟')
-            }
-          />
+        order ? (
+          <View style={{ gap: spacing.sm }}>
+            {isSeller && advance ? (
+              <PrimaryButton label={`تحديث الحالة → ${labels[advance] || advance}`} busy={busy} onPress={() => confirmChange(advance, 'تحديث حالة الطلب', `تحويل الطلب إلى «${labels[advance]}»؟`)} />
+            ) : null}
+            {isSeller && (order.status === 'PENDING' || order.status === 'CONFIRMED') ? (
+              <PrimaryButton label="رفض / إلغاء الطلب" variant="danger" busy={busy} onPress={() => confirmChange('CANCELLED', 'إلغاء الطلب من المتجر', 'سيُلغى الطلب وتُعاد الكمية المحجوزة إلى المخزون. هل تريد المتابعة؟', 'اعتذار من المتجر: تعذر توفير المنتج.')} />
+            ) : null}
+            {isBuyer && order.status === 'PENDING' ? (
+              <PrimaryButton label="إلغاء الطلب" variant="danger" busy={busy} onPress={() => confirmChange('CANCELLED', 'إلغاء الطلب', 'هل تريد إلغاء هذا الطلب؟')} />
+            ) : null}
+          </View>
+        ) : !isRestoring && !user ? (
+          <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
         ) : null
       }
     >
@@ -128,7 +132,7 @@ export default function OrderDetailScreen() {
             {order.items.map((item) => (
               <View key={item.id} style={styles.itemLine}>
                 {item.productImage ? (
-                  <Image source={{ uri: item.productImage }} style={styles.image} />
+                  <AppImage uri={item.productImage} style={styles.image} resizeMode="cover" />
                 ) : (
                   <View style={styles.imagePlaceholder}>
                     <Text>◇</Text>

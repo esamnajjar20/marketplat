@@ -7,7 +7,8 @@ type ApiEnvelope<T> = { success: boolean; message?: string; data?: T };
 
 // Keep the request deadline comfortably below the SQLite lease duration used by
 // outbox-sync.ts. A timed-out request remains retryable with the same operation ID.
-export const OUTBOX_REQUEST_TIMEOUT_MS = 12_000;
+export const OUTBOX_REQUEST_TIMEOUT_MS = 30_000;
+export const OUTBOX_UPLOAD_TIMEOUT_MS = 120_000;
 const MAX_OUTBOX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 
 /** Verify persisted image files immediately before upload; picker cache URIs may have expired. */
@@ -54,7 +55,7 @@ export async function sendOutboxCreateAd<T>(
   const response = await apiRequest<ApiEnvelope<T>>(request.path, {
     method: request.method,
     body: form,
-    timeoutMs: OUTBOX_REQUEST_TIMEOUT_MS,
+    timeoutMs: OUTBOX_UPLOAD_TIMEOUT_MS,
     token,
     headers: {
       ...request.headers,
@@ -148,7 +149,7 @@ export async function sendOutboxUpdateAd<T = unknown>(
     const form = new FormData();
     for (const image of typedImages) form.append('images', image as unknown as Blob);
     const uploaded = await apiRequest<ApiEnvelope<T>>(`/api/v1/ads/${encodeURIComponent(item.resourceId)}/images`, {
-      method: 'POST', body: form, timeoutMs: OUTBOX_REQUEST_TIMEOUT_MS, token, headers,
+      method: 'POST', body: form, timeoutMs: OUTBOX_UPLOAD_TIMEOUT_MS, token, headers,
     });
     if (!uploaded || uploaded.success !== true || uploaded.data === undefined) {
       throw new Error(uploaded?.message || 'تعذر تأكيد رفع صور التعديل؛ ستُعاد المحاولة بالمعرّف نفسه.');

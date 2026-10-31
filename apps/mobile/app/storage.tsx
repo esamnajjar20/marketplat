@@ -57,7 +57,9 @@ export default function StorageScreen() {
       void clearPublicCache().then(async () => {
         const refreshed = await refresh();
         if (!refreshed) throw new Error('تم تنفيذ طلب المسح لكن تعذر التحقق من النتيجة. أعد تحديث معلومات التخزين.');
-        if (cache.entries !== 0) throw new Error('لم تصبح الذاكرة المؤقتة فارغة بعد المسح. أعد المحاولة.');
+        const verifiedStats = await getPublicCacheStats();
+        setCache(verifiedStats);
+        if (verifiedStats.entries !== 0) throw new Error('لم تصبح الذاكرة المؤقتة فارغة بعد المسح. أعد المحاولة.');
         setMessage('تم مسح الذاكرة المؤقتة بنجاح.');
       }).catch((e) => setError(e instanceof Error ? e.message : 'تعذر مسح الذاكرة المؤقتة.')).finally(() => setClearing(false));
     } },

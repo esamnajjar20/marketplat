@@ -46,6 +46,16 @@ export const blockedUsersService = {
     return { action: 'blocked' };
   },
 
+  unblock: async (blockerId: string, blockedId: string): Promise<{ action: 'unblocked' }> => {
+    if (blockerId === blockedId) throw new ForbiddenError('You cannot unblock yourself.', 'CANNOT_UNBLOCK_SELF');
+    try {
+      await blockedUsersRepository.delete(blockerId, blockedId);
+    } catch (err) {
+      if (!isPrismaError(err, 'P2025')) throw err;
+    }
+    return { action: 'unblocked' };
+  },
+
   getMyBlockedUsers: async (
     blockerId: string,
     query: { page?: number; limit?: number }

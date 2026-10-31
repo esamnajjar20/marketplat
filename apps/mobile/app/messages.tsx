@@ -20,7 +20,7 @@ import ConversationListItem from '@/features/messaging/ConversationListItem';
 
 type Filter = 'all' | 'unread' | 'archived';
 export default function MessagesScreen() {
-  const { user, accessToken, csrfToken } = useAuth();
+  const { user, accessToken, getAccessToken, csrfToken } = useAuth();
   const { counts } = useUnreadCounts();
   const [items, setItems] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +28,7 @@ export default function MessagesScreen() {
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [loadingAll, setLoadingAll] = useState(false);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
@@ -39,24 +40,58 @@ export default function MessagesScreen() {
   const accessTokenRef = useRef(accessToken);
   const load = useCallback(async (refresh = false) => {
     const currentRequestId = ++requestId.current;
-    if (!accessToken) { setItems([]); setHasMore(false); pageRef.current = 1; moreRequestId.current += 1; moreRequest.current = false; setLoadingMore(false); setLoading(false); setRefreshing(false); setError('سجّل الدخول لعرض محادثاتك.'); return; }
+    const token = getAccessToken();
+    if (!token) { setItems([]); setHasMore(false); pageRef.current = 1; moreRequestId.current += 1; moreRequest.current = false; setLoadingMore(false); setLoading(false); setRefreshing(false); setError('سجّل الدخول لعرض محادثاتك.'); return; }
     if (refresh) setRefreshing(true); else setLoading(true);
     setError(null); setHasMore(false); setLoadMoreError(null); pageRef.current = 1; moreRequestId.current += 1; moreRequest.current = false; setLoadingMore(false);
     try {
-      const result = await fetchConversationsPage(accessToken, 1, filter === 'archived' ? { archivedOnly: true } : {});
+      const result = await fetchConversationsPage(token, 1, filter === 'archived' ? { archivedOnly: true } : {});
       if (currentRequestId === requestId.current) { setItems(result.items); setHasMore(result.hasMore); pageRef.current = result.page; }
     } catch (e) { if (currentRequestId === requestId.current) setError(e instanceof Error ? e.message : 'تعذر تحميل المحادثات.'); }
     finally { if (currentRequestId === requestId.current) { setLoading(false); setRefreshing(false); } }
-  }, [accessToken, filter]);
+  }, [getAccessToken, filter]);
   useFocusEffect(useCallback(() => { void load(); return () => { requestId.current += 1; moreRequestId.current += 1; moreRequest.current = false; }; }, [load]));
   const loadMore = useCallback(async () => {
-    if (!accessToken || !hasMore || loadingMore || moreRequest.current) return;
+    const token = getAccessToken();
+    if (!token || !hasMore || loadingMore || moreRequest.current) return;
     const parentRequestId = requestId.current; const requestedPage = pageRef.current + 1; const currentMoreRequestId = ++moreRequestId.current; moreRequest.current = true; setLoadingMore(true); setLoadMoreError(null);
-    try { const result = await fetchConversationsPage(accessToken, requestedPage, filter === 'archived' ? { archivedOnly: true } : {}); if (parentRequestId !== requestId.current) return; setItems(current => { const byId = new Map(current.map(item => [item.id, item])); for (const item of result.items) { const old = byId.get(item.id); byId.set(item.id, old ? { ...old, ...item } : item); } return [...byId.values()]; }); pageRef.current = result.page; setHasMore(result.hasMore); }
+    try { const result = await fetchConversationsPage(token, requestedPage, filter === 'archived' ? { archivedOnly: true } : {}); if (parentRequestId !== requestId.current) return; setItems(current => { const byId = new Map(current.map(item => [item.id, item])); for (const item of result.items) { const old = byId.get(item.id); byId.set(item.id, old ? { ...old, ...item } : item); } return [...byId.values()]; }); pageRef.current = result.page; setHasMore(result.hasMore); }
     catch (e) { if (parentRequestId === requestId.current) setLoadMoreError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من المحادثات.'); }
     finally { if (currentMoreRequestId === moreRequestId.current) { moreRequest.current = false; if (parentRequestId === requestId.current) setLoadingMore(false); } }
-  }, [accessToken, hasMore, loadingMore, filter]);
+  }, [getAccessToken, hasMore, loadingMore, filter]);
   useEffect(() => { accessTokenRef.current = accessToken; }, [accessToken]);
+  const loadAllForLocalSearch = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token || !hasMore || loadingAll) return;
+    const parentRequestId = requestId.current;
+    setLoadingAll(true);
+    setLoadMoreError(null);
+    try {
+      let nextPage = pageRef.current + 1;
+      let morePages = true;
+      // Explicit user action only: local search/unread filtering can then cover
+      // every server page rather than silently pretending page one is global.
+      while (morePages && nextPage <= 100) {
+        const result = await fetchConversationsPage(token, nextPage, filter === 'archived' ? { archivedOnly: true } : {});
+        if (parentRequestId !== requestId.current) return;
+        setItems(current => {
+          const byId = new Map(current.map(row => [row.id, row]));
+          for (const row of result.items) byId.set(row.id, { ...byId.get(row.id), ...row });
+          return [...byId.values()];
+        });
+        pageRef.current = result.page;
+        morePages = result.hasMore;
+        setHasMore(result.hasMore);
+        nextPage = result.page + 1;
+      }
+      if (morePages) setLoadMoreError('وصلنا حد الصفحات الآمن؛ استخدم البحث العام أو حدّد النتائج بتصفية أضيق.');
+    } catch (e) {
+      if (parentRequestId === requestId.current) setLoadMoreError(e instanceof Error ? e.message : 'تعذر تحميل بقية المحادثات.');
+    } finally {
+      if (parentRequestId === requestId.current) setLoadingAll(false);
+    }
+  }, [getAccessToken, filter, hasMore, loadingAll]);
+
   const visibleItems = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
     return items.filter(item => {
@@ -69,25 +104,25 @@ export default function MessagesScreen() {
     }).sort((a,b) => Number(Boolean(b.mySettings?.pinnedAt)) - Number(Boolean(a.mySettings?.pinnedAt)) || new Date(b.updatedAt || b.lastMessage?.createdAt || 0).getTime() - new Date(a.updatedAt || a.lastMessage?.createdAt || 0).getTime());
   }, [items, filter, search, user?.id]);
   const changeFlag = useCallback(async (item: ConversationItem, flags: { pinned?: boolean; archived?: boolean; mutedUntil?: string | null }) => {
-    if (!accessToken || busyFlagId) return;
-    const tokenSnapshot = accessToken;
+    const tokenSnapshot = getAccessToken();
+    if (!tokenSnapshot || busyFlagId) return;
     setBusyFlagId(item.id);
     try {
       await setConversationFlags(item.id, flags, tokenSnapshot, csrfToken);
       // Abort state update if the session changed while the request was in-flight.
-      // Uses a ref because accessToken from the closure is identical to tokenSnapshot.
+      // The ref reflects the latest session; don't apply stale request results after a session change.
       if (accessTokenRef.current !== tokenSnapshot) return;
       setItems(current => current.map(row => row.id !== item.id ? row : { ...row, mySettings: { ...(row.mySettings || {}), ...(flags.pinned !== undefined ? { pinnedAt: flags.pinned ? new Date().toISOString() : null } : {}), ...(flags.archived !== undefined ? { archivedAt: flags.archived ? new Date().toISOString() : null } : {}), ...(flags.mutedUntil !== undefined ? { mutedUntil: flags.mutedUntil } : {}) } }));
     } catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحديث إعدادات المحادثة.'); }
     finally { setBusyFlagId(null); }
-  }, [accessToken, csrfToken, busyFlagId]);
+  }, [getAccessToken, csrfToken, busyFlagId]);
 
   const openConversation = useCallback((conversationId: string) => {
     router.push({ pathname: '/messages/[id]', params: { id: conversationId } });
   }, []);
   const renderConversation = useCallback(({ item }: { item: ConversationItem }) => (
-    <ConversationListItem item={item} currentUserId={user?.id} onPress={openConversation} />
-  ), [openConversation, user?.id]);
+    <ConversationListItem item={item} currentUserId={user?.id} onPress={openConversation} busy={busyFlagId === item.id} onTogglePin={(row) => void changeFlag(row, { pinned: !row.mySettings?.pinnedAt })} onToggleArchive={(row) => void changeFlag(row, { archived: !row.mySettings?.archivedAt })} />
+  ), [openConversation, user?.id, busyFlagId, changeFlag]);
   const keyExtractor = useCallback((item: ConversationItem) => item.id, []);
   const onRefresh = useCallback(() => { void load(true); }, [load]);
   const listHeader = useMemo(() => (
@@ -95,7 +130,7 @@ export default function MessagesScreen() {
       <SearchBar
         value={search}
         onChangeText={setSearch}
-        onSubmit={() => {}}
+        onSubmit={() => { void loadAllForLocalSearch(); }}
         placeholder="ابحث عن شخص أو رسالة…"
         accessibilityLabel="البحث في المحادثات"
       />
@@ -115,7 +150,7 @@ export default function MessagesScreen() {
       </View>
       {error ? <Text style={styles.moreError}>{error}</Text> : null}
     </View>
-  ), [error, filter, search]);
+  ), [error, filter, search, loadAllForLocalSearch]);
   const listFooter = useMemo(() => (
     <View style={styles.footer}>
       {hasMore ? (
@@ -127,9 +162,10 @@ export default function MessagesScreen() {
         />
       ) : null}
       {loadingMore ? <Text style={styles.footerStatus} accessibilityLiveRegion="polite">جارٍ تحميل المحادثات…</Text> : null}
+      {(search.trim() || filter === 'unread') && hasMore ? <PrimaryButton label={loadingAll ? 'جارٍ تحميل بقية المحادثات…' : 'تحميل بقية المحادثات لتطبيق البحث والفلتر على الجميع'} variant="secondary" busy={loadingAll} onPress={() => void loadAllForLocalSearch()} /> : null}
       {loadMoreError ? <Text style={styles.moreError}>{loadMoreError}</Text> : null}
     </View>
-  ), [hasMore, loadMore, loadMoreError, loadingMore]);
+  ), [hasMore, loadMore, loadMoreError, loadingMore, search, filter, loadingAll, loadAllForLocalSearch]);
   const listEmpty = useMemo(() => (
     <EmptyState title="لا توجد محادثات" description="ابدأ مراسلة بائع من صفحة الإعلان أو المنتج." />
   ), []);
@@ -158,7 +194,7 @@ export default function MessagesScreen() {
           actionLabel="تسجيل الدخول"
           onAction={() => router.push('/login')}
         />
-      ) : loading ? (
+      ) : loading && items.length === 0 ? (
         <SkeletonList count={5} />
       ) : error && !items.length ? (
         <ErrorState title="تعذر تحميل المحادثات" description={error} onAction={() => void load()} />

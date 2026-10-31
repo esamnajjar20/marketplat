@@ -37,8 +37,13 @@ function replaceOptimisticMessage(current: ScreenMessage[], tempId: string, sent
 
 export default function ConversationScreen() {
   const params = useLocalSearchParams<{ id: string }>(); const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { user, accessToken, csrfToken } = useAuth(); const audioRecorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, directory: 'document' }); const sessionAbort = useRef(new AbortController()); const [conversation, setConversation] = useState<ConversationItem | null>(null); const [messages, setMessages] = useState<ScreenMessage[]>([]); const [draft, setDraft] = useState(''); const [searchOpen, setSearchOpen] = useState(false); const [messageSearch, setMessageSearch] = useState(''); const [uploadingImage, setUploadingImage] = useState(false); const [isRecordingAudio, setIsRecordingAudio] = useState(false); const [pendingMediaCount, setPendingMediaCount] = useState(0); const [partyTyping, setPartyTyping] = useState(false); const lastTypingSignalAt = useRef(0); const typingActive = useRef(false); const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null); const [loading, setLoading] = useState(true); const [sending, setSending] = useState(false); const [loadingOlder, setLoadingOlder] = useState(false); const [nextCursor, setNextCursor] = useState<string | null>(null); const olderRequest = useRef(false); const hasLoadedOlder = useRef(false); const activeConversationId = useRef(id); const hasRenderableMessages = useRef(false); const previousConnectivity = useRef<boolean | null>(null); const [error, setError] = useState<string | null>(null); const listRef = useRef<FlatList<ScreenMessage>>(null); const loadSequence = useRef(0); const initialScrollDone = useRef(false); const userScrolledAway = useRef(false);
+  const { user, accessToken, csrfToken } = useAuth();
+  const accessTokenRef = useRef(accessToken);
+  accessTokenRef.current = accessToken;
+  const lastEventIdRef = useRef<string | null>(null);
+  useEffect(() => { lastEventIdRef.current = null; }, [id]); const audioRecorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, directory: 'document' }); const sessionAbort = useRef(new AbortController()); const [conversation, setConversation] = useState<ConversationItem | null>(null); const [messages, setMessages] = useState<ScreenMessage[]>([]); const [draft, setDraft] = useState(''); const [searchOpen, setSearchOpen] = useState(false); const [messageSearch, setMessageSearch] = useState(''); const [uploadingImage, setUploadingImage] = useState(false); const [isRecordingAudio, setIsRecordingAudio] = useState(false); const [pendingMediaCount, setPendingMediaCount] = useState(0); const [partyTyping, setPartyTyping] = useState(false); const lastTypingSignalAt = useRef(0); const typingActive = useRef(false); const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null); const [loading, setLoading] = useState(true); const [sending, setSending] = useState(false); const [loadingOlder, setLoadingOlder] = useState(false); const [nextCursor, setNextCursor] = useState<string | null>(null); const olderRequest = useRef(false); const hasLoadedOlder = useRef(false); const activeConversationId = useRef(id); const hasRenderableMessages = useRef(false); const previousConnectivity = useRef<boolean | null>(null); const [error, setError] = useState<string | null>(null); const listRef = useRef<FlatList<ScreenMessage>>(null); const loadSequence = useRef(0); const initialScrollDone = useRef(false); const userScrolledAway = useRef(false);
   const load = useCallback(async (showLoader = true) => {
+    const currentToken = accessTokenRef.current;
     if (activeConversationId.current !== id) {
       activeConversationId.current = id;
       hasLoadedOlder.current = false;
@@ -50,7 +55,7 @@ export default function ConversationScreen() {
       setNextCursor(null);
     }
     const sequence = ++loadSequence.current;
-    if (!accessToken || !id) { setLoading(false); setError('المحادثة أو جلسة الدخول غير متاحة.'); return; }
+    if (!currentToken || !id) { setLoading(false); setError('المحادثة أو جلسة الدخول غير متاحة.'); return; }
     if (showLoader && !hasRenderableMessages.current) setLoading(true);
     setError(null);
     let hasLocalSnapshot = false;
@@ -74,7 +79,7 @@ export default function ConversationScreen() {
         setLoading(false);
       }
 
-      const [detailR, pageR] = await Promise.allSettled([fetchConversation(id, accessToken), fetchMessagesPage(id, accessToken)]);
+      const [detailR, pageR] = await Promise.allSettled([fetchConversation(id, currentToken), fetchMessagesPage(id, currentToken)]);
       if (sequence === loadSequence.current) {
         if (detailR.status === 'fulfilled') setConversation(detailR.value);
         if (pageR.status === 'fulfilled') {
@@ -96,11 +101,12 @@ export default function ConversationScreen() {
     } finally {
       if (sequence === loadSequence.current) setLoading(false);
     }
-  }, [accessToken, id, user?.id]);
+  }, [id, user?.id]);
   const refreshLatestMessages = useCallback(async () => {
-    if (!accessToken || !id) return;
+    const currentToken = accessTokenRef.current;
+    if (!currentToken || !id) return;
     try {
-      const page = await fetchMessagesPage(id, accessToken);
+      const page = await fetchMessagesPage(id, currentToken);
       if (activeConversationId.current !== id) return;
       setMessages((current) => mergeFetchedMessages(page.items, current));
       if (user?.id) void saveCachedChatMessages(user.id, id, page.items);
@@ -108,7 +114,7 @@ export default function ConversationScreen() {
     } catch {
       // Live delivery is best-effort; cached content remains usable while offline.
     }
-  }, [accessToken, id, user?.id]);
+  }, [id, user?.id]);
   const handleLiveEvent = useCallback((event: ChatLiveEvent) => {
     if (event.type === 'resync') { void refreshLatestMessages(); return; }
     if (event.type === 'typing' && event.conversationId === id && event.userId && event.userId !== user?.id) { setPartyTyping(event.isTyping === true); return; }
@@ -132,11 +138,10 @@ export default function ConversationScreen() {
   useEffect(() => subscribeChatOutboxSent((operationId, sent) => { setMessages((current) => replaceOptimisticMessage(current, `pending-${operationId}`, sent)); if (user?.id && sent.conversationId) void saveCachedChatMessages(user.id, sent.conversationId, [sent]); }), [user?.id]);
   useFocusEffect(useCallback(() => {
     void load();
-    if (!accessToken || !id || !user?.id) return () => { loadSequence.current += 1; };
+    if (!accessTokenRef.current || !id || !user?.id) return () => { loadSequence.current += 1; };
     let focused = true;
     let streamStop: (() => void) | null = null;
     let fallbackPoll: ReturnType<typeof setInterval> | null = null;
-    let lastEventId: string | null = null;
     const stopFallback = () => { if (fallbackPoll) clearInterval(fallbackPoll); fallbackPoll = null; };
     const stopStream = () => { streamStop?.(); streamStop = null; };
     const startFallback = () => {
@@ -149,9 +154,10 @@ export default function ConversationScreen() {
       stopStream();
       if (!focused || AppState.currentState !== 'active') return;
       streamStop = subscribeChatLiveStream({
-        token: accessToken,
-        getLastEventId: () => lastEventId,
-        onEvent: (event, eventId) => { if (eventId) lastEventId = eventId; handleLiveEvent(event); },
+        token: '',
+        getToken: () => accessTokenRef.current ?? '',
+        getLastEventId: () => lastEventIdRef.current,
+        onEvent: (event, eventId) => { if (eventId) lastEventIdRef.current = eventId; handleLiveEvent(event); },
         onUnsupported: startFallback,
       });
     };
@@ -173,7 +179,7 @@ export default function ConversationScreen() {
       stopFallback();
       appStateSubscription.remove();
     };
-  }, [accessToken, handleLiveEvent, id, load, refreshLatestMessages, user?.id]));
+  }, [handleLiveEvent, id, load, refreshLatestMessages, user?.id]));
   useEffect(() => { hasRenderableMessages.current = messages.length > 0; }, [messages.length]);
   useEffect(() => { const unsubscribe = NetInfo.addEventListener((state) => { const connected = state.isConnected === true && state.isInternetReachable !== false; if (previousConnectivity.current === false && connected) void load(false); previousConnectivity.current = connected; }); return unsubscribe; }, [load]);
   const refreshMediaOutbox = useCallback(async () => { if (!user?.id) { setPendingMediaCount(0); return; } const items = await listChatMediaOutbox(user.id); setPendingMediaCount(items.length); }, [user?.id]);
@@ -369,7 +375,7 @@ export default function ConversationScreen() {
     Alert.alert('خيارات الرسالة', 'اضغط مطولًا على أي رسالة لإدارة تثبيتها أو حفظها.', [
       { text: message.isPinned ? 'إلغاء التثبيت' : 'تثبيت', onPress: () => toggleMark('pin') },
       { text: message.isStarredByMe ? 'إزالة من المفضلة' : 'إضافة للمفضلة', onPress: () => toggleMark('star') },
-      ...(message.senderId === user?.id ? [{ text: 'المزيد', onPress: deleteOwnMessage }] : [{ text: 'إغلاق', style: 'cancel' as const }]),
+      ...(message.senderId === user?.id ? [{ text: 'حذف الرسالة', style: 'destructive', onPress: deleteOwnMessage }] : [{ text: 'إغلاق', style: 'cancel' as const }]),
     ]);
   }, [accessToken, csrfToken, id, user?.id]);
   const normalizedSearch = messageSearch.trim().toLocaleLowerCase();

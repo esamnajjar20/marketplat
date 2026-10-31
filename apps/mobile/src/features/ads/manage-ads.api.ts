@@ -45,23 +45,26 @@ function requireEnvelopeData<T>(response: Envelope<T>, fallback: string): T {
   return response.data;
 }
 
+export type ManagedAdPage = { items: ManagedAd[]; page: number; totalPages: number; total: number };
+export async function fetchMyAdsPage(token: string, page = 1, limit = 30): Promise<ManagedAdPage> {
+  const response = await apiRequest<Envelope<ManagedAd[]>>(`/api/v1/ads/me?limit=${limit}&page=${page}`, { token });
+  const data = requireEnvelopeData(response, 'استجابة إعلاناتك من الخادم غير متوقعة.');
+  if (!Array.isArray(data)) throw new Error('قائمة إعلاناتك غير صالحة.');
+  const pagination = response.meta?.pagination;
+  return { items: data.filter((ad) => ad && typeof ad.id === 'string'), page: pagination?.page ?? page, totalPages: pagination?.totalPages ?? (data.length >= limit ? page + 1 : page), total: pagination?.total ?? data.length };
+}
 export async function fetchMyAds(token: string): Promise<ManagedAd[]> {
   const collected: ManagedAd[] = [];
   const seen = new Set<string>();
   for (let page = 1; page <= 100; page += 1) {
-    const response = await apiRequest<Envelope<ManagedAd[]>>(`/api/v1/ads/me?limit=100&page=${page}`, { token });
-    const data = requireEnvelopeData(response, 'استجابة إعلاناتك من الخادم غير متوقعة.');
-    if (!Array.isArray(data)) throw new Error('قائمة إعلاناتك غير صالحة.');
-    for (const ad of data) {
-      if (ad && typeof ad.id === 'string' && !seen.has(ad.id)) { seen.add(ad.id); collected.push(ad); }
-    }
-    const tp = response.meta?.pagination?.totalPages;
-    if (typeof tp === 'number') { if (page >= tp) break; } else if (data.length < 100) { break; }
+    const result = await fetchMyAdsPage(token, page, 100);
+    for (const ad of result.items) if (!seen.has(ad.id)) { seen.add(ad.id); collected.push(ad); }
+    if (page >= result.totalPages || result.items.length < 100) break;
   }
   return collected;
 }
 
-export async function createAd(draft: AdDraft, token: string, csrfToken?: string | null): Promise<ManagedAd> {
+export async function createAd(draft: AdDraft, token: string, csrfToken?: string | null, offlineOperationId?: string): Promise<ManagedAd> {
   const body = new FormData();
   for (const image of draft.images) {
     body.append('images', { uri: image.uri, name: image.fileName, type: image.mimeType } as unknown as Blob);
@@ -73,7 +76,10 @@ export async function createAd(draft: AdDraft, token: string, csrfToken?: string
   if (draft.categoryId.trim()) body.append('categoryId', draft.categoryId.trim());
   body.append('isNegotiable', String(draft.isNegotiable));
   const response = await apiRequest<Envelope<ManagedAd>>('/api/v1/ads', {
-    method: 'POST', body, token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
+    method: 'POST', body, token, headers: {
+      ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
+      ...(offlineOperationId ? { 'X-Offline-Op-Id': offlineOperationId } : {}),
+    },
     responseSchema: criticalAdEnvelopeResponseSchema as unknown as import('zod').ZodType<Envelope<ManagedAd>>,
   });
   const created = requireEnvelopeData(response, 'تعذر إنشاء الإعلان.');

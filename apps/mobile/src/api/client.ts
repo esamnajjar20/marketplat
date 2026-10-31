@@ -73,6 +73,7 @@ type TokenUpdater = (
 
 let refreshHandler: RefreshHandler | null = null;
 let tokenUpdater: TokenUpdater | null = null;
+let authFailureHandler: ((error: ApiError) => void) | null = null;
 
 /** Register a handler that resolves a fresh access token when the current one expires (401).
  *  Passing null clears it (e.g. on logout). */
@@ -85,7 +86,13 @@ export function setTokenUpdater(updater: TokenUpdater | null): void {
   tokenUpdater = updater;
 }
 
+/** Called once by the auth provider when the refresh cookie is definitively rejected. */
+export function setAuthFailureHandler(handler: ((error: ApiError) => void) | null): void {
+  authFailureHandler = handler;
+}
+
 const DEFAULT_TIMEOUT_MS = 12_000;
+export const UPLOAD_TIMEOUT_MS = 120_000;
 
 /** Only explicitly public, read-only API families are eligible for anonymous offline caching. */
 function publicGetCacheKey(path: string, method: string, hasToken: boolean): string | null {
@@ -156,7 +163,9 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
     throw new ApiError('يجب أن يبدأ مسار API بعلامة /.');
   }
 
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, token, headers, signal: externalSignal, cacheOwnerId, responseSchema, _retried, ...init } = options;
+  const { timeoutMs: requestedTimeoutMs, token, headers, signal: externalSignal, cacheOwnerId, responseSchema, _retried, ...init } = options;
+  const isMultipartUpload = typeof FormData !== 'undefined' && init.body instanceof FormData;
+  const timeoutMs = requestedTimeoutMs ?? (isMultipartUpload ? UPLOAD_TIMEOUT_MS : DEFAULT_TIMEOUT_MS);
   const cacheKey = publicGetCacheKey(path, init.method ?? 'GET', Boolean(token?.trim()))
     ?? privateGetCacheKey(path, init.method ?? 'GET', token, cacheOwnerId);
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -214,8 +223,13 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
             token: refreshed.accessToken,
             _retried: true,
           });
-        } catch {
-          // Refresh failed — fall through to original 401.
+        } catch (refreshError) {
+          // A rejected/expired refresh credential is a terminal session failure.
+          // Transport errors (offline/timeout/5xx) must not erase a usable offline session.
+          if (refreshError instanceof ApiError && (refreshError.status === 401 || refreshError.status === 403)) {
+            authFailureHandler?.(refreshError);
+          }
+          // Fall through to the original request's 401 either way.
         }
       }
       const body = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {};

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
   createSavedSearch,
@@ -10,18 +10,22 @@ import {
 } from '@/features/account/saved-searches.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { colors, spacing } from '@/theme/tokens';
+import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { marketListPerf } from '@/lib/listPerformance';
 
 export default function SavedSearchesScreen() {
+  const params = useLocalSearchParams<{ label?: string | string[]; type?: string | string[]; q?: string | string[]; city?: string | string[]; minPrice?: string | string[]; maxPrice?: string | string[]; categoryId?: string | string[] }>();
+  const first = (value?: string | string[]) => Array.isArray(value) ? value[0] : value;
   const { accessToken, csrfToken } = useAuth();
   const [items, setItems] = useState<SavedSearch[]>([]);
   const seq = useRef(0);
-  const [label, setLabel] = useState('');
-  const [type, setType] = useState<'ads' | 'products' | 'services'>('ads');
-  const [q, setQ] = useState('');
-  const [city, setCity] = useState('');
-  const [min, setMin] = useState('');
-  const [max, setMax] = useState('');
+  const [label, setLabel] = useState(() => first(params.label) || '');
+  const [type, setType] = useState<'ads' | 'products' | 'services'>(() => ['ads', 'products', 'services'].includes(first(params.type) || '') ? first(params.type) as 'ads' | 'products' | 'services' : 'ads');
+  const [q, setQ] = useState(() => first(params.q) || '');
+  const [city, setCity] = useState(() => first(params.city) || '');
+  const [min, setMin] = useState(() => first(params.minPrice) || '');
+  const [max, setMax] = useState(() => first(params.maxPrice) || '');
+  const [categoryId, setCategoryId] = useState(() => first(params.categoryId) || '');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -56,6 +60,12 @@ export default function SavedSearchesScreen() {
       setError('أدخل اسمًا للبحث.');
       return;
     }
+    const minValue = min.trim() ? Number(normalizeNumericInput(min)) : undefined;
+    const maxValue = max.trim() ? Number(normalizeNumericInput(max)) : undefined;
+    if ((minValue !== undefined && (!Number.isFinite(minValue) || minValue < 0)) || (maxValue !== undefined && (!Number.isFinite(maxValue) || maxValue < 0)) || (minValue !== undefined && maxValue !== undefined && minValue > maxValue)) {
+      setError('تحقق من نطاق السعر قبل حفظ البحث.');
+      return;
+    }
     setBusy(true);
     setError('');
     setMessage('');
@@ -67,8 +77,9 @@ export default function SavedSearchesScreen() {
             type,
             ...(q.trim() ? { q: q.trim() } : {}),
             ...(city.trim() ? { city: city.trim() } : {}),
-            ...(min.trim() ? { minPrice: Number(min) } : {}),
-            ...(max.trim() ? { maxPrice: Number(max) } : {}),
+            ...(minValue !== undefined ? { minPrice: minValue } : {}),
+            ...(maxValue !== undefined ? { maxPrice: maxValue } : {}),
+            ...(categoryId.trim() ? { categoryId: categoryId.trim() } : {}),
           },
         },
         accessToken,
@@ -79,6 +90,7 @@ export default function SavedSearchesScreen() {
       setCity('');
       setMin('');
       setMax('');
+      setCategoryId('');
       setMessage('تم حفظ البحث.');
       await load();
     } catch (e) {
@@ -168,10 +180,10 @@ export default function SavedSearchesScreen() {
                 <Field label="المدينة" value={city} onChangeText={setCity} placeholder="للإعلانات فقط حاليًا" />
                 <View style={{ flexDirection: 'row-reverse', gap: 8 }}>
                   <View style={{ flex: 1 }}>
-                    <Field label="أقل سعر" value={min} onChangeText={setMin} keyboardType="numeric" />
+                    <Field label="أقل سعر" value={min} onChangeText={(v) => setMin(normalizeNumericInput(v))} keyboardType="numeric" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Field label="أعلى سعر" value={max} onChangeText={setMax} keyboardType="numeric" />
+                    <Field label="أعلى سعر" value={max} onChangeText={(v) => setMax(normalizeNumericInput(v))} keyboardType="numeric" />
                   </View>
                 </View>
                 <PrimaryButton label="حفظ البحث" onPress={() => void save()} busy={busy} />
@@ -191,6 +203,9 @@ export default function SavedSearchesScreen() {
               <Text style={{ textAlign: 'right', color: colors.muted }}>
                 {i.filters.type || 'ads'} · {i.filters.q || i.filters.city || 'فلاتر سعرية'}
               </Text>
+              <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/search', params: { q: i.filters.q || '', categoryId: i.filters.categoryId || '', type: i.filters.type || 'ads', city: i.filters.city || '', minPrice: i.filters.minPrice == null ? '' : String(i.filters.minPrice), maxPrice: i.filters.maxPrice == null ? '' : String(i.filters.maxPrice) } })}>
+                <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '800' }}>فتح نتائج البحث</Text>
+              </Pressable>
               <Pressable onPress={() => remove(i.id)}>
                 <Text style={{ textAlign: 'right', color: colors.danger, fontWeight: '800' }}>حذف البحث</Text>
               </Pressable>

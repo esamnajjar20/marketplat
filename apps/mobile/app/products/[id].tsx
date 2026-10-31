@@ -83,7 +83,7 @@ export default function ProductDetailScreen() {
     return () => { active = false; };
   }, [accessToken, item?.id, item?.store?.id]);
 
-  const canOrder = !!item?.store?.id && item.availability !== 'OUT_OF_STOCK' && item.status !== 'PAUSED' && item.status !== 'DELETED';
+  const canOrder = !!item?.store?.id && item?.store?.sellerProfile?.userId !== user?.id && item.availability !== 'OUT_OF_STOCK' && item.status !== 'PAUSED' && item.status !== 'DELETED';
   const sellerUserId = item?.store?.sellerProfile?.userId;
   const canMessage = !!user && !!sellerUserId && sellerUserId !== user.id;
   const paymentMethods = displayPayments(item?.store?.sellerProfile?.paymentMethods);

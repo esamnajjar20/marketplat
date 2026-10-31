@@ -1,7 +1,7 @@
 import '@/lib/network-config';
 import { useEffect, type ReactNode } from 'react';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
-import { I18nManager, Pressable, Text, View } from 'react-native';
+import { I18nManager, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '@/components/BottomNavigation';
 import { MobileDrawerProvider } from '@/components/MobileDrawer';
@@ -82,10 +82,14 @@ function RootChrome({ children }: { children: ReactNode }) {
 }
 
 export default function RootLayout() {
-  // Allow native RTL for Arabic system locales; don't force a global flip because
-  // this app intentionally uses row-reverse in many manually mirrored components.
+  // The current mobile UI is manually mirrored (row-reverse/right-aligned styles).
+  // Do not also let the native layout engine flip those styles on Arabic devices.
+  // I18nManager changes take effect on the next native app start.
   useEffect(() => {
-    I18nManager.allowRTL(true);
+    if (Platform.OS !== 'web') {
+      I18nManager.allowRTL(false);
+      I18nManager.forceRTL(false);
+    }
   }, []);
 
   // Crash reporting: no-op without DSN / package; see docs/mobile/checklists/SENTRY-SETUP.md

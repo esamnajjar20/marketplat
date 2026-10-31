@@ -4,9 +4,10 @@ import { router } from 'expo-router';
 import { listSavedOfflineResources, removeSavedOfflineResource, type SavedOfflineItem } from '@/storage/saved-offline';
 import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { formatSafeDate } from '@/lib/date-format';
 
 const kindName = (kind: SavedOfflineItem['kind']) => kind === 'ad' ? 'إعلان' : kind === 'product' ? 'منتج' : 'متجر';
-const dateLabel = (value: number) => new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
+const dateLabel = (value: number) => formatSafeDate(value, 'dateTime');
 export default function SavedOfflineScreen() {
   const [items, setItems] = useState<SavedOfflineItem[]>([]);
   const [loading, setLoading] = useState(true);

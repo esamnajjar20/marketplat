@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Text, TextInput, View, type TextInputProps } from 'react-native';
 import { colors } from '@/theme/tokens';
 import { uiStyles as s } from './styles';
+import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 
 export function Field({
   label,
@@ -19,6 +20,10 @@ export function Field({
   autoFocus,
   error,
   accessibilityHint,
+  autoCapitalize,
+  autoCorrect,
+  textContentType,
+  textAlign,
 }: {
   label: string;
   value: string;
@@ -35,6 +40,10 @@ export function Field({
   autoFocus?: boolean;
   error?: string;
   accessibilityHint?: string;
+  autoCapitalize?: TextInputProps['autoCapitalize'];
+  autoCorrect?: TextInputProps['autoCorrect'];
+  textContentType?: TextInputProps['textContentType'];
+  textAlign?: TextInputProps['textAlign'];
 }) {
   const [focused, setFocused] = useState(false);
   return (
@@ -42,7 +51,10 @@ export function Field({
       <Text style={s.label}>{label}</Text>
       <TextInput
         value={value}
-        onChangeText={onChangeText}
+        onChangeText={(nextValue) => {
+          const numericKeyboard = keyboardType === 'numeric' || keyboardType === 'number-pad' || keyboardType === 'decimal-pad' || keyboardType === 'phone-pad';
+          onChangeText(numericKeyboard ? normalizeNumericInput(nextValue) : nextValue);
+        }}
         placeholder={placeholder}
         placeholderTextColor={colors.muted}
         multiline={multiline}
@@ -56,19 +68,11 @@ export function Field({
         selectionColor={colors.brand}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        textAlign="right"
+        textAlign={textAlign ?? (keyboardType === 'email-address' || keyboardType === 'phone-pad' ? 'left' : 'right')}
         textAlignVertical={multiline ? 'top' : 'center'}
-        autoCapitalize={
-          keyboardType === 'email-address' ||
-          secureTextEntry ||
-          keyboardType === 'numeric' ||
-          keyboardType === 'phone-pad' ||
-          keyboardType === 'number-pad' ||
-          keyboardType === 'decimal-pad'
-            ? 'none'
-            : 'sentences'
-        }
-        autoCorrect={keyboardType === 'email-address' || secureTextEntry ? false : undefined}
+        autoCapitalize={autoCapitalize ?? (keyboardType === 'email-address' || secureTextEntry || keyboardType === 'numeric' || keyboardType === 'phone-pad' || keyboardType === 'number-pad' || keyboardType === 'decimal-pad' ? 'none' : 'sentences')}
+        autoCorrect={autoCorrect ?? (keyboardType === 'email-address' || secureTextEntry || keyboardType === 'phone-pad' ? false : undefined)}
+        textContentType={textContentType}
         autoComplete={autoComplete}
         returnKeyType={returnKeyType}
         onSubmitEditing={onSubmitEditing}

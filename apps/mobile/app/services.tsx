@@ -3,12 +3,13 @@ import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { fetchServiceListings, getCachedServiceListings, type ServiceListing } from '@/features/services/services.api';
+import { fetchServiceListingsPage, getCachedServiceListings, type ServiceListing } from '@/features/services/services.api';
 import {
   AppHeader,
   EmptyState,
   ErrorState,
   LoadingState,
+  PrimaryButton,
   SkeletonList,
   SearchBar,
 } from '@/components/MobileUI';
@@ -30,6 +31,10 @@ export default function ServicesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [moreError, setMoreError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const seq = useRef(0);
   const load = useCallback(
@@ -38,6 +43,7 @@ export default function ServicesScreen() {
       if (refresh) setRefreshing(true);
       else setLoading(true);
       setError(null);
+      setMoreError(null);
       const options = { page: 1, limit: 30, search: submitted };
       let hasCache = false;
       try {
@@ -45,14 +51,16 @@ export default function ServicesScreen() {
         if (cached && current === seq.current) {
           hasCache = true;
           setItems(cached);
+          setPage(1);
+          setTotalPages(cached.length >= 30 ? 2 : 1);
           setLoading(false);
         }
       } catch {
         /* cache optional */
       }
       try {
-        const fresh = await fetchServiceListings(options);
-        if (current === seq.current) setItems(fresh);
+        const fresh = await fetchServiceListingsPage(options);
+        if (current === seq.current) { setItems(fresh.items); setPage(fresh.page); setTotalPages(fresh.totalPages); }
       } catch (e) {
         if (current === seq.current && !hasCache) setError(e instanceof Error ? e.message : 'تعذر تحميل الخدمات.');
       } finally {
@@ -65,6 +73,28 @@ export default function ServicesScreen() {
     [submitted],
   );
 
+  const loadMore = async () => {
+    if (loadingMore || loading || page >= totalPages) return;
+    const current = seq.current;
+    setLoadingMore(true);
+    setMoreError(null);
+    try {
+      const result = await fetchServiceListingsPage({ page: page + 1, limit: 30, search: submitted });
+      if (current === seq.current) {
+        setItems((existing) => {
+          const seen = new Set(existing.map((item) => item.id));
+          return [...existing, ...result.items.filter((item) => !seen.has(item.id))];
+        });
+        setPage(result.page);
+        setTotalPages(result.totalPages);
+      }
+    } catch (e) {
+      if (current === seq.current) setMoreError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من الخدمات.');
+    } finally {
+      if (current === seq.current) setLoadingMore(false);
+    }
+  };
+
   useEffect(() => {
     void load();
     return () => { seq.current += 1; };
@@ -74,7 +104,7 @@ export default function ServicesScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <AppHeader title="الخدمات" />
       <FlatList
-        data={loading || error ? [] : items}
+        data={items}
         keyExtractor={(item) => item.id}
         {...marketListPerf}
         contentContainerStyle={styles.content}
@@ -89,6 +119,7 @@ export default function ServicesScreen() {
               value={query}
               onChangeText={setQuery}
               onSubmit={() => setSubmitted(query.trim())}
+              onClear={() => setSubmitted('')}
               placeholder="ابحث عن خدمة…"
               accessibilityLabel="ابحث عن خدمة"
             />
@@ -105,7 +136,7 @@ export default function ServicesScreen() {
           </View>
         }
         ListEmptyComponent={
-          !loading && !error ? (
+          !loading && !error && items.length === 0 ? (
             <EmptyState title="لا توجد خدمات مطابقة" description="جرّب كلمات بحث مختلفة أو اسحب للتحديث." />
           ) : undefined
         }
@@ -124,6 +155,12 @@ export default function ServicesScreen() {
           );
         }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ListFooterComponent={items.length > 0 ? (
+          <View style={{ gap: spacing.sm }}>
+            {moreError ? <ErrorState title="تعذر تحميل المزيد" description={moreError} onAction={() => void loadMore()} /> : null}
+            {!moreError && page < totalPages ? <PrimaryButton label={loadingMore ? 'جارٍ التحميل…' : 'تحميل المزيد'} onPress={() => void loadMore()} busy={loadingMore} variant="secondary" /> : null}
+          </View>
+        ) : null}
       />
     </SafeAreaView>
   );

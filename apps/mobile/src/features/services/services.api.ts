@@ -8,7 +8,7 @@ export type ServiceListing = {
   pricingType?: 'FIXED' | 'STARTING_FROM' | 'NEGOTIABLE' | string; price?: number | string | null;
   durationEstimate?: string | null; serviceLocation?: 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE' | string;
   status?: string; createdAt?: string;
-  provider?: { id?: string; businessName?: string | null; logoUrl?: string | null; availabilityStatus?: string; sellerProfile?: { displayName?: string | null; verified?: boolean; averageRating?: number | null } | null };
+  provider?: { id?: string; businessName?: string | null; logoUrl?: string | null; availabilityStatus?: string; sellerProfile?: { id?: string; userId?: string; displayName?: string | null; verified?: boolean; averageRating?: number | null; totalRatings?: number } | null };
   category?: { id?: string; name?: string; nameAr?: string | null } | null;
 };
 export type ServiceRequest = {
@@ -30,18 +30,29 @@ export async function getCachedServiceListings(options: { page?: number; limit?:
   const cached = await readPublicCache<ServiceListing[]>(serviceListingsCacheKey(options));
   return Array.isArray(cached) ? cached : null;
 }
-export async function fetchServiceListings(options: { page?: number; limit?: number; search?: string } = {}): Promise<ServiceListing[]> {
-  const params = new URLSearchParams({ page: String(options.page ?? 1), limit: String(options.limit ?? 20), sortBy: 'createdAt', sortOrder: 'desc' });
+export type ServiceListingPage = { items: ServiceListing[]; page: number; totalPages: number; total: number };
+export async function fetchServiceListingsPage(options: { page?: number; limit?: number; search?: string } = {}): Promise<ServiceListingPage> {
+  const page = options.page ?? 1;
+  const limit = options.limit ?? 30;
+  const params = new URLSearchParams({ page: String(page), limit: String(limit), sortBy: 'createdAt', sortOrder: 'desc' });
   if (options.search?.trim()) params.set('search', options.search.trim());
-  const cacheKey = serviceListingsCacheKey(options);
+  const cacheKey = serviceListingsCacheKey({ ...options, page, limit });
   let response: Envelope<ServiceListing[]>;
   try { response = await apiRequest<Envelope<ServiceListing[]>>(`/api/v1/service-listings?${params.toString()}`); }
-  catch (error) { const cached = await getCachedServiceListings(options); if (cached) return cached; throw error; }
+  catch (error) {
+    const cached = await getCachedServiceListings({ ...options, page, limit });
+    if (cached) return { items: cached, page, totalPages: cached.length >= limit ? page + 1 : page, total: cached.length };
+    throw error;
+  }
   const items = readData(response, 'تعذر تحميل الخدمات.');
   if (!Array.isArray(items)) throw new Error('استجابة قائمة الخدمات غير صالحة.');
   const valid = items.filter((item) => item && typeof item.id === 'string' && typeof item.title === 'string');
   await writePublicCache(cacheKey, valid);
-  return valid;
+  const pagination = response.meta?.pagination;
+  return { items: valid, page: pagination?.page ?? page, totalPages: pagination?.totalPages ?? (valid.length >= limit ? page + 1 : page), total: pagination?.total ?? valid.length };
+}
+export async function fetchServiceListings(options: { page?: number; limit?: number; search?: string } = {}): Promise<ServiceListing[]> {
+  return (await fetchServiceListingsPage(options)).items;
 }
 export async function getCachedServiceListing(id: string): Promise<ServiceListing | null> {
   const item = await readPublicCache<ServiceListing>(`service-listing:${id}`);

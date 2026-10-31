@@ -7,6 +7,7 @@ import type { SaleRecord } from '@/features/sales/sales.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
+import { formatSafeDate } from '@/lib/date-format';
 
 const money = (n: unknown, c = 'ILS') =>
   `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(n) || 0)} ${c === 'ILS' ? '₪' : c}`;
@@ -146,7 +147,7 @@ export default function DebtsScreen() {
               </Text>
               <Text style={{ textAlign: 'right', color: colors.muted }}>
                 تاريخ الاستحقاق:{' '}
-                {sale.dueDate ? new Date(sale.dueDate).toLocaleDateString('ar') : 'غير محدد'}
+                {sale.dueDate ? formatSafeDate(sale.dueDate, 'date') : 'غير محدد'}
               </Text>
               <Text style={{ textAlign: 'right', fontWeight: '800', color: colors.brand }}>عرض تفاصيل البيع ←</Text>
             </SectionCard>

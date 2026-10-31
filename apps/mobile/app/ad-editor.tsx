@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import NetInfo from '@react-native-community/netinfo';
@@ -15,6 +15,8 @@ import { clearAdDraft, loadAdDraft, saveAdDraft, clearAdEditDraft, loadAdEditDra
 import { enqueueMutation } from '@/storage/outbox-manager';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
 import { adEditorSchema, validate } from '@/lib/validation';
+import { createMobileOperationId } from '@/lib/operation-id';
+import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { AppHeader, Field, Notice, PrimaryButton, LoadingState, SectionCard } from '@/components/MobileUI';
 
 const emptyDraft: AdDraft = { title: '', description: '', price: '', city: '', categoryId: '', isNegotiable: false, images: [] };
@@ -27,6 +29,7 @@ export default function AdEditorScreen() {
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [loading, setLoading] = useState(Boolean(id));
   const [saving, setSaving] = useState(false);
+  const createOperationIdRef = useRef(createMobileOperationId('ad-create'));
   const [error, setError] = useState<string | null>(null);
   const { categories, categoriesError } = useAdEditorCategories();
   const [pickingImages, setPickingImages] = useState(false);
@@ -103,6 +106,32 @@ export default function AdEditorScreen() {
   }, [id, user?.id, draft, loading, draftCompleted]);
 
   const set = (key: keyof AdDraft, value: string | boolean) => setDraft((current) => ({ ...current, [key]: value }));
+  const queueNewAd = async (operationId: string) => {
+    if (!user?.id) throw new Error('يلزم تسجيل الدخول لحفظ إعلان للمزامنة لاحقًا.');
+    await enqueueMutation({
+      ownerId: String(user.id),
+      id: operationId,
+      operation: 'create-ad',
+      resourceId: null,
+      idempotencyKey: operationId,
+      payload: {
+        title: draft.title.trim(),
+        description: draft.description.trim(),
+        city: draft.city.trim(),
+        ...(draft.price.trim() ? { price: draft.price.trim() } : {}),
+        ...(draft.categoryId.trim() ? { categoryId: draft.categoryId.trim() } : {}),
+        isNegotiable: draft.isNegotiable,
+        images: draft.images.map((image) => ({
+          uri: image.uri,
+          name: image.fileName,
+          type: image.mimeType,
+          ...(typeof (image as SelectedAdImage & { sizeBytes?: number }).sizeBytes === 'number'
+            ? { sizeBytes: (image as SelectedAdImage & { sizeBytes?: number }).sizeBytes }
+            : {}),
+        })),
+      },
+    });
+  };
   const submit = async () => {
     if (!accessToken) { Alert.alert('يلزم تسجيل الدخول', 'سجّل الدخول ثم حاول مجددًا.'); return; }
         if (!id && draft.images.length === 0) { setError('أضف صورة واحدة على الأقل للإعلان.'); return; }
@@ -186,30 +215,8 @@ export default function AdEditorScreen() {
         if (!online) {
           if (!user?.id) throw new Error('يلزم تسجيل الدخول لحفظ إعلان للمزامنة لاحقًا.');
           if (draft.images.length === 0) throw new Error('لا يمكن حفظ إعلان للمزامنة دون صورة واحدة على الأقل.');
-          const operationId = `offline-op:${Date.now()}:${Math.random().toString(36).slice(2, 12)}`;
-          await enqueueMutation({
-            ownerId: String(user.id),
-            id: operationId,
-            operation: 'create-ad',
-            resourceId: null,
-            idempotencyKey: operationId,
-            payload: {
-              title: draft.title.trim(),
-              description: draft.description.trim(),
-              city: draft.city.trim(),
-              ...(draft.price.trim() ? { price: draft.price.trim() } : {}),
-              ...(draft.categoryId.trim() ? { categoryId: draft.categoryId.trim() } : {}),
-              isNegotiable: draft.isNegotiable,
-              images: draft.images.map((image) => ({
-                uri: image.uri,
-                name: image.fileName,
-                type: image.mimeType,
-                ...(typeof (image as SelectedAdImage & { sizeBytes?: number }).sizeBytes === 'number'
-                  ? { sizeBytes: (image as SelectedAdImage & { sizeBytes?: number }).sizeBytes }
-                  : {}),
-              })),
-            },
-          });
+          await queueNewAd(createOperationIdRef.current);
+          createOperationIdRef.current = createMobileOperationId('ad-create');
           setDraftCompleted(true);
           if (user?.id != null) { try { await clearAdDraft(String(user.id)); } catch { /* queued payload is now the durable source of truth */ } }
           Alert.alert('حُفظ الإعلان على الجهاز', 'لم يُنشر بعد. سيحاول التطبيق إرساله عند عودة الإنترنت. يمكنك متابعة حالته من «العمليات دون اتصال».', [
@@ -218,7 +225,8 @@ export default function AdEditorScreen() {
           ]);
           return;
         }
-        await createAd(draft, accessToken, csrfToken);
+        await createAd(draft, accessToken, csrfToken, createOperationIdRef.current);
+        createOperationIdRef.current = createMobileOperationId('ad-create');
         setDraftCompleted(true);
         if (user?.id != null) {
           try { await clearAdDraft(String(user.id)); }
@@ -227,6 +235,27 @@ export default function AdEditorScreen() {
       }
       Alert.alert('تم الحفظ', id ? 'تم تحديث الإعلان.' : 'تم إرسال الإعلان إلى الخادم.', [{ text: 'حسنًا', onPress: () => router.replace('/my-ads') }]);
     } catch (e) {
+      if (!id && e instanceof ApiError && e.status === undefined && user?.id && draft.images.length > 0) {
+        try {
+          // The server may have committed before the response was lost. Reuse
+          // the same operation ID in the durable queue so its ledger deduplicates.
+          await queueNewAd(createOperationIdRef.current);
+          createOperationIdRef.current = createMobileOperationId('ad-create');
+          setDraftCompleted(true);
+          await clearAdDraft(String(user.id)).catch(() => undefined);
+          Alert.alert('حُفظ الإعلان للمزامنة', 'انقطع الاتصال قبل تأكيد النتيجة. احتفظ التطبيق بالمفتاح نفسه لمنع تكرار الإعلان وسيحاول التحقق من العملية عند عودة الاتصال.', [
+            { text: 'عرض العمليات', onPress: () => router.replace('/offline-queue') },
+            { text: 'لاحقًا', onPress: () => router.replace('/my-ads') },
+          ]);
+          return;
+        } catch (queueError) {
+          setError(queueError instanceof Error ? `تعذر تأكيد النشر أو حفظه للمزامنة: ${queueError.message}` : 'تعذر تأكيد النشر أو حفظه للمزامنة. لا تعِد إنشاء الإعلان بمعرّف جديد قبل التحقق من قائمة إعلاناتك.');
+          return;
+        }
+      }
+      if (!id && e instanceof ApiError && e.status !== undefined && e.status >= 400 && e.status < 500) {
+        createOperationIdRef.current = createMobileOperationId('ad-create');
+      }
       if (e instanceof PartialAdUpdateError) {
         // Fields were saved on the server, but image upload failed.
         // Sync local state so re-saving does not duplicate existing images.
@@ -261,14 +290,14 @@ export default function AdEditorScreen() {
       ) : null}
       <Text style={styles.sectionLabel}>1) البيانات الأساسية</Text><Text style={styles.sectionHint}>العنوان والسعر والموقع كما سيظهر للمشترين</Text><Text style={styles.label}>عنوان الإعلان *</Text><TextInput accessibilityLabel="عنوان الإعلان" value={draft.title} onChangeText={(v) => set('title', v)} maxLength={200} placeholder="مثال: هاتف بحالة ممتازة" placeholderTextColor={colors.muted} style={styles.input} textAlign="right" />
       <Text style={styles.label}>الوصف *</Text><TextInput accessibilityLabel="وصف الإعلان" value={draft.description} onChangeText={(v) => set('description', v)} maxLength={5000} multiline placeholder="اكتب تفاصيل الإعلان بوضوح…" placeholderTextColor={colors.muted} style={[styles.input, styles.multiline]} textAlign="right" textAlignVertical="top" />
-      <Text style={styles.label}>السعر (₪)</Text><TextInput accessibilityLabel="سعر الإعلان" value={draft.price} onChangeText={(v) => set('price', v)} keyboardType="decimal-pad" placeholder="اتركه فارغًا إذا لم تحدد السعر" placeholderTextColor={colors.muted} style={styles.input} textAlign="right" />
+      <Text style={styles.label}>السعر (₪)</Text><TextInput accessibilityLabel="سعر الإعلان" value={draft.price} onChangeText={(v) => set('price', normalizeNumericInput(v))} keyboardType="decimal-pad" placeholder="اتركه فارغًا إذا لم تحدد السعر" placeholderTextColor={colors.muted} style={styles.input} textAlign="right" />
       <Text style={styles.label}>المدينة *</Text><TextInput accessibilityLabel="مدينة الإعلان" value={draft.city} onChangeText={(v) => set('city', v)} maxLength={100} placeholder="المدينة" placeholderTextColor={colors.muted} style={styles.input} textAlign="right" />
       <Text style={styles.label}>التصنيف</Text>
       {categoriesError ? <Text style={styles.error}>{categoriesError}</Text> : null}
       <View style={styles.categoryWrap}>{categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={category.nameAr || category.name} accessibilityState={{ selected: draft.categoryId === category.id }} onPress={() => set('categoryId', category.id)} style={[styles.categoryChip, draft.categoryId === category.id && styles.categoryChipSelected]}><Text style={[styles.categoryText, draft.categoryId === category.id && styles.categoryTextSelected]}>{category.nameAr || category.name}</Text></Pressable>)}</View>
       <Text style={styles.sectionLabel}>2) الصور</Text><Text style={styles.sectionHint}>صورة واحدة على الأقل عند النشر الجديد · حتى 10 صور</Text><Text style={styles.label}>صور الإعلان * (بحد أقصى 10، وحجم 5MB لكل صورة)</Text>
-      <Pressable accessibilityRole="button" accessibilityLabel="اختيار صور للإعلان" disabled={pickingImages || draft.images.length >= 10} style={[styles.secondary, (pickingImages || draft.images.length >= 10) && styles.disabled]} onPress={() => void (async () => { setPickingImages(true); setError(null); try { const permission = await ImagePicker.requestMediaLibraryPermissionsAsync(); if (!permission.granted) { setError('اسمح للتطبيق بالوصول إلى الصور لاختيار صور الإعلان.'); return; } const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: Math.max(1, 10 - draft.images.length), quality: 0.85 }); if (!result.canceled) { const picked: SelectedAdImage[] = result.assets.map((asset, index) => ({ uri: asset.uri, fileName: asset.fileName || `marketplat-${Date.now()}-${index}.jpg`, mimeType: asset.mimeType || 'image/jpeg' })).filter((image) => /^image\/(jpeg|jpg|png|webp)$/.test(image.mimeType)); const persisted = await Promise.all(picked.map(async (image) => { try { return await persistSelectedAdImage(image); } catch (e) { setError(e instanceof Error ? e.message : 'تعذر حفظ إحدى الصور محليًا.'); return null; } })); const ready = persisted.filter((image): image is NonNullable<typeof image> => image !== null); setDraft((current) => ({ ...current, images: [...current.images, ...ready].slice(0, 10) })); if (picked.length !== result.assets.length) setError('تم تجاهل بعض الملفات؛ الخادم يقبل JPEG وPNG وWebP فقط.'); } } catch { setError('تعذر فتح معرض الصور. حاول مجددًا.'); } finally { setPickingImages(false); } })()}><Text style={styles.secondaryText}>{pickingImages ? 'جاري فتح الصور…' : 'اختيار صور من الهاتف'}</Text></Pressable>
-      {id && existingImages.length ? <><Text style={styles.note}>الصور المنشورة حاليًا — يمكنك حذف صورة أو تحريكها لتغيير ترتيب العرض.</Text><View style={styles.imageGrid}>{existingImages.map((uri, index) => <View key={`${uri}-${index}`} style={styles.imageTile}><Image source={{ uri }} style={styles.previewImage} /><View style={styles.imageControls}><Pressable accessibilityRole="button" accessibilityLabel="تحريك الصورة للأمام" disabled={index === 0} onPress={() => setExistingImages((current) => { const next = [...current]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })} style={[styles.imageControl, index === 0 && styles.disabled]}><Text style={styles.imageControlText}>‹</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="حذف الصورة" disabled={existingImages.length <= 1} onPress={() => setExistingImages((current) => current.filter((_, imageIndex) => imageIndex !== index))} style={[styles.removeImage, existingImages.length <= 1 && styles.disabled]}><Text style={styles.removeImageText}>×</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="تحريك الصورة للخلف" disabled={index === existingImages.length - 1} onPress={() => setExistingImages((current) => { const next = [...current]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next; })} style={[styles.imageControl, index === existingImages.length - 1 && styles.disabled]}><Text style={styles.imageControlText}>›</Text></Pressable></View></View>)}</View></> : null}
+      <Pressable accessibilityRole="button" accessibilityLabel="اختيار صور للإعلان" disabled={pickingImages || draft.images.length >= 10} style={[styles.secondary, (pickingImages || draft.images.length >= 10) && styles.disabled]} onPress={() => void (async () => { setPickingImages(true); setError(null); try { const permission = await ImagePicker.requestMediaLibraryPermissionsAsync(); if (!permission.granted) { setError('اسمح للتطبيق بالوصول إلى الصور لاختيار صور الإعلان.'); return; } const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, selectionLimit: Math.max(1, 10 - draft.images.length), quality: 0.75, exif: false }); if (!result.canceled) { const picked: SelectedAdImage[] = result.assets.map((asset, index) => ({ uri: asset.uri, fileName: asset.fileName || `marketplat-${Date.now()}-${index}.jpg`, mimeType: asset.mimeType || 'image/jpeg' })).filter((image) => /^image\/(jpeg|jpg|png|webp)$/.test(image.mimeType)); const persisted = await Promise.all(picked.map(async (image) => { try { return await persistSelectedAdImage(image); } catch (e) { setError(e instanceof Error ? e.message : 'تعذر حفظ إحدى الصور محليًا.'); return null; } })); const ready = persisted.filter((image): image is NonNullable<typeof image> => image !== null); setDraft((current) => ({ ...current, images: [...current.images, ...ready].slice(0, 10) })); if (picked.length !== result.assets.length) setError('تم تجاهل بعض الملفات؛ الخادم يقبل JPEG وPNG وWebP فقط.'); } } catch { setError('تعذر فتح معرض الصور. حاول مجددًا.'); } finally { setPickingImages(false); } })()}><Text style={styles.secondaryText}>{pickingImages ? 'جاري فتح الصور…' : 'اختيار صور من الهاتف'}</Text></Pressable>
+      {id && existingImages.length ? <><Text style={styles.note}>الصور المنشورة حاليًا — يمكنك حذف صورة أو تحريكها لتغيير ترتيب العرض.</Text><View style={styles.imageGrid}>{existingImages.map((uri, index) => <View key={`${uri}-${index}`} style={styles.imageTile}><Image source={{ uri }} style={styles.previewImage} /><View style={styles.imageControls}><Pressable accessibilityRole="button" accessibilityLabel="تحريك الصورة للأمام" disabled={index === 0} onPress={() => setExistingImages((current) => { const next = [...current]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next; })} style={[styles.imageControl, index === 0 && styles.disabled]}><Text style={styles.imageControlText}>‹</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="حذف الصورة" disabled={existingImages.length <= 1 && draft.images.length === 0} onPress={() => setExistingImages((current) => current.filter((_, imageIndex) => imageIndex !== index))} style={[styles.removeImage, existingImages.length <= 1 && draft.images.length === 0 && styles.disabled]}><Text style={styles.removeImageText}>×</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="تحريك الصورة للخلف" disabled={index === existingImages.length - 1} onPress={() => setExistingImages((current) => { const next = [...current]; [next[index], next[index + 1]] = [next[index + 1], next[index]]; return next; })} style={[styles.imageControl, index === existingImages.length - 1 && styles.disabled]}><Text style={styles.imageControlText}>›</Text></Pressable></View></View>)}</View></> : null}
       {draft.images.length ? <><Text style={styles.note}>صور جديدة ستُضاف عند الحفظ</Text><View style={styles.imageGrid}>{draft.images.map((image, index) => <View key={`${image.uri}-${index}`} style={styles.imageTile}><Image source={{ uri: image.uri }} style={styles.previewImage} /><Pressable accessibilityRole="button" accessibilityLabel="إزالة الصورة الجديدة" onPress={() => { setDraft((current) => ({ ...current, images: current.images.filter((_, imageIndex) => imageIndex !== index) })); }} style={styles.removeImage}><Text style={styles.removeImageText}>×</Text></Pressable></View>)}</View></> : !existingImages.length ? <Text style={styles.note}>لم تختر صورًا بعد.</Text> : null}
       <View style={styles.switchRow}><Text style={styles.sectionLabel}>3) خيارات النشر</Text><Text style={styles.label}>السعر قابل للتفاوض</Text><Switch accessibilityLabel="السعر قابل للتفاوض" value={draft.isNegotiable} onValueChange={(v) => set('isNegotiable', v)} trackColor={{ true: colors.brand }}/></View>
       {error ? <Notice>{error}</Notice> : null}

@@ -18,6 +18,23 @@ const groups = [
   ['ACCOUNT', 'الحساب'],
 ] as const;
 
+
+const activityLabels: Record<string, string> = {
+  AD_CREATED: 'إنشاء إعلان', AD_UPDATED: 'تعديل إعلان', AD_DELETED: 'حذف إعلان',
+  PRODUCT_CREATED: 'إنشاء منتج', PRODUCT_UPDATED: 'تعديل منتج', PRODUCT_DELETED: 'حذف منتج',
+  SERVICE_CREATED: 'إنشاء خدمة', SERVICE_UPDATED: 'تعديل خدمة', SERVICE_DELETED: 'حذف خدمة',
+  STORE_CREATED: 'إنشاء متجر', STORE_UPDATED: 'تعديل متجر',
+  MESSAGE_SENT: 'إرسال رسالة', REQUEST_CREATED: 'إنشاء طلب', REQUEST_UPDATED: 'تحديث طلب',
+  ORDER_CREATED: 'إنشاء طلب شراء', ORDER_CANCELLED: 'إلغاء طلب شراء',
+  SALE_CREATED: 'تسجيل عملية بيع', PAYMENT_RECORDED: 'تسجيل دفعة',
+  APPOINTMENT_CANCELLED: 'إلغاء موعد', LOGIN: 'تسجيل دخول', PROFILE_UPDATED: 'تحديث الحساب',
+};
+const entityLabels: Record<string, string> = {
+  AD: 'إعلان', PRODUCT: 'منتج', SERVICE: 'خدمة', STORE: 'متجر',
+  REQUEST: 'طلب', ORDER: 'طلب شراء', SALE: 'عملية بيع', USER: 'حساب',
+  APPOINTMENT: 'موعد', CONVERSATION: 'محادثة', MESSAGE: 'رسالة',
+};
+
 const dateLabel = (s: string) => {
   const d = new Date(s);
   return Number.isNaN(d.getTime())
@@ -139,11 +156,11 @@ export default function ActivityScreen() {
               <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 22 }}>{item.description}</Text>
             ) : null}
             <Text style={{ textAlign: 'right', fontSize: 11, color: colors.muted }}>
-              {item.type.replaceAll('_', ' ')} · {dateLabel(item.createdAt)}
+              {activityLabels[item.type] || 'نشاط مسجل'} · {dateLabel(item.createdAt)}
             </Text>
             {item.entityType && item.entityId ? (
               <Text style={{ textAlign: 'right', color: colors.brand, fontSize: 12 }}>
-                المرجع: {item.entityType} · {item.entityId}
+                النوع المرتبط: {entityLabels[item.entityType.toUpperCase()] || 'عنصر مرتبط'}
               </Text>
             ) : null}
           </SectionCard>

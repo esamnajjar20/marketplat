@@ -16,6 +16,17 @@ export const blockedUsersController = {
     }
   },
 
+  unblock: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = blockedUserIdSchema.parse({ params: req.params });
+      const result = await blockedUsersService.unblock(user.userId, params.userId);
+      res.status(200).json(successResponse('User unblocked', result));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getMyBlockedUsers: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);

@@ -7,6 +7,9 @@ type ConversationListItemProps = {
   item: ConversationItem;
   currentUserId?: string;
   onPress: (conversationId: string) => void;
+  onTogglePin?: (item: ConversationItem) => void;
+  onToggleArchive?: (item: ConversationItem) => void;
+  busy?: boolean;
 };
 
 function getConversationPreview(conversation: ConversationItem): string {
@@ -20,7 +23,7 @@ function getConversationPreview(conversation: ConversationItem): string {
   return 'رسالة جديدة';
 }
 
-function ConversationListItemView({ item, currentUserId, onPress }: ConversationListItemProps) {
+function ConversationListItemView({ item, currentUserId, onPress, onTogglePin, onToggleArchive, busy = false }: ConversationListItemProps) {
   const other = item.buyerId === currentUserId ? item.seller : item.buyer;
   const unread = item.unreadCount ?? 0;
   const name = other?.name || 'مستخدم';
@@ -51,6 +54,12 @@ function ConversationListItemView({ item, currentUserId, onPress }: Conversation
         <Text style={styles.preview} numberOfLines={2}>
           {getConversationPreview(item)}
         </Text>
+        {(onTogglePin || onToggleArchive) ? (
+          <View style={styles.actions}>
+            {onTogglePin ? <Pressable accessibilityRole="button" accessibilityLabel={item.mySettings?.pinnedAt ? 'إلغاء تثبيت المحادثة' : 'تثبيت المحادثة'} disabled={busy} onPress={() => onTogglePin(item)} style={styles.action}><Text style={styles.actionText}>{item.mySettings?.pinnedAt ? 'إلغاء التثبيت' : 'تثبيت'}</Text></Pressable> : null}
+            {onToggleArchive ? <Pressable accessibilityRole="button" accessibilityLabel={item.mySettings?.archivedAt ? 'إلغاء أرشفة المحادثة' : 'أرشفة المحادثة'} disabled={busy} onPress={() => onToggleArchive(item)} style={styles.action}><Text style={styles.actionText}>{item.mySettings?.archivedAt ? 'إلغاء الأرشفة' : 'أرشفة'}</Text></Pressable> : null}
+          </View>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -77,6 +86,9 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: colors.brand, fontWeight: '900', fontSize: 16 },
   cardBody: { flex: 1, gap: 4 },
+  actions: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  action: { minHeight: 34, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.controlBorder },
+  actionText: { color: colors.brand, fontSize: 12, fontWeight: '800' },
   cardTop: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   name: { ...typography.bodyStrong, color: colors.ink, flex: 1, textAlign: 'right' },
   preview: { ...typography.caption, color: colors.muted, textAlign: 'right', lineHeight: 18 },

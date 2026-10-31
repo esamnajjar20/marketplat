@@ -1,5 +1,8 @@
 import { router } from 'expo-router';
 import { Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { fetchMyStore } from '@/features/commerce/commerce.api';
+import { fetchMyServiceProvider } from '@/features/services/providers.api';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
   ListRow,
@@ -22,6 +25,7 @@ const groups: DestinationGroup[] = [
       { title: 'الرسائل', description: 'تابع محادثات المشترين والبائعين', path: '/messages', requiresAuth: true },
       { title: 'الإشعارات', description: 'راجع التحديثات والتنبيهات الجديدة', path: '/notifications', requiresAuth: true },
       { title: 'إعلاناتي', description: 'إدارة الإعلانات المنشورة والمسودات', path: '/my-ads', requiresAuth: true },
+      { title: 'مخصّص لك', description: 'اكتشف محتوى مقترحًا وفق اهتماماتك', path: '/for-you' },
     ],
   },
   {
@@ -56,8 +60,8 @@ const groups: DestinationGroup[] = [
       { title: 'متجري', description: 'إدارة بيانات المتجر والهوية التجارية', path: '/my-store', requiresAuth: true },
       { title: 'منتجاتي', description: 'إدارة المنتجات والأسعار والمخزون', path: '/my-products', requiresAuth: true },
       { title: 'خدماتي', description: 'إدارة الخدمات التي تعرضها', path: '/my-services', requiresAuth: true },
-      { title: 'طلباتي وعروضي', description: 'متابعة الطلبات والعروض التي قدمتها', path: '/my-requests', requiresAuth: true },
-      { title: 'عروضي', description: 'العروض التي قدّمتها على الطلبات المفتوحة', path: '/my-offers', requiresAuth: true },
+      { title: 'الطلبات التي نشرتها', description: 'متابعة طلباتك وعدد العروض الواردة عليها', path: '/my-requests', requiresAuth: true },
+      { title: 'العروض التي قدمتها', description: 'متابعة عروضك على طلبات الآخرين', path: '/my-offers', requiresAuth: true },
       { title: 'المواعيد', description: 'متابعة مواعيد الخدمات والحجوزات', path: '/appointments', requiresAuth: true },
       { title: 'ملف مقدم الخدمة', description: 'إدارة بيانات نشاط الخدمات', path: '/service-provider-profile', requiresAuth: true },
       { title: 'إحصاءات المتجر', description: 'مراجعة الزيارات والمتابعين وأداء المنتجات', path: '/my-store-analytics', requiresAuth: true },
@@ -78,7 +82,21 @@ const groups: DestinationGroup[] = [
 ];
 
 export default function AccountHubScreen() {
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth();
+  const [hasStore, setHasStore] = useState(false);
+  const [hasProvider, setHasProvider] = useState(false);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+  useEffect(() => {
+    let active = true;
+    if (!accessToken) { setHasStore(false); setHasProvider(false); return () => { active = false; }; }
+    setProfilesLoading(true);
+    void Promise.allSettled([fetchMyStore(accessToken), fetchMyServiceProvider(accessToken)]).then(([store, provider]) => {
+      if (!active) return;
+      setHasStore(store.status === 'fulfilled' && !!store.value);
+      setHasProvider(provider.status === 'fulfilled' && !!provider.value);
+    }).finally(() => { if (active) setProfilesLoading(false); });
+    return () => { active = false; };
+  }, [accessToken]);
 
   const open = (item: Destination) => {
     if (item.requiresAuth && !user) {
@@ -118,7 +136,17 @@ export default function AccountHubScreen() {
       {groups.map((group) => (
         <View key={group.title} style={{ gap: spacing.md }}>
           <SectionHeader title={group.title} subtitle={group.subtitle} />
-          {group.items.filter((item) => item.path !== '/complete-profile').map((item) => (
+          {group.items.filter((item) => {
+            if (item.path === '/complete-profile') return false;
+            if (group.title !== 'إدارة المتجر والخدمات') return true;
+            if (!user) return false;
+            if (item.path === '/seller-profile') return !hasStore;
+            if (item.path === '/my-store' || item.path === '/my-products' || item.path === '/my-store-analytics' || item.path === '/seller-dashboard') return hasStore;
+            if (item.path === '/service-provider-profile') return true; // Store owners may also create a provider profile.
+            if (item.path === '/appointments') return hasProvider;
+            if (item.path === '/my-services') return hasProvider || hasStore;
+            return true;
+          }).map((item) => (
             <ListRow
               key={item.path}
               title={item.title}
@@ -129,6 +157,7 @@ export default function AccountHubScreen() {
         </View>
       ))}
 
+      {user && profilesLoading ? <Notice tone="muted">جارٍ التحقق من صلاحيات إدارة المتجر والخدمات…</Notice> : null}
       {!user ? (
         <Notice tone="muted">الصفحات الخاصة بالحساب تطلب تسجيل الدخول قبل فتحها.</Notice>
       ) : null}

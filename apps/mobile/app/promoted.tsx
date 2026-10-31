@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 import { router } from 'expo-router';
@@ -18,15 +18,16 @@ export default function PromotedScreen() {
   const [items, setItems] = useState<ProductSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const seq = useRef(0);
   const loadingMoreRef = useRef(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (refresh = false) => {
     const current = ++seq.current;
-    setLoading(true);
+    if (refresh) setRefreshing(true); else setLoading(true);
     setError('');
     setLoadingMore(false);
     try {
@@ -46,7 +47,7 @@ export default function PromotedScreen() {
         setError(e instanceof Error ? e.message : 'تعذر تحميل المنتجات المروجة.');
       }
     } finally {
-      if (current === seq.current) setLoading(false);
+      if (current === seq.current) { setLoading(false); setRefreshing(false); }
     }
   }, []);
 
@@ -95,6 +96,7 @@ export default function PromotedScreen() {
         keyExtractor={(item) => item.id}
         {...marketListPerf}
         contentContainerStyle={{ paddingBottom: 48, gap: 12 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
         ListHeaderComponent={
           <View style={{ gap: 12, marginBottom: 8 }}>
             <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 21 }}>
@@ -147,6 +149,8 @@ export default function PromotedScreen() {
                     {item.store?.name || 'متجر'}
                   </Text>
                   <Text style={{ color: colors.brand, fontWeight: '900' }}>{price(item)}</Text>
+                  {(item.effectivePrice?.originalPrice != null || (item.discountPrice != null && Number(item.discountPrice) < Number(item.price))) ? <Text style={{ color: colors.muted, fontSize: 12, textDecorationLine: 'line-through' }}>{new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(item.effectivePrice?.originalPrice ?? item.price))} ₪</Text> : null}
+                  {item.discountPrice != null && Number.isFinite(Number(item.discountPrice)) && Number.isFinite(Number(item.price)) && Number(item.price) > 0 ? <Text style={{ color: colors.brand, fontSize: 12, fontWeight: '800' }}>خصم {Math.round((1 - Number(item.discountPrice) / Number(item.price)) * 100)}%</Text> : null}
                   <Text style={{ color: colors.muted, fontSize: 12 }}>
                     {item.availability === 'OUT_OF_STOCK' ? 'غير متوفر' : 'عرض ترويجي'}
                   </Text>

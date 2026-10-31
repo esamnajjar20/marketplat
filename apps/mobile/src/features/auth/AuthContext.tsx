@@ -14,7 +14,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Alert } from 'react-native';
-import { ApiError, setRefreshHandler, setTokenUpdater } from '@/api/client';
+import { ApiError, setAuthFailureHandler, setRefreshHandler, setTokenUpdater } from '@/api/client';
 import {
   loginWithPassword,
   logoutSession,
@@ -46,6 +46,7 @@ export type AuthState = {
   isBusy: boolean;
   isRestoring: boolean;
   expiresAt: number | null;
+  sessionNeedsRefresh: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (input: {
     name: string;
@@ -54,8 +55,11 @@ export type AuthState = {
     phone?: string;
     city?: string;
   }) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: () => Promise<'done' | 'cancelled' | 'failed'>;
+  forceLocalSignOut: () => Promise<void>;
   updateUser: (patch: Partial<AuthUser>) => void;
+  /** Stable token accessor for callbacks that must not rerun on token rotation. */
+  getAccessToken: () => string | null;
 };
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -67,16 +71,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isBusy, setIsBusy] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  const [sessionNeedsRefresh, setSessionNeedsRefresh] = useState(false);
 
   const userRef = useRef<AuthUser | null>(null);
+  const accessTokenRef = useRef<string | null>(null);
   const csrfRef = useRef<string | null>(null);
   const persistenceWarningShown = useRef(false);
+  const authFailureHandling = useRef(false);
 
   const applySession = useCallback((session: PersistedSession) => {
     setUser(session.user);
+    accessTokenRef.current = session.accessToken;
     setAccessToken(session.accessToken);
     setCsrfToken(session.csrfToken);
     setExpiresAt(session.expiresAt);
+    setSessionNeedsRefresh(session.expiresAt <= Date.now());
   }, []);
 
   const warnSessionPersistence = useCallback(() => {
@@ -101,9 +110,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const clearPersisted = useCallback(async (): Promise<boolean> => {
     // Clear in-memory access first. SecureStore failures must remain observable to logout.
     setUser(null);
+    accessTokenRef.current = null;
     setAccessToken(null);
     setCsrfToken(null);
     setExpiresAt(null);
+    setSessionNeedsRefresh(false);
     return clearPersistedSession();
   }, []);
 
@@ -112,9 +123,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const updateUser = useCallback((patch: Partial<AuthUser>) => { setUser(current => current ? { ...current, ...patch } : current); }, []);
+  const getAccessToken = useCallback(() => accessTokenRef.current, []);
   useEffect(() => {
     csrfRef.current = csrfToken;
   }, [csrfToken]);
+
+  const forceLocalSignOut = useCallback(async (): Promise<void> => {
+    setIsBusy(true);
+    cancelRefreshing();
+    try {
+      const { cleanupFailed } = await cleanupOnLogout();
+      const sessionRemoved = await clearPersisted();
+      if (cleanupFailed || !sessionRemoved) {
+        Alert.alert(
+          'تم إنهاء الجلسة مع تحذير',
+          'لم يكتمل تنظيف كل البيانات المحلية أو لم يؤكد التخزين الآمن حذف الجلسة. سيُمنع تسجيل الدخول بحساب آخر حتى ينجح التنظيف. امسح بيانات التطبيق من إعدادات الجهاز إذا استمرت المشكلة.',
+        );
+      }
+    } finally {
+      setIsBusy(false);
+    }
+  }, [clearPersisted]);
+
+  const handleInvalidRefresh = useCallback(() => {
+    if (authFailureHandling.current) return;
+    authFailureHandling.current = true;
+    void forceLocalSignOut()
+      .finally(() => {
+        authFailureHandling.current = false;
+        Alert.alert('انتهت صلاحية الجلسة', 'لم يعد الخادم يقبل بيانات تجديد الجلسة. سجّل الدخول من جديد للمتابعة.');
+      });
+  }, [forceLocalSignOut]);
+
 
   // استعادة الجلسة عند الإقلاع
   useEffect(() => {
@@ -132,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       let cached = await readPersistedSession();
 
-      if (cached && cached.expiresAt > Date.now() && mounted) {
+      if (cached && mounted) {
         applySession(cached);
       }
 
@@ -154,14 +194,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         const unauthorized =
           error instanceof ApiError && (error.status === 401 || error.status === 403);
-        if (mounted && (!cached || cached.expiresAt <= Date.now() || unauthorized)) {
+        if (mounted && unauthorized) {
+          const { cleanupFailed } = await cleanupOnLogout();
           const removed = await clearPersisted();
+          if (mounted && cleanupFailed) {
+            Alert.alert('تنبيه أمني', 'انتهت صلاحية الجلسة، لكن تعذّر تنظيف بعض بيانات الحساب المحلية. سيُمنع تسجيل الدخول بحساب آخر حتى ينجح التنظيف.');
+          }
           if (mounted && !removed) {
             Alert.alert(
               'تعذّر حذف جلسة محفوظة',
               'لم يؤكد التخزين الآمن حذف الجلسة غير الصالحة. أعد فتح التطبيق وتأكد من حالة تسجيل الدخول قبل مشاركة الجهاز.',
             );
           }
+        } else if (mounted && cached) {
+          // Network/timeout/5xx: retain the local identity and cached read-only data.
+          setSessionNeedsRefresh(true);
         }
       } finally {
         if (mounted) setIsRestoring(false);
@@ -188,15 +235,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           csrfToken: refreshed.csrfToken ?? csrfRef.current,
           expiresAt: sessionExpiry(refreshed.expiresIn),
         });
-      } catch {
-        // Silent — interceptor أو إعادة تسجيل الدخول
+      } catch (error) {
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+          if (userRef.current?.id === userIdAtSchedule) void forceLocalSignOut();
+        } else if (userRef.current?.id === userIdAtSchedule) {
+          setSessionNeedsRefresh(true);
+        }
       }
     }, delay);
     return () => clearTimeout(timer);
-  }, [expiresAt, user, persist]);
+  }, [expiresAt, user, persist, forceLocalSignOut]);
 
   // ربط refresh مع طبقة الـ API
   useEffect(() => {
+    setAuthFailureHandler(() => handleInvalidRefresh());
     setRefreshHandler(async () => {
       const refreshed = await refreshAccessSession();
       return {
@@ -206,6 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
     });
     setTokenUpdater((newToken, newCsrf, newExpiresIn) => {
+      accessTokenRef.current = newToken;
       setAccessToken(newToken);
       if (newCsrf !== undefined) setCsrfToken(newCsrf);
       const newExpiresAt =
@@ -213,6 +266,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ? Date.now() + newExpiresIn * 1000
           : Date.now() + ACCESS_TOKEN_FALLBACK_TTL_SECONDS * 1000;
       setExpiresAt(newExpiresAt);
+      setSessionNeedsRefresh(false);
       if (userRef.current) {
         void writePersistedSession({
           user: userRef.current,
@@ -227,8 +281,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       setRefreshHandler(null);
       setTokenUpdater(null);
+      setAuthFailureHandler(null);
     };
-  }, [warnSessionPersistence]);
+  }, [handleInvalidRefresh, warnSessionPersistence]);
 
   const login = useCallback(
     async (email: string, password: string) => {
@@ -276,16 +331,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persist],
   );
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (): Promise<'done' | 'cancelled' | 'failed'> => {
     let pendingOperations = 0;
     try {
       pendingOperations = await countPendingPrivateMobileOperations();
     } catch {
-      Alert.alert(
-        'تعذر التحقق من العمليات المحلية',
-        'لم نتمكن من التأكد مما إذا كانت هناك عمليات بانتظار المزامنة. لم يتم تسجيل الخروج حتى لا تفقد بيانات محلية دون قصد.',
-      );
-      return;
+      const mayProceed = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          'تعذر فحص البيانات المحلية',
+          'تعذر فتح قاعدة البيانات أو عدّ العمليات المعلقة. يمكنك إلغاء العملية أو إنهاء الجلسة الآن؛ سيُحاول التطبيق تنظيف البيانات عند الفتح التالي، وقد تحتاج إلى إعادة ضبط التخزين المحلي إذا كان تالفًا.',
+          [
+            { text: 'إلغاء', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'إنهاء الجلسة', style: 'destructive', onPress: () => resolve(true) },
+          ],
+          { cancelable: true, onDismiss: () => resolve(false) },
+        );
+      });
+      if (!mayProceed) return 'cancelled';
     }
     if (pendingOperations > 0) {
       const shouldDiscard = await new Promise<boolean>((resolve) => {
@@ -299,7 +361,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           { cancelable: true, onDismiss: () => resolve(false) },
         );
       });
-      if (!shouldDiscard) return;
+      if (!shouldDiscard) return 'cancelled';
     }
 
     const token = accessToken;
@@ -324,7 +386,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             : '',
         ].filter(Boolean);
         Alert.alert('اكتمل الخروج مع تحذير', `${warnings.join('\n\n')} إذا استمرت المشكلة، امسح بيانات التطبيق من إعدادات الجهاز قبل استخدام حساب آخر.`);
+        return 'failed';
       }
+      return 'done';
     }
   }, [accessToken, csrfToken, clearPersisted]);
 
@@ -336,12 +400,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isBusy,
       isRestoring,
       expiresAt,
+      sessionNeedsRefresh,
       login,
       register,
       logout,
+      forceLocalSignOut,
       updateUser,
+      getAccessToken,
     }),
-    [user, accessToken, csrfToken, isBusy, isRestoring, expiresAt, login, register, logout, updateUser],
+    [user, accessToken, csrfToken, isBusy, isRestoring, expiresAt, sessionNeedsRefresh, login, register, logout, forceLocalSignOut, updateUser, getAccessToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

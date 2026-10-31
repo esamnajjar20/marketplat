@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createSale } from '@/features/sales/sales.api';
+import { ApiError } from '@/api/client';
+import { createMobileOperationId } from '@/lib/operation-id';
 import { enqueueOfflineCreate } from '@/storage/outbox-manager';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
 import { colors, radius, spacing } from '@/theme/tokens';
@@ -25,6 +27,7 @@ export default function SaleCreateScreen() {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const operationIdRef = useRef(createMobileOperationId('sale-create'));
 
   const parsedLines = useMemo(() => lines.map(line => ({
     title: line.title.trim(), quantity: Number(line.quantity), unitPrice: Number(line.unitPrice),
@@ -63,14 +66,31 @@ export default function SaleCreateScreen() {
     setBusy(true); setError('');
     try {
       const net = await NetInfo.fetch();
-      const id = `sale-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const operationId = operationIdRef.current;
       if (net.isConnected !== true || net.isInternetReachable === false) {
         if (!user?.id) throw new Error('تعذر تحديد الحساب لحفظ البيع دون اتصال.');
-        await enqueueOfflineCreate(String(user.id), id, 'create-sale', payload);
+        await enqueueOfflineCreate(String(user.id), operationId, 'create-sale', payload);
+        operationIdRef.current = createMobileOperationId('sale-create');
         Alert.alert('حُفظ البيع على الجهاز', 'لم يُسجّل البيع على الخادم بعد. سيُرسل عند عودة الإنترنت؛ لا تعتبره بيعًا مسجلًا حتى تظهر رسالة التأكيد.', [{ text: 'حسنًا', onPress: () => router.replace('/offline-queue') }]);
       } else {
-        await createSale(payload, accessToken, csrfToken, id);
-        Alert.alert('تم تسجيل البيع', 'أكد الخادم تسجيل عملية البيع.', [{ text: 'حسنًا', onPress: () => router.replace('/my-sales') }]);
+        try {
+          await createSale(payload, accessToken, csrfToken, operationId);
+          operationIdRef.current = createMobileOperationId('sale-create');
+          Alert.alert('تم تسجيل البيع', 'أكد الخادم تسجيل عملية البيع.', [{ text: 'حسنًا', onPress: () => router.replace('/my-sales') }]);
+        } catch (error) {
+          // A timeout/connection loss is ambiguous: persist the same operation ID
+          // so an already-committed sale cannot be created twice on retry.
+          if (error instanceof ApiError && error.status === undefined && user?.id) {
+            await enqueueOfflineCreate(String(user.id), operationId, 'create-sale', payload);
+            operationIdRef.current = createMobileOperationId('sale-create');
+            Alert.alert('حُفظ البيع للمزامنة', 'انقطع الاتصال قبل تأكيد النتيجة. احتُفظ بالمعرّف نفسه لمنع تكرار البيع، وسيؤكد التطبيق حالته بعد المزامنة.', [{ text: 'عرض العمليات', onPress: () => router.replace('/offline-queue') }]);
+            return;
+          }
+          if (error instanceof ApiError && error.status !== undefined && error.status >= 400 && error.status < 500) {
+            operationIdRef.current = createMobileOperationId('sale-create');
+          }
+          throw error;
+        }
       }
     } catch (e) { setError(e instanceof Error ? e.message : 'تعذر تسجيل البيع.'); }
     finally { setBusy(false); }

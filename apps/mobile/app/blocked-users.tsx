@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
-import { fetchBlockedUsers, toggleBlockUser, type BlockedUserItem } from '@/features/account/social.api';
+import { fetchBlockedUsers, unblockUser, type BlockedUserItem } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
@@ -51,7 +51,7 @@ export default function BlockedUsersScreen() {
             setBusyId(person.id);
             setError('');
             try {
-              await toggleBlockUser(person.id, accessToken, csrfToken);
+              await unblockUser(person.id, accessToken, csrfToken);
               setItems((current) => current.filter((row) => row.blockedId !== person.id));
             } catch (e) {
               setError(e instanceof Error ? e.message : 'تعذر إلغاء الحظر.');

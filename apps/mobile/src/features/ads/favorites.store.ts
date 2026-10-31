@@ -38,6 +38,22 @@ export async function writeFavoriteAdIds(ids: string[], userId?: string | null):
   await SecureStore.setItemAsync(favoritesKey(userId), JSON.stringify(normalized));
 }
 
+// Serialize read-modify-write updates per account. This prevents a fast toggle
+// from overwriting another screen's favorite change between its read and write.
+const favoriteMutationQueues = new Map<string, Promise<void>>();
+export async function updateFavoriteAdId(adId: string, favorited: boolean, userId?: string | null): Promise<void> {
+  if (!adId.trim()) throw new Error('معرّف الإعلان غير صالح.');
+  const key = favoritesKey(userId);
+  const previous = favoriteMutationQueues.get(key) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(async () => {
+    const ids = await readFavoriteAdIds(userId);
+    const normalized = favorited ? [...ids.filter((id) => id !== adId), adId] : ids.filter((id) => id !== adId);
+    await writeFavoriteAdIds(normalized, userId);
+  });
+  favoriteMutationQueues.set(key, next);
+  try { await next; } finally { if (favoriteMutationQueues.get(key) === next) favoriteMutationQueues.delete(key); }
+}
+
 // Durable, account-scoped desired-state queue. A row represents the latest user intent
 // for one ad; coalescing prevents repeated taps from filling the queue.
 import * as SQLite from 'expo-sqlite';

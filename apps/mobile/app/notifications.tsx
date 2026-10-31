@@ -5,7 +5,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
-  fetchNotifications,
+  fetchNotificationsPage,
   markAllNotificationsRead,
   markNotificationRead,
   type AppNotification,
@@ -18,6 +18,7 @@ import {
   LoadingState,
 } from '@/components/MobileUI';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { formatSafeDate } from '@/lib/date-format';
 
 function destination(item: AppNotification): string | null {
   const data = item.data && typeof item.data === 'object' ? item.data as Record<string, unknown> : {};
@@ -39,7 +40,7 @@ function destination(item: AppNotification): string | null {
     case 'NEW_FOLLOWER': return followerId ? `/profile/${followerId}` : '/profile';
     case 'FOLLOWED_USER_ACTIVITY':
     case 'FOLLOWED_STORE_ACTIVITY':
-    case 'FOLLOWED_CATEGORY_ACTIVITY': return '/?feed=following';
+    case 'FOLLOWED_CATEGORY_ACTIVITY': return '/following-feed';
     case 'FAV_AD_PRICE_CHANGED':
     case 'FAV_AD_SOLD':
     case 'AD_EXPIRING_SOON':
@@ -65,12 +66,12 @@ function destination(item: AppNotification): string | null {
     case 'SALES_DAILY_SUMMARY':
     case 'SALES_SMART_INSIGHT': return '/my-sales';
     case 'PROMOTION':
-    case 'PROMOTION_STATUS_CHANGE': return promotionId ? '/store-promotions' : '/notifications';
+    case 'PROMOTION_STATUS_CHANGE': return '/store-promotions';
     case 'MODERATION_REPORT_RECEIVED':
-    case 'MODERATION_DECISION':
-    case 'WEEKLY_AD_VIEWS_REPORT':
-    case 'WEEKLY_STORE_VIEWS_REPORT':
-    case 'WEEKLY_SERVICE_VIEWS_REPORT': return '/notifications';
+    case 'MODERATION_DECISION': return '/my-reports';
+    case 'WEEKLY_AD_VIEWS_REPORT': return '/my-ads';
+    case 'WEEKLY_STORE_VIEWS_REPORT': return '/my-store-analytics';
+    case 'WEEKLY_SERVICE_VIEWS_REPORT': return '/service-provider-analytics';
     default: {
       // Accept only safe, app-local message links from older notification payloads.
       const url = typeof data.url === 'string' ? data.url : null;
@@ -79,30 +80,47 @@ function destination(item: AppNotification): string | null {
   }
 }
 
+function notificationIsRead(item: AppNotification): boolean { return Boolean(item.readAt || item.isRead); }
+
 export default function NotificationsScreen() {
-  const { user, accessToken, csrfToken } = useAuth();
+  const { user, getAccessToken, csrfToken, isRestoring } = useAuth();
   const { counts, refresh: refreshUnreadCounts } = useUnreadCounts();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [moreError, setMoreError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   const requestSequence = useRef(0);
+  const hasLoadedRef = useRef(false);
 
   const load = useCallback(
     async (refresh = false) => {
       const sequence = ++requestSequence.current;
-      if (!accessToken) {
+      const token = getAccessToken();
+      if (isRestoring) return;
+      if (!token) {
         setLoading(false);
+        setRefreshing(false);
         setError('سجّل الدخول لعرض إشعاراتك.');
         return;
       }
       if (refresh) setRefreshing(true);
-      else setLoading(true);
+      else if (!hasLoadedRef.current) setLoading(true);
       setError(null);
+      setMoreError(null);
+      setLoadingMore(false);
       try {
-        const result = await fetchNotifications(accessToken);
-        if (sequence === requestSequence.current) setItems(result);
+        const result = await fetchNotificationsPage(token, 1, 50);
+        if (sequence === requestSequence.current) {
+          setItems(result.items);
+          setPage(result.page);
+          setTotalPages(result.totalPages);
+          hasLoadedRef.current = true;
+        }
       } catch (e) {
         if (sequence === requestSequence.current) {
           setError(e instanceof Error ? e.message : 'تعذر تحميل الإشعارات.');
@@ -114,8 +132,31 @@ export default function NotificationsScreen() {
         }
       }
     },
-    [accessToken],
+    [getAccessToken, isRestoring],
   );
+
+  const loadMore = async () => {
+    const token = getAccessToken();
+    if (!token || loadingMore || loading || page >= totalPages) return;
+    const sequence = requestSequence.current;
+    setLoadingMore(true);
+    setMoreError(null);
+    try {
+      const result = await fetchNotificationsPage(token, page + 1, 50);
+      if (sequence === requestSequence.current) {
+        setItems((current) => {
+          const seen = new Set(current.map((item) => item.id));
+          return [...current, ...result.items.filter((item) => !seen.has(item.id))];
+        });
+        setPage(result.page);
+        setTotalPages(result.totalPages);
+      }
+    } catch (e) {
+      if (sequence === requestSequence.current) setMoreError(e instanceof Error ? e.message : 'تعذر تحميل الإشعارات الأقدم.');
+    } finally {
+      if (sequence === requestSequence.current) setLoadingMore(false);
+    }
+  };
 
   useFocusEffect(
     useCallback(() => {
@@ -127,10 +168,11 @@ export default function NotificationsScreen() {
   );
 
   const markAll = async () => {
-    if (!accessToken || busy) return;
+    const token = getAccessToken();
+    if (!token || busy) return;
     setBusy(true);
     try {
-      await markAllNotificationsRead(accessToken, csrfToken);
+      await markAllNotificationsRead(token, csrfToken);
       setItems((current) =>
         current.map((item) => ({ ...item, readAt: item.readAt || new Date().toISOString() })),
       );
@@ -142,23 +184,22 @@ export default function NotificationsScreen() {
     }
   };
 
-  const open = async (item: AppNotification) => {
-    if (!accessToken) return;
-    if (!item.readAt) {
-      try {
-        await markNotificationRead(item.id, accessToken, csrfToken);
-        setItems((current) =>
-          current.map((entry) =>
-            entry.id === item.id ? { ...entry, readAt: new Date().toISOString() } : entry,
-          ),
-        );
-        void refreshUnreadCounts();
-      } catch {
-        /* Navigation remains available if marking read fails. */
-      }
-    }
+  const open = (item: AppNotification) => {
+    const token = getAccessToken();
     const target = destination(item);
-    if (target) router.push(target as never);
+    if (!target) return;
+    const unread = !notificationIsRead(item);
+    if (unread) {
+      const readAt = new Date().toISOString();
+      setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, isRead: true, readAt } : entry));
+      void refreshUnreadCounts();
+      // Navigation must not wait for a weak mobile connection.
+      if (token) void markNotificationRead(item.id, token, csrfToken).catch(() => {
+        setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, isRead: false, readAt: null } : entry));
+        void refreshUnreadCounts();
+      });
+    }
+    router.push(target as never);
   };
 
   return (
@@ -181,7 +222,9 @@ export default function NotificationsScreen() {
         }
       />
 
-      {!user ? (
+      {isRestoring ? (
+        <LoadingState message="جارٍ استعادة الجلسة…" />
+      ) : !user ? (
         <EmptyState
           title="سجّل الدخول أولًا"
           actionLabel="تسجيل الدخول"
@@ -189,7 +232,7 @@ export default function NotificationsScreen() {
         />
       ) : loading ? (
         <LoadingState message="جاري تحميل الإشعارات…" />
-      ) : error ? (
+      ) : error && items.length === 0 ? (
         <ErrorState title="تعذر تحميل الإشعارات" description={error} onAction={() => void load()} />
       ) : (
         <FlatList
@@ -204,6 +247,13 @@ export default function NotificationsScreen() {
               tintColor={colors.brand}
             />
           }
+          ListHeaderComponent={error ? <ErrorState title="تعذر تحديث الإشعارات" description={error} onAction={() => void load(true)} /> : null}
+          ListFooterComponent={items.length > 0 ? (
+            <View style={{ gap: spacing.sm }}>
+              {page < totalPages ? <Pressable accessibilityRole="button" disabled={loadingMore} onPress={() => void loadMore()} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={styles.link}>{loadingMore ? 'جارٍ تحميل المزيد…' : 'تحميل إشعارات أقدم'}</Text></Pressable> : null}
+              {moreError ? <ErrorState title="تعذر تحميل الإشعارات الأقدم" description={moreError} onAction={() => void loadMore()} /> : null}
+            </View>
+          ) : null}
           ListEmptyComponent={
             <EmptyState
               title="لا توجد إشعارات بعد"
@@ -211,12 +261,12 @@ export default function NotificationsScreen() {
             />
           }
           renderItem={({ item }) => (
-<Pressable
+            <Pressable
                 accessibilityRole="button"
                 onPress={() => { void open(item); }}
-                style={[styles.card, !item.readAt && styles.unread]}
+                style={[styles.card, !notificationIsRead(item) && styles.unread]}
               >
-                <View style={[styles.iconWrap, !item.readAt && styles.iconUnread]}>
+                <View style={[styles.iconWrap, !notificationIsRead(item) && styles.iconUnread]}>
                   <Text style={styles.icon}>
                     {item.type === 'NEW_MESSAGE'
                       ? '💬'
@@ -229,12 +279,10 @@ export default function NotificationsScreen() {
                   <Text style={styles.itemTitle}>{item.title}</Text>
                   <Text style={styles.body}>{item.body}</Text>
                   <Text style={styles.time}>
-                    {new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(
-                      new Date(item.createdAt),
-                    )}
+                    {formatSafeDate(item.createdAt, 'dateTime')}
                   </Text>
                 </View>
-                {!item.readAt ? <View style={styles.dot} /> : null}
+                {!notificationIsRead(item) ? <View style={styles.dot} /> : null}
               </Pressable>
           )}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}

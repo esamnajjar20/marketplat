@@ -6,12 +6,14 @@ export function SearchBar({
   value,
   onChangeText,
   onSubmit,
+  onClear,
   placeholder = 'ابحث…',
   accessibilityLabel = 'بحث',
 }: {
   value: string;
   onChangeText: (v: string) => void;
   onSubmit: () => void;
+  onClear?: () => void;
   placeholder?: string;
   accessibilityLabel?: string;
 }) {
@@ -33,7 +35,7 @@ export function SearchBar({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="مسح البحث"
-          onPress={() => onChangeText('')}
+          onPress={() => { onChangeText(''); onClear?.(); }}
           style={s.searchClearButton}
         >
           <Text style={s.searchClear}>×</Text>

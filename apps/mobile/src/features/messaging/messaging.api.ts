@@ -1,4 +1,4 @@
-import { apiRequest } from '@/api/client';
+import { apiRequest, UPLOAD_TIMEOUT_MS } from '@/api/client';
 import {
   chatMessageEnvelopeResponseSchema,
   chatMessageListEnvelopeResponseSchema,
@@ -25,7 +25,21 @@ export async function fetchMessages(conversationId: string, token: string): Prom
 export async function sendMessage(conversationId: string, body: string, token: string, csrfToken?: string | null, operationId?: string | null, signal?: AbortSignal): Promise<ChatMessage> { const trimmed = body.trim(); if (!trimmed) throw new Error('لا يمكن إرسال رسالة فارغة.'); const headers = { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), ...(operationId ? { 'X-Offline-Op-Id': operationId } : {}) }; const response = await apiRequest<ApiEnvelope<ChatMessage>>(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`, { method: 'POST', token, signal, headers: Object.keys(headers).length ? headers : undefined, body: JSON.stringify({ body: trimmed }), responseSchema: chatMessageEnvelopeResponseSchema as ZodType<ApiEnvelope<ChatMessage>> }); return requireData(response, 'إرسال الرسالة'); }
 export async function startConversationFromAd(adId: string, token: string, csrfToken?: string | null): Promise<{ id: string }> { const response = await apiRequest<ApiEnvelope<{ id: string }>>('/api/v1/conversations', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({ adId }), responseSchema: conversationCreatedEnvelopeResponseSchema as ZodType<ApiEnvelope<{ id: string }>> }); return requireData(response, 'بدء المحادثة'); }
 export async function startConversationWithUser(userId: string, token: string, context?: { type: 'product' | 'service'; id: string }, csrfToken?: string | null): Promise<{ id: string }> { const response = await apiRequest<ApiEnvelope<{ id: string }>>('/api/v1/conversations', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({ userId, ...(context ? { context } : {}) }), responseSchema: conversationCreatedEnvelopeResponseSchema as ZodType<ApiEnvelope<{ id: string }>> }); return requireData(response, 'بدء المحادثة'); }
-export async function fetchNotifications(token: string, unreadOnly = false): Promise<AppNotification[]> { const query = new URLSearchParams({ page: '1', limit: '50' }); if (unreadOnly) query.set('unreadOnly', 'true'); const response = await apiRequest<ApiEnvelope<AppNotification[]>>(`/api/v1/notifications?${query.toString()}`, { token, responseSchema: notificationListEnvelopeResponseSchema as ZodType<ApiEnvelope<AppNotification[]>> }); const items = requireData(response, 'الإشعارات'); if (!Array.isArray(items)) throw new Error('قائمة الإشعارات غير صالحة.'); return items; }
+export type NotificationPage = { items: AppNotification[]; page: number; totalPages: number; total: number };
+export async function fetchNotificationsPage(token: string, page = 1, limit = 50, unreadOnly = false): Promise<NotificationPage> {
+  const safePage = Math.max(1, Math.floor(Number(page) || 1));
+  const safeLimit = Math.max(1, Math.min(100, Math.floor(Number(limit) || 50)));
+  const query = new URLSearchParams({ page: String(safePage), limit: String(safeLimit) });
+  if (unreadOnly) query.set('unreadOnly', 'true');
+  const response = await apiRequest<ApiEnvelope<AppNotification[]>>(`/api/v1/notifications?${query.toString()}`, { token, responseSchema: notificationListEnvelopeResponseSchema as ZodType<ApiEnvelope<AppNotification[]>> });
+  const items = requireData(response, 'الإشعارات');
+  if (!Array.isArray(items)) throw new Error('قائمة الإشعارات غير صالحة.');
+  const meta = response.meta?.pagination;
+  return { items, page: meta?.page ?? safePage, totalPages: meta?.totalPages ?? (items.length >= safeLimit ? safePage + 1 : safePage), total: meta?.total ?? items.length };
+}
+export async function fetchNotifications(token: string, unreadOnly = false): Promise<AppNotification[]> {
+  return (await fetchNotificationsPage(token, 1, 50, unreadOnly)).items;
+}
 export async function fetchUnreadCounts(token: string): Promise<Partial<{ messages: number; notifications: number }>> { const [messagesR, notificationsR] = await Promise.allSettled([apiRequest<ApiEnvelope<{ count: number }>>('/api/v1/conversations/unread-count', { token, responseSchema: unreadCountEnvelopeResponseSchema as ZodType<ApiEnvelope<{ count: number }>> }), apiRequest<ApiEnvelope<{ count: number }>>('/api/v1/notifications/unread-count', { token, responseSchema: unreadCountEnvelopeResponseSchema as ZodType<ApiEnvelope<{ count: number }>> })]); const result: Partial<{ messages: number; notifications: number }> = {}; if (messagesR.status === 'fulfilled') { try { result.messages = Math.max(0, Number(requireData(messagesR.value, 'عدد الرسائل غير المقروءة').count) || 0); } catch { /* count unavailable */ } } if (notificationsR.status === 'fulfilled') { try { result.notifications = Math.max(0, Number(requireData(notificationsR.value, 'عدد الإشعارات غير المقروءة').count) || 0); } catch { /* count unavailable */ } } return result; }
 export async function markNotificationRead(id: string, token: string, csrfToken?: string | null): Promise<void> { await apiRequest<ApiEnvelope<unknown>>(`/api/v1/notifications/${encodeURIComponent(id)}/read`, { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined }); }
 export async function markAllNotificationsRead(token: string, csrfToken?: string | null): Promise<void> { await apiRequest<ApiEnvelope<unknown>>('/api/v1/notifications/read-all', { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined }); }
@@ -48,7 +62,7 @@ async function sendChatMedia(conversationId: string, asset: ChatMediaAsset, fiel
   const response = await apiRequest<ApiEnvelope<ChatMessage>>(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/${endpoint}`, {
     method: 'POST', token,
     headers: { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), 'X-Offline-Op-Id': stableOperationId },
-    body: mediaForm(asset, field, caption), timeoutMs: 60_000, signal,
+    body: mediaForm(asset, field, caption), timeoutMs: UPLOAD_TIMEOUT_MS, signal,
   });
   return requireData(response, field === 'image' ? 'إرسال الصورة' : field === 'audio' ? 'إرسال الرسالة الصوتية' : 'إرسال الملف');
 }

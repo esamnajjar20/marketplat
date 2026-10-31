@@ -467,7 +467,7 @@ export async function syncNextOfflineCreate(input: {
         {
           method: 'POST',
           token: input.token,
-          timeoutMs: 12_000,
+          timeoutMs: body instanceof FormData ? 120_000 : 30_000,
           headers,
           body,
         },

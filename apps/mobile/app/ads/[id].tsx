@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
-  acknowledgeFavoriteState,
   enqueueFavoriteState,
   listPendingFavoriteStates,
   readFavoriteAdIds,
-  writeFavoriteAdIds,
+  updateFavoriteAdId,
 } from '@/features/ads/favorites.store';
-import { fetchFavoriteAdIds, setFavoriteAdState } from '@/features/ads/favorites.api';
+import { setFavoriteAdState } from '@/features/ads/favorites.api';
 import { ApiError } from '@/api/client';
 import { fetchAdDetail, getCachedAdDetail } from '@/features/ads/ads.api';
 import type { AdDetail } from '@/features/ads/ads.api';
@@ -53,8 +52,11 @@ export default function AdDetailScreen() {
   const [favoriteMessage, setFavoriteMessage] = useState<string | null>(null);
   const [startingConversation, setStartingConversation] = useState(false);
   const [conversationMessage, setConversationMessage] = useState<string | null>(null);
+  const [cacheNotice, setCacheNotice] = useState(false);
+  const loadSequence = useRef(0);
 
   const load = useCallback(async () => {
+    const current = ++loadSequence.current;
     if (!id) {
       setErrorMessage('رابط الإعلان غير مكتمل.');
       setLoading(false);
@@ -62,20 +64,23 @@ export default function AdDetailScreen() {
     }
     setLoading(true);
     setErrorMessage(null);
+    setCacheNotice(false);
     let hasCachedAd = false;
     try {
       const cached = await getCachedAdDetail(id);
       if (cached) {
         hasCachedAd = true;
-        setAd(cached);
-        setLoading(false);
+        if (current === loadSequence.current) { setAd(cached); setLoading(false); }
       }
     } catch {
       /* Cache is optional; continue with network. */
     }
     try {
-      setAd(await fetchAdDetail(id));
+      const fresh = await fetchAdDetail(id);
+      if (current === loadSequence.current) setAd(fresh);
     } catch (error) {
+      if (current !== loadSequence.current) return;
+      if (hasCachedAd) setCacheNotice(true);
       if (!hasCachedAd) {
         setErrorMessage(
           error instanceof ApiError || error instanceof Error
@@ -84,64 +89,32 @@ export default function AdDetailScreen() {
         );
       }
     } finally {
-      setLoading(false);
+      if (current === loadSequence.current) setLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
     void load();
+    return () => { loadSequence.current += 1; };
   }, [load]);
 
   useEffect(() => {
     let active = true;
-    if (!id) return () => {
-      active = false;
-    };
+    if (!id) return () => { active = false; };
     void (async () => {
       try {
         const localIds = await readFavoriteAdIds(user?.id);
-        if (active) setIsFavorite(localIds.includes(id));
-      } catch {
-        /* Local state is a best-effort offline hint. */
-      }
-      if (!accessToken || !user?.id) return;
-      try {
-        const pending = await listPendingFavoriteStates(user.id);
-        for (const operation of pending) {
-          if (!active) return;
-          try {
-            await setFavoriteAdState(
-              operation.adId,
-              operation.favorited,
-              accessToken,
-              operation.operationId,
-              csrfToken,
-            );
-            await acknowledgeFavoriteState(user.id, operation.adId, operation.operationId);
-          } catch {
-            break;
-          }
-        }
-        const serverIds = await fetchFavoriteAdIds(accessToken);
+        const pending = user?.id ? await listPendingFavoriteStates(user.id) : [];
         if (!active) return;
-        const pendingAfterSync = await listPendingFavoriteStates(user.id);
-        if (!active) return;
-        const merged = new Set(serverIds);
-        for (const operation of pendingAfterSync) {
-          if (operation.favorited) merged.add(operation.adId);
-          else merged.delete(operation.adId);
-        }
-        const mergedIds = [...merged];
-        await writeFavoriteAdIds(mergedIds, user?.id);
-        if (active) setIsFavorite(merged.has(id));
+        const matchingPending = pending.filter((entry) => entry.adId === id);
+        const latestPending = matchingPending[matchingPending.length - 1];
+        setIsFavorite(latestPending ? latestPending.favorited : localIds.includes(id));
       } catch {
-        /* Keep cached state if offline. */
+        /* Local favorite state is best-effort; lifecycle bridge owns sync. */
       }
     })();
-    return () => {
-      active = false;
-    };
-  }, [accessToken, csrfToken, id, user?.id]);
+    return () => { active = false; };
+  }, [id, user?.id]);
 
   const onToggleFavorite = useCallback(async () => {
     if (!accessToken) {
@@ -156,11 +129,7 @@ export default function AdDetailScreen() {
       const operationId = `fav-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
       await setFavoriteAdState(id, next, accessToken, operationId, csrfToken);
       setIsFavorite(next);
-      const ids = await readFavoriteAdIds(user?.id);
-      await writeFavoriteAdIds(
-        next ? [...ids, id] : ids.filter((item) => item !== id),
-        user?.id,
-      );
+      await updateFavoriteAdId(id, next, user?.id);
       setFavoriteMessage(next ? 'أُضيف الإعلان إلى المفضلة.' : 'أُزيل الإعلان من المفضلة.');
     } catch (error) {
       if (error instanceof ApiError && error.status === undefined && user?.id) {
@@ -174,11 +143,7 @@ export default function AdDetailScreen() {
             operationId,
           });
           setIsFavorite(next);
-          const ids = await readFavoriteAdIds(user?.id);
-          await writeFavoriteAdIds(
-            next ? [...ids, id] : ids.filter((item) => item !== id),
-            user?.id,
-          );
+          await updateFavoriteAdId(id, next, user?.id);
           setFavoriteMessage('حُفظ التغيير على هذا الجهاز، وسيُزامَن عند عودة الاتصال.');
         } catch (queueError) {
           setFavoriteMessage(
@@ -253,7 +218,7 @@ export default function AdDetailScreen() {
               <Text style={styles.price}>{formatPrice(ad.price)}</Text>
               <Text style={styles.title}>{ad.title}</Text>
               <Text style={styles.meta}>
-                {[ad.city, ad.category?.nameAr || ad.category?.name, ad.condition]
+                {[ad.city, ad.category?.nameAr || ad.category?.name, ({ NEW: 'جديد', USED: 'مستعمل', REFURBISHED: 'مجدّد' } as Record<string,string>)[ad.condition || ''] || ad.condition]
                   .filter(Boolean)
                   .join(' · ') || 'إعلان محلي'}
               </Text>
@@ -266,7 +231,7 @@ export default function AdDetailScreen() {
               ) : null}
 
               <PrimaryButton
-                label={
+                label={!accessToken ? 'سجّل الدخول لحفظ المفضلة' :
                   favoriteBusy
                     ? 'جارٍ تحديث المفضلة…'
                     : isFavorite
@@ -274,12 +239,15 @@ export default function AdDetailScreen() {
                       : 'أضف إلى المفضلة'
                 }
                 onPress={() => {
-                  void onToggleFavorite();
+                  if (!accessToken) router.push('/login'); else void onToggleFavorite();
                 }}
                 busy={favoriteBusy}
                 variant="secondary"
               />
               {favoriteMessage ? <Notice tone="muted">{favoriteMessage}</Notice> : null}
+              {cacheNotice ? <Notice tone="muted">تعرض هذه البيانات نسخة محفوظة؛ تعذر التحقق من أحدث تحديث.</Notice> : null}
+              {ad.status ? <Badge label={({ ACTIVE: 'نشط', SOLD: 'مباع', EXPIRED: 'منتهي', PENDING: 'قيد المراجعة', REJECTED: 'مرفوض', SUSPENDED: 'موقوف' } as Record<string,string>)[ad.status] || ad.status} tone={ad.status === 'ACTIVE' ? 'success' : 'muted'} /> : null}
+              {isOwner ? <PrimaryButton label="تعديل الإعلان" variant="secondary" onPress={() => router.push({ pathname: '/ad-editor', params: { id: ad.id } })} /> : null}
               <SaveOfflineButton id={ad.id} kind="ad" title={ad.title} payload={{ id: ad.id, title: ad.title, description: ad.description, price: ad.price, city: ad.city, condition: ad.condition, createdAt: ad.createdAt, images }} />
               {conversationMessage ? <Notice tone="error">{conversationMessage}</Notice> : null}
             </SectionCard>

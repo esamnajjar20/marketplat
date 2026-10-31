@@ -39,6 +39,26 @@ export async function toggleUserFollow(id: string, token: string, csrfToken?: st
   });
   return unwrap(response, 'تعذر تحديث المتابعة.').action;
 }
+
+export type FollowingFeedItem = {
+  type: 'AD' | 'PRODUCT' | 'SERVICE';
+  id: string;
+  title: string;
+  price?: number | string | null;
+  images?: string[];
+  city?: string | null;
+  createdAt?: string;
+  userId?: string | null;
+  storeId?: string | null;
+  categoryId?: string | null;
+};
+export async function fetchFollowingFeed(token: string, page = 1, limit = 20): Promise<{ items: FollowingFeedItem[]; meta?: PaginationMeta }> {
+  const response = await apiRequest<Envelope<FollowingFeedItem[]>>(`/api/v1/follows/feed?page=${page}&limit=${limit}`, { token });
+  const items = unwrap(response, 'تعذر تحميل نشاط الحسابات التي تتابعها.');
+  if (!Array.isArray(items)) throw new Error('استجابة موجز المتابعة غير صالحة.');
+  return { items, meta: response.meta?.pagination };
+}
+
 export async function fetchUserFollowList(id: string, mode: 'followers' | 'following', page = 1, limit = 20): Promise<{ items: FollowListItem[]; meta?: PaginationMeta }> {
   const response = await apiRequest<Envelope<FollowListItem[]>>(`/api/v1/follows/users/${encodeURIComponent(id)}/${mode}?page=${page}&limit=${limit}`);
   const items = unwrap(response, 'تعذر تحميل القائمة.');
@@ -57,6 +77,11 @@ export async function toggleBlockUser(id: string, token: string, csrfToken?: str
   });
   return unwrap(response, 'تعذر تحديث الحظر.').action;
 }
+export async function unblockUser(id: string, token: string, csrfToken?: string | null): Promise<void> {
+  const response = await apiRequest<Envelope<unknown>>(`/api/v1/blocked-users/${encodeURIComponent(id)}`, { method: 'DELETE', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({}) });
+  if (!response || response.success !== true) throw new Error(response?.message || 'تعذر إلغاء الحظر.');
+}
+
 export async function submitReport(targetType: 'ads' | 'users' | 'stores' | 'products' | 'services', targetId: string, reason: ReportReason, notes: string, token: string, csrfToken?: string | null): Promise<unknown> {
   const path = targetType === 'ads' ? `/api/v1/reports/ads/${encodeURIComponent(targetId)}` : `/api/v1/reports/${targetType}/${encodeURIComponent(targetId)}`;
   const response = await apiRequest<Envelope<unknown>>(path, {

@@ -26,8 +26,8 @@ function validate(value: unknown): asserts value is OfferPayload {
   if (typeof p.requestId !== 'string' || !p.requestId.trim() || p.requestId.length > 160 || typeof p.price !== 'number' || !Number.isFinite(p.price) || p.price <= 0 || Math.round(p.price * 100) !== p.price * 100 || (p.message !== undefined && (typeof p.message !== 'string' || p.message.length > 1000)) || typeof p.operationId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/.test(p.operationId)) throw new Error('بيانات العرض لا تطابق قواعد الحفظ دون اتصال.');
 }
 function mapRow(row: Row): PendingRequestOfferItem { let payload: OfferPayload; try { const v: unknown = JSON.parse(row.payload_json); validate(v); payload = v; } catch { payload = { requestId: '', price: 0, operationId: row.id }; } return { id: row.id, ownerId: row.owner_id, payload, createdAt: row.created_at, attempts: row.attempts, lastError: row.last_error, nextAttemptAt: row.next_attempt_at, state: row.state }; }
-export async function enqueueRequestOffer(ownerId: string, requestId: string, price: number, message?: string): Promise<void> {
-  const payload: OfferPayload = { requestId, price, ...(message?.trim() ? { message: message.trim() } : {}), operationId: `offline-offer:${Date.now()}:${Math.random().toString(36).slice(2,12)}` };
+export async function enqueueRequestOffer(ownerId: string, requestId: string, price: number, message?: string, operationId?: string): Promise<void> {
+  const payload: OfferPayload = { requestId, price, ...(message?.trim() ? { message: message.trim() } : {}), operationId: operationId || `offline-offer:${Date.now()}:${Math.random().toString(36).slice(2,12)}` };
   if (!ownerId.trim() || ownerId.length > 160) throw new Error('تعذر تحديد الحساب المالك للعرض.'); validate(payload);
   const db = await database(); await db.withExclusiveTransactionAsync(async tx => {
     const existing = await tx.getFirstAsync<{ id: string }>('SELECT id FROM request_offer_outbox WHERE owner_id=? AND id=?', ownerId, payload.operationId); if (existing) return;

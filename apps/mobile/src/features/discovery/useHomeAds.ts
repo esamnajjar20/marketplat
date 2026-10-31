@@ -67,7 +67,7 @@ export function useHomeAds({ search, filters, sort }: Options) {
       sortBy: sort.sortBy,
       sortOrder: sort.sortOrder,
     }),
-    [search, filters, sort],
+    [search, filters.city, filters.minPrice, filters.maxPrice, sort.sortBy, sort.sortOrder],
   );
 
   const loadAds = useCallback(

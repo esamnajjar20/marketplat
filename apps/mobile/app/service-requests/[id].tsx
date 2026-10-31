@@ -6,6 +6,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchServiceRequest, respondToServiceRequest, type ServiceRequest } from '@/features/services/services.api';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { ServiceRequestTimeline } from '@/components/ui/ServiceRequestTimeline';
+import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
 
 const STATUS: Record<string, string> = { PENDING: 'بانتظار الرد', ACCEPTED: 'مقبول', REJECTED: 'مرفوض', IN_PROGRESS: 'قيد التنفيذ', COMPLETED: 'مكتمل', CANCELLED: 'ملغي', EXPIRED: 'منتهي', DISPUTED: 'قيد المراجعة' };
@@ -85,7 +86,7 @@ export default function ServiceRequestDetailScreen() {
       {request.listing?.images?.length ? <View style={s.card}><Text style={s.sectionTitle}>صور الخدمة</Text><MediaGallery images={request.listing.images} title={request.listing.title || 'صور الخدمة'} /></View> : null}
       {request.appointment ? <View style={s.card}><Text style={s.sectionTitle}>الموعد</Text><Text style={s.meta}>من: {dateTime(request.appointment.scheduledStart) || 'غير محدد'}</Text><Text style={s.meta}>إلى: {dateTime(request.appointment.scheduledEnd) || 'غير محدد'}</Text><Text style={s.meta}>الحالة: {request.appointment.status || 'غير محددة'}</Text>{request.appointment.notes ? <Text style={s.body}>{request.appointment.notes}</Text> : null}</View> : null}
       <View style={s.card}><ServiceRequestTimeline status={status} createdAt={request.createdAt} respondedAt={request.respondedAt} /></View>
-      {role.provider && status === 'PENDING' && needsQuote ? <View style={s.card}><Text style={s.sectionTitle}>السعر المقترح</Text><TextInput accessibilityLabel="السعر المقترح بالشيكل" value={quote} onChangeText={setQuote} keyboardType="decimal-pad" placeholder="أدخل السعر بالشيكل" placeholderTextColor={colors.muted} style={s.input} /></View> : null}
+      {role.provider && status === 'PENDING' && needsQuote ? <View style={s.card}><Text style={s.sectionTitle}>السعر المقترح</Text><TextInput accessibilityLabel="السعر المقترح بالشيكل" value={quote} onChangeText={(value) => setQuote(normalizeNumericInput(value))} keyboardType="decimal-pad" placeholder="أدخل السعر بالشيكل" placeholderTextColor={colors.muted} style={s.input} /></View> : null}
       {(role.customer || role.provider) && ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED'].includes(status) ? <View style={s.card}><Text style={s.sectionTitle}>إجراءات الطلب</Text><View style={s.actions}>
         {role.provider && status === 'PENDING' ? <>{actionButton('قبول الطلب', 'ACCEPTED', 'primary', needsQuote ? 'سيُرسل السعر المقترح للعميل للموافقة.' : 'هل تريد قبول طلب الخدمة؟')}{actionButton('رفض الطلب', 'REJECTED', 'danger', 'سيتم رفض الطلب ولن يمكن متابعة تنفيذه.')}</> : null}
         {role.customer && status === 'PENDING' ? actionButton('إلغاء الطلب', 'CANCELLED', 'danger') : null}

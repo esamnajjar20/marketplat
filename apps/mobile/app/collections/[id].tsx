@@ -7,6 +7,7 @@ import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
 import { colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
+import { formatSafeDate } from '@/lib/date-format';
 
 export default function CollectionProductsScreen() {
   const p = useLocalSearchParams<{ id: string | string[] }>();
@@ -56,10 +57,10 @@ export default function CollectionProductsScreen() {
               ) : null}
               <Text style={{ textAlign: 'right', fontSize: 16, fontWeight: '900', color: colors.ink }}>{item.name}</Text>
               <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '900' }}>
-                {item.effectivePrice?.price ?? item.discountPrice ?? item.price} ₪
+                {(() => { const value = Number(item.effectivePrice?.price ?? item.discountPrice ?? item.price); return Number.isFinite(value) ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(value)} ₪` : 'السعر غير متاح'; })()}
               </Text>
               <Text style={{ textAlign: 'right', color: colors.muted }}>
-                {item.availability === 'OUT_OF_STOCK' ? 'غير متوفر' : 'متوفر حسب المخزون'}
+                {item.availability === 'OUT_OF_STOCK' ? 'غير متوفر' : item.availability === 'LIMITED' ? 'كمية محدودة' : item.availability === 'IN_STOCK' ? 'متوفر' : 'حالة التوفر غير محددة'}
               </Text>
             </SectionCard>
           </Pressable>

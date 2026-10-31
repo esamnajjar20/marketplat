@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { fetchServiceProviders, type ProviderSummary } from '@/features/services/providers.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -13,14 +13,15 @@ export default function ServiceProvidersScreen() {
   const [appliedCity, setAppliedCity] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const sequence = useRef(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (refresh = false) => {
     const current = ++sequence.current;
-    setLoading(true);
+    if (refresh) setRefreshing(true); else setLoading(true);
     setLoadingMore(false);
     setError('');
     try {
@@ -32,7 +33,7 @@ export default function ServiceProvidersScreen() {
     } catch (e) {
       if (current === sequence.current) setError(e instanceof Error ? e.message : 'تعذر تحميل مقدمي الخدمات.');
     } finally {
-      if (current === sequence.current) setLoading(false);
+      if (current === sequence.current) { setLoading(false); setRefreshing(false); }
     }
   }, [appliedCity]);
 
@@ -67,9 +68,11 @@ export default function ServiceProvidersScreen() {
   return (
     <PageShell title="مقدمو الخدمات" scroll={false}>
       <FlatList
+        keyboardShouldPersistTaps="handled"
         data={loading && items.length === 0 ? [] : items}
         keyExtractor={(item) => item.id}
         {...marketListPerf}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
         contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>

@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { router } from 'expo-router';
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,17 +13,25 @@ import {
 import { AppImage } from '@/components/AppImage';
 import { DrawerMenuButton } from '@/components/MobileDrawer';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radius, spacing, typography, ux } from '@/theme/tokens';
+import { colors, radius, spacing, ux } from '@/theme/tokens';
 import { EmptyState, ErrorState, LoadingState, SectionHeader, SkeletonList } from '@/components/MobileUI';
 import { AdCard } from '@/components/MarketCards';
 import { useAuth } from '@/features/auth/AuthContext';
 import HomeCommunitySections from '@/features/discovery/HomeCommunitySections';
 import HomeMarketplaceSections from '@/features/discovery/HomeMarketplaceSections';
 import { formatPrice, formatServicePrice } from '@/features/discovery/homeFormatters';
+import type { AdListItem } from '@/features/ads/ads.api';
+import { marketListPerf } from '@/lib/listPerformance';
+import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { useHomeAds } from '@/features/discovery/useHomeAds';
 import { useHomeServices } from '@/features/discovery/useHomeServices';
 import { useHomeScreenState } from '@/features/discovery/useHomeScreenState';
 import { useOnlineResync } from '@/lib/useOnlineResync';
+
+type HomeListRow =
+  | { type: 'header' }
+  | { type: 'ad'; key: string; ad: AdListItem }
+  | { type: 'footer' };
 
 /**
  * Home — orchestration only (Phase 2).
@@ -95,187 +103,173 @@ export default function HomeScreen() {
   }, []);
   useOnlineResync(resyncPublic);
 
+  const listRows = useMemo<HomeListRow[]>(() => [
+    { type: 'header' },
+    ...ads.map((ad) => ({ type: 'ad' as const, key: ad.id, ad })),
+    { type: 'footer' },
+  ], [ads]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView
+      <FlatList
+        data={listRows}
+        keyExtractor={(item) => item.type === 'ad' ? `ad:${item.key}` : item.type}
+        {...marketListPerf}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void Promise.all([loadAds(true), loadServices(true)]); }} tintColor={colors.brand} />}
-      >
-        <View style={styles.header}>
-          <View style={styles.brandRow}>
-            <View style={styles.logo}><Text style={styles.logoText}>م</Text></View>
-            <View>
-              <Text style={styles.brandName}>MarketPlat</Text>
-              <Text style={styles.brandSubtitle}>سوقك، أقرب وأسهل</Text>
+        ItemSeparatorComponent={() => <View style={{ height: spacing.lg }} />}
+        onEndReached={() => {
+          if (!loading && !refreshing && !loadingMore && !errorMessage && ads.length > 0 && page < totalPages) {
+            void loadMoreAds();
+          }
+        }}
+        onEndReachedThreshold={0.35}
+        renderItem={({ item }) => {
+          if (item.type === 'ad') {
+            const ad = item.ad;
+            const imageUri = !failedImageIds.includes(ad.id) && Array.isArray(ad.images)
+              ? ad.images.find((url) => typeof url === 'string' && /^(https?:|file:|content:)/i.test(url))
+              : undefined;
+            return (
+              <AdCard
+                title={ad.title}
+                price={formatPrice(ad.price)}
+                meta={[ad.city, ad.category?.nameAr || ad.category?.name].filter(Boolean).join(' · ') || 'إعلان محلي'}
+                imageUri={imageUri}
+                isFavorite={favoriteIds.includes(ad.id)}
+                isNegotiable={Boolean(ad.isNegotiable)}
+                onPress={() => router.push(`/ads/${encodeURIComponent(ad.id)}`)}
+                onToggleFavorite={() => { void toggleFavorite(ad.id); }}
+                onImageError={() => markImageFailed(ad.id)}
+              />
+            );
+          }
+
+          if (item.type === 'header') {
+            return (
+              <View style={{ gap: spacing.xl }}>
+                <View style={styles.header}>
+                  <View style={styles.brandRow}>
+                    <View style={styles.logo}><Text style={styles.logoText}>م</Text></View>
+                    <View><Text style={styles.brandName}>MarketPlat</Text><Text style={styles.brandSubtitle}>سوقك، أقرب وأسهل</Text></View>
+                  </View>
+                  <View style={styles.headerActions}>
+                    <DrawerMenuButton />
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={user ? 'تسجيل الخروج' : 'تسجيل الدخول'}
+                      disabled={isBusy || isRestoring}
+                      onPress={async () => {
+                        if (!user) { router.push('/login'); return; }
+                        await logout();
+                      }}
+                      style={styles.accountButton}
+                    >
+                      <Text style={styles.accountButtonText}>{isRestoring ? '…' : user ? 'خروج' : 'دخول'}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View style={styles.hero}>
+                  <Text style={styles.eyebrow}>{user ? `أهلًا ${user.name}` : 'أهلاً بك في سوقك المحلي'}</Text>
+                  <Text style={styles.heroTitle}>تلاقي اللي بدك إياه</Text>
+                  <Text style={styles.heroBody}>تصفّح الإعلانات أو ابحث عن شيء محدد بسهولة.</Text>
+                  <View style={styles.searchBox}>
+                    <Text style={styles.searchIcon}>⌕</Text>
+                    <TextInput accessibilityLabel="ابحث عن إعلان" value={query} onChangeText={setQuery}
+                      onSubmitEditing={() => { submitSearch(); }} placeholder="ابحث عن إعلان أو سلعة…"
+                      placeholderTextColor={colors.muted} returnKeyType="search" style={styles.searchInput} textAlign="right" />
+                    {query.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="مسح البحث" onPress={clearSearch}><Text style={styles.clearSearch}>×</Text></Pressable> : null}
+                  </View>
+                </View>
+
+                <View style={styles.quickActions}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="استكشف السوق" onPress={() => router.push('/explore')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
+                    <View style={[styles.quickIcon, { backgroundColor: colors.brandSoft }]}><Text style={[styles.quickGlyph, { color: colors.brand }]}>⌕</Text></View>
+                    <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>استكشف السوق</Text><Text style={styles.quickSubtitle}>المتاجر والخدمات والمنتجات والقصص</Text></View><Text style={styles.quickArrow}>‹</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="بحث وفلاتر متقدمة" onPress={() => router.push('/search')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
+                    <View style={[styles.quickIcon, { backgroundColor: colors.infoSoft }]}><Text style={[styles.quickGlyph, { color: colors.info }]}>⚙</Text></View>
+                    <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>بحث وفلاتر متقدمة</Text><Text style={styles.quickSubtitle}>حدد المدينة والسعر ونوع المحتوى</Text></View><Text style={styles.quickArrow}>‹</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="إضافة إعلان أو منتج أو خدمة" onPress={() => router.push(user ? '/add' : '/login')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
+                    <View style={[styles.quickIcon, { backgroundColor: colors.warningSoft }]}><Text style={[styles.quickGlyph, { color: colors.warningText }]}>＋</Text></View>
+                    <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>إضافة جديد</Text><Text style={styles.quickSubtitle}>انشر إعلانًا أو أضف منتجًا أو خدمة</Text></View><Text style={styles.quickArrow}>‹</Text>
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="محتوى مخصّص لك" onPress={() => router.push('/for-you')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
+                    <View style={[styles.quickIcon, { backgroundColor: colors.infoSoft }]}><Text style={[styles.quickGlyph, { color: colors.info }]}>✦</Text></View>
+                    <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>مخصّص لك</Text><Text style={styles.quickSubtitle}>اكتشف محتوى مقترحًا وفق اهتماماتك</Text></View><Text style={styles.quickArrow}>‹</Text>
+                  </Pressable>
+                </View>
+
+                <View style={styles.sectionHeader}>
+                  <SectionHeader title="أحدث الإعلانات" subtitle="من السوق المحلي" />
+                  <View style={styles.sectionActions}>
+                    <Pressable accessibilityRole="button" accessibilityState={{ expanded: showFilters }} onPress={() => setShowFilters((value) => !value)}><Text style={styles.link}>{showFilters ? 'إخفاء الفلاتر' : 'تصفية النتائج'}</Text></Pressable>
+                    <Pressable accessibilityRole="button" onPress={() => { void loadAds(true); }}><Text style={styles.link}>تحديث</Text></Pressable>
+                  </View>
+                </View>
+
+                {showFilters ? (
+                  <View style={styles.advancedFilters}>
+                    <Text style={styles.filterHeading}>تصفية النتائج</Text>
+                    <TextInput accessibilityLabel="المدينة" value={cityInput} onChangeText={setCityInput} placeholder="المدينة (مثلاً: غزة)" placeholderTextColor={colors.muted} textAlign="right" style={styles.filterInput} returnKeyType="done" />
+                    <View style={styles.priceInputs}>
+                      <TextInput accessibilityLabel="أقل سعر" value={minPriceInput} onChangeText={(value) => setMinPriceInput(normalizeNumericInput(value))} keyboardType="decimal-pad" placeholder="أقل سعر" placeholderTextColor={colors.muted} textAlign="right" style={[styles.filterInput, styles.priceInput]} />
+                      <TextInput accessibilityLabel="أعلى سعر" value={maxPriceInput} onChangeText={(value) => setMaxPriceInput(normalizeNumericInput(value))} keyboardType="decimal-pad" placeholder="أعلى سعر" placeholderTextColor={colors.muted} textAlign="right" style={[styles.filterInput, styles.priceInput]} />
+                    </View>
+                    {filterError ? <Text style={styles.filterError} accessibilityLiveRegion="polite">{filterError}</Text> : null}
+                    <View style={styles.sortRow}>
+                      <Text style={styles.filterCaption}>الترتيب:</Text>
+                      <Pressable accessibilityRole="button" accessibilityState={{ selected: sortBy === 'createdAt' }} onPress={() => { setSortBy('createdAt'); setSortOrder('desc'); }} style={[styles.filterChip, sortBy === 'createdAt' && styles.filterChipSelected]}><Text style={[styles.filterText, sortBy === 'createdAt' && styles.filterTextSelected]}>الأحدث</Text></Pressable>
+                      <Pressable accessibilityRole="button" accessibilityState={{ selected: sortBy === 'price' }} onPress={() => { setSortBy('price'); setSortOrder('asc'); }} style={[styles.filterChip, sortBy === 'price' && styles.filterChipSelected]}><Text style={[styles.filterText, sortBy === 'price' && styles.filterTextSelected]}>الأقل سعرًا</Text></Pressable>
+                      <Pressable accessibilityRole="button" accessibilityState={{ selected: sortBy === 'views' }} onPress={() => { setSortBy('views'); setSortOrder('desc'); }} style={[styles.filterChip, sortBy === 'views' && styles.filterChipSelected]}><Text style={[styles.filterText, sortBy === 'views' && styles.filterTextSelected]}>الأكثر مشاهدة</Text></Pressable>
+                    </View>
+                    <View style={styles.filterActions}><Pressable accessibilityRole="button" onPress={() => { clearFilters(); setSortBy('createdAt'); setSortOrder('desc'); }} style={styles.clearFiltersButton}><Text style={styles.clearFiltersText}>مسح</Text></Pressable><Pressable accessibilityRole="button" onPress={applyFilters} style={styles.applyFiltersButton}><Text style={styles.applyFiltersText}>تطبيق الفلاتر</Text></Pressable></View>
+                  </View>
+                ) : null}
+
+                {adsSavedAt !== null && !loading ? (
+                  <View style={styles.cacheStatus} accessibilityLiveRegion="polite">
+                    <Text style={styles.cacheStatusText}>{adsFromCache ? 'نسخة محفوظة على الجهاز' : 'تمت مزامنة الإعلانات'}{' · '}{new Intl.DateTimeFormat('ar', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }).format(new Date(adsSavedAt))}</Text>
+                  </View>
+                ) : null}
+                {loading && ads.length === 0 ? <SkeletonList count={4} /> : null}
+                {errorMessage && ads.length === 0 ? <ErrorState title="لم نتمكن من تحميل الإعلانات" description={errorMessage} onAction={() => { void loadAds(); }} /> : null}
+                {!loading && !errorMessage && ads.length === 0 ? <EmptyState title="لا توجد إعلانات مطابقة" description="جرّب كلمة بحث أخرى أو اسحب الشاشة للأسفل للتحديث." /> : null}
+                {errorMessage && ads.length > 0 ? <ErrorState title="تعذر تحديث الإعلانات" description={errorMessage} onAction={() => { void loadAds(true); }} /> : null}
+              </View>
+            );
+          }
+
+          return (
+            <View style={{ gap: spacing.xl }}>
+              <HomeCommunitySections />
+              <HomeMarketplaceSections />
+              <View style={styles.servicesSection}>
+                <View style={styles.sectionHeader}><SectionHeader title="خدمات قريبة منك" actionLabel="كل الخدمات" onAction={() => router.push('/services')} /></View>
+                {servicesLoading && serviceItems.length === 0 ? <LoadingState message="جاري تحميل الخدمات…" /> : null}
+                {!servicesLoading && servicesError && serviceItems.length === 0 ? <ErrorState title="تعذر تحميل الخدمات الآن" description={servicesError} onAction={() => { void loadServices(true); }} /> : null}
+                {!servicesLoading && !servicesError && serviceItems.length === 0 ? <EmptyState title="لا توجد خدمات متاحة حاليًا" description="يمكنك تصفح صفحة الخدمات للاطلاع على الخيارات المتاحة." actionLabel="تصفح الخدمات" onAction={() => router.push('/services')} /> : null}
+                {serviceItems.length > 0 ? (
+                  <View style={styles.serviceList}>{serviceItems.map((item) => {
+                    const imageUri = item.images?.find((url) => typeof url === 'string' && /^https?:\/\//i.test(url));
+                    const provider = item.provider?.businessName || item.provider?.sellerProfile?.displayName || 'مقدم خدمة';
+                    return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`عرض الخدمة: ${item.title}`} onPress={() => router.push(`/services/${encodeURIComponent(item.id)}`)} style={styles.serviceCard}>
+                      {imageUri ? <AppImage uri={imageUri} style={styles.serviceImage} resizeMode="cover" /> : <View style={styles.serviceImagePlaceholder}><Text style={styles.servicePlaceholderGlyph}>✦</Text></View>}
+                      <View style={styles.serviceInfo}><Text numberOfLines={2} style={styles.serviceTitle}>{item.title}</Text><Text numberOfLines={1} style={styles.serviceProvider}>{provider}</Text><Text style={styles.servicePrice}>{formatServicePrice(item)}</Text></View>
+                    </Pressable>;
+                  })}</View>
+                ) : null}
+                {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/service-requests')} style={styles.serviceRequestsLink}><Text style={styles.serviceRequestsText}>متابعة طلبات الخدمات ←</Text></Pressable> : null}
+              </View>
+              {loadingMore ? <View style={{ flexDirection: 'row-reverse', justifyContent: 'center', alignItems: 'center', gap: spacing.sm, padding: spacing.md }}><ActivityIndicator color={colors.brand} /><Text style={styles.link}>تحميل المزيد من الإعلانات…</Text></View> : null}
+              {!loadingMore && !loading && !errorMessage && ads.length > 0 && page < totalPages ? <Pressable accessibilityRole="button" onPress={() => { void loadMoreAds(); }} style={styles.loadMoreButton}><Text style={styles.loadMoreText}>تحميل المزيد من الإعلانات</Text></Pressable> : null}
             </View>
-          </View>
-          <View style={styles.headerActions}>
-            <DrawerMenuButton />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={user ? 'تسجيل الخروج' : 'تسجيل الدخول'}
-              disabled={isBusy || isRestoring}
-              onPress={async () => {
-                if (!user) { router.push('/login'); return; }
-                await logout();
-              }}
-              style={styles.accountButton}
-            >
-              <Text style={styles.accountButtonText}>{isRestoring ? '…' : user ? 'خروج' : 'دخول'}</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.hero}>
-          <Text style={styles.eyebrow}>{user ? `أهلًا ${user.name}` : 'أهلاً بك في سوقك المحلي'}</Text>
-          <Text style={styles.heroTitle}>تلاقي اللي بدك إياه</Text>
-          <Text style={styles.heroBody}>تصفّح الإعلانات أو ابحث عن شيء محدد بسهولة.</Text>
-          <View style={styles.searchBox}>
-            <Text style={styles.searchIcon}>⌕</Text>
-            <TextInput
-              accessibilityLabel="ابحث عن إعلان"
-              value={query}
-              onChangeText={setQuery}
-              onSubmitEditing={() => { submitSearch(); }}
-              placeholder="ابحث عن إعلان أو سلعة…"
-              placeholderTextColor={colors.muted}
-              returnKeyType="search"
-              style={styles.searchInput}
-              textAlign="right"
-            />
-            {query.length > 0 && <Pressable accessibilityRole="button" accessibilityLabel="مسح البحث" onPress={() => { clearSearch(); }}><Text style={styles.clearSearch}>×</Text></Pressable>}
-          </View>
-        </View>
-
-        <View style={styles.quickActions}>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/explore')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
-            <View style={[styles.quickIcon, { backgroundColor: colors.brandSoft }]}><Text style={[styles.quickGlyph, { color: colors.brand }]}>⌕</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>استكشف السوق</Text><Text style={styles.quickSubtitle}>المتاجر والخدمات والمنتجات والقصص</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/search')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
-            <View style={[styles.quickIcon, { backgroundColor: colors.infoSoft }]}><Text style={[styles.quickGlyph, { color: colors.info }]}>⚙</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>بحث وفلاتر متقدمة</Text><Text style={styles.quickSubtitle}>حدد المدينة والسعر ونوع المحتوى</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => router.push(user ? '/add' : '/login')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
-            <View style={[styles.quickIcon, { backgroundColor: colors.warningSoft }]}><Text style={[styles.quickGlyph, { color: colors.warningText }]}>＋</Text></View>
-            <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>إضافة جديد</Text><Text style={styles.quickSubtitle}>انشر إعلانًا أو أضف منتجًا أو خدمة</Text></View>
-            <Text style={styles.quickArrow}>‹</Text>
-          </Pressable>
-        </View>
-
-
-
-        <View style={styles.sectionHeader}>
-          <SectionHeader title="أحدث الإعلانات" subtitle="من السوق المحلي" />
-          <View style={styles.sectionActions}>
-            <Pressable accessibilityRole="button" accessibilityState={{ expanded: showFilters }} onPress={() => setShowFilters((value) => !value)}><Text style={styles.link}>{showFilters ? 'إخفاء الفلاتر' : 'تصفية النتائج'}</Text></Pressable>
-            <Pressable accessibilityRole="button" onPress={() => { void loadAds(true); }}><Text style={styles.link}>تحديث</Text></Pressable>
-          </View>
-        </View>
-
-        {showFilters ? <View style={styles.advancedFilters}>
-          <Text style={styles.filterHeading}>تصفية النتائج</Text>
-          <TextInput accessibilityLabel="المدينة" value={cityInput} onChangeText={setCityInput} placeholder="المدينة (مثلاً: غزة)" placeholderTextColor={colors.muted} textAlign="right" style={styles.filterInput} returnKeyType="done" />
-          <View style={styles.priceInputs}>
-            <TextInput accessibilityLabel="أقل سعر" value={minPriceInput} onChangeText={setMinPriceInput} keyboardType="decimal-pad" placeholder="أقل سعر" placeholderTextColor={colors.muted} textAlign="right" style={[styles.filterInput, styles.priceInput]} />
-            <TextInput accessibilityLabel="أعلى سعر" value={maxPriceInput} onChangeText={setMaxPriceInput} keyboardType="decimal-pad" placeholder="أعلى سعر" placeholderTextColor={colors.muted} textAlign="right" style={[styles.filterInput, styles.priceInput]} />
-          </View>
-          {filterError ? <Text style={styles.filterError} accessibilityLiveRegion="polite">{filterError}</Text> : null}
-          <View style={styles.sortRow}>
-            <Text style={styles.filterCaption}>الترتيب:</Text>
-            <Pressable accessibilityRole="button" accessibilityState={{ selected: sortBy === 'createdAt' }} onPress={() => { setSortBy('createdAt'); setSortOrder('desc'); }} style={[styles.filterChip, sortBy === 'createdAt' && styles.filterChipSelected]}><Text style={[styles.filterText, sortBy === 'createdAt' && styles.filterTextSelected]}>الأحدث</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityState={{ selected: sortBy === 'price' }} onPress={() => { setSortBy('price'); setSortOrder('asc'); }} style={[styles.filterChip, sortBy === 'price' && styles.filterChipSelected]}><Text style={[styles.filterText, sortBy === 'price' && styles.filterTextSelected]}>الأقل سعرًا</Text></Pressable>
-            <Pressable accessibilityRole="button" accessibilityState={{ selected: sortBy === 'views' }} onPress={() => { setSortBy('views'); setSortOrder('desc'); }} style={[styles.filterChip, sortBy === 'views' && styles.filterChipSelected]}><Text style={[styles.filterText, sortBy === 'views' && styles.filterTextSelected]}>الأكثر مشاهدة</Text></Pressable>
-          </View>
-          <View style={styles.filterActions}><Pressable accessibilityRole="button" onPress={() => { clearFilters(); setSortBy('createdAt'); setSortOrder('desc'); }} style={styles.clearFiltersButton}><Text style={styles.clearFiltersText}>مسح</Text></Pressable><Pressable accessibilityRole="button" onPress={applyFilters} style={styles.applyFiltersButton}><Text style={styles.applyFiltersText}>تطبيق الفلاتر</Text></Pressable></View>
-        </View> : null}
-
-        {adsSavedAt !== null && !loading ? (
-          <View style={styles.cacheStatus} accessibilityLiveRegion="polite">
-            <Text style={styles.cacheStatusText}>
-              {adsFromCache ? 'نسخة محفوظة على الجهاز' : 'تمت مزامنة الإعلانات'}
-              {' · '}{new Intl.DateTimeFormat('ar', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }).format(new Date(adsSavedAt))}
-            </Text>
-          </View>
-        ) : null}
-        {loading ? (
-          <SkeletonList count={4} />
-        ) : errorMessage ? (
-          <ErrorState
-            title="لم نتمكن من تحميل الإعلانات"
-            description={errorMessage}
-            onAction={() => { void loadAds(); }}
-          />
-        ) : ads.length === 0 ? (
-          <EmptyState
-            title="لا توجد إعلانات مطابقة"
-            description="جرّب كلمة بحث أخرى أو اسحب الشاشة للأسفل للتحديث."
-          />
-        ) : (
-          <View style={styles.adsList}>
-            {ads.map((ad) => {
-              const imageUri = !failedImageIds.includes(ad.id) && Array.isArray(ad.images) ? ad.images.find((url) => typeof url === 'string' && /^(https?:|file:|content:)/i.test(url)) : undefined;
-              return (
-                <AdCard
-                  key={ad.id}
-                  title={ad.title}
-                  price={formatPrice(ad.price)}
-                  meta={[ad.city, ad.category?.nameAr || ad.category?.name].filter(Boolean).join(' · ') || 'إعلان محلي'}
-                  imageUri={imageUri}
-                  isFavorite={favoriteIds.includes(ad.id)}
-                  isNegotiable={Boolean(ad.isNegotiable)}
-                  onPress={() => router.push(`/ads/${encodeURIComponent(ad.id)}`)}
-                  onToggleFavorite={() => { void toggleFavorite(ad.id); }}
-                  onImageError={() => markImageFailed(ad.id)}
-                />
-              );
-            })}
-          </View>
-        )}
-        {/* قسم المتاجر والقصص + المنتجات والخدمات والطلبات */}
-        <HomeCommunitySections />
-        <HomeMarketplaceSections />
-        <View style={styles.servicesSection}>
-          <View style={styles.sectionHeader}>
-            <SectionHeader title="خدمات قريبة منك" actionLabel="كل الخدمات" onAction={() => router.push('/services')} />
-          </View>
-          {servicesLoading && serviceItems.length === 0 ? <LoadingState message="جاري تحميل الخدمات…" /> : null}
-          {!servicesLoading && servicesError && serviceItems.length === 0 ? (
-            <ErrorState
-              title="تعذر تحميل الخدمات الآن"
-              description={servicesError}
-              onAction={() => { void loadServices(true); }}
-            />
-          ) : null}
-          {!servicesLoading && !servicesError && serviceItems.length === 0 ? (
-            <EmptyState
-              title="لا توجد خدمات متاحة حاليًا"
-              description="يمكنك تصفح صفحة الخدمات للاطلاع على الخيارات المتاحة."
-              actionLabel="تصفح الخدمات"
-              onAction={() => router.push('/services')}
-            />
-          ) : null}
-          {serviceItems.length > 0 ? <View style={styles.serviceList}>{serviceItems.map((item) => {
-            const imageUri = item.images?.find((url) => typeof url === 'string' && /^https?:\/\//i.test(url));
-            const provider = item.provider?.businessName || item.provider?.sellerProfile?.displayName || 'مقدم خدمة';
-            return <Pressable key={item.id} accessibilityRole="button" accessibilityLabel={`عرض الخدمة: ${item.title}`} onPress={() => router.push(`/services/${encodeURIComponent(item.id)}`)} style={styles.serviceCard}>
-              {imageUri ? <AppImage uri={imageUri} style={styles.serviceImage} resizeMode="cover" /> : <View style={styles.serviceImagePlaceholder}><Text style={styles.servicePlaceholderGlyph}>✦</Text></View>}
-              <View style={styles.serviceInfo}><Text numberOfLines={2} style={styles.serviceTitle}>{item.title}</Text><Text numberOfLines={1} style={styles.serviceProvider}>{provider}</Text><Text style={styles.servicePrice}>{formatServicePrice(item)}</Text></View>
-            </Pressable>;
-          })}</View> : null}
-          {user ? <Pressable accessibilityRole="button" onPress={() => router.push('/service-requests')} style={styles.serviceRequestsLink}><Text style={styles.serviceRequestsText}>متابعة طلبات الخدمات ←</Text></Pressable> : null}
-        </View>
-
-        {!loading && !errorMessage && ads.length > 0 && page < totalPages ? (
-          <Pressable accessibilityRole="button" disabled={loadingMore} onPress={() => { void loadMoreAds(); }} style={[styles.loadMoreButton, loadingMore && styles.busyButton]}>
-            {loadingMore ? <ActivityIndicator color={colors.brand} /> : <Text style={styles.loadMoreText}>تحميل المزيد من الإعلانات</Text>}
-          </Pressable>
-        ) : null}
-
-      </ScrollView>
+          );
+        }}
+      />
     </SafeAreaView>
   );
 }

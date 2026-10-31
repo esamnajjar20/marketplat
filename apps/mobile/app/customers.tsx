@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -17,10 +17,16 @@ const money = (n: unknown) =>
   `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(n) || 0)} ₪`;
 
 export default function CustomersScreen() {
-  const { accessToken, csrfToken, user, isRestoring } = useAuth();
+  const { getAccessToken, csrfToken, user, isRestoring } = useAuth();
   const [items, setItems] = useState<CustomerRow[]>([]);
   const [summary, setSummary] = useState<CustomerSummary | null>(null);
   const [q, setQ] = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [moreError, setMoreError] = useState('');
+  const requestSequence = useRef(0);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -31,32 +37,62 @@ export default function CustomersScreen() {
   const [message, setMessage] = useState('');
 
   const load = useCallback(async () => {
-    if (!accessToken) {
-      setLoading(false);
-      return;
-    }
+    const current = ++requestSequence.current;
+    if (isRestoring) return;
+    const token = getAccessToken();
+    if (!token) { setLoading(false); return; }
     setLoading(true);
     setError('');
+    setMoreError('');
     try {
       const [list, stats] = await Promise.all([
-        fetchCustomers(accessToken, q),
-        fetchCustomerSummary(accessToken),
+        fetchCustomers(token, debouncedQ, 1),
+        fetchCustomerSummary(token),
       ]);
+      if (current !== requestSequence.current) return;
       setItems(list.items);
+      setPage(list.meta.page);
+      setHasMore(list.meta.hasNextPage);
       setSummary(stats);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل العملاء.');
+      if (current === requestSequence.current) setError(e instanceof Error ? e.message : 'تعذر تحميل العملاء.');
     } finally {
-      setLoading(false);
+      if (current === requestSequence.current) setLoading(false);
     }
-  }, [accessToken, q]);
+  }, [getAccessToken, debouncedQ, user?.id, isRestoring]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQ(q.trim()), 350);
+    return () => clearTimeout(timer);
+  }, [q]);
 
   useEffect(() => {
     if (!isRestoring) void load();
+    return () => { requestSequence.current += 1; };
   }, [isRestoring, load]);
 
+  const loadMore = async () => {
+    const token = getAccessToken();
+    if (!token || loadingMore || loading || !hasMore) return;
+    const current = requestSequence.current;
+    setLoadingMore(true);
+    setMoreError('');
+    try {
+      const result = await fetchCustomers(token, debouncedQ, page + 1);
+      if (current !== requestSequence.current) return;
+      setItems((old) => [...old, ...result.items.filter((item) => !old.some((existing) => existing.id === item.id))]);
+      setPage(result.meta.page);
+      setHasMore(result.meta.hasNextPage);
+    } catch (e) {
+      if (current === requestSequence.current) setMoreError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من العملاء.');
+    } finally {
+      if (current === requestSequence.current) setLoadingMore(false);
+    }
+  };
+
   const save = async () => {
-    if (!accessToken) {
+    const token = getAccessToken();
+    if (!token) {
       router.push('/login');
       return;
     }
@@ -74,7 +110,7 @@ export default function CustomersScreen() {
           ...(phone.trim() ? { phone: phone.trim() } : {}),
           ...(email.trim() ? { email: email.trim() } : {}),
         },
-        accessToken,
+        token,
         csrfToken,
       );
       setName('');
@@ -151,14 +187,17 @@ export default function CustomersScreen() {
             {item.email ? (
               <Text style={{ textAlign: 'right', color: colors.muted }}>{item.email}</Text>
             ) : null}
-            {'totalPurchases' in item && item.totalPurchases != null ? (
+            {item.totalSpent != null ? (
               <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '800' }}>
-                المشتريات: {money(item.totalPurchases)}
+                إجمالي المشتريات: {money(item.totalSpent)}
               </Text>
             ) : null}
+            {item.totalDue != null ? <Text style={{ textAlign: 'right', color: colors.muted }}>المبلغ المستحق: {money(item.totalDue)}</Text> : null}
+            {item.purchaseCount != null ? <Text style={{ textAlign: 'right', color: colors.muted, fontSize: 12 }}>عدد المشتريات: {item.purchaseCount}</Text> : null}
           </SectionCard>
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ListFooterComponent={hasMore ? <View style={{ gap: spacing.sm, paddingBottom: 20 }}>{moreError ? <Notice>{moreError}</Notice> : null}<PrimaryButton label={loadingMore ? 'جارٍ تحميل المزيد…' : moreError ? 'إعادة المحاولة' : 'تحميل المزيد'} variant="secondary" busy={loadingMore} onPress={() => void loadMore()} /></View> : null}
       />
     </PageShell>
   );

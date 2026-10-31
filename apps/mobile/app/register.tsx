@@ -1,14 +1,17 @@
 import { useState } from 'react';
 import { Pressable, Text } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ApiError } from '@/api/client';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
 import { colors, typography } from '@/theme/tokens';
 import { registerSchema, validate } from '@/lib/validation';
+import { getSafeAuthRedirect } from '@/lib/safe-auth-redirect';
+import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 
 export default function RegisterScreen() {
   const { register, isBusy } = useAuth();
+  const { redirect } = useLocalSearchParams<{ redirect?: string | string[] }>();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,7 +20,7 @@ export default function RegisterScreen() {
   const [error, setError] = useState('');
 
   const submit = async () => {
-    const checked = validate(registerSchema, { name, email, password, phone, city });
+    const checked = validate(registerSchema, { name, email, password, phone: normalizeNumericInput(phone), city });
     if (!checked.ok) {
       setError(checked.message);
       return;
@@ -36,7 +39,10 @@ export default function RegisterScreen() {
         ...(checked.data.city ? { city: checked.data.city } : {}),
       });
       setPassword('');
-      router.replace('/');
+      const target = getSafeAuthRedirect(redirect);
+      if (target) router.replace(target);
+      else if (router.canGoBack()) router.back();
+      else router.replace('/');
     } catch (err) {
       setError(
         err instanceof ApiError || err instanceof Error ? err.message : 'تعذر إنشاء الحساب.',
@@ -82,7 +88,7 @@ export default function RegisterScreen() {
         busy={isBusy}
       />
 
-      <Pressable accessibilityRole="button" onPress={() => router.push('/login')}>
+      <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/login', params: redirect ? { redirect: Array.isArray(redirect) ? redirect[0] : redirect } : undefined })}>
         <Text style={{ textAlign: 'center', color: colors.brand, ...typography.bodyStrong, padding: 8 }}>
           لديك حساب؟ تسجيل الدخول
         </Text>

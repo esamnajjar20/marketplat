@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Image, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   fetchServiceListing,
@@ -14,6 +14,8 @@ import {
   SectionCard,
 } from '@/components/MobileUI';
 import { colors, spacing, typography } from '@/theme/tokens';
+import { MediaGallery } from '@/components/ui/MediaGallery';
+import { RatingStars } from '@/components/ui/RatingStars';
 
 function formatPrice(item: ServiceListing): string {
   if (item.pricingType === 'NEGOTIABLE' || item.price == null) return 'السعر عند الاتفاق';
@@ -83,10 +85,10 @@ export default function ServiceDetailScreen() {
     .filter(Boolean)
     .join(' · ');
 
-  const images =
-    item?.images?.filter((uri) => /^https?:\/\//i.test(uri)).slice(0, 5) ?? [];
+  const images = item?.images?.filter((uri) => /^(https?:|file:|content:)/i.test(uri)).slice(0, 10) ?? [];
+  const isOwnService = Boolean(user?.id && item?.provider?.sellerProfile?.userId === user.id);
 
-  const footer = item ? (
+  const footer = item && !isOwnService ? (
     <PrimaryButton
       label="اطلب هذه الخدمة"
       onPress={() => {
@@ -118,22 +120,15 @@ export default function ServiceDetailScreen() {
     >
       {item ? (
         <View style={styles.pad}>
-          {images.map((uri, index) => (
-            <Image
-              key={`${uri}-${index}`}
-              source={{ uri }}
-              style={styles.heroImage}
-              resizeMode="cover"
-            />
-          ))}
+          <MediaGallery images={images} title={item.title} />
 
           <SectionCard>
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.price}>{formatPrice(item)}</Text>
-            <Text style={styles.provider}>
-              {provider}
-              {item.provider?.sellerProfile?.verified ? ' · مقدم موثّق' : ''}
-            </Text>
+            {item.provider?.id ? <Pressable accessibilityRole="link" onPress={() => router.push({ pathname: '/service-providers/[id]', params: { id: item.provider!.id! } })}><Text style={styles.provider}>{provider} ↗{item.provider?.sellerProfile?.verified ? ' · مقدم موثّق' : ''}</Text></Pressable> : <Text style={styles.provider}>{provider}</Text>}
+            <RatingStars score={item.provider?.sellerProfile?.averageRating} count={item.provider?.sellerProfile?.totalRatings} />
+            {item.provider?.sellerProfile?.id ? <Pressable accessibilityRole="link" onPress={() => router.push({ pathname: '/service-reviews', params: { sellerProfileId: item.provider?.sellerProfile?.id } })}><Text style={styles.provider}>قراءة التقييمات ←</Text></Pressable> : null}
+            {isOwnService ? <Text style={styles.meta}>هذه خدمتك؛ لا يمكنك طلبها من حسابك.</Text> : null}
             {meta ? <Text style={styles.meta}>{meta}</Text> : null}
             {item.provider?.sellerProfile?.verified ? (
               <Badge label="مقدم موثّق" tone="success" />

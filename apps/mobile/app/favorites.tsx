@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
@@ -33,28 +33,31 @@ function priceLabel(value: number | string | null | undefined): string {
 }
 
 export default function FavoritesScreen() {
-  const { user, accessToken, csrfToken } = useAuth();
+  const { user, getAccessToken, csrfToken } = useAuth();
   const net = useNetInfo();
   const online = net.isConnected === true && net.isInternetReachable !== false;
   const [items, setItems] = useState<FavoriteRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const hasItemsRef = useRef(false);
 
   const load = useCallback(async () => {
-    if (!accessToken) {
+    const token = getAccessToken();
+    if (!token) {
       setItems([]);
+      hasItemsRef.current = false;
       setLoading(false);
       setError('سجّل الدخول لعرض المفضلة المتزامنة مع حسابك.');
       return;
     }
-    setLoading(true);
+    if (!hasItemsRef.current) setLoading(true);
     setError(null);
     try {
       // Pending is a local SQLite best-effort hint. Its failure must not
       // mask a successful server fetch (or vice versa).
       const [recordsResult, pendingResult] = await Promise.allSettled([
-        fetchFavoriteAds(accessToken),
+        fetchFavoriteAds(token),
         user?.id ? listPendingFavoriteStates(user.id) : Promise.resolve([]),
       ]);
       const pending = pendingResult.status === 'fulfilled' ? pendingResult.value : [];
@@ -62,13 +65,15 @@ export default function FavoritesScreen() {
         throw recordsResult.reason;
       }
       const desiredState = new Map(pending.map((operation) => [operation.adId, operation.favorited]));
-      setItems(recordsResult.value.filter((record) => desiredState.get(record.adId) !== false));
+      const nextItems = recordsResult.value.filter((record) => desiredState.get(record.adId) !== false);
+      hasItemsRef.current = nextItems.length > 0;
+      setItems(nextItems);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر تحميل المفضلة.');
     } finally {
       setLoading(false);
     }
-  }, [accessToken, user?.id]);
+  }, [getAccessToken, user?.id]);
 
   useFocusEffect(
     useCallback(() => {
@@ -94,9 +99,10 @@ export default function FavoritesScreen() {
               previousFavorited: true,
               operationId,
             });
+          const token = getAccessToken();
           const work =
-            online && accessToken
-              ? setFavoriteAdState(record.adId, false, accessToken, operationId, csrfToken).catch(
+            online && token
+              ? setFavoriteAdState(record.adId, false, token, operationId, csrfToken).catch(
                   (err) => {
                     // Session expired mid-action — preserve user intent locally
                     // so it can sync after the next successful login.
@@ -150,9 +156,9 @@ export default function FavoritesScreen() {
             onAction={() => router.push('/login')}
           />
         </View>
-      ) : loading ? (
+      ) : loading && items.length === 0 ? (
         <SkeletonList count={4} />
-      ) : error ? (
+      ) : error && items.length === 0 ? (
         <ErrorState title="تعذر تحميل المفضلة" description={error} onAction={() => void load()} />
       ) : items.length === 0 ? (
         <EmptyState
@@ -168,7 +174,7 @@ export default function FavoritesScreen() {
           {...marketListPerf}
           contentContainerStyle={styles.content}
           ListHeaderComponent={
-            items.length > 0 ? <Text style={styles.count}>{items.length} إعلان محفوظ</Text> : undefined
+            <View style={{ gap: 8 }}>{error ? <Text style={{ color: colors.danger, textAlign: 'right' }}>{error}</Text> : null}<Text style={styles.count}>{items.length} إعلان محفوظ</Text></View>
           }
           ListEmptyComponent={
             <EmptyState

@@ -85,6 +85,16 @@ export async function createProduct(input: { categoryId: string; name: string; d
 export async function updateProduct(id: string, input: Partial<{ categoryId: string; name: string; description: string; price: number; availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity: number; status: string }>, token: string, csrfToken?: string | null) {
   return dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}`, { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر تحديث المنتج.');
 }
+export async function addProductImages(id: string, images: Array<{ uri: string; fileName: string; mimeType: string }>, token: string, csrfToken?: string | null) {
+  if (!images.length) return fetchProduct(id);
+  const body = new FormData();
+  for (const image of images) body.append('images', { uri: image.uri, name: image.fileName, type: image.mimeType } as unknown as Blob);
+  return dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}/images`, { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body }), 'تعذر رفع صور المنتج.');
+}
+export async function removeProductImage(id: string, imageUrl: string, token: string, csrfToken?: string | null) {
+  return dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}/images`, { method: 'DELETE', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({ imageUrl }) }), 'تعذر حذف صورة المنتج.');
+}
+
 export async function deleteProduct(id: string, token: string, csrfToken?: string | null) {
   return dataOf(await apiRequest<Envelope<unknown>>(`/api/v1/products/${encodeURIComponent(id)}`, { method: 'DELETE', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({}) }), 'تعذر حذف المنتج.');
 }
