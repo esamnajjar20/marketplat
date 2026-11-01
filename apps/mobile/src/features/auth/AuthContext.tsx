@@ -13,17 +13,18 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Alert } from 'react-native';
+import { Alert, AppState } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { ApiError, setAuthFailureHandler, setRefreshHandler, setTokenUpdater } from '@/api/client';
 import {
   loginWithPassword,
-  logoutSession,
   refreshAccessSession,
   registerAccount,
   cancelRefreshing,
   type AuthUser,
 } from './auth.api';
 import { mergeGuestFavoritesIntoAccount } from '@/features/ads/favorites.store';
+import { fetchMyProfile } from '@/features/account/account.api';
 import { countPendingPrivateMobileOperations } from '@/storage/public-cache';
 import {
   ACCESS_TOKEN_FALLBACK_TTL_SECONDS,
@@ -31,13 +32,24 @@ import {
   readPersistedSession,
   sessionExpiry,
   writePersistedSession,
+  readPendingLogout,
+  writePendingLogout,
+  clearPendingLogout,
   type PersistedSession,
+  type PendingLogout,
 } from './session-storage';
 import {
   cleanupOnLogout,
   ensurePrivateStorageClean,
   tryCleanupBeforeRestore,
 } from './private-data-cleanup';
+import { revokePendingLogout } from './pending-logout';
+
+export type LocalSignOutResult = {
+  cleanupFailed: boolean;
+  cleanupMarkerSaved: boolean;
+  sessionRemoved: boolean;
+};
 
 export type AuthState = {
   user: AuthUser | null;
@@ -56,7 +68,7 @@ export type AuthState = {
     city?: string;
   }) => Promise<void>;
   logout: () => Promise<'done' | 'cancelled' | 'failed'>;
-  forceLocalSignOut: () => Promise<void>;
+  forceLocalSignOut: (options?: { clearPrivateData?: boolean }) => Promise<LocalSignOutResult>;
   updateUser: (patch: Partial<AuthUser>) => void;
   /** Stable token accessor for callbacks that must not rerun on token rotation. */
   getAccessToken: () => string | null;
@@ -78,10 +90,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const csrfRef = useRef<string | null>(null);
   const persistenceWarningShown = useRef(false);
   const authFailureHandling = useRef(false);
+  const pendingLogoutSync = useRef(false);
 
   const applySession = useCallback((session: PersistedSession) => {
     setUser(session.user);
     accessTokenRef.current = session.accessToken;
+    csrfRef.current = session.csrfToken;
     setAccessToken(session.accessToken);
     setCsrfToken(session.csrfToken);
     setExpiresAt(session.expiresAt);
@@ -111,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear in-memory access first. SecureStore failures must remain observable to logout.
     setUser(null);
     accessTokenRef.current = null;
+    csrfRef.current = null;
     setAccessToken(null);
     setCsrfToken(null);
     setExpiresAt(null);
@@ -128,18 +143,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     csrfRef.current = csrfToken;
   }, [csrfToken]);
 
-  const forceLocalSignOut = useCallback(async (): Promise<void> => {
+  const forceLocalSignOut = useCallback(async (options?: { clearPrivateData?: boolean }): Promise<LocalSignOutResult> => {
     setIsBusy(true);
     cancelRefreshing();
     try {
-      const { cleanupFailed } = await cleanupOnLogout();
+      // A refresh rejection is not user consent to discard queued offline work.
+      // Preserve owner-scoped data by default; account deletion explicitly opts in.
+      let cleanupFailed = false;
+      let cleanupMarkerSaved = true;
+      if (options?.clearPrivateData) {
+        const ownerId = userRef.current?.id;
+        if (ownerId) {
+          ({ cleanupFailed, cleanupMarkerSaved } = await cleanupOnLogout(ownerId));
+        } else {
+          cleanupFailed = true;
+          cleanupMarkerSaved = false;
+        }
+      }
       const sessionRemoved = await clearPersisted();
       if (cleanupFailed || !sessionRemoved) {
         Alert.alert(
           'تم إنهاء الجلسة مع تحذير',
-          'لم يكتمل تنظيف كل البيانات المحلية أو لم يؤكد التخزين الآمن حذف الجلسة. سيُمنع تسجيل الدخول بحساب آخر حتى ينجح التنظيف. امسح بيانات التطبيق من إعدادات الجهاز إذا استمرت المشكلة.',
+          cleanupFailed
+            ? cleanupMarkerSaved
+              ? 'لم يكتمل حذف بيانات الحساب المحلية. حُفظ طلب التنظيف وسيُمنع تسجيل الدخول حتى ينجح.'
+              : 'لم يكتمل حذف بيانات الحساب، كما تعذر حفظ طلب التنظيف في التخزين الآمن. لا تستخدم حسابًا آخر على هذا الجهاز قبل استعادة الحساب نفسه أو مسح بيانات التطبيق من إعدادات الجهاز.'
+            : 'لم يؤكد التخزين الآمن حذف الجلسة المحفوظة. أعد فتح التطبيق وتحقق من حالة الدخول قبل مشاركة الجهاز.',
         );
       }
+      return { cleanupFailed, cleanupMarkerSaved, sessionRemoved };
     } finally {
       setIsBusy(false);
     }
@@ -151,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void forceLocalSignOut()
       .finally(() => {
         authFailureHandling.current = false;
-        Alert.alert('انتهت صلاحية الجلسة', 'لم يعد الخادم يقبل بيانات تجديد الجلسة. سجّل الدخول من جديد للمتابعة.');
+        Alert.alert('انتهت صلاحية الجلسة', 'لم يعد الخادم يقبل بيانات تجديد الجلسة. سجّل الدخول من جديد؛ ستبقى عملياتك ومسوداتك المشفرة محفوظة لهذا الحساب.');
       });
   }, [forceLocalSignOut]);
 
@@ -170,6 +202,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // A previous offline logout must be confirmed before refresh-cookie restoration.
+      // Keep the revocation token only in SecureStore and fail closed if its marker cannot be read.
+      let pendingLogout: PendingLogout | null;
+      try {
+        pendingLogout = await readPendingLogout();
+      } catch {
+        if (mounted) {
+          setUser(null);
+          setAccessToken(null);
+          setIsRestoring(false);
+          Alert.alert('تسجيل الخروج قيد التأكيد', 'تعذرت قراءة حالة إبطال الجلسة السابقة. لن نستعيد جلسة أخرى قبل معالجة التخزين الآمن.');
+        }
+        return;
+      }
+      if (pendingLogout) {
+        try {
+          const outcome = await revokePendingLogout(pendingLogout);
+          const markerRemoved = await clearPendingLogout();
+          if (!markerRemoved) throw new Error('تعذر حذف علامة تسجيل الخروج المؤجل.');
+          if (outcome === 'already-expired') {
+            // The refresh cookie was rejected by the server, so this previous
+            // logout is complete. Do not restore its cached access token.
+            const removed = await clearPersisted();
+            if (mounted && !removed) {
+              Alert.alert('تعذّر حذف جلسة محفوظة', 'لم يؤكد التخزين الآمن حذف الجلسة القديمة. تحقق من حالة تسجيل الدخول قبل مشاركة الجهاز.');
+            }
+            if (mounted) setIsRestoring(false);
+            return;
+          }
+        } catch {
+          if (mounted) {
+            setUser(null);
+            setAccessToken(null);
+            setIsRestoring(false);
+            Alert.alert('تسجيل الخروج قيد التأكيد', 'تعذر تأكيد إبطال الجلسة السابقة. سيحتفظ التطبيق بطلب الإبطال ويحاول مجددًا عند عودة الاتصال، ولن يستعيد جلسة أو يسمح بدخول حساب آخر قبل حسمه.');
+          }
+          return;
+        }
+      }
+
       let cached = await readPersistedSession();
 
       if (cached && mounted) {
@@ -179,8 +251,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const refreshed = await refreshAccessSession();
         if (mounted && cached) {
+          let restoredUser = cached.user;
+          // A user may verify their email from an external browser while the app is closed.
+          // Re-check only cached unverified users; failure is non-fatal and keeps offline sign-in.
+          if (cached.user.emailVerified === false) {
+            try {
+              const profile = await fetchMyProfile(refreshed.accessToken, cached.user.id);
+              if (typeof profile.emailVerified === 'boolean') {
+                restoredUser = { ...cached.user, emailVerified: profile.emailVerified };
+              }
+            } catch {
+              // Preserve the cached state when the profile endpoint is unavailable.
+            }
+          }
           await persist({
-            user: cached.user,
+            user: restoredUser,
             accessToken: refreshed.accessToken,
             csrfToken: refreshed.csrfToken ?? cached.csrfToken,
             expiresAt: sessionExpiry(refreshed.expiresIn),
@@ -192,14 +277,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
       } catch (error) {
-        const unauthorized =
-          error instanceof ApiError && (error.status === 401 || error.status === 403);
+        // The refresh endpoint contract uses 401 for an invalid session.
+        // Keep cached identity on other statuses (including unexpected 403s).
+        const unauthorized = error instanceof ApiError && error.status === 401;
         if (mounted && unauthorized) {
-          const { cleanupFailed } = await cleanupOnLogout();
+          // Session expiry is not consent to discard drafts or unsynced writes.
+          // They remain encrypted and owner-scoped for the next login by the same account.
           const removed = await clearPersisted();
-          if (mounted && cleanupFailed) {
-            Alert.alert('تنبيه أمني', 'انتهت صلاحية الجلسة، لكن تعذّر تنظيف بعض بيانات الحساب المحلية. سيُمنع تسجيل الدخول بحساب آخر حتى ينجح التنظيف.');
-          }
           if (mounted && !removed) {
             Alert.alert(
               'تعذّر حذف جلسة محفوظة',
@@ -220,6 +304,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [applySession, clearPersisted, persist]);
 
+  // Timers may be suspended while the app is backgrounded. Re-check the session
+  // when returning to the foreground if the access token is expired or near expiry.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      if (isBusy) return;
+      const activeUser = userRef.current;
+      if (!activeUser || !expiresAt || (!sessionNeedsRefresh && expiresAt - Date.now() > 60_000)) return;
+      void (async () => {
+        try {
+          const refreshed = await refreshAccessSession();
+          if (userRef.current?.id !== activeUser.id) return;
+          await persist({
+            user: activeUser,
+            accessToken: refreshed.accessToken,
+            csrfToken: refreshed.csrfToken ?? csrfRef.current,
+            expiresAt: sessionExpiry(refreshed.expiresIn),
+          });
+        } catch (error) {
+          if (userRef.current?.id !== activeUser.id) return;
+          if (error instanceof ApiError && error.status === 401) {
+            handleInvalidRefresh();
+          } else {
+            setSessionNeedsRefresh(true);
+          }
+        }
+      })();
+    });
+    return () => subscription.remove();
+  }, [expiresAt, sessionNeedsRefresh, isBusy, persist, handleInvalidRefresh]);
+
   // تجديد استباقي قبل انتهاء الصلاحية بـ 60 ثانية
   useEffect(() => {
     if (!expiresAt || expiresAt <= Date.now()) return;
@@ -236,7 +351,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           expiresAt: sessionExpiry(refreshed.expiresIn),
         });
       } catch (error) {
-        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
+        if (error instanceof ApiError && error.status === 401) {
           if (userRef.current?.id === userIdAtSchedule) void forceLocalSignOut();
         } else if (userRef.current?.id === userIdAtSchedule) {
           setSessionNeedsRefresh(true);
@@ -260,7 +375,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setTokenUpdater((newToken, newCsrf, newExpiresIn) => {
       accessTokenRef.current = newToken;
       setAccessToken(newToken);
-      if (newCsrf !== undefined) setCsrfToken(newCsrf);
+      if (newCsrf !== undefined) {
+        csrfRef.current = newCsrf;
+        setCsrfToken(newCsrf);
+      }
       const newExpiresAt =
         typeof newExpiresIn === 'number' && newExpiresIn > 0
           ? Date.now() + newExpiresIn * 1000
@@ -285,8 +403,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [handleInvalidRefresh, warnSessionPersistence]);
 
+  const retryPendingLogout = useCallback(async (): Promise<boolean> => {
+    if (pendingLogoutSync.current) return false;
+    pendingLogoutSync.current = true;
+    try {
+      const pending = await readPendingLogout();
+      if (!pending) return true;
+      await revokePendingLogout(pending);
+      return await clearPendingLogout();
+    } catch {
+      return false;
+    } finally {
+      pendingLogoutSync.current = false;
+    }
+  }, []);
+
+  useEffect(() => NetInfo.addEventListener((state) => {
+    if (state.isConnected && state.isInternetReachable !== false) {
+      void retryPendingLogout();
+    }
+  }), [retryPendingLogout]);
+
+  const ensureNoPendingLogout = useCallback(async () => {
+    const pending = await readPendingLogout();
+    if (!pending) return;
+    if (!(await retryPendingLogout())) {
+      throw new Error('يجب الاتصال بالإنترنت لتأكيد تسجيل الخروج السابق قبل الدخول بحساب آخر.');
+    }
+  }, [retryPendingLogout]);
+
   const login = useCallback(
     async (email: string, password: string) => {
+      await ensureNoPendingLogout();
       await ensurePrivateStorageClean();
       setIsBusy(true);
       try {
@@ -302,7 +450,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsBusy(false);
       }
     },
-    [persist],
+    [persist, ensureNoPendingLogout],
   );
 
   const register = useCallback(
@@ -313,6 +461,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       phone?: string;
       city?: string;
     }) => {
+      await ensureNoPendingLogout();
       await ensurePrivateStorageClean();
       setIsBusy(true);
       try {
@@ -328,58 +477,105 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsBusy(false);
       }
     },
-    [persist],
+    [persist, ensureNoPendingLogout],
   );
 
   const logout = useCallback(async (): Promise<'done' | 'cancelled' | 'failed'> => {
-    let pendingOperations = 0;
+    const ownerId = user?.id ?? userRef.current?.id ?? '';
+    let pendingOperations: number | null = ownerId ? 0 : null;
     try {
-      pendingOperations = await countPendingPrivateMobileOperations();
+      pendingOperations = ownerId ? await countPendingPrivateMobileOperations(ownerId) : null;
     } catch {
-      const mayProceed = await new Promise<boolean>((resolve) => {
-        Alert.alert(
-          'تعذر فحص البيانات المحلية',
-          'تعذر فتح قاعدة البيانات أو عدّ العمليات المعلقة. يمكنك إلغاء العملية أو إنهاء الجلسة الآن؛ سيُحاول التطبيق تنظيف البيانات عند الفتح التالي، وقد تحتاج إلى إعادة ضبط التخزين المحلي إذا كان تالفًا.',
-          [
-            { text: 'إلغاء', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'إنهاء الجلسة', style: 'destructive', onPress: () => resolve(true) },
-          ],
-          { cancelable: true, onDismiss: () => resolve(false) },
-        );
-      });
-      if (!mayProceed) return 'cancelled';
-    }
-    if (pendingOperations > 0) {
-      const shouldDiscard = await new Promise<boolean>((resolve) => {
-        Alert.alert(
-          'عمليات بانتظار المزامنة',
-          `يوجد ${pendingOperations} عملية محفوظة على هذا الجهاز ولم يؤكد الخادم استلامها. إذا تابعت تسجيل الخروج فسيتم حذفها من الجهاز ولن تُرسل لاحقًا. اتصل بالإنترنت وانتظر المزامنة، أو اختر المتابعة لحذفها صراحةً.`,
-          [
-            { text: 'العودة للمزامنة', style: 'cancel', onPress: () => resolve(false) },
-            { text: 'حذف العمليات والخروج', style: 'destructive', onPress: () => resolve(true) },
-          ],
-          { cancelable: true, onDismiss: () => resolve(false) },
-        );
-      });
-      if (!shouldDiscard) return 'cancelled';
+      // We still require explicit consent, but never pretend the queue is empty
+      // when the encrypted database could not be inspected.
+      pendingOperations = null;
     }
 
-    const token = accessToken;
-    const csrf = csrfToken;
+    const queueDescription = pendingOperations === null
+      ? 'تعذر فحص عدد العمليات المعلقة في التخزين المشفر.'
+      : pendingOperations > 0
+        ? `لديك ${pendingOperations} عملية بانتظار المزامنة.`
+        : 'لم يُعثر على عمليات معلقة في الطابور الذي تم فحصه.';
+    const logoutChoice = await new Promise<'keep' | 'delete' | 'cancel'>((resolve) => {
+      Alert.alert(
+        'تسجيل الخروج',
+        `${queueDescription} الخيار الافتراضي يحتفظ بالمسودات والعمليات والرسائل والبيانات المشفرة لهذا الحساب على الجهاز؛ ويمكن استعادتها عند دخول الحساب نفسه. خيار الحذف يمسح بيانات هذا الحساب المحلية نهائيًا ولا يمكن استعادة العمليات غير المتزامنة.`,
+        [
+          { text: 'إلغاء', style: 'cancel', onPress: () => resolve('cancel') },
+          { text: 'خروج مع الاحتفاظ بالبيانات', onPress: () => resolve('keep') },
+          { text: 'خروج وحذف البيانات', style: 'destructive', onPress: () => resolve('delete') },
+        ],
+        { cancelable: true, onDismiss: () => resolve('cancel') },
+      );
+    });
+    if (logoutChoice === 'cancel') return 'cancelled';
+    const deletePrivateData = logoutChoice === 'delete';
+    if (deletePrivateData && !ownerId) {
+      Alert.alert('تعذر حذف البيانات', 'تعذر تحديد مالك البيانات المحلية؛ لذلك لم تُحذف أي بيانات. أعد تسجيل الدخول إلى الحساب الأصلي قبل محاولة الحذف.');
+      return 'failed';
+    }
+
+    const token = accessTokenRef.current;
+    const csrf = csrfRef.current;
     setIsBusy(true);
     cancelRefreshing();
+    if (!token && ownerId) {
+      setIsBusy(false);
+      Alert.alert(
+        'تعذر تأكيد تسجيل الخروج',
+        'الحساب الحالي لا يملك رمز وصول صالحًا لحفظ طلب إبطال مؤجل. لم تُحذف بياناتك المحلية ولم يُعلن خروج الخادم. أعد فتح التطبيق وحاول بعد استعادة الجلسة أو اتصل بالإنترنت لتجديدها.',
+      );
+      return 'failed';
+    }
+    let revocationConfirmed = !token && !userRef.current;
+    let revocationMarkerSaved = false;
+    if (token) {
+      // Persist the write-ahead marker BEFORE beginning any destructive local cleanup.
+      // If SecureStore cannot commit it, keep the current local session and its data intact.
+      revocationMarkerSaved = await writePendingLogout({ accessToken: token, csrfToken: csrf, createdAt: Date.now() });
+      if (!revocationMarkerSaved) {
+        setIsBusy(false);
+        Alert.alert(
+          'تعذر حفظ طلب تسجيل الخروج',
+          'لم يتم إرسال طلب الإبطال إلى الخادم ولم تُحذف بياناتك المحلية، لأن التخزين الآمن لم يحفظ علامة إعادة المحاولة. أعد المحاولة بعد عودة التخزين الآمن.',
+        );
+        return 'failed';
+      }
+    }
+
     try {
-      if (token) await logoutSession(token, csrf ?? undefined);
+      if (token) {
+        const outcome = await revokePendingLogout({
+          accessToken: token,
+          csrfToken: csrf,
+          createdAt: Date.now(),
+        });
+        // A rejected refresh cookie is terminal: the server clears it, so this
+        // deferred logout is complete even though the original access token expired.
+        revocationConfirmed = outcome === 'revoked' || outcome === 'already-expired';
+        if (!(await clearPendingLogout())) {
+          revocationConfirmed = false;
+        } else {
+          revocationMarkerSaved = false;
+        }
+      }
     } catch {
-      // إبطال الجلسة على الخادم فشل — نُكمل المسح المحلي
+      // Keep the persisted marker; it will be retried before any later login/restore.
     } finally {
-      const { cleanupFailed } = await cleanupOnLogout();
+      const { cleanupFailed, cleanupMarkerSaved } = deletePrivateData
+        ? await cleanupOnLogout(ownerId)
+        : { cleanupFailed: false, cleanupMarkerSaved: true };
       const sessionRemoved = await clearPersisted();
       setIsBusy(false);
-      if (cleanupFailed || !sessionRemoved) {
+      if (cleanupFailed || !sessionRemoved || !revocationConfirmed) {
         const warnings = [
+          !revocationConfirmed
+            ? (revocationMarkerSaved ? 'تعذر إبطال جلسة الخادم أثناء انقطاع الاتصال. حُفظ طلب إبطال مؤجل وسيُعاد قبل استعادة الجلسة أو تسجيل الدخول؛ لا تسجل الدخول بحساب آخر قبل تأكيده.' : 'لم يؤكد التطبيق إبطال جلسة الخادم أو حفظ طلب مؤجل. لا تسجل الدخول بحساب آخر قبل التحقق من انتهاء الجلسة السابقة.')
+            : '', 
           cleanupFailed
-            ? 'لم يكتمل حذف بيانات الحساب الخاصة. سيُمنع تسجيل الدخول التالي حتى ينجح التنظيف.'
+            ? cleanupMarkerSaved
+              ? 'لم يكتمل حذف بيانات الحساب الخاصة. حُفظ طلب التنظيف وسيُمنع تسجيل الدخول حتى ينجح.'
+              : 'لم يكتمل حذف بيانات الحساب وتعذر حفظ طلب التنظيف في التخزين الآمن. لا تدخل بحساب آخر على هذا الجهاز قبل استعادة الحساب نفسه أو مسح بيانات التطبيق من إعدادات الجهاز.'
             : '',
           !sessionRemoved
             ? 'لم يؤكد التخزين الآمن حذف جلسة الدخول المحفوظة. أعد فتح التطبيق وتأكد من أنك ما زلت مسجّل الخروج قبل مشاركة الجهاز.'
@@ -390,7 +586,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       return 'done';
     }
-  }, [accessToken, csrfToken, clearPersisted]);
+  }, [clearPersisted, user?.id]);
 
   const value = useMemo(
     () => ({

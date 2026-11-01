@@ -165,3 +165,57 @@ export function openEncryptedDatabaseAsync(_legacyName?: string): Promise<SQLite
   }
   return databasePromise;
 }
+
+
+/** True only when SecureStore can be read and the encrypted DB exists without its key. */
+export async function hasMissingEncryptedDatabaseKey(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  try {
+    const [key, exists] = await Promise.all([
+      SecureStore.getItemAsync(KEY_STORAGE_KEY),
+      databaseExists(ENCRYPTED_DATABASE_NAME),
+    ]);
+    return !key && exists;
+  } catch {
+    // A SecureStore outage is not proof that the key was lost; never offer destructive reset.
+    return false;
+  }
+}
+
+/**
+ * Destructive recovery available only after the UI has obtained explicit user consent.
+ * It refuses to run if a key is present, and leaves a possible legacy migration source intact.
+ */
+export async function resetEncryptedDatabaseAfterMissingKey(): Promise<void> {
+  if (Platform.OS === 'web') {
+    throw new Error('إعادة ضبط التخزين المحلي المشفر متاحة في تطبيق Android أو iOS فقط.');
+  }
+  if (databasePromise) {
+    throw new Error('قاعدة البيانات مفتوحة بالفعل. أغلق التطبيق وأعد تشغيله قبل محاولة الاسترداد.');
+  }
+
+  let existingKey: string | null;
+  try {
+    existingKey = await SecureStore.getItemAsync(KEY_STORAGE_KEY);
+  } catch {
+    throw new Error('تعذر التحقق من مفتاح التشفير في التخزين الآمن؛ لم نحذف أي بيانات.');
+  }
+  if (existingKey) {
+    throw new Error('مفتاح التشفير موجود. أُلغيت إعادة الضبط لحماية قاعدة البيانات الحالية.');
+  }
+
+  const path = databasePath(ENCRYPTED_DATABASE_NAME);
+  if (!path || !(await databaseExists(ENCRYPTED_DATABASE_NAME))) {
+    throw new Error('قاعدة البيانات المشفرة غير موجودة أو تعذر تحديد مسارها؛ لا حاجة إلى إعادة ضبطها.');
+  }
+
+  // Delete only the database whose key is missing. Never touch SecureStore or a legacy
+  // plaintext migration source here. The new key is persisted only after deletion succeeds.
+  await SQLite.deleteDatabaseAsync(ENCRYPTED_DATABASE_NAME);
+  const newKey = createRandomKeyHex();
+  await SecureStore.setItemAsync(KEY_STORAGE_KEY, newKey, {
+    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+  });
+  databasePromise = null;
+  transactionQueue = Promise.resolve();
+}

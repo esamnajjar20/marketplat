@@ -231,65 +231,148 @@ export async function clearPrivateCache(): Promise<void> {
 
 
 /** Count durable writes before logout so the UI can ask before discarding them. */
-export async function countPendingPrivateMobileOperations(): Promise<number> {
+const PRIVATE_OPERATION_TABLES = [
+  { name: 'mutation_outbox', ownerColumn: 'owner_id' },
+  { name: 'entity_create_outbox', ownerColumn: 'owner_id' },
+  { name: 'chat_message_outbox', ownerColumn: 'owner_id' },
+  { name: 'chat_media_outbox', ownerColumn: 'owner_id' },
+  { name: 'request_create_outbox', ownerColumn: 'owner_id' },
+  { name: 'marketplace_order_outbox', ownerColumn: 'owner_id' },
+  { name: 'request_offer_outbox', ownerColumn: 'owner_id' },
+  // Favorites use user_id rather than the owner_id convention used by other queues.
+  { name: 'favorite_state_outbox', ownerColumn: 'user_id' },
+] as const;
+
+const ACCOUNT_DATA_TABLES = [
+  { name: 'mutation_outbox', ownerColumn: 'owner_id' },
+  { name: 'entity_create_outbox', ownerColumn: 'owner_id' },
+  { name: 'chat_message_outbox', ownerColumn: 'owner_id' },
+  { name: 'chat_media_outbox', ownerColumn: 'owner_id' },
+  { name: 'chat_message_cache', ownerColumn: 'owner_id' },
+  { name: 'request_create_outbox', ownerColumn: 'owner_id' },
+  { name: 'marketplace_order_outbox', ownerColumn: 'owner_id' },
+  { name: 'request_offer_outbox', ownerColumn: 'owner_id' },
+  { name: 'favorite_state_outbox', ownerColumn: 'user_id' },
+  { name: 'ad_drafts', ownerColumn: 'owner_id' },
+  { name: 'ad_edit_drafts', ownerColumn: 'owner_id' },
+  { name: 'mobile_saved_payees', ownerColumn: 'owner_id' },
+  { name: 'mobile_saved_net_cards', ownerColumn: 'owner_id' },
+] as const;
+
+
+function isOwnedChatMediaUri(uri: unknown, ownedDirectory: string, documentDirectory: string | null): uri is string {
+  if (!documentDirectory || typeof uri !== 'string' || !uri.startsWith(ownedDirectory)) return false;
+  const fileName = uri.slice(ownedDirectory.length);
+  // Files are created with a sanitized flat filename in this exact app-owned folder.
+  // Reject separators, dot segments and URI escapes instead of trusting a prefix check.
+  return Boolean(fileName && fileName !== '.' && fileName !== '..' && /^[A-Za-z0-9._-]+$/.test(fileName));
+}
+
+async function tableHasColumn(
+  db: Pick<SQLite.SQLiteDatabase, 'getAllAsync'>,
+  table: string,
+  column: string,
+): Promise<boolean> {
+  // Both identifiers come from the static allowlists above, never from user input.
+  const columns = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${table})`);
+  return columns.some((entry) => entry.name === column);
+}
+
+export async function countPendingPrivateMobileOperations(ownerId?: string | null): Promise<number> {
+  const owner = ownerId?.trim();
+  if (ownerId !== undefined && !owner) {
+    // Supplying an owner is an explicit request for an account-scoped count.
+    // Never silently widen an invalid scope into a device-wide aggregate.
+    throw new Error('A valid account owner is required for scoped pending-operation counts.');
+  }
+
   const db = await getDatabase();
-  const queueTables = [
-    'mutation_outbox', 'entity_create_outbox', 'chat_message_outbox',
-    'chat_media_outbox', 'request_create_outbox', 'marketplace_order_outbox',
-    'request_offer_outbox', 'favorite_state_outbox',
-  ];
   let total = 0;
-  for (const table of queueTables) {
+
+  for (const table of PRIVATE_OPERATION_TABLES) {
     const exists = await db.getFirstAsync<{ name: string }>(
-      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", table,
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", table.name,
     );
     if (!exists) continue;
-    // Table names are a fixed allowlist above, never user input. Rows in these
-    // durable outboxes represent writes not yet acknowledged by the server.
-    const count = await db.getFirstAsync<{ count: number }>(`SELECT COUNT(*) AS count FROM ${table}`);
+
+    // A scoped count must never include another account's rows or legacy rows whose
+    // owner cannot be established. Keep the no-owner form for legacy maintenance/tests.
+    if (owner && !(await tableHasColumn(db, table.name, table.ownerColumn))) continue;
+    const count = owner
+      ? await db.getFirstAsync<{ count: number }>(
+          `SELECT COUNT(*) AS count FROM ${table.name} WHERE ${table.ownerColumn} = ?`, owner,
+        )
+      : await db.getFirstAsync<{ count: number }>(`SELECT COUNT(*) AS count FROM ${table.name}`);
     total += Math.max(0, Number(count?.count ?? 0));
   }
   return total;
 }
 
 /**
- * Clear every account-scoped snapshot and queued private operation on logout.
- * The SQL deletes are atomic: a database error must not be reported as successful cleanup.
- * Missing tables are allowed for older app versions; other SQL errors propagate.
+ * Delete private data either globally (legacy maintenance only) or for one explicit
+ * account. Normal logout paths must pass ownerId so another account's offline work
+ * on the same device is never counted or erased.
  */
-export async function clearPrivateMobileData(): Promise<void> {
+export async function clearPrivateMobileData(ownerId?: string | null): Promise<void> {
+  const owner = ownerId?.trim() || null;
+  if (ownerId !== undefined && !owner) {
+    // Only an omitted argument is allowed to invoke legacy/global maintenance cleanup.
+    throw new Error('A valid account owner is required for scoped local-data cleanup.');
+  }
+
   const db = await getDatabase();
-  const accountTables = [
-    'mutation_outbox',
-    'entity_create_outbox',
-    'offline_creation_reference_cache',
-    'chat_message_outbox',
-    'chat_media_outbox',
-    'chat_message_cache',
-    'request_create_outbox',
-    'marketplace_order_outbox',
-    'request_offer_outbox',
-    'favorite_state_outbox',
-    'ad_drafts',
-    'ad_edit_drafts',
-    // Device-only payment contacts belong to the signed-in account and must not survive logout.
-    'mobile_saved_payees',
-    'mobile_saved_net_cards',
-  ];
   const mediaUris: string[] = [];
   const ownedDirectory = `${FileSystem.documentDirectory ?? ''}marketplat-chat-media-outbox/`;
 
   await db.withExclusiveTransactionAsync(async (txn) => {
-    for (const table of accountTables) {
+    if (owner) {
+      for (const table of ACCOUNT_DATA_TABLES) {
+        const exists = await txn.getFirstAsync<{ name: string }>(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", table.name,
+        );
+        if (!exists || !(await tableHasColumn(txn, table.name, table.ownerColumn))) continue;
+
+        if (table.name === 'chat_media_outbox' && FileSystem.documentDirectory) {
+          const rows = await txn.getAllAsync<{ uri: string }>(
+            'SELECT uri FROM chat_media_outbox WHERE owner_id = ?', owner,
+          );
+          for (const row of rows) {
+            if (isOwnedChatMediaUri(row.uri, ownedDirectory, FileSystem.documentDirectory)) mediaUris.push(row.uri);
+          }
+        }
+        await txn.runAsync(
+          `DELETE FROM ${table.name} WHERE ${table.ownerColumn} = ?`, owner,
+        );
+      }
+
+      // Private API cache keys are namespaced by the encoded account id.
+      const ownerPrefix = `api-private:${encodeURIComponent(owner)}:`;
+      const cacheExists = await txn.getFirstAsync<{ name: string }>(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'public_cache'",
+      );
+      if (cacheExists) {
+        await txn.runAsync(
+          'DELETE FROM public_cache WHERE substr(cache_key, 1, ?) = ?',
+          ownerPrefix.length, ownerPrefix,
+        );
+      }
+      return;
+    }
+
+    // Legacy/global reset path. Account-level code must not call this overload.
+    const legacyTables = [
+      ...ACCOUNT_DATA_TABLES.map((table) => table.name),
+      'offline_creation_reference_cache',
+    ];
+    for (const table of legacyTables) {
       const exists = await txn.getFirstAsync<{ name: string }>(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?", table,
       );
       if (!exists) continue;
-      if (table === 'chat_media_outbox') {
+      if (table === 'chat_media_outbox' && FileSystem.documentDirectory) {
         const rows = await txn.getAllAsync<{ uri: string }>('SELECT uri FROM chat_media_outbox');
         for (const row of rows) {
-          if (FileSystem.documentDirectory && ownedDirectory.length > FileSystem.documentDirectory.length
-            && typeof row.uri === 'string' && row.uri.startsWith(ownedDirectory)) mediaUris.push(row.uri);
+          if (isOwnedChatMediaUri(row.uri, ownedDirectory, FileSystem.documentDirectory)) mediaUris.push(row.uri);
         }
       }
       await txn.runAsync(`DELETE FROM ${table}`);
@@ -302,5 +385,7 @@ export async function clearPrivateMobileData(): Promise<void> {
   });
 
   // Only delete files after the DB transaction committed. Never delete arbitrary file:// or content:// URIs.
-  await Promise.all(mediaUris.map((uri) => FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined)));
+  await Promise.all([...new Set(mediaUris)].map((uri) =>
+    FileSystem.deleteAsync(uri, { idempotent: true }).catch(() => undefined),
+  ));
 }

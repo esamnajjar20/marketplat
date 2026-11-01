@@ -5,6 +5,7 @@ import * as SecureStore from 'expo-secure-store';
 import type { AuthUser } from './auth.api';
 
 export const SECURE_SESSION_KEY = 'marketplat.mobile.session.v1';
+export const PENDING_LOGOUT_KEY = 'marketplat.mobile.pending-logout.v1';
 export const ACCESS_TOKEN_FALLBACK_TTL_SECONDS = 15 * 60;
 
 export type PersistedSession = {
@@ -66,6 +67,50 @@ export async function clearPersistedSession(): Promise<boolean> {
     return true;
   } catch {
     // Logout callers need to know that the device did not confirm removal of the saved session.
+    return false;
+  }
+}
+
+
+export type PendingLogout = {
+  accessToken: string;
+  csrfToken: string | null;
+  createdAt: number;
+};
+
+export async function readPendingLogout(): Promise<PendingLogout | null> {
+  try {
+    const raw = await SecureStore.getItemAsync(PENDING_LOGOUT_KEY);
+    if (!raw) return null;
+    const value: unknown = JSON.parse(raw);
+    if (!value || typeof value !== 'object') throw new Error('Invalid pending logout marker.');
+    const candidate = value as Partial<PendingLogout>;
+    if (typeof candidate.accessToken !== 'string' || !candidate.accessToken ||
+        typeof candidate.createdAt !== 'number' ||
+        !(candidate.csrfToken === null || typeof candidate.csrfToken === 'string')) {
+      throw new Error('Invalid pending logout marker.');
+    }
+    return candidate as PendingLogout;
+  } catch {
+    // Fail closed: callers must not restore a new session when marker state is unreadable.
+    throw new Error('تعذرت قراءة حالة تسجيل الخروج المؤجل.');
+  }
+}
+
+export async function writePendingLogout(value: PendingLogout): Promise<boolean> {
+  try {
+    await SecureStore.setItemAsync(PENDING_LOGOUT_KEY, JSON.stringify(value));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function clearPendingLogout(): Promise<boolean> {
+  try {
+    await SecureStore.deleteItemAsync(PENDING_LOGOUT_KEY);
+    return true;
+  } catch {
     return false;
   }
 }
