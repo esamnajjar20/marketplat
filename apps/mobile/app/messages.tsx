@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   link: { color: colors.brand, ...typography.captionStrong },
   content: { flexGrow: 1, padding: spacing.lg, paddingBottom: 48 },
   headerContent: { gap: spacing.md, paddingBottom: spacing.md },
-  filters: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   separator: { height: spacing.sm },
   footer: { gap: spacing.sm, paddingTop: spacing.md },
   footerStatus: { ...typography.caption, color: colors.muted, textAlign: 'center' },

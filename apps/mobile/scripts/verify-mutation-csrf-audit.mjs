@@ -29,12 +29,12 @@ const storyView = stories.slice(stories.indexOf('export async function markStory
 assert.match(storyView, /X-CSRF-Token/);
 assert.match(messageScreen, /syncChatMessageOutbox\(\{ isOnline, token: accessToken, csrfToken, ownerId: user\.id, signal: sessionAbort\.current\.signal \}\)/, 'chat screen passes CSRF token into durable message sync');
 assert.match(messageSync, /sendMessage\(item\.conversationId, item\.body, snapshot\.token, snapshot\.csrfToken, item\.operationId, snapshot\.signal\)/, 'queued message sync forwards CSRF token to the mutation API');
-assert.match(notifications, /markAllNotificationsRead\(accessToken, csrfToken\)/);
-assert.match(notifications, /markNotificationRead\(item.id, accessToken, csrfToken\)/);
+assert.match(notifications, /markAllNotificationsRead\(token, csrfToken, user\?\.id\)/);
+assert.match(notifications, /markNotificationRead\(item.id, token, csrfToken, user\?\.id\)/);
 assert.match(adDetail, /startConversationFromAd\(id, accessToken, csrfToken\)/);
 assert.match(productDetail, /startConversationWithUser\([^\n]+csrfToken\)/);
 assert.match(productEditor, /createProduct\(payload,accessToken,csrfToken/);
 assert.match(productEditor, /updateProduct\(id,payload,accessToken,csrfToken\)/);
-assert.match(myProducts, /deleteProduct\(item.id,accessToken,csrfToken\)/);
-assert.match(storyViewer, /markStoryViewed\(story.id, accessToken, csrfToken\)/);
+assert.match(myProducts, /deleteProduct\(item\.id,\s*token,\s*csrfToken\)/, 'product deletion uses the current access token and CSRF token');
+assert.match(storyViewer, /markStoryViewed\(story\.id,\s*token,\s*csrfToken\)/, 'story view mutation uses current access and CSRF tokens');
 console.log('Mutation CSRF audit passed (messaging, notifications, products, and story views).');

@@ -1,6 +1,7 @@
 import { apiRequest } from '@/api/client';
 import { readPublicCache, readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import { cachePublicImages } from '@/storage/public-image-cache';
+import { canUseStaleCacheAfterReadFailure } from '@/lib/offline-cache-policy';
 
 /** Public ad-list shape returned by GET /api/v1/ads (description is omitted on list responses). */
 export type AdListItem = {
@@ -41,7 +42,7 @@ export type AdListResult = {
   totalPages?: number;
 };
 
-type PublicAdsOptions = { page?: number; limit?: number; search?: string; categoryId?: string; storeId?: string; city?: string; minPrice?: number; maxPrice?: number; condition?: 'NEW' | 'USED' | 'REFURBISHED'; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc' };
+type PublicAdsOptions = { page?: number; limit?: number; search?: string; categoryId?: string; storeId?: string; city?: string; minPrice?: number; maxPrice?: number; condition?: 'NEW' | 'USED' | 'REFURBISHED'; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc'; signal?: AbortSignal };
 
 export function publicAdsCacheKey(options: PublicAdsOptions = {}): string {
   const params = new URLSearchParams();
@@ -90,8 +91,9 @@ export async function fetchPublicAds(options: PublicAdsOptions = {}): Promise<Ad
   const cacheKey = publicAdsCacheKey(options);
   let response: ApiEnvelope<AdListItem[]>;
   try {
-    response = await apiRequest<ApiEnvelope<AdListItem[]>>(`/api/v1/ads?${params.toString()}`);
+    response = await apiRequest<ApiEnvelope<AdListItem[]>>(`/api/v1/ads?${params.toString()}`, { signal: options.signal });
   } catch (error) {
+    if (!canUseStaleCacheAfterReadFailure(error, options.signal)) throw error;
     const cached = await readPublicCache<AdListResult>(cacheKey);
     if (cached && Array.isArray(cached.items)) return cached;
     throw error;
@@ -144,6 +146,7 @@ export async function fetchAdDetail(id: string): Promise<AdDetail> {
   try {
     response = await apiRequest<ApiEnvelope<AdDetail>>(`/api/v1/ads/${encodeURIComponent(normalizedId)}`);
   } catch (error) {
+    if (!canUseStaleCacheAfterReadFailure(error)) throw error;
     const cached = await readPublicCache<AdDetail>(cacheKey);
     if (cached && cached.id === normalizedId && typeof cached.title === 'string') return cached;
     throw error;

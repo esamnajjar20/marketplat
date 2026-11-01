@@ -52,7 +52,7 @@ export default function LoginScreen() {
       <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Pressable accessibilityRole="button" onPress={() => goBack('/')} style={styles.back}>
-          <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 4 }}><AppIcon name="back" size={18} color={colors.brand} /><Text style={styles.backText}>رجوع</Text></View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><AppIcon name="back" size={18} color={colors.brand} /><Text style={styles.backText}>رجوع</Text></View>
         </Pressable>
 
         <View style={styles.logo}>

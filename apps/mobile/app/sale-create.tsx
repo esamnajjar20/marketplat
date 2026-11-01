@@ -76,7 +76,7 @@ export default function SaleCreateScreen() {
         Alert.alert('حُفظ البيع على الجهاز', 'لم يُسجّل البيع على الخادم بعد. سيُرسل عند عودة الإنترنت؛ لا تعتبره بيعًا مسجلًا حتى تظهر رسالة التأكيد.', [{ text: 'حسنًا', onPress: () => router.replace('/offline-queue') }]);
       } else {
         try {
-          await createSale(payload, accessToken, csrfToken, operationId);
+          await createSale(payload, accessToken, csrfToken, operationId, user?.id);
           operationIdRef.current = createMobileOperationId('sale-create');
           Alert.alert('تم تسجيل البيع', 'أكد الخادم تسجيل عملية البيع.', [{ text: 'حسنًا', onPress: () => router.replace('/my-sales') }]);
         } catch (error) {
@@ -100,7 +100,7 @@ export default function SaleCreateScreen() {
 
   return <PageShell title="تسجيل عملية بيع">
     <Notice tone="muted">يمكنك تسجيل بيع لسلعة واحدة أو إنشاء فاتورة تضم عدة أصناف. الفاتورة المتعددة اليدوية لا تخصم مخزون المتجر تلقائيًا.</Notice>
-    <View style={{ flexDirection: 'row-reverse', gap: spacing.md }}>
+    <View style={{ flexDirection: 'row', gap: spacing.md }}>
       {([{ value: 'single', label: 'بيع أحادي' }, { value: 'multiple', label: 'بيع متعدد الأصناف' }] as const).map(option => <Pressable key={option.value} accessibilityRole="button" accessibilityState={{ selected: mode === option.value }} onPress={() => { setMode(option.value); setError(''); }} style={{ flex: 1, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: mode === option.value ? colors.brand : colors.border, backgroundColor: mode === option.value ? colors.brandSoft : colors.surface }}><Text style={{ textAlign: 'center', color: mode === option.value ? colors.brand : colors.ink, fontWeight: '800' }}>{option.label}</Text></Pressable>)}
     </View>
     {mode === 'single' ? <>
@@ -110,7 +110,7 @@ export default function SaleCreateScreen() {
     </> : <>
       <View style={{ gap: spacing.md }}>
         {lines.map((line, index) => <View key={line.id} style={{ gap: spacing.md, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface }}>
-          <View style={{ flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' }}><Text style={{ color: colors.ink, fontWeight: '900' }}>الصنف {index + 1}</Text>{lines.length > 2 ? <Pressable accessibilityRole="button" onPress={() => setLines(current => current.filter(item => item.id !== line.id))}><Text style={{ color: colors.danger, fontWeight: '800' }}>حذف الصنف</Text></Pressable> : null}</View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}><Text style={{ color: colors.ink, fontWeight: '900' }}>الصنف {index + 1}</Text>{lines.length > 2 ? <Pressable accessibilityRole="button" onPress={() => setLines(current => current.filter(item => item.id !== line.id))}><Text style={{ color: colors.danger, fontWeight: '800' }}>حذف الصنف</Text></Pressable> : null}</View>
           <Field label="اسم الصنف" value={line.title} onChangeText={value => updateLine(line.id, { title: value })} maxLength={300} placeholder="اسم السلعة أو الخدمة" />
           <Field label="الكمية" value={line.quantity} onChangeText={value => updateLine(line.id, { quantity: value })} keyboardType="numeric" />
           <Field label="سعر الوحدة (₪)" value={line.unitPrice} onChangeText={value => updateLine(line.id, { unitPrice: value })} keyboardType="numeric" placeholder="0.00" />

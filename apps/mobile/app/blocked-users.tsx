@@ -92,7 +92,7 @@ export default function BlockedUsersScreen() {
             const person = item.blocked!;
             return (
               <SectionCard>
-                <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 12, minHeight: 56 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56 }}>
                   {person.avatarUrl ? (
                     <AppImage
                       uri={person.avatarUrl}

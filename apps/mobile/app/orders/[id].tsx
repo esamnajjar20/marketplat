@@ -197,14 +197,14 @@ export default function OrderDetailScreen() {
 const styles = StyleSheet.create({
   pad: { paddingHorizontal: spacing.md, gap: spacing.md },
   statusRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 8,
   },
   orderId: { ...typography.captionStrong, color: colors.muted },
   storeName: { ...typography.subtitle, color: colors.ink, textAlign: 'right' },
-  itemLine: { flexDirection: 'row-reverse', gap: spacing.md, alignItems: 'center' },
+  itemLine: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   image: { width: 72, height: 72, borderRadius: radius.md, backgroundColor: colors.border },
   imagePlaceholder: {
     width: 72,
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   muted: { ...typography.caption, color: colors.muted, textAlign: 'right', lineHeight: 19 },
   divider: { height: 1, backgroundColor: colors.border },
   summaryRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     gap: 12,

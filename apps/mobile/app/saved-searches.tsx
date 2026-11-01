@@ -144,7 +144,7 @@ export default function SavedSearchesScreen() {
                   maxLength={100}
                   placeholder="مثال: هواتف بسعر مناسب"
                 />
-                <View style={{ flexDirection: 'row-reverse', gap: 10 }}>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
                   {(
                     [
                       ['ads', 'الإعلانات'],
@@ -180,7 +180,7 @@ export default function SavedSearchesScreen() {
                 </View>
                 <Field label="كلمة البحث" value={q} onChangeText={setQ} placeholder="اختياري" />
                 <Field label="المدينة" value={city} onChangeText={setCity} placeholder="للإعلانات فقط حاليًا" />
-                <View style={{ flexDirection: 'row-reverse', gap: 8 }}>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
                   <View style={{ flex: 1 }}>
                     <Field label="أقل سعر" value={min} onChangeText={(v) => setMin(normalizeNumericInput(v))} keyboardType="numeric" />
                   </View>

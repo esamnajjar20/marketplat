@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48 },
   subtitle: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   sectionRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },

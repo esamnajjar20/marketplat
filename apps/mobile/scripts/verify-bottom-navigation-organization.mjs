@@ -6,17 +6,18 @@ const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const layout = read('app/_layout.tsx');
 const nav = read('src/components/BottomNavigation.tsx');
+const policy = read('src/lib/navigation-policy.ts');
 const explore = read('app/explore.tsx');
 const account = read('app/account.tsx');
 
 assert.match(layout, /<BottomNavigation\s*\/>/, 'Root layout must render the bottom navigation.');
 assert.match(layout, /<Stack[\s\S]*?\/>/, 'Expo Router stack must remain in the root layout.');
 for (const path of ["'/'", "'/explore'", "'/add'", "'/messages'", "'/account'"]) {
-  assert.ok(nav.includes(`path: ${path}`), `Missing bottom tab route ${path}`);
+  assert.ok(policy.includes(`path: ${path}`), `Missing centrally declared bottom tab route ${path}`);
 }
 assert.match(nav, /accessibilityRole="tab"/, 'Tabs should expose accessible roles.');
 assert.match(nav, /accessibilityState=\{\{ selected: active \}\}/, 'Active tab should be exposed accessibly.');
-assert.match(nav, /hiddenPrefixes/, 'Full-screen/auth routes should be able to hide the bar.');
+assert.match(nav, /shouldHideBottomNavigation\(pathname\)/, 'Full-screen/auth routes must use the central hide-bottom-navigation policy.');
 assert.match(explore, /الإعلانات والطلبات[\s\S]*المنتجات والمتاجر[\s\S]*الخدمات[\s\S]*المجتمع والاكتشاف/, 'Explore links should be organized into clear groups.');
 assert.match(account, /المهم الآن[\s\S]*ملفي ونشاطي[\s\S]*إدارة المتجر والخدمات[\s\S]*الإعدادات والخصوصية/, 'Account destinations should be prioritized and grouped.');
 for (const path of ['index.tsx', 'explore.tsx', 'add.tsx', 'messages.tsx', 'account.tsx']) {

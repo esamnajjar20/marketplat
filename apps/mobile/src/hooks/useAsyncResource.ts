@@ -25,6 +25,10 @@ type Options<T> = {
   initialData?: T | null;
 };
 
+function isAbortError(error: unknown): boolean {
+  return Boolean(error && typeof error === 'object' && 'name' in error && (error as { name?: unknown }).name === 'AbortError');
+}
+
 function defaultMapError(error: unknown): string {
   if (error instanceof ApiError) return error.message;
   if (error instanceof Error) return error.message;
@@ -32,7 +36,7 @@ function defaultMapError(error: unknown): string {
 }
 
 export function useAsyncResource<T>(
-  fetcher: () => Promise<T>,
+  fetcher: (signal?: AbortSignal) => Promise<T>,
   options: Options<T> = {},
 ): AsyncResourceState<T> {
   const { key = '', manual = false, mapError = defaultMapError, tag = 'resource', initialData = null } =
@@ -44,21 +48,25 @@ export function useAsyncResource<T>(
   const [error, setError] = useState<string | null>(null);
   const seq = useRef(0);
   const fetcherRef = useRef(fetcher);
+  const controllerRef = useRef<AbortController | null>(null);
   fetcherRef.current = fetcher;
 
   const reload = useCallback(
     async (opts?: { soft?: boolean }) => {
       const requestId = ++seq.current;
+      controllerRef.current?.abort();
+      const controller = new AbortController();
+      controllerRef.current = controller;
       const soft = opts?.soft === true;
       if (soft) setRefreshing(true);
       else setLoading(true);
       setError(null);
       try {
-        const result = await fetcherRef.current();
-        if (requestId !== seq.current) return;
+        const result = await fetcherRef.current(controller.signal);
+        if (requestId !== seq.current || controller.signal.aborted) return;
         setData(result);
       } catch (e) {
-        if (requestId !== seq.current) return;
+        if (requestId !== seq.current || controller.signal.aborted || isAbortError(e)) return;
         const message = mapError(e);
         setError(message);
         logger.warn(tag, 'load failed', { message });
@@ -66,6 +74,7 @@ export function useAsyncResource<T>(
         if (requestId === seq.current) {
           setLoading(false);
           setRefreshing(false);
+          if (controllerRef.current === controller) controllerRef.current = null;
         }
       }
     },
@@ -73,8 +82,13 @@ export function useAsyncResource<T>(
   );
 
   useEffect(() => {
-    if (manual) return;
-    void reload();
+    if (!manual) void reload();
+    return () => {
+      // Ignore any completion after unmount/key change and release the network request.
+      seq.current += 1;
+      controllerRef.current?.abort();
+      controllerRef.current = null;
+    };
     // key يُعيد التشغيل عند تغيّر الاعتماديات الخارجية
   }, [key, manual]);
 

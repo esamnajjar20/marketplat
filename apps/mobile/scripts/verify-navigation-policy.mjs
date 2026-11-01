@@ -1,12 +1,31 @@
 #!/usr/bin/env node
 import assert from 'node:assert/strict';
-import { readFile, access } from 'node:fs/promises';
+import { readFile, access, readdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const policy = await readFile(join(root, 'src/lib/navigation-policy.ts'), 'utf8');
 const bottom = await readFile(join(root, 'src/components/BottomNavigation.tsx'), 'utf8');
 const drawer = await readFile(join(root, 'src/components/MobileDrawer.tsx'), 'utf8');
+const layout = await readFile(join(root, 'app/_layout.tsx'), 'utf8');
+const walkRoutes = async (directory, prefix = '') => {
+  const entries = await readdir(directory, { withFileTypes: true });
+  const routes = [];
+  for (const entry of entries) {
+    const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) routes.push(...await walkRoutes(join(directory, entry.name), relative));
+    else if (entry.isFile() && entry.name.endsWith('.tsx') && !entry.name.startsWith('_')) {
+      const routeBody = relative.slice(0, -4).replace(/\\/g, '/').replace(/\/index$/, '');
+      const route = routeBody === 'index' || routeBody === '' ? '/' : `/${routeBody}`;
+      routes.push(route);
+    }
+  }
+  return routes;
+};
+const appRoutes = await walkRoutes(join(root, 'app'));
+assert.ok(appRoutes.length >= 100, `expected a complete Expo route scan, found ${appRoutes.length}`);
+assert.equal(new Set(appRoutes).size, appRoutes.length, 'Expo route files must not collide on route paths');
+assert.ok(!appRoutes.includes('/_layout.QUERY-SNIPPET'), 'temporary layout snippets must not live inside the route directory');
 assert.match(bottom, /MAIN_TABS/);
 assert.match(bottom, /getActiveMainTab/);
 assert.match(bottom, /shouldHideBottomNavigation/);
@@ -30,6 +49,16 @@ for (const path of [...new Set(paths)]) {
   }
   assert.ok(found, `navigation destination has no Expo Router screen: ${path}`);
 }
+const authExactBlock = policy.match(/const AUTH_ONLY_EXACT = new Set\(\[([\s\S]*?)\]\);/)?.[1] ?? '';
+const authPrefixBlock = policy.match(/const AUTH_ONLY_PREFIXES = \[([\s\S]*?)\];/)?.[1] ?? '';
+const criticalPrivateRoutes = ['/favorites', '/appointments', '/blocked-users', '/customers', '/debts', '/installments', '/saved-searches', '/sessions'];
+for (const route of criticalPrivateRoutes) {
+  assert.ok(authExactBlock.includes(`'${route}'`) || authPrefixBlock.includes(`'${route}'`), `private route missing from central auth policy: ${route}`);
+  assert.ok(appRoutes.includes(route), `expected protected route file is missing: ${route}`);
+}
 assert.match(policy, /function getRouteAccess/);
 assert.match(policy, /function requiresAuthenticatedUser/);
-console.log(`Navigation policy checks passed (${paths.length} declared destinations; shared tab/drawer source).`);
+assert.match(drawer, /getRouteAccess\(item\.path\)/, 'drawer auth decisions must come from the central route policy');
+assert.match(layout, /requiresAuthenticatedUser\(pathname\)/, 'root layout must enforce the route access policy');
+assert.match(layout, /redirect=\$\{encodeURIComponent\(pathname\)\}/, 'private routes must preserve a safe post-login destination');
+console.log(`Navigation policy checks passed (${paths.length} declared navigation destinations; ${appRoutes.length} Expo route files scanned; root guard and drawer use shared route policy).`);

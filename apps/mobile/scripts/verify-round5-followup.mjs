@@ -26,7 +26,7 @@ const checks = [
   ['outbox upload timeout scales with measured image bytes', read('src/storage/entity-create-outbox.ts').includes('totalImageBytes += info.size') && read('src/storage/entity-create-outbox.ts').includes('Math.ceil(totalImageBytes / (1024 * 1024))')],
   ['public statistics no longer return ownerUserId', !read('../../apps/api/src/modules/sales/public-stats.controller.ts').includes('ownerUserId:')],
   ['public statistics exclude fully refunded sales but retain partial and zero-value sales', read('../../apps/api/src/modules/sales/public-stats.controller.ts').includes('"refundedAmount" < "totalPrice" OR ("totalPrice" = 0 AND "refundedAmount" = 0)')],
-  ['my services now requests pages and preserves existing rows when loading more fails', read('app/my-services.tsx').includes('fetchMyServiceListingsPage') && read('app/my-services.tsx').includes('setMoreError') && read('src/features/services/services.api.ts').includes('fetchMyServiceListingsPage')],
+  ['my services uses the shared paginated-list lifecycle and preserves retryable rows', read('app/my-services.tsx').includes('usePaginatedList') && read('app/my-services.tsx').includes('list.loadMoreError') && read('app/my-services.tsx').includes('list.retry()') && read('src/features/services/services.api.ts').includes('fetchMyServiceListingsPage') && read('src/hooks/usePaginatedList.ts').includes('mergeUniquePageItems')],
 ];
 let failed = 0;
 for (const [name, ok] of checks) {

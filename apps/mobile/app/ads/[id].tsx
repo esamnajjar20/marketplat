@@ -204,7 +204,7 @@ export default function AdDetailScreen() {
     <DetailScaffold
       title="تفاصيل الإعلان"
       right={ad ? (
-        <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={isFavorite ? 'إزالة الإعلان من المفضلة' : 'إضافة الإعلان إلى المفضلة'}

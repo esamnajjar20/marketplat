@@ -125,7 +125,7 @@ export default function PublicProfileScreen() {
           {profile.city ? <Text style={{ color: colors.muted }}>{profile.city}</Text> : null}
           {profile.bio ? <Text style={{ color: colors.ink, textAlign: 'center', lineHeight: 22 }}>{profile.bio}</Text> : null}
           <Text style={{ color: colors.muted }}>الإعلانات النشطة: {profile._count?.ads ?? ads.length}</Text>
-          <View style={{ flexDirection: 'row-reverse', gap: 28, paddingVertical: 6 }}>
+          <View style={{ flexDirection: 'row', gap: 28, paddingVertical: 6 }}>
             <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/profile/[id]/followers', params: { id: profile.id } })}><Text style={{ color: colors.brand, fontWeight: '800' }}>المتابعون {profile.followStats?.followers ?? '—'}</Text></Pressable>
             <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/profile/[id]/following', params: { id: profile.id } })}><Text style={{ color: colors.brand, fontWeight: '800' }}>يتابع {profile.followStats?.following ?? '—'}</Text></Pressable>
           </View>

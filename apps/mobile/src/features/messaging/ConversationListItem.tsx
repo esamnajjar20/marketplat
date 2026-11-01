@@ -69,7 +69,7 @@ function ConversationListItemView({ item, currentUserId, onPress, onTogglePin, o
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     gap: spacing.md,
     padding: spacing.md,
     backgroundColor: colors.surface,
@@ -88,10 +88,10 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: colors.brandOnSoft, fontWeight: '900', fontSize: fontSizes[16] },
   cardBody: { flex: 1, gap: 4 },
-  actions: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, marginTop: 6 },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
   action: { minHeight: 34, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.controlBorder },
   actionText: { color: colors.brand, fontSize: fontSizes[12], fontWeight: '800' },
-  cardTop: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   name: { ...typography.bodyStrong, color: colors.ink, flex: 1, textAlign: 'right' },
   preview: { ...typography.caption, color: colors.muted, textAlign: 'right', lineHeight: 18 },
   badge: {

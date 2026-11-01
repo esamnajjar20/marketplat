@@ -27,13 +27,13 @@ function page<T>(response: Envelope<T[]>, fallback: string, requestedPage: numbe
 export async function createMarketplaceOrder(input: { items: { productId: string; quantity: number }[]; recipientName: string; recipientPhone: string; shippingCity: string; shippingAddress: string; buyerNote?: string; idempotencyKey: string }, token: string, csrfToken?: string | null) {
   return unwrap(await apiRequest<Envelope<MarketplaceOrder>>('/api/v1/orders', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input), responseSchema: criticalOrderEnvelopeResponseSchema as unknown as import('zod').ZodType<Envelope<MarketplaceOrder>> }), 'تعذر إنشاء الطلب.');
 }
-export async function fetchMyOrders(token: string, pageNo = 1, status?: MarketplaceOrderStatus, ownerId?: string | null) {
+export async function fetchMyOrders(token: string, pageNo = 1, status?: MarketplaceOrderStatus, ownerId?: string | null, signal?: AbortSignal) {
   const params = new URLSearchParams({ page: String(pageNo), limit: '20' }); if (status) params.set('status', status);
-  return page(await apiRequest<Envelope<MarketplaceOrder[]>>(`/api/v1/orders/mine?${params}`, { token, cacheOwnerId: ownerId ?? undefined, responseSchema: criticalOrderListEnvelopeResponseSchema as unknown as import('zod').ZodType<Envelope<MarketplaceOrder[]>> }), 'تعذر تحميل طلباتك.', pageNo);
+  return page(await apiRequest<Envelope<MarketplaceOrder[]>>(`/api/v1/orders/mine?${params}`, { token, signal, cacheOwnerId: ownerId ?? undefined, responseSchema: criticalOrderListEnvelopeResponseSchema as unknown as import('zod').ZodType<Envelope<MarketplaceOrder[]>> }), 'تعذر تحميل طلباتك.', pageNo);
 }
-export async function fetchSellerOrders(token: string, pageNo = 1, status?: MarketplaceOrderStatus, ownerId?: string | null) {
+export async function fetchSellerOrders(token: string, pageNo = 1, status?: MarketplaceOrderStatus, ownerId?: string | null, signal?: AbortSignal) {
   const params = new URLSearchParams({ page: String(pageNo), limit: '20' }); if (status) params.set('status', status);
-  return page(await apiRequest<Envelope<MarketplaceOrder[]>>(`/api/v1/orders/seller?${params}`, { token, cacheOwnerId: ownerId ?? undefined, responseSchema: criticalOrderListEnvelopeResponseSchema as unknown as import('zod').ZodType<Envelope<MarketplaceOrder[]>> }), 'تعذر تحميل طلبات المتجر.', pageNo);
+  return page(await apiRequest<Envelope<MarketplaceOrder[]>>(`/api/v1/orders/seller?${params}`, { token, signal, cacheOwnerId: ownerId ?? undefined, responseSchema: criticalOrderListEnvelopeResponseSchema as unknown as import('zod').ZodType<Envelope<MarketplaceOrder[]>> }), 'تعذر تحميل طلبات المتجر.', pageNo);
 }
 export async function fetchMarketplaceOrder(id: string, token: string, ownerId?: string | null) {
   return unwrap(await apiRequest<Envelope<MarketplaceOrder>>(`/api/v1/orders/${encodeURIComponent(id)}`, { token, cacheOwnerId: ownerId ?? undefined, responseSchema: criticalOrderEnvelopeResponseSchema as unknown as import('zod').ZodType<Envelope<MarketplaceOrder>> }), 'تعذر تحميل تفاصيل الطلب.');

@@ -8,7 +8,7 @@ export const uiStyles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
 
   header: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     minHeight: sizes.headerHeight,
     paddingHorizontal: spacing.lg,
@@ -56,7 +56,7 @@ export const uiStyles = StyleSheet.create({
   },
 
   sectionHeader: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: spacing.md,
@@ -77,7 +77,7 @@ export const uiStyles = StyleSheet.create({
   },
 
   listRowInner: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
@@ -205,7 +205,7 @@ export const uiStyles = StyleSheet.create({
   pressed: { opacity: ux.pressedOpacity },
   skeleton: { backgroundColor: colors.border, overflow: 'hidden' },
   skeletonCard: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     gap: spacing.md,
     padding: spacing.md,
     backgroundColor: colors.surface,
@@ -229,7 +229,7 @@ export const uiStyles = StyleSheet.create({
   },
 
   searchBar: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     minHeight: sizes.inputHeight,

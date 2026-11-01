@@ -8,6 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const mobile = join(here, '..');
 const drawerPath = join(mobile, 'src/components/MobileDrawer.tsx');
 const drawer = await readFile(drawerPath, 'utf8');
+const navigationPolicy = await readFile(join(mobile, 'src/lib/navigation-policy.ts'), 'utf8');
 const layout = await readFile(join(mobile, 'app/_layout.tsx'), 'utf8');
 const appHeader = await readFile(join(mobile, 'src/components/ui/AppHeader.tsx'), 'utf8');
 const home = await readFile(join(mobile, 'app/index.tsx'), 'utf8');
@@ -22,9 +23,9 @@ assert.match(drawer, /accessibilityElementsHidden=\{!open\}/, 'closed drawer con
 assert.match(drawer, /importantForAccessibility=\{open \? 'yes' : 'no-hide-descendants'\}/, 'Android accessibility tree must hide closed drawer descendants');
 assert.match(drawer, /accessibilityRole=\"link\"[\s\S]*?accessibilityState=\{\{ selected: active \}\}/, 'drawer destinations must be exposed as selected navigation links');
 assert.match(drawer, /accessibilityRole=\"header\"/, 'drawer section labels must be announced as headings');
-assert.match(drawer, /accessibilityHint=\{item\.requiresAuth && !user/, 'authentication-only destinations must explain the sign-in redirect');
+assert.match(drawer, /accessibilityHint=\{getRouteAccess\(item\.path\) === 'authenticated' && !user/, 'authentication-only destinations must explain the sign-in redirect using the shared route policy');
 assert.match(drawer, /minHeight: 48/, 'drawer rows must meet minimum touch target height');
-assert.match(drawer, /onClose\(\);\s*const target = item\.requiresAuth && !user \? '\/login' : item\.path;/, 'drawer navigation must close before selecting a destination');
+assert.match(drawer, /onClose\(\);\s*const requiresAuth = getRouteAccess\(item\.path\) === 'authenticated';[\s\S]*?const target = requiresAuth && !user[\s\S]*?\/login\?redirect=/, 'drawer navigation must close before selecting a destination and preserve its redirect through the shared route policy');
 assert.match(drawer, /const isRTL = true/, 'Arabic drawer must stay right-anchored while native app layout is LTR');
 assert.match(drawer, /onMoveShouldSetPanResponder[\s\S]*?isRTL \? gesture\.dx < 0 : gesture\.dx > 0/, 'right-edge gesture must open the Arabic drawer');
 assert.match(drawer, /onMoveShouldSetPanResponder[\s\S]*?isRTL \? gesture\.dx > 0 : gesture\.dx < 0/, 'leftward drawer gesture must close the Arabic drawer');
@@ -56,7 +57,7 @@ const routeFiles = new Map([
 ]);
 for (const [route, file] of routeFiles) {
   await access(join(mobile, file));
-  assert.ok(drawer.includes(`path: '${route}'`) || route === '/login', `drawer route missing from menu: ${route}`);
+  assert.ok(navigationPolicy.includes(`path: '${route}'`) || route === '/login', `drawer route missing from central menu policy: ${route}`);
 }
 
 const pkg = JSON.parse(await readFile(join(mobile, 'package.json'), 'utf8'));

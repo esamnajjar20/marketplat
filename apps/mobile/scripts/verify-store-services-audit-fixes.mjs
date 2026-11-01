@@ -9,8 +9,9 @@ const commerceApi = fs.readFileSync(path.join(root, 'src/features/commerce/comme
 
 assert.match(storeDetail, /pathname:\s*'\/products',[\s\S]{0,80}params:\s*\{\s*storeId:\s*id\s*\}/, 'store page must preserve storeId when opening all products');
 assert.match(products, /useLocalSearchParams[\s\S]{0,220}storeId/, 'products page must read storeId route param');
-assert.match(products, /fetchProducts\(\{\s*page:\s*1\s*,\s*limit:\s*30\s*,\s*search:\s*submitted\s*,\s*storeId\s*,\s*categoryId\s*\}\)/, 'first page must be scoped to selected store');
-assert.match(products, /fetchProducts\(\{\s*page:\s*page\s*\+\s*1\s*,\s*limit:\s*30\s*,\s*search:\s*submitted\s*,\s*storeId\s*,\s*categoryId\s*\}\)/, 'load-more requests must preserve store filter');
-assert.match(products, /page\s*<\s*totalPages[\s\S]{0,180}loadMore/, 'products page must expose load more while pages remain');
+assert.match(products, /usePaginatedList<ProductSummary>/, 'products page must use the shared cancellable pagination lifecycle');
+assert.match(products, /search:\s*submitted,[\s\S]*?storeId,[\s\S]*?categoryId,[\s\S]*?signal,/, 'every page must preserve search, store, category and cancellation options');
+assert.match(products, /hasNextPage[\s\S]{0,260}loadMore/, 'products page must expose load more while pages remain');
+assert.match(products, /loadMoreError[\s\S]{0,220}loadMore\(\)/, 'page append failures must offer retry without resetting the list');
 assert.match(commerceApi, /sortOrder\s*=\s*options\.sortOrder\s*\?\?\s*\(sortBy\s*===\s*'price'\s*\?\s*'asc'\s*:\s*'desc'\)/, 'price sorting should default to ascending');
-console.log('Store/services audit regression checks passed (6 checks; static source assertions only).');
+console.log('Store/services audit regression checks passed (shared pagination preserves store filters and retry behavior).');

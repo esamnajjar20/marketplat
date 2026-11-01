@@ -1,7 +1,7 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchDebtSummary, fetchDebts, type DebtSummary } from '@/features/sales/sales-extra.api';
@@ -10,6 +10,7 @@ import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/Mobi
 import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { formatSafeDate } from '@/lib/date-format';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 const money = (n: unknown, c = 'ILS') =>
   `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(n) || 0)} ${c === 'ILS' ? '₪' : c}`;
@@ -17,67 +18,53 @@ const money = (n: unknown, c = 'ILS') =>
 export default function DebtsScreen() {
   const { accessToken, user, isRestoring } = useAuth();
   const [summary, setSummary] = useState<DebtSummary | null>(null);
-  const [items, setItems] = useState<SaleRecord[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [more, setMore] = useState(false);
-  const [error, setError] = useState('');
-  const seq = useRef(0);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState('');
+  const [summaryOwnerId, setSummaryOwnerId] = useState<string | null>(null);
+  const visibleSummary = summaryOwnerId === user?.id ? summary : null;
+  const summaryControllerRef = useRef<AbortController | null>(null);
+  const list = usePaginatedList<SaleRecord>({
+    key: `debts:${user?.id ?? 'guest'}`,
+    pageSize: 20,
+    enabled: Boolean(accessToken && user && !isRestoring),
+    fetchPage: async (page, signal) => {
+      if (!accessToken) throw new Error('سجّل الدخول لعرض الديون.');
+      const result = await fetchDebts(page, accessToken, signal, user?.id);
+      return {
+        items: result.rows,
+        meta: { page: result.page, totalPages: result.totalPages, total: result.totalCount, hasNextPage: result.hasNextPage },
+      };
+    },
+    getItemKey: (sale) => sale.id,
+  });
 
-  const load = useCallback(async () => {
-    if (!accessToken) {
-      setLoading(false);
-      return;
-    }
-    const current = ++seq.current;
-    setLoading(true);
-    setError('');
+  const loadSummary = useCallback(async () => {
+    if (!accessToken || !user || isRestoring) return;
+    summaryControllerRef.current?.abort();
+    const controller = new AbortController();
+    summaryControllerRef.current = controller;
+    setSummaryLoading(true);
+    setSummaryError('');
     try {
-      const [sR, dR] = await Promise.allSettled([
-        fetchDebtSummary(accessToken),
-        fetchDebts(1, accessToken),
-      ]);
-      if (current !== seq.current) return;
-      if (sR.status === 'fulfilled') setSummary(sR.value);
-      if (dR.status === 'fulfilled') {
-        setItems(dR.value.rows);
-        setPage(dR.value.page);
-        setHasMore(dR.value.hasNextPage);
-      }
-      if (sR.status === 'rejected' && dR.status === 'rejected') setError('تعذر تحميل الديون.');
-      else if (sR.status === 'rejected') setError('تعذر تحميل ملخص الديون.');
-      else if (dR.status === 'rejected') setError('تعذر تحميل قائمة الديون.');
-    } catch (e) {
-      if (current === seq.current) setError(e instanceof Error ? e.message : 'تعذر تحميل الديون.');
+      const next = await fetchDebtSummary(accessToken, controller.signal, user.id);
+      if (!controller.signal.aborted) { setSummary(next); setSummaryOwnerId(user.id); }
+    } catch (error) {
+      if (!controller.signal.aborted) setSummaryError(error instanceof Error ? error.message : 'تعذر تحميل ملخص الديون.');
     } finally {
-      if (current === seq.current) setLoading(false);
+      if (!controller.signal.aborted) {
+        setSummaryLoading(false);
+        if (summaryControllerRef.current === controller) summaryControllerRef.current = null;
+      }
     }
-  }, [accessToken]);
+  }, [accessToken, isRestoring, user?.id]);
 
   useEffect(() => {
-    if (!isRestoring) void load();
+    void loadSummary();
     return () => {
-      seq.current += 1;
+      summaryControllerRef.current?.abort();
+      summaryControllerRef.current = null;
     };
-  }, [isRestoring, load]);
-
-  const loadMore = async () => {
-    if (!accessToken || more || !hasMore) return;
-    const current = seq.current;
-    setMore(true);
-    try {
-      const d = await fetchDebts(page + 1, accessToken);
-      if (current !== seq.current) return;
-      setItems((old) => [...old, ...d.rows.filter((x) => !old.some((y) => y.id === x.id))]);
-      setPage(d.page);
-      setHasMore(d.hasNextPage);
-    } catch (e) {
-      if (current === seq.current) setError(e instanceof Error ? e.message : 'تعذر تحميل المزيد.');
-    } finally {
-      setMore(false);
-    }
-  };
+  }, [loadSummary]);
 
   if (!user) {
     return (
@@ -91,23 +78,24 @@ export default function DebtsScreen() {
   return (
     <PageShell title="الديون والمبالغ المستحقة" scroll={false}>
       <FlatList
-        data={loading && items.length === 0 ? [] : items}
+        data={list.loading && list.items.length === 0 ? [] : list.items}
         keyExtractor={(sale) => sale.id}
         {...marketListPerf}
         contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <Notice tone="muted">
               هذه الديون تخص مبيعاتك المسجلة في النظام، وليست ديون طلبات المتجر أو طلبات الخدمات.
             </Notice>
-            {summary ? (
-              <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 12 }}>
+            {visibleSummary ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
                 {(
                   [
-                    ['إجمالي المستحق', money(summary.totalDue)],
-                    ['متأخر', money(summary.overdueDue)],
-                    ['مستحق اليوم', money(summary.dueToday)],
-                    ['عدد المبيعات المدينة', String(summary.debtorCount)],
+                    ['إجمالي المستحق', money(visibleSummary.totalDue)],
+                    ['متأخر', money(visibleSummary.overdueDue)],
+                    ['مستحق اليوم', money(visibleSummary.dueToday)],
+                    ['عدد المبيعات المدينة', String(visibleSummary.debtorCount)],
                   ] as const
                 ).map(([l, v]) => (
                   <SectionCard key={l}>
@@ -126,17 +114,15 @@ export default function DebtsScreen() {
                 ))}
               </View>
             ) : null}
-            {loading ? <ActivityIndicator color={colors.brand} /> : null}
-            {error ? <Notice>{error}</Notice> : null}
+            {list.loading || summaryLoading ? <ActivityIndicator color={colors.brand} /> : null}
+            {summaryError ? <View style={{ gap: spacing.xs }}><Notice>{summaryError}</Notice><PrimaryButton label="إعادة تحميل الملخص" variant="secondary" onPress={() => void loadSummary()} /></View> : null}{list.error ? <Notice>{list.error}</Notice> : null}
           </View>
         }
-        ListEmptyComponent={
-          !loading && !error ? <Notice tone="success">لا توجد مبالغ مستحقة حاليًا.</Notice> : undefined
-        }
+        ListEmptyComponent={list.error ? <View style={{ gap: spacing.sm }}><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></View> : !list.loading ? <Notice tone="success">لا توجد مبالغ مستحقة حاليًا.</Notice> : undefined}
         renderItem={({ item: sale }) => (
           <Pressable onPress={() => router.push({ pathname: '/sales/[id]', params: { id: sale.id } })}>
             <SectionCard>
-              <View style={{ flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
                 <Text style={{ flex: 1, textAlign: 'right', fontWeight: '900', fontSize: fontSizes[15], color: colors.ink }}>
                   {sale.entityTitle}
                 </Text>
@@ -158,8 +144,9 @@ export default function DebtsScreen() {
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListFooterComponent={
           <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
-            {hasMore ? (
-              <PrimaryButton label="تحميل المزيد" onPress={() => void loadMore()} busy={more} variant="secondary" />
+            {list.loadMoreError ? <Notice>{list.loadMoreError}</Notice> : null}
+            {list.hasNextPage || list.loadMoreError ? (
+              <PrimaryButton label={list.loadMoreError ? 'إعادة المحاولة' : 'تحميل المزيد'} onPress={() => void (list.loadMoreError ? list.retry() : list.loadMore())} busy={list.loadingMore} variant="secondary" />
             ) : null}
             <PrimaryButton label="إدارة الأقساط" onPress={() => router.push('/installments')} variant="secondary" />
             <PrimaryButton label="العودة إلى مبيعاتي" onPress={() => router.push('/my-sales')} variant="secondary" />

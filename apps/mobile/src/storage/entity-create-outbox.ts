@@ -479,6 +479,7 @@ export async function syncNextOfflineCreate(input: {
         {
           method: 'POST',
           token: input.token,
+          cacheOwnerId: input.ownerId,
           timeoutMs: requestBody.timeoutMs,
           headers,
           body: requestBody.body,

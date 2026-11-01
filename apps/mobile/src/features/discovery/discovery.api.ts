@@ -32,8 +32,8 @@ export type RankedSeller = {
   averageRating: number; totalRatings: number; responseTimeMinutes?: number | null; responseRate?: number | null;
   activeAds: number; score: number;
 };
-export async function fetchSellerRanking(limit = 30): Promise<RankedSeller[]> {
-  const response = await apiRequest<Envelope<RankedSeller[]>>(`/api/v1/sellers/ranking?limit=${Math.max(1, Math.min(50, Math.floor(limit)))}`);
+export async function fetchSellerRanking(limit = 30, signal?: AbortSignal): Promise<RankedSeller[]> {
+  const response = await apiRequest<Envelope<RankedSeller[]>>(`/api/v1/sellers/ranking?limit=${Math.max(1, Math.min(50, Math.floor(limit)))}`, { signal });
   if (response?.success !== true || !Array.isArray(response.data)) throw new Error(response?.message || 'تعذر تحميل ترتيب البائعين.');
   return response.data;
 }

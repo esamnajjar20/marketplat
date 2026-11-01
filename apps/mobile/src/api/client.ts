@@ -1,4 +1,4 @@
-import { clearPrivateCache, clearPrivateCacheForPrefix, deletePublicCacheEntry, readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
+import { clearPrivateCacheForPrefix, deletePublicCacheEntry, deletePublicCacheEntriesByPrefix, readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import type { ZodType } from 'zod';
 import { parseApiResponse } from '@/api/response-validation';
 import { API_BASE_URL_ERROR, getConfiguredApiBaseUrl } from '@/lib/api-base-url';
@@ -142,6 +142,10 @@ function privateCacheResourceKey(path: string, ownerId: string | undefined): str
     /^\/api\/v1\/sales$/,
     /^\/api\/v1\/sales\/summary$/,
     /^\/api\/v1\/sales\/[^/]+(?:\/receipt)?$/,
+    /^\/api\/v1\/sales\/debts(?:\/summary)?$/,
+    /^\/api\/v1\/sales\/installments\/(?:upcoming|overdue)$/,
+    /^\/api\/v1\/customers(?:\/summary)?$/,
+    /^\/api\/v1\/notifications$/,
     /^\/api\/v1\/sellers\/me\/profile$/,
   ];
   if (!allowed.some((pattern) => pattern.test(pathname))) return null;
@@ -156,6 +160,46 @@ function privateGetCacheKey(path: string, method: string, token: string | undefi
 
 function isSuccessfulPublicEnvelope(value: unknown): boolean {
   return Boolean(value && typeof value === 'object' && (value as { success?: unknown }).success === true);
+}
+
+/** One mutation-to-cache map for all mobile features. Private snapshots are always
+ * invalidated within the authenticated owner namespace; missing owner IDs never
+ * trigger a cross-account purge. Public read models are invalidated independently. */
+const MUTATION_CACHE_RULES: ReadonlyArray<{
+  route: RegExp;
+  privatePrefixes: readonly string[];
+  publicPrefixes: readonly string[];
+}> = [
+  { route: /^\/api\/v1\/(?:ads|ad-images)(?:\/|$)/, privatePrefixes: ['/api/v1/ads', '/api/v1/users/me'], publicPrefixes: ['api-public:/api/v1/ads', 'api-public:/api/v1/search', 'ads:', 'ad-detail:'] },
+  { route: /^\/api\/v1\/(?:products|product-images)(?:\/|$)/, privatePrefixes: ['/api/v1/products', '/api/v1/users/me'], publicPrefixes: ['api-public:/api/v1/products', 'api-public:/api/v1/stores', 'api-public:/api/v1/search', 'home:public-products:v1'] },
+  { route: /^\/api\/v1\/(?:service-listings|services|service-images)(?:\/|$)/, privatePrefixes: ['/api/v1/service-listings', '/api/v1/users/me'], publicPrefixes: ['api-public:/api/v1/service-listings', 'api-public:/api/v1/search', 'service-listings:', 'home:public-services:v1'] },
+  { route: /^\/api\/v1\/(?:stores|store-members|store-invites|store-promotions|store-hours)(?:\/|$)/, privatePrefixes: ['/api/v1/stores', '/api/v1/users/me'], publicPrefixes: ['api-public:/api/v1/stores', 'api-public:/api/v1/search', 'home:public-stores:v1'] },
+  { route: /^\/api\/v1\/(?:favorites|favourites)(?:\/|$)/, privatePrefixes: ['/api/v1/favorites', '/api/v1/users/me'], publicPrefixes: ['api-public:/api/v1/search', 'api-public:/api/v1/ads', 'api-public:/api/v1/products'] },
+  { route: /^\/api\/v1\/(?:stories)(?:\/|$)/, privatePrefixes: ['/api/v1/stories', '/api/v1/users/me'], publicPrefixes: ['api-public:/api/v1/stories', 'api-public:/api/v1/search'] },
+  { route: /^\/api\/v1\/(?:blocks|blocked-users)(?:\/|$)/, privatePrefixes: ['/api/v1/blocks', '/api/v1/blocked-users', '/api/v1/users/me'], publicPrefixes: [] },
+  { route: /^\/api\/v1\/(?:users|profile|sellers)(?:\/|$)/, privatePrefixes: ['/api/v1/users', '/api/v1/sellers/me', '/api/v1/service-providers'], publicPrefixes: ['api-public:/api/v1/sellers', 'api-public:/api/v1/search', 'api-public:/api/v1/service-listings'] },
+  { route: /^\/api\/v1\/(?:service-providers)(?:\/|$)/, privatePrefixes: ['/api/v1/service-providers', '/api/v1/service-listings'], publicPrefixes: ['api-public:/api/v1/service-listings', 'api-public:/api/v1/sellers/ranking', 'home:public-services:v1'] },
+  { route: /^\/api\/v1\/(?:service-reviews|reviews|ratings)(?:\/|$)/, privatePrefixes: ['/api/v1/service-reviews', '/api/v1/service-listings', '/api/v1/service-providers'], publicPrefixes: ['api-public:/api/v1/service-listings', 'api-public:/api/v1/sellers/ranking', 'home:public-services:v1'] },
+  { route: /^\/api\/v1\/service-requests(?:\/|$)/, privatePrefixes: ['/api/v1/service-requests'], publicPrefixes: [] },
+  { route: /^\/api\/v1\/follows(?:\/|$)/, privatePrefixes: ['/api/v1/follows', '/api/v1/users/me'], publicPrefixes: ['api-public:/api/v1/search'] },
+  { route: /^\/api\/v1\/orders(?:\/|$)/, privatePrefixes: ['/api/v1/orders'], publicPrefixes: [] },
+  { route: /^\/api\/v1\/requests(?:\/|$)/, privatePrefixes: ['/api/v1/requests'], publicPrefixes: [] },
+  { route: /^\/api\/v1\/appointments(?:\/|$)/, privatePrefixes: ['/api/v1/appointments'], publicPrefixes: [] },
+  { route: /^\/api\/v1\/sales(?:\/|$)/, privatePrefixes: ['/api/v1/sales'], publicPrefixes: [] },
+  { route: /^\/api\/v1\/customers(?:\/|$)/, privatePrefixes: ['/api/v1/customers'], publicPrefixes: [] },
+  { route: /^\/api\/v1\/notifications(?:\/|$)/, privatePrefixes: ['/api/v1/notifications'], publicPrefixes: [] },
+];
+
+async function invalidateMutationCaches(path: string, ownerId?: string): Promise<void> {
+  const pathname = path.split('?', 1)[0];
+  const rule = MUTATION_CACHE_RULES.find((candidate) => candidate.route.test(pathname));
+  if (!rule) return;
+  if (ownerId?.trim()) {
+    for (const prefix of rule.privatePrefixes) await clearPrivateCacheForPrefix(prefix, ownerId);
+  } else if (rule.privatePrefixes.length && __DEV__) {
+    console.warn('[api/client] skipped private cache invalidation because cacheOwnerId is missing:', pathname);
+  }
+  for (const prefix of rule.publicPrefixes) await deletePublicCacheEntriesByPrefix(prefix);
 }
 
 /** Parse delta-seconds or an HTTP date from Retry-After without sleeping inside the API client. */
@@ -383,39 +427,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
     if (cacheKey && isSuccessfulPublicEnvelope(validatedPayload)) {
       await writePublicCache(cacheKey, validatedPayload);
     } else if (init.method && init.method.toUpperCase() !== 'GET' && token) {
-      // Targeted cache invalidation: only clear the affected resource tree.
-      // A mutation on /api/v1/orders invalidates all cached /orders/* keys for
-      // this account but leaves /users/me, /sales/*, /appointments/* untouched.
-      // Falls back to a full clear only if we cannot scope the change.
-      const pathname = path.split('?', 1)[0];
-      const scopedPrefixes = [
-        '/api/v1/orders',
-        '/api/v1/requests',
-        '/api/v1/appointments',
-        '/api/v1/sales',
-      ];
-      const matchedPrefix = scopedPrefixes.find((prefix) => pathname.startsWith(prefix));
-      if (matchedPrefix && cacheOwnerId?.trim()) {
-        // Scoped invalidation — only caches belonging to this prefix and account.
-        await clearPrivateCacheForPrefix(matchedPrefix, cacheOwnerId);
-      } else {
-        // Precise invalidation: e.g. PATCH /users/me → only that resource.
-        const resourceKey = privateCacheResourceKey(path, cacheOwnerId)
-          ?? (pathname === '/api/v1/users/me/notifications' ? privateCacheResourceKey('/api/v1/users/me', cacheOwnerId) : null);
-        if (resourceKey) {
-          await deletePublicCacheEntry(resourceKey);
-        } else if (matchedPrefix) {
-          // Cross-cutting mutation without a known ownerId — conservative fallback.
-          // Performance concern (clears ALL accounts' caches), not a bug.
-          // Warn in dev so missing cacheOwnerId callers are caught early.
-          if (__DEV__) {
-            console.warn(
-              '[api/client] mutation without cacheOwnerId — full cache clear. Path: ' + pathname
-            );
-          }
-          await clearPrivateCache();
-        }
-      }
+      await invalidateMutationCaches(path, cacheOwnerId);
     }
     return validatedPayload as T;
   } catch (error) {

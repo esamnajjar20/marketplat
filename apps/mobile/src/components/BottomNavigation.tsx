@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
   },
   bar: {
     minHeight: sizes.bottomNavHeight,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingHorizontal: spacing.xs,

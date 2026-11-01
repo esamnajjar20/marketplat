@@ -46,7 +46,7 @@ export default function SessionsScreen() {
     {error ? <SectionCard><Notice>{error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void load()} /></SectionCard> : null}
     {!loading && !error && sessions.length === 0 ? <SectionCard><Text style={{ textAlign: 'center', color: colors.muted }}>لا توجد جلسات نشطة مسجّلة.</Text></SectionCard> : null}
     {sessions.map((session) => <SectionCard key={session.sessionId}>
-      <View style={{ flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md }}>
         <View style={{ flex: 1, gap: spacing.sm }}>
           <Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '800', fontSize: fontSizes[15] }}>{session.isCurrent ? 'هذا الجهاز · الجلسة الحالية' : 'جلسة نشطة أخرى'}</Text>
           <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12], lineHeight: 19 }}>{session.userAgent || 'جهاز غير معروف'}</Text>

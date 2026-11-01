@@ -21,6 +21,7 @@ import {
 } from '@/components/MobileUI';
 import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 function destination(item: AppNotification): string | null {
   const data = item.data && typeof item.data === 'object' ? item.data as Record<string, unknown> : {};
@@ -87,86 +88,32 @@ function notificationIsRead(item: AppNotification): boolean { return Boolean(ite
 export default function NotificationsScreen() {
   const { user, getAccessToken, csrfToken, isRestoring } = useAuth();
   const { counts, refresh: refreshUnreadCounts } = useUnreadCounts();
-  const [items, setItems] = useState<AppNotification[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [moreError, setMoreError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const requestSequence = useRef(0);
-  const hasLoadedRef = useRef(false);
-
-  const load = useCallback(
-    async (refresh = false) => {
-      const sequence = ++requestSequence.current;
-      const token = getAccessToken();
-      if (isRestoring) return;
-      if (!token) {
-        setLoading(false);
-        setRefreshing(false);
-        setError('سجّل الدخول لعرض إشعاراتك.');
-        return;
-      }
-      if (refresh) setRefreshing(true);
-      else if (!hasLoadedRef.current) setLoading(true);
-      setError(null);
-      setMoreError(null);
-      setLoadingMore(false);
-      try {
-        const result = await fetchNotificationsPage(token, 1, 50);
-        if (sequence === requestSequence.current) {
-          setItems(result.items);
-          setPage(result.page);
-          setTotalPages(result.totalPages);
-          hasLoadedRef.current = true;
-        }
-      } catch (e) {
-        if (sequence === requestSequence.current) {
-          setError(e instanceof Error ? e.message : 'تعذر تحميل الإشعارات.');
-        }
-      } finally {
-        if (sequence === requestSequence.current) {
-          setLoading(false);
-          setRefreshing(false);
-        }
-      }
+  const token = getAccessToken();
+  const list = usePaginatedList<AppNotification>({
+    key: `notifications:${user?.id ?? 'guest'}`,
+    pageSize: 50,
+    enabled: Boolean(user && token && !isRestoring),
+    fetchPage: async (page, signal) => {
+      const currentToken = getAccessToken();
+      if (!currentToken) throw new Error('سجّل الدخول لعرض إشعاراتك.');
+      const result = await fetchNotificationsPage(currentToken, page, 50, false, signal, user?.id);
+      return { items: result.items, meta: { page: result.page, totalPages: result.totalPages, total: result.total } };
     },
-    [getAccessToken, isRestoring],
-  );
-
-  const loadMore = async () => {
-    const token = getAccessToken();
-    if (!token || loadingMore || loading || page >= totalPages) return;
-    const sequence = requestSequence.current;
-    setLoadingMore(true);
-    setMoreError(null);
-    try {
-      const result = await fetchNotificationsPage(token, page + 1, 50);
-      if (sequence === requestSequence.current) {
-        setItems((current) => {
-          const seen = new Set(current.map((item) => item.id));
-          return [...current, ...result.items.filter((item) => !seen.has(item.id))];
-        });
-        setPage(result.page);
-        setTotalPages(result.totalPages);
-      }
-    } catch (e) {
-      if (sequence === requestSequence.current) setMoreError(e instanceof Error ? e.message : 'تعذر تحميل الإشعارات الأقدم.');
-    } finally {
-      if (sequence === requestSequence.current) setLoadingMore(false);
-    }
-  };
+    getItemKey: (item) => item.id,
+  });
+  const [busy, setBusy] = useState(false);
+  const hasFocusedRef = useRef(false);
+  const refreshListRef = useRef(list.refresh);
+  const refreshCountsRef = useRef(refreshUnreadCounts);
+  refreshListRef.current = list.refresh;
+  refreshCountsRef.current = refreshUnreadCounts;
 
   useFocusEffect(
     useCallback(() => {
-      void load();
-      return () => {
-        requestSequence.current += 1;
-      };
-    }, [load]),
+      if (hasFocusedRef.current) void refreshListRef.current();
+      hasFocusedRef.current = true;
+      void refreshCountsRef.current();
+    }, []),
   );
 
   const markAll = async () => {
@@ -174,10 +121,8 @@ export default function NotificationsScreen() {
     if (!token || busy) return;
     setBusy(true);
     try {
-      await markAllNotificationsRead(token, csrfToken);
-      setItems((current) =>
-        current.map((item) => ({ ...item, readAt: item.readAt || new Date().toISOString() })),
-      );
+      await markAllNotificationsRead(token, csrfToken, user?.id);
+      list.updateItems((current) => current.map((item) => ({ ...item, isRead: true, readAt: item.readAt || new Date().toISOString() })));
       void refreshUnreadCounts();
     } catch (e) {
       Alert.alert('تعذر تحديث الإشعارات', e instanceof Error ? e.message : 'حاول مرة أخرى.');
@@ -193,11 +138,11 @@ export default function NotificationsScreen() {
     const unread = !notificationIsRead(item);
     if (unread) {
       const readAt = new Date().toISOString();
-      setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, isRead: true, readAt } : entry));
+      list.updateItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, isRead: true, readAt } : entry));
       void refreshUnreadCounts();
       // Navigation must not wait for a weak mobile connection.
-      if (token) void markNotificationRead(item.id, token, csrfToken).catch(() => {
-        setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, isRead: false, readAt: null } : entry));
+      if (token) void markNotificationRead(item.id, token, csrfToken, user?.id).catch(() => {
+        list.updateItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, isRead: false, readAt: null } : entry));
         void refreshUnreadCounts();
       });
     }
@@ -232,28 +177,28 @@ export default function NotificationsScreen() {
           actionLabel="تسجيل الدخول"
           onAction={() => router.push('/login')}
         />
-      ) : loading ? (
+      ) : list.loading ? (
         <LoadingState message="جاري تحميل الإشعارات…" />
-      ) : error && items.length === 0 ? (
-        <ErrorState title="تعذر تحميل الإشعارات" description={error} onAction={() => void load()} />
+      ) : list.error && list.items.length === 0 ? (
+        <ErrorState title="تعذر تحميل الإشعارات" description={list.error || undefined} onAction={() => void list.retry()} />
       ) : (
         <FlatList
-          data={items}
+          data={list.items}
           keyExtractor={(item) => item.id}
           {...denseListPerf}
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => void load(true)}
+              refreshing={list.refreshing}
+              onRefresh={() => void list.refresh()}
               tintColor={colors.brand}
             />
           }
-          ListHeaderComponent={error ? <ErrorState title="تعذر تحديث الإشعارات" description={error} onAction={() => void load(true)} /> : undefined}
-          ListFooterComponent={items.length > 0 ? (
+          ListHeaderComponent={list.error ? <ErrorState title="تعذر تحديث الإشعارات" description={list.error} onAction={() => void list.retry()} /> : undefined}
+          ListFooterComponent={list.items.length > 0 ? (
             <View style={{ gap: spacing.sm }}>
-              {page < totalPages ? <Pressable accessibilityRole="button" disabled={loadingMore} onPress={() => void loadMore()} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={styles.link}>{loadingMore ? 'جارٍ تحميل المزيد…' : 'تحميل إشعارات أقدم'}</Text></Pressable> : null}
-              {moreError ? <ErrorState title="تعذر تحميل الإشعارات الأقدم" description={moreError} onAction={() => void loadMore()} /> : null}
+              {list.hasNextPage ? <Pressable accessibilityRole="button" disabled={list.loadingMore} onPress={() => void list.loadMore()} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={styles.link}>{list.loadingMore ? 'جارٍ تحميل المزيد…' : 'تحميل إشعارات أقدم'}</Text></Pressable> : null}
+              {list.loadMoreError ? <ErrorState title="تعذر تحميل الإشعارات الأقدم" description={list.loadMoreError} onAction={() => void list.retry()} /> : null}
             </View>
           ) : undefined}
           ListEmptyComponent={
@@ -301,7 +246,7 @@ const styles = StyleSheet.create({
   list: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
   card: {
     minHeight: 78,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'flex-start',
     gap: spacing.md,
     padding: spacing.md,

@@ -262,7 +262,7 @@ export default function MyAdsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
-  headerActions: { flexDirection: 'row-reverse', gap: spacing.sm, alignItems: 'center' },
+  headerActions: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   link: { color: colors.brand, ...typography.captionStrong },
   list: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48 },
   adTitle: { ...typography.bodyStrong, color: colors.ink, textAlign: 'right' },

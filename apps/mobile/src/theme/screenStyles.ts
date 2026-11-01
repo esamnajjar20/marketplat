@@ -13,7 +13,7 @@ export const screenStyles = StyleSheet.create({
   },
   sectionGap: { gap: spacing.md },
   rowReverse: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
   },
   card: {

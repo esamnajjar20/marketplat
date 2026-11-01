@@ -27,7 +27,7 @@ export default function MyStoresScreen() {
     {error ? <><Notice>{error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void load()} /></> : null}
     {!loading && !error && accessToken && items.length === 0 ? <SectionCard><Notice tone="muted">لا توجد متاجر مرتبطة بعضوية نشطة. ستظهر هنا المتاجر التي تقبل دعواتها.</Notice><PrimaryButton label="عرض دعوات المتاجر" onPress={() => router.push('/store-invites')} /><PrimaryButton label="لوحة البائع" variant="secondary" onPress={() => router.push('/seller-dashboard')} /></SectionCard> : null}
     {items.map((item) => <SectionCard key={item.id}>
-      <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.md }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
         {item.store.logoUrl ? <Image source={{ uri: item.store.logoUrl }} style={{ width: 52, height: 52, borderRadius: 12, backgroundColor: colors.border }} /> : <View style={{ width: 52, height: 52, borderRadius: 12, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontWeight: '900' }}>م</Text></View>}
         <View style={{ flex: 1, gap: 4 }}><Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '900', fontSize: fontSizes[16] }}>{item.store.name}</Text><Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>{roleLabel(item.role)} · {statusLabel(item.store.status)}</Text>{item.store.city ? <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>{item.store.city}</Text> : null}</View>
       </View>

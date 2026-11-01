@@ -9,6 +9,7 @@ import { router } from 'expo-router';
 import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSales, fetchSalesSummary, type SalePaymentStatus, type SaleRecord, type SalesPeriod, type SalesSummary } from '@/features/sales/sales.api';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 const periodOptions: { value: SalesPeriod; label: string }[] = [
   { value: 'day', label: 'اليوم' }, { value: 'week', label: 'أسبوع' }, { value: 'month', label: 'شهر' }, { value: 'year', label: 'سنة' },
@@ -25,87 +26,84 @@ export default function MySalesScreen() {
   const [period, setPeriod] = useState<SalesPeriod>('month');
   const [status, setStatus] = useState<SalePaymentStatus | 'ALL'>('ALL');
   const [summary, setSummary] = useState<SalesSummary | null>(null);
-  const [items, setItems] = useState<SaleRecord[]>([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState('');
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState('');
+  const [summaryOwnerId, setSummaryOwnerId] = useState<string | null>(null);
+  const visibleSummary = summaryOwnerId === user?.id ? summary : null;
+  const [refreshingSummary, setRefreshingSummary] = useState(false);
+  const summaryControllerRef = useRef<AbortController | null>(null);
 
-  const sequence = useRef(0);
-  const load = useCallback(async (refresh = false) => {
-    if (!accessToken) { setLoading(false); return; }
-    const current = ++sequence.current;
-    if (refresh) setRefreshing(true); else setLoading(true);
-    setError('');
+  const list = usePaginatedList<SaleRecord>({
+    key: `sales:${user?.id ?? 'guest'}:${status}`,
+    pageSize: 15,
+    enabled: Boolean(accessToken && user && !isRestoring),
+    fetchPage: async (page, signal) => {
+      if (!accessToken) throw new Error('سجّل الدخول لعرض مبيعاتك.');
+      const result = await fetchSales(accessToken, page, status === 'ALL' ? undefined : status, user?.id, signal);
+      return { items: result.items, meta: result.meta };
+    },
+    getItemKey: (sale) => sale.id,
+  });
+
+  const loadSummary = useCallback(async (refresh = false) => {
+    if (!accessToken || !user || isRestoring) return;
+    summaryControllerRef.current?.abort();
+    const controller = new AbortController();
+    summaryControllerRef.current = controller;
+    if (refresh) setRefreshingSummary(true); else setSummaryLoading(true);
+    setSummaryError('');
     try {
-      const [summaryR, pageR] = await Promise.allSettled([
-        fetchSalesSummary(period, accessToken, user?.id),
-        fetchSales(accessToken, 1, status === 'ALL' ? undefined : status, user?.id),
-      ]);
-      if (current !== sequence.current) return;
-      if (summaryR.status === 'fulfilled') setSummary(summaryR.value);
-      if (pageR.status === 'fulfilled') {
-        setItems(pageR.value.items);
-        setPage(pageR.value.meta.page || 1);
-        setTotalPages(pageR.value.meta.totalPages || 1);
-      }
-      if (summaryR.status === 'rejected' && pageR.status === 'rejected') setError('تعذر تحميل المبيعات.');
-      else if (summaryR.status === 'rejected') setError('تعذر تحميل ملخص المبيعات.');
-      else if (pageR.status === 'rejected') setError('تعذر تحميل قائمة المبيعات.');
-    } catch (e) {
-      if (current === sequence.current) setError(e instanceof Error ? e.message : 'تعذر تحميل المبيعات.');
+      const next = await fetchSalesSummary(period, accessToken, user.id, controller.signal);
+      if (!controller.signal.aborted) { setSummary(next); setSummaryOwnerId(user.id); }
+    } catch (error) {
+      if (!controller.signal.aborted) setSummaryError(error instanceof Error ? error.message : 'تعذر تحميل ملخص المبيعات.');
     } finally {
-      if (current === sequence.current) { setLoading(false); setRefreshing(false); }
+      if (!controller.signal.aborted) {
+        setSummaryLoading(false);
+        setRefreshingSummary(false);
+        if (summaryControllerRef.current === controller) summaryControllerRef.current = null;
+      }
     }
-  }, [accessToken, period, status, user?.id]);
+  }, [accessToken, isRestoring, period, user?.id]);
 
-  useEffect(() => { if (!isRestoring) void load(); return () => { sequence.current += 1; }; }, [isRestoring, load]);
+  useEffect(() => {
+    void loadSummary();
+    return () => {
+      summaryControllerRef.current?.abort();
+      summaryControllerRef.current = null;
+    };
+  }, [loadSummary]);
 
-  const loadMore = async () => {
-    if (!accessToken || loadingMore || loading || page >= totalPages) return;
-    const current = sequence.current;
-    setLoadingMore(true);
-    try {
-      const next = await fetchSales(accessToken, page + 1, status === 'ALL' ? undefined : status, user?.id);
-      if (current !== sequence.current) return;
-      setItems(prev => {
-        const seen = new Set(prev.map(item => item.id));
-        return [...prev, ...next.items.filter(item => !seen.has(item.id))];
-      });
-      setPage(next.meta.page || page + 1);
-      setTotalPages(next.meta.totalPages || totalPages);
-    } catch (e) { if (current === sequence.current) setError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من المبيعات.'); }
-    finally { setLoadingMore(false); }
-  };
+  const refreshAll = useCallback(async () => {
+    await Promise.all([list.refresh(), loadSummary(true)]);
+  }, [list.refresh, loadSummary]);
 
   if (!user) return <SafeAreaView style={s.safe} edges={['top']}><View style={s.state}><Text style={s.title}>مبيعاتي</Text><Text style={s.muted}>سجّل الدخول لعرض سجل مبيعاتك.</Text><Pressable onPress={() => router.push('/login')} style={s.primary}><Text style={s.primaryText}>تسجيل الدخول</Text></Pressable></View></SafeAreaView>;
 
   return <SafeAreaView style={s.safe} edges={['top']}><FlatList
-data={items}
+data={list.items}
 keyExtractor={(sale)=>sale.id}
 {...marketListPerf}
 contentContainerStyle={s.content}
-refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} />}
+refreshControl={<RefreshControl refreshing={list.refreshing || refreshingSummary} onRefresh={() => void refreshAll()} />}
 ListHeaderComponent={<>
     <View style={s.header}><Pressable accessibilityRole="button" onPress={() => router.back()} style={s.back}><AppIcon name="back" size={24} color={colors.brand} /></Pressable><View style={s.headerText}><Text style={s.title}>مبيعاتي</Text><Text style={s.subtitle}>سجل عمليات البيع والمدفوعات والمبالغ المستحقة.</Text></View></View>
     <Text style={s.sectionTitle}>ملخص المبيعات</Text>
     <View style={s.segmentRow}>{periodOptions.map(option => <Pressable key={option.value} accessibilityRole="button" accessibilityState={{ selected: period === option.value }} onPress={() => setPeriod(option.value)} style={[s.segment, period === option.value && s.segmentActive]}><Text style={[s.segmentText, period === option.value && s.segmentTextActive]}>{option.label}</Text></Pressable>)}</View>
-    {loading || isRestoring ? <View style={s.state}><ActivityIndicator color={colors.brand} /><Text style={s.muted}>جاري تحميل المبيعات…</Text></View> : error && !summary ? <View style={s.state}><Text style={s.error}>{error}</Text><Pressable onPress={() => void load(true)} style={s.primary}><Text style={s.primaryText}>إعادة المحاولة</Text></Pressable></View> : <>
-      {summary ? <View style={s.metrics}>
-        <View style={s.metric}><Text style={s.metricLabel}>إجمالي الإيرادات</Text><Text style={s.metricValue}>{money(summary.totalRevenue)}</Text></View>
-        <View style={s.metric}><Text style={s.metricLabel}>المبالغ المحصّلة</Text><Text style={s.metricValue}>{money(summary.totalPaid)}</Text></View>
-        <View style={s.metric}><Text style={s.metricLabel}>المبالغ المستحقة</Text><Text style={[s.metricValue, s.dueValue]}>{money(summary.totalDue)}</Text></View>
-        <View style={s.metric}><Text style={s.metricLabel}>عدد عمليات البيع</Text><Text style={s.metricValue}>{new Intl.NumberFormat('ar').format(summary.salesCount)}</Text></View>
-        <View style={s.metric}><Text style={s.metricLabel}>صافي الربح التقديري</Text><Text style={s.metricValue}>{money(summary.netProfit)}</Text></View>
-        <View style={s.metric}><Text style={s.metricLabel}>المبالغ المستردة</Text><Text style={s.metricValue}>{money(summary.totalRefunded)}</Text></View>
+    {list.loading || summaryLoading || isRestoring ? <View style={s.state}><ActivityIndicator color={colors.brand} /><Text style={s.muted}>جاري تحميل المبيعات…</Text></View> : summaryError && !visibleSummary ? <View style={s.state}><Text style={s.error}>{summaryError}</Text><Pressable onPress={() => void loadSummary(undefined, true)} style={s.primary}><Text style={s.primaryText}>إعادة المحاولة</Text></Pressable></View> : <>
+      {visibleSummary ? <View style={s.metrics}>
+        <View style={s.metric}><Text style={s.metricLabel}>إجمالي الإيرادات</Text><Text style={s.metricValue}>{money(visibleSummary.totalRevenue)}</Text></View>
+        <View style={s.metric}><Text style={s.metricLabel}>المبالغ المحصّلة</Text><Text style={s.metricValue}>{money(visibleSummary.totalPaid)}</Text></View>
+        <View style={s.metric}><Text style={s.metricLabel}>المبالغ المستحقة</Text><Text style={[s.metricValue, s.dueValue]}>{money(visibleSummary.totalDue)}</Text></View>
+        <View style={s.metric}><Text style={s.metricLabel}>عدد عمليات البيع</Text><Text style={s.metricValue}>{new Intl.NumberFormat('ar').format(visibleSummary.salesCount)}</Text></View>
+        <View style={s.metric}><Text style={s.metricLabel}>صافي الربح التقديري</Text><Text style={s.metricValue}>{money(visibleSummary.netProfit)}</Text></View>
+        <View style={s.metric}><Text style={s.metricLabel}>المبالغ المستردة</Text><Text style={s.metricValue}>{money(visibleSummary.totalRefunded)}</Text></View>
       </View> : null}
-      <View style={s.listHeading}><Text style={s.sectionTitle}>سجل عمليات البيع</Text><Text style={s.count}>{items.length ? `المعروض ${items.length}` : 'لا توجد نتائج'}</Text></View>
+      <View style={s.listHeading}><Text style={s.sectionTitle}>سجل عمليات البيع</Text><Text style={s.count}>{list.items.length ? `المعروض ${list.items.length}` : 'لا توجد نتائج'}</Text></View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>{statusOptions.map(option => <Pressable key={option.value} accessibilityRole="button" accessibilityLabel={`فلتر الحالة: ${option.label}`} accessibilityState={{ selected: status === option.value }} onPress={() => setStatus(option.value)} style={[s.filter, status === option.value && s.filterActive]}><Text style={[s.filterText, status === option.value && s.filterTextActive]}>{option.label}</Text></Pressable>)}</ScrollView>
-      {error ? <Text style={s.error}>{error}</Text> : null}
+      {summaryError ? <Text style={s.error}>{summaryError}</Text> : null}{list.error ? <Pressable accessibilityRole="button" onPress={() => void list.retry()}><Text style={s.error}>{list.error} — إعادة المحاولة</Text></Pressable> : null}
       </>}
-ListEmptyComponent={<View style={s.state}><Text style={s.emptyTitle}>لا توجد مبيعات هنا بعد</Text><Text style={s.muted}>ستظهر عمليات البيع المسجلة في حسابك في هذه القائمة.</Text></View>}
+ListEmptyComponent={list.error ? <View style={s.state}><Text style={s.error}>{list.error}</Text><Pressable onPress={() => void list.retry()} style={s.primary}><Text style={s.primaryText}>إعادة المحاولة</Text></Pressable></View> : <View style={s.state}><Text style={s.emptyTitle}>لا توجد مبيعات هنا بعد</Text><Text style={s.muted}>ستظهر عمليات البيع المسجلة في حسابك في هذه القائمة.</Text></View>}
 renderItem={({item:sale}: {item: SaleRecord})=>(<View style={s.saleCard}>
         <View style={s.saleTop}><Text style={s.saleTotal}>{money(sale.totalPrice, sale.currency)}</Text><Text style={[s.status, sale.paymentStatus === 'OVERDUE' && s.statusDanger, sale.paymentStatus === 'PAID' && s.statusPaid]}>{statusLabel[sale.paymentStatus] || sale.paymentStatus}</Text></View>
         <Text style={s.saleName}>{sale.entityTitle}</Text>
@@ -114,9 +112,9 @@ renderItem={({item:sale}: {item: SaleRecord})=>(<View style={s.saleCard}>
         <View style={s.amountRow}><Text style={s.amountLabel}>المحصّل: {money(sale.paidAmount, sale.currency)}</Text><Text style={[s.amountLabel, Number(sale.dueAmount) > 0 && s.dueValue]}>المتبقي: {money(sale.dueAmount, sale.currency)}</Text></View>
       </View>)}
 ListFooterComponent={<>
-      {page < totalPages ? <Pressable disabled={loadingMore || loading} onPress={() => void loadMore()} style={[s.moreButton, (loadingMore || loading) && s.disabled]}><Text style={s.moreText}>{loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}</Text></Pressable> : null}
+      {list.hasNextPage ? <Pressable disabled={list.loadingMore || list.loading} onPress={() => void list.loadMore()} style={[s.moreButton, (list.loadingMore || list.loading) && s.disabled]}><Text style={s.moreText}>{list.loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}</Text></Pressable> : null}{list.loadMoreError ? <Pressable accessibilityRole="button" onPress={() => void list.retry()}><Text style={s.error}>{list.loadMoreError} — إعادة المحاولة</Text></Pressable> : null}
       <Text style={s.sectionTitle}>أدوات إدارة المبيعات</Text>
-      <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {([['/debts', 'الديون والمستحقات'], ['/installments', 'الأقساط'], ['/customers', 'عملائي'], ['/activity', 'سجل النشاط']] as const).map(([path, label]) => <Pressable key={path} accessibilityRole="button" accessibilityLabel={label} onPress={() => router.push(path)} style={{ flexGrow: 1, minWidth: '46%', minHeight: 44, justifyContent: 'center', padding: 13, borderRadius: radius.md, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.controlBorder }}><Text style={{ textAlign: 'center', color: colors.brand, fontWeight: '900' }}>{label}</Text></Pressable>)}
       </View>
       <Text style={s.footnote}>الملخص للفترة المحددة، بينما سجل العمليات يعرض أحدث المبيعات المطابقة للفلتر.</Text>
@@ -127,10 +125,10 @@ ListFooterComponent={<>
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas }, content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: 52 },
-  header: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.md }, back: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }, headerText: { flex: 1, alignItems: 'flex-end', gap: 4 }, title: { fontSize: fontSizes[24], fontWeight: '900', color: colors.ink, letterSpacing: -0.4 }, subtitle: { fontSize: fontSizes[12], color: colors.muted, textAlign: 'right', lineHeight: 19 }, sectionTitle: { fontSize: fontSizes[16], fontWeight: '900', color: colors.ink, textAlign: 'right' },
-  segmentRow: { flexDirection: 'row-reverse', gap: 8, padding: 4, borderRadius: radius.lg, backgroundColor: colors.brandSoft }, segment: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.controlBorder, backgroundColor: colors.surface }, segmentActive: { backgroundColor: colors.brand, borderColor: colors.brand }, segmentText: { color: colors.muted, fontSize: fontSizes[12], fontWeight: '800' }, segmentTextActive: { color: colors.white },
-  metrics: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm }, metric: { width: '48%', flexGrow: 1, minHeight: 104, justifyContent: 'center', gap: 10, padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, metricLabel: { fontSize: fontSizes[12], color: colors.muted, textAlign: 'right' }, metricValue: { fontSize: fontSizes[17], fontWeight: '900', color: colors.ink, textAlign: 'right' }, dueValue: { color: colors.danger },
-  listHeading: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm }, count: { fontSize: fontSizes[12], color: colors.muted }, filterRow: { flexDirection: 'row-reverse', gap: 7, paddingVertical: 2 }, filter: { minHeight: 44, minWidth: 44, justifyContent: 'center', borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.pill, backgroundColor: colors.surface, paddingHorizontal: 13, paddingVertical: 9 }, filterActive: { backgroundColor: colors.brandSoft, borderColor: colors.brand }, filterText: { color: colors.muted, fontSize: fontSizes[12], fontWeight: '700' }, filterTextActive: { color: colors.brandOnSoft },
-  saleCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md }, saleTop: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: 8 }, saleTotal: { color: colors.brand, fontSize: fontSizes[17], fontWeight: '900' }, status: { overflow: 'hidden', borderRadius: radius.pill, backgroundColor: colors.warningSoft, color: colors.warningText, paddingHorizontal: 10, paddingVertical: 5, fontSize: fontSizes[11], fontWeight: '800' }, statusPaid: { backgroundColor: colors.successSoft, color: colors.brandOnSoft }, statusDanger: { backgroundColor: colors.dangerSoft, color: colors.danger }, saleName: { color: colors.ink, fontSize: fontSizes[15], fontWeight: '900', textAlign: 'right' }, saleMeta: { color: colors.muted, fontSize: fontSizes[12], textAlign: 'right', lineHeight: 18 }, amountRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, marginTop: 2 }, amountLabel: { color: colors.muted, fontSize: fontSizes[12], fontWeight: '700' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md }, back: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }, headerText: { flex: 1, alignItems: 'flex-end', gap: 4 }, title: { fontSize: fontSizes[24], fontWeight: '900', color: colors.ink, letterSpacing: -0.4 }, subtitle: { fontSize: fontSizes[12], color: colors.muted, textAlign: 'right', lineHeight: 19 }, sectionTitle: { fontSize: fontSizes[16], fontWeight: '900', color: colors.ink, textAlign: 'right' },
+  segmentRow: { flexDirection: 'row', gap: 8, padding: 4, borderRadius: radius.lg, backgroundColor: colors.brandSoft }, segment: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.controlBorder, backgroundColor: colors.surface }, segmentActive: { backgroundColor: colors.brand, borderColor: colors.brand }, segmentText: { color: colors.muted, fontSize: fontSizes[12], fontWeight: '800' }, segmentTextActive: { color: colors.white },
+  metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }, metric: { width: '48%', flexGrow: 1, minHeight: 104, justifyContent: 'center', gap: 10, padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, metricLabel: { fontSize: fontSizes[12], color: colors.muted, textAlign: 'right' }, metricValue: { fontSize: fontSizes[17], fontWeight: '900', color: colors.ink, textAlign: 'right' }, dueValue: { color: colors.danger },
+  listHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm }, count: { fontSize: fontSizes[12], color: colors.muted }, filterRow: { flexDirection: 'row', gap: 7, paddingVertical: 2 }, filter: { minHeight: 44, minWidth: 44, justifyContent: 'center', borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.pill, backgroundColor: colors.surface, paddingHorizontal: 13, paddingVertical: 9 }, filterActive: { backgroundColor: colors.brandSoft, borderColor: colors.brand }, filterText: { color: colors.muted, fontSize: fontSizes[12], fontWeight: '700' }, filterTextActive: { color: colors.brandOnSoft },
+  saleCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md }, saleTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }, saleTotal: { color: colors.brand, fontSize: fontSizes[17], fontWeight: '900' }, status: { overflow: 'hidden', borderRadius: radius.pill, backgroundColor: colors.warningSoft, color: colors.warningText, paddingHorizontal: 10, paddingVertical: 5, fontSize: fontSizes[11], fontWeight: '800' }, statusPaid: { backgroundColor: colors.successSoft, color: colors.brandOnSoft }, statusDanger: { backgroundColor: colors.dangerSoft, color: colors.danger }, saleName: { color: colors.ink, fontSize: fontSizes[15], fontWeight: '900', textAlign: 'right' }, saleMeta: { color: colors.muted, fontSize: fontSizes[12], textAlign: 'right', lineHeight: 18 }, amountRow: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, marginTop: 2 }, amountLabel: { color: colors.muted, fontSize: fontSizes[12], fontWeight: '700' },
   state: { alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg }, emptyTitle: { fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }, muted: { fontSize: fontSizes[13], color: colors.muted, textAlign: 'center', lineHeight: 20 }, error: { color: colors.danger, textAlign: 'right', fontSize: fontSizes[13] }, primary: { backgroundColor: colors.brand, borderRadius: radius.md, padding: spacing.md }, primaryText: { color: colors.white, fontWeight: '800' }, moreButton: { alignItems: 'center', padding: spacing.md, borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md }, moreText: { color: colors.brand, fontWeight: '900' }, disabled: { opacity: .6 }, footnote: { fontSize: fontSizes[11], color: colors.muted, textAlign: 'right', lineHeight: 18 },
 });

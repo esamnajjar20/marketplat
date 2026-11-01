@@ -1,15 +1,15 @@
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { fetchServiceListingsPage, getCachedServiceListings, type ServiceListing } from '@/features/services/services.api';
+import { fetchServiceListingsPage, getCachedServiceListingsPage, type ServiceListing } from '@/features/services/services.api';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 import {
   AppHeader,
   EmptyState,
   ErrorState,
-  LoadingState,
   PrimaryButton,
   SkeletonList,
   SearchBar,
@@ -26,80 +26,22 @@ function priceLabel(item: ServiceListing) {
 }
 
 export default function ServicesScreen() {
-  const [items, setItems] = useState<ServiceListing[]>([]);
   const [query, setQuery] = useState('');
   const [submitted, setSubmitted] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [moreError, setMoreError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [loadingMore, setLoadingMore] = useState(false);
-
-  const seq = useRef(0);
-  const load = useCallback(
-    async (refresh = false) => {
-      const current = ++seq.current;
-      if (refresh) setRefreshing(true);
-      else setLoading(true);
-      setError(null);
-      setMoreError(null);
-      const options = { page: 1, limit: 30, search: submitted };
-      let hasCache = false;
-      try {
-        const cached = await getCachedServiceListings(options);
-        if (cached && current === seq.current) {
-          hasCache = true;
-          setItems(cached);
-          setPage(1);
-          setTotalPages(cached.length >= 30 ? 2 : 1);
-          setLoading(false);
-        }
-      } catch {
-        /* cache optional */
-      }
-      try {
-        const fresh = await fetchServiceListingsPage(options);
-        if (current === seq.current) { setItems(fresh.items); setPage(fresh.page); setTotalPages(fresh.totalPages); }
-      } catch (e) {
-        if (current === seq.current && !hasCache) setError(e instanceof Error ? e.message : 'تعذر تحميل الخدمات.');
-      } finally {
-        if (current === seq.current) {
-          setLoading(false);
-          setRefreshing(false);
-        }
-      }
+  const list = usePaginatedList<ServiceListing>({
+    key: `public-services:${submitted}`,
+    pageSize: 30,
+    fetchPage: async (page, signal) => {
+      const result = await fetchServiceListingsPage({ page, limit: 30, search: submitted, signal });
+      return { items: result.items, meta: { page: result.page, totalPages: result.totalPages, total: result.total } };
     },
-    [submitted],
-  );
-
-  const loadMore = async () => {
-    if (loadingMore || loading || page >= totalPages) return;
-    const current = seq.current;
-    setLoadingMore(true);
-    setMoreError(null);
-    try {
-      const result = await fetchServiceListingsPage({ page: page + 1, limit: 30, search: submitted });
-      if (current === seq.current) {
-        setItems((existing) => {
-          const seen = new Set(existing.map((item) => item.id));
-          return [...existing, ...result.items.filter((item) => !seen.has(item.id))];
-        });
-        setPage(result.page);
-        setTotalPages(result.totalPages);
-      }
-    } catch (e) {
-      if (current === seq.current) setMoreError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من الخدمات.');
-    } finally {
-      if (current === seq.current) setLoadingMore(false);
-    }
-  };
-
-  useEffect(() => {
-    void load();
-    return () => { seq.current += 1; };
-  }, [load]);
+    readCachedPage: async (page) => {
+      const cached = await getCachedServiceListingsPage({ page, limit: 30, search: submitted });
+      return cached ? { items: cached.items, meta: { page: cached.page, totalPages: cached.totalPages, total: cached.total } } : null;
+    },
+    getItemKey: (item) => item.id,
+  });
+  const items = list.items;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -111,7 +53,7 @@ export default function ServicesScreen() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />
+          <RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />
         }
         ListHeaderComponent={
           <View style={{ gap: spacing.md }}>
@@ -124,20 +66,21 @@ export default function ServicesScreen() {
               placeholder="ابحث عن خدمة…"
               accessibilityLabel="ابحث عن خدمة"
             />
-            {loading ? (
+            {list.loading && items.length === 0 ? (
               <SkeletonList count={4} />
-            ) : error ? (
-              <ErrorState title="تعذر تحميل الخدمات" description={error} onAction={() => void load()} />
+            ) : list.error && items.length === 0 ? (
+              <ErrorState title="تعذر تحميل الخدمات" description={list.error} onAction={() => void list.retry()} />
             ) : (
               <View style={styles.sectionRow}>
                 <Text style={styles.sectionTitle}>خدمات متاحة</Text>
                 <Text style={styles.count}>{items.length} نتيجة</Text>
               </View>
             )}
+            {list.error && items.length > 0 ? <ErrorState title="تعذر تحديث الخدمات" description={list.error} onAction={() => void list.retry()} /> : null}
           </View>
         }
         ListEmptyComponent={
-          !loading && !error && items.length === 0 ? (
+          !list.loading && !list.error && items.length === 0 ? (
             <EmptyState title="لا توجد خدمات مطابقة" description="جرّب كلمات بحث مختلفة أو اسحب للتحديث." />
           ) : undefined
         }
@@ -158,8 +101,8 @@ export default function ServicesScreen() {
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListFooterComponent={items.length > 0 ? (
           <View style={{ gap: spacing.sm }}>
-            {moreError ? <ErrorState title="تعذر تحميل المزيد" description={moreError} onAction={() => void loadMore()} /> : null}
-            {!moreError && page < totalPages ? <PrimaryButton label={loadingMore ? 'جارٍ التحميل…' : 'تحميل المزيد'} onPress={() => void loadMore()} busy={loadingMore} variant="secondary" /> : null}
+            {list.loadMoreError ? <ErrorState title="تعذر تحميل المزيد" description={list.loadMoreError} onAction={() => void list.retry()} /> : null}
+            {!list.loadMoreError && list.hasNextPage ? <PrimaryButton label={list.loadingMore ? 'جارٍ التحميل…' : 'تحميل المزيد'} onPress={() => void list.loadMore()} busy={list.loadingMore} variant="secondary" /> : null}
           </View>
         ) : undefined}
       />
@@ -172,7 +115,7 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48 },
   subtitle: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   sectionRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },

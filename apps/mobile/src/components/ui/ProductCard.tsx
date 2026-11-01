@@ -36,7 +36,7 @@ export function ProductCard({ product, layout = 'row', onPress, style }: {
       onPress={onPress}
       style={({ pressed }) => [{
         width: grid ? 156 : '100%',
-        flexDirection: grid ? 'column' : 'row-reverse',
+        flexDirection: grid ? 'column' : 'row',
         gap: spacing.sm,
         padding: spacing.sm,
         borderWidth: 1,

@@ -18,7 +18,7 @@ type CatalogCardProps = {
 
 /**
  * بطاقة موحّدة لعناصر السوق في القوائم (منتج / خدمة / متجر / إعلان).
- * RTL: الصورة يمينًا، النص يسارًا بصريًا عبر row-reverse.
+ * RTL: الصورة يمينًا، النص يسارًا بصريًا عبر row.
  * مغلّفة بـ React.memo لتقليل إعادة الرسم في القوائم الطويلة.
  */
 function CatalogCardComponent({
@@ -183,7 +183,7 @@ AdCard.displayName = 'AdCard';
 
 const styles = StyleSheet.create({
   card: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
     backgroundColor: colors.surface,
@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   },
   favoriteIcon: { color: colors.muted, fontSize: fontSizes[18] },
   favoriteActive: { color: colors.danger },
-  adMain: { flexDirection: 'row-reverse', minHeight: 120 },
+  adMain: { flexDirection: 'row', minHeight: 120 },
   adImage: { width: 112, minHeight: 120, backgroundColor: colors.border },
   adImagePlaceholder: {
     width: 112,

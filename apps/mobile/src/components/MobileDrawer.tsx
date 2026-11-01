@@ -16,7 +16,7 @@ import {
 import { AppIcon } from '@/components/Icons';
 import { useAuth } from '@/features/auth/AuthContext';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
-import { DRAWER_ITEMS, type DrawerSection } from '@/lib/navigation-policy';
+import { DRAWER_ITEMS, getRouteAccess, type DrawerSection } from '@/lib/navigation-policy';
 
 type MobileDrawerContextValue = {
   isDrawerOpen: boolean;
@@ -96,8 +96,8 @@ function MobileDrawerOverlay({
   const pathname = usePathname();
   const { width: screenWidth } = useWindowDimensions();
   const drawerWidth = Math.min(screenWidth * 0.86, 360);
-  // App content is intentionally rendered LTR at the native-layout level;
-  // this Arabic drawer is independently anchored and aligned to the right.
+  // Native RTL is enabled for the app; the drawer remains explicitly anchored
+  // to the logical right edge and uses native row direction for its contents.
   const isRTL = true;
   const progress = useRef(new Animated.Value(0)).current;
   const translateX = progress.interpolate({
@@ -173,7 +173,10 @@ function MobileDrawerOverlay({
   const navigateTo = useCallback(
     (item: DrawerItem) => {
       onClose();
-      const target = item.requiresAuth && !user ? '/login' : item.path;
+      const requiresAuth = getRouteAccess(item.path) === 'authenticated';
+      const target = requiresAuth && !user
+        ? `/login?redirect=${encodeURIComponent(item.path)}`
+        : item.path;
       router.navigate(target as Href);
     },
     [onClose, user],
@@ -265,7 +268,7 @@ function MobileDrawerOverlay({
                           key={item.path}
                           accessibilityRole="link"
                           accessibilityLabel={item.label}
-                          accessibilityHint={item.requiresAuth && !user ? 'يتطلب تسجيل الدخول؛ سيتم فتح صفحة تسجيل الدخول أولاً.' : undefined}
+                          accessibilityHint={getRouteAccess(item.path) === 'authenticated' && !user ? 'يتطلب تسجيل الدخول؛ سيتم فتح صفحة تسجيل الدخول أولاً.' : undefined}
                           accessibilityState={{ selected: active }}
                           onPress={() => navigateTo(item)}
                           hitSlop={2}
@@ -369,7 +372,7 @@ const styles = StyleSheet.create({
     paddingTop: spacing.lg,
     paddingBottom: spacing.md,
   },
-  rowRTL: { flexDirection: 'row-reverse' },
+  rowRTL: { flexDirection: 'row' },
   rowLTR: { flexDirection: 'row' },
   brandImage: {
     width: 58,
@@ -405,8 +408,8 @@ const styles = StyleSheet.create({
     borderLeftWidth: 0,
     borderColor: colors.brand,
   },
-  menuItemActiveRTL: { backgroundColor: colors.brandSoft, borderRightWidth: 3 },
-  menuItemActiveLTR: { backgroundColor: colors.brandSoft, borderLeftWidth: 3 },
+  menuItemActiveRTL: { backgroundColor: colors.brandSoft, borderStartWidth: 3 },
+  menuItemActiveLTR: { backgroundColor: colors.brandSoft, borderEndWidth: 3 },
   menuIconWrap: {
     width: 34,
     height: 34,

@@ -5,7 +5,8 @@ import { join, resolve } from 'node:path';
 const root = process.cwd();
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const nav = read('src/components/BottomNavigation.tsx');
-const shell = read('src/components/MobileUI.tsx');
+const policy = read('src/lib/navigation-policy.ts');
+const shell = read('src/components/ui/PageShell.tsx');
 const home = read('app/index.tsx');
 const explore = read('app/explore.tsx');
 const account = read('app/account.tsx');
@@ -14,7 +15,7 @@ const layout = read('app/_layout.tsx');
 // Global navigation must be present, accessible, and limited to the five primary destinations.
 assert.match(layout, /<BottomNavigation\s*\/>/);
 for (const [label, route] of [['الرئيسية', 'index.tsx'], ['استكشف', 'explore.tsx'], ['إضافة', 'add.tsx'], ['الرسائل', 'messages.tsx'], ['حسابي', 'account.tsx']]) {
-  assert.ok(nav.includes(`label: '${label}'`), `Missing primary navigation item: ${label}`);
+  assert.ok(policy.includes(`label: '${label}'`), `Missing primary navigation item in central policy: ${label}`);
   assert.ok(existsSync(resolve(root, 'app', route)), `Missing route for ${label}: ${route}`);
 }
 assert.match(nav, /accessibilityRole="tab"/);
@@ -27,14 +28,17 @@ assert.match(shell, /edges: \('top' \| 'bottom'\)\[\]/);
 assert.match(home, /heroTitle/);
 assert.match(home, /أحدث الإعلانات/);
 assert.match(home, /خدمات قريبة منك/);
-assert.match(home, /fetchServiceListings/);
-assert.match(home, /showFilters/);
-assert.match(home, /!showFavorites && showFilters/);
+assert.match(home, /useHomeServices\(\)/, 'Homepage service loading should live in its feature hook.');
+const homeServices = read('src/features/discovery/useHomeServices.ts');
+assert.match(homeServices, /fetchServiceListings/);
+assert.match(homeServices, /getCachedServiceListings/);
+assert.match(homeServices, /sequenceRef/);
+assert.match(home, /showFilters \?/);
 assert.doesNotMatch(home, /تصفّح الأقسام|categoryGrid|fetchPublicCategories/);
 assert.doesNotMatch(home, /<Text style=\{styles\.quickTitle\}>الرائج الآن<\/Text>/, 'Do not duplicate discovery sections as homepage shortcuts.');
 
 // Discovery and account destinations are grouped by user intent and priority.
-assert.match(explore, /الإعلانات والبحث[\s\S]*المنتجات والمتاجر[\s\S]*الخدمات[\s\S]*المجتمع والاكتشاف/);
+assert.match(explore, /الإعلانات والطلبات[\s\S]*المنتجات والمتاجر[\s\S]*الخدمات[\s\S]*المجتمع والاكتشاف/);
 assert.match(account, /المهم الآن[\s\S]*ملفي ونشاطي[\s\S]*إدارة المتجر والخدمات[\s\S]*الإعدادات والخصوصية/);
 for (const route of ['/messages', '/notifications', '/my-sales', '/orders', '/my-ads', '/profile', '/my-store', '/my-products', '/my-services', '/my-requests', '/appointments', '/settings', '/offline-queue', '/storage', '/blocked-users', '/my-reports']) {
   const candidate = resolve(root, 'app', `${route.slice(1)}.tsx`);

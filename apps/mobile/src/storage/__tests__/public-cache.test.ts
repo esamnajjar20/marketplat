@@ -88,6 +88,14 @@ describe.skip('public-cache', () => {
     expect(await readPublicCache('api-public:public-key')).toEqual({ p: 1 });
   });
 
+  it('clearPrivateCacheForPrefix respects route boundaries', async () => {
+    await writePublicCache('api-private:user1:/api/v1/sales/1', { sale: 1 });
+    await writePublicCache('api-private:user1:/api/v1/sales-tools/1', { tool: 1 });
+    await clearPrivateCacheForPrefix('/api/v1/sales', 'user1');
+    expect(await readPublicCache('api-private:user1:/api/v1/sales/1')).toBeNull();
+    expect(await readPublicCache('api-private:user1:/api/v1/sales-tools/1')).toEqual({ tool: 1 });
+  });
+
   it('clearPrivateCacheForPrefix with invalid prefix does nothing', async () => {
     await writePublicCache('api-private:user1:/api/v1/orders/1', { a: 1 });
     await clearPrivateCacheForPrefix('not-a-valid-prefix', 'user1');

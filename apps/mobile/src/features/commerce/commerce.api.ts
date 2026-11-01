@@ -1,7 +1,20 @@
 import { cacheOfflineCreationReferenceData, readOfflineCreationReferenceData } from '@/storage/entity-create-outbox';
 import { ApiError, apiRequest } from '@/api/client';
+import { deletePublicCacheEntriesByPrefix, deletePublicCacheEntry } from '@/storage/public-cache';
 
 type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } } };
+
+/** Invalidate anonymous product reads and the compact homepage snapshot after a mutation. */
+async function invalidateProductCaches(productId?: string): Promise<void> {
+  const jobs: Promise<void>[] = [
+    deletePublicCacheEntriesByPrefix('api-public:/api/v1/products?'),
+    deletePublicCacheEntriesByPrefix('api-public:/api/v1/products/'),
+    deletePublicCacheEntry('home:public-products:v1'),
+  ];
+  if (productId?.trim()) jobs.push(deletePublicCacheEntry(`api-public:/api/v1/products/${encodeURIComponent(productId.trim())}`));
+  await Promise.all(jobs);
+}
+
 function dataOf<T>(response: Envelope<T>, fallback: string): T {
   if (!response || response.success !== true || response.data === undefined) throw new Error(response?.message || fallback);
   return response.data;
@@ -44,10 +57,10 @@ export async function fetchStores(options: { page?: number; limit?: number; sear
 }
 export async function fetchStore(id: string) { return dataOf(await apiRequest<Envelope<StoreSummary>>(`/api/v1/stores/${encodeURIComponent(id)}`), 'تعذر تحميل المتجر.'); }
 export async function toggleStoreFollow(id: string, token: string, csrfToken?: string | null) { return dataOf(await apiRequest<Envelope<{ action: 'followed' | 'unfollowed' }>>(`/api/v1/stores/${encodeURIComponent(id)}/follow`, { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({}) }), 'تعذر تحديث متابعة المتجر.'); }
-export async function fetchProducts(options: { page?: number; limit?: number; search?: string; storeId?: string; categoryId?: string; hasPromotion?: boolean; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc' } = {}) {
+export async function fetchProducts(options: { page?: number; limit?: number; search?: string; storeId?: string; categoryId?: string; hasPromotion?: boolean; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc'; signal?: AbortSignal } = {}) {
   const page = options.page ?? 1; const sortBy = options.sortBy ?? 'createdAt'; const sortOrder = options.sortOrder ?? (sortBy === 'price' ? 'asc' : 'desc'); const params = new URLSearchParams({ page: String(page), limit: String(options.limit ?? 20), sortBy, sortOrder });
   if (options.search?.trim()) params.set('search', options.search.trim()); if (options.storeId) params.set('storeId', options.storeId); if (options.categoryId) params.set('categoryId', options.categoryId); if (options.hasPromotion) params.set('hasPromotion', 'true');
-  const response = await apiRequest<Envelope<ProductSummary[]>>(`/api/v1/products?${params}`);
+  const response = await apiRequest<Envelope<ProductSummary[]>>(`/api/v1/products?${params}`, { signal: options.signal });
   return pageFrom(response, 'تعذر تحميل المنتجات.', page);
 }
 export async function fetchProduct(id: string) { return dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}`), 'تعذر تحميل تفاصيل المنتج.'); }
@@ -65,9 +78,9 @@ export async function createStore(input: { name: string; description: string; ci
 export async function updateMyStore(input: Partial<Pick<StoreSummary, 'name' | 'description' | 'city' | 'address' | 'phone'>>, token: string, csrfToken?: string | null) {
   return dataOf(await apiRequest<Envelope<StoreSummary>>('/api/v1/stores/me', { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر تحديث المتجر.');
 }
-export async function fetchMyProducts(token: string, search = '', options: { page?: number; limit?: number } = {}) {
+export async function fetchMyProducts(token: string, search = '', options: { page?: number; limit?: number; signal?: AbortSignal } = {}) {
   const page = options.page ?? 1; const params = new URLSearchParams({ page: String(page), limit: String(options.limit ?? 50) }); if (search.trim()) params.set('search', search.trim());
-  return pageFrom(await apiRequest<Envelope<ProductSummary[]>>(`/api/v1/products/me?${params}`, { token }), 'تعذر تحميل منتجاتك.', page);
+  return pageFrom(await apiRequest<Envelope<ProductSummary[]>>(`/api/v1/products/me?${params}`, { token, signal: options.signal }), 'تعذر تحميل منتجاتك.', page);
 }
 export async function fetchProductCategories() {
   try {
@@ -87,23 +100,33 @@ export async function createProduct(input: { categoryId: string; name: string; d
   const headers = { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), ...(offlineOperationId ? { 'X-Offline-Op-Id': offlineOperationId } : {}) };
   let body: FormData | string = JSON.stringify(input);
   if (images.length) { const form = new FormData(); for (const [key,value] of Object.entries(input)) if (value !== undefined) form.append(key, typeof value === 'string' ? value : String(value)); for (const image of images) form.append('images', {uri:image.uri,name:image.fileName,type:image.mimeType} as unknown as Blob); body = form; }
-  return dataOf(await apiRequest<Envelope<ProductSummary>>('/api/v1/products', { method: 'POST', token, headers, body }), 'تعذر إنشاء المنتج.');
+  const created = dataOf(await apiRequest<Envelope<ProductSummary>>('/api/v1/products', { method: 'POST', token, headers, body }), 'تعذر إنشاء المنتج.');
+  await invalidateProductCaches(created.id);
+  return created;
 }
 export async function updateProduct(id: string, input: Partial<{ categoryId: string; name: string; description: string; price: number; availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity: number; status: string }>, token: string, csrfToken?: string | null) {
-  return dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}`, { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر تحديث المنتج.');
+  const updated = dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}`, { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر تحديث المنتج.');
+  await invalidateProductCaches(id);
+  return updated;
 }
 export async function addProductImages(id: string, images: Array<{ uri: string; fileName: string; mimeType: string }>, token: string, csrfToken?: string | null) {
   if (!images.length) return fetchProduct(id);
   const body = new FormData();
   for (const image of images) body.append('images', { uri: image.uri, name: image.fileName, type: image.mimeType } as unknown as Blob);
-  return dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}/images`, { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body }), 'تعذر رفع صور المنتج.');
+  const updated = dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}/images`, { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body }), 'تعذر رفع صور المنتج.');
+  await invalidateProductCaches(id);
+  return updated;
 }
 export async function removeProductImage(id: string, imageUrl: string, token: string, csrfToken?: string | null) {
-  return dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}/images`, { method: 'DELETE', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({ imageUrl }) }), 'تعذر حذف صورة المنتج.');
+  const updated = dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}/images`, { method: 'DELETE', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({ imageUrl }) }), 'تعذر حذف صورة المنتج.');
+  await invalidateProductCaches(id);
+  return updated;
 }
 
 export async function deleteProduct(id: string, token: string, csrfToken?: string | null) {
-  return dataOf(await apiRequest<Envelope<unknown>>(`/api/v1/products/${encodeURIComponent(id)}`, { method: 'DELETE', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({}) }), 'تعذر حذف المنتج.');
+  const result = dataOf(await apiRequest<Envelope<unknown>>(`/api/v1/products/${encodeURIComponent(id)}`, { method: 'DELETE', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({}) }), 'تعذر حذف المنتج.');
+  await invalidateProductCaches(id);
+  return result;
 }
 
 
@@ -137,7 +160,7 @@ export async function uploadMyStoreImage(kind: 'logo' | 'cover', asset: { uri: s
 export async function fetchMyStoreAnalytics(token: string) {
   return dataOf(await apiRequest<Envelope<StoreAnalytics>>('/api/v1/stores/me/analytics', { token }), 'تعذر تحميل إحصاءات المتجر.');
 }
-export async function fetchMyFollowedStores(token: string, page = 1, limit = 20) {
+export async function fetchMyFollowedStores(token: string, page = 1, limit = 20, signal?: AbortSignal) {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) });
-  return pageFrom(await apiRequest<Envelope<FollowedStoreRow[]>>(`/api/v1/stores/me/followed?${params}`, { token }), 'تعذر تحميل المتاجر التي تتابعها.', page);
+  return pageFrom(await apiRequest<Envelope<FollowedStoreRow[]>>(`/api/v1/stores/me/followed?${params}`, { token, signal }), 'تعذر تحميل المتاجر التي تتابعها.', page);
 }

@@ -2,15 +2,16 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import '@/lib/network-config';
 import { useEffect, type ReactNode } from 'react';
-import { Stack, type ErrorBoundaryProps } from 'expo-router';
-import { I18nManager, Platform, View } from 'react-native';
+import { router, Stack, usePathname, type ErrorBoundaryProps } from 'expo-router';
+import { ActivityIndicator, I18nManager, Platform, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '@/components/BottomNavigation';
 import { MobileDrawerProvider } from '@/components/MobileDrawer';
 import { StatusBar } from 'expo-status-bar';
 import { fontSizes, colors, spacing, typography } from '@/theme/tokens';
-import { AuthProvider } from '@/features/auth/AuthContext';
+import { AuthProvider, useAuth } from '@/features/auth/AuthContext';
 import { ConnectivityProvider, useIsOnline } from '@/lib/connectivity';
+import { requiresAuthenticatedUser } from '@/lib/navigation-policy';
 import { OutboxSyncLifecycleBridge } from '@/storage/OutboxSyncLifecycleBridge';
 import { FavoritesSyncLifecycleBridge } from '@/features/ads/FavoritesSyncLifecycleBridge';
 import { ChatMessageOutboxLifecycleBridge } from '@/storage/ChatMessageOutboxLifecycleBridge';
@@ -68,6 +69,19 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 function RootChrome({ children }: { children: ReactNode }) {
   // BottomNavigation self-manages visibility via isBottomNavigationHidden.
   const isOnline = useIsOnline();
+  const { user, isRestoring } = useAuth();
+  const pathname = usePathname();
+  const isPrivateRoute = requiresAuthenticatedUser(pathname);
+
+  useEffect(() => {
+    if (!isPrivateRoute || isRestoring || user) return;
+    router.replace(`/login?redirect=${encodeURIComponent(pathname)}` as never);
+  }, [isPrivateRoute, isRestoring, pathname, user]);
+
+  // Do not mount private screens while the stored session is being restored or
+  // after it has been found missing. This prevents a brief private-data flash.
+  const blockPrivateScreen = isPrivateRoute && (isRestoring || !user);
+
   return (
     <MobileDrawerProvider>
       <View style={{ flex: 1, backgroundColor: colors.canvas }}>
@@ -78,19 +92,29 @@ function RootChrome({ children }: { children: ReactNode }) {
         ) : null}
         {children}
         <BottomNavigation />
+        {blockPrivateScreen ? (
+          <View
+            accessibilityRole="progressbar"
+            accessibilityLabel="جارٍ التحقق من جلسة الدخول"
+            pointerEvents="auto"
+            style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.canvas }}
+          >
+            <ActivityIndicator color={colors.brand} size="large" />
+          </View>
+        ) : null}
       </View>
     </MobileDrawerProvider>
   );
 }
 
 export default function RootLayout() {
-  // The current mobile UI is manually mirrored (row-reverse/right-aligned styles).
-  // Do not also let the native layout engine flip those styles on Arabic devices.
-  // I18nManager changes take effect on the next native app start.
+  // Native RTL is the source of truth. Horizontal row layouts in app/src were
+  // migrated from manual reversed rows to normal rows so Yoga mirrors them exactly once.
+  // React Native persists this setting; a native restart is required to apply it.
   useEffect(() => {
     if (Platform.OS !== 'web') {
-      I18nManager.allowRTL(false);
-      I18nManager.forceRTL(false);
+      I18nManager.allowRTL(true);
+      I18nManager.forceRTL(true);
     }
   }, []);
 
@@ -111,8 +135,8 @@ export default function RootLayout() {
             screenOptions={{
               headerShown: false,
               contentStyle: { backgroundColor: colors.canvas },
-              // Arabic UI uses a manually mirrored layout (forceRTL=false), so push screens enter from the left.
-              animation: 'slide_from_left',
+              // Native RTL mirrors the navigation transition; push screens enter from the right.
+              animation: 'slide_from_right',
               animationDuration: 260,
               gestureEnabled: true,
               fullScreenGestureEnabled: true,

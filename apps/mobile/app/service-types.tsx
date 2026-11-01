@@ -172,7 +172,7 @@ export default function ServiceTypesScreen() {
               if (type === 'SELECT' || type === 'MULTI_SELECT') {
                 const options = optionsOf(field);
                 const selected = type === 'MULTI_SELECT' && Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
-                return <View key={field.key} style={{ gap: 8 }}><Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '700' }}>{label}{field.required ? ' *' : ''}</Text><View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 7 }}>{options.map((option) => {
+                return <View key={field.key} style={{ gap: 8 }}><Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '700' }}>{label}{field.required ? ' *' : ''}</Text><View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 7 }}>{options.map((option) => {
                   const isSelected = type === 'SELECT' ? value === option.value : selected.includes(option.value);
                   return <Pressable key={option.value} accessibilityRole="checkbox" accessibilityState={{ checked: isSelected }} onPress={() => {
                     if (type === 'SELECT') setAttribute(item.serviceTypeId, field.key, isSelected ? '' : option.value);

@@ -39,7 +39,7 @@ function StoreCard({ store }: { store: StoreSummary }) {
       <View style={{ flex: 1, padding: spacing.sm, gap: 5, alignItems: 'flex-end' }}>
         <Text numberOfLines={1} style={{ width: '100%', color: colors.ink, fontWeight: '900', fontSize: fontSizes[13], textAlign: 'right' }}>{store.name}</Text>
         <Text numberOfLines={1} style={{ width: '100%', color: colors.muted, fontSize: fontSizes[11], textAlign: 'right' }}>{store.city || 'متجر محلي'}</Text>
-        <View style={{ width: '100%', flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center' }}>
+        <View style={{ width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <Text style={{ color: colors.brand, fontSize: fontSizes[10], fontWeight: '800' }}>{store._count?.products ? `${store._count.products} منتجات` : 'تصفّح المتجر'}</Text>
           {ratingLabel ? <Text style={{ color: colors.ink, fontSize: fontSizes[10], fontWeight: '800' }}>{ratingLabel}</Text> : null}
         </View>
@@ -147,7 +147,7 @@ export default function HomeCommunitySections() {
   return (
     <View style={{ gap: spacing.lg }}>
       <View style={{ gap: spacing.sm }}>
-          <View style={{ minHeight: 36, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={{ color: colors.ink, fontSize: fontSizes[18], fontWeight: '900', textAlign: 'right' }}>متاجر تستحق الاكتشاف</Text>
               <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>تعرّف على المتاجر المحلية ومنتجاتها</Text>
@@ -157,7 +157,7 @@ export default function HomeCommunitySections() {
             </Pressable>
           </View>
           {stores.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row-reverse', gap: spacing.sm, paddingVertical: 2 }}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: spacing.sm, paddingVertical: 2 }}>
               {stores.map((store) => <StoreCard key={store.id} store={store} />)}
             </ScrollView>
           ) : (
@@ -169,7 +169,7 @@ export default function HomeCommunitySections() {
 
       {visibleStories.length > 0 ? (
         <View style={{ gap: spacing.sm }}>
-          <View style={{ minHeight: 36, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' }}>
+          <View style={{ minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={{ color: colors.ink, fontSize: fontSizes[18], fontWeight: '900', textAlign: 'right' }}>قصص وتحديثات جديدة</Text>
               <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>تابع آخر ما يشاركه الأشخاص الذين تتابعهم</Text>
@@ -178,7 +178,7 @@ export default function HomeCommunitySections() {
               <Text style={{ color: colors.brand, fontWeight: '800', fontSize: fontSizes[12] }}>عرض الكل</Text>
             </Pressable>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row-reverse', gap: spacing.md, paddingVertical: 2 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: spacing.md, paddingVertical: 2 }}>
             {visibleStories.map((group) => {
               const latest = group.stories[0];
               if (!latest) return null;

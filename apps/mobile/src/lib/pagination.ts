@@ -7,6 +7,23 @@ export type PageMetaLike = {
   hasNextPage?: boolean;
 };
 
+/** Merge an incoming page while preserving order and removing duplicate entity keys. */
+export function mergeUniquePageItems<T>(
+  current: readonly T[],
+  incoming: readonly T[],
+  getKey: (item: T) => string,
+): T[] {
+  const seen = new Set(current.map(getKey));
+  const merged = [...current];
+  for (const item of incoming) {
+    const key = getKey(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(item);
+  }
+  return merged;
+}
+
 export function resolvePageState(
   meta: PageMetaLike | undefined,
   requestedPage: number,

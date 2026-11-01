@@ -92,7 +92,7 @@ export default function AppointmentsScreen() {
             <Text style={{ textAlign: 'right', color: colors.ink }}>النهاية: {formatted(item.scheduledEnd)}</Text>
             {item.notes ? <Text style={{ textAlign: 'right', color: colors.muted }}>{item.notes}</Text> : null}
             {scheduled && (isCustomer || isProvider) ? (
-              <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {isCustomer ? <View style={{ flex: 1, minWidth: 120 }}><PrimaryButton label="إلغاء الموعد" variant="danger" busy={busyId === item.id} onPress={() => update(item, 'CANCELLED')} /></View> : null}
                 {isProvider && !isCustomer ? <>
                   <View style={{ flex: 1, minWidth: 120 }}><PrimaryButton label="إتمام" variant="secondary" busy={busyId === item.id} onPress={() => update(item, 'COMPLETED')} /></View>

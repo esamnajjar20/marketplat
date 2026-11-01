@@ -16,7 +16,7 @@ const checks = [
   ['quiet hours include email fallback, timezone and time validation', /emailFallback/.test(read('app/settings.tsx')) && /quietHoursTimeZone/.test(read('app/settings.tsx')) && /validTime/.test(read('app/settings.tsx'))],
   ['storage stats propagate database errors instead of returning zero values', /export async function getPublicCacheStats\(\): Promise<PublicCacheStats> \{\n  const db/.test(read('src/storage/public-cache.ts')) && /export async function getAdDraftStorageSummary\(ownerId: string\): Promise<AdDraftStorageSummary> \{\n  if/.test(read('src/storage/ad-draft-store.ts'))],
   ['storage sizes are calculated as UTF-8 bytes', /utf8ByteLength/.test(read('src/storage/public-cache.ts')) && /utf8ByteLength/.test(read('src/storage/ad-draft-store.ts')) && /sizeBytes/.test(read('app/storage.tsx'))],
-  ['avatar rejects unsupported image types before upload', /صيغة الصورة غير مدعومة/.test(read('app/profile.tsx')) && /image\/webp/.test(read('app/profile.tsx'))],
+  ['avatar rejects unsupported image types before upload', /normalizePickedImage/.test(read('app/profile.tsx')) && /صيغة الصورة غير مدعومة/.test(read('src/lib/normalize-image-asset.ts')) && /image\/webp/.test(read('src/lib/normalize-image-asset.ts'))],
   ['settings links storage and store management', /router\.push\('\/storage'\)/.test(read('app/settings.tsx')) && /router\.push\('\/my-store'\)/.test(read('app/settings.tsx'))],
   ['account hub links to storage', /path: '\/storage'/.test(read('app/account.tsx'))],
   ['store management links seller orders and products', /طلبات متجري/.test(read('app/my-store.tsx')) && /my-products/.test(read('app/my-store.tsx'))],

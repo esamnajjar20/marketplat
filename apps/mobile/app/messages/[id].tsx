@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
   },
   recording: { backgroundColor: colors.danger, borderColor: colors.danger },
   composer: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'flex-end',
     gap: spacing.sm,
     padding: spacing.md,

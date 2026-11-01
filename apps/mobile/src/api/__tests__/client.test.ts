@@ -6,6 +6,7 @@ const cache = vi.hoisted(() => ({
   clearPrivateCache: vi.fn(),
   clearPrivateCacheForPrefix: vi.fn(),
   deletePublicCacheEntry: vi.fn(),
+  deletePublicCacheEntriesByPrefix: vi.fn(),
 }));
 
 vi.mock('@/storage/public-cache', () => cache);
@@ -24,6 +25,7 @@ beforeEach(() => {
   cache.clearPrivateCache.mockResolvedValue(undefined);
   cache.clearPrivateCacheForPrefix.mockResolvedValue(undefined);
   cache.deletePublicCacheEntry.mockResolvedValue(undefined);
+  cache.deletePublicCacheEntriesByPrefix.mockResolvedValue(undefined);
 });
 
 function jsonResponse(status: number, payload: unknown, headers?: Record<string, string>): Response {
@@ -89,5 +91,102 @@ describe('apiRequest reliability contracts', () => {
 
     await expect(apiRequest('/api/v1/auth/login', { method: 'POST', body: JSON.stringify({}) }))
       .rejects.toMatchObject({ message: 'تم قفل الحساب مؤقتًا بسبب كثرة محاولات الدخول. انتظر قليلًا ثم حاول مجددًا.' });
+  });
+});
+
+describe('account-scoped offline cache extensions', () => {
+  it.each([
+    ['/api/v1/customers?page=2&limit=20&q=Ali', 'api-private:owner-a:/api/v1/customers?page=2&limit=20&q=Ali'],
+    ['/api/v1/customers/summary', 'api-private:owner-a:/api/v1/customers/summary'],
+    ['/api/v1/sales/debts?page=3&limit=20', 'api-private:owner-a:/api/v1/sales/debts?page=3&limit=20'],
+    ['/api/v1/sales/debts/summary', 'api-private:owner-a:/api/v1/sales/debts/summary'],
+    ['/api/v1/notifications?page=2&limit=50', 'api-private:owner-a:/api/v1/notifications?page=2&limit=50'],
+  ])('uses an owner-specific cache key for %s', async (path, expectedKey) => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(jsonResponse(503, { success: false, message: 'temporarily unavailable' }))
+      .mockResolvedValueOnce(jsonResponse(503, { success: false, message: 'temporarily unavailable' })));
+    cache.readPublicCacheEntry.mockResolvedValue({
+      value: { success: true, data: [] },
+      savedAt: Date.now() - 10_000,
+    });
+
+    const { apiRequest } = await loadClient();
+    const result = await apiRequest(path, { token: 'token-a', cacheOwnerId: 'owner-a' });
+
+    expect(result).toMatchObject({ success: true, __fromCache: true });
+    expect(cache.readPublicCacheEntry).toHaveBeenCalledWith(expectedKey);
+  });
+
+  it('never uses an account cache when the owner ID is missing', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(jsonResponse(503, { success: false, message: 'temporarily unavailable' }))
+      .mockResolvedValueOnce(jsonResponse(503, { success: false, message: 'temporarily unavailable' })));
+
+    const { apiRequest } = await loadClient();
+    await expect(apiRequest('/api/v1/customers?page=1', { token: 'token-a' })).rejects.toMatchObject({ status: 503 });
+    expect(cache.readPublicCacheEntry).not.toHaveBeenCalled();
+  });
+
+  it('invalidates only the current owner customer cache after a create mutation', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      jsonResponse(201, { success: true, data: { id: 'customer-1' } }),
+    ));
+
+    const { apiRequest } = await loadClient();
+    await apiRequest('/api/v1/customers', {
+      method: 'POST',
+      token: 'token-a',
+      cacheOwnerId: 'owner-a',
+      body: JSON.stringify({ name: 'Customer' }),
+    });
+
+    expect(cache.clearPrivateCacheForPrefix).toHaveBeenCalledWith('/api/v1/customers', 'owner-a');
+    expect(cache.clearPrivateCache).not.toHaveBeenCalled();
+  });
+
+
+  it('invalidates product private snapshots and public product/search read models', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      jsonResponse(200, { success: true, data: { id: 'product-1' } }),
+    ));
+    const { apiRequest } = await loadClient();
+    await apiRequest('/api/v1/products/product-1', {
+      method: 'PATCH', token: 'token-a', cacheOwnerId: 'owner-a', body: JSON.stringify({ title: 'Updated' }),
+    });
+    expect(cache.clearPrivateCacheForPrefix).toHaveBeenCalledWith('/api/v1/products', 'owner-a');
+    expect(cache.clearPrivateCacheForPrefix).toHaveBeenCalledWith('/api/v1/users/me', 'owner-a');
+    expect(cache.deletePublicCacheEntriesByPrefix).toHaveBeenCalledWith('api-public:/api/v1/products');
+    expect(cache.deletePublicCacheEntriesByPrefix).toHaveBeenCalledWith('api-public:/api/v1/search');
+    expect(cache.clearPrivateCache).not.toHaveBeenCalled();
+  });
+
+  it('never clears another account private cache when a mutation omits cacheOwnerId', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      jsonResponse(200, { success: true, data: null }),
+    ));
+    const { apiRequest } = await loadClient();
+    await apiRequest('/api/v1/products/product-1', {
+      method: 'PATCH', token: 'token-a', body: JSON.stringify({ title: 'Updated' }),
+    });
+    expect(cache.clearPrivateCacheForPrefix).not.toHaveBeenCalled();
+    expect(cache.clearPrivateCache).not.toHaveBeenCalled();
+    expect(cache.deletePublicCacheEntriesByPrefix).toHaveBeenCalledWith('api-public:/api/v1/products');
+  });
+
+  it('invalidates only the current owner notifications cache after a read mutation', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      jsonResponse(200, { success: true, data: null }),
+    ));
+
+    const { apiRequest } = await loadClient();
+    await apiRequest('/api/v1/notifications/read-all', {
+      method: 'PATCH',
+      token: 'token-a',
+      cacheOwnerId: 'owner-a',
+      body: JSON.stringify({}),
+    });
+
+    expect(cache.clearPrivateCacheForPrefix).toHaveBeenCalledWith('/api/v1/notifications', 'owner-a');
+    expect(cache.clearPrivateCache).not.toHaveBeenCalled();
   });
 });

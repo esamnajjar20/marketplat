@@ -70,7 +70,7 @@ export default function RequestsScreen() {
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <PrimaryButton label="+ إنشاء طلب جديد" onPress={() => router.push('/request-create')} />
-            <View style={{ flexDirection: 'row-reverse', gap: spacing.sm, flexWrap: 'wrap' }}>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
               {(
                 [
                   ['', 'الكل'],
@@ -84,7 +84,7 @@ export default function RequestsScreen() {
             </View>
             <Field label="بحث" value={q} onChangeText={setQ} placeholder="ما الذي يحتاجه صاحب الطلب؟" />
             <Field label="المدينة" value={city} onChangeText={setCity} placeholder="كل المدن" />
-            <View style={{ flexDirection: 'row-reverse', gap: spacing.sm, flexWrap: 'wrap' }}>
+            <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
               {(
                 [
                   ['newest', 'الأحدث'],

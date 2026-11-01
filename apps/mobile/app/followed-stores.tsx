@@ -1,26 +1,117 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { fetchMyFollowedStores, toggleStoreFollow, type FollowedStoreRow } from '@/features/commerce/commerce.api';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton, SearchBar } from '@/components/MobileUI';
 import { AppImage } from '@/components/AppImage';
-import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
 export default function FollowedStoresScreen() {
   const { getAccessToken, user, csrfToken, isRestoring } = useAuth();
-  const [items,setItems]=useState<FollowedStoreRow[]>([]); const [query,setQuery]=useState(''); const [page,setPage]=useState(1); const [totalPages,setTotalPages]=useState(1);
-  const [loading,setLoading]=useState(true); const [refreshing,setRefreshing]=useState(false); const [loadingMore,setLoadingMore]=useState(false); const [busyId,setBusyId]=useState<string|null>(null); const [error,setError]=useState('');
-  const seq=useRef(0);const hasLoadedRef=useRef(false);
-  const load=useCallback(async(refresh=false)=>{const current=++seq.current;const token=getAccessToken();if(isRestoring)return;if(!token){setLoading(false);setError('سجّل الدخول لعرض المتاجر التي تتابعها.');return;}if(refresh)setRefreshing(true);else if(!hasLoadedRef.current)setLoading(true);setError('');try{const result=await fetchMyFollowedStores(token,1,30);if(current===seq.current){setItems(result.items);setPage(result.page);setTotalPages(result.totalPages);}}catch(e){if(current===seq.current)setError(e instanceof Error?e.message:'تعذر تحميل المتاجر.');}finally{if(current===seq.current){hasLoadedRef.current=true;setLoading(false);setRefreshing(false);}}},[getAccessToken,isRestoring]);
-  useEffect(()=>{void load();return()=>{seq.current+=1;};},[load]);
-  const loadMore=async()=>{const token=getAccessToken();if(!token||loadingMore||page>=totalPages)return;const current=seq.current;setLoadingMore(true);setError('');try{const result=await fetchMyFollowedStores(token,page+1,30);if(current===seq.current){setItems(old=>{const ids=new Set(old.map(x=>x.store.id));return [...old,...result.items.filter(x=>!ids.has(x.store.id))];});setPage(result.page);setTotalPages(result.totalPages);}}catch(e){if(current===seq.current)setError(e instanceof Error?e.message:'تعذر تحميل المزيد.');}finally{if(current===seq.current)setLoadingMore(false);}};
-  const unfollow=async(row:FollowedStoreRow)=>{const token=getAccessToken();if(!token||busyId)return;setBusyId(row.store.id);try{await toggleStoreFollow(row.store.id,token,csrfToken);setItems(old=>old.filter(x=>x.store.id!==row.store.id));}catch(e){setError(e instanceof Error?e.message:'تعذر إلغاء متابعة المتجر.');}finally{setBusyId(null);}};
-  const visible=items.filter(x=>`${x.store.name} ${x.store.city||''}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()));
-  return <SafeAreaView style={{flex:1,backgroundColor:colors.canvas}} edges={['top']}><AppHeader title="المتاجر التي أتابعها" />
-    {isRestoring?<LoadingState message="جارٍ استعادة الجلسة…"/>:!user?<EmptyState title="سجّل الدخول لعرض متابعاتك" actionLabel="تسجيل الدخول" onAction={()=>router.push('/login')}/>:loading?<LoadingState message="جاري تحميل المتاجر…"/>:error&&!items.length?<ErrorState title="تعذر تحميل المتاجر" description={error} onAction={()=>void load()}/>:<FlatList data={visible} keyExtractor={x=>x.id} contentContainerStyle={{padding:spacing.lg,gap:spacing.md,paddingBottom:48}} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={()=>void load(true)} tintColor={colors.brand}/>} ListHeaderComponent={<View style={{gap:spacing.md}}><SearchBar value={query} onChangeText={setQuery} onSubmit={()=>undefined} onClear={()=>setQuery('')} placeholder="ابحث باسم المتجر أو المدينة…"/>{error?<ErrorState title="تعذر إلغاء المتابعة أو تحديث القائمة" description={error} onAction={()=>void load(true)}/>:undefined}</View>} ListEmptyComponent={<EmptyState title={query?'لا توجد متاجر مطابقة':'لم تتابع أي متجر بعد'} description={query?'جرّب اسمًا آخر.':'اكتشف المتاجر وتابع ما يهمك.'} actionLabel="اكتشاف المتاجر" onAction={()=>router.push('/stores')}/>} renderItem={({item})=><View style={{flexDirection:'row-reverse',alignItems:'center',gap:spacing.md,padding:spacing.md,borderRadius:radius.lg,borderWidth:1,borderColor:colors.border,backgroundColor:colors.surface}}><Pressable accessibilityRole="button" onPress={()=>router.push(`/stores/${encodeURIComponent(item.store.id)}`)} style={{flex:1,flexDirection:'row-reverse',alignItems:'center',gap:spacing.md}}><AppImage uri={item.store.logoUrl} style={{width:64,height:64,borderRadius:radius.md}}/><View style={{flex:1,alignItems:'flex-end',gap:5}}><Text style={{color:colors.ink,fontWeight:'900',textAlign:'right'}}>{item.store.name}</Text><Text numberOfLines={2} style={{color:colors.muted,textAlign:'right'}}>{item.store.description||'متجر محلي'}</Text><Text style={{color:colors.brand,fontSize:fontSizes[12]}}>{item.store.city||'الموقع غير محدد'}</Text></View></Pressable><PrimaryButton label={busyId===item.store.id?'…':'إلغاء المتابعة'} variant="secondary" disabled={Boolean(busyId)} busy={busyId===item.store.id} onPress={()=>void unfollow(item)}/></View>} ListFooterComponent={page<totalPages?<PrimaryButton label={loadingMore?'جارٍ التحميل…':'تحميل المزيد'} variant="secondary" busy={loadingMore} onPress={()=>void loadMore()}/>:undefined}/>
+  const [query, setQuery] = useState('');
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState('');
+  const {
+    items,
+    loading,
+    refreshing,
+    loadingMore,
+    error,
+    loadMoreError,
+    hasNextPage,
+    refresh,
+    loadMore,
+    updateItems,
+  } = usePaginatedList<FollowedStoreRow>({
+    key: user?.id ?? 'guest',
+    enabled: !isRestoring && Boolean(user),
+    pageSize: 30,
+    fetchPage: async (page, signal) => {
+      const token = getAccessToken();
+      if (!token) throw new Error('انتهت جلسة الدخول. سجّل الدخول مجددًا.');
+      const result = await fetchMyFollowedStores(token, page, 30, signal);
+      return { items: result.items, meta: { page: result.page, totalPages: result.totalPages } };
+    },
+    getItemKey: (item) => item.store.id,
+  });
+
+  const unfollow = async (row: FollowedStoreRow) => {
+    const token = getAccessToken();
+    if (!token || busyId) return;
+    setBusyId(row.store.id);
+    setActionError('');
+    try {
+      await toggleStoreFollow(row.store.id, token, csrfToken);
+      updateItems((current) => current.filter((item) => item.store.id !== row.store.id));
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'تعذر إلغاء متابعة المتجر.');
+    } finally {
+      setBusyId(null);
     }
-  </SafeAreaView>;
+  };
+
+  const visible = items.filter((item) =>
+    `${item.store.name} ${item.store.city || ''}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+  );
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.canvas }} edges={['top']}>
+      <AppHeader title="المتاجر التي أتابعها" />
+      {isRestoring ? (
+        <LoadingState message="جارٍ استعادة الجلسة…" />
+      ) : !user ? (
+        <EmptyState title="سجّل الدخول لعرض متابعاتك" actionLabel="تسجيل الدخول" onAction={() => router.push('/login')} />
+      ) : loading && items.length === 0 ? (
+        <LoadingState message="جاري تحميل المتاجر…" />
+      ) : error && items.length === 0 ? (
+        <ErrorState title="تعذر تحميل المتاجر" description={error} onAction={() => void refresh()} />
+      ) : (
+        <FlatList
+          data={visible}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 48 }}
+          keyboardShouldPersistTaps="handled"
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.brand} />}
+          ListHeaderComponent={(
+            <View style={{ gap: spacing.md }}>
+              <SearchBar value={query} onChangeText={setQuery} onSubmit={() => undefined} onClear={() => setQuery('')} placeholder="ابحث باسم المتجر أو المدينة…" />
+              {error ? <ErrorState title="تعذر تحديث القائمة" description={error} onAction={() => void refresh()} /> : null}
+              {actionError ? <ErrorState title="تعذر إلغاء المتابعة" description={actionError} onAction={() => setActionError('')} /> : null}
+            </View>
+          )}
+          ListEmptyComponent={(
+            <EmptyState
+              title={query ? 'لا توجد متاجر مطابقة' : 'لم تتابع أي متجر بعد'}
+              description={query ? 'جرّب اسمًا آخر.' : 'اكتشف المتاجر وتابع ما يهمك.'}
+              actionLabel="اكتشاف المتاجر"
+              onAction={() => router.push('/stores')}
+            />
+          )}
+          renderItem={({ item }) => (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
+              <Pressable accessibilityRole="button" onPress={() => router.push(`/stores/${encodeURIComponent(item.store.id)}`)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                <AppImage uri={item.store.logoUrl} style={{ width: 64, height: 64, borderRadius: radius.md }} />
+                <View style={{ flex: 1, alignItems: 'flex-end', gap: 5 }}>
+                  <Text style={{ color: colors.ink, fontWeight: '900', textAlign: 'right' }}>{item.store.name}</Text>
+                  <Text numberOfLines={2} style={{ color: colors.muted, textAlign: 'right' }}>{item.store.description || 'متجر محلي'}</Text>
+                  <Text style={{ color: colors.brand, fontSize: fontSizes[12] }}>{item.store.city || 'الموقع غير محدد'}</Text>
+                </View>
+              </Pressable>
+              <PrimaryButton label={busyId === item.store.id ? '…' : 'إلغاء المتابعة'} variant="secondary" disabled={Boolean(busyId)} busy={busyId === item.store.id} onPress={() => void unfollow(item)} />
+            </View>
+          )}
+          ListFooterComponent={hasNextPage || loadMoreError ? (
+            <View style={{ gap: spacing.sm }}>
+              {loadMoreError ? <ErrorState title="تعذر تحميل المزيد" description={loadMoreError} onAction={() => void loadMore()} /> : null}
+              {hasNextPage ? <PrimaryButton label={loadingMore ? 'جارٍ التحميل…' : loadMoreError ? 'إعادة المحاولة' : 'تحميل المزيد'} variant="secondary" busy={loadingMore} onPress={() => void loadMore()} /> : null}
+            </View>
+          ) : undefined}
+        />
+      )}
+    </SafeAreaView>
+  );
 }

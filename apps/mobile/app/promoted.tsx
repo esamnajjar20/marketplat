@@ -1,6 +1,6 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback } from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { fontSizes, colors } from '@/theme/tokens';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 function price(p: ProductSummary): string {
   const value = Number(p.effectivePrice?.price ?? p.discountPrice ?? p.price);
@@ -17,145 +18,67 @@ function price(p: ProductSummary): string {
 }
 
 export default function PromotedScreen() {
-  const [items, setItems] = useState<ProductSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const seq = useRef(0);
-  const loadingMoreRef = useRef(false);
-
-  const load = useCallback(async (refresh = false) => {
-    const current = ++seq.current;
-    if (refresh) setRefreshing(true); else setLoading(true);
-    setError('');
-    setLoadingMore(false);
-    try {
-      const result = await fetchProducts({
-        page: 1,
-        limit: 24,
-        hasPromotion: true,
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-      });
-      if (current !== seq.current) return;
-      setItems(result.items);
-      setPage(result.page);
-      setTotalPages(result.totalPages);
-    } catch (e) {
-      if (current === seq.current) {
-        setError(e instanceof Error ? e.message : 'تعذر تحميل المنتجات المروجة.');
-      }
-    } finally {
-      if (current === seq.current) { setLoading(false); setRefreshing(false); }
-    }
+  const fetchPage = useCallback(async (page: number, signal: AbortSignal) => {
+    const result = await fetchProducts({
+      page,
+      limit: 24,
+      hasPromotion: true,
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+      signal,
+    });
+    return { items: result.items, meta: { page: result.page, totalPages: result.totalPages, total: result.total } };
   }, []);
-
-  useEffect(() => {
-    void load();
-    return () => {
-      seq.current += 1;
-    };
-  }, [load]);
-
-  const more = async () => {
-    if (loading || loadingMoreRef.current || page >= totalPages) return;
-    loadingMoreRef.current = true;
-    const current = seq.current;
-    setLoadingMore(true);
-    setError('');
-    try {
-      const result = await fetchProducts({
-        page: page + 1,
-        limit: 24,
-        hasPromotion: true,
-        sortBy: 'createdAt',
-        sortOrder: 'desc',
-      });
-      if (current !== seq.current) return;
-      setItems((old) => {
-        const ids = new Set(old.map((x) => x.id));
-        return [...old, ...result.items.filter((x) => !ids.has(x.id))];
-      });
-      setPage(result.page);
-      setTotalPages(result.totalPages);
-    } catch (e) {
-      if (current === seq.current) {
-        setError(e instanceof Error ? e.message : 'تعذر تحميل المزيد.');
-      }
-    } finally {
-      loadingMoreRef.current = false;
-      if (current === seq.current) setLoadingMore(false);
-    }
-  };
+  const list = usePaginatedList<ProductSummary>({
+    key: 'promoted-products',
+    pageSize: 24,
+    fetchPage,
+    getItemKey: (item) => item.id,
+    mapError: () => 'تعذر تحميل المنتجات المروّجة. حاول مجددًا.',
+  });
 
   return (
     <PageShell title="العروض والمنتجات المروجة" scroll={false}>
       <FlatList
-        data={loading && items.length === 0 ? [] : items}
+        data={list.items}
         keyExtractor={(item) => item.id}
         {...marketListPerf}
         contentContainerStyle={{ paddingBottom: 48, gap: 12 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
+        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={
           <View style={{ gap: 12, marginBottom: 8 }}>
             <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 21 }}>
               منتجات مرتبطة بعروض ترويجية نشطة أو مجدولة حسب بيانات الخادم.
             </Text>
-            {loading && items.length === 0 ? <ActivityIndicator color={colors.brand} /> : null}
-            {error && items.length === 0 ? (
+            {list.loading && list.items.length === 0 ? <ActivityIndicator color={colors.brand} /> : null}
+            {list.error && list.items.length === 0 ? (
               <>
-                <Notice>{error}</Notice>
-                <PrimaryButton label="إعادة المحاولة" onPress={() => void load()} />
+                <Notice>{list.error}</Notice>
+                <PrimaryButton label="إعادة المحاولة" onPress={() => void list.refresh()} />
               </>
             ) : null}
+            {list.error && list.items.length > 0 ? <Notice>{list.error}</Notice> : null}
           </View>
         }
-        ListEmptyComponent={
-          !loading && !error ? <Notice tone="muted">لا توجد منتجات مروجة حاليًا.</Notice> : undefined
-        }
+        ListEmptyComponent={!list.loading && !list.error ? <Notice tone="muted">لا توجد منتجات مروجة حاليًا.</Notice> : undefined}
         renderItem={({ item }) => (
           <Pressable onPress={() => router.push(`/products/${encodeURIComponent(item.id)}`)}>
             <SectionCard>
-              <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                 {item.images?.[0] ? (
-                  <AppImage
-                    uri={item.images[0]}
-                    style={{ width: 92, height: 92, borderRadius: 14, backgroundColor: colors.border }}
-                    resizeMode="cover"
-                  />
+                  <AppImage uri={item.images[0]} style={{ width: 92, height: 92, borderRadius: 14, backgroundColor: colors.border }} resizeMode="cover" />
                 ) : (
-                  <View
-                    style={{
-                      width: 92,
-                      height: 92,
-                      borderRadius: 14,
-                      backgroundColor: colors.brandSoft,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
+                  <View style={{ width: 92, height: 92, borderRadius: 14, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
                     <Text style={{ color: colors.brandOnSoft, fontSize: fontSizes[28] }}>◇</Text>
                   </View>
                 )}
                 <View style={{ flex: 1, alignItems: 'flex-end', gap: 7, paddingVertical: 3 }}>
-                  <Text
-                    style={{ color: colors.ink, fontWeight: '800', fontSize: fontSizes[15], textAlign: 'right' }}
-                    numberOfLines={2}
-                  >
-                    {item.name}
-                  </Text>
-                  <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>
-                    {item.store?.name || 'متجر'}
-                  </Text>
+                  <Text style={{ color: colors.ink, fontWeight: '800', fontSize: fontSizes[15], textAlign: 'right' }} numberOfLines={2}>{item.name}</Text>
+                  <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>{item.store?.name || 'متجر'}</Text>
                   <Text style={{ color: colors.brand, fontWeight: '900' }}>{price(item)}</Text>
                   {(item.effectivePrice?.originalPrice != null || (item.discountPrice != null && Number(item.discountPrice) < Number(item.price))) ? <Text style={{ color: colors.muted, fontSize: fontSizes[12], textDecorationLine: 'line-through' }}>{new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(item.effectivePrice?.originalPrice ?? item.price))} ₪</Text> : null}
                   {item.discountPrice != null && Number.isFinite(Number(item.discountPrice)) && Number.isFinite(Number(item.price)) && Number(item.price) > 0 ? <Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: '800' }}>خصم {Math.round((1 - Number(item.discountPrice) / Number(item.price)) * 100)}%</Text> : null}
-                  <Text style={{ color: colors.muted, fontSize: fontSizes[12] }}>
-                    {item.availability === 'OUT_OF_STOCK' ? 'غير متوفر' : 'عرض ترويجي'}
-                  </Text>
+                  <Text style={{ color: colors.muted, fontSize: fontSizes[12] }}>{item.availability === 'OUT_OF_STOCK' ? 'غير متوفر' : 'عرض ترويجي'}</Text>
                 </View>
               </View>
             </SectionCard>
@@ -163,13 +86,13 @@ export default function PromotedScreen() {
         )}
         ListFooterComponent={
           <View style={{ gap: 10, marginTop: 8 }}>
-            {error && items.length > 0 ? <Notice>{error}</Notice> : null}
-            {page < totalPages ? (
+            {list.loadMoreError ? <Notice>{list.loadMoreError}</Notice> : null}
+            {list.hasNextPage ? (
               <PrimaryButton
-                label={loadingMore ? 'جارٍ تحميل المزيد…' : 'تحميل المزيد'}
+                label={list.loadingMore ? 'جارٍ تحميل المزيد…' : list.loadMoreError ? 'إعادة المحاولة' : 'تحميل المزيد'}
                 variant="secondary"
-                busy={loadingMore}
-                onPress={() => void more()}
+                busy={list.loadingMore}
+                onPress={() => void list.loadMore()}
               />
             ) : null}
           </View>

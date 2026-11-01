@@ -123,7 +123,7 @@ export default function ActivityScreen() {
               هذا السجل خاص بحسابك ويعرض الإجراءات التي سجّلها الخادم، وليس سجلًا عامًا للآخرين.
             </Notice>
             <Field label="بحث في النشاط" value={q} onChangeText={setQ} placeholder="ابحث في العنوان أو التفاصيل" />
-            <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               {groups.map(([v, label]) => (
                 <Pressable
                   key={v}

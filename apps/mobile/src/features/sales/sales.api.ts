@@ -53,20 +53,20 @@ function unwrap<T>(response: Envelope<T>, fallback: string): T {
   if (response?.success !== true || response.data === undefined) throw new Error(response?.message || fallback);
   return response.data;
 }
-export async function fetchSales(token: string, page = 1, status?: SalePaymentStatus, ownerId?: string | null): Promise<SalesPage> {
+export async function fetchSales(token: string, page = 1, status?: SalePaymentStatus, ownerId?: string | null, signal?: AbortSignal): Promise<SalesPage> {
   const params = new URLSearchParams({ page: String(page), limit: '15' });
   if (status) params.set('status', status);
-  const data = unwrap(await apiRequest<Envelope<SalesPage>>(`/api/v1/sales?${params}`, { token, cacheOwnerId: ownerId ?? undefined }), 'تعذر تحميل المبيعات.');
+  const data = unwrap(await apiRequest<Envelope<SalesPage>>(`/api/v1/sales?${params}`, { token, signal, cacheOwnerId: ownerId ?? undefined }), 'تعذر تحميل المبيعات.');
   if (!Array.isArray(data.items) || !data.meta) throw new Error('استجابة المبيعات غير صالحة.');
   return data;
 }
-export async function fetchSalesSummary(period: SalesPeriod, token: string, ownerId?: string | null): Promise<SalesSummary> {
-  return unwrap(await apiRequest<Envelope<SalesSummary>>(`/api/v1/sales/summary?period=${period}`, { token, cacheOwnerId: ownerId ?? undefined }), 'تعذر تحميل ملخص المبيعات.');
+export async function fetchSalesSummary(period: SalesPeriod, token: string, ownerId?: string | null, signal?: AbortSignal): Promise<SalesSummary> {
+  return unwrap(await apiRequest<Envelope<SalesSummary>>(`/api/v1/sales/summary?period=${period}`, { token, signal, cacheOwnerId: ownerId ?? undefined }), 'تعذر تحميل ملخص المبيعات.');
 }
 
-export async function createSale(input: Record<string, unknown>, token: string, csrfToken?: string | null, offlineOperationId?: string) {
+export async function createSale(input: Record<string, unknown>, token: string, csrfToken?: string | null, offlineOperationId?: string, ownerId?: string | null) {
   const response = await apiRequest<Envelope<SaleRecord>>('/api/v1/sales', {
-    method: 'POST', token, body: JSON.stringify(input),
+    method: 'POST', token, cacheOwnerId: ownerId ?? undefined, body: JSON.stringify(input),
     headers: { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), ...(offlineOperationId ? { 'X-Offline-Op-Id': offlineOperationId } : {}) },
     timeoutMs: 12_000,
   });

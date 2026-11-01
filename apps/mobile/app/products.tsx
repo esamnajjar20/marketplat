@@ -1,10 +1,11 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { fetchProducts, fetchMyStore, type ProductSummary } from '@/features/commerce/commerce.api';
 import {
   AppHeader,
@@ -28,53 +29,37 @@ export default function ProductsScreen() {
   const categoryParam = Array.isArray(params.categoryId) ? params.categoryId[0] : params.categoryId;
   const categoryId = typeof categoryParam === 'string' && categoryParam.trim() ? categoryParam : undefined;
 
-  const [items, setItems] = useState<ProductSummary[]>([]);
   const [query, setQuery] = useState('');
   const [submitted, setSubmitted] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const requestSequence = useRef(0);
   const [hasStore, setHasStore] = useState<boolean | null>(null);
 
-  const load = useCallback(
-    async (refresh = false) => {
-      const sequence = ++requestSequence.current;
-      setLoadingMore(false);
-      if (refresh) setRefreshing(true);
-      else setLoading(true);
-      setError(null);
-      try {
-        const result = await fetchProducts({ page: 1, limit: 30, search: submitted, storeId, categoryId });
-        if (sequence === requestSequence.current) {
-          setItems(result.items);
-          setPage(result.page);
-          setTotalPages(result.totalPages);
-        }
-      } catch (e) {
-        if (sequence === requestSequence.current) {
-          setError(e instanceof Error ? e.message : 'تعذر تحميل المنتجات.');
-        }
-      } finally {
-        if (sequence === requestSequence.current) {
-          setLoading(false);
-          setRefreshing(false);
-        }
-      }
+  const listKey = `${storeId ?? 'all'}:${categoryId ?? 'all'}:${submitted}`;
+  const {
+    items,
+    loading,
+    loadingMore,
+    refreshing,
+    error,
+    loadMoreError,
+    hasNextPage,
+    refresh,
+    loadMore,
+  } = usePaginatedList<ProductSummary>({
+    key: listKey,
+    pageSize: 30,
+    fetchPage: async (nextPage, signal) => {
+      const result = await fetchProducts({
+        page: nextPage,
+        limit: 30,
+        search: submitted,
+        storeId,
+        categoryId,
+        signal,
+      });
+      return { items: result.items, meta: { page: result.page, totalPages: result.totalPages } };
     },
-    [submitted, storeId, categoryId],
-  );
-
-  useEffect(() => {
-    void load();
-    return () => {
-      requestSequence.current += 1;
-    };
-  }, [load]);
+    getItemKey: (item) => item.id,
+  });
 
   useEffect(() => {
     if (!user || !accessToken) { setHasStore(null); return; }
@@ -84,30 +69,6 @@ export default function ProductsScreen() {
       .catch(() => { if (!cancelled) setHasStore(true); /* fail-open: assume store exists on network error */ });
     return () => { cancelled = true; };
   }, [user, accessToken]);
-
-  const loadMore = async () => {
-    if (loadingMore || loading || page >= totalPages) return;
-    const sequence = requestSequence.current;
-    setLoadingMore(true);
-    setLoadMoreError(null);
-    try {
-      const result = await fetchProducts({ page: page + 1, limit: 30, search: submitted, storeId, categoryId });
-      if (sequence === requestSequence.current) {
-        setItems((current) => {
-          const seen = new Set(current.map((item) => item.id));
-          return [...current, ...result.items.filter((item) => !seen.has(item.id))];
-        });
-        setPage(result.page);
-        setTotalPages(result.totalPages);
-      }
-    } catch (e) {
-      if (sequence === requestSequence.current) {
-        setLoadMoreError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من المنتجات.');
-      }
-    } finally {
-      if (sequence === requestSequence.current) setLoadingMore(false);
-    }
-  };
 
   const title = storeId ? 'منتجات المتجر' : categoryId ? 'منتجات القسم' : 'المنتجات';
   const subtitle = storeId
@@ -126,7 +87,7 @@ export default function ProductsScreen() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />
+          <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.brand} />
         }
         ListHeaderComponent={
           <View style={{ gap: spacing.md }}>
@@ -153,7 +114,9 @@ export default function ProductsScreen() {
             {loading ? (
               <SkeletonList count={4} />
             ) : error && items.length === 0 ? (
-              <ErrorState title="تعذر التحميل" description={error} onAction={() => void load()} />
+              <ErrorState title="تعذر التحميل" description={error} onAction={() => void refresh()} />
+            ) : error ? (
+              <ErrorState title="تعذر تحديث النتائج" description={error} onAction={() => void refresh()} />
             ) : (
               <View style={styles.sectionRow}>
                 <Text style={styles.sectionTitle}>النتائج</Text>
@@ -176,7 +139,7 @@ export default function ProductsScreen() {
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListFooterComponent={
-          !loading && items.length > 0 && page < totalPages ? (
+          !loading && items.length > 0 && hasNextPage ? (
             <View style={{ gap: spacing.sm }}>
               {loadMoreError ? <ErrorState title="تعذر تحميل المزيد" description={loadMoreError} onAction={() => void loadMore()} /> : null}
               <PrimaryButton
@@ -199,7 +162,7 @@ const styles = StyleSheet.create({
   subtitle: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   actions: { gap: spacing.sm },
   sectionRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },

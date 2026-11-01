@@ -122,7 +122,7 @@ export default function AppointmentCreateScreen() {
       {!loadingAvailability && providerId && availability && availability.freeRanges.length === 0 ? <Notice tone="muted">لا توجد أوقات شاغرة في هذا اليوم. اختر تاريخًا آخر.</Notice> : null}
       {availability?.freeRanges?.length ? <SectionCard>
         <Text style={{ textAlign: 'right', fontWeight: '900', color: colors.ink }}>الفترات الشاغرة</Text>
-        <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {availability.freeRanges.map((range, index) => {
             const label = `${localTime(range.start)} – ${localTime(range.end)}`;
             return <Pressable key={`${range.start}-${index}`} accessibilityRole="button" onPress={() => chooseRange(range)} style={{ borderRadius: 10, borderWidth: 1, borderColor: colors.border, padding: 10, backgroundColor: colors.surface }}><Text style={{ color: colors.ink, fontWeight: '700' }}>{label}</Text></Pressable>;

@@ -52,15 +52,15 @@ export type FollowingFeedItem = {
   storeId?: string | null;
   categoryId?: string | null;
 };
-export async function fetchFollowingFeed(token: string, page = 1, limit = 20): Promise<{ items: FollowingFeedItem[]; meta?: PaginationMeta }> {
-  const response = await apiRequest<Envelope<FollowingFeedItem[]>>(`/api/v1/follows/feed?page=${page}&limit=${limit}`, { token });
+export async function fetchFollowingFeed(token: string, page = 1, limit = 20, signal?: AbortSignal): Promise<{ items: FollowingFeedItem[]; meta?: PaginationMeta }> {
+  const response = await apiRequest<Envelope<FollowingFeedItem[]>>(`/api/v1/follows/feed?page=${page}&limit=${limit}`, { token, signal });
   const items = unwrap(response, 'تعذر تحميل نشاط الحسابات التي تتابعها.');
   if (!Array.isArray(items)) throw new Error('استجابة موجز المتابعة غير صالحة.');
   return { items, meta: response.meta?.pagination };
 }
 
-export async function fetchUserFollowList(id: string, mode: 'followers' | 'following', page = 1, limit = 20): Promise<{ items: FollowListItem[]; meta?: PaginationMeta }> {
-  const response = await apiRequest<Envelope<FollowListItem[]>>(`/api/v1/follows/users/${encodeURIComponent(id)}/${mode}?page=${page}&limit=${limit}`);
+export async function fetchUserFollowList(id: string, mode: 'followers' | 'following', page = 1, limit = 20, signal?: AbortSignal): Promise<{ items: FollowListItem[]; meta?: PaginationMeta }> {
+  const response = await apiRequest<Envelope<FollowListItem[]>>(`/api/v1/follows/users/${encodeURIComponent(id)}/${mode}?page=${page}&limit=${limit}`, { signal });
   const items = unwrap(response, 'تعذر تحميل القائمة.');
   if (!Array.isArray(items)) throw new Error('استجابة قائمة المتابعة غير صالحة.');
   return { items, meta: response.meta?.pagination };
@@ -92,8 +92,8 @@ export async function submitReport(targetType: 'ads' | 'users' | 'stores' | 'pro
 }
 
 export type MyReport = { id: string; targetType?: string; targetId?: string; reason?: string; notes?: string | null; status?: string; createdAt?: string };
-export async function fetchMyReports(token: string, page = 1, limit = 20): Promise<{ items: MyReport[]; meta?: PaginationMeta }> {
-  const response = await apiRequest<Envelope<MyReport[]>>(`/api/v1/reports/me?page=${page}&limit=${limit}`, { token });
+export async function fetchMyReports(token: string, page = 1, limit = 20, signal?: AbortSignal): Promise<{ items: MyReport[]; meta?: PaginationMeta }> {
+  const response = await apiRequest<Envelope<MyReport[]>>(`/api/v1/reports/me?page=${page}&limit=${limit}`, { token, signal });
   const items = unwrap(response, 'تعذر تحميل بلاغاتك.');
   if (!Array.isArray(items)) throw new Error('استجابة بلاغاتك غير صالحة.');
   return { items, meta: response.meta?.pagination };

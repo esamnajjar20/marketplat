@@ -13,7 +13,7 @@ const services = read('src/features/services/services.api.ts');
 const offline = read('app/offline-queue.tsx');
 for (const op of ['create-product','create-service','create-sale']) if (!queue.includes(`'${op}'`)) throw new Error(`Missing durable outbox operation: ${op}`);
 for (const endpoint of ['/api/v1/products','/api/v1/service-listings','/api/v1/sales']) if (!queue.includes(endpoint)) throw new Error(`Missing sync endpoint ${endpoint}`);
-if (!queue.includes("'X-Offline-Op-Id':row.id") || !queue.includes("form.append('images'") || !lifecycle.includes('syncNextOfflineCreate')) throw new Error('Creation queue lacks server idempotency or lifecycle integration');
+if (!/'X-Offline-Op-Id':\s*head\.id/.test(queue) || !queue.includes("form.append('images'") || !lifecycle.includes('syncNextOfflineCreate')) throw new Error('Creation queue lacks server idempotency or lifecycle integration');
 if (!product.includes('enqueueOfflineCreate') || !product.includes('selectedImage') || !commerce.includes("'product-categories'")) throw new Error('Product offline creation integration missing');
 if (!service.includes('enqueueOfflineCreate') || !service.includes('selectedImage') || !services.includes("'service-categories'")) throw new Error('Service offline creation integration missing');
 if (!sale.includes("'create-sale'") || !add.includes("path: '/sale-create'")) throw new Error('Manual sale creation entry missing');

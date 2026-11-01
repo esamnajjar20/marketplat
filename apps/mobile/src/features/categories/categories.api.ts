@@ -1,5 +1,6 @@
 import { apiRequest } from '@/api/client';
 import { readPublicCache, writePublicCache } from '@/storage/public-cache';
+import { canUseStaleCacheAfterReadFailure } from '@/lib/offline-cache-policy';
 
 export type PublicCategory = {
   id: string;
@@ -41,6 +42,7 @@ export async function fetchPublicCategories(options: { forceRefresh?: boolean } 
     try {
       response = await apiRequest<ApiEnvelope<PublicCategory[]>>('/api/v1/categories');
     } catch (error) {
+      if (!canUseStaleCacheAfterReadFailure(error)) throw error;
       const cached = memoryCache?.items ?? await readPublicCache<PublicCategory[]>('categories');
       if (cached && Array.isArray(cached)) {
         memoryCache = { items: cached, savedAt: Date.now() };

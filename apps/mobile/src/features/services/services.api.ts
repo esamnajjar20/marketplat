@@ -1,6 +1,7 @@
 import { cacheOfflineCreationReferenceData, readOfflineCreationReferenceData } from '@/storage/entity-create-outbox';
 import { apiRequest } from '@/api/client';
-import { readPublicCache, writePublicCache } from '@/storage/public-cache';
+import { deletePublicCacheEntriesByPrefix, deletePublicCacheEntry, readPublicCache, writePublicCache } from '@/storage/public-cache';
+import { canUseStaleCacheAfterReadFailure } from '@/lib/offline-cache-policy';
 
 type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } } };
 export type ServiceListing = {
@@ -17,6 +18,19 @@ export type ServiceRequest = {
   listing?: { id?: string; title?: string; description?: string | null; images?: string[]; price?: number | string | null; pricingType?: string; durationEstimate?: string | null; serviceType?: { capabilities?: Record<string, unknown> | null } | null; provider?: { id?: string; businessName?: string | null; sellerProfile?: { id?: string; userId?: string; displayName?: string | null } | null } | null } | null; customer?: { id?: string; name?: string; displayName?: string; avatarUrl?: string | null } | null;
   provider?: { businessName?: string; sellerProfile?: { id?: string; userId?: string; displayName?: string | null } } | null;
 };
+
+/** Keep all public service-list representations coherent after a service mutation. */
+async function invalidateServiceListingCaches(serviceId?: string): Promise<void> {
+  const jobs: Promise<void>[] = [
+    deletePublicCacheEntriesByPrefix('service-listings:'),
+    deletePublicCacheEntriesByPrefix('api-public:/api/v1/service-listings?'),
+    deletePublicCacheEntriesByPrefix('api-public:/api/v1/service-listings/'),
+    deletePublicCacheEntry('home:public-services:v1'),
+  ];
+  if (serviceId?.trim()) jobs.push(deletePublicCacheEntry(`service-listing:${serviceId.trim()}`));
+  await Promise.all(jobs);
+}
+
 function readData<T>(response: Envelope<T>, fallback: string): T {
   if (!response || response.success !== true || response.data === undefined) throw new Error(response?.message || fallback);
   return response.data;
@@ -31,15 +45,26 @@ export async function getCachedServiceListings(options: { page?: number; limit?:
   return Array.isArray(cached) ? cached : null;
 }
 export type ServiceListingPage = { items: ServiceListing[]; page: number; totalPages: number; total: number };
-export async function fetchServiceListingsPage(options: { page?: number; limit?: number; search?: string } = {}): Promise<ServiceListingPage> {
+export async function getCachedServiceListingsPage(options: { page?: number; limit?: number; search?: string } = {}): Promise<ServiceListingPage | null> {
+  const page = Math.max(1, Math.floor(options.page ?? 1));
+  const limit = Math.max(1, Math.floor(options.limit ?? 30));
+  const cached = await getCachedServiceListings({ ...options, page, limit });
+  if (!cached) return null;
+  // The current cache stores only page rows, not server metadata. A full page
+  // conservatively signals that another page may exist; a live refresh corrects it.
+  return { items: cached, page, totalPages: cached.length >= limit ? page + 1 : page, total: cached.length };
+}
+export async function fetchServiceListingsPage(options: { page?: number; limit?: number; search?: string; signal?: AbortSignal } = {}): Promise<ServiceListingPage> {
   const page = options.page ?? 1;
   const limit = options.limit ?? 30;
   const params = new URLSearchParams({ page: String(page), limit: String(limit), sortBy: 'createdAt', sortOrder: 'desc' });
   if (options.search?.trim()) params.set('search', options.search.trim());
   const cacheKey = serviceListingsCacheKey({ ...options, page, limit });
   let response: Envelope<ServiceListing[]>;
-  try { response = await apiRequest<Envelope<ServiceListing[]>>(`/api/v1/service-listings?${params.toString()}`); }
+  try { response = await apiRequest<Envelope<ServiceListing[]>>(`/api/v1/service-listings?${params.toString()}`, { signal: options.signal }); }
   catch (error) {
+    // A caller cancellation represents a newer screen state, not an offline read.
+    if (!canUseStaleCacheAfterReadFailure(error, options.signal)) throw error;
     const cached = await getCachedServiceListings({ ...options, page, limit });
     if (cached) return { items: cached, page, totalPages: cached.length >= limit ? page + 1 : page, total: cached.length };
     throw error;
@@ -51,7 +76,7 @@ export async function fetchServiceListingsPage(options: { page?: number; limit?:
   const pagination = response.meta?.pagination;
   return { items: valid, page: pagination?.page ?? page, totalPages: pagination?.totalPages ?? (valid.length >= limit ? page + 1 : page), total: pagination?.total ?? valid.length };
 }
-export async function fetchServiceListings(options: { page?: number; limit?: number; search?: string } = {}): Promise<ServiceListing[]> {
+export async function fetchServiceListings(options: { page?: number; limit?: number; search?: string; signal?: AbortSignal } = {}): Promise<ServiceListing[]> {
   return (await fetchServiceListingsPage(options)).items;
 }
 export async function getCachedServiceListing(id: string): Promise<ServiceListing | null> {
@@ -61,7 +86,7 @@ export async function getCachedServiceListing(id: string): Promise<ServiceListin
 export async function fetchServiceListing(id: string): Promise<ServiceListing> {
   let response: Envelope<ServiceListing>;
   try { response = await apiRequest<Envelope<ServiceListing>>(`/api/v1/service-listings/${encodeURIComponent(id)}`); }
-  catch (error) { const cached = await getCachedServiceListing(id); if (cached) return cached; throw error; }
+  catch (error) { if (!canUseStaleCacheAfterReadFailure(error)) throw error; const cached = await getCachedServiceListing(id); if (cached) return cached; throw error; }
   const item = readData(response, 'تعذر تحميل تفاصيل الخدمة.');
   if (!item || item.id !== id) throw new Error('استجابة تفاصيل الخدمة غير صالحة.');
   await writePublicCache(`service-listing:${id}`, item);
@@ -114,10 +139,10 @@ export async function fetchServiceCategoryOptions(): Promise<ServiceCategoryOpti
     throw error;
   }
 }
-export async function fetchMyServiceListingsPage(token: string, page = 1, limit = 30): Promise<{ items: ServiceListing[]; page: number; totalPages: number; total: number }> {
+export async function fetchMyServiceListingsPage(token: string, page = 1, limit = 30, signal?: AbortSignal): Promise<{ items: ServiceListing[]; page: number; totalPages: number; total: number }> {
   const safePage = Math.max(1, Math.floor(page));
   const safeLimit = Math.min(50, Math.max(1, Math.floor(limit)));
-  const response = await apiRequest<Envelope<ServiceListing[]>>(`/api/v1/service-listings/me?page=${safePage}&limit=${safeLimit}&sortBy=createdAt&sortOrder=desc`, { token });
+  const response = await apiRequest<Envelope<ServiceListing[]>>(`/api/v1/service-listings/me?page=${safePage}&limit=${safeLimit}&sortBy=createdAt&sortOrder=desc`, { token, signal });
   const items = readData(response, 'تعذر تحميل خدماتك.');
   if (!Array.isArray(items)) throw new Error('استجابة خدماتك غير صالحة.');
   const pagination = response.meta?.pagination;
@@ -136,13 +161,18 @@ export async function createMyServiceListing(input: { categoryId: string; title:
   let body: FormData | string = JSON.stringify(input);
   if (images.length) { const form = new FormData(); for (const [key,value] of Object.entries(input)) if (value !== undefined) form.append(key, typeof value === 'string' ? value : String(value)); for (const image of images) form.append('images', {uri:image.uri,name:image.fileName,type:image.mimeType} as unknown as Blob); body = form; }
   const response = await apiRequest<Envelope<ServiceListing>>('/api/v1/service-listings', { method: 'POST', token, headers, body });
-  return readData(response, 'تعذر إنشاء الخدمة.');
+  const created = readData(response, 'تعذر إنشاء الخدمة.');
+  await invalidateServiceListingCaches(created.id);
+  return created;
 }
 export async function updateMyServiceListing(id: string, input: Partial<{ categoryId: string; title: string; description: string; pricingType: 'FIXED'|'STARTING_FROM'|'NEGOTIABLE'; price: number|null; durationEstimate: string|null; serviceLocation: 'AT_CUSTOMER'|'AT_PROVIDER'|'REMOTE'; status: 'ACTIVE'|'PAUSED' }>, token: string, csrfToken?: string | null): Promise<ServiceListing> {
   const response = await apiRequest<Envelope<ServiceListing>>(`/api/v1/service-listings/${encodeURIComponent(id)}`, { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) });
-  return readData(response, 'تعذر تحديث الخدمة.');
+  const updated = readData(response, 'تعذر تحديث الخدمة.');
+  await invalidateServiceListingCaches(id);
+  return updated;
 }
 export async function deleteMyServiceListing(id: string, token: string, csrfToken?: string | null): Promise<void> {
   const response = await apiRequest<Envelope<unknown>>(`/api/v1/service-listings/${encodeURIComponent(id)}`, { method: 'DELETE', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({}) });
   if (!response || response.success !== true) throw new Error(response?.message || 'تعذر حذف الخدمة.');
+  await invalidateServiceListingCaches(id);
 }

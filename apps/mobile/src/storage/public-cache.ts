@@ -209,10 +209,16 @@ export async function clearPrivateCacheForPrefix(pathPrefix: string, ownerId: st
   try {
     const db = await getDatabase();
     // Private keys have the shape: api-private:<encodedOwnerId>:<path>
-    const ownerSegment = `api-private:${encodeURIComponent(ownerId)}:`;
+    const fullPrefix = `api-private:${encodeURIComponent(ownerId)}:${pathPrefix}`;
+    // Enforce a route boundary: /sales must not accidentally invalidate /sales-tools.
     await db.runAsync(
-      "DELETE FROM public_cache WHERE cache_key LIKE ? || ? || ?",
-      ownerSegment, pathPrefix, '%',
+      `DELETE FROM public_cache
+       WHERE substr(cache_key, 1, ?) = ?
+         AND (length(cache_key) = ? OR substr(cache_key, ?, 1) IN ('/', '?'))`,
+      fullPrefix.length,
+      fullPrefix,
+      fullPrefix.length,
+      fullPrefix.length + 1,
     );
   } catch {
     // Cache invalidation is best-effort; the server remains authoritative.

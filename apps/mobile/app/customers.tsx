@@ -1,7 +1,7 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
@@ -14,54 +14,63 @@ import {
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 const money = (n: unknown) =>
   `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(n) || 0)} ₪`;
 
 export default function CustomersScreen() {
   const { getAccessToken, csrfToken, user, isRestoring } = useAuth();
-  const [items, setItems] = useState<CustomerRow[]>([]);
   const [summary, setSummary] = useState<CustomerSummary | null>(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError] = useState('');
+  const [summaryOwnerId, setSummaryOwnerId] = useState<string | null>(null);
+  const visibleSummary = summaryOwnerId === user?.id ? summary : null;
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [moreError, setMoreError] = useState('');
-  const requestSequence = useRef(0);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [showForm, setShowForm] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const summaryControllerRef = useRef<AbortController | null>(null);
 
-  const load = useCallback(async () => {
-    const current = ++requestSequence.current;
-    if (isRestoring) return;
+  const list = usePaginatedList<CustomerRow>({
+    key: `customers:${user?.id ?? 'guest'}:${debouncedQ}`,
+    pageSize: 20,
+    enabled: Boolean(user && !isRestoring && getAccessToken()),
+    fetchPage: async (page, signal) => {
+      const token = getAccessToken();
+      if (!token) throw new Error('سجّل الدخول لإدارة العملاء.');
+      const result = await fetchCustomers(token, debouncedQ, page, signal, user?.id);
+      return { items: result.items, meta: result.meta };
+    },
+    getItemKey: (customer) => customer.id,
+  });
+
+  const loadSummary = useCallback(async () => {
+    if (!user || isRestoring) return;
     const token = getAccessToken();
-    if (!token) { setLoading(false); return; }
-    setLoading(true);
-    setError('');
-    setMoreError('');
+    if (!token) return;
+    summaryControllerRef.current?.abort();
+    const controller = new AbortController();
+    summaryControllerRef.current = controller;
+    setSummaryLoading(true);
+    setSummaryError('');
     try {
-      const [list, stats] = await Promise.all([
-        fetchCustomers(token, debouncedQ, 1),
-        fetchCustomerSummary(token),
-      ]);
-      if (current !== requestSequence.current) return;
-      setItems(list.items);
-      setPage(list.meta.page);
-      setHasMore(list.meta.hasNextPage);
-      setSummary(stats);
-    } catch (e) {
-      if (current === requestSequence.current) setError(e instanceof Error ? e.message : 'تعذر تحميل العملاء.');
+      const next = await fetchCustomerSummary(token, controller.signal, user.id);
+      if (!controller.signal.aborted) { setSummary(next); setSummaryOwnerId(user.id); }
+    } catch (cause) {
+      if (!controller.signal.aborted) setSummaryError(cause instanceof Error ? cause.message : 'تعذر تحميل ملخص العملاء.');
     } finally {
-      if (current === requestSequence.current) setLoading(false);
+      if (!controller.signal.aborted) {
+        setSummaryLoading(false);
+        if (summaryControllerRef.current === controller) summaryControllerRef.current = null;
+      }
     }
-  }, [getAccessToken, debouncedQ, user?.id, isRestoring]);
+  }, [getAccessToken, isRestoring, user?.id]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQ(q.trim()), 350);
@@ -69,28 +78,16 @@ export default function CustomersScreen() {
   }, [q]);
 
   useEffect(() => {
-    if (!isRestoring) void load();
-    return () => { requestSequence.current += 1; };
-  }, [isRestoring, load]);
+    void loadSummary();
+    return () => {
+      summaryControllerRef.current?.abort();
+      summaryControllerRef.current = null;
+    };
+  }, [loadSummary]);
 
-  const loadMore = async () => {
-    const token = getAccessToken();
-    if (!token || loadingMore || loading || !hasMore) return;
-    const current = requestSequence.current;
-    setLoadingMore(true);
-    setMoreError('');
-    try {
-      const result = await fetchCustomers(token, debouncedQ, page + 1);
-      if (current !== requestSequence.current) return;
-      setItems((old) => [...old, ...result.items.filter((item) => !old.some((existing) => existing.id === item.id))]);
-      setPage(result.meta.page);
-      setHasMore(result.meta.hasNextPage);
-    } catch (e) {
-      if (current === requestSequence.current) setMoreError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من العملاء.');
-    } finally {
-      if (current === requestSequence.current) setLoadingMore(false);
-    }
-  };
+  const refreshAll = useCallback(async () => {
+    await Promise.all([list.refresh(), loadSummary()]);
+  }, [list.refresh, loadSummary]);
 
   const save = async () => {
     const token = getAccessToken();
@@ -114,13 +111,14 @@ export default function CustomersScreen() {
         },
         token,
         csrfToken,
+        user.id,
       );
       setName('');
       setPhone('');
       setEmail('');
       setShowForm(false);
       setMessage('تمت إضافة العميل.');
-      await load();
+      await Promise.all([list.refresh(), loadSummary()]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذرت إضافة العميل.');
     } finally {
@@ -140,27 +138,28 @@ export default function CustomersScreen() {
   return (
     <PageShell title="عملائي" scroll={false}>
       <FlatList
-        data={loading && items.length === 0 ? [] : items}
+        data={list.loading && list.items.length === 0 ? [] : list.items}
         keyExtractor={(item) => item.id}
         {...marketListPerf}
         contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+        refreshControl={<RefreshControl refreshing={list.refreshing || summaryLoading} onRefresh={() => void refreshAll()} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <Notice tone="muted">
               إدارة العملاء المسجلين في دفتر المبيعات، ومتابعة إجمالي مشترياتهم والمبالغ المستحقة.
             </Notice>
-            {summary ? (
-              <View style={{ flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8 }}>
+            {visibleSummary ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 <SectionCard>
                   <Text style={{ textAlign: 'right', color: colors.muted }}>عدد العملاء</Text>
                   <Text style={{ textAlign: 'right', fontWeight: '900', color: colors.ink }}>
-                    {summary.totalCustomers ?? items.length}
+                    {visibleSummary.totalCustomers ?? list.items.length}
                   </Text>
                 </SectionCard>
               </View>
             ) : null}
             <Field label="بحث بالاسم أو الهاتف" value={q} onChangeText={setQ} placeholder="ابحث…" />
-            <PrimaryButton label="تطبيق البحث" variant="secondary" onPress={() => void load()} />
+            <PrimaryButton label="تطبيق البحث" variant="secondary" onPress={() => { const next = q.trim(); if (next === debouncedQ) void list.refresh(); else setDebouncedQ(next); }} />
             <PrimaryButton
               label={showForm ? 'إخفاء نموذج الإضافة' : '+ إضافة عميل'}
               onPress={() => setShowForm((v) => !v)}
@@ -176,10 +175,12 @@ export default function CustomersScreen() {
             ) : null}
             {message ? <Notice tone="success">{message}</Notice> : null}
             {error ? <Notice>{error}</Notice> : null}
-            {loading ? <ActivityIndicator color={colors.brand} /> : null}
+            {summaryError ? <View style={{ gap: spacing.xs }}><Notice>{summaryError}</Notice><PrimaryButton label="إعادة تحميل الملخص" variant="secondary" onPress={() => void loadSummary()} /></View> : null}
+            {list.error && list.items.length > 0 ? <Notice>{list.error}</Notice> : null}
+            {list.loading || summaryLoading ? <ActivityIndicator color={colors.brand} /> : null}
           </View>
         }
-        ListEmptyComponent={!loading ? <Notice tone="muted">لا يوجد عملاء بعد.</Notice> : undefined}
+        ListEmptyComponent={list.error ? <View style={{ gap: spacing.sm }}><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></View> : !list.loading ? <Notice tone="muted">لا يوجد عملاء بعد.</Notice> : undefined}
         renderItem={({ item }) => (
           <SectionCard>
             <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }}>{item.name}</Text>
@@ -199,7 +200,7 @@ export default function CustomersScreen() {
           </SectionCard>
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        ListFooterComponent={hasMore ? <View style={{ gap: spacing.sm, paddingBottom: 20 }}>{moreError ? <Notice>{moreError}</Notice> : null}<PrimaryButton label={loadingMore ? 'جارٍ تحميل المزيد…' : moreError ? 'إعادة المحاولة' : 'تحميل المزيد'} variant="secondary" busy={loadingMore} onPress={() => void loadMore()} /></View> : undefined}
+        ListFooterComponent={list.hasNextPage || list.loadMoreError ? <View style={{ gap: spacing.sm, paddingBottom: 20 }}>{list.loadMoreError ? <Notice>{list.loadMoreError}</Notice> : null}<PrimaryButton label={list.loadingMore ? 'جارٍ تحميل المزيد…' : list.loadMoreError ? 'إعادة المحاولة' : 'تحميل المزيد'} variant="secondary" busy={list.loadingMore} onPress={() => void (list.loadMoreError ? list.retry() : list.loadMore())} /></View> : undefined}
       />
     </PageShell>
   );

@@ -144,7 +144,7 @@ export default function ProductDetailScreen() {
 
 const styles = StyleSheet.create({
   pad: { paddingHorizontal: spacing.md, gap: spacing.md },
-  titleRow: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: spacing.sm },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   titleCopy: { flex: 1, gap: spacing.xs },
   heading: { fontSize: fontSizes[22], fontWeight: '900', color: colors.ink, textAlign: 'right', lineHeight: 30 },
   price: { fontSize: fontSizes[22], fontWeight: '900', color: colors.brand, textAlign: 'right' },
@@ -155,12 +155,12 @@ const styles = StyleSheet.create({
   sectionTitle: { ...typography.subtitle, color: colors.ink, textAlign: 'right' },
   muted: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   meta: { ...typography.caption, color: colors.muted, textAlign: 'right' },
-  metaRow: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.md },
-  ratingLine: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.xs },
-  pills: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
+  metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  ratingLine: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  pills: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   paymentPill: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.border },
   paymentText: { ...typography.captionStrong, color: colors.brandOnSoft },
-  recommendationList: { flexDirection: 'row-reverse', gap: spacing.md, paddingVertical: spacing.xs },
+  recommendationList: { flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.xs },
   imageFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
   glyph: { fontSize: fontSizes[30], color: colors.brandOnSoft },
 });
