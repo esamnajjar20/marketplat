@@ -1,6 +1,6 @@
 import { cachePolicy } from '../cache/cachePolicy';
 import { getCacheDomain } from '../cache/cacheContract';
-import { canonicalCacheKey } from '../cache/cacheKey';
+import { canonicalCacheKey, type CanonicalScope } from '../cache/cacheKey';
 import { bumpGeneration, swrGet, swrGetWithStatus, SwrStatus } from './swrCache';
 
 const PROFILE_CACHE_DOMAIN = getCacheDomain('userProfile');
@@ -13,7 +13,7 @@ function nextSoftTtlMs(): number {
 }
 
 function profileCacheKeys(userId: string) {
-  const base = canonicalCacheKey(PROFILE_CACHE_DOMAIN.namespace, PROFILE_CACHE_DOMAIN.scope, { userId });
+  const base = canonicalCacheKey(PROFILE_CACHE_DOMAIN.namespace, PROFILE_CACHE_DOMAIN.scope as CanonicalScope, { userId });
   return {
     key: `${base}:payload`,
     hardGenKey: `${base}:generation`,

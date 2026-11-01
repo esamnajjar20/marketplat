@@ -25,7 +25,9 @@ assert.match(drawer, /accessibilityRole=\"header\"/, 'drawer section labels must
 assert.match(drawer, /accessibilityHint=\{item\.requiresAuth && !user/, 'authentication-only destinations must explain the sign-in redirect');
 assert.match(drawer, /minHeight: 48/, 'drawer rows must meet minimum touch target height');
 assert.match(drawer, /onClose\(\);\s*const target = item\.requiresAuth && !user \? '\/login' : item\.path;/, 'drawer navigation must close before selecting a destination');
-assert.match(drawer, /onMoveShouldSetPanResponder[\s\S]*?isRTL \? gesture\.dx < 0 : gesture\.dx > 0/, 'edge gesture must open according to RTL/LTR direction');
+assert.match(drawer, /const isRTL = true/, 'Arabic drawer must stay right-anchored while native app layout is LTR');
+assert.match(drawer, /onMoveShouldSetPanResponder[\s\S]*?isRTL \? gesture\.dx < 0 : gesture\.dx > 0/, 'right-edge gesture must open the Arabic drawer');
+assert.match(drawer, /onMoveShouldSetPanResponder[\s\S]*?isRTL \? gesture\.dx > 0 : gesture\.dx < 0/, 'leftward drawer gesture must close the Arabic drawer');
 assert.match(drawer, /useSQLCipher|source=\{require\('\.\.\/\.\.\/assets\/icon\.png'\)\}/, 'drawer must use the project app icon in its header');
 for (const glyph of ['menu', 'settings', 'help', 'ads', 'orders', 'logout', 'login']) {
   assert.match(icons, new RegExp(`\\b${glyph}:`), `missing shared glyph: ${glyph}`);
@@ -44,6 +46,12 @@ const routeFiles = new Map([
   ['/orders', 'app/orders.tsx'],
   ['/settings', 'app/settings.tsx'],
   ['/suggestions', 'app/suggestions.tsx'],
+  ['/stores', 'app/stores.tsx'],
+  ['/services', 'app/services.tsx'],
+  ['/seller-dashboard', 'app/seller-dashboard.tsx'],
+  ['/my-stores', 'app/my-stores.tsx'],
+  ['/service-requests', 'app/service-requests.tsx'],
+  ['/offline-queue', 'app/offline-queue.tsx'],
   ['/login', 'app/login.tsx'],
 ]);
 for (const [route, file] of routeFiles) {
@@ -53,4 +61,4 @@ for (const [route, file] of routeFiles) {
 
 const pkg = JSON.parse(await readFile(join(mobile, 'package.json'), 'utf8'));
 assert.ok(!pkg.dependencies['@react-navigation/drawer'], 'custom drawer should not add an unneeded navigation dependency');
-console.log('✅ Navigation drawer checks passed: provider, shared triggers, RTL gestures, close behavior, auth actions, touch targets, glyphs, and route existence.');
+console.log('✅ Navigation drawer checks passed: provider, shared triggers, fixed RTL edge gestures, close behavior, auth actions, touch targets, glyphs, and route existence.');

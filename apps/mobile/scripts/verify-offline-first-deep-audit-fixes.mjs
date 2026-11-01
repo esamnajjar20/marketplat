@@ -15,7 +15,7 @@ for (const [path, table] of [
   ['src/storage/entity-create-outbox.ts', 'entity_create_outbox'],
 ]) {
   const source = read(path);
-  assert.match(source, new RegExp(`UPDATE ${table} SET state='pending',lease_until=0,next_attempt_at=MAX\\(next_attempt_at,\\?\\) WHERE state='processing' AND lease_until<=\\?`), `${table} must recover expired leases on each sync attempt`);
+  assert.match(source, new RegExp(`UPDATE ${table} SET state='pending',\\s*lease_until=0,\\s*next_attempt_at=MAX\\(next_attempt_at,\\s*\\?\\s*\\) WHERE state='processing' AND lease_until\\s*<=\\s*\\?`), `${table} must recover expired leases on each sync attempt`);
 }
 const validation = read('../api/src/modules/sales/sales.validation.ts');
 assert.match(validation, /MAX_MONEY = 99_999_999\.99/);
