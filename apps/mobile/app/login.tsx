@@ -35,7 +35,7 @@ export default function LoginScreen() {
       await login(checked.data.email, checked.data.password);
       setPassword('');
       const target = getSafeAuthRedirect(redirect);
-      if (target) router.replace(target);
+      if (target) router.replace(target as never);
       else if (router.canGoBack()) router.back();
       else router.replace('/');
     } catch (error) {

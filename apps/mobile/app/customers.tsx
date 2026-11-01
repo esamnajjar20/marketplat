@@ -91,7 +91,7 @@ export default function CustomersScreen() {
 
   const save = async () => {
     const token = getAccessToken();
-    if (!token) {
+    if (!token || !user) {
       router.push('/login');
       return;
     }

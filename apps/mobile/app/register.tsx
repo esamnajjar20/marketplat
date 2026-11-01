@@ -42,7 +42,7 @@ export default function RegisterScreen() {
       });
       setPassword('');
       const target = getSafeAuthRedirect(redirect);
-      if (target) router.replace(target);
+      if (target) router.replace(target as never);
       else if (router.canGoBack()) router.back();
       else router.replace('/');
     } catch (err) {
