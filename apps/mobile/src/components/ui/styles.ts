@@ -2,7 +2,7 @@
  * أنماط مشتركة لمكوّنات الواجهة — مصدر واحد بدل تكرار StyleSheet في كل ملف.
  */
 import { StyleSheet } from 'react-native';
-import { colors, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, colors, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
 
 export const uiStyles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
@@ -28,7 +28,6 @@ export const uiStyles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.brandSoft,
   },
-  backText: { fontSize: 32, color: colors.brand, lineHeight: 36, fontWeight: '300' },
   title: {
     flex: 1,
     textAlign: 'right',
@@ -90,7 +89,7 @@ export const uiStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  listRowGlyphText: { color: colors.brand, fontSize: 19, fontWeight: '900' },
+  listRowGlyphText: { color: colors.brandOnSoft, fontSize: fontSizes[19], fontWeight: '900' },
   listRowText: { flex: 1, gap: 4 },
   listRowTitle: { textAlign: 'right', ...typography.bodyStrong, color: colors.ink },
   listRowDescription: { textAlign: 'right', ...typography.caption, color: colors.muted },
@@ -127,7 +126,7 @@ export const uiStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.controlBorder,
   },
-  secondaryText: { color: colors.brand },
+  secondaryText: { color: colors.brandOnSoft },
   danger: { backgroundColor: colors.danger },
   dangerText: { color: colors.white },
   ghost: {
@@ -149,7 +148,7 @@ export const uiStyles = StyleSheet.create({
   mutedBox: { backgroundColor: colors.surface, borderColor: colors.border },
   info: { backgroundColor: colors.infoSoft, borderColor: colors.infoBorder },
   warning: { backgroundColor: colors.warningSoft, borderColor: colors.warningBorder },
-  noticeText: { color: colors.danger, textAlign: 'right', lineHeight: 22, fontSize: 14 },
+  noticeText: { color: colors.danger, textAlign: 'right', lineHeight: 22, fontSize: fontSizes[14] },
 
   badge: {
     paddingHorizontal: spacing.sm,
@@ -162,7 +161,7 @@ export const uiStyles = StyleSheet.create({
   badgeSuccess: { backgroundColor: colors.successSoft },
   badgeMuted: { backgroundColor: colors.canvas },
   badgeAccent: { backgroundColor: colors.warningSoft },
-  badgeText: { ...typography.overline, color: colors.brand },
+  badgeText: { ...typography.overline, color: colors.brandOnSoft },
 
   chip: {
     minHeight: sizes.chipHeight,
@@ -180,7 +179,7 @@ export const uiStyles = StyleSheet.create({
     borderColor: colors.brand,
   },
   chipText: { ...typography.captionStrong, color: colors.muted },
-  chipTextSelected: { color: colors.brandDark },
+  chipTextSelected: { color: colors.brandOnSoft },
 
   stateBox: {
     alignItems: 'center',
@@ -199,7 +198,7 @@ export const uiStyles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   stateIconError: { backgroundColor: colors.dangerSoft },
-  stateIcon: { fontSize: 24, color: colors.brand, fontWeight: '700' },
+  stateIcon: { fontSize: fontSizes[24], color: colors.brandOnSoft, fontWeight: '700' },
   stateTitle: { textAlign: 'center', ...typography.subtitle, color: colors.ink },
   stateMessage: { textAlign: 'center', ...typography.body, color: colors.muted },
 
@@ -222,7 +221,7 @@ export const uiStyles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   offlineBannerText: {
-    fontSize: 12,
+    fontSize: fontSizes[12],
     fontWeight: '800',
     lineHeight: 18,
     color: colors.warningText,
@@ -240,7 +239,7 @@ export const uiStyles = StyleSheet.create({
     borderColor: colors.controlBorder,
     backgroundColor: colors.surface,
   },
-  searchIcon: { color: colors.muted, fontSize: 18, fontWeight: '700' },
+  searchIcon: { color: colors.muted, fontSize: fontSizes[18], fontWeight: '700' },
   searchInput: {
     flex: 1,
     color: colors.ink,
@@ -248,7 +247,7 @@ export const uiStyles = StyleSheet.create({
     paddingVertical: spacing.sm,
   },
   searchClearButton: { minWidth: sizes.touchTarget, minHeight: sizes.touchTarget, alignItems: 'center', justifyContent: 'center', borderRadius: radius.sm },
-  searchClear: { color: colors.muted, fontSize: 22, lineHeight: 28, paddingHorizontal: spacing.sm },
+  searchClear: { color: colors.muted, fontSize: fontSizes[22], lineHeight: 28, paddingHorizontal: spacing.sm },
   searchBtn: {
     minHeight: sizes.touchTarget,
     justifyContent: 'center',
@@ -257,5 +256,5 @@ export const uiStyles = StyleSheet.create({
     borderRadius: radius.sm,
     backgroundColor: colors.brandSoft,
   },
-  searchBtnText: { color: colors.brand, ...typography.captionStrong },
+  searchBtnText: { color: colors.brandOnSoft, ...typography.captionStrong },
 });

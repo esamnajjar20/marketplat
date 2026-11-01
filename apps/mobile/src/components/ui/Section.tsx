@@ -1,5 +1,7 @@
+import { AppText as Text } from './AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { type ReactNode } from 'react';
-import { Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { View, type StyleProp, type ViewStyle } from 'react-native';
 import { uiStyles as s } from './styles';
 
 export function SectionHeader({

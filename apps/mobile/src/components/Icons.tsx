@@ -1,4 +1,5 @@
-import { Text, type TextStyle, type StyleProp } from 'react-native';
+import { AppText as Text } from '@/components/ui/AppText';
+import { type TextStyle, type StyleProp } from 'react-native';
 import { colors } from '@/theme/tokens';
 
 /**
@@ -11,8 +12,8 @@ export const glyphs = {
   add: '+',
   messages: '▤',
   account: '♙',
-  back: '‹',
-  forward: '›',
+  back: '›',
+  forward: '‹',
   close: '×',
   favorite: '♡',
   favoriteActive: '♥',
@@ -46,7 +47,7 @@ export function AppIcon({
   style?: StyleProp<TextStyle>;
 }) {
   return (
-    <Text style={[{ fontSize: size, color, fontWeight: '700', lineHeight: size + 4 }, style]}>
+    <Text maxFontSizeMultiplier={1.3} style={[{ fontSize: size, color, fontWeight: '700', lineHeight: size + 4 }, style]}>
       {glyphs[name]}
     </Text>
   );

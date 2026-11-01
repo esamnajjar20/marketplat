@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { AppText as Text } from '@/components/ui/AppText';
+import { StyleSheet, View } from 'react-native';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
 
 type Field = { id?: string; key: string; label?: string | null; labelAr?: string | null; pageLabelAr?: string | null; type?: string; scope?: string; isActive?: boolean; options?: { value?: unknown; label?: string; labelAr?: string }[] | null };

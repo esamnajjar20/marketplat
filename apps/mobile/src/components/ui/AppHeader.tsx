@@ -1,8 +1,12 @@
+import { AppText as Text } from './AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { type ReactNode } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { View } from 'react-native';
 import { goBack } from '@/lib/navigation';
 import { uiStyles as s } from './styles';
+import { colors } from '@/theme/tokens';
 import { DrawerMenuButton } from '@/components/MobileDrawer';
+import { AppIcon } from '@/components/Icons';
 
 export function AppHeader({
   title,
@@ -33,12 +37,12 @@ export function AppHeader({
           hitSlop={12}
           style={({ pressed }) => [s.back, pressed && s.pressed]}
         >
-          <Text style={s.backText}>‹</Text>
+          <AppIcon name="back" size={22} color={colors.brandOnSoft} />
         </Pressable>
       ) : (
         <View style={s.headerSpacer} />
       )}
-      <Text style={s.title} numberOfLines={1}>
+      <Text maxFontSizeMultiplier={1.3} style={s.title} numberOfLines={1}>
         {title}
       </Text>
       <View style={[s.headerRight, styles.headerActions]}>{right ?? null}<DrawerMenuButton /></View>

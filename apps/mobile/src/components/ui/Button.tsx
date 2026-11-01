@@ -1,4 +1,6 @@
-import { ActivityIndicator, Pressable, Text, type StyleProp, type TextStyle } from 'react-native';
+import { AppText as Text } from './AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
+import { ActivityIndicator, type StyleProp, type TextStyle } from 'react-native';
 import { colors } from '@/theme/tokens';
 import { uiStyles as s } from './styles';
 
@@ -39,6 +41,7 @@ export function PrimaryButton({
         <ActivityIndicator color={isFilled ? colors.white : colors.brand} />
       ) : (
         <Text
+          maxFontSizeMultiplier={1.3}
           style={[
             s.buttonText,
             variant === 'secondary' && s.secondaryText,

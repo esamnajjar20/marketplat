@@ -1,7 +1,9 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { AppImage } from '@/components/AppImage';
-import { colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 
 type CatalogCardProps = {
   title: string;
@@ -206,7 +208,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glyph: { fontSize: 28, color: colors.brand },
+  glyph: { fontSize: fontSizes[28], color: colors.brandOnSoft },
   body: { flex: 1, gap: 4, alignItems: 'flex-end' },
   title: {
     ...typography.bodyStrong,
@@ -244,7 +246,7 @@ const styles = StyleSheet.create({
   },
   chevron: {
     color: colors.muted,
-    fontSize: 22,
+    fontSize: fontSizes[22],
     fontWeight: '300',
     paddingHorizontal: 2,
   },
@@ -271,7 +273,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  favoriteIcon: { color: colors.muted, fontSize: 18 },
+  favoriteIcon: { color: colors.muted, fontSize: fontSizes[18] },
   favoriteActive: { color: colors.danger },
   adMain: { flexDirection: 'row-reverse', minHeight: 120 },
   adImage: { width: 112, minHeight: 120, backgroundColor: colors.border },

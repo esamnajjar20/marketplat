@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Text, TextInput, View, type TextInputProps } from 'react-native';
+import { useState, type Ref } from 'react';
+import { TextInput, View, type TextInputProps } from 'react-native';
+import { AppText as Text } from './AppText';
 import { colors } from '@/theme/tokens';
 import { uiStyles as s } from './styles';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
@@ -24,6 +25,7 @@ export function Field({
   autoCorrect,
   textContentType,
   textAlign,
+  inputRef,
 }: {
   label: string;
   value: string;
@@ -44,12 +46,14 @@ export function Field({
   autoCorrect?: TextInputProps['autoCorrect'];
   textContentType?: TextInputProps['textContentType'];
   textAlign?: TextInputProps['textAlign'];
+  inputRef?: Ref<TextInput>;
 }) {
   const [focused, setFocused] = useState(false);
   return (
     <View style={s.field}>
       <Text style={s.label}>{label}</Text>
-      <TextInput
+      <TextInput allowFontScaling maxFontSizeMultiplier={1.3}
+        ref={inputRef}
         value={value}
         onChangeText={(nextValue) => {
           const numericKeyboard = keyboardType === 'numeric' || keyboardType === 'number-pad' || keyboardType === 'decimal-pad' || keyboardType === 'phone-pad';
@@ -61,6 +65,8 @@ export function Field({
         keyboardType={keyboardType}
         secureTextEntry={secureTextEntry}
         maxLength={maxLength}
+        allowFontScaling
+        maxFontSizeMultiplier={1.3}
         editable={editable}
         accessibilityLabel={label}
         accessibilityHint={error ? `${accessibilityHint ? `${accessibilityHint}. ` : ''}${error}` : accessibilityHint}

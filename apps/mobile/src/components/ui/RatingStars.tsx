@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native';
+import { AppText as Text } from '@/components/ui/AppText';
+import { View } from 'react-native';
 import { colors, spacing } from '@/theme/tokens';
 export function RatingStars({ score, count, size = 16 }: { score?: number | string | null; count?: number | null; size?: number }) {
   const parsed = Number(score ?? 0); const rounded = Math.max(0, Math.min(5, Math.round(Number.isFinite(parsed) ? parsed : 0)));

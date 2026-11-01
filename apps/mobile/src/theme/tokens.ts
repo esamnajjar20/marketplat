@@ -11,6 +11,8 @@ export const colors = {
   // علامة تجارية: زيتوني
   brand: '#397F56',
   brandDark: '#244A37',
+  // Higher-contrast text for brandSoft backgrounds (WCAG AA for small text).
+  brandOnSoft: '#244A37',
   brandSoft: '#E8F0EB',
   brandSoftActive: '#D5E5DB',
   // خلفيات: كريمي دافئ
@@ -77,6 +79,32 @@ export const radius = {
 } as const;
 
 /** أحجام وأوزان الخط — RTL-first (textAlign يُضبط في المكوّنات) */
+/** أحجام الخط الموحدة؛ تُستخدم بدل القيم الرقمية المبعثرة داخل الشاشات. */
+export const fontSizes = {
+  10: 10,
+  11: 11,
+  12: 12,
+  13: 13,
+  14: 14,
+  15: 15,
+  16: 16,
+  17: 17,
+  18: 18,
+  19: 19,
+  20: 20,
+  21: 21,
+  22: 22,
+  23: 23,
+  24: 24,
+  25: 25,
+  26: 26,
+  28: 28,
+  30: 30,
+  32: 32,
+  34: 34,
+  40: 40,
+} as const;
+
 export const typography = {
   display: {
     fontSize: 28,

@@ -1,5 +1,7 @@
+import { AppText as Text } from './AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { type ReactNode } from 'react';
-import { ActivityIndicator, Pressable, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ActivityIndicator, View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, radius, spacing } from '@/theme/tokens';
 import { PrimaryButton } from './Button';
 import { uiStyles as s } from './styles';

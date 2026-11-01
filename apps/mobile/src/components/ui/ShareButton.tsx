@@ -1,5 +1,7 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useState } from 'react';
-import { Alert, Pressable, Text } from 'react-native';
+import { Alert } from 'react-native';
 import { shareMarketPlatResource, type ShareableResource } from '@/features/sharing/deep-links';
 import { colors, sizes, typography } from '@/theme/tokens';
 export function ShareButton({ resource, id, title, label = 'مشاركة', compact = false }: { resource: ShareableResource; id: string; title: string; label?: string; compact?: boolean }) {
