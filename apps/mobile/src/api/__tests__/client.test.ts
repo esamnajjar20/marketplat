@@ -58,13 +58,19 @@ describe('apiRequest reliability contracts', () => {
 
   it('does not spend a second full timeout retrying a timed-out GET', async () => {
     vi.useFakeTimers();
-    const fetchMock = vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
-      init?.signal?.addEventListener('abort', () => {
-        const error = new Error('aborted');
-        error.name = 'AbortError';
-        reject(error);
-      }, { once: true });
-    }));
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      const promise = new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          const error = new Error('aborted');
+          error.name = 'AbortError';
+          reject(error);
+        }, { once: true });
+      });
+      // Attach a no-op catch immediately so an abort fired after the test completes
+      // does not surface as an unhandled rejection in Vitest.
+      promise.catch(() => undefined);
+      return promise;
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     try {

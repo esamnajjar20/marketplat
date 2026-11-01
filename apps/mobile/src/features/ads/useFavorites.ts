@@ -73,7 +73,7 @@ export function useFavorites() {
       const cached = await readFavoriteAdIds(user?.id).catch(() => previous);
       favoriteIdsRef.current = cached;
       setFavoriteIds(cached);
-      showToast('تعذر حفظ المفضلة', error instanceof Error ? error.message : 'لم يتم حفظ التغيير على الجهاز.', 'success');
+      showToast('تعذر حفظ المفضلة', error instanceof Error ? error.message : 'لم يتم حفظ التغيير على الجهاز.', 'error');
     }
   });
 

@@ -51,7 +51,7 @@ export function ActionSheet({ visible, title, description, options, onClose }: P
 
 const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', backgroundColor: colors.modalBackdrop },
-  backdrop: { ...StyleSheet.absoluteFillObject },
+  backdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   sheet: { width: '100%', maxWidth: 560, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xl, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, backgroundColor: colors.surface, gap: spacing.sm },
   handle: { width: 42, height: 4, borderRadius: 4, alignSelf: 'center', backgroundColor: colors.controlBorder, marginBottom: spacing.xs },
   title: { color: colors.ink, fontSize: fontSizes[17], fontWeight: '900', textAlign: 'right' },

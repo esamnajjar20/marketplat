@@ -12,6 +12,7 @@ import { enqueueOfflineCreate } from '@/storage/outbox-manager';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
 import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
 import { formatMoney } from '@/lib/formatters';
+import { showToast } from '@/lib/toast';
 
 type SaleLine = { id: string; title: string; quantity: string; unitPrice: string };
 const makeLine = (): SaleLine => ({ id: `line-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, title: '', quantity: '1', unitPrice: '' });

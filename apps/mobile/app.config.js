@@ -12,7 +12,8 @@ const sentryProject = process.env.SENTRY_PROJECT?.trim();
 const sentryPluginConfigured = plugins.some((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin) === '@sentry/react-native/expo');
 // Runtime crash capture works with the SDK/DSN. Source-map and native-symbol
 // upload configuration is added only when real project identifiers exist.
-if (!sentryPluginConfigured && sentryOrg && sentryProject) {
+const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN?.trim();
+if (!sentryPluginConfigured && sentryOrg && sentryProject && sentryAuthToken) {
   plugins.push(['@sentry/react-native/expo', {
     url: process.env.SENTRY_URL?.trim() || 'https://sentry.io/',
     organization: sentryOrg,

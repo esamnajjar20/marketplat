@@ -40,6 +40,8 @@ describe('favorites-sync-lifecycle', () => {
     store.acknowledgeFavoriteState.mockReset();
     store.listPendingFavoriteStates.mockReset();
     store.writeFavoriteAdIds.mockReset();
+    store.findFavoriteState.mockReset();
+    store.findFavoriteState.mockResolvedValue(null);
     api.fetchFavoriteAdIds.mockReset();
     api.setFavoriteAdState.mockReset();
   });
@@ -83,12 +85,12 @@ describe('favorites-sync-lifecycle', () => {
   // ── Pending operations ──────────────────────────────────────────
   it('sends one pending op, acknowledges, then reconciles', async () => {
     const op = pending('ad-1', true);
-    // Flow: initial → [op] | current (same opId) → [op] | remaining → [] | newerPending → []
+    // findFavoriteState is the O(1) check used by the current implementation.
+    store.findFavoriteState.mockResolvedValue(op);
     store.listPendingFavoriteStates
-      .mockResolvedValueOnce([op])   // initial
-      .mockResolvedValueOnce([op])   // current check (must match operationId)
-      .mockResolvedValueOnce([])     // end of while (after ack)
-      .mockResolvedValueOnce([]);    // newerPending after fetch
+      .mockResolvedValueOnce([op])   // line 56: initial
+      .mockResolvedValueOnce([])     // line 74: end of pass 1 (after ack)
+      .mockResolvedValueOnce([]);    // line 83: newerPending
     api.setFavoriteAdState.mockResolvedValue(undefined);
     store.acknowledgeFavoriteState.mockResolvedValue(true);
     api.fetchFavoriteAdIds.mockResolvedValue(['ad-1']);
@@ -124,10 +126,9 @@ describe('favorites-sync-lifecycle', () => {
   // ── Session invalidation ────────────────────────────────────────
   it('returns deferred when session invalidated mid-sync', async () => {
     const op = pending('ad-1', true);
-    // Flow: initial [op] → current check must return [op] with SAME opId → proceeds to send
-    store.listPendingFavoriteStates
-      .mockResolvedValueOnce([op])    // initial
-      .mockResolvedValueOnce([op]);   // current check (must match operationId)
+    // findFavoriteState must match so the send happens before the session is invalidated.
+    store.findFavoriteState.mockResolvedValue(op);
+    store.listPendingFavoriteStates.mockResolvedValueOnce([op]);
     api.setFavoriteAdState.mockImplementation(async () => {
       invalidateFavoritesSyncSession();  // session changes while HTTP in flight
     });
@@ -163,23 +164,13 @@ describe('favorites-sync-lifecycle', () => {
     const op = pending('ad-1', true, 'op-old');
     const newer = pending('ad-1', false, 'op-new');
 
-    // Flow:
-    //   call 1: initial → [op-old]
-    //   pass 1, op-old: call 2 → [newer] (different opId → skip op-old, op-new not sent yet)
-    //   call 3: end of pass 1 → [newer]
-    //   pass 2, newer: call 4 → [newer] (same opId → send)
-    //   call 5: end of pass 2 → []
-    //   fetch → []
-    //   call 6: newerPending → []
-    //   synced
+    // findFavoriteState always returns the newer op: the store has replaced op-old.
+    store.findFavoriteState.mockResolvedValue(newer);
     store.listPendingFavoriteStates
-      .mockResolvedValueOnce([op])       // initial
-      .mockResolvedValueOnce([newer])    // current for op-old (different opId → skip)
-      .mockResolvedValueOnce([newer])    // end of pass 1
-      .mockResolvedValueOnce([newer])    // current for newer (same opId → send)
-      .mockResolvedValueOnce([])         // end of pass 2 (empty)
-      .mockResolvedValueOnce([])         // newerPending
-      .mockResolvedValue([]);            // safety net
+      .mockResolvedValueOnce([op])       // line 56: initial
+      .mockResolvedValueOnce([newer])    // line 74: after pass 1 (op-old skipped, newer still queued)
+      .mockResolvedValueOnce([])         // line 74: after pass 2 (newer acked)
+      .mockResolvedValueOnce([]);        // line 83: newerPending
 
     api.setFavoriteAdState.mockResolvedValue(undefined);
     store.acknowledgeFavoriteState.mockResolvedValue(true);

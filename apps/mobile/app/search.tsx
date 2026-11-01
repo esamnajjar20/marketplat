@@ -451,9 +451,9 @@ export default function SearchScreen() {
             <AppIcon name="forward" size={22} color={colors.brand} />
           </Pressable>
         )}
-        ListHeaderComponent={listHeader}
-        ListEmptyComponent={listEmpty}
-        ListFooterComponent={listFooter}
+        ListHeaderComponent={listHeader ?? undefined}
+        ListEmptyComponent={listEmpty ?? undefined}
+        ListFooterComponent={listFooter ?? undefined}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 44, flexGrow: 1 }}
         ItemSeparatorComponent={() => null}
         keyboardShouldPersistTaps="handled"

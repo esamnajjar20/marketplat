@@ -23,8 +23,8 @@ describe('native network reachability', () => {
     };
     expect(options.reachabilityUrl).toBe('https://api.marketplat.test/health');
     expect(options.useNativeReachability).toBe(false);
-    expect(options.reachabilityTest({ status: 503 } as Response)).toBe(true);
-    expect(options.reachabilityTest({ status: 429 } as Response)).toBe(true);
-    expect(options.reachabilityTest({ status: 0 } as Response)).toBe(false);
+    await expect(options.reachabilityTest({ status: 503 } as Response)).resolves.toBe(true);
+    await expect(options.reachabilityTest({ status: 429 } as Response)).resolves.toBe(true);
+    await expect(options.reachabilityTest({ status: 0 } as Response)).resolves.toBe(false);
   });
 });

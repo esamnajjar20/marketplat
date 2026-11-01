@@ -1,3 +1,7 @@
+// Note: this runner intentionally omits the scheduled_job_runs ledger used by
+// runScheduledJobs.ts. Duplicate hourly invocations are safe only because each
+// notification job is idempotent at the DB level. If that changes, add a ledger
+// claim here before enabling the hourly workflow.
 import { runChildJobsIndependently } from './childJobRunner';
 import {
   getSalesNotificationJobs,

@@ -132,7 +132,7 @@ export function usePaginatedList<T>(options: Options<T>): PaginatedListState<T> 
             setItems(cachedItems);
             setPage(cachedPage.page);
             setTotalPages(cachedPage.totalPages);
-            setTotalCount(cachedPage.total);
+            setTotalCount(cached.meta?.total ?? 0);
             setHasNextPage(cachedPage.hasNextPage);
             setLoading(false);
             setRefreshing(true);
@@ -153,7 +153,7 @@ export function usePaginatedList<T>(options: Options<T>): PaginatedListState<T> 
       setItems(nextItems);
       setPage(next.page);
       setTotalPages(next.totalPages);
-      setTotalCount(next.total);
+      setTotalCount(result.meta?.total ?? 0);
       setHasNextPage(next.hasNextPage);
     } catch (requestError) {
       if (generation !== generationRef.current || controller.signal.aborted) return;
@@ -203,7 +203,7 @@ export function usePaginatedList<T>(options: Options<T>): PaginatedListState<T> 
       setItems(nextItems);
       setPage(next.page);
       setTotalPages(next.totalPages);
-      setTotalCount(next.total);
+      setTotalCount(result.meta?.total ?? 0);
       setHasNextPage(next.hasNextPage);
     } catch (requestError) {
       if (generation !== generationRef.current || controller.signal.aborted) return;
@@ -245,7 +245,7 @@ export function usePaginatedList<T>(options: Options<T>): PaginatedListState<T> 
       setItems(merged);
       setPage(next.page);
       setTotalPages(next.totalPages);
-      setTotalCount(next.total);
+      setTotalCount(result.meta?.total ?? 0);
       setHasNextPage(next.hasNextPage);
     } catch (requestError) {
       if (generation !== generationRef.current || controller.signal.aborted) return;

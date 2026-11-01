@@ -551,7 +551,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       revocationMarkerSaved = await writePendingLogout({ accessToken: token, csrfToken: csrf, createdAt: Date.now(), fcmToken: pendingFcmToken });
       if (!revocationMarkerSaved) {
         setIsBusy(false);
-        showToast('تعذر حفظ طلب تسجيل الخروج', 'لم يتم إرسال طلب الإبطال إلى الخادم ولم تُحذف بياناتك المحلية، لأن التخزين الآمن لم يحفظ علامة إعادة المحاولة. أعد المحاولة بعد عودة التخزين الآمن.', 'success');
+        showToast('تعذر حفظ طلب تسجيل الخروج', 'لم يتم إرسال طلب الإبطال إلى الخادم ولم تُحذف بياناتك المحلية، لأن التخزين الآمن لم يحفظ علامة إعادة المحاولة. أعد المحاولة بعد عودة التخزين الآمن.', 'error');
         return 'failed';
       }
     }
@@ -603,7 +603,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ? 'لم يؤكد التخزين الآمن حذف جلسة الدخول المحفوظة. أعد فتح التطبيق وتأكد من أنك ما زلت مسجّل الخروج قبل مشاركة الجهاز.'
             : '',
         ].filter(Boolean);
-        showToast('اكتمل الخروج مع تحذير', `${warnings.join('\n\n')} إذا استمرت المشكلة، امسح بيانات التطبيق من إعدادات الجهاز قبل استخدام حساب آخر.`, 'success');
+        showToast('اكتمل الخروج مع تحذير', `${warnings.join('\n\n')} إذا استمرت المشكلة، امسح بيانات التطبيق من إعدادات الجهاز قبل استخدام حساب آخر.`, 'warning');
         return 'failed';
       }
       return 'done';

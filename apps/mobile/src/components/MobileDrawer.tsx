@@ -176,7 +176,7 @@ function MobileDrawerOverlay({
       onClose();
       const requiresAuth = getRouteAccess(item.path) === 'authenticated';
       const target = requiresAuth && !user
-        ? { pathname: '/login', params: { redirect: item.path } }
+        ? toAppHref(`/login?redirect=${encodeURIComponent(item.path)}`)
         : toAppHref(item.path);
       router.navigate(target);
     },

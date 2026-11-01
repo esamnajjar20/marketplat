@@ -14,6 +14,7 @@ export default defineConfig({
     environment: 'node',
     globals: false,
     testTimeout: 10_000,
+    setupFiles: ['./vitest.setup.ts'],
     // Tell Vitest not to try transforming Node built-in modules.
     server: {
       deps: {
