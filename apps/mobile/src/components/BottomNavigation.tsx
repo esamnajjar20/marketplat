@@ -1,46 +1,15 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { usePathname } from 'expo-router';
 import { goTab } from '@/lib/navigation';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { MAIN_TABS, getActiveMainTab, shouldHideBottomNavigation } from '@/lib/navigation-policy';
+import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radius, sizes, spacing, typography } from '@/theme/tokens';
-import { AppIcon, type GlyphName } from '@/components/Icons';
-
-type NavigationTab = { label: string; path: string; glyph: GlyphName; match: (path: string) => boolean };
-
-const exploreRoots = [
-  '/categories', '/products', '/stores', '/services', '/requests', '/search', '/stories',
-  '/trending', '/suggestions', '/sellers-ranking', '/service-providers', '/promoted',
-  '/product-categories', '/store-collections-public',
-];
-const accountRoots = [
-  '/account', '/profile', '/my-', '/favorites', '/orders', '/settings', '/notifications',
-  '/activity', '/saved-searches', '/followed-stores', '/offline-queue', '/blocked-users',
-  '/storage', '/seller-orders', '/customers', '/debts', '/installments', '/appointments',
-  '/service-requests', '/service-provider-profile', '/service-provider-analytics',
-  '/seller-profile',
-  '/service-provider-hours', '/service-reviews', '/store-collections', '/store-hours',
-  '/store-invites', '/store-promotions', '/store-team',
-];
-
-const tabs: NavigationTab[] = [
-  { label: 'الرئيسية', path: '/', glyph: 'home', match: (path) => path === '/' },
-  { label: 'استكشف', path: '/explore', glyph: 'search', match: (path) => exploreRoots.some((root) => path === root || path.startsWith(`${root}/`)) || path === '/explore' },
-  { label: 'إضافة', path: '/add', glyph: 'add', match: (path) => path === '/add' },
-  { label: 'الرسائل', path: '/messages', glyph: 'messages', match: (path) => path === '/messages' },
-  { label: 'حسابي', path: '/account', glyph: 'account', match: (path) => accountRoots.some((root) => root === '/my-' ? path.startsWith(root) : path === root || path.startsWith(`${root}/`)) },
-];
-
-const hiddenPrefixes = [
-  '/login', '/register', '/forgot-password', '/reset-password', '/verify-email',
-  '/messages/', '/ads/', '/products/', '/stores/', '/services/', '/requests/', '/stories/',
-  '/orders/', '/sales/', '/profile/', '/service-providers/', '/report/', '/collections/',
-  '/categories/', '/ad-editor', '/product-editor', '/service-editor', '/sale-create',
-  '/request-create', '/story-create', '/appointment-create', '/order-checkout',
-  '/service-images',
-];
+import { fontSizes, colors, radius, sizes, spacing, typography } from '@/theme/tokens';
+import { AppIcon } from '@/components/Icons';
 
 export function isBottomNavigationHidden(pathname: string): boolean {
-  return hiddenPrefixes.some((prefix) => pathname.startsWith(prefix));
+  return shouldHideBottomNavigation(pathname);
 }
 
 export default function BottomNavigation() {
@@ -50,11 +19,11 @@ export default function BottomNavigation() {
   return (
     <SafeAreaView edges={['bottom']} style={styles.safeArea}>
       <View accessibilityRole="tablist" accessibilityLabel="التنقل الرئيسي" style={styles.bar}>
-        {tabs.map((tab) => {
-          const active = tab.match(pathname);
+        {MAIN_TABS.map((tab) => {
+          const active = getActiveMainTab(pathname) === tab.id;
           return (
             <Pressable
-              key={tab.path}
+              key={tab.id}
               accessibilityRole="tab"
               accessibilityLabel={tab.label}
               accessibilityState={{ selected: active }}
@@ -69,10 +38,10 @@ export default function BottomNavigation() {
                 <AppIcon
                   name={tab.glyph}
                   size={tab.path === '/add' ? 28 : 22}
-                  color={tab.path === '/add' ? colors.brand : active ? colors.brandDark : colors.muted}
+                  color={tab.path === '/add' ? colors.brandOnSoft : active ? colors.brandDark : colors.muted}
                 />
               </View>
-              <Text numberOfLines={1} style={[styles.label, active && styles.activeLabel]}>
+              <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={[styles.label, active && styles.activeLabel]}>
                 {tab.label}
               </Text>
             </Pressable>
@@ -118,9 +87,9 @@ const styles = StyleSheet.create({
   },
   activeGlyphWrap: { backgroundColor: colors.brandSoftActive },
   addWrap: { backgroundColor: colors.brandSoft },
-  glyph: { color: colors.muted, fontSize: 22, lineHeight: 26, fontWeight: '700' },
+  glyph: { color: colors.muted, fontSize: fontSizes[22], lineHeight: 26, fontWeight: '700' },
   activeGlyph: { color: colors.brandDark },
-  addGlyph: { fontSize: 30, lineHeight: 32, color: colors.brand, fontWeight: '500' },
+  addGlyph: { fontSize: fontSizes[30], lineHeight: 32, color: colors.brand, fontWeight: '500' },
   label: { color: colors.muted, ...typography.overline, fontWeight: '800' },
   activeLabel: { color: colors.brandDark, fontWeight: '900' },
 });

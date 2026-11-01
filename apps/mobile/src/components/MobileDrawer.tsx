@@ -1,17 +1,7 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { router, usePathname, type Href } from 'expo-router';
-import {
-  Animated,
-  BackHandler,
-  Image,
-  I18nManager,
-  PanResponder,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { Animated, BackHandler, Image, PanResponder, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import type { ReactNode } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -23,9 +13,10 @@ import {
   useRef,
   useState,
 } from 'react';
-import { AppIcon, type GlyphName } from '@/components/Icons';
+import { AppIcon } from '@/components/Icons';
 import { useAuth } from '@/features/auth/AuthContext';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { DRAWER_ITEMS, type DrawerSection } from '@/lib/navigation-policy';
 
 type MobileDrawerContextValue = {
   isDrawerOpen: boolean;
@@ -85,28 +76,7 @@ export function DrawerMenuButton() {
   );
 }
 
-type DrawerItem = {
-  label: string;
-  path: string;
-  icon: GlyphName;
-  section: 'السوق' | 'حسابك' | 'المساعدة';
-  requiresAuth?: boolean;
-};
-
-const DRAWER_ITEMS: DrawerItem[] = [
-  { label: 'الرئيسية', path: '/', icon: 'home', section: 'السوق' },
-  { label: 'استكشف السوق', path: '/explore', icon: 'search', section: 'السوق' },
-  { label: 'إضافة إعلان أو منتج', path: '/add', icon: 'add', section: 'السوق', requiresAuth: true },
-  { label: 'المحادثات', path: '/messages', icon: 'messages', section: 'السوق', requiresAuth: true },
-  { label: 'المفضلة', path: '/favorites', icon: 'favorite', section: 'السوق' },
-  { label: 'الإشعارات', path: '/notifications', icon: 'notification', section: 'حسابك', requiresAuth: true },
-  { label: 'حسابي', path: '/account', icon: 'account', section: 'حسابك' },
-  { label: 'ملفي الشخصي', path: '/profile', icon: 'account', section: 'حسابك', requiresAuth: true },
-  { label: 'إعلاناتي', path: '/my-ads', icon: 'ads', section: 'حسابك', requiresAuth: true },
-  { label: 'طلباتي', path: '/orders', icon: 'orders', section: 'حسابك', requiresAuth: true },
-  { label: 'الإعدادات', path: '/settings', icon: 'settings', section: 'حسابك', requiresAuth: true },
-  { label: 'المساعدة والاقتراحات', path: '/suggestions', icon: 'help', section: 'المساعدة' },
-];
+type DrawerItem = (typeof DRAWER_ITEMS)[number];
 
 function isItemActive(pathname: string, path: string): boolean {
   if (path === '/') return pathname === '/';
@@ -126,7 +96,9 @@ function MobileDrawerOverlay({
   const pathname = usePathname();
   const { width: screenWidth } = useWindowDimensions();
   const drawerWidth = Math.min(screenWidth * 0.86, 360);
-  const isRTL = I18nManager.isRTL;
+  // App content is intentionally rendered LTR at the native-layout level;
+  // this Arabic drawer is independently anchored and aligned to the right.
+  const isRTL = true;
   const progress = useRef(new Animated.Value(0)).current;
   const translateX = progress.interpolate({
     inputRange: [0, 1],
@@ -216,7 +188,7 @@ function MobileDrawerOverlay({
     router.navigate('/login');
   }, [logout, onClose, user]);
 
-  const sections: Array<DrawerItem['section']> = ['السوق', 'حسابك', 'المساعدة'];
+  const sections: DrawerSection[] = ['السوق', 'حسابك', 'المساعدة'];
 
   return (
     <>
@@ -255,13 +227,13 @@ function MobileDrawerOverlay({
           <SafeAreaView edges={['top', 'bottom']} style={styles.drawerSafeArea}>
             <View style={[styles.drawerHeader, isRTL ? styles.rowRTL : styles.rowLTR]}>
               <Image
-                accessibilityLabel="شعار MarketPlat"
+                accessibilityLabel="شعار سوق غزة"
                 source={require('../../assets/icon.png')}
                 resizeMode="contain"
                 style={styles.brandImage}
               />
               <View style={styles.identityText}>
-                <Text style={[styles.brandTitle, { textAlign: isRTL ? 'right' : 'left' }]}>MarketPlat</Text>
+                <Text style={[styles.brandTitle, { textAlign: isRTL ? 'right' : 'left' }]}>سوق غزة</Text>
                 <Text style={[styles.identityName, { textAlign: isRTL ? 'right' : 'left' }]} numberOfLines={1}>
                   {user?.name || 'سوقك، أقرب وأسهل'}
                 </Text>
@@ -345,7 +317,7 @@ function MobileDrawerOverlay({
                   {isRestoring ? 'جارٍ استعادة الجلسة…' : isBusy ? 'جارٍ التنفيذ…' : user ? 'تسجيل الخروج' : 'تسجيل الدخول'}
                 </Text>
               </Pressable>
-              <Text style={styles.versionLabel}>MarketPlat · تطبيق السوق المحلي</Text>
+              <Text style={styles.versionLabel}>سوق غزة · تطبيق السوق المحلي</Text>
             </View>
           </SafeAreaView>
         </Animated.View>
