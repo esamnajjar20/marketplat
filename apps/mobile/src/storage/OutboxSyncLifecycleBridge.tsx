@@ -1,7 +1,10 @@
 import { useEffect, useRef } from 'react';
+import { Alert } from 'react-native';
+import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useIsOnline } from '@/lib/connectivity';
 import { startOutboxSyncLifecycle, type OutboxLifecycleSnapshot } from './outbox-sync-lifecycle';
+import { listOfflineCreates } from './entity-create-outbox';
 
 /**
  * Adapter: connects the auth session and connectivity to the durable outbox
@@ -12,6 +15,7 @@ export function OutboxSyncLifecycleBridge() {
   const { accessToken, csrfToken, user, isRestoring } = useAuth();
   const isOnline = useIsOnline();
   const latest = useRef<OutboxLifecycleSnapshot>({ isOnline: false, token: null, ownerId: null, csrfToken: null });
+  const notifiedFailedCreates = useRef(new Set<string>());
 
   useEffect(() => {
     latest.current = { ...latest.current, token: accessToken, ownerId: user?.id ?? null, csrfToken, isOnline };
@@ -22,6 +26,28 @@ export function OutboxSyncLifecycleBridge() {
     return startOutboxSyncLifecycle({
       getSnapshot: () => ({ ...latest.current }),
       subscribeConnectivity: () => () => undefined,
+      onResult: () => {
+        const ownerId = latest.current.ownerId;
+        if (!ownerId) return;
+        void listOfflineCreates(ownerId).then((items) => {
+          const newlyFailed = items.filter((item) => item.state === 'failed' && !notifiedFailedCreates.current.has(item.id));
+          if (newlyFailed.length === 0) return;
+          newlyFailed.forEach((item) => notifiedFailedCreates.current.add(item.id));
+          const count = newlyFailed.length;
+          Alert.alert(
+            'تعذّر إكمال بعض الإضافات',
+            count === 1
+              ? 'توقفت إضافة محفوظة بسبب مشكلة في البيانات أو الصلاحيات. لم تُحذف؛ افتح العمليات دون اتصال لمعرفة السبب وإعادة المحاولة أو حذفها.'
+              : `توقفت ${count} إضافات محفوظة بسبب مشكلات في البيانات أو الصلاحيات. لم تُحذف؛ افتح العمليات دون اتصال لمعرفة الأسباب وإعادة المحاولة أو حذفها.`,
+            [
+              { text: 'لاحقًا', style: 'cancel' },
+              { text: 'عرض العمليات', onPress: () => router.push('/offline-queue' as never) },
+            ],
+          );
+        }).catch(() => {
+          // The queue screen remains the source of truth if a local DB read fails.
+        });
+      },
     });
   }, [isRestoring, isOnline, accessToken, csrfToken, user?.id]);
 

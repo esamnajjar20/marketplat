@@ -21,6 +21,11 @@ async function database() {
 }
 function map(row: Row): ChatMediaOutboxItem { return { id: row.id, ownerId: row.owner_id, conversationId: row.conversation_id, kind: row.kind as ChatMediaKind, uri: row.uri, fileName: row.file_name, mimeType: row.mime_type, sizeBytes: row.size_bytes, operationId: row.operation_id, createdAt: row.created_at, attempts: row.attempts, lastError: row.last_error }; }
 function safeName(value: string): string { return value.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100) || 'attachment.bin'; }
+function isOwnedMediaUri(uri: unknown): uri is string {
+  if (typeof uri !== 'string' || !uri.startsWith(MEDIA_DIRECTORY)) return false;
+  const fileName = uri.slice(MEDIA_DIRECTORY.length);
+  return Boolean(fileName && fileName !== '.' && fileName !== '..' && /^[A-Za-z0-9._-]+$/.test(fileName));
+}
 export function createChatMediaOperationId(kind: ChatMediaKind): string { return `chat-${kind}:${Date.now()}:${Math.random().toString(36).slice(2, 12)}`; }
 export async function enqueueChatMedia(input: { ownerId: string; conversationId: string; kind: ChatMediaKind; uri: string; fileName: string; mimeType: string; operationId?: string }): Promise<ChatMediaOutboxItem> {
   if (!input.ownerId.trim() || !input.conversationId.trim()) throw new Error('يجب تحديد الحساب والمحادثة قبل حفظ المرفق.');
@@ -51,7 +56,7 @@ export async function enqueueChatMedia(input: { ownerId: string; conversationId:
 }
 export async function listChatMediaOutbox(ownerId: string): Promise<ChatMediaOutboxItem[]> { if (!ownerId.trim()) return []; const db = await database(); return (await db.getAllAsync<Row>('SELECT * FROM chat_media_outbox WHERE owner_id = ? ORDER BY created_at ASC LIMIT ?', ownerId, MAX_PENDING_MEDIA)).map(map); }
 export async function listDueChatMediaOutbox(ownerId: string, now = Date.now()): Promise<ChatMediaOutboxItem[]> { if (!ownerId.trim()) return []; const db = await database(); return (await db.getAllAsync<Row>('SELECT * FROM chat_media_outbox WHERE owner_id = ? AND next_attempt_at <= ? AND attempts < ? ORDER BY created_at ASC LIMIT ?', ownerId, now, MAX_ATTEMPTS, MAX_PENDING_MEDIA)).map(map); }
-export async function acknowledgeChatMedia(operationId: string, ownerId: string): Promise<void> { const db = await database(); const row = await db.getFirstAsync<Row>('SELECT * FROM chat_media_outbox WHERE operation_id = ? AND owner_id = ?', operationId, ownerId); if (!row) return; await db.runAsync('DELETE FROM chat_media_outbox WHERE operation_id = ? AND owner_id = ?', operationId, ownerId); if (FileSystem.documentDirectory && row.uri.startsWith(MEDIA_DIRECTORY)) await FileSystem.deleteAsync(row.uri, { idempotent: true }).catch(() => undefined); }
+export async function acknowledgeChatMedia(operationId: string, ownerId: string): Promise<void> { const db = await database(); const row = await db.getFirstAsync<Row>('SELECT * FROM chat_media_outbox WHERE operation_id = ? AND owner_id = ?', operationId, ownerId); if (!row) return; await db.runAsync('DELETE FROM chat_media_outbox WHERE operation_id = ? AND owner_id = ?', operationId, ownerId); if (isOwnedMediaUri(row.uri)) await FileSystem.deleteAsync(row.uri, { idempotent: true }).catch(() => undefined); }
 export async function deferChatMedia(operationId: string, ownerId: string, error: unknown): Promise<void> { const db = await database(); const message = (error instanceof Error ? error.message : 'تعذرت مزامنة المرفق.').slice(0, 400); await db.runAsync('UPDATE chat_media_outbox SET next_attempt_at = ? + MIN(5000 * (1 << MIN(attempts, 10)), 3600000), attempts = attempts + 1, last_error = ? WHERE operation_id = ? AND owner_id = ?', Date.now(), message, operationId, ownerId); }
 export async function discardChatMedia(operationId: string, ownerId: string): Promise<void> { await acknowledgeChatMedia(operationId, ownerId); }
 

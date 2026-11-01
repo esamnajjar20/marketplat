@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { normalizeApiBaseUrl } from '@/lib/api-base-url';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getApiReachabilityUrl, normalizeApiBaseUrl } from '@/lib/api-base-url';
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe('normalizeApiBaseUrl', () => {
   it('accepts a valid origin and removes a trailing slash', () => {
@@ -16,5 +18,13 @@ describe('normalizeApiBaseUrl', () => {
     expect(normalizeApiBaseUrl('http://10.0.2.2:3000')).toBeNull();
     expect(normalizeApiBaseUrl('')).toBeNull();
     expect(normalizeApiBaseUrl(undefined)).toBeNull();
+  });
+});
+
+
+describe('getApiReachabilityUrl', () => {
+  it('probes the lightweight liveness endpoint, not a business-data route', () => {
+    vi.stubEnv('EXPO_PUBLIC_API_URL', 'https://api.marketplat.test');
+    expect(getApiReachabilityUrl()).toBe('https://api.marketplat.test/health');
   });
 });

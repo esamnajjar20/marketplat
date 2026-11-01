@@ -1,13 +1,19 @@
-import { clearPrivateCache, clearPrivateCacheForPrefix, deletePublicCacheEntry, readPublicCache, writePublicCache } from '@/storage/public-cache';
+import { clearPrivateCache, clearPrivateCacheForPrefix, deletePublicCacheEntry, readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import type { ZodType } from 'zod';
 import { parseApiResponse } from '@/api/response-validation';
 import { API_BASE_URL_ERROR, getConfiguredApiBaseUrl } from '@/lib/api-base-url';
 /** Minimal API transport. Set EXPO_PUBLIC_API_URL in apps/mobile/.env before connecting real screens. */
+export type ApiFieldErrors = Record<string, string[]>;
+export type ApiErrorMeta = Record<string, unknown>;
+
 export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status?: number,
     public readonly requestId?: string,
+    public readonly code?: string,
+    public readonly fieldErrors?: ApiFieldErrors,
+    public readonly errorMeta?: ApiErrorMeta,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -15,7 +21,7 @@ export class ApiError extends Error {
 }
 
 /** Marker set on responses served from offline cache after a network failure. */
-export type CachedResult<T> = T & { readonly __fromCache?: true };
+export type CachedResult<T> = T & { readonly __fromCache?: true; readonly __cachedAt?: number; readonly __staleForMs?: number };
 
 /** Returns true when the given API response was served from offline cache. */
 export function isFromCache(value: unknown): boolean {
@@ -23,9 +29,14 @@ export function isFromCache(value: unknown): boolean {
 }
 
 /** Wrap a cached payload so callers can detect stale data (spread only safe for object envelopes). */
-function tagFromCache<T>(value: T): CachedResult<T> {
+function tagFromCache<T>(value: T, savedAt: number): CachedResult<T> {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
-    return { ...(value as object), __fromCache: true as const } as CachedResult<T>;
+    return {
+      ...(value as object),
+      __fromCache: true as const,
+      __cachedAt: savedAt,
+      __staleForMs: Math.max(0, Date.now() - savedAt),
+    } as CachedResult<T>;
   }
   return value as CachedResult<T>;
 }
@@ -36,14 +47,16 @@ async function readValidatedCache<T>(
   responseSchema?: ZodType<T>,
 ): Promise<CachedResult<T> | null> {
   try {
-    const cached: unknown = await readPublicCache<unknown>(cacheKey);
+    const entry = await readPublicCacheEntry<unknown>(cacheKey);
+    if (!entry || !Number.isFinite(entry.savedAt)) return null;
+    const cached = entry.value;
     if (!cached || !isSuccessfulPublicEnvelope(cached)) return null;
     if (responseSchema) {
       const parsed = parseApiResponse(responseSchema, cached);
       if (!parsed.success) return null;
-      return tagFromCache(parsed.data) as CachedResult<T>;
+      return tagFromCache(parsed.data, entry.savedAt) as CachedResult<T>;
     }
-    return tagFromCache(cached as T);
+    return tagFromCache(cached as T, entry.savedAt);
   } catch {
     // A cache read is best-effort. It must never hide the real network/config error.
     return null;
@@ -91,10 +104,10 @@ export function setAuthFailureHandler(handler: ((error: ApiError) => void) | nul
   authFailureHandler = handler;
 }
 
-const DEFAULT_TIMEOUT_MS = 12_000;
+const DEFAULT_TIMEOUT_MS = 10_000;
 export const UPLOAD_TIMEOUT_MS = 120_000;
 
-/** Only explicitly public, read-only API families are eligible for anonymous offline caching. */
+/** Only explicitly public, read-only API families are eligible for anonymous offline caching; mutations are always excluded. */
 function publicGetCacheKey(path: string, method: string, hasToken: boolean): string | null {
   if (method.toUpperCase() !== 'GET' || hasToken || !path.startsWith('/api/v1/')) return null;
   const pathname = path.split('?', 1)[0];
@@ -145,6 +158,18 @@ function isSuccessfulPublicEnvelope(value: unknown): boolean {
   return Boolean(value && typeof value === 'object' && (value as { success?: unknown }).success === true);
 }
 
+/** Parse delta-seconds or an HTTP date from Retry-After without sleeping inside the API client. */
+function parseRetryAfterSeconds(value: string | null, now = Date.now()): number | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  const seconds = Number(trimmed);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.ceil(seconds);
+  const date = Date.parse(trimmed);
+  if (!Number.isFinite(date)) return undefined;
+  return Math.max(0, Math.ceil((date - now) / 1000));
+}
+
 export type ApiRequestOptions<T = unknown> = Omit<RequestInit, 'signal'> & {
   timeoutMs?: number;
   token?: string;
@@ -156,14 +181,76 @@ export type ApiRequestOptions<T = unknown> = Omit<RequestInit, 'signal'> & {
   responseSchema?: ZodType<T>;
   /** @internal — set internally to prevent infinite 401 retry loops. */
   _retried?: boolean;
+  /** @internal — retry one idempotent GET after a transient cold-start/network failure. */
+  _networkRetried?: boolean;
 };
+
+const API_ERROR_MESSAGES: Record<string, string> = {
+  VALIDATION_ERROR: 'تحقق من الحقول المدخلة؛ بعض البيانات غير صحيحة.',
+  BAD_REQUEST: 'تحقق من البيانات المدخلة ثم حاول مجددًا.',
+  RESOURCE_NOT_FOUND: 'العنصر المطلوب غير موجود أو لم يعد متاحًا.',
+  UNAUTHORIZED: 'انتهت جلسة الدخول أو تحتاج إلى تسجيل الدخول.',
+  STORE_ACCESS_DENIED: 'ليس لديك وصول إلى هذا المتجر.',
+  STORE_ROLE_INSUFFICIENT: 'صلاحية عضويتك لا تسمح بتنفيذ هذا الإجراء.',
+  STORE_OWNER_ONLY: 'هذا الإجراء متاح لمالك المتجر فقط.',
+  STORE_BLOCKED: 'هذا المتجر محظور ولا يمكن إجراء تغييرات عليه.',
+  STORE_OWNER_SUSPENDED: 'حساب مالك المتجر موقوف مؤقتًا.',
+  SERVICE_ATTRIBUTE_REQUIRED: 'أكمل الخصائص المطلوبة للخدمة.',
+  SERVICE_ATTRIBUTE_INVALID: 'تحقق من قيم خصائص الخدمة.',
+  INVALID_INPUT: 'تحقق من البيانات المدخلة ثم حاول مجددًا.',
+  INTERNAL_ERROR: 'حدث خطأ غير متوقع في الخادم. حاول مرة أخرى لاحقًا.',
+  SERVICE_UNAVAILABLE: 'الخدمة غير متاحة مؤقتًا. حاول مرة أخرى بعد قليل.',
+  STORE_NOT_FOUND: 'لم يتم العثور على متجر مرتبط بحسابك.',
+  SELLER_NOT_FOUND: 'أكمل ملف البائع أو أنشئ متجرًا للمتابعة.',
+  EMAIL_NOT_VERIFIED: 'أكد بريدك الإلكتروني قبل تنفيذ هذه العملية.',
+  INSUFFICIENT_PERMISSIONS: 'ليست لديك صلاحية لتنفيذ هذا الإجراء.',
+  FORBIDDEN: 'ليست لديك صلاحية لتنفيذ هذا الإجراء.',
+  NOT_FOUND: 'العنصر المطلوب غير موجود أو لم يعد متاحًا.',
+  CONFLICT: 'تعذّر إتمام العملية بسبب تعارض مع الحالة الحالية.',
+  RATE_LIMIT_EXCEEDED: 'تم تنفيذ طلبات كثيرة خلال وقت قصير. انتظر قليلًا ثم حاول مجددًا.',
+};
+
+function localizeApiMessage(message: string, status?: number, code?: string): string {
+  if (code && API_ERROR_MESSAGES[code]) return API_ERROR_MESSAGES[code];
+  const normalized = message.trim().toLowerCase();
+  if (!normalized || /^(validation failed|internal server error|service unavailable|forbidden|not found|bad request|request failed)$/i.test(message.trim())) {
+    if (status === 400 || status === 422) return 'تحقق من البيانات المدخلة ثم حاول مجددًا.';
+    if (status === 401) return 'انتهت جلسة الدخول أو تحتاج إلى تسجيل الدخول.';
+    if (status === 403) return 'ليست لديك صلاحية لتنفيذ هذا الإجراء.';
+    if (status === 404) return 'العنصر المطلوب غير موجود أو لم يعد متاحًا.';
+    if (status === 409) return 'تعذّر إتمام العملية بسبب تعارض مع الحالة الحالية.';
+    if (status && status >= 500) return 'حدث خطأ في الخادم. حاول مرة أخرى لاحقًا.';
+    return '';
+  }
+  // Keep already-Arabic application messages; translate common framework/server text.
+  if (/[\u0600-\u06FF]/.test(message)) return message;
+  if (/invalid email/i.test(message)) return 'صيغة البريد الإلكتروني غير صحيحة.';
+  if (/email.*(already|exists|taken)/i.test(message)) return 'هذا البريد الإلكتروني مستخدم بالفعل.';
+  if (/too many (?:password|login|sign[- ]?in) attempts|account.{0,32}locked|locked.{0,32}account/i.test(message)) {
+    return 'تم قفل الحساب مؤقتًا بسبب كثرة محاولات الدخول. انتظر قليلًا ثم حاول مجددًا.';
+  }
+  if (/(invalid|incorrect|wrong|malformed).*phone|phone.*(invalid|incorrect|required|missing)/i.test(message)) return 'تحقق من رقم الهاتف المدخل.';
+  if (/(invalid|incorrect|wrong|weak|missing|required).*password|password.*(invalid|incorrect|weak|required|missing|too short)/i.test(message)) return 'تحقق من كلمة المرور المدخلة.';
+  if (/unauthorized/i.test(message)) return 'انتهت جلسة الدخول أو تحتاج إلى تسجيل الدخول.';
+  if (/forbidden|permission/i.test(message)) return 'ليست لديك صلاحية لتنفيذ هذا الإجراء.';
+  if (/not found/i.test(message)) return 'العنصر المطلوب غير موجود أو لم يعد متاحًا.';
+  if (/validation|invalid|bad request/i.test(message)) return 'تحقق من البيانات المدخلة ثم حاول مجددًا.';
+  if (/internal|server error|temporarily unavailable/i.test(message)) return 'حدث خطأ في الخادم. حاول مرة أخرى لاحقًا.';
+  if (status === 400 || status === 422) return 'تحقق من البيانات المدخلة ثم حاول مجددًا.';
+  if (status === 401) return 'انتهت جلسة الدخول أو تحتاج إلى تسجيل الدخول.';
+  if (status === 403) return 'ليست لديك صلاحية لتنفيذ هذا الإجراء.';
+  if (status === 404) return 'العنصر المطلوب غير موجود أو لم يعد متاحًا.';
+  if (status === 409) return 'تعذّر إتمام العملية بسبب تعارض مع الحالة الحالية.';
+  if (status && status >= 500) return 'حدث خطأ في الخادم. حاول مرة أخرى لاحقًا.';
+  return 'تعذر إتمام الطلب. حاول مجددًا.';
+}
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> = {}): Promise<T> {
   if (!path.startsWith('/')) {
     throw new ApiError('يجب أن يبدأ مسار API بعلامة /.');
   }
 
-  const { timeoutMs: requestedTimeoutMs, token, headers, signal: externalSignal, cacheOwnerId, responseSchema, _retried, ...init } = options;
+  const { timeoutMs: requestedTimeoutMs, token, headers, signal: externalSignal, cacheOwnerId, responseSchema, _retried, _networkRetried, ...init } = options;
   const isMultipartUpload = typeof FormData !== 'undefined' && init.body instanceof FormData;
   const timeoutMs = requestedTimeoutMs ?? (isMultipartUpload ? UPLOAD_TIMEOUT_MS : DEFAULT_TIMEOUT_MS);
   const cacheKey = publicGetCacheKey(path, init.method ?? 'GET', Boolean(token?.trim()))
@@ -182,7 +269,12 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
   const abortFromCaller = () => controller.abort();
   if (externalSignal?.aborted) controller.abort();
   else externalSignal?.addEventListener('abort', abortFromCaller, { once: true });
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let timeoutExpired = false;
+  let allowHttpCacheFallback = false;
+  const timeout = setTimeout(() => {
+    timeoutExpired = true;
+    controller.abort();
+  }, timeoutMs);
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
@@ -206,6 +298,12 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
       ? await response.json().catch(() => null)
       : null;
     if (!response.ok) {
+      if (response.status >= 500 || response.status === 429) allowHttpCacheFallback = true;
+      if ((response.status === 502 || response.status === 503 || response.status === 504)
+        && (init.method ?? 'GET').toUpperCase() === 'GET'
+        && !_networkRetried && !externalSignal?.aborted) {
+        return apiRequest<T>(path, { ...options, timeoutMs, _networkRetried: true });
+      }
       // Transparent refresh on 401: one retry per request, only when we have a token,
       // and never on auth endpoints (would loop).
       if (
@@ -226,19 +324,51 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
         } catch (refreshError) {
           // A rejected/expired refresh credential is a terminal session failure.
           // Transport errors (offline/timeout/5xx) must not erase a usable offline session.
-          if (refreshError instanceof ApiError && (refreshError.status === 401 || refreshError.status === 403)) {
+          if (refreshError instanceof ApiError && refreshError.status === 401) {
             authFailureHandler?.(refreshError);
           }
           // Fall through to the original request's 401 either way.
         }
       }
       const body = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {};
-      const message = typeof body.message === 'string' ? body.message
-        : response.status === 401 ? 'انتهت جلسة الدخول أو تحتاج إلى تسجيل الدخول.'
-        : response.status === 403 ? 'ليست لديك صلاحية لتنفيذ هذا الإجراء.'
-        : `فشل الطلب (${response.status})`;
+      const code = typeof body.code === 'string' ? body.code : undefined;
       const requestId = typeof body.requestId === 'string' ? body.requestId : undefined;
-      throw new ApiError(message, response.status, requestId);
+      const rawErrors = body.errors && typeof body.errors === 'object' && !Array.isArray(body.errors)
+        ? body.errors as Record<string, unknown> : undefined;
+      const fieldErrors: ApiFieldErrors = {};
+      if (rawErrors) {
+        for (const [field, value] of Object.entries(rawErrors)) {
+          const messages = (Array.isArray(value) ? value : [value])
+            .filter((item): item is string => typeof item === 'string')
+            .map((item) => localizeApiMessage(item) || 'قيمة هذا الحقل غير صحيحة.');
+          if (messages.length) fieldErrors[field] = messages;
+        }
+      }
+      const rawErrorMeta = body.errorMeta && typeof body.errorMeta === 'object' && !Array.isArray(body.errorMeta)
+        ? body.errorMeta as ApiErrorMeta : undefined;
+      const retryAfterSeconds = response.status === 429
+        ? parseRetryAfterSeconds(response.headers.get('retry-after'))
+        : undefined;
+      const errorMeta: ApiErrorMeta | undefined = retryAfterSeconds === undefined
+        ? rawErrorMeta
+        : { ...(rawErrorMeta ?? {}), retryAfterSeconds };
+      const serverMessage = typeof body.message === 'string' ? body.message : '';
+      const rateLimitMessage = retryAfterSeconds === undefined
+        ? 'تم تنفيذ طلبات كثيرة خلال وقت قصير. انتظر قليلًا ثم حاول مجددًا.'
+        : `تم تنفيذ طلبات كثيرة. أعد المحاولة بعد ${retryAfterSeconds} ثانية.`;
+      const baseMessage = response.status === 429
+        ? rateLimitMessage
+        : localizeApiMessage(serverMessage, response.status, code)
+        || (response.status === 401 ? 'انتهت جلسة الدخول أو تحتاج إلى تسجيل الدخول.'
+          : response.status === 403 ? 'ليست لديك صلاحية لتنفيذ هذا الإجراء.'
+          : response.status === 404 ? 'العنصر المطلوب غير موجود أو لم يعد متاحًا.'
+          : response.status === 409 ? 'تعذّر إتمام العملية بسبب تعارض مع الحالة الحالية.'
+          : response.status === 422 || response.status === 400 ? 'تحقق من البيانات المدخلة ثم حاول مجددًا.'
+          : response.status >= 500 ? 'حدث خطأ في الخادم. حاول مرة أخرى لاحقًا.'
+          : `تعذر إتمام الطلب (${response.status}).`);
+      const fieldDetails = Object.values(fieldErrors).flat().slice(0, 6).join('؛ ');
+      const message = fieldDetails ? `${baseMessage}\n${fieldDetails}` : baseMessage;
+      throw new ApiError(message, response.status, requestId, code, Object.keys(fieldErrors).length ? fieldErrors : undefined, errorMeta);
     }
     let validatedPayload: unknown = payload;
     if (responseSchema) {
@@ -289,15 +419,34 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
     }
     return validatedPayload as T;
   } catch (error) {
-    // Fall back only for explicitly allow-listed read endpoints. Private cache keys include
-    // the caller-supplied account ID; mutations are always excluded.
-    if (cacheKey && !(error instanceof ApiError && error.status !== undefined)) {
+    const method = (init.method ?? 'GET').toUpperCase();
+    // A caller abort (screen unmounted/session changed) is not a network failure:
+    // never retry it and never replace it with a cached success.
+    if (externalSignal?.aborted) {
+      throw new ApiError('تم إلغاء الطلب.', undefined, undefined, 'REQUEST_CANCELLED');
+    }
+    const transientTransportFailure = error instanceof Error && (
+      (error.name === 'AbortError' && timeoutExpired)
+      || (error instanceof TypeError && /network|fetch/i.test(error.message))
+    );
+    if (method === 'GET' && !_networkRetried && transientTransportFailure) {
+      return apiRequest<T>(path, {
+        ...options,
+        timeoutMs,
+        _networkRetried: true,
+      });
+    }
+    // Fall back for explicitly allow-listed read endpoints after transport failures,
+    // HTTP 5xx or rate limiting. Do not hide ordinary 4xx or malformed 2xx payloads.
+    if (cacheKey && (allowHttpCacheFallback || !(error instanceof ApiError && error.status !== undefined))) {
       const cached = await readValidatedCache<T>(cacheKey, responseSchema);
       if (cached) return cached;
     }
     if (error instanceof ApiError) throw error;
     if (error instanceof Error && error.name === 'AbortError') {
-      throw new ApiError('انتهت مهلة الاتصال. تحقق من الإنترنت وحاول مجددًا.');
+      throw new ApiError(timeoutExpired
+        ? 'انتهت مهلة الاتصال. تحقق من الإنترنت وحاول مجددًا.'
+        : 'تم إلغاء الطلب.', undefined, undefined, timeoutExpired ? 'REQUEST_TIMEOUT' : 'REQUEST_CANCELLED');
     }
     const message = error instanceof TypeError && /network|fetch/i.test(error.message)
       ? 'تعذر الوصول إلى الخادم. تحقق من الإنترنت وعنوان API ثم حاول مجددًا.'

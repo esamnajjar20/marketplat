@@ -293,7 +293,7 @@ export async function discardOfflineCreate(id: string, ownerId?: string | null):
   if (!id.trim() || !ownerId?.trim()) return false;
   const db = await database();
   const result = await db.runAsync(
-    "DELETE FROM entity_create_outbox WHERE id = ? AND owner_id = ? AND state = 'pending'",
+    "DELETE FROM entity_create_outbox WHERE id = ? AND owner_id = ? AND state IN ('pending','failed')",
     id,
     ownerId,
   );
@@ -304,7 +304,7 @@ export async function retryOfflineCreate(id: string, ownerId?: string | null): P
   if (!id.trim() || !ownerId?.trim()) return false;
   const db = await database();
   const result = await db.runAsync(
-    "UPDATE entity_create_outbox SET attempts=0, last_error=NULL, next_attempt_at=0, state='pending', lease_until=0 WHERE id=? AND owner_id=? AND state='pending' AND attempts >= ?",
+    "UPDATE entity_create_outbox SET attempts=0, last_error=NULL, next_attempt_at=0, state='pending', lease_until=0 WHERE id=? AND owner_id=? AND state IN ('pending','failed') AND attempts >= ?",
     id,
     ownerId,
     MAX_ATTEMPTS,
@@ -356,16 +356,17 @@ function endpointForKind(kind: OfflineCreateKind): string {
 }
 
 /** Build the multipart body for a create with images, or JSON body when no images. */
-async function buildCreateBody(payload: Record<string, unknown>): Promise<BodyInit> {
+async function buildCreateBody(payload: Record<string, unknown>): Promise<{ body: BodyInit; timeoutMs: number }> {
   const rawImages = Array.isArray(payload.images) ? payload.images : [];
   const clean: Record<string, unknown> = { ...payload };
   delete clean.images;
 
   if (rawImages.length === 0) {
-    return JSON.stringify(clean);
+    return { body: JSON.stringify(clean), timeoutMs: 30_000 };
   }
 
   const form = new FormData();
+  let totalImageBytes = 0;
   for (const [key, value] of Object.entries(clean)) {
     if (value === undefined || value === null) continue;
     form.append(key, typeof value === 'string' ? value : JSON.stringify(value));
@@ -395,6 +396,7 @@ async function buildCreateBody(payload: Record<string, unknown>): Promise<BodyIn
     ) {
       throw new Error(`صورة الإضافة رقم ${index + 1} غير موجودة أو يتجاوز حجمها 5MB.`);
     }
+    totalImageBytes += info.size;
     form.append('images', {
       uri: image.uri,
       name: image.fileName,
@@ -402,7 +404,9 @@ async function buildCreateBody(payload: Record<string, unknown>): Promise<BodyIn
     } as unknown as Blob);
   }
 
-  return form;
+  // Scale upload time with actual local file sizes (minimum 60s, maximum 4m).
+  const timeoutMs = Math.min(240_000, Math.max(60_000, 45_000 + Math.ceil(totalImageBytes / (1024 * 1024)) * 3_000));
+  return { body: form, timeoutMs };
 }
 
 export async function syncNextOfflineCreate(input: {
@@ -429,10 +433,18 @@ export async function syncNextOfflineCreate(input: {
       now,
     );
 
-    // Read the true FIFO head (including backoff/exhausted/processing rows),
-    // so a newer operation cannot leapfrog an older one.
+    // Rows exhausted by older app versions may still be marked pending.
+    // Convert them to terminal failures so they cannot block the FIFO head.
+    await db.runAsync(
+      "UPDATE entity_create_outbox SET state='failed', lease_until=0 WHERE owner_id=? AND state='pending' AND attempts >= ?",
+      input.ownerId,
+      MAX_ATTEMPTS,
+    );
+
+    // Failed rows are terminal and must not block unrelated queued creates.
+    // Preserve FIFO ordering among pending/processing operations.
     const head = await db.getFirstAsync<Row>(
-      'SELECT * FROM entity_create_outbox WHERE owner_id = ? ORDER BY created_at ASC LIMIT 1',
+      "SELECT * FROM entity_create_outbox WHERE owner_id = ? AND state IN ('pending','processing') ORDER BY created_at ASC LIMIT 1",
       input.ownerId,
     );
     if (
@@ -460,16 +472,16 @@ export async function syncNextOfflineCreate(input: {
       const headers: Record<string, string> = { 'X-Offline-Op-Id': head.id };
       if (input.csrfToken) headers['X-CSRF-Token'] = input.csrfToken;
 
-      const body = await buildCreateBody(parsed as Record<string, unknown>);
+      const requestBody = await buildCreateBody(parsed as Record<string, unknown>);
 
       const response = await apiRequest<{ success: boolean; message?: string; data?: unknown }>(
         endpointForKind(head.operation),
         {
           method: 'POST',
           token: input.token,
-          timeoutMs: body instanceof FormData ? 120_000 : 30_000,
+          timeoutMs: requestBody.timeoutMs,
           headers,
-          body,
+          body: requestBody.body,
         },
       );
       if (!response || response.success !== true || response.data === undefined) {
@@ -483,20 +495,24 @@ export async function syncNextOfflineCreate(input: {
       );
       return 'synced';
     } catch (error) {
-      const attempts = head.attempts + 1;
-      const delay = Math.min(60 * 60_000, 5_000 * 2 ** Math.min(attempts - 1, 10));
+      const status = error instanceof ApiError ? error.status : undefined;
+      const isLoginRequired = status === 401;
+      const isPermanent = status !== undefined
+        ? status >= 400 && status < 500 && ![401, 408, 425, 429].includes(status)
+        : !(error instanceof ApiError);
+      const attempts = isPermanent ? MAX_ATTEMPTS : isLoginRequired ? head.attempts : head.attempts + 1;
+      const delay = isLoginRequired ? 0 : Math.min(60 * 60_000, 5_000 * 2 ** Math.min(Math.max(0, attempts - 1), 10));
       const message = (error instanceof Error ? error.message : 'تعذرت المزامنة.').slice(0, 500);
       await db.runAsync(
-        "UPDATE entity_create_outbox SET state='pending', attempts=?, last_error=?, next_attempt_at=?, lease_until=0 WHERE id=? AND owner_id=?",
+        "UPDATE entity_create_outbox SET state=?, attempts=?, last_error=?, next_attempt_at=?, lease_until=0 WHERE id=? AND owner_id=?",
+        isPermanent ? 'failed' : 'pending',
         attempts,
         message,
         Date.now() + delay,
         head.id,
         input.ownerId,
       );
-      return error instanceof ApiError && (error.status === 401 || error.status === 403)
-        ? 'login-required'
-        : 'retry-scheduled';
+      return isLoginRequired ? 'login-required' : 'retry-scheduled';
     }
   })();
 

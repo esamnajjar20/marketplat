@@ -40,7 +40,7 @@ export function getConfiguredApiBaseUrl(): string | null {
 
 export function getApiReachabilityUrl(): string | null {
   const baseUrl = getConfiguredApiBaseUrl();
-  return baseUrl ? `${baseUrl}/api/v1/categories` : null;
+  return baseUrl ? `${baseUrl}/health` : null;
 }
 
 export const API_BASE_URL_ERROR =

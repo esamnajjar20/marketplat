@@ -12,7 +12,7 @@ const reachabilityUrl = getApiReachabilityUrl();
 if (reachabilityUrl) {
   NetInfo.configure({
     reachabilityUrl,
-    reachabilityTest: async (response) => response.status === 200,
+    reachabilityTest: async (response) => response.status >= 200 && response.status < 600,
     reachabilityShortTimeout: 10 * 1000,
     reachabilityLongTimeout: 60 * 1000,
     reachabilityRequestTimeout: 20 * 1000,
