@@ -4,19 +4,14 @@ import { PublicSalesStats } from '@/components/stores/PublicSalesStats';
 
 const mocks = vi.hoisted(() => ({
   useQuery: vi.fn(),
-  useRouter: vi.fn(() => ({ push: vi.fn() })),
-  useStartConversation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
 vi.mock('@tanstack/react-query', () => ({ useQuery: mocks.useQuery }));
-vi.mock('next/navigation', () => ({ useRouter: mocks.useRouter }));
-vi.mock('@/hooks/mutations/useConversationMutations', () => ({ useStartConversation: mocks.useStartConversation }));
 
 const cachedStats = {
   storeId: 'store-1',
   storeName: 'متجر محفوظ',
   storeSlug: 'saved-store',
-  ownerUserId: 'owner-1',
   totalSales: 18,
   averageRating: 4.8,
   reviewCount: 12,

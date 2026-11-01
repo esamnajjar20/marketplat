@@ -408,6 +408,16 @@ export const storeMembersService = {
   },
 
   /** Pending invites for the current user (any store). */
+  listMyActiveMemberships: async (userId: string) => {
+    return prisma.storeMember.findMany({
+      where: { userId, status: StoreMemberStatus.ACTIVE },
+      include: {
+        store: { select: { id: true, name: true, slug: true, status: true, city: true, logoUrl: true, coverImageUrl: true } },
+      },
+      orderBy: { invitedAt: 'asc' },
+    });
+  },
+
   listMyPendingInvites: async (userId: string): Promise<StoreMemberWithUser[]> => {
     const rows = await prisma.storeMember.findMany({
       where: { userId, status: StoreMemberStatus.PENDING },

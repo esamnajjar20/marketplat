@@ -2,20 +2,16 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { BadgeCheck, BarChart3, MessageCircle, Star } from 'lucide-react';
-import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
-import { useRouter } from 'next/navigation';
+import { BadgeCheck, BarChart3, Star } from 'lucide-react';
 import type { ApiResponse } from '@/types/api.types';
 import { queryKeys } from '@/lib/queryKeys';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/ui/skeleton';
-import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 type Stats = {
   storeId: string;
   storeName: string;
   storeSlug: string;
-  ownerUserId: string;
   totalSales: number;
   averageRating: number;
   reviewCount: number;
@@ -24,8 +20,6 @@ type Stats = {
 };
 
 export function PublicSalesStats({ slug }: { slug: string }) {
-  const router = useRouter();
-  const startConversation = useStartConversation();
   const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: queryKeys.publicStoreSalesStats(slug),
     queryFn: async () => {
@@ -79,20 +73,7 @@ export function PublicSalesStats({ slug }: { slug: string }) {
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
           <Link href={`/stores/${data.storeId}`} className="rounded-lg border px-4 py-2 text-sm">عرض المتجر</Link>
-          <button
-            type="button"
-            onClick={() => startConversation.mutate({ userId: data.ownerUserId }, { onSuccess: (conversation) => {
-              if (conversation?.id) {
-                const destination = `/messages/${conversation.id}`;
-                signalNavigationStart(destination);
-                router.push(destination);
-              }
-            } })}
-            disabled={startConversation.isPending}
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-60"
-          >
-            <MessageCircle className="h-4 w-4" />{startConversation.isPending ? 'جاري الفتح…' : 'تواصل مع البائع'}
-          </button>
+
         </div>
       </div>
     </section>

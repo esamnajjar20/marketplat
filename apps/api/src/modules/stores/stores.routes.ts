@@ -65,6 +65,12 @@ storesRouter.post(
 // ─── Store members (staff permissions) ───────────────────────────────────────
 // Before /:id so "me/member-invites" is never swallowed as an :id.
 storesRouter.get(
+  '/me/memberships',
+  authenticate,
+  CACHE.NONE,
+  storeMembersController.listMyActiveMemberships
+);
+storesRouter.get(
   '/me/member-invites',
   authenticate,
   CACHE.NONE,

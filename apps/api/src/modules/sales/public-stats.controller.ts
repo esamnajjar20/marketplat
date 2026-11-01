@@ -11,28 +11,30 @@ export const publicSalesStatsController = {
         where: { slug },
         include: {
           sellerProfile: {
-            select: { userId: true, verified: true, averageRating: true, totalRatings: true },
+            select: { verified: true, averageRating: true, totalRatings: true },
           },
         },
       });
       if (!store || store.status !== 'ACTIVE')
         throw new NotFoundError('Store not found.', 'STORE_NOT_FOUND');
-      const aggregate = await prisma.saleRecord.aggregate({
-        where: { storeId: store.id },
-        _count: { id: true },
-        _max: { soldAt: true },
-      });
+      // A fully refunded sale is not counted as a completed public sale.
+      // Partially refunded sales remain counted; zero-value sales remain valid.
+      const [aggregate] = await prisma.$queryRaw<Array<{ totalSales: bigint; lastSaleAt: Date | null }>>`
+        SELECT COUNT(*)::bigint AS "totalSales", MAX("soldAt") AS "lastSaleAt"
+        FROM "sale_records"
+        WHERE "storeId" = ${store.id}
+          AND ("refundedAmount" < "totalPrice" OR ("totalPrice" = 0 AND "refundedAmount" = 0))
+      `;
       res.json(
         successResponse('Public store sales stats fetched', {
           storeId: store.id,
           storeName: store.name,
           storeSlug: store.slug,
-          ownerUserId: store.sellerProfile.userId,
-          totalSales: aggregate._count.id,
+          totalSales: Number(aggregate?.totalSales ?? 0),
           averageRating: Number(store.sellerProfile.averageRating),
           reviewCount: store.sellerProfile.totalRatings,
           verifiedSeller: store.sellerProfile.verified,
-          lastSaleAt: aggregate._max.soldAt,
+          lastSaleAt: aggregate?.lastSaleAt ?? null,
         })
       );
     } catch (e) {
