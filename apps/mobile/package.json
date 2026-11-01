@@ -1,6 +1,6 @@
 {
   "name": "@marketplat/mobile",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "type-check": "tsc --noEmit",
     "test": "node ./scripts/run-all-verifications.mjs",
-    "build:apk:test": "cd android && ./gradlew assembleRelease",
+    "build:apk:test": "cd android && ./gradlew assembleDebug",
     "verify:apk:test": "node ./scripts/verify-release-config.mjs",
     "test:storage": "node --test src/storage/__tests__/*.test.mjs",
     "test:sqlite": "vitest run",
@@ -18,7 +18,8 @@
     "test:all": "pnpm run test && pnpm run test:storage && pnpm run test:sqlite",
     "lint": "eslint \"app/**/*.{ts,tsx}\" \"src/**/*.{ts,tsx}\" --max-warnings=0 && node ./scripts/lint-mobile.mjs",
     "verify:production-signing": "cd android && ./gradlew :app:verifyProductionSigning",
-    "verify:a11y": "node ./scripts/verify-design-system-a11y.mjs"
+    "verify:a11y": "node ./scripts/verify-design-system-a11y.mjs",
+    "verify:navigation-policy": "node ./scripts/verify-navigation-policy.mjs"
   },
   "dependencies": {
     "@expo/dom-webview": "~58.0.2",

@@ -92,8 +92,8 @@ android {
         applicationId 'com.marketplat.mobile'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "0.1.0"
+        versionCode 2
+        versionName "0.1.1"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -104,15 +104,14 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
-        // Production credentials are supplied only through local environment or CI secrets.
-        // Never commit a release keystore or its passwords.
-        if (System.getenv('MARKETPLAT_RELEASE_STORE_FILE')) {
-            release {
-                storeFile file(System.getenv('MARKETPLAT_RELEASE_STORE_FILE'))
-                storePassword System.getenv('MARKETPLAT_RELEASE_STORE_PASSWORD')
-                keyAlias System.getenv('MARKETPLAT_RELEASE_KEY_ALIAS')
-                keyPassword System.getenv('MARKETPLAT_RELEASE_KEY_PASSWORD')
-            }
+        // A release variant is always configured for production credentials.
+        // There is deliberately no debug-keystore fallback for release artifacts.
+        // verifyProductionSigning is wired before every release build task below.
+        release {
+            storeFile file(System.getenv('MARKETPLAT_RELEASE_STORE_FILE') ?: 'missing-production-release.keystore')
+            storePassword System.getenv('MARKETPLAT_RELEASE_STORE_PASSWORD') ?: ''
+            keyAlias System.getenv('MARKETPLAT_RELEASE_KEY_ALIAS') ?: ''
+            keyPassword System.getenv('MARKETPLAT_RELEASE_KEY_PASSWORD') ?: ''
         }
     }
     buildTypes {
@@ -120,10 +119,9 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            // Test builds retain debug signing so the existing internal-test workflow works.
-            // Production releases MUST run :app:verifyProductionSigning and provide all four
-            // MARKETPLAT_RELEASE_* environment variables before building/publishing.
-            signingConfig System.getenv('MARKETPLAT_RELEASE_STORE_FILE') ? signingConfigs.release : signingConfigs.debug
+            // Release output must never be signed with the repository debug key.
+            // Test workflows build the debug variant; release is reserved for signed distribution.
+            signingConfig signingConfigs.release
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
@@ -200,9 +198,7 @@ dependencies {
     }
 }
 
-// Explicit guard for release pipelines intended for public distribution.
-// Existing internal test workflows may continue to build release variants with debug signing,
-// but a production pipeline must call this task before assembleRelease/bundleRelease.
+// Every release task must pass this guard. Internal QA workflows use the debug variant.
 tasks.register('verifyProductionSigning') {
     group = 'verification'
     description = 'Fails unless a private production signing keystore and all credentials are configured.'
@@ -221,5 +217,13 @@ tasks.register('verifyProductionSigning') {
         if (!store.isFile()) {
             throw new GradleException("Production keystore file does not exist: ${store}")
         }
+    }
+}
+
+// Guard all release variant entry points (including direct package/sign tasks) before
+// Gradle can create an APK/AAB. A debug APK remains available through assembleDebug.
+tasks.configureEach { candidate ->
+    if (candidate.name == 'preReleaseBuild' || candidate.name == 'assembleRelease' || candidate.name == 'bundleRelease') {
+        candidate.dependsOn(tasks.named('verifyProductionSigning'))
     }
 }

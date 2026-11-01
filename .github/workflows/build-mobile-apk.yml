@@ -129,16 +129,16 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Build Release AAB (test only)
+      - name: Build Debug AAB (test only)
         working-directory: apps/mobile/android
-        run: ./gradlew bundleRelease --no-daemon --stacktrace
+        run: ./gradlew bundleDebug --no-daemon --stacktrace
 
-      - name: Locate and validate Release AAB
+      - name: Locate and validate Debug AAB
         id: aab
         run: |
-          AAB="apps/mobile/android/app/build/outputs/bundle/release/app-release.aab"
+          AAB="apps/mobile/android/app/build/outputs/bundle/debug/app-debug.aab"
           if [ ! -s "$AAB" ]; then
-            echo "Expected AAB not found: $AAB"
+            echo "Expected debug AAB not found: $AAB"
             find apps/mobile/android/app/build/outputs -type f 2>/dev/null || true
             exit 1
           fi
@@ -146,10 +146,10 @@ jobs:
           echo "size=$(du -h "$AAB" | cut -f1)" >> "$GITHUB_OUTPUT"
           sha256sum "$AAB"
 
-      - name: Upload Release AAB (test only)
+      - name: Upload Debug AAB (test only)
         uses: actions/upload-artifact@v4
         with:
-          name: marketplat-expo-release-aab-test
+          name: marketplat-expo-debug-aab-test
           path: ${{ steps.aab.outputs.path }}
           if-no-files-found: error
           retention-days: 14

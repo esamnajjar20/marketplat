@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build Android Release APK
+    name: Build Android Debug Test APK
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
@@ -65,17 +65,17 @@ jobs:
         run: npx expo prebuild --clean --platform android --no-install
 
 
-      - name: Build Release APK
+      - name: Build Debug APK
         working-directory: apps/mobile/android
-        run: ./gradlew --no-daemon assembleRelease -PreactNativeArchitectures=arm64-v8a
+        run: ./gradlew --no-daemon assembleDebug -PreactNativeArchitectures=arm64-v8a
 
       - name: Find APK
         id: apk
         shell: bash
         run: |
           set -euo pipefail
-          APK="$(find apps/mobile/android/app/build/outputs/apk/release \
-            -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          APK="$(find apps/mobile/android/app/build/outputs/apk/debug \
+            -maxdepth 1 -type f -name '*debug*.apk' -print -quit)"
           if [ -z "$APK" ]; then
             echo "APK was not generated."
             exit 1
@@ -86,7 +86,7 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: marketplat-android-test-apk
+          name: marketplat-android-debug-test-apk
           path: ${{ steps.apk.outputs.path }}
           if-no-files-found: error
           retention-days: 14
