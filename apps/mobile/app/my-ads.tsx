@@ -78,8 +78,8 @@ export default function MyAdsScreen() {
         try {
           const queued = await listAllOutboxMutations(String(user.id), { unlimited: true });
           const deletes = queued.filter((mutation) => mutation.operation === 'delete-ad');
-          setPendingDeleteIds(new Set(deletes.map((mutation) => mutation.resourceId)));
-          setFailedDeleteIds(new Set(deletes.filter((mutation) => mutation.state === 'failed').map((mutation) => mutation.resourceId)));
+          setPendingDeleteIds(new Set(deletes.map((mutation) => mutation.resourceId).filter((id): id is string => id !== null)));
+          setFailedDeleteIds(new Set(deletes.filter((mutation) => mutation.state === 'failed').map((mutation) => mutation.resourceId).filter((id): id is string => id !== null)));
           setQueueReadError('');
         } catch { setQueueReadError('تعذر قراءة حالة عمليات الحذف المحفوظة. افتح مركز العمليات للتحقق منها.'); }
       }
@@ -217,7 +217,7 @@ export default function MyAdsScreen() {
           keyExtractor={(ad) => ad.id}
           {...marketListPerf}
           contentContainerStyle={styles.list}
-          ListHeaderComponent={error || queueReadError ? <View style={{ gap: spacing.sm }}>{error ? <ErrorState title="تعذر تحديث الإعلانات" description={error} onAction={() => void load()} /> : null}{queueReadError ? <Text style={{ color: colors.danger, textAlign: 'right' }}>{queueReadError}</Text> : null}</View> : null}
+          ListHeaderComponent={error || queueReadError ? <View style={{ gap: spacing.sm }}>{error ? <ErrorState title="تعذر تحديث الإعلانات" description={error} onAction={() => void load()} /> : null}{queueReadError ? <Text style={{ color: colors.danger, textAlign: 'right' }}>{queueReadError}</Text> : null}</View> : undefined}
           ListEmptyComponent={
             <EmptyState
               title="لم تنشر أي إعلان بعد"
@@ -253,7 +253,7 @@ export default function MyAdsScreen() {
               {moreError ? <ErrorState title="تعذر تحميل المزيد" description={moreError} onAction={() => void loadMore()} /> : null}
               {page < totalPages ? <PrimaryButton label={loadingMore ? 'جارٍ التحميل…' : 'تحميل المزيد'} variant="secondary" busy={loadingMore} onPress={() => void loadMore()} /> : null}
             </View>
-          ) : null}
+          ) : undefined}
         />
       )}
     </SafeAreaView>

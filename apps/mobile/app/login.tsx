@@ -9,6 +9,7 @@ import { goBack } from '@/lib/navigation';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Field, Notice, PrimaryButton } from '@/components/MobileUI';
+import type { TextInputHandle } from '@/components/ui/Field';
 import { fontSizes, colors, spacing, typography } from '@/theme/tokens';
 import { loginSchema, validate } from '@/lib/validation';
 import { getSafeAuthRedirect } from '@/lib/safe-auth-redirect';
@@ -20,8 +21,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
-  const emailInputRef = useRef<TextInput>(null);
-  const passwordInputRef = useRef<TextInput>(null);
+  const emailInputRef = useRef<TextInputHandle>(null);
+  const passwordInputRef = useRef<TextInputHandle>(null);
 
   const submit = async () => {
     const checked = validate(loginSchema, { email, password });

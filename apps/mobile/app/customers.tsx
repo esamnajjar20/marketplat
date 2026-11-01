@@ -199,7 +199,7 @@ export default function CustomersScreen() {
           </SectionCard>
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        ListFooterComponent={hasMore ? <View style={{ gap: spacing.sm, paddingBottom: 20 }}>{moreError ? <Notice>{moreError}</Notice> : null}<PrimaryButton label={loadingMore ? 'جارٍ تحميل المزيد…' : moreError ? 'إعادة المحاولة' : 'تحميل المزيد'} variant="secondary" busy={loadingMore} onPress={() => void loadMore()} /></View> : null}
+        ListFooterComponent={hasMore ? <View style={{ gap: spacing.sm, paddingBottom: 20 }}>{moreError ? <Notice>{moreError}</Notice> : null}<PrimaryButton label={loadingMore ? 'جارٍ تحميل المزيد…' : moreError ? 'إعادة المحاولة' : 'تحميل المزيد'} variant="secondary" busy={loadingMore} onPress={() => void loadMore()} /></View> : undefined}
       />
     </PageShell>
   );

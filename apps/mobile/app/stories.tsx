@@ -122,7 +122,7 @@ export default function StoriesScreen() {
           )}
           ListEmptyComponent={!error ? (
             <Text style={styles.muted}>لا توجد قصص نشطة حاليًا. تابع المستخدمين لرؤية قصصهم هنا.</Text>
-          ) : null}
+          ) : undefined}
           renderItem={({ item: group }) => (
             <View style={styles.group}>
               <Pressable

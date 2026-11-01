@@ -46,7 +46,7 @@ describe('apiRequest reliability contracts', () => {
     cache.readPublicCacheEntry.mockResolvedValue({ value: { success: true, data: [{ id: 'cached-ad' }] }, savedAt: Date.now() - 60_000 });
 
     const { apiRequest } = await loadClient();
-    const result = await apiRequest<{ success: true; data: unknown[]; __fromCache?: true }>('/api/v1/categories');
+    const result = await apiRequest<{ success: true; data: unknown[]; __fromCache?: true; __cachedAt?: number; __staleForMs?: number }>('/api/v1/categories');
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(result.success).toBe(true);

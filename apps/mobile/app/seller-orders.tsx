@@ -96,7 +96,7 @@ export default function SellerOrdersScreen() {
             {error && items.length > 0 ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
           </>
         )}
-        ListEmptyComponent={!initialState ? <View style={styles.state}><Text style={styles.emptyTitle}>لا توجد طلبات واردة</Text><Text style={styles.muted}>ستظهر هنا الطلبات الجديدة من المشترين.</Text></View> : null}
+        ListEmptyComponent={!initialState ? <View style={styles.state}><Text style={styles.emptyTitle}>لا توجد طلبات واردة</Text><Text style={styles.muted}>ستظهر هنا الطلبات الجديدة من المشترين.</Text></View> : undefined}
         renderItem={({ item: order }) => (
           <Pressable accessibilityRole="button" accessibilityLabel={`فتح طلب ${order.id.slice(-8)}`} onPress={() => router.push(`/orders/${encodeURIComponent(order.id)}`)} style={styles.card}>
             <View style={styles.cardTop}><Text style={styles.total}>{money(order.total)}</Text><Text style={styles.status}>{labels[order.status] || order.status}</Text></View>
@@ -110,7 +110,7 @@ export default function SellerOrdersScreen() {
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         onEndReached={() => void loadMore()}
         onEndReachedThreshold={0.45}
-        ListFooterComponent={loadingMore ? <View style={styles.footerLoading}><ActivityIndicator color={colors.brand} /><Text style={styles.muted}>تحميل الطلبات الأقدم…</Text></View> : page < totalPages ? <Pressable accessibilityRole="button" onPress={() => void loadMore()} style={styles.secondary}><Text style={styles.secondaryText}>عرض الطلبات الأقدم</Text></Pressable> : null}
+        ListFooterComponent={loadingMore ? <View style={styles.footerLoading}><ActivityIndicator color={colors.brand} /><Text style={styles.muted}>تحميل الطلبات الأقدم…</Text></View> : page < totalPages ? <Pressable accessibilityRole="button" onPress={() => void loadMore()} style={styles.secondary}><Text style={styles.secondaryText}>عرض الطلبات الأقدم</Text></Pressable> : undefined}
       />
     </SafeAreaView>
   );

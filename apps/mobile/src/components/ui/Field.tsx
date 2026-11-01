@@ -1,9 +1,12 @@
-import { useState, type Ref } from 'react';
+import { useState, type Ref, type ComponentRef } from 'react';
 import { TextInput, View, type TextInputProps } from 'react-native';
 import { AppText as Text } from './AppText';
 import { colors } from '@/theme/tokens';
 import { uiStyles as s } from './styles';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
+
+/** Shared TextInput ref handle for cross-component input chaining. */
+export type TextInputHandle = ComponentRef<typeof TextInput>;
 
 export function Field({
   label,
@@ -46,7 +49,7 @@ export function Field({
   autoCorrect?: TextInputProps['autoCorrect'];
   textContentType?: TextInputProps['textContentType'];
   textAlign?: TextInputProps['textAlign'];
-  inputRef?: Ref<TextInput>;
+  inputRef?: Ref<TextInputHandle>;
 }) {
   const [focused, setFocused] = useState(false);
   return (
@@ -65,8 +68,6 @@ export function Field({
         keyboardType={keyboardType}
         secureTextEntry={secureTextEntry}
         maxLength={maxLength}
-        allowFontScaling
-        maxFontSizeMultiplier={1.3}
         editable={editable}
         accessibilityLabel={label}
         accessibilityHint={error ? `${accessibilityHint ? `${accessibilityHint}. ` : ''}${error}` : accessibilityHint}

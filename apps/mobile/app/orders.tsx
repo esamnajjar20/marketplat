@@ -121,7 +121,7 @@ export default function MyOrdersScreen() {
             {error && items.length > 0 ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
           </>
         )}
-        ListEmptyComponent={!showInitialState ? <View style={styles.state}><Text style={styles.emptyTitle}>لا توجد طلبات حتى الآن</Text><Text style={styles.muted}>عندما تطلب منتجًا من أحد المتاجر، سيظهر هنا.</Text><Pressable style={styles.primary} onPress={() => router.push('/products')}><Text style={styles.primaryText}>تصفح المنتجات</Text></Pressable></View> : null}
+        ListEmptyComponent={!showInitialState ? <View style={styles.state}><Text style={styles.emptyTitle}>لا توجد طلبات حتى الآن</Text><Text style={styles.muted}>عندما تطلب منتجًا من أحد المتاجر، سيظهر هنا.</Text><Pressable style={styles.primary} onPress={() => router.push('/products')}><Text style={styles.primaryText}>تصفح المنتجات</Text></Pressable></View> : undefined}
         renderItem={({ item: order }) => (
           <Pressable accessibilityRole="button" accessibilityLabel={`تفاصيل الطلب ${order.id.slice(-8)}`} onPress={() => router.push(`/orders/${encodeURIComponent(order.id)}`)} style={styles.card}>
             <View style={styles.cardTop}><Text style={styles.total}>{money(order.total)}</Text><Text style={styles.status}>{labels[order.status] || order.status}</Text></View>
@@ -139,7 +139,7 @@ export default function MyOrdersScreen() {
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         onEndReached={() => void loadMore()}
         onEndReachedThreshold={0.45}
-        ListFooterComponent={loadingMore ? <View style={styles.footerLoading}><ActivityIndicator color={colors.brand} /><Text style={styles.muted}>تحميل الطلبات الأقدم…</Text></View> : page < totalPages ? <Pressable accessibilityRole="button" onPress={() => void loadMore()} style={styles.secondary}><Text style={styles.secondaryText}>عرض الطلبات الأقدم</Text></Pressable> : null}
+        ListFooterComponent={loadingMore ? <View style={styles.footerLoading}><ActivityIndicator color={colors.brand} /><Text style={styles.muted}>تحميل الطلبات الأقدم…</Text></View> : page < totalPages ? <Pressable accessibilityRole="button" onPress={() => void loadMore()} style={styles.secondary}><Text style={styles.secondaryText}>عرض الطلبات الأقدم</Text></Pressable> : undefined}
       />
     </SafeAreaView>
   );

@@ -377,7 +377,7 @@ export default function ConversationScreen() {
     Alert.alert('خيارات الرسالة', 'اضغط مطولًا على أي رسالة لإدارة تثبيتها أو حفظها.', [
       { text: message.isPinned ? 'إلغاء التثبيت' : 'تثبيت', onPress: () => toggleMark('pin') },
       { text: message.isStarredByMe ? 'إزالة من المفضلة' : 'إضافة للمفضلة', onPress: () => toggleMark('star') },
-      ...(message.senderId === user?.id ? [{ text: 'حذف الرسالة', style: 'destructive', onPress: deleteOwnMessage }] : [{ text: 'إغلاق', style: 'cancel' as const }]),
+      ...(message.senderId === user?.id ? [{ text: 'حذف الرسالة', style: 'destructive' as const, onPress: deleteOwnMessage }] : [{ text: 'إغلاق', style: 'cancel' as const }]),
     ]);
   }, [accessToken, csrfToken, id, user?.id]);
   const normalizedSearch = messageSearch.trim().toLocaleLowerCase();

@@ -161,7 +161,7 @@ export default function ServicesScreen() {
             {moreError ? <ErrorState title="تعذر تحميل المزيد" description={moreError} onAction={() => void loadMore()} /> : null}
             {!moreError && page < totalPages ? <PrimaryButton label={loadingMore ? 'جارٍ التحميل…' : 'تحميل المزيد'} onPress={() => void loadMore()} busy={loadingMore} variant="secondary" /> : null}
           </View>
-        ) : null}
+        ) : undefined}
       />
     </SafeAreaView>
   );

@@ -72,7 +72,7 @@ export default function MyReportsScreen() {
               {item.notes ? <Text style={{ textAlign: 'right', color: colors.ink, lineHeight: 22 }}>{item.notes}</Text> : null}
             </SectionCard>
           )}
-          ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.brand} /> : page < totalPages ? <PrimaryButton label="تحميل المزيد" variant="secondary" onPress={() => void load(false)} /> : items.length > 0 ? <PrimaryButton label="تحديث" variant="secondary" onPress={() => void load(true)} /> : null}
+          ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.brand} /> : page < totalPages ? <PrimaryButton label="تحميل المزيد" variant="secondary" onPress={() => void load(false)} /> : items.length > 0 ? <PrimaryButton label="تحديث" variant="secondary" onPress={() => void load(true)} /> : undefined}
           onEndReached={() => { if (!loading && !loadingMore && page < totalPages) void load(false); }}
           onEndReachedThreshold={0.4}
         />

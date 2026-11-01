@@ -16,7 +16,7 @@ import { useRouter } from 'next/navigation';
 import { authApi }       from '@/api/auth.api';
 import { usersApi }      from '@/api/users.api';
 import { queryKeys }     from '@/lib/queryKeys';
-import { ROUTES, CACHE_TTL } from '@/lib/constants';
+import { ROUTES } from '@/lib/constants';
 import { CACHE_POLICY } from '@/lib/cachePolicy';
 import { track }         from '@/lib/analytics';
 import { clearSensitiveLocalData, clearServiceWorkerApiCache, unbindPushBindings } from '@/lib/authCleanup';

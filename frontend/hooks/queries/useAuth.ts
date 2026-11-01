@@ -12,6 +12,7 @@ import { authApi } from '@/api/auth.api';
 import { usersApi } from '@/api/users.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_POLICY } from '@/lib/cachePolicy';
+import { CACHE_TTL } from '@/lib/constants';
 import {
   useAuthStore,
   selectIsAuthenticated,

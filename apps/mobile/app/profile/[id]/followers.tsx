@@ -113,7 +113,7 @@ export default function FollowersScreen() {
         ListFooterComponent={
           loadingMore ? <ActivityIndicator color={colors.brand} /> : page < totalPages ? (
             <PrimaryButton label="تحميل المزيد" variant="secondary" onPress={() => void load(false)} />
-          ) : items.length > 0 ? <PrimaryButton label="تحديث" variant="secondary" onPress={() => void load(true)} /> : null
+          ) : items.length > 0 ? <PrimaryButton label="تحديث" variant="secondary" onPress={() => void load(true)} /> : undefined
         }
         onEndReached={() => { if (!loading && !loadingMore && page < totalPages) void load(false); }}
         onEndReachedThreshold={0.4}

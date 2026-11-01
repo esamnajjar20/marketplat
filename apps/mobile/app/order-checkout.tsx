@@ -4,6 +4,7 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppImage } from '@/components/AppImage';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import type { TextInputHandle } from '@/components/ui/Field';
 import { AppText } from '@/components/ui/AppText';
 import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -30,11 +31,11 @@ export default function OrderCheckoutScreen() {
   const [shippingAddress, setShippingAddress] = useState('');
   const [buyerNote, setBuyerNote] = useState('');
   const [idempotencyKey, setIdempotencyKey] = useState(makeKey);
-  const nameRef = useRef<TextInput>(null);
-  const phoneRef = useRef<TextInput>(null);
-  const cityRef = useRef<TextInput>(null);
-  const addressRef = useRef<TextInput>(null);
-  const noteRef = useRef<TextInput>(null);
+  const nameRef = useRef<TextInputHandle>(null);
+  const phoneRef = useRef<TextInputHandle>(null);
+  const cityRef = useRef<TextInputHandle>(null);
+  const addressRef = useRef<TextInputHandle>(null);
+  const noteRef = useRef<TextInputHandle>(null);
 
   const load = useCallback(async () => {
     if (!productId) { setLoading(false); setError('معرّف المنتج غير صالح.'); return; }

@@ -4,7 +4,7 @@ import { ActivityIndicator, Alert, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyAppointments, updateAppointmentStatus, type AppointmentRow } from '@/features/appointments/appointments.api';
-import { fetchMyServiceProvider } from '@/features/services/services.api';
+import { fetchMyServiceProvider } from '@/features/services/providers.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { fontSizes, colors } from '@/theme/tokens';
 

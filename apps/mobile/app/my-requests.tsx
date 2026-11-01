@@ -74,7 +74,7 @@ export default function MyRequestsScreen() {
               </SectionCard>
             </Pressable>
           )}
-          ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.brand} /> : page < totalPages ? <PrimaryButton label="تحميل المزيد" variant="secondary" onPress={() => void load(false)} /> : items.length ? <PrimaryButton label="تحديث" variant="secondary" onPress={() => void load(true)} /> : null}
+          ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.brand} /> : page < totalPages ? <PrimaryButton label="تحميل المزيد" variant="secondary" onPress={() => void load(false)} /> : items.length ? <PrimaryButton label="تحديث" variant="secondary" onPress={() => void load(true)} /> : undefined}
           onEndReached={() => { if (!loading && !loadingMore && page < totalPages) void load(false); }}
           onEndReachedThreshold={0.4}
         />

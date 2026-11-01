@@ -249,13 +249,13 @@ export default function NotificationsScreen() {
               tintColor={colors.brand}
             />
           }
-          ListHeaderComponent={error ? <ErrorState title="تعذر تحديث الإشعارات" description={error} onAction={() => void load(true)} /> : null}
+          ListHeaderComponent={error ? <ErrorState title="تعذر تحديث الإشعارات" description={error} onAction={() => void load(true)} /> : undefined}
           ListFooterComponent={items.length > 0 ? (
             <View style={{ gap: spacing.sm }}>
               {page < totalPages ? <Pressable accessibilityRole="button" disabled={loadingMore} onPress={() => void loadMore()} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={styles.link}>{loadingMore ? 'جارٍ تحميل المزيد…' : 'تحميل إشعارات أقدم'}</Text></Pressable> : null}
               {moreError ? <ErrorState title="تعذر تحميل الإشعارات الأقدم" description={moreError} onAction={() => void loadMore()} /> : null}
             </View>
-          ) : null}
+          ) : undefined}
           ListEmptyComponent={
             <EmptyState
               title="لا توجد إشعارات بعد"
