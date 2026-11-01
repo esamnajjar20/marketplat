@@ -16,7 +16,7 @@ src/storage/            # Offline DB, outbox queues
 src/storage/outbox/     # Shared lease outbox core
 src/lib/                # routes, logger, navigation, validation
 src/hooks/              # Cross-cutting hooks
-src/providers/          # QueryProvider, etc.
+src/providers/          # Shared runtime providers (only when actively wired)
 src/theme/              # tokens + screenStyles
 ```
 
@@ -36,13 +36,14 @@ src/theme/              # tokens + screenStyles
 - navigation.ts guards double-taps
 
 ## Data fetching
-- Feature hooks (useHomeAds, useFavorites)
-- useAsyncResource for simple screens
-- Optional TanStack Query via QueryProvider
+- `apiRequest` centralizes HTTP, access-token refresh, cancellation, Zod validation, and allow-listed offline cache.
+- Feature modules still own their screen-specific loading, error, and pagination state.
+- There is currently no project-wide server-state/query provider; `useAsyncResource` is a helper prototype, not a migrated screen contract.
+- Do not assume TanStack Query is installed or wired. Preserve SQLCipher owner-scoped cache/outbox behavior during any future migration.
 
 ## Error handling
 - ErrorBoundary in root layout
-- error-reporting.ts → logger + optional Sentry
+- `error-reporting.ts` logs locally and accepts an injected reporter adapter. No production Sentry/native reporter is installed yet; a DSN alone does not enable remote crash reporting.
 
 ## Performance
 - listPerformance (windowSize, getItemLayout)
