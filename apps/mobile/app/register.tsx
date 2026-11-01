@@ -9,6 +9,7 @@ import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
 import { colors, typography } from '@/theme/tokens';
 import { registerSchema, validate } from '@/lib/validation';
 import { getSafeAuthRedirect } from '@/lib/safe-auth-redirect';
+import { toAppHref } from '@/lib/typed-navigation';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 
 export default function RegisterScreen() {
@@ -42,7 +43,7 @@ export default function RegisterScreen() {
       });
       setPassword('');
       const target = getSafeAuthRedirect(redirect);
-      if (target) router.replace(target as never);
+      if (target) router.replace(toAppHref(target));
       else if (router.canGoBack()) router.back();
       else router.replace('/');
     } catch (err) {

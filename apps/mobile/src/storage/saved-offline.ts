@@ -1,5 +1,5 @@
 import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
-import { cachePublicImages } from '@/storage/public-image-cache';
+import { cachePublicImages, filterAvailablePublicImageUris, prunePublicImageCache } from '@/storage/public-image-cache';
 
 export type SavedOfflineKind = 'ad' | 'product' | 'store';
 export type SavedOfflineItem = {
@@ -26,14 +26,25 @@ async function ensureTable() {
 }
 
 /** Explicit user bookmarks are stored separately from the public response cache. */
-export async function saveOfflineResource(input: { id: string; kind: SavedOfflineKind; title: string; payload: Record<string, unknown> }): Promise<void> {
+export type SaveOfflineResult = { requestedImages: number; cachedImages: number };
+
+export async function saveOfflineResource(input: { id: string; kind: SavedOfflineKind; title: string; payload: Record<string, unknown> }): Promise<SaveOfflineResult> {
   if (!input.id.trim() || !input.title.trim()) throw new Error('تعذر حفظ محتوى غير مكتمل.');
   const rawImages = input.payload.images;
   let payload = input.payload;
+  let requestedImages = 0;
+  let cachedImages = 0;
   if (Array.isArray(rawImages)) {
-    const uris = rawImages.filter((uri): uri is string => typeof uri === 'string' && /^https?:\/\//i.test(uri));
-    if (uris.length) {
-      const localImages = await cachePublicImages(uris).catch(() => uris);
+    const allImageUris = rawImages.filter((uri): uri is string => typeof uri === 'string');
+    requestedImages = allImageUris.length;
+    const requested = allImageUris.slice(0, 8);
+    if (requested.length) {
+      // Download first, prune against existing durable references, then retain only
+      // app-owned files that survived the storage budget. Remote URLs are not offline assets.
+      const downloaded = await cachePublicImages(requested).catch(() => []);
+      await prunePublicImageCache();
+      const localImages = await filterAvailablePublicImageUris(downloaded);
+      cachedImages = localImages.length;
       payload = { ...payload, images: localImages };
     }
   }
@@ -45,6 +56,9 @@ export async function saveOfflineResource(input: { id: string; kind: SavedOfflin
      ON CONFLICT(kind, id) DO UPDATE SET title=excluded.title, payload_json=excluded.payload_json, saved_at=excluded.saved_at`,
     input.id, input.kind, input.title.trim(), serialized, Date.now(),
   );
+  // Now image references are durable and the pruner can safely protect them.
+  await prunePublicImageCache();
+  return { requestedImages, cachedImages };
 }
 
 export async function listSavedOfflineResources(): Promise<SavedOfflineItem[]> {

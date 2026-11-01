@@ -15,7 +15,7 @@ import {
   deletePublicCacheEntry, clearPublicCache, clearPrivateCache, clearPrivateCacheForPrefix, clearPrivateMobileData, countPendingPrivateMobileOperations,
 } from '@/storage/public-cache';
 
-describe.skip('public-cache', () => {
+describe('public-cache', () => {
   beforeEach(async () => { (await mock)._clearAll(); });
 
   it('write + read roundtrip', async () => {
@@ -37,6 +37,18 @@ describe.skip('public-cache', () => {
     expect(entry).not.toBeNull();
     expect(entry!.savedAt).toBeGreaterThanOrEqual(before);
     expect(entry!.savedAt).toBeLessThanOrEqual(after);
+  });
+
+  it('expires stale private snapshots sooner than public snapshots', async () => {
+    const db = await (await mock).openDatabaseAsync('marketplat-private-v2.db');
+    const now = Date.now();
+    await db.execAsync(`CREATE TABLE IF NOT EXISTS public_cache (cache_key TEXT PRIMARY KEY, value_json TEXT NOT NULL, saved_at INTEGER NOT NULL, size_chars INTEGER NOT NULL, size_bytes INTEGER NOT NULL DEFAULT 0)`);
+    await db.runAsync('INSERT INTO public_cache (cache_key, value_json, saved_at, size_chars, size_bytes) VALUES (?, ?, ?, ?, ?)',
+      'api-private:user1:/api/v1/orders', '{"success":true,"data":[]}', now - 24 * 60 * 60 * 1_000 - 1, 26, 26);
+    await db.runAsync('INSERT INTO public_cache (cache_key, value_json, saved_at, size_chars, size_bytes) VALUES (?, ?, ?, ?, ?)',
+      'api-public:/api/v1/ads', '{"success":true,"data":[]}', now - 7 * 24 * 60 * 60 * 1_000 - 1, 26, 26);
+    expect(await readPublicCache('api-private:user1:/api/v1/orders')).toBeNull();
+    expect(await readPublicCache('api-public:/api/v1/ads')).toBeNull();
   });
 
   it('readPublicCacheEntry returns null for missing key', async () => {
@@ -143,13 +155,24 @@ describe.skip('public-cache', () => {
     const { getPublicCacheStats } = await import('@/storage/public-cache');
     // Each entry is under the per-entry byte limit, while five entries exceed
     // the aggregate limit when emoji are correctly counted as four UTF-8 bytes.
-    const payload = { value: '🙂'.repeat(350_000) };
-    for (let index = 0; index < 5; index += 1) {
+    const payload = { value: '🙂'.repeat(120_000) };
+    for (let index = 0; index < 14; index += 1) {
       await writePublicCache(`api-public:utf8-${index}`, payload);
     }
     const stats = await getPublicCacheStats();
     expect(stats.sizeBytes).toBeLessThanOrEqual(6_000_000);
-    expect(stats.entries).toBeLessThan(5);
+    expect(stats.entries).toBeLessThan(14);
+  });
+
+  it('keeps the cache within its byte budget when recently written entries are much larger', async () => {
+    const { getPublicCacheStats } = await import('@/storage/public-cache');
+    for (let index = 0; index < 24; index += 1) {
+      // Many near-limit records expose the old one-quarter-by-count pruning bug.
+      await writePublicCache(`api-public:uneven-${index}`, { value: String(index).padEnd(280_000, 'x') });
+    }
+    const stats = await getPublicCacheStats();
+    expect(stats.sizeBytes).toBeLessThanOrEqual(6_000_000);
+    expect(stats.entries).toBeLessThanOrEqual(100);
   });
 
   it('clearPublicCache empties entire table', async () => {

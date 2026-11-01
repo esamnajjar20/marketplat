@@ -1,10 +1,12 @@
-import { ApiError } from '@/api/client';
+import { ApiError, apiRequest } from '@/api/client';
+import { clearRegisteredAndroidPushState } from '@/features/notifications/native-push';
 import type { PendingLogout } from './session-storage';
 import { logoutSession, refreshAccessSession } from './auth.api';
 
 type LogoutOperations = {
   logoutSession: (accessToken: string, csrfToken?: string) => Promise<void>;
   refreshAccessSession: () => Promise<{ accessToken: string; csrfToken?: string }>;
+  unregisterFcmToken?: (accessToken: string, csrfToken: string | null | undefined, fcmToken: string) => Promise<void>;
 };
 
 export type PendingLogoutOutcome = 'revoked' | 'already-expired';
@@ -27,11 +29,27 @@ function isTerminalRefreshRejection(error: unknown): error is ApiError {
  * A rejected refresh cookie is terminal because the server clears that cookie on
  * refresh failure; transient/network failures must keep the marker for another retry.
  */
+async function unregisterFcmToken(
+  accessToken: string,
+  csrfToken: string | null | undefined,
+  fcmToken: string,
+): Promise<void> {
+  await apiRequest('/api/v1/notifications/fcm-tokens', {
+    method: 'DELETE',
+    token: accessToken,
+    ...(csrfToken ? { headers: { 'X-CSRF-Token': csrfToken } } : {}),
+    body: JSON.stringify({ token: fcmToken }),
+  });
+  await clearRegisteredAndroidPushState();
+}
+
 export async function revokePendingLogout(
   pending: PendingLogout,
-  operations: LogoutOperations = { logoutSession, refreshAccessSession },
+  operations: LogoutOperations = { logoutSession, refreshAccessSession, unregisterFcmToken },
 ): Promise<PendingLogoutOutcome> {
+  const removePushToken = operations.unregisterFcmToken ?? unregisterFcmToken;
   try {
+    if (pending.fcmToken) await removePushToken(pending.accessToken, pending.csrfToken, pending.fcmToken);
     await operations.logoutSession(pending.accessToken, pending.csrfToken ?? undefined);
     return 'revoked';
   } catch (error) {
@@ -42,12 +60,18 @@ export async function revokePendingLogout(
   try {
     refreshed = await operations.refreshAccessSession();
   } catch (error) {
-    if (isTerminalRefreshRejection(error)) return 'already-expired';
+    if (isTerminalRefreshRejection(error)) {
+      // The refresh cookie is terminally rejected; clear this device's local
+      // opt-in marker so a later account cannot inherit the old subscription.
+      if (pending.fcmToken) await clearRegisteredAndroidPushState();
+      return 'already-expired';
+    }
     throw error;
   }
 
   // Refresh also rotates the CSRF cookie; use its matching token rather than a stale
-  // value from the write-ahead marker.
+  // value from the write-ahead marker. Remove the push token before revoking the session.
+  if (pending.fcmToken) await removePushToken(refreshed.accessToken, refreshed.csrfToken, pending.fcmToken);
   await operations.logoutSession(refreshed.accessToken, refreshed.csrfToken);
   return 'revoked';
 }

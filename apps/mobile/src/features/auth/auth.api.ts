@@ -49,6 +49,28 @@ export async function loginWithPassword(email: string, password: string): Promis
   };
 }
 
+/** Exchange a native Google OAuth ticket for the normal cookie-backed session. */
+export async function loginWithGoogleMobile(ticket: string, verifier: string): Promise<AuthSession> {
+  const response = await apiRequest<AuthEnvelope>('/api/v1/auth/mobile/google/exchange', {
+    method: 'POST',
+    credentials: 'include',
+    body: JSON.stringify({ ticket, verifier }),
+    responseSchema: authEnvelopeResponseSchema as unknown as import('zod').ZodType<AuthEnvelope>,
+  });
+  const data = response?.data;
+  const accessToken = data?.tokens?.accessToken;
+  const user = data?.user;
+  if (response?.success !== true || typeof accessToken !== 'string' || !accessToken || !user || typeof user.id !== 'string' || typeof user.email !== 'string' || typeof user.name !== 'string') {
+    throw new Error(response?.message || 'لم تكتمل استجابة تسجيل الدخول باستخدام Google.');
+  }
+  return {
+    accessToken,
+    expiresIn: typeof data.tokens?.expiresIn === 'number' ? data.tokens.expiresIn : undefined,
+    csrfToken: typeof data.csrfToken === 'string' ? data.csrfToken : undefined,
+    user,
+  };
+}
+
 type RefreshedAccessSession = { accessToken: string; expiresIn?: number; csrfToken?: string };
 
 let refreshInFlight: Promise<RefreshedAccessSession> | null = null;

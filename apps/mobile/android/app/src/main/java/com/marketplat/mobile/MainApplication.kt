@@ -5,6 +5,7 @@ import android.content.res.Configuration
 
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
+import com.facebook.react.modules.i18nmanager.I18nUtil
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.ReactPackage
 import com.facebook.react.ReactHost
@@ -34,6 +35,10 @@ class MainApplication : Application(), ReactApplication {
     } catch (e: IllegalArgumentException) {
       ReleaseLevel.STABLE
     }
+    // Persist Arabic RTL before the first React surface is created. The JS-level
+    // setting remains a fallback, but must not be responsible for the first frame.
+    I18nUtil.getInstance().allowRTL(applicationContext, true)
+    I18nUtil.getInstance().forceRTL(applicationContext, true)
     loadReactNative(this)
     ApplicationLifecycleDispatcher.onApplicationCreate(this)
   }

@@ -76,9 +76,22 @@ const COALESCE_MS = 1000; // merge bursts of writes into one API call
 const MAX_TAGS_PER_CALL = 30; // Cloudflare limit for purge-by-tag
 const MAX_ATTEMPTS = 3;
 const REQUEST_TIMEOUT_MS = 5000;
+const MAX_PENDING_TAGS = 1000;
+const RETRY_DELAY_MS = 30_000;
+const BLOCKED_RETRY_DELAY_MS = 5 * 60_000;
 
 const pending = new Set<string>();
 let timer: ReturnType<typeof setTimeout> | undefined;
+let flushPromise: Promise<void> | undefined;
+
+function scheduleFlush(delayMs: number): void {
+  if (timer || pending.size === 0) return;
+  timer = setTimeout(() => {
+    timer = undefined;
+    flushEdgePurge().catch(error => logger.error('Edge purge flush crashed', error));
+  }, delayMs);
+  timer.unref?.();
+}
 
 // `env.edgePurge` is read defensively: unit tests that mock ../config/env with a
 // partial object must not crash the mutation paths that now call into this module.
@@ -88,9 +101,12 @@ export const isEdgePurgeEnabled = (): boolean => Boolean(config()?.enabled);
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
-async function postPurge(tags: string[]): Promise<void> {
+async function postPurge(tags: string[]): Promise<'success' | 'retry' | 'blocked'> {
   const cfg = config();
-  if (!cfg) return;
+  if (!cfg?.zoneId || !cfg.apiToken) {
+    logger.error('Edge purge is enabled but Cloudflare credentials are missing; tags retained for retry');
+    return 'blocked';
+  }
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
@@ -106,19 +122,30 @@ async function postPurge(tags: string[]): Promise<void> {
           signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         }
       );
-      if (res.ok) return;
-      lastError = new Error(`Cloudflare purge HTTP ${res.status}`);
+      const payload = (typeof res.json === 'function' ? await res.json().catch(() => null) : null) as { success?: boolean; errors?: unknown[] } | null;
+      // Cloudflare's API can return HTTP 200 for an application-level failure.
+      // Treat only an explicit success:true payload as a confirmed purge.
+      if (res.ok && payload?.success === true) return 'success';
+      lastError = new Error(
+        payload?.success === false
+          ? `Cloudflare purge rejected the request: ${JSON.stringify(payload.errors ?? [])}`
+          : `Cloudflare purge HTTP ${res.status}`
+      );
       // 4xx other than rate-limit will not get better by retrying.
-      if (res.status >= 400 && res.status < 500 && res.status !== 429) break;
+      if (res.status >= 400 && res.status < 500 && res.status !== 429) {
+        logger.error('Edge purge rejected permanently; tags retained for slower retry', { status: res.status, tags });
+        return 'blocked';
+      }
     } catch (error) {
       lastError = error;
     }
     if (attempt < MAX_ATTEMPTS) await sleep(attempt * 1000);
   }
   logger.error(
-    'Edge purge failed — cached responses may stay stale until their s-maxage expires',
+    'Edge purge failed — tags retained for retry; cached responses may stay stale until purged',
     { tags, error: lastError }
   );
+  return 'retry';
 }
 
 /** Sends everything queued right now. Exposed for graceful shutdown and tests. */
@@ -127,22 +154,55 @@ export async function flushEdgePurge(): Promise<void> {
     clearTimeout(timer);
     timer = undefined;
   }
-  const batch = [...pending];
-  pending.clear();
-  for (let i = 0; i < batch.length; i += MAX_TAGS_PER_CALL) {
-    await postPurge(batch.slice(i, i + MAX_TAGS_PER_CALL));
+  if (flushPromise) return flushPromise;
+
+  flushPromise = (async () => {
+    const batch = [...pending];
+    pending.clear();
+    const failed: string[] = [];
+    let hasBlockedBatch = false;
+    for (let i = 0; i < batch.length; i += MAX_TAGS_PER_CALL) {
+      const chunk = batch.slice(i, i + MAX_TAGS_PER_CALL);
+      const result = await postPurge(chunk);
+      if (result !== 'success') {
+        failed.push(...chunk);
+        if (result === 'blocked') hasBlockedBatch = true;
+      }
+    }
+
+    // Never silently drop invalidations on network/Cloudflare failure. If the
+    // bounded queue would overflow, collapse it to the global `api` tag, which
+    // every Worker-cached response carries.
+    if (failed.length) {
+      if (pending.size + failed.length > MAX_PENDING_TAGS) {
+        pending.clear();
+        pending.add('api');
+      } else {
+        failed.forEach(tag => pending.add(tag));
+      }
+    }
+    if (pending.size) scheduleFlush(hasBlockedBatch ? BLOCKED_RETRY_DELAY_MS : RETRY_DELAY_MS);
+  })();
+
+  try {
+    await flushPromise;
+  } finally {
+    flushPromise = undefined;
   }
 }
 
 /** Fire-and-forget. Coalesces calls made within COALESCE_MS into one request. */
 export function purgeEdgeTags(tags: readonly string[]): void {
   if (!isEdgePurgeEnabled() || tags.length === 0) return;
-  for (const tag of tags) pending.add(tag);
-  if (timer) return;
-  timer = setTimeout(() => {
-    flushEdgePurge().catch(error => logger.error('Edge purge flush crashed', error));
-  }, COALESCE_MS);
-  timer.unref?.();
+  for (const tag of tags) {
+    pending.add(tag);
+    if (pending.size > MAX_PENDING_TAGS) {
+      pending.clear();
+      pending.add('api');
+      break;
+    }
+  }
+  scheduleFlush(COALESCE_MS);
 }
 
 /** Purge what a change to an ad can affect on the edge. Never throws. */
@@ -166,8 +226,11 @@ export function purgeReferenceKv(): void {
     headers: { 'x-purge-token': cfg.workerPurgeToken },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
-    .then(res => {
-      if (!res.ok) logger.warn(`Edge KV purge HTTP ${res.status}`);
+    .then(async res => {
+      const payload = (typeof res.json === 'function' ? await res.json().catch(() => null) : null) as { ok?: boolean } | null;
+      if (!res.ok || payload?.ok !== true) {
+        logger.warn(`Edge KV purge rejected (HTTP ${res.status}; response=${JSON.stringify(payload)})`);
+      }
     })
     .catch(error => logger.warn('Edge KV purge failed', error));
 }

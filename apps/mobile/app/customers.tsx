@@ -15,9 +15,8 @@ import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/componen
 import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { formatMoney } from '@/lib/formatters';
 
-const money = (n: unknown) =>
-  `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(n) || 0)} ₪`;
 
 export default function CustomersScreen() {
   const { getAccessToken, csrfToken, user, isRestoring } = useAuth();
@@ -192,10 +191,10 @@ export default function CustomersScreen() {
             ) : null}
             {item.totalSpent != null ? (
               <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '800' }}>
-                إجمالي المشتريات: {money(item.totalSpent)}
+                إجمالي المشتريات: {formatMoney(item.totalSpent)}
               </Text>
             ) : null}
-            {item.totalDue != null ? <Text style={{ textAlign: 'right', color: colors.muted }}>المبلغ المستحق: {money(item.totalDue)}</Text> : null}
+            {item.totalDue != null ? <Text style={{ textAlign: 'right', color: colors.muted }}>المبلغ المستحق: {formatMoney(item.totalDue)}</Text> : null}
             {item.purchaseCount != null ? <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>عدد المشتريات: {item.purchaseCount}</Text> : null}
           </SectionCard>
         )}

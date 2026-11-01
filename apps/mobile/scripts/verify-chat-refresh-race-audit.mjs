@@ -8,6 +8,6 @@ assert.match(screen, /for \(const message of current\) byId\.set\(message\.id, m
 assert.match(screen, /function replaceOptimisticMessage\(current: ScreenMessage\[\], tempId: string, sent: ChatMessage\)/, 'send completion should reconcile optimistic and server message IDs');
 assert.match(screen, /setMessages\(\(current\) => mergeFetchedMessages\(pageR\.value\.items, \[\.\.\.current, \.\.\.queuedMessages\]\)\)/, 'refresh should merge server messages with durable queued messages');
 assert.match(screen, /replaceOptimisticMessage\(current, `pending-\$\{operationId\}`, sent\)/, 'sync completion should deduplicate durable optimistic message after concurrent refresh');
-assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(pkg.scripts['verify:static'], /run-all-verifications\.mjs/, 'verify:static must invoke the discovery runner');
 assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'new chat race check should be part of npm test');
 console.log('Chat refresh race audit checks passed (optimistic messages are preserved and reconciled without duplicates).');

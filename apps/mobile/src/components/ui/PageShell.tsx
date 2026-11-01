@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react';
-import { ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isBottomNavigationHidden } from '@/components/BottomNavigation';
@@ -33,10 +33,15 @@ function ShellBody({
   );
 
   return (
-    <SafeAreaView style={s.safe} edges={edges}>
-      <AppHeader title={title} right={right} />
-      {body}
-    </SafeAreaView>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <SafeAreaView style={s.safe} edges={edges}>
+        <AppHeader title={title} right={right} />
+        {body}
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -1,3 +1,4 @@
+import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -10,7 +11,7 @@ import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { ShareButton } from '@/components/ui/ShareButton';
 
-function price(value: ServiceListing['price'], type?: string): string { if (type==='NEGOTIABLE'||value==null) return 'السعر عند التواصل'; const n=Number(value); return Number.isFinite(n)?`${new Intl.NumberFormat('ar',{maximumFractionDigits:2}).format(n)} ₪`:'السعر غير متاح'; }
+function price(value: ServiceListing['price'], type?: string): string { if (type==='NEGOTIABLE'||value==null) return 'السعر عند التواصل'; const n=Number(value); return Number.isFinite(n)?formatMoney(n):'السعر غير متاح'; }
 export default function ServiceProviderDetailScreen(){
  const params=useLocalSearchParams<{id?:string|string[]}>(); const id=Array.isArray(params.id)?params.id[0]:params.id;
  const [provider,setProvider]=useState<ProviderSummary|null>(null); const [services,setServices]=useState<ServiceListing[]>([]); const [page,setPage]=useState(1); const [totalPages,setTotalPages]=useState(1); const [loading,setLoading]=useState(true); const [loadingMore,setLoadingMore]=useState(false); const [error,setError]=useState(''); const seq=useRef(0);

@@ -243,6 +243,8 @@ const envSchema = z.object({
   // Unset = nothing changes: short TTLs, no outbound calls.
   CF_PURGE_ZONE_ID: z.string().optional(),
   CF_PURGE_API_TOKEN: z.string().optional(),
+  // Explicit kill switch: credentials alone must never activate long edge TTLs.
+  CF_CACHE_TAG_PURGE_ENABLED: z.enum(['true', 'false']).optional().default('false'),
   // Flush of the Worker's KV reference tier (POST <url> + x-purge-token header).
   // e.g. https://api.example.com/__purge__ — must match the Worker's PURGE_TOKEN.
   EDGE_WORKER_PURGE_URL: z.string().url().optional(),
@@ -817,6 +819,7 @@ export const env = {
     // Never fire real Cloudflare calls from the test suite.
     enabled:
       _env.NODE_ENV !== 'test' &&
+      _env.CF_CACHE_TAG_PURGE_ENABLED === 'true' &&
       Boolean((_env.CF_PURGE_ZONE_ID ?? '').trim() && (_env.CF_PURGE_API_TOKEN ?? '').trim()),
   },
   ads: {

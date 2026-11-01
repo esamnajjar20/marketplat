@@ -1,7 +1,8 @@
+import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppIcon } from '@/components/Icons';
-import { ActivityIndicator, Image, RefreshControl, ScrollView, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { fetchSellerRanking, type RankedSeller } from '@/features/discovery/discovery.api';
@@ -40,13 +41,13 @@ export default function SellersRankingScreen() {
             key={seller.sellerProfileId}
             accessibilityRole="button"
             accessibilityLabel={`عرض ملف ${seller.displayName || 'بائع'}، الترتيب ${seller.rank}`}
-            onPress={() => router.push(`/profile/${encodeURIComponent(seller.userId)}` as never)}
+            onPress={() => router.push({ pathname: '/profile/[id]', params: { id: seller.userId } })}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg }}
           >
             <View style={{ width: 36, alignItems: 'center' }}>
               <Text style={{ fontWeight: '900', color: seller.rank <= 3 ? colors.brand : colors.muted, fontSize: fontSizes[16] }}>{seller.rank <= 3 ? ['🥇', '🥈', '🥉'][seller.rank - 1] : `#${seller.rank}`}</Text>
             </View>
-            {seller.avatarUrl ? <Image source={{ uri: seller.avatarUrl }} style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.border }} /> : (
+            {seller.avatarUrl ? <AppImage uri={seller.avatarUrl} style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.border }} /> : (
               <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
                 <Text style={{ color: colors.brandOnSoft, fontWeight: '900', fontSize: fontSizes[20] }}>{seller.displayName?.slice(0, 1) || 'ب'}</Text>
               </View>

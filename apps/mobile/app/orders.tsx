@@ -5,17 +5,13 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'r
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppImage } from '@/components/AppImage';
-import { formatSafeDate } from '@/lib/date-format';
+import { formatDate, formatMoney } from '@/lib/formatters';
 import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
 import { fetchMyOrders, type MarketplaceOrder } from '@/features/commerce/orders.api';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useAuth } from '@/features/auth/AuthContext';
 import { marketListPerf } from '@/lib/listPerformance';
 
-const money = (value: unknown) => {
-  const amount = Number(value);
-  return Number.isFinite(amount) ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(amount)} ₪` : 'غير متاح';
-};
 const labels: Record<string, string> = {
   PENDING: 'بانتظار تأكيد المتجر', CONFIRMED: 'تم تأكيد الطلب', PROCESSING: 'قيد التجهيز',
   SHIPPED: 'تم الشحن', DELIVERED: 'تم التسليم', CANCELLED: 'ملغي',
@@ -61,16 +57,16 @@ export default function MyOrdersScreen() {
         ListEmptyComponent={!showInitialState ? <View style={styles.state}><Text style={styles.emptyTitle}>لا توجد طلبات حتى الآن</Text><Text style={styles.muted}>عندما تطلب منتجًا من أحد المتاجر، سيظهر هنا.</Text><Pressable style={styles.primary} onPress={() => router.push('/products')}><Text style={styles.primaryText}>تصفح المنتجات</Text></Pressable></View> : undefined}
         renderItem={({ item: order }) => (
           <Pressable accessibilityRole="button" accessibilityLabel={`تفاصيل الطلب ${order.id.slice(-8)}`} onPress={() => router.push(`/orders/${encodeURIComponent(order.id)}`)} style={styles.card}>
-            <View style={styles.cardTop}><Text style={styles.total}>{money(order.total)}</Text><Text style={styles.status}>{labels[order.status] || order.status}</Text></View>
+            <View style={styles.cardTop}><Text style={styles.total}>{formatMoney(order.total)}</Text><Text style={styles.status}>{labels[order.status] || order.status}</Text></View>
             <View style={styles.itemLine}>
               {order.items[0]?.productImage ? <AppImage uri={order.items[0].productImage} style={styles.image} resizeMode="cover" /> : <View style={styles.imagePlaceholder}><Text>◇</Text></View>}
               <View style={styles.itemInfo}>
                 <Text style={styles.productName}>{order.items[0]?.productName || 'طلب منتجات'}</Text>
                 <Text style={styles.muted}>{order.items.length > 1 ? `و ${order.items.length - 1} منتجات أخرى · ` : ''}الكمية: {order.items.reduce((sum, item) => sum + item.quantity, 0)}</Text>
-                <Text style={styles.muted}>{order.store?.name || 'متجر'} · {formatSafeDate(order.createdAt)}</Text>
+                <Text style={styles.muted}>{order.store?.name || 'متجر'} · {formatDate(order.createdAt)}</Text>
               </View>
             </View>
-            <View style={styles.cardBottom}><Text style={styles.link}>تفاصيل الطلب ‹</Text><Text style={styles.muted}>الدفع عند الاستلام</Text></View>
+            <View style={styles.cardBottom}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Text style={styles.link}>تفاصيل الطلب</Text><AppIcon name="forward" size={16} color={colors.brand} /></View><Text style={styles.muted}>الدفع عند الاستلام</Text></View>
           </Pressable>
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}

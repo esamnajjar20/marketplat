@@ -27,7 +27,7 @@ for (const name of ['createProduct','updateProduct','deleteProduct']) {
 assert.match(stories, /markStoryViewed\(storyId: string, token: string, csrfToken\?/);
 const storyView = stories.slice(stories.indexOf('export async function markStoryViewed('), stories.indexOf('export async function deleteStory('));
 assert.match(storyView, /X-CSRF-Token/);
-assert.match(messageScreen, /syncChatMessageOutbox\(\{ isOnline, token: accessToken, csrfToken, ownerId: user\.id, signal: sessionAbort\.current\.signal \}\)/, 'chat screen passes CSRF token into durable message sync');
+assert.match(messageScreen, /syncChatMessageOutbox\(\{ isOnline: true, token: accessToken, csrfToken, ownerId: user\.id, signal: sessionAbort\.current\.signal \}\)/, 'chat screen passes CSRF token into durable message sync');
 assert.match(messageSync, /sendMessage\(item\.conversationId, item\.body, snapshot\.token, snapshot\.csrfToken, item\.operationId, snapshot\.signal\)/, 'queued message sync forwards CSRF token to the mutation API');
 assert.match(notifications, /markAllNotificationsRead\(token, csrfToken, user\?\.id\)/);
 assert.match(notifications, /markNotificationRead\(item.id, token, csrfToken, user\?\.id\)/);

@@ -28,7 +28,7 @@ export default function CategoriesScreen() {
             <ListRow
               title={category.nameAr || category.name}
               description={category.children?.length ? `${category.children.length} تصنيف فرعي` : undefined}
-              onPress={() => router.push(`/categories/${encodeURIComponent(category.id)}` as never)}
+              onPress={() => router.push({ pathname: '/categories/[id]', params: { id: category.id } })}
             />
           )}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}

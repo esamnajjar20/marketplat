@@ -1,3 +1,4 @@
+import { formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
@@ -7,10 +8,11 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchActiveSessions, revokeActiveSession, type ActiveSession } from '@/features/auth/sessions.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { showToast } from '@/lib/toast';
 
 function dateLabel(value: string): string {
   const date = new Date(value);
-  return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(date) : 'غير متوفر';
+  return Number.isFinite(date.getTime()) ? formatDate(date) : 'غير متوفر';
 }
 export default function SessionsScreen() {
   const { accessToken, csrfToken } = useAuth();
@@ -27,7 +29,7 @@ export default function SessionsScreen() {
   }, [accessToken]);
   useEffect(() => { void load(); }, [load]);
   const revoke = (session: ActiveSession) => {
-    if (session.isCurrent) { Alert.alert('الجلسة الحالية', 'لا يمكن إنهاء الجلسة الحالية من هذه الشاشة. استخدم تسجيل الخروج.'); return; }
+    if (session.isCurrent) { showToast('الجلسة الحالية', 'لا يمكن إنهاء الجلسة الحالية من هذه الشاشة. استخدم تسجيل الخروج.', 'error'); return; }
     Alert.alert('إنهاء الجلسة', 'سيتم إلغاء صلاحية هذا الجهاز في التجديد التالي للجلسة.', [
       { text: 'إلغاء', style: 'cancel' },
       { text: 'إنهاء الجلسة', style: 'destructive', onPress: () => {
@@ -35,7 +37,7 @@ export default function SessionsScreen() {
         setBusyId(session.sessionId);
         void revokeActiveSession(session.sessionId, accessToken, csrfToken)
           .then(() => setSessions((items) => items.filter((item) => item.sessionId !== session.sessionId)))
-          .catch((e) => Alert.alert('تعذر إنهاء الجلسة', e instanceof Error ? e.message : 'حاول مجددًا.'))
+          .catch((e) => showToast('تعذر إنهاء الجلسة', e instanceof Error ? e.message : 'حاول مجددًا.', 'error'))
           .finally(() => setBusyId(''));
       } },
     ]);

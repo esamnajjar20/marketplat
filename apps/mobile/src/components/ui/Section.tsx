@@ -1,4 +1,5 @@
 import { AppText as Text } from './AppText';
+import { AppIcon } from '@/components/Icons';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { type ReactNode } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
@@ -57,19 +58,19 @@ export function ListRow({
   title,
   description,
   onPress,
-  glyph = '›',
+  glyph = <AppIcon name="back" size={18} />,
   right,
 }: {
   title: string;
   description?: string;
   onPress?: () => void;
-  glyph?: string;
+  glyph?: ReactNode;
   right?: ReactNode;
 }) {
   const content = (
     <View style={s.listRowInner}>
       <View style={s.listRowGlyph}>
-        <Text style={s.listRowGlyphText}>{glyph}</Text>
+        {typeof glyph === 'string' ? <Text style={s.listRowGlyphText}>{glyph}</Text> : glyph}
       </View>
       <View style={s.listRowText}>
         <Text style={s.listRowTitle}>{title}</Text>

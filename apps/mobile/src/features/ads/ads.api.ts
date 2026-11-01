@@ -1,6 +1,6 @@
 import { apiRequest } from '@/api/client';
 import { readPublicCache, readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
-import { cachePublicImages } from '@/storage/public-image-cache';
+import { cachePublicImages, prunePublicImageCache } from '@/storage/public-image-cache';
 import { canUseStaleCacheAfterReadFailure } from '@/lib/offline-cache-policy';
 
 /** Public ad-list shape returned by GET /api/v1/ads (description is omitted on list responses). */
@@ -108,19 +108,26 @@ export async function fetchPublicAds(options: PublicAdsOptions = {}): Promise<Ad
     page: typeof pagination?.page === 'number' ? pagination.page : (options.page ?? 1),
     totalPages: typeof pagination?.totalPages === 'number' ? pagination.totalPages : undefined,
   };
-  // allSettled so a single image-download failure does not break the
-  // whole ads list. Failed items fall back to their original URLs.
-  const preparedItems = await Promise.allSettled(
-    result.items.map(async (item) => ({
-      ...item,
-      images: await cachePublicImages(item.images.filter((uri) => typeof uri === 'string')),
-    })),
-  );
+  // Limit downloads across the entire page, not eight per card. The image cache
+  // has a finite disk budget; the first eight distinct URLs are opportunistically
+  // cached and the remaining URLs continue to work online.
+  const pageImageUris = result.items.flatMap((item) => item.images.filter((uri) => typeof uri === 'string'));
+  const cacheCandidates = pageImageUris.slice(0, 8);
+  const cachedCandidates = await cachePublicImages(cacheCandidates);
+  const cachedByRemoteUri = new Map<string, string>();
+  cacheCandidates.forEach((remoteUri, index) => {
+    const localUri = cachedCandidates[index];
+    if (localUri && localUri !== remoteUri) cachedByRemoteUri.set(remoteUri, localUri);
+  });
   const cachedResult: AdListResult = {
     ...result,
-    items: preparedItems.map((r, i) => (r.status === 'fulfilled' ? r.value : result.items[i])),
+    items: result.items.map((item) => ({
+      ...item,
+      images: item.images.map((uri) => cachedByRemoteUri.get(uri) ?? uri),
+    })),
   };
   await writePublicCache(cacheKey, cachedResult);
+  await prunePublicImageCache();
   // Return the local-image-backed representation too, so the first online visit
   // immediately primes the UI to use the durable image files where available.
   return cachedResult;
@@ -159,6 +166,7 @@ export async function fetchAdDetail(id: string): Promise<AdDetail> {
     images: await cachePublicImages(response.data.images.filter((uri) => typeof uri === 'string')),
   };
   await writePublicCache(cacheKey, cachedDetail);
+  await prunePublicImageCache();
   // Return the exact representation persisted for offline use so the first online
   // render also benefits from downloaded local images.
   return cachedDetail;

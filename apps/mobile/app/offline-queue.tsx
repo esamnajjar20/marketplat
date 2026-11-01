@@ -1,3 +1,4 @@
+import { formatDate, formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -9,15 +10,41 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { formatSafeDate } from '@/lib/date-format';
 import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
 import { OUTBOX_MAX_ATTEMPTS } from '@/storage/outbox';
-import { countUnownedOutboxMutations, discardOutboxMutation, listAllOutboxMutations, retryExhaustedMutation, type OutboxItem } from '@/storage/outbox-manager';
-import { syncOutboxIfReady } from '@/storage/outbox-manager';
+import {
+  countUnownedOutboxMutations,
+  discardOutboxMutation,
+  listAllOutboxMutations,
+  retryExhaustedMutation,
+  syncOutboxIfReady,
+  discardMarketplaceRequest,
+  listPendingMarketplaceRequests,
+  retryMarketplaceRequest,
+  type PendingRequestOutboxItem,
+  discardMarketplaceOrder,
+  listPendingMarketplaceOrders,
+  retryMarketplaceOrder,
+  syncNextMarketplaceOrder,
+  type PendingOrderOutboxItem,
+  discardRequestOffer,
+  listPendingRequestOffers,
+  retryRequestOffer,
+  syncNextRequestOffer,
+  type PendingRequestOfferItem,
+  discardOfflineCreate,
+  listOfflineCreates,
+  retryOfflineCreate,
+  syncNextOfflineCreate,
+  type OfflineCreateItem,
+  listChatMessagesForOwner,
+  listChatMediaOutbox,
+  type ChatMessageOutboxItem,
+  type ChatMediaOutboxItem,
+  type OutboxItem,
+} from '@/storage/outbox-manager';
 import { acknowledgeFavoriteState, discardFavoriteState, listPendingFavoriteStates, restoreFavoriteStateIfAbsent, writeFavoriteAdIds, type PendingFavoriteState } from '@/features/ads/favorites.store';
 import { fetchFavoriteAdIds, setFavoriteAdState } from '@/features/ads/favorites.api';
 import { useNetInfo } from '@react-native-community/netinfo';
-import { discardMarketplaceRequest, listPendingMarketplaceRequests, retryMarketplaceRequest, type PendingRequestOutboxItem } from '@/storage/outbox-manager';
-import { discardMarketplaceOrder, listPendingMarketplaceOrders, retryMarketplaceOrder, syncNextMarketplaceOrder, type PendingOrderOutboxItem } from '@/storage/outbox-manager';
-import { discardRequestOffer, listPendingRequestOffers, retryRequestOffer, syncNextRequestOffer, type PendingRequestOfferItem } from '@/storage/outbox-manager';
-import { discardOfflineCreate, listOfflineCreates, retryOfflineCreate, syncNextOfflineCreate, type OfflineCreateItem, listChatMessagesForOwner, listChatMediaOutbox, type ChatMessageOutboxItem, type ChatMediaOutboxItem } from '@/storage/outbox-manager';
+import { showToast } from '@/lib/toast';
 
 function operationLabel(operation: OutboxItem['operation']): string {
   if (operation === 'create-ad') return 'إنشاء إعلان';
@@ -111,13 +138,13 @@ export default function OfflineQueueScreen() {
       if (!user?.id || session.userId !== user.id || session.token !== accessToken) { setError('تغيّرت جلسة الدخول؛ حدّث القائمة قبل الإلغاء.'); return; }
       setBusyId(item.id);
       void discardOutboxMutation(item.id, item.ownerId).then((removed) => {
-        if (!removed) Alert.alert('لم تُلغَ العملية', 'قد تكون العملية قيد المعالجة الآن. حدّث القائمة وحاول لاحقًا.');
+        if (!removed) showToast('لم تُلغَ العملية', 'قد تكون العملية قيد المعالجة الآن. حدّث القائمة وحاول لاحقًا.', 'warning');
       }).catch((e) => setError(e instanceof Error ? e.message : 'تعذر إلغاء العملية.')).finally(() => { setBusyId(null); void refresh(); });
     } },
   ]);
 
   const retry = async (item: OutboxItem) => {
-    if (!online || !accessToken || !user?.id) { Alert.alert('المزامنة غير جاهزة', !online ? 'اتصل بالإنترنت أولًا.' : 'سجّل الدخول أولًا.'); return; }
+    if (!online || !accessToken || !user?.id) { showToast('المزامنة غير جاهزة', !online ? 'اتصل بالإنترنت أولًا.' : 'سجّل الدخول أولًا.', 'info'); return; }
     const session = { ...sessionRef.current };
     if (session.userId !== user.id || session.token !== accessToken) { setError('تغيّرت جلسة الدخول؛ حدّث القائمة قبل إعادة المحاولة.'); return; }
     setBusyId(item.id); setError(null);
@@ -127,22 +154,22 @@ export default function OfflineQueueScreen() {
       if (sessionRef.current.epoch !== session.epoch || sessionRef.current.userId !== session.userId || sessionRef.current.token !== session.token) { setError('تغيّرت جلسة الدخول أثناء المحاولة؛ حدّث القائمة.'); return; }
       const result = await syncOutboxIfReady({ isOnline: online, token: accessToken, csrfToken, ownerId: user?.id });
       if (result.status === 'sync-result' && result.result.status === 'synced') {
-        Alert.alert('تمت المزامنة', 'تم إرسال العملية وتأكيد حفظها.');
+        showToast('تمت المزامنة', 'تم إرسال العملية وتأكيد حفظها.', 'success');
       } else if (result.status === 'sync-result' && result.result.status === 'server-succeeded-local-ack-pending') {
-        Alert.alert('تم الإرسال', 'قبل الخادم العملية، لكن تأكيد حذفها من الطابور المحلي لم يكتمل بعد. لا تحذف بيانات التطبيق.');
+        showToast('تم الإرسال', 'قبل الخادم العملية، لكن تأكيد حذفها من الطابور المحلي لم يكتمل بعد. لا تحذف بيانات التطبيق.', 'success');
       } else if (result.status === 'sync-result' && result.result.status === 'blocked-by-unsupported') {
-        Alert.alert('الطابور متوقف', 'توجد عملية أقدم غير مدعومة؛ لم نتجاوزها للحفاظ على ترتيب التعديلات.');
+        showToast('الطابور متوقف', 'توجد عملية أقدم غير مدعومة؛ لم نتجاوزها للحفاظ على ترتيب التعديلات.', 'info');
       } else if (result.status !== 'sync-result') {
-        Alert.alert('لم تُنفّذ المزامنة', 'المزامنة غير جاهزة الآن (قد تكون هناك عملية أخرى قيد التنفيذ). حدّث القائمة وحاول مجددًا.');
+        showToast('لم تُنفّذ المزامنة', 'المزامنة غير جاهزة الآن (قد تكون هناك عملية أخرى قيد التنفيذ). حدّث القائمة وحاول مجددًا.', 'info');
       } else {
-        Alert.alert('لم تكتمل المزامنة', 'لم ينجح إرسال العملية. راجع التفاصيل في القائمة ثم أعد المحاولة.');
+        showToast('لم تكتمل المزامنة', 'لم ينجح إرسال العملية. راجع التفاصيل في القائمة ثم أعد المحاولة.', 'error');
       }
     } catch (e) { setError(e instanceof Error ? e.message : 'تعذرت إعادة المحاولة.'); }
     finally { setBusyId(null); void refresh(); }
   };
 
   const retryFavorite = async (item: PendingFavoriteState) => {
-    if (!online || !accessToken || !user?.id) { Alert.alert('المزامنة غير جاهزة', !online ? 'اتصل بالإنترنت أولًا.' : 'سجّل الدخول بالحساب نفسه أولًا.'); return; }
+    if (!online || !accessToken || !user?.id) { showToast('المزامنة غير جاهزة', !online ? 'اتصل بالإنترنت أولًا.' : 'سجّل الدخول بالحساب نفسه أولًا.', 'info'); return; }
     const session = { ...sessionRef.current };
     if (session.userId !== user.id || session.token !== accessToken) { setError('تغيّرت جلسة الدخول؛ حدّث القائمة قبل إعادة المحاولة.'); return; }
     setBusyId(item.operationId); setError(null);
@@ -150,14 +177,14 @@ export default function OfflineQueueScreen() {
       await setFavoriteAdState(item.adId, item.favorited, accessToken, item.operationId, csrfToken);
       if (sessionRef.current.epoch !== session.epoch || sessionRef.current.userId !== session.userId || sessionRef.current.token !== session.token) { setError('تغيّرت جلسة الدخول أثناء الطلب؛ احتُفظ بالعملية للمزامنة الآمنة لاحقًا.'); return; }
       const removed = await acknowledgeFavoriteState(user.id, item.adId, item.operationId);
-      if (!removed) Alert.alert('تغيّرت العملية', 'تم تأكيد الحالة مع الخادم، لكن ظهرت نية أحدث محليًا؛ احتُفظ بالعملية الأحدث.');
-      else Alert.alert('تمت المزامنة', 'أكد الخادم حالة المفضلة المطلوبة.');
+      if (!removed) showToast('تغيّرت العملية', 'تم تأكيد الحالة مع الخادم، لكن ظهرت نية أحدث محليًا؛ احتُفظ بالعملية الأحدث.', 'success');
+      else showToast('تمت المزامنة', 'أكد الخادم حالة المفضلة المطلوبة.', 'success');
     } catch (e) { setError(e instanceof Error ? e.message : 'تعذرت مزامنة المفضلة.'); }
     finally { setBusyId(null); void refresh(); }
   };
 
   const cancelFavorite = (item: PendingFavoriteState) => {
-    if (!online || !accessToken || !user?.id) { Alert.alert('الإلغاء يحتاج اتصالًا', 'لا يمكن التأكد مما إذا كان الخادم قد استلم التغيير قبل انقطاع الاتصال. اتصل بالإنترنت ثم ألغِ العملية بأمان.'); return; }
+    if (!online || !accessToken || !user?.id) { showToast('الإلغاء يحتاج اتصالًا', 'لا يمكن التأكد مما إذا كان الخادم قد استلم التغيير قبل انقطاع الاتصال. اتصل بالإنترنت ثم ألغِ العملية بأمان.', 'error'); return; }
     Alert.alert('إلغاء تغيير المفضلة', 'سيُتحقق من الحالة الحالية على الخادم أولًا، ثم يُحذف التغيير المعلّق وتُحدّث النسخة المحلية.', [
     { text: 'رجوع', style: 'cancel' },
     { text: 'إلغاء التغيير', style: 'destructive', onPress: () => {
@@ -172,7 +199,7 @@ export default function OfflineQueueScreen() {
           const serverIds = await fetchFavoriteAdIds(accessToken);
           if (sessionRef.current.epoch !== session.epoch || sessionRef.current.userId !== session.userId || sessionRef.current.token !== session.token) { setError('تغيّرت جلسة الدخول أثناء التحقق؛ لم يُلغَ التغيير.'); return; }
           removed = user?.id ? await discardFavoriteState(user.id, item.adId, item.operationId) : false;
-          if (!removed) Alert.alert('لم يُلغَ التغيير', 'تغيّرت العملية أو لم تعد موجودة؛ حدّث القائمة.');
+          if (!removed) showToast('لم يُلغَ التغيير', 'تغيّرت العملية أو لم تعد موجودة؛ حدّث القائمة.', 'warning');
           else if (user?.id) {
             const pending = await listPendingFavoriteStates(user.id);
             if (sessionRef.current.epoch !== session.epoch || sessionRef.current.userId !== session.userId || sessionRef.current.token !== session.token) {
@@ -203,19 +230,19 @@ export default function OfflineQueueScreen() {
         {favoriteItems.map((item) => <View key={`favorite-${item.adId}`} style={styles.card}>
           <Text style={styles.adTitle}>المفضلة · إعلان مرتبط بتغيير محفوظ</Text>
           <Text style={styles.status}>{item.favorited ? 'بانتظار الإضافة إلى المفضلة' : 'بانتظار الإزالة من المفضلة'}</Text>
-          <Text style={styles.muted}>حُفظ: {new Date(Number(item.operationId.match(/^fav-(\d+)/)?.[1]) || Date.now()).toLocaleString('ar')}</Text>
+          <Text style={styles.muted}>حُفظ: {formatDate(Number(item.operationId.match(/^fav-(\d+)/)?.[1]) || Date.now())}</Text>
           <Text style={styles.muted}>تُرسل الحالة المطلوبة بأمان عند إعادة المحاولة؛ لن يُستخدم تبديل عكسي قد يكرر التغيير.</Text>
           <View style={styles.actions}>
             <Pressable disabled={busyId !== null} style={styles.secondary} onPress={() => void retryFavorite(item)}><Text style={styles.secondaryText}>{busyId === item.operationId ? 'جارٍ…' : 'مزامنة الآن'}</Text></Pressable>
             <Pressable disabled={busyId !== null} style={[styles.delete, busyId !== null && styles.disabled]} onPress={() => cancelFavorite(item)}><Text style={styles.deleteText}>إلغاء التغيير</Text></Pressable>
           </View>
         </View>)}
-        {requestItems.map((item) => <View key={`request-${item.id}`} style={styles.card}><Text style={styles.adTitle}>{item.payload.title}</Text><Text style={styles.status}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? 'توقفت المحاولات؛ يلزم تدخل' : 'طلب جديد · بانتظار المزامنة'}</Text><Text style={styles.muted}>النوع: {item.payload.type} · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.muted}>لن يُعد الطلب منشورًا حتى يؤكد الخادم نجاح المزامنة.</Text><View style={styles.actions}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? <Pressable disabled={busyId !== null} style={styles.secondary} onPress={() => { setBusyId(item.id); void retryMarketplaceRequest(item.id, user?.id).then((ok) => { if (!ok) Alert.alert('تعذرت إعادة المحاولة','حدّث القائمة ثم حاول مجددًا.'); }).catch((e) => setError(e instanceof Error ? e.message : 'تعذرت إعادة المحاولة.')).finally(() => { setBusyId(null); void refresh(); }); }}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable> : null}<Pressable disabled={busyId !== null} style={styles.delete} onPress={() => Alert.alert('إلغاء الطلب المحفوظ','سيُحذف من الجهاز ولن يُرسل لاحقًا. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء العملية',style:'destructive',onPress:()=>{setBusyId(item.id);void discardMarketplaceRequest(item.id,user?.id).then((ok)=>{if(!ok)Alert.alert('لم تُلغَ العملية','قد تكون قيد المعالجة؛ حدّث القائمة.');}).catch((e)=>setError(e instanceof Error?e.message:'تعذر الإلغاء.')).finally(()=>{setBusyId(null);void refresh();});}}])}><Text style={styles.deleteText}>إلغاء العملية</Text></Pressable></View></View>)}
-        {offerItems.map((item) => <View key={`offer-${item.id}`} style={styles.card}><Text style={styles.adTitle}>عرض محفوظ · {item.payload.price} ₪</Text><Text style={styles.status}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? 'توقفت المحاولات؛ يلزم تدخل' : item.state === 'processing' ? 'قيد المزامنة' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>رقم الطلب: {item.payload.requestId} · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.payload.message ? <Text style={styles.muted}>الرسالة: {item.payload.message}</Text> : null}{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.warning}>العرض لم يُرسل إلى الخادم بعد. قد يُرفض إذا أُغلق الطلب أو انتهت صلاحيته قبل المزامنة.</Text><View style={styles.actions}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? <Pressable disabled={busyId !== null} style={styles.secondary} onPress={() => { setBusyId(item.id); void retryRequestOffer(item.id,user?.id).then(async ok => { if (!ok) Alert.alert('تعذرت إعادة المحاولة','حدّث القائمة ثم حاول مجددًا.'); else await syncNextRequestOffer({isOnline:online,token:accessToken,csrfToken,ownerId:user?.id}); }).catch(e=>setError(e instanceof Error?e.message:'تعذرت إعادة المحاولة.')).finally(()=>{setBusyId(null);void refresh();}); }}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable> : null}<Pressable disabled={busyId !== null || item.state === 'processing'} style={styles.delete} onPress={() => Alert.alert('إلغاء العرض المحفوظ','سيُحذف من الجهاز ولن يُرسل لاحقًا. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء العرض',style:'destructive',onPress:()=>{setBusyId(item.id);void discardRequestOffer(item.id,user?.id).then(ok=>{if(!ok)Alert.alert('لم يُلغَ العرض','قد تكون المزامنة بدأت؛ حدّث القائمة.');}).catch(e=>setError(e instanceof Error?e.message:'تعذر إلغاء العرض.')).finally(()=>{setBusyId(null);void refresh();});}}])}><Text style={styles.deleteText}>{item.state === 'processing' ? 'قيد المعالجة' : 'إلغاء العرض'}</Text></Pressable></View></View>)}
-        {orderItems.map((item) => <View key={`order-${item.id}`} style={styles.card}><Text style={styles.adTitle}>طلب شراء · {item.payload.items.length} منتج</Text><Text style={styles.status}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? 'توقفت المحاولات؛ يلزم تدخل' : item.state === 'processing' ? 'قيد المزامنة' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>المستلم: {item.payload.recipientName} · {item.payload.shippingCity}</Text><Text style={styles.muted}>المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.warning}>هذا الطلب محفوظ محليًا وليس مؤكدًا لدى المتجر. سيعيد الخادم التحقق من السعر والمخزون عند المزامنة.</Text><View style={styles.actions}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? <Pressable disabled={busyId !== null} style={styles.secondary} onPress={() => { setBusyId(item.id); void retryMarketplaceOrder(item.id,user?.id).then(async ok => { if (!ok) Alert.alert('تعذرت إعادة المحاولة','حدّث القائمة ثم حاول مجددًا.'); else await syncNextMarketplaceOrder({isOnline:online,token:accessToken,csrfToken,ownerId:user?.id}); }).catch(e=>setError(e instanceof Error?e.message:'تعذرت إعادة المحاولة.')).finally(()=>{setBusyId(null);void refresh();}); }}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable> : null}<Pressable disabled={busyId !== null || item.state === 'processing'} style={styles.delete} onPress={() => Alert.alert('إلغاء طلب الشراء المحفوظ','سيُحذف الطلب من الجهاز ولن يُرسل لاحقًا. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء العملية',style:'destructive',onPress:()=>{setBusyId(item.id);void discardMarketplaceOrder(item.id,user?.id).then(ok=>{if(!ok)Alert.alert('لم يُلغَ الطلب','قد تكون المزامنة بدأت؛ حدّث القائمة.');}).catch(e=>setError(e instanceof Error?e.message:'تعذر إلغاء الطلب.')).finally(()=>{setBusyId(null);void refresh();});}}])}><Text style={styles.deleteText}>{item.state === 'processing' ? 'قيد المعالجة' : 'إلغاء الطلب'}</Text></Pressable></View></View>)}
+        {requestItems.map((item) => <View key={`request-${item.id}`} style={styles.card}><Text style={styles.adTitle}>{item.payload.title}</Text><Text style={styles.status}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? 'توقفت المحاولات؛ يلزم تدخل' : 'طلب جديد · بانتظار المزامنة'}</Text><Text style={styles.muted}>النوع: {item.payload.type} · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.muted}>لن يُعد الطلب منشورًا حتى يؤكد الخادم نجاح المزامنة.</Text><View style={styles.actions}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? <Pressable disabled={busyId !== null} style={styles.secondary} onPress={() => { setBusyId(item.id); void retryMarketplaceRequest(item.id, user?.id).then((ok) => { if (!ok) showToast('تعذرت إعادة المحاولة', 'حدّث القائمة ثم حاول مجددًا.', 'error'); }).catch((e) => setError(e instanceof Error ? e.message : 'تعذرت إعادة المحاولة.')).finally(() => { setBusyId(null); void refresh(); }); }}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable> : null}<Pressable disabled={busyId !== null} style={styles.delete} onPress={() => Alert.alert('إلغاء الطلب المحفوظ','سيُحذف من الجهاز ولن يُرسل لاحقًا. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء العملية',style:'destructive',onPress:()=>{setBusyId(item.id);void discardMarketplaceRequest(item.id,user?.id).then((ok)=>{if(!ok)showToast('لم تُلغَ العملية','قد تكون قيد المعالجة؛ حدّث القائمة.','warning');}).catch((e)=>setError(e instanceof Error?e.message:'تعذر الإلغاء.')).finally(()=>{setBusyId(null);void refresh();});}}])}><Text style={styles.deleteText}>إلغاء العملية</Text></Pressable></View></View>)}
+        {offerItems.map((item) => <View key={`offer-${item.id}`} style={styles.card}><Text style={styles.adTitle}>عرض محفوظ · {formatMoney(item.payload.price)}</Text><Text style={styles.status}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? 'توقفت المحاولات؛ يلزم تدخل' : item.state === 'processing' ? 'قيد المزامنة' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>رقم الطلب: {item.payload.requestId} · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.payload.message ? <Text style={styles.muted}>الرسالة: {item.payload.message}</Text> : null}{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.warning}>العرض لم يُرسل إلى الخادم بعد. قد يُرفض إذا أُغلق الطلب أو انتهت صلاحيته قبل المزامنة.</Text><View style={styles.actions}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? <Pressable disabled={busyId !== null} style={styles.secondary} onPress={() => { setBusyId(item.id); void retryRequestOffer(item.id,user?.id).then(async ok => { if (!ok) showToast('تعذرت إعادة المحاولة', 'حدّث القائمة ثم حاول مجددًا.', 'error'); else await syncNextRequestOffer({isOnline:online,token:accessToken,csrfToken,ownerId:user?.id}); }).catch(e=>setError(e instanceof Error?e.message:'تعذرت إعادة المحاولة.')).finally(()=>{setBusyId(null);void refresh();}); }}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable> : null}<Pressable disabled={busyId !== null || item.state === 'processing'} style={styles.delete} onPress={() => Alert.alert('إلغاء العرض المحفوظ','سيُحذف من الجهاز ولن يُرسل لاحقًا. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء العرض',style:'destructive',onPress:()=>{setBusyId(item.id);void discardRequestOffer(item.id,user?.id).then(ok=>{if(!ok)showToast('لم يُلغَ العرض','قد تكون المزامنة بدأت؛ حدّث القائمة.','warning');}).catch(e=>setError(e instanceof Error?e.message:'تعذر إلغاء العرض.')).finally(()=>{setBusyId(null);void refresh();});}}])}><Text style={styles.deleteText}>{item.state === 'processing' ? 'قيد المعالجة' : 'إلغاء العرض'}</Text></Pressable></View></View>)}
+        {orderItems.map((item) => <View key={`order-${item.id}`} style={styles.card}><Text style={styles.adTitle}>طلب شراء · {item.payload.items.length} منتج</Text><Text style={styles.status}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? 'توقفت المحاولات؛ يلزم تدخل' : item.state === 'processing' ? 'قيد المزامنة' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>المستلم: {item.payload.recipientName} · {item.payload.shippingCity}</Text><Text style={styles.muted}>المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.warning}>هذا الطلب محفوظ محليًا وليس مؤكدًا لدى المتجر. سيعيد الخادم التحقق من السعر والمخزون عند المزامنة.</Text><View style={styles.actions}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? <Pressable disabled={busyId !== null} style={styles.secondary} onPress={() => { setBusyId(item.id); void retryMarketplaceOrder(item.id,user?.id).then(async ok => { if (!ok) showToast('تعذرت إعادة المحاولة', 'حدّث القائمة ثم حاول مجددًا.', 'error'); else await syncNextMarketplaceOrder({isOnline:online,token:accessToken,csrfToken,ownerId:user?.id}); }).catch(e=>setError(e instanceof Error?e.message:'تعذرت إعادة المحاولة.')).finally(()=>{setBusyId(null);void refresh();}); }}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable> : null}<Pressable disabled={busyId !== null || item.state === 'processing'} style={styles.delete} onPress={() => Alert.alert('إلغاء طلب الشراء المحفوظ','سيُحذف الطلب من الجهاز ولن يُرسل لاحقًا. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء العملية',style:'destructive',onPress:()=>{setBusyId(item.id);void discardMarketplaceOrder(item.id,user?.id).then(ok=>{if(!ok)showToast('لم يُلغَ الطلب','قد تكون المزامنة بدأت؛ حدّث القائمة.','warning');}).catch(e=>setError(e instanceof Error?e.message:'تعذر إلغاء الطلب.')).finally(()=>{setBusyId(null);void refresh();});}}])}><Text style={styles.deleteText}>{item.state === 'processing' ? 'قيد المعالجة' : 'إلغاء الطلب'}</Text></Pressable></View></View>)}
         {chatMessages.map((item) => <View key={`chat-message-${item.id}`} style={styles.card}><Text style={styles.adTitle}>رسالة دردشة محفوظة</Text><Text style={styles.status}>بانتظار الإرسال أو إعادة المحاولة</Text><Text style={styles.muted}>المحادثة: {item.conversationId.slice(-6)} · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS}</Text><Text style={styles.muted}>{item.body}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Pressable style={styles.secondary} onPress={() => router.push({ pathname: '/messages/[id]', params: { id: item.conversationId } })}><Text style={styles.secondaryText}>فتح المحادثة</Text></Pressable></View>)}
         {chatMedia.map((item) => <View key={`chat-media-${item.id}`} style={styles.card}><Text style={styles.adTitle}>مرفق دردشة محفوظ · {item.kind === 'image' ? 'صورة' : item.kind === 'audio' ? 'تسجيل صوتي' : 'ملف'}</Text><Text style={styles.status}>بانتظار المزامنة</Text><Text style={styles.muted}>{item.fileName} · {Math.ceil(item.sizeBytes / 1024)} كيلوبايت · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Pressable style={styles.secondary} onPress={() => router.push({ pathname: '/messages/[id]', params: { id: item.conversationId } })}><Text style={styles.secondaryText}>فتح المحادثة</Text></Pressable></View>)}
-        {createItems.map((item) => { const label=item.operation==='create-product'?'إضافة منتج':item.operation==='create-service'?'نشر خدمة':'تسجيل بيع'; const title=String(item.payload.name||item.payload.title||item.payload.entityTitle||label); return <View key={`create-${item.id}`} style={styles.card}><Text style={styles.adTitle}>{label}: {title}</Text><Text style={styles.status}>{item.state==='failed'?'فشلت نهائيًا؛ راجع الخطأ وأعد المحاولة عند التصحيح':item.state==='processing'?'قيد المزامنة':item.attempts>=OUTBOX_MAX_ATTEMPTS?'توقفت المحاولات؛ يلزم تدخل':'بانتظار المزامنة'}</Text><Text style={styles.muted}>المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.lastError?<Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text>:null}<Text style={styles.warning}>لم يؤكد الخادم إنشاء هذا السجل بعد. قد يرفضه إذا تغيرت الصلاحيات أو التصنيفات أو البيانات قبل المزامنة.</Text><View style={styles.actions}>{(item.state==='failed'||item.attempts>=OUTBOX_MAX_ATTEMPTS)?<Pressable disabled={busyId!==null} style={styles.secondary} onPress={()=>{setBusyId(item.id);void retryOfflineCreate(item.id,user?.id).then(async ok=>{if(!ok)Alert.alert('تعذرت إعادة المحاولة','حدّث القائمة ثم حاول مجددًا.');else await syncNextOfflineCreate({isOnline:online,token:accessToken,csrfToken,ownerId:user?.id});}).catch(e=>setError(e instanceof Error?e.message:'تعذرت إعادة المحاولة.')).finally(()=>{setBusyId(null);void refresh();});}}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable>:null}<Pressable disabled={busyId!==null||item.state==='processing'} style={styles.delete} onPress={()=>Alert.alert('إلغاء الإضافة المحفوظة','ستُحذف من الجهاز ولن تُرسل إلى الخادم. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء الإضافة',style:'destructive',onPress:()=>{setBusyId(item.id);void discardOfflineCreate(item.id,user?.id).then(ok=>{if(!ok)Alert.alert('لم تُلغَ الإضافة','قد تكون قيد المعالجة؛ حدّث القائمة.');}).catch(e=>setError(e instanceof Error?e.message:'تعذر الإلغاء.')).finally(()=>{setBusyId(null);void refresh();});}}])}><Text style={styles.deleteText}>{item.state==='processing'?'قيد المعالجة':'إلغاء الإضافة'}</Text></Pressable></View></View>; })}
+        {createItems.map((item) => { const label=item.operation==='create-product'?'إضافة منتج':item.operation==='create-service'?'نشر خدمة':'تسجيل بيع'; const title=String(item.payload.name||item.payload.title||item.payload.entityTitle||label); return <View key={`create-${item.id}`} style={styles.card}><Text style={styles.adTitle}>{label}: {title}</Text><Text style={styles.status}>{item.state==='failed'?'فشلت نهائيًا؛ راجع الخطأ وأعد المحاولة عند التصحيح':item.state==='processing'?'قيد المزامنة':item.attempts>=OUTBOX_MAX_ATTEMPTS?'توقفت المحاولات؛ يلزم تدخل':'بانتظار المزامنة'}</Text><Text style={styles.muted}>المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.lastError?<Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text>:null}<Text style={styles.warning}>لم يؤكد الخادم إنشاء هذا السجل بعد. قد يرفضه إذا تغيرت الصلاحيات أو التصنيفات أو البيانات قبل المزامنة.</Text><View style={styles.actions}>{(item.state==='failed'||item.attempts>=OUTBOX_MAX_ATTEMPTS)?<Pressable disabled={busyId!==null} style={styles.secondary} onPress={()=>{setBusyId(item.id);void retryOfflineCreate(item.id,user?.id).then(async ok=>{if(!ok)showToast('تعذرت إعادة المحاولة', 'حدّث القائمة ثم حاول مجددًا.', 'error');else await syncNextOfflineCreate({isOnline:online,token:accessToken,csrfToken,ownerId:user?.id});}).catch(e=>setError(e instanceof Error?e.message:'تعذرت إعادة المحاولة.')).finally(()=>{setBusyId(null);void refresh();});}}><Text style={styles.secondaryText}>إعادة المحاولة</Text></Pressable>:null}<Pressable disabled={busyId!==null||item.state==='processing'} style={styles.delete} onPress={()=>Alert.alert('إلغاء الإضافة المحفوظة','ستُحذف من الجهاز ولن تُرسل إلى الخادم. هل تريد المتابعة؟',[{text:'رجوع',style:'cancel'},{text:'إلغاء الإضافة',style:'destructive',onPress:()=>{setBusyId(item.id);void discardOfflineCreate(item.id,user?.id).then(ok=>{if(!ok)showToast('لم تُلغَ الإضافة','قد تكون قيد المعالجة؛ حدّث القائمة.','warning');}).catch(e=>setError(e instanceof Error?e.message:'تعذر الإلغاء.')).finally(()=>{setBusyId(null);void refresh();});}}])}><Text style={styles.deleteText}>{item.state==='processing'?'قيد المعالجة':'إلغاء الإضافة'}</Text></Pressable></View></View>; })}
         {items.length === 0 && favoriteItems.length === 0 && requestItems.length === 0 && offerItems.length === 0 && orderItems.length === 0 && createItems.length === 0 && chatMessages.length === 0 && chatMedia.length === 0 ? <View style={styles.empty}><Text style={styles.title}>لا توجد عمليات معلّقة</Text><Text style={styles.muted}>ستظهر هنا العمليات التي تحتاج إلى المزامنة أو التدخل.</Text></View> : items.map((item) => {
           const exhausted = item.state === 'failed' && item.attempts >= OUTBOX_MAX_ATTEMPTS;
           const canDiscard = item.state !== 'processing';

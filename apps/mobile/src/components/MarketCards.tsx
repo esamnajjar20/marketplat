@@ -3,6 +3,7 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppImage } from '@/components/AppImage';
+import { AppIcon } from '@/components/Icons';
 import { fontSizes, colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 
 type CatalogCardProps = {
@@ -66,7 +67,7 @@ function CatalogCardComponent({
           </View>
         ) : null}
       </View>
-      <Text style={styles.chevron}>‹</Text>
+      <AppIcon name="forward" size={20} color={colors.muted} />
     </Pressable>
   );
 }

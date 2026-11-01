@@ -4,6 +4,8 @@ const read = (path) => readFileSync(new URL(path, import.meta.url).pathname, 'ut
 const inbox = read('../app/messages.tsx');
 const thread = read('../app/messages/[id].tsx');
 const api = read('../src/features/messaging/messaging.api.ts');
+const messageRow = read('../src/features/messaging/ConversationMessageRow.tsx');
+const streamLifecycle = read('../src/features/messaging/useChatLiveStream.ts');
 const mediaSync = read('../src/features/messaging/chat-media-outbox-sync.ts');
 const checks = [
   ['conversation search is local and includes participants/context/message preview', /const visibleItems = useMemo/.test(inbox) && /item\.lastMessage\?\.body/.test(inbox)],
@@ -16,10 +18,10 @@ const checks = [
   ['message deletion is confirmed before mutation', /Alert\.alert\('حذف الرسالة؟'/.test(thread) && /deleteChatMessage\(/.test(thread)],
   ['typing indicator is signalled with debounce/throttle protection', /signalChatTyping\(id, true/.test(thread) && /1800/.test(thread) && /2500/.test(thread)],
   ['offline text outbox and SQLite message cache remain integrated', /enqueueChatMessage/.test(thread) && /readCachedChatMessages/.test(thread) && /saveCachedChatMessages/.test(thread)],
-  ['SSE remains primary with fallback polling only when unsupported', /subscribeChatLiveStream/.test(thread) && /30_000/.test(thread) && /onUnsupported: startFallback/.test(thread)],
+  ['SSE remains primary with fallback polling only when unsupported', /useChatLiveStream\(/.test(thread) && /subscribeChatLiveStream/.test(streamLifecycle) && /30_000/.test(streamLifecycle) && /onUnsupported: startFallback/.test(streamLifecycle)],
   ['image upload rejects oversized local files and unsupported MIME types', /5 \* 1024 \* 1024/.test(thread) && /image\/jpeg','image\/png','image\/webp/.test(thread)],
-  ['received audio and file attachments can be opened from the native thread', /تشغيل الرسالة الصوتية/.test(thread) && /فتح الملف المرفق/.test(thread)],
-  ['conversation list can show participant avatars', /other\.avatarUrl/.test(inbox) && /avatarImage/.test(inbox)],
+  ['received audio plays in the conversation and files open in the in-app browser', /useAudioPlayer/.test(thread) && /onPlayAudio=\{playChatAudio\}/.test(thread) && /تشغيل الرسالة الصوتية/.test(messageRow) && /WebBrowser\.openBrowserAsync/.test(messageRow) && /isAllowedMediaUrl/.test(messageRow)],
+  ['conversation list can show validated participant avatars', /other\?\.avatarUrl/.test(read('../src/features/messaging/ConversationListItem.tsx')) && /<AppImage/.test(read('../src/features/messaging/ConversationListItem.tsx')) && /avatarImage/.test(read('../src/features/messaging/ConversationListItem.tsx'))],
 ];
 let failed = 0;
 for (const [label, ok] of checks) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`); if (!ok) failed++; }

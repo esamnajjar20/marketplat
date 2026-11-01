@@ -102,6 +102,9 @@ function safeTokenEquals(a: string, b: string): boolean {
 const CSRF_EXEMPT_PATHS = new Set([
   '/auth/login',
   '/auth/register',
+  // The native Google OAuth ticket is one-time, short-lived and PKCE-bound.
+  // Its anti-CSRF proof is the verifier rather than a browser session cookie.
+  '/auth/mobile/google/exchange',
   // CROSS-ORIGIN-CSRF-FIX: see this const's own header comment above.
   '/auth/refresh',
   // forgot-password + reset-password are

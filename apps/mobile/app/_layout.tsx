@@ -15,8 +15,14 @@ import { requiresAuthenticatedUser } from '@/lib/navigation-policy';
 import { OutboxSyncLifecycleBridge } from '@/storage/OutboxSyncLifecycleBridge';
 import { FavoritesSyncLifecycleBridge } from '@/features/ads/FavoritesSyncLifecycleBridge';
 import { ChatMessageOutboxLifecycleBridge } from '@/storage/ChatMessageOutboxLifecycleBridge';
+import { NativePushLifecycleBridge } from '@/features/notifications/NativePushLifecycleBridge';
 import { OfflineBanner } from '@/components/MobileUI';
+import { OfflineCacheNotice } from '@/components/OfflineCacheNotice';
+import { ToastHost } from '@/components/ToastHost';
 import { captureException, initErrorReporting } from '@/lib/error-reporting';
+
+// Initialize before the first React render so early native/JS failures are captured.
+initErrorReporting({ dsn: process.env.EXPO_PUBLIC_SENTRY_DSN });
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   if (__DEV__) console.error('[ErrorBoundary]', error);
@@ -75,7 +81,7 @@ function RootChrome({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isPrivateRoute || isRestoring || user) return;
-    router.replace(`/login?redirect=${encodeURIComponent(pathname)}` as never);
+    router.replace({ pathname: '/login', params: { redirect: pathname } });
   }, [isPrivateRoute, isRestoring, pathname, user]);
 
   // Do not mount private screens while the stored session is being restored or
@@ -90,8 +96,10 @@ function RootChrome({ children }: { children: ReactNode }) {
             <OfflineBanner visible />
           </SafeAreaView>
         ) : null}
+        <OfflineCacheNotice />
         {children}
         <BottomNavigation />
+        <ToastHost />
         {blockPrivateScreen ? (
           <View
             accessibilityRole="progressbar"
@@ -118,17 +126,13 @@ export default function RootLayout() {
     }
   }, []);
 
-  // Crash reporting: no-op without DSN / package; see docs/mobile/checklists/SENTRY-SETUP.md
-  useEffect(() => {
-    initErrorReporting({ dsn: process.env.EXPO_PUBLIC_SENTRY_DSN });
-  }, []);
-
   return (
     <ConnectivityProvider>
       <AuthProvider>
         <OutboxSyncLifecycleBridge />
         <FavoritesSyncLifecycleBridge />
         <ChatMessageOutboxLifecycleBridge />
+        <NativePushLifecycleBridge />
         <StatusBar style="dark" />
         <RootChrome>
           <Stack

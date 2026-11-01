@@ -1,3 +1,5 @@
+import { showToast } from '@/lib/toast';
+import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -10,7 +12,7 @@ import { PageShell, Notice, PrimaryButton, SectionCard } from '@/components/Mobi
 import { AppImage } from '@/components/AppImage';
 import { fontSizes, colors } from '@/theme/tokens';
 
-function price(value: PublicAd['price']) { if (value === null || value === undefined || value === '') return 'السعر عند التواصل'; const n = Number(value); return Number.isFinite(n) ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(n)} ₪` : 'السعر غير متاح'; }
+function price(value: PublicAd['price']) { if (value === null || value === undefined || value === '') return 'السعر عند التواصل'; const n = Number(value); return Number.isFinite(n) ? formatMoney(n) : 'السعر غير متاح'; }
 export default function PublicProfileScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -106,7 +108,7 @@ export default function PublicProfileScreen() {
       { text: 'إلغاء', style: 'cancel' },
       { text: action, style: 'destructive', onPress: () => { void (async () => {
         setBusy(true);
-        try { if (blocked) await unblockUser(profile.id, token, csrfToken); else await toggleBlockUser(profile.id, token, csrfToken); setBlocked(!blocked); Alert.alert(blocked ? 'تم إلغاء الحظر' : 'تم الحظر', 'تم تحديث إعداد الحظر.'); }
+        try { if (blocked) await unblockUser(profile.id, token, csrfToken); else await toggleBlockUser(profile.id, token, csrfToken); setBlocked(!blocked); showToast(blocked ? 'تم إلغاء الحظر' : 'تم الحظر', 'تم تحديث إعداد الحظر.', 'success'); }
         catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحديث الحظر.'); }
         finally { setBusy(false); }
       })(); } },

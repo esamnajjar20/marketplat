@@ -12,8 +12,9 @@ import { ApiError } from '@/api/client';
 import { fetchProduct, type ProductSummary } from '@/features/commerce/commerce.api';
 import { createMarketplaceOrder } from '@/features/commerce/orders.api';
 import { enqueueMarketplaceOrder } from '@/storage/outbox-manager';
+import { formatMoney } from '@/lib/formatters';
 
-const money = (value: unknown) => `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(value) || 0)} ₪`;
+const money = (value: unknown) => formatMoney(value);
 function makeKey() { return `mob-order-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`; }
 
 export default function OrderCheckoutScreen() {

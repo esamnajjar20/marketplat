@@ -12,6 +12,7 @@ import { fetchServiceListings, type ServiceListing } from '@/features/services/s
 import { fetchOpenRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
 import { useAuth } from '@/features/auth/AuthContext';
 import { AppImage } from '@/components/AppImage';
+import { formatMoney } from '@/lib/formatters';
 
 type SectionData = { products: ProductSummary[]; services: ServiceListing[]; requests: MarketplaceRequest[] };
 
@@ -40,7 +41,7 @@ const EMPTY: SectionData = { products: [], services: [], requests: [] };
 function money(value: number | string | null | undefined): string | null {
   if (value === null || value === undefined || value === '') return null;
   const amount = Number(value);
-  return Number.isFinite(amount) ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(amount)} ₪` : String(value);
+  return Number.isFinite(amount) ? formatMoney(amount) : String(value);
 }
 function firstImage(images?: string[] | null): string | null {
   return images?.find((value) => typeof value === 'string' && /^https?:\/\//i.test(value)) ?? null;

@@ -1,5 +1,6 @@
 import { router, type Href } from 'expo-router';
 import { routes, TAB_ROUTES } from '@/lib/routes';
+import { toAppHref } from '@/lib/typed-navigation';
 
 /**
  * مساعدات تنقل سلس:
@@ -20,26 +21,26 @@ function allowNav(): boolean {
 /** تنقل تبويب رئيسي (بدون تكديس نفس المسار) */
 export function goTab(path: Href | string): void {
   if (!allowNav()) return;
-  router.navigate(path as Href);
+  router.navigate(typeof path === 'string' ? toAppHref(path) : path);
 }
 
 /** فتح شاشة تفصيل / مسار فرعي (يدفع للمكدس) */
 export function openScreen(path: Href | string): void {
   if (!allowNav()) return;
-  router.push(path as Href);
+  router.push(typeof path === 'string' ? toAppHref(path) : path);
 }
 
 /** استبدال الشاشة الحالية (بعد دخول ناجح مثلاً) */
 export function replaceScreen(path: Href | string): void {
   if (!allowNav()) return;
-  router.replace(path as Href);
+  router.replace(typeof path === 'string' ? toAppHref(path) : path);
 }
 
 /** رجوع آمن */
 export function goBack(fallback: Href | string = routes.tabs.home): void {
   if (!allowNav()) return;
   if (router.canGoBack()) router.back();
-  else router.replace(fallback as Href);
+  else router.replace(typeof fallback === 'string' ? toAppHref(fallback) : fallback);
 }
 
 /** مسارات التبويبات الرئيسية — للتنقل بدون animation stacking مفرط */

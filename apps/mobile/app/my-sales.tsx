@@ -10,6 +10,7 @@ import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSales, fetchSalesSummary, type SalePaymentStatus, type SaleRecord, type SalesPeriod, type SalesSummary } from '@/features/sales/sales.api';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { formatDate, formatMoney , formatNumber} from '@/lib/formatters';
 
 const periodOptions: { value: SalesPeriod; label: string }[] = [
   { value: 'day', label: 'اليوم' }, { value: 'week', label: 'أسبوع' }, { value: 'month', label: 'شهر' }, { value: 'year', label: 'سنة' },
@@ -18,8 +19,8 @@ const statusOptions: { value: SalePaymentStatus | 'ALL'; label: string }[] = [
   { value: 'ALL', label: 'الكل' }, { value: 'PAID', label: 'مدفوعة' }, { value: 'PARTIAL', label: 'مدفوعة جزئيًا' }, { value: 'UNPAID', label: 'غير مدفوعة' }, { value: 'OVERDUE', label: 'متأخرة' },
 ];
 const statusLabel: Record<SalePaymentStatus, string> = { PAID: 'مدفوعة', PARTIAL: 'مدفوعة جزئيًا', UNPAID: 'غير مدفوعة', OVERDUE: 'متأخرة' };
-const money = (value: unknown, currency = 'ILS') => `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(value) || 0)} ${currency === 'ILS' ? '₪' : currency}`;
-const dateLabel = (value: string) => { const date = new Date(value); return Number.isNaN(date.getTime()) ? 'تاريخ غير متاح' : date.toLocaleDateString('ar', { year: 'numeric', month: 'short', day: 'numeric' }); };
+const money = (value: unknown, currency = 'ILS') => formatMoney(value, currency);
+const dateLabel = (value: string) => formatDate(value, 'date');
 
 export default function MySalesScreen() {
   const { accessToken, isRestoring, user } = useAuth();
@@ -95,7 +96,7 @@ ListHeaderComponent={<>
         <View style={s.metric}><Text style={s.metricLabel}>إجمالي الإيرادات</Text><Text style={s.metricValue}>{money(visibleSummary.totalRevenue)}</Text></View>
         <View style={s.metric}><Text style={s.metricLabel}>المبالغ المحصّلة</Text><Text style={s.metricValue}>{money(visibleSummary.totalPaid)}</Text></View>
         <View style={s.metric}><Text style={s.metricLabel}>المبالغ المستحقة</Text><Text style={[s.metricValue, s.dueValue]}>{money(visibleSummary.totalDue)}</Text></View>
-        <View style={s.metric}><Text style={s.metricLabel}>عدد عمليات البيع</Text><Text style={s.metricValue}>{new Intl.NumberFormat('ar').format(visibleSummary.salesCount)}</Text></View>
+        <View style={s.metric}><Text style={s.metricLabel}>عدد عمليات البيع</Text><Text style={s.metricValue}>{formatNumber(visibleSummary.salesCount)}</Text></View>
         <View style={s.metric}><Text style={s.metricLabel}>صافي الربح التقديري</Text><Text style={s.metricValue}>{money(visibleSummary.netProfit)}</Text></View>
         <View style={s.metric}><Text style={s.metricLabel}>المبالغ المستردة</Text><Text style={s.metricValue}>{money(visibleSummary.totalRefunded)}</Text></View>
       </View> : null}

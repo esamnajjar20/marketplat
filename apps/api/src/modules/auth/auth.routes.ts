@@ -1,4 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import { authController } from './auth.controller';
 import { sendApiError } from '../../shared/errors/errorResponse';
 import { ErrorCode } from '../../shared/errors/errorCodes';
@@ -12,17 +13,26 @@ import { authenticate } from '../../middlewares/auth.middleware';
 import { passport } from './google.strategy';
 import type { GoogleProfileData } from './google.strategy';
 import { env } from '../../config/env';
+import { redis } from '../../config/redis';
+import { logger } from '../../shared/utils/logger';
 import {
   generateAndSetOAuthState,
   getOAuthStateFromCookie,
   clearOAuthStateCookie,
   setOAuthPurpose,
   clearOAuthPurpose,
+  setMobileOAuthFlowCookie,
+  getMobileOAuthFlowId,
+  clearMobileOAuthFlowCookie,
 } from '../../shared/utils/authCookies';
 
 type GoogleProfileDataOrFalse = GoogleProfileData | false;
 
 export const authRouter = Router();
+
+const mobileOAuthFlowKey = (flowId: string) => `auth:google:mobile-flow:${flowId}`;
+const MOBILE_PKCE_CHALLENGE = /^[A-Za-z0-9_-]{43}$/;
+
 
 /**
  * guards both /auth/google endpoints when Google OAuth
@@ -91,6 +101,9 @@ authRouter.post('/register', authRateLimit, authController.register);
  *         description: Account locked or too many attempts
  */
 authRouter.post('/login', authRateLimit, authController.login);
+
+/** Native OAuth exchange: one-time ticket + PKCE verifier; no Google token is exposed to the app. */
+authRouter.post('/mobile/google/exchange', authRateLimit, authController.mobileGoogleExchange);
 
 /**
  * @swagger
@@ -220,35 +233,47 @@ authRouter.get(
   // back unchanged in the callback's query string. See
   // authCookies.ts's generateAndSetOAuthState for the full threat
   // model this closes (OAuth CSRF).
-  (req: Request, res: Response, next: NextFunction) => {
-    // FEAT-GOOGLE-VERIFY-RESET: ?purpose=verify asks the callback to
-    // mark the caller's email verified without signing in; ?purpose=reset
-    // asks it to mint a password-reset token and redirect into the
-    // existing /reset-password page. Absent/unknown values fall through
-    // to the original sign-in flow unchanged. The value is stored in a
-    // short-lived httpOnly cookie rather than round-tripped through
-    // Google, so a third party cannot alter the flow mid-consent.
-    const purpose = req.query.purpose;
-    if (purpose === 'verify' || purpose === 'reset' || purpose === 'link') {
-      setOAuthPurpose(res, purpose);
-    } else {
-      // explicitly clear any purpose cookie
-      // left over from an abandoned verify/reset flow. Without this,
-      // a user who started "reset via Google" and closed the tab
-      // before consent — so the cookie was never cleared by the
-      // callback — would have the next plain sign-in (on the same
-      // device, any account) silently routed into the reset branch
-      // when the cookie is still within its 10-minute TTL. Same for
-      // verify. The flow the user actually started always wins; a
-      // stale cookie cannot.
-      clearOAuthPurpose(res);
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const isMobile = req.query.client === 'mobile';
+      const purpose = req.query.purpose;
+      if (isMobile) {
+        // Native sign-in only. Verify/reset/link are browser-only flows and
+        // must not be silently converted into a mobile sign-in.
+        if (purpose !== undefined) {
+          sendApiError(req, res, 400, ErrorCode.BAD_REQUEST, 'Unsupported native OAuth purpose');
+          return;
+        }
+        const challenge = typeof req.query.code_challenge === 'string' ? req.query.code_challenge : '';
+        const challengeMethod = typeof req.query.code_challenge_method === 'string' ? req.query.code_challenge_method : '';
+        if (challengeMethod !== 'S256' || !MOBILE_PKCE_CHALLENGE.test(challenge)) {
+          sendApiError(req, res, 400, ErrorCode.BAD_REQUEST, 'A valid PKCE code challenge is required');
+          return;
+        }
+        const flowId = crypto.randomBytes(32).toString('hex');
+        await redis.set(mobileOAuthFlowKey(flowId), challenge, 'EX', 600);
+        setMobileOAuthFlowCookie(res, flowId);
+        clearOAuthPurpose(res);
+      } else {
+        clearMobileOAuthFlowCookie(res);
+        if (purpose === 'verify' || purpose === 'reset' || purpose === 'link') {
+          setOAuthPurpose(res, purpose);
+        } else {
+          // A stale purpose cookie from an abandoned browser flow must not
+          // affect this new plain sign-in.
+          clearOAuthPurpose(res);
+        }
+      }
+
+      const state = generateAndSetOAuthState(res);
+      passport.authenticate('google', {
+        session: false,
+        scope: ['profile', 'email'],
+        state,
+      })(req, res, next);
+    } catch (error) {
+      next(error);
     }
-    const state = generateAndSetOAuthState(res);
-    passport.authenticate('google', {
-      session: false,
-      scope: ['profile', 'email'],
-      state,
-    })(req, res, next);
   }
 );
 
@@ -300,7 +325,7 @@ authRouter.get(
   // here regardless of outcome so a captured/replayed callback URL
   // can't be reused even if somehow re-submitted with a stale but
   // still-matching cookie still present.
-  (req: Request, res: Response, next: NextFunction) => {
+  async (req: Request, res: Response, next: NextFunction) => {
     const expectedState = getOAuthStateFromCookie(req);
     const returnedState = typeof req.query.state === 'string' ? req.query.state : undefined;
     clearOAuthStateCookie(res);
@@ -308,6 +333,21 @@ authRouter.get(
     if (!expectedState || !returnedState || expectedState !== returnedState) {
       res.redirect('/api/v1/auth/google/failure');
       return;
+    }
+
+    const flowId = getMobileOAuthFlowId(req);
+    if (flowId) {
+      try {
+        const challenge = await redis.get(mobileOAuthFlowKey(flowId));
+        if (!challenge || !MOBILE_PKCE_CHALLENGE.test(challenge)) {
+          res.redirect('/api/v1/auth/google/failure');
+          return;
+        }
+        res.locals.mobileOAuth = { flowId, challenge };
+      } catch (error) {
+        next(error);
+        return;
+      }
     }
     next();
   },
@@ -343,7 +383,23 @@ authRouter.get(
  * and "loginWithGoogle()-level failure" (deactivated account, DB
  * error) land the user in the same place with the same UX.
  */
-authRouter.get('/google/failure', (_req, res) => {
+authRouter.get('/google/failure', async (req, res) => {
+  const flowId = getMobileOAuthFlowId(req);
+  if (flowId) {
+    try {
+      await redis.del(mobileOAuthFlowKey(flowId));
+    } catch (error) {
+      // Failure redirect is still safe; the Redis key expires after 10 minutes.
+      // Do not strand the system browser on an API error page.
+      logger.warn('Native Google OAuth failure cleanup deferred until Redis TTL', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      clearMobileOAuthFlowCookie(res);
+    }
+    res.redirect('marketplat://oauth/callback?error=google_auth_failed');
+    return;
+  }
   const base = `${env.frontendUrl}${env.frontendUrl.endsWith('/') ? '' : '/'}login`;
   res.redirect(`${base}?error=google_auth_failed`);
 });

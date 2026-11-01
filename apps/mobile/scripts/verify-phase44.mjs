@@ -11,6 +11,6 @@ assert.match(persistence, /return 'retained'/);
 assert.match(persistence, /deleteAsync\(uri, \{ idempotent: true \}\)/);
 assert.match(editor, /for \(const uri of removedUris\)/);
 assert.match(editor, /removePersistedAdImageIfUnused\(uri\)/);
-assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(pkg.scripts['verify:static'], /run-all-verifications\.mjs/, 'verify:static must invoke the discovery runner');
 assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 console.log('Phase 44 image cleanup/source-contract checks passed (static only; SQLite/filesystem device runtime not exercised).');

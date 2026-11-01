@@ -2,6 +2,7 @@ import { clearPrivateCacheForPrefix, deletePublicCacheEntry, deletePublicCacheEn
 import type { ZodType } from 'zod';
 import { parseApiResponse } from '@/api/response-validation';
 import { API_BASE_URL_ERROR, getConfiguredApiBaseUrl } from '@/lib/api-base-url';
+import { markFreshApiResponse, markOfflineCacheResponse } from '@/api/offline-cache-status';
 /** Minimal API transport. Set EXPO_PUBLIC_API_URL in apps/mobile/.env before connecting real screens. */
 export type ApiFieldErrors = Record<string, string[]>;
 export type ApiErrorMeta = Record<string, unknown>;
@@ -54,8 +55,10 @@ async function readValidatedCache<T>(
     if (responseSchema) {
       const parsed = parseApiResponse(responseSchema, cached);
       if (!parsed.success) return null;
+      markOfflineCacheResponse(cacheKey, entry.savedAt);
       return tagFromCache(parsed.data, entry.savedAt) as CachedResult<T>;
     }
+    markOfflineCacheResponse(cacheKey, entry.savedAt);
     return tagFromCache(cached as T, entry.savedAt);
   } catch {
     // A cache read is best-effort. It must never hide the real network/config error.
@@ -425,9 +428,12 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
       validatedPayload = parsed.data;
     }
     if (cacheKey && isSuccessfulPublicEnvelope(validatedPayload)) {
-      await writePublicCache(cacheKey, validatedPayload);
+      markFreshApiResponse(cacheKey);
+      // SQLite is best-effort: don't hold a successful UI request open while it writes.
+      void writePublicCache(cacheKey, validatedPayload).catch(() => undefined);
     } else if (init.method && init.method.toUpperCase() !== 'GET' && token) {
-      await invalidateMutationCaches(path, cacheOwnerId);
+      // Mutations return as soon as the server succeeds; cache invalidation follows safely.
+      void invalidateMutationCaches(path, cacheOwnerId).catch(() => undefined);
     }
     return validatedPayload as T;
   } catch (error) {
@@ -441,7 +447,8 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
       (error.name === 'AbortError' && timeoutExpired)
       || (error instanceof TypeError && /network|fetch/i.test(error.message))
     );
-    if (method === 'GET' && !_networkRetried && transientTransportFailure) {
+    const requestTimedOut = error instanceof Error && error.name === 'AbortError' && timeoutExpired;
+    if (method === 'GET' && !_networkRetried && transientTransportFailure && !requestTimedOut) {
       return apiRequest<T>(path, {
         ...options,
         timeoutMs,

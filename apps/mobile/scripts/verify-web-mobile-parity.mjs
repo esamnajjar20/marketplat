@@ -19,7 +19,7 @@ function check(name, condition) {
   checks.push(name);
 }
 
-const [tokens, productDetail, adDetail, storeDetail, search, serviceDetail, serviceList, serviceApi, productApi, adsApi,
+const [tokens, productDetail, adDetail, storeDetail, search, savedSearchesPage, serviceDetail, serviceList, serviceApi, productApi, adsApi,
   favoritesApi, offlineStorage, settings, sessionsPage, deletePage, deleteApi, followingPage, allAds, sellerDashboard,
   productService, userService, userRoutes, timeline, gallery, productCard, forYouPage, home, config] = await Promise.all([
   read('apps/mobile/src/theme/tokens.ts'),
@@ -27,6 +27,7 @@ const [tokens, productDetail, adDetail, storeDetail, search, serviceDetail, serv
   read('apps/mobile/app/ads/[id].tsx'),
   read('apps/mobile/app/stores/[id].tsx'),
   read('apps/mobile/app/search.tsx'),
+  read('apps/mobile/app/saved-searches.tsx'),
   read('apps/mobile/app/service-requests/[id].tsx'),
   read('apps/mobile/app/service-requests.tsx'),
   read('apps/mobile/src/features/services/services.api.ts'),
@@ -60,15 +61,15 @@ check('product recommendations are one query per detail and use shared ProductCa
 check('favorite API uses existing polymorphic routes', favoritesApi.includes('/api/v1/favorites/${entityType}/${encodeURIComponent(entityId)}/check') && favoritesApi.includes('/api/v1/favorites/${entityType}/${encodeURIComponent(entityId)}'));
 check('ads expose view count and explicit offline save control', adDetail.includes('ad.views') && adDetail.includes('<SaveOfflineButton') && adDetail.includes('نصائح السلامة'));
 check('offline bookmarks use separate encrypted SQLite table', offlineStorage.includes('openEncryptedDatabaseAsync') && offlineStorage.includes('saved_offline_resources') && offlineStorage.includes('PRIMARY KEY (kind, id)'));
-check('search supports save-search, dynamic content types, and backend condition filter', search.includes('createSavedSearch') && search.includes("value: 'stores'") && search.includes("value: 'REFURBISHED'") && search.includes('condition: condition || undefined'));
-check('storefront has six lazily-loaded tabs and a shared store ShareButton', storeDetail.includes('<StorefrontTabs') && storeDetail.includes("tab === 'offers'") && storeDetail.includes("tab === 'collections'") && storeDetail.includes("tab === 'ads'") && storeDetail.includes('fetchPublicCollections(id)') && storeDetail.includes('<ShareButton'));
+check('search supports save-search, dynamic content types, and backend condition filter', search.includes("pathname: '/saved-searches'") && savedSearchesPage.includes('createSavedSearch') && search.includes("value: 'stores'") && search.includes("value: 'REFURBISHED'") && search.includes("condition: submittedFilters.type === 'ads' ? (submittedFilters.condition || undefined) : undefined"));
+check('storefront exposes products, reviews, and about tabs with separate collections navigation and sharing', storeDetail.includes("key:'products'") && storeDetail.includes("key:'reviews'") && storeDetail.includes("key:'about'") && storeDetail.includes('/store-collections-public') && storeDetail.includes('<ShareButton'));
 check('service request has standalone details, images, appointment, timeline, and role-gated actions', serviceDetail.includes('<MediaGallery') && serviceDetail.includes('<ServiceRequestTimeline') && serviceDetail.includes('role.provider') && serviceDetail.includes('request.appointment'));
 check('service request list navigates to detail instead of bypassing quote flow', serviceList.includes("/service-requests/[id]") || serviceList.includes("pathname: '/service-requests/[id]'"));
 check('service API fetches protected detail and carries price/dispute data', serviceApi.includes('fetchServiceRequest') && serviceApi.includes('agreedPrice') && serviceApi.includes('quotedPrice'));
 check('active sessions support listing and revoking non-current sessions', sessionsPage.includes('fetchActiveSessions') && sessionsPage.includes('revokeActiveSession') && sessionsPage.includes('session.isCurrent'));
 check('account deletion requires password re-auth on the mobile path', deletePage.includes('deleteAccountAfterReauthentication') && deletePage.includes('كلمة المرور الحالية') && deleteApi.includes('/api/v1/users/me/delete-confirmed'));
 check('server verifies password and fails closed for OAuth-only profiles', userService.includes('comparePassword(currentPassword, user.passwordHash)') && userService.includes('OAUTH_REAUTH_REQUIRED'));
-check('server route is authenticated and rate limited', userRoutes.includes("post('/me/delete-confirmed', authenticate, changePasswordRateLimit"));
+check('server route is authenticated and rate limited', /usersRouter\.post\(\s*['"]\/me\/delete-confirmed['"],\s*authenticate,\s*changePasswordRateLimit,/.test(userRoutes));
 check('public product APIs redact account numbers and account holder names', productService.includes('sanitizePublicProductPaymentMethods') && productService.includes('paymentMethods: methods') && productService.includes('Redact after cache retrieval too'));
 check('following list and all-ads listing routes exist', followingPage.includes('fetchUserFollowList') && allAds.includes('fetchPublicAds') && allAds.includes('page <='));
 check('seller dashboard fetches store/seller/analytics in bounded requests', sellerDashboard.includes('fetchMyStore') && sellerDashboard.includes('fetchMySellerProfile') && sellerDashboard.includes('fetchMyStoreAnalytics'));

@@ -181,3 +181,15 @@ func TestOAuthFailuresKeepTransientAndPermanentClassesSeparate(t *testing.T) {
 		}
 	})
 }
+
+func TestConfigurationStatusDistinguishesMissingInvalidAndReady(t *testing.T) {
+	if got := New("", "", "", nil).ConfigurationStatus(); got != "missing" {
+		t.Fatalf("missing credentials status = %q, want missing", got)
+	}
+	if got := New("project", "service@example.test", "not-a-pem", nil).ConfigurationStatus(); got != "invalid" {
+		t.Fatalf("malformed credentials status = %q, want invalid", got)
+	}
+	if got := New("project", "service@example.test", testServiceAccountKey(t), nil).ConfigurationStatus(); got != "ready" {
+		t.Fatalf("valid credentials status = %q, want ready", got)
+	}
+}

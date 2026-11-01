@@ -8,6 +8,7 @@ const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 const app = JSON.parse(read('app.json')).expo;
 const encryptedDb = read('src/storage/encrypted-database.ts');
 const auth = read('src/features/auth/AuthContext.tsx');
+const privateCleanup = read('src/features/auth/private-data-cleanup.ts');
 const cache = read('src/storage/public-cache.ts');
 const media = read('src/storage/chat-media-outbox.ts');
 const stream = read('src/features/messaging/chat-live-stream.ts');
@@ -25,8 +26,8 @@ assert.match(encryptedDb, /PRAGMA key/, 'Set the per-installation database key')
 assert.match(encryptedDb, /sqlcipher_export\('encrypted'\)/, 'Legacy database migration must export to encrypted DB');
 assert.match(encryptedDb, /deleteDatabaseAsync\(LEGACY_DATABASE_NAME\)/, 'Legacy plaintext DB may only be deleted after verified encrypted open');
 assert.match(auth, /countPendingPrivateMobileOperations/, 'Logout must count queued operations');
-assert.match(auth, /حذف العمليات والخروج/, 'Logout must explicitly warn before discarding queued writes');
-assert.match(auth, /PRIVATE_CLEANUP_REQUIRED_KEY/, 'Failed logout cleanup must block next login/restore');
+assert.match(auth, /خروج وحذف البيانات/, 'Logout must explicitly label the destructive option before discarding queued writes');
+assert.match(privateCleanup, /PRIVATE_CLEANUP_REQUIRED_KEY/, 'Failed logout cleanup must block next login/restore');
 assert.match(cache, /withExclusiveTransactionAsync/, 'Private data cleanup must be atomic');
 assert.match(cache, /export async function countPendingPrivateMobileOperations/, 'Expose queued-operation count');
 assert.match(media, /cleanupStaleChatMediaFiles/, 'Implement chat-media retention sweep');

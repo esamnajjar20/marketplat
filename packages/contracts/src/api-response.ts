@@ -1,17 +1,14 @@
 import { z } from 'zod';
 
-/**
- * Runtime contract matching the existing Express API success envelope.
- * Keep optional fields optional: several existing endpoints omit data/meta.
- */
+/** Success envelope used by Express; message is optional for legacy endpoints. */
 export const apiSuccessResponseSchema = z.object({
   success: z.literal(true),
-  message: z.string(),
+  message: z.string().optional(),
   data: z.unknown().optional(),
   meta: z.record(z.string(), z.unknown()).optional(),
-});
+}).passthrough();
 
-/** Runtime contract matching apps/api/src/shared/errors/errorResponse.ts. */
+/** Error envelope matching apps/api/src/shared/errors/errorResponse.ts. */
 export const apiErrorResponseSchema = z.object({
   success: z.literal(false),
   message: z.string(),
@@ -20,13 +17,11 @@ export const apiErrorResponseSchema = z.object({
   requestId: z.string().optional(),
   meta: z.record(z.string(), z.unknown()).optional(),
   errors: z.record(z.string(), z.array(z.string())).optional(),
-  errorMeta: z
-    .record(
-      z.string(),
-      z.array(z.object({ code: z.string(), params: z.record(z.string(), z.unknown()).optional() }))
-    )
-    .optional(),
-});
+  errorMeta: z.record(
+    z.string(),
+    z.array(z.object({ code: z.string().min(1), params: z.record(z.string(), z.unknown()).optional() }).passthrough())
+  ).optional(),
+}).passthrough();
 
 export type ApiSuccessResponse = z.infer<typeof apiSuccessResponseSchema>;
 export type ApiErrorResponse = z.infer<typeof apiErrorResponseSchema>;

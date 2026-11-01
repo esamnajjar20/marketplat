@@ -1,3 +1,4 @@
+import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
@@ -21,7 +22,7 @@ function priceLabel(item: ServiceListing) {
   if (item.pricingType === 'NEGOTIABLE' || item.price == null) return 'السعر عند الاتفاق';
   const value = Number(item.price);
   return Number.isFinite(value)
-    ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(value)} ₪${item.pricingType === 'STARTING_FROM' ? ' وما فوق' : ''}`
+    ? `${formatMoney(value)}${item.pricingType === 'STARTING_FROM' ? ' وما فوق' : ''}`
     : 'السعر عند الاتفاق';
 }
 

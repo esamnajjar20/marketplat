@@ -29,6 +29,7 @@ export const colors = {
   mediaCounterOverlay: 'rgba(0, 0, 0, 0.55)',
   mediaCloseOverlay: 'rgba(0, 0, 0, 0.55)',
   fullscreenBackdrop: 'rgba(0, 0, 0, 0.95)',
+  modalBackdrop: 'rgba(36, 30, 25, 0.42)',
   storyProgressTrack: 'rgba(255, 255, 255, 0.30)',
   storyNavigationOverlay: 'rgba(0, 0, 0, 0.26)',
   // تمييز: تيراكوتا

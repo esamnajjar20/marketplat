@@ -12,7 +12,7 @@ assert.match(bridge, /result\.retryAfterActiveSync/, 'bridge retries after cross
 assert.match(bridge, /getActiveSyncPromise\(\)[\s\S]*ongoing\.finally\(\(\) => \{[\s\S]*syncFavoritesIfReady\(\{ \.\.\.snapshot\.current \}\)/, 'retry uses current snapshot and checks mount state');
 assert.match(lifecycle, /if \(!sessionStillCurrent\(\)\) return deferForSessionChange\(\)/, 'stale session still halts work');
 assert.match(lifecycle, /activeSync = null; activeKey = null;/, 'global lock is released after the active sync settles');
-assert.match(packageJson.scripts.test, /run-all-verifications\.mjs/, 'the aggregate verification runner is the test entry point');
+assert.match(packageJson.scripts['verify:static'], /run-all-verifications\.mjs/, 'the aggregate verification runner is the static verification entry point');
 assert.match(draftStore, /updated_at INTEGER NOT NULL\s+\);`\);\s+await db\.execAsync\(`CREATE TABLE IF NOT EXISTS ad_edit_drafts/, 'ad draft database initialization closes its first SQL template literal');
 console.log('Phase 77 passed: cross-account sync contention retries from the latest session snapshot, and draft-store SQL initialization syntax is guarded.');
 console.log('Static contract checks only; live multi-account race tests remain required.');

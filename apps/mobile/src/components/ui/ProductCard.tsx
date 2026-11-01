@@ -1,7 +1,9 @@
+import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { Image, View, type ViewStyle } from 'react-native';
+import { View, type ViewStyle } from 'react-native';
 import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { formatMoney } from '@/lib/formatters';
 
 export type ProductCardData = {
   id: string;
@@ -16,7 +18,7 @@ export type ProductCardData = {
 function priceLabel(value: unknown): string {
   if (value === null || value === undefined || value === '') return 'السعر عند التواصل';
   const amount = Number(value);
-  return Number.isFinite(amount) ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(amount)} ₪` : 'السعر عند التواصل';
+  return Number.isFinite(amount) ? formatMoney(amount) : 'السعر عند التواصل';
 }
 
 /** Reusable compact product card; the caller owns navigation and data fetching. */
@@ -46,7 +48,7 @@ export function ProductCard({ product, layout = 'row', onPress, style }: {
         opacity: pressed ? 0.82 : 1,
       }, style]}
     >
-      {image ? <Image source={{ uri: image }} style={{ width: '100%', height: grid ? 112 : 84, borderRadius: radius.control, backgroundColor: colors.border }} resizeMode="cover" /> : <View style={{ width: '100%', height: grid ? 112 : 84, borderRadius: radius.control, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brandOnSoft, fontSize: fontSizes[28] }}>◇</Text></View>}
+      {image ? <AppImage uri={image} style={{ width: '100%', height: grid ? 112 : 84, borderRadius: radius.control, backgroundColor: colors.border }} resizeMode="cover" /> : <View style={{ width: '100%', height: grid ? 112 : 84, borderRadius: radius.control, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brandOnSoft, fontSize: fontSizes[28] }}>◇</Text></View>}
       <View style={{ flex: 1, alignItems: 'flex-end', gap: 4 }}>
         <Text numberOfLines={2} style={{ ...typography.bodyStrong, color: colors.ink, textAlign: 'right' }}>{product.name}</Text>
         {product.category?.nameAr || product.category?.name ? <Text numberOfLines={1} style={{ ...typography.caption, color: colors.muted, textAlign: 'right' }}>{product.category.nameAr || product.category.name}</Text> : null}

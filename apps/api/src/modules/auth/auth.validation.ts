@@ -160,3 +160,12 @@ export const resetPasswordSchema = z.object({
 
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>['body'];
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>['body'];
+
+
+/** One-time native OAuth exchange. The ticket is short-lived and bound to a PKCE verifier. */
+export const mobileGoogleExchangeSchema = z.object({
+  body: z.object({
+    ticket: z.string().regex(/^[A-Za-z0-9_-]{43}$/, 'Invalid OAuth ticket'),
+    verifier: z.string().min(43).max(128).regex(/^[A-Za-z0-9._~-]+$/, 'Invalid PKCE verifier'),
+  }),
+});

@@ -1,3 +1,4 @@
+import { formatMoney, formatNumber, formatDate as formatSharedDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -12,8 +13,7 @@ import {
 } from '@/features/ads/favorites.store';
 import { setFavoriteAdState } from '@/features/ads/favorites.api';
 import { ApiError } from '@/api/client';
-import { fetchAdDetail, getCachedAdDetail } from '@/features/ads/ads.api';
-import type { AdDetail } from '@/features/ads/ads.api';
+import { fetchAdDetail, getCachedAdDetail, type AdDetail } from '@/features/ads/ads.api';
 import { startConversationFromAd } from '@/features/messaging/messaging.api';
 import { ShareButton } from '@/components/ui/ShareButton';
 import { AppIcon } from '@/components/Icons';
@@ -32,7 +32,7 @@ function formatPrice(price: AdDetail['price']): string {
   if (price === null || price === undefined || price === '') return 'السعر عند التواصل';
   const amount = Number(price);
   return Number.isFinite(amount)
-    ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(amount)} ₪`
+    ? formatMoney(amount)
     : String(price);
 }
 
@@ -40,7 +40,7 @@ function formatDate(value?: string): string | null {
   if (!value) return null;
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return null;
-  return new Intl.DateTimeFormat('ar', { dateStyle: 'medium' }).format(date);
+  return formatSharedDate(date, 'date');
 }
 
 export default function AdDetailScreen() {
@@ -244,7 +244,7 @@ export default function AdDetailScreen() {
                 <Text style={styles.date}>تاريخ النشر: {formatDate(ad.createdAt)}</Text>
               ) : null}
               {typeof ad.views === 'number' ? (
-                <Text style={styles.date}>المشاهدات: {new Intl.NumberFormat('ar').format(ad.views)}</Text>
+                <Text style={styles.date}>المشاهدات: {formatNumber(ad.views)}</Text>
               ) : null}
 
               {favoriteMessage ? <Notice tone="muted">{favoriteMessage}</Notice> : null}

@@ -13,9 +13,11 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -155,6 +157,7 @@ func main() {
 	s := &server{db: db, redisConfig: redisConfig, cacheRedisConfig: cacheRedisConfig, token: token, retentionDays: retentionDays, batchSize: batchSize, logger: logger, cloudinary: storycleanup.NewClient(os.Getenv("CLOUDINARY_CLOUD_NAME"), os.Getenv("CLOUDINARY_API_KEY"), os.Getenv("CLOUDINARY_API_SECRET")), fcmPush: fcmpush.NewFromEnv()}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
+	mux.HandleFunc("GET /internal/diagnostics", s.internalDiagnostics)
 	mux.HandleFunc("POST /internal/jobs/analytics-retention", s.runAnalyticsRetention)
 	mux.HandleFunc("POST /internal/jobs/auth-token-retention", s.runAuthTokenRetention)
 	mux.HandleFunc("POST /internal/jobs/notification-retention", s.runNotificationRetention)
@@ -196,10 +199,36 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 	}
 	logger.Info("MarketPlat Go worker listening", "addr", addr, "retentionDays", retentionDays, "batchSize", batchSize)
+
+	// Render sends SIGTERM during deploys. Drain active requests before the
+	// process exits so advisory-lock owners can finish or release their locks
+	// cleanly; use a hard close only after the bounded shutdown deadline.
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(signals)
+	go func() {
+		<-signals
+		logger.Info("shutdown signal received; draining Go worker")
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer shutdownCancel()
+		if err := httpServer.Shutdown(shutdownCtx); err != nil {
+			logger.Warn("graceful HTTP shutdown timed out; closing active connections", "error", err)
+			if closeErr := httpServer.Close(); closeErr != nil {
+				logger.Warn("forced HTTP close failed", "error", closeErr)
+			}
+		}
+	}()
+
 	if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		logger.Error("HTTP server failed", "error", err)
+		// os.Exit skips deferred cleanup; close the database explicitly before
+		// returning a failing process status.
+		if closeErr := db.Close(); closeErr != nil {
+			logger.Warn("database close after HTTP server failure failed", "error", closeErr)
+		}
 		os.Exit(1)
 	}
+	logger.Info("MarketPlat Go worker stopped cleanly")
 }
 
 type fcmPushRequest struct {
@@ -292,6 +321,133 @@ func (s *server) health(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "service": "marketplat-go-worker"})
+}
+
+// internalDiagnostics is protected by the worker token and reports dependency
+// readiness without exposing connection strings, Redis hosts, tokens, or keys.
+// The public /healthz endpoint intentionally remains DB-focused so an optional
+// Redis outage does not cause Render to restart a worker that can still serve
+// database-only maintenance jobs and Express fallbacks.
+func (s *server) internalDiagnostics(w http.ResponseWriter, r *http.Request) {
+	if !authorized(r, s.token) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+
+	// Probe independent dependencies concurrently. Sequential 1.5s probes
+	// could exhaust a shared 2s request deadline and incorrectly report the
+	// second Redis instance unhealthy even when it is reachable.
+	type probeResult struct {
+		database        string
+		viewBatchLedger string
+		schedulerLedger string
+		primary         string
+		cache           string
+	}
+	results := probeResult{
+		database: "unhealthy", viewBatchLedger: "unknown", schedulerLedger: "unknown",
+		primary: "not_configured", cache: "not_configured",
+	}
+	var probes sync.WaitGroup
+	probe := func(run func(context.Context) string) string {
+		ctx, cancel := context.WithTimeout(r.Context(), 1500*time.Millisecond)
+		defer cancel()
+		return run(ctx)
+	}
+	probes.Add(2)
+	go func() {
+		defer probes.Done()
+		if s.db != nil {
+			ctx, cancel := context.WithTimeout(r.Context(), 1500*time.Millisecond)
+			defer cancel()
+			var viewBatchLedger, schedulerLedger bool
+			err := s.db.QueryRowContext(ctx, `
+				SELECT to_regclass('view_buffer_flush_batches') IS NOT NULL,
+				       to_regclass('scheduled_job_runs') IS NOT NULL
+			`).Scan(&viewBatchLedger, &schedulerLedger)
+			if err == nil {
+				results.database = "ok"
+				results.viewBatchLedger = map[bool]string{true: "ready", false: "missing"}[viewBatchLedger]
+				results.schedulerLedger = map[bool]string{true: "ready", false: "missing"}[schedulerLedger]
+			}
+		}
+	}()
+	go func() {
+		defer probes.Done()
+		results.primary = probe(func(ctx context.Context) string { return probeRedis(ctx, s.redisConfig) })
+	}()
+	if sameRedisConfig(s.redisConfig, s.cacheRedisConfig) {
+		results.cache = "same_as_primary"
+	} else {
+		probes.Add(1)
+		go func() {
+			defer probes.Done()
+			results.cache = probe(func(ctx context.Context) string { return probeRedis(ctx, s.cacheRedisConfig) })
+		}()
+	}
+	probes.Wait()
+	databaseStatus, redisStatus, cacheRedisStatus := results.database, results.primary, results.cache
+	if cacheRedisStatus == "same_as_primary" {
+		cacheRedisStatus = redisStatus
+	}
+	fcmStatus := "missing"
+	if s.fcmPush != nil {
+		fcmStatus = s.fcmPush.ConfigurationStatus()
+	}
+
+	status := "ok"
+	if databaseStatus != "ok" || results.viewBatchLedger != "ready" || results.schedulerLedger != "ready" ||
+		redisStatus != "ok" || cacheRedisStatus != "ok" {
+		status = "degraded"
+	}
+	poolStats := sql.DBStats{}
+	if s.db != nil {
+		poolStats = s.db.Stats()
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status":  status,
+		"service": "marketplat-go-worker",
+		"dependencies": map[string]string{
+			"postgres":            databaseStatus,
+			"redis":               redisStatus,
+			"cacheRedis":          cacheRedisStatus,
+			"viewBatchLedger":     results.viewBatchLedger,
+			"schedulerLedger":     results.schedulerLedger,
+			"firebaseCredentials": fcmStatus,
+		},
+		"databasePool": map[string]any{
+			"openConnections":    poolStats.OpenConnections,
+			"inUse":              poolStats.InUse,
+			"idle":               poolStats.Idle,
+			"maxOpenConnections": poolStats.MaxOpenConnections,
+		},
+	})
+}
+
+func sameRedisConfig(left, right *rediswire.Config) bool {
+	if left == nil || right == nil {
+		return left == right
+	}
+	return left.Addr == right.Addr && left.Username == right.Username &&
+		left.Password == right.Password && left.TLS == right.TLS && left.DB == right.DB
+}
+
+func probeRedis(parent context.Context, config *rediswire.Config) string {
+	if config == nil {
+		return "not_configured"
+	}
+	ctx, cancel := context.WithTimeout(parent, 1500*time.Millisecond)
+	defer cancel()
+	conn, err := rediswire.Dial(ctx, config)
+	if err != nil {
+		return "unhealthy"
+	}
+	defer conn.Close()
+	response, err := conn.Do(ctx, "PING")
+	if err != nil || response != "PONG" {
+		return "unhealthy"
+	}
+	return "ok"
 }
 
 // tryLocalJobGate avoids queueing duplicate requests behind a one-connection

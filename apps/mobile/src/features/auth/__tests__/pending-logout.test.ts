@@ -74,6 +74,25 @@ describe('revokePendingLogout', () => {
     await expect(revokePendingLogout(pending, { logoutSession, refreshAccessSession })).rejects.toMatchObject({ status: 503 });
   });
 
+
+  it('unregisters the stored FCM token before revoking a deferred session', async () => {
+    const order: string[] = [];
+    const unregisterFcmToken = vi.fn().mockImplementation(async () => { order.push('push'); });
+    const logoutSession = vi.fn().mockImplementation(async () => { order.push('logout'); });
+    const refreshAccessSession = vi.fn();
+    await expect(revokePendingLogout({ ...pending, fcmToken: 'fcm-token-1' }, { logoutSession, refreshAccessSession, unregisterFcmToken })).resolves.toBe('revoked');
+    expect(order).toEqual(['push', 'logout']);
+    expect(unregisterFcmToken).toHaveBeenCalledWith('expired-access-token', 'stale-csrf-token', 'fcm-token-1');
+  });
+
+  it('refreshes credentials before removing the FCM token if the stored access token expired', async () => {
+    const unregisterFcmToken = vi.fn().mockResolvedValue(undefined);
+    const logoutSession = vi.fn().mockRejectedValueOnce(authError(401)).mockResolvedValueOnce(undefined);
+    const refreshAccessSession = vi.fn().mockResolvedValue({ accessToken: 'fresh-access-token', csrfToken: 'fresh-csrf-token' });
+    await expect(revokePendingLogout({ ...pending, fcmToken: 'fcm-token-2' }, { logoutSession, refreshAccessSession, unregisterFcmToken })).resolves.toBe('revoked');
+    expect(unregisterFcmToken).toHaveBeenCalledWith('fresh-access-token', 'fresh-csrf-token', 'fcm-token-2');
+  });
+
   it('does not refresh or clear the marker for a non-auth logout failure', async () => {
     const logoutSession = vi.fn().mockRejectedValue(new ApiError('Service unavailable', 503));
     const refreshAccessSession = vi.fn();

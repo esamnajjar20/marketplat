@@ -1,6 +1,7 @@
 import { AppText as Text } from '@/components/ui/AppText';
+import { AppIcon } from '@/components/Icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Linking, Switch, TextInput, View } from 'react-native';
+import { Linking, Platform, Switch, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { getConfiguredWebUrl } from '@/lib/web-links';
@@ -8,6 +9,8 @@ import { fetchMyProfile, updateNotificationPreferences } from '@/features/accoun
 import { ListRow, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { fontSizes, colors } from '@/theme/tokens';
 import { AccountSecuritySection } from '@/components/ui/AccountSecuritySection';
+import { isAndroidPushEnabled, requestAndRegisterAndroidPush, unregisterAndroidFcmToken } from '@/features/notifications/native-push';
+import { showToast } from '@/lib/toast';
 
 type PreferenceValue = boolean | string;
 type Preferences = Record<string, PreferenceValue>;
@@ -38,6 +41,8 @@ export default function SettingsScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
   const deviceTimeZone = useMemo(() => getDeviceTimeZone(), []);
   const load = useCallback(async () => {
     const token = getAccessToken();
@@ -58,6 +63,7 @@ export default function SettingsScreen() {
     } finally { setLoadingPreferences(false); }
   }, [getAccessToken, user?.id]);
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => { let active = true; void isAndroidPushEnabled().then((enabled) => { if (active) setPushEnabled(enabled); }); return () => { active = false; }; }, [user?.id]);
   const toggle = (key: string, value: boolean) => setPrefs((p) => ({ ...p, [key]: value }));
   const save = async () => {
     if (!accessToken || !preferencesLoaded || loadingPreferences) return;
@@ -74,6 +80,30 @@ export default function SettingsScreen() {
     } catch (e) { setError(e instanceof Error ? e.message : 'تعذر حفظ الإعدادات.'); }
     finally { setBusy(false); }
   };
+  const enableDevicePush = async () => {
+    const token = getAccessToken();
+    if (!token) { router.push('/login'); return; }
+    setPushBusy(true); setError(''); setMessage('');
+    try {
+      await requestAndRegisterAndroidPush(token, csrfToken);
+      setPushEnabled(true);
+      setMessage('تم تفعيل إشعارات الجهاز وربطه بحسابك.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'تعذر تفعيل إشعارات الجهاز.');
+    } finally { setPushBusy(false); }
+  };
+  const disableDevicePush = async () => {
+    const token = getAccessToken();
+    if (!token) { router.push('/login'); return; }
+    setPushBusy(true); setError(''); setMessage('');
+    try {
+      await unregisterAndroidFcmToken(token, csrfToken);
+      setPushEnabled(false);
+      setMessage('تم إيقاف إشعارات الجهاز لهذا الحساب.');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'تعذر إيقاف إشعارات الجهاز.');
+    } finally { setPushBusy(false); }
+  };
   const handleLogout = async () => {
     try {
       const result = await logout(); // AuthContext lets the user keep or explicitly delete encrypted local data.
@@ -83,6 +113,11 @@ export default function SettingsScreen() {
   return <PageShell title="الإعدادات">
     {!accessToken ? <><Notice>سجّل الدخول لإدارة إعدادات الحساب.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /></> : <>
       {loadingPreferences ? <SectionCard><Text style={{ textAlign: 'center', color: colors.muted }}>جارٍ تحميل تفضيلات الإشعارات…</Text></SectionCard> : null}
+      <SectionCard>
+        <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '800', color: colors.ink }}>إشعارات الجهاز الفورية</Text>
+        <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 22 }}>فعّل إشعارات Android لتلقي تنبيهات MarketPlat حتى عندما لا يكون التطبيق مفتوحًا. سيطلب التطبيق الإذن بعد ضغطك على الزر فقط.</Text>
+        {Platform.OS === 'android' ? (pushEnabled ? <PrimaryButton label="إيقاف إشعارات الجهاز" variant="secondary" onPress={() => void disableDevicePush()} busy={pushBusy} disabled={!accessToken || pushBusy} /> : <PrimaryButton label="تفعيل إشعارات الجهاز على Android" onPress={() => void enableDevicePush()} busy={pushBusy} disabled={!accessToken || pushBusy} />) : <Notice tone="muted">الإشعارات الفورية غير مفعلة على هذا النظام بعد؛ خادم الإرسال الحالي يقبل رموز FCM فقط.</Notice>}
+      </SectionCard>
       {preferenceGroups.map((group) => <SectionCard key={group.title}><Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '800', color: colors.ink }}>{group.title}</Text>{group.rows.map(([key, label]) => <View key={key} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.border }}><Text style={{ flex: 1, textAlign: 'right', color: colors.ink, fontSize: fontSizes[14] }}>{label}</Text><Switch accessibilityLabel={label} disabled={!preferencesLoaded || busy} value={prefs[key] === true} onValueChange={(v) => toggle(key, v)} trackColor={{ true: colors.brand }} /></View>)}</SectionCard>)}
       <SectionCard><Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '800', color: colors.ink }}>البريد وساعات الهدوء</Text>
         {([['emailFallback', 'تنبيه بالبريد عند بقاء الإشعارات دون قراءة'], ['quietHoursEnabled', 'تفعيل ساعات الهدوء'], ['quietHoursAllowUrgent', 'السماح بالتنبيهات العاجلة أثناء الهدوء']] as [string, string][]).map(([key, label]) => <View key={key} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border }}><Text style={{ flex: 1, textAlign: 'right', color: colors.ink, fontSize: fontSizes[14] }}>{label}</Text><Switch accessibilityLabel={label} disabled={!preferencesLoaded || busy} value={prefs[key] === true} onValueChange={(v) => toggle(key, v)} trackColor={{ true: colors.brand }} /></View>)}
@@ -106,10 +141,10 @@ export default function SettingsScreen() {
       </SectionCard>
       <SectionCard>
         <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '800', color: colors.ink }}>المساعدة والمعلومات</Text>
-        <ListRow title="سياسة الخصوصية" glyph="؟" onPress={() => { void Linking.openURL(getConfiguredWebUrl('/privacy')).catch(() => Alert.alert('تعذر فتح الرابط', 'افتح الموقع الرسمي من المتصفح.')); }} />
-        <ListRow title="الشروط والأحكام" glyph="؟" onPress={() => { void Linking.openURL(getConfiguredWebUrl('/terms')).catch(() => Alert.alert('تعذر فتح الرابط', 'افتح الموقع الرسمي من المتصفح.')); }} />
-        <ListRow title="اتصل بنا" glyph="✉" onPress={() => { void Linking.openURL(getConfiguredWebUrl('/contact')).catch(() => Alert.alert('تعذر فتح الرابط', 'افتح الموقع الرسمي من المتصفح.')); }} />
-        <ListRow title="من نحن" glyph="i" onPress={() => { void Linking.openURL(getConfiguredWebUrl('/about')).catch(() => Alert.alert('تعذر فتح الرابط', 'افتح الموقع الرسمي من المتصفح.')); }} />
+        <ListRow title="سياسة الخصوصية" glyph={<AppIcon name="privacy" size={20} color={colors.brand} />} onPress={() => { void Linking.openURL(getConfiguredWebUrl('/privacy')).catch(() => showToast('تعذر فتح الرابط', 'افتح الموقع الرسمي من المتصفح.', 'error')); }} />
+        <ListRow title="الشروط والأحكام" glyph={<AppIcon name="file" size={20} color={colors.brand} />} onPress={() => { void Linking.openURL(getConfiguredWebUrl('/terms')).catch(() => showToast('تعذر فتح الرابط', 'افتح الموقع الرسمي من المتصفح.', 'error')); }} />
+        <ListRow title="اتصل بنا" glyph={<AppIcon name="messages" size={20} color={colors.brand} />} onPress={() => { void Linking.openURL(getConfiguredWebUrl('/contact')).catch(() => showToast('تعذر فتح الرابط', 'افتح الموقع الرسمي من المتصفح.', 'error')); }} />
+        <ListRow title="من نحن" glyph={<AppIcon name="info" size={20} color={colors.brand} />} onPress={() => { void Linking.openURL(getConfiguredWebUrl('/about')).catch(() => showToast('تعذر فتح الرابط', 'افتح الموقع الرسمي من المتصفح.', 'error')); }} />
       </SectionCard>
       <PrimaryButton label="تسجيل الخروج" variant="danger" busy={isBusy} onPress={() => void handleLogout()} />
       <AccountSecuritySection />

@@ -10,6 +10,7 @@ export type PaginatedListState<T> = {
   items: T[];
   page: number;
   totalPages: number;
+  totalCount: number;
   hasNextPage: boolean;
   loading: boolean;
   refreshing: boolean;
@@ -61,6 +62,7 @@ export function usePaginatedList<T>(options: Options<T>): PaginatedListState<T> 
   const [items, setItems] = useState<T[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [loading, setLoading] = useState(enabled);
   const [refreshing, setRefreshing] = useState(false);
@@ -130,6 +132,7 @@ export function usePaginatedList<T>(options: Options<T>): PaginatedListState<T> 
             setItems(cachedItems);
             setPage(cachedPage.page);
             setTotalPages(cachedPage.totalPages);
+            setTotalCount(cachedPage.total);
             setHasNextPage(cachedPage.hasNextPage);
             setLoading(false);
             setRefreshing(true);
@@ -150,6 +153,7 @@ export function usePaginatedList<T>(options: Options<T>): PaginatedListState<T> 
       setItems(nextItems);
       setPage(next.page);
       setTotalPages(next.totalPages);
+      setTotalCount(next.total);
       setHasNextPage(next.hasNextPage);
     } catch (requestError) {
       if (generation !== generationRef.current || controller.signal.aborted) return;
@@ -199,6 +203,7 @@ export function usePaginatedList<T>(options: Options<T>): PaginatedListState<T> 
       setItems(nextItems);
       setPage(next.page);
       setTotalPages(next.totalPages);
+      setTotalCount(next.total);
       setHasNextPage(next.hasNextPage);
     } catch (requestError) {
       if (generation !== generationRef.current || controller.signal.aborted) return;
@@ -240,6 +245,7 @@ export function usePaginatedList<T>(options: Options<T>): PaginatedListState<T> 
       setItems(merged);
       setPage(next.page);
       setTotalPages(next.totalPages);
+      setTotalCount(next.total);
       setHasNextPage(next.hasNextPage);
     } catch (requestError) {
       if (generation !== generationRef.current || controller.signal.aborted) return;
@@ -268,6 +274,7 @@ export function usePaginatedList<T>(options: Options<T>): PaginatedListState<T> 
       setItems([]);
       setPage(1);
       setTotalPages(1);
+      setTotalCount(0);
       setHasNextPage(false);
       setLoading(false);
       setRefreshing(false);
@@ -285,6 +292,7 @@ export function usePaginatedList<T>(options: Options<T>): PaginatedListState<T> 
     setItems([]);
     setPage(1);
     setTotalPages(1);
+    setTotalCount(0);
     setHasNextPage(false);
     void refresh();
 
@@ -311,6 +319,7 @@ export function usePaginatedList<T>(options: Options<T>): PaginatedListState<T> 
     items: isCurrentKey ? items : [],
     page: isCurrentKey ? page : 1,
     totalPages: isCurrentKey ? totalPages : 1,
+    totalCount: isCurrentKey ? totalCount : 0,
     hasNextPage: isCurrentKey ? hasNextPage : false,
     loading: isCurrentKey ? loading : enabled,
     refreshing: isCurrentKey ? refreshing : false,

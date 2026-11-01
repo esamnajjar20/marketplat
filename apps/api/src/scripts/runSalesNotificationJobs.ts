@@ -1,4 +1,4 @@
-import { runChildJob } from './childJobRunner';
+import { runChildJobsIndependently } from './childJobRunner';
 import {
   getSalesNotificationJobs,
   getSalesNotificationScheduleTime,
@@ -18,7 +18,7 @@ async function main(): Promise<void> {
       `[sales-notifications] ${now.hour}:${String(now.minute).padStart(2, '0')} ${SALES_NOTIFICATION_TIME_ZONE} -> nothing due`
     );
   }
-  for (const job of jobs) await runChildJob(job);
+  await runChildJobsIndependently(jobs, 'sales-notifications');
 }
 
 main().catch(error => {

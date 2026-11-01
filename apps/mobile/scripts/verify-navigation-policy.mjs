@@ -60,5 +60,5 @@ assert.match(policy, /function getRouteAccess/);
 assert.match(policy, /function requiresAuthenticatedUser/);
 assert.match(drawer, /getRouteAccess\(item\.path\)/, 'drawer auth decisions must come from the central route policy');
 assert.match(layout, /requiresAuthenticatedUser\(pathname\)/, 'root layout must enforce the route access policy');
-assert.match(layout, /redirect=\$\{encodeURIComponent\(pathname\)\}/, 'private routes must preserve a safe post-login destination');
+assert.match(layout, /pathname:\s*['"]\/login['"],\s*params:\s*\{\s*redirect:\s*pathname\s*\}/, 'private routes must preserve a safe typed post-login destination');
 console.log(`Navigation policy checks passed (${paths.length} declared navigation destinations; ${appRoutes.length} Expo route files scanned; root guard and drawer use shared route policy).`);

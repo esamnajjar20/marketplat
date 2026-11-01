@@ -29,18 +29,20 @@ const groups = [
       { title: 'إنشاء ملف مقدم خدمة', description: 'أنشئ ملف نشاطك وأدر خدماتك', path: '/service-provider-profile' },
     ],
   },
-];
+] as const;
+
+type AddDestinationPath = (typeof groups)[number]['items'][number]['path'];
 
 export default function AddScreen() {
   const { user, accessToken } = useAuth();
   const [checkingPath, setCheckingPath] = useState('');
   const [error, setError] = useState('');
 
-  const open = async (path: string) => {
+  const open = async (path: AddDestinationPath) => {
     if (!user || !accessToken) { router.push('/login'); return; }
     if (checkingPath) return;
     setError('');
-    if (path !== '/product-editor' && path !== '/service-editor') { router.push(path as never); return; }
+    if (path !== '/product-editor' && path !== '/service-editor') { router.push(path); return; }
     setCheckingPath(path);
     try {
       if (path === '/product-editor') {

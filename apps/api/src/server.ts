@@ -68,6 +68,16 @@ async function withRetry(
   }
 }
 
+
+async function runShutdownStep(label: string, operation: () => Promise<unknown> | unknown): Promise<void> {
+  try {
+    await operation();
+  } catch (error) {
+    logger.error(`Shutdown step failed: ${label}; continuing with remaining cleanup`, { error });
+    reportBackgroundFailure(`apps/api/src/server.ts:${label}`, error);
+  }
+}
+
 const bootstrap = async (): Promise<void> => {
   try {
     // PROD-FIX-10: SENTRY_DSN is optional (instrument.ts is a no-op
@@ -208,23 +218,19 @@ const bootstrap = async (): Promise<void> => {
 
       server.close(async () => {
         clearTimeout(forceTimer);
-        // Flush buffered views during shutdown so Redis/Postgres do not diverge
-        // until the next process starts.
-        await viewsBuffer.stopFlushTimer();
-        // Flush buffered activity during shutdown to avoid losing the pending
-        // batch between process restarts.
-        await activityBuffer.stopFlushTimer();
-        // Finish in-flight notification jobs while Prisma/Redis are still available.
-        await notificationQueueStartup?.catch(error =>
-          reportBackgroundFailure('apps/api/src/server.ts', error)
-        );
-        await stopNotificationQueue?.();
+        // Each cleanup step is isolated: a retained Redis batch or a failed
+        // notification drain must never prevent Prisma/Redis connections from
+        // being closed before the platform's shutdown deadline.
+        await runShutdownStep('views-buffer-flush', () => viewsBuffer.stopFlushTimer());
+        await runShutdownStep('activity-buffer-flush', () => activityBuffer.stopFlushTimer());
+        await runShutdownStep('notification-worker-startup', () => notificationQueueStartup);
+        await runShutdownStep('notification-worker-stop', () => stopNotificationQueue?.());
         redisMemoryMonitor.stop();
         stopUserCacheInvalidationSubscriber();
         stopUnreadNotificationsCacheInvalidationSubscriber();
         stopBlacklistInvalidationSubscriber();
-        await prisma.$disconnect();
-        await redis.quit();
+        await runShutdownStep('prisma-disconnect', () => prisma.$disconnect());
+        await runShutdownStep('redis-quit', () => redis.quit());
         logger.info('Server closed cleanly');
         process.exit(0);
       });
@@ -296,21 +302,19 @@ const bootstrap = async (): Promise<void> => {
 
       void (async () => {
         try {
-          await viewsBuffer.stopFlushTimer();
-          await activityBuffer.stopFlushTimer();
+          await runShutdownStep('views-buffer-flush', () => viewsBuffer.stopFlushTimer());
+          await runShutdownStep('activity-buffer-flush', () => activityBuffer.stopFlushTimer());
           // FIX-NOTIF-SHUTDOWN-01: see the other shutdown site.
-          await notificationQueueStartup?.catch(error =>
-            reportBackgroundFailure('apps/api/src/server.ts', error)
-          );
-          await stopNotificationQueue?.();
+          await runShutdownStep('notification-worker-startup', () => notificationQueueStartup);
+          await runShutdownStep('notification-worker-stop', () => stopNotificationQueue?.());
           redisMemoryMonitor.stop();
           stopUserCacheInvalidationSubscriber();
           stopUnreadNotificationsCacheInvalidationSubscriber();
           stopBlacklistInvalidationSubscriber();
-          await prisma.$disconnect();
-          await redis.quit();
+          await runShutdownStep('prisma-disconnect', () => prisma.$disconnect());
+          await runShutdownStep('redis-quit', () => redis.quit());
         } catch (cleanupError) {
-          logger.error('Cleanup after uncaughtException failed', cleanupError);
+          logger.error('Unexpected cleanup orchestration failure after uncaughtException', cleanupError);
         } finally {
           clearTimeout(forceExitTimer);
           process.exit(1);

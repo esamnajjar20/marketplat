@@ -1,7 +1,9 @@
+import { formatDate, formatMoney, formatNumber } from '@/lib/formatters';
+import { AppIcon } from '@/components/Icons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fetchProduct, fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { startConversationWithUser } from '@/features/messaging/messaging.api';
@@ -15,11 +17,12 @@ import { RatingStars } from '@/components/ui/RatingStars';
 import { ShareButton } from '@/components/ui/ShareButton';
 import { ProductCard } from '@/components/ui/ProductCard';
 import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { showToast } from '@/lib/toast';
 
 function money(value: unknown): string {
   const n = Number(value);
   return value !== null && value !== undefined && value !== '' && Number.isFinite(n)
-    ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(n)} ₪`
+    ? formatMoney(n)
     : 'السعر عند التواصل';
 }
 function availabilityLabel(value?: string): string {
@@ -29,8 +32,8 @@ function availabilityLabel(value?: string): string {
 }
 function dateLabel(value?: string): string | null {
   if (!value) return null;
-  const date = new Date(value);
-  return Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat('ar', { dateStyle: 'medium' }).format(date) : null;
+  const formatted = formatDate(value, 'date');
+  return formatted === 'غير متاح' ? null : formatted;
 }
 function displayPayments(value: unknown): string[] {
   if (Array.isArray(value)) return value.map((item) => {
@@ -113,11 +116,11 @@ export default function ProductDetailScreen() {
         <Badge label={availabilityLabel(item.availability)} tone={item.availability === 'OUT_OF_STOCK' ? 'danger' : 'success'} />
         <Text style={styles.description}>{item.description || 'لا يوجد وصف إضافي لهذا المنتج.'}</Text>
         <View style={styles.metaRow}>
-          {typeof item.views === 'number' ? <Text style={styles.meta}>المشاهدات: {new Intl.NumberFormat('ar').format(item.views)}</Text> : null}
+          {typeof item.views === 'number' ? <Text style={styles.meta}>المشاهدات: {formatNumber(item.views)}</Text> : null}
           {dateLabel(item.createdAt) ? <Text style={styles.meta}>تاريخ النشر: {dateLabel(item.createdAt)}</Text> : null}
         </View>
         {typeof item.store?.sellerProfile?.averageRating === 'number' ? <View style={styles.ratingLine}><RatingStars score={Number(item.store.sellerProfile.averageRating)} count={item.store.sellerProfile.totalRatings} />{item.store.sellerProfile.totalRatings ? <Text style={styles.meta}>({item.store.sellerProfile.totalRatings})</Text> : null}</View> : null}
-        {item.store?.name ? <Pressable accessibilityRole="button" onPress={() => { if (item.store?.id) router.push(`/stores/${encodeURIComponent(item.store.id)}`); }}><Text style={styles.storeText}>عرض متجر {item.store.name} ‹</Text></Pressable> : null}
+        {item.store?.name ? <Pressable accessibilityRole="button" onPress={() => { if (item.store?.id) router.push(`/stores/${encodeURIComponent(item.store.id)}`); }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Text style={styles.storeText}>عرض متجر {item.store.name}</Text><AppIcon name="forward" size={16} color={colors.brand} /></View></Pressable> : null}
       </SectionCard>
 
       <ProductAttributeList fields={item.store?.storeType?.fields} attributes={item.attributes} />
@@ -131,7 +134,7 @@ export default function ProductDetailScreen() {
         setContacting(true);
         void startConversationWithUser(sellerUserId, accessToken, { type: 'product', id: item.id }, csrfToken)
           .then((conversation) => router.push({ pathname: '/messages/[id]', params: { id: conversation.id } }))
-          .catch((err) => Alert.alert('تعذر بدء المحادثة', err instanceof Error ? err.message : 'حاول مرة أخرى.'))
+          .catch((err) => showToast('تعذر بدء المحادثة', err instanceof Error ? err.message : 'حاول مرة أخرى.', 'error'))
           .finally(() => setContacting(false));
       }} /> : null}
       <PrimaryButton label="الإبلاغ عن المنتج" variant="ghost" onPress={() => router.push({ pathname: '/report/[targetType]/[targetId]', params: { targetType: 'products', targetId: item.id } })} />

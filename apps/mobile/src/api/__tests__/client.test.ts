@@ -40,6 +40,43 @@ async function loadClient() {
 }
 
 describe('apiRequest reliability contracts', () => {
+
+  it('does not wait for a successful public response to finish writing the local cache', async () => {
+    let finishCacheWrite: (() => void) | undefined;
+    cache.writePublicCache.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finishCacheWrite = resolve;
+    }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      jsonResponse(200, { success: true, data: [{ id: 'category-1' }] }),
+    ));
+
+    const { apiRequest } = await loadClient();
+    await expect(apiRequest('/api/v1/categories')).resolves.toMatchObject({ success: true });
+    expect(cache.writePublicCache).toHaveBeenCalledOnce();
+    finishCacheWrite?.();
+  });
+
+  it('does not spend a second full timeout retrying a timed-out GET', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        const error = new Error('aborted');
+        error.name = 'AbortError';
+        reject(error);
+      }, { once: true });
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      const { apiRequest } = await loadClient();
+      const pending = apiRequest('/api/v1/categories', { timeoutMs: 25 });
+      await vi.advanceTimersByTimeAsync(25);
+      await expect(pending).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT' });
+      expect(fetchMock).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it('serves the validated stale public cache after one bounded 5xx retry', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse(503, { success: false, message: 'unavailable' }))
@@ -154,9 +191,11 @@ describe('account-scoped offline cache extensions', () => {
       method: 'PATCH', token: 'token-a', cacheOwnerId: 'owner-a', body: JSON.stringify({ title: 'Updated' }),
     });
     expect(cache.clearPrivateCacheForPrefix).toHaveBeenCalledWith('/api/v1/products', 'owner-a');
-    expect(cache.clearPrivateCacheForPrefix).toHaveBeenCalledWith('/api/v1/users/me', 'owner-a');
-    expect(cache.deletePublicCacheEntriesByPrefix).toHaveBeenCalledWith('api-public:/api/v1/products');
-    expect(cache.deletePublicCacheEntriesByPrefix).toHaveBeenCalledWith('api-public:/api/v1/search');
+    await vi.waitFor(() => {
+      expect(cache.clearPrivateCacheForPrefix).toHaveBeenCalledWith('/api/v1/users/me', 'owner-a');
+      expect(cache.deletePublicCacheEntriesByPrefix).toHaveBeenCalledWith('api-public:/api/v1/products');
+      expect(cache.deletePublicCacheEntriesByPrefix).toHaveBeenCalledWith('api-public:/api/v1/search');
+    });
     expect(cache.clearPrivateCache).not.toHaveBeenCalled();
   });
 
@@ -170,7 +209,9 @@ describe('account-scoped offline cache extensions', () => {
     });
     expect(cache.clearPrivateCacheForPrefix).not.toHaveBeenCalled();
     expect(cache.clearPrivateCache).not.toHaveBeenCalled();
-    expect(cache.deletePublicCacheEntriesByPrefix).toHaveBeenCalledWith('api-public:/api/v1/products');
+    await vi.waitFor(() => {
+      expect(cache.deletePublicCacheEntriesByPrefix).toHaveBeenCalledWith('api-public:/api/v1/products');
+    });
   });
 
   it('invalidates only the current owner notifications cache after a read mutation', async () => {

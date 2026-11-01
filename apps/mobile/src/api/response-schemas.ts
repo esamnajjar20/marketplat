@@ -63,6 +63,8 @@ const paginationResponseSchema = z.object({
   limit: z.number().finite().int().positive().optional(),
   total: z.number().finite().nonnegative().optional(),
   totalPages: z.number().finite().int().nonnegative().optional(),
+  hasNextPage: z.boolean().optional(),
+  hasPrevPage: z.boolean().optional(),
   nextCursor: z.string().nullable().optional(),
 }).passthrough();
 const mobileApiMetaSchema = z.object({ pagination: paginationResponseSchema.optional() }).passthrough();

@@ -69,7 +69,11 @@ const chatScreen = await read('app/messages/[id].tsx');
 assert.doesNotMatch(chatScreen, /usePaginatedList/, 'cursor-based conversation history must not be forced into page-number pagination');
 
 const layout = await read('app/_layout.tsx');
-assert.match(layout, /I18nManager\.allowRTL\(false\)/, 'do not enable native RTL before removing the existing manual mirroring');
-assert.match(layout, /I18nManager\.forceRTL\(false\)/, 'manual RTL layout must not be double-mirrored');
+const appConfig = JSON.parse(await read('app.json'));
+assert.match(layout, /I18nManager\.allowRTL\(true\)/, 'native RTL must be enabled for the Arabic-first application');
+assert.match(layout, /I18nManager\.forceRTL\(true\)/, 'the native direction must be explicitly RTL regardless of device language');
+assert.equal(appConfig.expo.android.supportsRTL, true, 'Android manifest must advertise RTL support');
+const nativeLayoutFiles = await Promise.all(['src/components/MobileDrawer.tsx'].map((file) => read(file)));
+assert.ok(nativeLayoutFiles.every((source) => !/flexDirection\s*:\s*['\"]row-reverse['\"]|scaleX\s*:\s*-1/.test(source)), 'native RTL must not be combined with manually reversed rows or mirrored transforms');
 
-console.log('✅ Shared data lifecycle checks passed: cancellable resources, numbered lists, API signal forwarding, cursor-chat exception, honest Query wiring, and RTL safety.');
+console.log('✅ Shared data lifecycle checks passed: cancellable resources, numbered lists, API signal forwarding, cursor-chat exception, honest Query wiring, and native RTL configuration.');

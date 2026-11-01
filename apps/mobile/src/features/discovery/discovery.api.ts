@@ -11,7 +11,7 @@ export type SearchResult = {
 export type SearchOptions = {
   q?: string; type?: 'all' | 'ads' | 'products' | 'stores' | 'services'; categoryId?: string;
   city?: string; minPrice?: number; maxPrice?: number; condition?: 'NEW' | 'USED' | 'REFURBISHED';
-  sort?: 'relevance' | 'rating' | 'newest' | 'views' | 'price_asc' | 'price_desc'; page?: number; limit?: number;
+  sort?: 'relevance' | 'rating' | 'newest' | 'views' | 'price_asc' | 'price_desc'; page?: number; limit?: number; signal?: AbortSignal;
 };
 export async function searchMarketplace(options: SearchOptions) {
   const params = new URLSearchParams({ type: options.type ?? 'all', sort: options.sort ?? 'relevance', page: String(options.page ?? 1), limit: String(options.limit ?? 20) });
@@ -21,7 +21,7 @@ export async function searchMarketplace(options: SearchOptions) {
   if (options.minPrice !== undefined) params.set('minPrice', String(options.minPrice));
   if (options.maxPrice !== undefined) params.set('maxPrice', String(options.maxPrice));
   if (options.condition && (options.type === 'all' || options.type === 'ads' || !options.type)) params.set('condition', options.condition);
-  const response = await apiRequest<Envelope<SearchResult[]>>(`/api/v1/search?${params.toString()}`);
+  const response = await apiRequest<Envelope<SearchResult[]>>(`/api/v1/search?${params.toString()}`, options.signal ? { signal: options.signal } : {});
   if (response?.success !== true || !Array.isArray(response.data)) throw new Error(response?.message || 'استجابة البحث غير صالحة.');
   return { items: response.data, page: response.meta?.pagination?.page ?? options.page ?? 1, totalPages: response.meta?.pagination?.totalPages ?? 1, total: response.meta?.pagination?.total ?? response.data.length };
 }

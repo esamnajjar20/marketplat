@@ -17,6 +17,7 @@ import {
 } from '@/components/MobileUI';
 import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
 import { AppImage } from '@/components/AppImage';
+import { formatMoney , formatDate} from '@/lib/formatters';
 
 const labels: Record<string, string> = {
   PENDING: 'بانتظار تأكيد المتجر',
@@ -27,8 +28,7 @@ const labels: Record<string, string> = {
   CANCELLED: 'ملغي',
 };
 
-const money = (v: unknown) =>
-  `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(v) || 0)} ₪`;
+const money = (v: unknown) => formatMoney(v);
 
 const nextStatus: Partial<Record<MarketplaceOrderStatus, MarketplaceOrderStatus>> = {
   PENDING: 'CONFIRMED',
@@ -126,7 +126,7 @@ export default function OrderDetailScreen() {
               <Badge label={labels[order.status] || order.status} tone="brand" />
             </View>
             <Text style={styles.muted}>
-              تاريخ الطلب: {new Date(order.createdAt).toLocaleString('ar')}
+              تاريخ الطلب: {formatDate(order.createdAt)}
             </Text>
             <Text style={styles.storeName}>{order.store?.name || 'المتجر'}</Text>
 

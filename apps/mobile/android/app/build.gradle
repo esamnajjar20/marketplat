@@ -2,7 +2,26 @@ apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 
+// app.config.js points Expo prebuild at apps/mobile/google-services.json.
+// The checked-in native Android project also supports that same file directly.
+def mobileGoogleServicesJson = rootProject.file("../google-services.json")
+def appGoogleServicesJson = file("google-services.json")
+if (!appGoogleServicesJson.exists() && mobileGoogleServicesJson.exists()) {
+    appGoogleServicesJson.parentFile.mkdirs()
+    java.nio.file.Files.copy(
+        mobileGoogleServicesJson.toPath(),
+        appGoogleServicesJson.toPath(),
+        java.nio.file.StandardCopyOption.REPLACE_EXISTING
+    )
+}
+if (appGoogleServicesJson.exists()) {
+    apply plugin: "com.google.gms.google-services"
+}
+
 def projectRoot = rootDir.getAbsoluteFile().getParentFile().getAbsolutePath()
+def mobileExpoConfig = new groovy.json.JsonSlurper().parse(file("${projectRoot}/app.json"))
+def mobileVersionCode = mobileExpoConfig.expo.android.versionCode as Integer
+def mobileVersionName = mobileExpoConfig.expo.version as String
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -92,8 +111,8 @@ android {
         applicationId 'com.marketplat.mobile'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "0.1.1"
+        versionCode mobileVersionCode
+        versionName mobileVersionName
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }

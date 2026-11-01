@@ -17,6 +17,6 @@ assert.match(screen, /currentMoreRequestId === moreRequestId\.current/, 'only th
 assert.match(screen, /if \(parentRequestId !== requestId\.current\) return/, 'ignore page responses after refresh or navigation invalidates them');
 assert.match(screen, /تحميل المزيد من المحادثات/, 'provide a user-visible pagination control');
 assert.match(screen, /loadMoreError \? <Text style=\{styles\.moreError\}/, 'load-more failure should not replace the already loaded inbox');
-assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(pkg.scripts['verify:static'], /run-all-verifications\.mjs/, 'verify:static must invoke the discovery runner');
 assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'pagination audit must be part of npm test');
 console.log('Conversation pagination audit checks passed (inbox pages follow server metadata and safely append unique conversations).');

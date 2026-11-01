@@ -32,7 +32,11 @@ jobs:
     env:
       CI: "1"
       EXPO_NO_TELEMETRY: "1"
-      EXPO_PUBLIC_API_URL: https://marketplat-nz19.onrender.com
+      EXPO_PUBLIC_API_URL: https://marketplat-api.esamnajjar6.workers.dev
+      EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      SENTRY_URL: ${{ secrets.SENTRY_URL }}
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
@@ -80,7 +84,33 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Apply Expo native config plugins (including SQLCipher)
+      - name: Configure Firebase Android services (optional for PR builds)
+        env:
+          FIREBASE_ANDROID_JSON_BASE64: ${{ secrets.MARKETPLAT_FIREBASE_ANDROID_JSON_BASE64 }}
+          EXPECTED_FIREBASE_PROJECT_ID: ${{ secrets.MARKETPLAT_FIREBASE_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$FIREBASE_ANDROID_JSON_BASE64" ]; then
+            echo 'Firebase Android file secret is not configured; this build will not register native FCM.'
+            exit 0
+          fi
+          test -n "$EXPECTED_FIREBASE_PROJECT_ID" || { echo 'Set MARKETPLAT_FIREBASE_PROJECT_ID whenever the Firebase JSON secret is configured.'; exit 1; }
+          printf '%s' "$FIREBASE_ANDROID_JSON_BASE64" | base64 --decode > apps/mobile/google-services.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const config = JSON.parse(fs.readFileSync('apps/mobile/google-services.json', 'utf8'));
+          const packageNames = (config.client || []).map((client) => client.client_info?.android_client_info?.package_name).filter(Boolean);
+          if (config.project_info?.project_id == null || !packageNames.includes('com.marketplat.mobile')) {
+            throw new Error('Firebase config must contain the MarketPlat Android package com.marketplat.mobile.');
+          }
+          const expected = process.env.EXPECTED_FIREBASE_PROJECT_ID;
+          if (expected && config.project_info.project_id !== expected) {
+            throw new Error('Firebase Android config project_id does not match MARKETPLAT_FIREBASE_PROJECT_ID.');
+          }
+          NODE
+          chmod 600 apps/mobile/google-services.json
+
+      - name: Apply Expo native config plugins (including SQLCipher and notifications)
         run: pnpm --filter @marketplat/mobile exec expo prebuild --platform android --no-install
 
       - name: Check mobile TypeScript
@@ -163,3 +193,7 @@ jobs:
             echo "- Commit: $GITHUB_SHA"
             echo "- APK size: ${{ steps.apk.outputs.size }}"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove injected Firebase configuration
+        if: always()
+        run: rm -f apps/mobile/google-services.json apps/mobile/android/app/google-services.json

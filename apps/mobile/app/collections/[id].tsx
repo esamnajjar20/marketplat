@@ -1,3 +1,4 @@
+import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
@@ -59,7 +60,7 @@ export default function CollectionProductsScreen() {
               ) : null}
               <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }}>{item.name}</Text>
               <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '900' }}>
-                {(() => { const value = Number(item.effectivePrice?.price ?? item.discountPrice ?? item.price); return Number.isFinite(value) ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(value)} ₪` : 'السعر غير متاح'; })()}
+                {(() => { const value = Number(item.effectivePrice?.price ?? item.discountPrice ?? item.price); return Number.isFinite(value) ? formatMoney(value) : 'السعر غير متاح'; })()}
               </Text>
               <Text style={{ textAlign: 'right', color: colors.muted }}>
                 {item.availability === 'OUT_OF_STOCK' ? 'غير متوفر' : item.availability === 'LIMITED' ? 'كمية محدودة' : item.availability === 'IN_STOCK' ? 'متوفر' : 'حالة التوفر غير محددة'}

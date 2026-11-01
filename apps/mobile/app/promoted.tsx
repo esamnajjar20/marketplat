@@ -1,3 +1,4 @@
+import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback } from 'react';
@@ -13,7 +14,7 @@ import { usePaginatedList } from '@/hooks/usePaginatedList';
 function price(p: ProductSummary): string {
   const value = Number(p.effectivePrice?.price ?? p.discountPrice ?? p.price);
   return Number.isFinite(value)
-    ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(value)} ₪`
+    ? formatMoney(value)
     : 'السعر عند التواصل';
 }
 
@@ -76,7 +77,7 @@ export default function PromotedScreen() {
                   <Text style={{ color: colors.ink, fontWeight: '800', fontSize: fontSizes[15], textAlign: 'right' }} numberOfLines={2}>{item.name}</Text>
                   <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>{item.store?.name || 'متجر'}</Text>
                   <Text style={{ color: colors.brand, fontWeight: '900' }}>{price(item)}</Text>
-                  {(item.effectivePrice?.originalPrice != null || (item.discountPrice != null && Number(item.discountPrice) < Number(item.price))) ? <Text style={{ color: colors.muted, fontSize: fontSizes[12], textDecorationLine: 'line-through' }}>{new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(item.effectivePrice?.originalPrice ?? item.price))} ₪</Text> : null}
+                  {(item.effectivePrice?.originalPrice != null || (item.discountPrice != null && Number(item.discountPrice) < Number(item.price))) ? <Text style={{ color: colors.muted, fontSize: fontSizes[12], textDecorationLine: 'line-through' }}>{formatMoney(Number(item.effectivePrice?.originalPrice ?? item.price))}</Text> : null}
                   {item.discountPrice != null && Number.isFinite(Number(item.discountPrice)) && Number.isFinite(Number(item.price)) && Number(item.price) > 0 ? <Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: '800' }}>خصم {Math.round((1 - Number(item.discountPrice) / Number(item.price)) * 100)}%</Text> : null}
                   <Text style={{ color: colors.muted, fontSize: fontSizes[12] }}>{item.availability === 'OUT_OF_STOCK' ? 'غير متوفر' : 'عرض ترويجي'}</Text>
                 </View>

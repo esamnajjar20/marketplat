@@ -24,6 +24,6 @@ assert.match(screen, /listChatMessagesForConversation\(user\.id, id\)/, 'pending
 assert.match(screen, /حُفظت الرسالة على هذا الجهاز/, 'offline UX must clearly describe local queued status');
 assert.match(screen, /if \(!persisted\)/, 'only a message that failed local persistence may be removed from the optimistic UI');
 assert.match(layout, /<ChatMessageOutboxLifecycleBridge \/>/, 'chat outbox lifecycle bridge must be mounted at the app root');
-assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(pkg.scripts['verify:static'], /run-all-verifications\.mjs/, 'verify:static must invoke the discovery runner');
 assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'persistent outbox audit must run in npm test');
 console.log('Chat persistent outbox audit checks passed (SQLite persistence, account isolation, retry/backoff, and reconnect lifecycle).');

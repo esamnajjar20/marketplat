@@ -1,3 +1,4 @@
+import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useState } from 'react';
 import { Alert, TextInput, View } from 'react-native';
@@ -26,7 +27,7 @@ export default function DeleteAccountScreen() {
           .then(async () => {
             const localCleanup = await forceLocalSignOut({ clearPrivateData: true });
             if (!localCleanup.cleanupFailed && localCleanup.sessionRemoved) {
-              Alert.alert('تم تعطيل الحساب', 'تم تعطيل الحساب على الخادم وحذف بياناته المحلية من هذا الجهاز.');
+              showToast('تم تعطيل الحساب', 'تم تعطيل الحساب على الخادم وحذف بياناته المحلية من هذا الجهاز.', 'success');
             } else {
               const detail = [
                 localCleanup.cleanupFailed
@@ -36,7 +37,7 @@ export default function DeleteAccountScreen() {
                   : '',
                 !localCleanup.sessionRemoved ? 'لم يؤكد التخزين الآمن حذف جلسة الدخول المحفوظة. امسح بيانات التطبيق من إعدادات الجهاز قبل مشاركة الجهاز.' : '',
               ].filter(Boolean).join('\n\n');
-              Alert.alert('تم تعطيل الحساب مع تحذير محلي', `عُطّل الحساب على الخادم. ${detail}`);
+              showToast('تم تعطيل الحساب', `عُطّل الحساب على الخادم. ${detail}`, 'warning');
             }
             router.replace('/');
           })

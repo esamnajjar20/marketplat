@@ -14,6 +14,6 @@ assert.match(persistence, /source\.size > MAX_IMAGE_SIZE_BYTES/);
 assert.match(picker, /persistSelectedAdImage\(image\)/);
 assert.match(transport, /image\.sizeBytes !== undefined/);
 assert.equal(pkg.dependencies['expo-file-system'], '~58.0.11');
-assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(pkg.scripts['verify:static'], /run-all-verifications\.mjs/, 'verify:static must invoke the discovery runner');
 assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 console.log('Phase 43 persistent image-copy/source-contract checks passed (static only; Expo filesystem/device runtime not exercised).');

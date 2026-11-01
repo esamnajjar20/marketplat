@@ -1,23 +1,27 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import NetInfo from '@react-native-community/netinfo';
+import { useIsOnline } from '@/lib/connectivity';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteChatMessage, fetchConversation, fetchMessagesPage, setMessageMark, signalChatTyping, type ChatMessage, type ConversationItem } from '@/features/messaging/messaging.api';
 import { syncChatMediaOutbox } from '@/features/messaging/chat-media-outbox-sync';
-import { createChatMediaOperationId, enqueueChatMedia, listChatMediaOutbox, type ChatMediaKind } from '@/storage/outbox-manager';
-import { discardFailedChatMessage, enqueueChatMessage, listChatMessagesForConversation, retryChatMessage } from '@/storage/outbox-manager';
+import { createChatMediaOperationId, enqueueChatMedia, listChatMediaOutbox, discardFailedChatMessage, enqueueChatMessage, listChatMessagesForConversation, retryChatMessage, type ChatMediaKind } from '@/storage/outbox-manager';
 import { subscribeChatOutboxSent, syncChatMessageOutbox } from '@/features/messaging/chat-message-outbox-sync';
-import { subscribeChatLiveStream, type ChatLiveEvent } from '@/features/messaging/chat-live-stream';
+import type { ChatLiveEvent } from '@/features/messaging/chat-live-stream';
+import { useChatLiveStream } from '@/features/messaging/useChatLiveStream';
+import { useChatMediaOutboxLifecycle } from '@/features/messaging/useChatMediaOutboxLifecycle';
 import { markCachedChatMessageDeleted, readCachedChatMessages, saveCachedChatMessages } from '@/storage/chat-message-cache';
 import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
 import ConversationMessageRow, { type ConversationScreenMessage } from '@/features/messaging/ConversationMessageRow';
+import { isAllowedMediaUrl } from '@/lib/safe-media-url';
+import { showToast } from '@/lib/toast';
+import { ActionSheet } from '@/components/ActionSheet';
 
 type ScreenMessage = ConversationScreenMessage;
 
@@ -40,9 +44,17 @@ function replaceOptimisticMessage(current: ScreenMessage[], tempId: string, sent
 export default function ConversationScreen() {
   const params = useLocalSearchParams<{ id: string }>(); const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { user, accessToken, csrfToken } = useAuth();
+  const isOnline = useIsOnline();
   const accessTokenRef = useRef(accessToken);
   accessTokenRef.current = accessToken;
   const lastEventIdRef = useRef<string | null>(null);
+  const getCurrentToken = useCallback(() => accessTokenRef.current, []);
+  const getLastEventId = useCallback(() => lastEventIdRef.current, []);
+  const setLastEventId = useCallback((value: string) => { lastEventIdRef.current = value; }, []);
+  const audioPlayer = useAudioPlayer(null);
+  const audioPlayerStatus = useAudioPlayerStatus(audioPlayer);
+  const [playingAudioUrl, setPlayingAudioUrl] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<ScreenMessage | null>(null);
   useEffect(() => { lastEventIdRef.current = null; }, [id]); const audioRecorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, directory: 'document' }); const sessionAbort = useRef(new AbortController()); const [conversation, setConversation] = useState<ConversationItem | null>(null); const [messages, setMessages] = useState<ScreenMessage[]>([]); const [draft, setDraft] = useState(''); const [searchOpen, setSearchOpen] = useState(false); const [messageSearch, setMessageSearch] = useState(''); const [uploadingImage, setUploadingImage] = useState(false); const [isRecordingAudio, setIsRecordingAudio] = useState(false); const [pendingMediaCount, setPendingMediaCount] = useState(0); const [partyTyping, setPartyTyping] = useState(false); const lastTypingSignalAt = useRef(0); const typingActive = useRef(false); const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null); const [loading, setLoading] = useState(true); const [sending, setSending] = useState(false); const [loadingOlder, setLoadingOlder] = useState(false); const [nextCursor, setNextCursor] = useState<string | null>(null); const olderRequest = useRef(false); const hasLoadedOlder = useRef(false); const activeConversationId = useRef(id); const hasRenderableMessages = useRef(false); const previousConnectivity = useRef<boolean | null>(null); const [error, setError] = useState<string | null>(null); const listRef = useRef<FlatList<ScreenMessage>>(null); const loadSequence = useRef(0); const initialScrollDone = useRef(false); const userScrolledAway = useRef(false);
   const load = useCallback(async (showLoader = true) => {
     const currentToken = accessTokenRef.current;
@@ -138,55 +150,47 @@ export default function ConversationScreen() {
   }, [id, refreshLatestMessages, user?.id]);
   useEffect(() => { const controller = new AbortController(); sessionAbort.current = controller; return () => controller.abort(); }, [accessToken, user?.id]);
   useEffect(() => subscribeChatOutboxSent((operationId, sent) => { setMessages((current) => replaceOptimisticMessage(current, `pending-${operationId}`, sent)); if (user?.id && sent.conversationId) void saveCachedChatMessages(user.id, sent.conversationId, [sent]); }), [user?.id]);
-  useFocusEffect(useCallback(() => {
-    void load();
-    if (!accessTokenRef.current || !id || !user?.id) return () => { loadSequence.current += 1; };
-    let focused = true;
-    let streamStop: (() => void) | null = null;
-    let fallbackPoll: ReturnType<typeof setInterval> | null = null;
-    const stopFallback = () => { if (fallbackPoll) clearInterval(fallbackPoll); fallbackPoll = null; };
-    const stopStream = () => { streamStop?.(); streamStop = null; };
-    const startFallback = () => {
-      if (!focused || AppState.currentState !== 'active' || fallbackPoll) return;
-      // REST polling is only a compatibility fallback; SSE is the primary path.
-      void refreshLatestMessages();
-      fallbackPoll = setInterval(() => { if (focused && AppState.currentState === 'active') void refreshLatestMessages(); }, 30_000);
-    };
-    const startStream = () => {
-      stopStream();
-      if (!focused || AppState.currentState !== 'active') return;
-      streamStop = subscribeChatLiveStream({
-        token: '',
-        getToken: () => accessTokenRef.current ?? '',
-        getLastEventId: () => lastEventIdRef.current,
-        onEvent: (event, eventId) => { if (eventId) lastEventIdRef.current = eventId; handleLiveEvent(event); },
-        onUnsupported: startFallback,
-      });
-    };
-    startStream();
-    const appStateSubscription = AppState.addEventListener('change', state => {
-      if (state === 'active') {
-        if (fallbackPoll) { stopFallback(); startFallback(); }
-        else startStream();
-        void refreshLatestMessages();
-      } else {
-        stopStream();
-        stopFallback();
-      }
-    });
-    return () => {
-      focused = false;
-      loadSequence.current += 1;
-      stopStream();
-      stopFallback();
-      appStateSubscription.remove();
-    };
-  }, [handleLiveEvent, id, load, refreshLatestMessages, user?.id]));
+  useChatLiveStream({
+    id,
+    userId: user?.id,
+    getToken: getCurrentToken,
+    getLastEventId,
+    setLastEventId,
+    load,
+    refreshLatestMessages,
+    onEvent: handleLiveEvent,
+  });
   useEffect(() => { hasRenderableMessages.current = messages.length > 0; }, [messages.length]);
-  useEffect(() => { const unsubscribe = NetInfo.addEventListener((state) => { const connected = state.isConnected === true && state.isInternetReachable !== false; if (previousConnectivity.current === false && connected) void load(false); previousConnectivity.current = connected; }); return unsubscribe; }, [load]);
+  useEffect(() => { if (previousConnectivity.current === false && isOnline) void load(false); previousConnectivity.current = isOnline; }, [isOnline, load]);
   const refreshMediaOutbox = useCallback(async () => { if (!user?.id) { setPendingMediaCount(0); return; } const items = await listChatMediaOutbox(user.id); setPendingMediaCount(items.length); }, [user?.id]);
-  const flushMediaOutbox = useCallback(async () => { if (!accessToken || !user?.id) return; const network = await NetInfo.fetch(); const isOnline = network.isConnected === true && network.isInternetReachable !== false; if (!isOnline) { await refreshMediaOutbox(); return; } try { const result = await syncChatMediaOutbox({ isOnline, token: accessToken, csrfToken, ownerId: user.id, signal: sessionAbort.current.signal }); for (const item of result.sent) { if (item.conversationId === id) { setMessages(current => mergeFetchedMessages([item.message], current)); void saveCachedChatMessages(user.id, id, [item.message]); } } setPendingMediaCount(result.pending); } catch { await refreshMediaOutbox(); } }, [accessToken, csrfToken, id, refreshMediaOutbox, user?.id]);
-  useEffect(() => { void refreshMediaOutbox(); void flushMediaOutbox(); const unsubscribe = NetInfo.addEventListener(state => { if (state.isConnected === true && state.isInternetReachable !== false) void flushMediaOutbox(); }); const appStateSubscription = AppState.addEventListener('change', state => { if (state === 'active') void flushMediaOutbox(); }); return () => { unsubscribe(); appStateSubscription.remove(); }; }, [flushMediaOutbox, refreshMediaOutbox]);
+  const flushMediaOutbox = useCallback(async () => { if (!accessToken || !user?.id) return; if (!isOnline) { await refreshMediaOutbox(); return; } try { const result = await syncChatMediaOutbox({ isOnline: true, token: accessToken, csrfToken, ownerId: user.id, signal: sessionAbort.current.signal }); for (const item of result.sent) { if (item.conversationId === id) { setMessages(current => mergeFetchedMessages([item.message], current)); void saveCachedChatMessages(user.id, id, [item.message]); } } setPendingMediaCount(result.pending); } catch { await refreshMediaOutbox(); } }, [accessToken, csrfToken, id, isOnline, refreshMediaOutbox, user?.id]);
+  useChatMediaOutboxLifecycle(refreshMediaOutbox, flushMediaOutbox);
+  const playChatAudio = useCallback((url: string) => {
+    if (!isAllowedMediaUrl(url)) {
+      showToast('رابط مرفق غير موثوق', 'لا يمكن تشغيل ملف من مصدر غير مسموح.', 'warning');
+      return;
+    }
+    try {
+      if (playingAudioUrl === url) {
+        if (audioPlayerStatus.playing) audioPlayer.pause();
+        else audioPlayer.play();
+      } else {
+        audioPlayer.replace(url);
+        setPlayingAudioUrl(url);
+        audioPlayer.play();
+      }
+    } catch {
+      setPlayingAudioUrl(null);
+      showToast('تعذر تشغيل الرسالة الصوتية', 'تحقق من الاتصال وصيغة الملف ثم حاول مجددًا.', 'error');
+    }
+  }, [audioPlayer, audioPlayerStatus.playing, playingAudioUrl]);
+  useEffect(() => {
+    if (audioPlayerStatus.didJustFinish) setPlayingAudioUrl(null);
+    if (audioPlayerStatus.error) {
+      setPlayingAudioUrl(null);
+      showToast('تعذر تشغيل الرسالة الصوتية', audioPlayerStatus.error, 'error');
+    }
+  }, [audioPlayerStatus.didJustFinish, audioPlayerStatus.error]);
   const lastMessageIdRef = useRef<string | null>(null);
   useEffect(() => {
     const last = messages[messages.length - 1];
@@ -203,7 +207,7 @@ export default function ConversationScreen() {
       initialScrollDone.current = true;
     }));
   }, [messages, loadingOlder]);
-  const loadOlder = useCallback(async () => { if (!accessToken || !id || !nextCursor || olderRequest.current || loading || loadingOlder) return; olderRequest.current = true; setLoadingOlder(true); try { const page = await fetchMessagesPage(id, accessToken, nextCursor); setMessages((current) => mergeFetchedMessages([...page.items, ...current], [])); if (user?.id) void saveCachedChatMessages(user.id, id, page.items); hasLoadedOlder.current = true; setNextCursor(page.nextCursor); } catch (e) { Alert.alert('تعذر تحميل الرسائل الأقدم', e instanceof Error ? e.message : 'تحقق من الاتصال وحاول مجددًا.'); } finally { olderRequest.current = false; setLoadingOlder(false); } }, [accessToken, id, nextCursor, loading, loadingOlder, user?.id]);
+  const loadOlder = useCallback(async () => { if (!accessToken || !id || !nextCursor || olderRequest.current || loading || loadingOlder) return; olderRequest.current = true; setLoadingOlder(true); try { const page = await fetchMessagesPage(id, accessToken, nextCursor); setMessages((current) => mergeFetchedMessages([...page.items, ...current], [])); if (user?.id) void saveCachedChatMessages(user.id, id, page.items); hasLoadedOlder.current = true; setNextCursor(page.nextCursor); } catch (e) { showToast('تعذر تحميل الرسائل الأقدم', e instanceof Error ? e.message : 'تحقق من الاتصال وحاول مجددًا.', 'error'); } finally { olderRequest.current = false; setLoadingOlder(false); } }, [accessToken, id, nextCursor, loading, loadingOlder, user?.id]);
   const submit = async () => {
     const body = draft.trim();
     if (!body || sending || !accessToken || !id || !user?.id) return;
@@ -219,14 +223,12 @@ export default function ConversationScreen() {
       persisted = true;
       const optimistic: ScreenMessage = { id: `pending-${queued.operationId}`, conversationId: id, senderId: user.id, body: queued.body, createdAt: new Date(queued.createdAt).toISOString(), outboxAttempts: queued.attempts, outboxLastError: queued.lastError };
       setMessages((current) => current.some((message) => message.id === optimistic.id) ? current : [...current, optimistic]);
-      const network = await NetInfo.fetch();
-      const isOnline = network.isConnected === true && network.isInternetReachable !== false;
       if (!isOnline) {
-        Alert.alert('حُفظت الرسالة', 'لا يوجد اتصال حاليًا. حُفظت الرسالة على هذا الجهاز وستُرسل عند عودة الاتصال.');
+        showToast('حُفظت الرسالة', 'لا يوجد اتصال حاليًا. حُفظت الرسالة على هذا الجهاز وستُرسل عند عودة الاتصال.', 'success');
       } else {
-        const result = await syncChatMessageOutbox({ isOnline, token: accessToken, csrfToken, ownerId: user.id, signal: sessionAbort.current.signal });
+        const result = await syncChatMessageOutbox({ isOnline: true, token: accessToken, csrfToken, ownerId: user.id, signal: sessionAbort.current.signal });
         if (!result.sent.some((item) => item.operationId === operationId)) {
-          Alert.alert('الرسالة بانتظار المزامنة', 'حُفظت الرسالة على هذا الجهاز، لكن تعذّر تأكيد إرسالها. سيُعاد المحاولة تلقائيًا عند توفر الاتصال.');
+          showToast('الرسالة بانتظار المزامنة', 'حُفظت الرسالة على هذا الجهاز، لكن تعذّر تأكيد إرسالها. سيُعاد المحاولة تلقائيًا عند توفر الاتصال.', 'success');
         }
       }
     } catch (e) {
@@ -235,9 +237,9 @@ export default function ConversationScreen() {
         // Only restore the failed body if the user hasn't typed something new
         // in the meantime. Overwriting their new draft would silently lose it.
         setDraft((current) => current || body);
-        Alert.alert('تعذر حفظ الرسالة', e instanceof Error ? e.message : 'لم تُحفظ الرسالة محليًا. حاول مجددًا.');
+        showToast('تعذر حفظ الرسالة', e instanceof Error ? e.message : 'لم تُحفظ الرسالة محليًا. حاول مجددًا.', 'error');
       } else {
-        Alert.alert('الرسالة محفوظة محليًا', 'تعذرت المزامنة الآن، لكن الرسالة بقيت في الطابور وستُعاد المحاولة عند توفر الاتصال.');
+        showToast('الرسالة محفوظة محليًا', 'تعذرت المزامنة الآن، لكن الرسالة بقيت في الطابور وستُعاد المحاولة عند توفر الاتصال.', 'error');
       }
     } finally {
       setSending(false);
@@ -250,20 +252,18 @@ export default function ConversationScreen() {
       const reset = await retryChatMessage(operationId, user.id);
       if (!reset) return;
       setMessages((current) => current.map((item) => item.id === message.id ? { ...item, outboxAttempts: 0, outboxLastError: null } : item));
-      const network = await NetInfo.fetch();
-      const isOnline = network.isConnected === true && network.isInternetReachable !== false;
       if (isOnline) {
-        const result = await syncChatMessageOutbox({ isOnline, token: accessToken, csrfToken, ownerId: user.id, signal: sessionAbort.current.signal });
+        const result = await syncChatMessageOutbox({ isOnline: true, token: accessToken, csrfToken, ownerId: user.id, signal: sessionAbort.current.signal });
         if (!result.sent.some((item) => item.operationId === operationId)) {
-          Alert.alert('تعذرت إعادة الإرسال', 'أُعيدت الرسالة إلى الطابور وستُحاول المزامنة تلقائيًا.');
+          showToast('تعذرت إعادة الإرسال', 'أُعيدت الرسالة إلى الطابور وستُحاول المزامنة تلقائيًا.', 'error');
         }
       } else {
-        Alert.alert('تمت جدولة الرسالة', 'لا يوجد اتصال حاليًا. ستُرسل عند عودة الاتصال.');
+        showToast('تمت جدولة الرسالة', 'لا يوجد اتصال حاليًا. ستُرسل عند عودة الاتصال.', 'success');
       }
     } catch (e) {
-      Alert.alert('تعذرت إعادة المحاولة', e instanceof Error ? e.message : 'حاول مجددًا لاحقًا.');
+      showToast('تعذرت إعادة المحاولة', e instanceof Error ? e.message : 'حاول مجددًا لاحقًا.', 'error');
     }
-  }, [accessToken, csrfToken, user?.id]);
+  }, [accessToken, csrfToken, isOnline, user?.id]);
   const confirmDiscardFailedMessage = useCallback((message: ScreenMessage) => {
     if (!user?.id || !message.id.startsWith('pending-')) return;
     const operationId = message.id.slice('pending-'.length);
@@ -272,7 +272,7 @@ export default function ConversationScreen() {
       { text: 'حذف', style: 'destructive', onPress: () => {
         void discardFailedChatMessage(operationId, user.id).then((removed) => {
           if (removed) setMessages((current) => current.filter((item) => item.id !== message.id));
-        }).catch(() => Alert.alert('تعذر الحذف', 'لم تُحذف الرسالة. حاول مجددًا.'));
+        }).catch(() => showToast('تعذر الحذف', 'لم تُحذف الرسالة. حاول مجددًا.', 'error'));
       } },
     ]);
   }, [user?.id]);
@@ -297,7 +297,7 @@ export default function ConversationScreen() {
     await flushMediaOutbox();
     const remaining = await listChatMediaOutbox(user.id);
     setPendingMediaCount(remaining.length);
-    if (remaining.some(item => item.operationId === queued.operationId)) Alert.alert('حُفظ المرفق للإرسال', 'حُفظ المرفق داخل التطبيق، وستتم إعادة المحاولة عند توفر الاتصال.');
+    if (remaining.some(item => item.operationId === queued.operationId)) showToast('حُفظ المرفق للإرسال', 'حُفظ المرفق داخل التطبيق، وستتم إعادة المحاولة عند توفر الاتصال.', 'success');
   }, [accessToken, flushMediaOutbox, id, user?.id]);
   const chooseAndSendImage = useCallback(async () => {
     if (!accessToken || !id || !user?.id || uploadingImage) return;
@@ -316,7 +316,7 @@ export default function ConversationScreen() {
       if (!['image/jpeg','image/png','image/webp'].includes(mime)) throw new Error('الصيغ المدعومة هي JPEG وPNG وWebP.');
       const extension = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
       await queueAndTryMedia('image', { uri: asset.uri, fileName: /\.(jpe?g|png|webp)$/i.test(asset.fileName || '') ? asset.fileName! : `chat-${Date.now()}.${extension}`, mimeType: mime });
-    } catch (e) { Alert.alert('تعذر تجهيز الصورة', e instanceof Error ? e.message : 'تحقق من المساحة والاتصال وحاول مجددًا.'); }
+    } catch (e) { showToast('تعذر تجهيز الصورة', e instanceof Error ? e.message : 'تحقق من المساحة والاتصال وحاول مجددًا.', 'error'); }
     finally { setUploadingImage(false); }
   }, [accessToken, id, queueAndTryMedia, uploadingImage, user?.id]);
   const chooseAndSendFile = useCallback(async () => {
@@ -330,7 +330,7 @@ export default function ConversationScreen() {
       const allowedTypes = new Set(['application/pdf','text/plain','text/csv','application/json','application/zip','application/x-zip-compressed','application/x-7z-compressed','application/vnd.rar','application/x-rar-compressed','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/vnd.openxmlformats-officedocument.presentationml.presentation','application/msword','application/vnd.ms-excel','application/vnd.ms-powerpoint']);
       if (!file.mimeType || !allowedTypes.has(file.mimeType)) throw new Error('نوع الملف غير مدعوم. اختر PDF أو نصًا أو جدولًا أو مستند Office أو أرشيفًا مدعومًا.');
       await queueAndTryMedia('file', { uri: file.uri, fileName: file.name, mimeType: file.mimeType });
-    } catch (e) { Alert.alert('تعذر تجهيز الملف', e instanceof Error ? e.message : 'اختر ملفًا مدعومًا وحاول مجددًا.'); }
+    } catch (e) { showToast('تعذر تجهيز الملف', e instanceof Error ? e.message : 'اختر ملفًا مدعومًا وحاول مجددًا.', 'error'); }
     finally { setUploadingImage(false); }
   }, [accessToken, id, queueAndTryMedia, uploadingImage, user?.id]);
   const toggleAudioRecording = useCallback(async () => {
@@ -343,7 +343,7 @@ export default function ConversationScreen() {
         await audioRecorder.prepareToRecordAsync();
         audioRecorder.record({ forDuration: 60 });
         setIsRecordingAudio(true);
-      } catch (e) { Alert.alert('تعذر بدء التسجيل', e instanceof Error ? e.message : 'تحقق من إذن الميكروفون.'); }
+      } catch (e) { showToast('تعذر بدء التسجيل', e instanceof Error ? e.message : 'تحقق من إذن الميكروفون.', 'error'); }
       return;
     }
     setIsRecordingAudio(false);
@@ -354,36 +354,51 @@ export default function ConversationScreen() {
       const info = await (await import('expo-file-system/legacy')).getInfoAsync(uri);
       if (!info.exists || !info.size || info.size > 8 * 1024 * 1024) throw new Error('حجم التسجيل الصوتي يجب ألا يتجاوز 8 ميغابايت.');
       await queueAndTryMedia('audio', { uri, fileName: `voice-${Date.now()}.m4a`, mimeType: 'audio/mp4' });
-    } catch (e) { Alert.alert('تعذر إرسال التسجيل', e instanceof Error ? e.message : 'حاول مجددًا.'); }
+    } catch (e) { showToast('تعذر إرسال التسجيل', e instanceof Error ? e.message : 'حاول مجددًا.', 'error'); }
   }, [accessToken, audioRecorder, id, isRecordingAudio, queueAndTryMedia, uploadingImage, user?.id]);
-  const performMessageAction = useCallback((message: ScreenMessage) => {
+  const toggleMessageMark = useCallback((message: ScreenMessage, kind: 'pin' | 'star') => {
     if (!accessToken || !id || message.id.startsWith('pending-') || message.deletedAt) return;
-    const toggleMark = (kind: 'pin' | 'star') => {
-      const active = kind === 'pin' ? Boolean(message.isPinned) : Boolean(message.isStarredByMe);
-      void setMessageMark(id, message.id, kind, !active, accessToken, csrfToken)
-        .then(() => setMessages(current => current.map(row => row.id === message.id ? { ...row, ...(kind === 'pin' ? { isPinned: !active } : { isStarredByMe: !active }) } : row)))
-        .catch(e => Alert.alert('تعذر تحديث الرسالة', e instanceof Error ? e.message : 'حاول مجددًا.'));
-    };
-    const deleteOwnMessage = () => Alert.alert('حذف الرسالة؟', 'سيتم حذف محتوى الرسالة من المحادثة.', [
+    const active = kind === 'pin' ? Boolean(message.isPinned) : Boolean(message.isStarredByMe);
+    void setMessageMark(id, message.id, kind, !active, accessToken, csrfToken)
+      .then(() => setMessages((current) => current.map((row) => row.id === message.id
+        ? { ...row, ...(kind === 'pin' ? { isPinned: !active } : { isStarredByMe: !active }) }
+        : row)))
+      .catch((e) => showToast('تعذر تحديث الرسالة', e instanceof Error ? e.message : 'حاول مجددًا.', 'error'));
+  }, [accessToken, csrfToken, id]);
+  const confirmDeleteOwnMessage = useCallback((message: ScreenMessage) => {
+    if (!accessToken || !id || message.senderId !== user?.id) return;
+    Alert.alert('حذف الرسالة؟', 'سيتم حذف محتوى الرسالة من المحادثة.', [
       { text: 'إلغاء', style: 'cancel' },
       { text: 'حذف', style: 'destructive', onPress: () => {
         void deleteChatMessage(id, message.id, accessToken, csrfToken).then(() => {
           const deletedAt = new Date().toISOString();
-          setMessages(current => current.map(row => row.id === message.id ? { ...row, body: '', imageUrl: null, audioUrl: null, fileUrl: null, deletedAt } : row));
+          setMessages((current) => current.map((row) => row.id === message.id
+            ? { ...row, body: '', imageUrl: null, audioUrl: null, fileUrl: null, deletedAt }
+            : row));
           if (user?.id) void markCachedChatMessageDeleted(user.id, id, message.id, deletedAt);
-        }).catch(e => Alert.alert('تعذر حذف الرسالة', e instanceof Error ? e.message : 'حاول مجددًا.'));
+        }).catch((e) => showToast('تعذر حذف الرسالة', e instanceof Error ? e.message : 'حاول مجددًا.', 'error'));
       } },
     ]);
-    Alert.alert('خيارات الرسالة', 'اضغط مطولًا على أي رسالة لإدارة تثبيتها أو حفظها.', [
-      { text: message.isPinned ? 'إلغاء التثبيت' : 'تثبيت', onPress: () => toggleMark('pin') },
-      { text: message.isStarredByMe ? 'إزالة من المفضلة' : 'إضافة للمفضلة', onPress: () => toggleMark('star') },
-      ...(message.senderId === user?.id ? [{ text: 'حذف الرسالة', style: 'destructive' as const, onPress: deleteOwnMessage }] : [{ text: 'إغلاق', style: 'cancel' as const }]),
-    ]);
   }, [accessToken, csrfToken, id, user?.id]);
+  const performMessageAction = useCallback((message: ScreenMessage) => {
+    if (!accessToken || !id || message.id.startsWith('pending-') || message.deletedAt) return;
+    setActionMessage(message);
+  }, [accessToken, id]);
   const normalizedSearch = messageSearch.trim().toLocaleLowerCase();
   const visibleMessages = normalizedSearch ? messages.filter(message => (message.body || '').toLocaleLowerCase().includes(normalizedSearch)) : messages;
   const other = conversation && user ? (conversation.buyerId === user.id ? conversation.seller : conversation.buyer) : null;
   return <SafeAreaView style={styles.safe} edges={['top','bottom']}><KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ActionSheet
+      visible={Boolean(actionMessage)}
+      title="خيارات الرسالة"
+      description="اختر إجراءً لإدارة الرسالة."
+      onClose={() => setActionMessage(null)}
+      options={actionMessage ? [
+        { key: 'pin', label: actionMessage.isPinned ? 'إلغاء التثبيت' : 'تثبيت', onPress: () => toggleMessageMark(actionMessage, 'pin') },
+        { key: 'star', label: actionMessage.isStarredByMe ? 'إزالة من المفضلة' : 'إضافة للمفضلة', onPress: () => toggleMessageMark(actionMessage, 'star') },
+        ...(actionMessage.senderId === user?.id ? [{ key: 'delete', label: 'حذف الرسالة', tone: 'danger' as const, onPress: () => confirmDeleteOwnMessage(actionMessage) }] : []),
+      ] : []}
+    />
     <View style={styles.header}><Pressable onPress={() => router.back()} accessibilityRole="button"><Text style={styles.link}>رجوع</Text></Pressable><View style={styles.headerCenter}><Text numberOfLines={1} style={styles.heading}>{other?.name || 'المحادثة'}</Text>{conversation?.ad?.title ? <Text numberOfLines={1} style={styles.context}>{conversation.ad.title}</Text> : null}{partyTyping ? <Text style={styles.typing}>يكتب الآن…</Text> : null}</View><Pressable onPress={() => setSearchOpen(value => !value)} accessibilityRole="button"><Text style={styles.link}>{searchOpen ? 'إغلاق البحث' : 'بحث'}</Text></Pressable></View>
     {searchOpen ? <View style={styles.searchBar}><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="البحث في الرسائل المحمّلة" value={messageSearch} onChangeText={setMessageSearch} placeholder="ابحث في الرسائل المحمّلة…" placeholderTextColor={colors.muted} style={styles.searchInput} textAlign="right"/><Text style={styles.searchCount}>{normalizedSearch ? `${visibleMessages.length} نتيجة` : 'بحث محلي دون طلبات إضافية'}</Text></View> : null}
     {loading ? <View style={styles.center}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جاري تحميل الرسائل…</Text></View> : error ? <View style={styles.center}><Text style={styles.title}>تعذر فتح المحادثة</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void load()}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View> : <>
@@ -394,9 +409,12 @@ export default function ConversationScreen() {
           onLongPress={performMessageAction}
           onRetry={retryFailedMessage}
           onDiscard={confirmDiscardFailedMessage}
+          onPlayAudio={playChatAudio}
+          playingAudioUrl={playingAudioUrl}
+          audioBuffering={audioPlayerStatus.isBuffering}
         />
       )} />
-      <>{pendingMediaCount > 0 ? <Text style={styles.pendingMedia}>مرفقات محفوظة للإرسال: {pendingMediaCount}</Text> : null}<View style={styles.composer}><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void chooseAndSendImage()} style={[styles.attach, uploadingImage && styles.disabled]}><Text style={styles.attachText}>{uploadingImage ? '…' : '＋ صورة'}</Text></Pressable><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void chooseAndSendFile()} style={[styles.attach, uploadingImage && styles.disabled]}><Text style={styles.attachText}>＋ ملف</Text></Pressable><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void toggleAudioRecording()} style={[styles.attach, isRecordingAudio && styles.recording, uploadingImage && styles.disabled]}><Text style={styles.attachText}>{isRecordingAudio ? '■ إيقاف' : '🎙 صوت'}</Text></Pressable><TextInput allowFontScaling maxFontSizeMultiplier={1.3} value={draft} onChangeText={setDraft} placeholder="اكتب رسالتك…" placeholderTextColor={colors.muted} multiline maxLength={2000} textAlign="right" style={styles.input} accessibilityLabel="نص الرسالة"/><Pressable accessibilityRole="button" disabled={!draft.trim() || sending} onPress={() => void submit()} style={[styles.send, (!draft.trim() || sending) && styles.disabled]}><Text style={styles.sendText}>{sending ? '…' : 'إرسال'}</Text></Pressable></View></>
+      <>{pendingMediaCount > 0 ? <Text style={styles.pendingMedia}>مرفقات محفوظة للإرسال: {pendingMediaCount}</Text> : null}<View style={styles.composer}><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void chooseAndSendImage()} style={[styles.attach, uploadingImage && styles.disabled]}><Text style={styles.attachText}>{uploadingImage ? '…' : '＋ صورة'}</Text></Pressable><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void chooseAndSendFile()} style={[styles.attach, uploadingImage && styles.disabled]}><Text style={styles.attachText}>＋ ملف</Text></Pressable><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void toggleAudioRecording()} style={[styles.attach, isRecordingAudio && styles.recording, uploadingImage && styles.disabled]}><Text style={styles.attachText}>{isRecordingAudio ? '■ إيقاف' : '♫ صوت'}</Text></Pressable><TextInput allowFontScaling maxFontSizeMultiplier={1.3} value={draft} onChangeText={setDraft} placeholder="اكتب رسالتك…" placeholderTextColor={colors.muted} multiline maxLength={2000} textAlign="right" style={styles.input} accessibilityLabel="نص الرسالة"/><Pressable accessibilityRole="button" disabled={!draft.trim() || sending} onPress={() => void submit()} style={[styles.send, (!draft.trim() || sending) && styles.disabled]}><Text style={styles.sendText}>{sending ? '…' : 'إرسال'}</Text></Pressable></View></>
     </>}
   </KeyboardAvoidingView></SafeAreaView>;
 }

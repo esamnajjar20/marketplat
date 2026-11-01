@@ -1,7 +1,8 @@
+import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
@@ -103,19 +104,13 @@ export default function SavedSearchesScreen() {
   };
 
   const remove = (id: string) => {
-    Alert.alert('حذف البحث', 'هل تريد حذف عملية البحث المحفوظة؟', [
-      { text: 'إلغاء', style: 'cancel' },
-      {
-        text: 'حذف',
-        style: 'destructive',
-        onPress: () => {
-          if (!accessToken) return;
-          void deleteSavedSearch(id, accessToken, csrfToken)
-            .then(load)
-            .catch((e) => setError(e instanceof Error ? e.message : 'تعذر الحذف.'));
-        },
-      },
-    ]);
+    if (!accessToken) return;
+    void deleteSavedSearch(id, accessToken, csrfToken)
+      .then(async () => {
+        await load();
+        showToast('تم حذف البحث المحفوظ', 'يمكنك إنشاء عملية بحث جديدة في أي وقت.', 'success');
+      })
+      .catch((e) => showToast('تعذر حذف البحث', e instanceof Error ? e.message : 'حاول مجددًا.', 'error'));
   };
 
   return (

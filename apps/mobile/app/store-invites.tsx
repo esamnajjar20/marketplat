@@ -8,6 +8,7 @@ import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/Mobi
 import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { roleLabel } from '@/lib/status-labels';
+import { showToast } from '@/lib/toast';
 
 export default function StoreInvitesScreen() {
   const { accessToken, csrfToken } = useAuth();
@@ -43,7 +44,7 @@ export default function StoreInvitesScreen() {
     try {
       await acceptStoreInvite(item.id, accessToken, csrfToken);
       await load();
-      Alert.alert('تم قبول الدعوة', 'أصبحت عضوًا في المتجر.');
+      showToast('تم قبول الدعوة', 'أصبحت عضوًا في المتجر.', 'success');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر قبول الدعوة.');
     } finally {

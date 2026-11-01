@@ -13,6 +13,6 @@ assert.match(editor, /for \(const uri of removedUris\)/);
 assert.match(editor, /setDraftCompleted\(true\);\s*if \(user\?\.id != null\) \{\s*try \{ await clearAdDraft/);
 assert.doesNotMatch(editor, /setDraft\(\(current\) => \(\{ \.\.\.current, images: current\.images\.filter\(\(_, imageIndex\) => imageIndex !== index\) \}\)\); void removePersistedAdImageIfUnused/);
 assert.match(cleanup, /isAdImageReferencedByDraft\(uri\)/);
-assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(pkg.scripts['verify:static'], /run-all-verifications\.mjs/, 'verify:static must invoke the discovery runner');
 assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 console.log('Phase 46 draft-owner isolation, stale-image cleanup, and submit-success contracts passed (static only).');

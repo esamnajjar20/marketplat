@@ -1672,6 +1672,35 @@ model AnalyticsEvent {
   @@map("analytics_events")
 }
 
+// Durable replay receipts for Redis view-buffer batches. The row is inserted
+// atomically with the ad view increments; it protects against an ambiguous
+// PostgreSQL COMMIT or Redis HDEL acknowledgement.
+model ViewBufferFlushBatch {
+  id         String   @id
+  appliedAt  DateTime @default(now())
+  adCount    Int      @default(0)
+  viewsCount BigInt   @default(0)
+
+  @@map("view_buffer_flush_batches")
+}
+
+// Durable status for scheduled CLI jobs. A RUNNING row can be reclaimed
+// after the scheduler's stale-run threshold; COMPLETED rows prevent accidental
+// duplicate invocation for the same business date.
+model ScheduledJobRun {
+  jobName     String
+  scheduledFor String   @db.VarChar(10)
+  status      String
+  attempts    Int      @default(0)
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  lastError   String?  @db.VarChar(2000)
+
+  @@id([jobName, scheduledFor])
+  @@index([status, startedAt])
+  @@map("scheduled_job_runs")
+}
+
 model PasswordResetToken {
   id        String   @id @default(cuid())
   token     String   @unique

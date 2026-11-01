@@ -1,7 +1,8 @@
+import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   fetchServiceListing,
@@ -18,12 +19,13 @@ import {
 import { fontSizes, colors, spacing, typography } from '@/theme/tokens';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { RatingStars } from '@/components/ui/RatingStars';
+import { showToast } from '@/lib/toast';
 
 function formatPrice(item: ServiceListing): string {
   if (item.pricingType === 'NEGOTIABLE' || item.price == null) return 'السعر عند الاتفاق';
   const amount = Number(item.price);
   if (!Number.isFinite(amount)) return 'السعر عند الاتفاق';
-  const base = `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(amount)} ₪`;
+  const base = formatMoney(amount);
   return item.pricingType === 'STARTING_FROM' ? `${base} وما فوق` : base;
 }
 
@@ -95,10 +97,10 @@ export default function ServiceDetailScreen() {
       label="اطلب هذه الخدمة"
       onPress={() => {
         if (!user) {
-          Alert.alert('تسجيل الدخول مطلوب', 'سجّل الدخول أولاً لإرسال طلب خدمة.', [
-            { text: 'إلغاء', style: 'cancel' },
-            { text: 'تسجيل الدخول', onPress: () => router.push('/login') },
-          ]);
+          showToast('تسجيل الدخول مطلوب', 'سجّل الدخول أولاً لإرسال طلب خدمة.', 'info', {
+            label: 'تسجيل الدخول',
+            onPress: () => router.push('/login'),
+          });
           return;
         }
         router.push({

@@ -1,3 +1,4 @@
+import { formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -41,7 +42,7 @@ const dateLabel = (s: string) => {
   const d = new Date(s);
   return Number.isNaN(d.getTime())
     ? 'تاريخ غير متاح'
-    : d.toLocaleString('ar', { dateStyle: 'medium', timeStyle: 'short' });
+    : formatDate(d);
 };
 
 export default function ActivityScreen() {

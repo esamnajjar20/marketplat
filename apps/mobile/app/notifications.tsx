@@ -1,7 +1,8 @@
+import { AppIcon } from '@/components/Icons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useRef, useState } from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { denseListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,7 +22,9 @@ import {
 } from '@/components/MobileUI';
 import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
+import { toAppHref } from '@/lib/typed-navigation';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { showToast } from '@/lib/toast';
 
 function destination(item: AppNotification): string | null {
   const data = item.data && typeof item.data === 'object' ? item.data as Record<string, unknown> : {};
@@ -125,7 +128,7 @@ export default function NotificationsScreen() {
       list.updateItems((current) => current.map((item) => ({ ...item, isRead: true, readAt: item.readAt || new Date().toISOString() })));
       void refreshUnreadCounts();
     } catch (e) {
-      Alert.alert('تعذر تحديث الإشعارات', e instanceof Error ? e.message : 'حاول مرة أخرى.');
+      showToast('تعذر تحديث الإشعارات', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error');
     } finally {
       setBusy(false);
     }
@@ -146,7 +149,7 @@ export default function NotificationsScreen() {
         void refreshUnreadCounts();
       });
     }
-    router.push(target as never);
+    router.push(toAppHref(target));
   };
 
   return (
@@ -214,13 +217,11 @@ export default function NotificationsScreen() {
                 style={[styles.card, !notificationIsRead(item) && styles.unread]}
               >
                 <View style={[styles.iconWrap, !notificationIsRead(item) && styles.iconUnread]}>
-                  <Text style={styles.icon}>
-                    {item.type === 'NEW_MESSAGE'
-                      ? '💬'
-                      : item.type.includes('SERVICE') || item.type.includes('REQUEST')
-                        ? '🧰'
-                        : '🔔'}
-                  </Text>
+                  <AppIcon
+                    name={item.type === 'NEW_MESSAGE' ? 'messages' : item.type.includes('SERVICE') || item.type.includes('REQUEST') ? 'service' : 'notification'}
+                    size={20}
+                    color={colors.brand}
+                  />
                 </View>
                 <View style={styles.bodyWrap}>
                   <Text style={styles.itemTitle}>{item.title}</Text>

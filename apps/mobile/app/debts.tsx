@@ -10,10 +10,10 @@ import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/Mobi
 import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { formatSafeDate } from '@/lib/date-format';
+import { formatMoney } from '@/lib/formatters';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 
-const money = (n: unknown, c = 'ILS') =>
-  `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(n) || 0)} ${c === 'ILS' ? '₪' : c}`;
+const money = (n: unknown, c = 'ILS') => formatMoney(n, c);
 
 export default function DebtsScreen() {
   const { accessToken, user, isRestoring } = useAuth();

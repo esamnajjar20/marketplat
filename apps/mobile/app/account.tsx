@@ -1,5 +1,5 @@
 import { AppText as Text } from '@/components/ui/AppText';
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { View } from 'react-native';
 import { useEffect, useState } from 'react';
 import { fetchMyStore } from '@/features/commerce/commerce.api';
@@ -16,7 +16,7 @@ import {
 } from '@/components/MobileUI';
 import { fontSizes, colors, spacing, typography } from '@/theme/tokens';
 
-type Destination = { title: string; description: string; path: string };
+type Destination = { title: string; description: string; path: Href };
 type DestinationGroup = { title: string; subtitle: string; items: Destination[] };
 const PRIORITY_PATHS = new Set(['/messages', '/notifications', '/my-ads', '/for-you', '/my-sales', '/orders']);
 
@@ -106,7 +106,7 @@ export default function AccountHubScreen() {
       router.push(`/login?redirect=${encodeURIComponent(item.path)}`);
       return;
     }
-    router.push(item.path as never);
+    router.push(item.path);
   };
 
   return (

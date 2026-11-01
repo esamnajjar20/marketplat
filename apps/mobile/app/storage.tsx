@@ -1,3 +1,4 @@
+import { formatDate as formatSharedDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useState } from 'react';
@@ -22,8 +23,8 @@ function formatBytes(bytesValue: number): string {
 }
 function formatDate(value: number | null): string {
   if (!value) return 'لا توجد بيانات';
-  try { return new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)); }
-  catch { return new Date(value).toLocaleString(); }
+  try { return formatSharedDate(value); }
+  catch { return 'غير متاح'; }
 }
 function StatRow({ label, value, detail }: { label: string; value: string; detail?: string }) {
   return <View style={styles.statRow}><View style={styles.statCopy}><Text style={styles.statLabel}>{label}</Text>{detail ? <Text style={styles.detail}>{detail}</Text> : null}</View><Text style={styles.statValue}>{value}</Text></View>;
@@ -62,7 +63,7 @@ export default function StorageScreen() {
   useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
   const confirmResetLocalStorage = () => Alert.alert(
     'إعادة ضبط التخزين المحلي المشفر؟',
-    'فُقد مفتاح تشفير قاعدة البيانات. لا يمكن قراءة البيانات الموجودة فيها أو استعادتها دون المفتاح. المتابعة ستحذف قاعدة البيانات المشفرة الحالية نهائيًا، بما فيها الطوابير والمسودات والمحتوى المحفوظ محليًا. لن نحذف أي نسخة ترحيل قديمة منفصلة إن وجدت.',
+    'مفتاح تشفير قاعدة البيانات مفقود أو غير صالح. لا يمكن قراءة البيانات الموجودة فيها أو استعادتها دون المفتاح الصحيح. المتابعة ستحذف قاعدة البيانات المشفرة الحالية نهائيًا، بما فيها الطوابير والمسودات والمحتوى المحفوظ محليًا. لن نحذف أي نسخة ترحيل قديمة منفصلة إن وجدت.',
     [
       { text: 'إلغاء', style: 'cancel' },
       {
@@ -100,6 +101,7 @@ export default function StorageScreen() {
   ]);
   return <PageShell title="التخزين والبيانات">
     <Text style={styles.intro}>إدارة البيانات المحلية في هذا الجهاز. الحجم هو عدد بايتات UTF-8 لنصوص JSON المخزنة، ويستثني فهارس SQLite ومساحة قاعدة البيانات الإضافية؛ لذلك هو تقدير لحجم المحتوى لا لحجم الملفات على القرص.</Text>
+    <Notice tone="muted">قاعدة البيانات المحلية مشفرة باستخدام SQLCipher. أما الصور والوسائط المحفوظة كملفات داخل مساحة التطبيق الخاصة فلا تُشفّر بواسطة SQLCipher نفسه.</Notice>
     {error ? <Notice>{error}</Notice> : null}{message ? <Notice tone="success">{message}</Notice> : null}
     {loading ? <SectionCard><ActivityIndicator color={colors.brand}/><Text style={styles.loading}>جارٍ قراءة التخزين…</Text></SectionCard> : error ? <SectionCard><Text style={styles.loading}>تعذر قراءة الإحصاءات؛ لم نعرض أرقامًا افتراضية حتى لا تبدو كأن التخزين فارغ.</Text><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void refresh()} />{resetAvailable ? <><Notice tone="warning">تأكدنا من وجود قاعدة مشفرة دون مفتاحها. لا تستخدم إعادة الضبط إلا بعد فهم أن البيانات المشفرة الحالية لن تكون قابلة للاسترجاع.</Notice><PrimaryButton label="إعادة ضبط التخزين المحلي المشفر" variant="danger" busy={resetting} onPress={confirmResetLocalStorage} /></> : null}</SectionCard> : <>
       <SectionCard>

@@ -63,7 +63,7 @@ describe('purgeEdgeTags transport', () => {
   let fetchMock: jest.Mock;
 
   beforeEach(() => {
-    fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200 });
+    fetchMock = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ success: true }) });
     global.fetch = fetchMock as unknown as typeof fetch;
   });
   afterEach(() => {
@@ -115,12 +115,46 @@ describe('purgeEdgeTags transport', () => {
     expect(sizes).toEqual([30, 30, 5]);
   });
 
-  it('does not retry a permanent 4xx and never throws', async () => {
+  it('does not treat HTTP 200 with malformed or missing success payload as a completed purge', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ message: 'accepted' }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => { throw new Error('invalid JSON'); } })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: false }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true }) });
+    const edge = loadEdge(ENABLED);
+    edge.purgeEdgeTags(['route:ads']);
+    await edge.flushEdgePurge();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    await edge.flushEdgePurge();
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it('retains tags when Cloudflare returns HTTP 200 with success:false, then retries on next flush', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: false, errors: [{ code: 10000 }] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: false, errors: [{ code: 10000 }] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: false, errors: [{ code: 10000 }] }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true, errors: [] }) });
+    const edge = loadEdge(ENABLED);
+    edge.purgeEdgeTags(['route:ads']);
+    await edge.flushEdgePurge();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    await edge.flushEdgePurge();
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(JSON.parse(fetchMock.mock.calls[3][1].body).tags).toEqual(['route:ads']);
+  });
+
+  it('backs off permanent 4xx responses instead of retrying them every 30 seconds', async () => {
+    jest.useFakeTimers();
     fetchMock.mockResolvedValue({ ok: false, status: 403 });
     const edge = loadEdge(ENABLED);
     edge.purgeEdgeTags(['route:ads']);
     await expect(edge.flushEdgePurge()).resolves.toBeUndefined();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(30_000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    await jest.advanceTimersByTimeAsync(270_000);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('purgeReferenceKv posts to the Worker with the shared token', () => {
@@ -134,6 +168,18 @@ describe('purgeEdgeTags transport', () => {
     const [url, init] = fetchMock.mock.calls[0];
     expect(url).toBe('https://api.example.com/__purge__');
     expect(init.headers['x-purge-token']).toBe('s3cret');
+  });
+
+  it('treats HTTP 200 without an explicit ok:true as a failed KV purge', async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ success: true }) });
+    const edge = loadEdge({
+      ...ENABLED,
+      workerPurgeUrl: 'https://api.example.com/__purge__',
+      workerPurgeToken: 's3cret',
+    });
+    edge.purgeReferenceKv();
+    await new Promise(resolve => setImmediate(resolve));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('purgeReferenceKv is a no-op without URL + token', () => {

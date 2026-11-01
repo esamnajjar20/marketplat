@@ -1,3 +1,4 @@
+import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useRef, useState } from 'react';
@@ -152,10 +153,7 @@ export default function MyAdsScreen() {
               }).then(() => {
                 // Keep queue state separate from server-owned status fields.
                 setPendingDeleteIds((current) => new Set(current).add(ad.id));
-                Alert.alert(
-                  'تم حفظ طلب الحذف',
-                  'لم يُحذف الإعلان من الخادم بعد. سيُرسل طلب الحذف عند عودة الاتصال وتوفر جلسة دخول صالحة.',
-                );
+                showToast('تم حفظ طلب الحذف', 'لم يُحذف الإعلان من الخادم بعد. سيُرسل طلب الحذف عند عودة الاتصال وتوفر جلسة دخول صالحة.', 'info');
               });
             const work = online
               ? deleteAd(ad.id, token, csrfToken)
@@ -170,10 +168,7 @@ export default function MyAdsScreen() {
               : enqueueOfflineDelete();
             void work
               .catch((e) =>
-                Alert.alert(
-                  'تعذر حفظ طلب الحذف',
-                  e instanceof ApiError || e instanceof Error ? e.message : 'حاول مرة أخرى.',
-                ),
+                showToast('تعذر حفظ طلب الحذف', e instanceof ApiError || e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'),
               )
               .finally(() => setBusyId(null));
           },

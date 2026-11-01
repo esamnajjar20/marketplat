@@ -5,6 +5,8 @@ export type PageMetaLike = {
   total?: number;
   totalPages?: number;
   hasNextPage?: boolean;
+  hasPrevPage?: boolean;
+  nextCursor?: string | null;
 };
 
 /** Merge an incoming page while preserving order and removing duplicate entity keys. */

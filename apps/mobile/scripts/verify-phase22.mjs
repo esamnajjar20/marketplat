@@ -11,6 +11,6 @@ assert.match(source, /client\[_-\]\?secret|api\[_-\]\?key/i, 'additional credent
 assert.match(source, /DELETE FROM mutation_outbox WHERE id = \? AND state = 'processing'/, 'acknowledgement only removes a worker-owned processing row');
 assert.match(source, /result\.changes === 1/, 'acknowledgement reports whether a row was actually removed');
 assert.match(source, /idempotencyKey: string/, 'idempotency key is required in the outbox contract');
-assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(pkg.scripts['verify:static'], /run-all-verifications\.mjs/, 'verify:static must invoke the discovery runner');
 assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'phase 22 check is part of mobile test command');
 console.log('Phase 22 outbox safety contract checks passed (static source checks only; no SQLite/device/server test performed).');

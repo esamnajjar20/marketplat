@@ -1,10 +1,10 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { router, usePathname, type Href } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { Animated, BackHandler, Image, PanResponder, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import type { ReactNode } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
+  type ReactNode,
   createContext,
   useCallback,
   useContext,
@@ -17,6 +17,7 @@ import { AppIcon } from '@/components/Icons';
 import { useAuth } from '@/features/auth/AuthContext';
 import { colors, radius, spacing, typography } from '@/theme/tokens';
 import { DRAWER_ITEMS, getRouteAccess, type DrawerSection } from '@/lib/navigation-policy';
+import { toAppHref } from '@/lib/typed-navigation';
 
 type MobileDrawerContextValue = {
   isDrawerOpen: boolean;
@@ -175,9 +176,9 @@ function MobileDrawerOverlay({
       onClose();
       const requiresAuth = getRouteAccess(item.path) === 'authenticated';
       const target = requiresAuth && !user
-        ? `/login?redirect=${encodeURIComponent(item.path)}`
-        : item.path;
-      router.navigate(target as Href);
+        ? { pathname: '/login', params: { redirect: item.path } }
+        : toAppHref(item.path);
+      router.navigate(target);
     },
     [onClose, user],
   );

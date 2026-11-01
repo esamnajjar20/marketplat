@@ -9,17 +9,19 @@ const ORIGIN = 'https://marketplat-nz19.onrender.com';
 const EDGE = 'https://marketplat-api.esamnajjar6.workers.dev';
 
 /** Fresh isolate per scenario: fake Cache API, fake KV, scripted origin. */
-function harness({ upstream, kv } = {}) {
+function harness({ upstream, kv, cacheFailure = false, envOverrides = {} } = {}) {
   const store = new Map();
   const cacheCalls = [];
   const cache = {
     match: async (key) => {
       cacheCalls.push(['match', key.url]);
+      if (cacheFailure === 'match' || cacheFailure === true) throw new Error('Cache API match unavailable');
       const hit = store.get(key.url);
       return hit ? hit.clone() : undefined;
     },
     put: async (key, res) => {
       cacheCalls.push(['put', key.url]);
+      if (cacheFailure === 'put' || cacheFailure === true) throw new Error('Cache API put unavailable');
       store.set(key.url, res.clone());
     },
   };
@@ -35,11 +37,11 @@ function harness({ upstream, kv } = {}) {
       return upstream(String(url), headers, upstreamLog.length);
     },
   };
-  vm.runInNewContext(`${source}\nglobalThis.__internals = { isUpstreamCacheable, makeCacheKey, edgeTagsFor, canonicalize, isValidIpAddress };`, context);
+  vm.runInNewContext(`${source}\nglobalThis.__internals = { isUpstreamCacheable, makeCacheKey, edgeTagsFor, canonicalize, isValidIpAddress, getRenderOrigin };`, context);
   const pending = [];
   const ctx = { waitUntil: (p) => pending.push(Promise.resolve(p).catch(() => {})) };
   const settle = async () => { while (pending.length) await Promise.all(pending.splice(0)); };
-  const env = kv ? { REFERENCE_KV: kv, PURGE_TOKEN: 's3cret' } : { PURGE_TOKEN: 's3cret' };
+  const env = { ...(kv ? { REFERENCE_KV: kv } : {}), PURGE_TOKEN: 's3cret', ...envOverrides };
   const call = (path, init) => context.__worker.fetch(new Request(`${EDGE}${path}`, init), env, ctx);
   // Age a stored entry by `seconds` (rewrites x-mp-stored-at).
   const ageEntry = async (matcher, seconds) => {
@@ -224,8 +226,11 @@ const PUBLIC_LIVE = {
   await settle();
   assert.equal(upstreamLog.length, 2, 'one background revalidation');
   assert.equal(upstreamLog[1].headers.get('if-none-match'), '"v1"', 'conditional revalidation');
-  // 304 restarted the clock -> fresh again with NO new origin call.
-  assert.equal((await call('/api/v1/ads?limit=10')).headers.get('x-proxy-cache'), 'HIT');
+  // 304 restarts the clock without dropping tags required by Cloudflare purge.
+  const refreshed = await call('/api/v1/ads?limit=10');
+  assert.equal(refreshed.headers.get('x-proxy-cache'), 'HIT');
+  assert.match(refreshed.headers.get('cache-tag') || '', /route:ads/);
+  assert.match(refreshed.headers.get('cache-tag') || '', /city:any/);
   assert.equal(upstreamLog.length, 2);
 
   // Content changed upstream: stale is served once, the refresh replaces the entry.
@@ -343,6 +348,12 @@ const PUBLIC_LIVE = {
   const purged = await h.call('/__purge__', { method: 'POST', headers: { 'x-purge-token': 's3cret' } });
   assert.deepEqual(await purged.json(), { ok: true, deleted: 1 });
   assert.equal(kvStore.size, 0);
+
+  const brokenKv = { list: async () => { throw new Error('KV unavailable'); } };
+  const failedPurge = harness({ kv: brokenKv, upstream: async () => json({}) });
+  const failed = await failedPurge.call('/__purge__', { method: 'POST', headers: { 'x-purge-token': 's3cret' } });
+  assert.equal(failed.status, 503);
+  assert.deepEqual(await failed.json(), { ok: false, error: 'KV_PURGE_FAILED' });
 }
 
 /* ───────────── warm-up writes the SAME keys real requests read ───────────── */
@@ -397,6 +408,52 @@ const PUBLIC_LIVE = {
   assert.equal(allowed.status, 200);
 }
 
+
+/* ───────────── Cache API failures degrade to origin passthrough ───────────── */
+{
+  for (const failure of ['match', 'put']) {
+    const h = harness({ cacheFailure: failure, upstream: async () => json({ ok: true }, PUBLIC_LIVE) });
+    const first = await h.call('/api/v1/ads?limit=7');
+    assert.equal(first.status, 200, `${failure} failure must not fail the request`);
+    assert.deepEqual(await first.json(), { ok: true });
+    const second = await h.call('/api/v1/ads?limit=7');
+    assert.equal(second.status, 200);
+    assert.equal(h.upstreamLog.length, 2, `${failure} failure must not pretend an entry was cached`);
+  }
+}
+
+/* ───────────── configured origin and origin validation ───────────── */
+{
+  const h = harness({
+    envOverrides: { RENDER_ORIGIN: 'https://api-origin.example.test' },
+    upstream: async () => json({ ok: true }, PUBLIC_LIVE),
+  });
+  await h.call('/api/v1/ads');
+  assert.equal(new URL(h.upstreamLog[0].url).origin, 'https://api-origin.example.test');
+  assert.ok([...h.store.keys()][0].startsWith('https://api-origin.example.test/'));
+  const validate = h.context.__internals.getRenderOrigin;
+  assert.throws(() => validate({ RENDER_ORIGIN: 'http://insecure.example.test' }), /HTTPS origin/);
+}
+
+/* ───────────── credentialed CORS must fail closed without an allow-list ───────────── */
+{
+  const h = harness({ upstream: async () => json({ ok: true }) });
+  const unconfigured = await h.call('/api/v1/home/feed', { headers: { origin: 'https://attacker.example' } });
+  assert.equal(unconfigured.headers.get('access-control-allow-origin'), '');
+  const rejected = await h.context.__worker.fetch(
+    new Request(`${EDGE}/api/v1/home/feed`, { method: 'OPTIONS', headers: { origin: 'https://attacker.example' } }),
+    { FRONTEND_ORIGIN: 'https://marketplat.app' },
+    { waitUntil() {} },
+  );
+  assert.equal(rejected.headers.get('access-control-allow-origin'), '');
+  const allowed = await h.context.__worker.fetch(
+    new Request(`${EDGE}/api/v1/home/feed`, { method: 'OPTIONS', headers: { origin: 'https://marketplat.app' } }),
+    { FRONTEND_ORIGIN: 'https://marketplat.app' },
+    { waitUntil() {} },
+  );
+  assert.equal(allowed.headers.get('access-control-allow-origin'), 'https://marketplat.app');
+}
+
 /* ───────────── optional Analytics Engine metrics ───────────── */
 {
   const points = [];
@@ -413,4 +470,7 @@ const PUBLIC_LIVE = {
   assert.equal(ok.status, 200);
 }
 
-console.log('PASS API Worker cache: policy, key normalisation, SWR, negative cache, KV tier, tags, single-flight');
+const wrangler = fs.readFileSync(new URL('./wrangler.toml', import.meta.url), 'utf8');
+assert.match(wrangler, /\[triggers\][\s\S]*crons\s*=\s*\[\"\*\/4 \* \* \* \*\"\]/, 'scheduled warm-up must have an actual four-minute Cron trigger');
+
+console.log('PASS API Worker cache: policy, key normalisation, SWR, negative cache, KV tier, tags, single-flight, cron, failures');

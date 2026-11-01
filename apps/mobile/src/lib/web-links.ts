@@ -10,3 +10,17 @@ export function getConfiguredWebUrl(path: string): string {
   } catch { /* fall back to the production origin rather than opening an unsafe URL */ }
   return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
 }
+
+
+/** Resolve a shareable public URL. External shares must never expose exp:// or http:// links. */
+export function getConfiguredHttpsUrl(path: string): string {
+  const candidate = process.env.EXPO_PUBLIC_WEB_URL?.trim() || DEFAULT_WEB_ORIGIN;
+  let origin = DEFAULT_WEB_ORIGIN;
+  try {
+    const parsed = new URL(candidate);
+    if (parsed.protocol === 'https:' && !parsed.username && !parsed.password && !parsed.search && !parsed.hash && (parsed.pathname === '/' || parsed.pathname === '')) {
+      origin = parsed.origin;
+    }
+  } catch { /* keep the known HTTPS production origin */ }
+  return `${origin}${path.startsWith('/') ? path : `/${path}`}`;
+}

@@ -1,8 +1,9 @@
+import { formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { router } from 'expo-router';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { AppImage } from '@/components/AppImage';
 import { DrawerMenuButton } from '@/components/MobileDrawer';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -103,7 +104,8 @@ export default function HomeScreen() {
   ], [ads]);
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
       <FlatList
         data={listRows}
         keyExtractor={(item) => item.type === 'ad' ? `ad:${item.key}` : item.type}
@@ -222,7 +224,7 @@ export default function HomeScreen() {
 
                 {adsSavedAt !== null && !loading ? (
                   <View style={styles.cacheStatus} accessibilityLiveRegion="polite">
-                    <Text style={styles.cacheStatusText}>{adsFromCache ? 'نسخة محفوظة على الجهاز' : 'تمت مزامنة الإعلانات'}{' · '}{new Intl.DateTimeFormat('ar', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }).format(new Date(adsSavedAt))}</Text>
+                    <Text style={styles.cacheStatusText}>{adsFromCache ? 'نسخة محفوظة على الجهاز' : 'تمت مزامنة الإعلانات'}{' · '}{formatDate(adsSavedAt, 'dateTime')}</Text>
                   </View>
                 ) : null}
                 {loading && ads.length === 0 ? <SkeletonList count={4} /> : null}
@@ -260,7 +262,8 @@ export default function HomeScreen() {
           );
         }}
       />
-    </SafeAreaView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 

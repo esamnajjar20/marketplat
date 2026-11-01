@@ -1,8 +1,9 @@
+import { formatMoney, formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppIcon } from '@/components/Icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -12,10 +13,11 @@ import { ServiceRequestTimeline } from '@/components/ui/ServiceRequestTimeline';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { statusLabel } from '@/lib/status-labels';
 import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { showToast } from '@/lib/toast';
 
 const STATUS: Record<string, string> = { PENDING: 'بانتظار الرد', ACCEPTED: 'مقبول', REJECTED: 'مرفوض', IN_PROGRESS: 'قيد التنفيذ', COMPLETED: 'مكتمل', CANCELLED: 'ملغي', EXPIRED: 'منتهي', DISPUTED: 'قيد المراجعة' };
-const money = (v?: string | number | null) => v == null || v === '' ? 'غير محدد' : Number.isFinite(Number(v)) ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(v))} ₪` : String(v);
-const dateTime = (v?: string | null) => { if (!v) return null; const d = new Date(v); return Number.isFinite(d.getTime()) ? new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(d) : null; };
+const money = (v?: string | number | null) => v == null || v === '' ? 'غير محدد' : Number.isFinite(Number(v)) ? formatMoney(Number(v)) : String(v);
+const dateTime = (v?: string | null) => { if (!v) return null; const d = new Date(v); return Number.isFinite(d.getTime()) ? formatDate(d) : null; };
 type Action = 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
 
 export default function ServiceRequestDetailScreen() {
@@ -52,16 +54,16 @@ export default function ServiceRequestDetailScreen() {
     const extra: { quotedPrice?: number; agreedPrice?: number; disputeReason?: string } = {};
     if (action === 'ACCEPTED' && role.provider && needsQuote) {
       const value = Number(quote);
-      if (!quote.trim() || !Number.isFinite(value) || value <= 0) { Alert.alert('السعر المقترح مطلوب', 'أدخل سعرًا صحيحًا أكبر من صفر.'); return; }
+      if (!quote.trim() || !Number.isFinite(value) || value <= 0) { showToast('السعر المقترح مطلوب', 'أدخل سعرًا صحيحًا أكبر من صفر.', 'info'); return; }
       extra.quotedPrice = Math.round(value * 100) / 100;
     }
     if (action === 'IN_PROGRESS' && role.customer && needsQuote) {
       const value = Number(request.quotedPrice);
-      if (!Number.isFinite(value) || value <= 0) { Alert.alert('لا يوجد سعر مقترح', 'اطلب من مقدم الخدمة تحديد السعر أولًا.'); return; }
+      if (!Number.isFinite(value) || value <= 0) { showToast('لا يوجد سعر مقترح', 'اطلب من مقدم الخدمة تحديد السعر أولًا.', 'info'); return; }
       extra.agreedPrice = value;
     }
     if (action === 'DISPUTED') {
-      if (disputeReason.trim().length < 10) { Alert.alert('سبب الاعتراض', 'اكتب 10 أحرف على الأقل.'); return; }
+      if (disputeReason.trim().length < 10) { showToast('سبب الاعتراض', 'اكتب 10 أحرف على الأقل.', 'info'); return; }
       extra.disputeReason = disputeReason.trim();
     }
     setBusy(action);
@@ -69,14 +71,14 @@ export default function ServiceRequestDetailScreen() {
       await respondToServiceRequest(request.id, action, accessToken, csrfToken, extra);
       setDisputeReason('');
       await load(true);
-      Alert.alert('تم تحديث الطلب', 'تم حفظ حالة طلب الخدمة.');
-    } catch (e) { Alert.alert('تعذر تحديث الطلب', e instanceof Error ? e.message : 'لم يؤكد الخادم تنفيذ الإجراء.'); }
+      showToast('تم تحديث الطلب', 'تم حفظ حالة طلب الخدمة.', 'success');
+    } catch (e) { showToast('تعذر تحديث الطلب', e instanceof Error ? e.message : 'لم يؤكد الخادم تنفيذ الإجراء.', 'error'); }
     finally { setBusy(''); }
   };
 
   const actionButton = (label: string, action: Action, tone: 'primary' | 'secondary' | 'danger' = 'primary', confirmation?: string) => <Pressable key={action} accessibilityRole="button" disabled={!!busy} onPress={() => Alert.alert(label, confirmation || `هل تريد تنفيذ «${label}»؟`, [{ text: 'إلغاء', style: 'cancel' }, { text: 'متابعة', style: tone === 'danger' ? 'destructive' : 'default', onPress: () => void runAction(action) }])} style={[s.action, tone === 'secondary' && s.secondary, tone === 'danger' && s.danger, busy && s.disabled]}><Text style={[s.actionText, tone === 'secondary' && s.secondaryText, tone === 'danger' && s.dangerText]}>{busy === action ? 'جارٍ التحديث…' : label}</Text></Pressable>;
 
-  return <SafeAreaView style={s.safe} edges={['top'] as const}>
+  return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><SafeAreaView style={s.safe} edges={['top'] as const}>
     <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel="رجوع" onPress={() => router.back()} style={s.back}><AppIcon name="back" size={24} color={colors.brand} /></Pressable><Text style={s.headerTitle}>تفاصيل طلب الخدمة</Text><Pressable accessibilityRole="button" onPress={() => void load(true)} style={s.refresh}><Text style={s.refreshText}>{refreshing ? '…' : 'تحديث'}</Text></Pressable></View>
     {loading ? <View style={s.state}><Text style={s.muted}>جارٍ تحميل تفاصيل الطلب…</Text></View> : error ? <View style={s.state}><Text style={s.error}>{error}</Text><Pressable style={s.action} onPress={() => !accessToken ? router.push('/login') : void load()}><Text style={s.actionText}>{accessToken ? 'إعادة المحاولة' : 'تسجيل الدخول'}</Text></Pressable></View> : request ? <ScrollView contentContainerStyle={s.content}>
       <View style={s.card}>
@@ -105,7 +107,7 @@ export default function ServiceRequestDetailScreen() {
       {!role.customer && !role.provider ? <View style={s.card}><Text style={s.muted}>لا تظهر إجراءات تعديل هذا الطلب لهذا الحساب.</Text></View> : null}
       {request.disputeReason ? <View style={s.card}><Text style={s.sectionTitle}>سبب الاعتراض</Text><Text style={s.body}>{request.disputeReason}</Text></View> : null}
     </ScrollView> : null}
-  </SafeAreaView>;
+  </SafeAreaView></KeyboardAvoidingView>;
 }
 
 const s = StyleSheet.create({

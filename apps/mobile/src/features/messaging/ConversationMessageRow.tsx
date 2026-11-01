@@ -1,11 +1,16 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { memo } from 'react';
-import { Alert, Image, Linking, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { AppImage } from '@/components/AppImage';
+import { AppIcon } from '@/components/Icons';
 import type { ChatMessage } from '@/features/messaging/messaging.api';
 import { CHAT_OUTBOX_MAX_ATTEMPTS } from '@/storage/outbox-manager';
 import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
 import { isAllowedMediaUrl } from '@/lib/safe-media-url';
+import { formatDate } from '@/lib/formatters';
+import { showToast } from '@/lib/toast';
+import * as WebBrowser from 'expo-web-browser';
 
 export type ConversationScreenMessage = ChatMessage & {
   outboxAttempts?: number;
@@ -18,11 +23,14 @@ type Props = {
   onLongPress: (message: ConversationScreenMessage) => void;
   onRetry: (message: ConversationScreenMessage) => void;
   onDiscard: (message: ConversationScreenMessage) => void;
+  onPlayAudio: (url: string) => void;
+  playingAudioUrl?: string | null;
+  audioBuffering?: boolean;
 };
 
 function formatMessageTime(value: string): string {
   try {
-    return new Intl.DateTimeFormat('ar', { hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+    return formatDate(value, 'time');
   } catch {
     return '';
   }
@@ -34,6 +42,9 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
   onLongPress,
   onRetry,
   onDiscard,
+  onPlayAudio,
+  playingAudioUrl,
+  audioBuffering = false,
 }: Props) {
   const pending = message.id.startsWith('pending-');
   const permanentlyFailed = pending
@@ -45,11 +56,11 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
   const body = message.deletedAt
     ? 'تم حذف هذه الرسالة'
     : message.body || (message.imageUrl
-      ? '📷 صورة مرفقة'
+      ? 'صورة مرفقة'
       : message.audioUrl
-        ? '🎙️ رسالة صوتية'
+        ? 'رسالة صوتية'
         : message.fileUrl
-          ? '📎 ملف مرفق'
+          ? 'ملف مرفق'
           : 'رسالة');
 
   return (
@@ -61,7 +72,7 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
       style={[styles.bubble, isMine ? styles.mine : styles.theirs]}
     >
       {safeImageUrl ? (
-        <Image source={{ uri: safeImageUrl }} resizeMode="cover" style={styles.messageImage} />
+        <AppImage uri={safeImageUrl} resizeMode="cover" style={styles.messageImage} accessibilityLabel="صورة مرفقة في المحادثة" />
       ) : null}
 
       {message.audioUrl && !message.deletedAt ? (
@@ -71,15 +82,13 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
           style={styles.mediaAction}
           onPress={() => {
             if (!isAllowedMediaUrl(message.audioUrl)) {
-              Alert.alert('رابط مرفق غير موثوق', 'رفض التطبيق فتح هذا الرابط لأن مصدره غير مسموح.');
+              showToast('رابط مرفق غير موثوق', 'رفض التطبيق تشغيل هذا الرابط لأن مصدره غير مسموح.', 'warning');
               return;
             }
-            void Linking.openURL(message.audioUrl).catch(() =>
-              Alert.alert('تعذر فتح الصوت', 'تحقق من الاتصال وحاول مجددًا.'),
-            );
+            onPlayAudio(message.audioUrl);
           }}
         >
-          <Text style={styles.mediaActionText}>▶ تشغيل الرسالة الصوتية</Text>
+          <View style={styles.mediaActionContent}><AppIcon name={playingAudioUrl === message.audioUrl ? 'pause' : 'play'} size={17} color={colors.brandOnSoft} /><Text style={styles.mediaActionText}>{audioBuffering && playingAudioUrl === message.audioUrl ? 'جارٍ تحميل الصوت…' : playingAudioUrl === message.audioUrl ? 'إيقاف / متابعة الصوت' : 'تشغيل الرسالة الصوتية'}</Text></View>
         </Pressable>
       ) : null}
 
@@ -90,25 +99,25 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
           style={styles.mediaAction}
           onPress={() => {
             if (!isAllowedMediaUrl(message.fileUrl)) {
-              Alert.alert('رابط مرفق غير موثوق', 'رفض التطبيق فتح هذا الرابط لأن مصدره غير مسموح.');
+              showToast('رابط مرفق غير موثوق', 'رفض التطبيق فتح هذا الرابط لأن مصدره غير مسموح.', 'warning');
               return;
             }
-            void Linking.openURL(message.fileUrl).catch(() =>
-              Alert.alert('تعذر فتح الملف', 'تحقق من الاتصال وحاول مجددًا.'),
-            );
+            void WebBrowser.openBrowserAsync(message.fileUrl).catch(() => {
+              showToast('تعذر فتح الملف', 'تحقق من الاتصال وحاول مجددًا.', 'error');
+            });
           }}
         >
-          <Text style={styles.mediaActionText}>📎 فتح الملف المرفق</Text>
+          <View style={styles.mediaActionContent}><AppIcon name="file" size={17} color={colors.brandOnSoft} /><Text style={styles.mediaActionText}>معاينة الملف داخل التطبيق</Text></View>
         </Pressable>
       ) : null}
 
       <Text style={[styles.messageText, isMine && styles.mineText]}>{body}</Text>
-      <Text style={[styles.time, isMine && styles.mineTime]}>
-        {formatMessageTime(message.createdAt)}
-        {message.isPinned ? ' · 📌' : ''}
-        {message.isStarredByMe ? ' · ⭐' : ''}
-        {pending ? (permanentlyFailed ? ' · تعذّر الإرسال' : ' · بانتظار المزامنة') : ''}
-      </Text>
+      <View style={styles.metadataRow}>
+        <Text style={[styles.time, isMine && styles.mineTime]}>{formatMessageTime(message.createdAt)}</Text>
+        {message.isPinned ? <AppIcon name="pin" size={12} color={isMine ? colors.white : colors.muted} /> : null}
+        {message.isStarredByMe ? <AppIcon name="star" size={12} color={isMine ? colors.white : colors.muted} /> : null}
+        {pending ? <Text style={[styles.time, isMine && styles.mineTime]}>{permanentlyFailed ? 'تعذّر الإرسال' : 'بانتظار المزامنة'}</Text> : null}
+      </View>
 
       {permanentlyFailed ? (
         <View style={styles.failedActions}>
@@ -167,7 +176,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brandSoft,
     alignSelf: 'flex-start',
   },
+  mediaActionContent: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   mediaActionText: { fontSize: fontSizes[12], fontWeight: '800', color: colors.brandOnSoft },
+  metadataRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   time: { fontSize: fontSizes[10], color: colors.muted, textAlign: 'left' },
   mineTime: { color: colors.brandSoft },
   failedActions: {

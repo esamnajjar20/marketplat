@@ -95,6 +95,18 @@ func (c *Client) Configured() bool {
 	return c != nil && c.projectID != "" && c.clientEmail != "" && c.privateKeyConfigured
 }
 
+// ConfigurationStatus is safe for internal diagnostics: it reports only
+// whether credentials are missing, malformed, or ready, never their values.
+func (c *Client) ConfigurationStatus() string {
+	if c == nil || c.projectID == "" || c.clientEmail == "" || !c.privateKeyConfigured {
+		return "missing"
+	}
+	if c.privateKey == nil {
+		return "invalid"
+	}
+	return "ready"
+}
+
 func (c *Client) Send(ctx context.Context, deviceToken string, payload Payload) Outcome {
 	if !c.Configured() {
 		return OutcomeUnconfigured

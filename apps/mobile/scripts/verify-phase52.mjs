@@ -13,6 +13,6 @@ assert.match(imageCache, /return uri/);
 assert.match(adsApi, /cachePublicImages/);
 assert.match(adsApi, /cachedDetail/);
 assert.match(detail, /file:/);
-assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(pkg.scripts['verify:static'], /run-all-verifications\.mjs/, 'verify:static must invoke the discovery runner');
 assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 console.log('Phase 52 public-image offline cache source-contract checks passed (static only; device/network behavior not exercised).');

@@ -1,3 +1,4 @@
+import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -14,7 +15,7 @@ import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { formatSafeDate } from '@/lib/date-format';
 
 const money = (n: unknown) =>
-  `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(n) || 0)} ₪`;
+  formatMoney(Number(n) || 0);
 
 export default function InstallmentsScreen() {
   const { accessToken, csrfToken, user, isRestoring } = useAuth();

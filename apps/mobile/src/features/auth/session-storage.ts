@@ -76,6 +76,8 @@ export type PendingLogout = {
   accessToken: string;
   csrfToken: string | null;
   createdAt: number;
+  /** FCM token to unregister before the deferred session revocation completes. */
+  fcmToken?: string | null;
 };
 
 export async function readPendingLogout(): Promise<PendingLogout | null> {
@@ -87,7 +89,8 @@ export async function readPendingLogout(): Promise<PendingLogout | null> {
     const candidate = value as Partial<PendingLogout>;
     if (typeof candidate.accessToken !== 'string' || !candidate.accessToken ||
         typeof candidate.createdAt !== 'number' ||
-        !(candidate.csrfToken === null || typeof candidate.csrfToken === 'string')) {
+        !(candidate.csrfToken === null || typeof candidate.csrfToken === 'string') ||
+        !(candidate.fcmToken === undefined || candidate.fcmToken === null || (typeof candidate.fcmToken === 'string' && candidate.fcmToken.length > 0 && candidate.fcmToken.length <= 500))) {
       throw new Error('Invalid pending logout marker.');
     }
     return candidate as PendingLogout;

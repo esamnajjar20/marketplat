@@ -338,3 +338,34 @@ export function clearOAuthPurpose(res: Response): void {
     path: OAUTH_STATE_COOKIE_PATH,
   });
 }
+
+// ── Native Google OAuth handoff cookie ────────────────────────────
+// The cookie only carries an opaque flow ID. The PKCE challenge itself
+// remains server-side in Redis and is never trusted from a callback URL.
+const MOBILE_OAUTH_FLOW_COOKIE_NAME = 'oauth_mobile_flow';
+const MOBILE_OAUTH_FLOW_COOKIE_PATH = OAUTH_STATE_COOKIE_PATH;
+const MOBILE_OAUTH_FLOW_MAX_AGE_MS = 10 * 60 * 1000;
+
+export function setMobileOAuthFlowCookie(res: Response, flowId: string): void {
+  res.cookie(MOBILE_OAUTH_FLOW_COOKIE_NAME, flowId, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: MOBILE_OAUTH_FLOW_COOKIE_PATH,
+    maxAge: MOBILE_OAUTH_FLOW_MAX_AGE_MS,
+  });
+}
+
+export function getMobileOAuthFlowId(req: Request): string | undefined {
+  const value = req.cookies?.[MOBILE_OAUTH_FLOW_COOKIE_NAME];
+  return typeof value === 'string' && /^[a-f0-9]{64}$/.test(value) ? value : undefined;
+}
+
+export function clearMobileOAuthFlowCookie(res: Response): void {
+  res.clearCookie(MOBILE_OAUTH_FLOW_COOKIE_NAME, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: 'lax',
+    path: MOBILE_OAUTH_FLOW_COOKIE_PATH,
+  });
+}

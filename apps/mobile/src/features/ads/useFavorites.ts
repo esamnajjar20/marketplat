@@ -3,7 +3,7 @@
  * في favorites.tsx / تفاصيل الإعلان / الرئيسية.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import {} from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
   enqueueFavoriteState,
@@ -12,6 +12,7 @@ import {
 } from '@/features/ads/favorites.store';
 import { useStableCallback } from '@/hooks/useStableCallback';
 import { logger } from '@/lib/logger';
+import { showToast } from '@/lib/toast';
 
 export function useFavorites() {
   const { user } = useAuth();
@@ -72,10 +73,7 @@ export function useFavorites() {
       const cached = await readFavoriteAdIds(user?.id).catch(() => previous);
       favoriteIdsRef.current = cached;
       setFavoriteIds(cached);
-      Alert.alert(
-        'تعذر حفظ المفضلة',
-        error instanceof Error ? error.message : 'لم يتم حفظ التغيير على الجهاز.',
-      );
+      showToast('تعذر حفظ المفضلة', error instanceof Error ? error.message : 'لم يتم حفظ التغيير على الجهاز.', 'success');
     }
   });
 

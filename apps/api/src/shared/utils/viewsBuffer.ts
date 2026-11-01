@@ -3,24 +3,29 @@ import { redis } from '../../config/redis';
 import { prisma } from '../../config/prisma';
 import { logger } from './logger';
 import { env } from '../../config/env';
+import crypto from 'crypto';
 import { executeWithGoFallback, runAdvisoryLockedBatch, type GoWorkerOutcome } from '../go-worker/executeWithFallback';
 
 const VIEWS_PREFIX = 'views_buffer:';
-const FLUSH_INTERVAL = 60_000; // flush to DB every 60 seconds
-// safety-net TTL on the buffer counter key. Without this, if
-// flush() throws before reaching its GETDEL step (e.g. a transient Redis
-// error), the key has no expiry and persists indefinitely — silently
-// growing the keyspace and delaying those views from ever reaching
-// Postgres until some future successful flush happens to pick them up.
-// 24h is generous: far longer than the 60s normal flush interval, so it
-// only matters as a fallback under real Redis instability.
+const VIEWS_INFLIGHT_KEY = 'views_buffer:inflight';
+const FLUSH_INTERVAL = 60_000;
 const VIEWS_BUFFER_TTL_SECONDS = 24 * 60 * 60;
+const MAX_KEYS_PER_FLUSH_BATCH = 100;
+const PENDING_BATCH_SCAN_COUNT = 25;
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 let flushInFlight: Promise<void> | null = null;
 let workerFlushInFlight: Promise<GoWorkerOutcome> | null = null;
 const VIEWS_BUFFER_LOCK_ID = 731904295n;
 
-function isViewsFlushResult(value: unknown): value is { keysScanned: number; adsUpdated: number; viewsApplied: number; keysRestored: number } {
+type ViewIncrement = { adId: string; count: number };
+type PendingViewBatch = { id: string; payload: string };
+
+function isViewsFlushResult(value: unknown): value is {
+  keysScanned: number;
+  adsUpdated: number;
+  viewsApplied: number;
+  keysRestored: number;
+} {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const result = value as Record<string, unknown>;
   return ['keysScanned', 'adsUpdated', 'viewsApplied', 'keysRestored'].every(key =>
@@ -55,41 +60,112 @@ async function flushUsingWorker(): Promise<GoWorkerOutcome> {
     if (workerFlushInFlight === task) workerFlushInFlight = null;
   }
 }
-const MAX_KEYS_PER_FLUSH_BATCH = 100;
-const MAX_CONCURRENT_DB_UPDATES = 20;
 
-// Atomically deduplicate a viewer and increment the counter. Keeping these
-// operations in one Lua script prevents a failed INCR from leaving a dedup key
-// behind for an hour (which would silently discard the viewer's retry).
-const INCREMENT_VIEW_SCRIPT = `
--- VIEWS_DEDUP_INCREMENT
-local dedupEnabled = ARGV[1] == '1'
-if dedupEnabled then
-  local claimed = redis.call('SET', KEYS[2], '1', 'EX', ARGV[2], 'NX')
-  if not claimed then return 0 end
+// One Redis Lua transaction stages a recoverable batch before deleting the
+// source counters. The hash is intentionally durable (no TTL): a worker crash
+// or lost HTTP response cannot discard drained view increments.
+const DRAIN_VIEW_BUFFER_SCRIPT = `
+local pendingKey = KEYS[#KEYS]
+local keyType = redis.call('TYPE', pendingKey)
+if type(keyType) == 'table' then keyType = keyType.ok end
+if keyType ~= 'none' and keyType ~= 'hash' then
+  return redis.error_reply('views inflight key must be a Redis hash')
 end
-redis.call('INCR', KEYS[1])
-redis.call('EXPIRE', KEYS[1], ARGV[3])
-return 1
-`;
-
-// Atomic GETDEL per key — avoids losing views that arrive between read and delete
-const FLUSH_VIEWS_SCRIPT = `
-local results = {}
-for i, key in ipairs(KEYS) do
-  results[i] = redis.call('GETDEL', key)
+local increments = {}
+for i = 1, (#KEYS - 1) do
+  local value = redis.call('GET', KEYS[i])
+  if value then
+    local count = tonumber(value)
+    if count and count > 0 then
+      table.insert(increments, {
+        adId = string.sub(KEYS[i], string.len(ARGV[2]) + 1),
+        count = math.floor(count)
+      })
+    end
+  end
 end
-return results
+local encoded = cjson.encode(increments)
+if #increments > 0 then
+  redis.call('HSET', pendingKey, ARGV[1], encoded)
+end
+for i = 1, (#KEYS - 1) do
+  redis.call('DEL', KEYS[i])
+end
+return encoded
 `;
 
-// Restore a drained counter atomically after a database write fails. A separate
-// INCRBY then EXPIRE can leave a permanent key if the second command fails.
-const RESTORE_VIEW_BUFFER_SCRIPT = `
--- VIEWS_RESTORE_BUFFER
-local count = redis.call('INCRBY', KEYS[1], ARGV[1])
-redis.call('EXPIRE', KEYS[1], ARGV[2])
-return count
-`;
+async function applyPendingViewBatch(batch: PendingViewBatch): Promise<void> {
+  let increments: ViewIncrement[];
+  try {
+    const parsed: unknown = JSON.parse(batch.payload);
+    if (!Array.isArray(parsed)) throw new Error('payload must be an array');
+    increments = parsed.map((item: unknown) => {
+      if (!item || typeof item !== 'object') throw new Error('increment must be an object');
+      const value = item as Record<string, unknown>;
+      if (
+        typeof value.adId !== 'string' || value.adId.length === 0 ||
+        !Number.isSafeInteger(value.count) || (value.count as number) <= 0
+      ) throw new Error('increment has invalid adId/count');
+      return { adId: value.adId, count: value.count as number };
+    });
+  } catch (error) {
+    // Do not delete malformed inflight data automatically. It is durable and
+    // must be inspected rather than silently discarded as lost view counts.
+    throw new Error(`Invalid pending view batch ${batch.id}: ${error instanceof Error ? error.message : 'invalid payload'}`);
+  }
+
+  await prisma.$transaction(async tx => {
+    const inserted = await tx.$queryRaw<Array<{ id: string }>>`
+      INSERT INTO "view_buffer_flush_batches" ("id", "adCount", "viewsCount")
+      VALUES (${batch.id}, ${increments.length}, ${increments.reduce((sum, item) => sum + item.count, 0)}::bigint)
+      ON CONFLICT ("id") DO NOTHING
+      RETURNING "id"
+    `;
+
+    // The receipt and view increments commit together. If COMMIT succeeds but
+    // its response is lost, retrying this same Redis batch sees the receipt and
+    // skips the increment instead of double-counting it.
+    if (inserted.length === 0 || increments.length === 0) return;
+
+    await tx.$executeRaw`
+      WITH increments AS (
+        SELECT * FROM jsonb_to_recordset(${JSON.stringify(increments)}::jsonb)
+          AS x("adId" text, "count" bigint)
+      )
+      UPDATE "ads" AS ad
+      SET "views" = ad."views" + increments."count"
+      FROM increments
+      WHERE ad."id" = increments."adId" AND ad."status" <> 'DELETED'
+    `;
+  }, { maxWait: 5_000, timeout: 20_000 });
+
+  // Acknowledgement happens only after the DB transaction commits. If Redis
+  // executes HDEL but its reply is lost, the receipt remains as a harmless
+  // orphan; if HDEL did not execute, the next retry is idempotent.
+  await (redis as any).hdel(VIEWS_INFLIGHT_KEY, batch.id);
+  // Keep the receipt as a durable deduplication tombstone. HSCAN can return
+  // duplicate fields while Redis rehashes, and a lost HDEL response can be
+  // ambiguous across process restarts.
+}
+
+async function processPendingViewBatches(): Promise<void> {
+  let cursor = '0';
+  do {
+    const [nextCursor, fields] = (await (redis as any).hscan(
+      VIEWS_INFLIGHT_KEY,
+      cursor,
+      'COUNT',
+      String(PENDING_BATCH_SCAN_COUNT)
+    )) as [string, string[]];
+    cursor = nextCursor;
+    if (!Array.isArray(fields) || fields.length % 2 !== 0) {
+      throw new Error('Redis HSCAN returned malformed pending view batches');
+    }
+    for (let index = 0; index < fields.length; index += 2) {
+      await applyPendingViewBatch({ id: fields[index], payload: fields[index + 1] });
+    }
+  } while (cursor !== '0');
+}
 
 export const viewsBuffer = {
   /**
@@ -99,11 +175,6 @@ export const viewsBuffer = {
    */
   increment: async (adId: string, viewerKey?: string): Promise<boolean> => {
     try {
-      // The dedup claim and counter increment must be one atomic operation.
-      // A separate SET NX followed by pipeline INCR can permanently suppress
-      // a retry for an hour if the increment fails after the claim succeeds.
-      // Use an unused-but-valid second key when deduplication is disabled; the
-      // Lua script never touches it unless ARGV[1] is '1'.
       const dedupEnabled = Boolean(viewerKey);
       const dedupKey = dedupEnabled
         ? `views_dedup:${adId}:${viewerKey}`
@@ -126,34 +197,22 @@ export const viewsBuffer = {
       }
       return true;
     } catch {
-      // Redis unavailable — skip silently (views are not critical)
       return false;
     }
   },
 
-  /**
-   * Flush all buffered view counts to the database.
-   * Called on a timer and on graceful shutdown.
-   */
+  /** Drain Redis counters into durable inflight batches, then apply each batch
+   * with a PostgreSQL receipt in the same transaction as the ad updates. */
   flush: async (): Promise<void> => {
-    // setInterval does not wait for an async callback. Reuse the active
-    // flush promise so a slow database cannot trigger overlapping drains.
     if (flushInFlight) return flushInFlight;
-
-    // Assign flushInFlight SYNCHRONOUSLY so concurrent flush() callers in
-    // the same tick all share one task. Body still runs as a microtask so
-    // the assignment is visible before scan/eval executes.
     const task = (async (): Promise<void> => {
-      // Yield once so any other flush() that entered in this tick sees
-      // flushInFlight already set and joins this same promise.
       await Promise.resolve();
       try {
+        await processPendingViewBatches();
         let cursor = '0';
-        let totalAds = 0;
+        let totalBatches = 0;
         let totalViews = 0;
 
-        // Process SCAN results incrementally instead of retaining every key
-        // and sending an unbounded Lua/SQL burst when the keyspace is large.
         do {
           const [nextCursor, keys] = (await (redis as any).scan(
             cursor,
@@ -163,65 +222,38 @@ export const viewsBuffer = {
             MAX_KEYS_PER_FLUSH_BATCH
           )) as [string, string[]];
           cursor = nextCursor;
-          if (keys.length === 0) continue;
+          const counterKeys = keys.filter((key: string) =>
+            key.startsWith(VIEWS_PREFIX) && key !== VIEWS_INFLIGHT_KEY && key.length > VIEWS_PREFIX.length
+          );
+          if (counterKeys.length === 0) continue;
 
-          const rawCounts = (await (redis as RedisEval).eval(
-            FLUSH_VIEWS_SCRIPT,
-            keys.length,
-            ...keys
-          )) as (string | null)[];
-
-          const updates = keys
-            .map((key, i) => ({
-              adId: key.slice(VIEWS_PREFIX.length),
-              count: parseInt(rawCounts[i] || '0', 10),
-            }))
-            .filter(({ count }) => count > 0);
-
-          // Bound database concurrency; each failed write restores its
-          // counter, including views that arrived after the atomic GETDEL.
-          for (let offset = 0; offset < updates.length; offset += MAX_CONCURRENT_DB_UPDATES) {
-            const batch = updates.slice(offset, offset + MAX_CONCURRENT_DB_UPDATES);
-            await Promise.all(
-              batch.map(async ({ adId, count }) => {
-                try {
-                  await prisma.ad.updateMany({
-                    where: { id: adId, status: { not: 'DELETED' } },
-                    data: { views: { increment: count } },
-                  });
-                  totalAds++;
-                  totalViews += count;
-                } catch (err) {
-                  logger.warn('Views update failed — restoring buffer count for retry', {
-                    adId,
-                    count,
-                    err,
-                  });
-                  try {
-                    await (redis as any).eval(
-                      RESTORE_VIEW_BUFFER_SCRIPT,
-                      1,
-                      `${VIEWS_PREFIX}${adId}`,
-                      String(count),
-                      String(VIEWS_BUFFER_TTL_SECONDS)
-                    );
-                  } catch (restoreErr) {
-                    logger.error(
-                      'Views update failed AND buffer restore failed — those views are permanently lost',
-                      { adId, count, restoreErr }
-                    );
-                  }
-                }
-              })
-            );
+          const batchId = `api_${crypto.randomUUID()}`;
+          const encoded = await (redis as any).eval(
+            DRAIN_VIEW_BUFFER_SCRIPT,
+            counterKeys.length + 1,
+            ...counterKeys,
+            VIEWS_INFLIGHT_KEY,
+            batchId,
+            VIEWS_PREFIX
+          );
+          if (typeof encoded !== 'string') {
+            throw new Error('Redis view-buffer staging returned an unexpected response');
+          }
+          const batch = { id: batchId, payload: encoded };
+          const parsed = JSON.parse(encoded) as ViewIncrement[];
+          if (parsed.length > 0) {
+            totalBatches += 1;
+            totalViews += parsed.reduce((sum, item) => sum + item.count, 0);
+            await applyPendingViewBatch(batch);
           }
         } while (cursor !== '0');
 
-        if (totalAds > 0) {
-          logger.debug(`Views flushed: ${totalAds} ads, ${totalViews} total views`);
-        }
-      } catch (err) {
-        logger.error('Views buffer flush failed', err);
+        // Pick up any batches whose HDEL acknowledgement was ambiguous.
+        await processPendingViewBatches();
+        if (totalBatches > 0) logger.debug('Views flushed from durable Redis batches', { totalBatches, totalViews });
+      } catch (error) {
+        logger.error('Views buffer flush failed; durable inflight batches were retained for retry', error);
+        throw error;
       }
     })();
 
@@ -236,10 +268,9 @@ export const viewsBuffer = {
   startFlushTimer: (): void => {
     if (flushTimer) return;
     flushTimer = setInterval(() => {
-      flushUsingWorker()
-        .catch(error => reportBackgroundFailure('apps/api/src/shared/utils/viewsBuffer.ts', error));
+      flushUsingWorker().catch(error => reportBackgroundFailure('apps/api/src/shared/utils/viewsBuffer.ts', error));
     }, FLUSH_INTERVAL);
-    flushTimer.unref(); // don't keep process alive
+    flushTimer.unref();
     logger.info(`Views buffer flush timer started (every ${FLUSH_INTERVAL / 1000}s)`);
   },
 
@@ -248,7 +279,6 @@ export const viewsBuffer = {
       clearInterval(flushTimer);
       flushTimer = null;
     }
-    // Final flush on shutdown still uses the same Go-first / Express fallback path.
     await flushUsingWorker();
   },
 };
@@ -256,3 +286,16 @@ export const viewsBuffer = {
 interface RedisEval {
   eval(script: string, numKeys: number, ...args: string[]): Promise<unknown>;
 }
+
+// Atomic deduplication and counter increment: a failed INCR cannot leave a
+// viewer dedup key behind and silently suppress a later retry.
+const INCREMENT_VIEW_SCRIPT = `
+local dedupEnabled = ARGV[1] == '1'
+if dedupEnabled then
+  local claimed = redis.call('SET', KEYS[2], '1', 'EX', ARGV[2], 'NX')
+  if not claimed then return 0 end
+end
+redis.call('INCR', KEYS[1])
+redis.call('EXPIRE', KEYS[1], ARGV[3])
+return 1
+`;

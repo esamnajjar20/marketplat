@@ -13,14 +13,16 @@ import type { TextInputHandle } from '@/components/ui/Field';
 import { fontSizes, colors, spacing, typography } from '@/theme/tokens';
 import { loginSchema, validate } from '@/lib/validation';
 import { getSafeAuthRedirect } from '@/lib/safe-auth-redirect';
+import { toAppHref } from '@/lib/typed-navigation';
 
 export default function LoginScreen() {
-  const { login, isBusy } = useAuth();
+  const { login, loginWithGoogle, isBusy } = useAuth();
   const { redirect } = useLocalSearchParams<{ redirect?: string | string[] }>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [googleBusy, setGoogleBusy] = useState(false);
   const emailInputRef = useRef<TextInputHandle>(null);
   const passwordInputRef = useRef<TextInputHandle>(null);
 
@@ -35,7 +37,7 @@ export default function LoginScreen() {
       await login(checked.data.email, checked.data.password);
       setPassword('');
       const target = getSafeAuthRedirect(redirect);
-      if (target) router.replace(target as never);
+      if (target) router.replace(toAppHref(target));
       else if (router.canGoBack()) router.back();
       else router.replace('/');
     } catch (error) {
@@ -44,6 +46,26 @@ export default function LoginScreen() {
           ? error.message
           : 'تعذر تسجيل الدخول. حاول مجددًا.',
       );
+    }
+  };
+
+  const submitGoogle = async () => {
+    setErrorMessage(null);
+    setGoogleBusy(true);
+    try {
+      const signedInUser = await loginWithGoogle();
+      setPassword('');
+      if (signedInUser.needsProfileCompletion) {
+        router.replace('/complete-profile');
+        return;
+      }
+      const target = getSafeAuthRedirect(redirect);
+      if (target) router.replace(toAppHref(target));
+      else router.replace('/');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : 'تعذر تسجيل الدخول باستخدام Google.');
+    } finally {
+      setGoogleBusy(false);
     }
   };
 
@@ -99,6 +121,19 @@ export default function LoginScreen() {
           busy={isBusy}
         />
 
+        <View style={styles.dividerRow}><View style={styles.divider} /><Text style={styles.dividerText}>أو</Text><View style={styles.divider} /></View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="المتابعة باستخدام Google"
+          accessibilityState={{ disabled: isBusy || googleBusy }}
+          disabled={isBusy || googleBusy}
+          onPress={() => { void submitGoogle(); }}
+          style={({ pressed }) => [styles.googleButton, pressed && { opacity: 0.78 }, (isBusy || googleBusy) && { opacity: 0.6 }]}
+        >
+          <Text style={styles.googleGlyph}>G</Text>
+          <Text style={styles.googleText}>{googleBusy ? 'جارٍ الاتصال بـ Google…' : 'المتابعة باستخدام Google'}</Text>
+        </Pressable>
+
         <Pressable accessibilityRole="button" onPress={() => router.push('/forgot-password')} style={styles.linkBtn}>
           <Text style={styles.link}>نسيت كلمة المرور؟</Text>
         </Pressable>
@@ -139,4 +174,10 @@ const styles = StyleSheet.create({
   linkBtn: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   passwordToggle: { minHeight: 44, alignSelf: 'flex-end', justifyContent: 'center', paddingHorizontal: spacing.sm },
   link: { color: colors.brand, ...typography.bodyStrong, textAlign: 'center' },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  divider: { flex: 1, height: 1, backgroundColor: colors.border },
+  dividerText: { color: colors.muted, ...typography.caption },
+  googleButton: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: colors.controlBorder, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 16 },
+  googleGlyph: { color: colors.brand, fontWeight: '900', fontSize: fontSizes[19] },
+  googleText: { color: colors.ink, ...typography.bodyStrong },
 });

@@ -9,7 +9,7 @@ const checks = [
   ['Story creation supports visibility', read('src/features/stories/stories.api.ts').includes("form.append('visibility'")],
   ['Story viewer records authenticated views', read('src/features/stories/stories.api.ts').includes('/view')],
   ['Story viewer can delete own stories', read('src/features/stories/stories.api.ts').includes("method: 'DELETE'")],
-  ['Story share URL uses Expo Linking', read('src/features/sharing/deep-links.ts').includes('Linking.createURL')],
+  ['Story share URL uses public HTTPS origin', read('src/features/sharing/deep-links.ts').includes('getConfiguredHttpsUrl') && !read('src/features/sharing/deep-links.ts').includes('Linking.createURL')],
   ['Ad details exposes a share action', read('app/ads/[id].tsx').includes('<ShareButton resource="ads"')],
   ['Product details exposes a share action', read('app/products/[id].tsx').includes('<ShareButton resource="products"')],
   ['Store details exposes a share action', read('app/stores/[id].tsx').includes('<ShareButton resource="stores"')],

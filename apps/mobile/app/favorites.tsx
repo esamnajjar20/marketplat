@@ -1,7 +1,9 @@
+import { showToast } from '@/lib/toast';
+import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useRef, useState } from 'react';
-import { Alert, FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,7 +32,7 @@ function priceLabel(value: number | string | null | undefined): string {
   if (value == null || value === '') return 'السعر عند التواصل';
   const n = Number(value);
   return Number.isFinite(n)
-    ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(n)} ₪`
+    ? formatMoney(n)
     : String(value);
 }
 
@@ -85,55 +87,36 @@ export default function FavoritesScreen() {
 
   const remove = (record: FavoriteRecord) => {
     if (!record.adId || !user?.id) return;
-    Alert.alert('إزالة من المفضلة', `إزالة «${record.ad?.title || 'هذا الإعلان'}» من المفضلة؟`, [
-      { text: 'إلغاء', style: 'cancel' },
-      {
-        text: online ? 'إزالة' : 'حفظ للتزامن',
-        style: 'destructive',
-        onPress: () => {
-          setBusyId(record.adId);
-          const operationId = `fav-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-          const enqueueOffline = () =>
-            enqueueFavoriteState({
-              userId: user.id,
-              adId: record.adId,
-              favorited: false,
-              previousFavorited: true,
-              operationId,
-            });
-          const token = getAccessToken();
-          const work =
-            online && token
-              ? setFavoriteAdState(record.adId, false, token, operationId, csrfToken).catch(
-                  (err) => {
-                    // Session expired mid-action — preserve user intent locally
-                    // so it can sync after the next successful login.
-                    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-                      return enqueueOffline();
-                    }
-                    throw err;
-                  },
-                )
-              : enqueueOffline();
-          void Promise.resolve(work)
-            .then(async () => {
-              const ids = await readFavoriteAdIds(user.id);
-              await writeFavoriteAdIds(
-                ids.filter((id) => id !== record.adId),
-                user.id,
-              );
-              setItems((current) => current.filter((item) => item.adId !== record.adId));
-            })
-            .catch((e) =>
-              Alert.alert(
-                'تعذر إزالة الإعلان',
-                e instanceof ApiError || e instanceof Error ? e.message : 'حاول مرة أخرى.',
-              ),
-            )
-            .finally(() => setBusyId(null));
-        },
-      },
-    ]);
+    setBusyId(record.adId);
+    const operationId = `fav-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    let queued = !online || !getAccessToken();
+    const enqueueOffline = () => enqueueFavoriteState({
+      userId: user.id,
+      adId: record.adId,
+      favorited: false,
+      previousFavorited: true,
+      operationId,
+    });
+    const token = getAccessToken();
+    const work = online && token
+      ? setFavoriteAdState(record.adId, false, token, operationId, csrfToken).catch((err) => {
+          // A session that expires mid-action must preserve the user's intent locally.
+          if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+            queued = true;
+            return enqueueOffline();
+          }
+          throw err;
+        })
+      : enqueueOffline();
+    void Promise.resolve(work)
+      .then(async () => {
+        const ids = await readFavoriteAdIds(user.id);
+        await writeFavoriteAdIds(ids.filter((id) => id !== record.adId), user.id);
+        setItems((current) => current.filter((item) => item.adId !== record.adId));
+        showToast(queued ? 'حُفظت الإزالة للمزامنة' : 'تمت الإزالة من المفضلة', queued ? 'سيُزامن التغيير عند توفر الاتصال والجلسة.' : 'أزيل الإعلان من قائمتك.', queued ? 'info' : 'success');
+      })
+      .catch((e) => showToast('تعذر إزالة الإعلان', e instanceof ApiError || e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'))
+      .finally(() => setBusyId(null));
   };
 
   return (

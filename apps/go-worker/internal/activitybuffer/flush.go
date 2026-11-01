@@ -102,7 +102,14 @@ func Flush(ctx context.Context, db interface {
 		ON CONFLICT ("idempotencyKey") DO NOTHING
 	`, string(encoded))
 	if err != nil {
-		requeueErr := requeue(ctx, redis, validRaw)
+		// The API caller can time out while this worker is still unwinding.
+		// Do not reuse the request context for compensation: cancellation of
+		// the HTTP request must not prevent us from putting the popped entries
+		// back into Redis. The INSERT is idempotent by idempotencyKey, so a
+		// retry is safe even when the database commit outcome was ambiguous.
+		requeueCtx, cancel := compensationContext(ctx)
+		defer cancel()
+		requeueErr := requeue(requeueCtx, redis, validRaw)
 		if requeueErr != nil {
 			return result, fmt.Errorf("insert activity batch failed (%v) and Redis requeue failed: %w", err, requeueErr)
 		}
@@ -111,9 +118,25 @@ func Flush(ctx context.Context, db interface {
 	}
 	result.Inserted, err = res.RowsAffected()
 	if err != nil {
+		// RowsAffected is normally available from pgx, but if the driver cannot
+		// report it the INSERT outcome may already be committed. Requeue using
+		// the same idempotency keys; ON CONFLICT makes a retry safe either way.
+		requeueCtx, cancel := compensationContext(ctx)
+		defer cancel()
+		if requeueErr := requeue(requeueCtx, redis, validRaw); requeueErr != nil {
+			return result, fmt.Errorf("read activity insert count (%v) and Redis requeue failed: %w", err, requeueErr)
+		}
+		result.Requeued = len(validRaw)
 		return result, fmt.Errorf("read activity insert count: %w", err)
 	}
 	return result, nil
+}
+
+// compensationContext preserves context values but deliberately detaches the
+// compensation operation from caller cancellation. It remains tightly bounded
+// so a failed Redis restore cannot hold a worker request open indefinitely.
+func compensationContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
 }
 
 func validEntry(item entry) bool {

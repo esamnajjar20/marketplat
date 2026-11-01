@@ -97,3 +97,53 @@ Scheduled Jobs (daily) → Run workflow.
 - `report:expire-ads` runs from the scheduled-job runner. It warns sellers roughly 7 days before expiry and transitions due ACTIVE ads to `EXPIRED`.
 - The job is idempotent and safe to invoke every 15 minutes.
 - New ads receive a 60-day `expiresAt`; existing ACTIVE ads are backfilled by the lifecycle migration.
+
+### Scheduler execution ledger and recovery
+
+`cron:scheduled` persists one row per `(jobName, scheduledFor)` in
+`scheduled_job_runs`. This prevents duplicate daily invocations and makes a
+failed job eligible for a later retry without rerunning already-completed jobs.
+Weekday-only jobs also have a one-business-day catch-up window. A `RUNNING`
+claim can be reclaimed after 75 minutes; the GitHub Actions workflow timeout is
+60 minutes. Apply migration `20261101170000_add_scheduled_job_run_ledger`
+through the normal Prisma migration deployment before enabling this runner
+revision. The workflow deliberately does not run production migrations itself.
+
+Each due child runs independently. An individual failure is recorded and the
+remaining due jobs still run; the parent exits non-zero at the end so the failed
+workflow remains visible. Inspect the `scheduled_job_runs` table when
+investigating retries or skipped jobs.
+
+### Transactional outbox process
+
+The outbox poller is not started by the API HTTP server. Deploy it as its own
+Render **Background Worker** from the `apps/api` root directory, using the same
+revision and runtime environment as the API. Recommended commands:
+
+- Build: `npm ci && npx prisma generate && npm run build`
+- Start: `npm run worker:outbox:prod`
+
+Provide `DATABASE_URL`, `DIRECT_URL` when required by Prisma, `REDIS_URL`, and
+the provider/cache variables used by notification delivery. Prefer a worker-specific
+`DATABASE_URL` with a deliberately small Prisma pool (for example
+`connection_limit=2&pool_timeout=30`) instead of copying the API service's full
+pool size. Budget API instances, the outbox worker, and Go worker together
+against the database's actual connection limit. Confirm the log
+`Transactional outbox worker started`, then verify pending outbox and push
+dispatch counts decrease and a test notification reaches its delivery record.
+The API service alone does not prove that outbox events are being consumed.
+Keep a single intended worker instance unless deliberately scaling; event
+leases and idempotency protect correctness, but every instance consumes a DB
+connection and contributes polling load.
+
+### Go Worker dependency preflight
+
+Before enabling `GO_WORKER_FCM_PUSH_ENABLED=true`, deploy Go with
+`FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and
+`FIREBASE_PRIVATE_KEY`, then call the authenticated
+`GET /internal/diagnostics` endpoint. Require `dependencies.postgres = ok` and
+`dependencies.firebaseCredentials = ready`; `invalid` means the key could not
+be parsed and `missing` means a required service-account value is absent.
+Also send a real test notification before enabling the feature flag. Keep the
+flag false until both checks pass. The diagnostics endpoint never returns the
+credential values or Redis/Postgres connection strings.

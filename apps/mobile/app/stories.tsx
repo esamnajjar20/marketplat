@@ -1,8 +1,12 @@
+import { showToast } from '@/lib/toast';
+import { AppIcon } from '@/components/Icons';
+import { ActionSheet } from '@/components/ActionSheet';
+import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useRef, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { ActivityIndicator, Alert, FlatList, Image, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -14,6 +18,7 @@ export default function StoriesScreen() {
   const [groups, setGroups] = useState<StoryGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [showAddStorySheet, setShowAddStorySheet] = useState(false);
   const [error, setError] = useState('');
   const seq = useRef(0);
   const hasGroupsRef = useRef(false);
@@ -27,48 +32,46 @@ export default function StoriesScreen() {
     finally { if (current === seq.current) setLoading(false); }
   }, [getAccessToken]);
   useFocusEffect(useCallback(() => { void load(); return () => { seq.current += 1; }; }, [load]));
-  const addStory = async () => {
+  const publishImageStory = async (visibility: 'FOLLOWERS' | 'PUBLIC') => {
+    setBusy(true);
+    setError('');
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) throw new Error('اسمح للتطبيق بالوصول إلى الصور.');
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.85 });
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
+      if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) throw new Error('حجم الصورة يجب ألا يتجاوز 5 ميغابايت.');
+      const mime = asset.mimeType || 'image/jpeg';
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) throw new Error('اختر صورة JPEG أو PNG أو WebP.');
+      const token = getAccessToken();
+      if (!token) { router.push('/login'); return; }
+      await createStory({ visibility }, { uri: asset.uri, fileName: asset.fileName, mimeType: mime }, token, csrfToken);
+      await load();
+      showToast(visibility === 'PUBLIC' ? 'تم نشر القصة العامة' : 'تم نشر القصة', 'ستنتهي صلاحيتها بعد 24 ساعة.', 'success');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'تعذر نشر القصة.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  const addStory = () => {
     if (!getAccessToken()) { router.push('/login'); return; }
-    Alert.alert('إضافة قصة', 'اختر طريقة نشر القصة', [
-      { text: 'قصة نصية', onPress: () => router.push('/story-create') },
-      { text: 'صورة للمتابعين', onPress: () => { void (async () => {
-        setBusy(true); setError('');
-        try {
-          const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (!permission.granted) throw new Error('اسمح للتطبيق بالوصول إلى الصور.');
-          const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.85 });
-          if (result.canceled || !result.assets[0]) return;
-          const asset = result.assets[0];
-          if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) throw new Error('حجم الصورة يجب ألا يتجاوز 5 ميغابايت.');
-          const mime = asset.mimeType || 'image/jpeg';
-          if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) throw new Error('اختر صورة JPEG أو PNG أو WebP.');
-          const token = getAccessToken(); if (!token) { router.push('/login'); return; }
-          await createStory({ visibility: 'FOLLOWERS' }, { uri: asset.uri, fileName: asset.fileName, mimeType: mime }, token, csrfToken);
-          await load(); Alert.alert('تم النشر', 'نُشرت القصة وستنتهي صلاحيتها بعد 24 ساعة.');
-        } catch (e) { setError(e instanceof Error ? e.message : 'تعذر نشر القصة.'); }
-        finally { setBusy(false); }
-      })(); } },
-      { text: 'صورة عامة', onPress: () => { void (async () => {
-        setBusy(true); setError('');
-        try {
-          const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-          if (!permission.granted) throw new Error('اسمح للتطبيق بالوصول إلى الصور.');
-          const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, quality: 0.85 });
-          if (result.canceled || !result.assets[0]) return;
-          const asset = result.assets[0];
-          if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) throw new Error('حجم الصورة يجب ألا يتجاوز 5 ميغابايت.');
-          const mime = asset.mimeType || 'image/jpeg';
-          if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) throw new Error('اختر صورة JPEG أو PNG أو WebP.');
-          const token = getAccessToken(); if (!token) { router.push('/login'); return; }
-          await createStory({ visibility: 'PUBLIC' }, { uri: asset.uri, fileName: asset.fileName, mimeType: mime }, token, csrfToken);
-          await load(); Alert.alert('تم النشر', 'نُشرت القصة العامة وستنتهي صلاحيتها بعد 24 ساعة.');
-        } catch (e) { setError(e instanceof Error ? e.message : 'تعذر نشر القصة.'); }
-        finally { setBusy(false); }
-      })(); } },
-    ]);
+    setShowAddStorySheet(true);
   };
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <ActionSheet
+        visible={showAddStorySheet}
+        title="إضافة قصة"
+        description="اختر نوع القصة والجمهور الذي يمكنه مشاهدتها."
+        onClose={() => setShowAddStorySheet(false)}
+        options={[
+          { key: 'text', label: 'قصة نصية', onPress: () => router.push('/story-create') },
+          { key: 'followers', label: 'صورة للمتابعين', onPress: () => void publishImageStory('FOLLOWERS') },
+          { key: 'public', label: 'صورة عامة', onPress: () => void publishImageStory('PUBLIC') },
+        ]}
+      />
       <View style={styles.header}>
         <Pressable accessibilityRole="button" accessibilityLabel="العودة" onPress={() => router.back()}>
           <Text style={styles.link}>رجوع</Text>
@@ -133,7 +136,7 @@ export default function StoriesScreen() {
               >
                 <View style={[styles.avatarRing, group.hasUnseen && styles.unseen]}>
                   {group.user.avatarUrl ? (
-                    <Image source={{ uri: group.user.avatarUrl }} style={styles.avatar} />
+                    <AppImage uri={group.user.avatarUrl} style={styles.avatar} />
                   ) : (
                     <View style={styles.avatarFallback}>
                       <Text style={styles.initial}>{group.user.name?.trim()?.[0] || '؟'}</Text>
@@ -144,7 +147,7 @@ export default function StoriesScreen() {
                   <Text style={styles.cardTitle}>{group.user.name || 'مستخدم MarketPlat'}</Text>
                   <Text style={styles.muted}>{group.stories.length} قصة · {group.hasUnseen ? 'قصص جديدة' : 'تمت المشاهدة'}</Text>
                 </View>
-                <Text style={styles.link}>عرض ‹</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Text style={styles.link}>عرض</Text><AppIcon name="forward" size={16} color={colors.brand} /></View>
               </Pressable>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyStrip}>
                 {group.stories.map((story) => (
@@ -156,7 +159,7 @@ export default function StoriesScreen() {
                     onPress={() => router.push({ pathname: '/stories/[id]', params: { id: story.id, userId: story.userId } })}
                   >
                     {story.mediaUrl ? (
-                      <Image source={{ uri: story.mediaUrl }} style={styles.tileImage} />
+                      <AppImage uri={story.mediaUrl} style={styles.tileImage} />
                     ) : (
                       <View style={[styles.tileImage, styles.textTile, { backgroundColor: story.background || colors.brand }]}>
                         <Text numberOfLines={3} style={styles.tileText}>{story.text || 'قصة نصية'}</Text>

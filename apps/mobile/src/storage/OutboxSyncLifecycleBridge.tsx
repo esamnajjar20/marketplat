@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Alert } from 'react-native';
+import { showToast } from '@/lib/toast';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useIsOnline } from '@/lib/connectivity';
@@ -34,15 +34,13 @@ export function OutboxSyncLifecycleBridge() {
           if (newlyFailed.length === 0) return;
           newlyFailed.forEach((item) => notifiedFailedCreates.current.add(item.id));
           const count = newlyFailed.length;
-          Alert.alert(
+          showToast(
             'تعذّر إكمال بعض الإضافات',
             count === 1
-              ? 'توقفت إضافة محفوظة بسبب مشكلة في البيانات أو الصلاحيات. لم تُحذف؛ افتح العمليات دون اتصال لمعرفة السبب وإعادة المحاولة أو حذفها.'
-              : `توقفت ${count} إضافات محفوظة بسبب مشكلات في البيانات أو الصلاحيات. لم تُحذف؛ افتح العمليات دون اتصال لمعرفة الأسباب وإعادة المحاولة أو حذفها.`,
-            [
-              { text: 'لاحقًا', style: 'cancel' },
-              { text: 'عرض العمليات', onPress: () => router.push('/offline-queue' as never) },
-            ],
+              ? 'توقفت إضافة محفوظة بسبب مشكلة في البيانات أو الصلاحيات. لم تُحذف؛ يمكنك مراجعتها وإعادة المحاولة أو حذفها.'
+              : `توقفت ${count} إضافات محفوظة بسبب مشكلات في البيانات أو الصلاحيات. لم تُحذف؛ يمكنك مراجعتها وإعادة المحاولة أو حذفها.`,
+            'warning',
+            { label: 'عرض العمليات', onPress: () => router.push('/offline-queue') },
           );
         }).catch(() => {
           // The queue screen remains the source of truth if a local DB read fails.

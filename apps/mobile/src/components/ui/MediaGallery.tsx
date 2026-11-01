@@ -1,7 +1,8 @@
+import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useRef, useState } from 'react';
-import { FlatList, Image, Modal, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { FlatList, Modal, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
 
 
@@ -17,16 +18,16 @@ export function MediaGallery({ images, title }: { images?: string[] | null; titl
   }
   return <View style={styles.container}>
     <Pressable accessibilityRole="button" accessibilityLabel={`عرض صور ${title} بملء الشاشة`} onPress={() => setFullscreen(true)}>
-      <Image source={{ uri: validImages[Math.min(index, validImages.length - 1)] }} style={styles.hero} resizeMode="cover" accessibilityLabel={`${title} — الصورة ${index + 1}`} />
+      <AppImage uri={validImages[Math.min(index, validImages.length - 1)]} style={styles.hero} resizeMode="cover" accessibilityLabel={`${title} — الصورة ${index + 1}`} />
     </Pressable>
     <View style={styles.counter}><Text style={styles.counterText}>{index + 1} / {validImages.length}</Text></View>
     {validImages.length > 1 ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbs}>
-      {validImages.map((uri, i) => <Pressable key={`${uri}-${i}`} accessibilityRole="button" accessibilityLabel={`الصورة ${i + 1}`} accessibilityState={{ selected: index === i }} onPress={() => setIndex(i)} style={[styles.thumbWrap, index === i && styles.thumbActive]}><Image source={{ uri }} style={styles.thumb} resizeMode="cover" /></Pressable>)}
+      {validImages.map((uri, i) => <Pressable key={`${uri}-${i}`} accessibilityRole="button" accessibilityLabel={`الصورة ${i + 1}`} accessibilityState={{ selected: index === i }} onPress={() => setIndex(i)} style={[styles.thumbWrap, index === i && styles.thumbActive]}><AppImage uri={uri} style={styles.thumb} resizeMode="cover" /></Pressable>)}
     </ScrollView> : null}
     <Modal visible={fullscreen} animationType="fade" onRequestClose={() => setFullscreen(false)} onShow={() => fullList.current?.scrollToIndex({ index, animated: false })} statusBarTranslucent>
       <View style={styles.modal}>
         <View style={styles.modalHeader}><Text style={styles.modalTitle} numberOfLines={1}>{title}</Text><Pressable accessibilityRole="button" accessibilityLabel="إغلاق معرض الصور" onPress={() => setFullscreen(false)} style={styles.close}><Text style={styles.closeText}>×</Text></Pressable></View>
-        <FlatList ref={fullList} data={validImages} horizontal pagingEnabled initialScrollIndex={index} keyExtractor={(uri, i) => `${uri}-${i}`} getItemLayout={(_, i) => ({ length: WINDOW_WIDTH, offset: WINDOW_WIDTH * i, index: i })} onMomentumScrollEnd={(event) => setIndex(Math.round(event.nativeEvent.contentOffset.x / WINDOW_WIDTH))} renderItem={({ item: uri, index: i }) => <View style={[styles.fullSlide, { width: WINDOW_WIDTH }]}><Image source={{ uri }} style={styles.fullImage} resizeMode="contain" accessibilityLabel={`${title} — الصورة ${i + 1}`} /></View>} />
+        <FlatList ref={fullList} data={validImages} horizontal pagingEnabled initialScrollIndex={index} keyExtractor={(uri, i) => `${uri}-${i}`} getItemLayout={(_, i) => ({ length: WINDOW_WIDTH, offset: WINDOW_WIDTH * i, index: i })} onMomentumScrollEnd={(event) => setIndex(Math.round(event.nativeEvent.contentOffset.x / WINDOW_WIDTH))} renderItem={({ item: uri, index: i }) => <View style={[styles.fullSlide, { width: WINDOW_WIDTH }]}><AppImage uri={uri} style={styles.fullImage} resizeMode="contain" accessibilityLabel={`${title} — الصورة ${i + 1}`} /></View>} />
         <Text style={styles.fullCounter}>{index + 1} / {validImages.length}</Text>
       </View>
     </Modal>

@@ -1,8 +1,10 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { ConversationItem } from '@/features/messaging/messaging.api';
+import { AppImage } from '@/components/AppImage';
+import { isAllowedMediaUrl } from '@/lib/safe-media-url';
 import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
 
 type ConversationListItemProps = {
@@ -19,9 +21,9 @@ function getConversationPreview(conversation: ConversationItem): string {
   if (!message) return conversation.ad?.title ? `بخصوص: ${conversation.ad.title}` : 'ابدأ المحادثة بإرسال رسالة.';
   if (message.deletedAt) return 'تم حذف هذه الرسالة';
   if (message.body?.trim()) return message.body.trim();
-  if (message.imageUrl) return '📷 صورة';
-  if (message.audioUrl) return '🎙️ رسالة صوتية';
-  if (message.fileUrl) return '📎 ملف مرفق';
+  if (message.imageUrl) return 'صورة مرفقة';
+  if (message.audioUrl) return 'رسالة صوتية';
+  if (message.fileUrl) return 'ملف مرفق';
   return 'رسالة جديدة';
 }
 
@@ -30,6 +32,9 @@ function ConversationListItemView({ item, currentUserId, onPress, onTogglePin, o
   const unread = item.unreadCount ?? 0;
   const name = other?.name || 'مستخدم';
   const accessibleName = `${name}${unread > 0 ? `، ${unread} رسالة غير مقروءة` : ''}`;
+  const avatarUrl = isAllowedMediaUrl(other?.avatarUrl) ? other.avatarUrl : null;
+  const [avatarFailed, setAvatarFailed] = useState(false);
+  useEffect(() => setAvatarFailed(false), [avatarUrl]);
 
   return (
     <Pressable
@@ -40,12 +45,14 @@ function ConversationListItemView({ item, currentUserId, onPress, onTogglePin, o
       style={[styles.card, unread > 0 && styles.unread]}
     >
       <View style={styles.avatar}>
-        <Text style={styles.avatarText}>{(other?.name || '?').slice(0, 1)}</Text>
+        {avatarUrl && !avatarFailed ? (
+          <AppImage uri={avatarUrl} style={styles.avatarImage} accessibilityLabel={`صورة ${name}`} onError={() => setAvatarFailed(true)} />
+        ) : <Text style={styles.avatarText}>{(other?.name || '?').slice(0, 1)}</Text>}
       </View>
       <View style={styles.cardBody}>
         <View style={styles.cardTop}>
           <Text style={styles.name} numberOfLines={1}>
-            {name}{item.mySettings?.pinnedAt ? ' 📌' : ''}
+            {name}{item.mySettings?.pinnedAt ? ' · مثبتة' : ''}
           </Text>
           {unread > 0 ? (
             <View style={styles.badge} accessibilityLabel={`${unread} رسائل غير مقروءة`}>
@@ -87,6 +94,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarText: { color: colors.brandOnSoft, fontWeight: '900', fontSize: fontSizes[16] },
+  avatarImage: { width: 44, height: 44, borderRadius: 22 },
   cardBody: { flex: 1, gap: 4 },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
   action: { minHeight: 34, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.controlBorder },

@@ -4,6 +4,7 @@ jest.mock('../src/config/redis', () => {
   const store = new Map<string, string>();
   const zsets = new Map<string, Map<string, number>>();
   const lists = new Map<string, string[]>();
+  const hashes = new Map<string, Map<string, string>>();
   const sets = new Map<string, Set<string>>();
   const rateLimitCounters = new Map<string, { count: number; resetAt: number }>();
 
@@ -52,6 +53,24 @@ jest.mock('../src/config/redis', () => {
     return added;
   });
   const scard = jest.fn(async (key: string) => sets.get(key)?.size ?? 0);
+  const hscan = jest.fn(async (key: string, _cursor = '0', _countToken?: string, _count?: string) => {
+    const values = [...(hashes.get(key) ?? new Map<string, string>()).entries()].flat();
+    return ['0', values] as [string, string[]];
+  });
+  const hdel = jest.fn(async (key: string, field: string) => {
+    const hash = hashes.get(key);
+    if (!hash?.has(field)) return 0;
+    hash.delete(field);
+    if (hash.size === 0) hashes.delete(key);
+    return 1;
+  });
+  const hset = jest.fn(async (key: string, field: string, value: string) => {
+    const hash = hashes.get(key) ?? new Map<string, string>();
+    const existed = hash.has(field);
+    hash.set(field, value);
+    hashes.set(key, hash);
+    return existed ? 0 : 1;
+  });
 
   const get = jest.fn(async (key: string) => store.get(key) ?? null);
   const setex = jest.fn(async (key: string, _ttl: number, value: string) => {
@@ -72,13 +91,6 @@ jest.mock('../src/config/redis', () => {
     store.set(key, String(next));
     return next;
   });
-  // viewsBuffer.ts's flush() failure path uses INCRBY to restore a
-  // destroyed counter. Mirrored here so that retry path is testable.
-  const incrby = jest.fn(async (key: string, delta: number) => {
-    const next = Number.parseInt(store.get(key) ?? '0', 10) + delta;
-    store.set(key, String(next));
-    return next;
-  });
   const zadd = jest.fn(async (key: string, score: number | string, member: string) => {
     const zset = zsets.get(key) ?? new Map<string, number>();
     zset.set(member, Number(score));
@@ -95,7 +107,6 @@ jest.mock('../src/config/redis', () => {
   const redis: Record<string, any> = {
     get,
     incr,
-    incrby,
     set: jest.fn(async (key: string, value: string, ...flags: unknown[]) => {
       // previously ignored all flags and unconditionally
       // overwrote the key — adLock.ts's withAdImagesLock relies on NX
@@ -142,6 +153,26 @@ jest.mock('../src/config/redis', () => {
       // `numkeys` entries of args are KEYS[], the rest are ARGV[].
       const keys = args.slice(0, keyCount);
       const argv = args.slice(keyCount);
+
+      if (script.includes('pendingKey = KEYS[#KEYS]')) {
+        // Durable view-buffer staging: save the inflight JSON batch before
+        // deleting any source counter so worker crashes remain recoverable.
+        const pendingKey = keys[keyCount - 1];
+        const counterKeys = keys.slice(0, -1);
+        const [batchId, prefix] = argv;
+        const increments = counterKeys.flatMap(key => {
+          const raw = store.get(key);
+          const count = Number.parseInt(raw ?? '0', 10);
+          return count > 0 ? [{ adId: key.slice(prefix.length), count }] : [];
+        });
+        if (increments.length > 0) {
+          const hash = hashes.get(pendingKey) ?? new Map<string, string>();
+          hash.set(batchId, JSON.stringify(increments));
+          hashes.set(pendingKey, hash);
+        }
+        for (const key of counterKeys) store.delete(key);
+        return JSON.stringify(increments);
+      }
 
       if (script.includes('VIEWS_DEDUP_INCREMENT')) {
         // Mirror the atomic viewsBuffer increment script: dedup claim and
@@ -313,6 +344,18 @@ jest.mock('../src/config/redis', () => {
       return pipeline;
     }),
     scan: jest.fn(async () => ['0', []] as [string, string[]]),
+    hscan,
+    hdel,
+    hset,
+    flushall: jest.fn(async () => {
+      store.clear();
+      zsets.clear();
+      lists.clear();
+      hashes.clear();
+      sets.clear();
+      rateLimitCounters.clear();
+      return 'OK';
+    }),
     ping: jest.fn().mockResolvedValue('PONG'),
     // redisMemoryMonitor.ts calls redis.info('memory') to
     // read used_memory/maxmemory. Mocked here (rather than left

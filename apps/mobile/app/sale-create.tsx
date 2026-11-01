@@ -1,7 +1,7 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useMemo, useRef, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -11,10 +11,11 @@ import { createMobileOperationId } from '@/lib/operation-id';
 import { enqueueOfflineCreate } from '@/storage/outbox-manager';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
 import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { formatMoney } from '@/lib/formatters';
 
 type SaleLine = { id: string; title: string; quantity: string; unitPrice: string };
 const makeLine = (): SaleLine => ({ id: `line-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, title: '', quantity: '1', unitPrice: '' });
-const money = (n: number) => `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(n)} ₪`;
+const money = (n: number) => formatMoney(n);
 
 export default function SaleCreateScreen() {
   const { accessToken, csrfToken, user } = useAuth();
@@ -61,7 +62,7 @@ export default function SaleCreateScreen() {
         manualItems: parsedLines.map(line => ({ title: line.title, quantity: line.quantity, unitPrice: line.unitPrice })), currency: 'ILS',
       };
     }
-    if (!Number.isFinite(total) || total <= 0 || total > 99_999_999.99) { setError('إجمالي البيع يجب أن يكون رقمًا صالحًا بين 0.01 و99,999,999.99 ₪.'); return; }
+    if (!Number.isFinite(total) || total <= 0 || total > 99_999_999.99) { setError('إجمالي البيع يجب أن يكون رقمًا صالحًا بين 0.01 و99,999,999.99 (شيكل).'); return; }
     payload = { ...payload, buyerName: buyer.trim(), ...(phone.trim() ? { buyerPhone: phone.trim() } : {}), paidAmount,
       paymentStatus: paidAmount === 0 ? 'UNPAID' : paidAmount >= total ? 'PAID' : 'PARTIAL',
       ...(note.trim() ? { note: note.trim() } : {}), soldAt: new Date().toISOString() };
@@ -73,19 +74,19 @@ export default function SaleCreateScreen() {
         if (!user?.id) throw new Error('تعذر تحديد الحساب لحفظ البيع دون اتصال.');
         await enqueueOfflineCreate(String(user.id), operationId, 'create-sale', payload);
         operationIdRef.current = createMobileOperationId('sale-create');
-        Alert.alert('حُفظ البيع على الجهاز', 'لم يُسجّل البيع على الخادم بعد. سيُرسل عند عودة الإنترنت؛ لا تعتبره بيعًا مسجلًا حتى تظهر رسالة التأكيد.', [{ text: 'حسنًا', onPress: () => router.replace('/offline-queue') }]);
+        showToast('حُفظ البيع على الجهاز', 'لم يُسجّل البيع على الخادم بعد. سيُرسل عند عودة الإنترنت؛ لا تعتبره بيعًا مسجلًا حتى تظهر رسالة التأكيد.', 'info', { label: 'عرض العمليات', onPress: () => router.replace('/offline-queue') });
       } else {
         try {
           await createSale(payload, accessToken, csrfToken, operationId, user?.id);
           operationIdRef.current = createMobileOperationId('sale-create');
-          Alert.alert('تم تسجيل البيع', 'أكد الخادم تسجيل عملية البيع.', [{ text: 'حسنًا', onPress: () => router.replace('/my-sales') }]);
+          showToast('تم تسجيل البيع', 'أكد الخادم تسجيل عملية البيع.', 'success', { label: 'عرض المبيعات', onPress: () => router.replace('/my-sales') });
         } catch (error) {
           // A timeout/connection loss is ambiguous: persist the same operation ID
           // so an already-committed sale cannot be created twice on retry.
           if (error instanceof ApiError && error.status === undefined && user?.id) {
             await enqueueOfflineCreate(String(user.id), operationId, 'create-sale', payload);
             operationIdRef.current = createMobileOperationId('sale-create');
-            Alert.alert('حُفظ البيع للمزامنة', 'انقطع الاتصال قبل تأكيد النتيجة. احتُفظ بالمعرّف نفسه لمنع تكرار البيع، وسيؤكد التطبيق حالته بعد المزامنة.', [{ text: 'عرض العمليات', onPress: () => router.replace('/offline-queue') }]);
+            showToast('حُفظ البيع للمزامنة', 'انقطع الاتصال قبل تأكيد النتيجة. احتُفظ بالمعرّف نفسه لمنع تكرار البيع، وسيؤكد التطبيق حالته بعد المزامنة.', 'warning', { label: 'عرض العمليات', onPress: () => router.replace('/offline-queue') });
             return;
           }
           if (error instanceof ApiError && error.status !== undefined && error.status >= 400 && error.status < 500) {
@@ -106,14 +107,14 @@ export default function SaleCreateScreen() {
     {mode === 'single' ? <>
       <Field label="اسم السلعة أو الخدمة المباعة" value={title} onChangeText={setTitle} maxLength={300} placeholder="اسم السلعة" />
       <Field label="الكمية" value={quantity} onChangeText={setQuantity} keyboardType="numeric" />
-      <Field label="سعر الوحدة (₪)" value={unitPrice} onChangeText={setUnitPrice} keyboardType="numeric" placeholder="0.00" />
+      <Field label="سعر الوحدة ((شيكل))" value={unitPrice} onChangeText={setUnitPrice} keyboardType="numeric" placeholder="0.00" />
     </> : <>
       <View style={{ gap: spacing.md }}>
         {lines.map((line, index) => <View key={line.id} style={{ gap: spacing.md, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}><Text style={{ color: colors.ink, fontWeight: '900' }}>الصنف {index + 1}</Text>{lines.length > 2 ? <Pressable accessibilityRole="button" onPress={() => setLines(current => current.filter(item => item.id !== line.id))}><Text style={{ color: colors.danger, fontWeight: '800' }}>حذف الصنف</Text></Pressable> : null}</View>
           <Field label="اسم الصنف" value={line.title} onChangeText={value => updateLine(line.id, { title: value })} maxLength={300} placeholder="اسم السلعة أو الخدمة" />
           <Field label="الكمية" value={line.quantity} onChangeText={value => updateLine(line.id, { quantity: value })} keyboardType="numeric" />
-          <Field label="سعر الوحدة (₪)" value={line.unitPrice} onChangeText={value => updateLine(line.id, { unitPrice: value })} keyboardType="numeric" placeholder="0.00" />
+          <Field label="سعر الوحدة ((شيكل))" value={line.unitPrice} onChangeText={value => updateLine(line.id, { unitPrice: value })} keyboardType="numeric" placeholder="0.00" />
           <Text style={{ textAlign: 'right', color: colors.muted, fontWeight: '700' }}>إجمالي الصنف: {money(Math.max(0, Number(line.quantity) || 0) * Math.max(0, Number(line.unitPrice) || 0))}</Text>
         </View>)}
       </View>

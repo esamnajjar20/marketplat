@@ -1,6 +1,9 @@
+import { formatMoney } from '@/lib/formatters';
+import { AppIcon } from '@/components/Icons';
+import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { FlatList, Image, RefreshControl, View } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchFollowingFeed, type FollowingFeedItem } from '@/features/account/social.api';
@@ -8,6 +11,7 @@ import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton } from '
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { toAppHref } from '@/lib/typed-navigation';
 
 const PAGE_SIZE = 20;
 const itemKey = (item: FollowingFeedItem) => `${item.type}:${item.id}`;
@@ -15,7 +19,7 @@ const itemKey = (item: FollowingFeedItem) => `${item.type}:${item.id}`;
 function price(value?: number | string | null): string {
   if (value === null || value === undefined || value === '') return 'السعر عند التواصل';
   const amount = Number(value);
-  return Number.isFinite(amount) ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(amount)} ₪` : 'السعر غير متاح';
+  return Number.isFinite(amount) ? formatMoney(amount) : 'السعر غير متاح';
 }
 
 function target(item: FollowingFeedItem): string {
@@ -56,11 +60,11 @@ export default function FollowingFeedScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`فتح ${item.type === 'AD' ? 'الإعلان' : item.type === 'PRODUCT' ? 'المنتج' : 'الخدمة'}: ${item.title}`}
-              onPress={() => router.push(target(item) as never)}
+              onPress={() => router.push(toAppHref(target(item)))}
               style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}
             >
               {item.images?.[0] ? (
-                <Image source={{ uri: item.images[0] }} style={{ width: 76, height: 76, borderRadius: radius.md, backgroundColor: colors.border }} />
+                <AppImage uri={item.images[0]} style={{ width: 76, height: 76, borderRadius: radius.md, backgroundColor: colors.border }} />
               ) : (
                 <View style={{ width: 76, height: 76, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}>
                   <Text style={{ color: colors.brandOnSoft, fontWeight: '900' }}>{item.type === 'AD' ? 'إعلان' : item.type === 'PRODUCT' ? 'منتج' : 'خدمة'}</Text>
@@ -71,7 +75,7 @@ export default function FollowingFeedScreen() {
                 <Text style={{ color: colors.brand, fontWeight: '800' }}>{price(item.price)}</Text>
                 <Text style={{ color: colors.muted, fontSize: fontSizes[12] }}>{item.type === 'AD' ? 'إعلان' : item.type === 'PRODUCT' ? 'منتج' : 'خدمة'}{item.city ? ` · ${item.city}` : ''}</Text>
               </View>
-              <Text style={{ color: colors.brand, fontSize: fontSizes[22] }}>‹</Text>
+              <AppIcon name="forward" size={20} color={colors.brand} />
             </Pressable>
           )}
           ListFooterComponent={

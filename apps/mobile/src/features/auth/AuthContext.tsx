@@ -18,11 +18,15 @@ import NetInfo from '@react-native-community/netinfo';
 import { ApiError, setAuthFailureHandler, setRefreshHandler, setTokenUpdater } from '@/api/client';
 import {
   loginWithPassword,
+  loginWithGoogleMobile,
   refreshAccessSession,
   registerAccount,
   cancelRefreshing,
   type AuthUser,
 } from './auth.api';
+import { beginNativeGoogleOAuth } from './google-oauth.native';
+import { getRegisteredAndroidFcmToken, unregisterAndroidFcmToken } from '@/features/notifications/native-push';
+import { logger } from '@/lib/logger';
 import { mergeGuestFavoritesIntoAccount } from '@/features/ads/favorites.store';
 import { fetchMyProfile } from '@/features/account/account.api';
 import { countPendingPrivateMobileOperations } from '@/storage/public-cache';
@@ -44,6 +48,7 @@ import {
   tryCleanupBeforeRestore,
 } from './private-data-cleanup';
 import { revokePendingLogout } from './pending-logout';
+import { showToast } from '@/lib/toast';
 
 export type LocalSignOutResult = {
   cleanupFailed: boolean;
@@ -60,6 +65,7 @@ export type AuthState = {
   expiresAt: number | null;
   sessionNeedsRefresh: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<AuthUser>;
   register: (input: {
     name: string;
     email: string;
@@ -105,10 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const warnSessionPersistence = useCallback(() => {
     if (persistenceWarningShown.current) return;
     persistenceWarningShown.current = true;
-    Alert.alert(
-      'تعذّر حفظ الجلسة على الجهاز',
-      'تعمل الجلسة الحالية في الذاكرة، لكن التخزين الآمن لم يؤكد حفظها. قد تحتاج إلى تسجيل الدخول مجددًا بعد إغلاق التطبيق.',
-    );
+    showToast('تعذّر حفظ الجلسة على الجهاز', 'تعمل الجلسة الحالية في الذاكرة، لكن التخزين الآمن لم يؤكد حفظها. قد تحتاج إلى تسجيل الدخول مجددًا بعد إغلاق التطبيق.', 'error');
   }, []);
 
   const persist = useCallback(
@@ -162,14 +165,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const sessionRemoved = await clearPersisted();
       if (cleanupFailed || !sessionRemoved) {
-        Alert.alert(
-          'تم إنهاء الجلسة مع تحذير',
-          cleanupFailed
+        showToast('تم إنهاء الجلسة مع تحذير', cleanupFailed
             ? cleanupMarkerSaved
               ? 'لم يكتمل حذف بيانات الحساب المحلية. حُفظ طلب التنظيف وسيُمنع تسجيل الدخول حتى ينجح.'
               : 'لم يكتمل حذف بيانات الحساب، كما تعذر حفظ طلب التنظيف في التخزين الآمن. لا تستخدم حسابًا آخر على هذا الجهاز قبل استعادة الحساب نفسه أو مسح بيانات التطبيق من إعدادات الجهاز.'
-            : 'لم يؤكد التخزين الآمن حذف الجلسة المحفوظة. أعد فتح التطبيق وتحقق من حالة الدخول قبل مشاركة الجهاز.',
-        );
+            : 'لم يؤكد التخزين الآمن حذف الجلسة المحفوظة. أعد فتح التطبيق وتحقق من حالة الدخول قبل مشاركة الجهاز.', 'success');
       }
       return { cleanupFailed, cleanupMarkerSaved, sessionRemoved };
     } finally {
@@ -183,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void forceLocalSignOut()
       .finally(() => {
         authFailureHandling.current = false;
-        Alert.alert('انتهت صلاحية الجلسة', 'لم يعد الخادم يقبل بيانات تجديد الجلسة. سجّل الدخول من جديد؛ ستبقى عملياتك ومسوداتك المشفرة محفوظة لهذا الحساب.');
+        showToast('انتهت صلاحية الجلسة', 'لم يعد الخادم يقبل بيانات تجديد الجلسة. سجّل الدخول من جديد؛ ستبقى عملياتك ومسوداتك المشفرة محفوظة لهذا الحساب.', 'error');
       });
   }, [forceLocalSignOut]);
 
@@ -196,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (blocked) {
         const removed = await clearPersisted();
         if (mounted && !removed) {
-          Alert.alert('تعذّر حذف جلسة محفوظة', 'لم يؤكد التخزين الآمن حذف الجلسة. تحقّق من حالة تسجيل الخروج قبل مشاركة الجهاز.');
+          showToast('تعذّر حذف جلسة محفوظة', 'لم يؤكد التخزين الآمن حذف الجلسة. تحقّق من حالة تسجيل الخروج قبل مشاركة الجهاز.', 'error');
         }
         if (mounted) setIsRestoring(false);
         return;
@@ -212,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           setAccessToken(null);
           setIsRestoring(false);
-          Alert.alert('تسجيل الخروج قيد التأكيد', 'تعذرت قراءة حالة إبطال الجلسة السابقة. لن نستعيد جلسة أخرى قبل معالجة التخزين الآمن.');
+          showToast('تسجيل الخروج قيد التأكيد', 'تعذرت قراءة حالة إبطال الجلسة السابقة. لن نستعيد جلسة أخرى قبل معالجة التخزين الآمن.', 'error');
         }
         return;
       }
@@ -226,7 +226,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             // logout is complete. Do not restore its cached access token.
             const removed = await clearPersisted();
             if (mounted && !removed) {
-              Alert.alert('تعذّر حذف جلسة محفوظة', 'لم يؤكد التخزين الآمن حذف الجلسة القديمة. تحقق من حالة تسجيل الدخول قبل مشاركة الجهاز.');
+              showToast('تعذّر حذف جلسة محفوظة', 'لم يؤكد التخزين الآمن حذف الجلسة القديمة. تحقق من حالة تسجيل الدخول قبل مشاركة الجهاز.', 'error');
             }
             if (mounted) setIsRestoring(false);
             return;
@@ -236,7 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(null);
             setAccessToken(null);
             setIsRestoring(false);
-            Alert.alert('تسجيل الخروج قيد التأكيد', 'تعذر تأكيد إبطال الجلسة السابقة. سيحتفظ التطبيق بطلب الإبطال ويحاول مجددًا عند عودة الاتصال، ولن يستعيد جلسة أو يسمح بدخول حساب آخر قبل حسمه.');
+            showToast('تسجيل الخروج قيد التأكيد', 'تعذر تأكيد إبطال الجلسة السابقة. سيحتفظ التطبيق بطلب الإبطال ويحاول مجددًا عند عودة الاتصال، ولن يستعيد جلسة أو يسمح بدخول حساب آخر قبل حسمه.', 'error');
           }
           return;
         }
@@ -273,7 +273,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else if (mounted) {
           const removed = await clearPersisted();
           if (!removed) {
-            Alert.alert('تعذّر حذف جلسة محفوظة', 'لم يؤكد التخزين الآمن حذف الجلسة القديمة. تحقّق من حالة تسجيل الخروج قبل مشاركة الجهاز.');
+            showToast('تعذّر حذف جلسة محفوظة', 'لم يؤكد التخزين الآمن حذف الجلسة القديمة. تحقّق من حالة تسجيل الخروج قبل مشاركة الجهاز.', 'error');
           }
         }
       } catch (error) {
@@ -285,10 +285,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // They remain encrypted and owner-scoped for the next login by the same account.
           const removed = await clearPersisted();
           if (mounted && !removed) {
-            Alert.alert(
-              'تعذّر حذف جلسة محفوظة',
-              'لم يؤكد التخزين الآمن حذف الجلسة غير الصالحة. أعد فتح التطبيق وتأكد من حالة تسجيل الدخول قبل مشاركة الجهاز.',
-            );
+            showToast('تعذّر حذف جلسة محفوظة', 'لم يؤكد التخزين الآمن حذف الجلسة غير الصالحة. أعد فتح التطبيق وتأكد من حالة تسجيل الدخول قبل مشاركة الجهاز.', 'error');
           }
         } else if (mounted && cached) {
           // Network/timeout/5xx: retain the local identity and cached read-only data.
@@ -453,6 +450,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persist, ensureNoPendingLogout],
   );
 
+  const loginWithGoogle = useCallback(async () => {
+    await ensureNoPendingLogout();
+    await ensurePrivateStorageClean();
+    setIsBusy(true);
+    try {
+      const handoff = await beginNativeGoogleOAuth();
+      const session = await loginWithGoogleMobile(handoff.ticket, handoff.verifier);
+      await persist({
+        user: session.user,
+        accessToken: session.accessToken,
+        csrfToken: session.csrfToken ?? null,
+        expiresAt: sessionExpiry(session.expiresIn),
+      });
+      await mergeGuestFavoritesIntoAccount(session.user.id).catch(() => undefined);
+      return session.user;
+    } finally {
+      setIsBusy(false);
+    }
+  }, [persist, ensureNoPendingLogout]);
+
   const register = useCallback(
     async (input: {
       name: string;
@@ -511,7 +528,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (logoutChoice === 'cancel') return 'cancelled';
     const deletePrivateData = logoutChoice === 'delete';
     if (deletePrivateData && !ownerId) {
-      Alert.alert('تعذر حذف البيانات', 'تعذر تحديد مالك البيانات المحلية؛ لذلك لم تُحذف أي بيانات. أعد تسجيل الدخول إلى الحساب الأصلي قبل محاولة الحذف.');
+      showToast('تعذر حذف البيانات', 'تعذر تحديد مالك البيانات المحلية؛ لذلك لم تُحذف أي بيانات. أعد تسجيل الدخول إلى الحساب الأصلي قبل محاولة الحذف.', 'error');
       return 'failed';
     }
 
@@ -521,34 +538,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     cancelRefreshing();
     if (!token && ownerId) {
       setIsBusy(false);
-      Alert.alert(
-        'تعذر تأكيد تسجيل الخروج',
-        'الحساب الحالي لا يملك رمز وصول صالحًا لحفظ طلب إبطال مؤجل. لم تُحذف بياناتك المحلية ولم يُعلن خروج الخادم. أعد فتح التطبيق وحاول بعد استعادة الجلسة أو اتصل بالإنترنت لتجديدها.',
-      );
+      showToast('تعذر تأكيد تسجيل الخروج', 'الحساب الحالي لا يملك رمز وصول صالحًا لحفظ طلب إبطال مؤجل. لم تُحذف بياناتك المحلية ولم يُعلن خروج الخادم. أعد فتح التطبيق وحاول بعد استعادة الجلسة أو اتصل بالإنترنت لتجديدها.', 'error');
       return 'failed';
     }
     let revocationConfirmed = !token && !userRef.current;
     let revocationMarkerSaved = false;
+    let pendingFcmToken: string | null = null;
     if (token) {
       // Persist the write-ahead marker BEFORE beginning any destructive local cleanup.
       // If SecureStore cannot commit it, keep the current local session and its data intact.
-      revocationMarkerSaved = await writePendingLogout({ accessToken: token, csrfToken: csrf, createdAt: Date.now() });
+      pendingFcmToken = await getRegisteredAndroidFcmToken();
+      revocationMarkerSaved = await writePendingLogout({ accessToken: token, csrfToken: csrf, createdAt: Date.now(), fcmToken: pendingFcmToken });
       if (!revocationMarkerSaved) {
         setIsBusy(false);
-        Alert.alert(
-          'تعذر حفظ طلب تسجيل الخروج',
-          'لم يتم إرسال طلب الإبطال إلى الخادم ولم تُحذف بياناتك المحلية، لأن التخزين الآمن لم يحفظ علامة إعادة المحاولة. أعد المحاولة بعد عودة التخزين الآمن.',
-        );
+        showToast('تعذر حفظ طلب تسجيل الخروج', 'لم يتم إرسال طلب الإبطال إلى الخادم ولم تُحذف بياناتك المحلية، لأن التخزين الآمن لم يحفظ علامة إعادة المحاولة. أعد المحاولة بعد عودة التخزين الآمن.', 'success');
         return 'failed';
       }
     }
 
     try {
       if (token) {
+        // Stop native FCM delivery before the session is revoked. The token
+        // is already in the write-ahead marker, so an offline failure is retried
+        // before any later session can be restored or another account can log in.
+        await unregisterAndroidFcmToken(token, csrf).catch((error) => {
+          logger.warn('native-push', 'FCM token could not be removed during sign-out', {
+            error: error instanceof Error ? error.message : String(error),
+          });
+        });
         const outcome = await revokePendingLogout({
           accessToken: token,
           csrfToken: csrf,
           createdAt: Date.now(),
+          fcmToken: pendingFcmToken,
         });
         // A rejected refresh cookie is terminal: the server clears it, so this
         // deferred logout is complete even though the original access token expired.
@@ -581,7 +603,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ? 'لم يؤكد التخزين الآمن حذف جلسة الدخول المحفوظة. أعد فتح التطبيق وتأكد من أنك ما زلت مسجّل الخروج قبل مشاركة الجهاز.'
             : '',
         ].filter(Boolean);
-        Alert.alert('اكتمل الخروج مع تحذير', `${warnings.join('\n\n')} إذا استمرت المشكلة، امسح بيانات التطبيق من إعدادات الجهاز قبل استخدام حساب آخر.`);
+        showToast('اكتمل الخروج مع تحذير', `${warnings.join('\n\n')} إذا استمرت المشكلة، امسح بيانات التطبيق من إعدادات الجهاز قبل استخدام حساب آخر.`, 'success');
         return 'failed';
       }
       return 'done';
@@ -598,13 +620,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       expiresAt,
       sessionNeedsRefresh,
       login,
+      loginWithGoogle,
       register,
       logout,
       forceLocalSignOut,
       updateUser,
       getAccessToken,
     }),
-    [user, accessToken, csrfToken, isBusy, isRestoring, expiresAt, sessionNeedsRefresh, login, register, logout, forceLocalSignOut, updateUser, getAccessToken],
+    [user, accessToken, csrfToken, isBusy, isRestoring, expiresAt, sessionNeedsRefresh, login, loginWithGoogle, register, logout, forceLocalSignOut, updateUser, getAccessToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

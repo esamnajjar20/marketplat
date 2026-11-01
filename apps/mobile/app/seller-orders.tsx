@@ -10,12 +10,10 @@ import { fetchSellerOrders, type MarketplaceOrder } from '@/features/commerce/or
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useAuth } from '@/features/auth/AuthContext';
 import { marketListPerf } from '@/lib/listPerformance';
+import { formatDate, formatMoney } from '@/lib/formatters';
 
 const labels: Record<string, string> = { PENDING: 'بانتظار التأكيد', CONFIRMED: 'تم التأكيد', PROCESSING: 'قيد التجهيز', SHIPPED: 'تم الشحن', DELIVERED: 'تم التسليم', CANCELLED: 'ملغي' };
-const money = (value: unknown) => {
-  const amount = Number(value);
-  return Number.isFinite(amount) ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(amount)} ₪` : 'غير متاح';
-};
+const money = (value: unknown) => formatMoney(value);
 
 export default function SellerOrdersScreen() {
   const { accessToken, isRestoring, user } = useAuth();
@@ -57,9 +55,9 @@ export default function SellerOrdersScreen() {
             <View style={styles.cardTop}><Text style={styles.total}>{money(order.total)}</Text><Text style={styles.status}>{labels[order.status] || order.status}</Text></View>
             <View style={styles.itemLine}>
               {order.items[0]?.productImage ? <AppImage uri={order.items[0].productImage} style={styles.image} resizeMode="cover" /> : <View style={styles.imagePlaceholder}><Text>◇</Text></View>}
-              <View style={styles.itemInfo}><Text style={styles.productName}>{order.items[0]?.productName || 'طلب منتجات'}</Text><Text style={styles.muted}>المشتري: {order.buyer?.name || order.recipientName}</Text><Text style={styles.muted}>الكمية: {order.items.reduce((sum, item) => sum + item.quantity, 0)} · {new Date(order.createdAt).toLocaleDateString('ar')}</Text></View>
+              <View style={styles.itemInfo}><Text style={styles.productName}>{order.items[0]?.productName || 'طلب منتجات'}</Text><Text style={styles.muted}>المشتري: {order.buyer?.name || order.recipientName}</Text><Text style={styles.muted}>الكمية: {order.items.reduce((sum, item) => sum + item.quantity, 0)} · {formatDate(order.createdAt, 'date')}</Text></View>
             </View>
-            <Text style={styles.link}>فتح الطلب وإدارة حالته ‹</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Text style={styles.link}>فتح الطلب وإدارة حالته</Text><AppIcon name="forward" size={16} color={colors.brand} /></View>
           </Pressable>
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}

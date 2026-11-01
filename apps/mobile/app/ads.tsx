@@ -1,7 +1,9 @@
+import { formatMoney } from '@/lib/formatters';
+import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Image, TextInput, View } from 'react-native';
+import { ActivityIndicator, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { fetchPublicAds, type AdListItem } from '@/features/ads/ads.api';
 import { FilterChip } from '@/components/ui/FilterChip';
@@ -21,7 +23,7 @@ function adPrice(value: AdListItem['price']) {
   if (value === null || value === '') return 'السعر عند التواصل';
   const number = Number(value);
   return Number.isFinite(number) && number > 0
-    ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(number)} ₪`
+    ? formatMoney(number)
     : 'السعر عند التواصل';
 }
 
@@ -85,7 +87,7 @@ export default function AllAdsScreen() {
     {list.error ? <SectionCard><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void list.retry()} /></SectionCard> : null}
     {!list.loading && !list.error && list.items.length === 0 ? <SectionCard><Text style={{ textAlign: 'center', color: colors.ink, fontWeight: '800' }}>لا توجد إعلانات مطابقة</Text><Text style={{ textAlign: 'center', color: colors.muted }}>غيّر عبارة البحث أو حالة الإعلان.</Text></SectionCard> : null}
     {list.items.map((ad) => <Pressable key={ad.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/ads/[id]', params: { id: ad.id } })} style={{ flexDirection: 'row', gap: spacing.md, padding: spacing.md, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, minHeight: 112 }}>
-      {ad.images?.[0] ? <Image source={{ uri: ad.images[0] }} style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.border }} /> : <View style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: '800' }}>بدون صورة</Text></View>}
+      {ad.images?.[0] ? <AppImage uri={ad.images[0]} style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.border }} /> : <View style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: '800' }}>بدون صورة</Text></View>}
       <View style={{ flex: 1, gap: spacing.xs, justifyContent: 'center' }}><Text numberOfLines={2} style={{ textAlign: 'right', color: colors.ink, fontWeight: '900', fontSize: fontSizes[15] }}>{ad.title}</Text><Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '900', fontSize: fontSizes[14] }}>{adPrice(ad.price)}</Text><Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>{ad.city || ad.user?.city || 'الموقع غير محدد'}</Text><Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[11] }}>{ad.condition === 'NEW' ? 'جديد' : ad.condition === 'USED' ? 'مستعمل' : ad.condition === 'REFURBISHED' ? 'مجدد' : 'حالة غير محددة'}</Text></View>
     </Pressable>)}
     {!list.loading && !list.error && list.items.length > 0 ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>

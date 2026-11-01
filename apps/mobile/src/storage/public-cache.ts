@@ -1,14 +1,17 @@
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system/legacy';
 import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
+import {
+  isPublicCacheEntryUsable,
+  planPublicCacheEviction,
+  MAX_PUBLIC_CACHE_ENTRIES,
+  MAX_PUBLIC_CACHE_BYTES,
+} from './public-cache-policy.mjs';
 
 const DATABASE_NAME = 'marketplat-public-cache.db';
 const MAX_ENTRY_CHARS = 500_000;
 const MAX_ENTRY_BYTES = 1_500_000;
-const MAX_ENTRIES = 100;
-const MAX_TOTAL_BYTES = 6_000_000;
-
-type CacheRow = { value_json: string; saved_at: number };
+type CacheRow = { value_json: string; saved_at: number; size_bytes?: number };
 
 export type PublicCacheEntry<T> = { value: T; savedAt: number };
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
@@ -28,19 +31,42 @@ async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
         );
         CREATE INDEX IF NOT EXISTS public_cache_saved_at_idx ON public_cache(saved_at);
       `);
-      // Upgrade databases created before byte-aware eviction was introduced.
+      // Repair old or interrupted cache-schema upgrades transactionally. A previous
+      // partial ALTER/backfill must not leave zero byte estimates that bypass eviction.
       const columns = await db.getAllAsync<{ name: string }>('PRAGMA table_info(public_cache)');
-      if (!columns.some((column) => column.name === 'size_bytes')) {
-        await db.execAsync('ALTER TABLE public_cache ADD COLUMN size_bytes INTEGER NOT NULL DEFAULT 0');
-        const rows = await db.getAllAsync<{ cache_key: string; value_json: string }>(
-          'SELECT cache_key, value_json FROM public_cache',
-        );
-        for (const row of rows) {
-          await db.runAsync(
-            'UPDATE public_cache SET size_bytes = ? WHERE cache_key = ?',
-            utf8ByteLength(row.value_json), row.cache_key,
+      const hasSizeChars = columns.some((column) => column.name === 'size_chars');
+      const hasSizeBytes = columns.some((column) => column.name === 'size_bytes');
+      if (!hasSizeChars || !hasSizeBytes) {
+        await db.withExclusiveTransactionAsync(async (txn) => {
+          if (!hasSizeChars) {
+            await txn.execAsync('ALTER TABLE public_cache ADD COLUMN size_chars INTEGER NOT NULL DEFAULT 0');
+          }
+          if (!hasSizeBytes) {
+            await txn.execAsync('ALTER TABLE public_cache ADD COLUMN size_bytes INTEGER NOT NULL DEFAULT 0');
+          }
+          const rows = await txn.getAllAsync<{ cache_key: string; value_json: string }>(
+            'SELECT cache_key, value_json FROM public_cache',
           );
-        }
+          for (const row of rows) {
+            await txn.runAsync(
+              'UPDATE public_cache SET size_chars = ?, size_bytes = ? WHERE cache_key = ?',
+              row.value_json.length, utf8ByteLength(row.value_json), row.cache_key,
+            );
+          }
+        });
+      } else {
+        // Recover rows left with default values by an older interrupted backfill.
+        await db.withExclusiveTransactionAsync(async (txn) => {
+          const rows = await txn.getAllAsync<{ cache_key: string; value_json: string }>(
+            "SELECT cache_key, value_json FROM public_cache WHERE size_bytes <= 0 OR size_chars <= 0",
+          );
+          for (const row of rows) {
+            await txn.runAsync(
+              'UPDATE public_cache SET size_chars = ?, size_bytes = ? WHERE cache_key = ?',
+              row.value_json.length, utf8ByteLength(row.value_json), row.cache_key,
+            );
+          }
+        });
       }
       return db;
     })().catch((error) => {
@@ -84,9 +110,19 @@ export async function readPublicCacheEntry<T>(key: string): Promise<PublicCacheE
   try {
     const db = await getDatabase();
     const row = await db.getFirstAsync<CacheRow>(
-      'SELECT value_json, saved_at FROM public_cache WHERE cache_key = ?', key,
+      'SELECT value_json, saved_at, size_bytes FROM public_cache WHERE cache_key = ?', key,
     );
-    if (!row || row.value_json.length > MAX_ENTRY_CHARS || !Number.isFinite(row.saved_at)) return null;
+    if (!row) return null;
+    if (row.value_json.length > MAX_ENTRY_CHARS || !Number.isFinite(row.saved_at)
+      || !isPublicCacheEntryUsable(key, row.saved_at, Date.now())) {
+      // Conditional delete avoids removing a newer row written after this SELECT.
+      await db.runAsync('DELETE FROM public_cache WHERE cache_key = ? AND saved_at = ?', key, row.saved_at);
+      return null;
+    }
+    if (utf8ByteLength(row.value_json) > MAX_ENTRY_BYTES) {
+      await db.runAsync('DELETE FROM public_cache WHERE cache_key = ? AND saved_at = ?', key, row.saved_at);
+      return null;
+    }
     return { value: JSON.parse(row.value_json) as T, savedAt: row.saved_at };
   } catch {
     // Offline cache is best-effort and must not break normal API behavior.
@@ -103,37 +139,46 @@ export async function writePublicCache<T>(key: string, value: T): Promise<void> 
   if (!key.trim() || key.length > 300) return;
   try {
     const serialized = JSON.stringify(value);
-    if (serialized.length > MAX_ENTRY_CHARS || utf8ByteLength(serialized) > MAX_ENTRY_BYTES) return;
+    if (typeof serialized !== 'string' || serialized.length > MAX_ENTRY_CHARS) return;
+    const sizeBytes = utf8ByteLength(serialized);
+    if (sizeBytes > MAX_ENTRY_BYTES) return;
     const db = await getDatabase();
     const now = Date.now();
-    await db.runAsync(
-      `INSERT INTO public_cache (cache_key, value_json, saved_at, size_chars, size_bytes)
-       VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(cache_key) DO UPDATE SET
-         value_json = excluded.value_json,
-         saved_at = excluded.saved_at,
-         size_chars = excluded.size_chars,
-         size_bytes = excluded.size_bytes`,
-      key, serialized, now, serialized.length, utf8ByteLength(serialized),
-    );
 
-    // Bound cache growth: evict oldest entries first, never evict auth data (not stored here).
-    await db.runAsync(
-      `DELETE FROM public_cache WHERE cache_key IN (
-         SELECT cache_key FROM public_cache ORDER BY saved_at DESC LIMIT -1 OFFSET ?
-       )`, MAX_ENTRIES,
-    );
-    const total = await db.getFirstAsync<{ total_bytes: number }>(
-      'SELECT COALESCE(SUM(size_bytes), 0) AS total_bytes FROM public_cache',
-    );
-    if ((total?.total_bytes ?? 0) > MAX_TOTAL_BYTES) {
-      await db.runAsync(
-        `DELETE FROM public_cache WHERE cache_key IN (
-           SELECT cache_key FROM public_cache ORDER BY saved_at ASC
-           LIMIT (SELECT MAX(1, COUNT(*) / 4) FROM public_cache)
-         )`,
+    // Write, expiry cleanup and both capacity limits are one serialized transaction.
+    // This prevents simultaneous writes from racing the count/byte pruning pass.
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      await txn.runAsync(
+        `DELETE FROM public_cache
+         WHERE (cache_key LIKE 'api-private:%' AND saved_at < ?)
+            OR (cache_key NOT LIKE 'api-private:%' AND saved_at < ?)
+            OR saved_at > ?`,
+        now - 24 * 60 * 60 * 1_000,
+        now - 7 * 24 * 60 * 60 * 1_000,
+        now + 5 * 60 * 1_000,
       );
-    }
+      await txn.runAsync(
+        `INSERT INTO public_cache (cache_key, value_json, saved_at, size_chars, size_bytes)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(cache_key) DO UPDATE SET
+           value_json = excluded.value_json,
+           saved_at = excluded.saved_at,
+           size_chars = excluded.size_chars,
+           size_bytes = excluded.size_bytes`,
+        key, serialized, now, serialized.length, sizeBytes,
+      );
+      const rows = await txn.getAllAsync<{ cache_key: string; saved_at: number; size_bytes: number }>(
+        'SELECT cache_key, saved_at, size_bytes FROM public_cache',
+      );
+      const evicted = planPublicCacheEviction(rows.map((row) => ({
+        cacheKey: row.cache_key,
+        savedAt: row.saved_at,
+        sizeBytes: row.size_bytes,
+      })), { maxEntries: MAX_PUBLIC_CACHE_ENTRIES, maxBytes: MAX_PUBLIC_CACHE_BYTES });
+      for (const cacheKey of evicted) {
+        await txn.runAsync('DELETE FROM public_cache WHERE cache_key = ?', cacheKey);
+      }
+    });
   } catch {
     // Cache is an optimization; storage failures must not fail a successful network request.
   }
@@ -144,33 +189,50 @@ export async function clearPublicCache(): Promise<void> {
   await db.runAsync('DELETE FROM public_cache');
 }
 
-/** Returns local file URIs referenced by saved public cache records so image eviction cannot break offline records. */
+/** Returns valid local image URIs referenced by API cache records or explicit offline saves. */
 export async function getReferencedPublicImageUris(): Promise<Set<string>> {
   const referenced = new Set<string>();
+  const visit = (value: unknown, depth = 0): void => {
+    if (depth > 12 || value == null) return;
+    if (typeof value === 'string') {
+      if (value.startsWith('file://')) referenced.add(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item, depth + 1);
+      return;
+    }
+    if (typeof value === 'object') {
+      for (const item of Object.values(value as Record<string, unknown>)) visit(item, depth + 1);
+    }
+  };
+
   try {
     const db = await getDatabase();
-    const rows = await db.getAllAsync<{ value_json: string }>(
-      'SELECT value_json FROM public_cache WHERE length(value_json) <= ?', MAX_ENTRY_CHARS,
+    const now = Date.now();
+    const rows = await db.getAllAsync<{ cache_key: string; value_json: string; saved_at: number }>(
+      'SELECT cache_key, value_json, saved_at FROM public_cache WHERE length(value_json) <= ?', MAX_ENTRY_CHARS,
     );
-    const visit = (value: unknown, depth = 0): void => {
-      if (depth > 12 || value == null) return;
-      if (typeof value === 'string') {
-        if (value.startsWith('file://')) referenced.add(value);
-        return;
-      }
-      if (Array.isArray(value)) {
-        for (const item of value) visit(item, depth + 1);
-        return;
-      }
-      if (typeof value === 'object') {
-        for (const item of Object.values(value as Record<string, unknown>)) visit(item, depth + 1);
-      }
-    };
     for (const row of rows) {
+      if (!isPublicCacheEntryUsable(row.cache_key, row.saved_at, now)) continue;
       try { visit(JSON.parse(row.value_json)); } catch { /* Ignore malformed cache rows. */ }
     }
   } catch {
-    // If SQLite is unavailable, return an empty set; image cache remains best-effort.
+    // Keep going: explicitly saved-offline records may still be readable.
+  }
+
+  try {
+    const db = await getDatabase();
+    // This table is created lazily by saved-offline.ts. A missing table is expected
+    // before the user saves their first resource and must not fail image cleanup.
+    const rows = await db.getAllAsync<{ payload_json: string }>(
+      'SELECT payload_json FROM saved_offline_resources WHERE length(payload_json) <= ?', MAX_ENTRY_CHARS,
+    );
+    for (const row of rows) {
+      try { visit(JSON.parse(row.payload_json)); } catch { /* Ignore malformed saved rows. */ }
+    }
+  } catch {
+    // No explicit offline saves yet, or database unavailable.
   }
   return referenced;
 }

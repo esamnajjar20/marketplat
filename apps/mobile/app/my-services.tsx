@@ -1,3 +1,5 @@
+import { formatMoney } from '@/lib/formatters';
+import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback } from 'react';
@@ -35,7 +37,7 @@ export default function MyServicesScreen() {
         if (!accessToken) return;
         void deleteMyServiceListing(id, accessToken, csrfToken)
           .then(() => list.refresh())
-          .catch((error) => Alert.alert('تعذر الحذف', error instanceof Error ? error.message : 'حاول مجددًا.'));
+          .catch((error) => showToast('تعذر الحذف', error instanceof Error ? error.message : 'حاول مجددًا.', 'error'));
       },
     },
   ]);
@@ -48,7 +50,7 @@ export default function MyServicesScreen() {
       {list.items.map((item) => <SectionCard key={item.id}>
         <Pressable onPress={() => router.push({ pathname: '/services/[id]', params: { id: item.id } })}><Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '800', color: colors.ink }}>{item.title}</Text></Pressable>
         <Text style={{ textAlign: 'right', color: colors.muted }}>{item.category?.nameAr || item.category?.name || 'بدون تصنيف'}</Text>
-        <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '800' }}>{item.pricingType === 'NEGOTIABLE' ? 'السعر قابل للتفاوض' : `${item.price ?? '—'} ₪`}</Text>
+        <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '800' }}>{item.pricingType === 'NEGOTIABLE' ? 'السعر قابل للتفاوض' : formatMoney(item.price)}</Text>
         <View style={{ flexDirection: 'row', gap: 8 }}><View style={{ flex: 1 }}><PrimaryButton label="تعديل" variant="secondary" onPress={() => router.push({ pathname: '/service-editor', params: { id: item.id } })} /></View><View style={{ flex: 1 }}><PrimaryButton label="حذف" variant="danger" onPress={() => remove(item.id)} /></View></View>
         <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>الحالة: {statusLabel(item.status || 'ACTIVE')}</Text>
       </SectionCard>)}

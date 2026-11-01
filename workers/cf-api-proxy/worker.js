@@ -19,7 +19,25 @@
  * Keeps v3: ETag/304, stale-on-error, single-flight, metrics headers, /__warm__.
  */
 
-const RENDER_ORIGIN = 'https://marketplat-nz19.onrender.com';
+const DEFAULT_RENDER_ORIGIN = 'https://marketplat-nz19.onrender.com';
+
+function getRenderOrigin(env) {
+  const raw = String((env && env.RENDER_ORIGIN) || DEFAULT_RENDER_ORIGIN).trim();
+  let parsed;
+  try { parsed = new URL(raw); } catch { throw new Error('RENDER_ORIGIN must be a valid HTTPS origin'); }
+  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.pathname !== '/' || parsed.search || parsed.hash) {
+    throw new Error('RENDER_ORIGIN must be an HTTPS origin without credentials, path, query, or fragment');
+  }
+  return parsed.origin;
+}
+
+async function safeCacheMatch(cache, key) {
+  try { return await cache.match(key); } catch { return undefined; }
+}
+
+async function safeCachePut(cache, key, response) {
+  try { await cache.put(key, response); return true; } catch { return false; }
+}
 
 const FORCE_CACHE_PREFIXES = [
   '/api/v1/categories',
@@ -148,10 +166,10 @@ function canonicalize(url) {
 
 // Cache API keys are versioned and pinned to one host so entries written by older
 // Worker releases, by /__warm__ and by real requests all land on the same key.
-function makeCacheKey(input) {
+function makeCacheKey(input, renderOrigin = DEFAULT_RENDER_ORIGIN) {
   const canon = input && typeof input.key === 'string' ? input : canonicalize(input);
   const sep = canon.search ? '&' : '?';
-  return new Request(`${RENDER_ORIGIN}${canon.key}${sep}__mp_cache_policy=${CACHE_KEY_VERSION}`, {
+  return new Request(`${renderOrigin}${canon.key}${sep}__mp_cache_policy=${CACHE_KEY_VERSION}`, {
     method: 'GET',
   });
 }
@@ -356,10 +374,10 @@ function isValidIpAddress(value) {
   return compressionIndex >= 0 ? explicitGroups.length < 8 : explicitGroups.length === 8;
 }
 
-function cleanUpstreamHeaders(request, extra) {
+function cleanUpstreamHeaders(request, extra, renderOrigin = DEFAULT_RENDER_ORIGIN) {
   if (!request) return new Headers({ 'accept-encoding': 'gzip, br' });
   const h = new Headers(request.headers);
-  h.set('host', new URL(RENDER_ORIGIN).host);
+  h.set('host', new URL(renderOrigin).host);
   for (const x of ['cf-connecting-ip', 'cf-ipcountry', 'cf-ray', 'cf-visitor', 'x-forwarded-proto', 'x-forwarded-for', 'x-real-ip']) {
     h.delete(x);
   }
@@ -460,7 +478,7 @@ async function processUpstream(upstream, ms, { canon, cache, cacheKey, ctx, env,
   // Network error / 5xx -> stale-on-error
   if (!upstream || upstream.status >= 500) {
     if (STALE_ON_ERROR) {
-      const stale = await cache.match(cacheKey);
+      const stale = await safeCacheMatch(cache, cacheKey);
       if (stale) return storedToDesc(stale, 'STALE-ERROR', ms);
     }
     if (!upstream) {
@@ -478,7 +496,7 @@ async function processUpstream(upstream, ms, { canon, cache, cacheKey, ctx, env,
   const body = await upstream.arrayBuffer();
   const tags = edgeTagsFor(canon);
   const store = (entry) => {
-    const p = cache.put(cacheKey, entry);
+    const p = safeCachePut(cache, cacheKey, entry);
     if (awaitStore) return p;
     if (ctx) ctx.waitUntil(p);
     return undefined;
@@ -542,11 +560,12 @@ async function processUpstream(upstream, ms, { canon, cache, cacheKey, ctx, env,
 }
 
 async function originLoad(args) {
-  const headers = cleanUpstreamHeaders(args.request, null);
+  const renderOrigin = args.renderOrigin || getRenderOrigin(args.env);
+  const headers = cleanUpstreamHeaders(args.request, null, renderOrigin);
   // Never forward client validators: we always want a full 200 we can store.
   headers.delete('if-none-match');
   headers.delete('if-modified-since');
-  const { res, ms } = await fetchUpstream(RENDER_ORIGIN + args.canon.key, {
+  const { res, ms } = await fetchUpstream(renderOrigin + args.canon.key, {
     method: 'GET',
     headers,
     redirect: 'manual',
@@ -558,13 +577,14 @@ async function originLoad(args) {
 // the clock; anything else goes through the normal path (policy / negative / error).
 async function revalidateLoad(args) {
   const { canon, request, cache, cacheKey, stale } = args;
+  const renderOrigin = args.renderOrigin || getRenderOrigin(args.env);
   const etag = stale.headers.get('etag');
   if (!etag) return originLoad(args);
 
-  const headers = cleanUpstreamHeaders(request, null);
+  const headers = cleanUpstreamHeaders(request, null, renderOrigin);
   headers.delete('if-modified-since');
   headers.set('if-none-match', etag);
-  const { res: upstream, ms } = await fetchUpstream(RENDER_ORIGIN + canon.key, {
+  const { res: upstream, ms } = await fetchUpstream(renderOrigin + canon.key, {
     method: 'GET',
     headers,
     redirect: 'manual',
@@ -573,7 +593,7 @@ async function revalidateLoad(args) {
   if (upstream && upstream.status === 304) {
     const info = storedInfo(stale);
     const body = await stale.arrayBuffer();
-    await cache.put(
+    await safeCachePut(cache,
       cacheKey,
       buildStored(body, {
         contentType: stale.headers.get('content-type'),
@@ -602,14 +622,15 @@ function startLoad(key, factory) {
 
 async function handleCacheable(request, canon, ctx, env) {
   const cache = caches.default;
-  const cacheKey = makeCacheKey(canon);
+  const renderOrigin = getRenderOrigin(env);
+  const cacheKey = makeCacheKey(canon, renderOrigin);
   const clientINM = request.headers.get('if-none-match');
-  const origin = request.headers.get('origin') || '*';
+  const origin = resolveCorsOrigin(request, env);
   const flightKey = canon.key;
-  const loadArgs = { canon, request, cache, cacheKey, ctx, env };
+  const loadArgs = { canon, request, cache, cacheKey, ctx, env, renderOrigin };
 
   // 1. Edge cache
-  const cached = await cache.match(cacheKey);
+  const cached = await safeCacheMatch(cache, cacheKey);
   if (cached) {
     const info = storedInfo(cached);
     if (info.age <= info.ttl) {
@@ -649,7 +670,7 @@ async function handleCacheable(request, canon, ctx, env) {
     };
     if (kv.age <= KV_STALE_SEC) {
       ctx.waitUntil(
-        cache.put(
+        safeCachePut(cache,
           cacheKey,
           buildStored(kv.body, {
             contentType: m.ct,
@@ -693,11 +714,12 @@ async function handleCacheable(request, canon, ctx, env) {
 
 
 
-async function handlePassthrough(request, url) {
-  const targetUrl = new URL(url.pathname + url.search, RENDER_ORIGIN);
+async function handlePassthrough(request, url, env) {
+  const renderOrigin = getRenderOrigin(env);
+  const targetUrl = new URL(url.pathname + url.search, renderOrigin);
   
   const headers = new Headers(request.headers);
-  headers.set('host', new URL(RENDER_ORIGIN).host);
+  headers.set('host', new URL(renderOrigin).host);
   
   for (const x of ['cf-connecting-ip', 'cf-ipcountry', 'cf-ray', 'cf-visitor', 'x-forwarded-proto', 'x-forwarded-for', 'x-real-ip']) {
     headers.delete(x);
@@ -725,7 +747,7 @@ async function handlePassthrough(request, url) {
     const h = new Headers(upstream.headers);
     
     // إرجاع الترويسات الصحيحة للمتصفح
-    h.set('access-control-allow-origin', request.headers.get('origin') || '*');
+    h.set('access-control-allow-origin', resolveCorsOrigin(request, env));
     h.set('access-control-allow-credentials', 'true');
     h.set('x-proxy-cache', 'BYPASS');
     h.delete('cf-cache-status');
@@ -743,7 +765,7 @@ async function handlePassthrough(request, url) {
   } catch (e) {
     return new Response(JSON.stringify({ success: false, message: "Proxy error: " + e.message }), {
       status: 502,
-      headers: { 'content-type': 'application/json', 'access-control-allow-origin': request.headers.get('origin') || '*' }
+      headers: { 'content-type': 'application/json', 'access-control-allow-origin': resolveCorsOrigin(request, env) }
     });
   }
 }
@@ -768,13 +790,14 @@ const WARM_PATHS = [
 async function warmCache(env, ctx) {
   const cache = caches.default;
   const results = [];
+  const renderOrigin = getRenderOrigin(env);
   for (const path of WARM_PATHS) {
-    const canon = canonicalize(new URL(RENDER_ORIGIN + path));
-    const cacheKey = makeCacheKey(canon);
+    const canon = canonicalize(new URL(renderOrigin + path));
+    const cacheKey = makeCacheKey(canon, renderOrigin);
     try {
       // Don't hit the origin (Neon) for entries that are still young: the warm-up
       // only exists to renew entries before they expire.
-      const existing = await cache.match(cacheKey);
+      const existing = await safeCacheMatch(cache, cacheKey);
       if (existing) {
         const info = storedInfo(existing);
         if (!info.neg && info.age <= info.ttl * WARM_REFRESH_AFTER) {
@@ -802,9 +825,19 @@ async function warmCache(env, ctx) {
   return results;
 }
 
-function corsHeaders(req) {
+function resolveCorsOrigin(req, env) {
+  const requestOrigin = req.headers.get('origin');
+  const configured = String((env && env.FRONTEND_ORIGIN) || '').split(',').map(v => v.trim()).filter(Boolean);
+  if (!requestOrigin) return configured[0] || '*';
+  // Never reflect an arbitrary Origin when credentials are allowed. A missing
+  // allow-list is a deployment configuration error, so browser CORS fails closed.
+  if (!configured.length || !configured.includes(requestOrigin)) return '';
+  return requestOrigin;
+}
+
+function corsHeaders(req, env) {
   return {
-    'access-control-allow-origin': req.headers.get('origin') || '*',
+    'access-control-allow-origin': resolveCorsOrigin(req, env),
     'access-control-allow-methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
     'access-control-allow-headers': 'Content-Type, Authorization, X-Offline-Op-Id, If-None-Match, X-CSRF-Token, X-Requested-With, Accept, Origin, last-event-id',
     'access-control-allow-credentials': 'true',
@@ -857,10 +890,18 @@ export default {
       if (!secret || !timingSafeEqual(request.headers.get('x-purge-token'), secret)) {
         return new Response('Forbidden', { status: 403 });
       }
-      const deleted = await kvPurgeAll(env);
-      return new Response(JSON.stringify({ ok: true, deleted }), {
-        headers: { 'content-type': 'application/json' },
-      });
+      try {
+        const deleted = await kvPurgeAll(env);
+        return new Response(JSON.stringify({ ok: true, deleted }), {
+          headers: { 'content-type': 'application/json' },
+        });
+      } catch (error) {
+        console.error('[purge] KV purge failed', error && error.message ? error.message : error);
+        return new Response(JSON.stringify({ ok: false, error: 'KV_PURGE_FAILED' }), {
+          status: 503,
+          headers: { 'content-type': 'application/json' },
+        });
+      }
     }
 
     if (!url.pathname.startsWith('/api/')) {
@@ -868,7 +909,7 @@ export default {
     }
 
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: corsHeaders(request) });
+      return new Response(null, { status: 204, headers: corsHeaders(request, env) });
     }
 
     const isGet = request.method === 'GET' || request.method === 'HEAD';
@@ -887,7 +928,7 @@ export default {
 
     if (isCacheable) {
       if (canon.pairs.length > MAX_PARAMS || canon.key.length > MAX_KEY_LENGTH) {
-        const res = await handlePassthrough(request, url);
+        const res = await handlePassthrough(request, url, env);
         res.headers.set('x-proxy-cache', 'BYPASS-SHAPE');
         recordMetric(env, ctx, canon, res, request);
         return res;
@@ -896,10 +937,12 @@ export default {
       recordMetric(env, ctx, canon, res, request);
       return res;
     }
-    return handlePassthrough(request, url);
+    return handlePassthrough(request, url, env);
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(warmCache(env, ctx));
+    ctx.waitUntil(warmCache(env, ctx).catch((error) => {
+      console.error('[warm] scheduled run failed', error && error.message ? error.message : error);
+    }));
   },
 };

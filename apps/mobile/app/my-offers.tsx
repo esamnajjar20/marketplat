@@ -1,3 +1,4 @@
+import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
@@ -49,7 +50,7 @@ export default function MyOffersScreen() {
           <Pressable accessibilityRole="button" onPress={() => item.request?.id && router.push({ pathname: '/requests/[id]', params: { id: item.request.id } })}>
             <SectionCard>
               <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '900', color: colors.ink }}>{item.request?.title || 'عرض على طلب'}</Text>
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[20], fontWeight: '900', color: colors.brand }}>{item.price} ₪</Text>
+              <Text style={{ textAlign: 'right', fontSize: fontSizes[20], fontWeight: '900', color: colors.brand }}>{formatMoney(item.price)}</Text>
               <Text style={{ textAlign: 'right', color: colors.muted }}>{item.message || 'بدون رسالة'}</Text>
               <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>الحالة: {statusLabel(item.status || 'PENDING')}</Text>
             </SectionCard>

@@ -4,6 +4,10 @@
   "main": "worker.js",
   "compatibility_date": "2026-09-01",
 
+  // Required for browser clients: exact frontend origins, comma-separated.
+  // Do not use a wildcard when credentials/cookies are enabled.
+  "vars": { "FRONTEND_ORIGIN": "https://your-frontend-domain.example" },
+
   // تحذير الـ Cache API: لا يعمل على *.workers.dev ولا يمكن purge بالـ Tag هناك.
   // لتفعيل #8 يجب أن يخدم الـ Worker عبر Route على نطاقك (zone) — مثال:
   // "routes": [{ "pattern": "api.example.com/*", "zone_name": "example.com" }],

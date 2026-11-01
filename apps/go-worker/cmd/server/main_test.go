@@ -5,12 +5,15 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"marketplat/apps/go-worker/internal/rediswire"
 )
 
 func testHandler() http.Handler {
 	s := &server{token: "test-secret", retentionDays: 90, batchSize: 5000}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
+	mux.HandleFunc("GET /internal/diagnostics", s.internalDiagnostics)
 	mux.HandleFunc("POST /internal/jobs/analytics-retention", s.runAnalyticsRetention)
 	mux.HandleFunc("POST /internal/jobs/auth-token-retention", s.runAuthTokenRetention)
 	mux.HandleFunc("POST /internal/jobs/notification-retention", s.runNotificationRetention)
@@ -648,5 +651,51 @@ func TestFcmPushEndpointReportsUnconfiguredWithoutQueryingDeviceToken(t *testing
 	testHandler().ServeHTTP(recorder, req)
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"outcome":"unconfigured"`) {
 		t.Fatalf("unexpected response: status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestInternalDiagnosticsRejectsMissingOrInvalidAuthorization(t *testing.T) {
+	for _, header := range []string{"", "Bearer wrong", "Basic test-secret"} {
+		req := httptest.NewRequest(http.MethodGet, "/internal/diagnostics", nil)
+		if header != "" {
+			req.Header.Set("Authorization", header)
+		}
+		recorder := httptest.NewRecorder()
+		testHandler().ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusUnauthorized {
+			t.Fatalf("header %q: status=%d, want 401", header, recorder.Code)
+		}
+	}
+}
+
+func TestInternalDiagnosticsReportsDependencyAndMigrationReadinessWithoutSecrets(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/internal/diagnostics", nil)
+	req.Header.Set("Authorization", "Bearer test-secret")
+	recorder := httptest.NewRecorder()
+	testHandler().ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status=%d, want 200; body=%s", recorder.Code, recorder.Body.String())
+	}
+	body := recorder.Body.String()
+	for _, expected := range []string{`"postgres":"unhealthy"`, `"viewBatchLedger":"unknown"`, `"schedulerLedger":"unknown"`, `"firebaseCredentials":"missing"`} {
+		if !strings.Contains(body, expected) {
+			t.Fatalf("diagnostics response is missing %s: %s", expected, body)
+		}
+	}
+	if strings.Contains(body, "test-secret") {
+		t.Fatal("diagnostics response must not expose the internal token")
+	}
+}
+
+func TestSameRedisConfig(t *testing.T) {
+	primary := &rediswire.Config{Addr: "redis.example:6379", Username: "u", Password: "p", TLS: true, DB: 1}
+	if !sameRedisConfig(primary, &rediswire.Config{Addr: "redis.example:6379", Username: "u", Password: "p", TLS: true, DB: 1}) {
+		t.Fatal("equivalent Redis configurations should be recognized as the same dependency")
+	}
+	if sameRedisConfig(primary, &rediswire.Config{Addr: "redis.example:6379", Username: "u", Password: "different", TLS: true, DB: 1}) {
+		t.Fatal("different Redis credentials must not be treated as the same dependency")
+	}
+	if !sameRedisConfig(nil, nil) {
+		t.Fatal("two missing Redis configurations should be treated as the same dependency")
 	}
 }

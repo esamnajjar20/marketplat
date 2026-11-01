@@ -9,8 +9,7 @@
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import type { Home} from 'lucide-react';
-import { Package, Wrench, Store, MapPin, Tag, AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Home, MapPin, Package, Store, Tag, Wrench } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import {
@@ -94,8 +93,9 @@ export function SharedPayloadView() {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-primary/25 bg-primary/5 px-3 py-2 text-xs text-primary">
-        هذه البطاقة أُنشئت من رمز QR — تعمل بدون إنترنت.
+      <div role="note" aria-label="بطاقة غير موثّقة" className="flex items-start gap-2 rounded-xl border border-amber-500/35 bg-amber-50 px-3 py-3 text-sm text-amber-900 dark:bg-amber-950/25 dark:text-amber-200">
+        <AlertTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
+        <p>بطاقة غير موثّقة وقابلة للتزوير. العنوان والسعر والتفاصيل مصدرها رمز QR ويمكن تعديلها؛ لا تتواصل مع أي طرف ولا تدفع بناءً عليها. افتح الإعلان الأصلي من السوق للتحقق.</p>
       </div>
 
       <div className="space-y-4 rounded-2xl border bg-card p-5 shadow-sm">
@@ -113,7 +113,8 @@ export function SharedPayloadView() {
         <h1 className="text-xl font-bold leading-snug">{payload.title}</h1>
 
         {payload.price != null && (
-          <p className="text-2xl font-bold text-primary">
+          <p className="text-2xl font-bold text-muted-foreground">
+            <span className="mb-1 block text-xs font-semibold text-amber-700 dark:text-amber-300">سعر غير موثّق</span>
             {formatPrice(payload.price)}
           </p>
         )}

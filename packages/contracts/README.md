@@ -1,13 +1,22 @@
 # @marketplat/contracts
 
-Shared runtime-validated contracts for MarketPlat applications.
+Shared runtime-validated API contracts for MarketPlat applications.
 
-## Current scope
+## Contract scope
 
-- API success envelope, matching `apps/api/src/shared/types/api-response.types.ts`.
-- API error envelope, matching `apps/api/src/shared/errors/errorResponse.ts`.
-- Generic pagination query and metadata primitives.
+- Success and error response envelopes, including `statusCode`, `code`, `requestId`, field errors and localized error metadata.
+- Offset pagination query bounds matching Express (`page: 1..1000`, `limit: 1..100`).
+- Pagination metadata shared by offset and cursor endpoints (`hasNextPage`, `hasPrevPage`, `nextCursor`).
+- Forward-compatible unknown fields are preserved with Zod `passthrough()` on envelope/metadata objects.
 
-## Migration safety
+## Consumer parity
 
-This package is intentionally additive in this phase. Existing web and API imports are not redirected yet because the uploaded archive has no `pnpm-lock.yaml` and package installation/build validation has not run. Before consumers are switched, run contract fixtures against representative live API responses and ensure endpoint-specific pagination limits are preserved. Do not use these generic schemas as a replacement for endpoint-specific validation.
+The API, web and mobile currently retain their local imports because the web `frontend/` package is intentionally outside the pnpm workspace and the API/mobile TypeScript build boundaries are separate. The parity tests read those consumer definitions and fail when critical fields or bounds drift. This is an enforced compatibility layer, not yet a single runtime import shared by all three apps.
+
+Run from the repository root:
+
+```sh
+node --test packages/contracts/test/*.test.mjs
+```
+
+Do not replace endpoint-specific schemas or limits with the generic pagination schema. Cursor endpoints may omit offset-only totals; consumers must continue to use `nextCursor` where applicable.

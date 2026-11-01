@@ -37,11 +37,13 @@ These are **not** production-ready claims until the matching checklist is signed
 | Area | Status | Checklist |
 |------|--------|-----------|
 | Android store signing | Env-based release config exists; default test builds use **debug** keystore | [PRODUCTION-SIGNING.md](../../docs/mobile/checklists/PRODUCTION-SIGNING.md) |
-| Crash reporting | Error boundary logs locally; native Sentry SDK/adapter is not installed, so DSN alone does not transmit events | [SENTRY-SETUP.md](../../docs/mobile/checklists/SENTRY-SETUP.md) |
+| Crash reporting | Sentry React Native SDK is integrated and initialized before the first React render; delivery and source-map symbolication require DSN/project secrets plus a release-build event test | [SENTRY-SETUP.md](../../docs/mobile/checklists/SENTRY-SETUP.md) |
 | Session / refresh cookie | Designed for HttpOnly refresh + SecureStore access token; **device proof required** | [SESSION-DEVICE-VALIDATION.md](../../docs/mobile/checklists/SESSION-DEVICE-VALIDATION.md) |
 | SQLCipher | Plugin + keyed opener; requires **native rebuild**, migration tested on real legacy DB | [SQLCIPHER-MIGRATION.md](../../docs/mobile/checklists/SQLCIPHER-MIGRATION.md) |
 | Logout + outbox | Read failures now fail closed; unified façade is used by queue screens. Device scenarios still need sign-off | Session checklist §5 |
-| Push / analytics | Not part of current mobile baseline | — |
+| Push | Android native FCM opt-in, token rotation, notification taps and deferred unregister are wired; requires matching Firebase config/service-account credentials and a dev/release build. iOS APNs is intentionally not wired to the FCM-only sender yet | [PUSH-NATIVE-SETUP.md](../../docs/mobile/checklists/PUSH-NATIVE-SETUP.md) |
+| Links / iOS scope | HTTPS App Links and Universal Links configuration; iOS is Expo-managed, while native push remains Android-only pending APNs integration | [LINKING-IOS-STATUS-ROUND2-AR.md](docs/LINKING-IOS-STATUS-ROUND2-AR.md) |
+| Native Google OAuth | Browser-based Google flow with one-time PKCE ticket exchange; callback/Google credentials and physical-device test remain required | [GOOGLE-NATIVE-OAUTH.md](../../docs/mobile/checklists/GOOGLE-NATIVE-OAUTH.md) |
 | Dark mode | Light UI only (`userInterfaceStyle: light`) | — |
 
 ## Architecture (short)
@@ -51,9 +53,11 @@ These are **not** production-ready claims until the matching checklist is signed
 - `src/storage/` — encrypted DB, public/private cache, outboxes  
 - `src/api/client.ts` — fetch, timeout, 401 refresh, allow-listed offline cache  
 - `src/theme/tokens.ts` — design tokens (no raw hex in screens)
+- `src/features/notifications/native-push.ts` — Android FCM lifecycle and explicit device opt-in
+- `src/features/auth/google-oauth.native.ts` — native system-browser Google OAuth with PKCE
 - Inbox uses `FlatList` virtualization with a memoized accessible conversation row. Messaging/notification read endpoints validate high-value JSON contracts through Zod before returning data.
 
-Historical phase reports live in **`../../docs/mobile/archive/`**, not in this folder. The duplicate root copies were removed after matching their SHA-256 hashes to the archived originals. After the 2026-10-30 refactor iterations, the active static verifier suite is green (60/60); 86 historical checks remain quarantined and are explicitly not represented as passing tests. Node storage/outbox tests pass 30/30. Full TypeScript, ESLint, and Vitest execution still require installing workspace dependencies.
+Historical phase reports live in **`../../docs/mobile/archive/`**, not in this folder. The duplicate root copies were removed after matching their SHA-256 hashes to the archived originals. After the 2026-10-30 refactor iterations, the active static verifier suite is green (60/60); 86 historical checks remain quarantined and are explicitly not represented as passing tests. Node storage/outbox tests pass 30/30. Full TypeScript, ESLint, and Vitest execution still require installing workspace dependencies. Phase 3 adds `verify:phase3` static contracts; run it alongside the existing suite after dependency installation.
 
 ## Production Android notes
 

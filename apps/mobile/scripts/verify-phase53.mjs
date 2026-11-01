@@ -12,6 +12,6 @@ assert.match(imageCache, /if \(file\.referenced\) continue/);
 assert.match(imageCache, /Unreferenced images are evicted first/);
 assert.match(adsApi, /return cachedResult/);
 assert.match(oldCheck, /writePublicCache\(cacheKey, cachedResult\)/);
-assert.match(pkg.scripts.test, /run-all-verifications\.mjs/, 'npm test must invoke the discovery runner');
+assert.match(pkg.scripts['verify:static'], /run-all-verifications\.mjs/, 'verify:static must invoke the discovery runner');
 assert.match(readFileSync(new URL('./run-all-verifications.mjs', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mjs'\)/, 'verification runner must discover scripts/verify-*.mjs files');
 console.log('Phase 53 image-reference-aware eviction checks passed (static only; runtime storage/device behavior not exercised).');

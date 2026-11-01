@@ -1,5 +1,5 @@
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -7,6 +7,7 @@ import { fetchMyAppointments, updateAppointmentStatus, type AppointmentRow } fro
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { fontSizes, colors } from '@/theme/tokens';
+import { formatDate } from '@/lib/formatters';
 
 const labels: Record<string, string> = { SCHEDULED: 'مجدول', COMPLETED: 'مكتمل', CANCELLED: 'ملغى', NO_SHOW: 'لم يحضر' };
 
@@ -66,10 +67,7 @@ export default function AppointmentsScreen() {
     ]);
   };
 
-  const formatted = useMemo(() => (value: string) => {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? 'غير متاح' : new Intl.DateTimeFormat('ar', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
-  }, []);
+  const formatted = (value: string) => formatDate(value, 'dateTime');
 
   return (
     <PageShell title="المواعيد">
