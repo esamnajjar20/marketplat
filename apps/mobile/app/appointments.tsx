@@ -1,11 +1,12 @@
+import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyAppointments, updateAppointmentStatus, type AppointmentRow } from '@/features/appointments/appointments.api';
 import { fetchMyServiceProvider } from '@/features/services/services.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors } from '@/theme/tokens';
+import { fontSizes, colors } from '@/theme/tokens';
 
 const labels: Record<string, string> = { SCHEDULED: 'مجدول', COMPLETED: 'مكتمل', CANCELLED: 'ملغى', NO_SHOW: 'لم يحضر' };
 
@@ -85,7 +86,7 @@ export default function AppointmentsScreen() {
         const scheduled = item.status === 'SCHEDULED';
         return (
           <SectionCard key={item.id}>
-            <Text style={{ textAlign: 'right', fontSize: 17, fontWeight: '900', color: colors.ink }}>{item.request?.listing?.title || 'موعد خدمة'}</Text>
+            <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '900', color: colors.ink }}>{item.request?.listing?.title || 'موعد خدمة'}</Text>
             <Text style={{ textAlign: 'right', fontWeight: '900', color: colors.brand }}>{labels[item.status || ''] || item.status || 'مجدول'}</Text>
             <Text style={{ textAlign: 'right', color: colors.ink }}>البداية: {formatted(item.scheduledStart)}</Text>
             <Text style={{ textAlign: 'right', color: colors.ink }}>النهاية: {formatted(item.scheduledEnd)}</Text>

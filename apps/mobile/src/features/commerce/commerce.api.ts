@@ -1,5 +1,5 @@
 import { cacheOfflineCreationReferenceData, readOfflineCreationReferenceData } from '@/storage/entity-create-outbox';
-import { apiRequest } from '@/api/client';
+import { ApiError, apiRequest } from '@/api/client';
 
 type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } } };
 function dataOf<T>(response: Envelope<T>, fallback: string): T {
@@ -51,7 +51,14 @@ export async function fetchProducts(options: { page?: number; limit?: number; se
   return pageFrom(response, 'تعذر تحميل المنتجات.', page);
 }
 export async function fetchProduct(id: string) { return dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}`), 'تعذر تحميل تفاصيل المنتج.'); }
-export async function fetchMyStore(token: string) { return dataOf(await apiRequest<Envelope<StoreSummary | null>>('/api/v1/stores/me', { token }), 'تعذر تحميل متجرك.'); }
+export async function fetchMyStore(token: string): Promise<StoreSummary | null> {
+  try {
+    return dataOf(await apiRequest<Envelope<StoreSummary | null>>('/api/v1/stores/me', { token }), 'تعذر تحميل متجرك.');
+  } catch (error) {
+    if (error instanceof ApiError && (error.status === 404 || error.code === 'STORE_NOT_FOUND' || error.code === 'SELLER_NOT_FOUND')) return null;
+    throw error;
+  }
+}
 export async function createStore(input: { name: string; description: string; city: string; phone: string; address?: string }, token: string, csrfToken?: string | null) {
   return dataOf(await apiRequest<Envelope<StoreSummary>>('/api/v1/stores', { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر إنشاء المتجر.');
 }

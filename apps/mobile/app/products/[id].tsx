@@ -1,5 +1,7 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fetchProduct, fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { startConversationWithUser } from '@/features/messaging/messaging.api';
@@ -12,7 +14,7 @@ import { ProductAttributeList } from '@/components/ui/ProductAttributeList';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { ShareButton } from '@/components/ui/ShareButton';
 import { ProductCard } from '@/components/ui/ProductCard';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
 
 function money(value: unknown): string {
   const n = Number(value);
@@ -144,8 +146,8 @@ const styles = StyleSheet.create({
   pad: { paddingHorizontal: spacing.md, gap: spacing.md },
   titleRow: { flexDirection: 'row-reverse', alignItems: 'flex-start', gap: spacing.sm },
   titleCopy: { flex: 1, gap: spacing.xs },
-  heading: { fontSize: 22, fontWeight: '900', color: colors.ink, textAlign: 'right', lineHeight: 30 },
-  price: { fontSize: 22, fontWeight: '900', color: colors.brand, textAlign: 'right' },
+  heading: { fontSize: fontSizes[22], fontWeight: '900', color: colors.ink, textAlign: 'right', lineHeight: 30 },
+  price: { fontSize: fontSizes[22], fontWeight: '900', color: colors.brand, textAlign: 'right' },
   oldPrice: { ...typography.caption, color: colors.muted, textDecorationLine: 'line-through', textAlign: 'right' },
   category: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   description: { ...typography.body, color: colors.ink, lineHeight: 24, textAlign: 'right' },
@@ -157,8 +159,8 @@ const styles = StyleSheet.create({
   ratingLine: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.xs },
   pills: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: spacing.sm },
   paymentPill: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.border },
-  paymentText: { ...typography.captionStrong, color: colors.brand },
+  paymentText: { ...typography.captionStrong, color: colors.brandOnSoft },
   recommendationList: { flexDirection: 'row-reverse', gap: spacing.md, paddingVertical: spacing.xs },
   imageFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
-  glyph: { fontSize: 30, color: colors.brand },
+  glyph: { fontSize: fontSizes[30], color: colors.brandOnSoft },
 });

@@ -1,5 +1,7 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, Text, View } from 'react-native';
+import { Alert, View } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -8,7 +10,7 @@ import { ApiError } from '@/api/client';
 import { createMobileOperationId } from '@/lib/operation-id';
 import { enqueueOfflineCreate } from '@/storage/outbox-manager';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
 
 type SaleLine = { id: string; title: string; quantity: string; unitPrice: string };
 const makeLine = (): SaleLine => ({ id: `line-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, title: '', quantity: '1', unitPrice: '' });
@@ -116,7 +118,7 @@ export default function SaleCreateScreen() {
         </View>)}
       </View>
       <PrimaryButton label="+ إضافة صنف" variant="secondary" disabled={lines.length >= 200} onPress={() => setLines(current => [...current, makeLine()])} />
-      <View style={{ padding: spacing.md, backgroundColor: colors.brandSoft, borderRadius: radius.md, gap: 6 }}><Text style={{ color: colors.brand, textAlign: 'right', fontWeight: '800' }}>عدد الأصناف: {lines.length}</Text><Text style={{ color: colors.brand, textAlign: 'right', fontWeight: '900', fontSize: 18 }}>إجمالي الفاتورة: {money(total)}</Text></View>
+      <View style={{ padding: spacing.md, backgroundColor: colors.brandSoft, borderRadius: radius.md, gap: 6 }}><Text style={{ color: colors.brandOnSoft, textAlign: 'right', fontWeight: '800' }}>عدد الأصناف: {lines.length}</Text><Text style={{ color: colors.brandOnSoft, textAlign: 'right', fontWeight: '900', fontSize: fontSizes[18] }}>إجمالي الفاتورة: {money(total)}</Text></View>
     </>}
     <Field label="اسم المشتري" value={buyer} onChangeText={setBuyer} maxLength={160} placeholder="اسم المشتري" />
     <Field label="هاتف المشتري (اختياري)" value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={40} placeholder="رقم الهاتف" />

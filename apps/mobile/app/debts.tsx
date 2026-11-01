@@ -1,11 +1,13 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchDebtSummary, fetchDebts, type DebtSummary } from '@/features/sales/sales-extra.api';
 import type { SaleRecord } from '@/features/sales/sales.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors, spacing } from '@/theme/tokens';
+import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { formatSafeDate } from '@/lib/date-format';
 
@@ -109,11 +111,11 @@ export default function DebtsScreen() {
                   ] as const
                 ).map(([l, v]) => (
                   <SectionCard key={l}>
-                    <Text style={{ textAlign: 'right', fontSize: 12, color: colors.muted }}>{l}</Text>
+                    <Text style={{ textAlign: 'right', fontSize: fontSizes[12], color: colors.muted }}>{l}</Text>
                     <Text
                       style={{
                         textAlign: 'right',
-                        fontSize: 20,
+                        fontSize: fontSizes[20],
                         fontWeight: '900',
                         color: l === 'متأخر' ? colors.danger : colors.ink,
                       }}
@@ -135,7 +137,7 @@ export default function DebtsScreen() {
           <Pressable onPress={() => router.push({ pathname: '/sales/[id]', params: { id: sale.id } })}>
             <SectionCard>
               <View style={{ flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 8 }}>
-                <Text style={{ flex: 1, textAlign: 'right', fontWeight: '900', fontSize: 15, color: colors.ink }}>
+                <Text style={{ flex: 1, textAlign: 'right', fontWeight: '900', fontSize: fontSizes[15], color: colors.ink }}>
                   {sale.entityTitle}
                 </Text>
                 <Text style={{ fontWeight: '900', color: colors.danger }}>

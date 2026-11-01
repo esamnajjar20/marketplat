@@ -1,19 +1,12 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { router } from 'expo-router';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { AppImage } from '@/components/AppImage';
 import { DrawerMenuButton } from '@/components/MobileDrawer';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, radius, spacing, ux } from '@/theme/tokens';
+import { fontSizes, colors, radius, spacing, ux } from '@/theme/tokens';
 import { EmptyState, ErrorState, LoadingState, SectionHeader, SkeletonList } from '@/components/MobileUI';
 import { AdCard } from '@/components/MarketCards';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -39,7 +32,7 @@ type HomeListRow =
  * Data: useHomeAds + useHomeServices
  */
 export default function HomeScreen() {
-  const { user, logout, isBusy, isRestoring } = useAuth();
+  const { user, isRestoring } = useAuth();
 
   const {
     query,
@@ -158,15 +151,12 @@ export default function HomeScreen() {
                     <DrawerMenuButton />
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={user ? 'تسجيل الخروج' : 'تسجيل الدخول'}
-                      disabled={isBusy || isRestoring}
-                      onPress={async () => {
-                        if (!user) { router.push('/login'); return; }
-                        await logout();
-                      }}
+                      accessibilityLabel={user ? 'فتح حسابي' : 'تسجيل الدخول'}
+                      disabled={isRestoring}
+                      onPress={() => router.push(user ? '/account' : '/login')}
                       style={styles.accountButton}
                     >
-                      <Text style={styles.accountButtonText}>{isRestoring ? '…' : user ? 'خروج' : 'دخول'}</Text>
+                      <Text style={styles.accountButtonText}>{isRestoring ? '…' : user ? 'حسابي' : 'دخول'}</Text>
                     </Pressable>
                   </View>
                 </View>
@@ -177,7 +167,7 @@ export default function HomeScreen() {
                   <Text style={styles.heroBody}>تصفّح الإعلانات أو ابحث عن شيء محدد بسهولة.</Text>
                   <View style={styles.searchBox}>
                     <Text style={styles.searchIcon}>⌕</Text>
-                    <TextInput accessibilityLabel="ابحث عن إعلان" value={query} onChangeText={setQuery}
+                    <TextInput allowFontScaling accessibilityLabel="ابحث عن إعلان" maxFontSizeMultiplier={1.3} value={query} onChangeText={setQuery}
                       onSubmitEditing={() => { submitSearch(); }} placeholder="ابحث عن إعلان أو سلعة…"
                       placeholderTextColor={colors.muted} returnKeyType="search" style={styles.searchInput} textAlign="right" />
                     {query.length > 0 ? <Pressable accessibilityRole="button" accessibilityLabel="مسح البحث" onPress={clearSearch}><Text style={styles.clearSearch}>×</Text></Pressable> : null}
@@ -186,20 +176,20 @@ export default function HomeScreen() {
 
                 <View style={styles.quickActions}>
                   <Pressable accessibilityRole="button" accessibilityLabel="استكشف السوق" onPress={() => router.push('/explore')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
-                    <View style={[styles.quickIcon, { backgroundColor: colors.brandSoft }]}><Text style={[styles.quickGlyph, { color: colors.brand }]}>⌕</Text></View>
-                    <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>استكشف السوق</Text><Text style={styles.quickSubtitle}>المتاجر والخدمات والمنتجات والقصص</Text></View><Text style={styles.quickArrow}>‹</Text>
+                    <View style={[styles.quickIcon, { backgroundColor: colors.brandSoft }]}><Text style={[styles.quickGlyph, { color: colors.brandOnSoft }]}>⌕</Text></View>
+                    <Text maxFontSizeMultiplier={1.3} style={styles.quickTitle}>استكشف</Text>
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel="بحث وفلاتر متقدمة" onPress={() => router.push('/search')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
-                    <View style={[styles.quickIcon, { backgroundColor: colors.infoSoft }]}><Text style={[styles.quickGlyph, { color: colors.info }]}>⚙</Text></View>
-                    <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>بحث وفلاتر متقدمة</Text><Text style={styles.quickSubtitle}>حدد المدينة والسعر ونوع المحتوى</Text></View><Text style={styles.quickArrow}>‹</Text>
+                    <View style={[styles.quickIcon, { backgroundColor: colors.infoSoft }]}><Text style={[styles.quickGlyph, { color: colors.info }]}>⌕</Text></View>
+                    <Text maxFontSizeMultiplier={1.3} style={styles.quickTitle}>بحث</Text>
                   </Pressable>
                   <Pressable accessibilityRole="button" accessibilityLabel="إضافة إعلان أو منتج أو خدمة" onPress={() => router.push(user ? '/add' : '/login')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
                     <View style={[styles.quickIcon, { backgroundColor: colors.warningSoft }]}><Text style={[styles.quickGlyph, { color: colors.warningText }]}>＋</Text></View>
-                    <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>إضافة جديد</Text><Text style={styles.quickSubtitle}>انشر إعلانًا أو أضف منتجًا أو خدمة</Text></View><Text style={styles.quickArrow}>‹</Text>
+                    <Text maxFontSizeMultiplier={1.3} style={styles.quickTitle}>إضافة</Text>
                   </Pressable>
-                  <Pressable accessibilityRole="button" accessibilityLabel="محتوى مخصّص لك" onPress={() => router.push('/for-you')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="محتوى مخصص لك" onPress={() => router.push('/for-you')} style={({ pressed }) => [styles.quickAction, pressed && styles.pressed]}>
                     <View style={[styles.quickIcon, { backgroundColor: colors.infoSoft }]}><Text style={[styles.quickGlyph, { color: colors.info }]}>✦</Text></View>
-                    <View style={styles.quickTextWrap}><Text style={styles.quickTitle}>مخصّص لك</Text><Text style={styles.quickSubtitle}>اكتشف محتوى مقترحًا وفق اهتماماتك</Text></View><Text style={styles.quickArrow}>‹</Text>
+                    <Text maxFontSizeMultiplier={1.3} style={styles.quickTitle}>مخصص لك</Text>
                   </Pressable>
                 </View>
 
@@ -214,10 +204,10 @@ export default function HomeScreen() {
                 {showFilters ? (
                   <View style={styles.advancedFilters}>
                     <Text style={styles.filterHeading}>تصفية النتائج</Text>
-                    <TextInput accessibilityLabel="المدينة" value={cityInput} onChangeText={setCityInput} placeholder="المدينة (مثلاً: غزة)" placeholderTextColor={colors.muted} textAlign="right" style={styles.filterInput} returnKeyType="done" />
+                    <TextInput allowFontScaling accessibilityLabel="المدينة" maxFontSizeMultiplier={1.3} value={cityInput} onChangeText={setCityInput} placeholder="المدينة (مثلاً: غزة)" placeholderTextColor={colors.muted} textAlign="right" style={styles.filterInput} returnKeyType="done" />
                     <View style={styles.priceInputs}>
-                      <TextInput accessibilityLabel="أقل سعر" value={minPriceInput} onChangeText={(value) => setMinPriceInput(normalizeNumericInput(value))} keyboardType="decimal-pad" placeholder="أقل سعر" placeholderTextColor={colors.muted} textAlign="right" style={[styles.filterInput, styles.priceInput]} />
-                      <TextInput accessibilityLabel="أعلى سعر" value={maxPriceInput} onChangeText={(value) => setMaxPriceInput(normalizeNumericInput(value))} keyboardType="decimal-pad" placeholder="أعلى سعر" placeholderTextColor={colors.muted} textAlign="right" style={[styles.filterInput, styles.priceInput]} />
+                      <TextInput allowFontScaling accessibilityLabel="أقل سعر" maxFontSizeMultiplier={1.3} value={minPriceInput} onChangeText={(value) => setMinPriceInput(normalizeNumericInput(value))} keyboardType="decimal-pad" placeholder="أقل سعر" placeholderTextColor={colors.muted} textAlign="right" style={[styles.filterInput, styles.priceInput]} />
+                      <TextInput allowFontScaling accessibilityLabel="أعلى سعر" maxFontSizeMultiplier={1.3} value={maxPriceInput} onChangeText={(value) => setMaxPriceInput(normalizeNumericInput(value))} keyboardType="decimal-pad" placeholder="أعلى سعر" placeholderTextColor={colors.muted} textAlign="right" style={[styles.filterInput, styles.priceInput]} />
                     </View>
                     {filterError ? <Text style={styles.filterError} accessibilityLiveRegion="polite">{filterError}</Text> : null}
                     <View style={styles.sortRow}>
@@ -281,90 +271,87 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', paddingTop: spacing.sm, minHeight: 58, gap: spacing.sm },
   brandRow: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.sm },
   logo: { width: 48, height: 48, borderRadius: 15, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  logoText: { color: colors.white, fontSize: 25, fontWeight: '800' },
-  brandName: { color: colors.ink, fontSize: 18, fontWeight: '800', textAlign: 'right' },
-  brandSubtitle: { color: colors.muted, fontSize: 12, marginTop: 2, textAlign: 'right' },
+  logoText: { color: colors.white, fontSize: fontSizes[25], fontWeight: '800' },
+  brandName: { color: colors.ink, fontSize: fontSizes[18], fontWeight: '800', textAlign: 'right' },
+  brandSubtitle: { color: colors.muted, fontSize: fontSizes[12], marginTop: 2, textAlign: 'right' },
   headerActions: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.xs },
   accountButton: { minHeight: 44, minWidth: 64, paddingHorizontal: spacing.md, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  accountButtonText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
-  quickActions: { gap: spacing.sm },
-  quickAction: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.md, padding: spacing.md, minHeight: 64, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },
-  quickIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  quickGlyph: { color: colors.brand, fontSize: 23, fontWeight: '800' },
-  quickTextWrap: { flex: 1, gap: 4 },
-  quickTitle: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'right' },
-  quickSubtitle: { color: colors.muted, fontSize: 12, textAlign: 'right' },
-  quickArrow: { color: colors.muted, fontSize: 25 },
+  accountButtonText: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '800' },
+  quickActions: { flexDirection: 'row-reverse', gap: spacing.sm },
+  quickAction: { flex: 1, minWidth: 0, minHeight: 84, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.sm, paddingHorizontal: 2, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
+  quickIcon: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  quickGlyph: { color: colors.brand, fontSize: fontSizes[22], fontWeight: '700' },
+  quickTitle: { color: colors.ink, fontSize: fontSizes[11], fontWeight: '700', textAlign: 'center' },
   hero: { backgroundColor: colors.brand, borderRadius: radius.lg, padding: spacing.lg, overflow: 'hidden', gap: spacing.sm },
-  eyebrow: { color: colors.brandSoft, fontSize: 13, textAlign: 'right' },
-  heroTitle: { color: colors.white, fontSize: 22, fontWeight: '800', textAlign: 'right', lineHeight: 30 },
-  heroBody: { color: colors.brandSoft, fontSize: 13, lineHeight: 20, textAlign: 'right' },
+  eyebrow: { color: colors.brandSoft, fontSize: fontSizes[13], textAlign: 'right' },
+  heroTitle: { color: colors.white, fontSize: fontSizes[22], fontWeight: '800', textAlign: 'right', lineHeight: 30 },
+  heroBody: { color: colors.brandSoft, fontSize: fontSizes[13], lineHeight: 20, textAlign: 'right' },
   searchBox: { flexDirection: 'row-reverse', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: spacing.md, minHeight: ux.minTouch + 8, gap: spacing.sm },
-  searchIcon: { fontSize: 26, color: colors.brand, width: 25, textAlign: 'center' },
-  searchInput: { flex: 1, color: colors.ink, fontSize: 15, paddingVertical: 12, writingDirection: 'rtl' },
-  clearSearch: { color: colors.muted, fontSize: 24, paddingHorizontal: 4 },
+  searchIcon: { fontSize: fontSizes[26], color: colors.brand, width: 25, textAlign: 'center' },
+  searchInput: { flex: 1, color: colors.ink, fontSize: fontSizes[15], paddingVertical: 12, writingDirection: 'rtl' },
+  clearSearch: { color: colors.muted, fontSize: fontSizes[24], paddingHorizontal: 4 },
   sectionHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: -spacing.sm, minHeight: 38, gap: spacing.sm },
   sectionActions: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.md },
-  sectionTitle: { color: colors.ink, fontSize: 18, fontWeight: '800', textAlign: 'right' },
-  link: { color: colors.brand, fontSize: 13, fontWeight: '700' },
+  sectionTitle: { color: colors.ink, fontSize: fontSizes[18], fontWeight: '800', textAlign: 'right' },
+  link: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '700' },
   advancedFilters: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
-  filterHeading: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'right' },
-  filterInput: { minHeight: 48, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.canvas, borderRadius: radius.sm, paddingHorizontal: spacing.md, color: colors.ink, fontSize: 13 },
+  filterHeading: { color: colors.ink, fontSize: fontSizes[14], fontWeight: '800', textAlign: 'right' },
+  filterInput: { minHeight: 48, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.canvas, borderRadius: radius.sm, paddingHorizontal: spacing.md, color: colors.ink, fontSize: fontSizes[13] },
   priceInputs: { flexDirection: 'row-reverse', gap: spacing.sm },
   priceInput: { flex: 1 },
-  filterError: { color: colors.danger, fontSize: 12, textAlign: 'right' },
+  filterError: { color: colors.danger, fontSize: fontSizes[12], textAlign: 'right' },
   sortRow: { flexDirection: 'row-reverse', alignItems: 'center', flexWrap: 'wrap', gap: spacing.xs },
-  filterCaption: { color: colors.muted, fontSize: 12, fontWeight: '700' },
+  filterCaption: { color: colors.muted, fontSize: fontSizes[12], fontWeight: '700' },
   filterActions: { flexDirection: 'row-reverse', gap: spacing.sm },
   clearFiltersButton: { minHeight: 48, paddingHorizontal: spacing.lg, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  clearFiltersText: { color: colors.muted, fontSize: 13, fontWeight: '800' },
+  clearFiltersText: { color: colors.muted, fontSize: fontSizes[13], fontWeight: '800' },
   applyFiltersButton: { flex: 1, minHeight: 48, borderRadius: radius.sm, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  applyFiltersText: { color: colors.white, fontSize: 13, fontWeight: '800' },
+  applyFiltersText: { color: colors.white, fontSize: fontSizes[13], fontWeight: '800' },
   servicesSection: { gap: spacing.md },
   serviceList: { gap: spacing.sm },
   serviceRequestsLink: { minHeight: 42, alignItems: 'flex-end', justifyContent: 'center', paddingHorizontal: spacing.sm },
-  serviceRequestsText: { color: colors.brand, fontSize: 13, fontWeight: '800' },
+  serviceRequestsText: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '800' },
   serviceCard: { flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.md, padding: spacing.sm, minHeight: 96, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg },
   serviceImage: { width: 82, height: 82, borderRadius: radius.md, backgroundColor: colors.border },
   serviceImagePlaceholder: { width: 82, height: 82, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
-  servicePlaceholderGlyph: { color: colors.brand, fontSize: 28 },
+  servicePlaceholderGlyph: { color: colors.brandOnSoft, fontSize: fontSizes[28] },
   serviceInfo: { flex: 1, alignItems: 'flex-end', gap: 4 },
-  serviceTitle: { color: colors.ink, fontSize: 14, fontWeight: '800', textAlign: 'right', width: '100%' },
-  serviceProvider: { color: colors.muted, fontSize: 11, textAlign: 'right', width: '100%' },
-  servicePrice: { color: colors.brand, fontSize: 13, fontWeight: '800', textAlign: 'right' },
+  serviceTitle: { color: colors.ink, fontSize: fontSizes[14], fontWeight: '800', textAlign: 'right', width: '100%' },
+  serviceProvider: { color: colors.muted, fontSize: fontSizes[11], textAlign: 'right', width: '100%' },
+  servicePrice: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '800', textAlign: 'right' },
   serviceState: { minHeight: 60, flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   loadMoreButton: { minHeight: Math.max(ux.minTouch + 8, 48), borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', padding: spacing.md },
-  loadMoreText: { color: colors.brand, fontSize: 14, fontWeight: '800' },
+  loadMoreText: { color: colors.brand, fontSize: fontSizes[14], fontWeight: '800' },
   busyButton: { opacity: 0.65 },
   adsList: { gap: spacing.md },
   filterRow: { flexDirection: 'row-reverse', gap: spacing.sm },
   filterChip: { borderRadius: 20, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: spacing.md, paddingVertical: spacing.md, minHeight: 42, justifyContent: 'center' },
   filterChipSelected: { borderColor: colors.brand, backgroundColor: colors.brandSoft },
-  filterText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
+  filterText: { color: colors.muted, fontSize: fontSizes[12], fontWeight: '700' },
   filterTextSelected: { color: colors.brandDark },
   adCard: { position: 'relative', backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, overflow: 'hidden', minHeight: 126 },
   adMain: { flexDirection: 'row-reverse', minHeight: 132, paddingTop: 30 },
   favoriteButton: { position: 'absolute', top: 5, right: 6, width: 38, height: 36, borderRadius: 15, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
-  favoriteText: { color: colors.muted, fontSize: 20, lineHeight: 24 },
+  favoriteText: { color: colors.muted, fontSize: fontSizes[20], lineHeight: 24 },
   favoriteActive: { color: colors.danger },
   adImage: { width: 120, minHeight: 132, backgroundColor: colors.border },
   adImagePlaceholder: { width: 120, minHeight: 132, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
-  placeholderEmoji: { fontSize: 32 },
+  placeholderEmoji: { fontSize: fontSizes[32] },
   adInfo: { flex: 1, padding: spacing.md, gap: spacing.xs, alignItems: 'flex-end', justifyContent: 'center' },
-  adTitle: { color: colors.ink, fontSize: 14, lineHeight: 20, fontWeight: '800', textAlign: 'right', width: '100%' },
-  adPrice: { color: colors.brand, fontSize: 15, fontWeight: '800', textAlign: 'right' },
-  adMeta: { color: colors.muted, fontSize: 12, textAlign: 'right', width: '100%' },
-  negotiable: { color: colors.brandDark, backgroundColor: colors.brandSoft, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3, fontSize: 10, overflow: 'hidden' },
+  adTitle: { color: colors.ink, fontSize: fontSizes[14], lineHeight: 20, fontWeight: '800', textAlign: 'right', width: '100%' },
+  adPrice: { color: colors.brand, fontSize: fontSizes[15], fontWeight: '800', textAlign: 'right' },
+  adMeta: { color: colors.muted, fontSize: fontSizes[12], textAlign: 'right', width: '100%' },
+  negotiable: { color: colors.brandDark, backgroundColor: colors.brandSoft, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3, fontSize: fontSizes[10], overflow: 'hidden' },
   cacheStatus: { alignSelf: 'flex-end', backgroundColor: colors.successSoft, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  cacheStatusText: { color: colors.brandDark, fontSize: 11, fontWeight: '600', textAlign: 'right' },
+  cacheStatusText: { color: colors.brandDark, fontSize: fontSizes[11], fontWeight: '600', textAlign: 'right' },
   statusCard: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', padding: spacing.xl, gap: spacing.md },
-  statusEmoji: { fontSize: 32 },
-  statusTitle: { color: colors.ink, fontSize: 16, fontWeight: '800', textAlign: 'center' },
-  statusText: { color: colors.muted, fontSize: 13, lineHeight: 21, textAlign: 'center' },
+  statusEmoji: { fontSize: fontSizes[32] },
+  statusTitle: { color: colors.ink, fontSize: fontSizes[16], fontWeight: '800', textAlign: 'center' },
+  statusText: { color: colors.muted, fontSize: fontSizes[13], lineHeight: 21, textAlign: 'center' },
   retryButton: { backgroundColor: colors.brand, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md },
   retryText: { color: colors.white, fontWeight: '800' },
-  helperText: { color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: 'center' },
+  helperText: { color: colors.muted, fontSize: fontSizes[11], lineHeight: 17, textAlign: 'center' },
   notice: { backgroundColor: colors.warningSoft, borderColor: colors.warningBorder, borderWidth: 1, borderRadius: radius.md, padding: spacing.lg, gap: spacing.xs },
-  noticeTitle: { color: colors.warningText, fontSize: 13, fontWeight: '800', textAlign: 'right' },
-  noticeText: { color: colors.warningText, fontSize: 12, lineHeight: 19, textAlign: 'right' },
+  noticeTitle: { color: colors.warningText, fontSize: fontSizes[13], fontWeight: '800', textAlign: 'right' },
+  noticeText: { color: colors.warningText, fontSize: fontSizes[12], lineHeight: 19, textAlign: 'right' },
 });

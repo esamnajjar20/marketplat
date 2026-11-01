@@ -1,11 +1,13 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { ApiError } from '@/api/client';
-import { deleteAd, fetchMyAdsPage, type ManagedAd } from '@/features/ads/manage-ads.api';
+import { deleteAd, fetchMyAdsPage, mergeRefreshedAdsPage, type ManagedAd } from '@/features/ads/manage-ads.api';
 import { enqueueMutation, listAllOutboxMutations } from '@/storage/outbox-manager';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
@@ -36,9 +38,15 @@ export default function MyAdsScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const seq = useRef(0);
+  const pageAbortRef = useRef<AbortController | null>(null);
+  const adsRef = useRef<ManagedAd[]>(ads);
+  const pageRef = useRef(page);
+  adsRef.current = ads;
+  pageRef.current = page;
   const hasLoadedRef = useRef(false);
-  const load = useCallback(async () => {
+  const load = useCallback(async (options: { preservePages?: boolean; signal?: AbortSignal } = {}) => {
     const current = ++seq.current;
+    const preservePages = options.preservePages === true;
     const token = getAccessToken();
     if (isRestoring) return;
     if (!token) {
@@ -49,9 +57,24 @@ export default function MyAdsScreen() {
     if (!hasLoadedRef.current) setLoading(true);
     setError(null);
     try {
-      const result = await fetchMyAdsPage(token, 1, 30);
-      if (current === seq.current) { setAds(result.items); setPage(result.page); setTotalPages(result.totalPages); }
-      if (user?.id) {
+      const result = await fetchMyAdsPage(token, 1, 30, options.signal);
+      if (current === seq.current) {
+        if (preservePages && adsRef.current.length > 0) {
+          // Refresh page one without discarding pages the user already loaded or
+          // resetting the FlatList scroll position after returning from a detail.
+          setAds(mergeRefreshedAdsPage(adsRef.current, result.items, result.totalPages, 30));
+          setPage(Math.max(1, Math.min(pageRef.current, result.totalPages || 1)));
+        } else {
+          setAds(result.items);
+          setPage(result.page);
+        }
+        setTotalPages(result.totalPages);
+        // Mark the list loaded as soon as its page data is ready; local outbox
+        // inspection below must not delay the refresh/pagination preservation state.
+        hasLoadedRef.current = true;
+        setLoading(false);
+      }
+      if (current === seq.current && user?.id) {
         try {
           const queued = await listAllOutboxMutations(String(user.id), { unlimited: true });
           const deletes = queued.filter((mutation) => mutation.operation === 'delete-ad');
@@ -69,17 +92,38 @@ export default function MyAdsScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void load();
-      return () => { seq.current += 1; };
+      const controller = new AbortController();
+      void load({ preservePages: hasLoadedRef.current, signal: controller.signal });
+      return () => {
+        controller.abort();
+        pageAbortRef.current?.abort();
+        pageAbortRef.current = null;
+        seq.current += 1;
+        setLoadingMore(false);
+      };
     }, [load]),
   );
 
   const loadMore = async () => {
     const token = getAccessToken(); if (!token || loadingMore || page >= totalPages) return;
-    const current = seq.current; setLoadingMore(true); setMoreError(null);
-    try { const result = await fetchMyAdsPage(token, page + 1, 30); if (current === seq.current) { setAds((old) => { const ids = new Set(old.map((item) => item.id)); return [...old, ...result.items.filter((item) => !ids.has(item.id))]; }); setPage(result.page); setTotalPages(result.totalPages); } }
-    catch (e) { if (current === seq.current) setMoreError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من الإعلانات.'); }
-    finally { if (current === seq.current) setLoadingMore(false); }
+    const current = seq.current;
+    const controller = new AbortController();
+    pageAbortRef.current = controller;
+    setLoadingMore(true); setMoreError(null);
+    try {
+      const result = await fetchMyAdsPage(token, page + 1, 30, controller.signal);
+      if (current === seq.current) {
+        setAds((old) => { const ids = new Set(old.map((item) => item.id)); return [...old, ...result.items.filter((item) => !ids.has(item.id))]; });
+        setPage(result.page); setTotalPages(result.totalPages);
+      }
+    } catch (e) {
+      if (current === seq.current && !(e instanceof ApiError && e.code === 'REQUEST_CANCELLED')) {
+        setMoreError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من الإعلانات.');
+      }
+    } finally {
+      if (pageAbortRef.current === controller) pageAbortRef.current = null;
+      if (current === seq.current) setLoadingMore(false);
+    }
   };
 
   const remove = (ad: ManagedAd) => {

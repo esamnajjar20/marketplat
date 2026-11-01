@@ -1,10 +1,12 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Image, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchUserFollowList, type FollowListItem, type PaginationMeta } from '@/features/account/social.api';
 import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
 
 export default function FollowingScreen() {
   const { user } = useAuth();
@@ -26,9 +28,9 @@ export default function FollowingScreen() {
     {error ? <SectionCard><Notice>{error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void load(page)} /></SectionCard> : null}
     {!loading && !error && items.length === 0 ? <EmptyState title="لا توجد حسابات تتابعها" description="عند متابعة حسابات من المنصة ستظهر هنا." /> : null}
     {items.map((entry) => { const target = entry.target; return <Pressable key={entry.id} accessibilityRole="button" onPress={() => target?.id && router.push({ pathname: '/profile/[id]', params: { id: target.id } })} style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.card, padding: spacing.md, minHeight: 76 }}>
-      {target?.avatarUrl ? <Image source={{ uri: target.avatarUrl }} style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.border }} /> : <View style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}><Text style={{ color: colors.brand, fontWeight: '900', fontSize: 18 }}>{(target?.name || '?').slice(0, 1)}</Text></View>}
-      <View style={{ flex: 1, gap: 3 }}><Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '800', fontSize: 14 }}>{target?.name || 'حساب مستخدم'}</Text><Text style={{ textAlign: 'right', color: colors.muted, fontSize: 12 }}>{target?.city || 'الموقع غير محدد'}</Text></View>
-      <Text style={{ color: colors.brand, fontSize: 20 }}>‹</Text>
+      {target?.avatarUrl ? <Image source={{ uri: target.avatarUrl }} style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.border }} /> : <View style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}><Text style={{ color: colors.brandOnSoft, fontWeight: '900', fontSize: fontSizes[18] }}>{(target?.name || '?').slice(0, 1)}</Text></View>}
+      <View style={{ flex: 1, gap: 3 }}><Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '800', fontSize: fontSizes[14] }}>{target?.name || 'حساب مستخدم'}</Text><Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>{target?.city || 'الموقع غير محدد'}</Text></View>
+      <Text style={{ color: colors.brand, fontSize: fontSizes[20] }}>‹</Text>
     </Pressable>; })}
     {!loading && !error && (meta?.totalPages ?? 1) > 1 ? <View style={{ flexDirection: 'row-reverse', gap: spacing.sm }}><PrimaryButton label="السابق" variant="secondary" disabled={page <= 1} onPress={() => void load(page - 1)} /><PrimaryButton label="التالي" variant="secondary" disabled={page >= (meta?.totalPages ?? 1)} onPress={() => void load(page + 1)} /></View> : null}
     <Notice tone="muted">هذه القائمة تخص الحسابات الشخصية التي تتابعها. المتاجر التي تتابعها تظهر في صفحة «المتاجر التي أتابعها».</Notice>

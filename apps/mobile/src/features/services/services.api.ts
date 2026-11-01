@@ -14,8 +14,8 @@ export type ServiceListing = {
 export type ServiceRequest = {
   id: string; listingId?: string; customerId?: string; details?: string; attachedImages?: string[]; status?: string; quotedPrice?: number | string | null; agreedPrice?: number | string | null; createdAt?: string; updatedAt?: string; respondedAt?: string | null; disputeReason?: string | null;
   appointment?: { id?: string; scheduledStart?: string; scheduledEnd?: string; status?: string; notes?: string | null } | null;
-  listing?: { id?: string; title?: string; description?: string | null; images?: string[]; price?: number | string | null; pricingType?: string; durationEstimate?: string | null; serviceType?: { capabilities?: Record<string, unknown> | null } | null; provider?: { id?: string; businessName?: string | null; sellerProfile?: { userId?: string; displayName?: string | null } | null } | null } | null; customer?: { id?: string; name?: string; displayName?: string; avatarUrl?: string | null } | null;
-  provider?: { businessName?: string; sellerProfile?: { userId?: string; displayName?: string | null } } | null;
+  listing?: { id?: string; title?: string; description?: string | null; images?: string[]; price?: number | string | null; pricingType?: string; durationEstimate?: string | null; serviceType?: { capabilities?: Record<string, unknown> | null } | null; provider?: { id?: string; businessName?: string | null; sellerProfile?: { id?: string; userId?: string; displayName?: string | null } | null } | null } | null; customer?: { id?: string; name?: string; displayName?: string; avatarUrl?: string | null } | null;
+  provider?: { businessName?: string; sellerProfile?: { id?: string; userId?: string; displayName?: string | null } } | null;
 };
 function readData<T>(response: Envelope<T>, fallback: string): T {
   if (!response || response.success !== true || response.data === undefined) throw new Error(response?.message || fallback);
@@ -75,11 +75,13 @@ export async function fetchServiceRequest(id: string, token: string): Promise<Se
   return item;
 }
 
-export async function fetchServiceRequests(token: string, incoming = false): Promise<ServiceRequest[]> {
-  const response = await apiRequest<Envelope<ServiceRequest[]>>(`/api/v1/service-requests/${incoming ? 'incoming' : 'me'}?page=1&limit=50`, { token });
+export async function fetchServiceRequests(token: string, incoming = false, page = 1, limit = 50): Promise<{ items: ServiceRequest[]; page: number; totalPages: number; total: number }> {
+  const safeLimit = Math.min(50, Math.max(1, limit));
+  const response = await apiRequest<Envelope<ServiceRequest[]>>(`/api/v1/service-requests/${incoming ? 'incoming' : 'me'}?page=${page}&limit=${safeLimit}`, { token });
   const items = readData(response, 'تعذر تحميل طلبات الخدمات.');
   if (!Array.isArray(items)) throw new Error('استجابة الطلبات غير صالحة.');
-  return items;
+  const pagination = response.meta?.pagination;
+  return { items, page: pagination?.page ?? page, totalPages: pagination?.totalPages ?? (items.length >= safeLimit ? page + 1 : page), total: pagination?.total ?? items.length };
 }
 export async function createServiceRequest(listingId: string, details: string, token: string, csrfToken?: string | null): Promise<ServiceRequest> {
   const response = await apiRequest<Envelope<ServiceRequest>>('/api/v1/service-requests', {
@@ -112,11 +114,22 @@ export async function fetchServiceCategoryOptions(): Promise<ServiceCategoryOpti
     throw error;
   }
 }
-export async function fetchMyServiceListings(token: string): Promise<ServiceListing[]> {
-  const response = await apiRequest<Envelope<ServiceListing[]>>('/api/v1/service-listings/me?page=1&limit=50&sortBy=createdAt&sortOrder=desc', { token });
+export async function fetchMyServiceListingsPage(token: string, page = 1, limit = 30): Promise<{ items: ServiceListing[]; page: number; totalPages: number; total: number }> {
+  const safePage = Math.max(1, Math.floor(page));
+  const safeLimit = Math.min(50, Math.max(1, Math.floor(limit)));
+  const response = await apiRequest<Envelope<ServiceListing[]>>(`/api/v1/service-listings/me?page=${safePage}&limit=${safeLimit}&sortBy=createdAt&sortOrder=desc`, { token });
   const items = readData(response, 'تعذر تحميل خدماتك.');
   if (!Array.isArray(items)) throw new Error('استجابة خدماتك غير صالحة.');
-  return items;
+  const pagination = response.meta?.pagination;
+  return {
+    items,
+    page: pagination?.page ?? safePage,
+    totalPages: pagination?.totalPages ?? (items.length >= safeLimit ? safePage + 1 : safePage),
+    total: pagination?.total ?? items.length,
+  };
+}
+export async function fetchMyServiceListings(token: string): Promise<ServiceListing[]> {
+  return (await fetchMyServiceListingsPage(token, 1, 50)).items;
 }
 export async function createMyServiceListing(input: { categoryId: string; title: string; description: string; pricingType: 'FIXED'|'STARTING_FROM'|'NEGOTIABLE'; price?: number; durationEstimate?: string; serviceLocation: 'AT_CUSTOMER'|'AT_PROVIDER'|'REMOTE' }, token: string, csrfToken?: string | null, offlineOperationId?: string, images: Array<{uri:string;fileName:string;mimeType:string}> = []): Promise<ServiceListing> {
   const headers = { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), ...(offlineOperationId ? { 'X-Offline-Op-Id': offlineOperationId } : {}) };

@@ -1,5 +1,7 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
@@ -10,7 +12,7 @@ import {
   type CustomerSummary,
 } from '@/features/sales/sales-extra.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors, spacing } from '@/theme/tokens';
+import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 
 const money = (n: unknown) =>
@@ -180,7 +182,7 @@ export default function CustomersScreen() {
         ListEmptyComponent={!loading ? <Notice tone="muted">لا يوجد عملاء بعد.</Notice> : undefined}
         renderItem={({ item }) => (
           <SectionCard>
-            <Text style={{ textAlign: 'right', fontSize: 16, fontWeight: '900', color: colors.ink }}>{item.name}</Text>
+            <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }}>{item.name}</Text>
             {item.phone ? (
               <Text style={{ textAlign: 'right', color: colors.muted }}>{item.phone}</Text>
             ) : null}
@@ -193,7 +195,7 @@ export default function CustomersScreen() {
               </Text>
             ) : null}
             {item.totalDue != null ? <Text style={{ textAlign: 'right', color: colors.muted }}>المبلغ المستحق: {money(item.totalDue)}</Text> : null}
-            {item.purchaseCount != null ? <Text style={{ textAlign: 'right', color: colors.muted, fontSize: 12 }}>عدد المشتريات: {item.purchaseCount}</Text> : null}
+            {item.purchaseCount != null ? <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>عدد المشتريات: {item.purchaseCount}</Text> : null}
           </SectionCard>
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}

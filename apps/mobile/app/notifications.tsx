@@ -1,5 +1,7 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { denseListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,7 +19,7 @@ import {
   ErrorState,
   LoadingState,
 } from '@/components/MobileUI';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
 
 function destination(item: AppNotification): string | null {
@@ -321,11 +323,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconUnread: { backgroundColor: colors.surface },
-  icon: { fontSize: 19 },
+  icon: { fontSize: fontSizes[19] },
   bodyWrap: { flex: 1, gap: 5 },
   itemTitle: { ...typography.bodyStrong, color: colors.ink, textAlign: 'right' },
   body: { ...typography.caption, color: colors.muted, textAlign: 'right', lineHeight: 20 },
-  time: { fontSize: 10, color: colors.muted, textAlign: 'right', marginTop: 2 },
+  time: { fontSize: fontSizes[10], color: colors.muted, textAlign: 'right', marginTop: 2 },
   dot: {
     width: 8,
     height: 8,

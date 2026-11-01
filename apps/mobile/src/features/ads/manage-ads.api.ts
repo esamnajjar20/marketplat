@@ -46,8 +46,20 @@ function requireEnvelopeData<T>(response: Envelope<T>, fallback: string): T {
 }
 
 export type ManagedAdPage = { items: ManagedAd[]; page: number; totalPages: number; total: number };
-export async function fetchMyAdsPage(token: string, page = 1, limit = 30): Promise<ManagedAdPage> {
-  const response = await apiRequest<Envelope<ManagedAd[]>>(`/api/v1/ads/me?limit=${limit}&page=${page}`, { token });
+/** Refresh page one without losing previously loaded pages or duplicating rows. */
+export function mergeRefreshedAdsPage(
+  existing: ManagedAd[],
+  refreshedFirstPage: ManagedAd[],
+  totalPages: number,
+  pageSize = 30,
+): ManagedAd[] {
+  const firstPageIds = new Set(refreshedFirstPage.map((item) => item.id));
+  const merged = [...refreshedFirstPage, ...existing.filter((item) => !firstPageIds.has(item.id))];
+  const maxRetained = Math.max(refreshedFirstPage.length, Math.max(0, totalPages) * pageSize);
+  return merged.slice(0, maxRetained);
+}
+export async function fetchMyAdsPage(token: string, page = 1, limit = 30, signal?: AbortSignal): Promise<ManagedAdPage> {
+  const response = await apiRequest<Envelope<ManagedAd[]>>(`/api/v1/ads/me?limit=${limit}&page=${page}`, { token, signal });
   const data = requireEnvelopeData(response, 'استجابة إعلاناتك من الخادم غير متوقعة.');
   if (!Array.isArray(data)) throw new Error('قائمة إعلاناتك غير صالحة.');
   const pagination = response.meta?.pagination;

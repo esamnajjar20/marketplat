@@ -1,5 +1,6 @@
+import { AppText as Text } from '@/components/ui/AppText';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Text } from 'react-native';
+import { ActivityIndicator, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { PageShell, Notice, SectionCard, PrimaryButton } from '@/components/MobileUI';
 import { decodeSharedPayload, sharedPayloadFromUrl, type SharedPayload } from '@/features/sharing/shared-payload';

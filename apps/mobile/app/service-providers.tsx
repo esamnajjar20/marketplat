@@ -1,9 +1,11 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
 import { fetchServiceProviders, type ProviderSummary } from '@/features/services/providers.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors, spacing } from '@/theme/tokens';
+import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { RatingStars } from '@/components/ui/RatingStars';
 
@@ -96,14 +98,14 @@ export default function ServiceProvidersScreen() {
         renderItem={({ item: p }) => (
           <Pressable onPress={() => router.push({ pathname: '/service-providers/[id]', params: { id: p.id } })}>
             <SectionCard>
-              <Text style={{ textAlign: 'right', fontSize: 18, fontWeight: '900', color: colors.ink }}>
+              <Text style={{ textAlign: 'right', fontSize: fontSizes[18], fontWeight: '900', color: colors.ink }}>
                 {p.businessName || p.sellerProfile?.displayName || 'مقدم خدمة'}
               </Text>
               <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 21 }} numberOfLines={3}>
                 {p.description || 'لا يوجد وصف.'}
               </Text>
               <RatingStars score={p.sellerProfile?.averageRating} count={p.sellerProfile?.totalRatings} />
-              <Text style={{ textAlign: 'right', color: colors.muted, fontSize: 13 }}>
+              <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[13] }}>
                 مناطق الخدمة: {p.serviceAreaCities?.join('، ') || 'غير محددة'}
               </Text>
               <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '800' }}>عرض الملف والخدمات ←</Text>

@@ -1,9 +1,11 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fetchPublicCollections, type StoreCollection } from '@/features/commerce/store-management.api';
 import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
-import { colors, spacing } from '@/theme/tokens';
+import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 
@@ -55,7 +57,7 @@ export default function PublicStoreCollectionsScreen() {
               {item.imageUrl ? (
                 <AppImage uri={item.imageUrl} style={{ width: '100%', height: 140, borderRadius: 12 }} resizeMode="cover" />
               ) : null}
-              <Text style={{ textAlign: 'right', fontSize: 17, fontWeight: '900', color: colors.ink }}>{item.name}</Text>
+              <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '900', color: colors.ink }}>{item.name}</Text>
               <Text style={{ textAlign: 'right', color: colors.muted }}>
                 {item.description || 'مجموعة منتجات'} · {item._count?.products ?? 0} منتج
               </Text>

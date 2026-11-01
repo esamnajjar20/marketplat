@@ -1,3 +1,4 @@
+import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
@@ -15,7 +16,7 @@ import {
   SectionCard,
 } from '@/components/MobileUI';
 import { colors, spacing, typography } from '@/theme/tokens';
-import { Text } from 'react-native';
+
 
 const typeLabel: Record<string, string> = {
   SERVICE: 'خدمة',

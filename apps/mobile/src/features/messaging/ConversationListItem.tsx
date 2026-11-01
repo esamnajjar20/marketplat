@@ -1,7 +1,9 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { memo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import type { ConversationItem } from '@/features/messaging/messaging.api';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
 
 type ConversationListItemProps = {
   item: ConversationItem;
@@ -84,11 +86,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: colors.brand, fontWeight: '900', fontSize: 16 },
+  avatarText: { color: colors.brandOnSoft, fontWeight: '900', fontSize: fontSizes[16] },
   cardBody: { flex: 1, gap: 4 },
   actions: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 8, marginTop: 6 },
   action: { minHeight: 34, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.controlBorder },
-  actionText: { color: colors.brand, fontSize: 12, fontWeight: '800' },
+  actionText: { color: colors.brand, fontSize: fontSizes[12], fontWeight: '800' },
   cardTop: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   name: { ...typography.bodyStrong, color: colors.ink, flex: 1, textAlign: 'right' },
   preview: { ...typography.caption, color: colors.muted, textAlign: 'right', lineHeight: 18 },
@@ -101,7 +103,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeText: { color: colors.white, fontSize: 11, fontWeight: '900' },
+  badgeText: { color: colors.white, fontSize: fontSizes[11], fontWeight: '900' },
 });
 
 export default memo(ConversationListItemView);

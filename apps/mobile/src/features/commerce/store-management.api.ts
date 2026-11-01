@@ -25,3 +25,18 @@ export async function removeStoreMember(storeId: string, memberId: string, token
 export async function fetchMyStoreInvites(token: string): Promise<StoreMember[]> { const a = unwrap(await apiRequest<Envelope<StoreMember[]>>('/api/v1/stores/me/member-invites', { token }), 'تعذر تحميل الدعوات.'); if (!Array.isArray(a)) throw new Error('استجابة القائمة غير صالحة.'); return a; }
 export async function acceptStoreInvite(memberId: string, token: string, csrfToken?: string | null): Promise<StoreMember> { return unwrap(await apiRequest<Envelope<StoreMember>>(`/api/v1/stores/me/member-invites/${encodeURIComponent(memberId)}/accept`, { method: 'POST', token, headers: headers(csrfToken), body: JSON.stringify({}) }), 'تعذر قبول الدعوة.'); }
 export async function saveStoreHours(workingHours: Record<'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat', { open: string; close: string } | null>, token: string, csrfToken?: string | null): Promise<StoreSummary> { return unwrap(await apiRequest<Envelope<StoreSummary>>('/api/v1/stores/me', { method: 'PATCH', token, headers: headers(csrfToken), body: JSON.stringify({ workingHours }) }), 'تعذر حفظ ساعات العمل.'); }
+
+
+export type StoreMembership = {
+  id: string;
+  role: StoreMember['role'];
+  status: 'ACTIVE';
+  invitedAt?: string;
+  acceptedAt?: string | null;
+  store: { id: string; name: string; slug?: string | null; status?: string; city?: string | null; logoUrl?: string | null; coverImageUrl?: string | null };
+};
+export async function fetchMyActiveStoreMemberships(token: string): Promise<StoreMembership[]> {
+  const items = unwrap(await apiRequest<Envelope<StoreMembership[]>>('/api/v1/stores/me/memberships', { token }), 'تعذر تحميل المتاجر التي تعمل بها.');
+  if (!Array.isArray(items)) throw new Error('استجابة المتاجر التي تعمل بها غير صالحة.');
+  return items.filter((item) => item?.status === 'ACTIVE' && typeof item.store?.id === 'string');
+}

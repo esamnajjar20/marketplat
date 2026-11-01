@@ -1,10 +1,12 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyActivity, type ActivityRow } from '@/features/sales/sales-extra.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors, spacing } from '@/theme/tokens';
+import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { denseListPerf } from '@/lib/listPerformance';
 
 const groups = [
@@ -135,7 +137,7 @@ export default function ActivityScreen() {
                     borderColor: group === v ? colors.brand : colors.border,
                   }}
                 >
-                  <Text style={{ color: group === v ? colors.white : colors.ink, fontSize: 13, fontWeight: '800' }}>
+                  <Text style={{ color: group === v ? colors.white : colors.ink, fontSize: fontSizes[13], fontWeight: '800' }}>
                     {label}
                   </Text>
                 </Pressable>
@@ -151,15 +153,15 @@ export default function ActivityScreen() {
         }
         renderItem={({ item }) => (
           <SectionCard>
-            <Text style={{ textAlign: 'right', fontSize: 16, fontWeight: '900', color: colors.ink }}>{item.title}</Text>
+            <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }}>{item.title}</Text>
             {item.description ? (
               <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 22 }}>{item.description}</Text>
             ) : null}
-            <Text style={{ textAlign: 'right', fontSize: 11, color: colors.muted }}>
+            <Text style={{ textAlign: 'right', fontSize: fontSizes[11], color: colors.muted }}>
               {activityLabels[item.type] || 'نشاط مسجل'} · {dateLabel(item.createdAt)}
             </Text>
             {item.entityType && item.entityId ? (
-              <Text style={{ textAlign: 'right', color: colors.brand, fontSize: 12 }}>
+              <Text style={{ textAlign: 'right', color: colors.brand, fontSize: fontSizes[12] }}>
                 النوع المرتبط: {entityLabels[item.entityType.toUpperCase()] || 'عنصر مرتبط'}
               </Text>
             ) : null}

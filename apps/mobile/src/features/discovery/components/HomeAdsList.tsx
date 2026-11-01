@@ -1,7 +1,9 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 /**
  * قائمة إعلانات الرئيسية — مستخرجة لتقليل حجم app/index.tsx.
  */
-import { ActivityIndicator, FlatList, Pressable, Text, View, StyleSheet } from 'react-native';
+import { ActivityIndicator, FlatList, View, StyleSheet } from 'react-native';
 import { AdCard } from '@/components/MarketCards';
 import { adListProps } from '@/lib/listPerformance';
 import { openScreen } from '@/lib/navigation';
@@ -85,5 +87,5 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     alignItems: 'center',
   },
-  loadMoreText: { color: colors.brand, fontWeight: '800' },
+  loadMoreText: { color: colors.brandOnSoft, fontWeight: '800' },
 });

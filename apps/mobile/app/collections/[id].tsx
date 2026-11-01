@@ -1,10 +1,12 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, Pressable, Text, View } from 'react-native';
+import { FlatList, View } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { fetchPublicCollectionProducts } from '@/features/commerce/store-management.api';
 import type { ProductSummary } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
-import { colors, spacing } from '@/theme/tokens';
+import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 import { formatSafeDate } from '@/lib/date-format';
@@ -55,7 +57,7 @@ export default function CollectionProductsScreen() {
               {item.images?.[0] ? (
                 <AppImage uri={item.images[0]} style={{ width: '100%', height: 160, borderRadius: 12 }} resizeMode="cover" />
               ) : null}
-              <Text style={{ textAlign: 'right', fontSize: 16, fontWeight: '900', color: colors.ink }}>{item.name}</Text>
+              <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }}>{item.name}</Text>
               <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '900' }}>
                 {(() => { const value = Number(item.effectivePrice?.price ?? item.discountPrice ?? item.price); return Number.isFinite(value) ? `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(value)} ₪` : 'السعر غير متاح'; })()}
               </Text>

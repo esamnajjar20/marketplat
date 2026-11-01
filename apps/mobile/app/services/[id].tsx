@@ -1,5 +1,7 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   fetchServiceListing,
@@ -13,7 +15,7 @@ import {
   PrimaryButton,
   SectionCard,
 } from '@/components/MobileUI';
-import { colors, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, spacing, typography } from '@/theme/tokens';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { RatingStars } from '@/components/ui/RatingStars';
 
@@ -174,13 +176,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   title: {
-    fontSize: 22,
+    fontSize: fontSizes[22],
     fontWeight: '900',
     color: colors.ink,
     textAlign: 'right',
     lineHeight: 30,
   },
-  price: { fontSize: 22, fontWeight: '900', color: colors.brand, textAlign: 'right' },
+  price: { fontSize: fontSizes[22], fontWeight: '900', color: colors.brand, textAlign: 'right' },
   provider: { ...typography.bodyStrong, color: colors.ink, textAlign: 'right' },
   meta: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   sectionTitle: { ...typography.subtitle, color: colors.ink, textAlign: 'right' },

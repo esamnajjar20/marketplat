@@ -1,8 +1,10 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
 import { SectionHeader } from '@/components/MobileUI';
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
@@ -48,17 +50,17 @@ function MarketplaceSectionHeader({ title, subtitle, onAll }: { title: string; s
 }
 function EmptySection({ label, offline }: { label: string; offline: boolean }) {
   return <View style={{ minHeight: 68, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surface, padding: spacing.md, justifyContent: 'center' }}>
-    <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'right', lineHeight: 19 }}>{offline ? `لا توجد نسخة محفوظة من ${label} على هذا الجهاز بعد. افتح القسم أثناء الاتصال ليبقى متاحًا لاحقًا.` : `لا توجد عناصر ${label} للعرض حاليًا.`}</Text>
+    <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right', lineHeight: 19 }}>{offline ? `لا توجد نسخة محفوظة من ${label} على هذا الجهاز بعد. افتح القسم أثناء الاتصال ليبقى متاحًا لاحقًا.` : `لا توجد عناصر ${label} للعرض حاليًا.`}</Text>
   </View>;
 }
 function MiniCard({ title, subtitle, image, price, glyph, onPress }: { title: string; subtitle: string; image?: string | null; price?: string | null; glyph: string; onPress: () => void }) {
   const [imageFailed, setImageFailed] = useState(false);
   return <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} style={{ width: 158, minHeight: 190, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface, overflow: 'hidden' }}>
-    {image && !imageFailed ? <AppImage uri={image} onError={() => setImageFailed(true)} resizeMode="cover" style={{ width: '100%', height: 88, backgroundColor: colors.brandSoft }} /> : <View style={{ width: '100%', height: 88, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}><Text style={{ color: colors.brand, fontSize: 30, fontWeight: '900' }}>{glyph}</Text></View>}
+    {image && !imageFailed ? <AppImage uri={image} onError={() => setImageFailed(true)} resizeMode="cover" style={{ width: '100%', height: 88, backgroundColor: colors.brandSoft }} /> : <View style={{ width: '100%', height: 88, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}><Text style={{ color: colors.brandOnSoft, fontSize: fontSizes[30], fontWeight: '900' }}>{glyph}</Text></View>}
     <View style={{ flex: 1, padding: spacing.sm, gap: 5, alignItems: 'flex-end' }}>
-      <Text numberOfLines={2} style={{ width: '100%', minHeight: 36, color: colors.ink, fontSize: 13, lineHeight: 18, fontWeight: '800', textAlign: 'right' }}>{title}</Text>
-      <Text numberOfLines={1} style={{ width: '100%', color: colors.muted, fontSize: 11, textAlign: 'right' }}>{subtitle}</Text>
-      {price ? <Text numberOfLines={1} style={{ color: colors.brand, fontSize: 12, fontWeight: '900', textAlign: 'right' }}>{price}</Text> : null}
+      <Text numberOfLines={2} style={{ width: '100%', minHeight: 36, color: colors.ink, fontSize: fontSizes[13], lineHeight: 18, fontWeight: '800', textAlign: 'right' }}>{title}</Text>
+      <Text numberOfLines={1} style={{ width: '100%', color: colors.muted, fontSize: fontSizes[11], textAlign: 'right' }}>{subtitle}</Text>
+      {price ? <Text numberOfLines={1} style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: '900', textAlign: 'right' }}>{price}</Text> : null}
     </View>
   </Pressable>;
 }
@@ -151,15 +153,15 @@ export default function HomeMarketplaceSections() {
       {hasRequests ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row-reverse', gap: spacing.sm, paddingVertical: 2 }}>{data.requests.map((item) => <MiniCard key={item.id} title={item.title} subtitle={[item.city, item.type === 'SERVICE' ? 'طلب خدمة' : item.type === 'PRODUCT' ? 'طلب منتج' : 'طلب استئجار'].filter(Boolean).join(' · ')} price={item.budgetMax ? `حتى ${money(item.budgetMax)}` : item.budgetMin ? `من ${money(item.budgetMin)}` : null} glyph="▤" onPress={() => router.push({ pathname: '/requests/[id]', params: { id: item.id } })} />)}</ScrollView> : loaded.requests ? <EmptySection label="طلبات السوق" offline={offline} /> : <EmptySection label="طلبات السوق" offline />}
     </View>
     {user ? <View style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.md, gap: spacing.sm }}>
-      <Text style={{ color: colors.ink, fontSize: 16, fontWeight: '900', textAlign: 'right' }}>تابع طلباتك ومشترياتك</Text>
-      <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 19, textAlign: 'right' }}>وصل سريع للطلبات التي أنشأتها، وطلبات الشراء ومتابعة حالتها دون استعلامات إضافية من الرئيسية.</Text>
+      <Text style={{ color: colors.ink, fontSize: fontSizes[16], fontWeight: '900', textAlign: 'right' }}>تابع طلباتك ومشترياتك</Text>
+      <Text style={{ color: colors.muted, fontSize: fontSizes[12], lineHeight: 19, textAlign: 'right' }}>وصل سريع للطلبات التي أنشأتها، وطلبات الشراء ومتابعة حالتها دون استعلامات إضافية من الرئيسية.</Text>
       <View style={{ flexDirection: 'row-reverse', gap: spacing.sm }}>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/orders')} style={{ flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.white, fontSize: 12, fontWeight: '800' }}>طلباتي ومشترياتي</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push('/my-requests')} style={{ flex: 1, minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.brand, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontSize: 12, fontWeight: '800' }}>طلبات السوق التي أنشأتها</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/orders')} style={{ flex: 1, minHeight: 44, borderRadius: radius.md, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.white, fontSize: fontSizes[12], fontWeight: '800' }}>طلباتي ومشترياتي</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/my-requests')} style={{ flex: 1, minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.brand, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: '800' }}>طلبات السوق التي أنشأتها</Text></Pressable>
       </View>
     </View> : <Pressable accessibilityRole="button" onPress={() => router.push('/login')} style={{ borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.md, gap: spacing.xs }}>
-      <Text style={{ color: colors.ink, fontSize: 15, fontWeight: '900', textAlign: 'right' }}>ابدأ بإدارة طلباتك</Text>
-      <Text style={{ color: colors.brand, fontSize: 12, fontWeight: '800', textAlign: 'right' }}>سجّل الدخول لمتابعة مشترياتك وطلباتك ←</Text>
+      <Text style={{ color: colors.ink, fontSize: fontSizes[15], fontWeight: '900', textAlign: 'right' }}>ابدأ بإدارة طلباتك</Text>
+      <Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: '800', textAlign: 'right' }}>سجّل الدخول لمتابعة مشترياتك وطلباتك ←</Text>
     </Pressable>}
   </View>;
 }

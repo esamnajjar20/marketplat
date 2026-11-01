@@ -1,7 +1,9 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
-import { Pressable, Text, View } from 'react-native';
+import { View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ApiError } from '@/api/client';

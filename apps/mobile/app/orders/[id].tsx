@@ -1,5 +1,6 @@
+import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   fetchMarketplaceOrder,
@@ -14,7 +15,7 @@ import {
   PrimaryButton,
   SectionCard,
 } from '@/components/MobileUI';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
 import { AppImage } from '@/components/AppImage';
 
 const labels: Record<string, string> = {
@@ -226,7 +227,7 @@ const styles = StyleSheet.create({
   },
   value: { ...typography.captionStrong, color: colors.ink, textAlign: 'right', flexShrink: 1 },
   totalLabel: { ...typography.bodyStrong, color: colors.ink },
-  total: { fontSize: 19, fontWeight: '900', color: colors.brand },
+  total: { fontSize: fontSizes[19], fontWeight: '900', color: colors.brand },
   sectionTitle: { ...typography.subtitle, color: colors.ink, textAlign: 'right' },
   errorInline: { ...typography.caption, color: colors.danger, textAlign: 'right' },
 });

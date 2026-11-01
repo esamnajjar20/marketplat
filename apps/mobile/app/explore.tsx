@@ -1,4 +1,5 @@
-import { FlatList, Text, View } from 'react-native';
+import { AppText as Text } from '@/components/ui/AppText';
+import { FlatList, View } from 'react-native';
 import { router } from 'expo-router';
 import { ListRow, PageShell, SectionHeader } from '@/components/MobileUI';
 import { colors, spacing, typography } from '@/theme/tokens';

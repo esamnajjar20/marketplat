@@ -1,5 +1,7 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, Text, View } from 'react-native';
+import { Alert, FlatList, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
@@ -9,7 +11,7 @@ import {
   type SavedSearch,
 } from '@/features/account/saved-searches.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors, spacing } from '@/theme/tokens';
+import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { marketListPerf } from '@/lib/listPerformance';
 
@@ -132,7 +134,7 @@ export default function SavedSearchesScreen() {
           ListHeaderComponent={
             <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
               <SectionCard>
-                <Text style={{ textAlign: 'right', fontWeight: '900', fontSize: 18, color: colors.ink }}>
+                <Text style={{ textAlign: 'right', fontWeight: '900', fontSize: fontSizes[18], color: colors.ink }}>
                   حفظ بحث جديد
                 </Text>
                 <Field
@@ -188,7 +190,7 @@ export default function SavedSearchesScreen() {
                 </View>
                 <PrimaryButton label="حفظ البحث" onPress={() => void save()} busy={busy} />
               </SectionCard>
-              <Text style={{ textAlign: 'right', fontSize: 19, fontWeight: '900', color: colors.ink }}>
+              <Text style={{ textAlign: 'right', fontSize: fontSizes[19], fontWeight: '900', color: colors.ink }}>
                 عمليات البحث المحفوظة
               </Text>
               {loading ? <Notice tone="muted">جارٍ تحميل عمليات البحث…</Notice> : null}

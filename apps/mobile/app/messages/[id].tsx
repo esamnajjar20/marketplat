@@ -1,5 +1,7 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder } from 'expo-audio';
@@ -14,7 +16,7 @@ import { discardFailedChatMessage, enqueueChatMessage, listChatMessagesForConver
 import { subscribeChatOutboxSent, syncChatMessageOutbox } from '@/features/messaging/chat-message-outbox-sync';
 import { subscribeChatLiveStream, type ChatLiveEvent } from '@/features/messaging/chat-live-stream';
 import { markCachedChatMessageDeleted, readCachedChatMessages, saveCachedChatMessages } from '@/storage/chat-message-cache';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
 import ConversationMessageRow, { type ConversationScreenMessage } from '@/features/messaging/ConversationMessageRow';
 
 type ScreenMessage = ConversationScreenMessage;
@@ -383,7 +385,7 @@ export default function ConversationScreen() {
   const other = conversation && user ? (conversation.buyerId === user.id ? conversation.seller : conversation.buyer) : null;
   return <SafeAreaView style={styles.safe} edges={['top','bottom']}><KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <View style={styles.header}><Pressable onPress={() => router.back()} accessibilityRole="button"><Text style={styles.link}>رجوع</Text></Pressable><View style={styles.headerCenter}><Text numberOfLines={1} style={styles.heading}>{other?.name || 'المحادثة'}</Text>{conversation?.ad?.title ? <Text numberOfLines={1} style={styles.context}>{conversation.ad.title}</Text> : null}{partyTyping ? <Text style={styles.typing}>يكتب الآن…</Text> : null}</View><Pressable onPress={() => setSearchOpen(value => !value)} accessibilityRole="button"><Text style={styles.link}>{searchOpen ? 'إغلاق البحث' : 'بحث'}</Text></Pressable></View>
-    {searchOpen ? <View style={styles.searchBar}><TextInput accessibilityLabel="البحث في الرسائل المحمّلة" value={messageSearch} onChangeText={setMessageSearch} placeholder="ابحث في الرسائل المحمّلة…" placeholderTextColor={colors.muted} style={styles.searchInput} textAlign="right"/><Text style={styles.searchCount}>{normalizedSearch ? `${visibleMessages.length} نتيجة` : 'بحث محلي دون طلبات إضافية'}</Text></View> : null}
+    {searchOpen ? <View style={styles.searchBar}><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="البحث في الرسائل المحمّلة" value={messageSearch} onChangeText={setMessageSearch} placeholder="ابحث في الرسائل المحمّلة…" placeholderTextColor={colors.muted} style={styles.searchInput} textAlign="right"/><Text style={styles.searchCount}>{normalizedSearch ? `${visibleMessages.length} نتيجة` : 'بحث محلي دون طلبات إضافية'}</Text></View> : null}
     {loading ? <View style={styles.center}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جاري تحميل الرسائل…</Text></View> : error ? <View style={styles.center}><Text style={styles.title}>تعذر فتح المحادثة</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void load()}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View> : <>
       <FlatList ref={listRef} data={visibleMessages} keyExtractor={(item) => item.id} contentContainerStyle={styles.messages} keyboardShouldPersistTaps="handled" maintainVisibleContentPosition={{ minIndexForVisible: 0 }} onContentSizeChange={() => { if (!initialScrollDone.current && messages.length > 0) requestAnimationFrame(() => requestAnimationFrame(() => { if (initialScrollDone.current || loadingOlder || userScrolledAway.current) return; listRef.current?.scrollToEnd({ animated: false }); initialScrollDone.current = true; })); }} onScroll={(event) => { const offset = event.nativeEvent.contentOffset.y; const distanceFromBottom = event.nativeEvent.contentSize.height - event.nativeEvent.layoutMeasurement.height - offset; userScrolledAway.current = distanceFromBottom > 120; if (offset <= 40) void loadOlder(); }} scrollEventThrottle={250} ListHeaderComponent={loadingOlder ? <ActivityIndicator size="small" color={colors.brand} /> : nextCursor ? <Text style={styles.olderHint}>اسحب إلى الأعلى لتحميل الرسائل الأقدم</Text> : undefined} ListEmptyComponent={<Text style={styles.muted}>لا توجد رسائل بعد. ابدأ المحادثة برسالة واضحة.</Text>} renderItem={({ item }) => (
         <ConversationMessageRow
@@ -394,7 +396,7 @@ export default function ConversationScreen() {
           onDiscard={confirmDiscardFailedMessage}
         />
       )} />
-      <>{pendingMediaCount > 0 ? <Text style={styles.pendingMedia}>مرفقات محفوظة للإرسال: {pendingMediaCount}</Text> : null}<View style={styles.composer}><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void chooseAndSendImage()} style={[styles.attach, uploadingImage && styles.disabled]}><Text style={styles.attachText}>{uploadingImage ? '…' : '＋ صورة'}</Text></Pressable><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void chooseAndSendFile()} style={[styles.attach, uploadingImage && styles.disabled]}><Text style={styles.attachText}>＋ ملف</Text></Pressable><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void toggleAudioRecording()} style={[styles.attach, isRecordingAudio && styles.recording, uploadingImage && styles.disabled]}><Text style={styles.attachText}>{isRecordingAudio ? '■ إيقاف' : '🎙 صوت'}</Text></Pressable><TextInput value={draft} onChangeText={setDraft} placeholder="اكتب رسالتك…" placeholderTextColor={colors.muted} multiline maxLength={2000} textAlign="right" style={styles.input} accessibilityLabel="نص الرسالة"/><Pressable accessibilityRole="button" disabled={!draft.trim() || sending} onPress={() => void submit()} style={[styles.send, (!draft.trim() || sending) && styles.disabled]}><Text style={styles.sendText}>{sending ? '…' : 'إرسال'}</Text></Pressable></View></>
+      <>{pendingMediaCount > 0 ? <Text style={styles.pendingMedia}>مرفقات محفوظة للإرسال: {pendingMediaCount}</Text> : null}<View style={styles.composer}><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void chooseAndSendImage()} style={[styles.attach, uploadingImage && styles.disabled]}><Text style={styles.attachText}>{uploadingImage ? '…' : '＋ صورة'}</Text></Pressable><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void chooseAndSendFile()} style={[styles.attach, uploadingImage && styles.disabled]}><Text style={styles.attachText}>＋ ملف</Text></Pressable><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void toggleAudioRecording()} style={[styles.attach, isRecordingAudio && styles.recording, uploadingImage && styles.disabled]}><Text style={styles.attachText}>{isRecordingAudio ? '■ إيقاف' : '🎙 صوت'}</Text></Pressable><TextInput allowFontScaling maxFontSizeMultiplier={1.3} value={draft} onChangeText={setDraft} placeholder="اكتب رسالتك…" placeholderTextColor={colors.muted} multiline maxLength={2000} textAlign="right" style={styles.input} accessibilityLabel="نص الرسالة"/><Pressable accessibilityRole="button" disabled={!draft.trim() || sending} onPress={() => void submit()} style={[styles.send, (!draft.trim() || sending) && styles.disabled]}><Text style={styles.sendText}>{sending ? '…' : 'إرسال'}</Text></Pressable></View></>
     </>}
   </KeyboardAvoidingView></SafeAreaView>;
 }
@@ -413,7 +415,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   headerCenter: { flex: 1, alignItems: 'center' },
-  typing: { fontSize: 10, color: colors.brand, marginTop: 2 },
+  typing: { fontSize: fontSizes[10], color: colors.brand, marginTop: 2 },
   searchBar: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -431,17 +433,17 @@ const styles = StyleSheet.create({
     color: colors.ink,
     backgroundColor: colors.canvas,
   },
-  searchCount: { fontSize: 10, color: colors.muted, textAlign: 'right' },
-  heading: { fontSize: 16, fontWeight: '900', color: colors.ink },
-  context: { fontSize: 11, color: colors.muted, marginTop: 2 },
+  searchCount: { fontSize: fontSizes[10], color: colors.muted, textAlign: 'right' },
+  heading: { fontSize: fontSizes[16], fontWeight: '900', color: colors.ink },
+  context: { fontSize: fontSizes[11], color: colors.muted, marginTop: 2 },
   link: { color: colors.brand, fontWeight: '800', padding: spacing.sm },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
-  title: { fontSize: 17, fontWeight: '900', color: colors.ink },
-  muted: { fontSize: 13, color: colors.muted, textAlign: 'center', lineHeight: 21 },
+  title: { fontSize: fontSizes[17], fontWeight: '900', color: colors.ink },
+  muted: { fontSize: fontSizes[13], color: colors.muted, textAlign: 'center', lineHeight: 21 },
   primary: { backgroundColor: colors.brand, borderRadius: radius.md, padding: spacing.md },
   primaryText: { color: colors.white, fontWeight: '800' },
   messages: { padding: spacing.md, gap: spacing.sm, flexGrow: 1, justifyContent: 'flex-end' },
-  olderHint: { fontSize: 11, color: colors.muted, textAlign: 'center', paddingVertical: spacing.sm },
+  olderHint: { fontSize: fontSizes[11], color: colors.muted, textAlign: 'center', paddingVertical: spacing.sm },
   attach: {
     minHeight: 44,
     alignItems: 'center',
@@ -452,9 +454,9 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.canvas,
   },
-  attachText: { fontSize: 12, fontWeight: '800', color: colors.brand },
+  attachText: { fontSize: fontSizes[12], fontWeight: '800', color: colors.brand },
   pendingMedia: {
-    fontSize: 11,
+    fontSize: fontSizes[11],
     color: colors.brand,
     textAlign: 'right',
     paddingHorizontal: spacing.md,

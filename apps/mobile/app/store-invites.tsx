@@ -1,11 +1,13 @@
+import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, Text, View } from 'react-native';
+import { Alert, FlatList, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
-import { acceptStoreInvite, fetchMyStoreInvites, type StoreMember } from '@/features/commerce/store-management.api';
+import { acceptStoreInvite, fetchMyStoreInvites, removeStoreMember, type StoreMember } from '@/features/commerce/store-management.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors, spacing } from '@/theme/tokens';
+import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
+import { roleLabel } from '@/lib/status-labels';
 
 export default function StoreInvitesScreen() {
   const { accessToken, csrfToken } = useAuth();
@@ -49,6 +51,21 @@ export default function StoreInvitesScreen() {
     }
   };
 
+  const decline = async (item: StoreMember) => {
+    if (!accessToken || !item.store?.id) return;
+    Alert.alert('رفض دعوة المتجر', `لن تنضم إلى «${item.store.name}». هل تريد رفض الدعوة؟`, [
+      { text: 'رجوع', style: 'cancel' },
+      { text: 'رفض الدعوة', style: 'destructive', onPress: () => {
+        setBusyId(item.id);
+        setError('');
+        void removeStoreMember(item.store!.id, item.id, accessToken, csrfToken)
+          .then(() => setItems((current) => current.filter((entry) => entry.id !== item.id)))
+          .catch((e) => setError(e instanceof Error ? e.message : 'تعذر رفض الدعوة.'))
+          .finally(() => setBusyId(''));
+      } },
+    ]);
+  };
+
   return (
     <PageShell title="دعوات المتاجر" scroll={false}>
       {!accessToken ? (
@@ -71,13 +88,13 @@ export default function StoreInvitesScreen() {
           ListEmptyComponent={!loading ? <Notice tone="muted">لا توجد دعوات معلقة لحسابك.</Notice> : undefined}
           renderItem={({ item }) => (
             <SectionCard>
-              <Text style={{ textAlign: 'right', fontSize: 16, fontWeight: '900', color: colors.ink }}>
+              <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }}>
                 {item.store?.name || 'متجر'}
               </Text>
               <Text style={{ textAlign: 'right', color: colors.muted }}>
-                الداعي: {item.invitedBy?.name || 'صاحب المتجر'} · الدور: {item.role}
+                الداعي: {item.invitedBy?.name || 'صاحب المتجر'} · الدور: {roleLabel(item.role)}
               </Text>
-              <PrimaryButton label="قبول الدعوة" busy={busyId === item.id} onPress={() => void accept(item)} />
+              <PrimaryButton label="قبول الدعوة" busy={busyId === item.id} onPress={() => void accept(item)} /><PrimaryButton label="رفض الدعوة" variant="secondary" disabled={!!busyId} onPress={() => decline(item)} />
             </SectionCard>
           )}
           ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}

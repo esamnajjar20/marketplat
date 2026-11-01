@@ -1,75 +1,175 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { router, useLocalSearchParams } from 'expo-router';
-import { colors, radius, spacing } from '@/theme/tokens';
 import { AppImage } from '@/components/AppImage';
+import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { AppText } from '@/components/ui/AppText';
+import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { useAuth } from '@/features/auth/AuthContext';
+import { ApiError } from '@/api/client';
 import { fetchProduct, type ProductSummary } from '@/features/commerce/commerce.api';
 import { createMarketplaceOrder } from '@/features/commerce/orders.api';
 import { enqueueMarketplaceOrder } from '@/storage/outbox-manager';
-import { ApiError } from '@/api/client';
-import { useAuth } from '@/features/auth/AuthContext';
 
 const money = (value: unknown) => `${new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(value) || 0)} ₪`;
 function makeKey() { return `mob-order-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`; }
+
 export default function OrderCheckoutScreen() {
-  const { productId } = useLocalSearchParams<{ productId: string }>();
+  const params = useLocalSearchParams<{ productId?: string | string[] }>();
+  const productId = Array.isArray(params.productId) ? params.productId[0] : params.productId;
   const { user, accessToken, csrfToken, isRestoring } = useAuth();
   const [product, setProduct] = useState<ProductSummary | null>(null);
-  const [loading, setLoading] = useState(true); const [submitting, setSubmitting] = useState(false); const [error, setError] = useState('');
-  const [quantity, setQuantity] = useState(1); const [recipientName, setRecipientName] = useState(user?.name ?? '');
-  const [recipientPhone, setRecipientPhone] = useState(''); const [shippingCity, setShippingCity] = useState(''); const [shippingAddress, setShippingAddress] = useState(''); const [buyerNote, setBuyerNote] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [recipientName, setRecipientName] = useState(user?.name ?? '');
+  const [recipientPhone, setRecipientPhone] = useState('');
+  const [shippingCity, setShippingCity] = useState('');
+  const [shippingAddress, setShippingAddress] = useState('');
+  const [buyerNote, setBuyerNote] = useState('');
   const [idempotencyKey, setIdempotencyKey] = useState(makeKey);
-  const load = useCallback(async () => { if (!productId) { setLoading(false); setError('معرّف المنتج غير صالح.'); return; } setLoading(true); setError(''); try { setProduct(await fetchProduct(productId)); } catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحميل المنتج.'); } finally { setLoading(false); } }, [productId]);
+  const nameRef = useRef<TextInput>(null);
+  const phoneRef = useRef<TextInput>(null);
+  const cityRef = useRef<TextInput>(null);
+  const addressRef = useRef<TextInput>(null);
+  const noteRef = useRef<TextInput>(null);
+
+  const load = useCallback(async () => {
+    if (!productId) { setLoading(false); setError('معرّف المنتج غير صالح.'); return; }
+    setLoading(true);
+    setError('');
+    try { setProduct(await fetchProduct(productId)); }
+    catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحميل المنتج.'); }
+    finally { setLoading(false); }
+  }, [productId]);
+
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { if (user?.name && !recipientName) setRecipientName(user.name); }, [user?.name, recipientName]);
-  // Some API responses expose the computed effective price as `amount` rather than `price`.
-  // Prefer either computed value before falling back to legacy discount/base fields.
+
   const rawUnitPrice = product?.effectivePrice?.price ?? product?.effectivePrice?.amount ?? product?.discountPrice ?? product?.price;
   const unitPrice = Number(rawUnitPrice);
   const validPrice = rawUnitPrice !== undefined && rawUnitPrice !== null && rawUnitPrice !== '' && Number.isFinite(unitPrice) && unitPrice >= 0;
   const maxQuantity = Math.max(1, Math.min(product?.stockQuantity ?? 100, 100));
   const outOfStock = product?.availability === 'OUT_OF_STOCK' || (product?.stockQuantity != null && product.stockQuantity <= 0);
   const total = useMemo(() => unitPrice * quantity, [unitPrice, quantity]);
+
   const submit = async () => {
     if (!user || !accessToken) { router.push('/login'); return; }
     if (!product || !product.store?.id) { setError('لا يمكن تحديد المتجر المسؤول عن هذا المنتج.'); return; }
     if (outOfStock || (product.stockQuantity != null && quantity > product.stockQuantity)) { setError('الكمية المطلوبة غير متوفرة.'); return; }
     if (!validPrice) { setError('سعر المنتج غير صالح حاليًا. حدّث الصفحة أو تواصل مع المتجر.'); return; }
-    if (recipientName.trim().length < 2 || recipientPhone.trim().length < 6 || shippingCity.trim().length < 2 || shippingAddress.trim().length < 4) { setError('أكمل الاسم ورقم الهاتف والمدينة والعنوان بشكل صحيح.'); return; }
-    setSubmitting(true); setError('');
+    if (recipientName.trim().length < 2 || recipientPhone.trim().length < 6 || shippingCity.trim().length < 2 || shippingAddress.trim().length < 4) {
+      setError('أكمل الاسم ورقم الهاتف والمدينة والعنوان بشكل صحيح.');
+      return;
+    }
+
+    setSubmitting(true);
+    setError('');
+    const payload = {
+      items: [{ productId: product.id, quantity }],
+      recipientName: recipientName.trim(),
+      recipientPhone: recipientPhone.trim(),
+      shippingCity: shippingCity.trim(),
+      shippingAddress: shippingAddress.trim(),
+      buyerNote: buyerNote.trim() || undefined,
+      idempotencyKey,
+    };
     try {
-      const payload = { items: [{ productId: product.id, quantity }], recipientName: recipientName.trim(), recipientPhone: recipientPhone.trim(), shippingCity: shippingCity.trim(), shippingAddress: shippingAddress.trim(), buyerNote: buyerNote.trim() || undefined, idempotencyKey };
       const order = await createMarketplaceOrder(payload, accessToken, csrfToken);
-      Alert.alert('تم إرسال الطلب', 'استلم المتجر طلبك. يمكنك متابعة حالته من صفحة طلباتي.', [{ text: 'عرض الطلب', onPress: () => router.replace(`/orders/${encodeURIComponent(order.id)}`) }]);
+      router.replace({ pathname: '/order-confirmation', params: { orderId: order.id, status: 'created' } });
     } catch (e) {
-      // Queue only transport failures/unknown delivery outcomes. Validation, stock,
-      // authorization and other explicit server errors must be shown, not replayed.
-      if (user?.id && accessToken && e instanceof ApiError && e.status === undefined) {
+      // Queue only transport failures/unknown delivery outcomes; never replay a definitive API rejection.
+      if (user.id && e instanceof ApiError && e.status === undefined) {
         try {
-          await enqueueMarketplaceOrder(user.id, { items: [{ productId: product.id, quantity }], recipientName: recipientName.trim(), recipientPhone: recipientPhone.trim(), shippingCity: shippingCity.trim(), shippingAddress: shippingAddress.trim(), buyerNote: buyerNote.trim() || undefined, idempotencyKey });
-          Alert.alert('حُفظ الطلب على الجهاز', 'لم يؤكد الخادم استلام الطلب. حُفظ محليًا وسيُعاد إرساله عند عودة الاتصال، وقد يتغير السعر أو المخزون قبل المزامنة.', [{ text: 'عرض العمليات', onPress: () => router.replace('/offline-queue') }]);
+          await enqueueMarketplaceOrder(user.id, payload);
+          router.replace({ pathname: '/order-confirmation', params: { status: 'queued' } });
           return;
-        } catch (queueError) { setError(queueError instanceof Error ? queueError.message : 'تعذر حفظ الطلب دون اتصال.'); }
+        } catch (queueError) {
+          setError(queueError instanceof Error ? queueError.message : 'تعذر حفظ الطلب دون اتصال.');
+        }
       } else {
         setError(e instanceof Error ? e.message : 'تعذر إرسال الطلب. حاول مجددًا.');
-        // Regenerate idempotencyKey only on definitive 4xx client errors.
-        // 5xx and transport failures may have been processed server-side —
-        // keeping the same key preserves replay-safety there.
-        if (e instanceof ApiError && e.status !== undefined && e.status >= 400 && e.status < 500) {
-          setIdempotencyKey(makeKey());
-        }
+        // Preserve the same idempotency key after ambiguous delivery or server errors.
+        if (e instanceof ApiError && e.status !== undefined && e.status >= 400 && e.status < 500) setIdempotencyKey(makeKey());
       }
-    }
-    finally { setSubmitting(false); }
+    } finally { setSubmitting(false); }
   };
-  if (isRestoring) return <SafeAreaView style={s.safe}><View style={s.state}><ActivityIndicator color={colors.brand}/><Text style={s.muted}>جارٍ التحقق من الجلسة…</Text></View></SafeAreaView>;
-  return <SafeAreaView style={s.safe} edges={['top']}><ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled"><View style={s.header}><Pressable onPress={() => router.back()} style={s.back}><Text style={s.backText}>→</Text></Pressable><Text style={s.title}>إتمام الطلب</Text></View>
-    {loading ? <View style={s.state}><ActivityIndicator size="large" color={colors.brand}/><Text style={s.muted}>جاري تحميل المنتج…</Text></View> : error && !product ? <View style={s.state}><Text style={s.muted}>{error}</Text><Pressable style={s.primary} onPress={() => void load()}><Text style={s.primaryText}>إعادة المحاولة</Text></Pressable></View> : product ? <>
-      <View style={s.productCard}>{product.images?.[0] ? <AppImage uri={product.images[0]} style={s.image} resizeMode="cover"/> : <View style={s.imagePlaceholder}><Text>◇</Text></View>}<View style={s.productInfo}><Text style={s.productName}>{product.name}</Text><Text style={s.muted}>{product.store?.name ?? 'المتجر'}</Text><Text style={s.price}>{validPrice ? money(unitPrice) : 'السعر غير متاح'}</Text>{outOfStock ? <Text style={s.error}>نفدت الكمية</Text> : null}<View style={s.qty}><Pressable accessibilityRole="button" accessibilityLabel="زيادة الكمية" accessibilityState={{disabled: outOfStock || quantity >= maxQuantity}} disabled={outOfStock || quantity >= maxQuantity} onPress={() => setQuantity(q => Math.min(q + 1, maxQuantity))} style={[s.qtyButton, (outOfStock || quantity >= maxQuantity) && s.disabled]}><Text style={s.qtyText}>+</Text></Pressable><Text style={s.qtyNumber}>{quantity}</Text><Pressable accessibilityRole="button" accessibilityLabel="تقليل الكمية" accessibilityState={{disabled: quantity <= 1}} disabled={quantity <= 1} onPress={() => setQuantity(q => Math.max(1, q - 1))} style={s.qtyButton}><Text style={s.qtyText}>−</Text></Pressable></View></View></View>
-      <View style={s.card}><Text style={s.sectionTitle}>بيانات الاستلام</Text>{((([[recipientName,setRecipientName,'اسم المستلم'],[recipientPhone,setRecipientPhone,'رقم الهاتف'],[shippingCity,setShippingCity,'المدينة'],[shippingAddress,setShippingAddress,'العنوان بالتفصيل'],[buyerNote,setBuyerNote,'ملاحظات للبائع (اختياري)']]) as Array<[string, (v: string) => void, string]>)).map(([value,setter,placeholder]) => <TextInput key={placeholder} accessibilityLabel={placeholder} value={value} onChangeText={setter} placeholder={placeholder} placeholderTextColor={colors.muted} style={[s.input, placeholder.includes('ملاحظات') && s.multiline]} textAlign="right" multiline={placeholder.includes('ملاحظات')} maxLength={placeholder.includes('ملاحظات') ? 1000 : undefined}/>)}
-      <View style={s.divider}/><View style={s.summaryRow}><Text style={s.muted}>طريقة الدفع</Text><Text style={s.value}>الدفع عند الاستلام</Text></View><View style={s.summaryRow}><Text style={s.muted}>قيمة المنتجات</Text><Text style={s.value}>{money(total)}</Text></View><View style={s.summaryRow}><Text style={s.muted}>التوصيل</Text><Text style={s.value}>يُحدَّد عند تأكيد الطلب</Text></View><View style={s.summaryRow}><Text style={s.totalLabel}>الإجمالي قبل رسوم التوصيل</Text><Text style={s.total}>{money(total)}</Text></View>
-      {error ? <Text style={s.error}>{error}</Text> : null}<Pressable disabled={submitting || outOfStock || !validPrice} onPress={() => void submit()} style={[s.primary, (submitting || outOfStock || !validPrice) && s.disabled]}>{submitting ? <ActivityIndicator color={colors.white}/> : <Text style={s.primaryText}>تأكيد الطلب</Text>}</Pressable><Text style={s.note}>لن يتم خصم أي مبلغ إلكتروني. سيؤكد المتجر توفر المنتج وتفاصيل التسليم.</Text></View>
-    </> : null}</ScrollView></SafeAreaView>;
+
+  if (isRestoring) return <View style={styles.loading}><ActivityIndicator color={colors.brand}/><AppText style={styles.muted}>جارٍ التحقق من الجلسة…</AppText></View>;
+
+  return (
+    <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
+      <PageShell title="إتمام الطلب">
+        {loading ? <View style={styles.loading}><ActivityIndicator size="large" color={colors.brand}/><AppText style={styles.muted}>جارٍ تحميل المنتج…</AppText></View> : error && !product ? <>
+          <Notice>{error}</Notice>
+          <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void load()} />
+        </> : product ? <>
+          <SectionCard>
+            <View style={styles.productCard}>
+              {product.images?.[0] ? <AppImage uri={product.images[0]} style={styles.image} resizeMode="cover"/> : <View style={styles.imagePlaceholder}><AppText style={styles.placeholderGlyph}>◇</AppText></View>}
+              <View style={styles.productInfo}>
+                <AppText style={styles.productName}>{product.name}</AppText>
+                <AppText style={styles.muted}>{product.store?.name ?? 'المتجر'}</AppText>
+                <AppText style={styles.price}>{validPrice ? money(unitPrice) : 'السعر غير متاح'}</AppText>
+                {outOfStock ? <Notice>نفدت الكمية</Notice> : null}
+                <View style={styles.qty}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="زيادة الكمية" accessibilityState={{ disabled: outOfStock || quantity >= maxQuantity }} disabled={outOfStock || quantity >= maxQuantity} onPress={() => setQuantity((q) => Math.min(q + 1, maxQuantity))} style={[styles.qtyButton, (outOfStock || quantity >= maxQuantity) && styles.disabled]}><AppText style={styles.qtyText}>+</AppText></Pressable>
+                  <AppText style={styles.qtyNumber}>{quantity}</AppText>
+                  <Pressable accessibilityRole="button" accessibilityLabel="تقليل الكمية" accessibilityState={{ disabled: quantity <= 1 }} disabled={quantity <= 1} onPress={() => setQuantity((q) => Math.max(1, q - 1))} style={[styles.qtyButton, quantity <= 1 && styles.disabled]}><AppText style={styles.qtyText}>−</AppText></Pressable>
+                </View>
+              </View>
+            </View>
+          </SectionCard>
+
+          <SectionCard>
+            <AppText style={styles.sectionTitle}>بيانات الاستلام</AppText>
+            <Field label="اسم المستلم" value={recipientName} inputRef={nameRef} onChangeText={setRecipientName} placeholder="الاسم كما سيستلم الطلب" returnKeyType="next" onSubmitEditing={() => phoneRef.current?.focus()} />
+            <Field label="رقم الهاتف" value={recipientPhone} onChangeText={setRecipientPhone} placeholder="05xxxxxxxx" keyboardType="phone-pad" inputRef={phoneRef} returnKeyType="next" onSubmitEditing={() => cityRef.current?.focus()} />
+            <Field label="المدينة" value={shippingCity} onChangeText={setShippingCity} placeholder="المدينة" inputRef={cityRef} returnKeyType="next" onSubmitEditing={() => addressRef.current?.focus()} />
+            <Field label="العنوان بالتفصيل" value={shippingAddress} onChangeText={setShippingAddress} placeholder="الحي والشارع وأقرب معلم" inputRef={addressRef} returnKeyType="next" onSubmitEditing={() => noteRef.current?.focus()} />
+            <Field label="ملاحظات للبائع (اختياري)" value={buyerNote} onChangeText={setBuyerNote} placeholder="تفاصيل إضافية للتسليم" multiline maxLength={1000} inputRef={noteRef} returnKeyType="done" />
+          </SectionCard>
+
+          <SectionCard>
+            <AppText style={styles.sectionTitle}>ملخص الطلب</AppText>
+            <View style={styles.summaryRow}><AppText style={styles.muted}>طريقة الدفع</AppText><AppText style={styles.value}>الدفع عند الاستلام</AppText></View>
+            <View style={styles.summaryRow}><AppText style={styles.muted}>قيمة المنتجات</AppText><AppText style={styles.value}>{money(total)}</AppText></View>
+            <View style={styles.summaryRow}><AppText style={styles.muted}>التوصيل</AppText><AppText style={styles.value}>يُحدَّد عند تأكيد الطلب</AppText></View>
+            <View style={styles.divider}/>
+            <View style={styles.summaryRow}><AppText style={styles.totalLabel}>الإجمالي قبل رسوم التوصيل</AppText><AppText style={styles.total}>{money(total)}</AppText></View>
+            {error ? <Notice>{error}</Notice> : null}
+            <PrimaryButton label="تأكيد الطلب" onPress={() => void submit()} busy={submitting} disabled={submitting || outOfStock || !validPrice} />
+            <AppText style={styles.note}>لن يتم خصم مبلغ إلكتروني. سيؤكد المتجر توفر المنتج وتفاصيل التسليم.</AppText>
+          </SectionCard>
+        </> : null}
+      </PageShell>
+    </KeyboardAvoidingView>
+  );
 }
-const s = StyleSheet.create({ safe:{flex:1,backgroundColor:colors.canvas},content:{padding:spacing.lg,gap:spacing.lg,paddingBottom:56},header:{flexDirection:'row-reverse',alignItems:'center',gap:spacing.md},back:{width:44,height:44,borderRadius:14,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,alignItems:'center',justifyContent:'center'},backText:{fontSize:24,color:colors.brand},title:{fontSize:24,fontWeight:'900',color:colors.ink,letterSpacing:-0.4},productCard:{flexDirection:'row-reverse',gap:spacing.md,padding:spacing.lg,borderRadius:radius.lg,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,elevation:1},image:{width:104,height:112,borderRadius:radius.md,backgroundColor:colors.border},imagePlaceholder:{width:104,height:112,borderRadius:radius.md,backgroundColor:colors.brandSoft,alignItems:'center',justifyContent:'center'},productInfo:{flex:1,alignItems:'flex-end',gap:spacing.sm},productName:{fontSize:16,fontWeight:'800',color:colors.ink,textAlign:'right'},price:{fontSize:17,fontWeight:'900',color:colors.brand},muted:{fontSize:13,color:colors.muted,textAlign:'right',lineHeight:20},qty:{flexDirection:'row',alignItems:'center',gap:spacing.md},qtyButton:{width:44,height:44,minWidth:44,minHeight:44,borderRadius:12,backgroundColor:colors.brandSoft,alignItems:'center',justifyContent:'center'},qtyText:{fontSize:20,fontWeight:'800',color:colors.brand},qtyNumber:{fontWeight:'800',color:colors.ink},card:{backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,borderRadius:radius.lg,padding:spacing.lg,gap:spacing.md,elevation:1},sectionTitle:{fontSize:17,fontWeight:'800',color:colors.ink,textAlign:'right'},input:{minHeight:52,borderWidth:1,borderColor:colors.controlBorder,borderRadius:radius.md,paddingHorizontal:spacing.md,color:colors.ink,backgroundColor:colors.canvas,textAlign:'right'},multiline:{minHeight:80,textAlignVertical:'top',paddingTop:spacing.md},divider:{height:1,backgroundColor:colors.border},summaryRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:spacing.md},value:{fontSize:13,fontWeight:'700',color:colors.ink,textAlign:'right',flexShrink:1},totalLabel:{fontSize:15,fontWeight:'800',color:colors.ink},total:{fontSize:20,fontWeight:'900',color:colors.brand},primary:{minHeight:50,backgroundColor:colors.brand,borderRadius:radius.md,alignItems:'center',justifyContent:'center',padding:spacing.md},primaryText:{fontSize:15,fontWeight:'800',color:colors.white},disabled:{opacity:0.6},error:{fontSize:13,color:colors.danger,textAlign:'right'},note:{fontSize:12,color:colors.muted,textAlign:'right',lineHeight:19},state:{alignItems:'center',gap:spacing.md,padding:spacing.xl,backgroundColor:colors.surface,borderRadius:radius.lg}});
+
+const styles = {
+  keyboard: { flex: 1 },
+  loading: { flex: 1, alignItems: 'center' as const, justifyContent: 'center' as const, gap: spacing.md, padding: spacing.xl },
+  muted: { color: colors.muted, ...typography.caption, textAlign: 'right' as const },
+  productCard: { flexDirection: 'row-reverse' as const, alignItems: 'center' as const, gap: spacing.md },
+  image: { width: 104, height: 112, borderRadius: radius.md, backgroundColor: colors.border },
+  imagePlaceholder: { width: 104, height: 112, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center' as const, justifyContent: 'center' as const },
+  placeholderGlyph: { fontSize: fontSizes[34], color: colors.brandOnSoft },
+  productInfo: { flex: 1, alignItems: 'flex-end' as const, gap: spacing.sm },
+  productName: { color: colors.ink, ...typography.bodyStrong, textAlign: 'right' as const },
+  price: { color: colors.brand, ...typography.subtitle },
+  qty: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: spacing.md },
+  qtyButton:{width:44,height:44,minWidth:44,minHeight:44, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center' as const, justifyContent: 'center' as const },
+  qtyText: { fontSize: fontSizes[20], fontWeight: '800' as const, color: colors.brandOnSoft },
+  qtyNumber: { ...typography.bodyStrong, color: colors.ink },
+  sectionTitle: { color: colors.ink, ...typography.subtitle, textAlign: 'right' as const },
+  summaryRow: { flexDirection: 'row-reverse' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, gap: spacing.md },
+  value: { color: colors.ink, ...typography.captionStrong, textAlign: 'right' as const, flexShrink: 1 },
+  divider: { height: 1, backgroundColor: colors.border },
+  totalLabel: { color: colors.ink, ...typography.bodyStrong },
+  total: { color: colors.brand, ...typography.subtitle },
+  note: { color: colors.muted, ...typography.caption, textAlign: 'right' as const, lineHeight: 20 },
+  disabled: { opacity: 0.45 },
+};

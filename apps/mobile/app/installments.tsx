@@ -1,10 +1,12 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchInstallments, payInstallment, type InstallmentRow } from '@/features/sales/sales-extra.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors, spacing } from '@/theme/tokens';
+import { fontSizes, colors, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { ApiError } from '@/api/client';
 import { createMobileOperationId } from '@/lib/operation-id';
@@ -137,7 +139,7 @@ export default function InstallmentsScreen() {
           return (
             <SectionCard>
               <View style={{ flexDirection: 'row-reverse', justifyContent: 'space-between', gap: 8 }}>
-                <Text style={{ flex: 1, textAlign: 'right', fontSize: 16, fontWeight: '900', color: colors.ink }}>
+                <Text style={{ flex: 1, textAlign: 'right', fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }}>
                   {item.sale?.entityTitle || `القسط ${item.installmentNo}`}
                 </Text>
                 <Text
@@ -158,7 +160,7 @@ export default function InstallmentsScreen() {
               <Text style={{ textAlign: 'right', color: colors.muted }}>
                 قيمة القسط: {money(item.amount)} · المدفوع: {money(item.paidAmount)}
               </Text>
-              <TextInput
+              <TextInput allowFontScaling maxFontSizeMultiplier={1.3}
                 accessibilityLabel={`مبلغ تحصيل القسط ${item.installmentNo}`}
                 value={amounts[item.id] ?? String(remaining)}
                 onChangeText={(v) => setAmounts((old) => ({ ...old, [item.id]: normalizeNumericInput(v) }))}

@@ -1,9 +1,11 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Image, Pressable, Text, View } from 'react-native';
+import { Alert, Image, View } from 'react-native';
 import { router } from 'expo-router';
 import { listSavedOfflineResources, removeSavedOfflineResource, type SavedOfflineItem } from '@/storage/saved-offline';
 import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
 
 const kindName = (kind: SavedOfflineItem['kind']) => kind === 'ad' ? 'إعلان' : kind === 'product' ? 'منتج' : 'متجر';
@@ -33,7 +35,7 @@ export default function SavedOfflineScreen() {
       return <SectionCard key={`${item.kind}:${item.id}`}>
         <View style={{ flexDirection: 'row-reverse', gap: spacing.md, alignItems: 'flex-start' }}>
           {firstImage ? <Image source={{ uri: firstImage }} style={{ width: 84, height: 84, borderRadius: radius.md, backgroundColor: colors.border }} /> : null}
-          <View style={{ flex: 1, gap: spacing.xs }}><Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '900', fontSize: 15 }}>{item.title}</Text><Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '800', fontSize: 12 }}>{kindName(item.kind)}{price ? ` · ${price} ₪` : ''}</Text>{description ? <Text numberOfLines={3} style={{ textAlign: 'right', color: colors.muted, fontSize: 12, lineHeight: 18 }}>{description}</Text> : null}<Text style={{ textAlign: 'right', color: colors.muted, fontSize: 11 }}>تاريخ الحفظ: {dateLabel(item.savedAt)}</Text></View>
+          <View style={{ flex: 1, gap: spacing.xs }}><Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '900', fontSize: fontSizes[15] }}>{item.title}</Text><Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '800', fontSize: fontSizes[12] }}>{kindName(item.kind)}{price ? ` · ${price} ₪` : ''}</Text>{description ? <Text numberOfLines={3} style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12], lineHeight: 18 }}>{description}</Text> : null}<Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[11] }}>تاريخ الحفظ: {dateLabel(item.savedAt)}</Text></View>
         </View>
         <View style={{ flexDirection: 'row-reverse', gap: spacing.sm }}>
           <PrimaryButton label="فتح التفاصيل" variant="secondary" onPress={() => router.push(item.kind === 'ad' ? { pathname: '/ads/[id]', params: { id: item.id } } : item.kind === 'product' ? { pathname: '/products/[id]', params: { id: item.id } } : { pathname: '/stores/[id]', params: { id: item.id } })} />

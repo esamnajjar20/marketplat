@@ -1,11 +1,13 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, RefreshControl, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 import { router } from 'expo-router';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors } from '@/theme/tokens';
+import { fontSizes, colors } from '@/theme/tokens';
 
 function price(p: ProductSummary): string {
   const value = Number(p.effectivePrice?.price ?? p.discountPrice ?? p.price);
@@ -135,23 +137,23 @@ export default function PromotedScreen() {
                       justifyContent: 'center',
                     }}
                   >
-                    <Text style={{ color: colors.brand, fontSize: 28 }}>◇</Text>
+                    <Text style={{ color: colors.brandOnSoft, fontSize: fontSizes[28] }}>◇</Text>
                   </View>
                 )}
                 <View style={{ flex: 1, alignItems: 'flex-end', gap: 7, paddingVertical: 3 }}>
                   <Text
-                    style={{ color: colors.ink, fontWeight: '800', fontSize: 15, textAlign: 'right' }}
+                    style={{ color: colors.ink, fontWeight: '800', fontSize: fontSizes[15], textAlign: 'right' }}
                     numberOfLines={2}
                   >
                     {item.name}
                   </Text>
-                  <Text style={{ color: colors.muted, fontSize: 12, textAlign: 'right' }}>
+                  <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>
                     {item.store?.name || 'متجر'}
                   </Text>
                   <Text style={{ color: colors.brand, fontWeight: '900' }}>{price(item)}</Text>
-                  {(item.effectivePrice?.originalPrice != null || (item.discountPrice != null && Number(item.discountPrice) < Number(item.price))) ? <Text style={{ color: colors.muted, fontSize: 12, textDecorationLine: 'line-through' }}>{new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(item.effectivePrice?.originalPrice ?? item.price))} ₪</Text> : null}
-                  {item.discountPrice != null && Number.isFinite(Number(item.discountPrice)) && Number.isFinite(Number(item.price)) && Number(item.price) > 0 ? <Text style={{ color: colors.brand, fontSize: 12, fontWeight: '800' }}>خصم {Math.round((1 - Number(item.discountPrice) / Number(item.price)) * 100)}%</Text> : null}
-                  <Text style={{ color: colors.muted, fontSize: 12 }}>
+                  {(item.effectivePrice?.originalPrice != null || (item.discountPrice != null && Number(item.discountPrice) < Number(item.price))) ? <Text style={{ color: colors.muted, fontSize: fontSizes[12], textDecorationLine: 'line-through' }}>{new Intl.NumberFormat('ar', { maximumFractionDigits: 2 }).format(Number(item.effectivePrice?.originalPrice ?? item.price))} ₪</Text> : null}
+                  {item.discountPrice != null && Number.isFinite(Number(item.discountPrice)) && Number.isFinite(Number(item.price)) && Number(item.price) > 0 ? <Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: '800' }}>خصم {Math.round((1 - Number(item.discountPrice) / Number(item.price)) * 100)}%</Text> : null}
+                  <Text style={{ color: colors.muted, fontSize: fontSizes[12] }}>
                     {item.availability === 'OUT_OF_STOCK' ? 'غير متوفر' : 'عرض ترويجي'}
                   </Text>
                 </View>

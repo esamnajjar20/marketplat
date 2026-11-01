@@ -1,8 +1,10 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { memo } from 'react';
-import { Alert, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Linking, StyleSheet, View } from 'react-native';
 import type { ChatMessage } from '@/features/messaging/messaging.api';
 import { CHAT_OUTBOX_MAX_ATTEMPTS } from '@/storage/outbox-manager';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
 import { isAllowedMediaUrl } from '@/lib/safe-media-url';
 
 export type ConversationScreenMessage = ChatMessage & {
@@ -37,6 +39,9 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
   const permanentlyFailed = pending
     && message.outboxAttempts !== undefined
     && message.outboxAttempts >= CHAT_OUTBOX_MAX_ATTEMPTS;
+  const safeImageUrl = !message.deletedAt && isAllowedMediaUrl(message.imageUrl)
+    ? message.imageUrl
+    : null;
   const body = message.deletedAt
     ? 'تم حذف هذه الرسالة'
     : message.body || (message.imageUrl
@@ -55,8 +60,8 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
       delayLongPress={350}
       style={[styles.bubble, isMine ? styles.mine : styles.theirs]}
     >
-      {message.imageUrl && !message.deletedAt ? (
-        <Image source={{ uri: message.imageUrl }} resizeMode="cover" style={styles.messageImage} />
+      {safeImageUrl ? (
+        <Image source={{ uri: safeImageUrl }} resizeMode="cover" style={styles.messageImage} />
       ) : null}
 
       {message.audioUrl && !message.deletedAt ? (
@@ -142,7 +147,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
   },
   messageText: {
-    fontSize: 15,
+    fontSize: fontSizes[15],
     lineHeight: 22,
     color: colors.ink,
     textAlign: 'right',
@@ -162,8 +167,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brandSoft,
     alignSelf: 'flex-start',
   },
-  mediaActionText: { fontSize: 12, fontWeight: '800', color: colors.brand },
-  time: { fontSize: 10, color: colors.muted, textAlign: 'left' },
+  mediaActionText: { fontSize: fontSizes[12], fontWeight: '800', color: colors.brandOnSoft },
+  time: { fontSize: fontSizes[10], color: colors.muted, textAlign: 'left' },
   mineTime: { color: colors.brandSoft },
   failedActions: {
     flexDirection: 'row',
@@ -171,6 +176,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.xs,
   },
-  failedAction: { fontSize: 11, fontWeight: '900', color: colors.brand },
-  failedDelete: { fontSize: 11, fontWeight: '900', color: colors.danger },
+  failedAction: { fontSize: fontSizes[11], fontWeight: '900', color: colors.brand },
+  failedDelete: { fontSize: fontSizes[11], fontWeight: '900', color: colors.danger },
 });

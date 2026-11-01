@@ -1,5 +1,6 @@
+import { AppText as Text } from '@/components/ui/AppText';
 import { router } from 'expo-router';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { useEffect, useState } from 'react';
 import { fetchMyStore } from '@/features/commerce/commerce.api';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
@@ -12,10 +13,11 @@ import {
   SectionCard,
   SectionHeader,
 } from '@/components/MobileUI';
-import { colors, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, spacing, typography } from '@/theme/tokens';
 
 type Destination = { title: string; description: string; path: string; requiresAuth?: boolean };
 type DestinationGroup = { title: string; subtitle: string; items: Destination[] };
+const PRIORITY_PATHS = new Set(['/messages', '/notifications', '/my-ads', '/for-you', '/my-sales', '/orders']);
 
 const groups: DestinationGroup[] = [
   {
@@ -73,8 +75,6 @@ const groups: DestinationGroup[] = [
     subtitle: 'إدارة الجهاز والأمان والتفضيلات',
     items: [
       { title: 'الإعدادات', description: 'إدارة تفضيلات الحساب والإشعارات', path: '/settings', requiresAuth: true },
-      { title: 'العمليات دون اتصال', description: 'مراجعة العمليات التي تنتظر المزامنة', path: '/offline-queue', requiresAuth: true },
-      { title: 'التخزين والبيانات المحلية', description: 'إدارة البيانات المحفوظة على الجهاز', path: '/storage', requiresAuth: true },
       { title: 'المستخدمون المحظورون', description: 'مراجعة قائمة الحظر', path: '/blocked-users', requiresAuth: true },
       { title: 'بلاغاتي', description: 'متابعة البلاغات التي أرسلتها', path: '/my-reports', requiresAuth: true },
     ],
@@ -86,6 +86,7 @@ export default function AccountHubScreen() {
   const [hasStore, setHasStore] = useState(false);
   const [hasProvider, setHasProvider] = useState(false);
   const [profilesLoading, setProfilesLoading] = useState(false);
+  const [showAllDestinations, setShowAllDestinations] = useState(false);
   useEffect(() => {
     let active = true;
     if (!accessToken) { setHasStore(false); setHasProvider(false); return () => { active = false; }; }
@@ -113,7 +114,7 @@ export default function AccountHubScreen() {
           style={{
             textAlign: 'right',
             ...typography.display,
-            fontSize: 22,
+            fontSize: fontSizes[22],
             lineHeight: 30,
             color: colors.ink,
           }}
@@ -133,29 +134,41 @@ export default function AccountHubScreen() {
         ) : null}
       </SectionCard>
 
-      {groups.map((group) => (
-        <View key={group.title} style={{ gap: spacing.md }}>
-          <SectionHeader title={group.title} subtitle={group.subtitle} />
-          {group.items.filter((item) => {
-            if (item.path === '/complete-profile') return false;
-            if (group.title !== 'إدارة المتجر والخدمات') return true;
-            if (!user) return false;
-            if (item.path === '/seller-profile') return !hasStore;
-            if (item.path === '/my-store' || item.path === '/my-products' || item.path === '/my-store-analytics' || item.path === '/seller-dashboard') return hasStore;
-            if (item.path === '/service-provider-profile') return true; // Store owners may also create a provider profile.
-            if (item.path === '/appointments') return hasProvider;
-            if (item.path === '/my-services') return hasProvider || hasStore;
-            return true;
-          }).map((item) => (
-            <ListRow
-              key={item.path}
-              title={item.title}
-              description={item.description}
-              onPress={() => open(item)}
-            />
-          ))}
-        </View>
-      ))}
+      <View style={{ gap: spacing.md }}>
+        <SectionHeader title="الوصول السريع" subtitle="أهم وجهات الحساب التي تحتاجها يوميًا" />
+        {groups.flatMap((group) => group.items).filter((item) => PRIORITY_PATHS.has(item.path)).map((item) => (
+          <ListRow key={item.path} title={item.title} description={item.description} onPress={() => open(item)} />
+        ))}
+      </View>
+
+      {showAllDestinations ? groups.map((group) => {
+        const remainingItems = group.items.filter((item) => {
+          if (PRIORITY_PATHS.has(item.path)) return false;
+          if (group.title !== 'إدارة المتجر والخدمات') return true;
+          if (!user) return false;
+          if (item.path === '/seller-profile') return !hasStore;
+          if (item.path === '/my-store' || item.path === '/my-products' || item.path === '/my-store-analytics' || item.path === '/seller-dashboard') return hasStore;
+          if (item.path === '/service-provider-profile') return true;
+          if (item.path === '/appointments') return hasProvider;
+          if (item.path === '/my-services') return hasProvider || hasStore;
+          return true;
+        });
+        if (!remainingItems.length) return null;
+        return (
+          <View key={group.title} style={{ gap: spacing.md }}>
+            <SectionHeader title={group.title} subtitle={group.subtitle} />
+            {remainingItems.map((item) => (
+              <ListRow key={item.path} title={item.title} description={item.description} onPress={() => open(item)} />
+            ))}
+          </View>
+        );
+      }) : null}
+
+      <PrimaryButton
+        label={showAllDestinations ? 'إخفاء بقية الوجهات' : 'عرض بقية وجهات الحساب'}
+        variant="secondary"
+        onPress={() => setShowAllDestinations((value) => !value)}
+      />
 
       {user && profilesLoading ? <Notice tone="muted">جارٍ التحقق من صلاحيات إدارة المتجر والخدمات…</Notice> : null}
       {!user ? (

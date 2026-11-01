@@ -1,6 +1,8 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
   enqueueFavoriteState,
@@ -14,6 +16,7 @@ import { fetchAdDetail, getCachedAdDetail } from '@/features/ads/ads.api';
 import type { AdDetail } from '@/features/ads/ads.api';
 import { startConversationFromAd } from '@/features/messaging/messaging.api';
 import { ShareButton } from '@/components/ui/ShareButton';
+import { AppIcon } from '@/components/Icons';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { SaveOfflineButton } from '@/components/ui/SaveOfflineButton';
 import {
@@ -23,7 +26,7 @@ import {
   PrimaryButton,
   SectionCard,
 } from '@/components/MobileUI';
-import { colors, elevation, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, elevation, radius, spacing, typography } from '@/theme/tokens';
 
 function formatPrice(price: AdDetail['price']): string {
   if (price === null || price === undefined || price === '') return 'السعر عند التواصل';
@@ -200,7 +203,21 @@ export default function AdDetailScreen() {
   return (
     <DetailScaffold
       title="تفاصيل الإعلان"
-      right={ad ? <ShareButton resource="ads" id={ad.id} title={ad.title} /> : undefined}
+      right={ad ? (
+        <View style={{ flexDirection: 'row-reverse', alignItems: 'center', gap: 6 }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={isFavorite ? 'إزالة الإعلان من المفضلة' : 'إضافة الإعلان إلى المفضلة'}
+            accessibilityState={{ selected: isFavorite, disabled: favoriteBusy }}
+            disabled={favoriteBusy}
+            onPress={() => { if (!accessToken) router.push('/login'); else void onToggleFavorite(); }}
+            style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: colors.brandSoft }}
+          >
+            <AppIcon name={isFavorite ? 'favoriteActive' : 'favorite'} size={22} color={colors.brandOnSoft} />
+          </Pressable>
+          <ShareButton resource="ads" id={ad.id} title={ad.title} />
+        </View>
+      ) : undefined}
       loading={loading}
       loadingMessage="جاري تحميل تفاصيل الإعلان…"
       error={errorMessage}
@@ -230,20 +247,6 @@ export default function AdDetailScreen() {
                 <Text style={styles.date}>المشاهدات: {new Intl.NumberFormat('ar').format(ad.views)}</Text>
               ) : null}
 
-              <PrimaryButton
-                label={!accessToken ? 'سجّل الدخول لحفظ المفضلة' :
-                  favoriteBusy
-                    ? 'جارٍ تحديث المفضلة…'
-                    : isFavorite
-                      ? 'محفوظ في المفضلة'
-                      : 'أضف إلى المفضلة'
-                }
-                onPress={() => {
-                  if (!accessToken) router.push('/login'); else void onToggleFavorite();
-                }}
-                busy={favoriteBusy}
-                variant="secondary"
-              />
               {favoriteMessage ? <Notice tone="muted">{favoriteMessage}</Notice> : null}
               {cacheNotice ? <Notice tone="muted">تعرض هذه البيانات نسخة محفوظة؛ تعذر التحقق من أحدث تحديث.</Notice> : null}
               {ad.status ? <Badge label={({ ACTIVE: 'نشط', SOLD: 'مباع', EXPIRED: 'منتهي', PENDING: 'قيد المراجعة', REJECTED: 'مرفوض', SUSPENDED: 'موقوف' } as Record<string,string>)[ad.status] || ad.status} tone={ad.status === 'ACTIVE' ? 'success' : 'muted'} /> : null}
@@ -282,7 +285,7 @@ export default function AdDetailScreen() {
               <Text style={styles.meta}>{ad.user?.city || ad.city || 'الموقع غير محدد'}</Text>
               {ad.sellerProfile?.verified ? <Badge label="بائع موثّق" tone="success" /> : null}
               <Text style={styles.sellerNote}>
-                بيانات الاتصال المباشر غير متاحة ضمن بيانات الإعلان الحالية.
+                يمكنك التواصل مع البائع عبر المراسلة داخل التطبيق.
               </Text>
               {!isOwner ? (
                 <PrimaryButton
@@ -307,10 +310,10 @@ export default function AdDetailScreen() {
 const styles = StyleSheet.create({
   headerAction: { color: colors.brand, ...typography.captionStrong },
   pad: { paddingHorizontal: spacing.md, gap: spacing.md },
-  price: { color: colors.brand, fontSize: 22, fontWeight: '900', textAlign: 'right' },
+  price: { color: colors.brand, fontSize: fontSizes[22], fontWeight: '900', textAlign: 'right' },
   title: {
     color: colors.ink,
-    fontSize: 22,
+    fontSize: fontSizes[22],
     lineHeight: 30,
     fontWeight: '900',
     textAlign: 'right',

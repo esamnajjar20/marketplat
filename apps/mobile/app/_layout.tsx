@@ -1,12 +1,14 @@
+import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import '@/lib/network-config';
 import { useEffect, type ReactNode } from 'react';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
-import { I18nManager, Platform, Pressable, Text, View } from 'react-native';
+import { I18nManager, Platform, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '@/components/BottomNavigation';
 import { MobileDrawerProvider } from '@/components/MobileDrawer';
 import { StatusBar } from 'expo-status-bar';
-import { colors, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, spacing, typography } from '@/theme/tokens';
 import { AuthProvider } from '@/features/auth/AuthContext';
 import { ConnectivityProvider, useIsOnline } from '@/lib/connectivity';
 import { OutboxSyncLifecycleBridge } from '@/storage/OutboxSyncLifecycleBridge';
@@ -30,7 +32,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
         backgroundColor: colors.canvas,
       }}
     >
-      <Text style={{ fontSize: 19, fontWeight: '900', color: colors.ink, textAlign: 'center' }}>
+      <Text style={{ fontSize: fontSizes[19], fontWeight: '900', color: colors.ink, textAlign: 'center' }}>
         حدث خطأ غير متوقع
       </Text>
       <Text
@@ -39,7 +41,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
           textAlign: 'center',
           marginTop: 10,
           lineHeight: 22,
-          fontSize: 13,
+          fontSize: fontSizes[13],
         }}
       >
         يرجى إعادة المحاولة. إذا استمرت المشكلة فأعد فتح التطبيق.
@@ -57,7 +59,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
           justifyContent: 'center',
         }}
       >
-        <Text style={{ color: colors.white, fontWeight: '800', fontSize: 15 }}>إعادة المحاولة</Text>
+        <Text style={{ color: colors.white, fontWeight: '800', fontSize: fontSizes[15] }}>إعادة المحاولة</Text>
       </Pressable>
     </View>
   );
@@ -109,8 +111,8 @@ export default function RootLayout() {
             screenOptions={{
               headerShown: false,
               contentStyle: { backgroundColor: colors.canvas },
-              // انتقالات أكثر طبيعية للتفاصيل
-              animation: 'slide_from_right',
+              // Arabic UI uses a manually mirrored layout (forceRTL=false), so push screens enter from the left.
+              animation: 'slide_from_left',
               animationDuration: 260,
               gestureEnabled: true,
               fullScreenGestureEnabled: true,
