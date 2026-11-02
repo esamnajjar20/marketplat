@@ -30,7 +30,7 @@ export function AdminDataIntegrityPanel() {
     setError(null);
     try {
       const response = await adminApi.scanDataIntegrity();
-      setReport(response.data.data);
+      setReport(response.data.data ?? null);
     } catch {
       setError('تعذّر تنفيذ الفحص. تحقق من تشغيل Go Worker واتصال قاعدة البيانات ثم أعد المحاولة. لم يتم تعديل أي بيانات.');
     } finally {

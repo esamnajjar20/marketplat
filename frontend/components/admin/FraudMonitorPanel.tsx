@@ -49,7 +49,7 @@ export function FraudMonitorPanel() {
   async function loadHistory() {
     setHistoryFailure(null);
     try {
-      setHistory(await adminApi.getFraudMonitorHistory());
+      setHistory((await adminApi.getFraudMonitorHistory()) ?? null);
     } catch (error) {
       setHistoryFailure(error);
     } finally {
@@ -60,7 +60,7 @@ export function FraudMonitorPanel() {
   useEffect(() => {
     let active = true;
     adminApi.getFraudMonitorHistory()
-      .then(value => { if (active) setHistory(value); })
+      .then(value => { if (active) setHistory(value ?? null); })
       .catch(error => { if (active) setHistoryFailure(error); })
       .finally(() => { if (active) setHistoryLoading(false); });
     return () => { active = false; };
@@ -71,7 +71,7 @@ export function FraudMonitorPanel() {
     setFailure(null);
     try {
       const nextReport = await adminApi.runFraudMonitorScan();
-      setReport(nextReport);
+      setReport(nextReport ?? null);
       await loadHistory();
     } catch (error) {
       setFailure(error);
@@ -98,7 +98,7 @@ export function FraudMonitorPanel() {
         </Button>
       </div>
 
-      {failure && <ApiError error={parseApiError(failure)} onRetry={() => void runScan()} variant="inline" />}
+      {!!failure && <ApiError error={parseApiError(failure)} onRetry={() => void runScan()} variant="inline" />}
 
       {report && (
         <div className="space-y-4">
@@ -171,7 +171,7 @@ export function FraudMonitorPanel() {
           {history?.runs[0] && <span className="text-xs text-muted-foreground">آخر تشغيل: {formatDate(history.runs[0].startedAt)}</span>}
         </div>
 
-        {historyFailure && <ApiError error={parseApiError(historyFailure)} onRetry={() => void loadHistory()} variant="inline" />}
+        {!!historyFailure && <ApiError error={parseApiError(historyFailure)} onRetry={() => void loadHistory()} variant="inline" />}
         {historyLoading ? (
           <p className="text-xs text-muted-foreground" role="status">جارٍ تحميل سجل الفحوصات…</p>
         ) : history && history.runs.length === 0 ? (
