@@ -28,14 +28,14 @@ const TONE_ICON: Record<QueryRetryTone, ReactNode> = {
 };
 
 const TONE_WELL: Record<QueryRetryTone, string> = {
-  offline: 'bg-red-50 text-[#9B2C2C] dark:bg-red-950/40 dark:text-red-400',
-  error: 'bg-red-50 text-[#9B2C2C] dark:bg-red-950/40 dark:text-red-400',
+  offline: 'bg-red-50 text-[var(--legacy-danger-text)] dark:bg-red-950/40 dark:text-red-400',
+  error: 'bg-red-50 text-[var(--legacy-danger-text)] dark:bg-red-950/40 dark:text-red-400',
   warning: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
 };
 
 const TONE_TITLE: Record<QueryRetryTone, string> = {
-  offline: 'text-[#9B2C2C] dark:text-red-400',
-  error: 'text-[#9B2C2C] dark:text-red-400',
+  offline: 'text-[var(--legacy-danger-text)] dark:text-red-400',
+  error: 'text-[var(--legacy-danger-text)] dark:text-red-400',
   warning: 'text-amber-900 dark:text-amber-300',
 };
 
@@ -62,7 +62,7 @@ export function QueryRetryCard({
       role={tone === 'offline' ? 'status' : 'alert'}
       aria-live={tone === 'offline' ? 'polite' : 'assertive'}
       className={cn(
-        'mx-auto w-full rounded-2xl border border-[#EAE3D6] bg-white text-center shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card',
+        'mx-auto w-full rounded-2xl border border-[var(--legacy-border)] bg-card text-center shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card',
         size === 'full' ? 'max-w-md p-5' : 'max-w-sm p-4',
         className,
       )}
@@ -85,7 +85,7 @@ export function QueryRetryCard({
           type="button"
           onClick={onRetry}
           className={cn(
-            'mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#397F56] text-sm font-bold text-white transition-opacity hover:opacity-95',
+            'mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[var(--legacy-primary)] text-sm font-bold text-primary-foreground transition-opacity hover:opacity-95',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             size === 'full' ? 'h-11' : 'h-10',
           )}

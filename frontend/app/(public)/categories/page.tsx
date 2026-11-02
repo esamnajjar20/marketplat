@@ -39,7 +39,7 @@ export default async function CategoriesIndexPage() {
   await prefetchHomepage(qc);
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-5 px-3 py-5 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:space-y-6 sm:px-4 sm:py-6 sm:pb-8">
+    <div className="container mx-auto max-w-7xl space-y-5 px-3 py-5 pb-0 md:pb-8 sm:space-y-6 sm:px-4 sm:py-6">
       <PageHeader
         icon={<Layers3 className="h-6 w-6" />}
         title="كل الفئات"

@@ -59,7 +59,7 @@ type Props = {
 };
 
 const pill =
-  'h-10 w-full rounded-full border border-[#EAE3D6] bg-white px-3 text-sm font-semibold text-foreground dark:border-border dark:bg-card';
+  'h-10 w-full rounded-full border border-[var(--legacy-border)] bg-card px-3 text-sm font-semibold text-foreground dark:border-border dark:bg-card';
 
 export function RequestFilters({
   type,
@@ -174,7 +174,7 @@ export function RequestFilters({
         <div className="flex items-center gap-2">
           <select
             id="req-sort-filter"
-            className="h-9 rounded-full border border-[#EAE3D6] bg-white px-3 text-xs font-bold text-foreground dark:border-border dark:bg-card"
+            className="h-9 rounded-full border border-[var(--legacy-border)] bg-card px-3 text-xs font-bold text-foreground dark:border-border dark:bg-card"
             value={sort}
             aria-label="الترتيب"
             onChange={(e) => {

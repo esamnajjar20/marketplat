@@ -56,7 +56,7 @@ export function WorkingHoursEditor({ value, onChange }: Props) {
             >
               <span
                 className={cn(
-                  'absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform',
+                  'absolute top-0.5 h-6 w-6 rounded-full bg-card shadow transition-transform',
                   // logical start works in RTL; when enabled move toward end
                   enabled ? 'start-[calc(100%-1.625rem)]' : 'start-0.5',
                 )}

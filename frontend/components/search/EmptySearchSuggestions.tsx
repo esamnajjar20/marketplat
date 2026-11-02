@@ -140,9 +140,9 @@ export function EmptySearchSuggestions() {
                 prefetch={false}
                 key={ad.id}
                 href={ROUTES.adDetail(ad.id)}
-                className="overflow-hidden rounded-2xl border border-[#EAE3D6] bg-white shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card"
+                className="overflow-hidden rounded-2xl border border-[var(--legacy-border)] bg-card shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card"
               >
-                <div className="relative flex h-[88px] items-center justify-center bg-[#F6E7DB]">
+                <div className="relative flex h-[88px] items-center justify-center bg-[var(--legacy-accent-soft-2)]">
                   {ad.thumbnail ? (
                     <CloudinaryImage
                       src={ad.thumbnail}
@@ -181,7 +181,7 @@ export function EmptySearchSuggestions() {
                 key={type}
                 href={typeHref(type)}
                 className={cn(
-                  'flex min-h-[48px] items-center justify-between rounded-2xl border border-[#EAE3D6] bg-white px-3 py-2.5 text-sm font-bold transition-colors dark:border-border dark:bg-card',
+                  'flex min-h-[48px] items-center justify-between rounded-2xl border border-[var(--legacy-border)] bg-card px-3 py-2.5 text-sm font-bold transition-colors dark:border-border dark:bg-card',
                   active
                     ? 'border-primary bg-primary/5 text-primary'
                     : 'hover:border-primary/40',
@@ -189,7 +189,7 @@ export function EmptySearchSuggestions() {
                 aria-current={active ? 'page' : undefined}
               >
                 <span>{label}</span>
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#E8F1EC] text-primary">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-primary">
                   <Icon className="h-4 w-4" aria-hidden />
                 </span>
               </Link>

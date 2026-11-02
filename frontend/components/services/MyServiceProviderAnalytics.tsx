@@ -30,7 +30,7 @@ function StatTile({
         <span
           className={cn(
             'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
-            accent ? 'bg-[#FBF0D9] text-[#7A4B07]' : 'bg-primary/10 text-primary',
+            accent ? 'bg-[var(--legacy-warning-soft)] text-[var(--legacy-warning-text)]' : 'bg-primary/10 text-primary',
           )}
         >
           <Icon className="h-4 w-4" />

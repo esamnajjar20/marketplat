@@ -139,7 +139,7 @@ export function TabsHub<T extends string>({
       <div
         role="tablist"
         aria-label={tabListLabel}
-        className="sticky top-16 z-30 -mx-1 mb-5 flex snap-x snap-mandatory gap-1 overflow-x-auto overscroll-x-contain border-b border-[#EAE3D6] bg-[#FBF9F4]/95 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-[#FBF9F4]/85 [scrollbar-width:thin] sm:mb-6 lg:-mx-2 lg:px-2"
+        className="sticky top-16 z-30 -mx-1 mb-5 flex snap-x snap-mandatory gap-1 overflow-x-auto overscroll-x-contain border-b border-border bg-background/95 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/85 [scrollbar-width:thin] sm:mb-6 lg:-mx-2 lg:px-2"
       >
         {tabs.map((tab) => {
           const { label, Icon } = meta[tab];
@@ -160,7 +160,7 @@ export function TabsHub<T extends string>({
                 'relative flex min-h-11 shrink-0 snap-start items-center gap-2 border-b-2 px-3 py-2.5 text-[13px] font-bold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:px-3.5',
                 selected
                   ? 'border-primary text-primary'
-                  : 'border-transparent text-[#6B6459] hover:text-foreground',
+                  : 'border-transparent text-muted-foreground hover:text-foreground',
               )}
             >
               <Icon className="h-4 w-4" aria-hidden={true} />

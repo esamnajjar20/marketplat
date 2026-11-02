@@ -28,8 +28,8 @@ export function BulkActionBar({
       role="toolbar"
       aria-label="إجراءات جماعية"
       className={cn(
-        'sticky top-0 z-10 flex flex-wrap items-center gap-2.5 rounded-[10px] border border-[#CFE0D5]',
-        'bg-[#E8F1EC] px-3 py-2 text-[13px] font-extrabold text-[#1F4D33]',
+        'sticky top-0 z-10 flex flex-wrap items-center gap-2.5 rounded-[10px] border border-[var(--legacy-primary-border)]',
+        'bg-[var(--legacy-primary-soft)] px-3 py-2 text-[13px] font-extrabold text-[var(--legacy-primary-deep)]',
         className,
       )}
     >
@@ -41,7 +41,7 @@ export function BulkActionBar({
         <Button
           variant="ghost"
           size="sm"
-          className="h-8 min-h-8 text-[#1F4D33] hover:bg-white/60"
+          className="h-8 min-h-8 text-[var(--legacy-primary-deep)] hover:bg-muted"
           onClick={onClear}
         >
           <X className="h-3.5 w-3.5 me-1" aria-hidden />

@@ -21,6 +21,7 @@ import {
   CARD_BADGE_SUCCESS,
   CARD_BADGE_MUTED,
   HIT_AREA,
+  cardPlaceholderToneForId,
 } from '@/components/shared/cards/cardTokens';
 import { Badge } from '@/components/ui/badge';
 import { ROUTES } from '@/lib/constants';
@@ -54,14 +55,6 @@ const SERVICE_LOCATION_HINT: Record<string, string> = {
   REMOTE: 'عن بُعد',
 };
 
-const PASTEL = ['bg-[#E8F1EC]', 'bg-[#F6E7DB]', 'bg-[#E3EEF5]', 'bg-[#EFEADF]', 'bg-[#FBF0D9]'] as const;
-
-function pastel(id: string) {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i) * (i + 1)) % PASTEL.length;
-  return PASTEL[h];
-}
-
 export const ServiceListingCard = memo(function ServiceListingCard({
   listing,
   context = 'public',
@@ -92,7 +85,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
             <div
               className={cn(
                 'relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl sm:h-[72px] sm:w-[72px]',
-                !rawImage && pastel(listing.id),
+                !rawImage && cardPlaceholderToneForId(listing.id),
                 rawImage && 'bg-muted',
               )}
             >
@@ -171,7 +164,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
               href={detailHref}
               prefetch={false}
               className={cn(
-                'inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-[#EAE3D6] bg-white px-4 text-xs font-bold text-primary transition-colors hover:border-primary/40 dark:border-border dark:bg-card',
+                'inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-[var(--legacy-border)] bg-card px-4 text-xs font-bold text-primary transition-colors hover:border-primary/40 dark:border-border dark:bg-card',
                 CARD_FOCUS,
               )}
             >

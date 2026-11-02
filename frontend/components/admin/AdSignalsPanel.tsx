@@ -30,7 +30,7 @@ export function AdSignalsPanel({ adId }: { adId: string }) {
   return (
     <div className="space-y-2">
       {signals.map((signal) => (
-        <div key={signal.id} className="flex items-center justify-between gap-3 rounded-lg border border-[#EAE3D6] bg-white p-2">
+        <div key={signal.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--legacy-border)] bg-card p-2">
           <div className="flex items-center gap-2 min-w-0">
             <Badge variant="outline" className="text-xs shrink-0">
               {SIGNAL_TYPE_LABELS[signal.type] ?? signal.type}
@@ -42,7 +42,7 @@ export function AdSignalsPanel({ adId }: { adId: string }) {
             <Badge variant="outline" className="text-xs text-success shrink-0">تمت المراجعة</Badge>
           ) : (
             <Button
-              variant="ghost" size="sm" className="h-[30px] shrink-0 rounded-lg border border-[#CFE0D5] bg-white text-[12px] font-bold text-[#1F4D33]"
+              variant="ghost" size="sm" className="h-[30px] shrink-0 rounded-lg border border-[var(--legacy-primary-border)] bg-card text-[12px] font-bold text-[var(--legacy-primary-deep)]"
               disabled={reviewSignal.isPending && reviewSignal.variables === signal.id}
               onClick={() => reviewSignal.mutate(signal.id)}
             >

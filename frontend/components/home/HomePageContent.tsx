@@ -66,7 +66,7 @@ export function HomePageContent() {
   }, [feed]);
 
   const content = (
-    <div className="pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-16 md:pb-16">
+    <div className="pb-0 md:pb-16">
       <HomeBusyBoundary>
         <EagerHomeSections />
         <div className="mx-auto mt-3 max-w-7xl px-3 sm:mt-4 sm:px-4">
@@ -109,7 +109,7 @@ export function HomePageContent() {
   );
 
   // SSR + first client render → identical tree (no PullToRefresh wrapper).
-  if (!mounted) return content;
+  if (!mounted || !isNative) return content;
 
   return (
     <PullToRefresh onRefresh={onRefresh} className="native-home-root">

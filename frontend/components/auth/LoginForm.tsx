@@ -103,7 +103,7 @@ export function LoginForm() {
       {sessionExpired && (
         <p
           role="alert"
-          className="flex items-start gap-2 rounded-xl border border-[#EBD7A8] bg-[#FBF0D9] px-3.5 py-2.5 text-[13px] leading-relaxed text-[#5A3705]"
+          className="flex items-start gap-2 rounded-xl border border-[var(--legacy-warning-border)] bg-[var(--legacy-warning-soft)] px-3.5 py-2.5 text-[13px] leading-relaxed text-[var(--legacy-warning-deep)]"
         >
           <span aria-hidden>⚠</span>
           انتهت جلستك، الرجاء تسجيل الدخول مجددًا للمتابعة
@@ -112,7 +112,7 @@ export function LoginForm() {
       {googleAuthFailed && (
         <p
           role="alert"
-          className="flex items-start gap-2 rounded-xl border border-[#F1C9C4] bg-[#FBE9E7] px-3.5 py-2.5 text-[13px] leading-relaxed text-[#9B2118]"
+          className="flex items-start gap-2 rounded-xl border border-[var(--legacy-danger-border)] bg-[var(--legacy-danger-soft)] px-3.5 py-2.5 text-[13px] leading-relaxed text-[var(--legacy-danger)]"
         >
           <span aria-hidden>⚠</span>
           تعذّر تسجيل الدخول باستخدام Google، الرجاء المحاولة مرة أخرى أو استخدام البريد الإلكتروني
@@ -161,7 +161,7 @@ export function LoginForm() {
       </AuthField>
 
       <div className="flex justify-end">
-        <Link href={ROUTES.forgotPassword} className="text-[13px] font-bold text-[#1F4D33] hover:underline">
+        <Link href={ROUTES.forgotPassword} className="text-[13px] font-bold text-[var(--legacy-primary-deep)] hover:underline">
           نسيت كلمة المرور؟
         </Link>
       </div>
@@ -192,9 +192,9 @@ export function LoginForm() {
 
       <GoogleAuthButton label="تسجيل الدخول باستخدام Google" />
 
-      <p className="text-center text-[13px] text-[#6B6459]">
+      <p className="text-center text-[13px] text-[var(--legacy-muted-text)]">
         ليس لديك حساب؟{' '}
-        <Link href={registerHref} className="font-bold text-[#1F4D33] hover:underline">
+        <Link href={registerHref} className="font-bold text-[var(--legacy-primary-deep)] hover:underline">
           إنشاء حساب
         </Link>
       </p>

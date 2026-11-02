@@ -26,7 +26,7 @@ export function ServiceProvidersFilters({
   const { city, setCity, canChange } = useBrowseCity();
 
   return (
-    <div className="rounded-2xl border border-[#EAE3D6] bg-white p-3 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
+    <div className="rounded-2xl border border-[var(--legacy-border)] bg-card p-3 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="min-w-0 flex-1">
           <Select
@@ -39,7 +39,7 @@ export function ServiceProvidersFilters({
           >
             <SelectTrigger
               id="providers-filter-city"
-              className="h-11 w-full rounded-full border-[#EAE3D6] bg-white text-sm font-semibold dark:border-border"
+              className="h-11 w-full rounded-full border-[var(--legacy-border)] bg-card text-sm font-semibold dark:border-border"
             >
               <SelectValue placeholder="كل المدن" />
             </SelectTrigger>
@@ -58,7 +58,7 @@ export function ServiceProvidersFilters({
             type="button"
             onClick={onRequestLocation}
             className={cn(
-              'inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[#397F56] px-4 text-sm font-bold text-white',
+              'inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-[var(--legacy-primary)] px-4 text-sm font-bold text-primary-foreground',
               'transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             )}
           >

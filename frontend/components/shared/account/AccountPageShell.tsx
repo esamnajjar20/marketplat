@@ -11,22 +11,17 @@ export function AccountPageShell({
   actions,
   children,
   className,
-  /** Extra bottom space for sticky composers (chat). */
-  tallBottom,
 }: {
   title: string;
   description?: string;
   actions?: ReactNode;
   children: ReactNode;
   className?: string;
-  tallBottom?: boolean;
 }) {
   return (
     <div
       className={cn(
-        tallBottom
-          ? 'pb-[calc(7rem+env(safe-area-inset-bottom,0px))] sm:pb-10'
-          : 'pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-10',
+        'pb-0',
         className,
       )}
     >

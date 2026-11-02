@@ -40,7 +40,7 @@ export function RelatedAds({ adId }: Props) {
   if (!data?.length) return null;
 
   return (
-    <section className="space-y-4 border-t pt-8 pb-28 lg:pb-4">
+    <section className="space-y-4 border-t pt-4 pb-4">
       <h2 className="flex items-center gap-1.5 text-lg font-bold">
         <Layers className="h-4 w-4 text-muted-foreground" aria-hidden />
         إعلانات مشابهة

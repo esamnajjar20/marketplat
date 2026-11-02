@@ -6,12 +6,12 @@ export function AuthBrand() {
   return (
     <Link
       href={ROUTES.home}
-      className="mb-5 inline-flex items-center justify-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#397F56]/40"
+      className="mb-5 inline-flex items-center justify-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--legacy-primary)]/40"
     >
-      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#397F56] text-[15px] font-extrabold text-white">
+      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--legacy-primary)] text-[15px] font-extrabold text-primary-foreground">
         س
       </span>
-      <span className="text-[18px] font-extrabold text-[#1F4D33]">سوق غزة</span>
+      <span className="text-[18px] font-extrabold text-[var(--legacy-primary-deep)]">سوق غزة</span>
     </Link>
   );
 }

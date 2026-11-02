@@ -105,15 +105,15 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
             <span
               className={cn(
                 'inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-bold',
-                avail === 'AVAILABLE' && 'bg-[#E8F1EC] text-[#1F4D33]',
-                avail === 'BUSY' && 'bg-[#FBF0D9] text-[#7A4B07]',
+                avail === 'AVAILABLE' && 'bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary-deep)]',
+                avail === 'BUSY' && 'bg-[var(--legacy-warning-soft)] text-[var(--legacy-warning-text)]',
                 avail === 'UNAVAILABLE' && 'bg-muted text-muted-foreground',
               )}
             >
               <span
                 className={cn(
                   'h-1.5 w-1.5 rounded-full',
-                  avail === 'AVAILABLE' && 'bg-[#397F56]',
+                  avail === 'AVAILABLE' && 'bg-[var(--legacy-primary)]',
                   avail === 'BUSY' && 'bg-amber-500',
                   avail === 'UNAVAILABLE' && 'bg-muted-foreground',
                 )}
@@ -127,7 +127,7 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
               {skills.map((s, i) => (
                 <span
                   key={i}
-                  className="inline-flex h-6 items-center rounded-full bg-[#F6F1E7] px-2 text-[11px] font-bold text-[#4A433A]"
+                  className="inline-flex h-6 items-center rounded-full bg-[var(--legacy-surface)] px-2 text-[11px] font-bold text-[var(--legacy-foreground-warm)]"
                 >
                   {s.nameAr || s.name}
                 </span>
@@ -154,14 +154,14 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
         <Link
           href={profileHref}
           prefetch={false}
-          className="inline-flex h-10 flex-1 items-center justify-center rounded-full bg-[#397F56] px-3 text-sm font-bold text-white transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex h-10 flex-1 items-center justify-center rounded-full bg-[var(--legacy-primary)] px-3 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           عرض الملف
         </Link>
         <Link
           href={profileHref}
           prefetch={false}
-          className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-[#EAE3D6] bg-white px-3 text-sm font-bold text-[#1F4D33] transition-colors hover:border-primary/40 dark:border-border dark:bg-card dark:text-primary"
+          className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-[var(--legacy-border)] bg-card px-3 text-sm font-bold text-[var(--legacy-primary-deep)] transition-colors hover:border-primary/40 dark:border-border dark:bg-card dark:text-primary"
         >
           <MessageCircle className="h-4 w-4" aria-hidden />
           تواصل

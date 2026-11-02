@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * DESKTOP-AUDIT-05: the three creation forms (ad/product/service listing)
+ * DESKTOP-AUDIT-05: the listing and request creation forms (ad/product/service/request)
  * were all hard-capped at max-w-2xl on every breakpoint, one column, no
  * live preview of the card being built — despite the exact same
  * side-by-side philosophy already existing for messages
@@ -20,7 +20,7 @@
  * previously edit mode intentionally skipped
  * this (see git history) since there was "already a real saved item
  * to look at". In practice that just meant leaving the page to check.
- * All three forms (AdForm/ProductForm/ServiceListingForm) now use this
+ * All listing forms (AdForm/ProductForm/ServiceListingForm) now use this
  * for both create and edit — their `values` state is seeded from the
  * existing item in edit mode too, so the live preview reflects the
  * in-progress edit just as accurately as it does a new draft.

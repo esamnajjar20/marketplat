@@ -60,12 +60,10 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
   // A conversation thread is a focused mobile view: it must use the
   // viewport below the header, without the global bottom-nav spacer.
   const isConversationThread = pathname.startsWith(`${ROUTES.messages}/`);
-  // Phase 6: full-screen "task" routes (create / edit flows) hide site chrome
-  const isImmersiveTask =
-    isConversationThread ||
-    pathname.includes('/create') ||
-    pathname.includes('/edit') ||
-    pathname.startsWith('/offline');
+  // Only focused conversation threads and the offline workspace hide the
+  // global chrome. Create/edit forms are ordinary in-app pages and must
+  // retain the same header, sidebar and bottom navigation as other pages.
+  const isImmersiveTask = isConversationThread || pathname.startsWith('/offline');
 
   // PERF-04: ThemedToaster (sonner) — only on protected routes to avoid
   // loading sonner on public pages. Moved from AppProviders.tsx.
@@ -215,7 +213,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
       {!isImmersiveTask && <ProtectedHeader />}
       {!isImmersiveTask && <EmailVerificationBanner />}
       <div className="flex min-h-0 min-w-0 flex-1">
-        <ProtectedSidebar />
+        {!isConversationThread && <ProtectedSidebar />}
         {/* FIX P1-3: pb-20 reserves space for BottomNav on mobile, same
             as the (public) layout's identical change (BottomNav is
             hidden md:, so md:pb-6 drops back to the normal scale).
@@ -230,7 +228,7 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
           tabIndex={-1}
           className={isImmersiveTask
             ? 'flex min-h-0 min-w-0 flex-1 flex-col p-0'
-            : 'min-w-0 flex-1 px-4 py-4 pb-20 md:p-6 md:pb-6 lg:p-8'}
+            : 'protected-main min-w-0 flex-1 px-4 py-4 pb-20 md:p-6 md:pb-6 lg:p-8'}
         >
           {isImmersiveTask ? (
             <div className="flex min-h-0 flex-1 flex-col">{children}</div>

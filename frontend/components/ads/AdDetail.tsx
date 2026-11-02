@@ -6,7 +6,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { ProgressiveDetailImage } from '@/components/shared/detail/ProgressiveDetailImage';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronRight, ChevronLeft, ImageOff } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import dynamic from 'next/dynamic';
@@ -91,6 +91,11 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const thumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const validImages = (Array.isArray(ad.images) ? ad.images : []).filter(
+    (image) => typeof image === 'string' && image.trim().length > 0,
+  );
+  const hasImages = validImages.length > 0;
+  const images = hasImages ? validImages : [PLACEHOLDER_SVG];
 
   function handleStickyMessage() {
     if (!isAuth) {
@@ -111,7 +116,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
     );
   }
 
-  const imageCount = ad.images.length > 0 ? ad.images.length : 1;
+  const imageCount = images.length;
 
   const goPrev = useCallback(() => {
     setImgIdx((i) => Math.max(0, i - 1));
@@ -166,7 +171,6 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
   const favorited = useIsFavorited(ad.id);
 
-  const images = ad.images.length > 0 ? ad.images : [PLACEHOLDER_SVG];
   const currentImg = getDetailImageUrl(images[imgIdx] ?? PLACEHOLDER_SVG);
 
   // Keep the active thumbnail visible when users navigate with arrows,
@@ -219,7 +223,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
   return (
     <>
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-w-0 flex-col">
         {/* Gallery + Description + Sidebar layout */}
         <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="grid gap-6 lg:grid-cols-3">
@@ -242,21 +246,28 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                     else goNext();
                   }}
                 >
-                  <button
-                    type="button"
-                    className="absolute inset-0 cursor-zoom-in"
-                    onClick={handleLightboxOpen}
-                    aria-label="تكبير الصورة"
-                  >
-                    <ProgressiveDetailImage
-                      src={currentImg}
-                      alt={ad.title}
-                      className="object-contain select-none pointer-events-none"
-                      sizes="(max-width:1024px) 100vw, 66vw"
-                      priority={imgIdx === 0}
-                      draggable={false}
-                    />
-                  </button>
+                  {hasImages ? (
+                    <button
+                      type="button"
+                      className="absolute inset-0 cursor-zoom-in"
+                      onClick={handleLightboxOpen}
+                      aria-label="تكبير الصورة"
+                    >
+                      <ProgressiveDetailImage
+                        src={currentImg}
+                        alt={ad.title}
+                        className="object-contain select-none pointer-events-none"
+                        sizes="(max-width:1024px) 100vw, 66vw"
+                        priority={imgIdx === 0}
+                        draggable={false}
+                      />
+                    </button>
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted/50 text-muted-foreground">
+                      <ImageOff className="h-10 w-10 opacity-70" aria-hidden="true" />
+                      <span className="text-sm font-medium">لا توجد صور لهذا الإعلان</span>
+                    </div>
+                  )}
                   {ad.isFeatured && (
                     <span className="absolute top-4 start-4 bg-accent text-accent-foreground px-3 py-1 rounded-full text-xs font-bold shadow-sm">
                       مميز
@@ -304,18 +315,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                 )}
               </div>
 
-              {/* Description + Metadata - LAZY LOADED */}
-              <AdDetailDescription
-                ad={ad}
-                imgIdx={imgIdx}
-                setImgIdx={setImgIdx}
-                images={images}
-                goPrev={goPrev}
-                goNext={goNext}
-                onLightboxOpen={handleLightboxOpen}
-              />
-
-              {/* Metadata (title, actions, specs) - LAZY LOADED */}
+              {/* Metadata (single title, status, location, price actions) */}
               <AdDetailMetadata
                 ad={ad}
                 favorited={favorited}
@@ -326,6 +326,9 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
                 onStartConversation={handleStartConversation}
                 startConversationPending={startConversation.isPending}
               />
+
+              {/* Description, mobile seller card and report action */}
+              <AdDetailDescription ad={ad} />
             </div>
 
             {/* RIGHT: Sidebar (price + seller + safety) - LAZY LOADED */}

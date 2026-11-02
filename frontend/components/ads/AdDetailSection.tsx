@@ -33,6 +33,8 @@ import { useFavoriteCheck, useIsFavorited } from '@/hooks/queries/useFavorites';
 import { parseApiError }  from '@/lib/errorParser';
 import { ROUTES }         from '@/lib/constants';
 import { track }          from '@/lib/analytics';
+import { cn } from '@/lib/utils';
+import { useAuthStore, selectUser } from '@/store/auth.store';
 import { SearchX, AlertTriangle } from 'lucide-react';
 
 const RelatedAds = dynamic(
@@ -46,6 +48,7 @@ export function AdDetailSection({ id }: { id: string }) {
   // useFavorites' `enabled` check.
   useFavoriteCheck(id);
   const isFavorited = useIsFavorited(id);
+  const user = useAuthStore(selectUser);
 
   // Gap #7 (product analytics): fires once per successful ad load —
   // dependent on ad.id (not just `ad`) so it doesn't re-fire on every
@@ -138,8 +141,10 @@ export function AdDetailSection({ id }: { id: string }) {
     );
   }
 
+  const isOwnAd = user?.id === ad.user.id;
+
   return (
-    <div className="space-y-8">
+    <div className={cn('space-y-6', !isOwnAd && 'pb-sticky-contact')}>
       {isError && <OfflineStaleDataNotice onRetry={() => { if (!isFetching) void refetch(); }} isFetching={isFetching} />}
       <AdBreadcrumb ad={ad} />
       <AdDetail ad={ad} isFavorited={isFavorited} />

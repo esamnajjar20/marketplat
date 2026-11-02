@@ -40,7 +40,7 @@ export function PublishedSuccessBanner() {
           </Button>
         }
         secondaryAction={
-          <Button asChild variant="outline" className="h-11 w-full rounded-xl border-[#EAE3D6] font-bold">
+          <Button asChild variant="outline" className="h-11 w-full rounded-xl border-[var(--legacy-border)] font-bold">
             <Link href={ROUTES.myAds}>إعلاناتي</Link>
           </Button>
         }

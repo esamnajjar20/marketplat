@@ -207,12 +207,98 @@
   }
 }
 
+/* Legacy palette bridge: existing page-specific colors follow the active theme. */
+:root {
+  --legacy-border: #EAE3D6;
+  --legacy-primary-deep: #1F4D33;
+  --legacy-muted-text: #6B6459;
+  --legacy-primary: #397F56;
+  --legacy-primary-soft: #E8F1EC;
+  --legacy-foreground-warm: #4A433A;
+  --legacy-surface: #F6F1E7;
+  --legacy-danger: #9B2118;
+  --legacy-primary-border: #CFE0D5;
+  --legacy-warning-soft: #FBF0D9;
+  --legacy-page-surface: #FBF9F4;
+  --legacy-muted-surface: #F0EADF;
+  --legacy-danger-soft: #FBE9E7;
+  --legacy-ink: #2A241D;
+  --legacy-warning-text: #7A4B07;
+  --legacy-danger-border: #F1C9C4;
+  --legacy-accent: #8F3F14;
+  --legacy-accent-soft: #FBEEE6;
+  --legacy-border-strong: #D9D1C3;
+  --legacy-danger-strong: #B3261E;
+  --legacy-rating: #D9962B;
+  --legacy-card-soft: #F4F9F6;
+  --legacy-warning-strong: #C47A0A;
+  --legacy-background-pale: #FDFBF7;
+  --legacy-accent-soft-2: #F6E7DB;
+  --legacy-danger-text: #9B2C2C;
+  --legacy-muted-soft: #A39E94;
+  --legacy-warning-border: #EBD7A8;
+  --legacy-warning-deep: #5A3705;
+  --legacy-info-soft: #E3EEF5;
+  --legacy-neutral-soft: #EFEADF;
+  --legacy-warning-soft-strong: #F1D3A8;
+  --legacy-primary-mid: #5E9C73;
+  --legacy-warm-border: #EDE7DC;
+  --legacy-switch-off: #E8E2D6;
+  --legacy-danger-border-strong: #E8A8A0;
+  --legacy-danger-surface: #FDF6F5;
+  --legacy-accent-border: #F1D3C0;
+  --legacy-accent-deep: #7A4B2A;
+  --legacy-accent-strong: #AD531F;
+}
+.dark {
+  --legacy-border: hsl(var(--border));
+  --legacy-primary-deep: hsl(var(--primary));
+  --legacy-muted-text: hsl(var(--muted-foreground));
+  --legacy-primary: hsl(var(--primary));
+  --legacy-primary-soft: hsl(var(--primary-soft));
+  --legacy-foreground-warm: hsl(var(--foreground));
+  --legacy-surface: hsl(var(--surface-1));
+  --legacy-danger: hsl(4 70% 68%);
+  --legacy-primary-border: hsl(var(--border));
+  --legacy-warning-soft: hsl(var(--warning-soft));
+  --legacy-page-surface: hsl(var(--background));
+  --legacy-muted-surface: hsl(var(--surface-2));
+  --legacy-danger-soft: hsl(var(--destructive-soft));
+  --legacy-ink: hsl(var(--foreground));
+  --legacy-warning-text: hsl(var(--warning));
+  --legacy-danger-border: hsl(var(--destructive) / 0.4);
+  --legacy-accent: hsl(var(--accent));
+  --legacy-accent-soft: hsl(var(--accent-soft));
+  --legacy-border-strong: hsl(var(--border));
+  --legacy-danger-strong: hsl(4 70% 68%);
+  --legacy-rating: hsl(var(--rating));
+  --legacy-card-soft: hsl(var(--surface-1));
+  --legacy-warning-strong: hsl(var(--warning));
+  --legacy-background-pale: hsl(var(--background));
+  --legacy-accent-soft-2: hsl(var(--accent-soft));
+  --legacy-danger-text: hsl(4 70% 68%);
+  --legacy-muted-soft: hsl(var(--muted-foreground));
+  --legacy-warning-border: hsl(var(--warning) / 0.45);
+  --legacy-warning-deep: hsl(var(--warning));
+  --legacy-info-soft: hsl(var(--info-soft));
+  --legacy-neutral-soft: hsl(var(--surface-2));
+  --legacy-warning-soft-strong: hsl(var(--warning-soft));
+  --legacy-primary-mid: hsl(var(--primary-muted));
+  --legacy-warm-border: hsl(var(--border));
+  --legacy-switch-off: hsl(var(--muted));
+  --legacy-danger-border-strong: hsl(var(--destructive) / 0.5);
+  --legacy-danger-surface: hsl(var(--destructive-soft));
+  --legacy-accent-border: hsl(var(--accent) / 0.35);
+  --legacy-accent-deep: hsl(var(--accent));
+  --legacy-accent-strong: hsl(var(--accent));
+}
+
 @layer base {
   * { @apply border-border; }
   body { @apply bg-background text-foreground; }
 
   html {
-    @apply scroll-smooth;
+    @apply scroll-auto;
     scroll-padding-top: calc(4rem + env(safe-area-inset-top, 0px));
   }
 
@@ -352,6 +438,14 @@
   --bottom-nav-offset: calc(4.25rem + env(safe-area-inset-bottom, 0px));
 }
 
+/* A detail route that owns its sticky CTA also owns BottomNav clearance.
+   Avoid stacking the global page-shell spacer with its CTA-specific reserve. */
+@media (max-width: 767px) {
+  .public-main:has(.pb-sticky-contact) {
+    padding-bottom: 0;
+  }
+}
+
 /**
  * Mobile sticky contact / message CTAs must sit ABOVE BottomNav
  */
@@ -374,6 +468,13 @@
 
 .pb-sticky-contact-tall {
   padding-bottom: calc(12.75rem + env(safe-area-inset-bottom, 0px));
+}
+
+/* Sticky mobile CTAs are hidden from the md breakpoint; do not retain their
+   large mobile spacer on tablet widths where the desktop sidebar is shown. */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .pb-sticky-contact { padding-bottom: 2rem; }
+  .pb-sticky-contact-tall { padding-bottom: 2rem; }
 }
 
 @media (min-width: 1024px) {

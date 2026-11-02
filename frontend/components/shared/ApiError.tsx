@@ -117,7 +117,7 @@ export function ApiError({ error, onRetry, variant = 'page' }: ApiErrorProps) {
         onRetry ? (
           <Button
             onClick={onRetry}
-            className="h-11 w-full max-w-xs rounded-full bg-[#397F56] px-6 text-sm font-bold text-white hover:bg-[#397F56]/90"
+            className="h-11 w-full max-w-xs rounded-full bg-[var(--legacy-primary)] px-6 text-sm font-bold text-primary-foreground hover:bg-[var(--legacy-primary)]/90"
           >
             إعادة المحاولة
           </Button>

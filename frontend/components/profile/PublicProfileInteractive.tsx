@@ -20,7 +20,7 @@ import type { PublicUser } from '@/types/user.types';
 import type { StoryGroup } from '@/api/stories.api';
 
 const CIRCLE_BTN =
-  'flex h-11 w-11 items-center justify-center rounded-full border-0 bg-white/90 p-0 text-foreground shadow-md backdrop-blur hover:bg-white';
+  'flex h-11 w-11 items-center justify-center rounded-full border-0 bg-card/95 p-0 text-foreground shadow-md backdrop-blur hover:bg-muted';
 
 export function PublicProfileHeaderTopActions({ user }: { user: PublicUser }) {
   const router = useRouter();

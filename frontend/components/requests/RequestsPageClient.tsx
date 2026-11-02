@@ -128,34 +128,34 @@ export function RequestsPageClient() {
       : undefined;
 
   return (
-    <div className="min-h-[50vh] bg-[#FBF9F4] pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] dark:bg-background sm:pb-10">
+    <div className="min-h-[50vh] bg-[var(--legacy-page-surface)] pb-0 dark:bg-background md:pb-10">
       <div className="container mx-auto max-w-7xl space-y-4 px-3 pt-5 sm:px-4 sm:pt-7">
         {/* Hero — design mockup */}
-        <div className="rounded-2xl border border-[#CFE0D5] bg-[#E8F1EC] p-4 dark:border-primary/20 dark:bg-primary/10 sm:p-5">
-          <p className="text-[11px] font-bold text-[#397F56] dark:text-primary">سوق الطلبات</p>
+        <div className="rounded-2xl border border-[var(--legacy-primary-border)] bg-[var(--legacy-primary-soft)] p-4 dark:border-primary/20 dark:bg-primary/10 sm:p-5">
+          <p className="text-[11px] font-bold text-[var(--legacy-primary)] dark:text-primary">سوق الطلبات</p>
           <h1 className="mt-0.5 text-xl font-extrabold leading-snug tracking-tight text-foreground sm:text-2xl">
             اطلب ما تحتاجه — وقدّم عرضك
           </h1>
-          <p className="mt-1 max-w-xl text-xs leading-relaxed text-[#4A433A] dark:text-muted-foreground sm:text-sm">
+          <p className="mt-1 max-w-xl text-xs leading-relaxed text-[var(--legacy-foreground-warm)] dark:text-muted-foreground sm:text-sm">
             تصفّح الطلبات المفتوحة للخدمات والمنتجات والإيجار، وقدّم عرضك مباشرة لصاحب الطلب.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
               href={ROUTES.requestNew}
-              className="inline-flex h-10 flex-[1.4] items-center justify-center gap-1.5 rounded-full bg-[#397F56] px-4 text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-95 sm:flex-none"
+              className="inline-flex h-10 flex-[1.4] items-center justify-center gap-1.5 rounded-full bg-[var(--legacy-primary)] px-4 text-sm font-bold text-primary-foreground shadow-sm transition-opacity hover:opacity-95 sm:flex-none"
             >
               <Plus className="h-4 w-4" aria-hidden />
               أضف طلبًا
             </Link>
             <Link
               href={ROUTES.myOpenRequests}
-              className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[#CFE0D5] bg-white px-4 text-sm font-bold text-[#1F4D33] dark:border-border dark:bg-card dark:text-primary sm:flex-none"
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[var(--legacy-primary-border)] bg-card px-4 text-sm font-bold text-[var(--legacy-primary-deep)] dark:border-border dark:bg-card dark:text-primary sm:flex-none"
             >
               طلباتي
             </Link>
             <Link
               href={ROUTES.myOpenRequestOffers}
-              className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[#CFE0D5] bg-white px-4 text-sm font-bold text-[#1F4D33] dark:border-border dark:bg-card dark:text-primary sm:flex-none"
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[var(--legacy-primary-border)] bg-card px-4 text-sm font-bold text-[var(--legacy-primary-deep)] dark:border-border dark:bg-card dark:text-primary sm:flex-none"
             >
               عروضي
             </Link>
@@ -164,7 +164,7 @@ export function RequestsPageClient() {
 
         {/* Type tabs */}
         <div
-          className="flex gap-1 overflow-x-auto border-b border-[#EAE3D6] dark:border-border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex gap-1 overflow-x-auto border-b border-[var(--legacy-border)] dark:border-border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           role="tablist"
           aria-label="تصفية حسب النوع"
         >
@@ -179,7 +179,7 @@ export function RequestsPageClient() {
                 className={cn(
                   'inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 px-3 text-[13px] font-semibold transition-colors',
                   active
-                    ? 'border-[#397F56] font-extrabold text-[#1F4D33] dark:border-primary dark:text-primary'
+                    ? 'border-[var(--legacy-primary)] font-extrabold text-[var(--legacy-primary-deep)] dark:border-primary dark:text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground',
                 )}
               >

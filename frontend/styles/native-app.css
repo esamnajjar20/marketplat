@@ -64,13 +64,13 @@ html[data-app-mode='native'] .sticky-contact-bar {
   position: fixed !important;
   left: 0;
   right: 0;
-  bottom: calc(3.75rem + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--bottom-nav-offset, 4.25rem) + 1.25rem);
   z-index: 40;
   padding-bottom: 0.75rem;
 }
 
 html[data-app-mode='native'] .pb-sticky-contact {
-  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px)) !important;
+  padding-bottom: calc(10.5rem + env(safe-area-inset-bottom, 0px)) !important;
 }
 
 html[data-app-mode='native'] .create-form-native-shell h1 {

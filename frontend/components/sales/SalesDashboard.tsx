@@ -33,7 +33,7 @@ function StatTile({
         <span
           className={cn(
             'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
-            warn ? 'bg-[#FBE9E7] text-[#9B2118]' : 'bg-primary/10 text-primary',
+            warn ? 'bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]' : 'bg-primary/10 text-primary',
           )}
         >
           <Icon className="h-4 w-4" />

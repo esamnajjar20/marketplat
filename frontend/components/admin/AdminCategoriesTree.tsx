@@ -51,7 +51,7 @@ export function AdminCategoriesTree() {
   const roots = (categories ?? []).filter((c) => !c.parentId);
 
   return (
-    <div className="rounded-[14px] border border-[#EAE3D6] divide-y">
+    <div className="rounded-[14px] border border-[var(--legacy-border)] divide-y">
       {roots.map((cat) => {
         const isOpen = expanded.has(cat.id);
         const hasChildren = (cat.children?.length ?? 0) > 0;

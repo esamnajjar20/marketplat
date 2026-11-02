@@ -69,10 +69,10 @@ export function CreateSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="gap-0 rounded-t-[20px] border-[#EAE3D6] p-0">
+      <SheetContent className="gap-0 rounded-t-[20px] border-[var(--legacy-border)] p-0">
         <SheetHeader className="space-y-1 px-4 pb-3 pt-2 text-start">
           <SheetTitle className="text-[17px] font-extrabold">ماذا تريد أن تضيف؟</SheetTitle>
-          <SheetDescription className="text-[13px] text-[#6B6459]">
+          <SheetDescription className="text-[13px] text-[var(--legacy-muted-text)]">
             اختر النوع — المسودات تُحفظ تلقائيًا ويمكن إكمالها لاحقًا
           </SheetDescription>
         </SheetHeader>
@@ -84,31 +84,31 @@ export function CreateSheet({
               href={href}
               prefetch={false}
               onClick={() => onOpenChange(false)}
-              className="flex items-center gap-3 rounded-[14px] border border-[#EAE3D6] bg-card px-3 py-3 transition-colors hover:bg-[#FBF9F4]"
+              className="flex items-center gap-3 rounded-[14px] border border-[var(--legacy-border)] bg-card px-3 py-3 transition-colors hover:bg-[var(--legacy-page-surface)]"
             >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#E8F1EC] text-primary">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[var(--legacy-primary-soft)] text-primary">
                 <Icon className="h-5 w-5" strokeWidth={1.8} />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[15px] font-extrabold text-foreground">{label}</span>
-                <span className="block text-[12px] text-[#6B6459]">{description}</span>
+                <span className="block text-[12px] text-[var(--legacy-muted-text)]">{description}</span>
               </span>
-              <ChevronLeft className="h-4 w-4 shrink-0 text-[#6B6459]" aria-hidden />
+              <ChevronLeft className="h-4 w-4 shrink-0 text-[var(--legacy-muted-text)]" aria-hidden />
             </Link>
           ))}
         </nav>
 
         {draftsCount > 0 && (
-          <div className="border-t border-[#EAE3D6] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="border-t border-[var(--legacy-border)] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <Link
               href={ROUTES.offline.drafts}
               prefetch={false}
               onClick={() => onOpenChange(false)}
-              className="flex h-11 items-center justify-center gap-2 rounded-[12px] border border-[#F1C9C4] bg-[#FBEEE6] text-[13px] font-bold text-[#8F3F14]"
+              className="flex h-11 items-center justify-center gap-2 rounded-[12px] border border-[var(--legacy-danger-border)] bg-[var(--legacy-accent-soft)] text-[13px] font-bold text-[var(--legacy-accent)]"
             >
               <FileEdit className="h-4 w-4" />
               متابعة المسودات غير المكتملة
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#C47A0A] px-1.5 text-[11px] font-extrabold text-white">
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--legacy-warning-strong)] px-1.5 text-[11px] font-extrabold text-warning-foreground">
                 {draftsCount > 9 ? '9+' : draftsCount}
               </span>
             </Link>

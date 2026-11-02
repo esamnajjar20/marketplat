@@ -7,6 +7,7 @@
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Spinner } from '@/components/ui/spinner';
 import { cn } from '@/lib/utils';
+import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 
 interface Props {
   onRefresh: () => void | Promise<unknown>;
@@ -24,6 +25,8 @@ export function PullToRefresh({
   threshold = 64,
   disabled = false,
 }: Props) {
+  const isNativeApp = useIsNativeApp();
+  const interactionDisabled = disabled || !isNativeApp;
   const startY = useRef(0);
   const pulling = useRef(false);
   const [offset, setOffset] = useState(0);
@@ -31,17 +34,17 @@ export function PullToRefresh({
 
   const onTouchStart = useCallback(
     (e: React.TouchEvent) => {
-      if (disabled || refreshing) return;
+      if (interactionDisabled || refreshing) return;
       if (typeof window !== 'undefined' && window.scrollY > 4) return;
       startY.current = e.touches[0]?.clientY ?? 0;
       pulling.current = true;
     },
-    [disabled, refreshing],
+    [interactionDisabled, refreshing],
   );
 
   const onTouchMove = useCallback(
     (e: React.TouchEvent) => {
-      if (!pulling.current || disabled || refreshing) return;
+      if (!pulling.current || interactionDisabled || refreshing) return;
       if (window.scrollY > 4) {
         pulling.current = false;
         setOffset(0);
@@ -53,7 +56,7 @@ export function PullToRefresh({
         setOffset(Math.min(dy * 0.45, threshold * 1.4));
       }
     },
-    [disabled, refreshing, threshold],
+    [interactionDisabled, refreshing, threshold],
   );
 
   const onTouchEnd = useCallback(async () => {
@@ -61,14 +64,14 @@ export function PullToRefresh({
     pulling.current = false;
     const should = offset >= threshold;
     setOffset(0);
-    if (!should || disabled) return;
+    if (!should || interactionDisabled) return;
     setRefreshing(true);
     try {
       await onRefresh();
     } finally {
       setRefreshing(false);
     }
-  }, [offset, threshold, disabled, onRefresh]);
+  }, [offset, threshold, interactionDisabled, onRefresh]);
 
   return (
     <div

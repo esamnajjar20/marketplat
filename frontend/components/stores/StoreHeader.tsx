@@ -60,7 +60,7 @@ interface Props {
  * (follow / own-store / report / payments / catalog / hours).
  */
 const CIRCLE_BTN =
-  'flex h-11 w-11 items-center justify-center rounded-full border-0 bg-white/90 p-0 text-foreground shadow-md backdrop-blur hover:bg-white';
+  'flex h-11 w-11 items-center justify-center rounded-full border-0 bg-card/95 p-0 text-foreground shadow-md backdrop-blur hover:bg-muted';
 const OUTLINE_BTN =
   'flex h-[46px] items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-primary/25 bg-card text-[15px] font-bold text-primary-strong transition hover:bg-primary-soft active:scale-[0.98]';
 

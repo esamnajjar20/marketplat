@@ -122,12 +122,12 @@ export function ConfirmDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="gap-0 overflow-hidden rounded-[20px] border-[#EAE3D6] p-0 sm:max-w-md">
+      <DialogContent className="gap-0 overflow-hidden rounded-[20px] border-[var(--legacy-border)] p-0 sm:max-w-md">
         <div className="space-y-3 p-4 sm:p-5">
           <DialogHeader className="space-y-1.5 text-start">
             <DialogTitle className="text-[17px] font-extrabold text-foreground">{title}</DialogTitle>
             {description && (
-              <DialogDescription className="text-[13px] leading-5 text-[#6B6459]">
+              <DialogDescription className="text-[13px] leading-5 text-[var(--legacy-muted-text)]">
                 {description}
               </DialogDescription>
             )}
@@ -144,10 +144,10 @@ export function ConfirmDialog({
                 placeholder={reasonPlaceholder || 'صف المشكلة...'}
                 rows={3}
                 disabled={isPending}
-                className="w-full resize-y rounded-[12px] border border-[#D9D1C3] bg-card px-3 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="w-full resize-y rounded-[12px] border border-[var(--legacy-border-strong)] bg-card px-3 py-2.5 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-primary"
               />
               {reason.trim().length > 0 && reason.trim().length < 3 && (
-                <p className="text-[12px] text-[#9B2118]">السبب قصير جداً</p>
+                <p className="text-[12px] text-[var(--legacy-danger)]">السبب قصير جداً</p>
               )}
             </div>
           )}
@@ -156,7 +156,7 @@ export function ConfirmDialog({
               variant="outline"
               onClick={() => handleOpenChange(false)}
               disabled={isPending}
-              className="h-10 min-w-[88px] rounded-full border-[#D9D1C3] bg-card px-4 text-[13px] font-bold text-[#1F4D33]"
+              className="h-10 min-w-[88px] rounded-full border-[var(--legacy-border-strong)] bg-card px-4 text-[13px] font-bold text-[var(--legacy-primary-deep)]"
             >
               {cancelLabel}
             </Button>
@@ -166,8 +166,8 @@ export function ConfirmDialog({
               disabled={isPending || !reasonOk}
               className={
                 destructive
-                  ? 'h-10 min-w-[120px] rounded-full bg-[#B3261E] px-4 text-[13px] font-bold text-white hover:bg-[#9B2118]'
-                  : 'h-10 min-w-[120px] rounded-full bg-[#397F56] px-4 text-[13px] font-bold text-white hover:bg-[#1F4D33]'
+                  ? 'h-10 min-w-[120px] rounded-full bg-destructive px-4 text-[13px] font-bold text-destructive-foreground hover:bg-destructive/90'
+                  : 'h-10 min-w-[120px] rounded-full bg-[var(--legacy-primary)] px-4 text-[13px] font-bold text-primary-foreground hover:bg-[var(--legacy-primary-deep)]'
               }
             >
               {isPending ? confirmingLabel : confirmLabel}

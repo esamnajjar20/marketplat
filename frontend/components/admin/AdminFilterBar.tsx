@@ -83,12 +83,12 @@ export function AdminFilterBar({
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
       <div className="relative w-full sm:w-auto sm:min-w-[220px] sm:max-w-xs">
-        <Search className="pointer-events-none absolute start-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#6B6459]" />
+        <Search className="pointer-events-none absolute start-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--legacy-muted-text)]" />
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder={searchPlaceholder}
-          className="h-9 rounded-[10px] border-[#D9D1C3] bg-card ps-8 text-[13px]"
+          className="h-9 rounded-[10px] border-[var(--legacy-border-strong)] bg-card ps-8 text-[13px]"
           aria-label={searchPlaceholder}
         />
       </div>
@@ -106,7 +106,7 @@ export function AdminFilterBar({
                 'inline-flex h-8 items-center rounded-full border px-3 text-[12px] font-bold transition-colors',
                 active
                   ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-[#EAE3D6] bg-card text-[#4A433A] hover:bg-muted/50',
+                  : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:bg-muted/50',
               )}
             >
               {tab.label}
@@ -117,7 +117,7 @@ export function AdminFilterBar({
           <button
             type="button"
             onClick={() => replaceParams({ [searchParam]: null, [tabParam]: null })}
-            className="inline-flex h-8 items-center gap-1 rounded-full border border-[#EAE3D6] bg-card px-3 text-[12px] font-bold text-[#6B6459] hover:bg-muted/50"
+            className="inline-flex h-8 items-center gap-1 rounded-full border border-[var(--legacy-border)] bg-card px-3 text-[12px] font-bold text-[var(--legacy-muted-text)] hover:bg-muted/50"
           >
             <X className="h-3.5 w-3.5" aria-hidden="true" />
             مسح الفلتر
@@ -131,7 +131,7 @@ export function AdminFilterBar({
 /** Horizontal scroll wrapper for wide admin tables on small screens. */
 export function AdminTableScroll({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={cn('w-full overflow-x-auto overscroll-x-contain rounded-[14px] border border-[#EAE3D6]', className)}>
+    <div className={cn('w-full overflow-x-auto overscroll-x-contain rounded-[14px] border border-[var(--legacy-border)]', className)}>
       <div className="min-w-[640px]">{children}</div>
     </div>
   );

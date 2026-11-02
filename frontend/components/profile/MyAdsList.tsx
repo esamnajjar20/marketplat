@@ -231,8 +231,8 @@ export function MyAdsList() {
   // needs `data` to have resolved successfully first.
   if (isError) {
     return (
-      <div className="rounded-[14px] border border-[#F1C9C4] bg-card px-4 py-4 text-center">
-        <p className="text-[14px] font-bold text-[#9B2118]">حدث خطأ أثناء تحميل إعلاناتك</p>
+      <div className="rounded-[14px] border border-[var(--legacy-danger-border)] bg-card px-4 py-4 text-center">
+        <p className="text-[14px] font-bold text-[var(--legacy-danger)]">حدث خطأ أثناء تحميل إعلاناتك</p>
         <button
           type="button"
           onClick={() => refetch()}
@@ -257,7 +257,7 @@ export function MyAdsList() {
               className={`inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-[12px] font-bold transition-colors ${
                 (status ?? '') === val
                   ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-[#EAE3D6] bg-card text-[#4A433A] hover:bg-muted/50'
+                  : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:bg-muted/50'
               }`}>
               {label}
             </button>
@@ -313,7 +313,7 @@ export function MyAdsList() {
                 }}
                 className={cn(
                   'flex gap-3 rounded-[14px] border bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors',
-                  selected.has(ad.id) ? 'border-primary bg-[#E8F1EC]/40' : 'border-[#EAE3D6] hover:border-primary/30',
+                  selected.has(ad.id) ? 'border-primary bg-[var(--legacy-primary-soft)]/40' : 'border-[var(--legacy-border)] hover:border-primary/30',
                   selectionMode && 'cursor-pointer',
                 )}
               >
@@ -323,13 +323,13 @@ export function MyAdsList() {
                       'flex h-6 w-6 shrink-0 items-center justify-center self-start rounded-full border-2',
                       selected.has(ad.id)
                         ? 'border-primary bg-primary text-primary-foreground'
-                        : 'border-[#D9D1C3] bg-card',
+                        : 'border-[var(--legacy-border-strong)] bg-card',
                     )}
                   >
                     {selected.has(ad.id) && <Check className="h-3.5 w-3.5" />}
                   </span>
                 )}
-                <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[12px] bg-[#F0EADF]">
+                <div className="relative h-[72px] w-[72px] shrink-0 overflow-hidden rounded-[12px] bg-[var(--legacy-muted-surface)]">
                   <SafeImage src={thumb} alt={ad.title} fill className="object-cover" sizes="96px" />
                 </div>
                 <div className="flex-1 min-w-0 space-y-1">
@@ -376,11 +376,11 @@ export function MyAdsList() {
                   )}
                   <RepublishAdButton adId={ad.id} status={ad.status} />
                   <Link href={ROUTES.adEdit(ad.id)} prefetch={false}>
-                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-[10px] border border-[#EAE3D6]" aria-label={`تعديل ${ad.title}`}>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-[10px] border border-[var(--legacy-border)]" aria-label={`تعديل ${ad.title}`}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                   </Link>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-[10px] border border-[#EAE3D6] text-[#9B2118] hover:text-[#9B2118]"
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-[10px] border border-[var(--legacy-border)] text-[var(--legacy-danger)] hover:text-[var(--legacy-danger)]"
                     aria-label={`حذف ${ad.title}`}
                     onClick={() => scheduleDelete(ad.id)}>
                     <Trash2 className="h-3.5 w-3.5" />
@@ -400,7 +400,7 @@ export function MyAdsList() {
       {/* BULK-ADS-01-JSX: sticky action bar appears in selection mode.
           Positioned above the mobile bottom nav with safe-area. */}
       {selectionMode && (
-        <div className="fixed inset-x-3 bottom-[var(--bottom-nav-offset)] z-30 mx-auto flex max-w-md flex-wrap items-center gap-2 rounded-[16px] border border-[#EAE3D6] bg-card/95 px-3 py-2.5 shadow-[0_8px_28px_-12px_rgba(42,36,29,0.25)] backdrop-blur">
+        <div className="fixed inset-x-3 bottom-[var(--bottom-nav-offset)] z-30 mx-auto flex max-w-md flex-wrap items-center gap-2 rounded-[16px] border border-[var(--legacy-border)] bg-card/95 px-3 py-2.5 shadow-[0_8px_28px_-12px_rgba(42,36,29,0.25)] backdrop-blur">
           <span className="text-[13px] font-extrabold text-foreground">{selected.size} محدد</span>
           <div className="ms-auto flex gap-2">
             <Button

@@ -90,7 +90,7 @@ function MyAdsDrawerLink({ active, onNavigate }: { active: boolean; onNavigate: 
       aria-current={active ? 'page' : undefined}
       className={cn(
         'flex h-11 items-center rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
-        active ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]' : 'text-[#2A241D] hover:bg-[#FBF9F4]',
+        active ? 'bg-primary/10 font-extrabold text-primary' : 'text-foreground hover:bg-muted/60',
       )}
     >
       إعلاناتي
@@ -118,14 +118,14 @@ function DrawerDisclosureGroup({
         className={cn(
           'flex h-11 w-full items-center gap-2 rounded-[10px] px-3 text-[15px] transition-colors',
           isAnyChildActive
-            ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
-            : 'font-semibold text-[#2A241D] hover:bg-[#FBF9F4]',
+            ? 'bg-primary/10 font-extrabold text-primary'
+            : 'font-semibold text-foreground hover:bg-muted/60',
         )}
       >
         <span className="flex-1 text-start">{group.label}</span>
         {isOpen
-          ? <ChevronDown className="h-4 w-4 shrink-0 text-[#6B6459]" aria-hidden="true" />
-          : <ChevronLeft className="h-4 w-4 shrink-0 text-[#6B6459]" aria-hidden="true" />}
+          ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          : <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />}
       </button>
       {isOpen && (
         <ul className="mt-0.5 flex flex-col gap-0.5">
@@ -142,8 +142,8 @@ function DrawerDisclosureGroup({
                   className={cn(
                     'flex h-10 items-center border-inline-start-2 ms-3 pe-3 ps-3 text-[14px] transition-colors',
                     isActive
-                      ? 'rounded-e-[10px] border-[#397F56] bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
-                      : 'border-[#EAE3D6] font-semibold text-[#4A433A] hover:bg-[#FBF9F4]',
+                      ? 'rounded-e-[10px] border-primary bg-primary/10 font-extrabold text-primary'
+                      : 'border-border font-semibold text-foreground hover:bg-muted/60',
                   )}
                 >
                   {child.label}
@@ -296,7 +296,7 @@ export function ProtectedMobileNav() {
           // padding isn't enough to clear the OS status bar in standalone/
           // TWA mode, since there's no browser chrome to push fixed
           // inset-y-0 content below it.
-          'fixed inset-y-0 right-0 z-[100] w-72 max-w-[85vw] overflow-y-auto overscroll-contain border-e border-border bg-background p-5 pt-[max(1.25rem,env(safe-area-inset-top))] shadow-xl transition-transform duration-200 ease-out lg:hidden',
+          'fixed inset-y-0 right-0 z-[100] w-72 max-w-[85vw] overflow-y-auto overscroll-contain border-e border-border bg-background p-5 pt-[max(1.25rem,env(safe-area-inset-top))] text-foreground shadow-xl transition-transform duration-200 ease-out lg:hidden',
           // start-0 (inset-inline-start) in this RTL app (dir="rtl") maps
           // to right:0 — MDN: "with direction rtl, inset-inline-start
           // moves the element from the left side to the right side".
@@ -328,7 +328,7 @@ export function ProtectedMobileNav() {
           <button
             ref={closeButtonRef}
             onClick={close}
-            className="min-h-10 min-w-10 rounded-lg p-2 text-[#397F56] hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-h-10 min-w-10 rounded-lg p-2 text-primary hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="أغلق القائمة"
           >
             <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -341,7 +341,7 @@ export function ProtectedMobileNav() {
           type="button"
           onClick={() => setShowBrowse((value) => !value)}
           aria-expanded={showBrowse}
-          className="mt-6 flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-[#397F56] hover:bg-muted"
+          className="mt-6 flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-primary hover:bg-muted"
         >
           <span className="flex-1 text-start">استكشاف</span>
           {showBrowse ? <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" /> : <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />}
@@ -358,11 +358,11 @@ export function ProtectedMobileNav() {
                   className={cn(
                     'flex h-11 items-center gap-3 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
                     pathname === link.href
-                      ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
-                      : 'text-[#2A241D] hover:bg-[#FBF9F4]',
+                      ? 'bg-primary/10 font-extrabold text-primary'
+                      : 'text-foreground hover:bg-muted/60',
                   )}
                 >
-                  <link.icon className="h-4 w-4 shrink-0 text-[#397F56]" aria-hidden="true" />
+                  <link.icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                   {link.label}
                 </Link>
               </li>
@@ -385,7 +385,7 @@ export function ProtectedMobileNav() {
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
                     'flex h-11 items-center rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
-                    isActive ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]' : 'text-[#2A241D] hover:bg-[#FBF9F4]',
+                    isActive ? 'bg-primary/10 font-extrabold text-primary' : 'text-foreground hover:bg-muted/60',
                   )}
                 >
                   {link.label}
@@ -428,11 +428,11 @@ export function ProtectedMobileNav() {
                 className={cn(
                   'flex h-11 items-center gap-2 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
                   pathname === ROUTES.settings.root
-                    ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
-                    : 'text-[#2A241D] hover:bg-[#FBF9F4]',
+                    ? 'bg-primary/10 font-extrabold text-primary'
+                    : 'text-foreground hover:bg-muted/60',
                 )}
               >
-                <Store className="h-4 w-4 shrink-0 text-[#397F56]" aria-hidden="true" />
+                <Store className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                 أنشئ حساب بائع
               </Link>
             </li>
@@ -456,11 +456,11 @@ export function ProtectedMobileNav() {
                 className={cn(
                   'flex h-11 items-center gap-2 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
                   pathname.startsWith(ROUTES.storeDetail(myStore.id))
-                    ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
-                    : 'text-[#2A241D] hover:bg-[#FBF9F4]',
+                    ? 'bg-primary/10 font-extrabold text-primary'
+                    : 'text-foreground hover:bg-muted/60',
                 )}
               >
-                <ExternalLink className="h-4 w-4 shrink-0 text-[#397F56]" aria-hidden="true" />
+                <ExternalLink className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                 عرض متجري
               </Link>
             </li>
@@ -499,11 +499,11 @@ export function ProtectedMobileNav() {
                 className={cn(
                   'flex h-11 items-center gap-2 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
                   pathname.startsWith(ROUTES.userProfile(user.id))
-                    ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
-                    : 'text-[#2A241D] hover:bg-[#FBF9F4]',
+                    ? 'bg-primary/10 font-extrabold text-primary'
+                    : 'text-foreground hover:bg-muted/60',
                 )}
               >
-                <User className="h-4 w-4 shrink-0 text-[#397F56]" aria-hidden="true" />
+                <User className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                 عرض ملفي
               </Link>
             </li>
@@ -536,8 +536,8 @@ export function ProtectedMobileNav() {
                 className={cn(
                   'flex h-11 items-center rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
                   pathname === ROUTES.admin.root || pathname.startsWith(`${ROUTES.admin.root}/`)
-                    ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
-                    : 'text-[#2A241D] hover:bg-[#FBF9F4]',
+                    ? 'bg-primary/10 font-extrabold text-primary'
+                    : 'text-foreground hover:bg-muted/60',
                 )}
               >
                 لوحة الإدارة
@@ -548,7 +548,7 @@ export function ProtectedMobileNav() {
             <button
               onClick={() => { logout(); close(); }}
               disabled={isLoggingOut}
-              className="flex h-11 w-full items-center rounded-[10px] px-3 text-start text-[15px] font-semibold text-[#9B2118] hover:bg-[#FBF9F4] disabled:opacity-50"
+              className="flex h-11 w-full items-center rounded-[10px] px-3 text-start text-[15px] font-semibold text-destructive hover:bg-muted/60 disabled:opacity-50"
             >
               {isLoggingOut ? 'جارٍ تسجيل الخروج…' : 'تسجيل الخروج'}
             </button>

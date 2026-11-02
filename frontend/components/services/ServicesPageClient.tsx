@@ -47,11 +47,11 @@ export function ServicesPageClient() {
     <ListPageShell
       title="الخدمات"
       description="تصفح الخدمات المحلية في سوق غزة"
-      className="bg-[#FBF9F4] dark:bg-background"
+      className="bg-[var(--legacy-page-surface)] dark:bg-background"
       headerEnd={
         <Link
           href={ROUTES.serviceProviders}
-          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[#EAE3D6] bg-white px-3 text-xs font-bold text-[#1F4D33] shadow-sm hover:border-primary/40 dark:border-border dark:bg-card dark:text-primary"
+          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[var(--legacy-border)] bg-card px-3 text-xs font-bold text-[var(--legacy-primary-deep)] shadow-sm hover:border-primary/40 dark:border-border dark:bg-card dark:text-primary"
         >
           <Users className="h-3.5 w-3.5" aria-hidden />
           مقدمو الخدمة

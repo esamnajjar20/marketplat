@@ -85,19 +85,19 @@ export function ResetPasswordForm({ token }: Props) {
   if (missingToken) {
     return (
       <div className="space-y-5 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#FBE9E7] text-[#9B2118]">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]">
           <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
           </svg>
         </div>
-        <p className="text-[15px] font-bold leading-relaxed text-[#2A241D]">
+        <p className="text-[15px] font-bold leading-relaxed text-[var(--legacy-ink)]">
           رابط إعادة تعيين كلمة المرور غير صالح. يرجى طلب رابط جديد.
         </p>
         <Button asChild className="h-12 w-full rounded-2xl text-[15px] font-bold">
           <Link href={ROUTES.forgotPassword}>طلب رابط جديد</Link>
         </Button>
-        <Link href={ROUTES.login} className="block text-[13px] font-bold text-[#1F4D33] hover:underline">
+        <Link href={ROUTES.login} className="block text-[13px] font-bold text-[var(--legacy-primary-deep)] hover:underline">
           العودة لتسجيل الدخول
         </Link>
       </div>
@@ -121,7 +121,7 @@ export function ResetPasswordForm({ token }: Props) {
         تعيين كلمة المرور
       </Button>
 
-      <p className="text-center text-[13px] font-bold text-[#1F4D33]">
+      <p className="text-center text-[13px] font-bold text-[var(--legacy-primary-deep)]">
         <Link href={ROUTES.login} className="text-primary hover:underline">العودة لتسجيل الدخول</Link>
       </p>
     </form>

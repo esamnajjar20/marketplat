@@ -31,7 +31,7 @@ export function SearchFiltersSheet() {
     <div className="lg:hidden">
       <button
         type="button"
-        className="relative inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#EAE3D6] bg-white px-3 text-xs font-bold text-foreground dark:border-border dark:bg-card"
+        className="relative inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-[var(--legacy-border)] bg-card px-3 text-xs font-bold text-foreground dark:border-border dark:bg-card"
         onClick={() => setOpen(true)}
         aria-expanded={open}
         aria-haspopup="dialog"
@@ -39,7 +39,7 @@ export function SearchFiltersSheet() {
         <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
         {activeCount > 0 ? (
           <span
-            className="absolute -end-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#397F56] px-1 text-[10px] font-extrabold text-white"
+            className="absolute -end-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--legacy-primary)] px-1 text-[10px] font-extrabold text-primary-foreground"
             aria-label={`${activeCount} فلاتر نشطة`}
           >
             {activeCount}
@@ -48,18 +48,18 @@ export function SearchFiltersSheet() {
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent className="flex max-h-[92dvh] flex-col rounded-t-3xl border-[#EAE3D6] bg-[#FBF9F4] p-0 dark:bg-background">
-          <SheetHeader className="border-b border-[#EAE3D6] px-4 pb-3 pt-2 dark:border-border">
+        <SheetContent className="flex max-h-[92dvh] flex-col rounded-t-3xl border-[var(--legacy-border)] bg-[var(--legacy-page-surface)] p-0 dark:bg-background">
+          <SheetHeader className="border-b border-[var(--legacy-border)] px-4 pb-3 pt-2 dark:border-border">
             <SheetTitle className="text-base font-extrabold">تصفية النتائج</SheetTitle>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3">
             <SearchFilters />
           </div>
-          <div className="sticky bottom-0 flex gap-2 border-t border-[#EAE3D6] bg-[#FBF9F4]/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm dark:border-border dark:bg-background/95">
+          <div className="sticky bottom-0 flex gap-2 border-t border-[var(--legacy-border)] bg-[var(--legacy-page-surface)]/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm dark:border-border dark:bg-background/95">
             <Button
               type="button"
               variant="outline"
-              className="h-11 flex-1 rounded-full border-[#EAE3D6] font-bold"
+              className="h-11 flex-1 rounded-full border-[var(--legacy-border)] font-bold"
               onClick={() => {
                 // reset is handled inside filters via clear; close only
                 setOpen(false);
@@ -69,7 +69,7 @@ export function SearchFiltersSheet() {
             </Button>
             <Button
               type="button"
-              className="h-11 flex-[1.4] rounded-full bg-[#397F56] font-bold text-white hover:bg-[#397F56]/90"
+              className="h-11 flex-[1.4] rounded-full bg-[var(--legacy-primary)] font-bold text-primary-foreground hover:bg-[var(--legacy-primary)]/90"
               onClick={() => setOpen(false)}
             >
               عرض النتائج{activeCount > 0 ? ` (${activeCount})` : ''}

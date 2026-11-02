@@ -2,7 +2,7 @@
 
 import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
 import { useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
-import { Clock, Eye, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Clock, Eye, ChevronLeft, ChevronRight, X, ImageOff } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { ZoomableDetailImage } from '@/components/shared/detail/ZoomableDetailImage';
 import { ProgressiveDetailImage } from '@/components/shared/detail/ProgressiveDetailImage';
@@ -52,7 +52,11 @@ export function ServiceListingDetail({ listing, action }: Props) {
     setNow(Date.now());
   }, []);
 
-  const images = listing.images.length > 0 ? listing.images : [PLACEHOLDER_SVG];
+  const validImages = (Array.isArray(listing.images) ? listing.images : []).filter(
+    (image) => typeof image === 'string' && image.trim().length > 0,
+  );
+  const hasImages = validImages.length > 0;
+  const images = hasImages ? validImages : [PLACEHOLDER_SVG];
   const [imgIdx, setImgIdx] = useState(0);
   const [lightbox, setLightbox] = useState(false);
   const touchStartX = useRef<number | null>(null);
@@ -104,7 +108,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
 
   return (
     <>
-      <div className={cn('flex flex-col gap-5 md:flex-row md:gap-8 md:pb-8', providerUserId ? 'pb-sticky-contact' : 'pb-28')}>
+      <div className="flex flex-col gap-5 md:flex-row md:gap-8">
         {/* ── Main column ── */}
         <div className="min-w-0 flex-1 space-y-5">
           {/* Gallery */}
@@ -125,20 +129,27 @@ export function ServiceListingDetail({ listing, action }: Props) {
                 else goNext();
               }}
             >
-              <button
-                type="button"
-                className="absolute inset-0 cursor-zoom-in"
-                onClick={() => setLightbox(true)}
-                aria-label="تكبير الصورة"
-              >
-                <ProgressiveDetailImage
-                  src={currentImg}
-                  alt={listing.title}
-                  className="pointer-events-none object-contain"
-                  sizes="(max-width:1024px) 100vw, 66vw"
-                  priority={imgIdx === 0}
-                />
-              </button>
+              {hasImages ? (
+                <button
+                  type="button"
+                  className="absolute inset-0 cursor-zoom-in"
+                  onClick={() => setLightbox(true)}
+                  aria-label="تكبير الصورة"
+                >
+                  <ProgressiveDetailImage
+                    src={currentImg}
+                    alt={listing.title}
+                    className="pointer-events-none object-contain"
+                    sizes="(max-width:1024px) 100vw, 66vw"
+                    priority={imgIdx === 0}
+                  />
+                </button>
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted/50 text-muted-foreground">
+                  <ImageOff className="h-10 w-10 opacity-70" aria-hidden="true" />
+                  <span className="text-sm font-medium">لا توجد صور لهذه الخدمة</span>
+                </div>
+              )}
               {images.length > 1 && (
                 <>
                   <button
@@ -317,8 +328,8 @@ export function ServiceListingDetail({ listing, action }: Props) {
       {(providerUserId || action) && (
         <div className={cn(STICKY_BAR, 'md:hidden', stickyCta.transitionClass, stickyCta.hiddenClass)}>
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] text-[#6B6459]">يبدأ من</div>
-            <b className="text-[15px] font-extrabold text-[#1F4D33] tabular-nums">
+            <div className="text-[11px] text-muted-foreground">يبدأ من</div>
+            <b className="text-[15px] font-extrabold text-primary tabular-nums">
               {formatServicePrice(listing.pricingType, listing.price)}
             </b>
           </div>

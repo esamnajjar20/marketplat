@@ -35,7 +35,7 @@ export function RelatedServices({
 
   if (isLoading) {
     return (
-      <section className="space-y-4 border-t pt-8 pb-28 lg:pb-4">
+      <section className="space-y-4 border-t pt-8 pb-4">
         <h2 className="flex items-center gap-1.5 text-lg font-bold">
           <Layers className="h-4 w-4 text-muted-foreground" aria-hidden />
           {title}
@@ -60,7 +60,7 @@ export function RelatedServices({
   if (!items.length) return null;
 
   return (
-    <section className="space-y-4 border-t pt-8 pb-28 lg:pb-4" aria-label={title}>
+    <section className="space-y-4 border-t pt-4 pb-4" aria-label={title}>
       <h2 className="flex items-center gap-1.5 text-lg font-bold">
         <Layers className="h-4 w-4 text-muted-foreground" aria-hidden />
         {title}

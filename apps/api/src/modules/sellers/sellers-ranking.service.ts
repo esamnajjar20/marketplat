@@ -77,7 +77,7 @@ export const sellersRankingService = {
         responseTimeMinutes: true,
         activeAds: true,
         joinedSellingAt: true,
-        user: { select: { id: true, city: true } },
+        user: { select: { id: true, name: true, city: true } },
       },
       take: 200, // pool then sort in JS — ranking formula is app-side
     });
@@ -86,7 +86,7 @@ export const sellersRankingService = {
       .map(r => ({
         sellerProfileId: r.id,
         userId: r.user.id,
-        displayName: r.displayName,
+        displayName: r.displayName?.trim() || r.user.name?.trim() || 'بائع',
         avatarUrl: r.avatarUrl,
         city: r.user.city,
         verified: r.verified,

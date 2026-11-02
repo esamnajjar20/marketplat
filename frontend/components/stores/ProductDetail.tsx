@@ -271,8 +271,8 @@ export function ProductDetail({ product, related = [] }: Props) {
       {ownerId && (
         <div className={cn(STICKY_BAR, 'md:hidden', stickyCta.transitionClass, stickyCta.hiddenClass)}>
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] text-[#6B6459]">السعر</div>
-            <b className="text-[15px] font-extrabold text-[#1F4D33] tabular-nums">
+            <div className="text-[11px] text-muted-foreground">السعر</div>
+            <b className="text-[15px] font-extrabold text-primary tabular-nums">
               {formatPrice(String(displayPrice))}
             </b>
           </div>

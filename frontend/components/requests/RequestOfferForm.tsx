@@ -71,7 +71,7 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
   return (
     <form
       onSubmit={onSubmit}
-      className="space-y-3.5 rounded-2xl border border-[#EAE3D6] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)]"
+      className="space-y-3.5 rounded-2xl border border-[var(--legacy-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)]"
       noValidate
     >
       <div>
@@ -93,7 +93,7 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
       </div>
 
       {!canEdit && (
-        <div className="rounded-xl border border-[#EBD7A8] bg-[#FBF0D9] px-3 py-2.5 text-xs leading-relaxed text-[#5A3705]">
+        <div className="rounded-xl border border-[var(--legacy-warning-border)] bg-[var(--legacy-warning-soft)] px-3 py-2.5 text-xs leading-relaxed text-[var(--legacy-warning-deep)]">
           ⚠ لا يمكن تعديل هذا العرض لأنه أصبح {REQUEST_OFFER_STATUS_LABEL[myOffer!.status]}. يمكنك متابعة الطلب من حالة العرض الحالية.
         </div>
       )}
@@ -135,8 +135,8 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
               className={cn(
                 'h-8 shrink-0 rounded-full border px-3 text-xs font-bold transition-colors',
                 activeTemplate === t.id
-                  ? 'border-[#397F56] bg-[#E8F1EC] text-[#1F4D33]'
-                  : 'border-[#EAE3D6] bg-white text-[#4A433A] hover:border-[#CFE0D5]',
+                  ? 'border-[var(--legacy-primary)] bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary-deep)]'
+                  : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:border-[var(--legacy-primary-border)]',
               )}
             >
               {t.label}

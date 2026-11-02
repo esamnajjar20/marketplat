@@ -23,7 +23,7 @@ export function AdminRecentActivity() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center rounded-[14px] border border-[#EAE3D6] bg-card py-8">
+      <div className="flex justify-center rounded-[14px] border border-[var(--legacy-border)] bg-card py-8">
         <LoadingSpinner size="sm" />
       </div>
     );
@@ -34,17 +34,17 @@ export function AdminRecentActivity() {
   }
 
   return (
-    <section className="overflow-hidden rounded-[14px] border border-[#EAE3D6] bg-card shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
+    <section className="overflow-hidden rounded-[14px] border border-[var(--legacy-border)] bg-card shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
       <div className="flex items-center justify-between px-3.5 py-3">
         <h2 className="text-[15px] font-extrabold">أحدث الإعلانات</h2>
         <Link
           href={adminTabHref('ads')}
-          className="text-[12px] font-bold text-[#1F4D33] hover:underline"
+          className="text-[12px] font-bold text-[var(--legacy-primary-deep)] hover:underline"
         >
           عرض الكل ←
         </Link>
       </div>
-      <div className="grid grid-cols-[2fr_1.2fr_1fr_1fr] items-center gap-3 border-b border-[#EAE3D6] bg-[#F6F1E7] px-3.5 text-[12px] font-bold text-[#4A433A] h-10">
+      <div className="grid grid-cols-[2fr_1.2fr_1fr_1fr] items-center gap-3 border-b border-[var(--legacy-border)] bg-[var(--legacy-surface)] px-3.5 text-[12px] font-bold text-[var(--legacy-foreground-warm)] h-10">
         <span>الإعلان</span>
         <span>صاحب الإعلان</span>
         <span>الحالة</span>
@@ -56,7 +56,7 @@ export function AdminRecentActivity() {
       {items.map((ad) => (
         <div
           key={ad.id}
-          className="grid grid-cols-[2fr_1.2fr_1fr_1fr] items-center gap-3 border-b border-[#F0EADF] px-3.5 text-[13px] h-14 last:border-b-0"
+          className="grid grid-cols-[2fr_1.2fr_1fr_1fr] items-center gap-3 border-b border-[var(--legacy-muted-surface)] px-3.5 text-[13px] h-14 last:border-b-0"
         >
           <Link
             prefetch={false}
@@ -67,13 +67,13 @@ export function AdminRecentActivity() {
           >
             {ad.title}
           </Link>
-          <span className="truncate text-[#4A433A]">{ad.user?.name ?? '—'}</span>
+          <span className="truncate text-[var(--legacy-foreground-warm)]">{ad.user?.name ?? '—'}</span>
           <span>
-            <span className="inline-flex h-[22px] items-center rounded-full bg-[#E8F1EC] px-2 text-[11px] font-bold text-[#1F4D33]">
+            <span className="inline-flex h-[22px] items-center rounded-full bg-[var(--legacy-primary-soft)] px-2 text-[11px] font-bold text-[var(--legacy-primary-deep)]">
               {STATUS_LABEL[ad.status] ?? ad.status}
             </span>
           </span>
-          <span className="text-[12px] text-[#6B6459]">
+          <span className="text-[12px] text-[var(--legacy-muted-text)]">
             <HydrationSafeRelativeTime date={ad.createdAt} />
           </span>
         </div>

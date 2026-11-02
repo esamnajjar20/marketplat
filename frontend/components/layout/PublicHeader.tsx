@@ -109,12 +109,16 @@ export function PublicHeader({ showSearch = true, showMenuTrigger: _showMenuTrig
           brand mark, bell kept unconditionally reachable next to it —
           while staying on the same theme tokens as the rest of the
           header so it needs no separate dark-mode treatment. */}
-      <div className="flex h-14 items-center justify-between border-b border-border bg-background px-4 lg:hidden">
-        {/* RTL: first item sits on the right — logo + brand mark */}
-        <Link prefetch={false} href={ROUTES.home} className="shrink-0">
-          <Logo size="sm" />
-        </Link>
-        <div className="flex items-center gap-1">
+      <div className="flex h-14 items-center gap-2 border-b border-border bg-background px-3 lg:hidden">
+        {/* Keep the menu trigger on the same RTL edge as the protected header. */}
+        <div className="flex shrink-0 items-center gap-1">
+          <MobileNav />
+          <Link prefetch={false} href={ROUTES.home} className="shrink-0">
+            <Logo size="sm" />
+          </Link>
+        </div>
+        <div className="ms-auto flex items-center gap-1">
+          <ThemeToggle />
           {isAuthenticated && <NotificationBell />}
           {showSearch && (
             <Link
@@ -129,8 +133,6 @@ export function PublicHeader({ showSearch = true, showMenuTrigger: _showMenuTrig
               </svg>
             </Link>
           )}
-          {/* Hamburger in header for all page types. BottomNav no longer toggles the drawer. */}
-          <MobileNav />
         </div>
       </div>
 

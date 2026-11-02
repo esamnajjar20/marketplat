@@ -195,7 +195,7 @@ function WifiOnlyToggle({
   networkLabel: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#EAE3D6] bg-white p-3.5 dark:border-border dark:bg-card">
+    <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--legacy-border)] bg-card p-3.5 dark:border-border dark:bg-card">
       <div className="min-w-0 flex-1 text-start">
         <p className="text-sm font-extrabold text-foreground">مزامنة تلقائية على Wi‑Fi فقط</p>
         <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
@@ -210,12 +210,12 @@ function WifiOnlyToggle({
         onClick={() => onChange(!enabled)}
         className={cn(
           'relative h-7 w-12 shrink-0 rounded-full transition-colors',
-          enabled ? 'bg-[#397F56]' : 'bg-[#E8E2D6]',
+          enabled ? 'bg-[var(--legacy-primary)]' : 'bg-[var(--legacy-switch-off)]',
         )}
       >
         <span
           className={cn(
-            'absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-[inset-inline-start] duration-200',
+            'absolute top-0.5 h-6 w-6 rounded-full bg-card shadow transition-[inset-inline-start] duration-200',
             enabled ? 'inset-inline-start-5' : 'inset-inline-start-0.5',
           )}
         />
@@ -234,13 +234,13 @@ function ActivityPanel({
 }) {
   if (items.length === 0) return null;
   return (
-    <div className="rounded-2xl border border-[#EAE3D6] bg-white p-3.5 dark:border-border dark:bg-card">
+    <div className="rounded-2xl border border-[var(--legacy-border)] bg-card p-3.5 dark:border-border dark:bg-card">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-sm font-extrabold text-foreground">آخر النشاط</p>
         <button
           type="button"
           onClick={onClear}
-          className="inline-flex h-8 items-center rounded-full border border-[#EAE3D6] px-3 text-xs font-bold text-[#1F4D33] dark:border-border dark:text-primary"
+          className="inline-flex h-8 items-center rounded-full border border-[var(--legacy-border)] px-3 text-xs font-bold text-[var(--legacy-primary-deep)] dark:border-border dark:text-primary"
         >
           مسح السجل
         </button>
@@ -312,8 +312,8 @@ function StatusHero({
         'rounded-2xl border p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)]',
         !isOnline && 'border-warning/35 bg-warning/[0.06]',
         isOnline && failedQueue > 0 && 'border-destructive/30 bg-destructive/[0.04]',
-        isOnline && failedQueue === 0 && pendingQueue > 0 && 'border-[#CFE0D5] bg-[#E8F1EC] dark:border-primary/25 dark:bg-primary/10',
-        isOnline && failedQueue === 0 && pendingQueue === 0 && 'border-[#EAE3D6] bg-white dark:border-border dark:bg-card',
+        isOnline && failedQueue === 0 && pendingQueue > 0 && 'border-[var(--legacy-primary-border)] bg-[var(--legacy-primary-soft)] dark:border-primary/25 dark:bg-primary/10',
+        isOnline && failedQueue === 0 && pendingQueue === 0 && 'border-[var(--legacy-border)] bg-card dark:border-border dark:bg-card',
       )}
       role="status"
       aria-live="polite"
@@ -362,7 +362,7 @@ function StatusHero({
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[10rem]">
           {isOnline && pendingQueue > 0 && (
             <Button
-              className="min-h-11 w-full rounded-full bg-[#397F56] font-bold text-white hover:bg-[#397F56]/90"
+              className="min-h-11 w-full rounded-full bg-[var(--legacy-primary)] font-bold text-primary-foreground hover:bg-[var(--legacy-primary)]/90"
               onClick={onRetryAll}
               loading={retrying}
               loadingText="جاري الإرسال…"
@@ -373,7 +373,7 @@ function StatusHero({
           {isOnline && (pendingQueue > 0 || draftsCount > 0) && (
             <Button
               variant="outline"
-              className="min-h-11 w-full rounded-full border-[#CFE0D5] bg-white font-bold text-[#1F4D33] dark:border-border"
+              className="min-h-11 w-full rounded-full border-[var(--legacy-primary-border)] bg-card font-bold text-[var(--legacy-primary-deep)] dark:border-border"
               onClick={onGoDrafts}
             >
               عرض المسودات
@@ -443,8 +443,8 @@ function TabBadge({ count, tone = 'default', label }: { count: number; tone?: 'd
         'ms-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-extrabold tabular-nums',
         tone === 'danger'
           ? 'bg-destructive text-destructive-foreground'
-          : 'bg-[#397F56] text-white',
-        tone === 'default' && 'group-data-[selected=false]:bg-[#E8F1EC] group-data-[selected=false]:text-[#1F4D33]',
+          : 'bg-[var(--legacy-primary)] text-primary-foreground',
+        tone === 'default' && 'group-data-[selected=false]:bg-[var(--legacy-primary-soft)] group-data-[selected=false]:text-[var(--legacy-primary-deep)]',
       )}
     >
       <span aria-hidden="true">{count > 99 ? '99+' : count}</span>
@@ -594,7 +594,7 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
   return (
     <section
       aria-label="مركز الأوفلاين"
-      className="mx-auto w-full max-w-6xl bg-[#FBF9F4] text-start dark:bg-background"
+      className="mx-auto w-full max-w-6xl bg-[var(--legacy-page-surface)] text-start dark:bg-background"
       dir="rtl"
     >
       <header className="mb-3 flex flex-wrap items-start justify-between gap-3">
@@ -605,7 +605,7 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
           </p>
         </div>
         {isOnline ? (
-          <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[#E8F1EC] px-3 text-xs font-bold text-[#1F4D33]">
+          <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-[var(--legacy-primary-soft)] px-3 text-xs font-bold text-[var(--legacy-primary-deep)]">
             <Wifi className="h-3.5 w-3.5" aria-hidden />
             متصل
           </span>
@@ -621,7 +621,7 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
         role="tablist"
         aria-label="أقسام مركز الأوفلاين"
         className={cn(
-          'sticky top-2 z-20 -mx-1 mb-5 flex snap-x snap-mandatory gap-0.5 overflow-x-auto overscroll-x-contain border-b border-[#EAE3D6] bg-[#FBF9F4]/95 dark:border-border dark:bg-background/95',
+          'sticky top-2 z-20 -mx-1 mb-5 flex snap-x snap-mandatory gap-0.5 overflow-x-auto overscroll-x-contain border-b border-[var(--legacy-border)] bg-[var(--legacy-page-surface)]/95 dark:border-border dark:bg-background/95',
           '[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         )}
       >
@@ -665,7 +665,7 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
               className={cn(
                 'group flex min-h-10 snap-start shrink-0 items-center justify-center gap-1.5 border-b-2 px-3 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 selected
-                  ? 'border-[#397F56] font-extrabold text-[#1F4D33] dark:border-primary dark:text-primary'
+                  ? 'border-[var(--legacy-primary)] font-extrabold text-[var(--legacy-primary-deep)] dark:border-primary dark:text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground',
               )}
             >

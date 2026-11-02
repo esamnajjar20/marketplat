@@ -259,13 +259,13 @@ function DraftRow({
     draft.status === 'synced' ? 100 : isFailed ? 0 : draft.status === 'pending_sync' ? 85 : 55;
 
   return (
-    <li className="rounded-2xl border border-[#EAE3D6] bg-white p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
+    <li className="rounded-2xl border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
       <div className="flex items-start justify-between gap-2">
         <span
           className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
             isFailed
               ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400'
-              : 'bg-[#E8F1EC] text-[#1F4D33] dark:bg-primary/15 dark:text-primary'
+              : 'bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary-deep)] dark:bg-primary/15 dark:text-primary'
           }`}
         >
           {isFailed ? 'فشل الإرسال' : kind}
@@ -279,9 +279,9 @@ function DraftRow({
         <p className="mt-1 line-clamp-2 text-xs text-destructive">{draft.lastError}</p>
       ) : null}
       <div className="mt-3 flex items-center gap-2">
-        <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[#EDE7DC] dark:bg-muted">
+        <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--legacy-warm-border)] dark:bg-muted">
           <div
-            className={`h-full rounded-full ${isFailed ? 'bg-red-500' : 'bg-[#397F56]'}`}
+            className={`h-full rounded-full ${isFailed ? 'bg-red-500' : 'bg-[var(--legacy-primary)]'}`}
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -295,13 +295,13 @@ function DraftRow({
           onClick={onDelete}
           disabled={busy}
           aria-label="حذف المسودة"
-          className="h-10 w-10 shrink-0 rounded-xl border-[#EAE3D6] p-0 dark:border-border"
+          className="h-10 w-10 shrink-0 rounded-xl border-[var(--legacy-border)] p-0 dark:border-border"
         >
           <Trash2 className="h-4 w-4 text-muted-foreground" />
         </Button>
         <Button
           asChild
-          className="h-10 min-w-0 flex-1 rounded-full bg-[#397F56] text-sm font-bold text-white hover:bg-[#397F56]/90"
+          className="h-10 min-w-0 flex-1 rounded-full bg-[var(--legacy-primary)] text-sm font-bold text-primary-foreground hover:bg-[var(--legacy-primary)]/90"
           disabled={busy}
         >
           <Link href={resumeHref}>{isFailed ? 'إعادة المحاولة' : 'متابعة التعديل'}</Link>

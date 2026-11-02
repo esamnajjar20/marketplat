@@ -49,7 +49,7 @@ export function SearchTabs({ value, onChange, className }: Props) {
       role="tablist"
       aria-label="نوع النتائج"
       id={tabListId}
-      className={cn('flex gap-0.5 overflow-x-auto overscroll-x-contain border-b border-[#EAE3D6] dark:border-border', className)}
+      className={cn('flex gap-0.5 overflow-x-auto overscroll-x-contain border-b border-[var(--legacy-border)] dark:border-border', className)}
     >
       {TABS.map((tab, index) => (
         <button
@@ -66,7 +66,7 @@ export function SearchTabs({ value, onChange, className }: Props) {
           className={cn(
             'min-h-10 shrink-0 border-b-2 px-3 py-2 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             value === tab.value
-              ? 'border-[#397F56] font-extrabold text-[#1F4D33] dark:border-primary dark:text-primary'
+              ? 'border-[var(--legacy-primary)] font-extrabold text-[var(--legacy-primary-deep)] dark:border-primary dark:text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'
           )}
         >

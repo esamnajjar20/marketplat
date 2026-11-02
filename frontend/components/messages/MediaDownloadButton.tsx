@@ -26,11 +26,29 @@ export function MediaDownloadButton({ conversationId, messageId, kind, fileName,
       const blob = response.data;
       if (!(blob instanceof Blob) || blob.size === 0) throw new Error('empty download');
       const url = URL.createObjectURL(blob);
+      const extensionByMime: Record<string, string> = {
+        'application/pdf': 'pdf',
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'audio/webm': 'webm',
+        'audio/ogg': 'ogg',
+        'audio/mpeg': 'mp3',
+      };
+      const extension = extensionByMime[blob.type.split(';')[0]?.trim().toLowerCase() ?? ''] ?? 'bin';
+      const fallbackName = kind === 'audio'
+        ? `voice-${messageId}.${extension}`
+        : kind === 'image'
+          ? `image-${messageId}.${extension}`
+          : `attachment-${messageId}.${extension}`;
       const a = document.createElement('a');
       a.href = url;
-      a.download = fileName || (kind === 'audio' ? `voice-${messageId}.webm` : 'attachment');
+      a.download = fileName?.trim() || fallbackName;
+      a.hidden = true;
+      document.body.appendChild(a);
       a.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
       toast.success('بدأ تحميل الملف');
     } catch {
       toast.error('تعذّر تحميل الملف. حاول مرة أخرى.');

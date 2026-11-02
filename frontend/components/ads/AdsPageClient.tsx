@@ -46,7 +46,7 @@ export function AdsPageClient() {
     <ListPageShell
       title="الإعلانات"
       description="تصفح كل الإعلانات المنشورة في سوق غزة"
-      className="bg-[#FBF9F4] dark:bg-background"
+      className="bg-[var(--legacy-page-surface)] dark:bg-background"
       toolbar={
         <div className="flex w-full flex-col gap-3">
           <div className="min-w-0 w-full">

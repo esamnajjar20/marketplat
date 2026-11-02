@@ -94,7 +94,8 @@
     "cards:unification-phase4-audit": "node scripts/card-unification-phase4-audit.mjs",
     "build:version": "node scripts/generate-build-id.mjs",
     "audit:script-references": "node scripts/package-script-reference-audit.mjs",
-    "a11y:visibility-audit": "node scripts/accessibility-visibility-audit.mjs"
+    "a11y:visibility-audit": "node scripts/accessibility-visibility-audit.mjs",
+    "responsive:visual-audit": "node scripts/responsive-visual-consistency-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

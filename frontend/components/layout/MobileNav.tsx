@@ -124,7 +124,7 @@ function ThemeRow() {
             aria-pressed={mounted && theme === value}
             className={cn(
               'flex flex-1 flex-col items-center gap-1 rounded py-1.5 text-xs transition-colors',
-              mounted && theme === value ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]' : 'hover:bg-muted text-muted-foreground',
+              mounted && theme === value ? 'bg-primary/10 font-extrabold text-primary' : 'hover:bg-muted text-muted-foreground',
             )}
           >
             <Icon className="h-4 w-4" />
@@ -159,7 +159,7 @@ function NavSection({
               // drawer — see ExploreSheet.tsx for the full rationale.
               prefetch={false}
               onClick={onNavigate}
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
+              className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-foreground hover:bg-muted"
             >
               <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
               {label}
@@ -204,8 +204,8 @@ function DisclosureGroup({
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
         className={cn(
-          'flex w-full items-center gap-3 rounded-md px-3 py-2 text-base font-medium transition-colors',
-          isAnyChildActive && !isOpen ? 'bg-muted' : 'text-[#2A241D] hover:bg-[#FBF9F4]',
+          'flex w-full items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-foreground transition-colors',
+          isAnyChildActive && !isOpen ? 'bg-muted' : 'hover:bg-muted/60',
         )}
       >
         <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -226,7 +226,7 @@ function DisclosureGroup({
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
                     'flex h-10 items-center border-inline-start-2 ms-3 pe-3 ps-3 text-[14px] transition-colors',
-                    isActive ? 'rounded-e-[10px] border-[#397F56] bg-[#E8F1EC] font-extrabold text-[#1F4D33]' : 'border-[#EAE3D6] font-semibold text-[#4A433A] hover:bg-[#FBF9F4]',
+                    isActive ? 'rounded-e-[10px] border-primary bg-primary/10 font-extrabold text-primary' : 'border-border font-semibold text-foreground hover:bg-muted/60',
                   )}
                 >
                   {child.label}
@@ -408,7 +408,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
             id={NAV_ID}
             // FIX MOBILE-01: max-w-[85vw] — see identical fix in
             // ProtectedMobileNav.tsx.
-            className={`fixed inset-y-0 right-0 z-[60] flex w-72 max-w-[85vw] flex-col border-e border-border bg-background shadow-xl transition-transform duration-200 ease-out ${
+            className={`fixed inset-y-0 right-0 z-[60] flex w-72 max-w-[85vw] flex-col border-e border-border bg-background text-foreground shadow-xl transition-transform duration-200 ease-out ${
               isMobileNavOpen ? 'translate-x-0' : 'translate-x-full'
             }`}
             aria-label="القائمة الرئيسية"
@@ -481,8 +481,8 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                           className={cn(
                             'flex h-11 items-center gap-3 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
                             pathname === ROUTES.settings.root
-                              ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
-                              : 'text-[#2A241D] hover:bg-[#FBF9F4]',
+                              ? 'bg-primary/10 font-extrabold text-primary'
+                              : 'text-foreground hover:bg-muted/60',
                           )}
                         >
                           <Store className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -508,8 +508,8 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                           className={cn(
                             'flex h-11 items-center gap-3 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
                             pathname.startsWith(ROUTES.userProfile(user.id))
-                              ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
-                              : 'text-[#2A241D] hover:bg-[#FBF9F4]',
+                              ? 'bg-primary/10 font-extrabold text-primary'
+                              : 'text-foreground hover:bg-muted/60',
                           )}
                         >
                           <User className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -550,7 +550,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                             aria-current={isActive ? 'page' : undefined}
                             className={cn(
                               'flex h-11 items-center gap-3 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
-                              isActive ? 'rounded-e-[10px] border-[#397F56] bg-[#E8F1EC] font-extrabold text-[#1F4D33]' : 'border-[#EAE3D6] font-semibold text-[#4A433A] hover:bg-[#FBF9F4]',
+                              isActive ? 'rounded-e-[10px] border-primary bg-primary/10 font-extrabold text-primary' : 'border-border font-semibold text-foreground hover:bg-muted/60',
                             )}
                           >
                             <link.icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
@@ -576,7 +576,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                         <Link
                           href={ROUTES.admin.dashboard}
                           onClick={closeMobileNav}
-                          className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium hover:bg-muted"
+                          className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-foreground hover:bg-muted"
                         >
                           <Shield className="h-4 w-4 shrink-0 text-muted-foreground" />
                           لوحة الإدارة
@@ -607,7 +607,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
               <button
                 onClick={() => { logout(); closeMobileNav(); }}
                 disabled={isLoggingOut}
-                className="flex h-11 w-full items-center gap-3 rounded-[10px] px-3 text-start text-[15px] font-semibold text-[#9B2118] hover:bg-[#FBF9F4] disabled:opacity-50"
+                className="flex h-11 w-full items-center gap-3 rounded-[10px] px-3 text-start text-[15px] font-semibold text-destructive hover:bg-muted/60 disabled:opacity-50"
               >
                 <LogOut className="h-4 w-4 shrink-0" />
                 {isLoggingOut ? 'جارٍ تسجيل الخروج…' : 'تسجيل الخروج'}

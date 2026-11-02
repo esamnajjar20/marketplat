@@ -39,9 +39,9 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
 
   if (providerAvailability === 'UNAVAILABLE') {
     return (
-      <div className="rounded-2xl border border-[#EBD7A8] bg-[#FBF0D9] px-4 py-3.5" role="status">
-        <p className="text-[14px] font-extrabold text-[#5A3705]">مقدم الخدمة غير متاح حاليًا</p>
-        <p className="mt-1 text-[12px] leading-relaxed text-[#5A3705]/90">
+      <div className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3.5" role="status">
+        <p className="text-[14px] font-extrabold text-warning-foreground">مقدم الخدمة غير متاح حاليًا</p>
+        <p className="mt-1 text-[12px] leading-relaxed text-warning-foreground/90">
           يمكنك حفظ الخدمة والعودة إليها لاحقًا عندما يصبح متاحًا.
         </p>
       </div>
@@ -93,9 +93,9 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
       </Button>
 
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setSent(false); }}>
-        <DialogContent className="rounded-2xl border border-[#EAE3D6] bg-[#FBF9F4] p-0 gap-0 overflow-hidden sm:max-w-md">
+        <DialogContent className="rounded-2xl border border-border bg-card p-0 gap-0 overflow-hidden sm:max-w-md">
           <DialogHeader className="px-4 pt-4 pb-0">
-            <DialogTitle className="text-[17px] font-extrabold text-[#2A241D]">
+            <DialogTitle className="text-[17px] font-extrabold text-foreground">
               {sent ? 'تم إرسال الطلب' : 'إرسال طلب خدمة'}
             </DialogTitle>
           </DialogHeader>
@@ -122,17 +122,17 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
             </div>
           ) : (
           <div className="space-y-3.5 px-4 pb-4 pt-2">
-            <p className="text-[12px] leading-relaxed text-[#6B6459]">
+            <p className="text-[12px] leading-relaxed text-muted-foreground">
               المسار: طلب ← رد المقدّم ← (اختياري) موعد ← اكتمال الخدمة
             </p>
-            <ul className="space-y-1 text-[12px] leading-relaxed text-[#4A433A]">
+            <ul className="space-y-1 text-[12px] leading-relaxed text-foreground">
               <li>• صف احتياجك بوضوح (مكان، وقت، تفاصيل).</li>
               <li>• المقدّم يرد بالقبول أو الرفض أو عرض سعر.</li>
               <li>• يمكنك متابعة الحالة من صفحة طلباتي.</li>
             </ul>
 
             <div className="space-y-1.5">
-              <label htmlFor="request-details" className="text-[13px] font-bold text-[#2A241D]">
+              <label htmlFor="request-details" className="text-[13px] font-bold text-foreground">
                 وصّف اللي محتاجه بالتفصيل
               </label>
               <textarea
@@ -142,13 +142,13 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
                 placeholder="مثال: بدي تصليح تسريب مي بالمطبخ، متوفر أيام الجمعة بعد الظهر..."
-                className="w-full rounded-xl border border-[#D9D1C3] bg-white px-3.5 py-2.5 text-[13px] leading-relaxed text-[#2A241D] shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#397F56]/30 resize-none"
+                className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-[13px] leading-relaxed text-foreground shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
               />
             </div>
 
             <Link
               href={ROUTES.myServiceRequests}
-              className="inline-block text-[13px] font-bold text-[#397F56] hover:underline"
+              className="inline-block text-[13px] font-bold text-primary hover:underline"
               onClick={() => setOpen(false)}
             >
               عرض طلباتي السابقة
@@ -158,7 +158,7 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
               <Button
                 variant="outline"
                 onClick={() => setOpen(false)}
-                className="h-11 flex-1 rounded-xl border-[#EAE3D6] font-bold"
+                className="h-11 flex-1 rounded-xl border-border font-bold"
               >
                 إلغاء
               </Button>

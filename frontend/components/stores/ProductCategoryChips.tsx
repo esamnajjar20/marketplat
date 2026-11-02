@@ -50,7 +50,7 @@ export function ProductCategoryChips() {
           'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-bold transition-colors',
           !activeId
             ? 'border-primary bg-primary text-primary-foreground'
-            : 'border-[#EAE3D6] bg-white text-[#4A433A] hover:border-primary/40 dark:border-border dark:bg-card dark:text-foreground',
+            : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:border-primary/40 dark:border-border dark:bg-card dark:text-foreground',
         )}
       >
         الكل
@@ -67,7 +67,7 @@ export function ProductCategoryChips() {
               'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-bold transition-colors',
               selected
                 ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-[#EAE3D6] bg-white text-[#4A433A] hover:border-primary/40 dark:border-border dark:bg-card dark:text-foreground',
+                : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:border-primary/40 dark:border-border dark:bg-card dark:text-foreground',
             )}
           >
             {cat.nameAr || cat.name}

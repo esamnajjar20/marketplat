@@ -63,18 +63,18 @@ export function ForgotPasswordForm() {
   if (sent) {
     return (
       <div className="space-y-5 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#E8F1EC] text-[#397F56]">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary)]">
           <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
             <rect x="3" y="5" width="18" height="14" rx="2" />
             <path d="M3 7l9 6 9-6" />
           </svg>
         </div>
-        <h2 className="text-[18px] font-extrabold text-[#2A241D]">تحقق من بريدك الإلكتروني</h2>
-        <p className="text-[13px] leading-relaxed text-[#6B6459]">
+        <h2 className="text-[18px] font-extrabold text-[var(--legacy-ink)]">تحقق من بريدك الإلكتروني</h2>
+        <p className="text-[13px] leading-relaxed text-[var(--legacy-muted-text)]">
           أرسلنا رابط إعادة تعيين كلمة المرور إلى{' '}
-          <span className="font-bold text-[#2A241D]">{email}</span>
+          <span className="font-bold text-[var(--legacy-ink)]">{email}</span>
         </p>
-        <Button asChild variant="outline" className="h-11 w-full rounded-2xl border-[#EAE3D6] font-bold">
+        <Button asChild variant="outline" className="h-11 w-full rounded-2xl border-[var(--legacy-border)] font-bold">
           <Link href={loginHref}>العودة لتسجيل الدخول</Link>
         </Button>
       </div>
@@ -92,7 +92,7 @@ export function ForgotPasswordForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="example@email.com"
-          className="h-12 rounded-2xl border-[#EAE3D6]"
+          className="h-12 rounded-2xl border-[var(--legacy-border)]"
         />
       </FormField>
 
@@ -119,14 +119,14 @@ export function ForgotPasswordForm() {
           prevent). */}
       <AuthDivider />
 
-      <Button asChild variant="outline" className="h-12 w-full gap-2 rounded-2xl border-[#EAE3D6] font-bold">
+      <Button asChild variant="outline" className="h-12 w-full gap-2 rounded-2xl border-[var(--legacy-border)] font-bold">
         <a href={`${API_BASE_URL}/auth/google?purpose=reset`}>
           <GoogleIcon />
           إعادة كلمة السر عبر Google
         </a>
       </Button>
 
-      <p className="text-center text-[13px] font-bold text-[#1F4D33]">
+      <p className="text-center text-[13px] font-bold text-[var(--legacy-primary-deep)]">
         <Link href={loginHref} className="text-primary hover:underline">العودة لتسجيل الدخول</Link>
       </p>
     </form>

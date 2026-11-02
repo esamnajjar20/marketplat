@@ -43,7 +43,7 @@ export const AdminReportRow = memo(function AdminReportRow({
   onRequestStatus,
 }: Props) {
   return (
-    <tr className="hover:bg-[#F4F9F6] transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]">
+    <tr className="hover:bg-[var(--legacy-card-soft)] transition-colors [content-visibility:auto] [contain-intrinsic-size:auto_72px]">
       <td className="p-3">
         {report.status === 'PENDING' && (
           <Checkbox

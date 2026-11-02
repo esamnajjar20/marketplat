@@ -35,11 +35,11 @@ export function AuthField({
   const styledChild = isValidElement(children)
     ? cloneElement(children, {
         className: cn(
-          'h-12 rounded-2xl border bg-white shadow-none transition-colors',
-          'placeholder:text-[#A39E94]',
+          'h-12 rounded-2xl border bg-card shadow-none transition-colors',
+          'placeholder:text-[var(--legacy-muted-soft)]',
           error
-            ? 'border-[#E8A8A0] bg-[#FDF6F5] focus-visible:ring-[#B3261E]/25'
-            : 'border-[#EAE3D6] focus-visible:ring-[#397F56]/25',
+            ? 'border-[var(--legacy-danger-border-strong)] bg-[var(--legacy-danger-surface)] focus-visible:ring-[var(--legacy-danger-strong)]/25'
+            : 'border-[var(--legacy-border)] focus-visible:ring-[var(--legacy-primary)]/25',
           iconOnLeft ? 'pe-11 ps-4' : 'ps-11 pe-4',
           (children.props as { className?: string }).className,
         ),
@@ -53,11 +53,11 @@ export function AuthField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={htmlFor} className="text-[13px] font-bold text-[#2A241D]">
+      <label htmlFor={htmlFor} className="text-[13px] font-bold text-[var(--legacy-ink)]">
         {label}
         {required && (
           <>
-            <span className="ms-1 text-[#B3261E]" aria-hidden="true">
+            <span className="ms-1 text-[var(--legacy-danger-strong)]" aria-hidden="true">
               *
             </span>
             <span className="sr-only">(مطلوب)</span>
@@ -69,21 +69,21 @@ export function AuthField({
           aria-hidden
           className={cn(
             'pointer-events-none absolute top-1/2 h-[18px] w-[18px] -translate-y-1/2',
-            error ? 'text-[#B3261E]/70' : 'text-[#A39E94]',
+            error ? 'text-[var(--legacy-danger-strong)]/70' : 'text-[var(--legacy-muted-soft)]',
             iconOnLeft ? 'end-4' : 'start-4',
           )}
         />
         {styledChild}
       </div>
       {hint && !error && (
-        <p id={hintId} className="text-[12px] text-[#6B6459]">
+        <p id={hintId} className="text-[12px] text-[var(--legacy-muted-text)]">
           {hint}
         </p>
       )}
       {error && (
         <p
           id={errorId}
-          className="flex items-center gap-1.5 text-[12px] font-medium text-[#9B2118]"
+          className="flex items-center gap-1.5 text-[12px] font-medium text-[var(--legacy-danger)]"
           role="alert"
           aria-live="assertive"
         >

@@ -171,8 +171,8 @@ export function BottomNav() {
             className={cn(
               'flex h-12 w-12 min-h-12 min-w-12 items-center justify-center rounded-full',
               'bg-primary text-primary-foreground',
-              'shadow-[0_6px_16px_rgba(57,127,86,0.35)] transition-transform',
-              'transition-[transform,box-shadow] duration-150 hover:scale-[1.03] hover:shadow-[0_8px_20px_rgba(57,127,86,0.4)] active:scale-[0.98]',
+              'shadow-[var(--shadow-md)] transition-transform',
+              'transition-[transform,box-shadow] duration-150 hover:scale-[1.03] hover:shadow-[var(--shadow-lg)] active:scale-[0.98]',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
             )}
           >
@@ -181,7 +181,7 @@ export function BottomNav() {
           {isAuthenticated && draftsCount > 0 && (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute -top-1 -end-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-[#AD531F] px-1 text-[10px] font-extrabold leading-none text-white"
+              className="pointer-events-none absolute -top-1 -end-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-background bg-[var(--legacy-accent-strong)] px-1 text-[10px] font-extrabold leading-none text-accent-foreground"
             >
               {draftsCount > 9 ? '9+' : draftsCount}
             </span>

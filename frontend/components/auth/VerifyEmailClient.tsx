@@ -57,14 +57,14 @@ function VerifyEmailInner() {
 
   return (
     <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 py-10">
-      <h1 className="text-[24px] font-extrabold tracking-tight text-[#1F4D33]">تأكيد البريد الإلكتروني</h1>
+      <h1 className="text-[24px] font-extrabold tracking-tight text-[var(--legacy-primary-deep)]">تأكيد البريد الإلكتروني</h1>
 
       {state.kind === 'idle' && (
-        <div className="w-full space-y-4 rounded-2xl border border-[#EAE3D6] bg-white p-6 text-center shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#E8F1EC] text-[#397F56]">
+        <div className="w-full space-y-4 rounded-2xl border border-[var(--legacy-border)] bg-card p-6 text-center shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary)]">
             <Mail className="h-6 w-6" aria-hidden />
           </div>
-          <p className="text-[13px] leading-relaxed text-[#6B6459]">
+          <p className="text-[13px] leading-relaxed text-[var(--legacy-muted-text)]">
             افتح الرابط الذي أرسلناه إلى بريدك الإلكتروني لتأكيد الحساب.
           </p>
 
@@ -87,7 +87,7 @@ function VerifyEmailInner() {
             </div>
           </div>
 
-          <Button asChild variant="outline" className="h-12 w-full gap-2 rounded-2xl border-[#EAE3D6] font-bold">
+          <Button asChild variant="outline" className="h-12 w-full gap-2 rounded-2xl border-[var(--legacy-border)] font-bold">
             <a href={`${API_BASE_URL}/auth/google?purpose=verify`}>
               <GoogleIcon />
               تأكيد بريدي عبر Google
@@ -97,19 +97,19 @@ function VerifyEmailInner() {
       )}
 
       {state.kind === 'verifying' && (
-        <div className="flex w-full flex-col items-center gap-3 rounded-2xl border border-[#EAE3D6] bg-white p-8 shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
+        <div className="flex w-full flex-col items-center gap-3 rounded-2xl border border-[var(--legacy-border)] bg-card p-8 shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
           <LoadingSpinner />
-          <p className="text-[13px] text-[#6B6459]">جارٍ تأكيد بريدك الإلكتروني...</p>
+          <p className="text-[13px] text-[var(--legacy-muted-text)]">جارٍ تأكيد بريدك الإلكتروني...</p>
         </div>
       )}
 
       {state.kind === 'success' && (
-        <div className="w-full space-y-4 rounded-2xl border border-[#EAE3D6] bg-white p-6 text-center shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#E8F1EC] text-[#397F56]">
+        <div className="w-full space-y-4 rounded-2xl border border-[var(--legacy-border)] bg-card p-6 text-center shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary)]">
             <CheckCircle2 className="h-7 w-7" aria-hidden />
           </div>
-          <p className="text-[18px] font-extrabold text-[#2A241D]">تم تأكيد بريدك الإلكتروني بنجاح</p>
-          <p className="text-[13px] text-[#6B6459]">يمكنك الآن استخدام جميع ميزات سوق غزة.</p>
+          <p className="text-[18px] font-extrabold text-[var(--legacy-ink)]">تم تأكيد بريدك الإلكتروني بنجاح</p>
+          <p className="text-[13px] text-[var(--legacy-muted-text)]">يمكنك الآن استخدام جميع ميزات سوق غزة.</p>
           <Button asChild className="h-12 w-full rounded-2xl text-[15px] font-bold">
             <Link href={ROUTES.home}>الذهاب إلى الصفحة الرئيسية</Link>
           </Button>
@@ -117,15 +117,15 @@ function VerifyEmailInner() {
       )}
 
       {state.kind === 'error' && (
-        <div className="w-full space-y-4 rounded-2xl border border-[#F1C9C4] bg-white p-6 text-center shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#FBE9E7] text-[#9B2118]">
+        <div className="w-full space-y-4 rounded-2xl border border-[var(--legacy-danger-border)] bg-card p-6 text-center shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]">
             <XCircle className="h-7 w-7" aria-hidden />
           </div>
-          <p className="text-[14px] font-bold text-[#9B2118]">{state.message}</p>
-          <p className="text-[12px] text-[#6B6459]">
+          <p className="text-[14px] font-bold text-[var(--legacy-danger)]">{state.message}</p>
+          <p className="text-[12px] text-[var(--legacy-muted-text)]">
             قد يكون الرابط منتهي الصلاحية. يمكنك طلب رابط جديد من صفحة الملف الشخصي.
           </p>
-          <Button asChild variant="outline" className="h-11 w-full rounded-2xl border-[#EAE3D6] font-bold">
+          <Button asChild variant="outline" className="h-11 w-full rounded-2xl border-[var(--legacy-border)] font-bold">
             <Link href={ROUTES.home}>العودة للرئيسية</Link>
           </Button>
         </div>

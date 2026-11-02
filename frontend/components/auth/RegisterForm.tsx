@@ -196,7 +196,7 @@ export function RegisterForm() {
           of the form so it doesn't look out of place beside them. */}
       <FormField label="المدينة" htmlFor="city" hint="اختياري">
         <Select value={city} onValueChange={setCity}>
-          <SelectTrigger id="city" className="h-12 rounded-2xl border-[#EAE3D6]">
+          <SelectTrigger id="city" className="h-12 rounded-2xl border-[var(--legacy-border)]">
             <SelectValue placeholder="اختر مدينتك" />
           </SelectTrigger>
           <SelectContent>
@@ -213,9 +213,9 @@ export function RegisterForm() {
 
       <GoogleAuthButton label="التسجيل باستخدام Google" />
 
-      <p className="text-center text-[13px] text-[#6B6459]">
+      <p className="text-center text-[13px] text-[var(--legacy-muted-text)]">
         لديك حساب بالفعل؟{' '}
-        <Link href={loginHref} className="font-bold text-[#1F4D33] hover:underline">تسجيل الدخول</Link>
+        <Link href={loginHref} className="font-bold text-[var(--legacy-primary-deep)] hover:underline">تسجيل الدخول</Link>
       </p>
     </form>
   );

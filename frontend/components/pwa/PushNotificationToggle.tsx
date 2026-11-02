@@ -231,22 +231,22 @@ export function PushNotificationToggle() {
     <div className="space-y-3">
       <div
         className={cn(
-          'flex items-center justify-between gap-3 rounded-2xl border border-[#EAE3D6] bg-white p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)]',
-          isDenied && 'border-[#F1C9C4] bg-[#FBE9E7]/40',
-          isOn && !isDenied && 'border-[#CFE0D5] bg-[#E8F1EC]/40',
+          'flex items-center justify-between gap-3 rounded-2xl border border-[var(--legacy-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)]',
+          isDenied && 'border-[var(--legacy-danger-border)] bg-[var(--legacy-danger-soft)]/40',
+          isOn && !isDenied && 'border-[var(--legacy-primary-border)] bg-[var(--legacy-primary-soft)]/40',
         )}
       >
         <div className="flex items-start gap-3">
           {isOn && !isDenied ? (
-            <Bell className="mt-0.5 h-5 w-5 text-[#397F56]" />
+            <Bell className="mt-0.5 h-5 w-5 text-[var(--legacy-primary)]" />
           ) : isDenied ? (
-            <AlertTriangle className="mt-0.5 h-5 w-5 text-[#9B2118]" />
+            <AlertTriangle className="mt-0.5 h-5 w-5 text-[var(--legacy-danger)]" />
           ) : (
-            <BellOff className="mt-0.5 h-5 w-5 text-[#6B6459]" />
+            <BellOff className="mt-0.5 h-5 w-5 text-[var(--legacy-muted-text)]" />
           )}
           <div>
-            <p className="text-[14px] font-bold text-[#2A241D]">تفعيل إشعارات الجهاز</p>
-            <p className="mt-0.5 text-[12px] leading-relaxed text-[#6B6459]">
+            <p className="text-[14px] font-bold text-[var(--legacy-ink)]">تفعيل إشعارات الجهاز</p>
+            <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--legacy-muted-text)]">
               {isChecking
                 ? 'جارٍ التحقق…'
                 : isDenied

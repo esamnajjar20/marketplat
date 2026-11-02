@@ -46,7 +46,7 @@ export function ListPageShell({
   return (
     <div
       className={cn(
-        'pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-8',
+        'pb-0 md:pb-8',
         className,
       )}
     >

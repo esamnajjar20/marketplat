@@ -85,7 +85,7 @@ export function StoreReviewsList({ storeId, averageRating, totalRatings }: Props
                     <span className="w-4 tabular-nums">{star}</span>
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                       <div
-                        className="h-full rounded-full bg-[#D9962B]"
+                        className="h-full rounded-full bg-[var(--legacy-rating)]"
                         style={{ width: `${Math.max(count > 0 ? 8 : 0, pct)}%` }}
                       />
                     </div>
@@ -102,7 +102,7 @@ export function StoreReviewsList({ storeId, averageRating, totalRatings }: Props
                     key={n}
                     className={cn(
                       'h-3.5 w-3.5',
-                      n <= Math.round(Number(rating)) ? 'fill-[#D9962B] text-[#D9962B]' : 'text-muted-foreground/40',
+                      n <= Math.round(Number(rating)) ? 'fill-[var(--legacy-rating)] text-[var(--legacy-rating)]' : 'text-muted-foreground/40',
                     )}
                   />
                 ))}
@@ -150,7 +150,7 @@ export function StoreReviewsList({ storeId, averageRating, totalRatings }: Props
                           key={n}
                           className={cn(
                             'h-3.5 w-3.5',
-                            n <= review.score ? 'fill-[#D9962B] text-[#D9962B]' : 'text-muted-foreground/35',
+                            n <= review.score ? 'fill-[var(--legacy-rating)] text-[var(--legacy-rating)]' : 'text-muted-foreground/35',
                           )}
                         />
                       ))}

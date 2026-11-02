@@ -110,7 +110,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
               // Design match: ~34px height, rounded-[9px], active = soft green + extrabold
               'flex min-h-11 items-center gap-2.5 rounded-[9px] px-2.5 py-1.5 text-[13px] font-semibold transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ',
               isActive
-                ? 'bg-primary-soft text-[#1F4D33] font-extrabold'
+                ? 'bg-primary-soft text-[var(--legacy-primary-deep)] font-extrabold'
                 : 'text-foreground hover:bg-muted/80',
             )}
           >
@@ -118,7 +118,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             <span className="flex-1">{label}</span>
             {badge > 0 && (
               <span
-                className="flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-extrabold tabular-nums bg-[#B3261E] text-white"
+                className="flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-extrabold tabular-nums bg-destructive text-destructive-foreground"
               >
                 {badge > 99 ? '99+' : badge}
               </span>
@@ -228,7 +228,7 @@ function MobileDrawer() {
               className="absolute inset-0 bg-foreground/50 backdrop-blur-[2px]"
               onClick={() => setOpen(false)}
             />
-            <div ref={panelRef} className="absolute inset-y-0 start-0 z-[101] h-full w-[min(300px,88vw)] overflow-y-auto border-e border-[#EAE3D6] bg-card shadow-xl">
+            <div ref={panelRef} className="absolute inset-y-0 start-0 z-[101] h-full w-[min(300px,88vw)] overflow-y-auto border-e border-[var(--legacy-border)] bg-card shadow-xl">
               <button
                 onClick={() => setOpen(false)}
                 className="absolute top-3 end-3 z-[102] flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"

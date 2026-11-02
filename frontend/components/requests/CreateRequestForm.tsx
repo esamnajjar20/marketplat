@@ -9,6 +9,7 @@ import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import { FormDraftStatus } from '@/components/shared/forms/FormDraftStatus';
+import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import type { RequestType } from '@/types/request.types';
 import { REQUEST_TYPE_LABEL, formatRequestBudget } from '@/lib/requestStatus';
 import { Button } from '@/components/shared/ui/Button';
@@ -354,8 +355,8 @@ export function CreateRequestForm() {
     budgetMin || null,
     budgetMax || null,
   );
-
-  return (
+  const PreviewIcon = TYPE_META[type].icon;
+  const formElement = (
     <form
       onSubmit={onSubmit}
       className="flex flex-col gap-5 rounded-xl border border-border/80 bg-card p-4 shadow-xs sm:p-5"
@@ -641,4 +642,51 @@ export function CreateRequestForm() {
       </div>
     </form>
   );
+
+  const previewElement = (
+    <section className="space-y-4 rounded-xl border border-border/80 bg-card p-4 shadow-xs" aria-label="معاينة الطلب">
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <PreviewIcon className="h-5 w-5" aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-sm font-bold text-foreground">معاينة طلبك</h2>
+          <p className="text-xs text-muted-foreground">تتحدث المعاينة مع تعديل البيانات</p>
+        </div>
+      </div>
+      <div className="space-y-3 rounded-xl border border-border/70 bg-muted/20 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">{TYPE_META[type].label}</span>
+          <span className="text-xs text-muted-foreground">{selectedCategoryLabel || 'الفئة غير محددة'}</span>
+        </div>
+        <h3 className="break-words text-base font-bold text-foreground">{title.trim() || 'عنوان طلبك'}</h3>
+        <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-muted-foreground">
+          {description.trim() || 'ستظهر هنا تفاصيل الاحتياج الذي تكتبه.'}
+        </p>
+      </div>
+      <dl className="space-y-2 text-sm">
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-muted-foreground">المدينة</dt>
+          <dd className="font-medium text-foreground">{city || 'كل المدن'}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-muted-foreground">الميزانية</dt>
+          <dd className="font-semibold text-foreground">{budgetPreview || 'مفتوحة للتفاوض'}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-muted-foreground">مدة الظهور</dt>
+          <dd className="font-medium text-foreground">{expiresInDays} أيام</dd>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <dt className="text-muted-foreground">المرفقات</dt>
+          <dd className="font-medium text-foreground">{files.length ? `${files.length} صور` : 'لا توجد'}</dd>
+        </div>
+      </dl>
+      <p className="rounded-lg bg-primary/5 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+        ستظهر هذه المعلومات للبائعين ومقدّمي الخدمة بعد نشر الطلب.
+      </p>
+    </section>
+  );
+
+  return <CreateFormLayout form={formElement} preview={previewElement} />;
 }

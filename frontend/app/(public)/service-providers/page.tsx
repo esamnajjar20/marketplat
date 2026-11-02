@@ -17,7 +17,7 @@ export const metadata: Metadata = buildMetadata({
  */
 export default function ServiceProvidersPage() {
   return (
-    <div className="pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:pb-8">
+    <div className="pb-0 md:pb-8">
       <div className="container mx-auto max-w-7xl px-3 pt-5 sm:px-4 sm:pt-7">
         <PageHeader
           icon={<Users className="h-6 w-6" />}

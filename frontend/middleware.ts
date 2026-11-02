@@ -292,7 +292,7 @@ function buildCsp(nonce: string, isDev: boolean, allowEval: boolean = false): st
     // res.cloudinary.com is the delivery CDN; api.cloudinary.com is only
     // uploads. Both are needed — fetch() of an image goes to res.*.
     // Google Sign-In renders its button in an iframe from accounts.google.com.
-    `frame-src https://accounts.google.com`,
+    `frame-src 'self' blob: https://accounts.google.com`,
     `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''} https://api.cloudinary.com https://res.cloudinary.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://accounts.google.com`,
     // FIX PWA-11: بدون worker-src صريح، بعض المتصفحات (خاصة القديمة أو
     // الصارمة) قد ترفض تسجيل public/sw.js حتى لو كان default-src 'self'

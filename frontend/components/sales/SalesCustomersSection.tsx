@@ -11,10 +11,10 @@ import { cn } from '@/lib/utils';
 
 function debtBadge(due: number, overdue?: boolean) {
   if (overdue || due > 0 && overdue) {
-    return { label: 'متأخر', className: 'bg-[#FBE9E7] text-[#9B2118]' };
+    return { label: 'متأخر', className: 'bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]' };
   }
   if (due > 0) {
-    return { label: 'عليه دين', className: 'bg-[#FBF0D9] text-[#7A4B07]' };
+    return { label: 'عليه دين', className: 'bg-[var(--legacy-warning-soft)] text-[var(--legacy-warning-text)]' };
   }
   return { label: 'بدون دين', className: 'bg-primary/10 text-primary' };
 }

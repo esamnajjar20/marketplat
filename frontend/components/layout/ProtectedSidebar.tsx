@@ -126,21 +126,21 @@ function NavLink({
           ? cn(
               'ms-3 border-inline-start-2 py-0 pe-3 ps-3',
               isActive
-                ? 'border-[#397F56] bg-[#E8F1EC] font-extrabold text-[#1F4D33] rounded-e-[10px]'
-                : 'border-[#EAE3D6] font-semibold text-[#4A433A] hover:bg-[#FBF9F4]',
+                ? 'border-primary bg-primary/10 font-extrabold text-primary rounded-e-[10px]'
+                : 'border-border font-semibold text-foreground hover:bg-muted/60',
             )
           : cn(
               'rounded-[10px] px-3',
               isActive
-                ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
-                : 'font-semibold text-[#6B6459] hover:bg-[#FBF9F4] hover:text-[#1F4D33]',
+                ? 'bg-primary/10 font-extrabold text-primary'
+                : 'font-semibold text-muted-foreground hover:bg-muted/60 hover:text-primary',
             ),
       )}
     >
-      {Icon && <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-[#397F56]' : 'text-[#397F56]')} aria-hidden={true} />}
+      {Icon && <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-primary' : 'text-primary')} aria-hidden={true} />}
       <span className="flex-1">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[#397F56] px-1.5 text-[11px] font-extrabold text-white">
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--legacy-primary)] px-1.5 text-[11px] font-extrabold text-primary-foreground">
           {badge > 9 ? '9+' : badge}
         </span>
       )}
@@ -174,15 +174,15 @@ function DisclosureGroup({
         className={cn(
           'flex min-h-11 w-full items-center gap-2.5 rounded-[10px] px-3 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none',
           isAnyChildActive
-            ? 'bg-[#E8F1EC] font-extrabold text-[#1F4D33]'
-            : 'font-semibold text-[#6B6459] hover:bg-[#FBF9F4] hover:text-[#1F4D33]',
+            ? 'bg-primary/10 font-extrabold text-primary'
+            : 'font-semibold text-muted-foreground hover:bg-muted/60 hover:text-primary',
         )}
       >
-        <Icon className="h-4 w-4 shrink-0 text-[#397F56]" aria-hidden={true} />
+        <Icon className="h-4 w-4 shrink-0 text-primary" aria-hidden={true} />
         <span className="flex-1 text-start">{group.label}</span>
         {isOpen
-          ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[#6B6459]" aria-hidden={true} />
-          : <ChevronLeft className="h-3.5 w-3.5 shrink-0 text-[#6B6459]" aria-hidden={true} />}
+          ? <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden={true} />
+          : <ChevronLeft className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden={true} />}
       </button>
       <div id={panelId} hidden={!isOpen} className="mt-0.5 flex flex-col gap-0.5 pb-1">
           {group.children.map((child) => (
@@ -250,9 +250,9 @@ export function ProtectedSidebar() {
   });
 
   return (
-    <aside className="sticky top-0 z-20 hidden h-[calc(100vh-4rem)] w-56 shrink-0 overflow-y-auto border-e border-[#EAE3D6] bg-white lg:block lg:w-[260px]">
+    <aside className="sticky top-0 z-20 hidden h-[calc(100vh-4rem)] w-56 shrink-0 overflow-y-auto border-e border-border bg-background lg:block lg:w-[260px]">
       <nav aria-label="القائمة الشخصية" className="flex flex-col gap-0.5 p-3 lg:p-4">
-        <p className="px-3 pb-1 pt-1 text-[11px] font-bold text-[#6B6459]">الوصول السريع</p>
+        <p className="px-3 pb-1 pt-1 text-[11px] font-bold text-muted-foreground">الوصول السريع</p>
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.href}
@@ -265,8 +265,8 @@ export function ProtectedSidebar() {
           />
         ))}
 
-        <div className="my-2 border-t border-[#EAE3D6]" aria-hidden="true" />
-        <p className="px-3 pt-1 text-[11px] font-bold text-[#6B6459]">مساحتي</p>
+        <div className="my-2 border-t border-border" aria-hidden="true" />
+        <p className="px-3 pt-1 text-[11px] font-bold text-muted-foreground">مساحتي</p>
 
         {showRoleSkeleton && <RoleNavSkeleton />}
         {!showRoleSkeleton && secondaryItems.map((item) => {
@@ -285,7 +285,7 @@ export function ProtectedSidebar() {
         })}
 
         <div className="mt-2 flex flex-col gap-0.5">
-            <p className="px-3 pt-1 text-[11px] font-bold text-[#6B6459]">النشاط والإعدادات</p>
+            <p className="px-3 pt-1 text-[11px] font-bold text-muted-foreground">النشاط والإعدادات</p>
             {!activityVisible && (
               <Suspense fallback={<DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} />}>
                 <WithSearch>{(search) => <DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} search={search} onNavigate={navigate} />}</WithSearch>

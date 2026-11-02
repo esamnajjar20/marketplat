@@ -110,7 +110,7 @@ export function RequestCard({ request: r, context = 'public', showStatus = false
             href={detailHref}
             prefetch={false}
             className={cn(
-              'inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-[#397F56] px-4 text-xs font-bold text-white transition-opacity hover:opacity-95',
+              'inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-[var(--legacy-primary)] px-4 text-xs font-bold text-primary-foreground transition-opacity hover:opacity-95',
               CARD_FOCUS,
               CARD_PRESS,
             )}

@@ -15,7 +15,7 @@ type Props = { store: AdminStore; selected: boolean; pendingId?: string; pending
 export const AdminStoreRow = memo(function AdminStoreRow({ store, selected, pendingId, pendingTypeId, storeTypes, onToggle, onUpdateStatus, onUpdatePlan, onUpdateType, onBlock }: Props) {
   const badge = { label: STORE_STATUS_LABELS[store.status], variant: STORE_STATUS_VARIANT[store.status] };
   return (
-<tr key={store.id} className="border-b border-[#F0EADF] transition-colors hover:bg-[#F4F9F6]">
+<tr key={store.id} className="border-b border-[var(--legacy-muted-surface)] transition-colors hover:bg-[var(--legacy-card-soft)]">
                     <td className="p-3">
                       <Checkbox
                         checked={selected}

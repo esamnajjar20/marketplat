@@ -147,7 +147,7 @@ export function StorageManagementClient() {
       )}
 
       {/* ملخص الحصة */}
-      <section className="rounded-2xl border border-[#EAE3D6] bg-white p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
+      <section className="rounded-2xl border border-[var(--legacy-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-sm font-semibold">مساحة هذا الجهاز</h2>
@@ -179,7 +179,7 @@ export function StorageManagementClient() {
             </span>
           </div>
           <div
-            className="h-2.5 overflow-hidden rounded-full bg-[#EDE7DC] dark:bg-muted"
+            className="h-2.5 overflow-hidden rounded-full bg-[var(--legacy-warm-border)] dark:bg-muted"
             role="progressbar"
             aria-label="نسبة استخدام التخزين"
             aria-valuemin={0}
@@ -214,7 +214,7 @@ export function StorageManagementClient() {
       </section>
 
       {/* توفير البيانات */}
-      <section className="rounded-2xl border border-[#EAE3D6] bg-white p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
+      <section className="rounded-2xl border border-[var(--legacy-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
         <h2 className="text-sm font-semibold">توفير البيانات</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           يقلّل تحميل الصور الثقيلة على شبكات ضعيفة أو باقات محدودة
@@ -225,7 +225,7 @@ export function StorageManagementClient() {
       </section>
 
       {/* بيانات محلية هامة */}
-      <section className="rounded-2xl border border-[#EAE3D6] bg-white p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
+      <section className="rounded-2xl border border-[var(--legacy-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
         <h2 className="text-sm font-semibold">بيانات محفوظة لديك</h2>
         <ul className="mt-3 space-y-2">
           <li className="flex items-center gap-3 rounded-xl bg-muted/40 px-3 py-2.5">
@@ -314,12 +314,12 @@ export function StorageManagementClient() {
       </section>
 
       {/* إجراءات جماعية */}
-      <section className="space-y-3 rounded-2xl border border-[#EAE3D6] bg-white p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
+      <section className="space-y-3 rounded-2xl border border-[var(--legacy-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
         <h2 className="text-sm font-semibold">إجراءات سريعة</h2>
         <div className="grid gap-2 sm:grid-cols-2">
           <Button
             type="button"
-            className="h-11 justify-center gap-2 rounded-full bg-[#397F56] font-bold text-white hover:bg-[#397F56]/90 sm:col-span-2"
+            className="h-11 justify-center gap-2 rounded-full bg-[var(--legacy-primary)] font-bold text-primary-foreground hover:bg-[var(--legacy-primary)]/90 sm:col-span-2"
             disabled={busy !== null || loading}
             onClick={() =>
               void runAction('browsable', () => clearBrowsableCaches(), 'تم تحرير المساحة دون حذف المحفوظات')

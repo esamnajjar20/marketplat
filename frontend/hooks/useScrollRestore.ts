@@ -42,47 +42,63 @@ export function useScrollRestore(enabled = true, searchParam?: string) {
 
     const currentSearch = searchParam !== undefined ? search : (window.location.search || '');
     const key = storageKey(pathname, currentSearch);
-    let cleanupTimeout: (() => void) | undefined;
-    let cleanupObserver: (() => void) | undefined;
+    let cancelled = false;
+    let observer: ResizeObserver | undefined;
+    let safetyTimer: number | undefined;
+    let frameOne = 0;
+    let frameTwo = 0;
+
+    const stopRestoration = () => {
+      cancelled = true;
+      observer?.disconnect();
+      if (safetyTimer !== undefined) window.clearTimeout(safetyTimer);
+      window.removeEventListener('wheel', stopRestoration, true);
+      window.removeEventListener('touchstart', stopRestoration, true);
+      window.removeEventListener('pointerdown', stopRestoration, true);
+      window.removeEventListener('keydown', stopRestoration, true);
+    };
+
+    const scrollWithoutAnimation = (top: number) => {
+      const root = document.documentElement;
+      const previous = root.style.scrollBehavior;
+      root.style.scrollBehavior = 'auto';
+      window.scrollTo({ top, behavior: 'auto' });
+      root.style.scrollBehavior = previous;
+    };
 
     try {
       const raw = sessionStorage.getItem(key);
-      if (raw) {
-        const y = Number(raw);
-        if (Number.isFinite(y) && y > 0) {
-          // After paint / images may shift layout — double rAF + short delay
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              window.scrollTo(0, y);
-            });
-          });
-          const t = window.setTimeout(() => {
-            window.scrollTo({ top: y, behavior: 'auto' });
-          }, 120);
-          cleanupTimeout = () => clearTimeout(t);
+      const y = raw ? Number(raw) : 0;
+      if (Number.isFinite(y) && y > 0) {
+        // A restore is a one-time navigation aid, not an ongoing controller
+        // of the user's scroll position. User interaction cancels all retries.
+        window.addEventListener('wheel', stopRestoration, { capture: true, passive: true });
+        window.addEventListener('touchstart', stopRestoration, { capture: true, passive: true });
+        window.addEventListener('pointerdown', stopRestoration, true);
+        window.addEventListener('keydown', stopRestoration, true);
 
-          // FIX SCROLL-RESIZE: ResizeObserver يستعيد الموضع مرة أخرى عند
-          // استقرار الـ layout (صور/بطاقات تُحمَّل بعد 120ms على الشبكات
-          // البطيئة). يوقف نفسه بعد أول محاولة ناجحة.
-          if (typeof ResizeObserver !== 'undefined') {
-            let done = false;
-            const observer = new ResizeObserver(() => {
-              if (done) return;
-              const needed = y + window.innerHeight;
-              if (document.body.scrollHeight >= needed) {
-                window.scrollTo(0, y);
-                done = true;
-                observer.disconnect();
-              }
-            });
-            observer.observe(document.body);
-            // Safety: disconnect بعد 3 ثوانٍ حتى لا يبقى observer عالقاً
-            const safety = window.setTimeout(() => observer.disconnect(), 3000);
-            cleanupObserver = () => {
-              observer.disconnect();
-              clearTimeout(safety);
-            };
+        const restoreIfReady = () => {
+          if (cancelled) return;
+          scrollWithoutAnimation(y);
+          if (window.scrollY >= y - 2) {
+            observer?.disconnect();
+            if (safetyTimer !== undefined) window.clearTimeout(safetyTimer);
           }
+        };
+
+        frameOne = window.requestAnimationFrame(() => {
+          frameTwo = window.requestAnimationFrame(restoreIfReady);
+        });
+
+        if (typeof ResizeObserver !== 'undefined') {
+          observer = new ResizeObserver(() => {
+            if (cancelled) return;
+            if (document.documentElement.scrollHeight >= y + window.innerHeight) {
+              restoreIfReady();
+            }
+          });
+          observer.observe(document.documentElement);
+          safetyTimer = window.setTimeout(() => observer?.disconnect(), 2500);
         }
       }
     } catch {
@@ -90,8 +106,15 @@ export function useScrollRestore(enabled = true, searchParam?: string) {
     }
 
     return () => {
-      cleanupTimeout?.();
-      cleanupObserver?.();
+      cancelled = true;
+      window.cancelAnimationFrame(frameOne);
+      window.cancelAnimationFrame(frameTwo);
+      observer?.disconnect();
+      if (safetyTimer !== undefined) window.clearTimeout(safetyTimer);
+      window.removeEventListener('wheel', stopRestoration, true);
+      window.removeEventListener('touchstart', stopRestoration, true);
+      window.removeEventListener('pointerdown', stopRestoration, true);
+      window.removeEventListener('keydown', stopRestoration, true);
     };
   }, [pathname, search, enabled, searchParam]);
 

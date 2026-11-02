@@ -51,14 +51,14 @@ function RankingInfoSheet({ open, onClose }: { open: boolean; onClose: () => voi
         <div className="mb-1 flex items-start justify-between gap-3">
           <div>
             <h2 id="ranking-info-title" className="text-[17px] font-extrabold text-foreground">كيف يُحسب الترتيب؟</h2>
-            <p className="mt-1 text-[13px] leading-5 text-[#6B6459]">
+            <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
               الترتيب يعتمد على التقييم، الثقة، سرعة الرد، ونشاط الحساب — وليس عدد الإعلانات فقط.
             </p>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#EAE3D6] bg-card text-[#4A433A]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground"
             aria-label="إغلاق"
           >
             <X className="h-4 w-4" />
@@ -66,13 +66,13 @@ function RankingInfoSheet({ open, onClose }: { open: boolean; onClose: () => voi
         </div>
         <ul className="mt-4 space-y-2">
           {items.map(({ title, desc, icon: Icon }) => (
-            <li key={title} className="flex items-center gap-3 rounded-[14px] border border-[#EAE3D6] bg-card px-3 py-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#E8F1EC] text-primary">
+            <li key={title} className="flex items-center gap-3 rounded-[14px] border border-border bg-card px-3 py-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Icon className="h-4.5 w-4.5" strokeWidth={1.8} />
               </span>
               <div className="min-w-0">
                 <p className="text-[14px] font-bold text-foreground">{title}</p>
-                <p className="text-[12px] text-[#6B6459]">{desc}</p>
+                <p className="text-[12px] text-muted-foreground">{desc}</p>
               </div>
             </li>
           ))}
@@ -86,14 +86,14 @@ function RankingSkeleton() {
   return (
     <div className="space-y-2.5" aria-busy="true" aria-label="جارٍ التحميل">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3 rounded-[14px] border border-[#EAE3D6] bg-card px-3 py-3">
-          <div className="h-8 w-8 animate-pulse rounded-lg bg-[#EAE3D6]" />
+        <div key={i} className="flex items-center gap-3 rounded-[14px] border border-border bg-card px-3 py-3">
+          <div className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-3 w-2/5 animate-pulse rounded bg-[#EAE3D6]" />
-            <div className="h-2.5 w-3/5 animate-pulse rounded bg-[#F0EADF]" />
+            <div className="h-3 w-2/5 animate-pulse rounded bg-muted" />
+            <div className="h-2.5 w-3/5 animate-pulse rounded bg-muted/70" />
           </div>
-          <div className="h-9 w-9 animate-pulse rounded-full bg-[#EAE3D6]" />
-          <div className="h-6 w-6 animate-pulse rounded-full bg-[#F0EADF]" />
+          <div className="h-9 w-9 animate-pulse rounded-full bg-muted" />
+          <div className="h-6 w-6 animate-pulse rounded-full bg-muted/70" />
         </div>
       ))}
     </div>
@@ -106,9 +106,9 @@ function Podium({ top3 }: { top3: RankRow[] }) {
   const second = top3.find((r) => r.rank === 2);
   const third = top3.find((r) => r.rank === 3);
   const slots = [
-    { row: third, place: 3, ring: 'border-[#F1C9C4] bg-[#FBE9E7]', badge: 'bg-[#B3261E] text-white' },
-    { row: first, place: 1, ring: 'border-[#E8C96A] bg-[#FBF0D9]', badge: 'bg-[#C47A0A] text-white' },
-    { row: second, place: 2, ring: 'border-[#D9D1C3] bg-[#F0EADF]', badge: 'bg-[#6B6459] text-white' },
+    { row: third, place: 3, ring: 'border-accent/30 bg-accent/10', badge: 'bg-accent text-accent-foreground' },
+    { row: first, place: 1, ring: 'border-amber-500/35 bg-amber-500/10', badge: 'bg-warning text-warning-foreground' },
+    { row: second, place: 2, ring: 'border-[var(--legacy-border-strong)] bg-muted/70', badge: 'bg-muted text-muted-foreground' },
   ] as const;
 
   return (
@@ -133,7 +133,7 @@ function Podium({ top3 }: { top3: RankRow[] }) {
             </span>
             <span
               className={cn(
-                'flex items-center justify-center rounded-full bg-white font-extrabold text-primary shadow-sm',
+                'flex items-center justify-center rounded-full bg-background font-extrabold text-primary shadow-sm',
                 isFirst ? 'h-14 w-14 text-xl' : 'h-12 w-12 text-lg',
               )}
             >
@@ -143,11 +143,11 @@ function Podium({ top3 }: { top3: RankRow[] }) {
               {row.displayName}
             </p>
             {row.verified && (
-              <span className="mt-1 inline-flex h-[20px] items-center rounded-full bg-[#E8F1EC] px-2 text-[11px] font-bold text-[#1F4D33]">
+              <span className="mt-1 inline-flex h-[20px] items-center rounded-full bg-primary/10 px-2 text-[11px] font-bold text-primary">
                 موثّق
               </span>
             )}
-            <p className="mt-1 text-[12px] font-bold text-[#6B6459]">نقاط {row.score}</p>
+            <p className="mt-1 text-[12px] font-bold text-muted-foreground">نقاط {row.score}</p>
           </Link>
         );
       })}
@@ -174,12 +174,17 @@ export function SellersRankingList({ limit = 20 }: { limit?: number }) {
         });
         if (!response.ok) throw new Error(`Seller ranking request failed (${response.status})`);
         const payload = (await response.json()) as ApiResponse<RankRow[]>;
-        const rows = payload.data ?? [];
+        const rows = (payload.data ?? []).map((row) => ({
+          ...row,
+          displayName: typeof row.displayName === 'string' && row.displayName.trim()
+            ? row.displayName.trim()
+            : `بائع ${row.rank}`,
+        }));
         saveOfflineList(OFFLINE_LIST_KEYS.sellersRanking, rows, OFFLINE_LIST_LIMITS.sellersRanking);
         return rows;
       } catch (err) {
         const local = getOfflineList<RankRow>(OFFLINE_LIST_KEYS.sellersRanking);
-        if (local?.items.length) return local.items;
+        if (local?.items.length) return local.items.map((row) => ({ ...row, displayName: row.displayName?.trim() || `بائع ${row.rank}` }));
         throw err;
       }
     },
@@ -194,14 +199,14 @@ export function SellersRankingList({ limit = 20 }: { limit?: number }) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-[22px] font-extrabold tracking-tight text-foreground">أفضل البائعين</h1>
-          <p className="mt-0.5 text-[13px] leading-5 text-[#6B6459]">
+          <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
             الترتيب يعتمد على التقييم، الثقة، سرعة الرد، ونشاط الحساب — وليس عدد الإعلانات فقط.
           </p>
         </div>
         <button
           type="button"
           onClick={() => setInfoOpen(true)}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#EAE3D6] bg-card text-[#4A433A]"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-card text-foreground"
           aria-label="كيف يُحسب الترتيب؟"
         >
           <Info className="h-4 w-4" />
@@ -211,12 +216,12 @@ export function SellersRankingList({ limit = 20 }: { limit?: number }) {
       {isLoading && <RankingSkeleton />}
 
       {isError && (
-        <div className="rounded-[14px] border border-[#F1C9C4] bg-card px-4 py-4 text-center">
-          <p className="text-[14px] font-bold text-[#9B2118]">تعذّر تحميل الترتيب.</p>
+        <div className="rounded-[14px] border border-[var(--legacy-danger-border)] bg-card px-4 py-4 text-center">
+          <p className="text-[14px] font-bold text-destructive">تعذّر تحميل الترتيب.</p>
           <button
             type="button"
             onClick={() => refetch()}
-            className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full border border-[#CFE0D5] bg-white px-3 text-[13px] font-bold text-[#1F4D33]"
+            className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-[13px] font-bold text-primary"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             إعادة المحاولة
@@ -225,8 +230,8 @@ export function SellersRankingList({ limit = 20 }: { limit?: number }) {
       )}
 
       {!isLoading && !isError && rows.length === 0 && (
-        <div className="rounded-[14px] border border-[#EAE3D6] bg-card px-4 py-8 text-center">
-          <p className="text-[14px] text-[#6B6459]">لا يوجد بائعون بعد.</p>
+        <div className="rounded-[14px] border border-border bg-card px-4 py-8 text-center">
+          <p className="text-[14px] text-muted-foreground">لا يوجد بائعون بعد.</p>
         </div>
       )}
 
@@ -238,34 +243,34 @@ export function SellersRankingList({ limit = 20 }: { limit?: number }) {
               <li key={r.sellerProfileId}>
                 <Link
                   href={ROUTES.userProfile(r.userId)}
-                  className="flex items-center gap-3 rounded-[14px] border border-[#EAE3D6] bg-card px-3 py-3 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors hover:bg-[#FBF9F4]"
+                  className="flex items-center gap-3 rounded-[14px] border border-border bg-card px-3 py-3 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors hover:bg-muted/60"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <span className="truncate text-[14px] font-extrabold text-foreground">{r.displayName}</span>
                       {r.verified && (
-                        <span className="inline-flex h-[20px] items-center rounded-full bg-[#E8F1EC] px-1.5 text-[11px] font-bold text-[#1F4D33]">
+                        <span className="inline-flex h-[20px] items-center rounded-full bg-primary/10 px-1.5 text-[11px] font-bold text-primary">
                           موثّق
                         </span>
                       )}
                     </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[12px] text-[#6B6459]">
+                    <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
                       <span className="inline-flex items-center gap-0.5 font-bold text-foreground">
-                        <Star className="h-3 w-3 fill-[#C47A0A] text-[#C47A0A]" />
+                        <Star className="h-3 w-3 fill-[var(--legacy-warning-strong)] text-[var(--legacy-warning-strong)]" />
                         {r.averageRating.toFixed(1)}
-                        <span className="font-normal text-[#6B6459]">({r.totalRatings})</span>
+                        <span className="font-normal text-muted-foreground">({r.totalRatings})</span>
                       </span>
                       <ResponseTimeBadge responseTimeMinutes={r.responseTimeMinutes} size="sm" />
                     </div>
                   </div>
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#E8F1EC] text-[15px] font-extrabold text-primary">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[15px] font-extrabold text-primary">
                     {initialLetter(r.displayName)}
                   </span>
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F0EADF] text-[12px] font-extrabold text-[#4A433A]">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/70 text-[12px] font-extrabold text-foreground">
                     {r.rank}
                   </span>
                   <div className="shrink-0 text-end">
-                    <p className="text-[11px] text-[#6B6459]">نقاط</p>
+                    <p className="text-[11px] text-muted-foreground">نقاط</p>
                     <p className="text-[15px] font-extrabold tabular-nums text-foreground">{r.score}</p>
                   </div>
                 </Link>

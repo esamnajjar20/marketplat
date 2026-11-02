@@ -25,10 +25,10 @@ export function ExploreSheet({
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="gap-0 rounded-t-[20px] border-[#EAE3D6] p-0">
+      <SheetContent className="gap-0 rounded-t-[20px] border-[var(--legacy-border)] p-0">
         <SheetHeader className="space-y-1 px-4 pb-3 pt-2 text-start">
           <SheetTitle className="text-[17px] font-extrabold">استكشاف</SheetTitle>
-          <SheetDescription className="text-[13px] text-[#6B6459]">
+          <SheetDescription className="text-[13px] text-[var(--legacy-muted-text)]">
             تصفّح أقسام المنصة
           </SheetDescription>
         </SheetHeader>
@@ -45,13 +45,13 @@ export function ExploreSheet({
                 prefetch={false}
                 onClick={() => onOpenChange(false)}
                 className={cn(
-                  'flex items-center justify-between gap-2 rounded-[14px] border border-[#EAE3D6] bg-card px-3 py-3',
-                  'text-[13px] font-bold text-foreground transition-colors hover:bg-[#FBF9F4]',
+                  'flex items-center justify-between gap-2 rounded-[14px] border border-[var(--legacy-border)] bg-card px-3 py-3',
+                  'text-[13px] font-bold text-foreground transition-colors hover:bg-[var(--legacy-page-surface)]',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 )}
               >
                 <span>{label}</span>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#E8F1EC] text-primary">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--legacy-primary-soft)] text-primary">
                   <Icon className="h-[18px] w-[18px]" strokeWidth={1.8} aria-hidden />
                 </span>
               </Link>

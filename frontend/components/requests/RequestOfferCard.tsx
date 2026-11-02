@@ -36,12 +36,12 @@ export function RequestOfferCard({ offer, context = 'public', action, className 
       <article className={cn('h-full w-full min-w-0', className)}>
         <div
           className={cn(
-            'relative flex h-full flex-col gap-2.5 rounded-2xl border border-[#EAE3D6] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.06)]',
+            'relative flex h-full flex-col gap-2.5 rounded-2xl border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.06)]',
           )}
         >
           <CardOfflineBadge />
           <div className="flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#E8F1EC] text-[16px] font-extrabold text-[#1F4D33]">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-[16px] font-extrabold text-[var(--legacy-primary-deep)]">
               {offer.offerer?.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -55,12 +55,12 @@ export function RequestOfferCard({ offer, context = 'public', action, className 
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="truncate text-[14px] font-bold text-[#2A241D]">
+                <p className="truncate text-[14px] font-bold text-[var(--legacy-ink)]">
                   من: {offererName}
                 </p>
                 <span
                   dir="ltr"
-                  className="font-mono text-[16px] font-extrabold tabular-nums text-[#1F4D33]"
+                  className="font-mono text-[16px] font-extrabold tabular-nums text-[var(--legacy-primary-deep)]"
                 >
                   {formatPrice(offer.price)}
                 </span>
@@ -70,7 +70,7 @@ export function RequestOfferCard({ offer, context = 'public', action, className 
                   {REQUEST_OFFER_STATUS_LABEL[offer.status]}
                 </Badge>
                 {offer.createdAt && (
-                  <span className="text-[11px] text-[#6B6459]">
+                  <span className="text-[11px] text-[var(--legacy-muted-text)]">
                     <HydrationSafeRelativeTime date={offer.createdAt} />
                   </span>
                 )}
@@ -79,7 +79,7 @@ export function RequestOfferCard({ offer, context = 'public', action, className 
           </div>
 
           {offer.message && (
-            <p className="text-[13px] leading-relaxed text-[#4A433A]">{offer.message}</p>
+            <p className="text-[13px] leading-relaxed text-[var(--legacy-foreground-warm)]">{offer.message}</p>
           )}
 
           <div className="mt-auto flex flex-wrap gap-2 pt-1">
@@ -89,7 +89,7 @@ export function RequestOfferCard({ offer, context = 'public', action, className 
                 size="sm"
                 variant="outline"
                 label="مراسلة"
-                className="h-10 flex-1 rounded-xl border-[#CFE0D5] font-bold text-[#1F4D33]"
+                className="h-10 flex-1 rounded-xl border-[var(--legacy-primary-border)] font-bold text-[var(--legacy-primary-deep)]"
               />
             )}
             {action && <div className="min-w-[7rem] flex-[1.2]">{action}</div>}

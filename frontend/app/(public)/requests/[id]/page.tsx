@@ -51,7 +51,7 @@ export default function RequestDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="mx-auto max-w-3xl space-y-4 px-3 py-4 pb-24 sm:p-4" dir="rtl" aria-busy>
+      <div className="mx-auto max-w-3xl space-y-4 px-3 py-4 pb-4 sm:p-4" dir="rtl" aria-busy>
         <div className="h-4 w-24 animate-pulse rounded bg-muted" />
         <div className="h-8 w-2/3 animate-pulse rounded bg-muted" />
         <div className="h-24 animate-pulse rounded-xl bg-muted" />
@@ -99,7 +99,7 @@ export default function RequestDetailPage() {
 
   return (
     <div
-      className="mx-auto max-w-3xl space-y-5 px-3 py-4 pb-28 sm:space-y-6 sm:p-4 sm:pb-10"
+      className={`mx-auto max-w-3xl space-y-5 px-3 py-4 sm:space-y-6 sm:p-4 sm:pb-10 ${!isOwner && request.status === 'OPEN' ? 'pb-sticky-contact' : 'pb-4'}`}
       dir="rtl"
     >
       <div>
@@ -160,26 +160,26 @@ export default function RequestDetailPage() {
       </header>
 
       {/* Value summary — soft beige tiles matching design */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="rounded-xl bg-[#F6F1E7] p-2.5 text-center sm:p-3">
-          <p className="text-[11px] text-[#6B6459]">الميزانية</p>
+      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
+        <div className="rounded-xl bg-[var(--legacy-surface)] p-2.5 text-center sm:p-3">
+          <p className="text-[11px] text-[var(--legacy-muted-text)]">الميزانية</p>
           <p className="mt-0.5 text-[15px] font-extrabold tabular-nums text-foreground">
             {budget ?? 'مفتوحة'}
           </p>
         </div>
-        <div className="rounded-xl bg-[#F6F1E7] p-2.5 text-center sm:p-3">
-          <p className="text-[11px] text-[#6B6459]">العروض</p>
+        <div className="rounded-xl bg-[var(--legacy-surface)] p-2.5 text-center sm:p-3">
+          <p className="text-[11px] text-[var(--legacy-muted-text)]">العروض</p>
           <p className="mt-0.5 text-[15px] font-extrabold">{offersCount}</p>
         </div>
-        <div className="rounded-xl bg-[#F6F1E7] p-2.5 text-center sm:p-3">
-          <p className="text-[11px] text-[#6B6459]">المدينة</p>
+        <div className="rounded-xl bg-[var(--legacy-surface)] p-2.5 text-center sm:p-3">
+          <p className="text-[11px] text-[var(--legacy-muted-text)]">المدينة</p>
           <p className="mt-0.5 text-[15px] font-extrabold">{request.city ?? '—'}</p>
         </div>
       </div>
 
       {request.description && (
-        <div className="rounded-xl bg-[#F6F1E7] px-3.5 py-3">
-          <p className="whitespace-pre-wrap text-[13px] leading-[1.9] text-[#4A433A]">
+        <div className="rounded-xl bg-[var(--legacy-surface)] px-3.5 py-3">
+          <p className="whitespace-pre-wrap text-[13px] leading-[1.9] text-[var(--legacy-foreground-warm)]">
             {request.description}
           </p>
         </div>
@@ -221,8 +221,8 @@ export default function RequestDetailPage() {
       )}
 
       {!isAuthenticated && request.status === 'OPEN' && !isOwner && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#CFE0D5] bg-[#E8F1EC] p-3.5">
-          <span className="text-[13px] font-bold text-[#1F4D33]">سجّل الدخول لتقديم عرض على هذا الطلب</span>
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--legacy-primary-border)] bg-[var(--legacy-primary-soft)] p-3.5">
+          <span className="text-[13px] font-bold text-[var(--legacy-primary-deep)]">سجّل الدخول لتقديم عرض على هذا الطلب</span>
           <Button asChild className="h-9 shrink-0 rounded-xl text-sm font-bold">
             <Link href={loginHref}>تسجيل الدخول</Link>
           </Button>
@@ -230,7 +230,7 @@ export default function RequestDetailPage() {
       )}
 
       {!isOwner && request.status !== 'OPEN' && (
-        <div className="rounded-xl border border-[#EBD7A8] bg-[#FBF0D9] px-3.5 py-3 text-[13px] leading-relaxed text-[#5A3705]">
+        <div className="rounded-xl border border-[var(--legacy-warning-border)] bg-[var(--legacy-warning-soft)] px-3.5 py-3 text-[13px] leading-relaxed text-[var(--legacy-warning-deep)]">
           ⚠ هذا الطلب لم يعد مفتوحًا لاستقبال عروض جديدة.
         </div>
       )}
@@ -247,12 +247,12 @@ export default function RequestDetailPage() {
       {/* Mobile sticky CTA — matches design mockup */}
       {!isOwner && request.status === 'OPEN' && (
         <div
-          className="fixed inset-x-0 bottom-[var(--bottom-nav-offset)] z-40 border-t border-[#EAE3D6] bg-white/95 px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] backdrop-blur md:hidden"
+          className="sticky-contact-bar fixed inset-x-0 z-40 border-t border-border bg-card/95 px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur md:hidden"
         >
           <div className="mx-auto flex max-w-3xl items-center gap-2.5">
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] text-[#6B6459]">الميزانية</div>
-              <b className="text-[15px] font-extrabold text-[#1F4D33] tabular-nums">
+              <div className="text-[11px] text-[var(--legacy-muted-text)]">الميزانية</div>
+              <b className="text-[15px] font-extrabold text-[var(--legacy-primary-deep)] tabular-nums">
                 {budget ?? 'مفتوحة'}
               </b>
             </div>

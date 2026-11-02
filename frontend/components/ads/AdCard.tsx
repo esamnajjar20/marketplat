@@ -40,6 +40,7 @@ import {
   HIT_AREA,
   TIME_PLACEHOLDER,
   freshnessClass,
+  cardPlaceholderToneForId,
 } from '@/components/shared/cards/cardTokens';
 
 interface Props {
@@ -51,14 +52,6 @@ interface Props {
   showKind?: boolean;
   /** When true (default on browse grid), use the soft design-mockup card. */
   designLayout?: boolean;
-}
-
-const PASTEL_BGS = ['bg-[#E8F1EC]', 'bg-[#F6E7DB]', 'bg-[#EFEADF]', 'bg-[#E3EEF5]', 'bg-[#FBF0D9]', 'bg-[#F6F1E7]'] as const;
-
-function pastelForId(id: string): string {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i) * (i + 1)) % PASTEL_BGS.length;
-  return PASTEL_BGS[h] ?? PASTEL_BGS[0];
 }
 
 function sellerInitial(name: string): string {
@@ -117,7 +110,7 @@ export const AdCard = memo(function AdCard({
     badges.push(
       <span
         key="featured"
-        className="inline-flex h-6 items-center rounded-full bg-[#FBEEE6] px-2.5 text-[11px] font-bold text-[#8F3F14]"
+        className="inline-flex h-6 items-center rounded-full bg-[var(--legacy-accent-soft)] px-2.5 text-[11px] font-bold text-[var(--legacy-accent)]"
       >
         مميز
       </span>,
@@ -130,7 +123,7 @@ export const AdCard = memo(function AdCard({
         key="cond"
         className={cn(
           'inline-flex h-6 items-center rounded-full px-2.5 text-[11px] font-bold',
-          isNew ? 'bg-[#E8F1EC] text-[#1F4D33]' : 'bg-[#F6F1E7] text-[#4A433A]',
+          isNew ? 'bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary-deep)]' : 'bg-[var(--legacy-surface)] text-[var(--legacy-foreground-warm)]',
         )}
       >
         {CONDITION_LABELS[ad.condition] ?? ad.condition}
@@ -171,7 +164,7 @@ export const AdCard = memo(function AdCard({
           <div
             className={cn(
               cn(CARD_IMAGE_43, 'flex items-center justify-center'),
-              !rawImage && pastelForId(ad.id),
+              !rawImage && cardPlaceholderToneForId(ad.id),
               rawImage && 'bg-muted',
             )}
           >
@@ -221,7 +214,7 @@ export const AdCard = memo(function AdCard({
             {showSeller && (
               <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <span
-                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#E8F1EC] text-[9px] font-extrabold text-[#1F4D33]"
+                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-[9px] font-extrabold text-[var(--legacy-primary-deep)]"
                   aria-hidden
                 >
                   {sellerInitial(sellerName)}

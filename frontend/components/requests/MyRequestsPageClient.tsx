@@ -52,7 +52,7 @@ export default function MyRequestsPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-5 px-3 pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] sm:space-y-6 sm:px-4 sm:pb-10 lg:px-0" dir="rtl">
+    <div className="mx-auto w-full max-w-5xl space-y-5 px-3 pb-0 md:pb-10 sm:space-y-6 sm:px-4 lg:px-0" dir="rtl">
       <div className="flex flex-col items-start justify-between gap-3 rounded-2xl border border-primary/10 bg-gradient-to-br from-primary/[0.07] to-transparent p-4 sm:flex-row sm:items-center sm:p-5">
         <div>
           <h1 className="text-xl font-bold tracking-tight sm:text-2xl">طلباتي</h1>

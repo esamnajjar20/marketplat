@@ -366,8 +366,8 @@ export function MyProductsList() {
                         product.availability === 'IN_STOCK'
                           ? 'inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 text-[11px] font-bold text-primary'
                           : product.availability === 'LIMITED'
-                            ? 'inline-flex h-6 items-center rounded-full bg-[#FBF0D9] px-2.5 text-[11px] font-bold text-[#7A4B07]'
-                            : 'inline-flex h-6 items-center rounded-full bg-[#FBE9E7] px-2.5 text-[11px] font-bold text-[#9B2118]'
+                            ? 'inline-flex h-6 items-center rounded-full bg-[var(--legacy-warning-soft)] px-2.5 text-[11px] font-bold text-[var(--legacy-warning-text)]'
+                            : 'inline-flex h-6 items-center rounded-full bg-[var(--legacy-danger-soft)] px-2.5 text-[11px] font-bold text-[var(--legacy-danger)]'
                       }
                     >
                       {AVAIL_LABELS[product.availability]}

@@ -44,7 +44,7 @@ function StatusBanner({ store }: { store: StoreDetails }) {
 
   if (store.status === 'PENDING') {
     return (
-      <div className="flex items-start gap-3 rounded-2xl border border-[#F1D3A8] bg-[#FBF0D9] p-3.5 text-sm text-[#7A4B07]">
+      <div className="flex items-start gap-3 rounded-2xl border border-[var(--legacy-warning-soft-strong)] bg-[var(--legacy-warning-soft)] p-3.5 text-sm text-[var(--legacy-warning-text)]">
         <Clock className="mt-0.5 h-5 w-5 shrink-0" />
         <div className="space-y-0.5">
           <p className="font-bold">متجرك قيد المراجعة</p>
@@ -108,7 +108,7 @@ function HubBody({ store }: { store: StoreDetails }) {
 
       {/* Store identity card — matches mockup cover + logo */}
       <div className="overflow-hidden rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm sm:p-3">
-        <div className="relative h-16 overflow-hidden rounded-xl bg-gradient-to-br from-[#1F4D33] via-[#397F56] to-[#5E9C73]">
+        <div className="relative h-16 overflow-hidden rounded-xl bg-gradient-to-br from-[var(--legacy-primary-deep)] via-[var(--legacy-primary)] to-[var(--legacy-primary-mid)]">
           {cover ? (
             <SafeImage src={cover} alt="" fill className="object-cover" sizes="400px" />
           ) : null}
@@ -130,7 +130,7 @@ function HubBody({ store }: { store: StoreDetails }) {
             <Badge
               variant={STORE_STATUS_VARIANT[store.status]}
               className={cn(
-                store.status === 'PENDING' && 'border-0 bg-[#FBEEE6] text-[#8F3F14]',
+                store.status === 'PENDING' && 'border-0 bg-[var(--legacy-accent-soft)] text-[var(--legacy-accent)]',
               )}
             >
               {STORE_STATUS_LABELS[store.status]}
@@ -168,7 +168,7 @@ function HubBody({ store }: { store: StoreDetails }) {
           <h2 className="text-sm font-extrabold">يحتاج انتباهك</h2>
           {attention.productsOutOfStock > 0 && (
             <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FBE9E7] text-[#9B2118]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]">
                 <AlertTriangle className="h-4 w-4" />
               </span>
               <p className="min-w-0 flex-1 text-[13px] font-bold">
@@ -186,7 +186,7 @@ function HubBody({ store }: { store: StoreDetails }) {
           )}
           {attention.productsMissingImages > 0 && (
             <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#FBF0D9] text-[#7A4B07]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--legacy-warning-soft)] text-[var(--legacy-warning-text)]">
                 <ImageIcon className="h-4 w-4" />
               </span>
               <p className="min-w-0 flex-1 text-[13px] font-bold">
@@ -221,16 +221,16 @@ function HubBody({ store }: { store: StoreDetails }) {
 
       {/* Feature CTA */}
       {store.status === 'ACTIVE' && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[#F1D3C0] bg-[#FBEEE6] p-3">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--legacy-accent-border)] bg-[var(--legacy-accent-soft)] p-3">
           <div className="min-w-0">
-            <p className="text-[13px] font-bold text-[#8F3F14]">ميّز متجرك في الدليل</p>
-            <p className="text-xs text-[#7A4B2A]">
+            <p className="text-[13px] font-bold text-[var(--legacy-accent)]">ميّز متجرك في الدليل</p>
+            <p className="text-xs text-[var(--legacy-accent-deep)]">
               {featurePending ? 'طلب التمييز قيد المراجعة.' : 'لزيادة الظهور أمام الزوار.'}
             </p>
           </div>
           <Button
             size="sm"
-            className="h-9 shrink-0 rounded-xl bg-[#AD531F] font-bold text-white hover:bg-[#8F3F14]"
+            className="h-9 shrink-0 rounded-xl bg-[var(--legacy-accent-strong)] font-bold text-accent-foreground hover:bg-[var(--legacy-accent)]"
             disabled={featurePending || requestFeature.isPending}
             onClick={() => requestFeature.mutate()}
           >

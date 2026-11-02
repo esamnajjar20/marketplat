@@ -14,8 +14,7 @@ import Link from 'next/link';
 import { Archive, FileText, Wifi, WifiOff, X } from 'lucide-react';
 
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-// SLOW-NET-HINT-OFF
-// import { useConnectivitySuspect } from '@/hooks/useConnectivitySuspect';
+import { useConnectivitySuspect } from '@/hooks/useConnectivitySuspect';
 import { cn } from '@/lib/utils';
 import { getLastOfflineQueryCacheSavedAt } from '@/lib/offlineQueryCache';
 import { formatOfflineSavedAt } from '@/lib/offlineFreshness';
@@ -27,10 +26,8 @@ type OfflinePhase = 'full' | 'compact';
 
 export function NetworkStatusBanner() {
   const isOnline = useOnlineStatus();
-  // SLOW-NET-HINT-OFF: تم تعطيل شارة «الاتصال لا يستجيب» بطلب من المستخدم.
-  // الأوفلاين الحقيقي و«عاد الاتصال» يبقيان.
-  // لإعادة التفعيل: استرجع السطر الأصلي واستيراد useConnectivitySuspect أدناه.
-  const connectivitySuspect = false; // was: useConnectivitySuspect();
+  // Distinguish browser connectivity from real API reachability.
+  const connectivitySuspect = useConnectivitySuspect();
   const [showBackOnline, setShowBackOnline] = useState(false);
   const [offlinePhase, setOfflinePhase] = useState<OfflinePhase | null>(null);
   const [offlineQuerySavedAt, setOfflineQuerySavedAt] = useState<number | null>(null);

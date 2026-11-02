@@ -60,7 +60,7 @@ export function AdminHeader() {
   const { mutate: logout, isPending: isLoggingOut } = useLogout();
 
   return (
-    <header className="sticky top-0 z-30 flex min-h-[60px] shrink-0 items-center justify-between gap-3 border-b border-[#EAE3D6] bg-card px-4 shadow-xs sm:px-5">
+    <header className="sticky top-0 z-30 flex min-h-[60px] shrink-0 items-center justify-between gap-3 border-b border-[var(--legacy-border)] bg-card px-4 shadow-xs sm:px-5">
       <div className="flex min-w-0 items-center gap-3">
         <Link
           prefetch={false}

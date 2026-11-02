@@ -25,6 +25,7 @@ import {
   HIT_AREA,
   TIME_PLACEHOLDER,
   freshnessClass,
+  cardPlaceholderToneForId,
 } from '@/components/shared/cards/cardTokens';
 import { Badge } from '@/components/ui/badge';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';
@@ -45,15 +46,6 @@ interface Props {
   showKind?: boolean;
   /** يُحتفظ بالخيار للتوافق مع الشبكات المختلطة؛ جميع بطاقات الشبكة أصبحت بنسبة صورة موحّدة 4:3. */
   mixedList?: boolean;
-}
-
-/** Soft pastel backgrounds for image area when matching design mockup (catalog grid). */
-const PASTEL_BGS = ['bg-[#E8F1EC]', 'bg-[#F6E7DB]', 'bg-[#EFEADF]', 'bg-[#E3EEF5]', 'bg-[#FBF0D9]', 'bg-[#F6F1E7]'] as const;
-
-function pastelForId(id: string): string {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) h = (h + id.charCodeAt(i) * (i + 1)) % PASTEL_BGS.length;
-  return PASTEL_BGS[h] ?? PASTEL_BGS[0];
 }
 
 function storeInitial(name: string): string {
@@ -107,7 +99,7 @@ export const ProductCard = memo(function ProductCard({
       node: (
         <span
           key="promo"
-          className="inline-flex h-6 items-center rounded-full bg-[#FBEEE6] px-2.5 text-[11px] font-bold text-[#8F3F14]"
+          className="inline-flex h-6 items-center rounded-full bg-[var(--legacy-accent-soft)] px-2.5 text-[11px] font-bold text-[var(--legacy-accent)]"
         >
           عرض خاص
         </span>
@@ -131,7 +123,7 @@ export const ProductCard = memo(function ProductCard({
       node: (
         <span
           key="avail"
-          className="inline-flex h-6 items-center rounded-full bg-[#F6F1E7] px-2.5 text-[11px] font-bold text-[#4A433A]"
+          className="inline-flex h-6 items-center rounded-full bg-[var(--legacy-surface)] px-2.5 text-[11px] font-bold text-[var(--legacy-foreground-warm)]"
         >
           كمية محدودة
         </span>
@@ -154,7 +146,7 @@ export const ProductCard = memo(function ProductCard({
       node: (
         <span
           key="avail"
-          className="inline-flex h-6 items-center rounded-full bg-[#E8F1EC] px-2.5 text-[11px] font-bold text-[#1F4D33]"
+          className="inline-flex h-6 items-center rounded-full bg-[var(--legacy-primary-soft)] px-2.5 text-[11px] font-bold text-[var(--legacy-primary-deep)]"
         >
           متوفر
         </span>
@@ -195,7 +187,7 @@ export const ProductCard = memo(function ProductCard({
           <div
             className={cn(
               cn(CARD_IMAGE_43, 'flex items-center justify-center'),
-              !rawImage && pastelForId(product.id),
+              !rawImage && cardPlaceholderToneForId(product.id),
               rawImage && 'bg-muted',
             )}
           >
@@ -251,7 +243,7 @@ export const ProductCard = memo(function ProductCard({
             {showStore && (
               <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                 <span
-                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#E8F1EC] text-[9px] font-extrabold text-[#1F4D33]"
+                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-[9px] font-extrabold text-[var(--legacy-primary-deep)]"
                   aria-hidden
                 >
                   {storeInitial(product.store.name)}

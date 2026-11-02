@@ -37,7 +37,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
   return (
     <div className="flex min-h-screen min-h-dvh flex-col">
       <PublicHeader showSearch={false} showMenuTrigger />
-      <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-[#FBF9F4] px-4 py-10 sm:py-14">
+      <div className="relative flex flex-1 flex-col items-center justify-center overflow-hidden bg-[var(--legacy-page-surface)] px-4 py-10 sm:py-14">
         {/* Soft glow accents behind the card — same idea as the
             reference design's two blurred circles, recolored to this
             app's own primary/accent tokens instead of its hardcoded

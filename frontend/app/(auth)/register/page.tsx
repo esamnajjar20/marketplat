@@ -16,14 +16,14 @@ export default function RegisterPage() {
     <div className="space-y-6">
       <div className="flex flex-col items-center text-center">
         <AuthBrand />
-        <h1 className="text-[28px] font-extrabold tracking-tight text-[#1F4D33] sm:text-[32px]">
+        <h1 className="text-[28px] font-extrabold tracking-tight text-[var(--legacy-primary-deep)] sm:text-[32px]">
           إنشاء حساب جديد
         </h1>
-        <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-[#6B6459]">
+        <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-[var(--legacy-muted-text)]">
           انضم إلى مجتمع سوق غزة وابدأ في البيع والشراء بكل سهولة
         </p>
       </div>
-      <div className="rounded-2xl border border-[#EAE3D6] bg-white p-5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] sm:p-7">
+      <div className="rounded-2xl border border-[var(--legacy-border)] bg-card p-5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] sm:p-7">
         <Suspense fallback={<SuspenseFallback />}>
           <RegisterForm />
         </Suspense>

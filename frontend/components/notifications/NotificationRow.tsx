@@ -38,8 +38,8 @@ export const NotificationRow = memo(function NotificationRow({
   const inner = (
     <div
       className={cn(
-        'flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-[#F6F1E7]/60',
-        unread && 'bg-[#E8F1EC]/35',
+        'flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-[var(--legacy-surface)]/60',
+        unread && 'bg-[var(--legacy-primary-soft)]/35',
         '[content-visibility:auto] [contain-intrinsic-size:auto_88px]',
       )}
     >
@@ -47,18 +47,18 @@ export const NotificationRow = memo(function NotificationRow({
         <div className="flex items-start justify-between gap-3">
           <p
             className={cn(
-              'text-[14px] leading-snug text-[#2A241D] line-clamp-2',
+              'text-[14px] leading-snug text-[var(--legacy-ink)] line-clamp-2',
               unread && 'font-bold',
             )}
           >
             {n.title}
           </p>
-          <span className="shrink-0 text-[11px] tabular-nums text-[#6B6459]">
+          <span className="shrink-0 text-[11px] tabular-nums text-[var(--legacy-muted-text)]">
             <HydrationSafeRelativeTime date={n.createdAt} />
           </span>
         </div>
         {n.body && (
-          <p className="mt-1 text-[13px] leading-relaxed text-[#6B6459] line-clamp-2">
+          <p className="mt-1 text-[13px] leading-relaxed text-[var(--legacy-muted-text)] line-clamp-2">
             {n.body}
           </p>
         )}
@@ -66,7 +66,7 @@ export const NotificationRow = memo(function NotificationRow({
           {unread ? (
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-[#6B6459] hover:bg-[#F6F1E7] hover:text-[#2A241D]"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-[var(--legacy-muted-text)] hover:bg-[var(--legacy-surface)] hover:text-[var(--legacy-ink)]"
               disabled={markReadPending}
               onClick={(e) => {
                 e.preventDefault();
@@ -80,7 +80,7 @@ export const NotificationRow = memo(function NotificationRow({
           ) : (
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-[#6B6459] hover:bg-[#F6F1E7] hover:text-[#2A241D]"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-[var(--legacy-muted-text)] hover:bg-[var(--legacy-surface)] hover:text-[var(--legacy-ink)]"
               disabled={markUnreadPending}
               onClick={(e) => {
                 e.preventDefault();
@@ -95,7 +95,7 @@ export const NotificationRow = memo(function NotificationRow({
           <button
             type="button"
             aria-label="حذف الإشعار"
-            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-[#6B6459] hover:bg-[#FBE9E7] hover:text-[#9B2118]"
+            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-[var(--legacy-muted-text)] hover:bg-[var(--legacy-danger-soft)] hover:text-[var(--legacy-danger)]"
             disabled={deletePending}
             onClick={(e) => {
               e.preventDefault();
@@ -109,7 +109,7 @@ export const NotificationRow = memo(function NotificationRow({
         </div>
       </div>
       {unread && (
-        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#397F56]" aria-label="غير مقروء" />
+        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[var(--legacy-primary)]" aria-label="غير مقروء" />
       )}
     </div>
   );

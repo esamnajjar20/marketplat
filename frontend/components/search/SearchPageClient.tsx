@@ -48,7 +48,7 @@ const SearchActiveFilters = dynamic(
  */
 export function SearchPageClient({ query }: { query: string }) {
   return (
-    <div className="bg-[#FBF9F4] pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] dark:bg-background sm:pb-8">
+    <div className="bg-[var(--legacy-page-surface)] pb-0 dark:bg-background md:pb-8">
       <h1 className="sr-only">البحث</h1>
       <div className="container mx-auto max-w-7xl space-y-3 px-3 pt-4 sm:space-y-4 sm:px-4 sm:pt-6">
         <SearchBox key={query} defaultValue={query} />

@@ -64,11 +64,11 @@ function TabBody({ tab }: { tab: ActivityTab }) {
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <h1 className="text-[22px] font-extrabold tracking-tight">إعلاناتي</h1>
-              <p className="mt-0.5 text-[13px] text-[#6B6459]">
+              <p className="mt-0.5 text-[13px] text-[var(--legacy-muted-text)]">
                 إدارة الإعلانات النشطة والمباعة — صفِّ حسب الحالة أو حدّد عدة عناصر.
               </p>
             </div>
-            <Button size="sm" asChild className="h-10 gap-1.5 rounded-full bg-[#397F56] px-4 text-[13px] font-bold text-white hover:bg-[#1F4D33]">
+            <Button size="sm" asChild className="h-10 gap-1.5 rounded-full bg-[var(--legacy-primary)] px-4 text-[13px] font-bold text-primary-foreground hover:bg-[var(--legacy-primary-deep)]">
               <Link prefetch={false} href={ROUTES.adCreate}>
                 <Plus className="h-4 w-4" aria-hidden />
                 إعلان جديد
@@ -84,7 +84,7 @@ function TabBody({ tab }: { tab: ActivityTab }) {
       return (
         <div className="space-y-4">
           <h1 className="text-[22px] font-extrabold tracking-tight">طلباتي</h1>
-          <p className="mt-0.5 text-[13px] text-[#6B6459]">
+          <p className="mt-0.5 text-[13px] text-[var(--legacy-muted-text)]">
             الطلبات التي أرسلتها لمقدّمي الخدمة.
           </p>
           <Suspense fallback={<SuspenseFallback />}>
@@ -97,7 +97,7 @@ function TabBody({ tab }: { tab: ActivityTab }) {
         <div className="mx-auto max-w-2xl space-y-4">
           <div>
             <h1 className="text-[22px] font-extrabold tracking-tight">بلاغاتي</h1>
-            <p className="mt-0.5 text-[13px] text-[#6B6459]">البلاغات التي أرسلتها وحالتها.</p>
+            <p className="mt-0.5 text-[13px] text-[var(--legacy-muted-text)]">البلاغات التي أرسلتها وحالتها.</p>
           </div>
           <Suspense fallback={<SuspenseFallback />}>
             <MyReportsList />
@@ -110,7 +110,7 @@ function TabBody({ tab }: { tab: ActivityTab }) {
         <div className="mx-auto max-w-2xl space-y-4">
           <div>
             <h1 className="text-[22px] font-extrabold tracking-tight">نشاطي</h1>
-            <p className="mt-0.5 text-[13px] text-[#6B6459]">تابع نشاط حسابك وإعلاناتك وطلباتك وبلاغاتك من مكان واحد.</p>
+            <p className="mt-0.5 text-[13px] text-[var(--legacy-muted-text)]">تابع نشاط حسابك وإعلاناتك وطلباتك وبلاغاتك من مكان واحد.</p>
           </div>
           <Suspense fallback={<SuspenseFallback />}>
             <Timeline />

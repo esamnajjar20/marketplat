@@ -27,9 +27,9 @@ type Props = {
 };
 
 function riskBarColor(score: number): string {
-  if (score >= 70) return '#B3261E';
-  if (score >= 40) return '#C47A0A';
-  return '#397F56';
+  if (score >= 70) return 'var(--legacy-danger-strong)';
+  if (score >= 40) return 'var(--legacy-warning-strong)';
+  return 'var(--legacy-primary)';
 }
 
 /** Design-matched action button: height 30px, radius 8px */
@@ -51,9 +51,9 @@ function ActionBtn({
       onClick={onClick}
       className={cn(
         'inline-flex h-[30px] items-center justify-center gap-1 rounded-lg px-2.5 text-[12px] font-bold transition-colors disabled:opacity-50',
-        variant === 'outline' && 'border border-[#CFE0D5] bg-white text-[#1F4D33] hover:bg-primary-soft',
-        variant === 'danger' && 'border border-[#F1C9C4] bg-white text-[#9B2118] hover:bg-[#FBE9E7]',
-        variant === 'success' && 'border border-[#CFE0D5] bg-white text-[#1F4D33] hover:bg-primary-soft',
+        variant === 'outline' && 'border border-[var(--legacy-primary-border)] bg-card text-[var(--legacy-primary-deep)] hover:bg-primary-soft',
+        variant === 'danger' && 'border border-[var(--legacy-danger-border)] bg-card text-[var(--legacy-danger)] hover:bg-[var(--legacy-danger-soft)]',
+        variant === 'success' && 'border border-[var(--legacy-primary-border)] bg-card text-[var(--legacy-primary-deep)] hover:bg-primary-soft',
       )}
     >
       {children}
@@ -72,7 +72,7 @@ export const AdminFraudRow = memo(function AdminFraudRow({
   const score = ad.riskScore ?? 0;
   return (
     <Fragment>
-      <tr className="border-b border-[#F0EADF] transition-colors hover:bg-[#F4F9F6] [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
+      <tr className="border-b border-[var(--legacy-muted-surface)] transition-colors hover:bg-[var(--legacy-card-soft)] [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
         <td className="p-3 max-w-xs">
           <Link
             prefetch={false}
@@ -84,16 +84,16 @@ export const AdminFraudRow = memo(function AdminFraudRow({
             <ExternalLink className="h-3 w-3 shrink-0 text-primary" />
             <span className="truncate">{ad.title}</span>
           </Link>
-          <span className="text-[12px] text-[#6B6459]">
+          <span className="text-[12px] text-[var(--legacy-muted-text)]">
             {ad.price == null ? '—' : formatPrice(Number(ad.price))}
           </span>
         </td>
-        <td className="p-3 hidden sm:table-cell text-[13px] text-[#4A433A]">
+        <td className="p-3 hidden sm:table-cell text-[13px] text-[var(--legacy-foreground-warm)]">
           {ad.user?.name ?? '—'}
         </td>
         <td className="p-3">
           <div className="flex items-center gap-2">
-            <span className="relative h-2 w-16 overflow-hidden rounded-full bg-[#EAE3D6]">
+            <span className="relative h-2 w-16 overflow-hidden rounded-full bg-[var(--legacy-border)]">
               <i
                 className="absolute inset-y-0 start-0 rounded-full"
                 style={{ width: `${Math.min(100, score)}%`, background: riskBarColor(score) }}
@@ -102,7 +102,7 @@ export const AdminFraudRow = memo(function AdminFraudRow({
             <span className="text-[13px] font-extrabold tabular-nums">{score}</span>
           </div>
         </td>
-        <td className="p-3 hidden lg:table-cell text-[12px] text-[#6B6459]">
+        <td className="p-3 hidden lg:table-cell text-[12px] text-[var(--legacy-muted-text)]">
           <HydrationSafeRelativeTime date={ad.createdAt} />
         </td>
         <td className="p-3">
@@ -121,9 +121,9 @@ export const AdminFraudRow = memo(function AdminFraudRow({
         </td>
       </tr>
       {expanded && (
-        <tr className="bg-[#FBF9F4]">
+        <tr className="bg-[var(--legacy-page-surface)]">
           <td colSpan={5} className="p-0">
-            <div className="border-b border-[#F0EADF] px-3.5 py-3">
+            <div className="border-b border-[var(--legacy-muted-surface)] px-3.5 py-3">
               <AdSignalsPanel adId={ad.id} />
             </div>
           </td>
