@@ -194,13 +194,17 @@ const nextConfig: NextConfig = {
       { source: '/saved-ads', destination: '/offline?tab=saved' },
       { source: '/downloads', destination: '/offline?tab=saved' },
     ];
-    // ADMIN-HUB-01: the 17 admin pages are tabs of /admin now. Only these exact
-    // paths — /admin/debug/warming stays a route. Next forwards the incoming
-    // query string (e.g. ?status=PENDING from an old bookmark) to the destination.
+    // ADMIN-HUB-01: legacy per-tab URLs converge on /admin?tab=… . Keep this
+    // list in sync with ADMIN_TABS in lib/adminHubTabs.ts. `system` remains a
+    // compatibility alias for the current `monitoring` tab.
+    // Only exact first-level paths are redirected — /admin/debug/warming stays
+    // a real route, and query strings are forwarded by Next.js.
     const adminTabs = [
-      'ads', 'users', 'sellers', 'stores', 'reports', 'fraud', 'products',
-      'service-listings', 'open-requests', 'categories', 'service-categories',
-      'product-categories', 'notifications', 'audit-logs', 'analytics', 'system',
+      'ads', 'users', 'sellers', 'stores', 'store-types', 'service-types',
+      'reports', 'fraud', 'products', 'service-listings', 'open-requests',
+      'service-request-disputes', 'categories', 'service-categories',
+      'product-categories', 'notifications', 'audit-logs', 'analytics',
+      'monitoring', 'system',
     ];
     return [
       { source: '/admin/dashboard', destination: '/admin', permanent: false },

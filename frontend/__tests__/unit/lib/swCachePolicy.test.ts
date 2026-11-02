@@ -17,7 +17,10 @@ const adsHook = read('../../../hooks/queries/useAds.ts');
 const selfWarm = read('../../../lib/offlineSelfWarm.ts');
 
 function fnBody(src: string, name: string): string {
-  const start = src.indexOf(`async function ${name}(`);
+  const asyncStart = src.indexOf(`async function ${name}(`);
+  const plainStart = src.indexOf(`function ${name}(`);
+  const candidates = [asyncStart, plainStart].filter((n) => n > -1);
+  const start = candidates.length ? Math.min(...candidates) : -1;
   expect(start, `${name} not found`).toBeGreaterThan(-1);
   const next = src.indexOf('\nasync function ', start + 10);
   const nextPlain = src.indexOf('\nfunction ', start + 10);
@@ -36,13 +39,30 @@ describe('service worker cache policy', () => {
     expect(sw).toMatch(/respondWith\(cacheFirstImage\(event, request, url\)\)/);
   });
 
-  it('validates cached page chunks before serving stale HTML', () => {
+  it('classifies RSC from transport headers and _rsc URL token, not only RSC: 1', () => {
+    const body = fnBody(sw, 'isRscShellRequest');
+    expect(body).toMatch(/Next-Router-State-Tree/);
+    expect(body).toMatch(/Next-Router-Prefetch/);
+    expect(body).toMatch(/text\/x-component/);
+    expect(body).toMatch(/searchParams\.has\('_rsc'\)/);
+  });
+
+  it('rejects HTML and partial responses from the RSC transport path', () => {
+    const body = fnBody(sw, 'networkOnlyRscRequest');
+    expect(body).toMatch(/response\.status === 206/);
+    expect(body).toMatch(/!hasRscContentType\(response\)/);
+    expect(body).toMatch(/cache\.match\(rscShellKey\(url\)\)/);
+  });
+
+  it('keeps the compatibility page strategy network-first and verifies cached HTML chunks', () => {
     const body = fnBody(sw, 'staleWhileRevalidatePage');
-    expect(body).toMatch(/verifyCachedChunks\(cached, cache\)/);
-    expect(body).toMatch(/isRscShellRequest\(request\)\s*\?/);
-    expect(body).toMatch(/isUsableStaticAssetResponse\(assetUrl, hit\)/);
-    expect(body).toMatch(/isUsableStaticAssetResponse\(assetUrl, response\)/);
-    expect(body).toMatch(/Skipping HTML cache update: some chunks could not be fetched or validated/);
+    expect(body).toMatch(/return networkFirstPage\(event, request\)/);
+    const page = fnBody(sw, 'networkFirstPage');
+    expect(page).toMatch(/verifyCachedChunks\(cachedResponse, cache\)/);
+    const verifier = fnBody(sw, 'verifyCachedChunks');
+    expect(verifier).toMatch(/isUsableStaticAssetResponse\(url, hit\)/);
+    const writer = fnBody(sw, 'cacheVisitedDocumentShell');
+    expect(writer).toMatch(/if \(!isUsableStaticAssetResponse\(url, committedAsset\)\) \{[\s\S]{0,100}await htmlCache\.delete\(cacheKey\)/);
   });
 
   it('networkFirstApi gates shared API_CACHE writes on !hadAuth', () => {

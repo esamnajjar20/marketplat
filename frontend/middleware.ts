@@ -213,10 +213,10 @@ function isTokenExpired(decoded: DecodedToken): boolean {
 // Gaza's weak links that costs 30-50 KB per click with no 304
 // revalidation.
 //
-// Override the header only for known PUBLIC routes so their HTML is
-// cached (browser-only, private because of the nonce) and revalidated
-// via ETag. Auth-gated and stateful routes keep the Next.js default
-// and are never stored.
+// Override the header only for known PUBLIC routes. Their HTML can be
+// stored by shared caches for the route-specific s-maxage, while browsers
+// revalidate on navigation because max-age=0. Protected, auth and stateful
+// routes keep the Next.js default and are never shared-cacheable.
 const PUBLIC_HTML_EXACT = new Set<string>([
   '/',
   '/about',
@@ -246,6 +246,22 @@ function isPublicHtmlRoute(pathname: string): boolean {
     const bare = prefix.replace(/\/$/, '');
     return pathname === bare || pathname.startsWith(prefix);
   });
+}
+
+/**
+ * App Router Flight requests are not HTML documents. They vary by router state,
+ * prefetch mode and RSC transport headers; shared CDN caching them by pathname
+ * can return a payload for a different navigation and leave the client blank.
+ */
+function isNextRscRequest(request: NextRequest): boolean {
+  const headers = request.headers;
+  return (
+    headers.get('RSC') === '1' ||
+    headers.has('Next-Router-State-Tree') ||
+    headers.has('Next-Router-Prefetch') ||
+    (headers.get('Accept') || '').toLowerCase().includes('text/x-component') ||
+    request.nextUrl.searchParams.has('_rsc')
+  );
 }
 
 function buildCsp(nonce: string, isDev: boolean, allowEval: boolean = false): string {
@@ -317,6 +333,14 @@ function buildCsp(nonce: string, isDev: boolean, allowEval: boolean = false): st
 // Offline navigation remains the Service Worker's responsibility.
 // Returns null for authenticated pages (Next.js default = no-store).
 function getHtmlCacheControl(pathname: string): string | null {
+  // Protected routes can live below broad public prefixes such as /ads/,
+  // /requests/ and /stories. Always resolve the auth boundary before applying
+  // any public HTML tier; otherwise /ads/create or /requests/new can inherit
+  // shared s-maxage merely because their pathname matches a public prefix.
+  if (isProtected(pathname) || isAdminRoute(pathname) || isAuthPage(pathname)) {
+    return null;
+  }
+
   // Tier 1 — static content pages (rarely change)
   if (['/about', '/privacy', '/contact', '/terms'].includes(pathname)) {
     return 'public, max-age=0, must-revalidate, s-maxage=7200';
@@ -475,8 +499,17 @@ export function middleware(request: NextRequest) {
   // Attach request ID for distributed tracing.
   response.headers.set('X-Request-Id', crypto.randomUUID());
 
+  // RSC/Flight payloads are router-state-specific patches, not HTML documents.
+  // Never give them the shared public s-maxage policy used by normal page loads.
+  if (isNextRscRequest(request)) {
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+    response.headers.set('CDN-Cache-Control', 'no-store');
+    response.headers.set('Cloudflare-CDN-Cache-Control', 'no-store');
+    return response;
+  }
+
   // CACHE-CONTROL-01: override the Next.js default `no-store` for public
-  // HTML routes so browsers keep a copy and revalidate via ETag (304).
+  // HTML documents so browsers keep a copy and revalidate via ETag (304).
   // Nonce is deployment-scoped (DEPLOYMENT-NONCE-01), so the HTML body
   // is stable within a deployment.
   // CACHE-TIERS-01: tiered Cache-Control per page category.

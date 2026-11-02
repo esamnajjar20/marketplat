@@ -14,6 +14,7 @@ import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { PriceInput }  from '@/components/shared/forms/PriceInput';
 import { CITIES, CONDITION_LABELS, MAX_IMAGES, ROUTES } from '@/lib/constants';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+import { safeBack } from '@/lib/navigation';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useCreateAd, useUpdateAd, useAddAdImages, useRemoveAdImage, useReorderAdImages } from '@/hooks/mutations/useAdMutations';
 import { AdPublisherPicker, type PublisherMode } from '@/components/ads/AdPublisherPicker';
@@ -206,20 +207,11 @@ export function AdForm({ mode, ad }: Props) {
   // them silently. Text-draft errors are covered by FormDraftStatus.
   useUnsavedChangesWarning(isDirty || Boolean(attachmentError));
 
-  // SW-HISTORY-GUARD-01: history.back() leaves the app entirely when
-  // the user opened /ads/create via a deep link (notification, bookmark,
-  // share) — the SPA has no previous in-app entry to return to. This
-  // guard falls back to the ads list in that case, matching what the
-  // user expects ("take me back somewhere related") instead of dumping
-  // them on a blank tab or the previous unrelated website.
+  // Safe back uses the document referrer as an origin guard. A direct link
+  // from another site returns to the related ads workspace instead.
   const router = useRouter();
   function goBackSafely() {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      history.back();
-    } else {
-      signalNavigationStart(ROUTES.myAds);
-      router.push(ROUTES.myAds);
-    }
+    safeBack(router, ROUTES.myAds, signalNavigationStart);
   }
 
   function handleCancel() {

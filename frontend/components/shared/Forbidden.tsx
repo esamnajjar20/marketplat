@@ -14,6 +14,8 @@ import Link        from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button }  from '@/components/shared/ui/Button';
 import { ROUTES }  from '@/lib/constants';
+import { safeBack } from '@/lib/navigation';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 interface ForbiddenProps {
   title?:       string;
@@ -40,7 +42,7 @@ export function Forbidden({
 
       <div className="flex gap-3">
         {showBack ? (
-          <Button variant="outline" onClick={() => router.back()}>
+          <Button variant="outline" onClick={() => safeBack(router, ROUTES.home, signalNavigationStart)}>
             رجوع
           </Button>
         ) : (

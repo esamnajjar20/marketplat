@@ -1,8 +1,9 @@
 'use client';
 
 import { MapPin, Calendar } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/shared/ui/Button';
-import { Badge } from '@/components/shared/ui/Badge';
+import { badgeVariants } from '@/components/shared/ui/Badge';
 import { cn } from '@/lib/utils';
 import { ROUTES, CONDITION_LABELS, STATUS_LABELS } from '@/lib/constants';
 import { AD_STATUS_VARIANT } from '@/lib/adStatus';
@@ -12,7 +13,6 @@ import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { track } from '@/lib/analytics';
-import { useRouter } from 'next/navigation';
 import type { Ad } from '@/types/ad.types';
 import { DETAIL_PANEL_PADDED } from '@/components/shared/detail/detailTokens';
 
@@ -39,27 +39,19 @@ export function AdDetailMetadata({
 }: AdDetailMetadataProps) {
   const isAuth = useAuthStore(selectIsAuthenticated);
   const { data: categories } = useCategories();
-  const router = useRouter();
-
   const categorySlug = categories?.find((c) => c.id === ad.categoryId)?.slug;
   const categoryUrl = categorySlug ? ROUTES.category(categorySlug) : `/search?categoryId=${ad.categoryId}`;
 
-  const handleCategoryClick = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleCategoryClick = () => {
     track('CATEGORY_BROWSE', { adId: ad.id, categoryId: ad.categoryId });
-    router.push(categoryUrl);
   };
 
-  const handleStatusClick = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleStatusClick = () => {
     track('AD_VIEW', { adId: ad.id, status: ad.status });
-    router.push(`/search?status=${ad.status}`);
   };
 
-  const handleConditionClick = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleConditionClick = () => {
     track('AD_VIEW', { adId: ad.id, condition: ad.condition });
-    router.push(`/search?condition=${ad.condition}`);
   };
 
   const conditionLabel = ad.condition ? CONDITION_LABELS[ad.condition] : ad.condition;
@@ -116,27 +108,32 @@ export function AdDetailMetadata({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Badge
-          variant={AD_STATUS_VARIANT[ad.status]}
-          className="cursor-pointer hover:opacity-80"
+        <Link
+          href={`/search?status=${encodeURIComponent(ad.status)}`}
+          aria-label={`عرض الإعلانات بحالة ${STATUS_LABELS[ad.status]}`}
+          className={cn(badgeVariants({ variant: AD_STATUS_VARIANT[ad.status] }), 'min-h-11 items-center cursor-pointer hover:opacity-80')}
           onClick={handleStatusClick}
         >
           {STATUS_LABELS[ad.status]}
-        </Badge>
-        <Badge
-          variant="secondary"
-          className="cursor-pointer hover:opacity-80"
-          onClick={handleConditionClick}
-        >
-          {conditionLabel ?? ad.condition}
-        </Badge>
-        <Badge
-          variant="outline"
-          className="cursor-pointer hover:opacity-80"
+        </Link>
+        {conditionLabel && ad.condition ? (
+          <Link
+            href={`/search?condition=${encodeURIComponent(ad.condition)}`}
+            aria-label={`عرض الإعلانات حسب الحالة ${conditionLabel}`}
+            className={cn(badgeVariants({ variant: 'secondary' }), 'min-h-11 items-center cursor-pointer hover:opacity-80')}
+            onClick={handleConditionClick}
+          >
+            {conditionLabel}
+          </Link>
+        ) : null}
+        <Link
+          href={categoryUrl}
+          aria-label={`عرض إعلانات التصنيف ${ad.category?.name ?? ad.category?.nameAr ?? 'غير مصنف'}`}
+          className={cn(badgeVariants({ variant: 'outline' }), 'min-h-11 items-center cursor-pointer hover:opacity-80')}
           onClick={handleCategoryClick}
         >
           {ad.category?.name ?? ad.category?.nameAr ?? 'غير مصنف'}
-        </Badge>
+        </Link>
       </div>
 
       {!isOwnAd && isAuth && (

@@ -7,7 +7,7 @@
  */
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { makeQueryClient }     from '@/lib/queryClient';
 import { AuthHydrationProvider } from './AuthHydrationProvider';
@@ -20,6 +20,8 @@ async function showStorageErrorToast(message: string, description: string, durat
 }
 import { ThemeProvider }       from './ThemeProvider';
 import { PwaBootstrap }        from '@/components/pwa/PwaBootstrap';
+import { OfflineNavigationFallback } from '@/components/pwa/OfflineNavigationFallback';
+import { VisitedPageShellTracker } from '@/components/pwa/VisitedPageShellTracker';
 import dynamic from 'next/dynamic';
 
 // BUNDLE-OPT-01: Lazy-load OfflineBootstrap (heavy IndexedDB/offline layer)
@@ -167,6 +169,12 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
         {/* FIX NAV-DUP-01: NavigationProgress now mounts once in app/layout.tsx. */}
 
         <PwaBootstrap />
+        {/* Converts failed App Router Flight navigation into a hard document
+            navigation so the Service Worker can serve a visited HTML shell. */}
+        <OfflineNavigationFallback />
+        <Suspense fallback={null}>
+          <VisitedPageShellTracker />
+        </Suspense>
         {/* PLAN-runtime-separation (مرحلة 2/6): استُخرج من PwaBootstrap —
             نفس مكان التركيب، نفس السلوك، مكوّن منفصل. يُركَّب مباشرة بعد
             PwaBootstrap للحفاظ على نفس ترتيب التنفيذ التقريبي السابق

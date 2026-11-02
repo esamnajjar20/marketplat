@@ -21,6 +21,7 @@ import {
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { isUnfilteredFirstPage } from '@/lib/offlineCachePolicy';
 import { useQueryIdSetMembership } from '@/hooks/queries/sharedIdSetStore';
+import { clearVisitedPublicStore, getVisitedPublicStore, saveVisitedPublicStore } from '@/lib/offlineVisitedPublicEntities';
 import type { StoresQuery, StoreDetails, StoreWithSeller } from '@/types/store.types';
 import {
   getOfflineJson,
@@ -52,9 +53,9 @@ export function useStores(
   params?: StoresQuery,
   options?: { enabled?: boolean },
 ) {
-  const isBaseBrowse = isUnfilteredFirstPage(params, {
-    nonFilterFields: ['page', 'limit'],
-  });
+  // Only the API's default page size belongs in the shared full-browse slot.
+  // Home teasers pass a smaller explicit limit and have their own snapshot.
+  const isBaseBrowse = params?.limit === undefined && isUnfilteredFirstPage(params);
   const queryKey = queryKeys.stores.list(params);
   const isHomeSnapshot = params?.limit === 6 && params?.sortBy === 'createdAt' && params?.sortOrder === 'desc'
     && !params?.page && !params?.search && !params?.city && !params?.type;
@@ -121,7 +122,28 @@ export function useStores(
 export function useStore(id: string) {
   return useQuery({
     queryKey: queryKeys.stores.detail(id),
-    queryFn: ({ signal }) => storesApi.getById(id, { signal }).then((r) => r.data.data),
+    queryFn: async ({ signal }) => {
+      try {
+        const store = await storesApi.getById(id, { signal }).then((r) => r.data.data);
+        if (store?.id && store.status === 'ACTIVE') saveVisitedPublicStore(id, store);
+        else clearVisitedPublicStore(id);
+        return store;
+      } catch (error) {
+        if (signal.aborted) throw error;
+        const status = typeof error === 'object' && error !== null
+          ? Number((error as { statusCode?: number; response?: { status?: number } }).statusCode
+            ?? (error as { response?: { status?: number } }).response?.status)
+          : 0;
+        // Never resurrect a deleted/forbidden listing from an offline copy.
+        if ([401, 403, 404, 410].includes(status)) {
+          if ([403, 404, 410].includes(status)) clearVisitedPublicStore(id);
+          throw error;
+        }
+        const cached = getVisitedPublicStore(id);
+        if (cached) return cached;
+        throw error;
+      }
+    },
     staleTime: CACHE_TTL.sellerProfile,
     enabled: Boolean(id),
   });

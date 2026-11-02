@@ -19,7 +19,7 @@ import dynamic from 'next/dynamic';
  * reads that Set exactly as before, so toggling stays in sync the same
  * way it always did.
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { AdDetail }       from '@/components/ads/AdDetail';
 import { AdBreadcrumb }   from '@/components/ads/AdBreadcrumb';
@@ -30,9 +30,11 @@ import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryF
 import { OfflineStaleDataNotice } from '@/components/shared/feedback/OfflineStaleDataNotice';
 import { useAd }          from '@/hooks/queries/useAds';
 import { useFavoriteCheck, useIsFavorited } from '@/hooks/queries/useFavorites';
+import { selectUser, useAuthStore } from '@/store/auth.store';
 import { parseApiError }  from '@/lib/errorParser';
 import { ROUTES }         from '@/lib/constants';
 import { track }          from '@/lib/analytics';
+import { cn } from '@/lib/utils';
 import { SearchX, AlertTriangle } from 'lucide-react';
 
 const RelatedAds = dynamic(
@@ -41,6 +43,11 @@ const RelatedAds = dynamic(
 
 export function AdDetailSection({ id }: { id: string }) {
   const { data: ad, isLoading, isFetching, isError, error, refetch } = useAd(id);
+  const currentUser = useAuthStore(selectUser);
+  const [authMounted, setAuthMounted] = useState(false);
+  useEffect(() => setAuthMounted(true), []);
+  // Keep owner-only bottom spacing hydration-safe, just like AdDetail.
+  const isOwnAd = Boolean(authMounted && ad && currentUser?.id === ad.user.id);
   // Warms the shared favorites.ids() Set with just this ad's status —
   // no-ops (query disabled) when the user isn't authenticated, same as
   // useFavorites' `enabled` check.
@@ -139,7 +146,7 @@ export function AdDetailSection({ id }: { id: string }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={cn('space-y-6', !isOwnAd && 'pb-sticky-contact')}>
       {isError && <OfflineStaleDataNotice onRetry={() => { if (!isFetching) void refetch(); }} isFetching={isFetching} />}
       <AdBreadcrumb ad={ad} />
       <AdDetail ad={ad} isFavorited={isFavorited} />

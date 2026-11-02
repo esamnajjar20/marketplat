@@ -38,7 +38,7 @@ import {
 export function useServiceProviders(params?: ServiceProvidersQuery, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.serviceProviders.list(params),
-    queryFn: () => serviceProvidersApi.getAll(params).then((r) => r.data.data),
+    queryFn: ({ signal }) => serviceProvidersApi.getAll(params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.adsList,
     enabled: options?.enabled,
   });
@@ -48,7 +48,7 @@ export function useServiceProviders(params?: ServiceProvidersQuery, options?: { 
 export function useServiceProvider(id: string) {
   return useQuery({
     queryKey: queryKeys.serviceProviders.detail(id),
-    queryFn: () => serviceProvidersApi.getById(id).then((r) => r.data.data),
+    queryFn: ({ signal }) => serviceProvidersApi.getById(id, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.sellerProfile,
     enabled: Boolean(id),
   });

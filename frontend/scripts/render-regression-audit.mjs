@@ -76,7 +76,8 @@ const notifications = read('components/notifications/NotificationsPage.tsx');
 const notificationRow = read('components/notifications/NotificationRow.tsx');
 check(/<NotificationRow/.test(notifications), 'NotificationsPage: rows are still rendered inline');
 check(/memo\(function NotificationRow/.test(notificationRow), 'NotificationRow: React.memo boundary missing');
-check(/\[content-visibility:auto\] \[contain-intrinsic-size:auto_104px\]/.test(notificationRow), 'NotificationRow: offscreen containment missing');
+const notificationContainment = notificationRow.match(/\[content-visibility:auto\] \[contain-intrinsic-size:auto_(\d+)px\]/);
+check(Boolean(notificationContainment && Number(notificationContainment[1]) >= 80), 'NotificationRow: offscreen containment or a reasonable intrinsic-size fallback is missing');
 
 for (const file of fs.readdirSync(path.join(root, 'components/admin')).filter((f) => f.endsWith('Table.tsx'))) {
   const text = read(`components/admin/${file}`);

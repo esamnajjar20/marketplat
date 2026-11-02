@@ -7,6 +7,7 @@ import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
 import { getPublicListStaleTime } from '@/lib/networkCachePolicy';
 import { isUnfilteredFirstPage } from '@/lib/offlineCachePolicy';
+import { clearVisitedPublicServiceListing, getVisitedPublicServiceListing, saveVisitedPublicServiceListing } from '@/lib/offlineVisitedPublicEntities';
 import type { ServiceListingsQuery, ServiceListing, ServiceListingWithProvider } from '@/types/service.types';
 import type { PaginationMeta } from '@/types/api.types';
 import {
@@ -50,9 +51,8 @@ export function useServiceListings(
   params?: ServiceListingsQuery,
   options?: { enabled?: boolean },
 ) {
-  const isBaseBrowse = isUnfilteredFirstPage(params, {
-    nonFilterFields: ['page', 'limit'],
-  });
+  // Do not let a small explicit page size overwrite the full browse snapshot.
+  const isBaseBrowse = params?.limit === undefined && isUnfilteredFirstPage(params);
   const queryKey = queryKeys.serviceListings.list(params);
   useOfflineListSeed<ServiceListingWithProvider, ServicesPage>({
     queryKey,
@@ -98,7 +98,28 @@ export function useServiceListings(
 export function useServiceListing(id: string) {
   return useQuery({
     queryKey: queryKeys.serviceListings.detail(id),
-    queryFn: ({ signal }) => serviceListingsApi.getById(id, { signal }).then((r) => r.data.data),
+    queryFn: async ({ signal }) => {
+      try {
+        const listing = await serviceListingsApi.getById(id, { signal }).then((r) => r.data.data);
+        if (listing?.id === id && listing.status === 'ACTIVE') saveVisitedPublicServiceListing(id, listing);
+        else clearVisitedPublicServiceListing(id);
+        return listing;
+      } catch (error) {
+        if (signal.aborted) throw error;
+        const status = typeof error === 'object' && error !== null
+          ? Number((error as { statusCode?: number; response?: { status?: number } }).statusCode
+            ?? (error as { response?: { status?: number } }).response?.status)
+          : 0;
+        // Keep confirmed deletion/access errors authoritative and remove stale copies.
+        if ([401, 403, 404, 410].includes(status)) {
+          if ([403, 404, 410].includes(status)) clearVisitedPublicServiceListing(id);
+          throw error;
+        }
+        const cached = getVisitedPublicServiceListing(id);
+        if (cached) return cached;
+        throw error;
+      }
+    },
     staleTime: CACHE_TTL.adDetail,
     enabled: Boolean(id),
   });

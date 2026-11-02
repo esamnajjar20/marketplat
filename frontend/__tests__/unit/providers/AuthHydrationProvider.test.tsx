@@ -129,6 +129,25 @@ describe('AuthHydrationProvider', () => {
     cleanup();
   });
 
+  it('shows a visible route skeleton, not a blank viewport, while auth persistence hydrates', () => {
+    useAuthStore.setState({
+      user: null,
+      accessToken: null,
+      isAuthenticated: false,
+      isHydrated: false,
+      isAuthResolving: true,
+    });
+    refreshSessionShared.mockReturnValue(new Promise(() => {}));
+
+    const { getByRole } = renderWithClient(
+      <AuthHydrationProvider>
+        <div>App content</div>
+      </AuthHydrationProvider>,
+    );
+
+    expect(getByRole('status')).toBeTruthy();
+  });
+
   it('renders children immediately without blocking', () => {
     resetStoreToHydrated();
     refreshSessionShared.mockReturnValue(new Promise(() => {}));

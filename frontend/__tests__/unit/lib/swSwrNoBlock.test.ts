@@ -1,7 +1,7 @@
 /**
- * REGRESSION (FIX SW-SWR-NOBLOCK-01): with no cached shell, staleWhileRevalidatePage
- * must return the real response as soon as it arrives. Chunk prefetch + cache writes
- * continue in the background (event.waitUntil), they must not delay first paint.
+ * REGRESSION (PUBLIC-NAV-NETWORK-FIRST-01): with no cached shell, a public document
+ * navigation returns the live network response as soon as it arrives. HTML and asset
+ * shell writes continue in the background (event.waitUntil) and must not delay first paint.
  * Loads the real public/sw.js in a vm sandbox (same pattern as swSlowNavigation.test.ts).
  */
 import { describe, it, expect } from 'vitest';
@@ -49,7 +49,7 @@ const navReq = (href: string) => {
   return mk();
 };
 
-describe('SWR navigation does not wait for chunk prefetch', () => {
+describe('network-first navigation does not wait for shell asset capture', () => {
   it('returns the page immediately on a first visit even when chunk downloads are slow', async () => {
     const ctx = load();
     const c = await ctx.sb.caches.open(ctx.sb.self.__STATIC);

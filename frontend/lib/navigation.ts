@@ -247,7 +247,11 @@ export interface BackCapableRouter {
   push: (href: string) => void;
 }
 
-export function safeBack(router: BackCapableRouter, fallback = "/"): void {
+export function safeBack(
+  router: BackCapableRouter,
+  fallback = "/",
+  onFallback?: (href: string) => void,
+): void {
   if (typeof window === "undefined") {
     router.push(fallback);
     return;
@@ -262,6 +266,7 @@ export function safeBack(router: BackCapableRouter, fallback = "/"): void {
   if (sameOrigin && window.history.length > 1) {
     router.back();
   } else {
+    onFallback?.(fallback);
     router.push(fallback);
   }
 }

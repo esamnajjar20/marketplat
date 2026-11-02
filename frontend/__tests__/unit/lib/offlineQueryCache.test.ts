@@ -17,6 +17,12 @@ describe('offline query cache safety and limits', () => {
     // Match the real queryKeys.ads.infinite(mode, params) factory shape.
     expect(isOfflinePersistableQueryKey(['ads', 'infinite', 'browse', { city: 'gaza', pageSize: 24 }])).toBe(true);
     expect(isOfflinePersistableQueryKey(['service-providers', 'provider-1'])).toBe(true);
+    expect(isOfflinePersistableQueryKey(['service-providers', 'list', { page: 1, limit: 12 }])).toBe(true);
+    expect(isOfflinePersistableQueryKey(['service-providers', 'list', { page: 2, limit: 12, city: 'رفح' }])).toBe(true);
+    expect(isOfflinePersistableQueryKey(['service-providers', 'list', { page: undefined, limit: 12, city: undefined }])).toBe(true);
+    expect(isOfflinePersistableQueryKey(['service-providers', 'list', { lat: 31.5, lng: 34.4 }])).toBe(false);
+    expect(isOfflinePersistableQueryKey(['service-providers', 'list', { page: 1, search: 'private phrase' }])).toBe(false);
+    expect(isOfflinePersistableQueryKey(['service-providers', 'nearby', { lat: 31.5, lng: 34.4 }])).toBe(false);
     expect(isOfflinePersistableQueryKey(['sellers', 'seller-1'])).toBe(true);
     expect(isOfflinePersistableQueryKey(['sellers', 'ranking', 20])).toBe(true);
     expect(isOfflinePersistableQueryKey(['sellers', 'seller-1', 'ratings', { page: 1, limit: 20 }])).toBe(true);
@@ -95,6 +101,7 @@ describe('offline query cache safety and limits', () => {
       ['recommendations', 'product', { limit: 8 }, 'user'],
       ['service-providers', 'nearby', { lat: 31.5, lng: 34.4 }],
       ['service-providers', 'list', { providerId: 'private-provider' }],
+      ['service-providers', 'list', { city: 'رفح', location: 'precise-area' }],
       ['service-listings', 'me', {}],
       // Request details vary by viewer (owner sees all offers, other users
       // see only their own, anonymous users see none), so never persist them.

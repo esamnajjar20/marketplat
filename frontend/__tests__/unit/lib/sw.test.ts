@@ -198,12 +198,19 @@ function loadServiceWorker(storesByName = new Map<string, Map<string, any>>()) {
     open: async (name: string) => {
       if (!storesByName.has(name)) storesByName.set(name, new Map());
       const store = storesByName.get(name)!;
+      const cacheUrl = (req: any) => new URL(typeof req === 'string' ? req : req.url, 'https://example.com').href;
       return {
-        match: async (req: any) => store.get(typeof req === 'string' ? req : req.url),
-        put: async (req: any, res: any) => {
-          store.set(typeof req === 'string' ? req : req.url, res);
+        // Cache API normalizes string requests to absolute Request URLs.
+        // Returning absolute keys matters because the SW's eviction scorer
+        // resolves request.url exactly as a browser Cache.keys() result does.
+        match: async (req: any) => {
+          const response = store.get(cacheUrl(req));
+          return response?.clone?.() ?? response;
         },
-        delete: async (req: any) => store.delete(typeof req === 'string' ? req : req.url),
+        put: async (req: any, res: any) => {
+          store.set(cacheUrl(req), res?.clone?.() ?? res);
+        },
+        delete: async (req: any) => store.delete(cacheUrl(req)),
         keys: async () => Array.from(store.keys()).map((url) => ({ url })),
       };
     },
@@ -998,6 +1005,42 @@ describe('sw.js — service worker logic', () => {
       expect(migrated).toBeTruthy();
       expect(migrated.headers.get('vary')).toBeNull();
     });
+
+    it('drops legacy Flight payloads instead of migrating router-state-specific RSC entries', async () => {
+      const legacy = await ctx.fakeCaches.open('market-static-v94');
+      const flightUrl = 'https://example.com/products?_rsc=old-token&__offline_rsc_shell';
+      await legacy.put(flightUrl, new Response('LEGACY-FLIGHT', {
+        status: 200,
+        headers: { 'content-type': 'text/x-component', 'X-SW-Cached-At': String(Date.now()), 'X-SW-Cache-Source': 'visit' },
+      }));
+      await ctx.sandbox.migrateShellCaches(['market-static-v94']);
+      const current = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
+      expect(await current.match(flightUrl)).toBeUndefined();
+      expect(await current.match(ctx.sandbox.rscShellKey(new URL(flightUrl)))).toBeUndefined();
+    });
+
+  });
+
+  describe('public document navigation freshness', () => {
+    it('waits for the live HTML response instead of returning a cached public shell first', async () => {
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
+      await cache.put('https://example.com/products', new Response(
+        '<!doctype html><html><body>OLD-CACHED-PAGE</body></html>',
+        { status: 200, headers: { 'content-type': 'text/html' } },
+      ));
+      let fetched = false;
+      ctx.setFetch(async () => {
+        fetched = true;
+        return new Response('<!doctype html><html><body>LIVE-PAGE</body></html>', {
+          status: 200,
+          headers: { 'content-type': 'text/html' },
+        });
+      });
+      const request = makeFakeRequest({ url: 'https://example.com/products', mode: 'navigate' });
+      const response = await ctx.sandbox.handlePageRequest(makeEvent(), request, new URL(request.url));
+      expect(fetched).toBe(true);
+      expect(await response.text()).toContain('LIVE-PAGE');
+    });
   });
 
   describe('visited RSC routes become hard-navigation offline shells', () => {
@@ -1015,7 +1058,7 @@ describe('sw.js — service worker logic', () => {
       });
       const request = makeFakeRequest({ url: 'https://example.com/products', mode: 'navigate' });
       const event = makeEvent();
-      const response = await ctx.sandbox.networkFirstPage(event, request, request);
+      const response = await ctx.sandbox.networkFirstPage(event, request);
       await Promise.all(event._waits);
       expect(await response.text()).toContain('products');
       const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
@@ -1026,15 +1069,17 @@ describe('sw.js — service worker logic', () => {
       expect(cachedAsset.headers.get('X-SW-Cache-Source')).toBe('visit-asset');
     });
 
-    it('caches a document after a successful real RSC navigation without breaking the RSC response', async () => {
+    it('does not cache a Flight response; a committed SPA visit then stores its HTML shell', async () => {
+      const calls: string[] = [];
       ctx.setFetch(async (input: any) => {
         const raw = typeof input === 'string' ? input : input.url;
         const url = new URL(raw, 'https://example.com');
+        calls.push(url.href);
         if (url.pathname === '/products' && url.searchParams.has('_rsc')) {
           return new Response('RSC-PAYLOAD', { status: 200, headers: { 'content-type': 'text/x-component' } });
         }
         if (url.pathname === '/products') {
-          return new Response('<!doctype html><html><script src="/_next/static/chunks/app.js"></script><body>products</body></html>', {
+          return new Response('<!doctype html><html><head><script src="/_next/static/chunks/app.js"></script></head><body>products</body></html>', {
             status: 200, headers: { 'content-type': 'text/html' },
           });
         }
@@ -1045,17 +1090,221 @@ describe('sw.js — service worker logic', () => {
       });
       const request = makeFakeRequest({
         url: 'https://example.com/products?_rsc=token',
-        headers: { RSC: '1' },
+        headers: { RSC: '1', 'Next-Router-State-Tree': 'state-a' },
         mode: 'cors',
       });
-      const event = makeEvent();
-      const response = await ctx.sandbox.networkFirstPage(event, request, ctx.sandbox.rscShellKey(new URL(request.url)));
-      await Promise.all(event._waits);
+      const response = await ctx.sandbox.handlePageRequest(makeEvent(), request, new URL(request.url));
       expect(await response.text()).toBe('RSC-PAYLOAD');
+      expect(calls.some((url) => url === 'https://example.com/products')).toBe(false);
+
+      // Next may satisfy a click from its prefetch cache and send no new RSC
+      // request. The client reports the committed route explicitly instead.
+      const waits: Promise<unknown>[] = [];
+      for (const handler of ctx.listeners['message'] ?? []) {
+        handler({
+          data: { type: 'CACHE_VISITED_PAGE', url: 'https://example.com/products' },
+          waitUntil: (promise: Promise<unknown>) => waits.push(promise),
+        });
+      }
+      await Promise.all(waits);
+
       const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
       const cachedHtml = await cache.match('https://example.com/products');
       expect(cachedHtml).toBeTruthy();
       expect(cachedHtml.headers.get('X-SW-Cache-Source')).toBe('visit');
+      expect(await cache.match(ctx.sandbox.rscShellKey(new URL(request.url)))).toBeUndefined();
+      expect(calls).toContain('https://example.com/products');
+      expect(calls).toContain('https://example.com/_next/static/chunks/app.js');
+    });
+
+    it('deduplicates concurrent captures for the same page so first-load tracking does not double-download', async () => {
+      let htmlFetches = 0;
+      let assetFetches = 0;
+      ctx.setFetch(async (input: any) => {
+        const raw = typeof input === 'string' ? input : input.url;
+        const url = new URL(raw, 'https://example.com');
+        if (url.pathname === '/stores/store-1') {
+          htmlFetches += 1;
+          return new Response('<!doctype html><html><head><script src="/_next/static/chunks/store.js"></script></head><body>store</body></html>', {
+            status: 200, headers: { 'content-type': 'text/html' },
+          });
+        }
+        if (url.pathname === '/_next/static/chunks/store.js') {
+          assetFetches += 1;
+          return new Response('console.log(1)', { status: 200, headers: { 'content-type': 'application/javascript' } });
+        }
+        throw new Error(`unexpected fetch: ${raw}`);
+      });
+      const waits: Promise<unknown>[] = [];
+      for (let i = 0; i < 2; i += 1) {
+        for (const handler of ctx.listeners['message'] ?? []) {
+          handler({
+            data: { type: 'CACHE_VISITED_PAGE', url: 'https://example.com/stores/store-1' },
+            waitUntil: (promise: Promise<unknown>) => waits.push(promise),
+          });
+        }
+      }
+      await Promise.all(waits);
+      expect(htmlFetches).toBe(1);
+      expect(assetFetches).toBe(1);
+    });
+
+    it('does not save private search/location route commits into the shared HTML cache', async () => {
+      let fetched = false;
+      ctx.setFetch(async () => {
+        fetched = true;
+        return new Response('<!doctype html><html><body>private search</body></html>', {
+          status: 200, headers: { 'content-type': 'text/html' },
+        });
+      });
+      const waits: Promise<unknown>[] = [];
+      for (const handler of ctx.listeners['message'] ?? []) {
+        handler({
+          data: { type: 'CACHE_VISITED_PAGE', url: 'https://example.com/search?q=private%20phrase' },
+          waitUntil: (promise: Promise<unknown>) => waits.push(promise),
+        });
+      }
+      await Promise.all(waits);
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
+      expect(fetched).toBe(false);
+      expect(await cache.match('https://example.com/search?q=private%20phrase')).toBeUndefined();
+    });
+
+    it('never saves admin or ad-edit route commits as public or personal shells', async () => {
+      let fetched = false;
+      ctx.setFetch(async () => {
+        fetched = true;
+        return new Response('<!doctype html><html><body>secret</body></html>', {
+          status: 200, headers: { 'content-type': 'text/html' },
+        });
+      });
+      const waits: Promise<unknown>[] = [];
+      for (const url of ['https://example.com/admin/products', 'https://example.com/ads/ad-1/edit']) {
+        for (const handler of ctx.listeners['message'] ?? []) {
+          handler({ data: { type: 'CACHE_VISITED_PAGE', url }, waitUntil: (promise: Promise<unknown>) => waits.push(promise) });
+        }
+      }
+      await Promise.all(waits);
+      expect(fetched).toBe(false);
+      const shared = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
+      const personal = await ctx.fakeCaches.open(ctx.sandbox.self.__PERSONAL_SHELL_CACHE);
+      expect(await shared.keys()).toHaveLength(0);
+      expect(await personal.keys()).toHaveLength(0);
+    });
+
+    it('never returns a warmed path-only RSC shell for an online navigation with another router state tree', async () => {
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
+      const request = makeFakeRequest({
+        url: 'https://example.com/products?_rsc=active-navigation',
+        headers: { RSC: '1', 'Next-Router-State-Tree': 'active-tree' },
+        mode: 'cors',
+      });
+      await cache.put(
+        ctx.sandbox.rscShellKey(new URL(request.url)),
+        new Response('STALE-WARMED-RSC', { status: 200, headers: { 'content-type': 'text/x-component' } }),
+      );
+      ctx.setFetch(async () => new Response('LIVE-RSC', {
+        status: 200,
+        headers: { 'content-type': 'text/x-component' },
+      }));
+
+      const response = await ctx.sandbox.handlePageRequest(makeEvent(), request, new URL(request.url));
+      expect(await response.text()).toBe('LIVE-RSC');
+      expect(await cache.match(ctx.sandbox.rscShellKey(new URL(request.url)))).toBeTruthy();
+    });
+
+    it('detects Flight requests by the _rsc query token or Accept header even without RSC: 1', async () => {
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
+      const request = makeFakeRequest({
+        url: 'https://example.com/products?_rsc=token-only',
+        headers: { Accept: 'text/x-component' },
+        mode: 'cors',
+      });
+      await cache.put(
+        ctx.sandbox.rscShellKey(new URL(request.url)),
+        new Response('STALE-RSC', { status: 200, headers: { 'content-type': 'text/x-component' } }),
+      );
+      ctx.setFetch(async () => new Response('LIVE-RSC', {
+        status: 200,
+        headers: { 'content-type': 'text/x-component' },
+      }));
+
+      const response = await ctx.sandbox.handlePageRequest(makeEvent(), request, new URL(request.url));
+      expect(await response.text()).toBe('LIVE-RSC');
+    });
+
+    it('preserves a valid Flight error response rather than treating it as an HTML cache response', async () => {
+      ctx.setFetch(async () => new Response('NOT-FOUND-FLIGHT', {
+        status: 404,
+        headers: { 'content-type': 'text/x-component' },
+      }));
+      const request = makeFakeRequest({
+        url: 'https://example.com/products?_rsc=not-found',
+        headers: { RSC: '1', 'Next-Router-State-Tree': 'state-a' },
+        mode: 'cors',
+      });
+      const response = await ctx.sandbox.handlePageRequest(makeEvent(), request, new URL(request.url));
+      expect(response.status).toBe(404);
+      expect(await response.text()).toBe('NOT-FOUND-FLIGHT');
+    });
+
+    it('never replays a path-only offline RSC snapshot; the client must fall back to a document shell', async () => {
+      ctx.sandbox.self.navigator = { onLine: false };
+      const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
+      const request = makeFakeRequest({
+        url: 'https://example.com/products?_rsc=offline-prefetch',
+        headers: { RSC: '1' },
+        mode: 'cors',
+      });
+      await cache.put(
+        ctx.sandbox.rscShellKey(new URL(request.url)),
+        new Response('OFFLINE-RSC-SNAPSHOT', {
+          status: 200,
+          headers: { 'content-type': 'text/x-component' },
+        }),
+      );
+      ctx.setFetch(async () => { throw new Error('offline'); });
+
+      const response = await ctx.sandbox.handlePageRequest(makeEvent(), request, new URL(request.url));
+      expect(response.type).toBe('error');
+    });
+
+    it('does not leak admin or protected edit HTML shells into shared/static cache after RSC visits', async () => {
+      ctx.setFetch(async () => new Response('FLIGHT', {
+        status: 200,
+        headers: { 'content-type': 'text/x-component' },
+      }));
+      for (const path of ['/admin/users', '/ads/ad-1/edit']) {
+        const request = makeFakeRequest({
+          url: `https://example.com${path}?_rsc=protected`,
+          headers: { RSC: '1', 'Next-Router-State-Tree': 'protected-tree' },
+          mode: 'cors',
+        });
+        const event = makeEvent();
+        const response = await ctx.sandbox.handlePageRequest(event, request, new URL(request.url));
+        await Promise.all(event._waits);
+        expect(response.status).toBe(200);
+      }
+      const shared = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
+      const personal = await ctx.fakeCaches.open(ctx.sandbox.self.__PERSONAL_SHELL_CACHE);
+      expect(await shared.match('https://example.com/admin/users')).toBeUndefined();
+      expect(await shared.match('https://example.com/ads/ad-1/edit')).toBeUndefined();
+      expect(await personal.match('https://example.com/admin/users')).toBeUndefined();
+      expect(await personal.match('https://example.com/ads/ad-1/edit')).toBeUndefined();
+    });
+
+    it('rejects an HTML 200 response returned to an RSC request instead of passing a poisoned payload to Next', async () => {
+      ctx.setFetch(async () => new Response('<html>login</html>', {
+        status: 200,
+        headers: { 'content-type': 'text/html' },
+      }));
+      const request = makeFakeRequest({
+        url: 'https://example.com/products?_rsc=token',
+        headers: { RSC: '1', 'Next-Router-State-Tree': 'state-a' },
+        mode: 'cors',
+      });
+      const response = await ctx.sandbox.handlePageRequest(makeEvent(), request, new URL(request.url));
+      expect(response.type).toBe('error');
     });
 
     it('keeps a visited shell ahead of warm-only pages when trimming reaches the entry cap', async () => {
@@ -1156,7 +1405,7 @@ describe('sw.js — service worker logic', () => {
       });
       const request = makeFakeRequest({ url: 'https://example.com/products', mode: 'navigate' });
       const event = makeEvent();
-      await ctx.sandbox.networkFirstPage(event, request, request);
+      await ctx.sandbox.networkFirstPage(event, request);
       await Promise.all(event._waits);
       const cache = await ctx.fakeCaches.open(ctx.sandbox.self.__STATIC_CACHE);
       expect(await cache.match(request.url)).toBeUndefined();
@@ -1185,14 +1434,26 @@ describe('sw.js — service worker logic', () => {
       expect(tier).toBe(8);
     });
 
-    it('does not classify Next prefetch requests as real visits', () => {
-      expect(ctx.sandbox.isRealRscNavigation({
-        headers: { get: (name: string) => name === 'RSC' ? '1' : name === 'Next-Router-Prefetch' ? '1' : null },
-      })).toBe(false);
-      expect(ctx.sandbox.isRealRscNavigation({
-        headers: { get: (name: string) => name === 'RSC' ? '1' : null },
-      })).toBe(true);
+    it('does not launch an HTML snapshot fetch from an RSC prefetch or transport request', async () => {
+      let htmlFetches = 0;
+      ctx.setFetch(async (input: any) => {
+        const url = new URL(typeof input === 'string' ? input : input.url, 'https://example.com');
+        if (url.pathname === '/products' && url.searchParams.has('_rsc')) {
+          return new Response('RSC-PREFETCH', { status: 200, headers: { 'content-type': 'text/x-component' } });
+        }
+        if (url.pathname === '/products') htmlFetches += 1;
+        return new Response('unexpected', { status: 500 });
+      });
+      const request = makeFakeRequest({
+        url: 'https://example.com/products?_rsc=prefetch',
+        headers: { RSC: '1', 'Next-Router-Prefetch': '1' },
+        mode: 'cors',
+      });
+      const response = await ctx.sandbox.handlePageRequest(makeEvent(), request, new URL(request.url));
+      expect(await response.text()).toBe('RSC-PREFETCH');
+      expect(htmlFetches).toBe(0);
     });
+
   });
 
   describe('navigate timeout constants (FIX NAV-TIMEOUT-CACHED-01)', () => {

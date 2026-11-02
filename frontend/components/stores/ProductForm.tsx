@@ -1,6 +1,7 @@
 'use client';
 
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+import { safeBack } from '@/lib/navigation';
 
 import { useRef, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -335,14 +336,9 @@ export function ProductForm({ mode, product }: Props) {
     !values.price || parseFloat(values.price) <= 0 ||
     totalImageCount === 0;
 
-  // SW-PRODFORM-HISTORY-GUARD-01: same fix as AdForm.tsx's
-  // SW-HISTORY-GUARD-01. history.back() with no previous in-app entry
-  // (a deep link, bookmark, or shared URL to /my-store/products/new)
-  // either leaves the app or produces a blank tab. Fall back to the
-  // product list. Also adds the missing discard-confirmation: this
-  // form can hold a name, description, multiple prices, wholesale
-  // terms, stock, and images; a single accidental tap on إلغاء used to
-  // discard everything silently.
+  // Safe back returns to the product list for deep links or external
+  // entry points. Unsaved changes require explicit confirmation because
+  // this form can contain product details, prices, stock and images.
   const router = useRouter();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [initialValues] = useState(() => values);
@@ -368,12 +364,7 @@ export function ProductForm({ mode, product }: Props) {
   useUnsavedChangesWarning(isDirty || Boolean(attachmentError));
 
   function goBackSafely() {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      history.back();
-    } else {
-      signalNavigationStart(ROUTES.myStoreProducts);
-      router.push(ROUTES.myStoreProducts);
-    }
+    safeBack(router, ROUTES.myStoreProducts, signalNavigationStart);
   }
 
   function handleCancel() {

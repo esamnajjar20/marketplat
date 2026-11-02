@@ -3,6 +3,7 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, ShieldAlert, X as XIcon, Archive, Pin } from 'lucide-react';
 import { toast } from 'sonner';
@@ -29,6 +30,8 @@ import { useUserPresence } from '@/hooks/queries/usePresence';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import dynamic from 'next/dynamic';
 import { ROUTES } from '@/lib/constants';
+import { safeBack } from '@/lib/navigation';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { getAvatarUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { ChatMessageRow, type DisplayMessage } from './ChatMessageRow';
 import { cn } from '@/lib/utils';
@@ -103,6 +106,7 @@ function otherParty(conversation: Conversation, userId: string | undefined) {
  * user's current reading position down the thread.
  */
 export function ChatWindow({ conversationId }: Props) {
+  const router = useRouter();
   const user = useAuthStore(selectUser);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -514,19 +518,12 @@ export function ChatWindow({ conversationId }: Props) {
       )}
 
       <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-border/70 bg-card/90 px-3 py-3 shadow-xs backdrop-blur-md">
-        {/* SW-FIX-CHAT-MOBILE-BACK: previously a <Link> that pushed a new
-            /messages entry — every "back" then landed the user one step
-            deeper in history instead of out of the thread. router.back()
-            matches what the OS back button does on the same page. */}
+        {/* Return to the previous same-origin page when available; a direct
+            conversation link falls back to the messages inbox instead of
+            sending the user back to an external site. */}
         <button
           type="button"
-          onClick={() => {
-            if (typeof window !== 'undefined' && window.history.length > 1) {
-              window.history.back();
-            } else {
-              window.location.href = ROUTES.messages;
-            }
-          }}
+          onClick={() => safeBack(router, ROUTES.messages, signalNavigationStart)}
           className="lg:hidden flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted active:bg-muted/80"
           aria-label="رجوع للمحادثات"
         >

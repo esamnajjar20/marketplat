@@ -7,6 +7,7 @@ import { useAuthStore } from '@/store/auth.store';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ROUTES } from '@/lib/constants';
 
 export function FollowingFeedSection() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -19,7 +20,11 @@ export function FollowingFeedSection() {
         <Bell className="h-5 w-5 text-muted-foreground" />
       </div>
       {<LoadingGate loading={isLoading} fallback={<div className="grid gap-3 sm:grid-cols-2"><Skeleton className="h-20" /><Skeleton className="h-20" /></div>}><>{!data?.items.length ? <div className="rounded-xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">ابدأ بمتابعة أشخاص أو متاجر أو فئات ليظهر محتواهم هنا.</div> : <div className="grid gap-3 sm:grid-cols-2">{data.items.map((item) => {
-        const href = item.type === 'AD' ? `/ads/${item.id}` : item.type === 'PRODUCT' ? `/products/${item.id}` : `/service-listings/${item.id}`;
+        const href = item.type === 'AD'
+          ? ROUTES.adDetail(item.id)
+          : item.type === 'PRODUCT'
+            ? ROUTES.productDetail(item.id)
+            : ROUTES.serviceDetail(item.id);
         return <Link key={`${item.type}-${item.id}`} href={href} className="flex gap-3 rounded-xl border border-border p-3 transition hover:bg-muted">
           {item.images?.[0] ? <SafeImage src={item.images[0]} alt="" width={72} height={72} className="h-18 w-18 rounded-lg object-cover" /> : <div className="flex h-18 w-18 items-center justify-center rounded-lg bg-muted"><ImageIcon className="h-5 w-5" /></div>}
           <div className="min-w-0"><div className="text-xs text-muted-foreground">{item.type === 'AD' ? 'إعلان' : item.type === 'PRODUCT' ? 'منتج' : 'خدمة'}</div><h3 className="truncate font-medium">{item.title}</h3>{item.price != null && <p className="mt-1 text-sm font-semibold">{String(item.price)}</p>}</div>

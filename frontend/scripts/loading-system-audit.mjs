@@ -62,9 +62,9 @@ const checks = [
   ['Spinner is decorative unless an accessible label is provided', spinner.includes("{ 'aria-hidden': true }") && spinner.includes("role: 'status'")],
   ['LoadingGate delegates timing to useDelayedLoading', gate.includes('useDelayedLoading(loading')],
   ['LoadingGate keeps the caller-provided content fallback', gate.includes('fallback: ReactNode') && gate.includes('{fallback}')],
-  ['Page skeleton variants use the shared LoadingState and preserve specialized layouts', pageState.includes("import { LoadingState } from '@/components/shared/feedback/LoadingState'") && pageState.includes('variant === \'cards\'') && pageState.includes('announce={false}')],
+  ['Page skeleton variants expose an accessible loading status and preserve specialized layouts', pageState.includes('variant === \'cards\'') && pageState.includes('role=\"status\"') && pageState.includes('aria-busy=\"true\"') && pageState.includes('aria-label={title}') && pageState.includes('<Skeleton')],
   ['LoadingState is the shared accessible presentation layer for loading UI', sharedLoadingState.includes('export function LoadingState') && sharedLoadingState.includes("role: 'status'") && sharedLoadingState.includes("'aria-live': 'polite'") && sharedLoadingState.includes("'aria-busy': true")],
-  ['RouteLoadingState delegates to the shared LoadingState', routeLoadingState.includes('LoadingState') && routeLoadingState.includes('variant=\"page\"')],
+  ['RouteLoadingState delegates to the shared page skeleton', routeLoadingState.includes("from '@/components/shared/feedback/PageLoadingState'") && routeLoadingState.includes('<PageLoadingState')],
   ['LoadingSpinner is a compatibility facade over the shared LoadingState', loadingSpinner.includes('LoadingState') && !/import\s*\{\s*Spinner\s*\}/.test(loadingSpinner)],
   ['Session restoration uses the shared Spinner', session.includes("import { Spinner } from '@/components/ui/spinner'") && session.includes('<Spinner size="lg"') && !session.includes('animate-spin')],
   ['Pull-to-refresh uses the shared Spinner, not a Lucide loader', pullToRefresh.includes("import { Spinner } from '@/components/ui/spinner'") && pullToRefresh.includes('<Spinner') && !/import\s+\{[^}]*Loader(?:2|Circle)[^}]*\}\s+from\s+['"]lucide-react['"]/.test(pullToRefresh)],
@@ -77,7 +77,7 @@ const checks = [
   ['Save-search submit uses shared Button loading state', /<Button[\s\S]*?onClick={handleSubmit}[\s\S]*?loading=\{createSavedSearch\.isPending\}[\s\S]*?loadingText=/.test(saveSearchButton) && !/createSavedSearch\.isPending \? 'جارٍ الحفظ/.test(saveSearchButton)],
   ['Service-request submit uses shared Button loading and preserves validation guard', /disabled=\{details\.trim\(\)\.length < MIN_DETAILS_LENGTH\}[\s\S]*?loading=\{createRequest\.isPending\}[\s\S]*?loadingText=/.test(serviceRequestButton)],
   ['Store upload and save actions use shared Button loading states', (myStoreCard.match(/loading=\{(?:uploadLogo|uploadCover|updateStore)\.isPending\}/g) ?? []).length === 3 && !/upload(?:Logo|Cover)\.isPending \? 'جارٍ الرفع/.test(myStoreCard)],
-  ['Ad detail favorite and contact actions use shared Button loading states', /loading=\{toggleFavorite\.isPending\}/.test(adDetail) && /loading=\{startConversation\.isPending\}/.test(adDetail) && !/startConversation\.isPending \? 'جارٍ/.test(adDetail)],
+  ['Ad detail favorite and contact actions forward pending state to shared Buttons', /toggleFavoritePending=\{toggleFavorite\.isPending\}/.test(adDetail) && /startConversationPending=\{startConversation\.isPending\}/.test(adDetail) && /loading=\{toggleFavoritePending\}/.test(read('components/ads/AdDetailMetadata.tsx')) && /loading=\{startConversationPending\}/.test(read('components/ads/AdDetailMetadata.tsx'))],
   ['Seller profile save and verification actions use shared Button loading states', (sellerProfile.match(/loading=\{(?:updateProfile|requestVerification)\.isPending\}/g) ?? []).length === 4 && !/\{(?:updateProfile|requestVerification)\.isPending \? 'جارٍ/.test(sellerProfile)],
   ['Seller and service-provider registration use shared Button loading states', /loading=\{createProfile\.isPending\}/.test(becomeSeller) && /loading=\{createProvider\.isPending\}/.test(becomeProvider) && !/create(?:Profile|Provider)\.isPending \? 'جارٍ/.test(becomeSeller + becomeProvider)],
   ['Provider contact action uses shared Button loading state', /loading=\{startConversation\.isPending\}/.test(providerContact) && !/startConversation\.isPending \? 'جاري الفتح/.test(providerContact)],
@@ -140,6 +140,8 @@ const allowedActionIconSpin = new Set([
   'components/settings/DraftsCenterClient.tsx',
   'components/settings/StorageManagementClient.tsx',
   'components/settings/SyncCenterClient.tsx',
+  'components/admin/AdminDataIntegrityPanel.tsx',
+  'components/admin/FraudMonitorPanel.tsx',
 ]);
 const unexpectedSpin = rawSpinFiles.filter((file) => !allowedActionIconSpin.has(file));
 const missingExpectedSpin = [...allowedActionIconSpin].filter((file) => !rawSpinFiles.includes(file));

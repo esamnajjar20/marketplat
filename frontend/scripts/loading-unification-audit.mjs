@@ -17,9 +17,9 @@ const rootLoading = read('app/loading.tsx');
 
 check('LoadingState owns all supported loading presentation variants', ['page', 'section', 'inline', 'overlay'].every((v) => loadingState.includes(`'${v}'`)));
 check('LoadingState has a single accessible status wrapper', loadingState.includes("role: 'status'") && loadingState.includes("'aria-live': 'polite'") && loadingState.includes("'aria-busy': true"));
-check('RouteLoadingState delegates to LoadingState', routeState.includes("from '@/components/shared/feedback/LoadingState'") && routeState.includes('<LoadingState'));
+check('RouteLoadingState delegates to the shared page skeleton', routeState.includes("from '@/components/shared/feedback/PageLoadingState'") && routeState.includes('<PageLoadingState'));
 check('legacy LoadingSpinner delegates to LoadingState', spinnerFacade.includes("from '@/components/shared/feedback/LoadingState'") && spinnerFacade.includes('<LoadingState'));
-check('specialized skeleton layouts retain the shared spinner primitive and accessible status', pageState.includes("from '@/components/shared/feedback/LoadingState'") && pageState.includes('role="status"') && pageState.includes('aria-busy="true"') && pageState.includes('announce={false}'));
+check('specialized skeleton layouts retain an accessible status and route-specific structure', pageState.includes('role="status"') && pageState.includes('aria-busy="true"') && pageState.includes('aria-label={title}') && pageState.includes("variant === 'cards'") && pageState.includes('<Skeleton'));
 check('root fallback shares the route-group fallback component', rootLoading.includes('RouteLoadingState'));
 
 const routeFiles = [];

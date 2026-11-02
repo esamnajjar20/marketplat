@@ -10,6 +10,7 @@
  */
 import { apiClient } from './client';
 import type { ApiResponse } from '@/types/api.types';
+import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type {
   ServiceProviderDetails,
@@ -30,9 +31,9 @@ export const serviceProvidersApi = {
    * paginated. Same unwrapPaginated convention as storesApi.getAll/
    * productsApi.getAll. city optional — omitted means general/unfiltered.
    */
-  getAll: (params?: ServiceProvidersQuery) =>
+  getAll: (params?: ServiceProvidersQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<PublicServiceProviderSummary[]>>('/service-providers', { params })
+      .get<ApiResponse<PublicServiceProviderSummary[]>>('/service-providers', { ...config, params })
       .then((r) => unwrapPaginated<PublicServiceProviderSummary>(r)),
 
   /** POST /service-providers/me — creates the caller's provider profile (once). */
@@ -70,8 +71,8 @@ export const serviceProvidersApi = {
   },
 
   /** GET /service-providers/:id — public provider page, no auth required. */
-  getById: (id: string) =>
-    apiClient.get<ApiResponse<ServiceProviderPublic>>(`/service-providers/${id}`),
+  getById: (id: string, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<ServiceProviderPublic>>(`/service-providers/${id}`, config),
 
   /** GET /service-providers/nearby — Haversine search around a lat/lng pin. */
   getNearby: (params: NearbyServiceProvidersParams) =>

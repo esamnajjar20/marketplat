@@ -50,10 +50,11 @@ function makeRequest(
   opts: {
     token?: string | null;
     role?:  string | null;
+    headers?: Record<string, string>;
   } = {},
 ): NextRequest {
   const url = new URL(`http://localhost${pathname}`);
-  const req = new NextRequest(url);
+  const req = new NextRequest(url, { headers: opts.headers });
 
   if (opts.token) {
     req.cookies.set('app_access_token', opts.token);
@@ -294,6 +295,75 @@ describe('middleware — MRT-03 role cookie is not a security boundary', () => {
     const req = makeRequest('/admin', { token: VALID_TOKEN });
     const res = middleware(req);
     expect(res.status).toBe(200);
+  });
+});
+
+// ── Public HTML vs. Next.js Flight cache isolation ──────────────────
+
+describe('middleware — RSC responses never receive shared HTML cache policy', () => {
+  it('keeps public document HTML cache tiers for ordinary browser navigations', () => {
+    const response = middleware(makeRequest('/ads/example-ad'));
+    expect(response.headers.get('Cache-Control')).toContain('s-maxage=120');
+    expect(response.headers.get('CDN-Cache-Control')).toBeNull();
+  });
+
+  it('marks RSC Flight requests no-store even on public detail routes', () => {
+    const response = middleware(makeRequest('/ads/example-ad?_rsc=abc', {
+      headers: {
+        RSC: '1',
+        Accept: 'text/x-component',
+        'Next-Router-State-Tree': 'state-a',
+      },
+    }));
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store, max-age=0, must-revalidate');
+    expect(response.headers.get('CDN-Cache-Control')).toBe('no-store');
+    expect(response.headers.get('Cloudflare-CDN-Cache-Control')).toBe('no-store');
+    expect(response.headers.get('Cache-Control')).not.toContain('s-maxage');
+  });
+
+  it('also detects RSC by transport headers when the query token is absent', () => {
+    const response = middleware(makeRequest('/products/example-product', {
+      headers: { 'Next-Router-Prefetch': '1' },
+    }));
+    expect(response.headers.get('Cache-Control')).toContain('no-store');
+    expect(response.headers.get('Cache-Control')).not.toContain('s-maxage');
+  });
+});
+
+// ── Protected HTML routes never inherit broad public cache tiers ─────────────
+
+describe('middleware — protected HTML routes stay out of shared caches', () => {
+  const protectedPaths = [
+    '/ads/create',
+    '/ads/example-ad/edit',
+    '/requests/new',
+    '/requests/me',
+    '/requests/offers',
+    '/stories',
+    '/following',
+    '/admin/ads',
+  ];
+
+  for (const pathname of protectedPaths) {
+    it(`does not assign public/shared Cache-Control to ${pathname}`, () => {
+      const response = middleware(makeRequest(pathname, { token: VALID_TOKEN }));
+      expect(response.status).toBe(200);
+      const cacheControl = response.headers.get('Cache-Control') ?? '';
+      expect(cacheControl).not.toContain('public');
+      expect(cacheControl).not.toContain('s-maxage');
+    });
+  }
+
+  it('keeps a public ad detail eligible for its short shared HTML tier', () => {
+    const response = middleware(makeRequest('/ads/example-ad'));
+    expect(response.headers.get('Cache-Control')).toContain('public');
+    expect(response.headers.get('Cache-Control')).toContain('s-maxage=120');
+  });
+
+  it('keeps a public request detail eligible for its short shared HTML tier', () => {
+    const response = middleware(makeRequest('/requests/example-request'));
+    expect(response.headers.get('Cache-Control')).toContain('public');
+    expect(response.headers.get('Cache-Control')).toContain('s-maxage=120');
   });
 });
 

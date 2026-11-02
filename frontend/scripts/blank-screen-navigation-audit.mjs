@@ -5,6 +5,7 @@ const root = process.cwd();
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 const checks = [
   ['global navigation progress is mounted in the root layout', read('app/layout.tsx').includes('<NavigationProgress />')],
+  ['auth persistence fallback is a visible route skeleton, not an empty full-screen div', read('providers/AuthHydrationProvider.tsx').includes('<RouteLoadingState variant="browse" />') && !/return <div className="min-h-screen bg-background" suppressHydrationWarning \/>/.test(read('providers/AuthHydrationProvider.tsx'))],
   ['stalled navigation has a visible recovery prompt', read('components/shared/NavigationProgress.tsx').includes('LOADING_COPY.navigationStalled') && read('lib/loadingCopy.ts').includes('تأخر فتح الصفحة') && read('components/shared/NavigationProgress.tsx').includes('window.location.assign(stalledHref)')],
   ['navigation fail-safe is bounded', read('components/shared/NavigationProgress.tsx').includes('FAILSAFE_MS = 12_000')],
   ['public routes have a non-empty loading boundary', fs.existsSync(path.join(root, 'app/(public)/loading.tsx'))],

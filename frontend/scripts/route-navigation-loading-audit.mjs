@@ -62,7 +62,15 @@ const programmaticNavigationFiles = [
 for (const [relative, label] of programmaticNavigationFiles) {
   const file = path.join(frontendRoot, relative);
   const source = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-  check(label, /signalNavigationStart/.test(source) && /router\.(push|replace)\(/.test(source));
+  if (relative === 'components/stores/ProductForm.tsx') {
+    // ProductForm deliberately delegates create-success navigation to
+    // useCreateProduct; the mutation hook owns toast, invalidation and route.
+    const mutationHook = read('hooks/mutations/useProductMutations.ts');
+    check(label, /create\.mutate\(/.test(source)
+      && /onSuccess:\s*\(\)\s*=>\s*\{[\s\S]*?signalNavigationStart\(ROUTES\.myStoreProducts\)[\s\S]*?router\.push\(ROUTES\.myStoreProducts\)/.test(mutationHook));
+  } else {
+    check(label, /signalNavigationStart/.test(source) && /router\.(push|replace)\(/.test(source));
+  }
 }
 
 const phase20MutationFiles = [
@@ -113,9 +121,16 @@ const phase23NavigationFiles = [
 for (const [relative, label] of phase23NavigationFiles) {
   const file = path.join(frontendRoot, relative);
   const source = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-  check(label, /signalNavigationStart/.test(source) && /router\.(push|replace)\(/.test(source));
+  const delegatesToSafeBack = /safeBack\(router,\s*ROUTES\.(?:myAds|myServices),\s*signalNavigationStart\)/.test(source);
+  check(label, /signalNavigationStart/.test(source) && (/router\.(push|replace)\(/.test(source) || delegatesToSafeBack));
 }
 
+
+const productCreateHook = read('hooks/mutations/useProductMutations.ts');
+const productCreateForm = read('components/stores/ProductForm.tsx');
+check('product creation success navigation is owned by the create mutation hook',
+  /onSuccess:\s*\(\)\s*=>\s*\{[\s\S]*?signalNavigationStart\(ROUTES\.myStoreProducts\)[\s\S]*?router\.push\(ROUTES\.myStoreProducts\)/.test(productCreateHook)
+  && /create\.mutate\(/.test(productCreateForm));
 
 const phase24GuardFiles = [
   ['app/(admin)/layout.tsx', 'admin guard login and role redirects signal navigation'],
@@ -141,7 +156,10 @@ const phase25NavigationFiles = [
 for (const [relative, label] of phase25NavigationFiles) {
   const file = path.join(frontendRoot, relative);
   const source = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-  check(label, /signalNavigationStart/.test(source) && /router\.push\(/.test(source));
+  // PublicSalesStats uses Next Link, which owns route-transition signaling;
+  // this component does not perform imperative router navigation.
+  const usesNextLink = relative.endsWith('PublicSalesStats.tsx') && /from 'next\/link'/.test(source) && /<Link\s+href=/.test(source);
+  check(label, usesNextLink || (/signalNavigationStart/.test(source) && /router\.push\(/.test(source)));
 }
 
 const phase26NavigationFiles = [

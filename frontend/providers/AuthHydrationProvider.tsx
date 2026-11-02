@@ -70,6 +70,7 @@ import { queryKeys }    from '@/lib/queryKeys';
 import { CACHE_TTL, ROUTES }    from '@/lib/constants';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, clearAuthCookies } from '@/lib/cookies';
 import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
+import { RouteLoadingState } from '@/components/shared/RouteLoadingState';
 // T735 — see the check just after the refresh await below.
 import {
   isSessionRevoked,
@@ -587,10 +588,12 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
     setUser,
   ]);
 
-  // HYDRATION-FIX: تأجيل عرض الواجهة حتى يكتمل تحميل بيانات المتصفح.
-  // هذا يمنع خطأ React #418 الناتج عن اختلاف الجلسة بين السيرفر والمتصفح.
+  // Keep server and first-client markup identical until the browser store is
+  // ready, but render an actual route skeleton rather than an empty viewport.
+  // This gate is only for initial hydration; it does not remount on client-side
+  // navigation. Protected/admin layouts retain their own session boundaries.
   if (!mounted || !isHydrated) {
-    return <div className="min-h-screen bg-background" suppressHydrationWarning />;
+    return <RouteLoadingState variant="browse" />;
   }
 
   return <>{children}</>;

@@ -85,8 +85,12 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   const router = useRouter();
   const isAuth = useAuthStore(selectIsAuthenticated);
   const currentUser = useAuthStore(selectUser);
+  const [authMounted, setAuthMounted] = useState(false);
+  useEffect(() => setAuthMounted(true), []);
   const startConversation = useStartConversation();
-  const isOwnAd = currentUser?.id === ad.user.id;
+  // Persisted Zustand state is unavailable during SSR. Delay owner-only
+  // presentation until mount so server and first client render agree.
+  const isOwnAd = authMounted && currentUser?.id === ad.user.id;
   const [imgIdx, setImgIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchStartX = useRef<number | null>(null);
@@ -224,7 +228,7 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   return (
     <>
       {/* Layout aligned with ProductDetail: no nested container (page already provides it). */}
-      <div className={cn('flex flex-col gap-6 md:flex-row md:gap-8', !isOwnAd ? 'pb-sticky-contact' : 'pb-8')}>
+      <div className={cn('flex flex-col gap-6 md:flex-row md:gap-8', isOwnAd && 'pb-8')}>
         <div className="min-w-0 flex-1 space-y-6 lg:w-2/3">
               {/* Main image gallery - KEEP EAGER (LCP critical) */}
               <div className={cn(DETAIL_GALLERY_SHELL, 'lg:shadow-md')}>

@@ -242,8 +242,27 @@ export function isOfflinePersistableQueryKey(queryKey: QueryKey): boolean {
     if (queryKey.length === 1) return true;
     return queryKey.length === 3 && child === 'slug' && typeof third === 'string';
   }
-  if (root === 'service-providers' && queryKey.length === 2 && typeof child === 'string'
-    && !new Set(['list', 'me', 'nearby', 'admin', 'stock', 'analytics']).has(child)) return true;
+  if (root === 'service-providers') {
+    // Public provider directory pages are safe to persist only for the
+    // endpoint's documented page/limit/city shape. GPS-nearby results carry
+    // coordinates in a different `nearby` branch and are never persisted.
+    if (queryKey.length === 3 && child === 'list' && !!third
+      && typeof third === 'object' && !Array.isArray(third)) {
+      return Object.entries(third as Record<string, unknown>).every(([key, value]) => {
+        // Optional params are sometimes present as undefined in query-key
+        // objects. Ignore those fields, but reject every unsupported context.
+        if (value === undefined || value === null || value === '') return true;
+        if (key === 'city') return typeof value === 'string' && value.length <= 100;
+        if (key === 'page' || key === 'limit') return typeof value === 'number'
+          && Number.isInteger(value) && value > 0 && value <= 1000;
+        return false;
+      });
+    }
+    if (queryKey.length === 2 && typeof child === 'string'
+      && child.length > 0
+      && !new Set(['list', 'me', 'nearby', 'admin', 'stock', 'analytics']).has(child)) return true;
+    return false;
+  }
   const children = PUBLIC_CHILD_KEYS.get(root);
   if (!children || typeof child !== 'string' || !children.has(child)) return false;
   // The ads infinite-query factory has the concrete shape

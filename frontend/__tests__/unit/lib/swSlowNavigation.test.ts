@@ -85,7 +85,7 @@ describe('SW navigation does not mask real responses with /offline', () => {
     const ctx = load();
     const cache = await ctx.sb.caches.open(ctx.sb.self.__STATIC);
     await cache.put('/offline', res('OFFLINE-PAGE'));
-    ctx.setFetch(() => new Promise((ok) => setTimeout(() => ok(new Response('REAL-RSC')), 5600)));
+    ctx.setFetch(() => new Promise((ok) => setTimeout(() => ok(new Response('REAL-RSC', { headers: { 'content-type': 'text/x-component' } })), 5600)));
     const url = new URL('https://example.com/products');
     const request = {
       url: url.href,

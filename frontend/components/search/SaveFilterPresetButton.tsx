@@ -28,6 +28,7 @@ import {
 } from '@/lib/filterSavedSearch';
 import { trackFilterEvent } from '@/lib/filterAnalytics';
 import { ROUTES } from '@/lib/constants';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 interface Props {
   /** Optional: hide when user is logged out (parent can pass from auth store). */
@@ -49,7 +50,11 @@ export function SaveFilterPresetButton({ isAuthenticated = true, className }: Pr
 
   function handleOpen() {
     if (!isAuthenticated) {
-      router.push(`${ROUTES.login}?next=${encodeURIComponent(ROUTES.search)}`);
+      const currentQuery = sp.toString();
+      const returnTo = currentQuery ? `${ROUTES.search}?${currentQuery}` : ROUTES.search;
+      const destination = `${ROUTES.login}?from=${encodeURIComponent(returnTo)}`;
+      signalNavigationStart(destination);
+      router.push(destination);
       return;
     }
     setLabel(suggestSavedSearchLabel(state));

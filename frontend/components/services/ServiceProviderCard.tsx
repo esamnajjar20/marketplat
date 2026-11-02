@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, MessageCircle } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -10,6 +11,9 @@ import { cn } from '@/lib/utils';
 import { CARD_SHELL_SOFT, CARD_AVATAR_FALLBACK, CARD_BADGE_SUCCESS } from '@/components/shared/cards/cardTokens';
 import { formatDistanceKm } from '@/lib/distance';
 import { useAuthStore } from '@/store/auth.store';
+import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
+import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+import { toast } from 'sonner';
 import type { ServiceProviderDetails, ServiceAvailability } from '@/types/service.types';
 
 interface Props {
@@ -44,6 +48,11 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
   const avatar = getAvatarUrl(provider.logoUrl ?? '', 96);
   const hasLogo = Boolean(provider.logoUrl);
   const persistedUserCity = useAuthStore((s) => s.user?.city ?? null);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isAuthResolving = useAuthStore((s) => s.isAuthResolving);
+  const currentUserId = useAuthStore((s) => s.user?.id ?? null);
+  const router = useRouter();
+  const startConversation = useStartConversation();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const userCity = mounted ? persistedUserCity : null;
@@ -58,7 +67,40 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
   const verified = provider.sellerProfile?.verified;
   const rating = provider.sellerProfile?.averageRating;
   const totalRatings = provider.sellerProfile?.totalRatings;
-  const profileHref = ROUTES.serviceProvider(provider.id);
+  const providerUserId = provider.sellerProfile?.userId;
+  const profileHref = providerUserId
+    ? ROUTES.userProfile(providerUserId)
+    : ROUTES.serviceProvider(provider.id);
+  const isOwnProvider = Boolean(providerUserId && currentUserId === providerUserId);
+
+  function handleContact() {
+    if (!providerUserId) {
+      toast.error('تعذر تحديد حساب مقدم الخدمة');
+      return;
+    }
+    if (!isAuthenticated) {
+      const destination = `${ROUTES.login}?from=${encodeURIComponent(profileHref)}`;
+      signalNavigationStart(destination);
+      router.push(destination);
+      return;
+    }
+    if (isOwnProvider) {
+      signalNavigationStart(profileHref);
+      router.push(profileHref);
+      return;
+    }
+    startConversation.mutate({ userId: providerUserId }, {
+      onSuccess: (conversation) => {
+        if (!conversation?.id) {
+          toast.error('تعذر فتح المحادثة');
+          return;
+        }
+        const destination = ROUTES.conversationDetail(conversation.id);
+        signalNavigationStart(destination);
+        router.push(destination);
+      },
+    });
+  }
   const skills = (provider.serviceTypes ?? []).slice(0, 3);
 
   return (
@@ -158,14 +200,18 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
         >
           عرض الملف
         </Link>
-        <Link
-          href={profileHref}
-          prefetch={false}
-          className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-[var(--legacy-border)] bg-card px-3 text-sm font-bold text-[var(--legacy-primary-deep)] transition-colors hover:border-primary/40 dark:border-border dark:bg-card dark:text-primary"
-        >
-          <MessageCircle className="h-4 w-4" aria-hidden />
-          تواصل
-        </Link>
+        {!isOwnProvider && (
+          <button
+            type="button"
+            onClick={handleContact}
+            disabled={!providerUserId || isAuthResolving || startConversation.isPending}
+            aria-busy={isAuthResolving || startConversation.isPending}
+            className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-[var(--legacy-border)] bg-card px-3 text-sm font-bold text-[var(--legacy-primary-deep)] transition-colors hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-60 dark:border-border dark:bg-card dark:text-primary"
+          >
+            <MessageCircle className="h-4 w-4" aria-hidden />
+            {isAuthResolving ? 'جارٍ التحقق…' : startConversation.isPending ? 'جارٍ فتح المحادثة…' : 'تواصل'}
+          </button>
+        )}
       </div>
     </article>
   );

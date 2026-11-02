@@ -1,6 +1,6 @@
 /**
  * Service Worker — سوق غزة PWA
- * - صفحات App Shell و RSC: شبكة أولًا مع مهلة، ثم الكاش عند الانقطاع/البطء.
+ * - مستندات App Shell: شبكة أولًا ثم HTML موثّق عند الانقطاع؛ RSC: شبكة فقط، وعند فشل Flight يحوّل العميل التنقل إلى مستند HTML محفوظ.
  * - JS/CSS الثابتة: Stale-While-Revalidate. الصور: Cache First.
  * - API (GET): شبكة أولًا؛ البيانات الشخصية في كاش مقسَّم حسب المستخدم.
  * - API (الكتابة): طابور IndexedDB يُعاد إرساله عند عودة الاتصال.
@@ -13,7 +13,7 @@ try { importScripts('/cache-policy.js', '/cache-contract.js'); } catch (_) {}
 const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?? {};
 
 // ارفع الرقم عند تغيير سياسة الكاش أو استراتيجيات fetch.
-const CACHE_VERSION = 'v92';
+const CACHE_VERSION = 'v95';
 
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
@@ -165,18 +165,22 @@ function isSafeShellMigrationEntry(request, response, sourceCacheName) {
      contentType.includes('text/css') || contentType.startsWith('font/') ||
      contentType.includes('application/font') || contentType.includes('woff'));
   const isHtml = contentType.includes('text/html');
-  const isRsc = url.searchParams.has('_rsc') || url.searchParams.has('__offline_rsc_shell');
-  if (url.pathname.startsWith('/_next/') && !isStaticAsset) return false;
+  const isRscKey = url.searchParams.has('_rsc') || url.searchParams.has('__offline_rsc_shell');
+  // Flight responses are router-state-specific and are no longer used as
+  // offline page fallbacks. Discard them during migration to reclaim storage;
+  // only HTML documents and verified static assets are transferable.
+  if (isRscKey || url.pathname.startsWith('/_next/') && !isStaticAsset) return false;
 
   if (sourceCacheName.startsWith('market-personal-shell-')) {
-    if (PROTECTED_AD_EDIT_RE.test(url.pathname) || !isProtectedPage(url)) return false;
-    return isHtml || isRsc;
+    if (PROTECTED_AD_EDIT_RE.test(url.pathname) || !isPersonalShellRoute(url)) return false;
+    return isHtml;
   }
   if (isProtectedPage(url)) return false;
   if (isStaticAsset) return true;
-  if (isHtml || isRsc) {
-    // Don't migrate arbitrary query-specific pages; RSC keys are explicitly supported.
-    if (url.search && !isRsc) return false;
+  if (isHtml) {
+    // Don't migrate arbitrary query-specific pages; each query-specific
+    // document must be visited again under the current cache generation.
+    if (url.search) return false;
     return true;
   }
   return false;
@@ -687,7 +691,57 @@ function isUnsafeMethod(method) {
 }
 
 function isRscShellRequest(request) {
-  return request.headers.get('RSC') === '1';
+  if (!request || !request.headers) return false;
+  if (
+    request.headers.get('RSC') === '1' ||
+    request.headers.has('Next-Router-State-Tree') ||
+    request.headers.has('Next-Router-Prefetch') ||
+    (request.headers.get('Accept') || '').toLowerCase().includes('text/x-component')
+  ) return true;
+  try {
+    return new URL(request.url, self.location.origin).searchParams.has('_rsc');
+  } catch {
+    return false;
+  }
+}
+
+// A Next.js Flight/RSC payload is a patch for a particular Router State Tree,
+// not a reusable page shell. Never satisfy an online RSC request from the
+// path-only `__offline_rsc_shell` snapshot: it can belong to another tab,
+// prefetch, or navigation state and Next may fail to reconcile it (blank page).
+// Keep RSC transport network-only. Offline document shells remain available
+// through normal `mode: navigate` requests and their verified JS/CSS assets.
+function hasRscContentType(response) {
+  const contentType = (response && response.headers.get('content-type') || '').toLowerCase();
+  return contentType.includes('text/x-component');
+}
+
+function isUsableRscResponse(response) {
+  return Boolean(response && response.ok && response.status !== 206 && hasRscContentType(response));
+}
+
+async function networkOnlyRscRequest(event, request, url) {
+  try {
+    const response = await withNavigationDeadline(fetch(request), NAVIGATE_MAX_WAIT_MS);
+    if (!response) return Response.error();
+    // Preserve valid Flight error responses (including 404/500), but reject
+    // HTML/login/captive-portal bodies and partial responses for every status.
+    if (response.status === 206 || !hasRscContentType(response)) {
+      console.warn('[SW] rejected non-RSC response for an RSC request');
+      return Response.error();
+    }
+    if (!isSameOriginResponse(response)) return Response.error();
+    // Do not infer a real visit from an RSC request: Next may issue it as a
+    // prefetch and later consume it without another request. The mounted-page
+    // tracker sends CACHE_VISITED_PAGE only after navigation actually commits.
+    return response;
+  } catch {
+    // RSC/Flight is a patch for a particular router state. Even a payload
+    // produced without an explicit tree is not a safe replacement for an
+    // offline navigation. The client falls back to a document request, where
+    // the verified visited HTML shell is served from the correct cache.
+    return Response.error();
+  }
 }
 
 const HUB_PATHS = new Set([
@@ -1070,7 +1124,39 @@ async function clearShellSaveFailure(statusKey) {
   }
 }
 
-async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlCacheName = STATIC_CACHE) {
+function hasPrivateOfflineDocumentQuery(url) {
+  const privateKeys = new Set([
+    'q', 'query', 'search', 'term', 'lat', 'lng', 'latitude', 'longitude',
+    'location', 'coordinates', 'providerid', 'userid', 'ownerid', 'sellerid', 'storeownerid',
+  ]);
+  for (const key of url.searchParams.keys()) {
+    if (privateKeys.has(String(key).toLowerCase())) return true;
+  }
+  return false;
+}
+
+// Deduplicate the document fetch when a hard navigation and the mounted-page
+// tracker report the same first visit concurrently. This keeps route-commit
+// capture from downloading a second copy of HTML/assets for the same page.
+const inFlightShellSaves = new Map();
+function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlCacheName = STATIC_CACHE) {
+  let dedupeKey;
+  try {
+    dedupeKey = `${htmlCacheName}\n${canonicalDocumentUrl(url).href}`;
+  } catch {
+    return Promise.resolve('failed');
+  }
+  const existing = inFlightShellSaves.get(dedupeKey);
+  if (existing) return existing;
+  const pending = cacheVisitedDocumentShellInternal(url, htmlCache, documentResponse, htmlCacheName)
+    .finally(() => {
+      if (inFlightShellSaves.get(dedupeKey) === pending) inFlightShellSaves.delete(dedupeKey);
+    });
+  inFlightShellSaves.set(dedupeKey, pending);
+  return pending;
+}
+
+async function cacheVisitedDocumentShellInternal(url, htmlCache, documentResponse, htmlCacheName = STATIC_CACHE) {
   const kind = shellKindFor(htmlCacheName);
   let docUrl = null;
   let targetUrl = null;
@@ -1094,6 +1180,9 @@ async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlC
   try {
     docUrl = canonicalDocumentUrl(url);
     targetUrl = docUrl;
+    // Search phrases and user/location context are intentionally not written
+    // into the shared HTML shell cache. Their result data is not persisted either.
+    if (htmlCacheName === STATIC_CACHE && hasPrivateOfflineDocumentQuery(docUrl)) return 'skipped';
     statusKey = `${htmlCacheName}\n${docUrl.href}`;
 
     const response = documentResponse
@@ -1213,15 +1302,11 @@ async function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlC
   }
 }
 
-function isRealRscNavigation(request) {
-  if (!isRscShellRequest(request)) return false;
-  const prefetch = request.headers.get('Next-Router-Prefetch');
-  const purpose = request.headers.get('Purpose') || request.headers.get('Sec-Purpose') || '';
-  return prefetch !== '1' && !/prefetch/i.test(purpose);
-}
 
 // كتابة الكاش بالخلفية دون حجب الرد.
 async function staleWhileRevalidate(event, request, cacheKey) {
+  // Defense in depth: no call site may persist or replay Flight payloads as page data.
+  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request, new URL(request.url));
   const cache = await caches.open(STATIC_CACHE);
   const cachedResponse = await cache.match(cacheKey);
 
@@ -1230,12 +1315,9 @@ async function staleWhileRevalidate(event, request, cacheKey) {
       if (response && response.ok && response.status !== 206 && isSameOriginResponse(response)) {
 
         const snapshot = response.clone();
-        const isRsc = isRscShellRequest(request);
         event.waitUntil((async () => {
           try {
-            const toStore = isRsc ? await stripVaryAndClone(snapshot) : snapshot;
-
-            await putTimestamped(cache, cacheKey, toStore);
+            await putTimestamped(cache, cacheKey, snapshot);
             await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
           } catch {   }
         })());
@@ -1250,10 +1332,6 @@ async function staleWhileRevalidate(event, request, cacheKey) {
 
   const networkResponse = await networkFetch;
   if (networkResponse) return networkResponse;
-
-  if (isRscShellRequest(request)) {
-    return Response.error();
-  }
 
   if (request.mode === 'navigate') {
     return buildOfflineErrorPage();
@@ -1290,7 +1368,9 @@ async function verifyCachedChunks(cachedResponse, cache) {
 // failure, but serving /search without ?q= while the network is reachable can show
 // wrong content or a hydration mismatch.
 async function lookupShellWithFallback(cache, request, url, opts) {
-  const allowBare = !opts || opts.allowBare !== false;
+  const allowBare = opts && typeof opts.allowBare === 'boolean'
+    ? opts.allowBare
+    : !hasPrivateOfflineDocumentQuery(url);
   const isRsc = isRscShellRequest(request);
   const exact = await cache.match(request);
   if (exact) return exact;
@@ -1316,7 +1396,8 @@ async function lookupShellWithFallback(cache, request, url, opts) {
 }
 
 // صفحات عامة: شبكة أولًا ثم آخر نسخة مخزنة.
-async function networkFirstPage(event, request, cacheKey) {
+async function networkFirstPage(event, request) {
+  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request, new URL(request.url));
   const url = new URL(request.url);
   const cache = await caches.open(STATIC_CACHE);
 
@@ -1325,27 +1406,14 @@ async function networkFirstPage(event, request, cacheKey) {
   const fetchPromise = fetch(request);
   try {
     const response = await withNavigationDeadline(fetchPromise, navigateTimeout);
-    if (response && response.ok && isSameOriginResponse(response)) {
-      const isHtmlVisit = request.mode === 'navigate' &&
-        (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
-      if (isHtmlVisit) {
-
-        event.waitUntil(cacheVisitedDocumentShell(url, cache, response.clone(), STATIC_CACHE));
-      } else {
-
-        const snapshot = response.clone();
-        const shellSource = isRscShellRequest(request) ? 'rsc' : undefined;
-        event.waitUntil((async () => {
-          try {
-            const toStore = await stripVaryAndClone(snapshot);
-            await putTimestamped(cache, cacheKey, toStore, shellSource);
-            await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
-          } catch {   }
-        })());
-        if (isRealRscNavigation(request)) {
-          event.waitUntil(cacheVisitedDocumentShell(url, cache, undefined, STATIC_CACHE));
-        }
-      }
+    if (
+      response && response.ok && isSameOriginResponse(response) &&
+      request.mode === 'navigate' &&
+      (response.headers.get('content-type') || '').toLowerCase().includes('text/html')
+    ) {
+      // Page-shell storage is HTML-only. RSC/JSON/error bodies are never
+      // promoted to document cache entries, even if a server returns 200.
+      event.waitUntil(cacheVisitedDocumentShell(url, cache, response.clone(), STATIC_CACHE));
     }
     return response;
   } catch (err) {
@@ -1359,11 +1427,6 @@ async function networkFirstPage(event, request, cacheKey) {
                 (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
               if (isHtmlVisit) {
                 await cacheVisitedDocumentShell(url, cache, response.clone(), STATIC_CACHE);
-              } else {
-                const toStore = await stripVaryAndClone(response.clone());
-                await putTimestamped(cache, cacheKey, toStore, isRscShellRequest(request) ? 'rsc' : undefined);
-                if (isRealRscNavigation(request)) await cacheVisitedDocumentShell(url, cache, undefined, STATIC_CACHE);
-                await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
               }
             }
           })
@@ -1401,136 +1464,20 @@ async function networkFirstPage(event, request, cacheKey) {
 const protectedNavGeneration = new Map();
 
 
-// SWR: عرض الكاش فورًا + تحديث في الخلفية مع التحقق من chunks
-async function staleWhileRevalidatePage(event, request, cacheKey) {
-  const cache = await caches.open(STATIC_CACHE);
-  const isNavigationRequest = request.mode === 'navigate' || isRscShellRequest(request);
-  // Online path: never serve the query-stripped shell (SW-BARE-FALLBACK-ONLINE-01);
-  // it is still used below if the network genuinely fails.
-  const cached = await lookupShellWithFallback(cache, request, new URL(request.url), { allowBare: false });
-
-  // FIX SW-SLOW-NAV-01: one network request shared by the background
-  // revalidation AND the no-cache path below, so a slow (but alive) server is
-  // awaited instead of being abandoned after NETWORK_TIMEOUT_MS.
-  const networkPromise = fetch(request);
-  const revalidatePromise = (async () => {
-    try {
-      const response = isNavigationRequest
-        ? await withNavigationDeadline(networkPromise, NAVIGATE_TIMEOUT_MS)
-        : await withNetworkTimeout(networkPromise, NETWORK_TIMEOUT_MS);
-      if (!response || !response.ok || response.status === 206 || !isSameOriginResponse(response)) {
-        return;
-      }
-
-      const isHtml = request.mode === 'navigate' &&
-        (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
-
-      if (!isHtml) {
-        const toStore = await stripVaryAndClone(response.clone());
-        await putTimestamped(cache, cacheKey, toStore, isRscShellRequest(request) ? 'rsc' : undefined);
-        await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
-        return;
-      }
-
-      const html = await response.clone().text();
-      const chunkUrls = [...new Set([...html.matchAll(/(?:src|href)=["']([^"']+)/g)]
-        .map((m) => m[1])
-        .filter((v) => typeof v === 'string' && v.startsWith('/_next/static/')) )];
-
-      if (chunkUrls.length > 0) {
-        const missing = [];
-        for (const assetUrl of chunkUrls) {
-          const hit = await cache.match(assetUrl);
-          // A 200 HTML fallback cached under a .js/.css URL is not a usable chunk.
-          if (!isUsableStaticAssetResponse(assetUrl, hit)) {
-            if (hit) await cache.delete(assetUrl);
-            missing.push(assetUrl);
-          }
-        }
-        if (missing.length > 0) {
-          const results = await Promise.allSettled(
-            missing.map(async (assetUrl) => {
-              const response = await withNetworkTimeout(
-                fetch(assetUrl, { credentials: 'same-origin' }),
-                NETWORK_TIMEOUT_MS,
-              );
-              if (!isUsableStaticAssetResponse(assetUrl, response)) {
-                throw new Error(`chunk fetch invalid: ${assetUrl}`);
-              }
-              await putTimestamped(cache, assetUrl, response, 'visit-asset');
-            })
-          );
-          if (results.some((r) => r.status === 'rejected')) {
-            console.warn('[SWR] Skipping HTML cache update: some chunks could not be fetched or validated');
-            return;
-          }
-        }
-      }
-
-      try {
-        const toStore = await stripVaryAndClone(response.clone());
-        await putTimestamped(cache, cacheKey, toStore, 'visit');
-      } catch (cacheErr) {
-        console.warn('[SWR] Skipping HTML cache due to clone error:', cacheErr);
-      }
-      await trimCache(STATIC_CACHE, MAX_STATIC_ENTRIES, MAX_STATIC_BYTES);
-    } catch (err) {
-      console.warn('[SWR] revalidation failed:', err && err.message);
-    }
-  })();
-
-  if (cached) {
-    // Never serve a cached HTML shell whose hashed JS/CSS chunks are missing,
-    // stale-poisoned (e.g. HTML fallback under a .js URL), or otherwise invalid.
-    // Returning such HTML immediately is a common cause of a blank page after deploy.
-    const safeCachedShell = isRscShellRequest(request)
-      ? cached.ok
-      : await verifyCachedChunks(cached, cache);
-    if (safeCachedShell) {
-      event.waitUntil(revalidatePromise);
-      return cached;
-    }
-    try { await cache.delete(request); } catch { /* best-effort invalid-shell eviction */ }
-    if (cacheKey !== request) {
-      try { await cache.delete(cacheKey); } catch { /* best-effort invalid-shell eviction */ }
-    }
-  }
-
-  try {
-    // FIX SW-SWR-NOBLOCK-01: with no usable cached shell, do NOT hold the page back
-    // until revalidatePromise finishes — it also downloads every missing JS/CSS chunk
-    // and writes the cache, which on a first visit / right after a deploy (caches
-    // purged) delays the first paint by the full chunk download time. The browser
-    // needs only the real response; caching + chunk prefetch continue in the
-    // background (they work on clones, so the returned body is untouched).
-    // FIX SW-SLOW-NAV-01 still applies: a 404/503/slow-200 is passed through as-is;
-    // /offline is only for a real network failure (the fetch rejecting), below.
-    event.waitUntil(revalidatePromise);
-    return await withNetworkTimeout(
-      networkPromise,
-      isNavigationRequest ? NAVIGATE_MAX_WAIT_MS : NETWORK_TIMEOUT_MS,
-    );
-  } catch {
-    // Real network failure: now the bare-path shell (if any) beats /offline.
-    try {
-      const fallbackShell = await lookupShellWithFallback(cache, request, new URL(request.url));
-      if (fallbackShell) {
-        const ok = isRscShellRequest(request) ? fallbackShell.ok : await verifyCachedChunks(fallbackShell, cache);
-        if (ok) return fallbackShell;
-      }
-    } catch { /* fall through to /offline */ }
-    if (request.mode === 'navigate') {
-      const offlineFallback = await cache.match(OFFLINE_URL);
-      return offlineFallback || Response.error();
-    }
-    return Response.error();
-  }
+// Legacy function name retained for compatibility with older call sites.
+// Page documents are network-first now; RSC transport requests are network-only.
+// This deliberately prevents stale RSC patches or stale HTML from being returned
+// before the current deployment has had a chance to respond.
+async function staleWhileRevalidatePage(event, request) {
+  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request, new URL(request.url));
+  return networkFirstPage(event, request);
 }
 
 // صفحات محمية: شبكة أولًا؛ كاش PERSONAL_SHELL للمسارات المسموحة فقط.
 async function handleProtectedPage(event, request, url) {
+  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request, new URL(request.url));
   const useShellCache = isPersonalShellRoute(url);
-  const cacheKey = isRscShellRequest(request) ? rscShellKey(url) : hubDocumentKey(request, url);
+  const cacheKey = hubDocumentKey(request, url);
 
   const myGeneration = (protectedNavGeneration.get(url.pathname) || 0) + 1;
   protectedNavGeneration.set(url.pathname, myGeneration);
@@ -1556,22 +1503,7 @@ async function handleProtectedPage(event, request, url) {
       const isHtmlVisit = request.mode === 'navigate' &&
         (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
       if (isHtmlVisit) {
-
         event.waitUntil(cacheVisitedDocumentShell(url, cache, response.clone(), PERSONAL_SHELL_CACHE));
-      } else {
-
-        const snapshot = response.clone();
-        const shellSource = isRscShellRequest(request) ? 'rsc' : undefined;
-        event.waitUntil((async () => {
-          try {
-            const toStore = await stripVaryAndClone(snapshot);
-            await putTimestamped(cache, cacheKey, toStore, shellSource);
-            await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
-          } catch {   }
-        })());
-        if (isRealRscNavigation(request)) {
-          event.waitUntil(cacheVisitedDocumentShell(url, cache, undefined, PERSONAL_SHELL_CACHE));
-        }
       }
     }
     return response;
@@ -1588,11 +1520,6 @@ async function handleProtectedPage(event, request, url) {
                   (response.headers.get('content-type') || '').toLowerCase().includes('text/html');
                 if (isHtmlVisit) {
                   await cacheVisitedDocumentShell(url, cache, response.clone(), PERSONAL_SHELL_CACHE);
-                } else {
-                  const toStore = await stripVaryAndClone(response.clone());
-                  await putTimestamped(cache, cacheKey, toStore, isRscShellRequest(request) ? 'rsc' : undefined);
-                  if (isRealRscNavigation(request)) await cacheVisitedDocumentShell(url, cache, undefined, PERSONAL_SHELL_CACHE);
-                  await trimCache(PERSONAL_SHELL_CACHE, MAX_PERSONAL_SHELL_ENTRIES);
                 }
               }
             })
@@ -1641,6 +1568,9 @@ async function handleProtectedPage(event, request, url) {
 }
 
 async function handlePageRequest(event, request, url) {
+  // RSC responses are router-state-specific transport, never public/personal page shells.
+  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request, new URL(request.url));
+
   if (isProtectedPage(url)) {
     return handleProtectedPage(event, request, url);
   }
@@ -1649,22 +1579,10 @@ async function handlePageRequest(event, request, url) {
     return withNavigationDeadline(fetch(request), NAVIGATE_TIMEOUT_MS);
   }
 
-  const cacheKey = isRscShellRequest(request) ? rscShellKey(url) : hubDocumentKey(request, url);
-
-  if (isCriticalNavigationRoute(url)) {
-    return networkFirstPage(event, request, cacheKey);
-  }
-
-  return staleWhileRevalidatePage(event, request, cacheKey);
-}
-
-function isCriticalNavigationRoute(url) {
-  const p = url.pathname;
-  return p.startsWith('/checkout') ||
-         p.startsWith('/account/security') ||
-         p.startsWith('/account/delete') ||
-         p.startsWith('/verify') ||
-         p.startsWith('/reset-password');
+  // Revalidate the current document before returning a cached shell. This
+  // prevents a stale HTML document from winning a race against a deployment
+  // update; the verified shell is still used after a real network failure.
+  return networkFirstPage(event, request);
 }
 
 // Do not treat HTML error/login responses as images: some CDNs/proxies
@@ -3344,12 +3262,47 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Save a page only after the App Router confirms that navigation committed.
+// This also covers Link prefetch: Next may reuse a prefetched Flight payload and
+// make no RSC request at click time, so request interception alone misses visits.
+async function cacheVisitedPageFromClient(rawUrl) {
+  if (self.navigator?.onLine === false || typeof rawUrl !== 'string' || !rawUrl) return 'skipped';
+  let parsed;
+  try { parsed = new URL(rawUrl, self.location.origin); } catch { return 'skipped'; }
+  if (parsed.origin !== self.location.origin) return 'skipped';
+  if (parsed.pathname === '/api' || parsed.pathname.startsWith('/api/') ||
+      parsed.pathname.startsWith('/_next/') || isAuthPage(parsed) || isNeverCache(parsed)) return 'skipped';
+
+  const target = canonicalDocumentUrl(parsed);
+  const protectedPage = isProtectedPage(target);
+  const personal = protectedPage && isPersonalShellRoute(target);
+  // Public shells are shared; only explicitly-approved personal shell routes
+  // may enter the per-session cache. Admin/edit/private routes are never saved.
+  if (protectedPage && !personal) return 'skipped';
+
+  const cacheName = personal ? PERSONAL_SHELL_CACHE : STATIC_CACHE;
+  const cache = await caches.open(cacheName);
+  const cacheKey = HUB_PATHS.has(target.pathname) ? target.pathname : target.href;
+  const existing = await cache.match(cacheKey);
+  const source = existing?.headers.get('X-SW-Cache-Source') || '';
+  if (existing && (source === 'visit' || source === 'visit-recovery') &&
+      await verifyCachedChunks(existing, await caches.open(STATIC_CACHE))) {
+    return 'already-saved';
+  }
+  return cacheVisitedDocumentShell(target, cache, undefined, cacheName);
+}
+
 // أوامر من الصفحة: تحديث، مسح كاش، طابور.
 self.addEventListener('message', (event) => {
   const type = event.data && event.data.type;
 
   if (type === 'RETRY_PENDING_SHELLS') {
     event.waitUntil(retryPendingShells());
+    return;
+  }
+
+  if (type === 'CACHE_VISITED_PAGE') {
+    event.waitUntil(cacheVisitedPageFromClient(event.data?.url).catch(() => 'failed'));
     return;
   }
 

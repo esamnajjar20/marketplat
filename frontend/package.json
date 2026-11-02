@@ -95,7 +95,8 @@
     "build:version": "node scripts/generate-build-id.mjs",
     "audit:script-references": "node scripts/package-script-reference-audit.mjs",
     "a11y:visibility-audit": "node scripts/accessibility-visibility-audit.mjs",
-    "responsive:visual-audit": "node scripts/responsive-visual-consistency-audit.mjs"
+    "responsive:visual-audit": "node scripts/responsive-visual-consistency-audit.mjs",
+    "navigation:integrity-audit": "node scripts/navigation-integrity-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

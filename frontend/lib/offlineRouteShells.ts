@@ -17,24 +17,20 @@
  * مو mode الطلب، فمطابقة تخزين "fetch عادي" مع بحث "navigate" لاحق أمر
  * موثّق وسليم بالمواصفة.
  *
- * (ب) تنقّل "ناعم" (soft navigation / SPA) — المستخدم فاتح التطبيق فعليًا
- * ويضغط رابط لمسار لم يُزَر بهذي الجلسة، وينقطع النت أثناءه. Next.js App
- * Router هنا لا يعمل full navigate — يرسل fetch عادي برأس RSC:'1' وquery
- * param متغيّر (`_rsc=<hash>`)، فمطابقة URL الحرفية لما خزّنته (أ) تفشل.
- * الآلية (ب): نرسل نفس طلب RSC استباقيًا (رأس RSC:'1' بدون
- * Next-Router-State-Tree) ونخزّن الرد بمفتاح ثابت منفصل (`rscShellKey`)
- * بعد حذف رأس Vary — يطابقه sw.js's isRscShellRequest() لاحقًا بنفس
- * المنطق. التفصيل الكامل (لماذا Vary يمنع المطابقة، لماذا مفتاح ثابت لا
- * URL حرفي) موثّق في تعليق PHASE-3-B بـ public/sw.js.
+ * (ب) ردود RSC الاستباقية — يمكن حفظ لقطة RSC تجريبية بمفتاح منفصل
+ * (`rscShellKey`) لاستخدامها فقط كحل Offline محدود عندما لا يحمل الطلب
+ * Router State Tree. لا يجوز إعادتها لعملية تنقل فعلية تحمل
+ * `Next-Router-State-Tree`: ردود Flight تكون patches مرتبطة بحالة الراوتر
+ * الحالية، وإعادة لقطة عامة بدلها قد تكسر التنقل وتترك الصفحة فارغة.
+ * لذلك يعالج `sw.js` كل طلب RSC فعلي عبر الشبكة أولًا ولا يخزّن رده الحي؛
+ * ويحتفظ بكاش HTML وملفات JS/CSS الموثوقة كخطة الرجوع عند فتح الرابط مباشرة.
  *
- * لماذا الحل آمن لهذي الصفحات بالذات (`/products`, `/stores`, `/search`,
- * `/categories`) — لكلا الجزأين (أ) و(ب): لا واحدة فيها `export const
- * dynamic` ولا بيانات مخصّصة تُجلب من السيرفر — كلها shells رفيعة (تحقق من
- * نفس الملفات: `metadata` ثابت عبر `buildMetadata`، والبيانات الفعلية
- * تُجلب client-side عبر hooks React Query). يعني HTML/RSC الموثّق مطابق
- * لأي زائر بأي وقت — تخزينه استباقيًا لا يخاطر بعرض محتوى قديم خاص بمستخدم
- * آخر (بعكس صفحة محمية مثلًا). لم يُختبَر أي من الجزأين فعليًا بمتصفح —
- * انظر القيد بالأسفل.
+ * السبب في الاحتفاظ بكاش HTML لهذه الصفحات (`/products`, `/stores`,
+ * `/search`, `/categories`) أنها shells رفيعة والبيانات الفعلية تُجلب
+ * client-side عبر React Query. أما RSC snapshots فهي اختيارية ومقيّدة
+ * بنوع المحتوى وحالة الاتصال، ولا تُستخدم بدل رد تنقل يحمل Router State Tree.
+ * هذا الفحص ثابت للكود والاختبارات؛ يلزم اختبار متصفح/شبكة إنتاجية لتأكيد
+ * اختفاء العَرَض على الأجهزة الفعلية.
  */
 
 // FIX PWA-VER-01: كانت هذه القيمة عالقة على 'v4' بينما public/sw.js تجاوزها
@@ -674,6 +670,12 @@ export async function settlePool<T, R>(
  * نزيل `_rsc` المتغير فقط، ونحافظ على query params الخاصة بالتطبيق لأن بعض
  * صفحات Server Components (مثل /search?q=...) يتغير محتواها حسبها. مسارات
  * الـ hubs تقرأ التبويب من جهة العميل، لذا تتشارك shell واحدًا. */
+function isUsableOfflineRscResponse(response: Response): boolean {
+  if (!response.ok || response.status === 206) return false;
+  const contentType = (response.headers.get('content-type') || '').split(';', 1)[0].trim().toLowerCase();
+  return contentType === 'text/x-component';
+}
+
 function rscShellKey(path: string): string {
   let url: URL;
   try {
@@ -918,7 +920,7 @@ async function warmRouteAtomic(
         credentials: 'same-origin',
         headers: { RSC: '1' },
       });
-      if (rscRes.ok) {
+      if (isUsableOfflineRscResponse(rscRes)) {
         const headers = new Headers(rscRes.headers);
         headers.delete('Vary');
         headers.set('X-SW-Cached-At', String(Date.now()));
@@ -1367,7 +1369,7 @@ async function warmPersonalRouteAtomic(
         credentials: 'same-origin',
         headers: { RSC: '1' },
       });
-      if (rscRes.ok) {
+      if (isUsableOfflineRscResponse(rscRes)) {
         const headers = new Headers(rscRes.headers);
         headers.delete('Vary');
         headers.set('X-SW-Cached-At', String(Date.now()));

@@ -1,11 +1,13 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { SafeImg } from '@/components/shared/ui/SafeImg';
 import { cn } from '@/lib/utils';
 import { getThumbnailUrl } from '@/lib/cloudinary';
 import { splitMessageBody } from '@/lib/messageUtils';
+import { conversationsApi } from '@/api/conversations.api';
+import { Spinner } from '@/components/ui/spinner';
 import type { DisplayMessage } from './messageTypes';
 
 const VoiceMessagePlayer = dynamic(
@@ -19,7 +21,58 @@ type Props = { message: DisplayMessage; conversationId: string; isMine: boolean 
 
 export const MessageMedia = memo(function MessageMedia({ message, conversationId, isMine }: Props) {
   const [filePreviewOpen, setFilePreviewOpen] = useState(false);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
+  const [filePreviewLoading, setFilePreviewLoading] = useState(false);
+  const [filePreviewError, setFilePreviewError] = useState<string | null>(null);
   const isPdf = message.fileMimeType?.toLowerCase().includes('pdf') || message.fileName?.toLowerCase().endsWith('.pdf') === true;
+
+  useEffect(() => {
+    if (!filePreviewUrl) return;
+    return () => URL.revokeObjectURL(filePreviewUrl);
+  }, [filePreviewUrl]);
+
+  async function loadPdfPreview() {
+    if (filePreviewLoading) return;
+    setFilePreviewLoading(true);
+    setFilePreviewError(null);
+    try {
+      // Use the authenticated Axios client. A same-origin iframe request does
+      // not inherit the Bearer token held by the auth store and was returning
+      // 401 from the conversation media endpoint.
+      const response = await conversationsApi.downloadMedia(conversationId, message.id, 'file');
+      const blob = response.data;
+      if (!(blob instanceof Blob) || blob.size === 0) {
+        throw new Error('The PDF response is empty or invalid');
+      }
+
+      const contentType = blob.type.split(';', 1)[0]?.trim().toLowerCase() ?? '';
+      if (contentType === 'text/html' || contentType === 'application/json' || contentType.includes('problem+json')) {
+        throw new Error('The media endpoint returned an error document instead of a PDF');
+      }
+
+      // Some proxies omit the MIME type. The action is offered only for PDF
+      // attachments, so normalize an absent/octet-stream type for the viewer.
+      const pdfBlob = contentType === 'application/pdf'
+        ? blob
+        : new Blob([blob], { type: 'application/pdf' });
+      setFilePreviewUrl(URL.createObjectURL(pdfBlob));
+    } catch {
+      setFilePreviewError('تعذرت معاينة الملف. يمكنك إعادة المحاولة أو تحميله.');
+    } finally {
+      setFilePreviewLoading(false);
+    }
+  }
+
+  function togglePdfPreview() {
+    if (filePreviewOpen) {
+      setFilePreviewOpen(false);
+      setFilePreviewUrl(null);
+      setFilePreviewError(null);
+      return;
+    }
+    setFilePreviewOpen(true);
+    if (!filePreviewUrl && !filePreviewLoading) void loadPdfPreview();
+  }
 
   if (message.deletedAt) return <p className="whitespace-pre-wrap break-words">تم حذف هذه الرسالة</p>;
   return (
@@ -55,18 +108,36 @@ export const MessageMedia = memo(function MessageMedia({ message, conversationId
           <div className="flex flex-wrap items-center gap-1 border-t border-border/60 pt-2">
             <a href={message.fileUrl} target="_blank" rel="noopener noreferrer" className="rounded-lg px-2 py-1.5 text-xs font-medium text-primary hover:bg-muted" onClick={(e) => e.stopPropagation()}>فتح الملف</a>
             {isPdf && (
-              <button type="button" onClick={() => setFilePreviewOpen((open) => !open)} className="rounded-lg px-2 py-1.5 text-xs font-medium text-primary hover:bg-muted" aria-expanded={filePreviewOpen}>
+              <button type="button" onClick={togglePdfPreview} className="rounded-lg px-2 py-1.5 text-xs font-medium text-primary hover:bg-muted" aria-expanded={filePreviewOpen}>
                 {filePreviewOpen ? 'إخفاء المعاينة' : 'معاينة داخل المحادثة'}
               </button>
             )}
             <MediaDownloadButton conversationId={conversationId} messageId={message.id} kind="file" fileName={message.fileName} label="تحميل الملف" className="h-8 min-h-8 px-2" />
           </div>
           {isPdf && filePreviewOpen && (
-            <iframe
-              src={`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(message.id)}/media/file`}
-              title={message.fileName || 'معاينة ملف PDF'}
-              className="h-[min(60vh,28rem)] w-full rounded-lg border border-border bg-background"
-            />
+            <div className="space-y-2" aria-live="polite">
+              {filePreviewLoading && (
+                <div className="flex min-h-28 items-center justify-center gap-2 rounded-lg border border-border bg-background text-sm text-muted-foreground">
+                  <Spinner size="sm" />
+                  <span>جارٍ تحميل المعاينة…</span>
+                </div>
+              )}
+              {filePreviewError && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm" role="alert">
+                  <p>{filePreviewError}</p>
+                  <button type="button" onClick={() => void loadPdfPreview()} disabled={filePreviewLoading} className="mt-2 font-semibold text-primary underline underline-offset-2 disabled:opacity-60">
+                    إعادة المحاولة
+                  </button>
+                </div>
+              )}
+              {filePreviewUrl && (
+                <iframe
+                  src={filePreviewUrl}
+                  title={message.fileName || 'معاينة ملف PDF'}
+                  className="h-[min(60vh,28rem)] w-full rounded-lg border border-border bg-background"
+                />
+              )}
+            </div>
           )}
         </div>
       )}

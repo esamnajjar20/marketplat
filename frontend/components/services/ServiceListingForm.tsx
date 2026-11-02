@@ -34,6 +34,7 @@ import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import { reconcileImages } from '@/lib/reconcileImages';
 import { MAX_IMAGES, ROUTES } from '@/lib/constants';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+import { safeBack } from '@/lib/navigation';
 import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import { toast } from 'sonner';
 import { ServiceListingFormPreview } from '@/components/services/ServiceListingFormPreview';
@@ -341,10 +342,8 @@ export function ServiceListingForm({ mode, listing }: Props) {
     (priceRequired && (!values.price || parseFloat(values.price) <= 0)) ||
     totalImageCount === 0;
 
-  // SW-SVCFORM-HISTORY-GUARD-01: same fix as AdForm.tsx and
-  // ProductForm.tsx. history.back() with no previous in-app entry
-  // (deep link, bookmark, shared URL) either leaves the app or
-  // produces a blank tab. Also adds the missing discard confirmation.
+  // Safe back returns to the service workspace for deep links or external
+  // entry points; unsaved changes still require explicit confirmation.
   const router = useRouter();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [initialValues] = useState(() => values);
@@ -356,12 +355,7 @@ export function ServiceListingForm({ mode, listing }: Props) {
   useUnsavedChangesWarning(isDirty || Boolean(attachmentError));
 
   function goBackSafely() {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      history.back();
-    } else {
-      signalNavigationStart(ROUTES.myServices);
-      router.push(ROUTES.myServices);
-    }
+    safeBack(router, ROUTES.myServices, signalNavigationStart);
   }
 
   function handleCancel() {

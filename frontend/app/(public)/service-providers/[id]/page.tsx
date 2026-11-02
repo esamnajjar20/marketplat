@@ -1,5 +1,8 @@
-import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { notFound, redirect } from 'next/navigation';
+import { UserRound } from 'lucide-react';
 import { serviceProvidersApi } from '@/api/service-providers.api';
+import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
 
 interface Props {
@@ -7,37 +10,37 @@ interface Props {
 }
 
 /**
- * UNIFIED-PROFILE: same reasoning as sellers/[id]/page.tsx's own
- * redirect — a service provider is a role a person holds (built on top
- * of their SellerProfile), not a page-worthy entity of its own.
- *
- * FIX: The API returns:
- *   {
- *     id: <serviceProviderId>,
- *     sellerProfileId: <sellerProfileId>,
- *     sellerProfile: { userId: <userId>, ... }
- *   }
- * The old code read data.userId (undefined). Now reads
- * data.sellerProfile.userId first, with fallbacks.
+ * Legacy provider URL. A ServiceProvider ID is not a User ID; resolve the
+ * joined sellerProfile.userId before forwarding to the canonical profile.
+ * Do not redirect a provider ID to /profile/[id] when lookup fails.
  */
 export default async function LegacyServiceProviderRedirectPage({ params }: Props) {
   const { id } = await params;
+  if (!id?.trim()) notFound();
 
   let targetUserId: string | null = null;
-
+  let statusCode: number | undefined;
   try {
     const res = await serviceProvidersApi.getById(id);
-    const data = res.data.data as any;
-
-    targetUserId =
-      data?.sellerProfile?.userId ??   // ✅ المسار الصحيح
-      data?.userId ??                   // احتياطي
-      null;
-  } catch {
-    /* provider not found / request failed — fall through */
+    targetUserId = res.data.data?.sellerProfile?.userId?.trim() || null;
+  } catch (error) {
+    const failure = error as { statusCode?: number; response?: { status?: number } };
+    statusCode = failure.statusCode ?? failure.response?.status;
   }
 
-  // If we still don't have a userId, fall back to the sellerProfileId
-  // (the profile page handles it, since profile IDs are derived from user IDs).
-  redirect(ROUTES.userProfile(targetUserId ?? id));
+  if (statusCode === 404) notFound();
+  if (targetUserId) redirect(ROUTES.userProfile(targetUserId));
+
+  return (
+    <div className="container mx-auto max-w-3xl px-4 py-8">
+      <EmptyState
+        icon={<UserRound className="h-10 w-10" />}
+        title="تعذر فتح الملف الشخصي لمقدم الخدمة"
+        description="لم نتمكن من تحديد حساب المستخدم المرتبط بهذا الرابط. يمكنك تصفح مقدمي الخدمة والمحاولة من جديد."
+        tone="warning"
+        role="alert"
+        action={<Link href={ROUTES.serviceProviders} className="text-sm font-semibold text-primary hover:underline">تصفح مقدمي الخدمة</Link>}
+      />
+    </div>
+  );
 }

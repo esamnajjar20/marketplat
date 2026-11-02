@@ -58,6 +58,10 @@ const cfBuild = String(pkg.scripts?.['build:cf'] ?? '');
 if (!cfBuild.includes('next build') || !cfBuild.includes('&& node scripts/generate-warming-manifest.mjs') || !cfBuild.includes('&& opennextjs-cloudflare build')) fail('Cloudflare build must generate the warming manifest between Next build and OpenNext packaging');
 else pass('Cloudflare build generates warming manifest before OpenNext packages static assets');
 
+const routeShellSource = read('lib/offlineRouteShells.ts');
+if (!routeShellSource.includes('function isUsableOfflineRscResponse(response: Response)') || (routeShellSource.match(/if \(isUsableOfflineRscResponse\(rscRes\)\)/g) ?? []).length < 2) fail('public and personal RSC warming must reject non-Flight (e.g. HTML/login) responses');
+else pass('public and personal RSC warming only cache valid Flight payloads');
+
 const sw = read('public/sw.js');
 const cacheVersion = sw.match(/const CACHE_VERSION = ['"]([^'"]+)['"]/)?.[1];
 const cacheVersionSource = read('lib/cacheVersion.ts');

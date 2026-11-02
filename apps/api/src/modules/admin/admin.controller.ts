@@ -280,7 +280,8 @@ export const adminController = {
   runDataIntegrityScan: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const report = await adminService.runDataIntegrityScan();
-      res.setHeader('Cache-Control', 'no-store');
+      // Cache policy is owned by CACHE.NONE on the route. Keep controllers
+      // free of Cache-Control overrides so one policy layer remains authoritative.
       res.status(200).json(successResponse('Data integrity scan completed', report));
     } catch (error) {
       next(error);
