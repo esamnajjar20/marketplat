@@ -672,7 +672,7 @@ export async function settlePool<T, R>(
  * الـ hubs تقرأ التبويب من جهة العميل، لذا تتشارك shell واحدًا. */
 function isUsableOfflineRscResponse(response: Response): boolean {
   if (!response.ok || response.status === 206) return false;
-  const contentType = (response.headers.get('content-type') || '').split(';', 1)[0].trim().toLowerCase();
+  const contentType = ((response.headers.get('content-type') || '').split(';')[0] ?? '').trim().toLowerCase();
   return contentType === 'text/x-component';
 }
 
