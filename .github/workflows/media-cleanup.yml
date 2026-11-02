@@ -1,0 +1,82 @@
+name: Media Cleanup Queue
+
+# Orphaned Cloudinary assets are non-user-facing. This bounded periodic trigger
+# provides a backstop for sleeping workers without frequent keep-alive traffic; it
+# falls back to the Express SDK only when Go cannot complete the job.
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: media-cleanup-queue
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Run media cleanup on Go
+        id: go-cleanup
+        continue-on-error: true
+        env:
+          GO_WORKER_URL: ${{ secrets.GO_WORKER_URL }}
+          GO_WORKER_TOKEN: ${{ secrets.GO_WORKER_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$GO_WORKER_URL" ] || [ -z "$GO_WORKER_TOKEN" ]; then
+            echo "Go worker is not configured; use Express fallback."
+            exit 1
+          fi
+          RESPONSE_FILE="$(mktemp)"
+          HTTP_CODE="$(curl --silent --show-error --connect-timeout 90 --max-time 510 \
+            -o "$RESPONSE_FILE" -w '%{http_code}' \
+            -X POST "${GO_WORKER_URL%/}/internal/jobs/cleanup-media-assets" \
+            -H "Authorization: Bearer $GO_WORKER_TOKEN" \
+            -H 'Content-Type: application/json' --data '{}')"
+          cat "$RESPONSE_FILE"
+          rm -f "$RESPONSE_FILE"
+          case "$HTTP_CODE" in
+            2*) echo "Go media cleanup completed." ;;
+            409) echo "Another runner owns the media cleanup lock; skip duplicate." ;;
+            *) echo "Go media cleanup returned HTTP $HTTP_CODE."; exit 1 ;;
+          esac
+
+      - name: Setup Node for Express fallback
+        if: steps.go-cleanup.outcome == 'failure'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+
+      - name: Install API dependencies
+        if: steps.go-cleanup.outcome == 'failure'
+        working-directory: apps/api
+        run: npm ci --prefer-offline --no-audit --no-fund
+
+      - name: Generate Prisma client
+        if: steps.go-cleanup.outcome == 'failure'
+        working-directory: apps/api
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Run Express fallback
+        if: steps.go-cleanup.outcome == 'failure'
+        working-directory: apps/api
+        run: npm run report:cleanup-media-assets
+        env:
+          NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          GO_WORKER_URL: ${{ secrets.GO_WORKER_URL }}
+          GO_WORKER_TOKEN: ${{ secrets.GO_WORKER_TOKEN }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}

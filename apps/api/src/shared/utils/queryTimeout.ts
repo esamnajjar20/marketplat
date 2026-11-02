@@ -4,7 +4,7 @@ import { AppError } from '../errors/AppError';
 
 /**
  * analytics.repository.ts's raw aggregate queries
- * (trendByEvent, topCategories) had no timeout anywhere — the app-level
+ * (totals, trends, categories, funnels) need a bounded timeout — the app-level
  * PrismaClient in prisma.ts sets none, and there is no other general
  * statement_timeout configured for this codebase (checked: no
  * PGOPTIONS/options= in DATABASE_URL handling, no pool-level default).
@@ -15,7 +15,7 @@ import { AppError } from '../errors/AppError';
  * transaction only — it resets automatically at COMMIT/ROLLBACK — so
  * this affects only the query it wraps, never the app's default
  * session behavior. That's why this is a short prisma.$transaction
- * wrapper rather than a global Prisma Client config: it lets these two
+ * wrapper rather than a global Prisma Client config: it lets these
  * specific, potentially-heavy analytics queries opt into a tight bound
  * without changing timeout behavior for every other query in the app.
  *

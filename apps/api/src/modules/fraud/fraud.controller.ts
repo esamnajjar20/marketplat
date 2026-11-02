@@ -9,8 +9,33 @@ import {
 } from './fraud.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
+import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { fraudMonitorService } from './fraud-monitor.service';
 
 export const fraudController = {
+  /** POST /admin/fraud/monitor/scan — bounded read-only Go-first abuse-pattern scan. */
+  runMonitorScan: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body) || Object.keys(req.body).length !== 0) {
+        throw new BadRequestError('Fraud monitor scan accepts an empty JSON object only', 'INVALID_FRAUD_MONITOR_REQUEST');
+      }
+      const report = await fraudMonitorService.scan();
+      res.status(200).json(successResponse('Fraud monitor scan completed', report));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /** GET /admin/fraud/monitor/history — aggregate-only run history and latest change. */
+  getMonitorHistory: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const history = await fraudMonitorService.getHistory();
+      res.status(200).json(successResponse('Fraud monitor history fetched', history));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   /** GET /admin/fraud/ads — flagged ads queue, highest risk first. */
   getFlaggedAds: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {

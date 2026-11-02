@@ -5,6 +5,9 @@ import { logger } from '../../shared/utils/logger';
 import { prisma } from '../../config/prisma';
 import { AnalyticsEventType } from '@prisma/client';
 import jwt from 'jsonwebtoken';
+import { createHash, randomUUID } from 'crypto';
+import { requestJsonWithGoFallback } from '../../shared/go-worker/requestJsonWithFallback';
+import { requestJsonWithGoIdempotentFallback } from '../../shared/go-worker/requestJsonWithIdempotentFallback';
 
 const DEFAULT_RANGE_DAYS = 30;
 
@@ -56,13 +59,34 @@ const resolveOptionalUserId = (authHeader: string | undefined): string | null =>
 export const analyticsService = {
   trackEvents: async (input: TrackEventsInput, authHeader: string | undefined): Promise<void> => {
     const userId = resolveOptionalUserId(authHeader);
+    // Normalize IDs once before either implementation runs. They are sent to
+    // Go and retained by the Express fallback, so a lost worker response is
+    // safe: both writers contend on the same existing analytics_events PK.
+    const events = input.events.map(event => ({ ...event, eventId: event.eventId ?? randomUUID() }));
     try {
-      await analyticsRepository.createMany(input.events, userId);
+      await requestJsonWithGoIdempotentFallback({
+        jobName: 'analytics-ingest',
+        path: '/internal/analytics/events',
+        body: { userId, events },
+        idempotencyKey: createHash('sha256')
+          .update(events.map(event => event.eventId).sort().join('\0'))
+          .digest('hex'),
+        timeoutMs: 1_500,
+        validateResult: (value): value is { accepted: number; inserted: number; duplicates: number } => {
+          if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+          const result = value as Record<string, unknown>;
+          return ['accepted', 'inserted', 'duplicates'].every(key =>
+            typeof result[key] === 'number' && Number.isSafeInteger(result[key]) && (result[key] as number) >= 0
+          ) && (result.inserted as number) + (result.duplicates as number) === (result.accepted as number);
+        },
+        runExpressFallback: async () => {
+          await analyticsRepository.createMany(events, userId);
+          return { accepted: events.length, inserted: events.length, duplicates: 0 };
+        },
+      });
     } catch (err) {
-      // Same fire-and-forget posture as shared/utils/auditLog.ts: a
-      // write failure here must never surface as a user-facing error —
-      // losing a batch of analytics events is acceptable, breaking the
-      // page that sent them is not.
+      // The beacon contract remains best-effort: a telemetry outage never
+      // becomes a user-facing API error or auth/session redirect.
       logger.error('Failed to write analytics events', { err });
     }
   },
@@ -72,60 +96,105 @@ export const analyticsService = {
     const from = query.from ?? new Date(to.getTime() - DEFAULT_RANGE_DAYS * 24 * 60 * 60 * 1000);
     const bucket = query.bucket ?? 'day';
 
-    const [eventCounts, trend, topCategories, searchToContact, signupFunnel] = await Promise.all([
-      analyticsRepository.countByEvent(from, to),
-      analyticsRepository.trendByEvent(from, to, bucket),
-      analyticsRepository.topCategories(from, to),
-      analyticsRepository.searchToContactSessions(from, to),
-      analyticsRepository.signupFunnelSessions(from, to),
-    ]);
+    type SummaryPayload = {
+      range: { from: string; to: string; bucket: 'day' | 'week' };
+      totals: Record<string, number>;
+      trend: Array<{ bucket: string; event: AnalyticsEventType; count: number }>;
+      topCategories: Array<{ categoryId: string; count: number; name: string | null; nameAr: string | null }>;
+      searchToContact: { searchSessions: number; contactSessions: number; conversionRate: number };
+      signupFunnel: { startedSessions: number; completedSessions: number; conversionRate: number };
+    };
+    const isSummaryPayload = (value: unknown): value is SummaryPayload => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+      const result = value as Record<string, unknown>;
+      const range = result.range;
+      const totals = result.totals;
+      const trend = result.trend;
+      const topCategories = result.topCategories;
+      const searchToContact = result.searchToContact;
+      const signupFunnel = result.signupFunnel;
+      const validDate = (item: unknown) => typeof item === 'string' && Number.isFinite(Date.parse(item));
+      const isObject = (item: unknown): item is Record<string, unknown> =>
+        Boolean(item) && typeof item === 'object' && !Array.isArray(item);
 
-    // Enrich topCategories with display names — the repository only
-    // has categoryId (pulled from event metadata, no join available at
-    // the raw-SQL level against a JSON field). A single follow-up
-    // lookup here keeps the admin dashboard from showing raw cuid
-    // strings instead of "أثاث"/"سيارات"/etc.
-    const categoryRows = await prisma.category.findMany({
-      where: { id: { in: topCategories.map(c => c.categoryId) } },
-      select: { id: true, name: true, nameAr: true },
+      if (!isObject(range) || !validDate(range.from) || !validDate(range.to) || range.bucket !== bucket) return false;
+      if (Date.parse(range.from as string) !== from.getTime() || Date.parse(range.to as string) !== to.getTime()) return false;
+      if (!isObject(totals) || !Object.values(AnalyticsEventType).every(event =>
+        typeof totals[event] === 'number' && Number.isFinite(totals[event]) && (totals[event] as number) >= 0
+      )) return false;
+      if (!Array.isArray(trend) || !Array.isArray(topCategories)) return false;
+      if (!isObject(searchToContact) || !isObject(signupFunnel)) return false;
+
+      const supportedEvents = new Set<string>(Object.values(AnalyticsEventType));
+      return trend.every(item => isObject(item) && validDate(item.bucket) &&
+        typeof item.event === 'string' && supportedEvents.has(item.event) &&
+        typeof item.count === 'number' && Number.isFinite(item.count) && item.count >= 0) &&
+        topCategories.every(item => isObject(item) && typeof item.categoryId === 'string' &&
+          typeof item.count === 'number' && Number.isFinite(item.count) && item.count >= 0 &&
+          (item.name === null || typeof item.name === 'string') &&
+          (item.nameAr === null || typeof item.nameAr === 'string')) &&
+        ['searchSessions', 'contactSessions', 'conversionRate'].every(key =>
+          typeof searchToContact[key] === 'number' && Number.isFinite(searchToContact[key] as number) &&
+          (searchToContact[key] as number) >= 0) &&
+        ['startedSessions', 'completedSessions', 'conversionRate'].every(key =>
+          typeof signupFunnel[key] === 'number' && Number.isFinite(signupFunnel[key] as number) &&
+          (signupFunnel[key] as number) >= 0);
+    };
+
+    const summary = await requestJsonWithGoFallback({
+      jobName: 'analytics-summary',
+      path: '/internal/analytics/summary',
+      body: { from: from.toISOString(), to: to.toISOString(), bucket },
+      timeoutMs: 7_000,
+      validateResult: isSummaryPayload,
+      runExpressFallback: async () => {
+        const [eventCounts, trend, topCategories, searchToContact, signupFunnel] = await Promise.all([
+          analyticsRepository.countByEvent(from, to),
+          analyticsRepository.trendByEvent(from, to, bucket),
+          analyticsRepository.topCategories(from, to),
+          analyticsRepository.searchToContactSessions(from, to),
+          analyticsRepository.signupFunnelSessions(from, to),
+        ]);
+        const categoryRows = await prisma.category.findMany({
+          where: { id: { in: topCategories.map(c => c.categoryId) } },
+          select: { id: true, name: true, nameAr: true },
+        });
+        const categoryById = new Map(categoryRows.map(c => [c.id, c]));
+        const totals = Object.fromEntries(Object.values(AnalyticsEventType).map(e => [e, 0])) as Record<
+          AnalyticsEventType,
+          number
+        >;
+        for (const { event, count } of eventCounts) totals[event] = count;
+        return {
+          range: { from: from.toISOString(), to: to.toISOString(), bucket },
+          totals,
+          trend: trend.map(point => ({ bucket: point.bucket.toISOString(), event: point.event, count: point.count })),
+          topCategories: topCategories.map(category => ({
+            categoryId: category.categoryId,
+            count: category.count,
+            name: categoryById.get(category.categoryId)?.name ?? null,
+            nameAr: categoryById.get(category.categoryId)?.nameAr ?? null,
+          })),
+          searchToContact: {
+            searchSessions: searchToContact.searchSessions,
+            contactSessions: searchToContact.contactSessions,
+            conversionRate: searchToContact.searchSessions === 0 ? 0 :
+              searchToContact.contactSessions / searchToContact.searchSessions,
+          },
+          signupFunnel: {
+            startedSessions: signupFunnel.startedSessions,
+            completedSessions: signupFunnel.completedSessions,
+            conversionRate: signupFunnel.startedSessions === 0 ? 0 :
+              signupFunnel.completedSessions / signupFunnel.startedSessions,
+          },
+        };
+      },
     });
-    const categoryById = new Map(categoryRows.map(c => [c.id, c]));
-    const topCategoriesEnriched = topCategories.map(c => ({
-      categoryId: c.categoryId,
-      count: c.count,
-      name: categoryById.get(c.categoryId)?.name ?? null,
-      nameAr: categoryById.get(c.categoryId)?.nameAr ?? null,
-    }));
-
-    const totals = Object.fromEntries(Object.values(AnalyticsEventType).map(e => [e, 0])) as Record<
-      AnalyticsEventType,
-      number
-    >;
-    for (const { event, count } of eventCounts) totals[event] = count;
 
     return {
-      range: { from, to, bucket },
-      totals,
-      trend,
-      topCategories: topCategoriesEnriched,
-      searchToContact: {
-        searchSessions: searchToContact.searchSessions,
-        contactSessions: searchToContact.contactSessions,
-        // Guard divide-by-zero for an empty/quiet range rather than
-        // returning NaN to the frontend.
-        conversionRate:
-          searchToContact.searchSessions === 0
-            ? 0
-            : searchToContact.contactSessions / searchToContact.searchSessions,
-      },
-      signupFunnel: {
-        startedSessions: signupFunnel.startedSessions,
-        completedSessions: signupFunnel.completedSessions,
-        conversionRate:
-          signupFunnel.startedSessions === 0
-            ? 0
-            : signupFunnel.completedSessions / signupFunnel.startedSessions,
-      },
+      ...summary,
+      range: { from: new Date(summary.range.from), to: new Date(summary.range.to), bucket },
+      trend: summary.trend.map(point => ({ ...point, bucket: new Date(point.bucket) })),
     };
   },
 };

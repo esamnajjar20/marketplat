@@ -77,6 +77,7 @@ adminRouter.patch(
 
 adminRouter.get('/trends', requireMinRole(ROLES.ADMIN), adminController.getPlatformTrends);
 adminRouter.get('/system-health', requireMinRole(ROLES.ADMIN), adminController.getSystemHealth);
+adminRouter.post('/data-integrity/scan', requireMinRole(ROLES.ADMIN), CACHE.NONE, adminController.runDataIntegrityScan);
 adminRouter.get(
   '/developer-tools/setting',
   requireMinRole(ROLES.ADMIN),

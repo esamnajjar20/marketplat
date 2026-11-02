@@ -1,12 +1,12 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { FollowTargetType, StoryVisibility } from '@prisma/client';
 import { prisma } from '../../config/prisma';
-import { uploadImage, deleteMedia } from '../../config/cloudinary';
+import { uploadImage } from '../../config/cloudinary';
 import { storiesRepository } from './stories.repository';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { followsService } from '../follows/follows.service';
+import { deleteCloudinaryAsset } from '../../shared/utils/cloudinaryHelpers';
 
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_ACTIVE_STORIES = 20;
@@ -60,6 +60,7 @@ export const storiesService = {
       );
 
     let uploaded: { url: string; publicId: string } | null = null;
+    let storyPersisted = false;
     try {
       if (file) uploaded = await uploadImage(file.buffer, 'stories');
       const story = await storiesRepository.create({
@@ -71,16 +72,15 @@ export const storiesService = {
         visibility: input.visibility,
         expiresAt: new Date(Date.now() + STORY_TTL_MS),
       });
+      storyPersisted = true;
       const full = await prisma.story.findUnique({
         where: { id: story.id },
         include: { user: { select: userSummary }, _count: { select: { views: true } } },
       });
       return shapeStory(full, userId);
     } catch (error) {
-      if (uploaded?.publicId)
-        void deleteMedia(uploaded.publicId).catch(error =>
-          reportBackgroundFailure('apps/api/src/modules/stories/stories.service.ts', error)
-        );
+      if (uploaded?.publicId && !storyPersisted)
+        await deleteCloudinaryAsset(uploaded.publicId, 'image');
       throw error;
     }
   },
@@ -169,9 +169,7 @@ export const storiesService = {
     const result = await storiesRepository.delete(storyId, userId);
     if (!result.count) throw new NotFoundError('Story not found', 'STORY_NOT_FOUND');
     if (story.mediaPublicId)
-      void deleteMedia(story.mediaPublicId).catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/stories/stories.service.ts', error)
-      );
+      await deleteCloudinaryAsset(story.mediaPublicId, 'image');
   },
 
   viewers: async (userId: string, storyId: string) => {

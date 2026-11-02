@@ -16,11 +16,8 @@ import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
-import { uploadImage, deleteImage } from '../../config/cloudinary';
-import {
-  extractCloudinaryPublicId,
-  cleanupUploadedImages,
-} from '../../shared/utils/cloudinaryHelpers';
+import { uploadImage } from '../../config/cloudinary';
+import { cleanupUploadedImages } from '../../shared/utils/cloudinaryHelpers';
 import { serviceProvidersRepository } from '../service-providers/service-providers.repository';
 import { serviceCategoriesRepository } from '../service-categories/service-categories.repository';
 import {

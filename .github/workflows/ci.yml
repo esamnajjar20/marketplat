@@ -27,6 +27,34 @@ permissions:
   # كتابة (issues/PRs/packages) في أي job من الوظائف الثلاث أدناه.
 
 jobs:
+  # Go worker owns an expanding set of background workloads. Keep its unit
+  # tests, static analysis, formatting, and binary build inside the same CI gate.
+  go-worker:
+    name: Go worker (format, tests, vet, build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/go-worker/go.mod
+          cache: true
+          cache-dependency-path: apps/go-worker/go.sum
+      - name: Verify gofmt
+        working-directory: apps/go-worker
+        run: test -z "$(gofmt -l .)"
+      - name: Go tests
+        working-directory: apps/go-worker
+        run: go test ./...
+      - name: Go vet
+        working-directory: apps/go-worker
+        run: go vet ./...
+      - name: Build Go worker
+        working-directory: apps/go-worker
+        run: go build ./cmd/server
+
   # ─────────────────────────────────────────────────────────────
   # Edge cache: API Worker tests + canonical cache-policy audit.
   # No dependencies (plain node) → seconds, and it catches policy drift between

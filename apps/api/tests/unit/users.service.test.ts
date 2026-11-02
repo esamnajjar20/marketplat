@@ -21,6 +21,7 @@ jest.mock('../../src/config/cloudinary', () => ({
 jest.mock('../../src/shared/utils/cloudinaryHelpers', () => ({
   extractCloudinaryPublicId: jest.fn(),
   cleanupUploadedImages: jest.fn().mockResolvedValue(undefined),
+  deleteCloudinaryAsset: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('../../src/shared/utils/presence', () => ({
   presence: { touch: jest.fn().mockResolvedValue(undefined), getPresence: jest.fn() },

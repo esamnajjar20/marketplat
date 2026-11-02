@@ -160,8 +160,20 @@ describe('searchRepository', () => {
   });
 
   describe('suggest', () => {
-    it('queries products, stores, product categories, and service categories in parallel', async () => {
+    it('uses the Go-maintained suggestion projection when its refresh is fresh', async () => {
       (prisma.$queryRaw as jest.Mock)
+        .mockResolvedValueOnce([{ is_fresh: true }])
+        .mockResolvedValueOnce([{ display_value: 'iPhone 15' }, { display_value: 'iPhone 16' }]);
+
+      const result = await searchRepository.suggest('iph');
+
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
+      expect(result).toEqual(['iPhone 15', 'iPhone 16']);
+    });
+
+    it('falls back to the four live source queries when the projection is stale', async () => {
+      (prisma.$queryRaw as jest.Mock)
+        .mockResolvedValueOnce([{ is_fresh: false }])
         .mockResolvedValueOnce([{ name: 'iPhone 15' }])
         .mockResolvedValueOnce([{ name: 'محل الجوالات' }])
         .mockResolvedValueOnce([])
@@ -169,32 +181,79 @@ describe('searchRepository', () => {
 
       const result = await searchRepository.suggest('iph');
 
-      expect(prisma.$queryRaw).toHaveBeenCalledTimes(4);
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(5);
       expect(result).toEqual(['iPhone 15', 'محل الجوالات']);
     });
 
-    it('de-duplicates a name shared across sources while preserving first-seen order', async () => {
+    it('falls back to live source queries when the projection migration is not available', async () => {
       (prisma.$queryRaw as jest.Mock)
-        .mockResolvedValueOnce([{ name: 'جوالات' }])
+        .mockRejectedValueOnce(new Error('relation does not exist'))
+        .mockResolvedValueOnce([{ name: 'iPhone 15' }])
         .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([{ nameAr: 'جوالات' }])
+        .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
+
+      await expect(searchRepository.suggest('iph')).resolves.toEqual(['iPhone 15']);
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(5);
+    });
+
+    it('falls back to live queries if the projection read fails after a fresh status probe', async () => {
+      (prisma.$queryRaw as jest.Mock)
+        .mockResolvedValueOnce([{ is_fresh: true }])
+        .mockRejectedValueOnce(new Error('materialized view unavailable'))
+        .mockResolvedValueOnce([{ name: 'iPhone 15' }])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await expect(searchRepository.suggest('iph')).resolves.toEqual(['iPhone 15']);
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(6);
+    });
+
+    it('de-duplicates indexed suggestions across sources and preserves source priority', async () => {
+      (prisma.$queryRaw as jest.Mock)
+        .mockResolvedValueOnce([{ is_fresh: true }])
+        .mockResolvedValueOnce([
+          { display_value: 'جوالات' },
+          { display_value: 'هواتف' },
+          { display_value: 'جوالات' },
+        ]);
 
       const result = await searchRepository.suggest('جو');
 
-      expect(result).toEqual(['جوالات']);
+      expect(result).toEqual(['جوالات', 'هواتف']);
     });
 
-    it('caps the merged result to the requested limit even though 4 sources could exceed it', async () => {
+    it('uses a parameterized literal-prefix pattern and escapes LIKE metacharacters', async () => {
+      let capturedSql = '';
+      let capturedValues: unknown[] = [];
       (prisma.$queryRaw as jest.Mock)
-        .mockResolvedValueOnce([{ name: 'a' }, { name: 'b' }])
-        .mockResolvedValueOnce([{ name: 'c' }, { name: 'd' }])
-        .mockResolvedValueOnce([{ nameAr: 'e' }])
-        .mockResolvedValueOnce([{ nameAr: 'f' }]);
+        .mockResolvedValueOnce([{ is_fresh: true }])
+        .mockImplementationOnce((strings: TemplateStringsArray, ...values: unknown[]) => {
+          capturedSql = strings.join('?');
+          capturedValues = values;
+          return Promise.resolve([{ display_value: '50%_off' }]);
+        });
+
+      await searchRepository.suggest('50%_!');
+
+      expect(capturedSql).toContain('ESCAPE');
+      expect(capturedValues).toContain('50!%!_!!%');
+    });
+
+    it('caps indexed results to the requested limit', async () => {
+      (prisma.$queryRaw as jest.Mock)
+        .mockResolvedValueOnce([{ is_fresh: true }])
+        .mockResolvedValueOnce([
+          { display_value: 'a' },
+          { display_value: 'b' },
+          { display_value: 'c' },
+          { display_value: 'd' },
+        ]);
 
       const result = await searchRepository.suggest('x', 3);
 
-      expect(result).toHaveLength(3);
+      expect(result).toEqual(['a', 'b', 'c']);
     });
   });
 });

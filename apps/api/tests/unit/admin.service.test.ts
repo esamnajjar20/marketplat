@@ -736,3 +736,57 @@ describe('AdminService', () => {
   });
 
 });
+
+describe('AdminService.runDataIntegrityScan', () => {
+  const originalUrl = process.env.GO_WORKER_URL;
+  const originalToken = process.env.GO_WORKER_TOKEN;
+  const report = {
+    mode: 'read_only',
+    scannedAt: '2026-11-02T00:00:00.000Z',
+    durationMillis: 50,
+    checkCount: 1,
+    findingCount: 0,
+    bySeverity: { critical: 0, warning: 0, info: 0 },
+    checks: [{ code: 'TEST', severity: 'warning', title: 'Test', description: 'Read-only', entityType: 'product', count: 0, samples: [] }],
+  };
+
+  beforeEach(() => {
+    process.env.GO_WORKER_URL = 'https://go-worker.example';
+    process.env.GO_WORKER_TOKEN = 'test-worker-token';
+  });
+
+  afterEach(() => {
+    if (originalUrl === undefined) delete process.env.GO_WORKER_URL;
+    else process.env.GO_WORKER_URL = originalUrl;
+    if (originalToken === undefined) delete process.env.GO_WORKER_TOKEN;
+    else process.env.GO_WORKER_TOKEN = originalToken;
+    jest.restoreAllMocks();
+  });
+
+  it('calls the protected Go scan endpoint and validates the report', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => report,
+    } as Response);
+
+    await expect(adminService.runDataIntegrityScan()).resolves.toEqual(report);
+    expect(fetchSpy).toHaveBeenCalledWith(
+      'https://go-worker.example/internal/integrity/scan',
+      expect.objectContaining({
+        method: 'POST',
+        body: '{}',
+        redirect: 'error',
+        headers: expect.objectContaining({ Authorization: 'Bearer test-worker-token' }),
+      })
+    );
+  });
+
+  it('does not accept a malformed or partial Go report', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({ ...report, checks: [] }),
+    } as Response);
+
+    await expect(adminService.runDataIntegrityScan()).rejects.toMatchObject({ statusCode: 503 });
+  });
+});

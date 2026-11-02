@@ -277,6 +277,16 @@ export const adminController = {
     }
   },
 
+  runDataIntegrityScan: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const report = await adminService.runDataIntegrityScan();
+      res.setHeader('Cache-Control', 'no-store');
+      res.status(200).json(successResponse('Data integrity scan completed', report));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getSystemHealth: async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const result = await adminService.getSystemHealth();

@@ -1,10 +1,11 @@
 import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { prisma } from '../../config/prisma';
 import { ServiceProviderDetails, ServiceListing } from '@prisma/client';
-import { uploadServiceProviderLogo, deleteImage } from '../../config/cloudinary';
+import { uploadServiceProviderLogo } from '../../config/cloudinary';
 import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
+  deleteCloudinaryAsset,
 } from '../../shared/utils/cloudinaryHelpers';
 import {
   serviceProvidersRepository,
@@ -311,12 +312,7 @@ export const serviceProvidersService = {
       if (details.logoUrl) {
         const oldPublicId = extractCloudinaryPublicId(details.logoUrl);
         if (oldPublicId)
-          await deleteImage(oldPublicId).catch(error =>
-            reportBackgroundFailure(
-              'apps/api/src/modules/service-providers/service-providers.service.ts',
-              error
-            )
-          );
+          await deleteCloudinaryAsset(oldPublicId, 'image');
       }
       return updated;
     } catch (error) {

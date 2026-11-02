@@ -7,6 +7,8 @@ import { prisma } from '../../src/config/prisma';
 import * as jwtUtils from '../../src/shared/utils/jwt';
 import { logger } from '../../src/shared/utils/logger';
 import jwt from 'jsonwebtoken';
+import { requestJsonWithGoFallback } from '../../src/shared/go-worker/requestJsonWithFallback';
+import { requestJsonWithGoIdempotentFallback } from '../../src/shared/go-worker/requestJsonWithIdempotentFallback';
 import { AnalyticsEventType } from '@prisma/client';
 
 jest.mock('../../src/modules/analytics/analytics.repository');
@@ -19,6 +21,16 @@ jest.mock('../../src/shared/utils/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
 jest.mock('../../src/shared/utils/jwt');
+jest.mock('../../src/shared/go-worker/requestJsonWithFallback', () => ({
+  requestJsonWithGoFallback: jest.fn(async (options: { runExpressFallback: () => Promise<unknown> }) =>
+    options.runExpressFallback(),
+  ),
+}));
+jest.mock('../../src/shared/go-worker/requestJsonWithIdempotentFallback', () => ({
+  requestJsonWithGoIdempotentFallback: jest.fn(async (options: { runExpressFallback: () => Promise<unknown> }) =>
+    options.runExpressFallback(),
+  ),
+}));
 
 describe('analyticsService', () => {
   beforeEach(() => {
@@ -34,7 +46,7 @@ describe('analyticsService', () => {
       );
 
       expect(analyticsRepository.createMany).toHaveBeenCalledWith(
-        expect.any(Array),
+        expect.arrayContaining([expect.objectContaining({ eventId: expect.any(String) })]),
         null,
       );
       expect(jwtUtils.verifyAccessToken).not.toHaveBeenCalled();
@@ -45,7 +57,9 @@ describe('analyticsService', () => {
         { events: [{ event: 'AD_VIEW' as AnalyticsEventType, sessionId: 'sess-1' }] },
         'Basic xyz',
       );
-      expect(analyticsRepository.createMany).toHaveBeenCalledWith(expect.any(Array), null);
+      expect(analyticsRepository.createMany).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ eventId: expect.any(String) })]), null
+      );
     });
 
     it('attaches userId when the access token is valid', async () => {
@@ -57,7 +71,9 @@ describe('analyticsService', () => {
       );
 
       expect(jwtUtils.verifyAccessToken).toHaveBeenCalledWith('valid-token');
-      expect(analyticsRepository.createMany).toHaveBeenCalledWith(expect.any(Array), 'user-1');
+      expect(analyticsRepository.createMany).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ eventId: expect.any(String) })]), 'user-1'
+      );
     });
 
     it('logs debug and records anonymously on TokenExpiredError', async () => {
@@ -72,7 +88,9 @@ describe('analyticsService', () => {
       );
 
       expect(logger.debug).toHaveBeenCalled();
-      expect(analyticsRepository.createMany).toHaveBeenCalledWith(expect.any(Array), null);
+      expect(analyticsRepository.createMany).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ eventId: expect.any(String) })]), null
+      );
     });
 
     it('logs warn and records anonymously on other JWT errors', async () => {
@@ -86,7 +104,28 @@ describe('analyticsService', () => {
       );
 
       expect(logger.warn).toHaveBeenCalled();
-      expect(analyticsRepository.createMany).toHaveBeenCalledWith(expect.any(Array), null);
+      expect(analyticsRepository.createMany).toHaveBeenCalledWith(
+        expect.arrayContaining([expect.objectContaining({ eventId: expect.any(String) })]), null
+      );
+    });
+
+    it('routes event batches through Go and keeps the same event IDs for the Express fallback', async () => {
+      await analyticsService.trackEvents(
+        { events: [{ event: 'SEARCH' as AnalyticsEventType, sessionId: 'sess-1' }] },
+        undefined,
+      );
+
+      expect(requestJsonWithGoIdempotentFallback).toHaveBeenCalledWith(expect.objectContaining({
+        path: '/internal/analytics/events',
+        timeoutMs: 1_500,
+        idempotencyKey: expect.stringMatching(/^[a-f0-9]{64}$/),
+        body: expect.objectContaining({
+          events: expect.arrayContaining([expect.objectContaining({ eventId: expect.any(String) })]),
+        }),
+      }));
+      const savedEvents = (analyticsRepository.createMany as jest.Mock).mock.calls[0][0];
+      const forwarded = (requestJsonWithGoIdempotentFallback as jest.Mock).mock.calls[0][0].body.events;
+      expect(savedEvents[0].eventId).toBe(forwarded[0].eventId);
     });
 
     it('swallows repository write failures (fire-and-forget)', async () => {
@@ -172,6 +211,18 @@ describe('analyticsService', () => {
       }
       expect(summary.totals.SEARCH).toBe(10);
       expect(summary.totals.AD_VIEW).toBe(5);
+    });
+
+    it('routes admin analytics summary through the Go query engine with the Express fallback retained', async () => {
+      const from = new Date('2026-10-01T00:00:00.000Z');
+      const to = new Date('2026-10-31T00:00:00.000Z');
+      await analyticsService.getSummary({ from, to, bucket: 'week' } as any);
+
+      expect(requestJsonWithGoFallback).toHaveBeenCalledWith(expect.objectContaining({
+        path: '/internal/analytics/summary',
+        timeoutMs: 7_000,
+        body: { from: from.toISOString(), to: to.toISOString(), bucket: 'week' },
+      }));
     });
 
     it('respects explicit from/to/bucket query', async () => {

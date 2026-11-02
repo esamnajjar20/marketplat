@@ -14,10 +14,11 @@ import { adsService } from '../ads/ads.service'; // A-01: use service facade, no
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { prisma } from '../../config/prisma';
 import { AdStatus } from '@prisma/client';
-import { uploadAvatar, deleteImage } from '../../config/cloudinary';
+import { uploadAvatar } from '../../config/cloudinary';
 import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
+  deleteCloudinaryAsset,
 } from '../../shared/utils/cloudinaryHelpers';
 import { presence } from '../../shared/utils/presence';
 import { notificationsService } from '../notifications/notifications.service';
@@ -429,9 +430,7 @@ export const usersService = {
       if (user.avatarUrl) {
         const oldPublicId = extractCloudinaryPublicId(user.avatarUrl);
         if (oldPublicId)
-          await deleteImage(oldPublicId).catch(error =>
-            reportBackgroundFailure('apps/api/src/modules/users/users.service.ts', error)
-          );
+          await deleteCloudinaryAsset(oldPublicId, 'image');
       }
 
       return updated;

@@ -9,17 +9,19 @@ jest.mock('../../src/config/prisma', () => {
     findMany: jest.fn(), count: jest.fn(), update: jest.fn(), updateMany: jest.fn(),
   };
   const message = {
-    create: jest.fn(), findMany: jest.fn(), count: jest.fn(), updateMany: jest.fn(),
+    create: jest.fn(), findMany: jest.fn(), count: jest.fn(), update: jest.fn(), updateMany: jest.fn(),
   };
   const conversationUserSetting = {
     createMany: jest.fn().mockResolvedValue({ count: 0 }),
     findMany: jest.fn().mockResolvedValue([]),
     findUnique: jest.fn(), upsert: jest.fn(), updateMany: jest.fn(),
   };
-  const tx = { conversation, message, conversationUserSetting };
+  const executeRaw = jest.fn().mockResolvedValue(1);
+  const tx = { conversation, message, conversationUserSetting, $executeRaw: executeRaw };
   return {
     prisma: {
       ...tx,
+      $executeRaw: executeRaw,
       $transaction: jest.fn(async (arg: unknown) =>
         typeof arg === 'function' ? (arg as (transaction: unknown) => unknown)(tx) : arg
       ),
@@ -244,6 +246,30 @@ describe('conversationsRepository', () => {
         ],
         total: 2,
       });
+    });
+  });
+
+
+  describe('message media cleanup', () => {
+    it('queues image, audio, and raw attachment cleanup in the same transaction as soft-delete', async () => {
+      const deletedAt = new Date('2026-11-02T10:00:00.000Z');
+      (prisma.message.update as jest.Mock).mockResolvedValue({
+        id: 'msg-media',
+        deletedAt,
+        imageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/chat/image-1.jpg',
+        audioUrl: 'https://res.cloudinary.com/demo/video/upload/v1/chat/audio-1.mp3',
+        fileUrl: 'https://res.cloudinary.com/demo/raw/upload/v1/chat-files/report.pdf',
+      });
+
+      const result = await messagesRepository.softDelete('msg-media');
+
+      expect(result.deletedAt).toEqual(deletedAt);
+      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(prisma.message.update).toHaveBeenCalledWith({
+        where: { id: 'msg-media' },
+        data: { deletedAt: expect.any(Date) },
+      });
+      expect(prisma.$executeRaw).toHaveBeenCalledTimes(3);
     });
   });
 

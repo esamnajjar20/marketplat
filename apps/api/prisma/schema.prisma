@@ -411,6 +411,7 @@ model Report {
 
   @@unique([targetType, targetId, userId])
   @@index([status])
+  @@index([status, createdAt], map: "reports_status_created_at_idx")
   @@index([targetType, targetId])
   @@map("reports")
 }
@@ -468,6 +469,44 @@ model FraudSignal {
 // named relations on User (BlocksMade / BlocksReceived) exactly mirror
 // how Conversation already disambiguates ConversationsAsBuyer /
 // ConversationsAsSeller for its own two User FKs.
+// A privacy-minimal history of fraud-monitor runs. Only aggregate check
+// counts are retained; sample entity IDs and report content are never stored.
+model FraudMonitorScanRun {
+  id              String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  triggerType     String                      @map("trigger") @db.VarChar(16)
+  scheduledFor    DateTime?                   @unique @db.Date
+  status          String                      @default("RUNNING") @db.VarChar(16)
+  executionPath   String?                     @db.VarChar(16)
+  startedAt       DateTime                    @default(now()) @db.Timestamptz(3)
+  completedAt     DateTime?                   @db.Timestamptz(3)
+  durationMillis  Int?
+  checkCount      Int                         @default(0)
+  findingCount    BigInt                      @default(0)
+  criticalCount   BigInt                      @default(0)
+  warningCount    BigInt                      @default(0)
+  infoCount       BigInt                      @default(0)
+  attempts        Int                         @default(1)
+  failureCode     String?                     @db.VarChar(80)
+  checks          FraudMonitorCheckSnapshot[]
+
+  @@index([status, startedAt])
+  @@index([startedAt])
+  @@map("fraud_monitor_scan_runs")
+}
+
+model FraudMonitorCheckSnapshot {
+  scanRunId     String              @db.Uuid
+  checkCode     String              @db.VarChar(64)
+  severity      String              @db.VarChar(16)
+  findingCount  BigInt              @default(0)
+  sampleCount   Int                 @default(0)
+  scanRun       FraudMonitorScanRun @relation(fields: [scanRunId], references: [id], onDelete: Cascade)
+
+  @@id([scanRunId, checkCode])
+  @@index([checkCode, scanRunId])
+  @@map("fraud_monitor_check_snapshots")
+}
+
 model UserBlock {
   id        String   @id @default(cuid())
   blockerId String
@@ -1224,6 +1263,26 @@ model Story {
   @@map("stories")
 }
 
+model MediaCleanupJob {
+  id            String    @id @default(uuid()) @db.Uuid
+  publicId      String
+  resourceType  String    @db.VarChar(16)
+  status        String    @default("PENDING") @db.VarChar(16)
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @db.Timestamptz(3)
+  lockedAt      DateTime? @db.Timestamptz(3)
+  leaseToken    String?   @db.Uuid
+  lastError     String?   @db.VarChar(2000)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+  completedAt   DateTime? @db.Timestamptz(3)
+
+  @@unique([resourceType, publicId], map: "media_cleanup_jobs_resource_public_id_key")
+  @@index([status, nextAttemptAt], map: "media_cleanup_jobs_status_next_attempt_idx")
+  @@index([status, lockedAt], map: "media_cleanup_jobs_status_locked_at_idx")
+  @@map("media_cleanup_jobs")
+}
+
 model StoryView {
   id       String   @id @default(cuid())
   storyId  String
@@ -1670,6 +1729,32 @@ model AnalyticsEvent {
   // expression in this Prisma version, so it's applied via raw SQL in
   // that migration and only documented here for discoverability).
   @@map("analytics_events")
+}
+
+// Rebuildable UTC daily aggregates for product analytics. Raw AnalyticsEvent
+// rows remain the source of truth and can be pruned independently.
+model AnalyticsEventDailyRollup {
+  bucketDate DateTime           @db.Date
+  event      AnalyticsEventType
+  categoryId String             @default("")
+  eventCount BigInt
+  updatedAt  DateTime           @default(now()) @db.Timestamp(3)
+
+  @@id([bucketDate, event, categoryId])
+  @@index([event, bucketDate])
+  @@map("analytics_event_daily_rollups")
+}
+
+// Presence in this table certifies that a whole UTC day was successfully
+// rebuilt, including days with zero events. Summary queries only use rollups
+// for dates with a completion marker and read uncovered dates from raw events.
+model AnalyticsRollupDay {
+  bucketDate       DateTime @id @db.Date
+  sourceEventCount BigInt
+  rollupRowCount   Int
+  computedAt       DateTime @default(now()) @db.Timestamp(3)
+
+  @@map("analytics_rollup_days")
 }
 
 // Durable replay receipts for Redis view-buffer batches. The row is inserted

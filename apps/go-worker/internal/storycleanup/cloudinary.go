@@ -36,15 +36,24 @@ func (c *Client) Configured() bool {
 	return c != nil && c.cloudName != "" && c.apiKey != "" && c.apiSecret != ""
 }
 
-// Delete uses Cloudinary's signed Upload API /image/destroy endpoint. A "not found"
-// response is success for retry safety after a prior delete succeeded but the DB write failed.
+// Delete is kept as the image-resource convenience used by story cleanup.
 func (c *Client) Delete(ctx context.Context, publicID string) error {
+	return c.DeleteResource(ctx, publicID, "image")
+}
+
+// DeleteResource uses Cloudinary's signed Upload API destroy endpoint for image,
+// video, or raw resources. A "not found" response is success, making retries
+// safe after Cloudinary accepted a delete but the caller lost the response.
+func (c *Client) DeleteResource(ctx context.Context, publicID, resourceType string) error {
 	if !c.Configured() {
 		return fmt.Errorf("Cloudinary credentials are not configured")
 	}
 	publicID = strings.TrimSpace(publicID)
 	if publicID == "" {
 		return nil
+	}
+	if resourceType != "image" && resourceType != "video" && resourceType != "raw" {
+		return fmt.Errorf("unsupported Cloudinary resource type %q", resourceType)
 	}
 	timestamp := fmt.Sprintf("%d", time.Now().Unix())
 	params := map[string]string{"public_id": publicID, "timestamp": timestamp}
@@ -63,7 +72,7 @@ func (c *Client) Delete(ctx context.Context, publicID string) error {
 	form.Set("timestamp", timestamp)
 	form.Set("api_key", c.apiKey)
 	form.Set("signature", signature)
-	endpoint := strings.TrimRight(c.baseURL, "/") + "/" + url.PathEscape(c.cloudName) + "/image/destroy"
+	endpoint := strings.TrimRight(c.baseURL, "/") + "/" + url.PathEscape(c.cloudName) + "/" + resourceType + "/destroy"
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(form.Encode()))
 	if err != nil {
 		return fmt.Errorf("build Cloudinary destroy request: %w", err)

@@ -49,6 +49,7 @@ import {
 } from '@/hooks/mutations/useAdminMutations';
 import { formatPrice } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
+import { FraudMonitorPanel } from './FraudMonitorPanel';
 import { ROUTES } from '@/lib/constants';
 
 
@@ -87,6 +88,7 @@ export const AdminFraudTable = memo(function AdminFraudTable() {
 
   return (
     <div className="space-y-4">
+      <FraudMonitorPanel />
       {isLoading ? (
         <TableSkeleton columns={5} />
       ) : isError ? (

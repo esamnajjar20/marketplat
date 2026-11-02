@@ -12,6 +12,7 @@ import {
   Network,
   RefreshCw,
   Server,
+  ShieldCheck,
   Terminal,
   Wifi,
   WifiOff,
@@ -19,6 +20,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { AdminSystemHealth } from '@/components/admin/AdminSystemHealth';
+import { AdminDataIntegrityPanel } from '@/components/admin/AdminDataIntegrityPanel';
 import { AdminSystemTools } from '@/components/admin/AdminSystemTools';
 import { AdminDeviceErrorsPanel } from '@/components/admin/AdminDeviceErrorsPanel';
 import { AdminNetworkRequestsPanel } from '@/components/admin/AdminNetworkRequestsPanel';
@@ -76,7 +78,7 @@ export function AdminMonitoringCenter() {
   const [serverAlerts, setServerAlerts] = useState<AdminMonitoringAlert[]>([]);
   const [history, setHistory] = useState<AdminMonitoringSample[]>([]);
   const [serverDiagnosticsUnavailable, setServerDiagnosticsUnavailable] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'server' | 'health' | 'network' | 'errors' | 'console'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'server' | 'health' | 'integrity' | 'network' | 'errors' | 'console'>('overview');
 
   const refreshLocalDiagnostics = useCallback(() => {
     setRequests(getNetworkRequests());
@@ -196,11 +198,12 @@ export function AdminMonitoringCenter() {
 
       <NetworkStatusBanner />
 
-      <nav aria-label="أقسام المراقبة والتشخيص" className="grid grid-cols-2 gap-2 rounded-2xl border bg-card p-2 sm:grid-cols-3 xl:grid-cols-6">
+      <nav aria-label="أقسام المراقبة والتشخيص" className="grid grid-cols-2 gap-2 rounded-2xl border bg-card p-2 sm:grid-cols-3 xl:grid-cols-7">
         {[
           { id: 'overview', label: 'نظرة عامة', icon: Gauge },
           { id: 'server', label: 'الخادم والتنبيهات', icon: Server },
           { id: 'health', label: 'صحة الخدمات', icon: Activity },
+          { id: 'integrity', label: 'سلامة البيانات', icon: ShieldCheck },
           { id: 'network', label: 'طلبات الشبكة', icon: Network },
           { id: 'errors', label: 'الأخطاء', icon: CircleAlert },
           { id: 'console', label: 'الكونسول', icon: Terminal },
@@ -268,6 +271,10 @@ export function AdminMonitoringCenter() {
         <AdminSystemHealth />
         <AdminSystemTools />
       </Section>}
+      {activeTab === 'integrity' && <Section title="سلامة البيانات" description="فحوص قراءة فقط ينفذها Go لاكتشاف تعارض الحالات والعلاقات والحسابات التجارية. لا توجد إصلاحات تلقائية في هذه المرحلة." icon={ShieldCheck}>
+        <AdminDataIntegrityPanel />
+      </Section>}
+
       {activeTab === 'network' && <Section title="طلبات الشبكة" description="تفاصيل fetch وXMLHttpRequest: الحالة، المسار، الزمن، وأخطاء الاتصال. لا تُحفظ أجسام الطلبات أو ترويساتها." icon={Network}>
         <AdminNetworkRequestsPanel />
       </Section>}

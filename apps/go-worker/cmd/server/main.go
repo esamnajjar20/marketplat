@@ -17,20 +17,27 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
+	_ "time/tzdata"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"marketplat/apps/go-worker/internal/activitybuffer"
 	"marketplat/apps/go-worker/internal/adexpiry"
 	"marketplat/apps/go-worker/internal/adminexport"
+	"marketplat/apps/go-worker/internal/analyticsingest"
 	"marketplat/apps/go-worker/internal/analyticsretention"
+	"marketplat/apps/go-worker/internal/analyticssummary"
 	"marketplat/apps/go-worker/internal/authtokenretention"
 	"marketplat/apps/go-worker/internal/failedtaskretention"
 	"marketplat/apps/go-worker/internal/fcmpush"
+	"marketplat/apps/go-worker/internal/mediacleanup"
 	"marketplat/apps/go-worker/internal/notificationdigest"
 	"marketplat/apps/go-worker/internal/notificationretention"
+	"marketplat/apps/go-worker/internal/outboxworker"
 	"marketplat/apps/go-worker/internal/promotionlifecycle"
+	"marketplat/apps/go-worker/internal/pushdispatch"
 	"marketplat/apps/go-worker/internal/rediswire"
 	"marketplat/apps/go-worker/internal/requestexpiry"
 	"marketplat/apps/go-worker/internal/salesexport"
@@ -66,19 +73,25 @@ const (
 	adExpiryLockID              int64 = 731904299
 	storyCleanupLockID          int64 = 731904300
 	promotionLifecycleLockID    int64 = 731904301
+	mediaCleanupLockID          int64 = 731904302
 )
 
 type server struct {
-	db               *sql.DB
-	redisConfig      *rediswire.Config
-	cacheRedisConfig *rediswire.Config
-	token            string
-	retentionDays    int
-	batchSize        int
-	logger           *slog.Logger
-	cloudinary       *storycleanup.Client
-	fcmPush          *fcmpush.Client
-	jobGates         sync.Map // map[int64]*sync.Mutex; process-local fast gate before the DB advisory lock.
+	db                  *sql.DB
+	redisConfig         *rediswire.Config
+	cacheRedisConfig    *rediswire.Config
+	token               string
+	apiBaseURL          string
+	outboxEnabled       bool
+	pushDispatchEnabled bool
+	searchIndexEnabled  bool
+	pushDispatchActive  atomic.Bool
+	retentionDays       int
+	batchSize           int
+	logger              *slog.Logger
+	cloudinary          *storycleanup.Client
+	fcmPush             *fcmpush.Client
+	jobGates            sync.Map // map[int64]*sync.Mutex; process-local fast gate before the DB advisory lock.
 }
 
 func main() {
@@ -93,6 +106,21 @@ func main() {
 		}
 	}
 	token := strings.TrimSpace(os.Getenv("GO_WORKER_TOKEN"))
+	outboxEnabled, err := envBool("GO_WORKER_OUTBOX_ENABLED", false)
+	if err != nil {
+		logger.Error("invalid GO_WORKER_OUTBOX_ENABLED", "error", err)
+		os.Exit(1)
+	}
+	pushDispatchEnabled, err := envBool("GO_WORKER_PUSH_DISPATCH_ENABLED", false)
+	if err != nil {
+		logger.Error("invalid GO_WORKER_PUSH_DISPATCH_ENABLED", "error", err)
+		os.Exit(1)
+	}
+	searchIndexEnabled, err := envBool("GO_WORKER_SEARCH_INDEX_ENABLED", false)
+	if err != nil {
+		logger.Error("invalid GO_WORKER_SEARCH_INDEX_ENABLED", "error", err)
+		os.Exit(1)
+	}
 	if databaseURL == "" || token == "" {
 		logger.Error("GO_WORKER_DATABASE_URL, DIRECT_URL, or DATABASE_URL and GO_WORKER_TOKEN are required")
 		os.Exit(1)
@@ -125,6 +153,14 @@ func main() {
 		logger.Error("DB_MAX_OPEN_CONNS must be between 1 and 16")
 		os.Exit(1)
 	}
+	if outboxEnabled && maxOpenConns < 2 {
+		logger.Error("GO_WORKER_OUTBOX_ENABLED requires DB_MAX_OPEN_CONNS of at least 2 so lease heartbeats can run beside the event transaction")
+		os.Exit(1)
+	}
+	if outboxEnabled && pushDispatchEnabled && maxOpenConns < 4 {
+		logger.Error("enabling both Go Outbox and Push Dispatch requires DB_MAX_OPEN_CONNS of at least 4 to avoid starving independent lease heartbeats")
+		os.Exit(1)
+	}
 	redisConfig, err := rediswire.ConfigFromEnv()
 	if err != nil {
 		logger.Error("invalid Redis configuration", "error", err)
@@ -134,6 +170,19 @@ func main() {
 	if err != nil {
 		logger.Error("invalid cache Redis configuration", "error", err)
 		os.Exit(1)
+	}
+
+	apiBaseURL := strings.TrimSpace(os.Getenv("GO_WORKER_API_URL"))
+	if outboxEnabled && cacheRedisConfig == nil {
+		logger.Error("GO_WORKER_OUTBOX_ENABLED requires a configured cache Redis connection")
+		os.Exit(1)
+	}
+	if outboxEnabled || pushDispatchEnabled {
+		apiBaseURL, err = normalizeAPIBaseURL(apiBaseURL)
+		if err != nil {
+			logger.Error("GO_WORKER_OUTBOX_ENABLED or GO_WORKER_PUSH_DISPATCH_ENABLED requires a valid GO_WORKER_API_URL", "error", err)
+			os.Exit(1)
+		}
 	}
 
 	db, err := sql.Open("pgx", databaseURL)
@@ -154,10 +203,19 @@ func main() {
 		os.Exit(1)
 	}
 
-	s := &server{db: db, redisConfig: redisConfig, cacheRedisConfig: cacheRedisConfig, token: token, retentionDays: retentionDays, batchSize: batchSize, logger: logger, cloudinary: storycleanup.NewClient(os.Getenv("CLOUDINARY_CLOUD_NAME"), os.Getenv("CLOUDINARY_API_KEY"), os.Getenv("CLOUDINARY_API_SECRET")), fcmPush: fcmpush.NewFromEnv()}
+	s := &server{db: db, redisConfig: redisConfig, cacheRedisConfig: cacheRedisConfig, token: token, apiBaseURL: apiBaseURL, outboxEnabled: outboxEnabled, pushDispatchEnabled: pushDispatchEnabled, searchIndexEnabled: searchIndexEnabled, retentionDays: retentionDays, batchSize: batchSize, logger: logger, cloudinary: storycleanup.NewClient(os.Getenv("CLOUDINARY_CLOUD_NAME"), os.Getenv("CLOUDINARY_API_KEY"), os.Getenv("CLOUDINARY_API_SECRET")), fcmPush: fcmpush.NewFromEnv()}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
 	mux.HandleFunc("GET /internal/diagnostics", s.internalDiagnostics)
+	mux.HandleFunc("POST /internal/integrity/scan", s.runDataIntegrityScan)
+	mux.HandleFunc("POST /internal/fraud/monitor/scan", s.runFraudMonitorScan)
+	mux.HandleFunc("POST /internal/inventory/store-summary", s.getInventoryStoreSummary)
+	mux.HandleFunc("POST /internal/jobs/inventory-monitor", s.runInventoryMonitor)
+	mux.HandleFunc("POST /internal/analytics/events", s.ingestAnalyticsEvents)
+	mux.HandleFunc("POST /internal/analytics/summary", s.getAnalyticsSummary)
+	mux.HandleFunc("POST /internal/jobs/analytics-rollup", s.runAnalyticsRollup)
+	mux.HandleFunc("POST /internal/jobs/search-index-refresh", s.runSearchIndexRefresh)
+	mux.HandleFunc("GET /internal/search/index-status", s.searchIndexStatus)
 	mux.HandleFunc("POST /internal/jobs/analytics-retention", s.runAnalyticsRetention)
 	mux.HandleFunc("POST /internal/jobs/auth-token-retention", s.runAuthTokenRetention)
 	mux.HandleFunc("POST /internal/jobs/notification-retention", s.runNotificationRetention)
@@ -183,8 +241,13 @@ func main() {
 	mux.HandleFunc("POST /internal/jobs/expire-ads", s.runExpireAds)
 	mux.HandleFunc("POST /internal/jobs/promotion-lifecycle", s.runPromotionLifecycle)
 	mux.HandleFunc("POST /internal/jobs/cleanup-expired-stories", s.runCleanupExpiredStories)
+	mux.HandleFunc("POST /internal/jobs/cleanup-media-assets", s.runCleanupMediaAssets)
+	mux.HandleFunc("GET /internal/media/cleanup/status", s.mediaCleanupStatus)
 	mux.HandleFunc("POST /internal/outbox/execute-event", s.executeOutboxEvent)
+	mux.HandleFunc("GET /internal/outbox/worker-status", s.outboxWorkerStatus)
+	mux.HandleFunc("POST /internal/scheduler/run-due", s.runDueScheduledJobs)
 	mux.HandleFunc("POST /internal/push/fcm/send", s.sendFcmPush)
+	mux.HandleFunc("GET /internal/push/dispatch/worker-status", s.pushDispatchWorkerStatus)
 
 	addr := strings.TrimSpace(os.Getenv("GO_WORKER_ADDR"))
 	if addr == "" {
@@ -198,7 +261,61 @@ func main() {
 		WriteTimeout:      10 * time.Minute,
 		IdleTimeout:       60 * time.Second,
 	}
-	logger.Info("MarketPlat Go worker listening", "addr", addr, "retentionDays", retentionDays, "batchSize", batchSize)
+	logger.Info("MarketPlat Go worker listening", "addr", addr, "retentionDays", retentionDays, "batchSize", batchSize, "outboxEnabled", outboxEnabled, "pushDispatchEnabled", pushDispatchEnabled, "searchIndexEnabled", searchIndexEnabled)
+
+	workerCtx, stopWorkers := context.WithCancel(context.Background())
+	workerDone := make(chan struct{})
+	var backgroundWorkers sync.WaitGroup
+	if outboxEnabled {
+		backgroundWorkers.Add(1)
+		go func() {
+			defer backgroundWorkers.Done()
+			worker := outboxworker.New(db, cacheRedisConfig, logger, outboxworker.Config{APIBaseURL: apiBaseURL, APIToken: token})
+			if err := worker.Run(workerCtx); err != nil && workerCtx.Err() == nil {
+				logger.Error("Go transactional outbox worker exited unexpectedly", "error", err)
+			}
+		}()
+	}
+	if searchIndexEnabled {
+		backgroundWorkers.Add(1)
+		go func() {
+			defer backgroundWorkers.Done()
+			s.runSearchIndexWorker(workerCtx)
+		}()
+	}
+	if pushDispatchEnabled {
+		backgroundWorkers.Add(1)
+		go func() {
+			defer backgroundWorkers.Done()
+			worker := pushdispatch.New(db, logger, pushdispatch.Config{APIBaseURL: apiBaseURL, APIToken: token, FCM: s.fcmPush})
+			for workerCtx.Err() == nil {
+				readyCtx, readyCancel := context.WithTimeout(workerCtx, 5*time.Second)
+				readyErr := worker.CheckReady(readyCtx)
+				readyCancel()
+				if readyErr == nil {
+					break
+				}
+				logger.Warn("Go push dispatch worker is not ready; Express fallback remains active", "error", readyErr)
+				select {
+				case <-workerCtx.Done():
+					return
+				case <-time.After(10 * time.Second):
+				}
+			}
+			if workerCtx.Err() != nil {
+				return
+			}
+			s.pushDispatchActive.Store(true)
+			defer s.pushDispatchActive.Store(false)
+			if runErr := worker.Run(workerCtx); runErr != nil && workerCtx.Err() == nil {
+				logger.Error("Go notification push dispatch worker exited unexpectedly; Express fallback remains active", "error", runErr)
+			}
+		}()
+	}
+	go func() {
+		backgroundWorkers.Wait()
+		close(workerDone)
+	}()
 
 	// Render sends SIGTERM during deploys. Drain active requests before the
 	// process exits so advisory-lock owners can finish or release their locks
@@ -209,6 +326,7 @@ func main() {
 	go func() {
 		<-signals
 		logger.Info("shutdown signal received; draining Go worker")
+		stopWorkers()
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 20*time.Second)
 		defer shutdownCancel()
 		if err := httpServer.Shutdown(shutdownCtx); err != nil {
@@ -227,6 +345,12 @@ func main() {
 			logger.Warn("database close after HTTP server failure failed", "error", closeErr)
 		}
 		os.Exit(1)
+	}
+	stopWorkers()
+	select {
+	case <-workerDone:
+	case <-time.After(15 * time.Second):
+		logger.Warn("timed out waiting for Go outbox worker shutdown")
 	}
 	logger.Info("MarketPlat Go worker stopped cleanly")
 }
@@ -338,14 +462,19 @@ func (s *server) internalDiagnostics(w http.ResponseWriter, r *http.Request) {
 	// could exhaust a shared 2s request deadline and incorrectly report the
 	// second Redis instance unhealthy even when it is reachable.
 	type probeResult struct {
-		database        string
-		viewBatchLedger string
-		schedulerLedger string
-		primary         string
-		cache           string
+		database              string
+		viewBatchLedger       string
+		schedulerLedger       string
+		analyticsRollups      string
+		searchSuggestionIndex string
+		inventoryMonitoring   string
+		fraudMonitoring       string
+		mediaCleanupQueue     string
+		primary               string
+		cache                 string
 	}
 	results := probeResult{
-		database: "unhealthy", viewBatchLedger: "unknown", schedulerLedger: "unknown",
+		database: "unhealthy", viewBatchLedger: "unknown", schedulerLedger: "unknown", analyticsRollups: "unknown", searchSuggestionIndex: "unknown", inventoryMonitoring: "unknown", fraudMonitoring: "unknown", mediaCleanupQueue: "unknown",
 		primary: "not_configured", cache: "not_configured",
 	}
 	var probes sync.WaitGroup
@@ -360,15 +489,73 @@ func (s *server) internalDiagnostics(w http.ResponseWriter, r *http.Request) {
 		if s.db != nil {
 			ctx, cancel := context.WithTimeout(r.Context(), 1500*time.Millisecond)
 			defer cancel()
-			var viewBatchLedger, schedulerLedger bool
+			var viewBatchLedger, schedulerLedger, rollupTable, rollupDays, searchView, searchState bool
+			var productsTable, storesTable, sellerProfilesTable, usersTable, stockMovementsTable, salesEventsTable, notificationsTable, pushDispatchesTable, mediaCleanupTable, reportsTable, fraudSignalsTable, fraudReportIndex, fraudHistoryRuns, fraudHistoryChecks bool
 			err := s.db.QueryRowContext(ctx, `
 				SELECT to_regclass('view_buffer_flush_batches') IS NOT NULL,
-				       to_regclass('scheduled_job_runs') IS NOT NULL
-			`).Scan(&viewBatchLedger, &schedulerLedger)
+				       to_regclass('scheduled_job_runs') IS NOT NULL,
+				       to_regclass('analytics_event_daily_rollups') IS NOT NULL,
+				       to_regclass('analytics_rollup_days') IS NOT NULL,
+				       to_regclass('search_suggestions_mv') IS NOT NULL,
+				       to_regclass('search_suggestion_index_state') IS NOT NULL,
+				       to_regclass('products') IS NOT NULL,
+				       to_regclass('store_details') IS NOT NULL,
+				       to_regclass('seller_profiles') IS NOT NULL,
+				       to_regclass('users') IS NOT NULL,
+				       to_regclass('stock_movements') IS NOT NULL,
+				       to_regclass('sales_automation_events') IS NOT NULL,
+				       to_regclass('notifications') IS NOT NULL,
+				       to_regclass('notification_push_dispatches') IS NOT NULL,
+				       to_regclass('media_cleanup_jobs') IS NOT NULL,
+				       to_regclass('reports') IS NOT NULL,
+				       to_regclass('fraud_signals') IS NOT NULL,
+				       EXISTS (SELECT 1 FROM pg_index WHERE indexrelid = to_regclass('reports_status_created_at_idx') AND indisvalid),
+				       to_regclass('fraud_monitor_scan_runs') IS NOT NULL,
+				       to_regclass('fraud_monitor_check_snapshots') IS NOT NULL
+			`).Scan(&viewBatchLedger, &schedulerLedger, &rollupTable, &rollupDays, &searchView, &searchState,
+				&productsTable, &storesTable, &sellerProfilesTable, &usersTable, &stockMovementsTable, &salesEventsTable, &notificationsTable, &pushDispatchesTable, &mediaCleanupTable, &reportsTable, &fraudSignalsTable, &fraudReportIndex, &fraudHistoryRuns, &fraudHistoryChecks)
 			if err == nil {
 				results.database = "ok"
+				if productsTable && storesTable && sellerProfilesTable && usersTable && stockMovementsTable && salesEventsTable && notificationsTable && pushDispatchesTable {
+					results.inventoryMonitoring = "ready"
+				} else {
+					results.inventoryMonitoring = "missing"
+				}
 				results.viewBatchLedger = map[bool]string{true: "ready", false: "missing"}[viewBatchLedger]
 				results.schedulerLedger = map[bool]string{true: "ready", false: "missing"}[schedulerLedger]
+				if reportsTable && fraudSignalsTable && usersTable && fraudReportIndex && fraudHistoryRuns && fraudHistoryChecks {
+					results.fraudMonitoring = "ready"
+				} else {
+					results.fraudMonitoring = "missing"
+				}
+				if mediaCleanupTable {
+					results.mediaCleanupQueue = "ready"
+				} else {
+					results.mediaCleanupQueue = "missing"
+				}
+				if rollupTable && rollupDays {
+					results.analyticsRollups = "ready"
+				} else {
+					results.analyticsRollups = "missing"
+				}
+				if !searchView || !searchState {
+					results.searchSuggestionIndex = "missing"
+				} else {
+					var fresh bool
+					statusErr := s.db.QueryRowContext(ctx, `
+						SELECT "refreshedAt" IS NOT NULL
+						  AND "refreshedAt" >= NOW() - INTERVAL '30 minutes'
+						  AND "refreshedAt" <= NOW()
+						FROM "search_suggestion_index_state" WHERE "singletonId" = 1
+					`).Scan(&fresh)
+					if statusErr != nil {
+						results.searchSuggestionIndex = "unknown"
+					} else if fresh {
+						results.searchSuggestionIndex = "fresh"
+					} else {
+						results.searchSuggestionIndex = "stale"
+					}
+				}
 			}
 		}
 	}()
@@ -396,7 +583,7 @@ func (s *server) internalDiagnostics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	status := "ok"
-	if databaseStatus != "ok" || results.viewBatchLedger != "ready" || results.schedulerLedger != "ready" ||
+	if databaseStatus != "ok" || results.viewBatchLedger != "ready" || results.schedulerLedger != "ready" || results.analyticsRollups != "ready" || results.inventoryMonitoring != "ready" || results.fraudMonitoring != "ready" || results.mediaCleanupQueue != "ready" ||
 		redisStatus != "ok" || cacheRedisStatus != "ok" {
 		status = "degraded"
 	}
@@ -408,12 +595,17 @@ func (s *server) internalDiagnostics(w http.ResponseWriter, r *http.Request) {
 		"status":  status,
 		"service": "marketplat-go-worker",
 		"dependencies": map[string]string{
-			"postgres":            databaseStatus,
-			"redis":               redisStatus,
-			"cacheRedis":          cacheRedisStatus,
-			"viewBatchLedger":     results.viewBatchLedger,
-			"schedulerLedger":     results.schedulerLedger,
-			"firebaseCredentials": fcmStatus,
+			"postgres":              databaseStatus,
+			"redis":                 redisStatus,
+			"cacheRedis":            cacheRedisStatus,
+			"viewBatchLedger":       results.viewBatchLedger,
+			"schedulerLedger":       results.schedulerLedger,
+			"analyticsRollups":      results.analyticsRollups,
+			"searchSuggestionIndex": results.searchSuggestionIndex,
+			"inventoryMonitoring":   results.inventoryMonitoring,
+			"fraudMonitoring":       results.fraudMonitoring,
+			"mediaCleanupQueue":     results.mediaCleanupQueue,
+			"firebaseCredentials":   fcmStatus,
 		},
 		"databasePool": map[string]any{
 			"openConnections":    poolStats.OpenConnections,
@@ -459,6 +651,71 @@ func (s *server) tryLocalJobGate(lockID int64) (release func(), acquired bool) {
 		return nil, false
 	}
 	return gate.Unlock, true
+}
+
+type analyticsEventsRequest struct {
+	UserID *string                 `json:"userId"`
+	Events []analyticsingest.Event `json:"events"`
+}
+
+func (s *server) ingestAnalyticsEvents(w http.ResponseWriter, r *http.Request) {
+	if !authorized(r, s.token) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	var request analyticsEventsRequest
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid analytics request body"})
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "request body must contain one JSON object"})
+		return
+	}
+	if err := analyticsingest.Validate(analyticsingest.Request{UserID: request.UserID, Events: request.Events}); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	defer cancel()
+	result, err := analyticsingest.Insert(ctx, s.db, analyticsingest.Request{UserID: request.UserID, Events: request.Events})
+	if err != nil {
+		s.logger.Warn("analytics ingest failed", "error", err)
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "analytics storage unavailable"})
+		return
+	}
+	writeJSON(w, http.StatusAccepted, result)
+}
+
+func (s *server) getAnalyticsSummary(w http.ResponseWriter, r *http.Request) {
+	if !authorized(r, s.token) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	var request analyticssummary.Request
+	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2*1024))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid analytics summary request"})
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "request body must contain one JSON object"})
+		return
+	}
+	if err := analyticssummary.Validate(request); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		return
+	}
+	result, err := analyticssummary.Get(r.Context(), s.db, request)
+	if err != nil {
+		s.logger.Warn("analytics summary query failed", "error", err)
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "analytics summary unavailable"})
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (s *server) runAnalyticsRetention(w http.ResponseWriter, r *http.Request) {
@@ -1145,6 +1402,60 @@ func (s *server) runCleanupExpiredStories(w http.ResponseWriter, r *http.Request
 	})
 }
 
+func (s *server) runCleanupMediaAssets(w http.ResponseWriter, r *http.Request) {
+	if !authorized(r, s.token) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	if s.db == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "database is not configured on Go worker"})
+		return
+	}
+	if s.cloudinary == nil || !s.cloudinary.Configured() {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "Cloudinary credentials are not configured on Go worker"})
+		return
+	}
+	s.runLockedSQLJobWithTimeout(w, r, mediaCleanupLockID, "cleanup queued Cloudinary media", 8*time.Minute, func(ctx context.Context, conn *sql.Conn) (any, error) {
+		return mediacleanup.Run(ctx, conn, s.cloudinary, mediacleanup.DefaultBatchSize, time.Now().UTC())
+	})
+}
+
+func (s *server) mediaCleanupStatus(w http.ResponseWriter, r *http.Request) {
+	if !authorized(r, s.token) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	if s.db == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "database is not configured on Go worker"})
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	var pending, processing, dead int64
+	var oldestPending sql.NullTime
+	err := s.db.QueryRowContext(ctx, `
+		SELECT COUNT(*) FILTER (WHERE "status" = 'PENDING'),
+		       COUNT(*) FILTER (WHERE "status" = 'PROCESSING'),
+		       COUNT(*) FILTER (WHERE "status" = 'DEAD'),
+		       MIN("createdAt") FILTER (WHERE "status" = 'PENDING')
+		FROM "media_cleanup_jobs"
+	`).Scan(&pending, &processing, &dead, &oldestPending)
+	if err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "media cleanup status unavailable"})
+		return
+	}
+	var oldest *string
+	if oldestPending.Valid {
+		value := oldestPending.Time.UTC().Format(time.RFC3339Nano)
+		oldest = &value
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"status": "ok", "pending": pending, "processing": processing,
+		"deadLettered": dead, "oldestPendingCreatedAt": oldest,
+		"cloudinaryConfigured": s.cloudinary != nil && s.cloudinary.Configured(),
+	})
+}
+
 func (s *server) runDemoteStaleBoosts(w http.ResponseWriter, r *http.Request) {
 	if !authorized(r, s.token) {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
@@ -1310,6 +1621,18 @@ func releaseAdvisoryLock(conn *sql.Conn, lockID int64, jobName string, logger *s
 func authorized(r *http.Request, expected string) bool {
 	provided := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
 	return provided != "" && strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") && subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) == 1
+}
+
+func envBool(name string, fallback bool) (bool, error) {
+	value := strings.TrimSpace(os.Getenv(name))
+	if value == "" {
+		return fallback, nil
+	}
+	parsed, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, err
+	}
+	return parsed, nil
 }
 
 func firstNonEmptyEnv(names ...string) string {

@@ -7,6 +7,11 @@ import { AnalyticsEventType } from '@prisma/client';
 // legitimately queue up together; batching keeps this to one round-trip
 // instead of one per event.
 const analyticsEventSchema = z.object({
+  // Client-generated stable id for Go-first ingestion. The existing primary
+  // key is used as the idempotency key, so an ambiguous Go response followed
+  // by an Express fallback cannot duplicate the same event. Older clients may
+  // omit it; Express generates one before dispatch.
+  eventId: z.string().trim().min(1).max(100).optional(),
   event: z.nativeEnum(AnalyticsEventType),
   // Client-generated (crypto.randomUUID()) — see schema.prisma's
   // AnalyticsEvent.sessionId comment. Required: without it, anonymous
@@ -27,7 +32,23 @@ const analyticsEventSchema = z.object({
 
 export const trackEventsSchema = z.object({
   body: z.object({
-    events: z.array(analyticsEventSchema).min(1).max(20),
+    events: z.array(analyticsEventSchema).min(1).max(20).superRefine((events, ctx) => {
+      // Go rejects a batch containing duplicate durable event IDs. Enforce
+      // the same rule at the public boundary so Go and Express fallback never
+      // interpret an ambiguous batch differently.
+      const seen = new Set<string>();
+      events.forEach((event, index) => {
+        if (!event.eventId) return;
+        if (seen.has(event.eventId)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'eventId must be unique within a batch',
+            path: [index, 'eventId'],
+          });
+        }
+        seen.add(event.eventId);
+      });
+    }),
   }),
 });
 

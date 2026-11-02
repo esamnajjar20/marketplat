@@ -4,6 +4,7 @@ import { getPaginationParams } from '../../shared/utils/pagination';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { decodeMessageCursor, encodeMessageCursor } from '../../shared/utils/messageCursor';
+import { extractCloudinaryPublicId, queueCloudinaryAssetCleanup } from '../../shared/utils/cloudinaryHelpers';
 
 export type ConversationWithRelations = Prisma.ConversationGetPayload<{
   include: {
@@ -402,11 +403,33 @@ export const messagesRepository = {
 
   findById: (id: string): Promise<Message | null> => prisma.message.findUnique({ where: { id } }),
 
-  /** Soft-delete: sets deletedAt, leaves `body` and every other column
-   * untouched. Caller (messagesService.deleteMessage) has already
-   * verified the requester is the sender before this is called. */
+  /** Soft-delete and durably enqueue attached media cleanup in one DB
+   * transaction. The message row remains for the conversation placeholder,
+   * while Go deletes only the explicitly referenced Cloudinary public IDs. */
   softDelete: (id: string): Promise<Message> =>
-    prisma.message.update({ where: { id }, data: { deletedAt: new Date() } }),
+    prisma.$transaction(async tx => {
+      const deleted = await tx.message.update({
+        where: { id },
+        data: { deletedAt: new Date() },
+      });
+      const assets: Array<{ publicId: string; resourceType: 'image' | 'video' | 'raw' }> = [];
+      const imagePublicId = deleted.imageUrl
+        ? extractCloudinaryPublicId(deleted.imageUrl)
+        : null;
+      const audioPublicId = deleted.audioUrl
+        ? extractCloudinaryPublicId(deleted.audioUrl)
+        : null;
+      const filePublicId = deleted.fileUrl
+        ? extractCloudinaryPublicId(deleted.fileUrl, { preserveExtension: true })
+        : null;
+      if (imagePublicId) assets.push({ publicId: imagePublicId, resourceType: 'image' });
+      if (audioPublicId) assets.push({ publicId: audioPublicId, resourceType: 'video' });
+      if (filePublicId) assets.push({ publicId: filePublicId, resourceType: 'raw' });
+      for (const asset of assets) {
+        await queueCloudinaryAssetCleanup(asset.publicId, asset.resourceType, tx);
+      }
+      return deleted;
+    }),
 
   findMediaByConversationId: (conversationId: string, limit = 100): Promise<Message[]> =>
     prisma.message.findMany({

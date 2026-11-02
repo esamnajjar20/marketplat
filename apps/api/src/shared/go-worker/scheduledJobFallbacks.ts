@@ -296,3 +296,122 @@ export async function runSalesNotificationExpressFallback(
   }
   return { notificationsCreated };
 }
+
+export type InventoryMonitorBatchResult = {
+  lockAcquired: true;
+  candidatesScanned: number;
+  eventsClaimed: number;
+  notificationsCreated: number;
+  pushDispatchesCreated: number;
+  notificationIds: string[];
+};
+
+/**
+ * Express fallback for Go's low-stock inventory sweep. The caller must hold
+ * AdvisoryLockID 731904304 in the surrounding transaction. It shares the
+ * SalesAutomationEvent fingerprint/cooldown contract with the manual sales
+ * automation route, and creates Notification + PushDispatch atomically.
+ * Product quantities and stock movements are never changed here.
+ */
+export async function runInventoryMonitorExpressFallback(
+  tx: Prisma.TransactionClient
+): Promise<InventoryMonitorBatchResult> {
+  const rows = await tx.$queryRaw<Array<{
+    candidatesScanned: bigint;
+    eventsClaimed: bigint;
+    notificationsCreated: bigint;
+    pushDispatchesCreated: bigint;
+    notificationIdsJson: string;
+  }>>`
+    WITH candidates AS MATERIALIZED (
+      SELECT p."id" AS "productId", p."name" AS "productName",
+        p."stockQuantity" AS "stockQuantity", sp."userId" AS "userId"
+      FROM "products" p
+      INNER JOIN "store_details" s ON s."id" = p."storeId"
+      INNER JOIN "seller_profiles" sp ON sp."id" = s."sellerProfileId"
+      INNER JOIN "users" u ON u."id" = sp."userId"
+      WHERE p."status" = 'ACTIVE'
+        AND p."stockQuantity" <= 5
+        AND s."status" = 'ACTIVE'
+        AND sp."suspended" = FALSE
+        AND u."isActive" = TRUE
+        AND CASE
+          WHEN LOWER(COALESCE(u."notificationPreferences" ->> 'lowStockAlerts', 'true')) = 'false' THEN FALSE
+          ELSE TRUE
+        END
+        AND NOT EXISTS (
+          SELECT 1 FROM "sales_automation_events" e
+          WHERE e."userId" = sp."userId"
+            AND e."type" = 'LOW_STOCK'::"SalesAutomationEventType"
+            AND e."fingerprint" = p."id"
+            AND e."lastSentAt" > NOW() - INTERVAL '24 hours'
+        )
+      ORDER BY p."stockQuantity" ASC, p."id" ASC
+      LIMIT 500
+    ), claimed AS (
+      INSERT INTO "sales_automation_events"
+        ("id", "userId", "type", "fingerprint", "lastSentAt", "sendCount", "createdAt", "updatedAt")
+      SELECT gen_random_uuid()::text, c."userId", 'LOW_STOCK'::"SalesAutomationEventType",
+        c."productId", NOW(), 1, NOW(), NOW()
+      FROM candidates c
+      ON CONFLICT ("userId", "type", "fingerprint") DO UPDATE
+      SET "lastSentAt" = NOW(),
+        "sendCount" = "sales_automation_events"."sendCount" + 1,
+        "updatedAt" = NOW()
+      WHERE "sales_automation_events"."lastSentAt" <= NOW() - INTERVAL '24 hours'
+      RETURNING "userId", "fingerprint"
+    ), notifications AS (
+      INSERT INTO "notifications"
+        ("id", "userId", "type", "title", "body", "data", "createdAt")
+      SELECT gen_random_uuid()::text, c."userId", 'SALES_LOW_STOCK'::"NotificationType",
+        CASE WHEN c."stockQuantity" <= 0 THEN 'منتج نفد من المخزون' ELSE 'مخزون منخفض' END,
+        LEFT(c."productName" || ': المتبقي ' || c."stockQuantity"::text || ' وحدة.', 500),
+        jsonb_build_object('productId', c."productId", 'stockQuantity', c."stockQuantity"), NOW()
+      FROM claimed cl
+      INNER JOIN candidates c ON c."userId" = cl."userId" AND c."productId" = cl."fingerprint"
+      RETURNING "id", "userId", "title", "body"
+    ), dispatches AS (
+      INSERT INTO "notification_push_dispatches"
+        ("id", "notificationId", "userId", "payload", "idempotencyKey", "createdAt", "availableAt")
+      SELECT gen_random_uuid()::text, n."id", n."userId",
+        jsonb_build_object(
+          'title', n."title", 'body', n."body", 'url', '/my-store?tab=inventory',
+          'tag', 'sales-low-stock:' || n."id", 'type', 'SALES_LOW_STOCK'
+        ),
+        'push:' || n."id", NOW(), NOW()
+      FROM notifications n
+      RETURNING "id"
+    )
+    SELECT
+      (SELECT COUNT(*)::bigint FROM candidates) AS "candidatesScanned",
+      (SELECT COUNT(*)::bigint FROM claimed) AS "eventsClaimed",
+      (SELECT COUNT(*)::bigint FROM notifications) AS "notificationsCreated",
+      (SELECT COUNT(*)::bigint FROM dispatches) AS "pushDispatchesCreated",
+      COALESCE((SELECT json_agg("id")::text FROM notifications), '[]') AS "notificationIdsJson"
+  `;
+
+  const row = rows[0];
+  if (!row) throw new Error('inventory monitor fallback returned no result row');
+  const candidatesScanned = Number(row.candidatesScanned);
+  const eventsClaimed = Number(row.eventsClaimed);
+  const notificationsCreated = Number(row.notificationsCreated);
+  const pushDispatchesCreated = Number(row.pushDispatchesCreated);
+  if (![candidatesScanned, eventsClaimed, notificationsCreated, pushDispatchesCreated].every(Number.isSafeInteger) ||
+    candidatesScanned < 0 || eventsClaimed < 0 || notificationsCreated < 0 || pushDispatchesCreated < 0 ||
+    eventsClaimed !== notificationsCreated || notificationsCreated !== pushDispatchesCreated) {
+    throw new Error('inventory monitor fallback produced inconsistent counters');
+  }
+  const notificationIds: unknown = JSON.parse(row.notificationIdsJson);
+  if (!Array.isArray(notificationIds) || notificationIds.some(id => typeof id !== 'string') ||
+    notificationIds.length !== notificationsCreated) {
+    throw new Error('inventory monitor fallback returned invalid notification IDs');
+  }
+  return {
+    lockAcquired: true,
+    candidatesScanned,
+    eventsClaimed,
+    notificationsCreated,
+    pushDispatchesCreated,
+    notificationIds,
+  };
+}

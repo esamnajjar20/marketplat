@@ -2,10 +2,11 @@ import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { prisma } from '../../config/prisma';
 import { FollowTargetType } from '@prisma/client';
 import { StoreDetails, Prisma } from '@prisma/client';
-import { uploadStoreLogo, uploadStoreCover, deleteImage } from '../../config/cloudinary';
+import { uploadStoreLogo, uploadStoreCover } from '../../config/cloudinary';
 import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
+  deleteCloudinaryAsset,
 } from '../../shared/utils/cloudinaryHelpers';
 import { storesRepository, StoreWithSeller, StoreWithSellerAndCounts } from './stores.repository';
 import { storeFollowersRepository, StoreFollowerWithStore } from './store-followers.repository';
@@ -250,9 +251,7 @@ export const storesService = {
       if (store.logoUrl) {
         const oldPublicId = extractCloudinaryPublicId(store.logoUrl);
         if (oldPublicId)
-          await deleteImage(oldPublicId).catch(error =>
-            reportBackgroundFailure('apps/api/src/modules/stores/stores.service.ts', error)
-          );
+          await deleteCloudinaryAsset(oldPublicId, 'image');
       }
       return updated;
     } catch (error) {
@@ -271,9 +270,7 @@ export const storesService = {
       if (store.coverImageUrl) {
         const oldPublicId = extractCloudinaryPublicId(store.coverImageUrl);
         if (oldPublicId)
-          await deleteImage(oldPublicId).catch(error =>
-            reportBackgroundFailure('apps/api/src/modules/stores/stores.service.ts', error)
-          );
+          await deleteCloudinaryAsset(oldPublicId, 'image');
       }
       return updated;
     } catch (error) {

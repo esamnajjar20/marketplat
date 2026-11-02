@@ -37,6 +37,19 @@ function stockBadgeVariant(a: ProductAvailability): 'success' | 'warning' | 'des
   return 'secondary';
 }
 
+function stockMovementReasonLabel(reason: string): string {
+  if (reason === 'INITIAL_STOCK') return 'رصيد افتتاحي';
+  if (reason.startsWith('SALE_DELETE:')) return 'إعادة مخزون بعد حذف بيع';
+  if (reason.startsWith('RETURN:')) return 'إرجاع مخزون';
+  if (reason.startsWith('SALE:')) return 'خصم ناتج عن بيع';
+  if (reason.startsWith('Marketplace order') && reason.endsWith('reservation')) return 'حجز طلب من المتجر';
+  if (reason.startsWith('Marketplace order') && reason.endsWith('cancellation')) return 'إعادة مخزون بعد إلغاء طلب';
+  if (reason === 'RESTOCK') return 'إعادة تزويد المخزون';
+  if (reason === 'SALE_OR_CORRECTION') return 'خصم بيع أو تصحيح';
+  if (reason === 'MANUAL_ADJUSTMENT') return 'تعديل يدوي';
+  return 'حركة مخزون';
+}
+
 function StockRow({
   id,
   name,
@@ -292,6 +305,58 @@ export function MyStoreInventory() {
         </div>
       )}
 
+      {summary && (() => {
+        const anomalyCount = summary.negativeStockProducts +
+          summary.availabilityMismatchProducts + summary.movementMismatchProducts;
+        return (
+          <section
+            aria-label="مؤشرات مراقبة المخزون"
+            aria-live="polite"
+            role={anomalyCount > 0 ? 'alert' : 'status'}
+            className="rounded-2xl border border-border/70 bg-card p-3 shadow-sm"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Boxes className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-bold">مراقبة سلامة المخزون</h2>
+              </div>
+              <span className={cn(
+                'text-xs font-semibold',
+                anomalyCount > 0 ? 'text-destructive' : 'text-muted-foreground'
+              )}>
+                {anomalyCount > 0 ? `توجد ${anomalyCount} مؤشرات تحتاج مراجعة` : 'لم تُرصد فروقات في المؤشرات المفحوصة'}
+              </span>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              {([
+                ['مخزون منخفض فعليًا (1–5)', summary.lowStockTrackedProducts],
+                ['كمية صفرية', summary.zeroStockTrackedProducts],
+                ['مخزون غير متعقّب', summary.untrackedProducts],
+                ['كميات سالبة', summary.negativeStockProducts],
+                ['اختلاف حالة التوفر', summary.availabilityMismatchProducts],
+                ['اختلاف سجل الحركة', summary.movementMismatchProducts],
+              ] as const).map(([label, value]) => (
+                <div key={label} className="rounded-xl bg-muted/50 px-3 py-2">
+                  <p className="text-[11px] leading-5 text-muted-foreground">{label}</p>
+                  <p className={cn(
+                    'mt-1 text-lg font-bold tabular-nums',
+                    value > 0 && (label === 'كميات سالبة' || label === 'اختلاف حالة التوفر' || label === 'اختلاف سجل الحركة')
+                      ? 'text-destructive'
+                      : 'text-foreground'
+                  )}>{value}</p>
+                </div>
+              ))}
+            </div>
+            {anomalyCount > 0 && (
+              <p className="mt-3 flex items-start gap-2 text-xs text-destructive">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                هذه مؤشرات تشخيصية للقراءة فقط؛ لا يتم تعديل الكميات أو سجل الحركات تلقائيًا.
+              </p>
+            )}
+          </section>
+        );
+      })()}
+
       <div className="flex flex-wrap items-center gap-2">
         {(
           [
@@ -367,7 +432,7 @@ export function MyStoreInventory() {
                 <div className="min-w-0">
                   <p className="truncate font-medium">{movement.product.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {movement.reason === 'INITIAL_STOCK' ? 'رصيد افتتاحي' : 'تعديل يدوي'}
+                    {stockMovementReasonLabel(movement.reason)}
                     {' · '}
                     {new Date(movement.createdAt).toLocaleString('ar', { timeZone: 'Asia/Gaza' })}
                   </p>

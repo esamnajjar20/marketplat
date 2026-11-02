@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"marketplat/apps/go-worker/internal/outboxevents"
+	"marketplat/apps/go-worker/internal/outboxworker"
 )
 
 type outboxEventRequest struct {
@@ -17,9 +19,9 @@ type outboxEventRequest struct {
 	WorkerID string `json:"workerId"`
 }
 
-// executeOutboxEvent delegates the database-heavy part of selected durable
-// outbox events to Go. Express still owns polling, lease heartbeat, Redis/SSE,
-// and provider delivery; the event row is acknowledged transactionally here.
+// executeOutboxEvent is the synchronous Go adapter retained for the Express
+// fallback consumer. The Go background consumer uses the same transactional
+// outboxevents package directly.
 func (s *server) executeOutboxEvent(w http.ResponseWriter, r *http.Request) {
 	if !authorized(r, s.token) {
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
@@ -72,4 +74,50 @@ func (s *server) executeOutboxEvent(w http.ResponseWriter, r *http.Request) {
 
 func contextWithOutboxTimeout(r *http.Request) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(r.Context(), 90*time.Second)
+}
+
+// outboxWorkerStatus lets Express decide whether Go is the active primary
+// consumer. When this flag is false (or Go is unreachable), the existing
+// Express polling worker remains the automatic fallback.
+func (s *server) outboxWorkerStatus(w http.ResponseWriter, r *http.Request) {
+	if !authorized(r, s.token) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	enabled := false
+	if s.outboxEnabled {
+		// If an event type has not yet been implemented in Go, let the existing
+		// Express consumer handle the queue. This prevents new event types from
+		// being stranded simply because the Go worker is enabled.
+		var unsupported string
+		err := s.db.QueryRowContext(r.Context(), `
+			SELECT "eventType" FROM "outbox_events"
+			WHERE "processedAt" IS NULL AND "deadLetterAt" IS NULL
+			  AND NOT ("eventType" = ANY($1::text[]))
+			LIMIT 1
+		`, outboxworker.EventTypes).Scan(&unsupported)
+		if errors.Is(err, sql.ErrNoRows) {
+			enabled = true
+		} else if err != nil {
+			s.logger.Warn("could not verify Go outbox event coverage; Express fallback will remain active", "error", err)
+		}
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"enabled": enabled})
+}
+
+// pushDispatchWorkerStatus lets Express pause its local notification push
+// dispatcher only after the Go worker goroutine has passed its schema/config
+// readiness check. An unreachable or stopped Go worker therefore keeps the
+// existing Express dispatcher as an automatic fallback.
+func (s *server) pushDispatchWorkerStatus(w http.ResponseWriter, r *http.Request) {
+	if !authorized(r, s.token) {
+		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		return
+	}
+	enabled := s.pushDispatchEnabled && s.pushDispatchActive.Load()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"enabled": enabled,
+		"active":  s.pushDispatchActive.Load(),
+		"service": "marketplat-go-worker",
+	})
 }

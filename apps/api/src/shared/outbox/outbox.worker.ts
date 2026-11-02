@@ -258,6 +258,96 @@ async function tryAcquireOutboxExecutionLock(
  * work. When the Go response is ambiguous, inspect the durable event row before
  * deciding whether the existing Express processor should run.
  */
+let goOutboxPrimaryCheckedAt = 0;
+let goOutboxPrimaryCached = false;
+
+/**
+ * Go is the preferred Outbox consumer when its background loop is enabled.
+ * The existing Express consumer becomes an automatic fallback whenever the
+ * protected status route is unavailable or reports disabled. Both consumers
+ * still use the same PostgreSQL SKIP LOCKED claims and lease fields.
+ */
+async function isGoOutboxPrimaryActive(): Promise<boolean> {
+  // This separate API-side switch prevents idle health probes from waking a
+  // sleeping/optional Go service. Enable it only as part of the coordinated
+  // rollout after the Go worker's own GO_WORKER_OUTBOX_ENABLED flag is set.
+  if (process.env.GO_WORKER_OUTBOX_PRIMARY_ENABLED?.trim().toLowerCase() !== 'true') {
+    goOutboxPrimaryCached = false;
+    return false;
+  }
+  const baseUrl = process.env.GO_WORKER_URL?.trim().replace(/\/+$/, '');
+  const token = process.env.GO_WORKER_TOKEN?.trim();
+  if (!baseUrl || !token) return false;
+  const now = Date.now();
+  if (now - goOutboxPrimaryCheckedAt < 5_000) return goOutboxPrimaryCached;
+  goOutboxPrimaryCheckedAt = now;
+  try {
+    const response = await fetch(`${baseUrl}/internal/outbox/worker-status`, {
+      method: 'GET',
+      redirect: 'error',
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(2_000),
+    });
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => undefined);
+      goOutboxPrimaryCached = false;
+      return false;
+    }
+    const payload: unknown = await response.json().catch(() => undefined);
+    goOutboxPrimaryCached =
+      typeof payload === 'object' && payload !== null &&
+      (payload as Record<string, unknown>).enabled === true;
+    return goOutboxPrimaryCached;
+  } catch {
+    goOutboxPrimaryCached = false;
+    return false;
+  }
+}
+
+let goPushDispatchPrimaryCheckedAt = 0;
+let goPushDispatchPrimaryCached = false;
+
+/**
+ * Pause the Express push-dispatch consumer only after Go confirms that its
+ * dedicated worker goroutine passed schema/config readiness. A failed, stale,
+ * or unreachable probe leaves Express as the automatic fallback. PostgreSQL
+ * SKIP LOCKED and per-target leases remain the final concurrency guard during
+ * a rolling handoff.
+ */
+async function isGoPushDispatchPrimaryActive(): Promise<boolean> {
+  if (process.env.GO_WORKER_PUSH_DISPATCH_PRIMARY_ENABLED?.trim().toLowerCase() !== 'true') {
+    goPushDispatchPrimaryCached = false;
+    return false;
+  }
+  const baseUrl = process.env.GO_WORKER_URL?.trim().replace(/\/+$/, '');
+  const token = process.env.GO_WORKER_TOKEN?.trim();
+  if (!baseUrl || !token) return false;
+  const now = Date.now();
+  if (now - goPushDispatchPrimaryCheckedAt < 5_000) return goPushDispatchPrimaryCached;
+  goPushDispatchPrimaryCheckedAt = now;
+  try {
+    const response = await fetch(`${baseUrl}/internal/push/dispatch/worker-status`, {
+      method: 'GET',
+      redirect: 'error',
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+      signal: AbortSignal.timeout(2_000),
+    });
+    if (!response.ok) {
+      await response.body?.cancel().catch(() => undefined);
+      goPushDispatchPrimaryCached = false;
+      return false;
+    }
+    const payload: unknown = await response.json().catch(() => undefined);
+    goPushDispatchPrimaryCached =
+      typeof payload === 'object' && payload !== null &&
+      (payload as Record<string, unknown>).enabled === true;
+    return goPushDispatchPrimaryCached;
+  } catch {
+    goPushDispatchPrimaryCached = false;
+    return false;
+  }
+}
+
 async function tryExecuteOutboxEventInGo(
   event: OutboxEvent,
   workerId: string
@@ -356,9 +446,13 @@ async function publishOutboxNotifications(
   }
 }
 
-async function processSavedSearchMatchEvent(event: OutboxEvent, workerId: string): Promise<void> {
+async function processSavedSearchMatchEvent(
+  event: OutboxEvent,
+  workerId: string,
+  allowGoExecution = true
+): Promise<void> {
   const payload = parseSavedSearchMatchPayload(event.payload);
-  const goResult = await tryExecuteOutboxEventInGo(event, workerId);
+  const goResult = allowGoExecution ? await tryExecuteOutboxEventInGo(event, workerId) : null;
   if (goResult) {
     await publishOutboxNotifications(goResult.created, event.id, 'Saved-search');
     return;
@@ -526,9 +620,13 @@ async function claimBatch(workerId: string): Promise<OutboxEvent[]> {
   `;
 }
 
-async function processActivityEvent(event: OutboxEvent, workerId: string): Promise<void> {
+async function processActivityEvent(
+  event: OutboxEvent,
+  workerId: string,
+  allowGoExecution = true
+): Promise<void> {
   const payload = parseActivityPayload(event.payload);
-  const goResult = await tryExecuteOutboxEventInGo(event, workerId);
+  const goResult = allowGoExecution ? await tryExecuteOutboxEventInGo(event, workerId) : null;
   if (goResult) return;
   await prisma.$transaction(async tx => {
     if (!(await tryAcquireOutboxExecutionLock(tx, event.id))) return;
@@ -571,9 +669,13 @@ function asLiveData(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-async function processFollowedActivityEvent(event: OutboxEvent, workerId: string): Promise<void> {
+async function processFollowedActivityEvent(
+  event: OutboxEvent,
+  workerId: string,
+  allowGoExecution = true
+): Promise<void> {
   const payload = parseFollowedActivityPayload(event.payload);
-  const goResult = await tryExecuteOutboxEventInGo(event, workerId);
+  const goResult = allowGoExecution ? await tryExecuteOutboxEventInGo(event, workerId) : null;
   if (goResult) {
     await publishOutboxNotifications(goResult.created, event.id, 'Followed-activity');
     return;
@@ -1415,9 +1517,10 @@ async function reportOutboxHealth(): Promise<void> {
 
 async function processCacheGenerationBumpEvent(
   event: OutboxEvent,
-  workerId: string
+  workerId: string,
+  allowGoExecution = true
 ): Promise<void> {
-  const goResult = await tryExecuteOutboxEventInGo(event, workerId);
+  const goResult = allowGoExecution ? await tryExecuteOutboxEventInGo(event, workerId) : null;
   if (goResult) return;
 
   const payload = event.payload;
@@ -1473,19 +1576,21 @@ async function processCacheGenerationBumpEvent(
 }
 
 export async function processOutboxBatch(
-  workerId = `outbox-${process.pid}-${randomUUID()}`
+  workerId = `outbox-${process.pid}-${randomUUID()}`,
+  allowGoExecution = true
 ): Promise<number> {
   const events = await claimBatch(workerId);
   for (const event of events) {
     try {
       await withLeaseHeartbeat(event, workerId, async () => {
-        if (event.eventType === 'USER_ACTIVITY_RECORD') await processActivityEvent(event, workerId);
+        if (event.eventType === 'USER_ACTIVITY_RECORD')
+          await processActivityEvent(event, workerId, allowGoExecution);
         else if (event.eventType === 'FOLLOWED_ACTIVITY_NOTIFICATION')
-          await processFollowedActivityEvent(event, workerId);
+          await processFollowedActivityEvent(event, workerId, allowGoExecution);
         else if (event.eventType === 'SAVED_SEARCH_MATCH_NOTIFICATION')
-          await processSavedSearchMatchEvent(event, workerId);
+          await processSavedSearchMatchEvent(event, workerId, allowGoExecution);
         else if (event.eventType === 'CACHE_GENERATION_BUMP')
-          await processCacheGenerationBumpEvent(event, workerId);
+          await processCacheGenerationBumpEvent(event, workerId, allowGoExecution);
         else throw new Error(`Unsupported outbox event type: ${event.eventType}`);
       });
     } catch (error) {
@@ -1512,14 +1617,23 @@ export async function runOutboxWorker(shouldStop: () => boolean = () => false): 
   let lastRetentionRunAt = 0;
   let idleStreak = 0;
   while (!shouldStop()) {
-    const count = await processOutboxBatch().catch(error => {
-      logger.error('Outbox batch claim failed', { error });
+    const primaryConfigured = process.env.GO_WORKER_OUTBOX_PRIMARY_ENABLED?.trim().toLowerCase() === 'true';
+    const goPrimaryActive = await isGoOutboxPrimaryActive();
+    // When primary mode is configured but Go reports unavailable/ineligible,
+    // Express must run its local handlers immediately. Do not proxy each event
+    // back to the failed Go service and wait for its 95-second request timeout.
+    const allowGoExecution = !primaryConfigured;
+    const count = goPrimaryActive ? 0 : await processOutboxBatch(undefined, allowGoExecution).catch(error => {
+      logger.error('Express Outbox fallback batch claim failed', { error });
       return 0;
     });
-    const pushDispatchCount = await processPushDispatchBatch().catch(error => {
-      logger.error('Notification push dispatch batch failed', { error });
-      return 0;
-    });
+    const goPushDispatchPrimaryActive = await isGoPushDispatchPrimaryActive();
+    const pushDispatchCount = goPushDispatchPrimaryActive
+      ? 0
+      : await processPushDispatchBatch().catch(error => {
+          logger.error('Notification push dispatch batch failed', { error });
+          return 0;
+        });
     const now = Date.now();
     if (now - lastHealthReportAt >= HEALTH_REPORT_INTERVAL_MS) {
       lastHealthReportAt = now;
@@ -1529,35 +1643,36 @@ export async function runOutboxWorker(shouldStop: () => boolean = () => false): 
     }
     if (now - lastRetentionRunAt >= OUTBOX_RETENTION_INTERVAL_MS) {
       lastRetentionRunAt = now;
-      await pruneProcessedOutboxEvents()
-        .then(deletedCount => {
-          if (deletedCount > 0) {
-            logger.info('Pruned processed outbox event rows while preserving idempotency keys', {
-              deletedCount,
-              retentionDays: OUTBOX_PROCESSED_RETENTION_MS / (24 * 60 * 60 * 1_000),
-              batchLimit: OUTBOX_RETENTION_BATCH_SIZE,
-            });
-          }
-        })
-        .catch(error => {
-          logger.error(
-            'Processed outbox retention cleanup failed; events were not acknowledged or discarded',
-            { error }
-          );
-        });
-      await pruneProcessedPushDispatches()
-        .then(deletedCount => {
-          if (deletedCount > 0) {
-            logger.info('Pruned completed push dispatches', {
-              deletedCount,
-              retentionDays: PUSH_DISPATCH_RETENTION_MS / (24 * 60 * 60 * 1_000),
-              batchLimit: OUTBOX_RETENTION_BATCH_SIZE,
-            });
-          }
-        })
-        .catch(error => {
-          logger.error('Completed push dispatch retention cleanup failed', { error });
-        });
+      if (!goPrimaryActive) {
+        await pruneProcessedOutboxEvents()
+          .then(deletedCount => {
+            if (deletedCount > 0) {
+              logger.info('Express fallback pruned processed outbox rows while preserving idempotency keys', {
+                deletedCount,
+                retentionDays: OUTBOX_PROCESSED_RETENTION_MS / (24 * 60 * 60 * 1_000),
+                batchLimit: OUTBOX_RETENTION_BATCH_SIZE,
+              });
+            }
+          })
+          .catch(error => {
+            logger.error('Express fallback outbox retention cleanup failed', { error });
+          });
+      }
+      if (!goPushDispatchPrimaryActive) {
+        await pruneProcessedPushDispatches()
+          .then(deletedCount => {
+            if (deletedCount > 0) {
+              logger.info('Express fallback pruned completed push dispatches', {
+                deletedCount,
+                retentionDays: PUSH_DISPATCH_RETENTION_MS / (24 * 60 * 60 * 1_000),
+                batchLimit: OUTBOX_RETENTION_BATCH_SIZE,
+              });
+            }
+          })
+          .catch(error => {
+            logger.error('Completed push dispatch retention cleanup failed', { error });
+          });
+      }
     }
     if (count === 0 && pushDispatchCount === 0) {
       // Idle: back off 1s → 2s → 5s → 10s (max).

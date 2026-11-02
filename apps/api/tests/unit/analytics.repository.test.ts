@@ -45,15 +45,67 @@ describe('analyticsRepository', () => {
           path: '/',
         }),
       ],
+      skipDuplicates: true,
     });
   });
 
-  it('countByEvent maps groupBy rows', async () => {
-    (prisma.analyticsEvent.groupBy as jest.Mock).mockResolvedValue([
-      { event: AnalyticsEventType.SEARCH, _count: { _all: 5 } },
+
+  it('uses the stable event ID as the database primary key for idempotent fallback writes', async () => {
+    (prisma.analyticsEvent.createMany as jest.Mock).mockResolvedValue({ count: 1 });
+    await analyticsRepository.createMany(
+      [{ eventId: 'event-uuid-1', event: AnalyticsEventType.PAGE_VIEW, sessionId: 's1' } as any],
+      null,
+    );
+    expect(prisma.analyticsEvent.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ id: 'event-uuid-1', event: AnalyticsEventType.PAGE_VIEW })],
+      skipDuplicates: true,
+    });
+  });
+
+  it('countByEvent uses the bounded summary query and maps bigint counts', async () => {
+    (runWithQueryTimeout as jest.Mock).mockResolvedValue([
+      { event: AnalyticsEventType.SEARCH, count: 5n },
     ]);
     const rows = await analyticsRepository.countByEvent(from, to);
+    expect(runWithQueryTimeout).toHaveBeenCalled();
     expect(rows).toEqual([{ event: AnalyticsEventType.SEARCH, count: 5 }]);
+  });
+
+  it('uses daily rollups for full UTC days while retaining raw-event fallback for uncovered dates', async () => {
+    const query = jest.fn()
+      .mockResolvedValueOnce([{ ready: true }])
+      .mockResolvedValueOnce([{ event: AnalyticsEventType.SEARCH, count: 15n }]);
+    (runWithQueryTimeout as jest.Mock).mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({ $queryRaw: query } as any),
+    );
+
+    const rows = await analyticsRepository.countByEvent(from, to);
+
+    expect(rows).toEqual([{ event: AnalyticsEventType.SEARCH, count: 15 }]);
+    expect(query).toHaveBeenCalledTimes(2);
+    const aggregateSql = query.mock.calls[1][0].join('');
+    expect(aggregateSql).toContain('analytics_event_daily_rollups');
+    expect(aggregateSql).toContain('analytics_rollup_days');
+    expect(aggregateSql).toContain('NOT EXISTS');
+  });
+
+  it('uses raw events when the requested range contains no full UTC day', async () => {
+    const query = jest.fn().mockResolvedValueOnce([
+      { event: AnalyticsEventType.SEARCH, count: 2n },
+    ]);
+    (runWithQueryTimeout as jest.Mock).mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({ $queryRaw: query } as any),
+    );
+
+    const rows = await analyticsRepository.countByEvent(
+      new Date('2026-01-01T12:00:00.000Z'),
+      new Date('2026-01-01T20:00:00.000Z'),
+    );
+
+    expect(rows).toEqual([{ event: AnalyticsEventType.SEARCH, count: 2 }]);
+    expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][0].join('')).toContain('FROM "analytics_events"');
+    expect(query.mock.calls[0][0].join('')).not.toContain('analytics_event_daily_rollups');
   });
 
   it('trendByEvent uses runWithQueryTimeout and maps bigint counts', async () => {

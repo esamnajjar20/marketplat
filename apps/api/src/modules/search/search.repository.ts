@@ -612,6 +612,48 @@ const BRANCH_BUILDERS: Record<Exclude<SearchType, 'all'>, BranchBuilder> = {
   services: serviceBranch,
 };
 
+async function searchSuggestionsLive(prefix: string, limit: number): Promise<string[]> {
+  // ILIKE/LIKE treats %, _, and the escape character itself as pattern
+  // metacharacters. Escaping them keeps the supplied prefix literal.
+  const escapedPrefix = prefix.replace(/[!%_]/g, char => `!${char}`);
+  const rawPrefix = `${escapedPrefix}%`;
+
+  const [products, stores, productCategories, serviceCategories] = await Promise.all([
+    prisma.$queryRaw<{ name: string }[]>`
+      SELECT DISTINCT "name" FROM "products"
+      WHERE "status" = 'ACTIVE'
+        AND lower(arabic_normalize("name")) LIKE lower(arabic_normalize(${rawPrefix})) ESCAPE '!'
+      LIMIT ${limit}
+    `,
+    prisma.$queryRaw<{ name: string }[]>`
+      SELECT DISTINCT "name" FROM "store_details"
+      WHERE "status" = 'ACTIVE'
+        AND lower(arabic_normalize("name")) LIKE lower(arabic_normalize(${rawPrefix})) ESCAPE '!'
+      LIMIT ${limit}
+    `,
+    prisma.$queryRaw<{ nameAr: string }[]>`
+      SELECT DISTINCT "nameAr" FROM "product_categories"
+      WHERE "isActive" = true
+        AND lower(arabic_normalize("nameAr")) LIKE lower(arabic_normalize(${rawPrefix})) ESCAPE '!'
+      LIMIT ${limit}
+    `,
+    prisma.$queryRaw<{ nameAr: string }[]>`
+      SELECT DISTINCT "nameAr" FROM "service_categories"
+      WHERE "isActive" = true
+        AND lower(arabic_normalize("nameAr")) LIKE lower(arabic_normalize(${rawPrefix})) ESCAPE '!'
+      LIMIT ${limit}
+    `,
+  ]);
+
+  const merged = [
+    ...products.map(product => product.name),
+    ...stores.map(store => store.name),
+    ...productCategories.map(category => category.nameAr),
+    ...serviceCategories.map(category => category.nameAr),
+  ];
+  return Array.from(new Set(merged)).slice(0, limit);
+}
+
 export const searchRepository = {
   search: async (
     query: SearchQuery,
@@ -713,86 +755,48 @@ export const searchRepository = {
    * pass, see design discussion).
    */
   suggest: async (prefix: string, limit = 8): Promise<string[]> => {
-    // ILIKE treats %, _, and the escape character itself as pattern
-    // metacharacters — a user typing e.g. "50% off" or "a_b" as a
-    // literal search term would otherwise have those characters
-    // silently reinterpreted as wildcards, matching far more (or
-    // differently) than the literal prefix they typed. Escaping them
-    // makes ILIKE treat the whole prefix as literal text, only the
-    // trailing '%' this function itself appends stays a wildcard.
-    //
-    // '!' (not the SQL-conventional '\') is used as the ESCAPE
-    // character specifically so the JS string literal below doesn't
-    // need a second, easy-to-get-wrong layer of backslash-escaping on
-    // top of the SQL layer — '!' needs no JS escaping at all, and is
-    // vanishingly unlikely to appear in a product/store/category name
-    // (unlike '\', which some data could legitimately contain).
+    // The Go-owned materialized projection is an optional acceleration for
+    // autocomplete. The ordinary full-text search endpoint continues to use
+    // the existing GIN indexes on the source tables. Never make suggestions
+    // depend on Go availability: a missing/stale projection always falls back
+    // to the same live source queries that existed before this index.
     const escapedPrefix = prefix.replace(/[!%_]/g, char => `!${char}`);
-    // normalizes the prefix the same way the main
-    // search() path now does — otherwise suggestions and the results
-    // they lead to would disagree on which letter-shape variants count
-    // as a match (e.g. autocomplete matching أحمد but the resulting
-    // search for "أحمد" not finding a listing stored as "احمد", or vice
-    // versa). arabic_normalize() is applied inside SQL to BOTH the
-    // prefix parameter and the stored columns below, rather than
-    // duplicating the same folding logic as a second implementation in
-    // JS — one canonical definition (the Postgres function) that both
-    // this and search() call, so the two paths can never silently
-    // drift apart from each other.
-    //
-    // this used to be a plain ILIKE with no supporting
-    // index — arabic_normalize(column) was evaluated fresh on every row
-    // of every call (a full scan of products/store_details/*_categories
-    // per keystroke). Two changes together , matched exactly to
-    // the add_autocomplete_prefix_indexes migration's index definitions:
-    //   - ILIKE -> explicit lower(...) LIKE lower(...): the planner only
-    //     matches a text_pattern_ops btree index against the plain LIKE
-    //     (~~) operator, not ILIKE's case-insensitive (~~*) operator —
-    //     ILIKE would silently keep falling back to a sequential scan
-    //     even with the index in place.
-    //   - the "status"/"isActive" filters below must stay byte-for-byte
-    //     identical to each index's WHERE clause, since these are
-    //     partial indexes — the planner only uses a partial index when
-    //     it can prove the query's WHERE clause implies the index's.
     const rawPrefix = `${escapedPrefix}%`;
 
-    const [products, stores, productCategories, serviceCategories] = await Promise.all([
-      prisma.$queryRaw<{ name: string }[]>`
-        SELECT DISTINCT "name" FROM "products"
-        WHERE "status" = 'ACTIVE'
-          AND lower(arabic_normalize("name")) LIKE lower(arabic_normalize(${rawPrefix})) ESCAPE '!'
-        LIMIT ${limit}
-      `,
-      prisma.$queryRaw<{ name: string }[]>`
-        SELECT DISTINCT "name" FROM "store_details"
-        WHERE "status" = 'ACTIVE'
-          AND lower(arabic_normalize("name")) LIKE lower(arabic_normalize(${rawPrefix})) ESCAPE '!'
-        LIMIT ${limit}
-      `,
-      prisma.$queryRaw<{ nameAr: string }[]>`
-        SELECT DISTINCT "nameAr" FROM "product_categories"
-        WHERE "isActive" = true
-          AND lower(arabic_normalize("nameAr")) LIKE lower(arabic_normalize(${rawPrefix})) ESCAPE '!'
-        LIMIT ${limit}
-      `,
-      prisma.$queryRaw<{ nameAr: string }[]>`
-        SELECT DISTINCT "nameAr" FROM "service_categories"
-        WHERE "isActive" = true
-          AND lower(arabic_normalize("nameAr")) LIKE lower(arabic_normalize(${rawPrefix})) ESCAPE '!'
-        LIMIT ${limit}
-      `,
-    ]);
+    try {
+      // Probe the small state row first. Do not even reference the
+      // materialized view while it is stale/unpopulated: its initial
+      // non-CONCURRENTLY refresh takes an ACCESS EXCLUSIVE lock, and a
+      // query that references the view could otherwise block autocomplete
+      // despite the stale branch intending to fall back to live tables.
+      const [indexState] = await prisma.$queryRaw<{ is_fresh: boolean }[]>`
+        SELECT EXISTS (
+          SELECT 1
+          FROM "search_suggestion_index_state"
+          WHERE "singletonId" = 1
+            AND "refreshedAt" >= NOW() - INTERVAL '30 minutes'
+            AND "refreshedAt" <= NOW()
+        ) AS is_fresh
+      `;
 
-    const merged = [
-      ...products.map(p => p.name),
-      ...stores.map(s => s.name),
-      ...productCategories.map(c => c.nameAr),
-      ...serviceCategories.map(c => c.nameAr),
-    ];
+      if (indexState?.is_fresh === true) {
+        const indexed = await prisma.$queryRaw<{ display_value: string }[]>`
+          SELECT
+            "displayValue" AS display_value
+          FROM "search_suggestions_mv"
+          WHERE "normalizedValue" LIKE lower(arabic_normalize(${rawPrefix})) ESCAPE '!'
+          GROUP BY "displayValue"
+          ORDER BY MIN("sourcePriority"), "displayValue"
+          LIMIT ${limit}
+        `;
+        return Array.from(new Set(indexed.map(row => row.display_value))).slice(0, limit);
+      }
+    } catch {
+      // A not-yet-applied migration, a sleeping Go worker, or a failed index
+      // refresh must not make autocomplete unavailable. The live query path
+      // below remains the compatibility and recovery path.
+    }
 
-    // De-dupe (a product and a category can share a name) while
-    // preserving first-seen order, then cap to the requested limit —
-    // the four queries above can together return up to 4×limit rows.
-    return Array.from(new Set(merged)).slice(0, limit);
+    return searchSuggestionsLive(prefix, limit);
   },
 };

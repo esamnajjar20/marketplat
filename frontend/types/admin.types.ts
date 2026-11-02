@@ -391,6 +391,52 @@ export interface AdminGetFraudSignalsParams extends PaginationParams {
   reviewed?: boolean;
 }
 
+export interface FraudMonitorSample {
+  id: string;
+  [key: string]: unknown;
+}
+
+export interface FraudMonitorCheckResult {
+  code: string;
+  severity: 'critical' | 'warning' | 'info';
+  title: string;
+  description: string;
+  entityType: string;
+  count: number;
+  samples: FraudMonitorSample[];
+}
+
+export interface FraudMonitorScanReport {
+  mode: 'read_only';
+  scannedAt: string;
+  durationMillis: number;
+  checkCount: number;
+  findingCount: number;
+  bySeverity: { critical: number; warning: number; info: number };
+  checks: FraudMonitorCheckResult[];
+}
+
+export interface FraudMonitorHistoryRun {
+  id: string;
+  trigger: 'MANUAL' | 'SCHEDULED';
+  status: 'COMPLETED' | 'FAILED' | 'RUNNING';
+  executionPath: 'GO' | 'EXPRESS' | null;
+  startedAt: string;
+  completedAt: string | null;
+  durationMillis: number | null;
+  findingCount: number;
+  bySeverity: { critical: number; warning: number; info: number };
+  attempts: number;
+  failureCode: string | null;
+  checks: Array<{ code: string; severity: 'critical' | 'warning' | 'info'; count: number; sampleCount: number }>;
+}
+
+export interface FraudMonitorHistoryResponse {
+  retentionDays: number;
+  runs: FraudMonitorHistoryRun[];
+  changes: Array<{ code: string; latestCount: number; previousCount: number | null; delta: number | null }>;
+}
+
 export interface ManualFraudFlagPayload {
   reason:  string;
   userId?: string;

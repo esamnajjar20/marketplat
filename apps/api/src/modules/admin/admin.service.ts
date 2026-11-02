@@ -6,6 +6,8 @@ import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
+import { ServiceUnavailableError } from '../../shared/errors/ServiceUnavailableError';
+import { isDataIntegrityScanReport, type DataIntegrityScanReport } from './data-integrity.types';
 import { userCache } from '../../shared/utils/userCache';
 import { tokenStore } from '../../shared/utils/tokenStore';
 import { auditLog } from '../../shared/utils/auditLog';
@@ -22,6 +24,9 @@ import { logger } from '../../shared/utils/logger';
 
 /** كاش دقيقة لصفحة صحة النظام — يقلل PING على Upstash */
 let _systemHealthMem: { at: number; value: any } | null = null;
+
+/** Concurrent admin clicks share one read-only scan instead of multiplying DB load. */
+let _dataIntegrityScanInFlight: Promise<DataIntegrityScanReport> | null = null;
 
 /**
  * RFC 4180 CSV cell escaping + formula-injection guard.
@@ -50,6 +55,77 @@ function escapeCsvCell(value: unknown): string {
 }
 
 export const adminService = {
+  runDataIntegrityScan: async (): Promise<DataIntegrityScanReport> => {
+    if (_dataIntegrityScanInFlight) return _dataIntegrityScanInFlight;
+
+    const baseUrl = process.env.GO_WORKER_URL?.trim().replace(/\/+$/, '');
+    const token = process.env.GO_WORKER_TOKEN?.trim();
+    if (!baseUrl || !token) {
+      throw new ServiceUnavailableError(
+        'خدمة فحص سلامة البيانات في Go غير مهيأة حاليًا.',
+        'DATA_INTEGRITY_WORKER_UNAVAILABLE'
+      );
+    }
+
+    const scan = (async (): Promise<DataIntegrityScanReport> => {
+      let response: Response;
+      try {
+        response = await fetch(`${baseUrl}/internal/integrity/scan`, {
+          method: 'POST',
+          redirect: 'error',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: '{}',
+          signal: AbortSignal.timeout(27_000),
+        });
+      } catch (error) {
+        logger.warn('[data-integrity] Go worker unavailable for read-only scan', {
+          errorType: error instanceof Error ? error.name : 'unknown',
+        });
+        throw new ServiceUnavailableError(
+          'تعذّر الوصول إلى محرك فحص سلامة البيانات. لم يتم تغيير أي بيانات.',
+          'DATA_INTEGRITY_WORKER_UNAVAILABLE'
+        );
+      }
+
+      if (!response.ok) {
+        logger.warn('[data-integrity] Go worker rejected or could not complete scan', {
+          status: response.status,
+        });
+        throw new ServiceUnavailableError(
+          response.status === 503
+            ? 'محرك فحص سلامة البيانات غير متاح أو تجاوز مهلة الفحص.'
+            : 'تعذّر إكمال فحص سلامة البيانات. لم يتم تغيير أي بيانات.',
+          'DATA_INTEGRITY_SCAN_UNAVAILABLE'
+        );
+      }
+
+      let payload: unknown;
+      try {
+        payload = await response.json();
+      } catch {
+        payload = undefined;
+      }
+      if (!isDataIntegrityScanReport(payload)) {
+        logger.warn('[data-integrity] Go worker returned an invalid scan report');
+        throw new ServiceUnavailableError(
+          'استجابة محرك سلامة البيانات غير صالحة؛ لم يتم اعتماد نتائج الفحص.',
+          'DATA_INTEGRITY_INVALID_RESPONSE'
+        );
+      }
+      return payload;
+    })();
+
+    _dataIntegrityScanInFlight = scan;
+    try {
+      return await scan;
+    } finally {
+      if (_dataIntegrityScanInFlight === scan) _dataIntegrityScanInFlight = null;
+    }
+  },
   /**
    * previously the frontend's useAdminStats() computed this
    * by firing three separate paginated requests (limit=1 each) just to

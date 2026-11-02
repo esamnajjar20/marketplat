@@ -11,6 +11,8 @@ export const fraudRouter = Router();
 fraudRouter.use(authenticate, requireMinRole(ROLES.MODERATOR));
 
 fraudRouter.get('/ads', fraudController.getFlaggedAds);
+fraudRouter.post('/monitor/scan', fraudController.runMonitorScan);
+fraudRouter.get('/monitor/history', fraudController.getMonitorHistory);
 fraudRouter.patch('/ads/:adId/clear', fraudController.clearAdFlag);
 fraudRouter.post('/ads/:adId/flag', fraudController.manualFlag);
 

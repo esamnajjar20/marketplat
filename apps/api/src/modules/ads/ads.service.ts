@@ -9,10 +9,11 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { ROLES } from '../../shared/constants/roles';
-import { uploadImage, deleteImage } from '../../config/cloudinary';
+import { uploadImage } from '../../config/cloudinary';
 import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
+  deleteCloudinaryAsset,
 } from '../../shared/utils/cloudinaryHelpers';
 import { viewsBuffer } from '../../shared/utils/viewsBuffer';
 import { withAdImagesLock, withUserAdCreationLock } from '../../shared/utils/adLock';
@@ -961,7 +962,7 @@ description: ad.description, // FIX: Removed to reduce list payload size
 
       try {
         const publicId = extractCloudinaryPublicId(imageUrl);
-        if (publicId) await deleteImage(publicId);
+        if (publicId) await deleteCloudinaryAsset(publicId, 'image');
       } catch (err) {
         // AUDIT-FIX 2.4: same fix as products.service.ts/
         // service-listings.service.ts's mirrored removeImage — continuing

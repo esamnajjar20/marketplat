@@ -60,3 +60,38 @@ func TestCloudinaryDeleteRejectsUnconfiguredAndUnexpectedResult(t *testing.T) {
 		t.Fatal("test setup invalid")
 	}
 }
+
+func TestCloudinaryDeleteResourceUsesVideoAndRawEndpoints(t *testing.T) {
+	for _, resourceType := range []string{"video", "raw"} {
+		t.Run(resourceType, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/v1_1/demo-cloud/"+resourceType+"/destroy" {
+					t.Fatalf("unexpected resource destroy path: %s", r.URL.Path)
+				}
+				if err := r.ParseForm(); err != nil {
+					t.Fatal(err)
+				}
+				if r.Form.Get("public_id") != "classifieds/chat/asset-1" {
+					t.Fatalf("unexpected public ID: %q", r.Form.Get("public_id"))
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = w.Write([]byte(`{"result":"ok"}`))
+			}))
+			defer server.Close()
+
+			client := NewClient("demo-cloud", "api-key", "api-secret")
+			client.baseURL = server.URL + "/v1_1/"
+			client.http = server.Client()
+			if err := client.DeleteResource(context.Background(), "classifieds/chat/asset-1", resourceType); err != nil {
+				t.Fatalf("DeleteResource(%s): %v", resourceType, err)
+			}
+		})
+	}
+}
+
+func TestCloudinaryDeleteResourceRejectsUnknownResourceType(t *testing.T) {
+	client := NewClient("demo-cloud", "api-key", "api-secret")
+	if err := client.DeleteResource(context.Background(), "asset", "unknown"); err == nil {
+		t.Fatal("expected unsupported resource type error")
+	}
+}

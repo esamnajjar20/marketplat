@@ -1,5 +1,5 @@
-import { uploadImage, deleteImage } from '../../config/cloudinary';
-import { extractCloudinaryPublicId, cleanupUploadedImages } from './cloudinaryHelpers';
+import { uploadImage } from '../../config/cloudinary';
+import { extractCloudinaryPublicId, cleanupUploadedImages, deleteCloudinaryAsset } from './cloudinaryHelpers';
 import { NotFoundError } from '../errors/NotFoundError';
 import { ForbiddenError } from '../errors/ForbiddenError';
 import { BadRequestError } from '../errors/BadRequestError';
@@ -210,7 +210,7 @@ export function createEntityImageOperations<TEntity extends ImageOwningEntity>(
 
         try {
           const publicId = extractCloudinaryPublicId(imageUrl);
-          if (publicId) await deleteImage(publicId);
+          if (publicId) await deleteCloudinaryAsset(publicId, 'image');
         } catch (err) {
           // continuing on a failed Cloudinary delete is
           // the right call (removing the image from the entity record

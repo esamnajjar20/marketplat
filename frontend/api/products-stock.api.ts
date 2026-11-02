@@ -10,6 +10,11 @@ export interface StockSummary {
   limited: number;
   outOfStock: number;
   totalUnits: number;
+  lowStockTrackedProducts: number;
+  zeroStockTrackedProducts: number;
+  negativeStockProducts: number;
+  availabilityMismatchProducts: number;
+  movementMismatchProducts: number;
 }
 
 export interface StockMovement {

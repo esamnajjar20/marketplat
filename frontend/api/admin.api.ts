@@ -45,6 +45,8 @@ import type {
   BulkActionMeta,
   FlaggedAd,
   FraudSignal,
+  FraudMonitorScanReport,
+  FraudMonitorHistoryResponse,
   AdminGetFlaggedAdsParams,
   AdminGetFraudSignalsParams,
   ManualFraudFlagPayload,
@@ -108,6 +110,31 @@ export interface AdminMonitoringSample {
   averageDurationMs: number;
   rssBytes: number;
   heapUsedBytes: number;
+}
+
+export interface AdminDataIntegritySample {
+  id: string;
+  [key: string]: unknown;
+}
+
+export interface AdminDataIntegrityCheck {
+  code: string;
+  severity: 'critical' | 'warning' | 'info';
+  title: string;
+  description: string;
+  entityType: string;
+  count: number;
+  samples: AdminDataIntegritySample[];
+}
+
+export interface AdminDataIntegrityReport {
+  mode: 'read_only';
+  scannedAt: string;
+  durationMillis: number;
+  checkCount: number;
+  findingCount: number;
+  bySeverity: { critical: number; warning: number; info: number };
+  checks: AdminDataIntegrityCheck[];
 }
 
 export interface AdminSystemHealthResponse {
@@ -204,6 +231,8 @@ export const adminApi = {
   // FIX ADMIN-API-TYPING-01: type defined above (AdminSystemHealthResponse).
   getSystemHealth: () =>
     apiClient.get<ApiResponse<AdminSystemHealthResponse>>('/admin/system-health'),
+  scanDataIntegrity: () =>
+    apiClient.post<ApiResponse<AdminDataIntegrityReport>>('/admin/data-integrity/scan', {}, { timeout: 30_000 }),
 
   getDeveloperToolsSetting: () =>
     apiClient.get<ApiResponse<DeveloperToolsSetting>>('/admin/developer-tools/setting'),
@@ -437,6 +466,12 @@ export const adminApi = {
   // wired server-side with no frontend caller at all — riskScore and
   // flaggedForReview were computed and persisted on every ad with no
   // reachable screen to review them from.
+
+  runFraudMonitorScan: () =>
+    apiClient.post<ApiResponse<FraudMonitorScanReport>>('/admin/fraud/monitor/scan', {}).then((r) => r.data.data),
+
+  getFraudMonitorHistory: () =>
+    apiClient.get<ApiResponse<FraudMonitorHistoryResponse>>('/admin/fraud/monitor/history').then((r) => r.data.data),
 
   getFlaggedAds: (params?: AdminGetFlaggedAdsParams) =>
     apiClient

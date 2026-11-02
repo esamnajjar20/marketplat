@@ -1,7 +1,6 @@
 import { sendApiError } from '../../shared/errors/errorResponse';
 import { ErrorCode } from '../../shared/errors/errorCodes';
 
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { Request, Response, NextFunction } from 'express';
 import { conversationsService } from './conversations.service';
 import {
@@ -18,8 +17,8 @@ import {
 } from './conversations.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
-import { uploadRawFile, deleteMedia } from '../../config/cloudinary';
-import { extractCloudinaryPublicId } from '../../shared/utils/cloudinaryHelpers';
+import { uploadAudio, uploadImage, uploadRawFile } from '../../config/cloudinary';
+import { deleteCloudinaryAsset } from '../../shared/utils/cloudinaryHelpers';
 
 export const conversationsController = {
   startConversation: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -266,12 +265,6 @@ export const conversationsController = {
         sendApiError(req, res, 400, ErrorCode.IMAGE_REQUIRED, 'Image required');
         return;
       }
-      // Static import — a dynamic import inside a hot path served no
-      // purpose (this module is already loaded by the time any
-      // handler runs), and its await inside the try block only
-      // obscured the exact call ordering.
-      const { uploadImage, deleteImage } = await import('../../config/cloudinary');
-      const { extractCloudinaryPublicId } = await import('../../shared/utils/cloudinaryHelpers');
       const uploaded = await uploadImage(file.buffer, 'chat');
       const caption = typeof req.body?.body === 'string' ? req.body.body : undefined;
 
@@ -290,14 +283,7 @@ export const conversationsController = {
         // If PostgreSQL returned an older message, discard this newly uploaded
         // asset instead of leaving an orphan in Cloudinary.
         if (message.imageUrl !== uploaded.url) {
-          const publicId = extractCloudinaryPublicId(uploaded.url);
-          if (publicId)
-            deleteImage(publicId).catch(error =>
-              reportBackgroundFailure(
-                'apps/api/src/modules/conversations/conversations.controller.ts',
-                error
-              )
-            );
+          await deleteCloudinaryAsset(uploaded.publicId, 'image');
         }
         res.status(201).json(successResponse('Message sent', message));
       } catch (err) {
@@ -305,15 +291,7 @@ export const conversationsController = {
         // orphaned Cloudinary asset when message creation fails.
         // error is what the client should see, so a cleanup failure
         // is logged rather than propagated.
-        const publicId = extractCloudinaryPublicId(uploaded.url);
-        if (publicId) {
-          deleteImage(publicId).catch(error =>
-            reportBackgroundFailure(
-              'apps/api/src/modules/conversations/conversations.controller.ts',
-              error
-            )
-          );
-        }
+        await deleteCloudinaryAsset(uploaded.publicId, 'image');
         throw err;
       }
     } catch (error) {
@@ -348,25 +326,11 @@ export const conversationsController = {
           offlineOperationId
         );
         if (message.fileUrl !== uploaded.url) {
-          const publicId = extractCloudinaryPublicId(uploaded.url);
-          if (publicId)
-            deleteMedia(publicId, 'raw').catch(error =>
-              reportBackgroundFailure(
-                'apps/api/src/modules/conversations/conversations.controller.ts',
-                error
-              )
-            );
+          await deleteCloudinaryAsset(uploaded.publicId, 'raw');
         }
         res.status(201).json(successResponse('File message sent', message));
       } catch (err) {
-        const publicId = extractCloudinaryPublicId(uploaded.url);
-        if (publicId)
-          deleteMedia(publicId, 'raw').catch(error =>
-            reportBackgroundFailure(
-              'apps/api/src/modules/conversations/conversations.controller.ts',
-              error
-            )
-          );
+        await deleteCloudinaryAsset(uploaded.publicId, 'raw');
         throw err;
       }
     } catch (error) {
@@ -383,7 +347,6 @@ export const conversationsController = {
         sendApiError(req, res, 400, ErrorCode.NO_FILE_ATTACHED, 'Audio required');
         return;
       }
-      const { uploadAudio, deleteMedia } = await import('../../config/cloudinary');
       const uploaded = await uploadAudio(file.buffer, 'chat');
       try {
         const offlineOperationId = (req.headers['x-offline-op-id'] as string | undefined) || null;
@@ -397,23 +360,13 @@ export const conversationsController = {
           offlineOperationId
         );
         if (message.audioUrl !== uploaded.url && uploaded.publicId) {
-          deleteMedia(uploaded.publicId, 'video').catch(error =>
-            reportBackgroundFailure(
-              'apps/api/src/modules/conversations/conversations.controller.ts',
-              error
-            )
-          );
+          await deleteCloudinaryAsset(uploaded.publicId, 'video');
         }
         res.status(201).json(successResponse('Voice message sent', message));
       } catch (err) {
         const publicId = uploaded.publicId;
         if (publicId)
-          deleteMedia(publicId, 'video').catch(error =>
-            reportBackgroundFailure(
-              'apps/api/src/modules/conversations/conversations.controller.ts',
-              error
-            )
-          );
+          await deleteCloudinaryAsset(publicId, 'video');
         throw err;
       }
     } catch (error) {

@@ -257,8 +257,7 @@ func processSavedSearchMatch(ctx context.Context, tx *sql.Tx, event eventRow) ([
 		), eligible AS (
 			SELECT m."userId", m."savedSearchId", m."label"
 			FROM matches m INNER JOIN "users" u ON u."id" = m."userId"
-			WHERE m."userId" <> $2
-			  AND COALESCE((u."notificationPreferences" ->> 'savedSearch')::boolean, TRUE) = TRUE
+			WHERE COALESCE((u."notificationPreferences" ->> 'savedSearch')::boolean, TRUE) = TRUE
 		), inserted AS (
 			INSERT INTO "notifications" ("id", "idempotencyKey", "userId", "type", "title", "body", "data", "createdAt")
 			SELECT 'go_' || md5(random()::text || clock_timestamp()::text || e."userId" || e."savedSearchId"),

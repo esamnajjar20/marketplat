@@ -2,6 +2,8 @@ import { runChildJob } from './childJobRunner';
 import { prisma } from '../config/prisma';
 import { scheduledDate, type ScheduledJobDefinition } from './scheduledJobDates';
 
+// Express implementation retained as the fallback when the Go scheduler is
+// unavailable. Keep this definition synchronized with apps/go-worker/internal/scheduler.
 const TIME_ZONE = 'Asia/Gaza';
 
 const JOBS: ScheduledJobDefinition[] = [
@@ -12,6 +14,10 @@ const JOBS: ScheduledJobDefinition[] = [
   { name: 'report:cleanup-failed-tasks', hour: 3, minute: 30 },
   { name: 'report:cleanup-notifications', hour: 3, minute: 30, weekdays: [0] },
   { name: 'report:cleanup-stories', hour: 3, minute: 40 },
+  { name: 'report:cleanup-media-assets', hour: 3, minute: 50 },
+  { name: 'report:analytics-rollup', hour: 3, minute: 42 },
+  { name: 'report:inventory-monitor', hour: 7, minute: 15 },
+  { name: 'report:fraud-monitor', hour: 7, minute: 45 },
   { name: 'report:expire-service-requests', hour: 3, minute: 45 },
   { name: 'report:cleanup-analytics', hour: 3, minute: 45 },
   { name: 'report:demote-stale-boosts', hour: 4, minute: 0, weekdays: [0] },
@@ -129,7 +135,7 @@ async function main(): Promise<void> {
     }
 
     try {
-      await runChildJob(job.name);
+      await runChildJob(job.name, scheduledFor);
       await markScheduledJobCompleted(job.name, scheduledFor);
     } catch (error) {
       failures.push(`${job.name}: ${error instanceof Error ? error.message : String(error)}`);

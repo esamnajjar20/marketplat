@@ -6,6 +6,8 @@ type RequestJsonWithFallbackOptions<TResult> = {
   body: Record<string, unknown>;
   validateResult: (value: unknown) => value is TResult;
   runExpressFallback: () => Promise<TResult>;
+  onGoSuccess?: (result: TResult) => void;
+  onExpressFallbackSuccess?: (result: TResult) => void;
   timeoutMs?: number;
 };
 
@@ -44,6 +46,7 @@ export async function requestJsonWithGoFallback<TResult>(
         }
         if (options.validateResult(result)) {
           logger.info(`[${options.jobName}] Go worker completed read workload`);
+          options.onGoSuccess?.(result);
           return result;
         }
         logger.warn(`[${options.jobName}] Go worker returned an invalid response; using Express fallback`);
@@ -61,5 +64,7 @@ export async function requestJsonWithGoFallback<TResult>(
     logger.info(`[${options.jobName}] Go worker is not configured; using Express fallback`);
   }
 
-  return options.runExpressFallback();
+  const fallbackResult = await options.runExpressFallback();
+  options.onExpressFallbackSuccess?.(fallbackResult);
+  return fallbackResult;
 }

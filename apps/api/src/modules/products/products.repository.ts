@@ -6,6 +6,21 @@ import { GetProductsQuery } from './products.validation';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 
+export type StockSummary = {
+  totalProducts: number;
+  trackedProducts: number;
+  untrackedProducts: number;
+  inStock: number;
+  limited: number;
+  outOfStock: number;
+  totalUnits: number;
+  lowStockTrackedProducts: number;
+  zeroStockTrackedProducts: number;
+  negativeStockProducts: number;
+  availabilityMismatchProducts: number;
+  movementMismatchProducts: number;
+};
+
 export type ProductWithStore = Prisma.ProductGetPayload<{
   include: {
     store: {
@@ -273,28 +288,54 @@ export const productsRepository = {
       return updated;
     }),
 
-  getStockSummary: async (storeId: string) => {
-    // Keep all inventory counters on one database round-trip. The ACTIVE
-    // enum literal is intentionally static; storeId remains parameterized.
-    const [summary] = await prisma.$queryRaw<
-      Array<{
-        totalProducts: bigint;
-        trackedProducts: bigint;
-        inStock: bigint;
-        limited: bigint;
-        outOfStock: bigint;
-        totalUnits: bigint | number | null;
-      }>
-    >`
+  getStockSummary: async (storeId: string): Promise<StockSummary> => {
+    // Keep the stock totals and diagnostic counters on one database snapshot.
+    // A movement mismatch is reported only when a movement exists; products
+    // predating the movement ledger are not falsely marked as corrupt.
+    const [summary] = await prisma.$queryRaw<Array<{
+      totalProducts: bigint;
+      trackedProducts: bigint;
+      inStock: bigint;
+      limited: bigint;
+      outOfStock: bigint;
+      totalUnits: bigint;
+      lowStockTrackedProducts: bigint;
+      zeroStockTrackedProducts: bigint;
+      negativeStockProducts: bigint;
+      availabilityMismatchProducts: bigint;
+      movementMismatchProducts: bigint;
+    }>>`
+      WITH scoped_products AS MATERIALIZED (
+        SELECT p."id", p."stockQuantity", p."availability"
+        FROM "products" p
+        WHERE p."storeId" = ${storeId} AND p."status" = 'ACTIVE'
+      ), latest_movements AS (
+        SELECT DISTINCT ON (movement."productId")
+          movement."productId", movement."newQuantity"
+        FROM "stock_movements" movement
+        INNER JOIN scoped_products product ON product."id" = movement."productId"
+        ORDER BY movement."productId", movement."createdAt" DESC, movement."id" DESC
+      )
       SELECT
         COUNT(*) AS "totalProducts",
-        COUNT(*) FILTER (WHERE "stockQuantity" IS NOT NULL) AS "trackedProducts",
-        COUNT(*) FILTER (WHERE "availability" = 'IN_STOCK') AS "inStock",
-        COUNT(*) FILTER (WHERE "availability" = 'LIMITED') AS "limited",
-        COUNT(*) FILTER (WHERE "availability" = 'OUT_OF_STOCK') AS "outOfStock",
-        COALESCE(SUM("stockQuantity"), 0) AS "totalUnits"
-      FROM "products"
-      WHERE "storeId" = ${storeId} AND "status" = 'ACTIVE'
+        COUNT(*) FILTER (WHERE product."stockQuantity" IS NOT NULL) AS "trackedProducts",
+        COUNT(*) FILTER (WHERE product."availability" = 'IN_STOCK') AS "inStock",
+        COUNT(*) FILTER (WHERE product."availability" = 'LIMITED') AS "limited",
+        COUNT(*) FILTER (WHERE product."availability" = 'OUT_OF_STOCK') AS "outOfStock",
+        COALESCE(SUM(product."stockQuantity"), 0) AS "totalUnits",
+        COUNT(*) FILTER (WHERE product."stockQuantity" BETWEEN 1 AND 5) AS "lowStockTrackedProducts",
+        COUNT(*) FILTER (WHERE product."stockQuantity" = 0) AS "zeroStockTrackedProducts",
+        COUNT(*) FILTER (WHERE product."stockQuantity" < 0) AS "negativeStockProducts",
+        COUNT(*) FILTER (WHERE product."stockQuantity" IS NOT NULL AND (
+          (product."stockQuantity" <= 0 AND product."availability" <> 'OUT_OF_STOCK') OR
+          (product."stockQuantity" BETWEEN 1 AND 5 AND product."availability" <> 'LIMITED') OR
+          (product."stockQuantity" > 5 AND product."availability" <> 'IN_STOCK')
+        )) AS "availabilityMismatchProducts",
+        COUNT(*) FILTER (WHERE product."stockQuantity" IS NOT NULL
+          AND latest."productId" IS NOT NULL
+          AND product."stockQuantity" IS DISTINCT FROM latest."newQuantity") AS "movementMismatchProducts"
+      FROM scoped_products product
+      LEFT JOIN latest_movements latest ON latest."productId" = product."id"
     `;
 
     const totalProducts = Number(summary?.totalProducts ?? 0n);
@@ -306,7 +347,12 @@ export const productsRepository = {
       inStock: Number(summary?.inStock ?? 0n),
       limited: Number(summary?.limited ?? 0n),
       outOfStock: Number(summary?.outOfStock ?? 0n),
-      totalUnits: Number(summary?.totalUnits ?? 0),
+      totalUnits: Number(summary?.totalUnits ?? 0n),
+      lowStockTrackedProducts: Number(summary?.lowStockTrackedProducts ?? 0n),
+      zeroStockTrackedProducts: Number(summary?.zeroStockTrackedProducts ?? 0n),
+      negativeStockProducts: Number(summary?.negativeStockProducts ?? 0n),
+      availabilityMismatchProducts: Number(summary?.availabilityMismatchProducts ?? 0n),
+      movementMismatchProducts: Number(summary?.movementMismatchProducts ?? 0n),
     };
   },
 

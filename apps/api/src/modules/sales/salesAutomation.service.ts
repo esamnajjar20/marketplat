@@ -1,4 +1,7 @@
+import { randomUUID } from 'node:crypto';
 import { prisma } from '../../config/prisma';
+import { notificationsService } from '../notifications/notifications.service';
+import { publishDurableNotifications } from '../../shared/go-worker/publishDurableNotifications';
 import { Prisma, NotificationType, SalesAutomationEventType } from '@prisma/client';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -14,26 +17,28 @@ type Alert = {
   cooldownMs: number;
 };
 
-async function notifyOnce(userId: string, alert: Alert) {
-  const existing = await prisma.salesAutomationEvent.findUnique({
-    where: {
-      userId_type_fingerprint: { userId, type: alert.type, fingerprint: alert.fingerprint },
-    },
-  });
-  if (existing && Date.now() - existing.lastSentAt.getTime() < alert.cooldownMs) return false;
-
-  await prisma.$transaction(async tx => {
-    if (existing) {
-      await tx.salesAutomationEvent.update({
-        where: { id: existing.id },
-        data: { lastSentAt: new Date(), sendCount: { increment: 1 } },
-      });
-    } else {
-      await tx.salesAutomationEvent.create({
-        data: { userId, type: alert.type, fingerprint: alert.fingerprint },
-      });
-    }
-    await tx.notification.create({
+async function notifyOnce(userId: string, alert: Alert): Promise<boolean> {
+  const cutoff = new Date(Date.now() - alert.cooldownMs);
+  const result = await prisma.$transaction(async tx => {
+    // Claim the logical alert atomically. The same unique key/cooldown is used
+    // by Go's scheduled inventory monitor, so manual and scheduled sweeps can
+    // safely race without duplicate notifications or unique-constraint errors.
+    const claimed = await tx.$queryRaw<Array<{ id: string }>>`
+      INSERT INTO "sales_automation_events"
+        ("id", "userId", "type", "fingerprint", "lastSentAt", "sendCount", "createdAt", "updatedAt")
+      VALUES (
+        ${randomUUID()}, ${userId}, ${alert.type}::"SalesAutomationEventType",
+        ${alert.fingerprint}, NOW(), 1, NOW(), NOW()
+      )
+      ON CONFLICT ("userId", "type", "fingerprint") DO UPDATE
+      SET "lastSentAt" = NOW(),
+          "sendCount" = "sales_automation_events"."sendCount" + 1,
+          "updatedAt" = NOW()
+      WHERE "sales_automation_events"."lastSentAt" <= ${cutoff}
+      RETURNING "id"
+    `;
+    if (claimed.length === 0) return { sent: false, notificationId: null as string | null };
+    const notification = await tx.notification.create({
       data: {
         userId,
         type: alert.notificationType,
@@ -41,9 +46,31 @@ async function notifyOnce(userId: string, alert: Alert) {
         body: alert.body.slice(0, 500),
         data: alert.data,
       },
+      select: { id: true },
     });
+    if (alert.type === 'LOW_STOCK') {
+      const payload = {
+        title: alert.title,
+        body: alert.body.slice(0, 500),
+        url: '/my-store?tab=inventory',
+        tag: `sales-low-stock:${notification.id}`,
+        type: alert.notificationType,
+      };
+      await tx.notificationPushDispatch.create({
+        data: {
+          notificationId: notification.id,
+          userId,
+          payload,
+          idempotencyKey: `push:${notification.id}`,
+        },
+      });
+    }
+    return { sent: true, notificationId: notification.id };
   });
-  return true;
+  if (result.notificationId) {
+    await publishDurableNotifications(prisma, [result.notificationId], 'sales-automation');
+  }
+  return result.sent;
 }
 
 export const salesAutomationService = {
@@ -51,18 +78,24 @@ export const salesAutomationService = {
     const now = new Date();
     const soon = new Date(now.getTime() + 3 * DAY);
     const inactiveBefore = new Date(now.getTime() - 60 * DAY);
+    const lowStockAlertsAllowed = await notificationsService.userAllowsPreference(userId, 'lowStockAlerts');
     const [lowStock, overdueSales, upcomingInstallments, inactiveCustomers, monthSummary] =
       await Promise.all([
-        prisma.product.findMany({
-          where: {
-            status: { not: 'DELETED' },
-            stockQuantity: { lte: 5 },
-            store: { sellerProfile: { userId } },
-          },
-          select: { id: true, name: true, stockQuantity: true },
-          orderBy: { stockQuantity: 'asc' },
-          take: 25,
-        }),
+        lowStockAlertsAllowed
+          ? prisma.product.findMany({
+              where: {
+                status: 'ACTIVE',
+                stockQuantity: { lte: 5 },
+                store: {
+                  status: 'ACTIVE',
+                  sellerProfile: { userId, suspended: false, user: { isActive: true } },
+                },
+              },
+              select: { id: true, name: true, stockQuantity: true },
+              orderBy: { stockQuantity: 'asc' },
+              take: 25,
+            })
+          : Promise.resolve([] as Array<{ id: string; name: string; stockQuantity: number | null }>),
         prisma.saleRecord.findMany({
           where: {
             sellerId: userId,
@@ -119,7 +152,7 @@ export const salesAutomationService = {
         type: 'LOW_STOCK',
         notificationType: 'SALES_LOW_STOCK',
         fingerprint: product.id,
-        title: product.stockQuantity === 0 ? 'منتج نفد من المخزون' : 'مخزون منخفض',
+        title: (product.stockQuantity ?? 0) <= 0 ? 'منتج نفد من المخزون' : 'مخزون منخفض',
         body: `${product.name}: المتبقي ${product.stockQuantity ?? 0} وحدة.`,
         data: { productId: product.id, stockQuantity: product.stockQuantity },
         cooldownMs: DAY,

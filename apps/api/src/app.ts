@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import { timingSafeEqual } from 'node:crypto';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import compression from 'compression';
@@ -20,6 +21,14 @@ import { getCachedReadiness } from './shared/utils/healthCache';
 import { metricsMiddleware, metricsHandler } from './shared/utils/metrics';
 import { passport } from './modules/auth/google.strategy';
 import { ForbiddenError } from './shared/errors/ForbiddenError';
+import { getProductionScheduledJobScript, runProductionScheduledJob } from './scripts/childJobRunner';
+import { unreadNotificationsCache } from './shared/utils/unreadNotificationsCache';
+import { publishNotificationEventsToMany } from './shared/utils/notificationStream';
+import { pushService } from './shared/utils/pushService';
+import { fcmPushService } from './shared/utils/fcmPushService';
+import { fcmDeviceTokensRepository } from './shared/utils/fcmDeviceTokensRepository';
+import { prisma } from './config/prisma';
+import { publishDurableNotifications } from './shared/go-worker/publishDurableNotifications';
 
 const app = express();
 
@@ -248,6 +257,340 @@ app.use('/api', globalRateLimit);
 // Multipart (images) is handled separately by multer with its own limits
 app.use(express.json({ limit: '50kb' }));
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
+
+// Internal adapter called only by the Go-owned scheduler. It accepts an
+// allowlisted script name, never an arbitrary command/path, and executes the
+// compiled production script so its existing Go-first/Express-fallback and
+// post-commit hooks remain unchanged.
+app.post('/internal/go-worker/run-scheduled-job', async (req: Request, res: Response) => {
+  const expectedToken = process.env.GO_WORKER_TOKEN?.trim() ?? '';
+  const authorization = req.get('authorization') ?? '';
+  const suppliedToken = authorization.startsWith('Bearer ')
+    ? authorization.slice(7).trim()
+    : '';
+  const expected = Buffer.from(expectedToken);
+  const supplied = Buffer.from(suppliedToken);
+  const authorized =
+    expected.length > 0 &&
+    expected.length === supplied.length &&
+    timingSafeEqual(expected, supplied);
+
+  res.setHeader('Cache-Control', 'no-store');
+  if (!authorized) {
+    res.status(expectedToken ? 401 : 503).json({
+      error: expectedToken ? 'unauthorized' : 'internal worker token is not configured',
+    });
+    return;
+  }
+
+  const body = req.body as { jobName?: unknown; scheduledFor?: unknown } | undefined;
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    Array.isArray(body) ||
+    Object.keys(body).some(key => key !== 'jobName' && key !== 'scheduledFor') ||
+    typeof body.jobName !== 'string' ||
+    !getProductionScheduledJobScript(body.jobName) ||
+    typeof body.scheduledFor !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(body.scheduledFor) ||
+    Number.isNaN(Date.parse(`${body.scheduledFor}T00:00:00.000Z`)) ||
+    new Date(`${body.scheduledFor}T00:00:00.000Z`).toISOString().slice(0, 10) !== body.scheduledFor
+  ) {
+    res.status(400).json({ error: 'invalid scheduled job request' });
+    return;
+  }
+
+  const jobName = body.jobName;
+  const scheduledFor = body.scheduledFor;
+  const controller = new AbortController();
+  const abortOnDisconnect = () => {
+    if (!res.writableEnded) controller.abort();
+  };
+  req.once('aborted', abortOnDisconnect);
+  res.once('close', abortOnDisconnect);
+
+  try {
+    await runProductionScheduledJob(jobName, scheduledFor, controller.signal);
+    if (!res.headersSent && !res.destroyed) {
+      res.status(200).json({ jobName, scheduledFor, status: 'completed' });
+    }
+  } catch (error) {
+    logger.error('Go-owned scheduled job adapter failed', {
+      jobName,
+      scheduledFor,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    if (!res.headersSent && !res.destroyed) res.status(500).json({ error: 'scheduled job failed' });
+  } finally {
+    req.off('aborted', abortOnDisconnect);
+    res.off('close', abortOnDisconnect);
+  }
+});
+
+// Internal post-commit adapter used when Go owns Outbox processing. Database
+// rows and push-dispatch intents have already committed in Go; Express retains
+// Redis unread-cache invalidation and SSE/pub-sub because those publishers are
+// process-aware and already coordinate API instances through Redis.
+app.post('/internal/go-worker/publish-outbox-notifications', async (req: Request, res: Response) => {
+  const expectedToken = process.env.GO_WORKER_TOKEN?.trim() ?? '';
+  const authorization = req.get('authorization') ?? '';
+  const suppliedToken = authorization.startsWith('Bearer ')
+    ? authorization.slice(7).trim()
+    : '';
+  const expected = Buffer.from(expectedToken);
+  const supplied = Buffer.from(suppliedToken);
+  const authorized = expected.length > 0 && expected.length === supplied.length && timingSafeEqual(expected, supplied);
+  res.setHeader('Cache-Control', 'no-store');
+  if (!authorized) {
+    res.status(expectedToken ? 401 : 503).json({
+      error: expectedToken ? 'unauthorized' : 'internal worker token is not configured',
+    });
+    return;
+  }
+
+  const body = req.body as { eventId?: unknown; notifications?: unknown } | undefined;
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+  if (
+    !isRecord(body) ||
+    Object.keys(body).some(key => key !== 'eventId' && key !== 'notifications') ||
+    typeof body.eventId !== 'string' ||
+    body.eventId.length < 1 ||
+    body.eventId.length > 128 ||
+    !Array.isArray(body.notifications) ||
+    body.notifications.length < 1 ||
+    body.notifications.length > 50
+  ) {
+    res.status(400).json({ error: 'invalid outbox notification callback' });
+    return;
+  }
+
+  const notifications: Array<{
+    id: string;
+    userId: string;
+    type: string;
+    title: string;
+    body: string;
+    data: Record<string, unknown> | null;
+  }> = [];
+  const notificationIds = new Set<string>();
+  for (const value of body.notifications) {
+    if (
+      !isRecord(value) ||
+      Object.keys(value).some(key => !['id', 'userId', 'type', 'title', 'body', 'data'].includes(key)) ||
+      typeof value.id !== 'string' || value.id.length < 1 || value.id.length > 128 ||
+      typeof value.userId !== 'string' || value.userId.length < 1 || value.userId.length > 128 ||
+      typeof value.type !== 'string' || value.type.length < 1 || value.type.length > 80 ||
+      typeof value.title !== 'string' || value.title.length > 500 ||
+      typeof value.body !== 'string' || value.body.length > 2_000 ||
+      !(value.data === null || value.data === undefined || isRecord(value.data)) ||
+      notificationIds.has(value.id)
+    ) {
+      res.status(400).json({ error: 'invalid outbox notification item' });
+      return;
+    }
+    notificationIds.add(value.id);
+    notifications.push({
+      id: value.id,
+      userId: value.userId,
+      type: value.type,
+      title: value.title,
+      body: value.body,
+      data: value.data === null || value.data === undefined ? null : value.data,
+    });
+  }
+
+  const eventId = body.eventId;
+  const recipientIds = Array.from(new Set(notifications.map(item => item.userId)));
+  const invalidations = await Promise.allSettled(
+    recipientIds.map(userId => unreadNotificationsCache.invalidate(userId))
+  );
+  const invalidationFailures = invalidations.filter(result => result.status === 'rejected').length;
+  if (invalidationFailures > 0) {
+    logger.warn('Go outbox callback unread-cache invalidation partially failed', {
+      eventId,
+      recipients: recipientIds.length,
+      failures: invalidationFailures,
+    });
+  }
+
+  try {
+    await publishNotificationEventsToMany(notifications.map(item => ({
+      userId: item.userId,
+      event: {
+        type: 'notification' as const,
+        action: 'created' as const,
+        notificationId: item.id,
+        notificationType: item.type,
+        title: item.title,
+        body: item.body,
+        data: item.data,
+      },
+    })));
+    res.status(200).json({ eventId, published: notifications.length });
+  } catch (error) {
+    logger.warn('Go outbox callback SSE publish failed after durable commit', { eventId, error });
+    res.status(202).json({ eventId, published: 0, durable: true });
+  }
+});
+
+// Post-commit read-side fan-out for durable notifications created directly
+// by Go jobs. The notification and push-dispatch rows are already committed;
+// this endpoint only invalidates unread-count caches and publishes SSE events.
+app.post('/internal/go-worker/publish-durable-notifications', async (req: Request, res: Response) => {
+  const expectedToken = process.env.GO_WORKER_TOKEN?.trim() ?? '';
+  const authorization = req.get('authorization') ?? '';
+  const suppliedToken = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+  const expected = Buffer.from(expectedToken);
+  const supplied = Buffer.from(suppliedToken);
+  const authorized = expected.length > 0 && expected.length === supplied.length && timingSafeEqual(expected, supplied);
+  res.setHeader('Cache-Control', 'no-store');
+  if (!authorized) {
+    res.status(expectedToken ? 401 : 503).json({
+      error: expectedToken ? 'unauthorized' : 'internal worker token is not configured',
+    });
+    return;
+  }
+
+  const body = req.body as { notificationIds?: unknown } | undefined;
+  if (
+    !body || typeof body !== 'object' || Array.isArray(body) ||
+    Object.keys(body).some(key => key !== 'notificationIds') ||
+    !Array.isArray(body.notificationIds) || body.notificationIds.length > 500
+  ) {
+    res.status(400).json({ error: 'invalid durable notification callback' });
+    return;
+  }
+  const notificationIds: string[] = [];
+  const seen = new Set<string>();
+  for (const id of body.notificationIds) {
+    if (typeof id !== 'string' || id.length < 1 || id.length > 128 || seen.has(id)) {
+      res.status(400).json({ error: 'invalid durable notification ID' });
+      return;
+    }
+    seen.add(id);
+    notificationIds.push(id);
+  }
+  await publishDurableNotifications(prisma, notificationIds, 'inventory-monitor');
+  res.status(200).json({ accepted: notificationIds.length });
+});
+
+// Readiness probe for the authenticated Go push worker. This confirms that
+// the API's narrow provider adapter is deployed before Go is allowed to pause
+// the Express fallback consumer.
+app.get('/internal/go-worker/push-adapter/health', (req: Request, res: Response) => {
+  const expectedToken = process.env.GO_WORKER_TOKEN?.trim() ?? '';
+  const authorization = req.get('authorization') ?? '';
+  const suppliedToken = authorization.startsWith('Bearer ')
+    ? authorization.slice(7).trim()
+    : '';
+  const expected = Buffer.from(expectedToken);
+  const supplied = Buffer.from(suppliedToken);
+  const authorized = expected.length > 0 && expected.length === supplied.length && timingSafeEqual(expected, supplied);
+  res.setHeader('Cache-Control', 'no-store');
+  if (!authorized) {
+    res.status(expectedToken ? 401 : 503).json({ ready: false });
+    return;
+  }
+  res.status(200).json({ ready: true });
+});
+
+// Internal per-target provider adapter used by the Go-owned durable push
+// dispatcher. Go owns claims, target leases, retry timing and delivery ledger;
+// Express retains the existing Web Push cryptography/VAPID implementation and
+// the Firebase Admin fallback when Go does not have a valid service account.
+app.post('/internal/go-worker/send-push-target', async (req: Request, res: Response) => {
+  const expectedToken = process.env.GO_WORKER_TOKEN?.trim() ?? '';
+  const authorization = req.get('authorization') ?? '';
+  const suppliedToken = authorization.startsWith('Bearer ')
+    ? authorization.slice(7).trim()
+    : '';
+  const expected = Buffer.from(expectedToken);
+  const supplied = Buffer.from(suppliedToken);
+  const authorized = expected.length > 0 && expected.length === supplied.length && timingSafeEqual(expected, supplied);
+  res.setHeader('Cache-Control', 'no-store');
+  if (!authorized) {
+    res.status(expectedToken ? 401 : 503).json({
+      error: expectedToken ? 'unauthorized' : 'internal worker token is not configured',
+    });
+    return;
+  }
+
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    typeof value === 'object' && value !== null && !Array.isArray(value);
+  const body = req.body as Record<string, unknown> | undefined;
+  const allowedTopLevel = new Set(['channel', 'userId', 'targetId', 'payload']);
+  const payload = body && isRecord(body.payload) ? body.payload : null;
+  const allowedPayload = new Set([
+    'title', 'body', 'url', 'tag', 'image', 'type', 'urgent', 'bypassQuietHours',
+  ]);
+  const stringFieldValid = (key: string, max: number, required = false): boolean => {
+    const value = payload?.[key];
+    return required
+      ? typeof value === 'string' && value.trim().length > 0 && value.length <= max
+      : value === undefined || value === null || (typeof value === 'string' && value.length <= max);
+  };
+  if (
+    !body || !isRecord(body) || Object.keys(body).some(key => !allowedTopLevel.has(key)) ||
+    !['WEB_PUSH', 'FCM'].includes(String(body.channel)) ||
+    typeof body.userId !== 'string' || body.userId.length < 1 || body.userId.length > 128 ||
+    typeof body.targetId !== 'string' || body.targetId.length < 1 || body.targetId.length > 128 ||
+    !payload || Object.keys(payload).some(key => !allowedPayload.has(key)) ||
+    !stringFieldValid('title', 256, true) || !stringFieldValid('body', 4096) ||
+    !stringFieldValid('url', 2048) || !stringFieldValid('tag', 256) ||
+    !stringFieldValid('image', 2048) || !stringFieldValid('type', 80) ||
+    (payload.urgent !== undefined && typeof payload.urgent !== 'boolean') ||
+    (payload.bypassQuietHours !== undefined && typeof payload.bypassQuietHours !== 'boolean')
+  ) {
+    res.status(400).json({ error: 'invalid push target request' });
+    return;
+  }
+
+  const pushPayload = {
+    title: payload.title as string,
+    body: (payload.body as string | undefined) ?? '',
+    ...(typeof payload.url === 'string' ? { url: payload.url } : {}),
+    ...(typeof payload.tag === 'string' ? { tag: payload.tag } : {}),
+    ...(typeof payload.image === 'string' ? { image: payload.image } : {}),
+    ...(typeof payload.type === 'string' ? { type: payload.type } : {}),
+    ...(typeof payload.urgent === 'boolean' ? { urgent: payload.urgent } : {}),
+    ...(typeof payload.bypassQuietHours === 'boolean'
+      ? { bypassQuietHours: payload.bypassQuietHours }
+      : {}),
+  };
+
+  try {
+    let outcome: string;
+    if (body.channel === 'WEB_PUSH') {
+      outcome = await pushService.sendToSubscriptionForOutbox(
+        body.targetId as string,
+        body.userId as string,
+        pushPayload
+      );
+    } else {
+      const token = await fcmDeviceTokensRepository.findByIdForUser(
+        body.targetId as string,
+        body.userId as string
+      );
+      outcome = token
+        ? await fcmPushService.sendToToken(token, {
+            title: pushPayload.title,
+            body: pushPayload.body,
+            url: pushPayload.url,
+            tag: pushPayload.tag,
+          })
+        : 'missing';
+    }
+    res.status(200).json({ outcome });
+  } catch (error) {
+    logger.warn('Go push provider adapter failed; durable target will retry', {
+      channel: body.channel,
+      targetId: body.targetId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    res.status(503).json({ error: 'push provider adapter unavailable' });
+  }
+});
 
 // ── API Routes ────────────────────────────────────────
 app.use('/api/v1', router);

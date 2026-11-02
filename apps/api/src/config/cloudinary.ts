@@ -277,9 +277,39 @@ export const deleteMedia = async (
   publicId: string,
   resourceType: 'image' | 'video' | 'raw' = 'image'
 ): Promise<void> => {
-  await cloudinary.uploader.destroy(publicId, {
-    resource_type: resourceType,
-  } as unknown as Parameters<typeof cloudinary.uploader.destroy>[1]);
+  if (!publicId.trim()) return;
+  await deleteBreaker
+    .execute(async () => {
+      try {
+        await withTimeout(
+          cloudinary.uploader.destroy(publicId, {
+            resource_type: resourceType,
+            timeout: DELETE_TIMEOUT_MS,
+          } as unknown as Parameters<typeof cloudinary.uploader.destroy>[1]),
+          DELETE_TIMEOUT_MS,
+          `${resourceType} delete`
+        );
+      } catch (err) {
+        if (err instanceof CloudinaryTimeoutError) {
+          logger.error('Cloudinary media delete timed out', {
+            resourceType,
+            timeoutMs: DELETE_TIMEOUT_MS,
+          });
+        }
+        throw err;
+      }
+    })
+    .catch(err => {
+      if (err instanceof CircuitBreakerOpenError) {
+        logger.error('Cloudinary media delete rejected — circuit breaker is open', {
+          resourceType,
+        });
+        throw new ServiceUnavailableError(
+          'Media cleanup is temporarily unavailable, please try again shortly'
+        );
+      }
+      throw err;
+    });
 };
 
 export const uploadAvatar = (buffer: Buffer): Promise<UploadResult> =>
@@ -301,39 +331,7 @@ export const uploadServiceProviderLogo = (buffer: Buffer): Promise<UploadResult>
 
 // ── Delete ────────────────────────────────────────────────────────
 
-export const deleteImage = async (publicId: string): Promise<void> => {
-  await deleteBreaker
-    .execute(async () => {
-      try {
-        await withTimeout(
-          cloudinary.uploader.destroy(publicId, {
-            // Cloudinary's own destroy() *does* accept `timeout` at
-            // runtime, but this SDK version's TypeScript definitions
-            // omit it from the destroy() options type — hence the cast.
-            timeout: DELETE_TIMEOUT_MS,
-          } as unknown as Parameters<typeof cloudinary.uploader.destroy>[1]),
-          DELETE_TIMEOUT_MS,
-          'image delete'
-        );
-      } catch (err) {
-        if (err instanceof CloudinaryTimeoutError) {
-          logger.error('Cloudinary delete timed out', {
-            publicId,
-            timeoutMs: DELETE_TIMEOUT_MS,
-          });
-        }
-        throw err;
-      }
-    })
-    .catch(err => {
-      if (err instanceof CircuitBreakerOpenError) {
-        logger.error('Cloudinary delete rejected — circuit breaker is open', {
-          publicId,
-        });
-      }
-      throw err;
-    });
-};
+export const deleteImage = (publicId: string): Promise<void> => deleteMedia(publicId, 'image');
 
 /**
  * Exported for observability/testing only — lets health checks or

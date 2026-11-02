@@ -13,6 +13,7 @@ jest.mock('../../src/config/cloudinary', () => ({
 jest.mock('../../src/shared/utils/cloudinaryHelpers', () => ({
   extractCloudinaryPublicId: jest.fn().mockReturnValue('pub-1'),
   cleanupUploadedImages: jest.fn().mockResolvedValue(undefined),
+  deleteCloudinaryAsset: jest.fn().mockResolvedValue(undefined),
 }));
 
 describe('createEntityImageOperations', () => {

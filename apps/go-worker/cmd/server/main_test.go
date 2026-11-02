@@ -14,6 +14,15 @@ func testHandler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
 	mux.HandleFunc("GET /internal/diagnostics", s.internalDiagnostics)
+	mux.HandleFunc("POST /internal/integrity/scan", s.runDataIntegrityScan)
+	mux.HandleFunc("POST /internal/fraud/monitor/scan", s.runFraudMonitorScan)
+	mux.HandleFunc("POST /internal/inventory/store-summary", s.getInventoryStoreSummary)
+	mux.HandleFunc("POST /internal/jobs/inventory-monitor", s.runInventoryMonitor)
+	mux.HandleFunc("POST /internal/analytics/events", s.ingestAnalyticsEvents)
+	mux.HandleFunc("POST /internal/analytics/summary", s.getAnalyticsSummary)
+	mux.HandleFunc("POST /internal/jobs/analytics-rollup", s.runAnalyticsRollup)
+	mux.HandleFunc("POST /internal/jobs/search-index-refresh", s.runSearchIndexRefresh)
+	mux.HandleFunc("GET /internal/search/index-status", s.searchIndexStatus)
 	mux.HandleFunc("POST /internal/jobs/analytics-retention", s.runAnalyticsRetention)
 	mux.HandleFunc("POST /internal/jobs/auth-token-retention", s.runAuthTokenRetention)
 	mux.HandleFunc("POST /internal/jobs/notification-retention", s.runNotificationRetention)
@@ -23,7 +32,10 @@ func testHandler() http.Handler {
 	mux.HandleFunc("GET /internal/exports/reports.csv", s.exportReportsCSV)
 	mux.HandleFunc("POST /internal/reports/sales-insights", s.getSalesInsights)
 	mux.HandleFunc("POST /internal/outbox/execute-event", s.executeOutboxEvent)
+	mux.HandleFunc("GET /internal/outbox/worker-status", s.outboxWorkerStatus)
+	mux.HandleFunc("POST /internal/scheduler/run-due", s.runDueScheduledJobs)
 	mux.HandleFunc("POST /internal/push/fcm/send", s.sendFcmPush)
+	mux.HandleFunc("GET /internal/push/dispatch/worker-status", s.pushDispatchWorkerStatus)
 	mux.HandleFunc("POST /internal/jobs/activity-buffer-flush", s.runActivityBufferFlush)
 	mux.HandleFunc("POST /internal/jobs/views-buffer-flush", s.runViewsBufferFlush)
 	mux.HandleFunc("POST /internal/jobs/expire-open-requests", s.runExpireOpenRequests)
@@ -32,7 +44,138 @@ func testHandler() http.Handler {
 	mux.HandleFunc("POST /internal/jobs/expire-ads", s.runExpireAds)
 	mux.HandleFunc("POST /internal/jobs/promotion-lifecycle", s.runPromotionLifecycle)
 	mux.HandleFunc("POST /internal/jobs/cleanup-expired-stories", s.runCleanupExpiredStories)
+	mux.HandleFunc("POST /internal/jobs/cleanup-media-assets", s.runCleanupMediaAssets)
+	mux.HandleFunc("GET /internal/media/cleanup/status", s.mediaCleanupStatus)
 	return securityHeaders(mux)
+}
+
+func TestInventoryEndpointsRequireAuthorization(t *testing.T) {
+	cases := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{name: "store summary", method: http.MethodPost, path: "/internal/inventory/store-summary", body: `{"storeId":"store_1"}`},
+		{name: "low stock monitor", method: http.MethodPost, path: "/internal/jobs/inventory-monitor", body: `{}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
+			recorder := httptest.NewRecorder()
+			testHandler().ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+			}
+		})
+	}
+}
+
+func TestInventoryStoreSummaryRejectsInvalidBodiesBeforeDatabaseAccess(t *testing.T) {
+	for _, body := range []string{"", `null`, `[]`, `{"unexpected":true}`, `{"storeId":"store_1"} {}`, `{"storeId":""}`} {
+		req := httptest.NewRequest(http.MethodPost, "/internal/inventory/store-summary", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer test-secret")
+		recorder := httptest.NewRecorder()
+		testHandler().ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusBadRequest {
+			t.Fatalf("body %q: status = %d, want %d; response=%s", body, recorder.Code, http.StatusBadRequest, recorder.Body.String())
+		}
+	}
+}
+
+func TestInventoryHandlersHandleMissingDatabaseWithoutPanic(t *testing.T) {
+	cases := []struct {
+		path string
+		body string
+	}{
+		{path: "/internal/inventory/store-summary", body: `{"storeId":"store_1"}`},
+		{path: "/internal/jobs/inventory-monitor", body: `{}`},
+	}
+	for _, tc := range cases {
+		req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
+		req.Header.Set("Authorization", "Bearer test-secret")
+		recorder := httptest.NewRecorder()
+		testHandler().ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusServiceUnavailable {
+			t.Fatalf("%s: status = %d, want %d; response=%s", tc.path, recorder.Code, http.StatusServiceUnavailable, recorder.Body.String())
+		}
+		if strings.Contains(strings.ToLower(recorder.Body.String()), "database is required") {
+			t.Fatalf("%s: internal error details must not be exposed", tc.path)
+		}
+	}
+}
+
+func TestSearchIndexEndpointsRequireAuthorization(t *testing.T) {
+	cases := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{name: "status", method: http.MethodGet, path: "/internal/search/index-status"},
+		{name: "refresh", method: http.MethodPost, path: "/internal/jobs/search-index-refresh", body: `{}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
+			recorder := httptest.NewRecorder()
+			testHandler().ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+			}
+		})
+	}
+}
+
+func TestSearchIndexRefreshRejectsInvalidBodyBeforeDatabaseAccess(t *testing.T) {
+	for _, body := range []string{``, `null`, `[]`, `{"unexpected":true}`, `{} {}`} {
+		req := httptest.NewRequest(http.MethodPost, "/internal/jobs/search-index-refresh", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer test-secret")
+		recorder := httptest.NewRecorder()
+		testHandler().ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusBadRequest {
+			t.Fatalf("body %q: status = %d, want %d; response=%s", body, recorder.Code, http.StatusBadRequest, recorder.Body.String())
+		}
+	}
+}
+
+func TestOutboxWorkerStatusRequiresAuthorization(t *testing.T) {
+	cases := []struct {
+		name   string
+		header string
+	}{
+		{name: "missing"},
+		{name: "wrong token", header: "Bearer wrong"},
+		{name: "wrong scheme", header: "Basic test-secret"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/internal/outbox/worker-status", nil)
+			if tc.header != "" {
+				req.Header.Set("Authorization", tc.header)
+			}
+			recorder := httptest.NewRecorder()
+			server := &server{token: "test-secret", outboxEnabled: false}
+			server.outboxWorkerStatus(recorder, req)
+			if recorder.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+			}
+		})
+	}
+}
+
+func TestOutboxWorkerStatusReportsDisabledWithoutDatabaseAccess(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/internal/outbox/worker-status", nil)
+	req.Header.Set("Authorization", "Bearer test-secret")
+	recorder := httptest.NewRecorder()
+	server := &server{token: "test-secret", outboxEnabled: false}
+	server.outboxWorkerStatus(recorder, req)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusOK, recorder.Body.String())
+	}
+	if !strings.Contains(recorder.Body.String(), `"enabled":false`) {
+		t.Fatalf("expected disabled status, got %s", recorder.Body.String())
+	}
 }
 
 func TestRetentionEndpointRejectsMissingOrInvalidAuthorization(t *testing.T) {
@@ -697,5 +840,327 @@ func TestSameRedisConfig(t *testing.T) {
 	}
 	if !sameRedisConfig(nil, nil) {
 		t.Fatal("two missing Redis configurations should be treated as the same dependency")
+	}
+}
+
+func TestGoSchedulerRejectsMissingOrInvalidAuthorization(t *testing.T) {
+	cases := []struct {
+		name   string
+		header string
+	}{
+		{name: "missing"},
+		{name: "wrong token", header: "Bearer wrong"},
+		{name: "wrong scheme", header: "Basic test-secret"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/internal/scheduler/run-due", strings.NewReader(`{}`))
+			if tc.header != "" {
+				req.Header.Set("Authorization", tc.header)
+			}
+			recorder := httptest.NewRecorder()
+			testHandler().ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+			}
+		})
+	}
+}
+
+func TestGoSchedulerRejectsInvalidBodyBeforeDatabaseAccess(t *testing.T) {
+	cases := []struct {
+		name string
+		body string
+	}{
+		{name: "empty body", body: ``},
+		{name: "invalid JSON", body: `{`},
+		{name: "non-empty object", body: `{"force":true}`},
+		{name: "array", body: `[]`},
+		{name: "multiple JSON values", body: `{} {}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/internal/scheduler/run-due", strings.NewReader(tc.body))
+			req.Header.Set("Authorization", "Bearer test-secret")
+			recorder := httptest.NewRecorder()
+			testHandler().ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestGoSchedulerRequiresAPIAdapterConfiguration(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/internal/scheduler/run-due", strings.NewReader(`{}`))
+	req.Header.Set("Authorization", "Bearer test-secret")
+	recorder := httptest.NewRecorder()
+	testHandler().ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusServiceUnavailable, recorder.Body.String())
+	}
+}
+
+func TestNormalizeAPIBaseURLRequiresHTTPSForRemoteHosts(t *testing.T) {
+	cases := []struct {
+		input string
+		valid bool
+	}{
+		{input: "https://api.example.com", valid: true},
+		{input: "http://localhost:5000", valid: true},
+		{input: "http://api.example.com", valid: false},
+		{input: "https://user:pass@api.example.com", valid: false},
+		{input: "https://api.example.com/path", valid: false},
+		{input: "https://api.example.com?token=secret", valid: false},
+	}
+	for _, tc := range cases {
+		_, err := normalizeAPIBaseURL(tc.input)
+		if tc.valid && err != nil {
+			t.Errorf("normalizeAPIBaseURL(%q) returned error: %v", tc.input, err)
+		}
+		if !tc.valid && err == nil {
+			t.Errorf("normalizeAPIBaseURL(%q) unexpectedly succeeded", tc.input)
+		}
+	}
+}
+
+func TestPushDispatchWorkerStatusRequiresAuthorization(t *testing.T) {
+	cases := []struct {
+		name   string
+		header string
+	}{
+		{name: "missing"},
+		{name: "wrong token", header: "Bearer wrong"},
+		{name: "wrong scheme", header: "Basic test-secret"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/internal/push/dispatch/worker-status", nil)
+			if tc.header != "" {
+				req.Header.Set("Authorization", tc.header)
+			}
+			recorder := httptest.NewRecorder()
+			s := &server{token: "test-secret", pushDispatchEnabled: true}
+			s.pushDispatchWorkerStatus(recorder, req)
+			if recorder.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+			}
+		})
+	}
+}
+
+func TestPushDispatchWorkerStatusOnlyEnablesAfterWorkerIsActive(t *testing.T) {
+	t.Run("configured but not active", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/internal/push/dispatch/worker-status", nil)
+		req.Header.Set("Authorization", "Bearer test-secret")
+		recorder := httptest.NewRecorder()
+		s := &server{token: "test-secret", pushDispatchEnabled: true}
+		s.pushDispatchWorkerStatus(recorder, req)
+		if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"enabled":false`) {
+			t.Fatalf("expected disabled status before readiness, got %d %s", recorder.Code, recorder.Body.String())
+		}
+	})
+
+	t.Run("active", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/internal/push/dispatch/worker-status", nil)
+		req.Header.Set("Authorization", "Bearer test-secret")
+		recorder := httptest.NewRecorder()
+		s := &server{token: "test-secret", pushDispatchEnabled: true}
+		s.pushDispatchActive.Store(true)
+		s.pushDispatchWorkerStatus(recorder, req)
+		if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"enabled":true`) {
+			t.Fatalf("expected active status, got %d %s", recorder.Code, recorder.Body.String())
+		}
+	})
+
+	t.Run("disabled even if stale active flag", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/internal/push/dispatch/worker-status", nil)
+		req.Header.Set("Authorization", "Bearer test-secret")
+		recorder := httptest.NewRecorder()
+		s := &server{token: "test-secret", pushDispatchEnabled: false}
+		s.pushDispatchActive.Store(true)
+		s.pushDispatchWorkerStatus(recorder, req)
+		if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `"enabled":false`) {
+			t.Fatalf("expected disabled status, got %d %s", recorder.Code, recorder.Body.String())
+		}
+	})
+}
+
+func TestAnalyticsInternalEndpointsRequireAuthorization(t *testing.T) {
+	paths := []struct {
+		path string
+		body string
+	}{
+		{path: "/internal/analytics/events", body: `{"events":[{"eventId":"evt-1","event":"PAGE_VIEW","sessionId":"s1"}]}`},
+		{path: "/internal/analytics/summary", body: `{"from":"2026-01-01T00:00:00Z","to":"2026-01-02T00:00:00Z","bucket":"day"}`},
+		{path: "/internal/jobs/analytics-rollup", body: `{}`},
+	}
+	for _, item := range paths {
+		t.Run(item.path, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, item.path, strings.NewReader(item.body))
+			recorder := httptest.NewRecorder()
+			testHandler().ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusUnauthorized, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestAnalyticsEndpointsRejectInvalidInputBeforeDatabaseAccess(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		body string
+	}{
+		{name: "empty events", path: "/internal/analytics/events", body: `{"events":[]}`},
+		{name: "unknown ingest field", path: "/internal/analytics/events", body: `{"events":[],"admin":true}`},
+		{name: "missing event ID", path: "/internal/analytics/events", body: `{"events":[{"event":"PAGE_VIEW","sessionId":"s1"}]}`},
+		{name: "invalid date range", path: "/internal/analytics/summary", body: `{"from":"2026-02-01T00:00:00Z","to":"2026-01-01T00:00:00Z","bucket":"day"}`},
+		{name: "invalid bucket", path: "/internal/analytics/summary", body: `{"from":"2026-01-01T00:00:00Z","to":"2026-01-02T00:00:00Z","bucket":"month"}`},
+		{name: "unknown summary field", path: "/internal/analytics/summary", body: `{"from":"2026-01-01T00:00:00Z","to":"2026-01-02T00:00:00Z","bucket":"day","userId":"x"}`},
+		{name: "unknown rollup field", path: "/internal/jobs/analytics-rollup", body: `{"rawWindowDays": 10}`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
+			req.Header.Set("Authorization", "Bearer test-secret")
+			recorder := httptest.NewRecorder()
+			testHandler().ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusBadRequest, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestDataIntegrityScanRequiresAuthorization(t *testing.T) {
+	cases := []struct {
+		name   string
+		header string
+	}{
+		{name: "missing"},
+		{name: "wrong token", header: "Bearer wrong"},
+		{name: "wrong scheme", header: "Basic test-secret"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/internal/integrity/scan", strings.NewReader(`{}`))
+			if tc.header != "" {
+				req.Header.Set("Authorization", tc.header)
+			}
+			recorder := httptest.NewRecorder()
+			testHandler().ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+			}
+		})
+	}
+}
+
+func TestDataIntegrityScanRejectsInvalidBodyBeforeDatabaseAccess(t *testing.T) {
+	for _, body := range []string{"", `null`, `[]`, `{"unexpected":true}`, `{} {}`} {
+		req := httptest.NewRequest(http.MethodPost, "/internal/integrity/scan", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer test-secret")
+		recorder := httptest.NewRecorder()
+		testHandler().ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusBadRequest {
+			t.Fatalf("body %q: status = %d, want %d; response=%s", body, recorder.Code, http.StatusBadRequest, recorder.Body.String())
+		}
+	}
+}
+
+func TestDataIntegrityScanHandlesMissingDatabaseWithoutPanic(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/internal/integrity/scan", strings.NewReader(`{}`))
+	req.Header.Set("Authorization", "Bearer test-secret")
+	recorder := httptest.NewRecorder()
+	testHandler().ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want %d; response=%s", recorder.Code, http.StatusServiceUnavailable, recorder.Body.String())
+	}
+	if strings.Contains(strings.ToLower(recorder.Body.String()), "database is required") {
+		t.Fatal("internal error details must not be returned to the caller")
+	}
+}
+
+func TestMediaCleanupEndpointsRequireBearerAuthorization(t *testing.T) {
+	cases := []struct {
+		method string
+		path   string
+		body   string
+	}{
+		{method: http.MethodPost, path: "/internal/jobs/cleanup-media-assets", body: `{}`},
+		{method: http.MethodGet, path: "/internal/media/cleanup/status"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
+			recorder := httptest.NewRecorder()
+			testHandler().ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusUnauthorized {
+				t.Fatalf("status = %d, want %d", recorder.Code, http.StatusUnauthorized)
+			}
+		})
+	}
+}
+
+func TestMediaCleanupEndpointsHandleMissingDatabaseWithoutPanic(t *testing.T) {
+	cases := []struct {
+		method string
+		path   string
+		body   string
+	}{
+		{method: http.MethodPost, path: "/internal/jobs/cleanup-media-assets", body: `{}`},
+		{method: http.MethodGet, path: "/internal/media/cleanup/status"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
+			req.Header.Set("Authorization", "Bearer test-secret")
+			recorder := httptest.NewRecorder()
+			testHandler().ServeHTTP(recorder, req)
+			if recorder.Code != http.StatusServiceUnavailable {
+				t.Fatalf("status = %d, want %d; body=%s", recorder.Code, http.StatusServiceUnavailable, recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestFraudMonitorEndpointRequiresAuthorization(t *testing.T) {
+	for _, header := range []string{"", "Bearer wrong", "Basic test-secret"} {
+		req := httptest.NewRequest(http.MethodPost, "/internal/fraud/monitor/scan", strings.NewReader(`{}`))
+		if header != "" {
+			req.Header.Set("Authorization", header)
+		}
+		recorder := httptest.NewRecorder()
+		testHandler().ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusUnauthorized {
+			t.Fatalf("header %q: status=%d, want %d", header, recorder.Code, http.StatusUnauthorized)
+		}
+	}
+}
+
+func TestFraudMonitorEndpointRejectsInvalidBodiesBeforeDatabaseAccess(t *testing.T) {
+	for _, body := range []string{"", `null`, `[]`, `{"unexpected":true}`, `{} {}`} {
+		req := httptest.NewRequest(http.MethodPost, "/internal/fraud/monitor/scan", strings.NewReader(body))
+		req.Header.Set("Authorization", "Bearer test-secret")
+		recorder := httptest.NewRecorder()
+		testHandler().ServeHTTP(recorder, req)
+		if recorder.Code != http.StatusBadRequest {
+			t.Fatalf("body %q: status=%d, want %d; response=%s", body, recorder.Code, http.StatusBadRequest, recorder.Body.String())
+		}
+	}
+}
+
+func TestFraudMonitorEndpointHandlesMissingDatabaseWithoutPanic(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/internal/fraud/monitor/scan", strings.NewReader(`{}`))
+	req.Header.Set("Authorization", "Bearer test-secret")
+	recorder := httptest.NewRecorder()
+	testHandler().ServeHTTP(recorder, req)
+	if recorder.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status=%d, want %d; response=%s", recorder.Code, http.StatusServiceUnavailable, recorder.Body.String())
+	}
+	if strings.Contains(strings.ToLower(recorder.Body.String()), "database is required") {
+		t.Fatalf("internal error details must not be exposed: %s", recorder.Body.String())
 	}
 }

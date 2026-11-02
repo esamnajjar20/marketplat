@@ -1,7 +1,7 @@
 {
   "name": "classifieds-platform-backend",
   "version": "3.0.0",
-  "description": "Classifieds & Marketplace Platform \u2014 Backend API",
+  "description": "Classifieds & Marketplace Platform — Backend API",
   "license": "UNLICENSED",
   "main": "dist/server.js",
   "engines": {
@@ -49,6 +49,8 @@
     "cron:scheduled": "ts-node-dev --transpile-only --exit-child src/scripts/runScheduledJobs.ts",
     "report:expire-ads": "ts-node-dev --transpile-only --exit-child src/scripts/expireAds.ts",
     "report:cleanup-analytics": "ts-node-dev --transpile-only --exit-child src/scripts/cleanupAnalytics.ts",
+    "report:analytics-rollup": "ts-node-dev --transpile-only --exit-child src/scripts/rollupAnalytics.ts",
+    "report:inventory-monitor": "ts-node-dev --transpile-only --exit-child src/scripts/inventoryMonitor.ts",
     "report:daily-sales-reminder": "ts-node-dev --transpile-only --exit-child src/scripts/dailySalesReminder.ts",
     "report:overdue-sales-installments": "ts-node-dev --transpile-only --exit-child src/scripts/overdueSalesInstallments.ts",
     "report:sales-debt-reminder": "ts-node-dev --transpile-only --exit-child src/scripts/debtReminder.ts",
@@ -64,7 +66,9 @@
     "audit:marketplace-order-cancellation-concurrency": "node scripts/marketplace-order-cancellation-concurrency-audit.mjs",
     "audit:product-stock-adjustment-concurrency": "node scripts/product-stock-adjustment-concurrency-audit.mjs",
     "audit:product-update-pricing-concurrency": "node scripts/product-update-pricing-concurrency-audit.mjs",
-    "audit:sale-deleted-product-reconciliation": "node scripts/sale-deleted-product-reconciliation-audit.mjs"
+    "audit:sale-deleted-product-reconciliation": "node scripts/sale-deleted-product-reconciliation-audit.mjs",
+    "report:cleanup-media-assets": "ts-node-dev --transpile-only --exit-child src/scripts/cleanupMediaAssets.ts",
+    "report:fraud-monitor": "ts-node-dev --transpile-only --exit-child src/scripts/fraudMonitor.ts"
   },
   "lint-staged": {
     "src/**/*.ts": [

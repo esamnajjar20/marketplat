@@ -36,6 +36,7 @@ export type AnalyticsEventType =
   | 'SERVICE_VIEW';
 
 interface QueuedEvent {
+  eventId: string;
   event: AnalyticsEventType;
   sessionId: string;
   metadata?: Record<string, unknown>;
@@ -207,6 +208,7 @@ export function track(
   ensureFlushLifecycle();
 
   queue.push({
+    eventId: generateId(),
     event,
     sessionId: getSessionId(),
     metadata,

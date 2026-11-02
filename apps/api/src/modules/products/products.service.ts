@@ -3,17 +3,18 @@ import { prisma } from '../../config/prisma';
 import { FollowTargetType } from '@prisma/client';
 import { Product } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
-import { productsRepository, ProductWithStore } from './products.repository';
+import { productsRepository, ProductWithStore, StockSummary } from './products.repository';
 import { CreateProductInput, UpdateProductInput, GetProductsQuery } from './products.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
-import { uploadImage, deleteImage } from '../../config/cloudinary';
+import { uploadImage } from '../../config/cloudinary';
 import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
+  deleteCloudinaryAsset,
 } from '../../shared/utils/cloudinaryHelpers';
 import { storesRepository } from '../stores/stores.repository';
 import { storeTypeFieldsService } from '../store-types/store-type-fields.service';
@@ -35,6 +36,7 @@ import {
   bumpPublicListCache,
   hidePublicEntities,
 } from '../../shared/utils/publicListCache';
+import { requestJsonWithGoFallback } from '../../shared/go-worker/requestJsonWithFallback';
 
 const MAX_PRODUCT_IMAGES = MAX_IMAGES_PER_ENTITY; // same cap as ads.images / service-listings.images — see config/limits.ts
 
@@ -620,9 +622,32 @@ export const productsService = {
     return updated;
   },
 
-  getStockSummary: async (userId: string) => {
+  getStockSummary: async (userId: string): Promise<StockSummary> => {
     const store = await requireStoreAccessForProducts(userId, 'manageProducts');
-    return productsRepository.getStockSummary(store.id);
+    const isStockSummary = (value: unknown): value is StockSummary => {
+      if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+      const row = value as Record<string, unknown>;
+      const countKeys = [
+        'totalProducts', 'trackedProducts', 'untrackedProducts', 'inStock', 'limited', 'outOfStock',
+        'lowStockTrackedProducts', 'zeroStockTrackedProducts', 'negativeStockProducts',
+        'availabilityMismatchProducts', 'movementMismatchProducts',
+      ];
+      if (!countKeys.every(key => Number.isSafeInteger(row[key]) && (row[key] as number) >= 0)) return false;
+      if (!Number.isSafeInteger(row.totalUnits)) return false;
+      return (row.totalProducts as number) === (row.trackedProducts as number) + (row.untrackedProducts as number) &&
+        (row.totalProducts as number) === (row.inStock as number) + (row.limited as number) + (row.outOfStock as number) &&
+        (row.lowStockTrackedProducts as number) <= (row.trackedProducts as number) &&
+        (row.zeroStockTrackedProducts as number) <= (row.trackedProducts as number) &&
+        (row.negativeStockProducts as number) <= (row.trackedProducts as number);
+    };
+    return requestJsonWithGoFallback<StockSummary>({
+      jobName: 'inventory-stock-summary',
+      path: '/internal/inventory/store-summary',
+      body: { storeId: store.id },
+      validateResult: isStockSummary,
+      timeoutMs: 3_000,
+      runExpressFallback: () => productsRepository.getStockSummary(store.id),
+    });
   },
 
   getStockHistory: async (
@@ -653,9 +678,7 @@ export const productsService = {
       product.images.map(imageUrl => {
         const publicId = extractCloudinaryPublicId(imageUrl);
         return publicId
-          ? deleteImage(publicId).catch(error =>
-              reportBackgroundFailure('apps/api/src/modules/products/products.service.ts', error)
-            )
+          ? deleteCloudinaryAsset(publicId, 'image')
           : undefined;
       })
     );

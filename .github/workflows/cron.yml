@@ -1,9 +1,9 @@
 name: Scheduled Jobs (daily)
 
-# Runs the backend cron:scheduled script once per day. GitHub Actions
-# evaluates cron in UTC; the runner internally matches weekday-restricted
-# jobs against Asia/Gaza (weekly reports + Sunday cleanups). Daily jobs
-# run on every invocation. Every job script is idempotent.
+# Go owns the daily scheduler and durable scheduled_job_runs ledger. It
+# delegates each allowlisted job to the compiled Express adapter so existing
+# Go-first/Express-fallback logic and post-commit effects remain intact.
+# GitHub Actions cron is UTC; due dates use Asia/Gaza with one-day catch-up.
 #
 # 04:00 UTC = 06:00 or 07:00 Gaza depending on DST — a quiet hour with
 # low traffic so the runner never competes with user requests.
@@ -19,29 +19,53 @@ concurrency:
 jobs:
   run-due-jobs:
     runs-on: ubuntu-latest
-    # Jobs execute sequentially and can fall back to bounded Express batches.
-    timeout-minutes: 60
+    # Leave enough time for the bounded Go attempt and a full Express fallback.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Run scheduled jobs on Go
+        id: go-scheduler
+        # A Go failure is expected to enter the Express fallback. Preserve the
+        # raw step outcome for the condition below without failing the whole job.
+        continue-on-error: true
+        run: |
+          if [ -z "$GO_WORKER_URL" ] || [ -z "$GO_WORKER_TOKEN" ]; then
+            echo "Go scheduler is not configured; use the Express fallback."
+            exit 1
+          fi
+          curl --fail --silent --show-error --connect-timeout 90 --max-time 2700 \
+            -X POST "${GO_WORKER_URL%/}/internal/scheduler/run-due" \
+            -H "Authorization: Bearer $GO_WORKER_TOKEN" \
+            -H 'Content-Type: application/json' \
+            --data '{}'
+        env:
+          GO_WORKER_URL: ${{ secrets.GO_WORKER_URL }}
+          GO_WORKER_TOKEN: ${{ secrets.GO_WORKER_TOKEN }}
+
+      - name: Setup Node for Express fallback
+        if: steps.go-scheduler.outcome == 'failure'
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: apps/api/package-lock.json
 
-      - name: Install backend deps
+      - name: Install backend deps for fallback
+        if: steps.go-scheduler.outcome == 'failure'
         working-directory: apps/api
         run: npm ci
 
-      - name: Prisma generate
+      - name: Prisma generate for fallback
+        if: steps.go-scheduler.outcome == 'failure'
         working-directory: apps/api
         run: npx prisma generate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
 
-      - name: Run scheduled jobs
+      - name: Express scheduler fallback
+        if: steps.go-scheduler.outcome == 'failure'
         working-directory: apps/api
         run: npm run cron:scheduled
         env:

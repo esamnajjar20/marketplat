@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 	"errors"
 	"io"
+	"strings"
 	"testing"
 	"time"
 )
@@ -34,9 +35,12 @@ func TestRunRejectsInvalidBatchSizeBeforeDatabaseAccess(t *testing.T) {
 // without a live PostgreSQL server.
 type scriptedDriver struct {
 	batches [][]string
+	queries []string
+	args    [][]driver.NamedValue
 }
 
 type scriptedConn struct {
+	owner   *scriptedDriver
 	batches [][]string
 	next    int
 }
@@ -47,7 +51,7 @@ type scriptedRows struct {
 }
 
 func (d *scriptedDriver) Open(string) (driver.Conn, error) {
-	return &scriptedConn{batches: d.batches}, nil
+	return &scriptedConn{owner: d, batches: d.batches}, nil
 }
 
 func (c *scriptedConn) Prepare(string) (driver.Stmt, error) {
@@ -56,7 +60,9 @@ func (c *scriptedConn) Prepare(string) (driver.Stmt, error) {
 func (c *scriptedConn) Close() error              { return nil }
 func (c *scriptedConn) Begin() (driver.Tx, error) { return nil, errors.New("not implemented") }
 
-func (c *scriptedConn) QueryContext(_ context.Context, _ string, _ []driver.NamedValue) (driver.Rows, error) {
+func (c *scriptedConn) QueryContext(_ context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
+	c.owner.queries = append(c.owner.queries, query)
+	c.owner.args = append(c.owner.args, append([]driver.NamedValue(nil), args...))
 	if c.next >= len(c.batches) {
 		return &scriptedRows{}, nil
 	}
@@ -124,5 +130,14 @@ func TestRunDeletesInBoundedBatchesUntilShortBatch(t *testing.T) {
 	wantCutoff := now.UTC().Add(-30 * 24 * time.Hour)
 	if !result.Cutoff.Equal(wantCutoff) {
 		t.Fatalf("unexpected cutoff: got %s want %s", result.Cutoff, wantCutoff)
+	}
+	if len(driverInstance.queries) == 0 || !strings.Contains(driverInstance.queries[0], `"analytics_rollup_days"`) {
+		t.Fatal("retention delete query must require completed daily rollup coverage")
+	}
+	if len(driverInstance.args) == 0 || len(driverInstance.args[0]) != 3 {
+		t.Fatalf("expected cutoff, batch size, and rollup-window parameters; args=%v", driverInstance.args)
+	}
+	if got, ok := driverInstance.args[0][2].Value.(string); !ok || got != "2026-09-28" {
+		t.Fatalf("rollup window start = %#v, want 2026-09-28", driverInstance.args[0][2].Value)
 	}
 }

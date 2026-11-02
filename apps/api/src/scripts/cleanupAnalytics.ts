@@ -6,6 +6,10 @@ import {
   runAdvisoryLockedBatch,
 } from '../shared/go-worker/executeWithFallback';
 
+function dayKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
 const BATCH_SIZE = 5_000;
 // Must match analyticsRetentionLockID in apps/go-worker/cmd/server/main.go.
 const ANALYTICS_RETENTION_LOCK_ID = 731904281n;
@@ -29,12 +33,17 @@ function isAnalyticsRetentionResult(value: unknown): value is AnalyticsRetention
 }
 
 /**
- * Retains raw analytics for the configured window using bounded DELETEs.
- * Go executes the same SQL when available; each Express batch takes the same
- * advisory lock, so a network timeout cannot cause concurrent deletion runs.
+ * Retains raw analytics after the configured window, but requires completed
+ * rollup coverage for dates inside the active rollup window. Dates already
+ * outside that window can be removed; missing coverage defers deletion safely
+ * during bounded backfill. Go executes the same SQL when available; each
+ * Express batch takes the same advisory lock, preventing concurrent deletion.
  */
 async function runExpressFallback(): Promise<'completed' | 'busy'> {
-  const cutoff = new Date(Date.now() - env.analytics.retentionDays * 24 * 60 * 60 * 1_000);
+  const now = new Date();
+  const cutoff = new Date(now.getTime() - env.analytics.retentionDays * 24 * 60 * 60 * 1_000);
+  const rollupWindowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  rollupWindowStart.setUTCDate(rollupWindowStart.getUTCDate() - env.analytics.retentionDays);
   let deleted = 0;
   let batches = 0;
 
@@ -42,10 +51,18 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
     const batch = await runAdvisoryLockedBatch(prisma, ANALYTICS_RETENTION_LOCK_ID, async tx => {
       const rows = await tx.$queryRaw<{ id: string }[]>`
         WITH doomed AS (
-          SELECT id
-          FROM "analytics_events"
-          WHERE "createdAt" < ${cutoff}
-          ORDER BY "createdAt" ASC
+          SELECT e.id
+          FROM "analytics_events" e
+          WHERE e."createdAt" < ${cutoff}
+            AND (
+              e."createdAt" < ${dayKey(rollupWindowStart)}::date
+              OR EXISTS (
+                SELECT 1
+                FROM "analytics_rollup_days" d
+                WHERE d."bucketDate" = e."createdAt"::date
+              )
+            )
+          ORDER BY e."createdAt" ASC
           LIMIT ${BATCH_SIZE}
         )
         DELETE FROM "analytics_events" e
