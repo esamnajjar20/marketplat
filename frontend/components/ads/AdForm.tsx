@@ -338,6 +338,15 @@ export function AdForm({ mode, ad }: Props) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (isSubmittingRef.current) return;
+    // FIX WIZARD-ENTER-BYPASS: Enter in a text field submits the form
+    // regardless of the visible wizard step. Without this guard, Enter
+    // on step 1/2 would call validate() and createAd.mutate() with
+    // incomplete data (or only what happens to pass). Advance the
+    // wizard instead — same action as the "التالي" button.
+    if (isWizard && step < totalSteps) {
+      goNextStep();
+      return;
+    }
     if (!validate()) return;
 
     if (mode === 'create') {

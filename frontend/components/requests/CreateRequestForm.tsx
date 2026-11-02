@@ -1,6 +1,6 @@
 'use client';
 
-import { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Wrench, ShoppingBag, Home, Check, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useCreateRequest } from '@/hooks/mutations/useRequestMutations';
@@ -9,6 +9,7 @@ import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
 import { FormDraftStatus } from '@/components/shared/forms/FormDraftStatus';
+import { PublishMutationErrorNotice } from '@/components/shared/forms/PublishMutationErrorNotice';
 import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
 import type { RequestType } from '@/types/request.types';
 import { REQUEST_TYPE_LABEL, formatRequestBudget } from '@/lib/requestStatus';
@@ -155,6 +156,7 @@ export function CreateRequestForm() {
   const create = useCreateRequest();
   const searchParams = useSearchParams();
   const offlineDraftId = searchParams.get('draftId');
+  const isSubmittingRef = useRef(false);
 
   const seed = !offlineDraftId ? readFormDraft<DraftValues>('open-request:create') : null;
 
@@ -308,6 +310,14 @@ export function CreateRequestForm() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    // FIX WIZARD-ENTER-BYPASS: Enter in a text field submits the form
+    // from any step. On steps 1–3 advance instead of publishing.
+    if (step < 4) {
+      goNext();
+      return;
+    }
+    if (isSubmittingRef.current || create.isPending) return;
+
     const err1 = validateStep(1);
     const err2 = validateStep(2);
     if (err1 || err2) {
@@ -326,6 +336,7 @@ export function CreateRequestForm() {
       return;
     }
 
+    isSubmittingRef.current = true;
     create.mutate(
       {
         type,
@@ -342,6 +353,9 @@ export function CreateRequestForm() {
         onSuccess: () => {
           clearDraft();
           setFiles([]);
+        },
+        onSettled: () => {
+          isSubmittingRef.current = false;
         },
       },
     );
@@ -366,6 +380,7 @@ export function CreateRequestForm() {
       <StepIndicator current={step} />
 
       <FormDraftStatus savedAt={lastSavedAt} saving={isSaving} saveError={saveError} />
+      <PublishMutationErrorNotice error={create.error} />
 
       {stepError && (
         <p id="req-step-error" className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert" aria-live="assertive">

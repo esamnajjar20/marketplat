@@ -14,6 +14,7 @@ import { useCategories } from '@/hooks/queries/useCategories';
 import { track } from '@/lib/analytics';
 import { useRouter } from 'next/navigation';
 import type { Ad } from '@/types/ad.types';
+import { DETAIL_PANEL_PADDED } from '@/components/shared/detail/detailTokens';
 
 interface AdDetailMetadataProps {
   ad: Ad;
@@ -64,10 +65,10 @@ export function AdDetailMetadata({
   const conditionLabel = ad.condition ? CONDITION_LABELS[ad.condition] : ad.condition;
 
   return (
-    <div className="rounded-2xl bg-card shadow-sm p-5 sm:p-7 space-y-6">
+    <div className={cn(DETAIL_PANEL_PADDED, 'space-y-4')}>
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div className="space-y-2">
-          <h1 className="text-xl sm:text-2xl font-bold leading-snug">{ad.title}</h1>
+          <h1 className="text-xl font-bold leading-snug sm:text-2xl">{ad.title}</h1>
           <div className="flex flex-wrap items-center gap-y-1.5 gap-x-3 text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4" />{ad.city}</span>
             <span className="text-border">|</span>

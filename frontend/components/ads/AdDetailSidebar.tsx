@@ -22,22 +22,20 @@ export function AdDetailSidebar({ ad, isOwnAd }: AdDetailSidebarProps) {
   if (isOwnAd) return null;
 
   return (
-    <aside className="hidden md:flex md:w-1/3 flex-col gap-6">
-      <div className="space-y-6">
-        <div className={cn(DETAIL_PRICE_PANEL, 'space-y-1')}>
-          <div className="text-sm text-muted-foreground">السعر المطلوب</div>
-          <div className="text-3xl font-bold text-primary">{formatPrice(ad.price)}</div>
-          {ad.isNegotiable && (
-            <div className="flex items-center justify-between text-xs text-muted-foreground border-t pt-3 mt-3">
-              <span>قابل للتفاوض</span>
-            </div>
-          )}
-        </div>
-
-        <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} store={ad.store} />
-
-        <DetailSafetyTips defaultOpen />
+    <aside className="hidden w-full shrink-0 space-y-4 lg:block lg:w-1/3">
+      <div className={cn(DETAIL_PRICE_PANEL, 'space-y-3')}>
+        <div className="text-sm text-muted-foreground">السعر المطلوب</div>
+        <div className="text-3xl font-bold tabular-nums text-primary">{formatPrice(ad.price)}</div>
+        {ad.isNegotiable && (
+          <div className="flex items-center justify-between border-t border-border pt-3 text-xs text-muted-foreground">
+            <span>قابل للتفاوض</span>
+          </div>
+        )}
       </div>
+
+      <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} store={ad.store} />
+
+      <DetailSafetyTips defaultOpen />
     </aside>
   );
 }

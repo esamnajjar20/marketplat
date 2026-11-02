@@ -25,16 +25,16 @@ interface AdDetailDescriptionProps {
  */
 export function AdDetailDescription({ ad }: AdDetailDescriptionProps) {
   return (
-    <div className="space-y-6 md:col-span-2">
+    <div className="space-y-6">
       <section className={cn(DETAIL_PANEL_PADDED, 'space-y-3')}>
-        <h2 className={DETAIL_SECTION_TITLE}>التفاصيل</h2>
-        <p className="whitespace-pre-line rounded-xl border border-border/50 bg-muted/20 p-4 text-sm leading-7 text-muted-foreground">
+        <h2 className={DETAIL_SECTION_TITLE}>الوصف</h2>
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
           {ad.description?.trim() || 'لا توجد تفاصيل إضافية لهذا الإعلان.'}
         </p>
       </section>
 
       {/* Mobile-only seller card. Desktop seller information lives in the sidebar. */}
-      <div className="md:hidden">
+      <div className="lg:hidden">
         <SellerCard seller={ad.user} adId={ad.id} sellerProfileId={ad.sellerProfileId} store={ad.store} />
       </div>
 

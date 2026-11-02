@@ -223,16 +223,13 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
   return (
     <>
-      <div className="flex min-w-0 flex-col">
-        {/* Gallery + Description + Sidebar layout */}
-        <main className="flex-1 w-full max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="grid gap-6 lg:grid-cols-3">
-            {/* LEFT: Gallery + Description (2/3 on desktop) */}
-            <div className="space-y-6 lg:col-span-2">
+      {/* Layout aligned with ProductDetail: no nested container (page already provides it). */}
+      <div className={cn('flex flex-col gap-6 md:flex-row md:gap-8', !isOwnAd ? 'pb-sticky-contact' : 'pb-8')}>
+        <div className="min-w-0 flex-1 space-y-6 lg:w-2/3">
               {/* Main image gallery - KEEP EAGER (LCP critical) */}
-              <div className={DETAIL_GALLERY_SHELL}>
+              <div className={cn(DETAIL_GALLERY_SHELL, 'lg:shadow-md')}>
                 <div
-                  className="relative aspect-[4/3] rounded-2xl overflow-hidden bg-muted/30"
+                  className="relative aspect-[4/3] overflow-hidden bg-muted sm:aspect-[16/9]"
                   onTouchStart={(e) => {
                     touchStartX.current = e.changedTouches[0]?.clientX ?? null;
                   }}
@@ -329,35 +326,33 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
               {/* Description, mobile seller card and report action */}
               <AdDetailDescription ad={ad} />
-            </div>
+        </div>
 
-            {/* RIGHT: Sidebar (price + seller + safety) - LAZY LOADED */}
-            <AdDetailSidebar ad={ad} isOwnAd={isOwnAd} />
-          </div>
-        </main>
-
-        {/* Mobile sticky contact CTA - LAZY LOADED */}
-        <AdDetailStickyCta
-          ad={ad}
-          isOwnAd={isOwnAd}
-          transitionClass={stickyCta.transitionClass}
-          hiddenClass={stickyCta.hiddenClass}
-          onMessageClick={handleStickyMessage}
-          isMessaging={startConversation.isPending}
-        />
-
-        {/* Fullscreen lightbox — lazy loaded */}
-        {lightboxOpen && (
-          <AdDetailLightbox
-            images={images}
-            currentIdx={imgIdx}
-            adTitle={ad.title}
-            onClose={() => setLightboxOpen(false)}
-            onNext={goNext}
-            onPrev={goPrev}
-          />
-        )}
+        {/* RIGHT: Sidebar (price + seller + safety) - LAZY LOADED */}
+        <AdDetailSidebar ad={ad} isOwnAd={isOwnAd} />
       </div>
+
+      {/* Mobile sticky contact CTA - LAZY LOADED */}
+      <AdDetailStickyCta
+        ad={ad}
+        isOwnAd={isOwnAd}
+        transitionClass={stickyCta.transitionClass}
+        hiddenClass={stickyCta.hiddenClass}
+        onMessageClick={handleStickyMessage}
+        isMessaging={startConversation.isPending}
+      />
+
+      {/* Fullscreen lightbox — lazy loaded */}
+      {lightboxOpen && (
+        <AdDetailLightbox
+          images={images}
+          currentIdx={imgIdx}
+          adTitle={ad.title}
+          onClose={() => setLightboxOpen(false)}
+          onNext={goNext}
+          onPrev={goPrev}
+        />
+      )}
     </>
   );
 }

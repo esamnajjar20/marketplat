@@ -108,13 +108,13 @@ export function ServiceListingDetail({ listing, action }: Props) {
 
   return (
     <>
-      <div className="flex flex-col gap-5 md:flex-row md:gap-8">
+      <div className="flex flex-col gap-6 md:flex-row md:gap-8">
         {/* ── Main column ── */}
-        <div className="min-w-0 flex-1 space-y-5">
+        <div className="min-w-0 flex-1 space-y-6 lg:w-2/3">
           {/* Gallery */}
-          <div className={DETAIL_GALLERY_SHELL} data-testid="service-listing-gallery">
+          <div className={cn(DETAIL_GALLERY_SHELL, 'lg:shadow-md')} data-testid="service-listing-gallery">
             <div
-              className="relative aspect-[4/3] bg-muted sm:aspect-[16/10]"
+              className="relative aspect-[4/3] bg-muted sm:aspect-[16/9]"
               onTouchStart={(e) => {
                 touchStartX.current = e.changedTouches[0]?.clientX ?? null;
               }}
@@ -156,8 +156,8 @@ export function ServiceListingDetail({ listing, action }: Props) {
                     type="button"
                     onClick={goPrev}
                     disabled={imgIdx === 0}
-                    className="absolute start-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white disabled:opacity-30"
-                    aria-label="السابق"
+                    className="absolute start-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 shadow disabled:opacity-40"
+                    aria-label="الصورة السابقة"
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
@@ -165,12 +165,12 @@ export function ServiceListingDetail({ listing, action }: Props) {
                     type="button"
                     onClick={goNext}
                     disabled={imgIdx === images.length - 1}
-                    className="absolute end-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/40 text-white disabled:opacity-30"
-                    aria-label="التالي"
+                    className="absolute end-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-background/80 shadow disabled:opacity-40"
+                    aria-label="الصورة التالية"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
-                  <span className="absolute bottom-2 start-1/2 -translate-x-1/2 rounded-full bg-black/50 px-2.5 py-0.5 text-xs text-white">
+                  <span className="absolute bottom-3 start-1/2 -translate-x-1/2 rounded-full bg-background/80 px-2.5 py-0.5 text-xs font-medium tabular-nums">
                     {imgIdx + 1} / {images.length}
                   </span>
                 </>
@@ -311,7 +311,7 @@ export function ServiceListingDetail({ listing, action }: Props) {
         </div>
 
         {/* ── Desktop sidebar ── */}
-        <aside className="hidden w-full shrink-0 space-y-4 md:block md:w-[300px]">
+        <aside className="hidden w-full shrink-0 space-y-4 lg:block lg:w-1/3">
           <div className="space-y-4">
             {action && (
               <div className={DETAIL_PANEL_PADDED}>

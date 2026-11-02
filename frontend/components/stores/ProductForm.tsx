@@ -388,6 +388,12 @@ export function ProductForm({ mode, product }: Props) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (isSubmittingRef.current) return;
+    // FIX WIZARD-ENTER-BYPASS: Enter in a text field submits the form
+    // regardless of the visible wizard step. Advance instead of publishing.
+    if (isWizard && step < totalSteps) {
+      goNextStep();
+      return;
+    }
     if (!validate()) return;
 
     if (mode === 'create') {
@@ -411,12 +417,16 @@ export function ProductForm({ mode, product }: Props) {
         {
           onError: (err) => {
             setServerErrors(parseApiError(err).fieldErrors);
+          },
+          // PHASE-OFFLINE-DRAFTS: clear local draft only after real publish.
+          onSuccess: () => clearDraftAndAttachments(),
+          // FIX SUBMIT-REF-STUCK: reset de-dupe guard on both success and
+          // failure. onError-only left the form stuck if navigation after
+          // success failed (same bug ServiceListingForm already fixed).
+          onSettled: () => {
+            setUploadProgress(null);
             isSubmittingRef.current = false;
           },
-          // PHASE-OFFLINE-DRAFTS: نفس منطق AdForm.tsx — لا داعي لمسودة
-          // بعد نجاح النشر الفعلي.
-          onSuccess: () => clearDraftAndAttachments(),
-          onSettled: () => setUploadProgress(null),
         }
       );
       return;

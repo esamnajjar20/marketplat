@@ -88,7 +88,7 @@ export default async function ServiceListingPage({ params }: Props) {
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
-    <div className={`container mx-auto max-w-6xl space-y-6 px-3 py-4 sm:px-4 sm:py-6 ${providerUserId ? 'pb-sticky-contact' : 'pb-8'}`}>
+    <div className={`container mx-auto max-w-7xl space-y-6 px-4 py-6 ${providerUserId ? 'pb-sticky-contact' : 'pb-8'}`}>
       {/* SW-SEO-JSONLD-SERVICE-01: schema.org Service. Provider is a
           Person (not LocalBusiness) because the marketplace represents
           individual service providers, and the listing payload does
