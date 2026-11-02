@@ -167,6 +167,7 @@ export const ROUTES = {
     auditLogs:         '/admin?tab=audit-logs',
     // Gap #7 (product analytics): dashboard for GET /admin/analytics/summary.
     analytics:         '/admin?tab=analytics',
+    infrastructure:    '/admin?tab=infrastructure',
     // FRAUD-UI: /admin/fraud/* backend module had no reachable page.
     fraud:             '/admin?tab=fraud',
     products:          '/admin?tab=products',

@@ -116,6 +116,7 @@ describe('AdminSidebar', () => {
     expect(within(desktopNav).getByText('فئات المنتجات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('سجل العمليات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('التحليلات')).toBeInTheDocument();
+      expect(within(desktopNav).getByText('إدارة البنية التحتية')).toBeInTheDocument();
     expect(within(desktopNav).getByText('المنتجات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('الخدمات')).toBeInTheDocument();
     expect(within(desktopNav).getByText('المراقبة والتشخيص')).toBeInTheDocument();
@@ -212,7 +213,7 @@ describe('AdminSidebar', () => {
     const { container } = render(<AdminSidebar />);
     const desktopAside = container.querySelector('aside');
     const hiddenIcons = desktopAside?.querySelectorAll('[aria-hidden="true"]');
-    expect(hiddenIcons?.length).toBe(21); // 20 nav links (NAV_LINKS) + the search-box icon
+    expect(hiddenIcons?.length).toBe(22); // 21 nav links (NAV_LINKS) + the search-box icon
   });
 
   // ── Mobile drawer ────────────────────────────────────────────────────
@@ -291,6 +292,7 @@ describe('AdminSidebar', () => {
       const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
 
       expect(within(desktopNav).getByText('الإعلانات')).toBeInTheDocument();
+      expect(within(desktopNav).queryByText('إدارة البنية التحتية')).not.toBeInTheDocument();
       expect(within(desktopNav).getByText('البلاغات')).toBeInTheDocument();
 
       expect(within(desktopNav).queryByText('الرئيسية')).not.toBeInTheDocument();
@@ -329,20 +331,22 @@ describe('AdminSidebar', () => {
   });
 
   describe('ADMIN and SUPER_ADMIN tiers — see every link (unchanged from pre-Gap-20 behavior)', () => {
-    it('an ADMIN actor sees all 18 links', () => {
+    it('an ADMIN actor sees the infrastructure link', () => {
       mockActor('ADMIN');
       render(<AdminSidebar />);
       const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
       expect(within(desktopNav).getByText('المستخدمون')).toBeInTheDocument();
       expect(within(desktopNav).getByText('التحليلات')).toBeInTheDocument();
+      expect(within(desktopNav).getByText('إدارة البنية التحتية')).toBeInTheDocument();
     });
 
-    it('a SUPER_ADMIN actor sees all 18 links', () => {
+    it('a SUPER_ADMIN actor sees the infrastructure link', () => {
       mockActor('SUPER_ADMIN');
       render(<AdminSidebar />);
       const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
       expect(within(desktopNav).getByText('المستخدمون')).toBeInTheDocument();
       expect(within(desktopNav).getByText('التحليلات')).toBeInTheDocument();
+      expect(within(desktopNav).getByText('إدارة البنية التحتية')).toBeInTheDocument();
     });
   });
 });

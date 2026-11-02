@@ -5,7 +5,7 @@ import { logger } from '../utils/logger';
  * Edge cache purge by Cache-Tag (Cloudflare) + purge-aware edge TTLs.
  *
  * WHY: raising the edge TTL delays "تم البيع" (sold / deleted / edited) unless the
- * edge can be purged on write. The API Worker (workers/cf-api-proxy/worker.js)
+ * edge can be purged on write. The API Worker (workers/cf-api-proxy/worker.ts)
  * stamps every cached response with a `Cache-Tag` header; the mutations below
  * purge those tags through the Cloudflare API, and only THEN do the ads routes use
  * long s-maxage values (see `purgeAwareSharedMaxAge`).

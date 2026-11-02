@@ -1,8 +1,8 @@
-// مثال إعداد الـ API Worker (v4). انسخه إلى wrangler.jsonc وعدّل القيم.
+// مثال إعداد الـ Smart Gateway Worker (v5). انسخه إلى wrangler.jsonc وعدّل القيم.
 {
   "name": "marketplat-api",
-  "main": "worker.js",
-  "compatibility_date": "2026-09-01",
+  "main": "worker.ts",
+  "compatibility_date": "2026-10-01",
 
   // Required for browser clients: exact frontend origins, comma-separated.
   // Do not use a wildcard when credentials/cookies are enabled.
@@ -19,9 +19,19 @@
   // قياس HIT ratio الحقيقي (اختياري) — Workers Analytics Engine:
   "analytics_engine_datasets": [{ "binding": "CACHE_METRICS", "dataset": "marketplat_cache" }],
 
-  // السر لمسار POST /__purge__ ولتشغيل /__warm__ يدوياً (x-purge-token) (يطابق EDGE_WORKER_PURGE_TOKEN في الباك-إند):
+  // السر لمسار POST /__purge__ (يطابق EDGE_WORKER_PURGE_TOKEN في الباك-إند):
   //   npx wrangler secret put PURGE_TOKEN
 
-  // keep-warm كل 4 دقائق (كما هو مدروس في الجرد)
-  "triggers": { "crons": ["*/4 * * * *"] }
+  // Shared backend health state across Worker isolates (SQLite-backed Durable Object).
+  "durable_objects": {
+    "bindings": [{ "name": "GATEWAY_HEALTH", "class_name": "GatewayHealthCoordinator" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GatewayHealthCoordinator"] }],
+
+  // intentionally no Cron trigger: cache warm-up is disabled by project policy.
+  // Add GATEWAY_ADMIN_TOKEN with: npx wrangler secret put GATEWAY_ADMIN_TOKEN
+  // Optional GATEWAY_ALLOWED_HOSTS belongs in Worker vars, not in browser code.
+  // For frontend routing, set FRONTEND_GATEWAY_HOSTS to exact public hostnames (comma-separated)
+  // in Worker vars, then map each hostname/* Cloudflare Route to this same Worker.
+  // The frontend origin itself must be a different host to avoid a proxy loop.
 }

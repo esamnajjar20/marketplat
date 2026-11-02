@@ -10,7 +10,7 @@
  *
  * Differences from the user-facing hubs (TabsHub), on purpose:
  *  - No in-page tab strip. AdminSidebar (desktop) and its drawer (mobile) are
- *    the switcher: 18 sections with live badges and a filter box, which a pill
+ *    the switcher: admin sections with live badges and a filter box, which a pill
  *    row cannot replace. Switching is a normal <Link> navigation to
  *    `/admin?tab=…`, so the URL — read here with useSearchParams — is the only
  *    source of truth (no local state to keep in sync).
@@ -69,6 +69,7 @@ const CreateProductCategoryButton = dynamic(() => import('@/components/admin/Cre
 const CreateServiceCategoryButton = dynamic(() => import('@/components/admin/CreateServiceCategoryButton').then((m) => m.CreateServiceCategoryButton), { loading: adminTabLoading });
 const AdminAuditLogsTable = dynamic(() => import('@/components/admin/AdminAuditLogsTable').then((m) => m.AdminAuditLogsTable), { loading: adminTabLoading });
 const AdminMonitoringCenter = dynamic(() => import('@/components/admin/AdminMonitoringCenter').then((m) => m.AdminMonitoringCenter), { loading: adminTabLoading });
+const AdminInfrastructureGateway = dynamic(() => import('@/components/admin/AdminInfrastructureGateway').then((m) => m.AdminInfrastructureGateway), { loading: adminTabLoading });
 const AdminDeveloperToolsControl = dynamic(() => import('@/components/admin/AdminDeveloperToolsControl').then((m) => m.AdminDeveloperToolsControl), { loading: adminTabLoading });
 
 const AdminAnalyticsDashboard = dynamic(
@@ -245,6 +246,8 @@ function TabBody({ tab }: { tab: AdminTab }) {
       );
     case 'monitoring':
       return <AdminMonitoringCenter />;
+    case 'infrastructure':
+      return <AdminInfrastructureGateway />;
     case 'dashboard':
     default:
       return (

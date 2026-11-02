@@ -1,3 +1,5 @@
+// Configure the same server-only GATEWAY_ADMIN_TOKEN secret used by the API Worker
+// via: npx wrangler secret put GATEWAY_ADMIN_TOKEN. Never use NEXT_PUBLIC_.
 {
   "name": "marketplat",
   "main": ".open-next/worker.js",

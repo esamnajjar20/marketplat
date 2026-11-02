@@ -204,7 +204,7 @@ const nextConfig: NextConfig = {
       'reports', 'fraud', 'products', 'service-listings', 'open-requests',
       'service-request-disputes', 'categories', 'service-categories',
       'product-categories', 'notifications', 'audit-logs', 'analytics',
-      'monitoring', 'system',
+      'monitoring', 'infrastructure', 'system',
     ];
     return [
       { source: '/admin/dashboard', destination: '/admin', permanent: false },

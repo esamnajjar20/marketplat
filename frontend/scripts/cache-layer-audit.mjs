@@ -164,7 +164,7 @@ const adminService = read('apps/api/src/modules/admin/admin.service.ts');
 const authQuery = read('frontend/hooks/queries/useAuth.ts');
 const offlineFreshness = read('frontend/lib/offlineFreshness.ts');
 const appSource = read('apps/api/src/app.ts');
-const edgeWorker = read('workers/cf-api-proxy/worker.js');
+const edgeWorker = read('workers/cf-api-proxy/worker.ts');
 if (!apiRoutes.includes('router.use(privateApiCacheDefault)')) fail('API-wide private no-store default is missing');
 if (!middleware.includes('app_access_token')) fail('API cache middleware does not recognize the app access-token cookie');
 if (!middleware.includes("res.vary('Authorization')") || !middleware.includes("res.vary('Cookie')")) fail('API cache middleware does not preserve auth variance through Response.vary()');

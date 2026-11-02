@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, ScrollText, BarChart3, Menu, X, Package, ShieldAlert,
-  ListOrdered, Bell, Search, Activity } from 'lucide-react';
+  ListOrdered, Bell, Search, Activity, Server } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { canOpenAdminTab, isAdminTabActive, type AdminTab } from '@/lib/adminHubTabs';
 import { useAdminOpsQueue } from '@/hooks/queries/useAdmin';
@@ -55,6 +55,7 @@ const NAV_LINKS = [
   // AdminAnalyticsDashboard.tsx.
   { tab: 'analytics' as AdminTab, href: ROUTES.admin.analytics,         label: 'التحليلات',      icon: BarChart3 },
   { tab: 'monitoring' as AdminTab, href: '/admin?tab=monitoring', label: 'المراقبة والتشخيص', icon: Activity },
+  { tab: 'infrastructure' as AdminTab, href: ROUTES.admin.infrastructure, label: 'إدارة البنية التحتية', icon: Server },
 ] as const;
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {

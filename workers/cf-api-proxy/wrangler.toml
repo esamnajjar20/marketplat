@@ -1,15 +1,28 @@
 name = "marketplat-api"
-main = "worker.js"
+main = "worker.ts"
 compatibility_date = "2026-10-01"
 
 [vars]
 RENDER_ORIGIN = "https://marketplat-nz19.onrender.com"
 # Configure FRONTEND_ORIGIN in Cloudflare Worker Variables with the exact deployed
 # frontend origin(s), comma-separated. Credentialed CORS fails closed if omitted.
+# Set GATEWAY_ADMIN_TOKEN as a Worker secret before using /__gateway/registry.
+# Optional: set GATEWAY_ALLOWED_HOSTS to comma-separated public DNS suffixes.
+# For frontend-origin routing, set FRONTEND_GATEWAY_HOSTS to exact public hostnames
+# (comma-separated), then attach each hostname/* route to this same Worker.
+# Never add one of those public hostnames as its own frontend origin (loop protection rejects it).
 
 [[kv_namespaces]]
 binding = "REFERENCE_KV"
 id = "1e04b5156df44331b12eeaed3cfabe96"
 
-[triggers]
-crons = ["*/4 * * * *"]
+
+
+# Shared health state across API Worker isolates. SQLite-backed DO works on Free/Paid plans.
+[[durable_objects.bindings]]
+name = "GATEWAY_HEALTH"
+class_name = "GatewayHealthCoordinator"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GatewayHealthCoordinator"]

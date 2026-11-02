@@ -38,7 +38,7 @@
 ## نتائج التحقق المحلي
 
 - `node workers/cf-api-proxy/cache-policy.test.mjs` — PASS.
-- `node --check workers/cf-api-proxy/worker.js` — PASS.
+- فحص صياغة `worker.js` كان ضمن تحقق النسخة التاريخية قبل تحويل المصدر إلى TypeScript؛ لا يستخدم هذا الأمر مع المصدر الحالي.
 - `node --check workers/cf-api-proxy/cache-policy.test.mjs` — PASS.
 - `node --check workers/cf-api-proxy/cache-probe.mjs` — PASS.
 - اختبار Jest لـ `apps/api/tests/unit/edgePurge.test.ts` لم يُشغّل: لا توجد `node_modules` في نسخة العمل.
@@ -64,7 +64,7 @@
 - `apps/api/src/config/env.ts`
 - `apps/api/src/shared/cache/edgePurge.ts`
 - `apps/api/tests/unit/edgePurge.test.ts`
-- `workers/cf-api-proxy/worker.js`
+- `workers/cf-api-proxy/worker.ts` (المصدر الحالي بعد التحويل اللاحق؛ تقرير هذه المرحلة التاريخية سجل نسخة JavaScript السابقة)
 - `workers/cf-api-proxy/cache-policy.test.mjs`
 - `workers/cf-api-proxy/wrangler.toml`
 - `workers/cf-api-proxy/wrangler.example.jsonc`

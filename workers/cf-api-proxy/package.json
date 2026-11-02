@@ -2,10 +2,15 @@
   "name": "@marketplat/cf-api-proxy",
   "version": "0.1.0",
   "private": true,
-  "description": "Cloudflare API proxy worker and cache policy checks for MarketPlat",
+  "description": "Typed Cloudflare API gateway, edge-cache policy, and regression tests for MarketPlat",
   "scripts": {
-    "test": "node cache-policy.test.mjs",
-    "audit:probe": "node cache-probe.mjs",
-    "type-check": "node --check worker.js && node --check cache-policy.test.mjs && node --check cache-probe.mjs"
+    "build": "tsc -p tsconfig.json",
+    "type-check": "tsc --noEmit -p tsconfig.json",
+    "test": "npm run build && node cache-policy.test.mjs",
+    "check": "npm run type-check && npm test",
+    "audit:probe": "node cache-probe.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
   }
 }
