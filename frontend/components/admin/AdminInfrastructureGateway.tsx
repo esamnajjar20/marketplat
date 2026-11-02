@@ -108,8 +108,8 @@ function StatusPill({ healthy, label }: { healthy: boolean | null; label?: strin
 
 export function AdminInfrastructureGateway() {
   const accessToken = useAuthStore((state) => state.accessToken);
-  const authorizationHeaders = useMemo(
-    () => accessToken ? { authorization: `Bearer ${accessToken}` } : {},
+  const authorizationHeaders = useMemo<Record<string, string>>(
+    (): Record<string, string> => accessToken ? { authorization: `Bearer ${accessToken}` } : {},
     [accessToken],
   );
   const [servers, setServers] = useState<GatewayServer[]>([]);
