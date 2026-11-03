@@ -1,0 +1,9 @@
+name = "marketplat-keepalive"
+main = "index.js"
+compatibility_date = "2024-01-01"
+
+[triggers]
+crons = ["*/10 * * * *"]
+
+[vars]
+KEEPALIVE_URLS = "https://marketplat-nz19.onrender.com/health,https://marketplat-mb9x.onrender.com/healthz,https://marketplat2.onrender.com/health,https://marketplat-df3h.onrender.com/health"

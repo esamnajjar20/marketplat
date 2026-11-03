@@ -33,14 +33,17 @@ describe('isFraudMonitorScanReport', () => {
 
   it('rejects samples containing fields outside the privacy-safe response contract', () => {
     const checks = [...validReport.checks];
+// @ts-expect-error - Testing extra email property constraint
     checks[0] = { ...checks[0], samples: [{ id: 'user_1', reportCount: 8, email: 'private@example.test' }] };
     expect(isFraudMonitorScanReport({ ...validReport, checks })).toBe(false);
   });
 
   it('rejects unbounded samples and missing sample IDs', () => {
     const checks = [...validReport.checks];
+// @ts-expect-error - Testing invalid email property
     checks[0] = { ...checks[0], samples: Array.from({ length: 11 }, (_, index) => ({ id: `u${index}` })) };
     expect(isFraudMonitorScanReport({ ...validReport, checks, findingCount: 1 })).toBe(false);
+// @ts-expect-error - Testing invalid email property
     checks[0] = { ...checks[0], samples: [{ email: 'not-allowed' }] };
     expect(isFraudMonitorScanReport({ ...validReport, checks })).toBe(false);
   });

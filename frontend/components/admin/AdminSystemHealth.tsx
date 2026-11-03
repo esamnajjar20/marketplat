@@ -198,7 +198,7 @@ export function AdminSystemHealth() {
                 <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                   <span>
                     {service.sharedWith
-                      ? `مشترك مع ${data.redisServices.find((item) => item.key === service.sharedWith)?.label ?? service.sharedWith}`
+                      ? `مشترك مع ${data.redisServices?.find((item) => item.key === service.sharedWith)?.label ?? service.sharedWith}`
                       : service.dedicated ? 'عنوان مستقل' : 'مشترك مع Redis الأساسي'}
                   </span>
                   <span className="font-medium tabular-nums">{service.latencyMs == null ? '—' : `${service.latencyMs} ms`}</span>

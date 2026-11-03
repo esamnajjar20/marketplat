@@ -29,6 +29,7 @@ describe('isDataIntegrityScanReport', () => {
 
   it('rejects samples without a stable entity id', () => {
     const value = structuredClone(validReport);
+// @ts-expect-error - Testing missing id constraint
     value.checks[0].samples = [{ stockQuantity: -1 }];
     expect(isDataIntegrityScanReport(value)).toBe(false);
   });
