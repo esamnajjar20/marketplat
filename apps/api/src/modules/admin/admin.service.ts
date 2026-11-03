@@ -929,6 +929,14 @@ export const adminService = {
       error?: string;
       note?: string;
     };
+    redisServices: Array<{
+      key: string;
+      label: string;
+      dedicated: boolean;
+      sharedWith: string | null;
+      ok: boolean;
+      latencyMs: number | null;
+    }>;
     db: {
       ok: boolean;
       latencyMs: number | null;
@@ -971,25 +979,25 @@ export const adminService = {
     let redisCmdMs: number | null = null;
     let redisErr: string | undefined;
     let redisNote: string | undefined;
+    let redisServices: Array<{
+      key: string;
+      label: string;
+      dedicated: boolean;
+      sharedWith: string | null;
+      ok: boolean;
+      latencyMs: number | null;
+    }> = [];
     try {
-      const { redis } = await import('../../config/redis');
-      const t0 = nowMs();
-      if (redis.status !== 'ready') {
-        await redis
-          .connect()
-          .catch(error =>
-            reportBackgroundFailure('apps/api/src/modules/admin/admin.service.ts', error)
-          );
+      const { inspectRedisLogicalServices } = await import('../../config/redis');
+      redisServices = await inspectRedisLogicalServices();
+      const core = redisServices.find(service => service.key === 'core');
+      redisOk = core?.ok ?? false;
+      redisCmdMs = core?.latencyMs ?? null;
+      redisMs = redisCmdMs;
+      if (!redisOk) {
+        redisErr = 'تعذّر تنفيذ فحص Redis الأساسي؛ راجع سجلات الخادم المحمية.';
       }
-      // UPSTASH-SAVE: PING واحد بعد التأكد من الاتصال (بدل 4 أوامر)
-      const s0 = nowMs();
-      await redis.ping();
-      redisCmdMs = Math.round(nowMs() - s0);
-      redisMs = Math.round(nowMs() - t0);
-      redisOk = true;
-      if (redisMs >= 80 && redisCmdMs < 25) {
-        redisNote = 'زمن الاتصال/الشبكة مرتفع، لكن أوامر Redis سريعة — الكاش نفسه ليس بطيئًا.';
-      } else if (redisCmdMs >= 50) {
+      if (redisCmdMs !== null && redisCmdMs >= 50) {
         redisNote = 'أوامر Redis بطيئة نسبيًا — غالبًا بسبب استضافة بعيدة (RTT) أو ضغط على الخادم.';
       }
     } catch {
@@ -1080,6 +1088,7 @@ export const adminService = {
         error: redisErr,
         note: redisNote,
       },
+      redisServices,
       db: { ok: dbOk, latencyMs: dbMs, error: dbErr, note: dbNote },
       runtime: {
         uptimeSeconds: runtimeUptimeSeconds,

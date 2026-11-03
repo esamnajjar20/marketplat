@@ -69,7 +69,7 @@ function harness({ upstream, kv, cacheFailure = false, envOverrides = {} } = {})
       return upstream(String(url), headers, upstreamLog.length, init);
     },
   };
-  vm.runInNewContext(`${source}\nglobalThis.__internals = { isUpstreamCacheable, makeCacheKey, edgeTagsFor, canonicalize, isValidIpAddress, getRenderOrigin, validateGatewayRegistry, validateBackendOrigin, validateGatewayPath, normalizeGatewayRequestTarget, weightedPriorityOrder, backendCandidates, loadGatewayRegistry, recordBackendResult, fetchBackend, GatewayHealthCoordinator };`, context);
+  vm.runInNewContext(`${source}\nglobalThis.__internals = { isUpstreamCacheable, makeCacheKey, edgeTagsFor, canonicalize, isValidIpAddress, getRenderOrigin, validateGatewayRegistry, validateBackendOrigin, validateGatewayPath, normalizeGatewayRequestTarget, weightedPriorityOrder, backendCandidates, goAdaptiveWeightMap, loadGatewayRegistry, recordBackendResult, fetchBackend, GatewayHealthCoordinator };`, context);
   const pending = [];
   const ctx = { waitUntil: (p) => pending.push(Promise.resolve(p).catch(() => {})) };
   const settle = async () => { while (pending.length) await Promise.all(pending.splice(0)); };
@@ -670,14 +670,25 @@ const PUBLIC_LIVE = {
   const committed = await stub.fetch('https://gateway-registry.internal/registry');
   assert.equal((await committed.json()).registry.version, 2);
 
-  // Frontend health IDs prepend "frontend-" to a legal 64-character server id.
-  // Reconcile must accept that 73-character internal identifier.
-  const longFrontendHealthId = `frontend-${'f'.repeat(64)}`;
+  // Namespaced Frontend health IDs cannot collide with Backend or Go IDs.
+  // Reconcile accepts the prefixed identifier while staying below its 80-char limit.
+  const longFrontendHealthId = `frontend--${'f'.repeat(64)}`;
   const reconcile = await stub.fetch('https://gateway-health.internal/reconcile', {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ servers: [{ id: longFrontendHealthId, url: 'https://web-long.example.com' }] }),
   });
   assert.equal(reconcile.status, 200);
+  const fullCapacity = Array.from({ length: 64 }, (_, index) => ({
+    id: `go--target-${index + 1}`, url: `https://go-target-${index + 1}.example.com`,
+  }));
+  const fullReconcile = await stub.fetch('https://gateway-health.internal/reconcile', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ servers: fullCapacity }),
+  });
+  assert.equal(fullReconcile.status, 200, 'health reconciliation accepts the full 16+16+32 target capacity');
+  const overCapacity = await stub.fetch('https://gateway-health.internal/reconcile', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ servers: [...fullCapacity, { id: 'go--target-65', url: 'https://go-target-65.example.com' }] }),
+  });
+  assert.equal(overCapacity.status, 400, 'health reconciliation rejects more than the full registry capacity');
   const healthWrite = await stub.fetch('https://gateway-health.internal/record', {
     method: 'POST', headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ serverId: longFrontendHealthId, serverUrl: 'https://web-long.example.com', healthy: true, source: 'probe' }),
@@ -764,12 +775,98 @@ const PUBLIC_LIVE = {
   assert.equal(reconciled.status, 200);
   const snapshot = await healthNamespace.get().fetch('https://gateway-health.internal/snapshot');
   const states = (await snapshot.json()).states;
-  assert.equal(Object.keys(states).some((key) => key.startsWith('central-a|')), false);
+  assert.equal(Object.keys(states).some((key) => key.startsWith('backend--central-a|')), false);
 
   const invalidRecord = await healthNamespace.get().fetch('https://gateway-health.internal/record', {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ serverId: 'bad id', serverUrl: 'https://central-b.example.com', healthy: false, source: 'traffic' }),
   });
   assert.equal(invalidRecord.status, 400, 'the coordinator validates health event identity and payload');
+}
+
+
+/* ───────────── Go adaptive weighting and traffic EWMA ───────────── */
+{
+  const h = harness({ upstream: async () => json({ ok: true }) });
+  const validate = h.internals.validateGatewayRegistry;
+  const registry = validate({
+    backend: { servers: [{ id: 'api', url: 'https://api.example.com', weight: 100, enabled: true }] },
+    go: { servers: [
+      { id: 'go-a', serviceKey: 'analytics', routePrefix: '/internal/analytics', upstreamPrefix: '/internal/analytics', url: 'https://go-a.example.com', weight: 70, enabled: true },
+      { id: 'go-b', serviceKey: 'analytics', routePrefix: '/internal/analytics', upstreamPrefix: '/internal/analytics', url: 'https://go-b.example.com', weight: 30, enabled: true },
+    ] },
+  }, {});
+  assert.equal(registry.go.adaptive.enabled, true, 'adaptive Go routing defaults on for legacy registries');
+  assert.equal(registry.go.adaptive.sensitivity, 65);
+  assert.equal(registry.go.servers[0].manualSharePercent, 70);
+  assert.equal(registry.go.servers[1].manualSharePercent, 30);
+
+  const states = {
+    'go--go-a|https://go-a.example.com': { failures: 0, openUntil: 0, ewmaDurationMs: 100, ewmaActiveRequests: 1, errorRate: 0, sampleCount: 20 },
+    'go--go-b|https://go-b.example.com': { failures: 0, openUntil: 0, ewmaDurationMs: 500, ewmaActiveRequests: 8, errorRate: 0.2, sampleCount: 20 },
+  };
+  const adaptive = h.internals.goAdaptiveWeightMap(registry.go.servers, registry.go.adaptive, states);
+  assert.ok(adaptive.get('go-a') > 70, 'fast and reliable replica receives an adaptive boost over its 70 baseline');
+  assert.ok(adaptive.get('go-b') < 30, 'slow, busy and error-prone replica is reduced below its 30 baseline');
+  const manualOnly = h.internals.goAdaptiveWeightMap(registry.go.servers, { enabled: false, sensitivity: 65 }, states);
+  assert.equal(manualOnly.get('go-a'), 70);
+  assert.equal(manualOnly.get('go-b'), 30);
+  const concurrencyOnly = h.internals.goAdaptiveWeightMap(registry.go.servers, { enabled: true, sensitivity: 100 }, {
+    'go--go-a|https://go-a.example.com': { failures: 0, openUntil: 0, ewmaDurationMs: 200, ewmaActiveRequests: 0, errorRate: 0, sampleCount: 20 },
+    'go--go-b|https://go-b.example.com': { failures: 0, openUntil: 0, ewmaDurationMs: 200, ewmaActiveRequests: 20, errorRate: 0, sampleCount: 20 },
+  });
+  assert.ok(concurrencyOnly.get('go-a') > 70, 'less-concurrent replica gets a higher effective weight when latency and errors are equal');
+  assert.ok(concurrencyOnly.get('go-b') < 30, 'more-concurrent replica gets a lower effective weight when latency and errors are equal');
+
+  const coordinator = makeHealthNamespace(h.internals.GatewayHealthCoordinator);
+  const routeRegistry = {
+    backend: { servers: [{ id: 'api-primary', url: 'https://api-primary.example.com', weight: 100, enabled: true }] },
+    go: { servers: [{ id: 'go-traffic', serviceKey: 'analytics', routePrefix: '/internal/analytics', upstreamPrefix: '/internal/analytics', url: 'https://go-traffic.example.com', weight: 100, enabled: true }] },
+  };
+  const routeHarness = harness({
+    kv: { get: async (key, type) => key === 'gateway:registry:v1' && type === 'json' ? cloneJson(routeRegistry) : null },
+    envOverrides: { GO_WORKER_TOKEN: 'go-secret', GATEWAY_HEALTH: coordinator },
+    upstream: async () => new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json', 'x-mp-worker-active-requests': '3' } }),
+  });
+  for (let index = 0; index < 5; index += 1) {
+    const response = await routeHarness.call('/__go/internal/analytics/summary', { headers: { authorization: 'Bearer go-secret' } });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('x-mp-worker-active-requests'), null, 'the internal load hint must not leak to API clients');
+  }
+  await routeHarness.settle();
+  const routedSnapshot = await (await coordinator.get().fetch('https://gateway-health.internal/snapshot')).json();
+  assert.equal(routedSnapshot.states['go--go-traffic|https://go-traffic.example.com'].sampleCount, 1, 'successful Go traffic is sampled into the shared health coordinator');
+  assert.equal(routedSnapshot.states['go--go-traffic|https://go-traffic.example.com'].activeRequests, 3, 'the coordinator stores the live Go active-request hint');
+  assert.equal(routedSnapshot.states['go--go-traffic|https://go-traffic.example.com'].ewmaActiveRequests, 3, 'the coordinator tracks EWMA concurrency for adaptive routing');
+
+  for (let index = 0; index < 5; index += 1) {
+    const response = await coordinator.get().fetch('https://gateway-health.internal/record', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ serverId: 'go--sample', serverUrl: 'https://go-sample.example.com', healthy: true, status: 200, durationMs: 120 + index * 10, activeRequests: 2 + index, source: 'traffic' }),
+    });
+    assert.equal(response.status, 200);
+  }
+  const failed = await coordinator.get().fetch('https://gateway-health.internal/record', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ serverId: 'go--sample', serverUrl: 'https://go-sample.example.com', healthy: false, status: 503, durationMs: 400, source: 'traffic' }),
+  });
+  assert.equal(failed.status, 200);
+  const snapshot = await (await coordinator.get().fetch('https://gateway-health.internal/snapshot')).json();
+  const metric = snapshot.states['go--sample|https://go-sample.example.com'];
+  assert.equal(metric.sampleCount, 6, 'the coordinator tracks routed traffic samples');
+  assert.ok(metric.ewmaDurationMs >= 120 && metric.ewmaDurationMs <= 400);
+  assert.ok(metric.errorRate > 0 && metric.errorRate <= 1, 'failures contribute to the EWMA error ratio');
+  assert.equal(metric.activeRequests, null, 'events without a load hint clear the latest instantaneous value');
+  assert.ok(metric.ewmaActiveRequests >= 2 && metric.ewmaActiveRequests <= 6, 'the coordinator tracks EWMA active requests');
+
+  const manualProbe = await coordinator.get().fetch('https://gateway-health.internal/record', {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ serverId: 'go--sample', serverUrl: 'https://go-sample.example.com', healthy: true, status: 200, durationMs: 1, activeRequests: 0, source: 'probe' }),
+  });
+  assert.equal(manualProbe.status, 200);
+  const afterProbe = await (await coordinator.get().fetch('https://gateway-health.internal/snapshot')).json();
+  assert.equal(afterProbe.states['go--sample|https://go-sample.example.com'].sampleCount, 6, 'manual probes must not bias adaptive traffic metrics');
+  assert.equal(afterProbe.states['go--sample|https://go-sample.example.com'].ewmaActiveRequests, metric.ewmaActiveRequests, 'manual probes must not bias the concurrency signal');
+  assert.equal(afterProbe.states['go--sample|https://go-sample.example.com'].activeRequests, metric.activeRequests, 'manual probes must preserve the latest traffic load hint');
 }
 
 /* ───────────── mutating requests are never automatically replayed ───────────── */
@@ -787,6 +884,377 @@ const PUBLIC_LIVE = {
   assert.equal(response.status, 503);
   assert.equal(h.upstreamLog.length, 1, 'POST must never be replayed to another backend automatically');
   assert.equal(response.headers.get('x-mp-route-attempts'), '1');
+}
+
+/* ───────────── multi-service Go gateway, auth, rewrite, and failover ───────────── */
+{
+  const makeGoRegistry = (goServers) => ({
+    version: 7,
+    backend: { strategy: 'weighted-random', servers: [
+      { id: 'api-primary', url: 'https://api-primary.example.com', weight: 100, priority: 100, enabled: true },
+    ] },
+    frontend: { strategy: 'weighted-random', servers: [] },
+    go: { strategy: 'weighted-random', servers: goServers },
+  });
+  const kvFor = (registry) => ({
+    get: async (key, type) => key === 'gateway:registry:v1' && type === 'json' ? cloneJson(registry) : null,
+  });
+  const target = (overrides = {}) => ({
+    id: 'analytics-primary', serviceKey: 'analytics',
+    routePrefix: '/internal/analytics', upstreamPrefix: '/internal/compute',
+    url: 'https://go-analytics.example.com', weight: 100, priority: 10,
+    timeoutMs: 60000, enabled: true, healthPath: '/healthz',
+    ...overrides,
+  });
+
+  // The public Go route is closed unless the Worker has its own shared secret.
+  {
+    const h = harness({ kv: kvFor(makeGoRegistry([target()])), upstream: async () => json({ ok: true }) });
+    const missing = await h.call('/__go/internal/analytics/summary', {
+      headers: { authorization: 'Bearer go-secret' },
+    });
+    assert.equal(missing.status, 503);
+    assert.equal((await missing.json()).error, 'GO_GATEWAY_NOT_CONFIGURED');
+    assert.equal(h.upstreamLog.length, 0);
+  }
+
+  // Authentication is checked before route resolution or origin contact.
+  {
+    const h = harness({
+      kv: kvFor(makeGoRegistry([target()])),
+      envOverrides: { GO_WORKER_TOKEN: 'go-secret' },
+      upstream: async () => json({ ok: true }),
+    });
+    assert.equal((await h.call('/__go/internal/analytics/summary')).status, 401);
+    assert.equal((await h.call('/__go/internal/analytics/summary', { headers: { authorization: 'Bearer wrong' } })).status, 401);
+    assert.equal((await h.call('/__go/internal/other/summary', { headers: { authorization: 'Bearer go-secret' } })).status, 404);
+    assert.equal(h.upstreamLog.length, 0);
+    assert.equal((await h.call('/__go/internal/analytics/summary', {
+      method: 'PUT', headers: { authorization: 'Bearer go-secret' },
+    })).status, 405);
+  }
+
+  // Gateway-visible prefix is rewritten to the path expected by the Go service.
+  {
+    const h = harness({
+      kv: kvFor(makeGoRegistry([target()])),
+      envOverrides: { GO_WORKER_TOKEN: 'go-secret' },
+      upstream: async (url) => json({ path: new URL(url).pathname, service: 'analytics' }),
+    });
+    const response = await h.call('/__go/internal/analytics/daily?range=7', {
+      headers: {
+        authorization: 'Bearer go-secret', cookie: 'session=must-not-forward',
+        'x-forwarded-for': '198.51.100.88', 'cf-connecting-ip': '203.0.113.9',
+        'x-mp-go-service': 'spoofed-service', 'x-mp-go-target': 'spoofed-target', 'x-mp-route-mode': 'spoofed-mode',
+      },
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { path: '/internal/compute/daily', service: 'analytics' });
+    assert.equal(h.upstreamLog[0].url, 'https://go-analytics.example.com/internal/compute/daily?range=7');
+    assert.equal(h.upstreamLog[0].headers.get('authorization'), 'Bearer go-secret');
+    assert.equal(h.upstreamLog[0].headers.get('cookie'), null, 'caller cookies must not cross into internal Go services');
+    assert.equal(h.upstreamLog[0].headers.get('x-forwarded-for'), '203.0.113.9', 'spoofed forwarded IP must be replaced by Cloudflare client IP');
+    assert.equal(h.upstreamLog[0].headers.get('x-mp-go-service'), 'analytics', 'caller-supplied internal service metadata must be overwritten');
+    assert.equal(h.upstreamLog[0].headers.get('x-mp-go-target'), 'analytics-primary', 'the gateway must identify the actual selected replica');
+    assert.equal(h.upstreamLog[0].headers.get('x-mp-route-mode'), null, 'caller-supplied route metadata must be stripped');
+    assert.equal(response.headers.get('x-mp-go-service'), 'analytics');
+    assert.equal(response.headers.get('x-mp-go-target'), 'analytics-primary');
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+  }
+
+  // A logical service can have multiple replicas; safe GET requests fail over by priority.
+  {
+    const servers = [
+      target({ id: 'analytics-primary', url: 'https://go-a.example.com', priority: 10, weight: 100 }),
+      target({ id: 'analytics-secondary', url: 'https://go-b.example.com', priority: 20, weight: 100 }),
+    ];
+    const h = harness({
+      kv: kvFor(makeGoRegistry(servers)),
+      envOverrides: { GO_WORKER_TOKEN: 'go-secret' },
+      upstream: async (url) => new URL(url).hostname === 'go-a.example.com'
+        ? json({ error: 'temporarily unavailable' }, {}, 503)
+        : json({ ok: true, target: 'secondary' }),
+    });
+    const response = await h.call('/__go/internal/analytics/summary', {
+      headers: { authorization: 'Bearer go-secret' },
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { ok: true, target: 'secondary' });
+    assert.deepEqual(h.upstreamLog.map((entry) => new URL(entry.url).hostname), ['go-a.example.com', 'go-b.example.com']);
+    assert.equal(response.headers.get('x-mp-route-attempts'), '2');
+    assert.equal(response.headers.get('x-mp-go-target'), 'analytics-secondary');
+  }
+
+  // Mutating POST requests are never retried by the gateway, even with another replica.
+  {
+    const servers = [
+      target({ id: 'analytics-primary', url: 'https://go-a.example.com', priority: 10 }),
+      target({ id: 'analytics-secondary', url: 'https://go-b.example.com', priority: 20 }),
+    ];
+    const h = harness({
+      kv: kvFor(makeGoRegistry(servers)),
+      envOverrides: { GO_WORKER_TOKEN: 'go-secret' },
+      upstream: async () => json({ error: 'unavailable' }, {}, 503),
+    });
+    const response = await h.call('/__go/internal/analytics/rollup', {
+      method: 'POST', headers: { authorization: 'Bearer go-secret', 'content-type': 'application/json' },
+      body: JSON.stringify({ batchSize: 500 }),
+    });
+    assert.equal(response.status, 503);
+    assert.equal(h.upstreamLog.length, 1, 'Go POST must never be replayed to another replica');
+    assert.equal(response.headers.get('x-mp-route-attempts'), '1');
+    assert.deepEqual(JSON.parse(await new Response(h.upstreamLog[0].init.body).text()), { batchSize: 500 });
+  }
+
+  // Bound read-only failover work so a large Go pool cannot fan one request across every target.
+  {
+    const servers = [1, 2, 3, 4].map((n) => target({
+      id: `analytics-${n}`, url: `https://go-${n}.example.com`, priority: n, weight: 100,
+    }));
+    const h = harness({
+      kv: kvFor(makeGoRegistry(servers)), envOverrides: { GO_WORKER_TOKEN: 'go-secret' },
+      upstream: async () => json({ error: 'temporarily unavailable' }, {}, 503),
+    });
+    const response = await h.call('/__go/internal/analytics/status', {
+      headers: { authorization: 'Bearer go-secret' },
+    });
+    assert.equal(response.status, 503);
+    assert.equal(h.upstreamLog.length, 3, 'Go GET failover is bounded to three attempts');
+    assert.equal(response.headers.get('x-mp-route-attempts'), '3');
+    assert.deepEqual(await response.json(), { error: 'temporarily unavailable' }, 'the final failed upstream response body must remain readable');
+  }
+
+  // Different logical Go services may have different route prefixes and origins.
+  {
+    const registry = makeGoRegistry([
+      target({ id: 'analytics-1' }),
+      target({ id: 'push-1', serviceKey: 'push', routePrefix: '/internal/push', upstreamPrefix: '/internal/push', url: 'https://go-push.example.com' }),
+    ]);
+    const h = harness({
+      kv: kvFor(registry), envOverrides: {
+        GO_WORKER_TOKEN: 'gateway-ingress-secret',
+        GO_WORKER_TOKENS_JSON: JSON.stringify({ analytics: 'a'.repeat(40), push: 'p'.repeat(40) }),
+      },
+      upstream: async (url, headers) => json({ host: new URL(url).hostname, authorization: headers.get('authorization') }),
+    });
+    const response = await h.call('/__go/internal/push/dispatch/worker-status', {
+      headers: { authorization: 'Bearer gateway-ingress-secret' },
+    });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { host: 'go-push.example.com', authorization: `Bearer ${'p'.repeat(40)}` });
+    const analytics = await h.call('/__go/internal/analytics/summary', {
+      headers: { authorization: 'Bearer gateway-ingress-secret' },
+    });
+    assert.deepEqual(await analytics.json(), { host: 'go-analytics.example.com', authorization: `Bearer ${'a'.repeat(40)}` });
+
+    // One existing Go monolith may expose multiple logical services on the same origin.
+    const sharedOriginRegistry = makeGoRegistry([
+      target({ id: 'analytics-on-monolith', url: 'https://go-monolith.example.com' }),
+      target({ id: 'push-on-monolith', serviceKey: 'push', routePrefix: '/internal/push', upstreamPrefix: '/internal/push', url: 'https://go-monolith.example.com' }),
+    ]);
+    const sharedOrigin = harness({
+      kv: kvFor(sharedOriginRegistry), envOverrides: { GO_WORKER_TOKEN: 'gateway-ingress-secret' },
+      upstream: async (url) => json({ host: new URL(url).host, path: new URL(url).pathname }),
+    });
+    const sharedAnalytics = await sharedOrigin.call('/__go/internal/analytics/summary', { headers: { authorization: 'Bearer gateway-ingress-secret' } });
+    const sharedPush = await sharedOrigin.call('/__go/internal/push/dispatch/worker-status', { headers: { authorization: 'Bearer gateway-ingress-secret' } });
+    assert.equal((await sharedAnalytics.json()).host, 'go-monolith.example.com');
+    assert.equal((await sharedPush.json()).path, '/internal/push/dispatch/worker-status');
+    assert.equal(sharedOrigin.upstreamLog.length, 2, 'one Go origin may be registered under multiple logical route services');
+
+    const missingProfile = harness({
+      kv: kvFor(makeGoRegistry([target({ serviceKey: 'maintenance', routePrefix: '/internal/maintenance', upstreamPrefix: '/internal/maintenance' })])),
+      envOverrides: { GO_WORKER_TOKEN: 'gateway-ingress-secret', GO_WORKER_TOKENS_JSON: JSON.stringify({ analytics: 'a'.repeat(40) }) },
+      upstream: async () => json({ ok: true }),
+    });
+    const rejected = await missingProfile.call('/__go/internal/maintenance/run', {
+      headers: { authorization: 'Bearer gateway-ingress-secret' },
+    });
+    assert.equal(rejected.status, 503);
+    assert.equal((await rejected.json()).error, 'GO_SERVICE_TOKEN_NOT_CONFIGURED');
+    assert.equal(missingProfile.upstreamLog.length, 0);
+
+    for (const invalidToken of ['too-short', `${'x'.repeat(32)}\r\nX-Injected: yes`, 'x'.repeat(1025)]) {
+      const invalidProfile = harness({
+        kv: kvFor(makeGoRegistry([target({ serviceKey: 'analytics', routePrefix: '/internal/analytics', upstreamPrefix: '/internal/analytics' })])),
+        envOverrides: { GO_WORKER_TOKEN: 'gateway-ingress-secret', GO_WORKER_TOKENS_JSON: JSON.stringify({ analytics: invalidToken }) },
+        upstream: async () => json({ ok: true }),
+      });
+      const invalidResponse = await invalidProfile.call('/__go/internal/analytics/summary', {
+        headers: { authorization: 'Bearer gateway-ingress-secret' },
+      });
+      assert.equal(invalidResponse.status, 503, 'invalid service tokens fail closed');
+      assert.equal(invalidProfile.upstreamLog.length, 0);
+    }
+  }
+
+  // A disabled more-specific service must not leak into a broader enabled service.
+  {
+    const registry = makeGoRegistry([
+      target({ id: 'jobs-general', serviceKey: 'jobs', routePrefix: '/internal/jobs', upstreamPrefix: '/internal/jobs', url: 'https://go-jobs.example.com' }),
+      target({ id: 'analytics-retention', serviceKey: 'analytics-retention', routePrefix: '/internal/jobs/analytics-retention', upstreamPrefix: '/internal/jobs/analytics-retention', url: 'https://go-analytics.example.com', enabled: false }),
+    ]);
+    const h = harness({ kv: kvFor(registry), envOverrides: { GO_WORKER_TOKEN: 'go-secret' }, upstream: async () => json({ ok: true }) });
+    const response = await h.call('/__go/internal/jobs/analytics-retention', {
+      headers: { authorization: 'Bearer go-secret' },
+    });
+    assert.equal(response.status, 503);
+    assert.equal((await response.json()).service, 'analytics-retention');
+    assert.equal(h.upstreamLog.length, 0, 'disabled specific route must not fall through to a broader Go route');
+  }
+
+  // Invalid route maps are rejected instead of silently splitting replicas of one service.
+  {
+    const validate = harness({ upstream: async () => json({ ok: true }) }).internals.validateGatewayRegistry;
+    assert.throws(() => validate(makeGoRegistry([
+      target({ id: 'analytics-a', upstreamPrefix: '/internal/compute' }),
+      target({ id: 'analytics-b', url: 'https://go-b.example.com', upstreamPrefix: '/internal/other' }),
+    ]), {}), /same routePrefix and upstreamPrefix/);
+    assert.throws(() => validate(makeGoRegistry([
+      target({ id: 'analytics-a' }),
+      target({ id: 'push-b', serviceKey: 'push', routePrefix: '/internal/analytics', upstreamPrefix: '/internal/push' }),
+    ]), {}), /already assigned/);
+    assert.throws(() => validate(makeGoRegistry([
+      target({ id: 'analytics-a', url: 'https://go-same.example.com' }),
+      target({ id: 'analytics-b', url: 'https://go-same.example.com' }),
+    ]), {}), /same origin more than once/);
+    const maxGoServices = Array.from({ length: 32 }, (_, index) => target({
+      id: `service-${index + 1}`, serviceKey: `service-${index + 1}`,
+      routePrefix: `/internal/service-${index + 1}`, upstreamPrefix: `/internal/service-${index + 1}`,
+      url: `https://go-${index + 1}.example.com`,
+    }));
+    assert.equal(validate(makeGoRegistry(maxGoServices), {}).go.servers.length, 32);
+    assert.throws(() => validate(makeGoRegistry([...maxGoServices, target({
+      id: 'service-33', serviceKey: 'service-33', routePrefix: '/internal/service-33',
+      upstreamPrefix: '/internal/service-33', url: 'https://go-33.example.com',
+    })]), {}), /Go service pool must contain 0-32 targets/);
+  }
+
+  // Go services participate in manual health checks and have collision-proof central health IDs.
+  {
+    const registry = makeGoRegistry([target()]);
+    registry.backend.servers = [{
+      id: 'go--analytics-primary', url: 'https://go-analytics.example.com',
+      weight: 100, priority: 100, timeoutMs: 20000, enabled: true,
+    }];
+    const coordinatorFactory = harness({ upstream: async () => json({ ok: true }) });
+    const healthNamespace = makeHealthNamespace(coordinatorFactory.internals.GatewayHealthCoordinator);
+    const h = harness({
+      kv: kvFor(registry), envOverrides: {
+        GO_WORKER_TOKEN: 'go-secret', GATEWAY_ADMIN_TOKEN: 'admin-secret', GATEWAY_HEALTH: healthNamespace,
+      },
+      upstream: async (url) => json({ status: 'ok' }, {}, new URL(url).pathname === '/healthz' || new URL(url).pathname === '/health' ? 200 : 404),
+    });
+    const response = await h.call('/__gateway/registry', {
+      method: 'POST', headers: { 'x-gateway-admin-token': 'admin-secret', 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'probe' }),
+    });
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    const goResult = body.results.find((result) => result.kind === 'go' && result.id === 'analytics-primary');
+    assert.ok(goResult);
+    assert.equal(goResult.healthy, true);
+    assert.equal(h.upstreamLog.some((entry) => new URL(entry.url).pathname === '/healthz'), true);
+
+    const protectedProbeRegistry = makeGoRegistry([target({ healthPath: '/internal/diagnostics' })]);
+    const protectedProbe = harness({
+      kv: kvFor(protectedProbeRegistry),
+      envOverrides: {
+        GO_WORKER_TOKEN: 'gateway-ingress-secret',
+        GO_WORKER_TOKENS_JSON: JSON.stringify({ analytics: 'service-health-token-012345678901234567890' }),
+        GATEWAY_ADMIN_TOKEN: 'admin-secret',
+      },
+      upstream: async (url, headers) => {
+        assert.equal(new URL(url).pathname, '/internal/diagnostics');
+        assert.equal(headers.get('authorization'), 'Bearer service-health-token-012345678901234567890');
+        return json({ status: 'ready' });
+      },
+    });
+    const protectedProbeResponse = await protectedProbe.call('/__gateway/registry', {
+      method: 'POST', headers: { 'x-gateway-admin-token': 'admin-secret', 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'probe', targetIds: [{ kind: 'go', id: 'analytics-primary' }] }),
+    });
+    assert.equal(protectedProbeResponse.status, 200);
+    assert.equal((await protectedProbeResponse.json()).results[0].healthy, true);
+
+    const stateResponse = await healthNamespace.get().fetch('https://gateway-health.internal/snapshot');
+    const states = (await stateResponse.json()).states;
+    assert.ok(states['go--analytics-primary|https://go-analytics.example.com']);
+    assert.ok(states['backend--go--analytics-primary|https://go-analytics.example.com']);
+    assert.notEqual(
+      states['go--analytics-primary|https://go-analytics.example.com'],
+      undefined,
+      'Go health identity is distinct from a Backend id that could otherwise collide',
+    );
+  }
+}
+
+/* ───────────── bounded manual health probe batches ───────────── */
+{
+  const servers = Array.from({ length: 10 }, (_, index) => ({
+    id: `probe-${index + 1}`, url: `https://probe-${index + 1}.example.com`,
+    weight: 100, priority: 100, timeoutMs: 20000, enabled: true,
+  }));
+  const registry = {
+    version: 2,
+    backend: { strategy: 'weighted-random', servers },
+    frontend: { strategy: 'weighted-random', servers: [] },
+    go: { strategy: 'weighted-random', servers: [] },
+  };
+  const kv = { get: async (key, type) => key === 'gateway:registry:v1' && type === 'json' ? cloneJson(registry) : null };
+  const h = harness({
+    kv,
+    envOverrides: { GATEWAY_ADMIN_TOKEN: 'admin-secret' },
+    upstream: async (url) => json({ ok: true }, {}, new URL(url).pathname === '/health' ? 200 : 404),
+  });
+  const headers = { 'x-gateway-admin-token': 'admin-secret', 'content-type': 'application/json' };
+  const unbatched = await h.call('/__gateway/registry', {
+    method: 'POST', headers, body: JSON.stringify({ action: 'probe' }),
+  });
+  assert.equal(unbatched.status, 413, 'large health pools must require explicit bounded batches');
+  assert.equal((await unbatched.json()).error, 'PROBE_BATCH_REQUIRED');
+  assert.equal(h.upstreamLog.length, 0, 'oversized probe requests must not contact origins');
+
+  const firstBatch = await h.call('/__gateway/registry', {
+    method: 'POST', headers,
+    body: JSON.stringify({ action: 'probe', targetIds: servers.slice(0, 8).map(({ id }) => ({ kind: 'backend', id })) }),
+  });
+  assert.equal(firstBatch.status, 200);
+  const first = await firstBatch.json();
+  assert.equal(first.results.length, 8);
+  assert.equal(first.scope, 'selected-target-batch');
+  assert.equal(h.upstreamLog.length, 8);
+
+  const secondBatch = await h.call('/__gateway/registry', {
+    method: 'POST', headers,
+    body: JSON.stringify({ action: 'probe', targetIds: servers.slice(8).map(({ id }) => ({ kind: 'backend', id })) }),
+  });
+  assert.equal(secondBatch.status, 200);
+  const second = await secondBatch.json();
+  assert.equal(second.results.length, 2);
+  assert.equal(h.upstreamLog.length, 10);
+  assert.equal(second.results.every((result) => result.healthy), true);
+
+  const duplicate = await h.call('/__gateway/registry', {
+    method: 'POST', headers,
+    body: JSON.stringify({ action: 'probe', targetIds: [{ kind: 'backend', id: 'probe-1' }, { kind: 'backend', id: 'probe-1' }] }),
+  });
+  assert.equal(duplicate.status, 400);
+  assert.equal((await duplicate.json()).error, 'DUPLICATE_PROBE_TARGET');
+
+  const oversizedBatch = await h.call('/__gateway/registry', {
+    method: 'POST', headers,
+    body: JSON.stringify({ action: 'probe', targetIds: servers.map(({ id }) => ({ kind: 'backend', id })) }),
+  });
+  assert.equal(oversizedBatch.status, 400);
+  assert.equal((await oversizedBatch.json()).error, 'INVALID_PROBE_TARGETS');
+
+  const staleTarget = await h.call('/__gateway/registry', {
+    method: 'POST', headers,
+    body: JSON.stringify({ action: 'probe', targetIds: [{ kind: 'go', id: 'no-longer-registered' }] }),
+  });
+  assert.equal(staleTarget.status, 409, 'stale admin UI target references must not be reported as successful empty probes');
+  assert.equal((await staleTarget.json()).error, 'PROBE_TARGET_NOT_FOUND');
 }
 
 /* ───────────── cache warm-up stays disabled ───────────── */

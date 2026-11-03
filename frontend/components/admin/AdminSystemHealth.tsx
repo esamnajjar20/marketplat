@@ -142,7 +142,7 @@ export function AdminSystemHealth() {
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
                 <Server className="h-4 w-4" />
               </div>
-              <h2 className="font-semibold">Redis (الكاش)</h2>
+              <h2 className="font-semibold">Redis الأساسي</h2>
             </div>
             <StatusPill ok={redis.ok} />
           </div>
@@ -174,6 +174,43 @@ export function AdminSystemHealth() {
           )}
         </div>
       </div>
+
+      {Array.isArray(data.redisServices) && data.redisServices.length > 0 && (
+        <section className="rounded-[14px] border border-[var(--legacy-border)] bg-card p-4 shadow-sm" aria-labelledby="redis-services-title">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 id="redis-services-title" className="font-semibold">توزيع خدمات Redis</h2>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                فحص يدوي عند فتح مركز الصحة أو تحديثه. الخدمة المخصصة تستخدم عنوانًا مستقلًا، وغير المخصصة تشارك الاتصال الأساسي.
+              </p>
+            </div>
+            <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+              {data.redisServices.filter((service) => service.dedicated).length} خدمات مخصصة
+            </span>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+            {data.redisServices.filter((service) => service.key !== 'core').map((service) => (
+              <div key={service.key} className="min-w-0 rounded-xl border border-[var(--legacy-border)] bg-background p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-semibold">{service.label}</p>
+                  <StatusPill ok={service.ok} />
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span>
+                    {service.sharedWith
+                      ? `مشترك مع ${data.redisServices.find((item) => item.key === service.sharedWith)?.label ?? service.sharedWith}`
+                      : service.dedicated ? 'عنوان مستقل' : 'مشترك مع Redis الأساسي'}
+                  </span>
+                  <span className="font-medium tabular-nums">{service.latencyMs == null ? '—' : `${service.latencyMs} ms`}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 text-xs leading-5 text-muted-foreground">
+            العناوين والاعتمادات لا تظهر في لوحة الإدارة. تُضبط من أسرار بيئة نشر API وGo Worker؛ ولا تُدار اتصالات Redis عبر Cloudflare Worker.
+          </p>
+        </section>
+      )}
 
       {data.runtime && (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

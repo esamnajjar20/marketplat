@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { authService } from './auth.service';
-import { redis } from '../../config/redis';
+import { sessionRedis as redis } from '../../config/redis';
 import {
   forgotPasswordSchema,
   loginSchema,

@@ -231,3 +231,50 @@ new_sqlite_classes = ["GatewayHealthCoordinator"]
 تم تحديث لوحة الإدارة كي تعرض priority وtimeout لكل أصل، وتعيد حساب نسبة الوزن داخل الأولوية نفسها. افتراضي مهلة الطلب 20 ثانية، ومدى التخصيص من ثانية إلى 30 ثانية.
 
 راجع التقرير التفصيلي في `SMART-GATEWAY-PHASE4-REPORT-AR.md` لقائمة الملفات، نتائج الاختبارات، حدود التحقق، ومتطلبات تفعيل الإنتاج.
+
+## Multi-service Go Worker pool
+
+The registry now has a third independent pool: `go`. It supports up to 32 Go
+origin targets across logical services. Each target declares `serviceKey`,
+`routePrefix`, and `upstreamPrefix`; all replicas for one `serviceKey` must use
+identical prefixes. Distinct services may use different or nested prefixes, and
+routing chooses the longest matching prefix. A disabled more-specific service
+returns unavailable rather than leaking to a broader route.
+
+The authenticated reverse-proxy entry is `/__go/<internal-path>`. The API should
+set `GO_WORKER_URL=https://<API-Worker-host>/__go`; existing API Go helpers append
+`/internal/...` and therefore need no path rewrite. Configure `GO_WORKER_TOKEN`
+as a Worker secret and use the same secret on Express and every Go target. The
+Worker validates the incoming bearer, strips caller auth/cookies and spoofable
+forwarding headers, then injects its own bearer header to the selected Go origin.
+
+Only GET/HEAD requests may fail over, and Go retries are bounded to three target
+attempts. POST/other mutation methods are not replayed. Per-target timeout is
+configurable from 1,000ms to 600,000ms; its default is 540,000ms (9 minutes) to
+match the longest existing API job timeout, while shorter API-level abort signals
+remain effective for quick operations. The Gateway does not create Go services or split
+the existing Go binary; each registered origin must already exist and serve the
+configured upstream path. Health uses each target's configured path (default `/healthz`); a protected
+`/internal/diagnostics` path also works because the Worker injects the matching
+service token. Probes are operator-triggered only and run in batches of at most
+eight targets per Worker invocation; Cron, alarms, and warmup remain disabled.
+
+
+### Operational hardening for Go pool
+
+- The Go pool is independent from Backend and Frontend and accepts up to 32 target rows. A row is one running origin; `serviceKey` groups rows into one logical service. Multiple service keys may point to the same Go monolith origin when they expose different internal route prefixes. This lets the current single Go binary be managed as logical `analytics`, `push`, `outbox`, `maintenance`, `exports`, etc. without pretending those are separate deployed processes.
+- A service may have multiple replicas, but all rows with the same key must use the same `routePrefix` and `upstreamPrefix`. Different service keys may use nested prefixes; longest-prefix matching selects the most specific service. A disabled specific service is not allowed to fall through to a broad route.
+- Optional `GO_WORKER_TOKENS_JSON` is keyed by `serviceKey` and fails closed when a profile is missing, short, oversized, or contains line breaks. The current Go monolith accepts one `GO_WORKER_TOKEN` for all routes. Therefore, when multiple service keys point to that same process, omit the profile map or assign the same token to those keys. Distinct service tokens require separately deployed Go processes configured with matching tokens. Tokens are never stored in the registry or browser UI.
+- Go health checks default to `/healthz`. An operator may set a protected path such as `/internal/diagnostics`; the gateway then injects the service token when probing it. Health checks remain manual. To keep each Worker invocation bounded, the admin UI sends at most eight targets per probe request; a large registry is checked as several batches. Stale target IDs return `409` rather than an empty successful result.
+- The current API-to-Go helpers already append `/internal/...` to `GO_WORKER_URL`, so Gateway mode uses `GO_WORKER_URL=https://<worker-host>/__go` without rewriting those helpers. The current helper requests are predominantly POST; they are routed through weighted selection but are deliberately not replayed by gateway failover. Existing Express fallback, shared PostgreSQL advisory locks, and idempotency protections remain important for write/job paths.
+- The gateway does not build or deploy separate Go services. The operator must deploy each origin, configure its database/Redis/secrets consistently, and register that origin under the service key. This is routing and control-plane support, not an automatic Go microservice-splitting tool.
+
+### Verification performed for Go pool extension
+
+- Worker TypeScript strict check (`tsc --noEmit -p tsconfig.json`): passed.
+- Worker TypeScript build (`tsc -p tsconfig.json`): passed.
+- Full Worker regression file `cache-policy.test.mjs`: passed, including Go auth, service-token injection, path rewrites, same-origin multi-service registration, replica failover, POST non-replay, bounded three-attempt GET failover, 32-target registry cap, central health namespace, and 8-target manual probe batches.
+- Admin TSX syntax parse: passed. Full Next.js type-check/build was not run because frontend dependencies are not installed in the supplied archive/runtime.
+- `go test ./...` could not complete because the environment could not resolve `proxy.golang.org` while downloading `github.com/jackc/pgx/v5@v5.7.2`; no Go runtime source was changed in this extension.
+- Wrangler deploy/dry-run and live multi-origin tests were not performed. No production deployment is claimed.
+- No Cron, alarm, scheduled health polling, or cache warm-up was added.

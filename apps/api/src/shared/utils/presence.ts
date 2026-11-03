@@ -1,4 +1,4 @@
-import { redis } from '../../config/redis';
+import { presenceRedis as redis } from '../../config/redis';
 
 /**
  * Online/presence tracking — heartbeat pattern over Redis, same

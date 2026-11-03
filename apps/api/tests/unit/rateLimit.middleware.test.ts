@@ -1,4 +1,4 @@
-import { makeSendCommand, userOrIpKey } from '../../src/middlewares/rateLimit.middleware';
+import { makeSendCommand, shouldUseRedisRateLimitStore, userOrIpKey } from '../../src/middlewares/rateLimit.middleware';
 import { redis } from '../../src/config/redis';
 
 /**
@@ -23,6 +23,20 @@ import { redis } from '../../src/config/redis';
  * depending on rate-limit-redis's internal RedisStore API, which
  * isn't available to inspect in this environment).
  */
+
+describe('rateLimit.middleware — Redis service selection', () => {
+  it('automatically enables the shared store when a dedicated Redis endpoint exists', () => {
+    expect(shouldUseRedisRateLimitStore(true, undefined)).toBe(true);
+  });
+
+  it('keeps the existing explicit opt-in behavior without a dedicated endpoint', () => {
+    expect(shouldUseRedisRateLimitStore(false, 'true')).toBe(true);
+    expect(shouldUseRedisRateLimitStore(false, '1')).toBe(true);
+    expect(shouldUseRedisRateLimitStore(false, undefined)).toBe(false);
+    expect(shouldUseRedisRateLimitStore(false, 'false')).toBe(false);
+  });
+});
+
 describe('rateLimit.middleware — makeSendCommand fail-open/fail-closed', () => {
   afterEach(() => {
     jest.clearAllMocks();

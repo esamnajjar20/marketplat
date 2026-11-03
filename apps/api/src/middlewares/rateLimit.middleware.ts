@@ -56,7 +56,7 @@ export function userOrIpKey(req: Request): string {
   return `ip:${ip ? normalizeIpForKey(ip) : 'unknown'}`;
 }
 import { RedisStore, type RedisReply } from 'rate-limit-redis';
-import { redis } from '../config/redis';
+import { rateLimitRedis as redis } from '../config/redis';
 import { env } from '../config/env';
 
 const rateLimitHandler =
@@ -80,11 +80,20 @@ const noRateLimit = () => (_req: any, _res: any, next: any) => next();
  * كل طلب API كان يستهلك عدة أوامر Redis عبر rate-limit-redis (Lua/INCR)،
  * وهذا يملأ حصة Upstash المجانية بسرعة ويرفع زمن الاستجابة (RTT Ireland↔Frankfurt).
  *
- * RATE_LIMIT_USE_REDIS=true يُرجع السلوك القديم (متجر مشترك بين عدة instances).
- * مع instance واحد على Render الذاكرة كافية ودقيقة.
+ * RATE_LIMIT_USE_REDIS=true يُرجع المتجر المشترك. ضبط REDIS_RATE_LIMIT_URL
+ * يفعّله تلقائيًا حتى لا يكون endpoint المخصص مجرد إعداد صحي غير مستخدم.
+ * عند عدم وجود عنوان مخصص أو تفعيل صريح، يبقى MemoryStore للمحددات الرخيصة.
  */
-const useRedisStore =
-  process.env.RATE_LIMIT_USE_REDIS === 'true' || process.env.RATE_LIMIT_USE_REDIS === '1';
+export const shouldUseRedisRateLimitStore = (
+  hasDedicatedEndpoint: boolean,
+  override: string | undefined
+): boolean =>
+  hasDedicatedEndpoint || override === 'true' || override === '1';
+
+const useRedisStore = shouldUseRedisRateLimitStore(
+  Boolean(env.redisServices.rateLimitUrl),
+  process.env.RATE_LIMIT_USE_REDIS
+);
 
 // FIX TEST-V4-05: extracted from createRedisStore so the actual
 // security-relevant logic (does a Redis outage silently let every

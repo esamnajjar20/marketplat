@@ -150,9 +150,11 @@ history tables are present.
 - `ANALYTICS_RETENTION_DAYS` — optional startup default (90). The Express caller sends its validated `retentionDays` on each job, and Go uses that value so the primary and fallback paths share the same policy. Valid range: 1–3650.
 - `ANALYTICS_RETENTION_BATCH_SIZE` — optional, defaults to `5000` (valid range: 1–50000).
 - `DB_MAX_OPEN_CONNS` — optional, defaults to `2`. For the Outbox background consumer, keep this at `2` or higher so its lease heartbeat can renew ownership while event work is active. When both Go Outbox and Go Push Dispatch are enabled, use at least `4` so their independent leases and database work do not starve one another. If both consumers are disabled, other maintenance jobs can use `1` for the smallest connection footprint.
-- `GO_WORKER_REDIS_URL` — preferred Redis URL for the activity/views buffers (`redis://` or `rediss://`). If unset, `REDIS_URL` or `REDIS_HOST` settings are used.
-- `GO_WORKER_REDIS_HOST`, `GO_WORKER_REDIS_PORT`, `GO_WORKER_REDIS_USERNAME`, `GO_WORKER_REDIS_PASSWORD`, `GO_WORKER_REDIS_TLS`, `GO_WORKER_REDIS_DB` — optional host/ACL/TLS alternative when a URL is not used. The RESP client uses bounded network timeouts and supports Redis ACL AUTH and TLS.
-- `GO_WORKER_CACHE_REDIS_URL` — optional dedicated SWR cache Redis URL (`redis://` or `rediss://`) for `CACHE_GENERATION_BUMP` outbox events. Without it, `REDIS_CACHE_HOST` or the primary Redis config is used. The worker also accepts `GO_WORKER_CACHE_REDIS_HOST/PORT/USERNAME/PASSWORD/TLS` and the API-compatible `REDIS_CACHE_HOST/PORT/USERNAME/PASSWORD/TLS` variables.
+- `GO_WORKER_BUFFER_REDIS_URL` — preferred dedicated Redis URL for the Go activity/views buffers (`redis://` or `rediss://`). It must match the API's `REDIS_BUFFER_URL`; Go also accepts the shared `REDIS_BUFFER_URL` directly. If both are unset, the legacy `GO_WORKER_REDIS_URL`, `REDIS_URL` or `REDIS_HOST` settings remain supported.
+- `GO_WORKER_BUFFER_REDIS_HOST/PORT/USERNAME/PASSWORD/TLS/DB` — host/ACL/TLS alternative for the buffer service (when using host/port mode, configure the equivalent API endpoint/credentials too). The previous `GO_WORKER_REDIS_*` names are backward-compatible aliases. The RESP client uses bounded network timeouts and supports Redis ACL AUTH and TLS.
+- `GO_WORKER_CACHE_REDIS_URL` (or shared `REDIS_CACHE_URL`) — optional dedicated SWR cache Redis URL (`redis://` or `rediss://`) for `CACHE_GENERATION_BUMP` outbox events. Without it, `REDIS_CACHE_HOST` or the primary Redis config is used. The worker also accepts `GO_WORKER_CACHE_REDIS_HOST/PORT/USERNAME/PASSWORD/TLS` and the API-compatible `REDIS_CACHE_HOST/PORT/USERNAME/PASSWORD/TLS` variables.
+
+The API can independently route `sessions`, `rate limits`, `pub/sub`, `queues`, `presence`, `activity/views buffers` and `cache` using its `REDIS_*_URL` variables. The API and Go Worker must point to the same buffer endpoint for those shared keys. Each process connects directly to its configured Redis TCP endpoint; the Cloudflare Smart Gateway is not a Redis TCP proxy and never receives Redis passwords. REST-only Redis providers need a purpose-built HTTPS adapter and are not compatible with these socket URLs. Stateful services use one authoritative endpoint/provider-managed HA rather than round-robin writes to unrelated Redis instances.
 
 ## Go-owned transactional Outbox (opt-in)
 
@@ -428,7 +430,7 @@ Phase 6 extends the worker beyond retention and reports. The following routes ar
 | Ad views buffer flush | `/internal/jobs/views-buffer-flush` | Express continues INCR/dedup in Redis; Go drains counters in bounded SCAN batches and applies set-based SQL updates |
 | Selected transactional outbox events | `/internal/outbox/execute-event` | Go handles `USER_ACTIVITY_RECORD`, `SAVED_SEARCH_MATCH_NOTIFICATION`, `FOLLOWED_ACTIVITY_NOTIFICATION`, and `CACHE_GENERATION_BUMP`; Express still owns leases/heartbeats, unread-cache invalidation for notification events, SSE and provider delivery; Go handles cache-generation invalidation |
 
-Both Redis buffer routes use the primary Redis instance (`GO_WORKER_REDIS_URL` / `REDIS_URL`) and keep request-path Redis writes in Express. Activity rows popped by Go are requeued with an independent, three-second compensation context if PostgreSQL rejects the insert or the driver cannot report affected rows; their stable activity idempotency keys make an ambiguous insert retry safe. This closes the HTTP-cancellation compensation gap, but activity still uses destructive `LPOP`: a hard process crash after the pop and before insert/requeue can lose that batch until a processing-list/ack protocol is implemented. View counters are first moved atomically into `views_buffer:inflight` before the source counters are deleted. Go and Express then apply each staged batch in a PostgreSQL transaction that inserts a unique `view_buffer_flush_batches` receipt alongside the ad increments. The Redis inflight entry is acknowledged only after the DB transaction commits. This makes staged batches recoverable across worker process crashes, ambiguous DB commits, lost HDEL replies, and Go-to-Express fallback, provided Redis itself retains the inflight hash. The no-TTL `views_buffer:inflight` key must be protected from eviction, and the provider's persistence/restart behaviour must be verified. Receipt rows are retained as replay tombstones; do not delete them without a cleanup process that also verifies the corresponding Redis inflight entry is absent. The Express fallback acquires the identical advisory lock, so it cannot overlap a Go process that is still completing after the API HTTP timeout.
+Both Redis buffer routes use the shared buffer service (`GO_WORKER_BUFFER_REDIS_URL` / `REDIS_BUFFER_URL`, or the legacy `GO_WORKER_REDIS_URL` / `REDIS_URL`) and keep request-path Redis writes in Express. Activity rows popped by Go are requeued with an independent, three-second compensation context if PostgreSQL rejects the insert or the driver cannot report affected rows; their stable activity idempotency keys make an ambiguous insert retry safe. This closes the HTTP-cancellation compensation gap, but activity still uses destructive `LPOP`: a hard process crash after the pop and before insert/requeue can lose that batch until a processing-list/ack protocol is implemented. View counters are first moved atomically into `views_buffer:inflight` before the source counters are deleted. Go and Express then apply each staged batch in a PostgreSQL transaction that inserts a unique `view_buffer_flush_batches` receipt alongside the ad increments. The Redis inflight entry is acknowledged only after the DB transaction commits. This makes staged batches recoverable across worker process crashes, ambiguous DB commits, lost HDEL replies, and Go-to-Express fallback, provided Redis itself retains the inflight hash. The no-TTL `views_buffer:inflight` key must be protected from eviction, and the provider's persistence/restart behaviour must be verified. Receipt rows are retained as replay tombstones; do not delete them without a cleanup process that also verifies the corresponding Redis inflight entry is absent. The Express fallback acquires the identical advisory lock, so it cannot overlap a Go process that is still completing after the API HTTP timeout.
 
 The sales notification workflow `.github/workflows/sales-notifications.yml` now triggers hourly; the API script selects jobs using `Asia/Gaza` local time. Configure `GO_WORKER_URL` and `GO_WORKER_TOKEN` in GitHub Actions secrets, using a public HTTPS Go URL reachable from the runner. The Render Express service should use its private service URL when supported.
 
@@ -738,3 +740,90 @@ Express falls back to the original live SQL queries. The existing Redis and
 in-process suggestion caches remain in place. Because Render Free instances can
 sleep, the Go refresh loop is not a guaranteed scheduler: the API fallback is
 intentional and keeps autocomplete functional when Go is asleep or unavailable.
+
+## Optional Smart Gateway multi-service routing
+
+The Go Worker can be used directly as one origin (the existing setup), or routed
+through the MarketPlat Cloudflare Smart Gateway. Gateway mode lets the API keep
+calling its existing `/internal/...` paths while the gateway selects a logical
+Go service and one of its registered HTTPS replicas.
+
+For Gateway mode, set the API's `GO_WORKER_URL` to the **gateway base path**:
+
+```env
+GO_WORKER_URL=https://marketplat-api.esamnajjar6.workers.dev/__go
+GO_WORKER_TOKEN=<same-random-internal-token>
+```
+
+Set `GO_WORKER_TOKEN` as a Cloudflare Worker secret on `marketplat-api`; it
+must match the API ingress token. By default, the gateway forwards this token
+to each Go origin, which preserves the current deployment contract. For better
+service isolation, optionally set the Worker secret `GO_WORKER_TOKENS_JSON`
+to a JSON object keyed by `serviceKey`, for example
+`{"analytics":"<GENERATE_32+_CHAR_SECRET>","push":"<GENERATE_32+_CHAR_SECRET>"}`. Replace
+each placeholder with a different randomly generated secret of at least 32
+characters. When this map is configured, every registered service must have a
+valid entry; missing or invalid entries fail closed with 503. All replicas of
+one logical service share that service token. The current `apps/go-worker`
+monolith accepts one `GO_WORKER_TOKEN` for all its routes: when multiple logical
+service keys point to that same process, either omit the per-service map (use
+the shared ingress token) or assign the same token to those keys. Different
+service tokens require separate Go deployments, each configured with the token
+for its registered service. Do not place any token in Registry JSON or
+browser-visible configuration. The gateway authenticates the API request,
+strips caller Authorization/Cookie headers, and injects the configured
+service-specific Bearer token to the selected Go origin.
+
+In `/admin?tab=infrastructure`, use the Go Worker pool to add **one target per
+running origin**. Each target has an `id`, a `serviceKey`, a gateway `routePrefix`,
+an `upstreamPrefix`, origin URL, weight, priority, timeout, provider, and region.
+Multiple targets with the same `serviceKey` must share the same route mapping;
+they become replicas of one logical service. Different service keys may use
+separate, nested route prefixes. The gateway picks the longest matching route
+prefix, so a narrower route takes precedence over a broader route.
+
+Example logical services:
+
+| Service key | Gateway route prefix | Example upstream | Purpose |
+|---|---|---|---|
+| `analytics` | `/internal/analytics` | `/internal/analytics` | Analytics ingest/summary |
+| `outbox` | `/internal/outbox` | `/internal/outbox` | Transactional outbox operations |
+| `push` | `/internal/push` | `/internal/push` | FCM and durable push dispatch |
+| `maintenance` | `/internal/jobs` | `/internal/jobs` | Maintenance/scheduled jobs |
+| `exports` | `/internal/exports` | `/internal/exports` | CSV exports |
+
+For example, if `GO_WORKER_URL` ends with `/__go`, an existing API request to
+`/internal/analytics/summary` reaches the gateway at
+`/__go/internal/analytics/summary` and is forwarded to the selected target's
+configured `upstreamPrefix`. No API helper rewrite is required because the
+current API-to-Go clients append their internal path to `GO_WORKER_URL`.
+
+A second target with `serviceKey=analytics`, the same route/upstream prefixes,
+and a different origin is a replica (load-balanced/failover target), not a new
+logical service. A target with `serviceKey=push` and route `/internal/push` is a
+different service. The gateway supports up to 32 Go targets across all logical
+services. Only GET/HEAD are eligible for gateway-level failover, bounded to at
+most three target attempts; POST is never replayed because it may have committed
+a job before a transport failure. Existing Express fallback, PostgreSQL advisory
+locks, idempotency checks, and Outbox lease/claim logic remain the final safety
+mechanisms.
+
+Every registered Go target must expose a public HTTPS origin and a health path
+(default `/healthz`). For deeper dependency readiness, set the path to
+`/internal/diagnostics`; the gateway injects the same service Bearer token for
+that protected probe. Manual health checks are batched at up to eight targets
+per Worker invocation. Keep the route secret private. Use `GATEWAY_ALLOWED_HOSTS`
+to constrain acceptable origin DNS suffixes when practical. The gateway does
+not deploy, split, or build Go binaries: each logical service and replica must
+already be deployed and implement the matching internal path contract. The
+current Go binary exposes many internal routes in one process; splitting those
+routes into separately deployed Go services is an independent deployment/code
+change, not something Registry registration does automatically.
+
+Health probing remains manual from Infrastructure Management. There is no
+scheduled health scan, Cron, alarm, or warmup added by this integration.
+
+
+### Gateway load signal
+
+The HTTP server adds `X-MP-Worker-Active-Requests` to authenticated `/internal/*` responses. The count includes requests currently handled by this process and active units of background work (Outbox claims, Push Dispatch claims, and search-index refreshes). The Cloudflare Smart Gateway consumes this process-local concurrency signal (it is removed before the response returns to Express) together with response latency and failure EWMA. The signal is observational only; it does not change job ownership or database lease semantics. Outbox and Push Dispatch replicas naturally share work through PostgreSQL `FOR UPDATE SKIP LOCKED` plus per-item leases/heartbeats; scheduled jobs protected by advisory locks remain single-owner to prevent duplicate execution.

@@ -13,7 +13,7 @@ import type { Job } from 'bullmq';
 import type { NotificationType } from '@prisma/client';
 import { env } from '../../config/env';
 import { prisma } from '../../config/prisma';
-import { redis } from '../../config/redis';
+import { queueRedis as redis } from '../../config/redis';
 import { logger } from '../utils/logger';
 import { pushService } from '../utils/pushService';
 import { fcmPushService } from '../utils/fcmPushService';

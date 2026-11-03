@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { redis } from '../../config/redis';
+import { criticalRedisServiceClients } from '../../config/redis';
 import { env } from '../../config/env';
 
 interface HealthStatus {
@@ -58,10 +58,11 @@ const checkOkWithTimeout = async (fn: () => Promise<unknown>): Promise<boolean> 
 
 const performCheck = async (): Promise<HealthStatus> => {
   try {
-    const [dbOk, redisOk] = await Promise.all([
+    const [dbOk, redisChecks] = await Promise.all([
       checkOkWithTimeout(() => prisma.$queryRaw`SELECT 1`),
-      checkOkWithTimeout(() => redis.ping()),
+      Promise.all(criticalRedisServiceClients.map(client => checkOkWithTimeout(() => client.ping()))),
     ]);
+    const redisOk = redisChecks.every(Boolean);
 
     cachedStatus = {
       db: dbOk ? 'ok' : 'error',

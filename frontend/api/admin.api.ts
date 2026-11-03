@@ -140,6 +140,14 @@ export interface AdminDataIntegrityReport {
 export interface AdminSystemHealthResponse {
   checkedAt?: string;
   redis?: { ok: boolean; latencyMs: number | null; commandLatencyMs?: number | null; error?: string; note?: string };
+  redisServices?: Array<{
+    key: string;
+    label: string;
+    dedicated: boolean;
+    sharedWith: string | null;
+    ok: boolean;
+    latencyMs: number | null;
+  }>;
   db?: { ok: boolean; latencyMs: number | null; error?: string; note?: string };
   runtime?: {
     uptimeSeconds: number;

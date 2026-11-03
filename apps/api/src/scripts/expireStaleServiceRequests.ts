@@ -11,7 +11,7 @@ import {
   executeWithGoFallback,
   runAdvisoryLockedBatch,
 } from '../shared/go-worker/executeWithFallback';
-import { redis, cacheRedis } from '../config/redis';
+import { redis, closeRedisServiceClients } from '../config/redis';
 import { shutdownNotificationStream } from '../shared/utils/notificationStream';
 import { publishDurableNotifications } from '../shared/go-worker/publishDurableNotifications';
 
@@ -191,7 +191,6 @@ main()
     await Promise.allSettled([
       prisma.$disconnect(),
       shutdownNotificationStream(),
-      redis.quit(),
-      ...(cacheRedis !== redis ? [cacheRedis.quit()] : []),
+      closeRedisServiceClients(),
     ]);
   });

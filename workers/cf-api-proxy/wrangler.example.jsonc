@@ -30,6 +30,12 @@
 
   // intentionally no Cron trigger: cache warm-up is disabled by project policy.
   // Add GATEWAY_ADMIN_TOKEN with: npx wrangler secret put GATEWAY_ADMIN_TOKEN
+  // Add GO_WORKER_TOKEN with: npx wrangler secret put GO_WORKER_TOKEN (API-to-Gateway ingress secret).
+  // Optional per-service upstream secrets: npx wrangler secret put GO_WORKER_TOKENS_JSON
+  // JSON object keyed by serviceKey; if present, every service requires a 32+ char token.
+  // If multiple logical keys use the current Go monolith, assign them the same token; distinct tokens
+  // require separate Go processes, each configured with the matching GO_WORKER_TOKEN.
+  // For multi-service routing, configure Express GO_WORKER_URL as https://<this-worker-host>/__go.
   // Optional GATEWAY_ALLOWED_HOSTS belongs in Worker vars, not in browser code.
   // For frontend routing, set FRONTEND_GATEWAY_HOSTS to exact public hostnames (comma-separated)
   // in Worker vars, then map each hostname/* Cloudflare Route to this same Worker.

@@ -32,6 +32,7 @@ import (
 	"marketplat/apps/go-worker/internal/authtokenretention"
 	"marketplat/apps/go-worker/internal/failedtaskretention"
 	"marketplat/apps/go-worker/internal/fcmpush"
+	"marketplat/apps/go-worker/internal/loadtracker"
 	"marketplat/apps/go-worker/internal/mediacleanup"
 	"marketplat/apps/go-worker/internal/notificationdigest"
 	"marketplat/apps/go-worker/internal/notificationretention"
@@ -78,6 +79,7 @@ const (
 
 type server struct {
 	db                  *sql.DB
+	load                *loadtracker.Tracker
 	redisConfig         *rediswire.Config
 	cacheRedisConfig    *rediswire.Config
 	token               string
@@ -203,7 +205,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	s := &server{db: db, redisConfig: redisConfig, cacheRedisConfig: cacheRedisConfig, token: token, apiBaseURL: apiBaseURL, outboxEnabled: outboxEnabled, pushDispatchEnabled: pushDispatchEnabled, searchIndexEnabled: searchIndexEnabled, retentionDays: retentionDays, batchSize: batchSize, logger: logger, cloudinary: storycleanup.NewClient(os.Getenv("CLOUDINARY_CLOUD_NAME"), os.Getenv("CLOUDINARY_API_KEY"), os.Getenv("CLOUDINARY_API_SECRET")), fcmPush: fcmpush.NewFromEnv()}
+	s := &server{db: db, load: loadtracker.New(), redisConfig: redisConfig, cacheRedisConfig: cacheRedisConfig, token: token, apiBaseURL: apiBaseURL, outboxEnabled: outboxEnabled, pushDispatchEnabled: pushDispatchEnabled, searchIndexEnabled: searchIndexEnabled, retentionDays: retentionDays, batchSize: batchSize, logger: logger, cloudinary: storycleanup.NewClient(os.Getenv("CLOUDINARY_CLOUD_NAME"), os.Getenv("CLOUDINARY_API_KEY"), os.Getenv("CLOUDINARY_API_SECRET")), fcmPush: fcmpush.NewFromEnv()}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
 	mux.HandleFunc("GET /internal/diagnostics", s.internalDiagnostics)
@@ -255,7 +257,7 @@ func main() {
 	}
 	httpServer := &http.Server{
 		Addr:              addr,
-		Handler:           securityHeaders(mux),
+		Handler:           securityHeaders(s.load.Middleware(mux)),
 		ReadHeaderTimeout: 3 * time.Second,
 		ReadTimeout:       5 * time.Second,
 		WriteTimeout:      10 * time.Minute,
@@ -270,7 +272,7 @@ func main() {
 		backgroundWorkers.Add(1)
 		go func() {
 			defer backgroundWorkers.Done()
-			worker := outboxworker.New(db, cacheRedisConfig, logger, outboxworker.Config{APIBaseURL: apiBaseURL, APIToken: token})
+			worker := outboxworker.New(db, cacheRedisConfig, logger, outboxworker.Config{APIBaseURL: apiBaseURL, APIToken: token, LoadTracker: s.load})
 			if err := worker.Run(workerCtx); err != nil && workerCtx.Err() == nil {
 				logger.Error("Go transactional outbox worker exited unexpectedly", "error", err)
 			}
@@ -287,7 +289,7 @@ func main() {
 		backgroundWorkers.Add(1)
 		go func() {
 			defer backgroundWorkers.Done()
-			worker := pushdispatch.New(db, logger, pushdispatch.Config{APIBaseURL: apiBaseURL, APIToken: token, FCM: s.fcmPush})
+			worker := pushdispatch.New(db, logger, pushdispatch.Config{APIBaseURL: apiBaseURL, APIToken: token, FCM: s.fcmPush, LoadTracker: s.load})
 			for workerCtx.Err() == nil {
 				readyCtx, readyCancel := context.WithTimeout(workerCtx, 5*time.Second)
 				readyErr := worker.CheckReady(readyCtx)

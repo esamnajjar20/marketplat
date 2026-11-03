@@ -713,6 +713,14 @@ describe('AdminService', () => {
       const health = await adminService.getSystemHealth();
       expect(health).toHaveProperty('db');
       expect(health).toHaveProperty('redis');
+      expect(health.redisServices).toEqual(expect.arrayContaining([
+        expect.objectContaining({ key: 'sessions', ok: expect.any(Boolean) }),
+        expect.objectContaining({ key: 'rateLimit', ok: expect.any(Boolean) }),
+        expect.objectContaining({ key: 'pubSub', ok: expect.any(Boolean) }),
+        expect.objectContaining({ key: 'queue', ok: expect.any(Boolean) }),
+        expect.objectContaining({ key: 'presence', ok: expect.any(Boolean) }),
+        expect.objectContaining({ key: 'buffer', ok: expect.any(Boolean) }),
+      ]));
       expect(health).toHaveProperty('checkedAt');
       expect(health).toHaveProperty('runtime');
       expect(health.runtime.uptimeSeconds).toBeGreaterThanOrEqual(0);

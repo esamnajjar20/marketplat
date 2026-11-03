@@ -1,4 +1,4 @@
-import { redis } from '../../config/redis';
+import { cacheRedis as redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
 import { purgeReferenceKv } from '../../shared/cache/edgePurge';
 import { BadRequestError } from '../../shared/errors/BadRequestError';

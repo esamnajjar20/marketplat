@@ -43,6 +43,7 @@ func TestCacheConfigUsesDedicatedTLSURL(t *testing.T) {
 func TestCacheConfigFallsBackToPrimaryRedisWhenNoDedicatedHostExists(t *testing.T) {
 	for _, key := range []string{
 		"GO_WORKER_CACHE_REDIS_URL", "GO_WORKER_CACHE_REDIS_HOST", "REDIS_CACHE_HOST",
+		"REDIS_CACHE_URL",
 		"GO_WORKER_CACHE_REDIS_PORT", "REDIS_CACHE_PORT", "REDIS_PORT",
 		"GO_WORKER_CACHE_REDIS_USERNAME", "REDIS_CACHE_USERNAME",
 		"GO_WORKER_CACHE_REDIS_PASSWORD", "REDIS_CACHE_PASSWORD",
@@ -57,5 +58,55 @@ func TestCacheConfigFallsBackToPrimaryRedisWhenNoDedicatedHostExists(t *testing.
 	}
 	if cfg != primary {
 		t.Fatalf("expected primary config pointer, got %#v", cfg)
+	}
+}
+
+func TestConfigFromEnvUsesDedicatedBufferRedisURL(t *testing.T) {
+	for _, key := range []string{
+		"GO_WORKER_REDIS_URL", "REDIS_URL", "REDIS_BUFFER_URL", "GO_WORKER_REDIS_HOST", "REDIS_HOST",
+		"GO_WORKER_BUFFER_REDIS_HOST", "GO_WORKER_BUFFER_REDIS_PORT",
+		"GO_WORKER_BUFFER_REDIS_USERNAME", "GO_WORKER_BUFFER_REDIS_PASSWORD",
+		"GO_WORKER_BUFFER_REDIS_TLS", "GO_WORKER_BUFFER_REDIS_DB",
+	} {
+		t.Setenv(key, "")
+	}
+	t.Setenv("GO_WORKER_BUFFER_REDIS_URL", "rediss://buffer-user:buffer-pass@buffer.example:6380/3")
+
+	cfg, err := ConfigFromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg == nil || cfg.Addr != "buffer.example:6380" || !cfg.TLS || cfg.Username != "buffer-user" || cfg.Password != "buffer-pass" || cfg.DB != 3 {
+		t.Fatalf("unexpected buffer Redis config: %#v", cfg)
+	}
+}
+
+func TestConfigFromEnvUsesSharedBufferRedisURL(t *testing.T) {
+	for _, key := range []string{
+		"GO_WORKER_BUFFER_REDIS_URL", "GO_WORKER_REDIS_URL", "REDIS_URL",
+		"GO_WORKER_REDIS_HOST", "GO_WORKER_BUFFER_REDIS_HOST", "REDIS_HOST",
+	} {
+		t.Setenv(key, "")
+	}
+	t.Setenv("REDIS_BUFFER_URL", "rediss://shared-user:shared-pass@shared-buffer.example:6380/5")
+
+	cfg, err := ConfigFromEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg == nil || cfg.Addr != "shared-buffer.example:6380" || !cfg.TLS || cfg.Username != "shared-user" || cfg.Password != "shared-pass" || cfg.DB != 5 {
+		t.Fatalf("unexpected shared buffer Redis config: %#v", cfg)
+	}
+}
+
+func TestCacheConfigAcceptsSharedRedisCacheURL(t *testing.T) {
+	t.Setenv("GO_WORKER_CACHE_REDIS_URL", "")
+	t.Setenv("REDIS_CACHE_URL", "rediss://cache-user:cache-pass@cache.example:6380/4")
+	cfg, err := CacheConfigFromEnv(&Config{Addr: "primary.example:6379"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg == nil || cfg.Addr != "cache.example:6380" || !cfg.TLS || cfg.Username != "cache-user" || cfg.Password != "cache-pass" || cfg.DB != 4 {
+		t.Fatalf("unexpected shared cache Redis config: %#v", cfg)
 	}
 }

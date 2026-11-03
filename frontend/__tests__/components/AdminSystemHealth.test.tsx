@@ -18,6 +18,11 @@ describe('AdminSystemHealth', () => {
       data: {
         db: { ok: true, latencyMs: 12, error: null },
         redis: { ok: true, latencyMs: 3, error: null },
+        redisServices: [
+          { key: 'sessions', label: 'الجلسات والرموز', dedicated: true, sharedWith: null, ok: true, latencyMs: 4 },
+          { key: 'rateLimit', label: 'تحديد المعدل', dedicated: false, sharedWith: 'core', ok: true, latencyMs: 3 },
+          { key: 'buffer', label: 'مخازن Go / Activity / Views', dedicated: true, sharedWith: null, ok: true, latencyMs: 7 },
+        ],
       },
       isLoading: false,
       isError: false,
@@ -56,6 +61,8 @@ describe('AdminSystemHealth', () => {
     render(<AdminSystemHealth />);
     expect(screen.getByText('قاعدة البيانات')).toBeInTheDocument();
     expect(screen.getByText(/Redis/)).toBeInTheDocument();
+    expect(screen.getByText('توزيع خدمات Redis')).toBeInTheDocument();
+    expect(screen.getByText('الجلسات والرموز')).toBeInTheDocument();
     expect(screen.getAllByText('سليم').length).toBeGreaterThan(0);
   });
 

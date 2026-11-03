@@ -1,4 +1,4 @@
-import { redis } from '../../config/redis';
+import { cacheRedis as redis } from '../../config/redis';
 import { canonicalCacheKey } from '../../shared/cache/cacheKey';
 import { getCacheDomain } from '../../shared/cache/cacheContract';
 import { logger } from '../../shared/utils/logger';

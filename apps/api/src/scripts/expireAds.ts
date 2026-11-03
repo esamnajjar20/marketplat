@@ -4,7 +4,7 @@
  * Express retains cache/Cloudflare invalidation and post-commit live fan-out.
  */
 import { prisma as sharedPrisma } from '../config/prisma';
-import { redis, cacheRedis } from '../config/redis';
+import { redis, closeRedisServiceClients } from '../config/redis';
 import { logger } from '../shared/utils/logger';
 import { bumpAdsCacheVersionAndHome } from '../modules/ads/ads.cache.keys';
 import { flushEdgePurge } from '../shared/cache/edgePurge';
@@ -260,7 +260,6 @@ main()
     await Promise.allSettled([
       prisma.$disconnect(),
       shutdownNotificationStream(),
-      redis.quit(),
-      ...(cacheRedis !== redis ? [cacheRedis.quit()] : []),
+      closeRedisServiceClients(),
     ]);
   });

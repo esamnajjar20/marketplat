@@ -394,7 +394,30 @@ jest.mock('../src/config/redis', () => {
     },
   };
 
-  return { redis };
+  const inspectRedisLogicalServices = jest.fn(async () => [
+    { key: 'core', label: 'Redis الأساسي', dedicated: false, sharedWith: null, ok: true, latencyMs: 1 },
+    { key: 'cache', label: 'الكاش', dedicated: false, sharedWith: 'core', ok: true, latencyMs: 1 },
+    { key: 'sessions', label: 'الجلسات والرموز', dedicated: false, sharedWith: 'core', ok: true, latencyMs: 1 },
+    { key: 'rateLimit', label: 'تحديد المعدل', dedicated: false, sharedWith: 'core', ok: true, latencyMs: 1 },
+    { key: 'pubSub', label: 'Pub/Sub والإشعارات', dedicated: false, sharedWith: 'core', ok: true, latencyMs: 1 },
+    { key: 'queue', label: 'الطوابير', dedicated: false, sharedWith: 'core', ok: true, latencyMs: 1 },
+    { key: 'presence', label: 'الحضور', dedicated: false, sharedWith: 'core', ok: true, latencyMs: 1 },
+    { key: 'buffer', label: 'مخازن Go / Activity / Views', dedicated: false, sharedWith: 'core', ok: true, latencyMs: 1 },
+  ]);
+  return {
+    redis,
+    cacheRedis: redis,
+    sessionRedis: redis,
+    rateLimitRedis: redis,
+    pubSubRedis: redis,
+    queueRedis: redis,
+    presenceRedis: redis,
+    bufferRedis: redis,
+    criticalRedisServiceClients: [redis],
+    inspectRedisLogicalServices,
+    closeRedisServiceClients: jest.fn(async () => undefined),
+    createBullMqConnection: jest.fn(() => redis),
+  };
 });
 
 const skipDb = process.env.SKIP_DB === '1';

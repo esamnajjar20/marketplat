@@ -7,6 +7,12 @@ RENDER_ORIGIN = "https://marketplat-nz19.onrender.com"
 # Configure FRONTEND_ORIGIN in Cloudflare Worker Variables with the exact deployed
 # frontend origin(s), comma-separated. Credentialed CORS fails closed if omitted.
 # Set GATEWAY_ADMIN_TOKEN as a Worker secret before using /__gateway/registry.
+# Set GO_WORKER_TOKEN to the ingress bearer secret shared by Express and this Worker.
+# Optionally set GO_WORKER_TOKENS_JSON as a secret JSON map: {"analytics":"...32+ chars...","push":"..."}.
+# When the map exists, every registered serviceKey must have a 32+ character token; no fallback is used.
+# If multiple logical keys point to the current Go monolith process, use the same token for those keys
+# (the monolith currently validates one GO_WORKER_TOKEN); separate tokens need separate Go deployments.
+# Express should set GO_WORKER_URL to https://<this-worker-host>/__go to use the multi-service Go pool.
 # Optional: set GATEWAY_ALLOWED_HOSTS to comma-separated public DNS suffixes.
 # For frontend-origin routing, set FRONTEND_GATEWAY_HOSTS to exact public hostnames
 # (comma-separated), then attach each hostname/* route to this same Worker.

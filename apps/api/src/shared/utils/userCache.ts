@@ -1,4 +1,4 @@
-import { redis } from '../../config/redis';
+import { sessionRedis as redis } from '../../config/redis';
 import { prisma } from '../../config/prisma';
 import { logger } from './logger';
 import { invalidateCachedUserProfile } from './userProfileCache';

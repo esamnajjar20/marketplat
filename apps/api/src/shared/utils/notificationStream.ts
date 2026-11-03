@@ -23,7 +23,7 @@ import type { Response } from 'express';
 import type { NotificationType } from '@prisma/client';
 import type Redis from 'ioredis';
 import { env } from '../../config/env';
-import { redis, cacheRedis } from '../../config/redis';
+import { pubSubRedis as redis, cacheRedis } from '../../config/redis';
 import { logger } from './logger';
 import {
   appendReplayEvent,

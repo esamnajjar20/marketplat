@@ -1,4 +1,4 @@
-import { redis } from '../../config/redis';
+import { cacheRedis as redis } from '../../config/redis';
 import { prisma } from '../../config/prisma';
 import { Prisma } from '@prisma/client';
 import { logger } from '../../shared/utils/logger';

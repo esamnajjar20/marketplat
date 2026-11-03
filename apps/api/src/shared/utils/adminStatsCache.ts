@@ -1,4 +1,4 @@
-import { redis } from '../../config/redis';
+import { cacheRedis as redis } from '../../config/redis';
 import { logger } from './logger';
 
 const STATS_CACHE_KEY = 'admin_stats_cache';

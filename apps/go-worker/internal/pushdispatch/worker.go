@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"marketplat/apps/go-worker/internal/fcmpush"
+	"marketplat/apps/go-worker/internal/loadtracker"
 )
 
 const (
@@ -40,9 +41,10 @@ const (
 var idleBackoff = []time.Duration{time.Second, 2 * time.Second, 5 * time.Second, 10 * time.Second}
 
 type Config struct {
-	APIBaseURL string
-	APIToken   string
-	FCM        *fcmpush.Client
+	APIBaseURL  string
+	APIToken    string
+	FCM         *fcmpush.Client
+	LoadTracker *loadtracker.Tracker
 }
 
 type Payload struct {
@@ -94,13 +96,14 @@ type QuietDecision struct {
 }
 
 type Worker struct {
-	db         *sql.DB
-	logger     *slog.Logger
-	apiBaseURL string
-	apiToken   string
-	fcm        *fcmpush.Client
-	httpClient *http.Client
-	workerID   string
+	db          *sql.DB
+	logger      *slog.Logger
+	apiBaseURL  string
+	apiToken    string
+	fcm         *fcmpush.Client
+	httpClient  *http.Client
+	workerID    string
+	loadTracker *loadtracker.Tracker
 }
 
 func New(db *sql.DB, logger *slog.Logger, config Config) *Worker {
@@ -108,13 +111,14 @@ func New(db *sql.DB, logger *slog.Logger, config Config) *Worker {
 		logger = slog.Default()
 	}
 	return &Worker{
-		db:         db,
-		logger:     logger,
-		apiBaseURL: strings.TrimRight(strings.TrimSpace(config.APIBaseURL), "/"),
-		apiToken:   strings.TrimSpace(config.APIToken),
-		fcm:        config.FCM,
-		httpClient: &http.Client{Timeout: providerTimeout, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }},
-		workerID:   randomWorkerID(),
+		db:          db,
+		logger:      logger,
+		apiBaseURL:  strings.TrimRight(strings.TrimSpace(config.APIBaseURL), "/"),
+		apiToken:    strings.TrimSpace(config.APIToken),
+		fcm:         config.FCM,
+		httpClient:  &http.Client{Timeout: providerTimeout, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }},
+		workerID:    randomWorkerID(),
+		loadTracker: config.LoadTracker,
 	}
 }
 
@@ -233,6 +237,8 @@ func (w *Worker) processOne(ctx context.Context) (bool, error) {
 	if err != nil || d == nil {
 		return false, err
 	}
+	releaseLoad := w.loadTracker.Begin()
+	defer releaseLoad()
 	workCtx, cancelWork := context.WithTimeout(ctx, dispatchWorkTimeout)
 	stopHeartbeat := w.startDispatchHeartbeat(workCtx, d.ID, cancelWork)
 	processErr := w.processDispatch(workCtx, d)

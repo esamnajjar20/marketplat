@@ -67,6 +67,8 @@ func (s *server) runSearchIndexWorker(ctx context.Context) {
 	defer ticker.Stop()
 
 	refresh := func() {
+		releaseLoad := s.load.Begin()
+		defer releaseLoad()
 		runCtx, cancel := context.WithTimeout(ctx, searchIndexRefreshTimeout)
 		defer cancel()
 		result, err := searchindex.Refresh(runCtx, s.db)

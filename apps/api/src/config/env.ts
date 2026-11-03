@@ -17,6 +17,26 @@ if (process.env.NODE_ENV === 'test') {
 }
 dotenv.config();
 
+// Dedicated logical Redis services use the Redis TCP protocol. Do not put
+// HTTP/REST URLs (for example an Upstash REST token endpoint) here: ioredis
+// opens a Redis socket and cannot speak a provider's REST API.
+const redisEndpointSchema = z
+  .string()
+  .trim()
+  .url()
+  .refine(value => {
+    try {
+      const protocol = new URL(value).protocol;
+      return protocol === 'redis:' || protocol === 'rediss:';
+    } catch {
+      return false;
+    }
+  }, 'Redis endpoint must use redis:// or rediss://');
+const optionalRedisEndpointSchema = z.preprocess(
+  value => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  redisEndpointSchema.optional()
+);
+
 const envSchema = z.object({
   PORT: z.string().regex(/^\d+$/).default('5000'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -72,11 +92,21 @@ const envSchema = z.object({
     .string()
     .default('false')
     .transform(v => v === 'true'),
-  // optional SECOND Redis used only for disposable
-  // public caches (SWR payloads, generation tokens, refresh locks, keep-warm
-  // leader). Run it with an evicting policy (allkeys-lru) so a full cache can
-  // never reject invalidations, while the primary instance keeps `noeviction`
-  // for sessions / rate limits. Unset = the primary instance is used, as before.
+  // Optional isolated Redis endpoints. When omitted, each logical service
+  // reuses the existing primary Redis connection (zero migration required).
+  // These are service endpoints, not a round-robin list: stateful services
+  // must have one authoritative write endpoint or provider-managed HA.
+  REDIS_SESSION_URL: optionalRedisEndpointSchema,
+  REDIS_RATE_LIMIT_URL: optionalRedisEndpointSchema,
+  REDIS_PUBSUB_URL: optionalRedisEndpointSchema,
+  REDIS_QUEUE_URL: optionalRedisEndpointSchema,
+  REDIS_PRESENCE_URL: optionalRedisEndpointSchema,
+  REDIS_BUFFER_URL: optionalRedisEndpointSchema,
+  REDIS_CACHE_URL: optionalRedisEndpointSchema,
+  // optional Redis used only for reconstructible cache-aside data (SWR
+  // envelopes, taxonomy/search caches, unread counts and replay streams). Use
+  // an evicting policy on a physically separate Redis server; the primary
+  // retains noeviction for sessions, rate limits, queues and write buffers.
   REDIS_CACHE_HOST: z.string().optional(),
   REDIS_CACHE_PORT: z.string().regex(/^\d+$/).optional(),
   // Falls back to REDIS_PASSWORD / REDIS_TLS / REDIS_USERNAME when unset.
@@ -438,6 +468,39 @@ const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
     });
   }
 
+  // A disposable cache endpoint may run with allkeys-lru/allkeys-lfu.
+  // Redis eviction policy is server-wide (not isolated by logical database),
+  // so sharing the same host:port with sessions, auth/rate-limit state, jobs,
+  // or the recoverable view/activity buffer could silently evict critical keys.
+  const redisServerIdentityFromUrl = (raw: string): string => {
+    const parsed = new URL(raw);
+    return `${parsed.hostname.toLowerCase()}:${parsed.port || '6379'}`;
+  };
+  const cacheServerIdentity = data.REDIS_CACHE_URL
+    ? redisServerIdentityFromUrl(data.REDIS_CACHE_URL)
+    : data.REDIS_CACHE_HOST?.trim()
+      ? `${data.REDIS_CACHE_HOST.trim().toLowerCase()}:${data.REDIS_CACHE_PORT || data.REDIS_PORT}`
+      : null;
+  if (cacheServerIdentity) {
+    const statefulRedisServers = [
+      `${data.REDIS_HOST.trim().toLowerCase()}:${data.REDIS_PORT}`,
+      ...[
+        data.REDIS_SESSION_URL,
+        data.REDIS_RATE_LIMIT_URL,
+        data.REDIS_QUEUE_URL,
+        data.REDIS_BUFFER_URL,
+      ].filter((value): value is string => Boolean(value)).map(redisServerIdentityFromUrl),
+    ];
+    if (statefulRedisServers.includes(cacheServerIdentity)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [data.REDIS_CACHE_URL ? 'REDIS_CACHE_URL' : 'REDIS_CACHE_HOST'],
+        message:
+          'Cache Redis must use a different Redis server host/port from the primary, sessions, rate limits, queues and buffers; eviction policy is server-wide.',
+      });
+    }
+  }
+
   // CLOUDINARY_* was optional at every NODE_ENV, same
   // as SMTP_*/GOOGLE_CLIENT_* — correct for those (fully optional
   // features), but wrong here: .env.example's own comment on this block
@@ -637,6 +700,15 @@ export const env = {
         tls: _env.REDIS_CACHE_TLS ?? _env.REDIS_TLS,
       }
     : null,
+  redisServices: {
+    sessionsUrl: _env.REDIS_SESSION_URL,
+    rateLimitUrl: _env.REDIS_RATE_LIMIT_URL,
+    pubSubUrl: _env.REDIS_PUBSUB_URL,
+    queueUrl: _env.REDIS_QUEUE_URL,
+    presenceUrl: _env.REDIS_PRESENCE_URL,
+    bufferUrl: _env.REDIS_BUFFER_URL,
+    cacheUrl: _env.REDIS_CACHE_URL,
+  },
   security: {
     // Parse to number — Express trust proxy requires a number, not a string
     trustProxy: parseInt(_env.TRUST_PROXY, 10),

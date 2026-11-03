@@ -11,9 +11,11 @@ import type {
   GatewayFailureState,
   GatewayHealthSnapshot,
   GatewayHealthState,
+  GatewayAdaptivePolicy,
   GatewayKind,
   GatewayRegistry,
   GatewayRegistryLoad,
+  GoWorkerServer,
   GatewayRouteResult,
   GatewayServer,
   GatewayTarget,
@@ -56,6 +58,11 @@ function isGatewayHealthState(value: unknown): value is GatewayHealthState {
   if (value.checkedAt !== undefined && value.checkedAt !== null && typeof value.checkedAt !== 'string') return false;
   if (value.source !== undefined && value.source !== 'traffic' && value.source !== 'probe') return false;
   if (value.updatedAt !== undefined && (typeof value.updatedAt !== 'number' || !Number.isFinite(value.updatedAt))) return false;
+  if (value.ewmaDurationMs !== undefined && value.ewmaDurationMs !== null && (typeof value.ewmaDurationMs !== 'number' || !Number.isFinite(value.ewmaDurationMs) || value.ewmaDurationMs < 0)) return false;
+  if (value.errorRate !== undefined && (typeof value.errorRate !== 'number' || !Number.isFinite(value.errorRate) || value.errorRate < 0 || value.errorRate > 1)) return false;
+  if (value.activeRequests !== undefined && value.activeRequests !== null && (!Number.isInteger(value.activeRequests) || Number(value.activeRequests) < 0 || Number(value.activeRequests) > 100000)) return false;
+  if (value.ewmaActiveRequests !== undefined && value.ewmaActiveRequests !== null && (typeof value.ewmaActiveRequests !== 'number' || !Number.isFinite(value.ewmaActiveRequests) || value.ewmaActiveRequests < 0 || value.ewmaActiveRequests > 100000)) return false;
+  if (value.sampleCount !== undefined && (!Number.isInteger(value.sampleCount) || Number(value.sampleCount) < 0)) return false;
   return true;
 }
 
@@ -69,7 +76,7 @@ function parseGatewayHealthStates(value: unknown): Record<string, GatewayHealthS
 }
 
 /**
- * MarketPlat Smart Cache & Gateway Worker v6
+ * MarketPlat Smart Cache & Gateway Worker v7
  *
  * New in v4 (edge-cache round 2):
  * - #7  Cache-key normalization: params sorted, encoding unified (NFC + RFC3986),
@@ -86,10 +93,11 @@ function parseGatewayHealthStates(value: unknown): Record<string, GatewayHealthS
  *       Tag-based purging itself is done by the backend through the Cloudflare API.
  * - Fix: single-flight shared a Response whose body was already consumed.
  *
- * Keeps v4 cache behavior and adds a KV-backed dynamic backend registry, weighted
- * routing, passive circuit breaking, and safe GET/HEAD failover. A SQLite-backed
- * Durable Object coordinates backend health across isolates; each isolate caches
- * that snapshot briefly and keeps a local fallback. Cache warm-up remains disabled.
+ * Keeps v4 cache behavior and adds independent Backend, Frontend, and Go service
+ * pools with weighted routing, passive circuit breaking, and safe GET/HEAD failover.
+ * Go services are selected by longest internal path prefix and can have multiple
+ * replicas. A SQLite-backed Durable Object coordinates health across isolates;
+ * each isolate caches that snapshot briefly and keeps a local fallback. Warm-up stays off.
  */
 
 const DEFAULT_RENDER_ORIGIN = 'https://marketplat-nz19.onrender.com';
@@ -196,7 +204,13 @@ const inflight = new Map<string, Promise<unknown>>();
 const GATEWAY_REGISTRY_KEY = 'gateway:registry:v1';
 const GATEWAY_REGISTRY_CACHE_MS = 15000;
 const GATEWAY_MAX_SERVERS = 16;
+const GATEWAY_MAX_GO_TARGETS = 32;
+const GATEWAY_MAX_GO_FAILOVER_ATTEMPTS = 3;
+const GATEWAY_MAX_PROBE_TARGETS_PER_REQUEST = 8;
 const GATEWAY_DEFAULT_TIMEOUT_MS = 20000;
+const GATEWAY_GO_DEFAULT_TIMEOUT_MS = 540000; // API callers may wait up to 9 minutes for selected maintenance jobs.
+const GATEWAY_GO_MAX_TIMEOUT_MS = 600000;
+const GO_GATEWAY_PREFIX = '/__go';
 const GATEWAY_FAILURE_THRESHOLD = 2;
 const GATEWAY_OPEN_MS = 30000;
 const GATEWAY_HEALTH_STATE_KEY = 'health:backend:v1';
@@ -205,7 +219,9 @@ const GATEWAY_REGISTRY_OBJECT_NAME = 'gateway-registry-v1';
 const FRONTEND_RELEASE_COOKIE = '__Host-mp-frontend-release';
 const GATEWAY_HEALTH_CACHE_MS = 5000;
 const GATEWAY_HEALTH_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
-const gatewayFailures = new Map<string, GatewayFailureState>(); // fast local mirror; central state is persisted in Durable Objects
+const gatewayFailures = new Map<string, GatewayFailureState>();
+const goTrafficSampleCounters = new Map<string, number>();
+const GATEWAY_GO_METRIC_SAMPLE_EVERY = 5; // fast local mirror; central state is persisted in Durable Objects
 let gatewayRegistryCache: RegistryCacheEntry | null = null;
 let gatewayHealthSnapshotCache: HealthSnapshotCacheEntry | null = null;
 
@@ -235,6 +251,7 @@ function validateBackendOrigin(raw: unknown, env: Env, label = 'Backend'): strin
 
 function validateGatewayPath(raw: unknown, fallback: string, label: string): string {
   const value = typeof raw === 'string' && raw.trim() ? raw.trim() : fallback;
+  if (value.length > 512) throw new Error(`${label} exceeds 512 characters`);
   if (!value.startsWith('/') || value.startsWith('//') || value.includes('\\') || value.includes('?') || value.includes('#')) {
     throw new Error(`${label} must be a same-origin absolute path without query or fragment`);
   }
@@ -248,22 +265,27 @@ function validateGatewayPath(raw: unknown, fallback: string, label: string): str
 
 function validateGatewayServer(server: unknown, env: Env, kind: 'backend', ids: Set<string>): BackendServer;
 function validateGatewayServer(server: unknown, env: Env, kind: 'frontend', ids: Set<string>): FrontendServer;
+function validateGatewayServer(server: unknown, env: Env, kind: 'go', ids: Set<string>): GoWorkerServer;
 function validateGatewayServer(server: unknown, env: Env, kind: GatewayKind, ids: Set<string>): GatewayServer {
-  if (!isRecord(server)) throw new Error(`Each ${kind} server must be an object`);
+  if (!isRecord(server)) throw new Error(`Each ${kind} target must be an object`);
   const id = String(server.id || '').trim();
-  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(id)) throw new Error(`${kind} server id must be 1-64 safe characters`);
-  if (ids.has(id)) throw new Error(`Duplicate ${kind} server id: ${id}`);
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(id)) throw new Error(`${kind} target id must be 1-64 safe characters`);
+  if (ids.has(id)) throw new Error(`Duplicate ${kind} target id: ${id}`);
   ids.add(id);
 
   const weight = Number(server.weight);
   if (!Number.isInteger(weight) || weight < 1 || weight > 1000) throw new Error(`Invalid weight for ${id}; expected integer 1-1000`);
   const priority = server.priority === undefined || server.priority === null ? 100 : Number(server.priority);
   if (!Number.isInteger(priority) || priority < 1 || priority > 1000) throw new Error(`Invalid priority for ${id}; expected integer 1-1000 (lower number wins)`);
-  const timeoutMs = server.timeoutMs === undefined || server.timeoutMs === null ? GATEWAY_DEFAULT_TIMEOUT_MS : Number(server.timeoutMs);
-  if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > 30000) throw new Error(`Invalid timeoutMs for ${id}; expected integer 1000-30000`);
-  if (typeof server.enabled !== 'boolean') throw new Error(`Server ${id} must have an enabled boolean`);
+  const timeoutMs = server.timeoutMs === undefined || server.timeoutMs === null
+    ? (kind === 'go' ? GATEWAY_GO_DEFAULT_TIMEOUT_MS : GATEWAY_DEFAULT_TIMEOUT_MS)
+    : Number(server.timeoutMs);
+  const maximumTimeoutMs = kind === 'go' ? GATEWAY_GO_MAX_TIMEOUT_MS : 30000;
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > maximumTimeoutMs) throw new Error(`Invalid timeoutMs for ${id}; expected integer 1000-${maximumTimeoutMs}`);
+  if (typeof server.enabled !== 'boolean') throw new Error(`Target ${id} must have an enabled boolean`);
 
-  const url = validateBackendOrigin(server.url, env, kind === 'frontend' ? 'Frontend' : 'Backend');
+  const label = kind === 'frontend' ? 'Frontend' : kind === 'go' ? 'Go Worker' : 'Backend';
+  const url = validateBackendOrigin(server.url, env, label);
   if (kind === 'frontend') {
     const originHost = new URL(url).hostname.toLowerCase().replace(/\.$/, '');
     const publicHosts = String(env.FRONTEND_GATEWAY_HOSTS || '').split(',')
@@ -282,7 +304,7 @@ function validateGatewayServer(server: unknown, env: Env, kind: GatewayKind, ids
     enabled: server.enabled,
     provider: typeof server.provider === 'string' ? server.provider.trim().slice(0, 64) : '',
     region: typeof server.region === 'string' ? server.region.trim().slice(0, 64) : '',
-    healthPath: validateGatewayPath(server.healthPath, kind === 'frontend' ? '/build-id.json' : '/health', `${kind} healthPath`),
+    healthPath: validateGatewayPath(server.healthPath, kind === 'frontend' ? '/build-id.json' : kind === 'go' ? '/healthz' : '/health', `${kind} healthPath`),
   };
 
   if (kind === 'frontend') {
@@ -297,6 +319,34 @@ function validateGatewayServer(server: unknown, env: Env, kind: GatewayKind, ids
       releasePath: validateGatewayPath(server.releasePath, '/build-id.json', `Frontend ${id} releasePath`),
     };
     return frontendServer;
+  }
+
+  if (kind === 'go') {
+    const serviceKey = String(server.serviceKey || '').trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(serviceKey)) {
+      throw new Error(`Go target ${id} must include a valid serviceKey (1-64 lowercase safe characters)`);
+    }
+    const routePrefix = validateGatewayPath(server.routePrefix, '', `Go target ${id} routePrefix`).replace(/\/$/, '');
+    const upstreamPrefix = validateGatewayPath(server.upstreamPrefix, routePrefix, `Go target ${id} upstreamPrefix`).replace(/\/$/, '');
+    if (!routePrefix.startsWith('/internal/') || !upstreamPrefix.startsWith('/internal/')) {
+      throw new Error(`Go target ${id} routePrefix and upstreamPrefix must remain under /internal/`);
+    }
+    const manualShareRaw = server.manualSharePercent === undefined || server.manualSharePercent === null
+      ? null
+      : Number(server.manualSharePercent);
+    if (manualShareRaw !== null && (!Number.isFinite(manualShareRaw) || manualShareRaw <= 0 || manualShareRaw > 100)) {
+      throw new Error(`Invalid manualSharePercent for ${id}; expected a number greater than 0 and at most 100`);
+    }
+    const goServer: GoWorkerServer = {
+      ...common,
+      healthKind: 'go',
+      serviceKey,
+      routePrefix,
+      upstreamPrefix,
+      // Legacy registries keep their relative weight until group normalization below.
+      manualSharePercent: manualShareRaw === null ? 0 : manualShareRaw,
+    };
+    return goServer;
   }
 
   const backendServer: BackendServer = { ...common, healthKind: 'backend' };
@@ -327,11 +377,65 @@ function validateGatewayRegistry(input: unknown, env: Env): GatewayRegistry {
     throw new Error('All enabled frontend servers must use the same buildId to protect RSC and Server Actions compatibility');
   }
 
+  // Go services are optional for backwards compatibility with earlier registries.
+  const go = isRecord(input.go) ? input.go : { servers: [] as unknown[] };
+  if (go.strategy && go.strategy !== 'weighted-random') throw new Error('Only weighted-random Go service strategy is supported');
+  if (!Array.isArray(go.servers) || go.servers.length > GATEWAY_MAX_GO_TARGETS) {
+    throw new Error(`Go service pool must contain 0-${GATEWAY_MAX_GO_TARGETS} targets`);
+  }
+  const goIds = new Set<string>();
+  const goServers = go.servers.map((server: unknown) => validateGatewayServer(server, env, 'go', goIds));
+  // Normalize manual shares inside each service + priority tier. Older registry
+  // records did not have manualSharePercent, so their relative `weight` values
+  // are migrated without changing their effective distribution.
+  const goShareGroups = new Map<string, GoWorkerServer[]>();
+  for (const server of goServers) {
+    const key = `${server.serviceKey}|${server.priority}`;
+    const group = goShareGroups.get(key) || [];
+    group.push(server);
+    goShareGroups.set(key, group);
+  }
+  for (const group of goShareGroups.values()) {
+    const sourceTotal = group.reduce((sum, server) => sum + (server.manualSharePercent > 0 ? server.manualSharePercent : server.weight), 0);
+    for (const server of group) {
+      const sourceShare = server.manualSharePercent > 0 ? server.manualSharePercent : server.weight;
+      server.manualSharePercent = sourceTotal > 0 ? Math.round((sourceShare / sourceTotal) * 10000) / 100 : 100 / group.length;
+    }
+  }
+  const adaptiveInput = isRecord(go.adaptive) ? go.adaptive : {};
+  const adaptiveEnabled = adaptiveInput.enabled === undefined ? true : adaptiveInput.enabled;
+  const adaptiveSensitivity = adaptiveInput.sensitivity === undefined ? 65 : Number(adaptiveInput.sensitivity);
+  if (typeof adaptiveEnabled !== 'boolean') throw new Error('Go adaptive.enabled must be a boolean');
+  if (!Number.isInteger(adaptiveSensitivity) || adaptiveSensitivity < 0 || adaptiveSensitivity > 100) {
+    throw new Error('Go adaptive.sensitivity must be an integer between 0 and 100');
+  }
+  const goRouteByKey = new Map<string, { routePrefix: string; upstreamPrefix: string }>();
+  const goKeyByRoute = new Map<string, string>();
+  const goTargetByServiceAndOrigin = new Set<string>();
+  for (const server of goServers) {
+    const targetKey = `${server.serviceKey}|${server.url}`;
+    if (goTargetByServiceAndOrigin.has(targetKey)) {
+      throw new Error(`Go service ${server.serviceKey} contains the same origin more than once`);
+    }
+    goTargetByServiceAndOrigin.add(targetKey);
+    const known = goRouteByKey.get(server.serviceKey);
+    if (known && (known.routePrefix !== server.routePrefix || known.upstreamPrefix !== server.upstreamPrefix)) {
+      throw new Error(`All Go targets for service ${server.serviceKey} must use the same routePrefix and upstreamPrefix`);
+    }
+    goRouteByKey.set(server.serviceKey, { routePrefix: server.routePrefix, upstreamPrefix: server.upstreamPrefix });
+    const routeOwner = goKeyByRoute.get(server.routePrefix);
+    if (routeOwner && routeOwner !== server.serviceKey) {
+      throw new Error(`Go routePrefix ${server.routePrefix} is already assigned to service ${routeOwner}`);
+    }
+    goKeyByRoute.set(server.routePrefix, server.serviceKey);
+  }
+
   return {
     version: Number.isInteger(input.version) && Number(input.version) > 0 ? Number(input.version) : 1,
     strategy: 'weighted-random',
     backend: { strategy: 'weighted-random', servers: backendServers },
     frontend: { strategy: 'weighted-random', servers: frontendServers },
+    go: { strategy: 'weighted-random', servers: goServers, adaptive: { enabled: adaptiveEnabled, sensitivity: adaptiveSensitivity } },
     updatedAt: typeof input.updatedAt === 'string' ? input.updatedAt : null,
   };
 }
@@ -345,6 +449,7 @@ function fallbackGatewayRegistry(env: Env): GatewayRegistry {
       servers: [validateGatewayServer({ id: 'render-primary', url: getRenderOrigin(env), weight: 100, enabled: true }, env, 'backend', new Set<string>())],
     },
     frontend: { strategy: 'weighted-random', servers: [] },
+    go: { strategy: 'weighted-random', servers: [] },
     updatedAt: null,
   };
 }
@@ -418,33 +523,33 @@ async function loadGatewayRegistry(env: Env, force = false): Promise<GatewayRegi
   return result;
 }
 
-function weightedOrder<T extends GatewayServer>(servers: T[]): T[] {
+function weightedOrder<T extends GatewayServer>(servers: T[], weightFor: (server: T) => number = (server) => server.weight): T[] {
   return servers.map((server) => ({
     server,
-    score: -Math.log(Math.max(Math.random(), 1e-12)) / server.weight,
+    score: -Math.log(Math.max(Math.random(), 1e-12)) / Math.max(0.001, weightFor(server)),
   })).sort((a, b) => a.score - b.score).map((entry) => entry.server);
 }
 
 function backendStateKey(server: GatewayServer): string {
-  const healthId = server.healthKind === 'frontend' ? `frontend-${server.id}` : server.id;
-  return `${healthId}|${server.url}`;
+  return `${gatewayHealthId(server)}|${server.url}`;
 }
 
 function gatewayHealthId(server: GatewayServer): string {
-  return server.healthKind === 'frontend' ? `frontend-${server.id}` : server.id;
+  const prefix = server.healthKind === 'frontend' ? 'frontend--' : server.healthKind === 'go' ? 'go--' : 'backend--';
+  return `${prefix}${server.id}`;
 }
 
-function weightedPriorityOrder<T extends GatewayServer>(servers: T[]): T[] {
+function weightedPriorityOrder<T extends GatewayServer>(servers: T[], weightFor?: (server: T) => number): T[] {
   const tiers = new Map();
   for (const server of servers) {
     const priority = Number.isInteger(server.priority) ? server.priority : 100;
     if (!tiers.has(priority)) tiers.set(priority, []);
     tiers.get(priority).push(server);
   }
-  return [...tiers.keys()].sort((a, b) => a - b).flatMap((priority) => weightedOrder(tiers.get(priority)));
+  return [...tiers.keys()].sort((a, b) => a - b).flatMap((priority) => weightedOrder(tiers.get(priority), weightFor));
 }
 
-function backendCandidates<T extends GatewayServer>(servers: T[], now = Date.now()): T[] {
+function backendCandidates<T extends GatewayServer>(servers: T[], now = Date.now(), weightFor?: (server: T) => number): T[] {
   // An explicit frontend build mismatch is a hard quarantine, not a transient
   // circuit-open event. It must never become a last-resort half-open candidate.
   const enabled = servers.filter((server) => {
@@ -457,7 +562,7 @@ function backendCandidates<T extends GatewayServer>(servers: T[], now = Date.now
     return !state || state.openUntil <= now;
   });
   const open = enabled.filter((server) => !healthy.includes(server));
-  if (healthy.length) return [...weightedPriorityOrder(healthy), ...open.sort((a, b) => {
+  if (healthy.length) return [...weightedPriorityOrder(healthy, weightFor), ...open.sort((a, b) => {
     const aa = gatewayFailures.get(backendStateKey(a));
     const bb = gatewayFailures.get(backendStateKey(b));
     const priorityDiff = (a.priority || 100) - (b.priority || 100);
@@ -471,6 +576,82 @@ function backendCandidates<T extends GatewayServer>(servers: T[], now = Date.now
     const priorityDiff = (a.priority || 100) - (b.priority || 100);
     return priorityDiff || (aa ? aa.openUntil : 0) - (bb ? bb.openUntil : 0);
   });
+}
+
+function clampNumber(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+/**
+ * Build per-target weights from admin-controlled manual shares, adjusted by
+ * recent traffic latency, failure ratio and the Go process's active-request
+ * signal. It deliberately does not claim to measure host CPU or RAM.
+ */
+function goAdaptiveWeightMap(
+  servers: GoWorkerServer[],
+  policy: GatewayAdaptivePolicy | undefined,
+  states: Record<string, GatewayHealthState>,
+): Map<string, number> {
+  const result = new Map<string, number>();
+  const groups = new Map<string, GoWorkerServer[]>();
+  for (const server of servers) {
+    const key = `${server.serviceKey}|${server.priority}`;
+    const group = groups.get(key) || [];
+    group.push(server);
+    groups.set(key, group);
+  }
+
+  const enabled = policy?.enabled !== false;
+  const strength = enabled ? clampNumber((policy?.sensitivity ?? 65) / 100, 0, 1) : 0;
+  for (const group of groups.values()) {
+    const measured = group.map((server) => states[backendStateKey(server)])
+      .filter((state): state is GatewayHealthState => Boolean(state && (state.sampleCount || 0) >= 5 && Number.isFinite(state.ewmaDurationMs) && Number(state.ewmaDurationMs) > 0));
+    const durations = measured.map((state) => Number(state.ewmaDurationMs)).sort((a, b) => a - b);
+    const concurrency = measured
+      .filter((state) => Number.isFinite(state.ewmaActiveRequests))
+      .map((state) => Number(state.ewmaActiveRequests))
+      .sort((a, b) => a - b);
+    const middle = Math.floor(durations.length / 2);
+    const lowerMedian = durations[middle - 1] ?? 0;
+    const upperMedian = durations[middle] ?? 0;
+    const baseline = durations.length === 0 ? 0 : durations.length % 2 ? upperMedian : (lowerMedian + upperMedian) / 2;
+    const concurrencyMiddle = Math.floor(concurrency.length / 2);
+    const concurrencyBaseline = concurrency.length === 0 ? 0 : concurrency.length % 2
+      ? (concurrency[concurrencyMiddle] ?? 0)
+      : ((concurrency[concurrencyMiddle - 1] ?? 0) + (concurrency[concurrencyMiddle] ?? 0)) / 2;
+
+    for (const server of group) {
+      const manualShare = Math.max(0.001, server.manualSharePercent || server.weight);
+      const state = states[backendStateKey(server)];
+      let factor = 1;
+      if (strength > 0 && baseline > 0 && state && (state.sampleCount || 0) >= 5) {
+        const latency = Number(state.ewmaDurationMs) || baseline;
+        const latencyFactor = clampNumber(Math.sqrt(baseline / Math.max(1, latency)), 0.55, 1.55);
+        const errorPenalty = clampNumber(1 - (Number(state.errorRate) || 0) * 1.5, 0.25, 1);
+        const active = Number.isFinite(state.ewmaActiveRequests) ? Number(state.ewmaActiveRequests) : null;
+        // Only compare concurrency once at least two targets have a signal;
+        // +1 avoids division by zero when an instance is idle.
+        const loadFactor = active !== null && concurrency.length >= 2
+          ? clampNumber(Math.sqrt((concurrencyBaseline + 1) / (active + 1)), 0.55, 1.55)
+          : 1;
+        const observedCapacity = clampNumber(latencyFactor * errorPenalty * loadFactor, 0.35, 1.55);
+        factor = clampNumber(1 + ((observedCapacity - 1) * strength), 0.35, 1.55);
+      }
+      result.set(server.id, manualShare * factor);
+    }
+  }
+  return result;
+}
+
+function shouldSampleGoTraffic(server: GoWorkerServer): boolean {
+  const key = backendStateKey(server);
+  const next = (goTrafficSampleCounters.get(key) || 0) + 1;
+  goTrafficSampleCounters.set(key, next);
+  if (goTrafficSampleCounters.size > GATEWAY_MAX_GO_TARGETS * 2) {
+    const oldest = goTrafficSampleCounters.keys().next().value;
+    if (oldest !== undefined && oldest !== key) goTrafficSampleCounters.delete(oldest);
+  }
+  return next % GATEWAY_GO_METRIC_SAMPLE_EVERY === 0;
 }
 
 function recordBackendResult(server: GatewayServer, healthy: boolean, options: HealthRecordDetails = {}): void {
@@ -600,7 +781,8 @@ async function persistGatewayHealth(env: Env, server: GatewayServer, healthy: bo
         serverUrl: server.url,
         healthy,
         status: Number.isInteger(details.status) ? details.status : null,
-        durationMs: Number.isFinite(details.durationMs) ? Math.max(0, Math.min(30000, Number(details.durationMs))) : null,
+        durationMs: Number.isFinite(details.durationMs) ? Math.max(0, Math.min(GATEWAY_GO_MAX_TIMEOUT_MS, Number(details.durationMs))) : null,
+        activeRequests: Number.isInteger(details.activeRequests) && Number(details.activeRequests) >= 0 && Number(details.activeRequests) <= 100000 ? Number(details.activeRequests) : null,
         source: source === 'probe' ? 'probe' : 'traffic',
         failureThreshold: Number.isInteger(details.failureThreshold) ? details.failureThreshold : GATEWAY_FAILURE_THRESHOLD,
         openMs: GATEWAY_OPEN_MS,
@@ -657,15 +839,30 @@ async function reconcileGatewayHealth(env: Env, servers: GatewayServer[]): Promi
  * health checks run only when an ADMIN requests them from Infrastructure Management.
  * /health is the API's lightweight liveness contract and must not perform DB work.
  */
-async function probeGatewayServers(env: Env): Promise<{ ok: boolean; source: RegistrySource; checkedAt: string; scope: string; stateScope: string; results: ProbeResult[] }> {
-  const { registry, source } = await loadGatewayRegistry(env, true);
+type GatewayProbeTarget = { kind: GatewayKind; id: string };
+
+async function probeGatewayServers(env: Env, targetRefs?: GatewayProbeTarget[], loaded?: GatewayRegistryLoad): Promise<{ ok: boolean; source: RegistrySource; checkedAt: string; scope: string; stateScope: string; results: ProbeResult[] }> {
+  const { registry, source } = loaded || await loadGatewayRegistry(env, true);
   const checkedAt = new Date().toISOString();
   const probeOne = async (server: GatewayServer, kind: GatewayKind): Promise<ProbeResult> => {
     if (!server.enabled) return { kind, id: server.id, enabled: false, healthy: null, status: null, durationMs: 0, detail: 'disabled' };
     const startedAt = Date.now();
     try {
+      const probeHeaders = new Headers({ accept: 'application/json' });
+      if (server.healthKind === 'go') {
+        const serviceToken = resolveGoServiceToken(env, server.serviceKey);
+        if (!serviceToken) {
+          const durationMs = Date.now() - startedAt;
+          recordBackendResult(server, false);
+          await persistGatewayHealth(env, server, false, { status: null, durationMs }, 'probe');
+          return { kind, id: server.id, enabled: true, healthy: false, status: null, durationMs, detail: 'service_token_not_configured' };
+        }
+        // This also allows an operator to use the protected /internal/diagnostics
+        // readiness endpoint instead of the public, database-only /healthz.
+        probeHeaders.set('authorization', `Bearer ${serviceToken}`);
+      }
       const healthResponse = await fetch(new URL(server.healthPath || '/health', server.url).toString(), {
-        method: 'GET', headers: { accept: 'application/json' }, redirect: 'manual', signal: AbortSignal.timeout(4000),
+        method: 'GET', headers: probeHeaders, redirect: 'manual', signal: AbortSignal.timeout(4000),
       });
       const healthStatus = healthResponse.status;
       const healthOk = healthStatus >= 200 && healthStatus < 300;
@@ -713,15 +910,20 @@ async function probeGatewayServers(env: Env): Promise<{ ok: boolean; source: Reg
     }
   };
 
-  const results = await Promise.all([
-    ...registry.backend.servers.map((server) => probeOne(server, 'backend')),
-    ...registry.frontend.servers.map((server) => probeOne(server, 'frontend')),
-  ]);
+  const allTargets: Array<{ server: GatewayServer; kind: GatewayKind }> = [
+    ...registry.backend.servers.map((server) => ({ server, kind: 'backend' as const })),
+    ...registry.frontend.servers.map((server) => ({ server, kind: 'frontend' as const })),
+    ...registry.go.servers.map((server) => ({ server, kind: 'go' as const })),
+  ];
+  const selectedTargets = targetRefs
+    ? allTargets.filter(({ server, kind }) => targetRefs.some((target) => target.kind === kind && target.id === server.id))
+    : allTargets;
+  const results = await Promise.all(selectedTargets.map(({ server, kind }) => probeOne(server, kind)));
   return {
     ok: results.every((result) => result.healthy !== false),
     source,
     checkedAt,
-    scope: 'single-request-location',
+    scope: targetRefs ? 'selected-target-batch' : 'single-request-location',
     stateScope: gatewayHealthObject(env) ? 'central-durable-object' : 'single-worker-isolate',
     results,
   };
@@ -732,15 +934,18 @@ async function probeGatewayServers(env: Env): Promise<{ ok: boolean; source: Reg
  * automatically; mutating requests are never replayed because the first upstream
  * may have committed the operation before the connection failed.
  */
-async function fetchBackend(pathAndSearch: string, initFactory: RequestInit | ((server: GatewayServer) => RequestInit), env: Env, retrySafe = false, ctx: ExecutionContextLike | null = null, poolKind: GatewayKind = 'backend', preferredServerId: string | null = null): Promise<GatewayRouteResult> {
+async function fetchBackend(pathAndSearch: string, initFactory: RequestInit | ((server: GatewayServer) => RequestInit), env: Env, retrySafe = false, ctx: ExecutionContextLike | null = null, poolKind: GatewayKind = 'backend', preferredServerId: string | null = null, poolOverride?: GatewayServer[]): Promise<GatewayRouteResult> {
   const { registry, source } = await loadGatewayRegistry(env);
   await loadGatewayHealthSnapshot(env);
   let requestTarget;
   try { requestTarget = normalizeGatewayRequestTarget(pathAndSearch); } catch (error) {
     return { res: new Response(JSON.stringify({ success: false, code: 'INVALID_PROXY_PATH', message: 'The requested path is not a valid same-origin path.' }), { status: 400, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } }), serverId: null, attempts: 0, ms: 0, mode: 'rejected', error: errorMessage(error) };
   }
-  const poolServers: GatewayServer[] = poolKind === 'frontend' ? registry.frontend.servers : registry.backend.servers;
-  const candidates = backendCandidates(poolServers);
+  const poolServers: GatewayServer[] = poolOverride || (poolKind === 'frontend' ? registry.frontend.servers : poolKind === 'go' ? registry.go.servers : registry.backend.servers);
+  const goWeights = poolKind === 'go'
+    ? goAdaptiveWeightMap(poolServers.filter((server): server is GoWorkerServer => server.healthKind === 'go'), registry.go.adaptive, gatewayHealthSnapshotCache?.value.states || {})
+    : null;
+  const candidates = backendCandidates(poolServers, Date.now(), goWeights ? (server) => goWeights.get(server.id) || server.weight : undefined);
   if (preferredServerId) {
     const preferred = candidates.find((server) => server.id === preferredServerId);
     const state = preferred ? gatewayFailures.get(backendStateKey(preferred)) : null;
@@ -751,11 +956,14 @@ async function fetchBackend(pathAndSearch: string, initFactory: RequestInit | ((
   }
   const method = typeof initFactory === 'function' ? null : String((initFactory && initFactory.method) || 'GET').toUpperCase();
   const retryAllowed = retrySafe && (method === null || method === 'GET' || method === 'HEAD');
-  const maxAttempts = retryAllowed ? candidates.length : Math.min(1, candidates.length);
+  const maxAttempts = retryAllowed
+    ? Math.min(candidates.length, poolKind === 'go' ? GATEWAY_MAX_GO_FAILOVER_ATTEMPTS : candidates.length)
+    : Math.min(1, candidates.length);
   let totalMs = 0;
   let last = null;
 
-  for (const server of candidates.slice(0, maxAttempts)) {
+  const attemptServers = candidates.slice(0, maxAttempts);
+  for (const [attemptIndex, server] of attemptServers.entries()) {
     try {
       const init = typeof initFactory === 'function' ? initFactory(server) : initFactory;
       const targetUrl = buildGatewayTargetUrl(server.url, requestTarget);
@@ -765,6 +973,8 @@ async function fetchBackend(pathAndSearch: string, initFactory: RequestInit | ((
         : timeoutSignal;
       const timedInit = { ...init, signal: requestSignal };
       const result = await fetchUpstream(targetUrl, timedInit);
+      const activeHeader = poolKind === 'go' ? result.res?.headers.get('x-mp-worker-active-requests') : null;
+      const activeRequests = activeHeader && /^\d{1,6}$/.test(activeHeader) ? clampNumber(Number(activeHeader), 0, 100000) : null;
       totalMs += result.ms;
       last = { ...result, serverId: server.id, attempts: (last ? last.attempts : 0) + 1, mode: source === 'env-fallback' ? 'fallback' : 'pool' };
       if (!result.res || isFailoverStatus(result.res.status)) {
@@ -772,22 +982,29 @@ async function fetchBackend(pathAndSearch: string, initFactory: RequestInit | ((
         void scheduleGatewayHealthWrite(env, ctx, server, false, {
           status: result.res ? result.res.status : null,
           durationMs: result.ms,
+          activeRequests,
         }, 'traffic');
-        if (retryAllowed) {
-          try { if (result.res && result.res.body) await result.res.body.cancel(); } catch { /* discard failed upstream body */ }
+        if (retryAllowed && attemptIndex < attemptServers.length - 1) {
+          try { if (result.res && result.res.body) await result.res.body.cancel(); } catch { /* discard failed upstream body before the next attempt */ }
           continue;
         }
+        // Preserve the last upstream response body when the retry budget is
+        // exhausted so callers can return the real 502/503/504 body to Express.
         return { ...last, ms: totalMs };
       }
       const hadFailure = gatewayFailures.has(backendStateKey(server));
       recordBackendResult(server, true);
-      if (hadFailure) {
-        void scheduleGatewayHealthWrite(env, ctx, server, true, { status: result.res.status, durationMs: result.ms }, 'traffic');
+      const adaptiveSample = poolKind === 'go' && server.healthKind === 'go' && shouldSampleGoTraffic(server);
+      if (adaptiveSample || hadFailure) {
+        // Go success samples are sampled at 1-in-5 per target to bound the
+        // central Durable Object write rate; failures and circuit recovery
+        // events remain unsampled so health protection is not delayed.
+        void scheduleGatewayHealthWrite(env, ctx, server, true, { status: result.res.status, durationMs: result.ms, activeRequests }, 'traffic');
       }
       return { ...last, ms: totalMs };
     } catch (error) {
       recordBackendResult(server, false);
-      void scheduleGatewayHealthWrite(env, ctx, server, false, { status: null, durationMs: 0 }, 'traffic');
+      void scheduleGatewayHealthWrite(env, ctx, server, false, { status: null }, 'traffic');
       last = { res: null, error: errorMessage(error), serverId: server.id,
         ms: totalMs, attempts: (last ? last.attempts : 0) + 1, mode: source === 'env-fallback' ? 'fallback' : 'pool' };
       if (!retryAllowed) return last;
@@ -834,12 +1051,54 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
         status: 400, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
       });
     }
-    if (!payload || payload.action !== 'probe') {
+    if (!isRecord(payload) || payload.action !== 'probe') {
       return new Response(JSON.stringify({ ok: false, error: 'UNSUPPORTED_GATEWAY_ACTION' }), {
         status: 400, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
       });
     }
-    const result = await probeGatewayServers(env);
+    let targetRefs: GatewayProbeTarget[] | undefined;
+    if (payload.targetIds !== undefined) {
+      if (!Array.isArray(payload.targetIds) || payload.targetIds.length < 1 || payload.targetIds.length > GATEWAY_MAX_PROBE_TARGETS_PER_REQUEST) {
+        return new Response(JSON.stringify({ ok: false, error: 'INVALID_PROBE_TARGETS', maxTargets: GATEWAY_MAX_PROBE_TARGETS_PER_REQUEST }), {
+          status: 400, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+        });
+      }
+      const seen = new Set<string>();
+      targetRefs = [];
+      for (const item of payload.targetIds) {
+        if (!isRecord(item) || !['backend', 'frontend', 'go'].includes(String(item.kind)) ||
+            typeof item.id !== 'string' || !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(item.id)) {
+          return new Response(JSON.stringify({ ok: false, error: 'INVALID_PROBE_TARGET' }), {
+            status: 400, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+          });
+        }
+        const kind = item.kind as GatewayKind;
+        const key = `${kind}:${item.id}`;
+        if (seen.has(key)) return new Response(JSON.stringify({ ok: false, error: 'DUPLICATE_PROBE_TARGET' }), {
+          status: 400, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+        });
+        seen.add(key);
+        targetRefs.push({ kind, id: item.id });
+      }
+    }
+    const current = await loadGatewayRegistry(env, true);
+    const allCurrentTargets: Array<{ kind: GatewayKind; id: string }> = [
+      ...current.registry.backend.servers.map(({ id }) => ({ kind: 'backend' as const, id })),
+      ...current.registry.frontend.servers.map(({ id }) => ({ kind: 'frontend' as const, id })),
+      ...current.registry.go.servers.map(({ id }) => ({ kind: 'go' as const, id })),
+    ];
+    if (targetRefs && targetRefs.some((target) => !allCurrentTargets.some((currentTarget) => currentTarget.kind === target.kind && currentTarget.id === target.id))) {
+      return new Response(JSON.stringify({ ok: false, error: 'PROBE_TARGET_NOT_FOUND', message: 'Registry changed; reload targets before probing again.' }), {
+        status: 409, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+      });
+    }
+    const totalTargets = allCurrentTargets.length;
+    if (!targetRefs && totalTargets > GATEWAY_MAX_PROBE_TARGETS_PER_REQUEST) {
+      return new Response(JSON.stringify({ ok: false, error: 'PROBE_BATCH_REQUIRED', maxTargets: GATEWAY_MAX_PROBE_TARGETS_PER_REQUEST, totalTargets }), {
+        status: 413, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+      });
+    }
+    const result = await probeGatewayServers(env, targetRefs, current);
     return new Response(JSON.stringify(result, null, 2), {
       status: 200, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
     });
@@ -848,12 +1107,18 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
   if (request.method === 'GET') {
     const current = await loadGatewayRegistry(env, true);
     const healthSnapshot = await loadGatewayHealthSnapshot(env, true);
+    const goWeights = goAdaptiveWeightMap(current.registry.go.servers, current.registry.go.adaptive, healthSnapshot.states);
     const health = [
-      ...current.registry.backend.servers.map((server) => ({ ...server, kind: 'backend' })),
-      ...current.registry.frontend.servers.map((server) => ({ ...server, kind: 'frontend' })),
+      ...current.registry.backend.servers.map((server) => ({ ...server, kind: 'backend' as const })),
+      ...current.registry.frontend.servers.map((server) => ({ ...server, kind: 'frontend' as const })),
+      ...current.registry.go.servers.map((server) => ({ ...server, kind: 'go' as const })),
     ].map((server) => {
       const state = healthSnapshot.states[backendStateKey(server)] || null;
       const openUntil = state ? Number(state.openUntil) || 0 : 0;
+      const isGo = server.kind === 'go';
+      const goServer = isGo ? server as GoWorkerServer : null;
+      const peers = goServer ? current.registry.go.servers.filter((item) => { const peerState = healthSnapshot.states[backendStateKey(item)]; return item.serviceKey === goServer.serviceKey && item.priority === goServer.priority && item.enabled && peerState?.quarantined !== true && !(peerState?.openUntil && Number(peerState.openUntil) > Date.now()); }) : [];
+      const peerWeightTotal = peers.reduce((sum, item) => sum + (goWeights.get(item.id) || item.weight), 0);
       return {
         id: server.id,
         kind: server.kind,
@@ -864,6 +1129,15 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
         quarantined: state && state.quarantined === true,
         status: state && Number.isInteger(state.status) ? state.status : null,
         durationMs: state && Number.isFinite(state.durationMs) ? state.durationMs : null,
+        ewmaDurationMs: state && Number.isFinite(state.ewmaDurationMs) ? state.ewmaDurationMs : null,
+        errorRate: state && Number.isFinite(state.errorRate) ? state.errorRate : null,
+        activeRequests: state && Number.isInteger(state.activeRequests) ? state.activeRequests : null,
+        ewmaActiveRequests: state && Number.isFinite(state.ewmaActiveRequests) ? state.ewmaActiveRequests : null,
+        sampleCount: state && Number.isInteger(state.sampleCount) ? state.sampleCount : 0,
+        manualSharePercent: goServer ? goServer.manualSharePercent : null,
+        effectiveSharePercent: goServer && peerWeightTotal > 0 && peers.some((item) => item.id === goServer.id)
+          ? Math.round(((goWeights.get(goServer.id) || goServer.weight) / peerWeightTotal) * 1000) / 10
+          : (goServer ? 0 : null),
         checkedAt: state && typeof state.checkedAt === 'string' ? state.checkedAt : null,
         healthSource: state && typeof state.source === 'string' ? state.source : null,
       };
@@ -962,7 +1236,7 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
   gatewayHealthSnapshotCache = null;
   const cacheBinding = `${Boolean(env && env.REFERENCE_KV)}:${Boolean(env && env.GATEWAY_HEALTH)}`;
   gatewayRegistryCache = { binding: cacheBinding, expiresAt: Date.now() + GATEWAY_REGISTRY_CACHE_MS, value: { registry: next, source: registrySource } };
-  await reconcileGatewayHealth(env, [...next.backend.servers, ...next.frontend.servers]);
+  await reconcileGatewayHealth(env, [...next.backend.servers, ...next.frontend.servers, ...next.go.servers]);
   const propagation = registrySource === 'durable-object'
     ? 'السجل الأساسي مركزي ومتسق؛ قد تحتفظ بعض نسخ Worker بالنسخة المحلية لمدة تصل إلى 15 ثانية.'
     : 'تم استخدام KV كمسار توافق احتياطي؛ قد تتأخر المواقع الأخرى حتى انتشار KV.';
@@ -1583,7 +1857,7 @@ async function handlePassthrough(request: Request, url: URL, env: Env, ctx: Exec
       headers.set('x-real-ip', clientIp);
     }
 
-    const init: RequestInit = { method, headers, redirect: 'manual' };
+    const init: RequestInit = { method, headers, redirect: 'manual', signal: request.signal };
     if (!isGet) init.body = request.body;
     return init;
   }, env, isGet, ctx);
@@ -1622,6 +1896,158 @@ async function handlePassthrough(request: Request, url: URL, env: Env, ctx: Exec
   }
 
   return new Response(upstream.body, { status: upstream.status, headers: h });
+}
+
+function pathMatchesPrefix(pathname: string, prefix: string): boolean {
+  return pathname === prefix || pathname.startsWith(`${prefix.replace(/\/$/, '')}/`);
+}
+
+function rewriteGoServicePath(pathname: string, routePrefix: string, upstreamPrefix: string): string {
+  const suffix = pathname.slice(routePrefix.length);
+  return `${upstreamPrefix.replace(/\/$/, '')}${suffix}` || '/';
+}
+
+function goServiceForPath(servers: GoWorkerServer[], pathname: string): GoWorkerServer[] {
+  // Resolve the most specific route independently of enabled state. Disabling a
+  // specialized service must not accidentally leak its requests to a broader one.
+  const matched = servers
+    .filter((server) => pathMatchesPrefix(pathname, server.routePrefix))
+    .sort((left, right) => right.routePrefix.length - left.routePrefix.length);
+  const selected = matched[0];
+  if (!selected) return [];
+  return matched.filter((server) => server.serviceKey === selected.serviceKey && server.routePrefix === selected.routePrefix);
+}
+
+function resolveGoServiceToken(env: Env, serviceKey: string): string | null {
+  const rawProfiles = String(env.GO_WORKER_TOKENS_JSON || '').trim();
+  if (!rawProfiles) return String(env.GO_WORKER_TOKEN || '').trim() || null;
+  try {
+    const profiles: unknown = JSON.parse(rawProfiles);
+    if (!isRecord(profiles)) return null;
+    const token = profiles[serviceKey];
+    if (typeof token !== 'string') return null;
+    const normalized = token.trim();
+    return normalized.length >= 32 && normalized.length <= 1024 && !/[\r\n]/.test(normalized) ? normalized : null;
+  } catch {
+    return null;
+  }
+}
+
+function goProxyHeaders(request: Request, url: URL, token: string, serviceKey: string, targetId: string): Headers {
+  const headers = new Headers(request.headers);
+  for (const name of [
+    'authorization', 'cookie', 'cf-connecting-ip', 'cf-ipcountry', 'cf-ray', 'cf-visitor',
+    'x-forwarded-proto', 'x-forwarded-for', 'x-forwarded-host', 'x-real-ip', 'host',
+    'x-mp-go-service', 'x-mp-go-target', 'x-mp-route-attempts', 'x-mp-route-mode',
+    'x-mp-backend-id', 'x-mp-frontend-id', 'x-mp-frontend-build-id',
+    'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization', 'te', 'trailer',
+    'transfer-encoding', 'upgrade',
+  ]) headers.delete(name);
+  const clientIp = request.headers.get('cf-connecting-ip');
+  if (clientIp && isValidIpAddress(clientIp)) {
+    headers.set('x-forwarded-for', clientIp);
+    headers.set('x-real-ip', clientIp);
+  }
+  headers.set('authorization', `Bearer ${token}`);
+  headers.set('x-mp-go-service', serviceKey);
+  headers.set('x-mp-go-target', targetId);
+  headers.set('x-forwarded-host', url.host);
+  headers.set('x-forwarded-proto', url.protocol.slice(0, -1));
+  headers.set('cache-control', 'no-store');
+  return headers;
+}
+
+/**
+ * Authenticated reverse proxy for internal Go services. Express can set
+ * GO_WORKER_URL to `<gateway-origin>/__go`; existing `/internal/...` calls then
+ * resolve to the most-specific registered Go service. Only GET/HEAD may fail
+ * over automatically. Mutating job calls are never replayed by the gateway.
+ */
+async function handleGoGateway(request: Request, url: URL, env: Env, ctx: ExecutionContextLike): Promise<Response> {
+  const expectedToken = String(env.GO_WORKER_TOKEN || '').trim();
+  if (!expectedToken) {
+    return new Response(JSON.stringify({ ok: false, error: 'GO_GATEWAY_NOT_CONFIGURED' }), {
+      status: 503, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+    });
+  }
+
+  const authorization = request.headers.get('authorization') || '';
+  const match = /^Bearer\s+(.+)$/i.exec(authorization);
+  if (!match || !timingSafeEqual(match[1] || null, expectedToken)) {
+    return new Response(JSON.stringify({ ok: false, error: 'UNAUTHORIZED' }), {
+      status: 401, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', 'www-authenticate': 'Bearer' },
+    });
+  }
+
+  const method = request.method.toUpperCase();
+  if (!['GET', 'HEAD', 'POST'].includes(method)) {
+    return new Response(JSON.stringify({ ok: false, error: 'METHOD_NOT_ALLOWED' }), {
+      status: 405, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', allow: 'GET, HEAD, POST' },
+    });
+  }
+
+  let requestTarget: GatewayTarget;
+  try {
+    const rawPath = url.pathname.slice(GO_GATEWAY_PREFIX.length) || '/';
+    requestTarget = normalizeGatewayRequestTarget(rawPath + url.search);
+  } catch {
+    return new Response(JSON.stringify({ ok: false, error: 'INVALID_GO_SERVICE_PATH' }), {
+      status: 400, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+    });
+  }
+
+  const { registry } = await loadGatewayRegistry(env);
+  const serviceTargets = goServiceForPath(registry.go.servers, requestTarget.pathname);
+  if (!serviceTargets.length) {
+    return new Response(JSON.stringify({ ok: false, error: 'GO_SERVICE_ROUTE_NOT_FOUND' }), {
+      status: 404, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+    });
+  }
+  const selectedService = serviceTargets[0];
+  if (!selectedService || !serviceTargets.some((server) => server.enabled)) {
+    return new Response(JSON.stringify({ ok: false, error: 'GO_SERVICE_UNAVAILABLE', service: selectedService?.serviceKey || null }), {
+      status: 503, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+    });
+  }
+
+  const upstreamToken = resolveGoServiceToken(env, selectedService.serviceKey);
+  if (!upstreamToken) {
+    return new Response(JSON.stringify({ ok: false, error: 'GO_SERVICE_TOKEN_NOT_CONFIGURED', service: selectedService.serviceKey }), {
+      status: 503, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+    });
+  }
+
+  const upstreamPath = rewriteGoServicePath(requestTarget.pathname, selectedService.routePrefix, selectedService.upstreamPrefix);
+  const upstreamTarget = `${upstreamPath}${requestTarget.search}`;
+  const isSafeMethod = method === 'GET' || method === 'HEAD';
+  const routed = await fetchBackend(upstreamTarget, (server) => {
+    const headers = goProxyHeaders(request, url, upstreamToken, selectedService.serviceKey, server.id);
+    const init: RequestInit = { method, headers, redirect: 'manual', signal: request.signal };
+    if (method !== 'GET' && method !== 'HEAD') init.body = request.body;
+    return init;
+  }, env, isSafeMethod, ctx, 'go', null, serviceTargets);
+
+  if (!routed.res) {
+    return new Response(JSON.stringify({ ok: false, error: 'GO_SERVICE_UPSTREAM_UNAVAILABLE', service: selectedService.serviceKey }), {
+      status: 502,
+      headers: {
+        'content-type': 'application/json', 'cache-control': 'no-store',
+        'x-mp-go-service': selectedService.serviceKey,
+        'x-mp-route-attempts': String(routed.attempts || 0),
+        'x-mp-route-mode': 'go',
+      },
+    });
+  }
+
+  const headers = new Headers(routed.res.headers);
+  headers.delete('x-mp-worker-active-requests');
+  headers.set('cache-control', 'no-store');
+  headers.set('x-mp-go-service', selectedService.serviceKey);
+  headers.set('x-mp-go-target', routed.serverId || 'unknown');
+  headers.set('x-mp-route-attempts', String(routed.attempts || 1));
+  headers.set('x-mp-route-mode', 'go');
+  headers.delete('cf-cache-status');
+  return new Response(routed.res.body, { status: routed.res.status, statusText: routed.res.statusText, headers });
 }
 
 function isFrontendGatewayHost(url: URL, env: Env): boolean {
@@ -1833,7 +2259,8 @@ export class GatewayHealthCoordinator {
     }
 
     const text = await request.text();
-    if (text.length > 4096) return Response.json({ ok: false, error: 'REQUEST_TOO_LARGE' }, { status: 413 });
+    const maxBodyLength = url.pathname === '/reconcile' ? 32768 : 4096;
+    if (text.length > maxBodyLength) return Response.json({ ok: false, error: 'REQUEST_TOO_LARGE' }, { status: 413 });
 
     let payload: unknown;
     try { payload = JSON.parse(text || '{}'); } catch {
@@ -1842,7 +2269,7 @@ export class GatewayHealthCoordinator {
     if (!isRecord(payload)) return Response.json({ ok: false, error: 'INVALID_PAYLOAD' }, { status: 400 });
 
     if (url.pathname === '/reconcile') {
-      if (!Array.isArray(payload.servers) || payload.servers.length > GATEWAY_MAX_SERVERS * 2) {
+      if (!Array.isArray(payload.servers) || payload.servers.length > GATEWAY_MAX_SERVERS * 2 + GATEWAY_MAX_GO_TARGETS) {
         return Response.json({ ok: false, error: 'INVALID_SERVERS' }, { status: 400 });
       }
       const keep = new Set<string>();
@@ -1883,7 +2310,8 @@ export class GatewayHealthCoordinator {
     const failureThreshold = Number.isInteger(payload.failureThreshold) ? Math.max(1, Math.min(10, Number(payload.failureThreshold))) : GATEWAY_FAILURE_THRESHOLD;
     const openMs = Number.isInteger(payload.openMs) ? Math.max(1000, Math.min(300000, Number(payload.openMs))) : GATEWAY_OPEN_MS;
     const status = Number.isInteger(payload.status) && Number(payload.status) >= 100 && Number(payload.status) <= 599 ? Number(payload.status) : null;
-    const durationMs = Number.isFinite(payload.durationMs) ? Math.max(0, Math.min(30000, Number(payload.durationMs))) : null;
+    const durationMs = Number.isFinite(payload.durationMs) ? Math.max(0, Math.min(GATEWAY_GO_MAX_TIMEOUT_MS, Number(payload.durationMs))) : null;
+    const activeRequests = Number.isInteger(payload.activeRequests) && Number(payload.activeRequests) >= 0 && Number(payload.activeRequests) <= 100000 ? Number(payload.activeRequests) : null;
     const healthy = payload.healthy;
     const serverId = payload.serverId;
     const healthSource: HealthSource = payload.source;
@@ -1902,6 +2330,28 @@ export class GatewayHealthCoordinator {
       if (healthSource === 'probe' && quarantinedFlag) quarantined = true;
       if (healthSource === 'probe' && clearQuarantineFlag && healthy) quarantined = false;
 
+      // Only real routed traffic contributes to adaptive balancing. Manual
+      // probes update reachability but must not bias the workload algorithm.
+      let sampleCount = Number(current.sampleCount) || 0;
+      let ewmaDurationMs = Number.isFinite(current.ewmaDurationMs) ? Number(current.ewmaDurationMs) : null;
+      let errorRate = Number.isFinite(current.errorRate) ? clampNumber(Number(current.errorRate), 0, 1) : 0;
+      let ewmaActiveRequests = Number.isFinite(current.ewmaActiveRequests) ? Number(current.ewmaActiveRequests) : null;
+      if (healthSource === 'traffic') {
+        sampleCount = Math.min(1_000_000, sampleCount + 1);
+        const alpha = sampleCount <= 5 ? 1 / sampleCount : 0.2;
+        if (durationMs !== null && durationMs > 0) {
+          ewmaDurationMs = ewmaDurationMs === null
+            ? durationMs
+            : (alpha * durationMs) + ((1 - alpha) * ewmaDurationMs);
+        }
+        errorRate = (alpha * (healthy ? 0 : 1)) + ((1 - alpha) * errorRate);
+        if (activeRequests !== null) {
+          ewmaActiveRequests = ewmaActiveRequests === null
+            ? activeRequests
+            : (alpha * activeRequests) + ((1 - alpha) * ewmaActiveRequests);
+        }
+      }
+
       const updatedState: GatewayHealthState = {
         failures,
         openUntil,
@@ -1909,6 +2359,11 @@ export class GatewayHealthCoordinator {
         healthy,
         status,
         durationMs,
+        ewmaDurationMs,
+        errorRate,
+        activeRequests: healthSource === 'traffic' ? activeRequests : (Number.isInteger(current.activeRequests) ? Number(current.activeRequests) : null),
+        ewmaActiveRequests,
+        sampleCount,
         checkedAt: new Date(now).toISOString(),
         source: healthSource,
         updatedAt: now,
@@ -1937,6 +2392,10 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === '/__warm__') return new Response('Not Found', { status: 404 });
+
+    if (url.pathname === GO_GATEWAY_PREFIX || url.pathname.startsWith(`${GO_GATEWAY_PREFIX}/`)) {
+      return handleGoGateway(request, url, env, ctx);
+    }
 
     // The same gateway script can serve a separate public frontend hostname.
     // Match it before API-only maintenance endpoints so every app path is proxied.

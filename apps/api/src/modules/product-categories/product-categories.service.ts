@@ -9,7 +9,7 @@ import {
 } from './product-categories.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
-import { redis } from '../../config/redis';
+import { cacheRedis as redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { storeTypesRepository } from '../store-types/store-types.repository';

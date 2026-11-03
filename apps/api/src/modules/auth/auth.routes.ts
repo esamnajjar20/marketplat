@@ -13,7 +13,7 @@ import { authenticate } from '../../middlewares/auth.middleware';
 import { passport } from './google.strategy';
 import type { GoogleProfileData } from './google.strategy';
 import { env } from '../../config/env';
-import { redis } from '../../config/redis';
+import { sessionRedis as redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
 import {
   generateAndSetOAuthState,

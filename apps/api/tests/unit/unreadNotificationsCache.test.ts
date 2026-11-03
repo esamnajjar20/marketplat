@@ -1,8 +1,8 @@
 import { unreadNotificationsCache, clearUnreadNotificationsCacheL1ForTests } from '../../src/shared/utils/unreadNotificationsCache';
-import { redis } from '../../src/config/redis';
+import { cacheRedis as redis } from '../../src/config/redis';
 
 jest.mock('../../src/config/redis', () => ({
-  redis: {
+  cacheRedis: {
     get: jest.fn(),
     setex: jest.fn(),
     del: jest.fn(),

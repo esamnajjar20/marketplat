@@ -1,4 +1,4 @@
-import { redis } from '../../config/redis';
+import { cacheRedis as redis } from '../../config/redis';
 import { logger } from './logger';
 import type Redis from 'ioredis';
 

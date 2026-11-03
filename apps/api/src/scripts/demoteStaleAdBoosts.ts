@@ -8,7 +8,7 @@ import { logger } from '../shared/utils/logger';
 import { env } from '../config/env';
 import { bumpAdsCacheVersion } from '../modules/ads/ads.cache.keys';
 import { flushEdgePurge } from '../shared/cache/edgePurge';
-import { redis } from '../config/redis';
+import { redis, closeRedisServiceClients } from '../config/redis';
 import {
   executeWithGoFallback,
   runAdvisoryLockedBatch,
@@ -154,5 +154,5 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
-    await Promise.allSettled([prisma.$disconnect(), redis.quit()]);
+    await Promise.allSettled([prisma.$disconnect(), closeRedisServiceClients()]);
   });

@@ -31,11 +31,12 @@ type Conn struct {
 	writer  *bufio.Writer
 }
 
-// ConfigFromEnv supports the managed Redis URL form and the same host/port/
-// ACL variables used by the Express API. Missing Redis configuration is not
-// fatal: Go-only Redis jobs then return an error and Express performs fallback.
+// ConfigFromEnv resolves the Go Worker buffer/core Redis service. The service-specific
+// GO_WORKER_BUFFER_REDIS_* names take precedence; REDIS_BUFFER_URL is the shared
+// API/Go endpoint, while GO_WORKER_REDIS_* and REDIS_* remain legacy fallbacks. Missing Redis
+// configuration is not fatal: Express can still perform its DB-backed fallback.
 func ConfigFromEnv() (*Config, error) {
-	rawURL := strings.TrimSpace(firstEnv("GO_WORKER_REDIS_URL", "REDIS_URL"))
+	rawURL := strings.TrimSpace(firstEnv("GO_WORKER_BUFFER_REDIS_URL", "REDIS_BUFFER_URL", "GO_WORKER_REDIS_URL", "REDIS_URL"))
 	if rawURL != "" {
 		parsed, err := url.Parse(rawURL)
 		if err != nil || (parsed.Scheme != "redis" && parsed.Scheme != "rediss") || parsed.Hostname() == "" {
@@ -61,16 +62,16 @@ func ConfigFromEnv() (*Config, error) {
 			}
 		}
 		if cfg.Username == "" && cfg.Password != "" {
-			cfg.Username = strings.TrimSpace(firstEnv("GO_WORKER_REDIS_USERNAME", "REDIS_USERNAME"))
+			cfg.Username = strings.TrimSpace(firstEnv("GO_WORKER_BUFFER_REDIS_USERNAME", "GO_WORKER_REDIS_USERNAME", "REDIS_USERNAME"))
 		}
 		return cfg, nil
 	}
 
-	host := strings.TrimSpace(firstEnv("GO_WORKER_REDIS_HOST", "REDIS_HOST"))
+	host := strings.TrimSpace(firstEnv("GO_WORKER_BUFFER_REDIS_HOST", "GO_WORKER_REDIS_HOST", "REDIS_HOST"))
 	if host == "" {
 		return nil, nil
 	}
-	port := strings.TrimSpace(firstEnv("GO_WORKER_REDIS_PORT", "REDIS_PORT"))
+	port := strings.TrimSpace(firstEnv("GO_WORKER_BUFFER_REDIS_PORT", "GO_WORKER_REDIS_PORT", "REDIS_PORT"))
 	if port == "" {
 		port = "6379"
 	}
@@ -79,17 +80,17 @@ func ConfigFromEnv() (*Config, error) {
 		return nil, errors.New("invalid Redis port")
 	}
 	db := 0
-	if value := strings.TrimSpace(os.Getenv("GO_WORKER_REDIS_DB")); value != "" {
+	if value := strings.TrimSpace(firstEnv("GO_WORKER_BUFFER_REDIS_DB", "GO_WORKER_REDIS_DB")); value != "" {
 		db, err = strconv.Atoi(value)
 		if err != nil || db < 0 {
 			return nil, errors.New("invalid Redis database number")
 		}
 	}
-	tlsEnabled := strings.EqualFold(strings.TrimSpace(firstEnv("GO_WORKER_REDIS_TLS", "REDIS_TLS")), "true")
+	tlsEnabled := strings.EqualFold(strings.TrimSpace(firstEnv("GO_WORKER_BUFFER_REDIS_TLS", "GO_WORKER_REDIS_TLS", "REDIS_TLS")), "true")
 	return &Config{
 		Addr:     net.JoinHostPort(host, port),
-		Username: strings.TrimSpace(firstEnv("GO_WORKER_REDIS_USERNAME", "REDIS_USERNAME")),
-		Password: strings.TrimSpace(firstEnv("GO_WORKER_REDIS_PASSWORD", "REDIS_PASSWORD")),
+		Username: strings.TrimSpace(firstEnv("GO_WORKER_BUFFER_REDIS_USERNAME", "GO_WORKER_REDIS_USERNAME", "REDIS_USERNAME")),
+		Password: strings.TrimSpace(firstEnv("GO_WORKER_BUFFER_REDIS_PASSWORD", "GO_WORKER_REDIS_PASSWORD", "REDIS_PASSWORD")),
 		TLS:      tlsEnabled,
 		DB:       db,
 	}, nil
@@ -99,7 +100,7 @@ func ConfigFromEnv() (*Config, error) {
 // cache Redis host is configured it is used; otherwise the primary Redis
 // connection is shared. A URL may override the host/port/ACL/TLS tuple.
 func CacheConfigFromEnv(primary *Config) (*Config, error) {
-	if rawURL := strings.TrimSpace(os.Getenv("GO_WORKER_CACHE_REDIS_URL")); rawURL != "" {
+	if rawURL := strings.TrimSpace(firstEnv("GO_WORKER_CACHE_REDIS_URL", "REDIS_CACHE_URL")); rawURL != "" {
 		cfg, err := parseRedisURL(rawURL, "GO_WORKER_CACHE_REDIS_USERNAME", "GO_WORKER_CACHE_REDIS_PASSWORD")
 		if err != nil {
 			return nil, err

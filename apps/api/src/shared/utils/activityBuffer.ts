@@ -1,5 +1,5 @@
 import { reportBackgroundFailure } from './backgroundTask';
-import { redis } from '../../config/redis';
+import { bufferRedis as redis } from '../../config/redis';
 import { prisma } from '../../config/prisma';
 import { logger } from './logger';
 import crypto from 'crypto';

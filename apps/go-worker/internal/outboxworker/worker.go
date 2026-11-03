@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"marketplat/apps/go-worker/internal/loadtracker"
 	"marketplat/apps/go-worker/internal/outboxevents"
 	"marketplat/apps/go-worker/internal/rediswire"
 )
@@ -44,18 +45,20 @@ var EventTypes = []string{
 }
 
 type Config struct {
-	APIBaseURL string
-	APIToken   string
+	APIBaseURL  string
+	APIToken    string
+	LoadTracker *loadtracker.Tracker
 }
 
 type Worker struct {
-	db         *sql.DB
-	cacheRedis *rediswire.Config
-	logger     *slog.Logger
-	apiBaseURL string
-	apiToken   string
-	httpClient *http.Client
-	workerID   string
+	db          *sql.DB
+	cacheRedis  *rediswire.Config
+	logger      *slog.Logger
+	apiBaseURL  string
+	apiToken    string
+	httpClient  *http.Client
+	workerID    string
+	loadTracker *loadtracker.Tracker
 }
 
 type claimedEvent struct {
@@ -74,13 +77,14 @@ func New(db *sql.DB, cacheRedis *rediswire.Config, logger *slog.Logger, config C
 		logger = slog.Default()
 	}
 	return &Worker{
-		db:         db,
-		cacheRedis: cacheRedis,
-		logger:     logger,
-		apiBaseURL: strings.TrimRight(strings.TrimSpace(config.APIBaseURL), "/"),
-		apiToken:   strings.TrimSpace(config.APIToken),
-		httpClient: &http.Client{Timeout: 8 * time.Second},
-		workerID:   fmt.Sprintf("go-outbox-%d-%d", os.Getpid(), time.Now().UnixNano()),
+		db:          db,
+		cacheRedis:  cacheRedis,
+		logger:      logger,
+		apiBaseURL:  strings.TrimRight(strings.TrimSpace(config.APIBaseURL), "/"),
+		apiToken:    strings.TrimSpace(config.APIToken),
+		httpClient:  &http.Client{Timeout: 8 * time.Second},
+		workerID:    fmt.Sprintf("go-outbox-%d-%d", os.Getpid(), time.Now().UnixNano()),
+		loadTracker: config.LoadTracker,
 	}
 }
 
@@ -139,6 +143,8 @@ func (w *Worker) processOne(ctx context.Context) (bool, error) {
 	if err != nil || event == nil {
 		return false, err
 	}
+	releaseLoad := w.loadTracker.Begin()
+	defer releaseLoad()
 	w.logger.Debug("Go claimed outbox event", "eventId", event.ID, "eventType", event.EventType, "attempt", event.Attempts)
 
 	workCtx, workCancel := context.WithTimeout(ctx, processingTimeout)

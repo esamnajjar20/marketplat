@@ -4,7 +4,7 @@
  * Express fallback shares the exact advisory lock and SQL semantics.
  */
 import { prisma } from '../config/prisma';
-import { redis, cacheRedis } from '../config/redis';
+import { redis, closeRedisServiceClients } from '../config/redis';
 import { logger } from '../shared/utils/logger';
 import { executeWithGoFallback, runAdvisoryLockedBatch } from '../shared/go-worker/executeWithFallback';
 import { publishDurableNotifications } from '../shared/go-worker/publishDurableNotifications';
@@ -351,7 +351,6 @@ main()
     await Promise.allSettled([
       prisma.$disconnect(),
       shutdownNotificationStream(),
-      redis.quit(),
-      ...(cacheRedis !== redis ? [cacheRedis.quit()] : []),
+      closeRedisServiceClients(),
     ]);
   });

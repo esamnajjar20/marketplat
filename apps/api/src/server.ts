@@ -7,7 +7,7 @@ import './instrument';
 import { app } from './app';
 import { env } from './config/env';
 import { prisma } from './config/prisma';
-import { redis } from './config/redis';
+import { criticalRedisServiceClients, closeRedisServiceClients } from './config/redis';
 import { logger } from './shared/utils/logger';
 import { viewsBuffer } from './shared/utils/viewsBuffer';
 import {
@@ -144,8 +144,11 @@ const bootstrap = async (): Promise<void> => {
     checkConnectionCapacity(env.database.url);
     await withRetry('Database (Postgres)', () => prisma.$connect());
     logger.info('✅ Database connected');
-    await withRetry('Redis', () => redis.ping());
-    logger.info('✅ Redis connected');
+    for (const [index, client] of criticalRedisServiceClients.entries()) {
+      const serviceLabel = index === 0 ? 'Redis (core)' : `Redis (critical service ${index + 1})`;
+      await withRetry(serviceLabel, () => client.ping());
+    }
+    logger.info('✅ Core, sessions, rate-limit and buffer Redis dependencies connected');
     // PM2 cluster mode: subscribe THIS worker to the user-cache
     // invalidation channel BEFORE the first request is served, so an
     // invalidate() on another worker (ban / deactivation) drops this
@@ -230,7 +233,7 @@ const bootstrap = async (): Promise<void> => {
         stopUnreadNotificationsCacheInvalidationSubscriber();
         stopBlacklistInvalidationSubscriber();
         await runShutdownStep('prisma-disconnect', () => prisma.$disconnect());
-        await runShutdownStep('redis-quit', () => redis.quit());
+        await runShutdownStep('redis-quit', closeRedisServiceClients);
         logger.info('Server closed cleanly');
         process.exit(0);
       });
@@ -312,7 +315,7 @@ const bootstrap = async (): Promise<void> => {
           stopUnreadNotificationsCacheInvalidationSubscriber();
           stopBlacklistInvalidationSubscriber();
           await runShutdownStep('prisma-disconnect', () => prisma.$disconnect());
-          await runShutdownStep('redis-quit', () => redis.quit());
+          await runShutdownStep('redis-quit', closeRedisServiceClients);
         } catch (cleanupError) {
           logger.error('Unexpected cleanup orchestration failure after uncaughtException', cleanupError);
         } finally {

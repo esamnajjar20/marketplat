@@ -58,7 +58,21 @@ export function fakeRedisModule(): { redis: Record<string, jest.Mock>; __store: 
       return 0;
     }),
   };
-  return { redis, __store: store };
+  return {
+    redis,
+    cacheRedis: redis,
+    sessionRedis: redis,
+    rateLimitRedis: redis,
+    pubSubRedis: redis,
+    queueRedis: redis,
+    presenceRedis: redis,
+    bufferRedis: redis,
+    criticalRedisServiceClients: [redis],
+    inspectRedisLogicalServices: jest.fn(async () => []),
+    closeRedisServiceClients: jest.fn(async () => undefined),
+    createBullMqConnection: jest.fn(() => redis),
+    __store: store,
+  } as any;
 }
 
 /** Restores the default implementations after jest.resetAllMocks() wiped them. */

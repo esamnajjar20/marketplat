@@ -12,7 +12,7 @@ import {
 } from '../../shared/utils/jwt';
 import { tokenStore } from '../../shared/utils/tokenStore';
 import { atomicRefreshRotate, RotateResult, hashToken } from '../../shared/utils/refreshLock';
-import { redis } from '../../config/redis';
+import { sessionRedis as redis } from '../../config/redis';
 import { userCache } from '../../shared/utils/userCache';
 import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
 import { emailService } from '../../shared/utils/emailService';

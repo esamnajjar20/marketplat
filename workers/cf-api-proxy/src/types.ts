@@ -1,5 +1,5 @@
 /** Shared runtime contracts for the MarketPlat Cloudflare gateway. */
-export type GatewayKind = 'backend' | 'frontend';
+export type GatewayKind = 'backend' | 'frontend' | 'go';
 export type RegistrySource = 'durable-object' | 'kv' | 'env-fallback' | 'kv-compatibility-fallback';
 export type HealthSource = 'traffic' | 'probe';
 
@@ -33,11 +33,42 @@ export interface FrontendServer {
   releasePath: string;
 }
 
-export type GatewayServer = BackendServer | FrontendServer;
+export interface GoWorkerServer {
+  /** Unique target id. Multiple targets may share serviceKey and routePrefix. */
+  id: string;
+  /** Logical Go service name, e.g. analytics, notifications, maintenance. */
+  serviceKey: string;
+  /** Gateway-visible internal path prefix selected by longest-prefix match. */
+  routePrefix: string;
+  /** Path prefix expected by the upstream Go service. */
+  upstreamPrefix: string;
+  url: string;
+  weight: number;
+  /** Manual share within this service/priority tier, normalized to 0-100. */
+  manualSharePercent: number;
+  priority: number;
+  timeoutMs: number;
+  enabled: boolean;
+  provider: string;
+  region: string;
+  healthPath: string;
+  healthKind: 'go';
+  buildId?: never;
+  releasePath?: never;
+}
+
+export type GatewayServer = BackendServer | FrontendServer | GoWorkerServer;
+
+export interface GatewayAdaptivePolicy {
+  enabled: boolean;
+  /** 0 = manual weights only; 100 = maximum latency/error feedback. */
+  sensitivity: number;
+}
 
 export interface GatewayPool<T extends GatewayServer = GatewayServer> {
   strategy: 'weighted-random';
   servers: T[];
+  adaptive?: GatewayAdaptivePolicy;
 }
 
 export interface GatewayRegistry {
@@ -45,6 +76,7 @@ export interface GatewayRegistry {
   strategy: 'weighted-random' | 'single-origin-fallback';
   backend: GatewayPool<BackendServer>;
   frontend: GatewayPool<FrontendServer>;
+  go: GatewayPool<GoWorkerServer>;
   updatedAt: string | null;
 }
 
@@ -58,6 +90,15 @@ export interface GatewayHealthState {
   checkedAt?: string | null;
   source?: HealthSource;
   updatedAt?: number;
+  /** Traffic-only exponentially weighted moving average. */
+  ewmaDurationMs?: number | null;
+  /** Traffic-only EWMA failure ratio from 0 to 1. */
+  errorRate?: number;
+  /** Latest active internal requests reported by this Go process. */
+  activeRequests?: number | null;
+  /** Traffic-only EWMA of active internal requests. */
+  ewmaActiveRequests?: number | null;
+  sampleCount?: number;
 }
 
 export interface GatewayHealthSnapshot {
@@ -179,6 +220,7 @@ export interface CacheStoreOptions extends StoredCacheMetadata {}
 export interface HealthRecordDetails {
   status?: number | null;
   durationMs?: number | null;
+  activeRequests?: number | null;
   failureThreshold?: number;
   quarantined?: boolean;
   clearQuarantine?: boolean;
@@ -247,6 +289,9 @@ export interface Env {
   FRONTEND_GATEWAY_HOSTS?: string;
   GATEWAY_ALLOWED_HOSTS?: string;
   GATEWAY_ADMIN_TOKEN?: string;
+  /** Shared secret used by Express to authenticate requests entering the Go gateway. */
+  GO_WORKER_TOKEN?: string;
+  GO_WORKER_TOKENS_JSON?: string;
   PURGE_TOKEN?: string;
   REFERENCE_KV?: KVNamespaceLike;
   GATEWAY_HEALTH?: DurableObjectNamespaceLike;

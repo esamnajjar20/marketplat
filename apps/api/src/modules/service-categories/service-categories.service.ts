@@ -9,7 +9,7 @@ import {
 } from './service-categories.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
-import { redis } from '../../config/redis';
+import { cacheRedis as redis } from '../../config/redis';
 import { logger } from '../../shared/utils/logger';
 import { purgeReferenceKv } from '../../shared/cache/edgePurge';
 import { isPrismaError } from '../../shared/utils/prismaErrors';

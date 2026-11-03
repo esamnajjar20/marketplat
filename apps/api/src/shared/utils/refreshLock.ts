@@ -1,4 +1,4 @@
-import { redis } from '../../config/redis';
+import { sessionRedis as redis } from '../../config/redis';
 import { env } from '../../config/env';
 import crypto from 'crypto';
 

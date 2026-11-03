@@ -10,7 +10,7 @@ import {
 import { userCache, getUserCacheKey } from '../shared/utils/userCache';
 import { UnauthorizedError } from '../shared/errors/UnauthorizedError';
 import { env } from '../config/env';
-import { redis } from '../config/redis';
+import { sessionRedis as redis } from '../config/redis';
 import { logger } from '../shared/utils/logger';
 
 export const authenticate = async (
