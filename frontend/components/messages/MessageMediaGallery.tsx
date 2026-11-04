@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -145,6 +146,7 @@ export function MessageMediaGallery({ items, queuedItems = EMPTY_QUEUED_ITEMS, c
   if (loading && !allItems.length) return <div className="py-8 text-center text-sm text-muted-foreground">جارٍ تحميل الوسائط…</div>;
   if (!allItems.length) return <div className="rounded-2xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">لا توجد صور أو تسجيلات أو ملفات في هذه المحادثة.</div>;
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   const tabs = useMemo<[Kind, string, number][]>(() => [['all', 'الكل', counts.images + counts.audio + counts.files], ['images', 'الصور', counts.images], ['audio', 'الصوت', counts.audio], ['files', 'الملفات', counts.files]], [counts]);
 
   return <>

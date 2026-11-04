@@ -46,9 +46,10 @@ import { homeFeedQueryKey, type HomeFeedPayload } from '@/api/home-feed.api';
  *  2. Guards response body parsing: attempts JSON, falls back gracefully.
  *  3. Propagates HTTP status so callers can distinguish 404 vs 500.
  */
-type ServerFetchOptions =
-  | { cache: 'no-store' }
-  | { revalidateSeconds?: number };
+type ServerFetchOptions = {
+  cache?: 'no-store';
+  revalidateSeconds?: number;
+};
 
 const SERVER_FETCH_TIMEOUT_MS = 8_000;
 
