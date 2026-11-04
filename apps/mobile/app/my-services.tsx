@@ -65,14 +65,14 @@ export default function MyServicesScreen() {
         ListHeaderComponent={(
           <View style={{ gap: spacing.md, marginBottom: spacing.md }}>
             <Text style={{ textAlign: 'right', fontSize: fontSizes[12], lineHeight: 20, color: colors.muted }}>نظّم خدماتك وتابع أسعارها وحالتها من مكان واحد.</Text>
-            {needsLogin ? <><Notice>سجّل الدخول لإدارة خدماتك.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /></> : null}
-            {!needsLogin && accessToken ? <PrimaryButton label="+ إضافة خدمة" onPress={() => router.push('/service-editor')} /> : null}
-            {initialLoading ? <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}><ActivityIndicator color={colors.brand} /></View> : null}
-            {list.error && list.items.length === 0 && !needsLogin ? <><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></> : null}
-            {list.error && list.items.length > 0 ? <Notice>{list.error}</Notice> : null}
+            {needsLogin ? <><Notice>سجّل الدخول لإدارة خدماتك.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /></> : undefined}
+            {!needsLogin && accessToken ? <PrimaryButton label="+ إضافة خدمة" onPress={() => router.push('/service-editor')} /> : undefined}
+            {initialLoading ? <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}><ActivityIndicator color={colors.brand} /></View> : undefined}
+            {list.error && list.items.length === 0 && !needsLogin ? <><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></> : undefined}
+            {list.error && list.items.length > 0 ? <Notice>{list.error}</Notice> : undefined}
           </View>
         )}
-        ListEmptyComponent={!initialLoading && !needsLogin && !list.error ? <Notice tone="muted">لم تضف أي خدمة بعد. أنشئ أول خدمة ليتمكن العملاء من العثور عليها.</Notice> : null}
+        ListEmptyComponent={!initialLoading && !needsLogin && !list.error ? <Notice tone="muted">لم تضف أي خدمة بعد. أنشئ أول خدمة ليتمكن العملاء من العثور عليها.</Notice> : undefined}
         renderItem={({ item }) => (
           <SectionCard>
             <Press accessibilityRole="button" onPress={() => router.push({ pathname: '/services/[id]', params: { id: item.id } })}>
@@ -92,7 +92,7 @@ export default function MyServicesScreen() {
           ? <View style={{ gap: spacing.sm }}><Notice>{list.loadMoreError}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></View>
           : list.hasNextPage
             ? <PrimaryButton label={list.loadingMore ? 'جارٍ التحميل…' : 'تحميل المزيد'} variant="secondary" busy={list.loadingMore} onPress={() => void list.loadMore()} />
-            : null}
+            : undefined}
       />
     </PageShell>
   );

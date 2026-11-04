@@ -75,16 +75,16 @@ export default function AppointmentsScreen() {
         <Text style={{ textAlign: 'right', fontWeight: '900', color: colors.brand }}>{labels[item.status || ''] || item.status || 'مجدول'}</Text>
         <Text style={{ textAlign: 'right', color: colors.ink }}>البداية: {formatted(item.scheduledStart)}</Text>
         <Text style={{ textAlign: 'right', color: colors.ink }}>النهاية: {formatted(item.scheduledEnd)}</Text>
-        {item.notes ? <Text style={{ textAlign: 'right', color: colors.muted }}>{item.notes}</Text> : null}
+        {item.notes ? <Text style={{ textAlign: 'right', color: colors.muted }}>{item.notes}</Text> : undefined}
         {scheduled && (isCustomer || isProvider) ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {isCustomer ? <View style={{ flex: 1, minWidth: 120 }}><PrimaryButton label="إلغاء الموعد" variant="danger" busy={busyId === item.id} disabled={Boolean(busyId)} onPress={() => update(item, 'CANCELLED')} /></View> : null}
+            {isCustomer ? <View style={{ flex: 1, minWidth: 120 }}><PrimaryButton label="إلغاء الموعد" variant="danger" busy={busyId === item.id} disabled={Boolean(busyId)} onPress={() => update(item, 'CANCELLED')} /></View> : undefined}
             {isProvider && !isCustomer ? <>
               <View style={{ flex: 1, minWidth: 120 }}><PrimaryButton label="إتمام" variant="secondary" busy={busyId === item.id} disabled={Boolean(busyId)} onPress={() => update(item, 'COMPLETED')} /></View>
               <View style={{ flex: 1, minWidth: 120 }}><PrimaryButton label="لم يحضر" variant="secondary" busy={busyId === item.id} disabled={Boolean(busyId)} onPress={() => update(item, 'NO_SHOW')} /></View>
-            </> : null}
+            </> : undefined}
           </View>
-        ) : null}
+        ) : undefined}
       </SectionCard>
     );
   };
@@ -100,14 +100,14 @@ export default function AppointmentsScreen() {
         ListHeaderComponent={(
           <View style={{ gap: spacing.md }}>
             <Notice tone="muted">تظهر هنا المواعيد المرتبطة بطلبات الخدمات. يمكن للعميل الإلغاء، ولمقدم الخدمة الإتمام أو تسجيل عدم الحضور.</Notice>
-            {isRestoring || list.loading ? <View style={{ paddingVertical: spacing.md, alignItems: 'center' }}><ActivityIndicator color={colors.brand} /></View> : null}
-            {needsLogin ? <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /> : null}
-            {!isRestoring && list.error && list.items.length === 0 ? <><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></> : null}
-            {list.error && list.items.length > 0 ? <Notice>{list.error}</Notice> : null}
-            {actionError ? <Notice>{actionError}</Notice> : null}
+            {isRestoring || list.loading ? <View style={{ paddingVertical: spacing.md, alignItems: 'center' }}><ActivityIndicator color={colors.brand} /></View> : undefined}
+            {needsLogin ? <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /> : undefined}
+            {!isRestoring && list.error && list.items.length === 0 ? <><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></> : undefined}
+            {list.error && list.items.length > 0 ? <Notice>{list.error}</Notice> : undefined}
+            {actionError ? <Notice>{actionError}</Notice> : undefined}
           </View>
         )}
-        ListEmptyComponent={!showInitialState && !list.error ? <Notice tone="muted">لا توجد مواعيد حاليًا. بعد قبول طلب خدمة، يمكنك ترتيب موعد من تفاصيل الطلب.</Notice> : null}
+        ListEmptyComponent={!showInitialState && !list.error ? <Notice tone="muted">لا توجد مواعيد حاليًا. بعد قبول طلب خدمة، يمكنك ترتيب موعد من تفاصيل الطلب.</Notice> : undefined}
         renderItem={renderAppointment}
         onEndReached={() => void list.loadMore()}
         onEndReachedThreshold={0.4}
@@ -117,7 +117,7 @@ export default function AppointmentsScreen() {
             ? <View style={{ gap: spacing.sm }}><Notice>{list.loadMoreError}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></View>
             : list.hasNextPage
               ? <PrimaryButton label="تحميل مواعيد أقدم" variant="secondary" onPress={() => void list.loadMore()} />
-              : null}
+              : undefined}
       />
     </PageShell>
   );

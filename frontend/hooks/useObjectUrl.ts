@@ -37,5 +37,5 @@ export function useObjectUrl(blob: Blob | null | undefined): string | null {
     };
   }, [blob]);
 
-  return ownedUrl?.blob === blob ? ownedUrl.url : null;
+  return ownedUrl && ownedUrl.blob === blob ? ownedUrl.url : null;
 }

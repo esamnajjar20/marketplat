@@ -171,7 +171,7 @@ async function readBoundedBlob(response: Response): Promise<Blob | null> {
   }
 
   if (totalBytes === 0) return null;
-  return new Blob(chunks, {
+  return new Blob(chunks as BlobPart[], {
     type: response.headers.get('content-type')?.split(';', 1)[0]?.trim() || 'application/octet-stream',
   });
 }

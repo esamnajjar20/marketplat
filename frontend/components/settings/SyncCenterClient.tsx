@@ -9,7 +9,7 @@ import { OfflineFreshnessBadge } from '@/components/offline/OfflineFreshnessBadg
  * - زر مزامنة الآن
  */
 
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { RefreshCw, Trash2, AlertCircle, CheckCircle2, FileText, Pencil } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';

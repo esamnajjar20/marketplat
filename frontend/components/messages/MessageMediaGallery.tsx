@@ -208,7 +208,7 @@ export function MessageMediaGallery({
     };
   }, [conversationId]);
 
-  const allItems = useMemo(() => [...items, ...queuedMedia], [items, queuedMedia]);
+  const allItems = useMemo<GalleryItem[]>(() => [...items, ...queuedMedia], [items, queuedMedia]);
   const getUrl = useCallback((item: GalleryItem, mediaKind: MediaKind) => {
     const field = mediaKind === 'image' ? 'imageUrl' : mediaKind === 'audio' ? 'audioUrl' : 'fileUrl';
     const originalUrl = item[field];
