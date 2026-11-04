@@ -277,6 +277,8 @@ export interface DurableObjectStateLike {
 
 export interface ExecutionContextLike {
   waitUntil(promise: Promise<unknown>): void;
+  /** Native Workers Cache control plane (available when [cache].enabled = true). */
+  cache?: { purge(options: { tags?: string[]; pathPrefixes?: string[] }): Promise<unknown> };
 }
 
 export interface AnalyticsDatasetLike {

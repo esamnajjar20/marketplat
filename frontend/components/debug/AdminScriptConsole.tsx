@@ -5,7 +5,7 @@ import {
   Activity, ChevronDown, ChevronUp, Code2, Copy, Database, Gauge,
   Info, Layers, Network, Play, RotateCcw, Terminal, X,
 } from 'lucide-react';
-import { adminApi } from '@/api/admin.api';
+import { loadAdminDeveloperToolsSetting } from '@/lib/adminDeveloperToolsSetting';
 import { useAuthStore } from '@/store/auth.store';
 
 type ToolTab = 'console' | 'network' | 'elements' | 'storage' | 'performance' | 'errors' | 'info';
@@ -117,14 +117,16 @@ export function AdminScriptConsole() {
     }
     let alive = true;
     const refreshSetting = () => {
-      void adminApi.getDeveloperToolsSetting().then((response) => {
+      void loadAdminDeveloperToolsSetting().then(({ value }) => {
         if (!alive) return;
-        const next = response.data.data?.enabled === true;
-        setEnabled(next);
+        setEnabled(value.enabled === true);
         setSettingLoaded(true);
-        if (!next) setOpen(false);
+        if (!value.enabled) setOpen(false);
       }).catch(() => {
         if (!alive) return;
+        // A first-load failure stays safely disabled. Once a successful
+        // snapshot exists, the shared loader serves it stale on transient
+        // network/server failures instead of flipping the console off.
         setEnabled(false);
         setSettingLoaded(true);
         setOpen(false);

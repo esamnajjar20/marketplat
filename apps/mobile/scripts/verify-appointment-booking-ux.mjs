@@ -1,0 +1,62 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+
+const read = (path) => readFile(new URL(path, import.meta.url), 'utf8');
+const screen = await read('../app/appointment-create.tsx');
+const listScreen = await read('../app/appointments.tsx');
+const api = await read('../src/features/appointments/appointments.api.ts');
+const slots = await read('../src/features/appointments/appointment-slots.ts');
+const slotTests = await read('../src/features/appointments/__tests__/appointment-slots.test.ts');
+const serviceRequestsScreen = await read('../app/service-requests.tsx');
+const servicesScreen = await read('../app/my-services.tsx');
+const formatters = await read('../src/lib/formatters.ts');
+
+assert.match(screen, /type ProviderAvailability/);
+assert.match(screen, /Field label="تفاصيل إضافية للموعد"/);
+assert.match(screen, /buildAppointmentSlots/);
+assert.match(screen, /fetchProviderAvailability\(providerId, date, controller\.signal\)/);
+assert.match(screen, /availabilityRequestRef\.current/);
+assert.match(screen, /availabilityAbortRef\.current\?\.abort/);
+assert.match(screen, /setAvailability\(null\)/);
+assert.match(screen, /accessibilityState=\{\{ selected \}\}/);
+assert.match(screen, /pathname: '\/login', params: \{ redirect:/);
+assert.match(api, /page=\$\{safePage\}&limit=\$\{safeLimit\}/);
+assert.match(api, /signal, cacheOwnerId/);
+assert.match(api, /totalPages: pagination\?\.totalPages/);
+assert.match(api, /fetchProviderAvailability\(providerId: string, date: string, signal\?: AbortSignal\)/);
+assert.match(serviceRequestsScreen, /fetchServiceRequests\(accessToken, incoming, requestedPage, 30, controller\.signal\)/);
+assert.match(slots, /marketDateKey\(endDate\) !== date/);
+assert.match(slots, /MARKET_TIME_ZONE = 'Asia\/Gaza'/);
+assert.match(slots, /hourCycle: 'h23'/);
+assert.match(screen, /MARKET_TIME_ZONE = 'Asia\/Gaza'/);
+assert.match(slots, /durationMs = 60 \* 60 \* 1000/);
+assert.match(slots, /stepMs = 30 \* 60 \* 1000/);
+assert.match(slots, /Math\.ceil\(rangeStart \/ stepMs\) \* stepMs/);
+assert.match(slotTests, /does not return past or too-short ranges/);
+assert.match(listScreen, /usePaginatedList/);
+assert.match(listScreen, /<FlatList/);
+assert.match(listScreen, /list\.loadMore\(\)/);
+assert.match(listScreen, /RefreshControl/);
+assert.match(serviceRequestsScreen, /<FlatList/);
+assert.match(serviceRequestsScreen, /setLoadMoreError/);
+assert.match(serviceRequestsScreen, /const changeIncoming = \(next: boolean\) => \{/);
+assert.match(serviceRequestsScreen, /requestSequence\.current \+= 1/);
+assert.match(serviceRequestsScreen, /setItems\(\[\]\)/);
+assert.match(serviceRequestsScreen, /changeIncoming/);
+assert.match(serviceRequestsScreen, /controller\.signal/);
+assert.match(serviceRequestsScreen, /data=\{initialLoading \|\| needsLogin \|\| \(visibleError && visibleItems.length === 0\) \? \[\] : visibleItems\}/);
+assert.match(servicesScreen, /<FlatList/);
+assert.match(servicesScreen, /enabled: Boolean\(accessToken && user && !isRestoring\)/);
+
+
+assert.match(screen, /fetchServiceRequest\(requestId, token, controller\.signal\)/);
+assert.match(screen, /await loadAvailability\(\);\s+setAvailabilityError\(\(current\) => current \|\| message\)/);
+assert.match(screen, /setAvailabilityError\(\(current\) => current \|\| message\)/);
+assert.match(formatters, /timeZone: 'Asia\/Gaza'/);
+assert.match(serviceRequestsScreen, /accountIdRef\.current !== nextAccountId/);
+assert.match(serviceRequestsScreen, /itemsOwnerId !== \(user\?\.id \?\? null\)/);
+assert.match(serviceRequestsScreen, /load\(true, accountChanged\)/);
+assert.match(serviceRequestsScreen, /disabled=\{saving \|\| details\.trim\(\)\.length < 10\}/);
+assert.match(servicesScreen, /busy=\{deletingId === item\.id\} disabled=\{Boolean\(deletingId\)\}/);
+
+console.log('Mobile UX regression checks passed.');

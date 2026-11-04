@@ -24,7 +24,7 @@ import { publishSessionEnded } from '@/lib/authSessionBroadcast';
 import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
 import { clearNotificationsCache } from '@/lib/notificationsCache';
 import { useAuthStore, selectSetAuth, selectSetUser, selectLogout } from '@/store/auth.store';
-import { resumeSession } from '@/lib/fetchClient';
+import { resumeSession } from '@/api/client';
 import { setCookie, clearAuthCookies, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 export { clearAuthCookies };
 import { parseApiError } from '@/lib/errorParser';

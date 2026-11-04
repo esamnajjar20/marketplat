@@ -14,10 +14,13 @@ const manifest = read('scripts/generate-warming-manifest.mjs');
 const routeShells = read('lib/offlineRouteShells.ts');
 const cacheVersion = read('lib/cacheVersion.ts');
 
-check('SW update reloads go through one shared guard', pwa.includes('function reloadAfterServiceWorkerChange()') && pwa.includes("navigator.serviceWorker.addEventListener('controllerchange', () => {\n      // A controller can change") );
-check('offline controller changes defer reload until online', pwa.includes("navigator.onLine === false") && pwa.includes("window.addEventListener('online', deferredOnlineReload, { once: true })"));
-check('activation timeout does not call location.reload directly', !/window\.setTimeout\(\(\) => \{\s*window\.location\.reload\(\);\s*\},\s*3000\)/.test(pwa) && pwa.includes('reloadAfterServiceWorkerChange();'));
-check('no-waiting update path also uses the online-aware reload guard', /if \(!registration\.waiting\)[\s\S]{0,180}reloadAfterServiceWorkerChange\(\)/.test(pwa));
+check('controller changes reload only after explicit user activation', pwa.includes('function reloadAfterServiceWorkerChange()') && /if \(!userRequestedUpdateActivation\) return;[\s\S]{0,100}reloadAfterServiceWorkerChange\(\)/.test(pwa));
+check('an explicitly requested offline update defers its reload until online', pwa.includes("navigator.onLine === false") && pwa.includes("window.addEventListener('online', deferredOnlineReload, { once: true })"));
+check('only explicit update action sends SKIP_WAITING', /export function activateWaitingServiceWorker[\s\S]{0,400}userRequestedUpdateActivation = true[\s\S]{0,400}postMessage\(\{ type: 'SKIP_WAITING' \}\)/.test(pwa));
+check('automatic timer/visibility-based activation is disabled', !pwa.includes('scheduleAutoApply') && !pwa.includes('PWA_AUTO_APPLY_AFTER_MS'));
+check('stale waiting-worker auto activation is removed from bootstrap', !read('components/pwa/OfflineBootstrap.tsx').includes('initStaleWaitingServiceWorkerHandler'));
+const buildCheck = read('lib/buildVersionCheck.ts');
+check('build-id detection never reloads or purges CacheStorage during browsing', !buildCheck.includes('location.reload') && !buildCheck.includes('caches.delete') && !/addEventListener\(['"]pagehide/.test(buildCheck));
 check('App Router source aliases strip route groups', manifest.includes('routeFromAppSource') && manifest.includes('appMarker') && manifest.includes('stripRouteGroups(routePath)'));
 check('route shell lists include the offline landing page', /CORE_ROUTES[\s\S]{0,500}'\/offline'/.test(routeShells) || /'\/offline'/.test(routeShells));
 check('Service Worker syntax parses', true); // Executed separately with node --check public/sw.js.

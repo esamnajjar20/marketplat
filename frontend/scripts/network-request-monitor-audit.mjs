@@ -14,7 +14,7 @@ const pkg = JSON.parse(read('package.json'));
 const checks = [
   ['fetch is intercepted', /window\.fetch\s*=\s*async/.test(monitor)],
   ['XMLHttpRequest is intercepted', /XMLHttpRequest\.prototype\.open/.test(monitor) && /XMLHttpRequest\.prototype\.send/.test(monitor)],
-  ['request bodies and headers are not persisted', /headers, bodies,/.test(monitor) && /response payloads, cookies/.test(monitor)],
+  ['auth headers, bodies and arbitrary payloads are not persisted', /never records auth headers, bodies, cookies/.test(monitor) && /arbitrary response payloads/.test(monitor)],
   ['query values are redacted', /\[redacted\]/.test(monitor) && /searchParams\.keys\(\)/.test(monitor)],
   ['journal is bounded', /MAX_REQUESTS\s*=\s*300/.test(monitor) && /slice\(0, MAX_REQUESTS\)/.test(monitor)],
   ['diagnostic monitor is installed', /installNetworkRequestMonitor\(\)/.test(capture)],
@@ -24,6 +24,8 @@ const checks = [
   ['legacy network-request tab resolves to unified monitoring center', /requested === 'console' \|\| requested === 'network-requests' \|\| requested === 'device-errors' \|\| requested === 'system'/.test(tabs) && /return 'monitoring'/.test(tabs)],
   ['sidebar exposes the unified monitoring destination', /label: 'المراقبة والتشخيص'/.test(sidebar)],
   ['unified monitoring center renders request panel', /case 'monitoring':[\s\S]*AdminMonitoringCenter/.test(hub) && /AdminNetworkRequestsPanel/.test(read('components/admin/AdminMonitoringCenter.tsx'))],
+  ['validated server Request ID is captured for fetch and XHR', /safeRequestId\(response\.headers\.get\('X-Request-Id'\)\)/.test(monitor) && /safeRequestId\(this\.getResponseHeader\('X-Request-Id'\)\)/.test(monitor)],
+  ['network details and exports expose only the validated Request ID', /selected\.requestId \?\? 'غير متاح من الخادم'/.test(panel) && /validated X-Request-Id only/.test(panel)],
   ['audit command is registered', pkg.scripts['network:request-audit'] === 'node scripts/network-request-monitor-audit.mjs'],
 ];
 let failed = 0;

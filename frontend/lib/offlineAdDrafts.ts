@@ -1,4 +1,3 @@
-import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
 /**
  * مسودات الأوفلاين — IndexedDB.
  *
@@ -16,6 +15,9 @@ import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
  * الاسم التاريخي offlineAdDrafts بقي للتوافق مع الاستيرادات الحالية؛
  * الحقل kind يميّز النوع فعليًا.
  */
+import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
+import { readFileArrayBuffer } from '@/lib/fileArrayBuffer';
+
 
 const DB_NAME = 'market-ad-drafts';
 const DB_VERSION = 1;
@@ -102,7 +104,7 @@ export async function filesToPublishFiles(
       break;
     }
     try {
-      const bytes = await f.arrayBuffer();
+      const bytes = await readFileArrayBuffer(f);
       out.push({
         name: f.name || 'image.jpg',
         type: f.type || 'application/octet-stream',

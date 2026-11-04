@@ -37,7 +37,6 @@ import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { WarmupIndicator } from './WarmupIndicator';
 import { requestPendingShellRetry } from '@/lib/offlineShellStatus';
 import { initSwTokenSync } from '@/lib/swTokenSync';
-import { initStaleWaitingServiceWorkerHandler } from '@/lib/swStaleActivation';
 import { initSalesOfflineSync, syncPendingSales } from '@/lib/sales-offline/salesSync';
 import { invalidateOfflineCachesForMutation } from '@/lib/offlineCacheInvalidation';
 import { recordQueueDrainCompleted, recordQueueDrainStarted } from '@/lib/networkObservability';
@@ -55,6 +54,22 @@ function safeFire(label: string, p: Promise<unknown>): void {
 }
 
 /** SW replay ثم نشر المسودات — مع إعلام الـ pipeline أن الطابور مشغول. */
+function syncAuthenticatedPushSubscriptions(): void {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  if (!useAuthStore.getState().isAuthenticated) return;
+
+  void (async () => {
+    if (await supportsWebPush()) {
+      safeFire('ensurePushSubscriptionSynced', ensurePushSubscriptionSynced());
+    }
+    if (await supportsNativePush()) {
+      safeFire('ensureNativePushSynced', ensureNativePushSynced());
+    }
+  })().catch((err) => {
+    console.warn('[offline] push sync IIFE failed:', err);
+  });
+}
+
 function replayThenPublishDrafts(): void {
   // PHASE-3: احترام إعداد «Wi‑Fi فقط» للمزامنة التلقائية
   if (!shouldAutoSyncNow()) {
@@ -140,10 +155,6 @@ export function OfflineBootstrap() {
       __offlineBootstrapInitialized = true;
       initAdDraftSync();
       initSwTokenSync();
-      // FIX STALE-SW-AUTO-ACTIVATION-01: activate a waiting Service
-      // Worker after 48h of continuous waiting, without requiring the
-      // user to close every tab. See lib/swStaleActivation.ts.
-      initStaleWaitingServiceWorkerHandler();
     }
 
     // Queue first (immediately — user's pending ad/message must not wait);
@@ -229,6 +240,9 @@ export function OfflineBootstrap() {
       scheduleWarming('online', {
         authenticated: useAuthStore.getState().isAuthenticated,
       });
+      // A granted push subscription may have been skipped during offline
+      // login hydration; sync it once connectivity returns.
+      syncAuthenticatedPushSubscriptions();
     };
     const unsubscribeNetwork = subscribeNetworkLifecycle((event) => {
       if (event.type === 'online') onOnline();
@@ -242,16 +256,7 @@ export function OfflineBootstrap() {
     // run already pending from mount (authenticated flag is OR-ed).
     scheduleWarming('auth', { authenticated: true });
 
-    void (async () => {
-      if (await supportsWebPush()) {
-        safeFire('ensurePushSubscriptionSynced', ensurePushSubscriptionSynced());
-      }
-      if (await supportsNativePush()) {
-        safeFire('ensureNativePushSynced', ensureNativePushSynced());
-      }
-    })().catch((err) => {
-      console.warn('[offline] push sync IIFE failed:', err);
-    });
+    syncAuthenticatedPushSubscriptions();
   }, [isAuthenticated]);
 
   return <WarmupIndicator />;

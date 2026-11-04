@@ -1,7 +1,8 @@
 /**
  * Local, privacy-conscious request journal for the admin Network Requests view.
- * Captures fetch + XMLHttpRequest metadata only; never records headers, bodies,
- * response payloads, cookies, or raw query values.
+ * Captures fetch + XMLHttpRequest metadata and a validated X-Request-Id UUID
+ * for server-log correlation; never records auth headers, bodies, cookies,
+ * arbitrary response payloads, or raw query values.
  */
 export type NetworkRequestOutcome = 'success' | 'http-error' | 'network-error' | 'aborted';
 export type NetworkRequestRecord = {
@@ -14,6 +15,8 @@ export type NetworkRequestRecord = {
   durationMs: number;
   status: number;
   statusText?: string;
+  /** Safe UUID correlation key returned by the API; no other response headers are stored. */
+  requestId?: string;
   outcome: NetworkRequestOutcome;
   error?: string;
 };
@@ -35,6 +38,13 @@ function safeUrl(input: string): string {
   } catch {
     return (String(input).split('#')[0] ?? '').split('?')[0]?.slice(0, 500) ?? '';
   }
+}
+
+function safeRequestId(value: string | null): string | undefined {
+  if (!value) return undefined;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+    ? value
+    : undefined;
 }
 
 function safeError(error: unknown): string {
@@ -90,7 +100,7 @@ export function installNetworkRequestMonitor(): void {
     try {
       const response = await originalFetch(input, init);
       if (!response.ok) outcome = 'http-error';
-      saveRequest({ startedAt, method, url: safeUrl(rawUrl), pageRoute, kind: 'fetch', durationMs: Math.round(performance.now() - start), status: response.status, statusText: response.statusText.slice(0, 100), outcome });
+      saveRequest({ startedAt, method, url: safeUrl(rawUrl), pageRoute, kind: 'fetch', durationMs: Math.round(performance.now() - start), status: response.status, statusText: response.statusText.slice(0, 100), requestId: safeRequestId(response.headers.get('X-Request-Id')), outcome });
       return response;
     } catch (error) {
       outcome = error instanceof DOMException && error.name === 'AbortError' ? 'aborted' : 'network-error';
@@ -123,7 +133,7 @@ export function installNetworkRequestMonitor(): void {
             if (status === 0) outcome = 'network-error';
             else if (status >= 400) outcome = 'http-error';
           }
-          saveRequest({ startedAt, method: info.method, url: info.url, pageRoute, kind: 'xhr', durationMs: Math.round(performance.now() - start), status, statusText: (this.statusText || '').slice(0, 100), outcome });
+          saveRequest({ startedAt, method: info.method, url: info.url, pageRoute, kind: 'xhr', durationMs: Math.round(performance.now() - start), status, statusText: (this.statusText || '').slice(0, 100), requestId: safeRequestId(this.getResponseHeader('X-Request-Id')), outcome });
           sent.delete(this);
         }, { once: true });
         this.addEventListener('abort', () => { outcome = 'aborted'; }, { once: true });

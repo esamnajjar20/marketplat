@@ -57,7 +57,7 @@ export function AdminNetworkRequestsPanel() {
         || (statusGroup === '5xx' && row.status >= 500 && row.status < 600)
         || (statusGroup === 'no-response' && row.status === 0))
       && (!onlyFailures || row.outcome !== 'success')
-      && (!needle || `${row.method} ${row.url} ${row.pageRoute} ${row.status} ${row.statusText ?? ''} ${row.error ?? ''} ${row.outcome}`.toLowerCase().includes(needle)));
+      && (!needle || `${row.method} ${row.url} ${row.pageRoute} ${row.status} ${row.statusText ?? ''} ${row.requestId ?? ''} ${row.error ?? ''} ${row.outcome}`.toLowerCase().includes(needle)));
   }, [records, query, outcome, method, kind, route, statusGroup, onlyFailures]);
   const selected = filtered.find((row) => row.id === selectedId) ?? filtered[0] ?? null;
   const failureCount = records.filter((row) => row.outcome === 'http-error' || row.outcome === 'network-error').length;
@@ -67,7 +67,7 @@ export function AdminNetworkRequestsPanel() {
   const copyReport = async (row?: NetworkRequestRecord) => {
     const payload = {
       generatedAt: new Date().toISOString(),
-      scope: 'local browser only; request metadata only; no headers or bodies',
+      scope: 'local browser only; safe request metadata plus validated X-Request-Id only; no auth headers or request/response bodies',
       filters: { query, outcome, method, kind, route, statusGroup, onlyFailures },
       count: row ? 1 : filtered.length,
       requests: row ? [row] : filtered,
@@ -77,7 +77,7 @@ export function AdminNetworkRequestsPanel() {
     catch { window.prompt('انسخ تقرير طلبات الشبكة:', text); }
   };
   const downloadReport = () => {
-    const blob = new Blob([JSON.stringify({ generatedAt: new Date().toISOString(), scope: 'local browser only; metadata only', filters: { query, outcome, method, kind, route, statusGroup, onlyFailures }, requests: filtered }, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify({ generatedAt: new Date().toISOString(), scope: 'local browser only; metadata plus validated X-Request-Id only; no auth headers or bodies', filters: { query, outcome, method, kind, route, statusGroup, onlyFailures }, requests: filtered }, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = `marketplat-network-requests-${new Date().toISOString().slice(0, 10)}.json`; anchor.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -93,7 +93,7 @@ export function AdminNetworkRequestsPanel() {
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Activity className="h-5 w-5" /></span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2"><h1 className="text-xl font-bold">مراقب طلبات الشبكة</h1><span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${online ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/10 text-red-700 dark:text-red-300'}`}>{online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}{online ? 'الجهاز متصل' : 'الجهاز غير متصل'}</span></div>
-            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">عرض واضح لطلبات fetch وXMLHttpRequest: الحالة، الزمن، المسار، وأخطاء الاتصال. السجل محلي على هذا المتصفح، ولا يحفظ ترويسات أو أجسام الطلبات أو الاستجابات.</p>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">عرض واضح لطلبات fetch وXMLHttpRequest: الحالة، الزمن، المسار، وأخطاء الاتصال. السجل محلي؛ لا يحفظ أجسام الطلبات أو الاستجابات أو ترويسات المصادقة، ويسجل معرّف الطلب UUID فقط لربط الخطأ بسجلات الخادم.</p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -147,10 +147,10 @@ export function AdminNetworkRequestsPanel() {
       {selected && <section className="space-y-3 rounded-2xl border bg-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><h2 className="font-semibold">تفاصيل الطلب المحدد</h2><span className={`rounded-full px-2 py-1 text-xs ${outcomeClass[selected.outcome]}`}>{outcomeLabel[selected.outcome]}</span></div><p className="mt-1 text-xs text-muted-foreground">{formatTime(selected.startedAt)} · معرّف محلي: {selected.id}</p></div><button type="button" onClick={() => void copyReport(selected)} className="inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm hover:bg-muted"><Clipboard className="h-4 w-4" /> نسخ هذا الطلب</button></div>
         <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[
-          ['صفحة المصدر', selected.pageRoute], ['الطريقة', selected.method], ['الحالة', selected.status ? `${selected.status} ${selected.statusText ?? ''}`.trim() : 'لا توجد استجابة HTTP'], ['المدة', `${selected.durationMs} ms`], ['نوع التنفيذ', selected.kind === 'fetch' ? 'Fetch API' : 'XMLHttpRequest'],
+          ['صفحة المصدر', selected.pageRoute], ['الطريقة', selected.method], ['الحالة', selected.status ? `${selected.status} ${selected.statusText ?? ''}`.trim() : 'لا توجد استجابة HTTP'], ['المدة', `${selected.durationMs} ms`], ['نوع التنفيذ', selected.kind === 'fetch' ? 'Fetch API' : 'XMLHttpRequest'], ['Request ID', selected.requestId ?? 'غير متاح من الخادم'],
         ].map(([label, value]) => <div key={label} className="rounded-xl bg-muted/50 p-3"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 break-words font-medium" dir={label === 'الطريقة' ? 'ltr' : 'auto'}>{value}</dd></div>)}</dl>
         <div className="rounded-xl border p-3"><p className="mb-2 text-xs text-muted-foreground">عنوان الطلب بعد إخفاء قيم معاملات URL</p><p className="break-all font-mono text-sm" dir="ltr">{selected.url}</p>{selected.error && <p className="mt-3 break-words text-sm text-red-600">{selected.error}</p>}</div>
-        <p className="flex items-start gap-2 text-xs leading-5 text-muted-foreground"><ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0" /> لا يتضمن هذا السجل أجسام الطلبات أو الاستجابات أو ترويسات المصادقة. وهو مراقب داخل التطبيق وليس بديلًا كاملًا لأدوات Network في DevTools.</p>
+        <p className="flex items-start gap-2 text-xs leading-5 text-muted-foreground"><ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0" /> لا يتضمن هذا السجل أجسام الطلبات أو الاستجابات أو ترويسات المصادقة؛ يُحفظ X-Request-Id وحده بعد التحقق من أنه UUID. وهو مراقب داخل التطبيق وليس بديلًا كاملًا لأدوات Network في DevTools.</p>
       </section>}
     </div>
   );

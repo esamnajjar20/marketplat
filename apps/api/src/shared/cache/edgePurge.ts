@@ -2,13 +2,13 @@ import { env } from '../../config/env';
 import { logger } from '../utils/logger';
 
 /**
- * Edge cache purge by Cache-Tag (Cloudflare) + purge-aware edge TTLs.
+ * Edge cache purge by Cache-Tag (Workers Cache + optional zone cache) and
+ * purge-aware edge TTLs.
  *
- * WHY: raising the edge TTL delays "تم البيع" (sold / deleted / edited) unless the
- * edge can be purged on write. The API Worker (workers/cf-api-proxy/worker.ts)
- * stamps every cached response with a `Cache-Tag` header; the mutations below
- * purge those tags through the Cloudflare API, and only THEN do the ads routes use
- * long s-maxage values (see `purgeAwareSharedMaxAge`).
+ * The API Worker runs on workers.dev, where the legacy Cache API is unavailable.
+ * The Worker-native cache therefore receives tag purges through its authenticated
+ * /__purge__ endpoint. A zone API purge remains optional for custom-domain caches.
+ * Long ads TTLs are enabled only when the native Worker purge path is configured.
  *
  * Everything here is opt-in (env.edgePurge.enabled) and best-effort: a purge
  * failure is logged, never thrown, and never blocks the mutation.
@@ -97,43 +97,34 @@ function scheduleFlush(delayMs: number): void {
 // partial object must not crash the mutation paths that now call into this module.
 const config = () => (env as { edgePurge?: typeof env.edgePurge }).edgePurge;
 
-export const isEdgePurgeEnabled = (): boolean => Boolean(config()?.enabled);
+const isZonePurgeConfigured = (cfg = config()): boolean => Boolean(cfg?.zoneId && cfg.apiToken);
+export const isWorkerCachePurgeEnabled = (): boolean => {
+  const cfg = config();
+  return Boolean(cfg?.enabled && cfg.workerPurgeUrl && cfg.workerPurgeToken);
+};
+export const isEdgePurgeEnabled = (): boolean => {
+  const cfg = config();
+  return Boolean(cfg?.enabled && (isZonePurgeConfigured(cfg) || (cfg.workerPurgeUrl && cfg.workerPurgeToken)));
+};
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
-async function postPurge(tags: string[]): Promise<'success' | 'retry' | 'blocked'> {
-  const cfg = config();
-  if (!cfg?.zoneId || !cfg.apiToken) {
-    logger.error('Edge purge is enabled but Cloudflare credentials are missing; tags retained for retry');
-    return 'blocked';
-  }
+type PurgeResult = 'success' | 'retry' | 'blocked';
+
+async function retryPurgeTarget(
+  label: string,
+  send: () => Promise<{ ok: boolean; status: number; accepted: boolean; detail?: string }>,
+  tags: string[]
+): Promise<PurgeResult> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
-      const res = await fetch(
-        `https://api.cloudflare.com/client/v4/zones/${encodeURIComponent(cfg.zoneId)}/purge_cache`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${cfg.apiToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ tags }),
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        }
-      );
-      const payload = (typeof res.json === 'function' ? await res.json().catch(() => null) : null) as { success?: boolean; errors?: unknown[] } | null;
-      // Cloudflare's API can return HTTP 200 for an application-level failure.
-      // Treat only an explicit success:true payload as a confirmed purge.
-      if (res.ok && payload?.success === true) return 'success';
-      lastError = new Error(
-        payload?.success === false
-          ? `Cloudflare purge rejected the request: ${JSON.stringify(payload.errors ?? [])}`
-          : `Cloudflare purge HTTP ${res.status}`
-      );
-      // 4xx other than rate-limit will not get better by retrying.
-      if (res.status >= 400 && res.status < 500 && res.status !== 429) {
-        logger.error('Edge purge rejected permanently; tags retained for slower retry', { status: res.status, tags });
+      const result = await send();
+      if (result.ok && result.accepted) return 'success';
+      lastError = new Error(result.detail || `${label} purge HTTP ${result.status}`);
+      // Permanent authentication/validation errors will not get better by retrying.
+      if (result.status >= 400 && result.status < 500 && result.status !== 429) {
+        logger.error(`${label} purge rejected permanently; tags retained for slower retry`, { status: result.status, tags });
         return 'blocked';
       }
     } catch (error) {
@@ -141,11 +132,71 @@ async function postPurge(tags: string[]): Promise<'success' | 'retry' | 'blocked
     }
     if (attempt < MAX_ATTEMPTS) await sleep(attempt * 1000);
   }
-  logger.error(
-    'Edge purge failed — tags retained for retry; cached responses may stay stale until purged',
-    { tags, error: lastError }
-  );
+  logger.error(`${label} purge failed — tags retained for retry`, { tags, error: lastError });
   return 'retry';
+}
+
+async function postPurge(tags: string[]): Promise<PurgeResult> {
+  const cfg = config();
+  if (!cfg?.enabled) return 'blocked';
+  const jobs: Array<Promise<PurgeResult>> = [];
+
+  // The native Workers Cache is the real edge cache for this workers.dev host.
+  if (cfg.workerPurgeUrl && cfg.workerPurgeToken) {
+    jobs.push(retryPurgeTarget('Workers Cache', async () => {
+      const res = await fetch(cfg.workerPurgeUrl!, {
+        method: 'POST',
+        headers: {
+          'x-purge-token': cfg.workerPurgeToken!,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({ tags }),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      const payload = (typeof res.json === 'function' ? await res.json().catch(() => null) : null) as { ok?: boolean; error?: string } | null;
+      return {
+        ok: res.ok,
+        status: res.status,
+        accepted: payload?.ok === true,
+        detail: payload?.error ? `Workers Cache purge rejected: ${payload.error}` : `Workers Cache purge HTTP ${res.status}`,
+      };
+    }, tags));
+  }
+
+  // Keep the zone purge for optional custom-domain Cache API / CDN caches.
+  if (isZonePurgeConfigured(cfg)) {
+    jobs.push(retryPurgeTarget('Cloudflare Zone', async () => {
+      const res = await fetch(
+        `https://api.cloudflare.com/client/v4/zones/${encodeURIComponent(cfg!.zoneId!)}/purge_cache`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${cfg!.apiToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ tags }),
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        }
+      );
+      const payload = (typeof res.json === 'function' ? await res.json().catch(() => null) : null) as { success?: boolean; errors?: unknown[] } | null;
+      return {
+        ok: res.ok,
+        status: res.status,
+        accepted: payload?.success === true,
+        detail: payload?.success === false
+          ? `Cloudflare purge rejected: ${JSON.stringify(payload.errors ?? [])}`
+          : `Cloudflare purge HTTP ${res.status}`,
+      };
+    }, tags));
+  }
+
+  if (!jobs.length) {
+    logger.error('Edge purge is enabled but no purge destination is configured; tags retained for retry');
+    return 'blocked';
+  }
+  const results = await Promise.all(jobs);
+  if (results.every(result => result === 'success')) return 'success';
+  return results.includes('blocked') ? 'blocked' : 'retry';
 }
 
 /** Sends everything queued right now. Exposed for graceful shutdown and tests. */
@@ -241,8 +292,8 @@ export function purgeReferenceKv(): void {
  * Edge (s-maxage) TTLs used ONLY when purging is on. Applied to the ads routes
  * because those are the routes every ad mutation purges; products/stores/services
  * keep their policy TTL until they get purge hooks of their own.
- *   adsList   600s   lists also change on create/boost/expiry, which have no purge
- *   adsDetail 3600s  every edit/sold/delete of an ad purges `ad:<id>`
+ *   adsList   600s   create/edit/pin/boost/expiry paths purge city/list tags or route:ads
+ *   adsDetail 3600s  edit/status/remove paths purge the matching `ad:<id>` tag
  */
 export const EDGE_PURGE_SHARED_MAX_AGE = { adsList: 600, adsDetail: 3600 } as const;
 
@@ -250,6 +301,8 @@ export function purgeAwareSharedMaxAge(
   kind: keyof typeof EDGE_PURGE_SHARED_MAX_AGE,
   fallback: number | undefined
 ): number | undefined {
-  if (!isEdgePurgeEnabled()) return fallback;
+  // The Worker Cache API purge endpoint must be deployed and configured; a
+  // zone-only purge does not reliably invalidate the worker-native cache.
+  if (!isWorkerCachePurgeEnabled()) return fallback;
   return Math.max(EDGE_PURGE_SHARED_MAX_AGE[kind], fallback ?? 0);
 }

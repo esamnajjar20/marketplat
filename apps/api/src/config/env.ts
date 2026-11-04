@@ -267,10 +267,9 @@ const envSchema = z.object({
   // channels (e.g. ops alerting vs. a dedicated security channel).
   SECURITY_ALERT_WEBHOOK_URL: z.string().url().optional(),
   // ── Edge cache purge (Cloudflare) ─────────────────────────────────────
-  // Optional, opt-in. When BOTH the zone id and an API token (scope:
-  // Zone → Cache Purge) are set, content mutations purge the edge by Cache-Tag
-  // and the ads routes switch to long edge TTLs (see shared/cache/edgePurge.ts).
-  // Unset = nothing changes: short TTLs, no outbound calls.
+  // Optional, opt-in. Content mutations can purge the Worker-native cache through
+  // EDGE_WORKER_PURGE_URL/TOKEN and optionally a custom-domain zone cache through
+  // CF_PURGE_ZONE_ID/API_TOKEN. Ads use long edge TTLs only with Worker purge enabled.
   CF_PURGE_ZONE_ID: z.string().optional(),
   CF_PURGE_API_TOKEN: z.string().optional(),
   // Explicit kill switch: credentials alone must never activate long edge TTLs.
@@ -888,11 +887,13 @@ export const env = {
     apiToken: (_env.CF_PURGE_API_TOKEN ?? '').trim(),
     workerPurgeUrl: (_env.EDGE_WORKER_PURGE_URL ?? '').trim(),
     workerPurgeToken: (_env.EDGE_WORKER_PURGE_TOKEN ?? '').trim(),
-    // Never fire real Cloudflare calls from the test suite.
+    // Never fire real Cloudflare calls from the test suite. The explicit kill
+    // switch is required, and at least one complete purge destination must exist.
     enabled:
       _env.NODE_ENV !== 'test' &&
       _env.CF_CACHE_TAG_PURGE_ENABLED === 'true' &&
-      Boolean((_env.CF_PURGE_ZONE_ID ?? '').trim() && (_env.CF_PURGE_API_TOKEN ?? '').trim()),
+      (Boolean((_env.EDGE_WORKER_PURGE_URL ?? '').trim() && (_env.EDGE_WORKER_PURGE_TOKEN ?? '').trim()) ||
+        Boolean((_env.CF_PURGE_ZONE_ID ?? '').trim() && (_env.CF_PURGE_API_TOKEN ?? '').trim())),
   },
   ads: {
     maxPerUser: parseInt(_env.MAX_ADS_PER_USER, 10),

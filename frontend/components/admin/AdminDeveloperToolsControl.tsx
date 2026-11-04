@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { ShieldCheck, Terminal, ToggleLeft, ToggleRight } from 'lucide-react';
 import { adminApi } from '@/api/admin.api';
+import { loadAdminDeveloperToolsSetting, publishAdminDeveloperToolsSetting } from '@/lib/adminDeveloperToolsSetting';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { toast } from 'sonner';
 
@@ -17,10 +18,10 @@ export function AdminDeveloperToolsControl() {
   useEffect(() => {
     if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') return;
     let active = true;
-    void adminApi.getDeveloperToolsSetting().then((response) => {
+    void loadAdminDeveloperToolsSetting().then(({ value }) => {
       if (!active) return;
-      setEnabled(response.data.data?.enabled === true);
-      setUpdatedAt(response.data.data?.updatedAt ?? null);
+      setEnabled(value.enabled === true);
+      setUpdatedAt(value.updatedAt ?? null);
     }).catch(() => {
       if (active) toast.error('تعذّر قراءة إعدادات أدوات المطوّر');
     }).finally(() => {
@@ -37,10 +38,12 @@ export function AdminDeveloperToolsControl() {
     setSaving(true);
     try {
       const response = await adminApi.setDeveloperToolsSetting(next);
-      const actual = response.data.data?.enabled === true;
+      const saved = response.data.data;
+      const actual = saved?.enabled === true;
       setEnabled(actual);
-      setUpdatedAt(response.data.data?.updatedAt ?? new Date().toISOString());
-      window.dispatchEvent(new CustomEvent('developer-tools-setting-changed', { detail: { enabled: actual } }));
+      const timestamp = saved?.updatedAt ?? new Date().toISOString();
+      setUpdatedAt(timestamp);
+      if (saved) publishAdminDeveloperToolsSetting({ ...saved, enabled: actual, updatedAt: timestamp });
       toast.success(actual ? 'تم تفعيل أدوات المطوّر لجميع حسابات الإدارة' : 'تم تعليق أدوات المطوّر');
     } catch {
       toast.error('تعذّر حفظ إعداد أدوات المطوّر');

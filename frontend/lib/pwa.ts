@@ -11,7 +11,6 @@ import { reportBackgroundFailure } from './backgroundTask';
 import { fetchClient as apiClient } from '@/lib/fetchClient';
 import { getRawVapidPublicKey } from '@/lib/env';
 import { isPushOptedOut } from '@/lib/runtime/pushPreference';
-import { isUserBusyForServiceWorkerUpdate } from '@/lib/swUpdateSafety';
 
 // FIX PWA-05: previously read once as a module-level constant
 // (`const VAPID_PUBLIC_KEY = process.env...`), which freezes the value at
@@ -78,6 +77,10 @@ const JUST_UPDATED_SUPPRESS_MS = 5 * 60 * 1000;
 /** يمنع أكثر من reload واحد لكل دورة حياة صفحة عند controllerchange. */
 let updateReloadInProgress = false;
 let deferredOnlineReload: (() => void) | null = null;
+// A controller swap is not by itself permission to interrupt the user.
+// Set only by activateWaitingServiceWorker(), which is called by an explicit
+// user action in UpdatePrompt or the /update screen.
+let userRequestedUpdateActivation = false;
 
 /** One reload path for controllerchange and its timeout fallback. Never reload offline. */
 function reloadAfterServiceWorkerChange(): void {
@@ -172,121 +175,10 @@ function checkServiceWorkerUpdate(registration: ServiceWorkerRegistration): void
     });
 }
 
-// ── PWA-AUTO-APPLY-01 ─────────────────────────────────────────────
-// Applies a waiting SW update automatically, without the user having
-// to find and press the "update available" bar. Two independent
-// triggers, whichever fires first:
-//   1. 5 minutes after discovery (user ignored the bar)
-//   2. On returning to the tab after being hidden >30 seconds
-//      (the user just came back from something else — not mid-
-//      sentence, not mid-form). This second path is the important one
-//      on Gaza mobile networks where the app is backgrounded dozens
-//      of times a day.
-//
-// The controllerchange handler below still performs the actual reload,
-// so this function only has to send SKIP_WAITING.
-//
-// Skipped entirely when:
-//   - offline (a reload would re-serve the same cached shell)
-//   - a previous update happened within JUST_UPDATED_SUPPRESS_MS
-//     (already handled by wasJustUpdated())
-// DEV-TUNING-01: when NEXT_PUBLIC_ENABLE_SW_DEV=true, shrink the
-// auto-apply delays from (5 min / 30 s) to (3 s / 1 s) so a code change
-// reflects in the tab quickly. Production values are unchanged — the
-// slow delays exist specifically for Gaza mobile networks where tabs
-// go hidden dozens of times a day and a 30 s hidden window would
-// trigger on routine switches.
-const DEV_SW = process.env.NEXT_PUBLIC_ENABLE_SW_DEV === 'true';
-const PWA_AUTO_APPLY_AFTER_MS      = DEV_SW ? 3_000 : 5 * 60 * 1000;
-const PWA_AUTO_APPLY_HIDDEN_MIN_MS = DEV_SW ? 1_000 : 30 * 1000;
-const PWA_BUSY_RETRY_MS = 60 * 1000;
-
-
-
-let autoApplyScheduled = false;
-
-function scheduleAutoApply(reg: ServiceWorkerRegistration): void {
-  if (autoApplyScheduled) return;
-  if (typeof document === 'undefined' || typeof window === 'undefined') return;
-  if (wasJustUpdated()) return;
-
-  // If offline, wait for the next online event and retry once. Bounded:
-  // a single once-listener per registration attempt.
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    window.addEventListener(
-      'online',
-      () => {
-        if (reg.waiting && !wasJustUpdated()) scheduleAutoApply(reg);
-      },
-      { once: true },
-    );
-    return;
-  }
-
-  autoApplyScheduled = true;
-  let hiddenSince = 0;
-  let cleanedUp = false;
-  let timer: number | undefined;
-
-  // PWA-AUTO-APPLY-CLEANUP-01
-  const cleanup = () => {
-    if (cleanedUp) return;
-    cleanedUp = true;
-    if (timer !== undefined) window.clearTimeout(timer);
-    document.removeEventListener('visibilitychange', onVis);
-    window.removeEventListener('offline', onOfflineLost);
-  };
-
-  const apply = (reason: string) => {
-    // The update can be discovered while a form is open. Never force the
-    // controller swap/reload in the middle of typing, draft editing, or text
-    // selection; retry in bounded intervals until it is safe.
-    if (!reg.waiting) {
-      cleanup();
-      autoApplyScheduled = false;
-      return;
-    }
-    if (isUserBusyForServiceWorkerUpdate()) {
-      if (timer !== undefined) window.clearTimeout(timer);
-      timer = window.setTimeout(() => apply('deferred-after-edit'), PWA_BUSY_RETRY_MS);
-      return;
-    }
-    cleanup();
-    console.info('[pwa] auto-applying update:', reason);
-    reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-    // The controllerchange listener (registered in
-    // doRegisterServiceWorker) will fire the reload. We do NOT reload
-    // here — doing both caused a double reload in an earlier build.
-  };
-
-  const onVis = () => {
-    if (document.visibilityState === 'hidden') {
-      hiddenSince = Date.now();
-      return;
-    }
-    if (hiddenSince && Date.now() - hiddenSince > PWA_AUTO_APPLY_HIDDEN_MIN_MS) {
-      apply(
-        'return-after-' + Math.round((Date.now() - hiddenSince) / 1000) + 's',
-      );
-    }
-  };
-
-  // If the user goes offline mid-wait, cancel and let the next visit
-  // re-schedule. Reloading offline would leave them on a half-broken
-  // shell.
-  const onOfflineLost = () => {
-    console.info('[pwa] auto-apply cancelled — connection lost');
-    cleanup();
-    autoApplyScheduled = false;
-  };
-
-  document.addEventListener('visibilitychange', onVis);
-  window.addEventListener('offline', onOfflineLost, { once: true });
-  timer = window.setTimeout(
-    () => apply('5-min-grace'),
-    PWA_AUTO_APPLY_AFTER_MS,
-  );
-}
+// Updates are deliberately NOT auto-applied. A waiting worker remains waiting
+// until the user selects "تحديث الآن". This prevents timer/visibility-driven
+// controller swaps from reloading the page while someone is browsing, reading,
+// scrolling, or working in another app tab.
 
 export function registerServiceWorker(): Promise<ServiceWorkerRegistration | null> {
   // Deduplicate per browser ServiceWorkerContainer, not globally across
@@ -335,17 +227,10 @@ async function doRegisterServiceWorker(): Promise<ServiceWorkerRegistration | nu
       updateViaCache: 'none',
     });
 
-    // نسخة جديدة تنتظر التفعيل.
-    // FIX PWA-UPDATE-LOOP-01: لو المستخدم فعّل تحديثًا للتو وما زال waiting
-    // (غالبًا SW ثانٍ ثُبِّت أثناء التفعيل لأن بايتات /sw.js اختلفت بين الطلبات)،
-    // لا نُظهر الشريط من جديد — نُكمِل التفعيل بصمت مرة واحدة.
+    // A new worker may already be waiting. Surface it to the update UI,
+    // but do not activate it or reload this document automatically.
     if (registration.waiting) {
-      if (wasJustUpdated()) {
-        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      } else {
-        waitingUpdateListeners.forEach((cb) => cb(registration));
-        scheduleAutoApply(registration);
-      }
+      waitingUpdateListeners.forEach((cb) => cb(registration));
     }
 
     registration.addEventListener('updatefound', () => {
@@ -353,25 +238,23 @@ async function doRegisterServiceWorker(): Promise<ServiceWorkerRegistration | nu
       if (!newWorker) return;
       newWorker.addEventListener('statechange', () => {
         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          if (wasJustUpdated()) {
-            // نفس حالة العالق بعد التفعيل — فعّل بصمت بدل إزعاج المستخدم
-            registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
-            return;
-          }
+          // Keep the new worker waiting. Only the explicit update action
+          // is allowed to send SKIP_WAITING and cause a page reload.
           waitingUpdateListeners.forEach((cb) => cb(registration));
-          scheduleAutoApply(registration);
         }
       });
     });
 
     // سياسة التحديث (آمنة — بلا skipWaiting من install):
-    // 1) SW جديد يثبت بالخلفية → waiting
-    // 2) المستخدم يضغط «تحديث الآن» → SKIP_WAITING
-    // 3) controllerchange → reload واحد فقط
-    // 4) activate في sw.js يمسح كاشات الإصدار القديم تلقائيًا
+    // 1) SW جديد يثبت بالخلفية → waiting + إشعار تحديث
+    // 2) لا تفعيل ولا reload تلقائيان
+    // 3) المستخدم يضغط «تحديث الآن» → SKIP_WAITING ثم reload واحد
+    // 4) activate في sw.js ينفّذ ترحيل/تنظيف الكاشات القديمة
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      // A controller can change just as connectivity drops. Both the event
-      // and the activation timeout must share this guarded reload path.
+      // First-install control, another tab's update, or browser lifecycle
+      // changes must not hard-reload this document. Reload only when this tab
+      // explicitly requested activation from the update UI.
+      if (!userRequestedUpdateActivation) return;
       reloadAfterServiceWorkerChange();
     });
 
@@ -431,19 +314,11 @@ export function onServiceWorkerUpdate(listener: SwUpdateListener): () => void {
 /**
  * يطلب من الـ SW الجديد (الموجود في حالة "waiting") تولي السيطرة فورًا.
  *
- * FIX PWA-UPDATE-01: كانت `registration.waiting?.postMessage(...)` — لو
- * كان `waiting` قد أصبح null بحلول لحظة الضغط (مثلًا: نافذة/تبويب آخر لنفس
- * التطبيق فعّل نفس التحديث أولًا، فتحوّل الـ SW من waiting إلى active قبل
- * أن يضغط المستخدم هنا)، فإن الـ postMessage يُطوى بصمت بفضل `?.` — لا
- * خطأ، لا رد فعل، لا تحديث. هذا يطابق تمامًا الأعراض المُبلَّغ عنها: ضغطة
- * الزر تُسجَّل بصريًا لكن لا شيء يتحمّل بعدها فعليًا.
- * أيضًا: حتى مع وجود waiting فعليًا، لو تأخّر حدث controllerchange لأي سبب
- * (بما فيها قيود دورة حياة SW المعروفة على iOS Safari للتطبيقات المثبتة
- * على الشاشة الرئيسية)، كان المستخدم يبقى عالقًا على الشاشة القديمة دون
- * أي مسار احتياطي.
- * الإصلاح: لو لا يوجد waiting، أعد التحميل مباشرة (التحديث غالبًا مُفعَّل
- * فعليًا). ولو يوجد، أرسل الرسالة كالمعتاد مع مؤقت احتياطي (3 ثوانٍ) يفرض
- * إعادة التحميل يدويًا إن لم ينطلق controllerchange بحلول ذلك الوقت.
+ * This is the sole update activation entry point and is called from an
+ * explicit user action. If another tab already activated the worker, the
+ * waiting slot may be empty; in that case reload the current document once.
+ * When a worker is still waiting, request activation and keep a guarded
+ * timeout fallback for browsers that delay controllerchange.
  */
 export type UpdateStage = 'activating' | 'reloading';
 
@@ -456,6 +331,8 @@ export function activateWaitingServiceWorker(
   registration: ServiceWorkerRegistration,
   onStage?: (stage: UpdateStage) => void,
 ): void {
+  // This function is invoked by a deliberate click/tap on the update UI.
+  userRequestedUpdateActivation = true;
   if (!registration.waiting) {
     markJustUpdated();
     onStage?.('reloading');
@@ -588,6 +465,9 @@ export async function unsubscribeFromPush(): Promise<void> {
  * لا يرمي أخطاء للمستخدم؛ فشل الشبكة يُتجاهل بهدوء.
  */
 export async function ensurePushSubscriptionSynced(): Promise<'synced' | 'subscribed' | 'skipped'> {
+  // Push registration is server synchronization, not a local-only action.
+  // The OfflineBootstrap retries it on the next online lifecycle event.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'skipped';
   if (!isPushSupported()) return 'skipped';
   const vapidPublicKey = getVapidPublicKey();
   if (!vapidPublicKey) return 'skipped';

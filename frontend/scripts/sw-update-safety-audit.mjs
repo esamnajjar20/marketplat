@@ -10,10 +10,9 @@ const checks = [
   ['shared safety predicate defers open drafts', helper.includes('[data-draft-open="true"]')],
   ['shared safety predicate defers selected text', helper.includes('selection.toString().length > 0')],
   ['unknown editing state fails safe', /catch\s*\{[\s\S]*return true/.test(helper)],
-  ['normal auto-apply uses shared predicate', pwa.includes('isUserBusyForServiceWorkerUpdate()')],
-  ['stale activation uses same shared predicate', stale.includes('isUserBusyForServiceWorkerUpdate()')],
-  ['stale activation still refuses while offline', /navigator\.onLine === false\) return/.test(stale)],
-  ['auto-apply still cancels when connection drops', pwa.includes("window.addEventListener('offline', onOfflineLost")],
+  ['updates are no longer auto-applied on a timer or visibility change', !pwa.includes('scheduleAutoApply') && !pwa.includes('PWA_AUTO_APPLY_AFTER_MS')],
+  ['the update UI is the sole explicit activation path', /export function activateWaitingServiceWorker[\s\S]{0,500}userRequestedUpdateActivation = true[\s\S]{0,500}postMessage\(\{ type: 'SKIP_WAITING' \}\)/.test(pwa)],
+  ['stale activation compatibility entry point is a no-op', stale.includes('Intentionally empty') && !stale.includes('postMessage')],
   ['unit tests cover select focus', tests.includes("it.each(['input', 'textarea', 'select'])")],
   ['unit tests cover draft and text selection', tests.includes('explicitly marked draft') && tests.includes('selected text')],
 ];

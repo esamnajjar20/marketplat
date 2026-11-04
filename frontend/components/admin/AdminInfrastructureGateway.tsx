@@ -97,6 +97,25 @@ const API_PATH = '/api/admin/gateway/registry';
 const MAX_SERVERS = 16;
 const MAX_GO_TARGETS = 32;
 
+function gatewayRegistryErrorMessage(payload: RegistryResponse | null, status: number): string {
+  switch (payload?.error) {
+    case 'GATEWAY_ADMIN_TOKEN_NOT_CONFIGURED_ON_FRONTEND':
+      return 'إعداد البوابة غير مكتمل: اضبط سر GATEWAY_ADMIN_TOKEN في بيئة Worker الخاصة بالواجهة ثم أعد نشرها.';
+    case 'GATEWAY_ADMIN_NOT_CONFIGURED':
+      return 'سر إدارة البوابة GATEWAY_ADMIN_TOKEN غير مضبوط في API Worker.';
+    case 'GATEWAY_STORAGE_NOT_CONFIGURED':
+      return 'تخزين سجل البوابة غير مربوط. يلزم إعداد Durable Object أو REFERENCE_KV في API Worker.';
+    case 'GATEWAY_WORKER_UNAVAILABLE':
+      return 'تعذّر الوصول إلى API Worker من الواجهة. تحقق من Service Binding باسم API_WORKER.';
+    case 'FORBIDDEN':
+      return 'انتهت صلاحية جلسة الإدارة أو لا تملك صلاحية إدارة البوابة. حدّث الجلسة ثم أعد المحاولة.';
+    default:
+      if (status === 503) return 'خدمة سجل البوابة غير متاحة (503). تحقّق من أسرار الإدارة وربط التخزين في Worker ثم أعد المحاولة.';
+      if (status === 502) return 'تعذّر الاتصال بخدمة البوابة (502). تحقق من اتصال Worker ثم أعد المحاولة.';
+      return payload?.message || payload?.error || `تعذّر تحميل السجل (${status})`;
+  }
+}
+
 /** Allocate a tier's manual percentages in tenths, preserving an exact total
  * and a non-zero minimum even for large replica groups. */
 function distributeGoShares(targets: GoServiceServer[], totalPercent: number): Map<string, number> {
@@ -214,8 +233,10 @@ export function AdminInfrastructureGateway() {
         cache: 'no-store',
         headers: authorizationHeaders,
       });
-      const payload = await response.json() as RegistryResponse;
-      if (!response.ok || !payload.registry) throw new Error(payload.message || payload.error || `تعذّر تحميل السجل (${response.status})`);
+      const payload = await response.json().catch(() => null) as RegistryResponse | null;
+      if (!response.ok || !payload?.registry) {
+        throw new Error(gatewayRegistryErrorMessage(payload, response.status));
+      }
       const nextServers = payload.registry.backend.servers.map((server) => ({ ...server }));
       const nextFrontendServers = (payload.registry.frontend?.servers || []).map((server) => ({ ...server }));
       const nextGoServices = (payload.registry.go?.servers || []).map((server) => ({ ...server }));

@@ -41,7 +41,7 @@ function makeHealthNamespace(Coordinator) {
 }
 
 /** Fresh isolate per scenario: fake Cache API, fake KV, scripted origin. */
-function harness({ upstream, kv, cacheFailure = false, envOverrides = {} } = {}) {
+function harness({ upstream, kv, cacheFailure = false, nativeCacheUnavailable = false, nativeCacheFailure = false, envOverrides = {} } = {}) {
   const store = new Map();
   const cacheCalls = [];
   const cache = {
@@ -58,6 +58,7 @@ function harness({ upstream, kv, cacheFailure = false, envOverrides = {} } = {})
     },
   };
   const upstreamLog = [];
+  const nativeCachePurges = [];
   const context = {
     URL, Request, Response, Headers, Map, Set, Date, Math, String, Number, JSON, Promise, RegExp, Object, Array, AbortSignal,
     encodeURIComponent, decodeURIComponent,
@@ -71,7 +72,13 @@ function harness({ upstream, kv, cacheFailure = false, envOverrides = {} } = {})
   };
   vm.runInNewContext(`${source}\nglobalThis.__internals = { isUpstreamCacheable, makeCacheKey, edgeTagsFor, canonicalize, isValidIpAddress, getRenderOrigin, validateGatewayRegistry, validateBackendOrigin, validateGatewayPath, normalizeGatewayRequestTarget, weightedPriorityOrder, backendCandidates, goAdaptiveWeightMap, loadGatewayRegistry, recordBackendResult, fetchBackend, GatewayHealthCoordinator };`, context);
   const pending = [];
-  const ctx = { waitUntil: (p) => pending.push(Promise.resolve(p).catch(() => {})) };
+  const ctx = {
+    waitUntil: (p) => pending.push(Promise.resolve(p).catch(() => {})),
+    ...(nativeCacheUnavailable ? {} : { cache: { purge: async (options) => {
+      nativeCachePurges.push(cloneJson(options));
+      if (nativeCacheFailure) throw new Error('Workers Cache purge unavailable');
+    } } }),
+  };
   const settle = async () => { while (pending.length) await Promise.all(pending.splice(0)); };
   const env = { ...(kv ? { REFERENCE_KV: kv } : {}), PURGE_TOKEN: 's3cret', ...envOverrides };
   const call = (path, init) => context.__worker.fetch(new Request(`${EDGE}${path}`, init), env, ctx);
@@ -85,7 +92,7 @@ function harness({ upstream, kv, cacheFailure = false, envOverrides = {} } = {})
       store.set(k, new Response(await v.clone().arrayBuffer(), { status: 200, headers: h }));
     }
   };
-  return { context, call, callAt, store, cacheCalls, upstreamLog, settle, ageEntry, internals: context.__internals };
+  return { context, call, callAt, store, cacheCalls, upstreamLog, nativeCachePurges, settle, ageEntry, internals: context.__internals };
 }
 
 const json = (body, headers = {}, status = 200) =>
@@ -148,7 +155,7 @@ const PUBLIC_LIVE = {
   for (const path of ['/api/v1/home/feed', '/api/v1/home/for-you']) {
     const response = await call(path);
     assert.equal(response.status, 200);
-    assert.equal(response.headers.get('cache-control'), 'private, no-cache');
+    assert.equal(response.headers.get('cache-control'), 'private, no-store');
     assert.equal(response.headers.get('x-proxy-cache'), 'BYPASS');
   }
   assert.equal(upstreamLog.length, 2);
@@ -374,9 +381,39 @@ const PUBLIC_LIVE = {
   await h.call('/api/v1/ads?limit=3'); await h.settle();
   assert.equal([...kvStore.keys()].some((k) => k.includes('/ads')), false);
 
+  // Authenticated tag purge targets the native Workers Cache, not KV.
+  const nativeTags = await h.call('/__purge__', {
+    method: 'POST',
+    headers: { 'x-purge-token': 's3cret', 'content-type': 'application/json' },
+    body: JSON.stringify({ tags: ['ad:123', 'route:ads', 'ad:123'] }),
+  });
+  assert.equal(nativeTags.status, 200);
+  assert.deepEqual(await nativeTags.json(), { ok: true, purgedTags: 2 });
+  assert.deepEqual(h.nativeCachePurges, [{ tags: ['ad:123', 'route:ads'] }]);
+
+  const invalidTags = await h.call('/__purge__', {
+    method: 'POST', headers: { 'x-purge-token': 's3cret', 'content-type': 'application/json' },
+    body: JSON.stringify({ tags: ['route:ads\n'] }),
+  });
+  assert.equal(invalidTags.status, 400);
+  const noNativeCache = harness({ nativeCacheUnavailable: true, upstream: async () => json({}) });
+  const unavailable = await noNativeCache.call('/__purge__', {
+    method: 'POST', headers: { 'x-purge-token': 's3cret', 'content-type': 'application/json' },
+    body: JSON.stringify({ tags: ['route:ads'] }),
+  });
+  assert.equal(unavailable.status, 503);
+  assert.deepEqual(await unavailable.json(), { ok: false, error: 'WORKERS_CACHE_PURGE_UNAVAILABLE' });
+  const brokenNativeCache = harness({ nativeCacheFailure: true, upstream: async () => json({}) });
+  const purgeFailed = await brokenNativeCache.call('/__purge__', {
+    method: 'POST', headers: { 'x-purge-token': 's3cret', 'content-type': 'application/json' },
+    body: JSON.stringify({ tags: ['route:ads'] }),
+  });
+  assert.equal(purgeFailed.status, 503);
+  assert.deepEqual(await purgeFailed.json(), { ok: false, error: 'WORKERS_CACHE_PURGE_FAILED' });
+
   // /__purge__ only flushes ref:v1:* and must never erase dynamic gateway config.
   kvStore.set('gateway:registry:v1', JSON.stringify({ backend: { servers: [] } }));
-  // /__purge__ is token-protected and flushes the KV tier.
+  // Empty-body /__purge__ remains token-protected and flushes the KV tier.
   assert.equal((await h.call('/__purge__', { method: 'POST' })).status, 403);
   assert.equal((await h.call('/__purge__', { method: 'POST', headers: { 'x-purge-token': 'nope' } })).status, 403);
   assert.equal((await h.call('/__purge__')).status, 405);
@@ -390,6 +427,37 @@ const PUBLIC_LIVE = {
   const failed = await failedPurge.call('/__purge__', { method: 'POST', headers: { 'x-purge-token': 's3cret' } });
   assert.equal(failed.status, 503);
   assert.deepEqual(await failed.json(), { ok: false, error: 'KV_PURGE_FAILED' });
+}
+
+/* ───────────── native Workers Cache is default-deny outside explicit public routes ───────────── */
+{
+  const h = harness({
+    upstream: async () => json({ private: true }, { 'cache-control': 'public, max-age=7200' }),
+  });
+  const cookieResponse = await h.call('/api/v1/ads', { headers: { cookie: 'session=secret' } });
+  assert.equal(cookieResponse.headers.get('cache-control'), 'private, no-store');
+  const dynamicResponse = await h.call('/api/v1/home/feed');
+  assert.equal(dynamicResponse.headers.get('cache-control'), 'private, no-store');
+  assert.equal(dynamicResponse.headers.get('x-proxy-cache'), 'BYPASS');
+}
+
+{
+  const h = harness({
+    envOverrides: { FRONTEND_ORIGIN: 'https://web-one.example.com,https://web-two.example.com' },
+    upstream: async () => json({ public: true }, { 'cache-control': 'public, max-age=60' }),
+  });
+  const response = await h.call('/api/v1/ads', { headers: { origin: 'https://web-two.example.com' } });
+  assert.equal(response.headers.get('access-control-allow-origin'), 'https://web-two.example.com');
+  assert.match(response.headers.get('vary') || '', /(?:^|, )Origin(?:,|$)/i, 'native cache must keep CORS origins in separate variants');
+  assert.match(response.headers.get('vary') || '', /(?:^|, )Host(?:,|$)/i, 'native cache must isolate hostname-bound Worker responses');
+
+  const noOrigin = await h.call('/api/v1/ads');
+  assert.match(noOrigin.headers.get('vary') || '', /(?:^|, )Origin(?:,|$)/i, 'the no-Origin variant must also be isolated');
+  assert.match(noOrigin.headers.get('vary') || '', /(?:^|, )Host(?:,|$)/i, 'the no-Origin variant must also be isolated by host');
+  const rejectedOrigin = await h.call('/api/v1/ads', { headers: { origin: 'https://attacker.example' } });
+  assert.equal(rejectedOrigin.headers.get('access-control-allow-origin'), null);
+  assert.match(rejectedOrigin.headers.get('vary') || '', /(?:^|, )Origin(?:,|$)/i, 'rejected origins must not poison the allowed CORS variant');
+  assert.match(rejectedOrigin.headers.get('vary') || '', /(?:^|, )Host(?:,|$)/i, 'rejected-origin responses must stay isolated by host');
 }
 
 /* ───────────── dynamic registry validation, administration, and backend failover ───────────── */
@@ -458,6 +526,10 @@ const PUBLIC_LIVE = {
   const current = await h.call('/__gateway/registry', { headers: adminHeaders });
   assert.equal(current.status, 200);
   assert.equal((await current.json()).registry.backend.servers.length, 2);
+  const doOnlyAdmin = harness({ upstream: async () => json({ ok: true }), envOverrides: { GATEWAY_ADMIN_TOKEN: 'admin-secret', GATEWAY_HEALTH: registryCoordinator } });
+  const doOnlyCurrent = await doOnlyAdmin.call('/__gateway/registry', { headers: adminHeaders });
+  assert.equal(doOnlyCurrent.status, 200, 'Durable Object is sufficient; REFERENCE_KV is only a replica');
+  assert.equal((await doOnlyCurrent.json()).source, 'durable-object');
 
   const updated = {
     backend: {
@@ -827,7 +899,7 @@ const PUBLIC_LIVE = {
     envOverrides: { GO_WORKER_TOKEN: 'go-secret', GATEWAY_HEALTH: coordinator },
     upstream: async () => new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json', 'x-mp-worker-active-requests': '3' } }),
   });
-  for (let index = 0; index < 5; index += 1) {
+  for (let index = 0; index < 10; index += 1) {
     const response = await routeHarness.call('/__go/internal/analytics/summary', { headers: { authorization: 'Bearer go-secret' } });
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('x-mp-worker-active-requests'), null, 'the internal load hint must not leak to API clients');

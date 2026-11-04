@@ -5,10 +5,10 @@
  *   node workers/cf-api-proxy/cache-probe.mjs https://api.example.com [rounds=3]
  *
  * Requests a fixed set of public URLs several times — each once with a different
- * query-param order/encoding to prove key normalisation — then prints the
- * x-proxy-cache distribution and median latency per status. A healthy edge shows
- * HIT/STALE/KV-HIT dominating from round 2 on; mostly MISS/BYPASS-* means the
- * Cache API is not storing (e.g. running on *.workers.dev) or TTLs are too short.
+ * query-param order/encoding to prove the inner cache-key normalisation — then prints
+ * Workers Cache Cf-Cache-Status (outer cache) and x-proxy-cache (inner fallback).
+ * A healthy deployment should show Workers-HIT/UPDATING or inner HIT/STALE/KV-HIT
+ * from round 2. Missing Cf-Cache-Status usually means cache.enabled is not deployed.
  */
 const base = (process.argv[2] || '').replace(/\/$/, '');
 const rounds = Number(process.argv[3] || 3);
@@ -41,7 +41,9 @@ for (let r = 1; r <= rounds; r += 1) {
     try {
       const res = await fetch(base + encodeURI(decodeURI(p)), { headers: { accept: 'application/json' } });
       await res.arrayBuffer();
-      add(res.headers.get('x-proxy-cache') || `NO-HEADER(${res.status})`, performance.now() - t0);
+      const nativeStatus = res.headers.get('cf-cache-status');
+      const innerStatus = res.headers.get('x-proxy-cache');
+      add(nativeStatus ? `WORKERS-${nativeStatus.toUpperCase()}` : (innerStatus || `NO-HEADER(${res.status})`), performance.now() - t0);
     } catch (e) {
       add(`ERROR(${e.cause?.code || e.message})`, performance.now() - t0);
     }
@@ -54,9 +56,11 @@ console.log(`\n${total} requests, ${rounds} rounds\n`);
 for (const [status, e] of [...stats].sort((a, b) => b[1].n - a[1].n)) {
   console.log(`${status.padEnd(18)} ${String(e.n).padStart(4)}  ${((e.n / total) * 100).toFixed(0).padStart(3)}%  median ${median(e.ms).toFixed(0)}ms`);
 }
-const good = ['HIT', 'HIT-304', 'STALE', 'KV-HIT', 'KV-STALE', 'SHARED'];
-const served = [...stats].filter(([k]) => good.includes(k)).reduce((a, [, e]) => a + e.n, 0);
+const good = new Set(['HIT', 'HIT-304', 'STALE', 'KV-HIT', 'KV-STALE', 'SHARED', 'WORKERS-HIT', 'WORKERS-UPDATING', 'WORKERS-STALE', 'WORKERS-REVALIDATED']);
+const served = [...stats].filter(([k]) => good.has(k)).reduce((a, [, e]) => a + e.n, 0);
 // Round 1 is cold by definition: report the steady-state ratio too.
 console.log(`\nhit ratio (all rounds): ${((served / total) * 100).toFixed(0)}%`);
 if (!stats.size || [...stats.keys()].every((k) => k.startsWith('NO-HEADER')))
-  console.log('No x-proxy-cache header: this URL is not going through the API Worker.');
+  console.log('No cache diagnostics: verify this URL is attached to the API Worker.');
+if (![...stats.keys()].some((k) => k.startsWith('WORKERS-')))
+  console.log('No Cf-Cache-Status observed: check Wrangler >= 4.69.0 and [cache].enabled = true.');

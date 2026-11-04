@@ -76,7 +76,7 @@ function parseGatewayHealthStates(value: unknown): Record<string, GatewayHealthS
 }
 
 /**
- * MarketPlat Smart Cache & Gateway Worker v7
+ * MarketPlat Smart Cache & Gateway Worker v8
  *
  * New in v4 (edge-cache round 2):
  * - #7  Cache-key normalization: params sorted, encoding unified (NFC + RFC3986),
@@ -89,8 +89,10 @@ function parseGatewayHealthStates(value: unknown): Record<string, GatewayHealthS
  * - #9  Negative caching: 404s of detail-like paths are cached for 60s.
  * - #10 Optional Workers KV tier (binding REFERENCE_KV) for near-static reference
  *       data (categories & co.): KV -> background refresh, ~0 origin queries.
- * - #8  Cache-Tag header on every stored response + POST /__purge__ (KV flush).
- *       Tag-based purging itself is done by the backend through the Cloudflare API.
+ * - #8  Cache-Tag header on every stored response + POST /__purge__ for native
+ *       Workers Cache tag invalidation; empty-body POST keeps legacy KV flush support.
+ * - #13 Native Workers Cache is enabled before fetch() on workers.dev; inner Cache API
+ *       remains an additional per-colo tier, and cacheable responses vary by Host and Origin.
  * - Fix: single-flight shared a Response whose body was already consumed.
  *
  * Keeps v4 cache behavior and adds independent Backend, Frontend, and Go service
@@ -217,11 +219,15 @@ const GATEWAY_HEALTH_STATE_KEY = 'health:backend:v1';
 const GATEWAY_HEALTH_OBJECT_NAME = 'backend-pool-v1';
 const GATEWAY_REGISTRY_OBJECT_NAME = 'gateway-registry-v1';
 const FRONTEND_RELEASE_COOKIE = '__Host-mp-frontend-release';
-const GATEWAY_HEALTH_CACHE_MS = 5000;
+// Health snapshots are control-plane reads. A 15s isolate cache cuts DO reads
+// by roughly 2/3 versus 5s while local circuit breakers still react immediately.
+const GATEWAY_HEALTH_CACHE_MS = 15000;
 const GATEWAY_HEALTH_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const gatewayFailures = new Map<string, GatewayFailureState>();
 const goTrafficSampleCounters = new Map<string, number>();
-const GATEWAY_GO_METRIC_SAMPLE_EVERY = 5; // fast local mirror; central state is persisted in Durable Objects
+// Sample successful Go traffic at 10% instead of 20%; failures remain unsampled
+// (every failure is still recorded), reducing DO writes on healthy high-volume paths.
+const GATEWAY_GO_METRIC_SAMPLE_EVERY = 10;
 let gatewayRegistryCache: RegistryCacheEntry | null = null;
 let gatewayHealthSnapshotCache: HealthSnapshotCacheEntry | null = null;
 
@@ -996,7 +1002,7 @@ async function fetchBackend(pathAndSearch: string, initFactory: RequestInit | ((
       recordBackendResult(server, true);
       const adaptiveSample = poolKind === 'go' && server.healthKind === 'go' && shouldSampleGoTraffic(server);
       if (adaptiveSample || hadFailure) {
-        // Go success samples are sampled at 1-in-5 per target to bound the
+        // Go success samples are sampled at 1-in-10 per target to bound the
         // central Durable Object write rate; failures and circuit recovery
         // events remain unsampled so health protection is not delayed.
         void scheduleGatewayHealthWrite(env, ctx, server, true, { status: result.res.status, durationMs: result.ms, activeRequests }, 'traffic');
@@ -1032,10 +1038,10 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
     });
   }
   if (request.method !== 'GET' && request.method !== 'PUT' && request.method !== 'POST') {
-    return new Response('Method Not Allowed', { status: 405, headers: { allow: 'GET, PUT, POST' } });
+    return new Response('Method Not Allowed', { status: 405, headers: { allow: 'GET, PUT, POST', 'cache-control': 'no-store' } });
   }
-  if (!env || !env.REFERENCE_KV) {
-    return new Response(JSON.stringify({ ok: false, error: 'GATEWAY_KV_NOT_CONFIGURED' }), {
+  if (!env || (!env.REFERENCE_KV && !gatewayRegistryObject(env))) {
+    return new Response(JSON.stringify({ ok: false, error: 'GATEWAY_STORAGE_NOT_CONFIGURED' }), {
       status: 503, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
     });
   }
@@ -1443,6 +1449,20 @@ async function storedToDesc(stored: Response, cacheStatus: string, ms: number): 
   };
 }
 
+function varyByOriginAndHost(headers: Headers): void {
+  // Workers Cache is shared across hostnames bound to this Worker; hostname is
+  // not part of its default key. CORS can also differ by Origin. Vary on both
+  // headers for every variant, including missing/rejected Origin, so neither a
+  // second API hostname nor a Frontend gateway hostname can reuse another host's
+  // response. Cloudflare honors all Vary header names for Workers Cache.
+  const existing = (headers.get('vary') || '').split(',').map((value) => value.trim()).filter(Boolean);
+  if (existing.some((value) => value === '*')) return;
+  for (const name of ['Origin', 'Host']) {
+    if (!existing.some((value) => value.toLowerCase() === name.toLowerCase())) existing.push(name);
+  }
+  headers.set('vary', existing.join(', '));
+}
+
 function descToResponse(desc: ResponseDescriptor, clientINM: string | null, origin: string): Response {
   if (desc.cacheable && desc.status === 200 && inmMatches(clientINM, desc.etag)) {
     const h = new Headers();
@@ -1452,13 +1472,17 @@ function descToResponse(desc: ResponseDescriptor, clientINM: string | null, orig
     }
     h.set('x-proxy-cache', `${desc.headers.get('x-proxy-cache')}-304`);
     h.set('x-upstream-ms', '0');
-    h.set('access-control-allow-origin', origin || '*');
+    if (origin) h.set('access-control-allow-origin', origin);
+    else h.delete('access-control-allow-origin');
     h.set('access-control-allow-credentials', 'true');
+    varyByOriginAndHost(h);
     return new Response(null, { status: 304, headers: h });
   }
   const fh = new Headers(desc.headers);
-  fh.set('access-control-allow-origin', origin || '*');
+  if (origin) fh.set('access-control-allow-origin', origin);
+  else fh.delete('access-control-allow-origin');
   fh.set('access-control-allow-credentials', 'true');
+  varyByOriginAndHost(fh);
   return new Response(desc.body, { status: desc.status, headers: fh });
 }
 
@@ -1522,6 +1546,9 @@ function cleanUpstreamHeaders(request: Request | null, extra: Record<string, str
 
 function passthroughDesc(upstream: Response, body: ArrayBuffer, cacheStatus: string, ms: number): ResponseDescriptor {
   const h = new Headers(upstream.headers);
+  // Native Workers Cache sits before this Worker. Only successful responses that
+  // passed the explicit public-cache policy may leave a cacheable Cache-Control.
+  h.set('cache-control', 'private, no-store');
   h.set('x-proxy-cache', cacheStatus);
   h.set('x-upstream-ms', String(ms || 0));
   h.set('access-control-allow-origin', '*');
@@ -1832,6 +1859,7 @@ async function handleCacheable(request: Request, canon: CanonicalUrl, ctx: Execu
     eh.set('content-type', 'application/json');
     eh.set('access-control-allow-origin', origin);
     eh.set('access-control-allow-credentials', 'true');
+    eh.set('cache-control', 'private, no-store');
     return new Response(JSON.stringify({ success: false, message: `Proxy error: ${errorMessage(e)}` }), {
       status: 502, headers: eh,
     });
@@ -1872,6 +1900,7 @@ async function handlePassthrough(request: Request, url: URL, env: Env, ctx: Exec
         'x-proxy-cache': 'BYPASS-ERROR',
         'x-mp-route-attempts': String(routed.attempts || 0),
         'x-mp-route-mode': routed.mode || 'fallback',
+        'cache-control': 'private, no-store',
       },
     });
   }
@@ -1885,11 +1914,14 @@ async function handlePassthrough(request: Request, url: URL, env: Env, ctx: Exec
   h.set('x-mp-route-attempts', String(routed.attempts || 1));
   h.set('x-mp-route-mode', routed.mode || 'fallback');
   h.delete('cf-cache-status');
+  // Default-deny native Workers Cache on every passthrough path, including
+  // requests carrying Cookie, auth, dynamic data, or unusual query parameters.
+  h.set('cache-control', 'private, no-store');
 
   // Never cache or transform Server-Sent Events. Preserve streaming through the
   // Worker so notification frames/heartbeats reach mobile clients promptly.
   if (url.pathname.endsWith('/notifications/stream')) {
-    h.set('cache-control', 'no-cache, no-transform');
+    h.set('cache-control', 'private, no-store, no-transform');
     h.set('x-accel-buffering', 'no');
     h.delete('content-length');
     h.delete('content-encoding');
@@ -2119,7 +2151,10 @@ async function handleFrontendGateway(request: Request, url: URL, env: Env, ctx: 
   headers.set('x-mp-frontend-build-id', selected ? selected.buildId : 'unknown');
   headers.set('x-mp-route-attempts', String(routed.attempts || 1));
   headers.set('x-mp-route-mode', 'frontend');
-  headers.set('cache-control', routed.res.headers.get('cache-control') || 'no-store');
+  const frontendHasUserContext = request.headers.has('authorization') || request.headers.has('cookie');
+  headers.set('cache-control', frontendHasUserContext || headers.has('set-cookie')
+    ? 'private, no-store'
+    : (routed.res.headers.get('cache-control') || 'private, no-store'));
   headers.delete('cf-cache-status');
   if (routed.serverId && affinityId !== routed.serverId) {
     headers.append('set-cookie', `${FRONTEND_RELEASE_COOKIE}=${encodeURIComponent(routed.serverId)}; Path=/; Max-Age=3600; Secure; HttpOnly; SameSite=Lax`);
@@ -2391,7 +2426,7 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContextLike): Promise<Response> {
     const url = new URL(request.url);
 
-    if (url.pathname === '/__warm__') return new Response('Not Found', { status: 404 });
+    if (url.pathname === '/__warm__') return new Response('Not Found', { status: 404, headers: { 'cache-control': 'no-store' } });
 
     if (url.pathname === GO_GATEWAY_PREFIX || url.pathname.startsWith(`${GO_GATEWAY_PREFIX}/`)) {
       return handleGoGateway(request, url, env, ctx);
@@ -2407,35 +2442,55 @@ export default {
       return handleGatewayAdmin(request, env);
     }
 
-    // Backend-triggered flush of the KV reference tier (#10). Cache API entries of
-    // reference routes expire on their own within minutes; KV would otherwise keep
-    // serving a changed category list for up to KV_FRESH_SEC.
+    // Backend invalidation endpoint. JSON {tags:[...]} purges native Workers
+    // Cache entries; an empty body remains backward-compatible with the old KV
+    // reference-tier flush used by purgeReferenceKv().
     if (url.pathname === '/__purge__') {
-      if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
+      const noStore = { 'content-type': 'application/json', 'cache-control': 'no-store' };
+      if (request.method !== 'POST') return new Response('Method Not Allowed', { status: 405, headers: { allow: 'POST', 'cache-control': 'no-store' } });
       const secret = env && env.PURGE_TOKEN;
       if (!secret || !timingSafeEqual(request.headers.get('x-purge-token'), secret)) {
-        return new Response('Forbidden', { status: 403 });
+        return new Response(JSON.stringify({ ok: false, error: 'FORBIDDEN' }), { status: 403, headers: noStore });
       }
+      let purgeMode: 'tags' | 'kv' = 'kv';
       try {
+        const declaredLength = Number(request.headers.get('content-length') || 0);
+        if (declaredLength > 16384) return new Response(JSON.stringify({ ok: false, error: 'PURGE_REQUEST_TOO_LARGE' }), { status: 413, headers: noStore });
+        const body = await request.text();
+        if (body.length > 16384) return new Response(JSON.stringify({ ok: false, error: 'PURGE_REQUEST_TOO_LARGE' }), { status: 413, headers: noStore });
+        if (body.trim()) {
+          let payload: unknown;
+          try { payload = JSON.parse(body); } catch {
+            return new Response(JSON.stringify({ ok: false, error: 'INVALID_JSON' }), { status: 400, headers: noStore });
+          }
+          if (!isRecord(payload) || !Array.isArray(payload.tags) || payload.tags.length < 1 || payload.tags.length > 30) {
+            return new Response(JSON.stringify({ ok: false, error: 'INVALID_PURGE_TAGS', maxTags: 30 }), { status: 400, headers: noStore });
+          }
+          const tags = [...new Set(payload.tags)];
+          if (tags.some((tag) => typeof tag !== 'string' || tag.length < 1 || tag.length > 256 || !/^[\x21-\x7E]+$/.test(tag))) {
+            return new Response(JSON.stringify({ ok: false, error: 'INVALID_PURGE_TAG' }), { status: 400, headers: noStore });
+          }
+          purgeMode = 'tags';
+          if (!ctx.cache || typeof ctx.cache.purge !== 'function') {
+            return new Response(JSON.stringify({ ok: false, error: 'WORKERS_CACHE_PURGE_UNAVAILABLE' }), { status: 503, headers: noStore });
+          }
+          await ctx.cache.purge({ tags });
+          return new Response(JSON.stringify({ ok: true, purgedTags: tags.length }), { headers: noStore });
+        }
         const deleted = await kvPurgeAll(env);
-        return new Response(JSON.stringify({ ok: true, deleted }), {
-          headers: { 'content-type': 'application/json' },
-        });
+        return new Response(JSON.stringify({ ok: true, deleted }), { headers: noStore });
       } catch (error) {
-        console.error('[purge] KV purge failed', errorMessage(error));
-        return new Response(JSON.stringify({ ok: false, error: 'KV_PURGE_FAILED' }), {
-          status: 503,
-          headers: { 'content-type': 'application/json' },
-        });
+        console.error('[purge] cache/KV purge failed', errorMessage(error));
+        return new Response(JSON.stringify({ ok: false, error: purgeMode === 'tags' ? 'WORKERS_CACHE_PURGE_FAILED' : 'KV_PURGE_FAILED' }), { status: 503, headers: noStore });
       }
     }
 
     if (!url.pathname.startsWith('/api/')) {
-      return new Response('Not Found', { status: 404 });
+      return new Response('Not Found', { status: 404, headers: { 'cache-control': 'no-store' } });
     }
 
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: corsHeaders(request, env) });
+      return new Response(null, { status: 204, headers: { ...corsHeaders(request, env), 'cache-control': 'no-store' } });
     }
 
     const isGet = request.method === 'GET' || request.method === 'HEAD';

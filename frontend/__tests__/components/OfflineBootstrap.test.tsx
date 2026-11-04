@@ -69,7 +69,6 @@ vi.mock('@/components/pwa/WarmupIndicator', () => ({
   selectIsAdmin: (s: any) => Boolean(s?.isAdmin ?? (s?.user?.role === 'ADMIN' || s?.user?.role === 'MODERATOR')),
 }));
 
-vi.mock('@/lib/swStaleActivation', () => ({ initStaleWaitingServiceWorkerHandler: vi.fn() }));
 vi.mock('@/lib/sales-offline/salesSync', () => ({
   initSalesOfflineSync: vi.fn(() => () => {}),
   syncPendingSales: vi.fn().mockResolvedValue(undefined),

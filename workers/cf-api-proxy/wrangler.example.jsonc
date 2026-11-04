@@ -1,16 +1,17 @@
-// مثال إعداد الـ Smart Gateway Worker (v5). انسخه إلى wrangler.jsonc وعدّل القيم.
+// مثال إعداد الـ Smart Gateway Worker (v8). انسخه إلى wrangler.jsonc وعدّل القيم.
 {
   "name": "marketplat-api",
   "main": "worker.ts",
-  "compatibility_date": "2026-10-01",
+  "compatibility_date": "2026-11-04",
+  // Native Workers Cache (outer cache, before Worker execution); Wrangler >= 4.69.0.
+  "cache": { "enabled": true },
 
   // Required for browser clients: exact frontend origins, comma-separated.
   // Do not use a wildcard when credentials/cookies are enabled.
   "vars": { "FRONTEND_ORIGIN": "https://your-frontend-domain.example" },
 
-  // تحذير الـ Cache API: لا يعمل على *.workers.dev ولا يمكن purge بالـ Tag هناك.
-  // لتفعيل #8 يجب أن يخدم الـ Worker عبر Route على نطاقك (zone) — مثال:
-  // "routes": [{ "pattern": "api.example.com/*", "zone_name": "example.com" }],
+  // Workers Cache is the outer cache and works on *.workers.dev. Cache API inside
+  // worker.ts remains an optional per-colo layer; Cache-Tag purges use /__purge__.
 
   // #10 طبقة KV للتصنيفات (اختياري — بدونها يعمل الـ Worker كما هو):
   //   npx wrangler kv namespace create REFERENCE_KV
@@ -19,8 +20,10 @@
   // قياس HIT ratio الحقيقي (اختياري) — Workers Analytics Engine:
   "analytics_engine_datasets": [{ "binding": "CACHE_METRICS", "dataset": "marketplat_cache" }],
 
-  // السر لمسار POST /__purge__ (يطابق EDGE_WORKER_PURGE_TOKEN في الباك-إند):
+  // Secret for POST /__purge__ (must match EDGE_WORKER_PURGE_TOKEN in Express):
   //   npx wrangler secret put PURGE_TOKEN
+  // Express should set EDGE_WORKER_PURGE_URL to https://<worker-host>/__purge__;
+  // JSON { tags: [...] } invalidates Workers Cache; empty body still flushes reference KV.
 
   // Shared backend health state across Worker isolates (SQLite-backed Durable Object).
   "durable_objects": {

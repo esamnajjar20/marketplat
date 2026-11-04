@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 const root = resolve(process.cwd());
 const read = (p) => readFileSync(resolve(root, p), 'utf8');
 const checks = [
-  ['customer management screen', 'app/customers.tsx', ['fetchCustomers', 'fetchCustomerSummary', 'createCustomer', 'إضافة عميل جديد']],
+  ['customer management screen', 'app/customers.tsx', ['fetchCustomers', 'fetchCustomerSummary', 'createCustomer', 'إضافة عميل']],
   ['debts screen', 'app/debts.tsx', ['fetchDebtSummary', 'fetchDebts', '/sales/[id]', 'إجمالي المستحق']],
   ['installments screen', 'app/installments.tsx', ['fetchInstallments', 'payInstallment', 'تسجيل التحصيل']],
   ['activity screen', 'app/activity.tsx', ['fetchMyActivity', 'group', 'سجل النشاط']],

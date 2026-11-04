@@ -23,6 +23,8 @@ const loadEdge = (edgePurge: Record<string, unknown>): EdgeModule => {
 
 const ENABLED = { enabled: true, zoneId: 'zone123', apiToken: 'tok', workerPurgeUrl: '', workerPurgeToken: '' };
 const DISABLED = { enabled: false, zoneId: '', apiToken: '', workerPurgeUrl: '', workerPurgeToken: '' };
+const WORKER_CACHE_ENABLED = { enabled: true, zoneId: '', apiToken: '', workerPurgeUrl: 'https://api.example.com/__purge__', workerPurgeToken: 's3cret' };
+const BOTH_ENABLED = { enabled: true, zoneId: 'zone123', apiToken: 'tok', workerPurgeUrl: 'https://api.example.com/__purge__', workerPurgeToken: 's3cret' };
 
 describe('edge tag vocabulary (parity with the Worker)', () => {
   const edge = loadEdge(DISABLED);
@@ -95,6 +97,28 @@ describe('purgeEdgeTags transport', () => {
     expect([...tags].sort()).toEqual(
       ['ad:1', 'ad:2', 'city:%D8%BA%D8%B2%D8%A9', 'city:any', 'route:home', 'route:search'].sort()
     );
+  });
+
+  it('purges the native Workers Cache by tags through the authenticated Worker endpoint', async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true, purgedTags: 2 }) });
+    const edge = loadEdge(WORKER_CACHE_ENABLED);
+    edge.purgeEdgeTags(['ad:1', 'route:ads']);
+    await edge.flushEdgePurge();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.example.com/__purge__');
+    expect(init.headers['x-purge-token']).toBe('s3cret');
+    expect(JSON.parse(init.body)).toEqual({ tags: ['ad:1', 'route:ads'] });
+  });
+
+  it('purges both native Worker Cache and zone cache when both targets are configured', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ok: true, purgedTags: 1 }) })
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ success: true }) });
+    const edge = loadEdge(BOTH_ENABLED);
+    edge.purgeEdgeTags(['route:ads']);
+    await edge.flushEdgePurge();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('flushes by itself after the coalescing window', async () => {
@@ -195,8 +219,14 @@ describe('purge-aware edge TTL (only safe once purging works)', () => {
     expect(edge.purgeAwareSharedMaxAge('adsList', undefined)).toBeUndefined();
   });
 
-  it('raises ads TTLs only when purging is on, never below the policy value', () => {
+  it('does not raise ads TTLs for a zone-only purge on a workers.dev Worker', () => {
     const edge = loadEdge(ENABLED);
+    expect(edge.purgeAwareSharedMaxAge('adsDetail', 120)).toBe(120);
+    expect(edge.purgeAwareSharedMaxAge('adsList', 120)).toBe(120);
+  });
+
+  it('raises ads TTLs only when the native Worker purge path is configured', () => {
+    const edge = loadEdge(WORKER_CACHE_ENABLED);
     expect(edge.purgeAwareSharedMaxAge('adsDetail', 120)).toBe(3600);
     expect(edge.purgeAwareSharedMaxAge('adsList', 120)).toBe(600);
     expect(edge.purgeAwareSharedMaxAge('adsList', 9999)).toBe(9999);
@@ -227,7 +257,7 @@ describe('purge-aware edge TTL (only safe once purging works)', () => {
   });
 
   it('ADS_* presets lengthen ONLY s-maxage when purging is on; other routes are untouched', () => {
-    const CACHE = loadCache(ENABLED);
+    const CACHE = loadCache(WORKER_CACHE_ENABLED);
     expect(header(CACHE.ADS_DETAIL)).toMatch(/max-age=30, s-maxage=3600, stale-while-revalidate=120$/);
     expect(header(CACHE.ADS_LIST)).toMatch(/max-age=30, s-maxage=600, stale-while-revalidate=120$/);
     expect(header(CACHE.LIVE)).not.toMatch(/s-maxage=(600|3600)/);

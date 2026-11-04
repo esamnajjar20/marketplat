@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
+import { readFileArrayBuffer } from '@/lib/fileArrayBuffer';
 
 const DB_NAME = 'marketplat-form-attachments';
 const DB_VERSION = 1;
@@ -169,7 +170,7 @@ export function useFormDraftAttachments(
       try {
         const stored: StoredFile[] = [];
         for (const file of current) {
-          stored.push({ name: file.name, type: file.type || 'application/octet-stream', lastModified: file.lastModified, size: file.size, bytes: await file.arrayBuffer() });
+          stored.push({ name: file.name, type: file.type || 'application/octet-stream', lastModified: file.lastModified, size: file.size, bytes: await readFileArrayBuffer(file) });
         }
         if (!isCurrentOperation()) return;
         if ((getCurrentOfflineUserId() ?? 'guest') !== ownerAtMount.current) throw new Error('تغيّر الحساب؛ أُوقف حفظ الصور لحماية الخصوصية.');

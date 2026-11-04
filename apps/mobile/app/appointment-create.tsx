@@ -1,112 +1,170 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createAppointment, fetchProviderAvailability, type ProviderAvailability } from '@/features/appointments/appointments.api';
+import { buildAppointmentSlots, type AppointmentSlot } from '@/features/appointments/appointment-slots';
 import { fetchServiceRequest } from '@/features/services/services.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors } from '@/theme/tokens';
+import { colors, fontSizes, radius, spacing } from '@/theme/tokens';
 
-const localDateInput = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-const localTime = (iso: string) => {
-  const date = new Date(iso);
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-};
+const MARKET_TIME_ZONE = 'Asia/Gaza';
+const marketDateParts = new Intl.DateTimeFormat('en-GB', {
+  timeZone: MARKET_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
+});
+function makeDateOptions(page: number) {
+  const parts = Object.fromEntries(marketDateParts.formatToParts(new Date()).map((part) => [part.type, part.value]));
+  const marketToday = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)));
+  return Array.from({ length: 14 }, (_, index) => {
+    // Construct calendar days in UTC from market-local date parts. This avoids
+    // device-timezone and daylight-saving shifts in the provider's calendar.
+    const date = new Date(marketToday.getTime() + ((page * 14) + index) * 86_400_000);
+    return {
+      value: date.toISOString().slice(0, 10),
+      weekday: new Intl.DateTimeFormat('ar-PS', { weekday: 'short', timeZone: 'UTC' }).format(date),
+      day: new Intl.DateTimeFormat('ar-PS', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(date),
+    };
+  });
+}
 
 export default function AppointmentCreateScreen() {
   const params = useLocalSearchParams<{ requestId?: string | string[] }>();
   const requestId = Array.isArray(params.requestId) ? params.requestId[0] : params.requestId;
   const { getAccessToken, csrfToken, user, isRestoring } = useAuth();
   const [providerId, setProviderId] = useState('');
-  const [date, setDate] = useState(() => localDateInput(new Date(Date.now() + 86400000)));
-  const [start, setStart] = useState('10:00');
-  const [end, setEnd] = useState('11:00');
+  const [datePage, setDatePage] = useState(0);
+  const [date, setDate] = useState(() => makeDateOptions(0)[0].value);
+  const [selectedSlot, setSelectedSlot] = useState<AppointmentSlot | null>(null);
   const [notes, setNotes] = useState('');
   const [availability, setAvailability] = useState<ProviderAvailability | null>(null);
   const [loadingProvider, setLoadingProvider] = useState(true);
   const [loadingAvailability, setLoadingAvailability] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [providerError, setProviderError] = useState('');
+  const [availabilityError, setAvailabilityError] = useState('');
+  const availabilityRequestRef = useRef(0);
+  const availabilityAbortRef = useRef<AbortController | null>(null);
+
+  const dateOptions = useMemo(() => makeDateOptions(datePage), [datePage]);
+  const slots = useMemo(
+    () => buildAppointmentSlots(availability?.freeRanges ?? [], date),
+    [availability, date],
+  );
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
     const loadProvider = async () => {
       if (isRestoring) return;
       const token = getAccessToken();
-      if (!requestId || !token) { setLoadingProvider(false); return; }
+      setProviderId('');
+      if (!requestId) {
+        setProviderError('رابط حجز الموعد غير مكتمل؛ افتح الحجز من تفاصيل طلب الخدمة.');
+        setLoadingProvider(false);
+        return;
+      }
+      if (!token) {
+        setLoadingProvider(false);
+        return;
+      }
       setLoadingProvider(true);
+      setProviderError('');
       try {
-        const request = await fetchServiceRequest(requestId, token);
+        const request = await fetchServiceRequest(requestId, token, controller.signal);
         const id = request.listing?.provider?.id;
         if (!id) throw new Error('تعذر تحديد مقدم الخدمة لهذا الطلب.');
         if (active) setProviderId(id);
-      } catch (e) {
-        if (active) setError(e instanceof Error ? e.message : 'تعذر تحميل بيانات مقدم الخدمة.');
+      } catch (error) {
+        if (active && !controller.signal.aborted) setProviderError(error instanceof Error ? error.message : 'تعذر تحميل بيانات مقدم الخدمة.');
       } finally {
         if (active) setLoadingProvider(false);
       }
     };
     void loadProvider();
-    return () => { active = false; };
+    return () => { active = false; controller.abort(); };
   }, [requestId, getAccessToken, isRestoring, user?.id]);
 
   const loadAvailability = useCallback(async () => {
-    if (!providerId || !/^\d{4}-\d{2}-\d{2}$/.test(date)) { setAvailability(null); return; }
-    setLoadingAvailability(true);
-    try {
-      const result = await fetchProviderAvailability(providerId, date);
-      setAvailability(result);
-      setError('');
-    } catch (e) {
+    availabilityAbortRef.current?.abort();
+    availabilityAbortRef.current = null;
+    const requestSequence = ++availabilityRequestRef.current;
+    if (!providerId || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       setAvailability(null);
-      setError(e instanceof Error ? e.message : 'تعذر تحميل الأوقات المتاحة.');
-    } finally {
+      setSelectedSlot(null);
       setLoadingAvailability(false);
+      return;
+    }
+    const controller = new AbortController();
+    availabilityAbortRef.current = controller;
+    setLoadingAvailability(true);
+    setAvailability(null);
+    setAvailabilityError('');
+    setSelectedSlot(null);
+    try {
+      const result = await fetchProviderAvailability(providerId, date, controller.signal);
+      if (requestSequence !== availabilityRequestRef.current || controller.signal.aborted) return;
+      setAvailability(result);
+    } catch (error) {
+      if (requestSequence !== availabilityRequestRef.current || controller.signal.aborted) return;
+      setAvailability(null);
+      setAvailabilityError(error instanceof Error ? error.message : 'تعذر تحميل الأوقات المتاحة.');
+    } finally {
+      if (requestSequence === availabilityRequestRef.current) {
+        setLoadingAvailability(false);
+        if (availabilityAbortRef.current === controller) availabilityAbortRef.current = null;
+      }
     }
   }, [providerId, date]);
 
-  useEffect(() => { void loadAvailability(); }, [loadAvailability]);
+  useEffect(() => {
+    if (!providerId || isRestoring) return undefined;
+    void loadAvailability();
+    return () => {
+      availabilityRequestRef.current += 1;
+      availabilityAbortRef.current?.abort();
+      availabilityAbortRef.current = null;
+    };
+  }, [loadAvailability, providerId, isRestoring]);
 
-  const selectedRangeIsValid = useMemo(() => {
-    if (!availability?.freeRanges?.length) return false;
-    const [y, m, d] = date.split('-').map(Number);
-    const [sh, sm] = start.split(':').map(Number);
-    const [eh, em] = end.split(':').map(Number);
-    const from = new Date(y, m - 1, d, sh, sm).getTime();
-    const to = new Date(y, m - 1, d, eh, em).getTime();
-    if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return false;
-    return availability.freeRanges.some((range) => from >= new Date(range.start).getTime() && to <= new Date(range.end).getTime());
-  }, [availability, date, start, end]);
-
-  const chooseRange = (range: { start: string; end: string }) => {
-    const from = new Date(range.start);
-    const to = new Date(range.end);
-    const oneHour = new Date(Math.min(from.getTime() + 60 * 60 * 1000, to.getTime()));
-    setStart(localTime(from.toISOString()));
-    setEnd(localTime(oneHour.toISOString()));
+  const setDatePageAndDate = (nextPage: number) => {
+    const safePage = Math.max(0, nextPage);
+    setDatePage(safePage);
+    const nextDates = makeDateOptions(safePage);
+    setDate(nextDates[0]?.value ?? date);
+    setSelectedSlot(null);
   };
 
   const submit = async () => {
     const token = getAccessToken();
-    if (!token) { router.push('/login'); return; }
-    if (!requestId) { setError('رقم طلب الخدمة غير موجود.'); return; }
-    if (!selectedRangeIsValid) { setError('اختر فترة تقع بالكامل ضمن الأوقات المتاحة لمقدم الخدمة.'); return; }
-    const [year, month, day] = date.split('-').map(Number);
-    const [startHour, startMinute] = start.split(':').map(Number);
-    const [endHour, endMinute] = end.split(':').map(Number);
-    const from = new Date(year, month - 1, day, startHour, startMinute, 0, 0);
-    const to = new Date(year, month - 1, day, endHour, endMinute, 0, 0);
-    if (from.getTime() <= Date.now()) { setError('اختر موعدًا في المستقبل.'); return; }
+    if (!token) {
+      router.push({ pathname: '/login', params: { redirect: `/appointment-create?requestId=${encodeURIComponent(requestId ?? '')}` } });
+      return;
+    }
+    if (!requestId) { setProviderError('رقم طلب الخدمة غير موجود.'); return; }
+    if (!selectedSlot) { setAvailabilityError('اختر فترة متاحة قبل تأكيد الحجز.'); return; }
+    const from = new Date(selectedSlot.start);
+    const to = new Date(selectedSlot.end);
+    if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || from.getTime() <= Date.now() || to <= from) {
+      const message = 'انتهت صلاحية الفترة المختارة. حدّث الأوقات واختر فترة أخرى.';
+      setAvailabilityError(message);
+      setSelectedSlot(null);
+      await loadAvailability();
+      setAvailabilityError((current) => current || message);
+      return;
+    }
     setBusy(true);
-    setError('');
+    setAvailabilityError('');
     try {
       await createAppointment({ requestId, scheduledStart: from.toISOString(), scheduledEnd: to.toISOString(), notes: notes.trim() || undefined }, token, csrfToken);
       router.replace('/appointments');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر حجز الموعد. حدّث الأوقات المتاحة وحاول مجددًا.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'تعذر حجز الموعد. حدّث الأوقات المتاحة وحاول مجددًا.';
+      setAvailabilityError(message);
+      setSelectedSlot(null);
       await loadAvailability();
+      setAvailabilityError((current) => current || message);
     } finally {
       setBusy(false);
     }
@@ -114,27 +172,79 @@ export default function AppointmentCreateScreen() {
 
   return (
     <PageShell title="حجز موعد">
-      <Notice tone="muted">يعرض التطبيق فترات العمل المتاحة لمقدم الخدمة بعد خصم المواعيد المحجوزة. قد تتغير الإتاحة قبل التأكيد؛ لذلك يتحقق الخادم منها مرة أخرى.</Notice>
-      {loadingProvider ? <Notice tone="muted">جارٍ تحميل مقدم الخدمة…</Notice> : null}
-      <Field label="التاريخ" value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" />
-      <PrimaryButton label="تحديث الأوقات المتاحة" variant="secondary" onPress={() => void loadAvailability()} busy={loadingAvailability} />
-      {loadingAvailability ? <Notice tone="muted">جارٍ تحميل الأوقات…</Notice> : null}
-      {!loadingAvailability && providerId && availability && availability.freeRanges.length === 0 ? <Notice tone="muted">لا توجد أوقات شاغرة في هذا اليوم. اختر تاريخًا آخر.</Notice> : null}
-      {availability?.freeRanges?.length ? <SectionCard>
-        <Text style={{ textAlign: 'right', fontWeight: '900', color: colors.ink }}>الفترات الشاغرة</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-          {availability.freeRanges.map((range, index) => {
-            const label = `${localTime(range.start)} – ${localTime(range.end)}`;
-            return <Pressable key={`${range.start}-${index}`} accessibilityRole="button" onPress={() => chooseRange(range)} style={{ borderRadius: 10, borderWidth: 1, borderColor: colors.border, padding: 10, backgroundColor: colors.surface }}><Text style={{ color: colors.ink, fontWeight: '700' }}>{label}</Text></Pressable>;
-          })}
-        </View>
-      </SectionCard> : null}
-      <Field label="وقت البداية (HH:MM)" value={start} onChangeText={setStart} placeholder="10:00" />
-      <Field label="وقت النهاية (HH:MM)" value={end} onChangeText={setEnd} placeholder="11:00" />
-      {availability ? <Notice tone={selectedRangeIsValid ? 'success' : 'muted'}>{selectedRangeIsValid ? 'الفترة المختارة تقع ضمن الأوقات الشاغرة.' : 'اختر فترة متاحة أو عدّل وقت البداية والنهاية ضمن إحدى الفترات أعلاه.'}</Notice> : null}
-      <Field label="ملاحظات (اختياري)" value={notes} onChangeText={setNotes} multiline maxLength={500} placeholder="تفاصيل إضافية للموعد" />
-      {error ? <Notice>{error}</Notice> : null}
-      <PrimaryButton label="تأكيد حجز الموعد" onPress={() => void submit()} busy={busy} disabled={!selectedRangeIsValid || loadingProvider || loadingAvailability} />
+      <Notice tone="muted">اختر تاريخًا ثم إحدى الفترات الشاغرة. مدة كل موعد ساعة، ويتحقق الخادم من الإتاحة مرة أخرى قبل التأكيد.</Notice>
+      {loadingProvider ? <Notice tone="muted">جارٍ تحميل بيانات طلب الخدمة…</Notice> : null}
+      {!user && !isRestoring ? <View style={{ gap: spacing.sm }}><Notice>سجّل الدخول لحجز الموعد.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push({ pathname: '/login', params: { redirect: `/appointment-create?requestId=${encodeURIComponent(requestId ?? '')}` } })} /></View> : null}
+      {providerError ? <Notice tone="error">{providerError}</Notice> : null}
+      {providerId ? (
+        <SectionCard>
+          <Text style={{ color: colors.ink, fontSize: fontSizes[16], fontWeight: '900', textAlign: 'right' }}>اختر تاريخ الموعد</Text>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Pressable accessibilityRole="button" accessibilityLabel="التواريخ السابقة" accessibilityState={{ disabled: datePage === 0 }} disabled={datePage === 0} onPress={() => setDatePageAndDate(datePage - 1)} style={{ minHeight: 44, minWidth: 64, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={{ color: datePage === 0 ? colors.muted : colors.brand, fontWeight: '800' }}>السابق</Text>
+            </Pressable>
+            <Text style={{ color: colors.muted, fontSize: fontSizes[12] }}>عرض 14 يومًا</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="التواريخ التالية" onPress={() => setDatePageAndDate(datePage + 1)} style={{ minHeight: 44, minWidth: 64, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={{ color: colors.brand, fontWeight: '800' }}>التالي</Text>
+            </Pressable>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: spacing.sm, paddingVertical: 4 }}>
+            {dateOptions.map((option) => {
+              const selected = option.value === date;
+              return (
+                <Pressable
+                  key={option.value}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${option.weekday} ${option.day}`}
+                  accessibilityState={{ selected }}
+                  onPress={() => { setDate(option.value); setSelectedSlot(null); }}
+                  style={{ minWidth: 76, minHeight: 64, paddingHorizontal: 8, paddingVertical: 9, borderRadius: radius.md, borderWidth: 1, borderColor: selected ? colors.brand : colors.border, backgroundColor: selected ? colors.brandSoft : colors.surface, justifyContent: 'center', alignItems: 'center', gap: 3 }}
+                >
+                  <Text style={{ color: selected ? colors.brand : colors.muted, fontSize: fontSizes[12], fontWeight: '700' }}>{option.weekday}</Text>
+                  <Text style={{ color: selected ? colors.brand : colors.ink, fontWeight: '900' }}>{option.day}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </SectionCard>
+      ) : null}
+
+      {providerId ? (
+        <SectionCard>
+          <Text style={{ color: colors.ink, fontSize: fontSizes[16], fontWeight: '900', textAlign: 'right' }}>الفترات المتاحة</Text>
+          {loadingAvailability ? <Notice tone="muted">جارٍ تحميل الأوقات المتاحة…</Notice> : null}
+          {!loadingAvailability && !availabilityError && slots.length === 0 ? (
+            <Notice tone="muted">لا توجد فترة مدتها ساعة متاحة في هذا اليوم. اختر تاريخًا آخر.</Notice>
+          ) : null}
+          {slots.length ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+              {slots.map((slot) => {
+                const selected = selectedSlot?.start === slot.start;
+                return (
+                  <Pressable
+                    key={slot.start}
+                    accessibilityRole="button"
+                    accessibilityLabel={`حجز ${slot.label}`}
+                    accessibilityState={{ selected }}
+                    onPress={() => setSelectedSlot(slot)}
+                    style={{ minHeight: 44, minWidth: 112, paddingHorizontal: spacing.md, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: selected ? colors.brand : colors.border, borderRadius: radius.md, backgroundColor: selected ? colors.brandSoft : colors.surface }}
+                  >
+                    <Text style={{ color: selected ? colors.brand : colors.ink, fontWeight: '800' }}>{slot.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
+          <PrimaryButton label="تحديث الأوقات المتاحة" variant="secondary" onPress={() => void loadAvailability()} busy={loadingAvailability} disabled={loadingAvailability} />
+        </SectionCard>
+      ) : null}
+      {selectedSlot ? <Notice tone="success">الفترة المختارة: {selectedSlot.label} · مدة الموعد ساعة واحدة.</Notice> : null}
+      <SectionCard>
+        <Text style={{ color: colors.ink, fontWeight: '900', textAlign: 'right' }}>ملاحظات (اختياري)</Text>
+        <Field label="تفاصيل إضافية للموعد" value={notes} onChangeText={setNotes} multiline maxLength={500} placeholder="أضف ما يحتاج مقدم الخدمة إلى معرفته" />
+      </SectionCard>
+      {availabilityError ? <Notice tone="error">{availabilityError}</Notice> : null}
+      <PrimaryButton label="تأكيد حجز الموعد" onPress={() => void submit()} busy={busy} disabled={!selectedSlot || loadingProvider || loadingAvailability || busy || !providerId} />
     </PageShell>
   );
 }

@@ -142,6 +142,8 @@ const allowedActionIconSpin = new Set([
   'components/settings/SyncCenterClient.tsx',
   'components/admin/AdminDataIntegrityPanel.tsx',
   'components/admin/FraudMonitorPanel.tsx',
+  // Refresh registry is an explicit user action; the icon spins only while its request runs.
+  'components/admin/AdminInfrastructureGateway.tsx',
 ]);
 const unexpectedSpin = rawSpinFiles.filter((file) => !allowedActionIconSpin.has(file));
 const missingExpectedSpin = [...allowedActionIconSpin].filter((file) => !rawSpinFiles.includes(file));

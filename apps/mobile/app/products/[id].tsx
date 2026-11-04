@@ -90,7 +90,8 @@ export default function ProductDetailScreen() {
 
   const canOrder = !!item?.store?.id && item?.store?.sellerProfile?.userId !== user?.id && item.availability !== 'OUT_OF_STOCK' && item.status !== 'PAUSED' && item.status !== 'DELETED';
   const sellerUserId = item?.store?.sellerProfile?.userId;
-  const canMessage = !!user && !!sellerUserId && sellerUserId !== user.id;
+  // Keep the contact route discoverable to guests; they can sign in and return here.
+  const canMessage = !!sellerUserId && sellerUserId !== user?.id;
   const paymentMethods = displayPayments(item?.store?.sellerProfile?.paymentMethods);
   const footer = item && canOrder ? <PrimaryButton label="اطلب الآن · الدفع عند الاستلام" onPress={() => {
     if (user) router.push({ pathname: '/order-checkout', params: { productId: item.id } });
@@ -129,8 +130,11 @@ export default function ProductDetailScreen() {
 
       <SectionCard><Text style={styles.sectionTitle}>نصائح السلامة</Text><Text style={styles.description}>افحص المنتج وتأكد من مطابقة المواصفات قبل الدفع. تجنّب إرسال بياناتك البنكية أو رموز التحقق، ولا تحول المال خارج وسائل الدفع التي تثق بها. احتفظ بالمحادثة وإثبات الدفع عند الحاجة.</Text></SectionCard>
 
-      {canMessage ? <SecondaryButton label={contacting ? 'جارٍ فتح المحادثة…' : 'مراسلة المتجر حول المنتج'} busy={contacting} onPress={() => {
-        if (!accessToken || !sellerUserId) { router.push('/login'); return; }
+      {canMessage ? <SecondaryButton label={!user ? 'سجّل الدخول لمراسلة المتجر' : contacting ? 'جارٍ فتح المحادثة…' : 'مراسلة المتجر حول المنتج'} busy={contacting} onPress={() => {
+        if (!user || !accessToken || !sellerUserId) {
+          router.push({ pathname: '/login', params: { redirect: `/products/${encodeURIComponent(item.id)}` } });
+          return;
+        }
         setContacting(true);
         void startConversationWithUser(sellerUserId, accessToken, { type: 'product', id: item.id }, csrfToken)
           .then((conversation) => router.push({ pathname: '/messages/[id]', params: { id: conversation.id } }))

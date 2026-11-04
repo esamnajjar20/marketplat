@@ -20,7 +20,7 @@
  *  3. registerServiceWorker: SSR guard, unsupported-browser guard, dev-mode
  *     skip (with the NEXT_PUBLIC_ENABLE_SW_DEV escape hatch), successful
  *     registration, the updatefound -> installed -> waiting-listener path,
- *     the controllerchange -> single reload path, and the try/catch that
+ *     the explicit-update-only controllerchange reload path, and the try/catch that
  *     keeps a registration failure from throwing.
  *
  *  4. onServiceWorkerUpdate: subscribe/unsubscribe of listeners.
@@ -55,6 +55,7 @@ import {
   getPushSubscriptionState,
   subscribeToPush,
   unsubscribeFromPush,
+  ensurePushSubscriptionSynced,
   registerServiceWorker,
   onServiceWorkerUpdate,
   activateWaitingServiceWorker,
@@ -156,6 +157,17 @@ afterEach(() => {
   removePushManagerGlobal();
   removeServiceWorkerGlobal();
   removeNotificationGlobal();
+});
+
+describe('ensurePushSubscriptionSynced', () => {
+  it('skips server synchronization while offline', async () => {
+    Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true });
+
+    await expect(ensurePushSubscriptionSynced()).resolves.toBe('skipped');
+    expect(apiClient.post).not.toHaveBeenCalled();
+
+    Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
+  });
 });
 
 describe('isPushSupported', () => {
@@ -526,7 +538,7 @@ describe('registerServiceWorker', () => {
     unsubscribe();
   });
 
-  it('defers controller-change reload until the device is online', async () => {
+  it('does not reload for an unsolicited controller change', async () => {
     process.env.NODE_ENV = 'production';
     let controllerchangeCb: (() => void) | undefined;
     const registration = {
@@ -544,7 +556,6 @@ describe('registerServiceWorker', () => {
       }),
     };
     Object.defineProperty(window.navigator, 'serviceWorker', { value: swContainer, configurable: true });
-    Object.defineProperty(window.navigator, 'onLine', { value: false, configurable: true });
 
     const reloadSpy = vi.fn();
     const originalLocation = window.location;
@@ -553,34 +564,33 @@ describe('registerServiceWorker', () => {
     // @ts-expect-error partial Location stub sufficient for this test
     window.location = { ...originalLocation, reload: reloadSpy };
 
-    await registerServiceWorker();
+    vi.resetModules();
+    const { registerServiceWorker: registerFresh } = await import('@/lib/pwa');
+    await registerFresh();
     controllerchangeCb?.();
     expect(reloadSpy).not.toHaveBeenCalled();
 
-    Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
-    window.dispatchEvent(new Event('online'));
-    expect(reloadSpy).toHaveBeenCalledTimes(1);
-
     // @ts-expect-error restore
     window.location = originalLocation;
-    Object.defineProperty(window.navigator, 'onLine', { value: true, configurable: true });
   });
 
-  it('reloads the page exactly once when the controller changes', async () => {
+  it('reloads exactly once only after an explicit update activation', async () => {
     process.env.NODE_ENV = 'production';
     let controllerchangeCb: (() => void) | undefined;
-    const registrationAddEventListener = vi.fn();
-    const swAddEventListener = vi.fn((evt: string, cb: () => void) => {
-      if (evt === 'controllerchange') controllerchangeCb = cb;
-    });
-
-    const pushManager = { getSubscription: vi.fn().mockResolvedValue(null), subscribe: vi.fn() };
-    const registration = { pushManager, waiting: null, installing: null, addEventListener: registrationAddEventListener };
+    const waitingWorker = { postMessage: vi.fn() };
+    const registration = {
+      pushManager: { getSubscription: vi.fn().mockResolvedValue(null), subscribe: vi.fn() },
+      waiting: waitingWorker,
+      installing: null,
+      addEventListener: vi.fn(),
+    };
     const swContainer = {
       ready: Promise.resolve(registration),
       register: vi.fn().mockResolvedValue(registration),
-      controller: null,
-      addEventListener: swAddEventListener,
+      controller: {},
+      addEventListener: vi.fn((evt: string, cb: () => void) => {
+        if (evt === 'controllerchange') controllerchangeCb = cb;
+      }),
     };
     Object.defineProperty(window.navigator, 'serviceWorker', { value: swContainer, configurable: true });
 
@@ -591,17 +601,14 @@ describe('registerServiceWorker', () => {
     // @ts-expect-error partial Location stub sufficient for this test
     window.location = { ...originalLocation, reload: reloadSpy };
 
-    // lib/pwa.ts keeps a module-level "one reload per page lifecycle" flag
-    // (updateReloadInProgress). The previous test already consumed it, so
-    // load a fresh copy of the module for this test.
     vi.resetModules();
-    const { registerServiceWorker: registerFresh } = await import('@/lib/pwa');
-    await registerFresh();
-    expect(controllerchangeCb).toBeDefined();
+    const fresh = await import('@/lib/pwa');
+    await fresh.registerServiceWorker();
+    fresh.activateWaitingServiceWorker(registration as unknown as ServiceWorkerRegistration);
+    expect(waitingWorker.postMessage).toHaveBeenCalledWith({ type: 'SKIP_WAITING' });
 
     controllerchangeCb?.();
-    controllerchangeCb?.(); // a second event must not trigger a second reload
-
+    controllerchangeCb?.();
     expect(reloadSpy).toHaveBeenCalledTimes(1);
 
     // @ts-expect-error restore
@@ -639,6 +646,7 @@ describe('onServiceWorkerUpdate', () => {
 
     expect(listenerA).toHaveBeenCalledTimes(1);
     expect(listenerB).toHaveBeenCalledTimes(1);
+    expect(waitingWorker.postMessage).not.toHaveBeenCalled();
     unsubA();
     unsubB();
   });

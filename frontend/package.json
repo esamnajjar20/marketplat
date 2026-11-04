@@ -96,7 +96,8 @@
     "audit:script-references": "node scripts/package-script-reference-audit.mjs",
     "a11y:visibility-audit": "node scripts/accessibility-visibility-audit.mjs",
     "responsive:visual-audit": "node scripts/responsive-visual-consistency-audit.mjs",
-    "navigation:integrity-audit": "node scripts/navigation-integrity-audit.mjs"
+    "navigation:integrity-audit": "node scripts/navigation-integrity-audit.mjs",
+    "network:fetch-client-csrf-audit": "node scripts/fetch-client-csrf-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

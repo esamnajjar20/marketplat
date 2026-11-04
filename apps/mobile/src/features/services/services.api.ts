@@ -92,21 +92,22 @@ export async function fetchServiceListing(id: string): Promise<ServiceListing> {
   await writePublicCache(`service-listing:${id}`, item);
   return item;
 }
-export async function fetchServiceRequest(id: string, token: string): Promise<ServiceRequest> {
+export async function fetchServiceRequest(id: string, token: string, signal?: AbortSignal): Promise<ServiceRequest> {
   if (!id.trim()) throw new Error('معرّف طلب الخدمة غير صالح.');
-  const response = await apiRequest<Envelope<ServiceRequest>>(`/api/v1/service-requests/${encodeURIComponent(id)}`, { token });
+  const response = await apiRequest<Envelope<ServiceRequest>>(`/api/v1/service-requests/${encodeURIComponent(id)}`, { token, signal });
   const item = readData(response, 'تعذر تحميل تفاصيل طلب الخدمة.');
   if (!item || item.id !== id) throw new Error('استجابة تفاصيل طلب الخدمة غير صالحة.');
   return item;
 }
 
-export async function fetchServiceRequests(token: string, incoming = false, page = 1, limit = 50): Promise<{ items: ServiceRequest[]; page: number; totalPages: number; total: number }> {
-  const safeLimit = Math.min(50, Math.max(1, limit));
-  const response = await apiRequest<Envelope<ServiceRequest[]>>(`/api/v1/service-requests/${incoming ? 'incoming' : 'me'}?page=${page}&limit=${safeLimit}`, { token });
+export async function fetchServiceRequests(token: string, incoming = false, page = 1, limit = 50, signal?: AbortSignal): Promise<{ items: ServiceRequest[]; page: number; totalPages: number; total: number }> {
+  const safePage = Math.max(1, Math.floor(Number(page) || 1));
+  const safeLimit = Math.min(50, Math.max(1, Math.floor(Number(limit) || 50)));
+  const response = await apiRequest<Envelope<ServiceRequest[]>>(`/api/v1/service-requests/${incoming ? 'incoming' : 'me'}?page=${safePage}&limit=${safeLimit}`, { token, signal });
   const items = readData(response, 'تعذر تحميل طلبات الخدمات.');
   if (!Array.isArray(items)) throw new Error('استجابة الطلبات غير صالحة.');
   const pagination = response.meta?.pagination;
-  return { items, page: pagination?.page ?? page, totalPages: pagination?.totalPages ?? (items.length >= safeLimit ? page + 1 : page), total: pagination?.total ?? items.length };
+  return { items, page: pagination?.page ?? safePage, totalPages: pagination?.totalPages ?? (items.length >= safeLimit ? safePage + 1 : safePage), total: pagination?.total ?? items.length };
 }
 export async function createServiceRequest(listingId: string, details: string, token: string, csrfToken?: string | null): Promise<ServiceRequest> {
   const response = await apiRequest<Envelope<ServiceRequest>>('/api/v1/service-requests', {

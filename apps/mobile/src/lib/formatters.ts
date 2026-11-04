@@ -33,9 +33,9 @@ export function formatDate(value: Date | string | number | null | undefined, kin
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return 'غير متاح';
   const options: Intl.DateTimeFormatOptions = kind === 'date'
-    ? { dateStyle: 'medium' }
+    ? { dateStyle: 'medium', timeZone: 'Asia/Gaza' }
     : kind === 'time'
-      ? { hour: '2-digit', minute: '2-digit' }
-      : { dateStyle: 'medium', timeStyle: 'short' };
+      ? { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Gaza' }
+      : { dateStyle: 'medium', timeStyle: 'short', timeZone: 'Asia/Gaza' };
   return new Intl.DateTimeFormat(NUMBER_LOCALE, options).format(date);
 }

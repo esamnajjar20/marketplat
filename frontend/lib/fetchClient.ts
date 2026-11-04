@@ -1,41 +1,37 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
-let sessionRevoked = false;
-let sharedRefreshPromise: unknown | null = null;
+import { getCsrfToken } from '@/lib/csrf';
+import { useAuthStore } from '@/store/auth.store';
 
-function getCsrfToken(): string | null {
-	if (typeof document === 'undefined') return null;
-	const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
-	return match?.[1] ? decodeURIComponent(match[1]) : null;
-}
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
+
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
-let refreshPromise: Promise<void> | null = null;
-async function _doRefresh(): Promise<void> {
-	const res = await fetch(API_BASE + '/api/auth/refresh', {
-		method: 'POST',
-		credentials: 'include',
-		headers: { 'Content-Type': 'application/json' },
-	});
-	if (!res.ok) {
-			sessionRevoked = true;
-			throw new Error('Session revoked or refresh failed');
-		}
-}
-function refreshOnce(): Promise<void> {
+let refreshPromise: Promise<unknown> | null = null;
+
+/** Use the same deduplicated Axios refresh flow as the rest of the web app.
+ * It updates both the in-memory Bearer token and the rotated CSRF token before
+ * the original fetch request is retried. */
+function refreshOnce(): Promise<unknown> {
 	if (!refreshPromise) {
-		refreshPromise = _doRefresh().finally(() => { refreshPromise = null; });
+		refreshPromise = import('@/api/client')
+			.then(({ refreshSessionShared }) => refreshSessionShared())
+			.finally(() => { refreshPromise = null; });
 	}
 	return refreshPromise;
 }
 async function _requestInner(url: string, options: RequestInit = {}): Promise<unknown> {
-	const headers: Record<string, string> = {
-		'Content-Type': 'application/json',
-		...(options.headers as Record<string, string> | undefined),
-	};
-	const csrf = getCsrfToken();
-	if (csrf && options.method && options.method !== 'GET') {
-		headers['X-CSRF-Token'] = csrf;
+	const headers = new Headers(options.headers);
+	if (!headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
+	const method = (options.method ?? 'GET').toUpperCase();
+	const accessToken = useAuthStore.getState().accessToken;
+	if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+	const isUnsafeMethod = !['GET', 'HEAD', 'OPTIONS'].includes(method);
+	if (isUnsafeMethod) {
+		// Keep every API client on the same double-submit CSRF contract.
+		// The backend cookie is named `csrfToken` (camelCase); do not
+		// duplicate cookie parsing here or it can silently drift again.
+		const csrf = getCsrfToken();
+		if (csrf) headers.set('X-CSRF-Token', csrf);
 	}
 	const response = await fetch(API_BASE + url, {
 		...options,
@@ -89,29 +85,13 @@ export const fetchClient = {
     });
   },
 };
-/** Resets the sessionRevoked flag so subsequent 401s resume the normal /auth/refresh path. */
-export function resumeSession(): void {
-  sessionRevoked = false;
-}
-
-/** T735 — read accessor for the session-revoked flag. */
-export function isSessionRevoked(): boolean {
-  return sessionRevoked;
-}
-
-/** Refreshes the session using fetchClient, with deduplication via sharedRefreshPromise. */
+/**
+ * Compatibility entry point for modules that historically imported refresh
+ * from fetchClient. The canonical coordinator owns cookie rotation, Bearer
+ * token state, CSRF state, refresh deduplication, and logout-race protection.
+ */
 export async function refreshSessionShared(): Promise<unknown> {
-  if (sharedRefreshPromise) {
-    return sharedRefreshPromise;
-  }
-
-  sharedRefreshPromise = (async () => {
-    const res = await fetchClient.post('/api/auth/refresh');
-    return res;
-  })().finally(() => {
-    sharedRefreshPromise = null;
-  });
-
-  return sharedRefreshPromise;
+	const { refreshSessionShared: refresh } = await import('@/api/client');
+	return refresh();
 }
 export default fetchClient;

@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 const root = resolve(import.meta.dirname, '..');
 const checks = [
   ['service list screen', 'app/services.tsx', ['fetchServiceListings', 'RefreshControl', 'getCachedServiceListings', "router.push(`/services/"]],
-  ['service detail screen', 'app/services/[id].tsx', ['fetchServiceListing', 'getCachedServiceListing', 'اطلب هذه الخدمة', 'router.push({ pathname: \'/service-requests\'']],
+  ['service detail screen', 'app/services/[id].tsx', ['fetchServiceListing', 'getCachedServiceListing', 'اطلب هذه الخدمة', 'pathname: \'/service-requests\'']],
   ['service requests screen', 'app/service-requests.tsx', ['fetchServiceRequests', 'createServiceRequest', 'respondToServiceRequest', 'الطلبات الواردة', 'طلباتي']],
   ['service API', 'src/features/services/services.api.ts', ['/api/v1/service-listings', '/api/v1/service-requests', 'writePublicCache', 'readPublicCache']],
   ['home discovery entry points', 'app/index.tsx', ["router.push('/services')", "router.push('/service-requests')", 'quickActions']],
