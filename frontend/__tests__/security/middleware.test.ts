@@ -14,7 +14,7 @@ import { NextRequest } from 'next/server';
 import { middleware } from '@/middleware';
 
 // Test helper to avoid shell substitution issues
-const TEST_ROLE_SLICE = (role: string) => role.slice(0, 30);
+const _TEST_ROLE_SLICE = (role: string) => role.slice(0, 30);
 
 // ── Helpers ───────────────────────────────────────────────────────
 

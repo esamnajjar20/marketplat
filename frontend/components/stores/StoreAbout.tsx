@@ -2,7 +2,7 @@
 
 import { Info, MapPin, Phone, Clock } from 'lucide-react';
 import { formatPhone } from '@/lib/formatters';
-import { getStoreTypePresentation, type StoreWithSellerAndCounts, type StoreWeekday } from '@/types/store.types';
+import type { getStoreTypePresentation, StoreWithSellerAndCounts, StoreWeekday } from '@/types/store.types';
 
 const STORE_HOURS_DAYS: { key: StoreWeekday; label: string }[] = [
   { key: 'sat', label: 'السبت' },
