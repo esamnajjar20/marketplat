@@ -69,6 +69,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+      - name: Verify monorepo and Docker build contexts
+        run: node tooling/verify-workspace.mjs
       - name: API Worker cache tests
         run: node workers/cf-api-proxy/cache-policy.test.mjs
       - name: Policy copies are in sync with shared/cache-policy.json
@@ -249,6 +251,9 @@ jobs:
 
       - name: Admin gateway proxy security audit
         run: npm run gateway:proxy-audit
+
+      - name: Hidden architecture and race-condition audit
+        run: npm run architecture:hidden-audit
 
       # Dedicated guardrail for query-key identity, cache-prefix semantics,
       # and factory usage. Keep this separate so regressions are easy to spot.
@@ -569,7 +574,10 @@ jobs:
       - name: Build ${{ matrix.service }} image
         uses: docker/build-push-action@v6
         with:
-          context: ${{ matrix.service }}
+          # Backend needs the monorepo root for pnpm workspace manifests;
+          # frontend is a standalone npm project with its own lockfile.
+          context: ${{ matrix.service == 'backend' && '.' || './frontend' }}
+          file: ${{ matrix.service == 'backend' && 'apps/api/Dockerfile' || 'Dockerfile' }}
           push: false
           tags: marketplat-${{ matrix.service }}:ci
           cache-from: type=gha,scope=${{ matrix.service }}

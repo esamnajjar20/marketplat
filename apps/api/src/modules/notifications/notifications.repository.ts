@@ -27,7 +27,7 @@ export interface CreateNotificationInput {
 
 // the { endpoint, keys: { p256dh, auth } } shape is
 // exactly what PushSubscription.toJSON() produces in the browser (see
-// apps/web/lib/pwa.ts's subscribeToPush) — kept as a nested `keys`
+// frontend/lib/pwa.ts's subscribeToPush) — kept as a nested `keys`
 // object here rather than flattened, so the controller can pass the
 // request body through with minimal reshaping and this type stays
 // recognizable against the W3C Push API spec it mirrors.

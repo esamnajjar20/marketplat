@@ -711,12 +711,13 @@ export function SyncCenterClient() {
  * بلا هذا التنظيف تتسرّب object URLs مع كل إعادة عرض.
  */
 function DraftThumbnails({ images }: { images: AdDraftPreviewImage[] }) {
-  const urls = useMemo(() => images.map((img) => URL.createObjectURL(img.blob)), [images]);
+  const [urls, setUrls] = useState<string[]>([]);
+
   useEffect(() => {
-    return () => {
-      urls.forEach((u) => URL.revokeObjectURL(u));
-    };
-  }, [urls]);
+    const nextUrls = images.map((img) => URL.createObjectURL(img.blob));
+    setUrls(nextUrls);
+    return () => nextUrls.forEach((url) => URL.revokeObjectURL(url));
+  }, [images]);
 
   return (
     <div className="mt-1.5 flex gap-1.5">

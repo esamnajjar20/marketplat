@@ -1,19 +1,15 @@
-# FIX D-25: previously there was no docker-compose file that brought up
-# frontend + backend together — only this repo's docker-compose.yml
-# (backend + db + redis + db_backup). The frontend's Dockerfile (in the
-# marketplace-ux repo) existed and was production-ready, but nothing
-# wired the two projects into one runnable stack, leaving that assembly
-# work to whoever deploys this.
+# Full-stack development/production composition for the API and the Next.js
+# frontend maintained in this repository.
 #
-# EXPECTED DIRECTORY LAYOUT — this file assumes both repos are checked
-# out as sibling directories:
+# EXPECTED DIRECTORY LAYOUT — both applications are in this repository:
 #
-#   workspace/
-#   ├── apps/api/              (this repo — contains this file)
-#   └── marketplace-ux/       (the frontend repo)
+#   repository/
+#   ├── apps/api/              (Express + Prisma API)
+#   └── frontend/              (Next.js + PWA + Capacitor)
 #
-# If your layout differs, adjust the frontend service's `build.context`
-# path below accordingly.
+# The frontend build context is scoped to frontend/ so its own package.json,
+# package-lock.json and Docker ignore rules are used without sending API files
+# or local secrets to the frontend build.
 #
 # USAGE:
 #   cd apps/api/
@@ -73,14 +69,12 @@ services:
     networks:
       - classifieds-network
 
-  # FIX D-25: the frontend, built from ./frontend in this repo
-  # (not a sibling repo). NEXT_PUBLIC_* vars are build-time (baked into the
-  # JS bundle at build, per Next.js convention) — changing them requires
-  # a rebuild, not just a container restart.
+  # The frontend is built from its standalone npm project. NEXT_PUBLIC_*
+  # values are build-time and require an image rebuild.
   web:
     build:
-      context: ../..
-      dockerfile: apps/web/Dockerfile
+      context: ../../frontend
+      dockerfile: Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000}
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}

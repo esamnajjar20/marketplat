@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * Cities the homepage accepts for its `city` filter. Mirrors the
- * 10-city list the frontend sends (apps/web/lib/constants.ts → CITIES).
+ * 10-city list the frontend sends (frontend/lib/constants.ts → CITIES).
  *
  * Why an allow-list: /home is served with a public Cache-Control, so the
  * `city` value is part of the CDN cache key. Accepting any 100-char string

@@ -5,6 +5,9 @@
 import multer, { FileFilterCallback } from 'multer';
 import { Request, Response, NextFunction } from 'express';
 import { BadRequestError } from '../shared/errors/BadRequestError';
+import { ServiceUnavailableError } from '../shared/errors/ServiceUnavailableError';
+import { acquireMediaUploadLease } from '../shared/utils/distributedSemaphore';
+import { logger } from '../shared/utils/logger';
 import { isAllowedImageContent } from '../shared/utils/fileSignature';
 import {
   ALLOWED_IMAGE_MIME_TYPES,
@@ -28,6 +31,70 @@ import {
  * changing the existing fileFilter, which still cheaply rejects obviously
  * wrong declared types before multer spends any effort buffering them.
  */
+
+/** Run Multer under one Redis-backed lease shared by all API replicas. */
+const runWithDistributedMediaSlot = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+  run: (callback: (error?: unknown) => void) => void,
+): void => {
+  let releaseLease: (() => Promise<void>) | undefined;
+  let settled = false;
+
+  const cleanup = (): void => {
+    if (settled) return;
+    settled = true;
+    res.off('finish', cleanup);
+    res.off('close', cleanup);
+    if (releaseLease) {
+      void releaseLease().catch(error => {
+        logger.error('Failed to release distributed media upload lease', {
+          error: error instanceof Error ? error.message : 'unknown Redis error',
+        });
+      });
+    }
+  };
+
+  res.once('finish', cleanup);
+  res.once('close', cleanup);
+
+  void acquireMediaUploadLease().then(lease => {
+    if (!lease) {
+      cleanup();
+      next(new ServiceUnavailableError(
+        'Media upload capacity is temporarily full. Please retry shortly.',
+        'MEDIA_UPLOAD_CAPACITY',
+      ));
+      return;
+    }
+
+    if (settled || res.destroyed || res.writableEnded) {
+      void lease.release().catch(error => {
+        logger.error('Failed to release late distributed media upload lease', {
+          error: error instanceof Error ? error.message : 'unknown Redis error',
+        });
+      });
+      return;
+    }
+    releaseLease = () => lease.release();
+
+    run(error => {
+      if (error) next(error);
+      else next();
+    });
+  }).catch(error => {
+    cleanup();
+    logger.error('Distributed media upload semaphore unavailable', {
+      error: error instanceof Error ? error.message : 'unknown Redis error',
+    });
+    next(new ServiceUnavailableError(
+      'Media upload service is temporarily unavailable. Please retry shortly.',
+      'MEDIA_UPLOAD_COORDINATION_UNAVAILABLE',
+    ));
+  });
+};
+
 const verifyFileContent = (req: Request, res: Response, next: NextFunction): void => {
   const files: Express.Multer.File[] = req.file
     ? [req.file]
@@ -230,24 +297,26 @@ export const uploadAudioMiddleware = (req: Request, res: Response, next: NextFun
     next(new BadRequestError('Voice message is too large', 'FILE_TOO_LARGE'));
     return;
   }
+  runWithDistributedMediaSlot(req, res, next, done => {
   audioUpload.single('audio')(req, res, (err: unknown) => {
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        next(new BadRequestError('Voice message is too large', 'FILE_TOO_LARGE'));
+        done(new BadRequestError('Voice message is too large', 'FILE_TOO_LARGE'));
         return;
       }
-      next(new BadRequestError(err.message, 'INVALID_AUDIO_TYPE'));
+      done(new BadRequestError(err.message, 'INVALID_AUDIO_TYPE'));
       return;
     }
     if (err instanceof BadRequestError) {
-      next(err);
+      done(err);
       return;
     }
     if (err instanceof Error) {
-      next(new BadRequestError(err.message, 'INVALID_AUDIO_TYPE'));
+      done(new BadRequestError(err.message, 'INVALID_AUDIO_TYPE'));
       return;
     }
-    next();
+    done();
+  });
   });
 };
 
@@ -269,6 +338,9 @@ const MESSAGE_FILE_MIME_TYPES = [
   'application/vnd.ms-powerpoint',
 ] as const;
 const MAX_MESSAGE_FILE_SIZE_BYTES = 15 * 1024 * 1024;
+// memoryStorage buffers the entire upload in this Node process. Audio and
+// document uploads use the same Redis-backed semaphore, shared by every API
+// replica, and hold the lease through the downstream provider upload/response.
 const messageFileUpload = multer({
   storage: multer.memoryStorage(),
   fileFilter: (_req, file, cb) => {
@@ -296,19 +368,21 @@ export const uploadMessageFileMiddleware = (
     next(new BadRequestError('الملف كبير جدًا', 'FILE_TOO_LARGE'));
     return;
   }
+  runWithDistributedMediaSlot(req, res, next, done => {
   messageFileUpload.single('file')(req, res, (err: unknown) => {
     if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-      next(new BadRequestError('الملف كبير جدًا (الحد 15 ميغابايت)', 'FILE_TOO_LARGE'));
+      done(new BadRequestError('الملف كبير جدًا (الحد 15 ميغابايت)', 'FILE_TOO_LARGE'));
       return;
     }
     if (err instanceof BadRequestError) {
-      next(err);
+      done(err);
       return;
     }
     if (err instanceof Error) {
-      next(new BadRequestError(err.message, 'INVALID_FILE_TYPE'));
+      done(new BadRequestError(err.message, 'INVALID_FILE_TYPE'));
       return;
     }
-    next();
+    done();
+  });
   });
 };

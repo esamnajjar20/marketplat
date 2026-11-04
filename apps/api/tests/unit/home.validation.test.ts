@@ -1,7 +1,7 @@
 import { getHomepageSchema, HOME_CITIES } from '../../src/modules/home/home.validation';
 
 /**
- * HOME_CITIES mirrors apps/web/lib/constants.ts → CITIES. The two lists live
+ * HOME_CITIES mirrors frontend/lib/constants.ts → CITIES. The two lists live
  * in different packages, so this literal pin (repeated in the frontend's
  * cities test) makes drift fail in CI on whichever side changes alone.
  */

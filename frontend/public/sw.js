@@ -2164,6 +2164,7 @@ function queueRequestEntryOnDb(db, entry, lifecycleVersion) {
     const store = tx.objectStore(QUEUE_STORE_NAME);
     const getAll = store.getAll();
     let rejected = false;
+    let entryId = null;
     getAll.onsuccess = () => {
       if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) {
         rejected = true;
@@ -2171,6 +2172,29 @@ function queueRequestEntryOnDb(db, entry, lifecycleVersion) {
         return;
       }
       const existing = Array.isArray(getAll.result) ? getAll.result : [];
+      const operationId = typeof entry.operationId === 'string' ? entry.operationId.trim() : '';
+      const ownerUserId = entry.ownerUserId || null;
+      const duplicate = operationId
+        ? existing.find((row) =>
+            String(row.operationId || '') === operationId &&
+            (row.ownerUserId || null) === ownerUserId &&
+            row.status !== 'cancelled'
+          )
+        : null;
+      if (duplicate) {
+        if (duplicate.url !== entry.url || String(duplicate.method || '').toUpperCase() !== String(entry.method || '').toUpperCase()) {
+          rejected = true;
+          reject(Object.assign(new Error('Offline operation id was reused for a different request'), {
+            code: 'QUEUE_OPERATION_ID_CONFLICT',
+          }));
+          return;
+        }
+        // Repeated enqueue of the same logical operation returns the existing
+        // row rather than storing/replaying a duplicate request.
+        entryId = duplicate.id;
+        return;
+      }
+
       const incomingBytes = estimateQueueEntryBytes(entry);
       const existingBytes = existing.reduce((sum, row) => sum + estimateQueueEntryBytes(row), 0);
       if (existing.length >= MAX_QUEUE_ENTRIES || existingBytes + incomingBytes > MAX_QUEUE_TOTAL_BYTES) {
@@ -2185,7 +2209,8 @@ function queueRequestEntryOnDb(db, entry, lifecycleVersion) {
         return;
       }
       try {
-        store.add({ status: 'pending', ...entry });
+        const addRequest = store.add({ status: 'pending', processing: false, processingStartedAt: null, processingLeaseId: null, ...entry });
+        addRequest.onsuccess = () => { entryId = addRequest.result; };
       } catch (err) {
         rejected = true;
         reject(err);
@@ -2195,7 +2220,7 @@ function queueRequestEntryOnDb(db, entry, lifecycleVersion) {
       rejected = true;
       reject(getAll.error || new Error('Unable to inspect offline queue capacity'));
     };
-    tx.oncomplete = () => { if (!rejected) resolve(); };
+    tx.oncomplete = () => { if (!rejected) resolve(entryId); };
     tx.onerror = () => { if (!rejected) reject(tx.error || new Error('Offline queue transaction failed')); };
     tx.onabort = () => { if (!rejected) reject(tx.error || new Error('Offline queue transaction aborted')); };
   });
@@ -2290,6 +2315,71 @@ function markQueuedEntryOnDb(db, id, patch) {
   });
 }
 
+// IndexedDB serializes readwrite transactions for the same object store. The
+// read/check/write below therefore acts as an atomic claim across SW instances,
+// unlike a prior getAll snapshot followed by a separate update transaction.
+async function claimQueuedEntry(id, leaseId, now = Date.now()) {
+  const db = await openQueueDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(QUEUE_STORE_NAME, 'readwrite');
+      const store = tx.objectStore(QUEUE_STORE_NAME);
+      const request = store.get(id);
+      let claimed = false;
+      request.onsuccess = () => {
+        const current = request.result;
+        if (!current || current.status === 'failed' || current.status === 'cancelled') return;
+        const startedAt = Number(current.processingStartedAt);
+        const leaseIsActive = Boolean(current.processing) && Number.isFinite(startedAt) &&
+          startedAt > 0 && now >= startedAt && now - startedAt < QUEUE_PROCESSING_LEASE_MS;
+        if (leaseIsActive && current.processingLeaseId !== leaseId) return;
+        store.put({
+          ...current,
+          processing: true,
+          processingStartedAt: now,
+          processingLeaseId: leaseId,
+        });
+        claimed = true;
+      };
+      request.onerror = () => reject(request.error || new Error('Unable to read queue entry for claim'));
+      tx.oncomplete = () => resolve(claimed);
+      tx.onerror = () => reject(tx.error || new Error('Queue claim transaction failed'));
+      tx.onabort = () => reject(tx.error || new Error('Queue claim transaction aborted'));
+    });
+  } finally {
+    try { db.close(); } catch { }
+  }
+}
+
+async function releaseQueuedEntryLease(id, leaseId) {
+  const db = await openQueueDb();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(QUEUE_STORE_NAME, 'readwrite');
+      const store = tx.objectStore(QUEUE_STORE_NAME);
+      const request = store.get(id);
+      let released = false;
+      request.onsuccess = () => {
+        const current = request.result;
+        if (!current || current.processingLeaseId !== leaseId) return;
+        store.put({
+          ...current,
+          processing: false,
+          processingStartedAt: null,
+          processingLeaseId: null,
+        });
+        released = true;
+      };
+      request.onerror = () => reject(request.error || new Error('Unable to read queue entry for lease release'));
+      tx.oncomplete = () => resolve(released);
+      tx.onerror = () => reject(tx.error || new Error('Queue lease release failed'));
+      tx.onabort = () => reject(tx.error || new Error('Queue lease release aborted'));
+    });
+  } finally {
+    try { db.close(); } catch { }
+  }
+}
+
 async function notifyClients(message) {
   const clientsList = await self.clients.matchAll();
   clientsList.forEach((client) => client.postMessage(message));
@@ -2358,10 +2448,15 @@ async function refreshAccessToken(sampleUrl) {
 }
 
 // إرسال عنصر واحد: sent | failed | still-offline | retryable-http | server-error.
-async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReason, lifecycleVersion = queueLifecycleVersion) {
+async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReason, lifecycleVersion = queueLifecycleVersion, inheritedLeaseId = null) {
   if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return 'still-offline';
 
-  await markQueuedEntry(entry.id, { processing: true, processingStartedAt: Date.now() });
+  const leaseId = inheritedLeaseId || (typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const ownsLease = Boolean(inheritedLeaseId) || await claimQueuedEntry(entry.id, leaseId);
+  if (!ownsLease) return 'lease-busy';
+  const releaseLeaseOnReturn = !inheritedLeaseId;
   try {
     // Keep the lifecycle check inside try/finally so an interrupted replay always
     // attempts to release its processing lease, even if CLEAR_QUEUE races this write.
@@ -2533,7 +2628,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
         const updatedEntry = await getQueuedEntry(entry.id);
         if (updatedEntry) {
 
-          return replayOne(updatedEntry, true, fresh, 'ok', lifecycleVersion);
+          return replayOne(updatedEntry, true, fresh, 'ok', lifecycleVersion, leaseId);
         }
       }
 
@@ -2616,8 +2711,9 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
 
     return 'still-offline';
   } finally {
-
-    try { await markQueuedEntry(entry.id, { processing: false, processingStartedAt: null }); } catch {}
+    if (releaseLeaseOnReturn) {
+      try { await releaseQueuedEntryLease(entry.id, leaseId); } catch { /* a later lease expiry recovers the row */ }
+    }
   }
 }
 
@@ -2718,13 +2814,30 @@ async function tryCoalesceAnalyticsEntry(entry) {
   }
 }
 
+function getQueueConversationId(entry) {
+  if (typeof entry?.conversationId === 'string' && entry.conversationId) return entry.conversationId;
+  try {
+    const path = new URL(String(entry?.url || ''), self.location.origin).pathname;
+    const match = path.match(/(?:^|\/)conversations\/([^/]+)\/messages(?:\/|$)/i);
+    return match ? decodeURIComponent(match[1]) : null;
+  } catch {
+    return null;
+  }
+}
+
 function isOrderSensitiveQueueEntry(entry) {
-  const u = String(entry.url || '');
-  return (
-    u.includes('/messages') ||
-    u.includes('/conversations') ||
-    u.includes('/chat')
-  );
+  try {
+    const path = new URL(String(entry?.url || ''), self.location.origin).pathname;
+    return /\/(?:messages|chat)(?:\/|$)/i.test(path);
+  } catch {
+    return false;
+  }
+}
+
+function getQueueOrderGroup(entry) {
+  if (!isOrderSensitiveQueueEntry(entry)) return null;
+  const conversationId = getQueueConversationId(entry);
+  return conversationId ? `conversation:${conversationId}` : 'conversation:unscoped';
 }
 
 let replayQueueInFlight = false;
@@ -2740,7 +2853,8 @@ const QUEUE_REQUEST_TIMEOUT_MS = 15_000;
 function hasActiveProcessingLease(entry, now = Date.now()) {
   if (!entry?.processing) return false;
   const startedAt = entry.processingStartedAt;
-  return Number.isFinite(startedAt) && startedAt > 0 && now - startedAt < QUEUE_PROCESSING_LEASE_MS;
+  return Number.isFinite(startedAt) && startedAt > 0 && now >= startedAt &&
+    now - startedAt < QUEUE_PROCESSING_LEASE_MS;
 }
 
 async function replayQueue() {
@@ -2839,12 +2953,13 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
     // Do not let priority sorting make a later chat/message mutation overtake
     // an earlier outstanding one. This guard also respects an earlier live
     // processing lease owned by another drain/worker.
-    if (isOrderSensitiveQueueEntry(entry)) {
+    const orderGroup = getQueueOrderGroup(entry);
+    if (orderGroup) {
       const entryQueuedAt = typeof entry.queuedAt === 'number' ? entry.queuedAt : 0;
       const hasEarlierOutstandingOrderedEntry = entries.some((candidate) => {
         if (candidate.id === entry.id) return false;
         if (candidate.status === 'failed' || candidate.status === 'cancelled') return false;
-        if (!isOrderSensitiveQueueEntry(candidate)) return false;
+        if (getQueueOrderGroup(candidate) !== orderGroup) return false;
         const candidateQueuedAt = typeof candidate.queuedAt === 'number' ? candidate.queuedAt : 0;
         return candidateQueuedAt < entryQueuedAt ||
           (candidateQueuedAt === entryQueuedAt && candidate.id < entry.id);
@@ -2853,12 +2968,8 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
     }
 
     if (hasActiveProcessingLease(entry)) continue;
-    if (entry.processing) {
-      // Recover a stale lease left by a terminated worker, including legacy rows with no timestamp.
-      await markQueuedEntry(entry.id, { processing: false, processingStartedAt: null });
-      entry.processing = false;
-      entry.processingStartedAt = null;
-    }
+    // Expired/legacy leases are reclaimed atomically inside replayOne's claim
+    // transaction; never clear a lease based on this stale queue snapshot.
 
     const now = Date.now();
     const lastAttemptAt =
@@ -2871,16 +2982,16 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
     const tooSoon = lastAttemptAt > 0 && now - lastAttemptAt < minGap;
     const retryNotBefore = typeof entry.retryNotBefore === 'number' ? entry.retryNotBefore : 0;
     const retryAfterGate = retryNotBefore > now;
-    const orderSensitive = isOrderSensitiveQueueEntry(entry);
 
     if (tooSoon || retryAfterGate) {
-      if (orderSensitive || trulyOffline) break;
+      if (trulyOffline) break;
       continue;
     }
 
+    const result = await replayOne(entry, false, freshCreds, refreshReason, lifecycleVersion);
+    if (result === 'lease-busy') continue;
     processedEntries += 1;
     metrics.processed += 1;
-    const result = await replayOne(entry, false, freshCreds, refreshReason, lifecycleVersion);
 
     if (result === 'sent' || result === 'failed') {
       if (result === 'sent') metrics.sent += 1;
@@ -2909,7 +3020,7 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
       // the origin, even when navigator.onLine still reports true. Stop here
       // instead of issuing more requests that are likely to fail as well.
       if (trulyOffline || result === 'still-offline') metrics.stillOffline = true;
-      if (trulyOffline || result === 'still-offline' || orderSensitive) break;
+      if (trulyOffline || result === 'still-offline') break;
       continue;
     }
 
@@ -2957,9 +3068,6 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
       break;
     }
 
-    if (orderSensitive) {
-      break;
-    }
 
   }
 
@@ -3100,6 +3208,7 @@ async function handleMutation(request) {
         body,
         queuedAt: Date.now(),
         operationId,
+        conversationId: getQueueConversationId({ url: requestForQueue.url }),
         priority,
         needsCsrf,
         needsAuth,
@@ -3121,11 +3230,13 @@ async function handleMutation(request) {
       return new Response(
         JSON.stringify({
           queued: false,
-          code: lifecycleChanged ? 'QUEUE_SESSION_CHANGED' : storeErr?.code === 'QUEUE_LIMIT_EXCEEDED' ? 'QUEUE_LIMIT_EXCEEDED' : 'QUEUE_STORE_FAILED',
+          code: lifecycleChanged ? 'QUEUE_SESSION_CHANGED' : storeErr?.code === 'QUEUE_LIMIT_EXCEEDED' ? 'QUEUE_LIMIT_EXCEEDED' : storeErr?.code === 'QUEUE_OPERATION_ID_CONFLICT' ? 'QUEUE_OPERATION_ID_CONFLICT' : 'QUEUE_STORE_FAILED',
           reason: storageQuotaExceeded ? 'quota' : undefined,
           message: lifecycleChanged
             ? 'تغيّرت الجلسة أثناء حفظ العملية؛ لم تُحفظ لإعادة الإرسال بحساب آخر.'
-            : storeErr?.code === 'QUEUE_LIMIT_EXCEEDED'
+            : storeErr?.code === 'QUEUE_OPERATION_ID_CONFLICT'
+              ? 'معرّف العملية مستخدم لطلب مختلف؛ أعد تنفيذ العملية.'
+              : storeErr?.code === 'QUEUE_LIMIT_EXCEEDED'
               ? 'وصل طابور الأوفلاين إلى حد التخزين الآمن. أرسل العمليات المعلّقة أو احذف العناصر الفاشلة قبل إضافة عمليات جديدة.'
               : storageQuotaExceeded
                 ? 'مساحة التخزين على الجهاز ممتلئة؛ لم تُحفظ هذه العملية. اتصل بالإنترنت لمزامنة البيانات وحرّر مساحة ثم أعد المحاولة.'

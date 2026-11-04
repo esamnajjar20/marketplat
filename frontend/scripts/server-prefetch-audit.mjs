@@ -8,7 +8,7 @@ const source = await readFile(path.join(root, 'lib/prefetch.ts'), 'utf8');
 
 assert.match(source, /AbortSignal\.timeout\(SERVER_FETCH_TIMEOUT_MS\)/,
   'Server prefetch requests must have a hard timeout.');
-assert.match(source, /type ServerFetchOptions[\s\S]*?\| \{ cache: 'no-store' \}/,
+assert.match(source, /type ServerFetchOptions[\s\S]*?cache\?: 'no-store'/,
   'Server fetch helper must support explicit no-store requests.');
 assert.match(source, /serverFetch<Ad>\(`\/ads\/\$\{encodeURIComponent\(id\)\}`, \{ cache: 'no-store' \}\)/,
   'Ad detail server fetch must bypass the extra Next Data Cache layer.');

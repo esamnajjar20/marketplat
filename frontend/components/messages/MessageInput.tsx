@@ -17,6 +17,7 @@ import { RecordingTimer } from './RecordingTimer';
 import { MessageBodyEditor, type MessageBodyEditorHandle } from './MessageBodyEditor';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { hapticMessageSent, hapticMessageError } from '@/lib/capacitor/nativeHaptics';
+import type { Message } from '@/types/conversation.types';
 
 import { Spinner } from '@/components/ui/spinner';
 interface Props {
@@ -43,6 +44,12 @@ export function MessageInput({ conversationId, disabled }: Props) {
   const cancelRecordingRef = useRef(false);
   const [recordingStartedAt, setRecordingStartedAt] = useState<number | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingStartInFlightRef = useRef(false);
+  const mountedRef = useRef(false);
+  const lifecycleRef = useRef(0);
+  const imagePreviewUrlRef = useRef<string | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const sendMessage = useSendMessage(conversationId);
   const isOnline = useOnlineStatus();
@@ -51,31 +58,53 @@ export function MessageInput({ conversationId, disabled }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const attachmentRef = useRef<HTMLInputElement>(null);
 
-  // SW-MSG-PREVIEW-URL-LEAK-01 (unmount site): if the user leaves
-  // /messages entirely while holding a picked image (back button,
-  // direct navigation), the blob URL must be revoked on teardown. The
-  // previous code never ran this path at all. Kept as a separate
-  // effect (rather than merged into the typing-cleanup one above) so
-  // its cleanup only runs once on true unmount, not on every
-  // conversationId change (which the useEffect above already handles).
   useEffect(() => {
+    mountedRef.current = true;
+    lifecycleRef.current += 1;
+
     return () => {
-       
-      setImagePreview((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
+      mountedRef.current = false;
+      lifecycleRef.current += 1;
+      if (recordingTimerRef.current) {
+        clearTimeout(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+      cancelRecordingRef.current = true;
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== 'inactive') {
+        try { recorder.stop(); } catch { /* recorder may already be stopping */ }
+      }
+      recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+      recordingStreamRef.current = null;
+      mediaRecorderRef.current = null;
+
+      if (imagePreviewUrlRef.current) {
+        URL.revokeObjectURL(imagePreviewUrlRef.current);
+        imagePreviewUrlRef.current = null;
+      }
     };
-     
   }, []);
 
+  // A reused composer can switch conversations without unmounting. Cancel any
+  // pending permission request/recording so a recording cannot land in the
+  // previous conversation after navigation.
   useEffect(() => {
-    return () => {
-      cancelRecordingRef.current = true;
-      mediaRecorderRef.current?.stop();
-      mediaRecorderRef.current = null;
-    };
-  }, []);
+    lifecycleRef.current += 1;
+    cancelRecordingRef.current = true;
+    if (recordingTimerRef.current) {
+      clearTimeout(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      try { recorder.stop(); } catch { /* recorder may already be stopping */ }
+    }
+    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+    recordingStreamRef.current = null;
+    mediaRecorderRef.current = null;
+    setRecording(false);
+    setRecordingStartedAt(null);
+  }, [conversationId]);
 
 
   function onPickImage(e: ChangeEvent<HTMLInputElement>) {
@@ -90,16 +119,12 @@ export function MessageInput({ conversationId, disabled }: Props) {
       toast.error('الحد الأقصى 5 ميغابايت');
       return;
     }
-    // SW-MSG-PREVIEW-URL-LEAK-01: revoke the previous preview blob
-    // URL before replacing it. Without this, each new image selection
-    // orphaned the prior URL.createObjectURL() result — the blob
-    // stayed in memory for the lifetime of the page even though nothing
-    // referenced it. Reachable on every change of mind: pick photo,
-    // swap for a better one, swap again.
-    setImagePreview((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return URL.createObjectURL(file);
-    });
+    if (imagePreviewUrlRef.current) {
+      URL.revokeObjectURL(imagePreviewUrlRef.current);
+    }
+    const nextPreviewUrl = URL.createObjectURL(file);
+    imagePreviewUrlRef.current = nextPreviewUrl;
+    setImagePreview(nextPreviewUrl);
     setImageFile(file);
   }
 
@@ -107,7 +132,10 @@ export function MessageInput({ conversationId, disabled }: Props) {
   function clearAttachment() { setAttachmentFile(null); }
 
   function clearImage() {
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    if (imagePreviewUrlRef.current) {
+      URL.revokeObjectURL(imagePreviewUrlRef.current);
+      imagePreviewUrlRef.current = null;
+    }
     setImageFile(null);
     setImagePreview(null);
   }
@@ -115,21 +143,41 @@ export function MessageInput({ conversationId, disabled }: Props) {
   function cancelRecording() {
     if (!mediaRecorderRef.current) return;
     cancelRecordingRef.current = true;
+    if (recordingTimerRef.current) {
+      clearTimeout(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
     mediaRecorderRef.current.stop();
     toast.message('تم إلغاء التسجيل');
   }
 
   async function toggleRecording() {
-    if (recording) {
-      mediaRecorderRef.current?.stop();
+    if (recording || mediaRecorderRef.current) {
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== 'inactive') recorder.stop();
       return;
     }
+    if (recordingStartInFlightRef.current) return;
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       toast.error('التسجيل الصوتي غير مدعوم على هذا الجهاز');
       return;
     }
+
+    const startGeneration = lifecycleRef.current;
+    cancelRecordingRef.current = false;
+    recordingStartInFlightRef.current = true;
+    let stream: MediaStream | null = null;
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // getUserMedia is not abortable in every browser. If permission resolves
+      // after unmount or conversation switch, release the granted hardware
+      // stream immediately and never construct/start a recorder.
+      if (!mountedRef.current || lifecycleRef.current !== startGeneration) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      recordingStreamRef.current = stream;
+
       const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
         ? 'audio/webm;codecs=opus'
         : MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')
@@ -141,15 +189,25 @@ export function MessageInput({ conversationId, disabled }: Props) {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
       recorder.onstop = async () => {
-        stream.getTracks().forEach((track) => track.stop());
-        setRecording(false);
-        setRecordingStartedAt(null);
-        mediaRecorderRef.current = null;
+        stream?.getTracks().forEach((track) => track.stop());
+        if (recordingStreamRef.current === stream) recordingStreamRef.current = null;
+        if (recordingTimerRef.current) {
+          clearTimeout(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+        if (mediaRecorderRef.current === recorder) mediaRecorderRef.current = null;
+
+        const isCurrentInstance = mountedRef.current && lifecycleRef.current === startGeneration;
+        if (isCurrentInstance) {
+          setRecording(false);
+          setRecordingStartedAt(null);
+        }
         const wasCancelled = cancelRecordingRef.current;
         cancelRecordingRef.current = false;
         const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
         audioChunksRef.current = [];
-        if (wasCancelled || blob.size === 0) return;
+        if (!isCurrentInstance || wasCancelled || blob.size === 0) return;
+
         setUploading(true);
         setUploadKind('audio');
         try {
@@ -159,51 +217,65 @@ export function MessageInput({ conversationId, disabled }: Props) {
             file,
             body: bodyEditorRef.current?.getValue().trim() ?? '',
           });
-          // Audio is not covered by useSendMessage's optimistic mutation.
-          // Insert the real server message immediately so the recorder does
-          // not appear to have produced an empty bubble while the polling
-          // cycle catches up.
           queryClient.setQueryData(
             queryKeys.conversations.messages(conversationId, { limit: 50 }),
-            (current: { items?: unknown[]; meta?: unknown } | undefined) => {
+            (current: { items?: Message[]; meta?: unknown } | undefined) => {
               if (!current || !Array.isArray(current.items)) return current;
-              if (current.items.some((item: any) => item?.id === sentMessage.id)) return current;
+              if (current.items.some((item) => item.id === sentMessage.id)) return current;
               return { ...current, items: [...current.items, sentMessage] };
             },
           );
-          bodyEditorRef.current?.clear(); setHasBody(false);
+          if (mountedRef.current && lifecycleRef.current === startGeneration) {
+            bodyEditorRef.current?.clear();
+            setHasBody(false);
+            setLastSendError(null);
+            setUploading(false);
+            setUploadKind(null);
+          }
           clearMessageDraft(conversationId);
-          setLastSendError(null);
           void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.messagesRoot(conversationId) });
           void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
         } catch (err) {
           const parsed = parseApiError(err);
           if (parsed.queued) {
-            bodyEditorRef.current?.clear(); setHasBody(false);
+            if (mountedRef.current && lifecycleRef.current === startGeneration) {
+              bodyEditorRef.current?.clear();
+              setHasBody(false);
+              setLastSendError(null);
+            }
             clearMessageDraft(conversationId);
-            setLastSendError(null);
             void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.messagesRoot(conversationId) });
             void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
-          } else {
+          } else if (mountedRef.current && lifecycleRef.current === startGeneration) {
             setLastSendError(parsed.message);
             toast.error(parsed.message);
           }
         } finally {
-          setUploading(false);
-          setUploadKind(null);
+          if (mountedRef.current && lifecycleRef.current === startGeneration) {
+            setUploading(false);
+            setUploadKind(null);
+          }
         }
       };
       mediaRecorderRef.current = recorder;
       setRecordingStartedAt(Date.now());
       setRecording(true);
       recorder.start(250);
-      window.setTimeout(() => {
-        if (mediaRecorderRef.current === recorder && recorder.state === 'recording') {
+      recordingTimerRef.current = setTimeout(() => {
+        if (
+          mountedRef.current &&
+          lifecycleRef.current === startGeneration &&
+          mediaRecorderRef.current === recorder &&
+          recorder.state === 'recording'
+        ) {
           recorder.stop();
           toast.info('تم إيقاف التسجيل بعد دقيقتين.');
         }
-      }, 120000);
+      }, 120_000);
     } catch (error) {
+      stream?.getTracks().forEach((track) => track.stop());
+      if (recordingStreamRef.current === stream) recordingStreamRef.current = null;
+      if (!mountedRef.current || lifecycleRef.current !== startGeneration) return;
       const name = error instanceof DOMException ? error.name : '';
       if (!window.isSecureContext) {
         toast.error('التسجيل الصوتي يحتاج اتصالاً آمناً (HTTPS).');
@@ -217,6 +289,8 @@ export function MessageInput({ conversationId, disabled }: Props) {
       setRecording(false);
       setRecordingStartedAt(null);
       mediaRecorderRef.current = null;
+    } finally {
+      recordingStartInFlightRef.current = false;
     }
   }
 
@@ -227,7 +301,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
 
     if (attachmentFile) {
       setUploading(true); setUploadKind('file');
-      try { const sentMessage=await sendConversationMessage(conversationId,{kind:'file',file:attachmentFile,body:trimmed}); queryClient.setQueryData(queryKeys.conversations.messages(conversationId, { limit: 50 }),(current:{items?:any[];meta?:unknown}|undefined)=>{if(!current||!Array.isArray(current.items)||current.items.some(item=>item?.id===sentMessage.id))return current;return {...current,items:[...current.items,sentMessage]};}); bodyEditorRef.current?.clear(); setHasBody(false); clearMessageDraft(conversationId); clearAttachment(); setLastSendError(null); void hapticMessageSent(); void queryClient.invalidateQueries({queryKey:queryKeys.conversations.messagesRoot(conversationId)}); }
+      try { const sentMessage=await sendConversationMessage(conversationId,{kind:'file',file:attachmentFile,body:trimmed}); queryClient.setQueryData(queryKeys.conversations.messages(conversationId, { limit: 50 }),(current: { items?: Message[]; meta?: unknown } | undefined) => { if (!current || !Array.isArray(current.items) || current.items.some((item) => item.id === sentMessage.id)) return current; return { ...current, items: [...current.items, sentMessage] }; }); bodyEditorRef.current?.clear(); setHasBody(false); clearMessageDraft(conversationId); clearAttachment(); setLastSendError(null); void hapticMessageSent(); void queryClient.invalidateQueries({queryKey:queryKeys.conversations.messagesRoot(conversationId)}); }
       catch(err){const parsed=parseApiError(err); if(parsed.queued){bodyEditorRef.current?.clear(); setHasBody(false);clearMessageDraft(conversationId);clearAttachment();setLastSendError(null);void hapticMessageSent();}else{setLastSendError(parsed.message);void hapticMessageError();toast.error(parsed.message);}} finally{setUploading(false);setUploadKind(null);} keepComposerFocus(); return;
     }
 

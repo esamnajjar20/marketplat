@@ -18,7 +18,7 @@ import { stableSerialize } from './cacheKey';
  * generation-token based, not TTL based (see swrCache.ts).
  *
  * Keep the shapes identical to the frontend warming contract
- * (apps/web/lib/warmingQueryContract.ts) — the cache key is derived from the
+ * (frontend/lib/warmingQueryContract.ts) — the cache key is derived from the
  * validated query, so a different shape is a different (cold) key.
  */
 

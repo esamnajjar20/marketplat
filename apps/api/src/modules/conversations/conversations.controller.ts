@@ -19,6 +19,54 @@ import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
 import { uploadAudio, uploadImage, uploadRawFile } from '../../config/cloudinary';
 import { deleteCloudinaryAsset } from '../../shared/utils/cloudinaryHelpers';
+import { env } from '../../config/env';
+import { parseTrustedCloudinaryMediaUrl } from './cloudinaryMediaUrl';
+
+const MAX_MESSAGE_MEDIA_BYTES = 15 * 1024 * 1024;
+const MEDIA_PROXY_TIMEOUT_MS = 12_000;
+
+function isAllowedMediaContentType(kind: 'image' | 'audio' | 'file', value: string): boolean {
+  const mimeType = value.split(';', 1)[0]?.trim().toLowerCase() ?? '';
+  if (kind === 'image') return /^image\/(?:avif|gif|jpeg|png|webp)$/.test(mimeType);
+  if (kind === 'audio') return /^audio\/(?:aac|mpeg|mp4|ogg|wav|webm)$/.test(mimeType);
+  return new Set([
+    'application/pdf',
+    'text/plain',
+    'text/csv',
+    'application/json',
+    'application/zip',
+    'application/x-zip-compressed',
+    'application/x-7z-compressed',
+    'application/vnd.rar',
+    'application/x-rar-compressed',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'application/msword',
+    'application/vnd.ms-excel',
+    'application/vnd.ms-powerpoint',
+  ]).has(mimeType);
+}
+
+function encodeRfc5987FileName(value: string): string {
+  return encodeURIComponent(value).replace(/[!'()*]/g, (character) =>
+    `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+}
+
+function getSafeMediaContentType(
+  kind: 'image' | 'audio' | 'file',
+  storedType: string,
+  remoteType: string | null,
+): string {
+  if (isAllowedMediaContentType(kind, storedType)) return storedType.split(';', 1)[0]!.trim().toLowerCase();
+  if (remoteType && isAllowedMediaContentType(kind, remoteType)) {
+    return remoteType.split(';', 1)[0]!.trim().toLowerCase();
+  }
+  if (kind === 'image') return 'image/jpeg';
+  if (kind === 'audio') return 'audio/mpeg';
+  return 'application/octet-stream';
+}
 
 export const conversationsController = {
   startConversation: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -140,25 +188,113 @@ export const conversationsController = {
         messageId,
         kind
       );
-      const remote = await fetch(asset.url, { redirect: 'follow' });
-      if (!remote.ok || !remote.body) {
+      const trustedUrl = parseTrustedCloudinaryMediaUrl(asset.url, env.cloudinary.cloudName);
+      if (!trustedUrl) {
+        sendApiError(req, res, 404, ErrorCode.MESSAGE_MEDIA_PROVIDER_UNSUPPORTED, 'Message media provider is not supported');
+        return;
+      }
+      if (asset.fileSize !== null && asset.fileSize > MAX_MESSAGE_MEDIA_BYTES) {
+        sendApiError(req, res, 413, ErrorCode.BAD_REQUEST, 'Media file exceeds the allowed size');
+        return;
+      }
+
+      const abortController = new AbortController();
+      const timeout = setTimeout(() => abortController.abort(), MEDIA_PROXY_TIMEOUT_MS);
+      let remote: globalThis.Response;
+      try {
+        // A delivery URL must never be allowed to redirect this privileged
+        // server-side fetch to another host or an internal address.
+        remote = await fetch(trustedUrl.href, {
+          redirect: 'error',
+          signal: abortController.signal,
+        });
+      } catch {
+        clearTimeout(timeout);
         sendApiError(req, res, 503, ErrorCode.SERVICE_UNAVAILABLE, 'Media provider unavailable');
         return;
       }
 
-      const contentType =
-        remote.headers.get('content-type') || asset.mimeType || 'application/octet-stream';
-      const contentLength = remote.headers.get('content-length');
-      if (contentLength) res.setHeader('Content-Length', contentLength);
+      if (!remote.ok || !remote.body) {
+        clearTimeout(timeout);
+        await remote.body?.cancel().catch(() => undefined);
+        sendApiError(req, res, 503, ErrorCode.SERVICE_UNAVAILABLE, 'Media provider unavailable');
+        return;
+      }
+
+      const contentLengthHeader = remote.headers.get('content-length');
+      const declaredLength = contentLengthHeader && /^\d+$/.test(contentLengthHeader)
+        ? Number(contentLengthHeader)
+        : null;
+      if (declaredLength !== null && declaredLength > MAX_MESSAGE_MEDIA_BYTES) {
+        clearTimeout(timeout);
+        await remote.body.cancel().catch(() => undefined);
+        sendApiError(req, res, 413, ErrorCode.BAD_REQUEST, 'Media file exceeds the allowed size');
+        return;
+      }
+
+      const contentType = getSafeMediaContentType(kind, asset.mimeType, remote.headers.get('content-type'));
+      const safeFileName = (asset.fileName || `message-${messageId}`)
+        .replace(/[\u0000-\u001f\u007f\/\\"]/g, '_')
+        .slice(0, 180);
+      res.status(200);
       res.setHeader('Content-Type', contentType);
-      res.setHeader(
-        'Content-Disposition',
-        kind === 'file' && asset.fileName
-          ? `inline; filename*=UTF-8''${encodeURIComponent(asset.fileName)}`
-          : 'inline'
-      );
-      const arrayBuffer = await remote.arrayBuffer();
-      res.status(200).send(Buffer.from(arrayBuffer));
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+      res.setHeader('Content-Disposition', kind === 'file'
+        ? `attachment; filename="download"; filename*=UTF-8''${encodeRfc5987FileName(safeFileName)}`
+        : 'inline');
+
+      const reader = remote.body.getReader();
+      let sentBytes = 0;
+      const onClientClose = () => {
+        if (!res.writableEnded) abortController.abort();
+      };
+      res.once('close', onClientClose);
+      try {
+        while (true) {
+          const chunk = await reader.read();
+          if (chunk.done) break;
+          if (!chunk.value) continue;
+          sentBytes += chunk.value.byteLength;
+          if (sentBytes > MAX_MESSAGE_MEDIA_BYTES) {
+            await reader.cancel().catch(() => undefined);
+            if (!res.headersSent) {
+              sendApiError(req, res, 413, ErrorCode.BAD_REQUEST, 'Media file exceeds the allowed size');
+            } else {
+              res.destroy();
+            }
+            return;
+          }
+          if (!res.write(Buffer.from(chunk.value))) {
+            await new Promise<void>((resolve, reject) => {
+              const onDrain = () => { cleanup(); resolve(); };
+              const onError = (error: Error) => { cleanup(); reject(error); };
+              const onClose = () => { cleanup(); reject(new Error('Client disconnected while streaming media')); };
+              const cleanup = () => {
+                res.off('drain', onDrain);
+                res.off('error', onError);
+                res.off('close', onClose);
+              };
+              res.once('drain', onDrain);
+              res.once('error', onError);
+              res.once('close', onClose);
+            });
+          }
+        }
+        res.end();
+      } catch (streamError) {
+        if (!res.headersSent) {
+          sendApiError(req, res, 503, ErrorCode.SERVICE_UNAVAILABLE, 'Media provider unavailable');
+        } else if (!res.destroyed) {
+          // Do not attach provider/upstream error objects to the outgoing response;
+          // the error may contain internal URLs or transport details.
+          res.destroy();
+        }
+      } finally {
+        clearTimeout(timeout);
+        res.off('close', onClientClose);
+        reader.releaseLock();
+      }
     } catch (error) {
       next(error);
     }

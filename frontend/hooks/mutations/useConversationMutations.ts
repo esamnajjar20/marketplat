@@ -122,7 +122,6 @@ export function useSendMessage(conversationId: string) {
         queryKey: queryKeys.conversations.messagesRoot(conversationId),
       });
 
-      const previous = matches.map(([key, data]) => [key, data] as const);
       const previousConversations = queryClient.getQueriesData<PaginatedResponse<ConversationListItem>>({
         queryKey: queryKeys.conversations.mineRoot(),
       });
@@ -149,7 +148,7 @@ export function useSendMessage(conversationId: string) {
         });
       }
 
-      return { previous, previousConversations, optimisticId: optimisticMessage.id };
+      return { previousConversations, optimisticId: optimisticMessage.id };
     },
 
     // FIX CHAT-OPTIMISTIC-SSE-DUP-01: replace the temp id with the server
@@ -169,9 +168,26 @@ export function useSendMessage(conversationId: string) {
         if (!data?.items?.some((item) => item.id === conversationId)) continue;
         queryClient.setQueryData<PaginatedResponse<ConversationListItem>>(key, {
           ...data,
-          items: data.items.map((item) => item.id === conversationId
-            ? { ...item, lastMessage: serverMessage, updatedAt: sentAt }
-            : item),
+          items: data.items.map((item) => {
+            if (item.id !== conversationId) return item;
+            const currentPreview = item.lastMessage;
+            // Two sends can resolve out of order. Never let an older response
+            // replace a later optimistic send or a newer message already
+            // delivered through SSE. The optimistic id identifies the send
+            // whose response is currently being reconciled.
+            if (
+              currentPreview?.id.startsWith('optimistic-') &&
+              currentPreview.id !== optimisticId
+            ) return item;
+            const currentPreviewTime = Date.parse(currentPreview?.createdAt ?? item.updatedAt);
+            const serverPreviewTime = Date.parse(sentAt);
+            if (
+              Number.isFinite(currentPreviewTime) &&
+              Number.isFinite(serverPreviewTime) &&
+              serverPreviewTime < currentPreviewTime
+            ) return item;
+            return { ...item, lastMessage: serverMessage, updatedAt: sentAt };
+          }),
         });
       }
       const matches = queryClient.getQueriesData<PaginatedResponse<Message>>({
@@ -187,7 +203,12 @@ export function useSendMessage(conversationId: string) {
         const hasServerAlready = withoutOptimistic.some((m) => m.id === serverMessage.id);
         const items = hasServerAlready
           ? withoutOptimistic
-          : [...withoutOptimistic, serverMessage];
+          : [...withoutOptimistic, serverMessage].sort((left, right) => {
+              const leftTime = Date.parse(left.createdAt);
+              const rightTime = Date.parse(right.createdAt);
+              if (!Number.isFinite(leftTime) || !Number.isFinite(rightTime)) return 0;
+              return leftTime - rightTime;
+            });
         queryClient.setQueryData<PaginatedResponse<Message>>(key, {
           ...data,
           items,
@@ -207,17 +228,79 @@ export function useSendMessage(conversationId: string) {
     },
 
     onError: (err, _payload, context) => {
-      // Roll back only the exact cache entries this mutation touched.
-      context?.previous.forEach(([key, data]) => {
-        queryClient.setQueryData(key, data);
-      });
-      context?.previousConversations?.forEach(([key, data]) => {
-        queryClient.setQueryData(key, data);
-      });
-      // FEAT-OFFLINE-MSG: a queued-offline rejection isn't a real failure —
-      // see this hook's doc comment above. Skip the error toast; the
-      // pending-send indicator ChatWindow now renders from the SW queue
-      // (usePendingMessages) already communicates the state honestly.
+      const optimisticId = context?.optimisticId;
+      if (optimisticId) {
+        // Remove only this mutation's optimistic row from the latest cache.
+        // Restoring a whole snapshot here can erase an SSE message/read-state
+        // update that arrived after onMutate but before this request failed.
+        const messageQueries = queryClient.getQueriesData<PaginatedResponse<Message>>({
+          queryKey: queryKeys.conversations.messagesRoot(conversationId),
+        });
+        for (const [key] of messageQueries) {
+          queryClient.setQueryData<PaginatedResponse<Message>>(key, (current) => {
+            if (!current?.items?.some((message) => message.id === optimisticId)) return current;
+            return {
+              ...current,
+              items: current.items.filter((message) => message.id !== optimisticId),
+              meta: current.meta
+                ? { ...current.meta, total: Math.max(0, (current.meta.total ?? current.items.length) - 1) }
+                : current.meta,
+            };
+          });
+        }
+
+        // A previous snapshot may itself contain an optimistic message from
+        // an earlier concurrent send. Restore that preview only while its row
+        // still exists in the latest message cache; otherwise it was already
+        // rolled back and must not be resurrected by this later failure.
+        const latestMessageQueries = queryClient.getQueriesData<PaginatedResponse<Message>>({
+          queryKey: queryKeys.conversations.messagesRoot(conversationId),
+        });
+        const latestMessages = latestMessageQueries.flatMap(([, data]) => data?.items ?? []);
+        const latestStableMessage = latestMessages
+          .filter((message) => !message.id.startsWith('optimistic-'))
+          .reduce<Message | null>((latest, message) => {
+            if (!latest) return message;
+            const latestTime = Date.parse(latest.createdAt);
+            const messageTime = Date.parse(message.createdAt);
+            return Number.isFinite(messageTime) && (!Number.isFinite(latestTime) || messageTime > latestTime)
+              ? message
+              : latest;
+          }, null);
+        const listQueries = queryClient.getQueriesData<PaginatedResponse<ConversationListItem>>({
+          queryKey: queryKeys.conversations.mineRoot(),
+        });
+        for (const [key] of listQueries) {
+          const previousData = context?.previousConversations?.find(
+            ([previousKey]) => JSON.stringify(previousKey) === JSON.stringify(key),
+          )?.[1];
+          const previousItem = previousData?.items?.find((item) => item.id === conversationId);
+          const previousMessage = previousItem?.lastMessage;
+          const stablePreviousMessage = previousMessage && !previousMessage.id.startsWith('optimistic-')
+            ? previousMessage
+            : null;
+          const fallbackMessage = latestStableMessage ?? stablePreviousMessage;
+          queryClient.setQueryData<PaginatedResponse<ConversationListItem>>(key, (current) => {
+            if (!current?.items) return current;
+            return {
+              ...current,
+              items: current.items.map((item) => {
+                // If SSE or a later mutation already replaced our optimistic
+                // preview, preserve it; only roll back our own still-current row.
+                if (item.id !== conversationId || item.lastMessage?.id !== optimisticId) return item;
+                return {
+                  ...item,
+                  lastMessage: fallbackMessage,
+                  updatedAt: fallbackMessage?.createdAt ?? (stablePreviousMessage ? previousItem?.updatedAt : undefined) ?? item.updatedAt,
+                };
+              }),
+            };
+          });
+        }
+      }
+
+      // A queued-offline rejection is not a user-visible send failure. The
+      // queued row is represented by the service-worker queue UI.
       const parsed = parseApiError(err);
       if (parsed.queued) return;
       toast.error(parsed.message);

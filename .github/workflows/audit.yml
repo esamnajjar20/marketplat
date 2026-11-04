@@ -23,7 +23,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - working-directory: apps/web
+      - working-directory: frontend
         run: |
           npm ci
           npm audit --audit-level=high || true

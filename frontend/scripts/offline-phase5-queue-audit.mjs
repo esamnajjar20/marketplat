@@ -15,7 +15,7 @@ const check = (name, ok) => checks.push({ name, ok: Boolean(ok) });
 
 check('processing lease has a bounded expiry', sw.includes('QUEUE_PROCESSING_LEASE_MS = 2 * 60_000') && sw.includes('processingStartedAt'));
 check('drain skips actively processed entries', sw.includes('if (hasActiveProcessingLease(entry)) continue;'));
-check('stale/legacy processing entries are recovered', sw.includes('stale lease left by a terminated worker') && sw.includes("processingStartedAt: null"));
+check('stale/legacy processing entries are reclaimed atomically', sw.includes('async function claimQueuedEntry') && sw.includes('const startedAt = Number(current.processingStartedAt)') && sw.includes('if (leaseIsActive && current.processingLeaseId !== leaseId) return;'));
 check('replay lock remains in place', sw.includes('if (queueClearInFlight || replayQueueInFlight) return;'));
 check('manual retry is owner-scoped', sw.includes('event.data.ownerUserId !== entry.ownerUserId'));
 check('cancelled entries are excluded from automatic replay', sw.includes("entry.status === 'failed' || entry.status === 'cancelled'"));

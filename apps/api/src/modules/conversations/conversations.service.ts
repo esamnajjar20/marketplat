@@ -6,6 +6,7 @@ import {
   ConversationWithRelations,
   ConversationListItem,
 } from './conversations.repository';
+import { parseTrustedCloudinaryMediaUrl } from './cloudinaryMediaUrl';
 import { adsRepository } from '../ads/ads.repository';
 import { usersRepository } from '../users/users.repository';
 import { serviceRequestsRepository } from '../service-requests/service-requests.repository';
@@ -356,6 +357,7 @@ export const conversationsService = {
     }
 
     let claimedOpKey: string | null = null;
+    let peerStillPending = false;
 
     if (opId) {
       const cacheKey = `msg:op:${userId}:${opId}`;
@@ -434,22 +436,27 @@ export const conversationsService = {
               userId,
               opId,
             });
-            throw new ServiceUnavailableError(
-              'Message operation is still being processed. Please retry shortly.',
-              'OFFLINE_OPERATION_IN_FLIGHT'
-            );
+            peerStillPending = true;
           }
         } else {
           claimedOpKey = cacheKey;
         }
       } catch (err) {
-        // Redis down: do not block messaging. Idempotency degrades to
-        // best-effort (same as pre-N2) rather than 500ing every send.
-        logger.warn('message offline-op claim failed — proceeding to create', {
+        // Redis failures may degrade to the durable PostgreSQL uniqueness
+        // boundary. A domain outcome (peer still pending) is thrown only
+        // after this catch so it cannot be mistaken for a Redis outage.
+        logger.warn('message offline-op claim failed — proceeding to PostgreSQL idempotency', {
           err: err instanceof Error ? err.message : String(err),
         });
         claimedOpKey = null;
       }
+    }
+
+    if (peerStillPending) {
+      throw new ServiceUnavailableError(
+        'Message operation is still being processed. Please retry shortly.',
+        'OFFLINE_OPERATION_IN_FLIGHT'
+      );
     }
 
     // previously Promise.all of
@@ -746,15 +753,7 @@ export const conversationsService = {
     const url =
       kind === 'image' ? message.imageUrl : kind === 'audio' ? message.audioUrl : message.fileUrl;
     if (!url) throw new NotFoundError('Message media not found', 'MESSAGE_MEDIA_NOT_FOUND');
-    try {
-      const parsed = new URL(url);
-      const cloudinaryHost =
-        parsed.hostname === 'cloudinary.com' || parsed.hostname.endsWith('.cloudinary.com');
-      const belongsToConfiguredCloud = parsed.pathname.includes(`/${env.cloudinary.cloudName}/`);
-      if (parsed.protocol !== 'https:' || !cloudinaryHost || !belongsToConfiguredCloud) {
-        throw new Error('Unsupported media provider');
-      }
-    } catch {
+    if (!parseTrustedCloudinaryMediaUrl(url, env.cloudinary.cloudName)) {
       throw new NotFoundError(
         'Message media provider is not supported',
         'MESSAGE_MEDIA_PROVIDER_UNSUPPORTED'

@@ -1,7 +1,7 @@
 # فجوة #7 — نظام تحليلات سلوك المستخدم (Product Analytics)
 
 هاي الملفات جاهزة لدمجها بمشروعك — كل ملف بنفس مساره النسبي داخل
-`apps/api/` أو `apps/web/`. انسخهم فوق البنية الأصلية (استبدال للملفات
+`apps/api/` أو `frontend/`. انسخهم فوق البنية الأصلية (استبدال للملفات
 المعدّلة، إضافة للجديدة).
 
 جميع أنواع الأحداث السبعة مربوطة الآن فعليًا:
@@ -16,16 +16,16 @@
   routes, service, validation, index)
 
 **Frontend:**
-- `apps/web/lib/analytics.ts` — tracker خفيف من طرف العميل (session id،
+- `frontend/lib/analytics.ts` — tracker خفيف من طرف العميل (session id،
   batching، sendBeacon عند مغادرة الصفحة)
-- `apps/web/api/analytics.api.ts` — استدعاء ملخص الأدمن
-- `apps/web/components/admin/AdminAnalyticsDashboard.tsx` — لوحة
+- `frontend/api/analytics.api.ts` — استدعاء ملخص الأدمن
+- `frontend/components/admin/AdminAnalyticsDashboard.tsx` — لوحة
   التحليلات (بطاقات ملخص، معدلات تحويل، رسم بياني بسيط، أكثر الفئات
   تصفحًا)
-- `apps/web/components/shared/PageViewTracker.tsx` — تتبع `PAGE_VIEW`
+- `frontend/components/shared/PageViewTracker.tsx` — تتبع `PAGE_VIEW`
   على مستوى كل الموقع (مستثنى: مسارات `/admin`)
-- `apps/web/app/(admin)/admin/analytics/page.tsx`
-- `apps/web/app/(admin)/admin/analytics/loading.tsx`
+- `frontend/app/(admin)/admin/analytics/page.tsx`
+- `frontend/app/(admin)/admin/analytics/loading.tsx`
 
 ## ملفات معدّلة (استبدال كامل)
 
@@ -37,21 +37,21 @@
 - `apps/api/src/routes.ts` — ربط `/analytics` و `/admin/analytics`
 
 **Frontend:**
-- `apps/web/components/ads/AdDetailSection.tsx` — تتبع `AD_VIEW`
-- `apps/web/components/ads/SellerCard.tsx` — تتبع `CONTACT_CLICK`
-- `apps/web/components/search/SearchResults.tsx` — تتبع `SEARCH`
-- `apps/web/components/home/CategoryHero.tsx` — تتبع `CATEGORY_BROWSE`
-- `apps/web/components/auth/RegisterForm.tsx` — تتبع `SIGNUP_STARTED`
-- `apps/web/hooks/mutations/useAuthMutations.ts` — تتبع
+- `frontend/components/ads/AdDetailSection.tsx` — تتبع `AD_VIEW`
+- `frontend/components/ads/SellerCard.tsx` — تتبع `CONTACT_CLICK`
+- `frontend/components/search/SearchResults.tsx` — تتبع `SEARCH`
+- `frontend/components/home/CategoryHero.tsx` — تتبع `CATEGORY_BROWSE`
+- `frontend/components/auth/RegisterForm.tsx` — تتبع `SIGNUP_STARTED`
+- `frontend/hooks/mutations/useAuthMutations.ts` — تتبع
   `SIGNUP_COMPLETED`
-- `apps/web/hooks/queries/useAdmin.ts` — hook
+- `frontend/hooks/queries/useAdmin.ts` — hook
   `useAdminAnalyticsSummary`
-- `apps/web/lib/constants.ts` — `ROUTES.admin.analytics` +
+- `frontend/lib/constants.ts` — `ROUTES.admin.analytics` +
   `CACHE_TTL.adminAnalytics`
-- `apps/web/lib/queryKeys.ts` — `queryKeys.admin.analyticsSummary`
-- `apps/web/components/admin/AdminSidebar.tsx` — رابط "التحليلات"
+- `frontend/lib/queryKeys.ts` — `queryKeys.admin.analyticsSummary`
+- `frontend/components/admin/AdminSidebar.tsx` — رابط "التحليلات"
   بالقائمة الجانبية
-- `apps/web/providers/AppProviders.tsx` — ربط `PageViewTracker`
+- `frontend/providers/AppProviders.tsx` — ربط `PageViewTracker`
   ليشتغل على كل صفحات الموقع (باستثناء `/admin`)
 
 ## خطوات ما بعد الدمج

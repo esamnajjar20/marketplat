@@ -2,17 +2,17 @@
 
 ## البنية الحالية
 
-- `apps/web/`: موقع Next.js الحالي، بما فيه PWA وCapacitor وملفات Android.
-- `apps/api/`: خادم Express الحالي، وPrisma schema وmigrations والاختبارات.
+- `frontend/`: تطبيق Next.js 15 الحالي (App Router)، بما فيه PWA وCapacitor وملفات Android؛ يُدار عبر npm وملف `frontend/package-lock.json`.
+- `apps/api/`: خادم Express الحالي، وPrisma schema وmigrations والاختبارات؛ عضو في مساحة pnpm، ولديه أيضًا `package-lock.json` خاص بمهام CI التي تستخدم npm.
 - `workers/`: عمال Cloudflare الحاليون.
 - `shared/`: عقود وسياسة الكاش المشتركة الحالية.
-- `packages/`: مخصص للحزم المشتركة الجديدة عند إثبات الحاجة إليها.
+- `packages/`: الحزم المشتركة (ومنها `@marketplat/contracts`) ضمن مساحة pnpm.
 
 لم يُحذف الويب ولم يُستبدل بتطبيق الموبايل. تطبيق React Native لم يُنشأ بعد.
 
 ## التثبيت
 
-يتطلب المشروع Node.js 22 أو أحدث ضمن المجال المحدد في `package.json`، وCorepack/pnpm 10.18.0.
+يتطلب المشروع Node.js 22 أو أحدث، وCorepack/pnpm 10.18.0. الواجهة منفصلة عن مساحة pnpm عمدًا؛ لا تضف `frontend/` إلى `pnpm-workspace.yaml` دون ترحيل lockfile كامل.
 
 من جذر المستودع:
 
@@ -21,13 +21,14 @@ corepack pnpm install
 corepack pnpm verify:workspace
 ```
 
-أول تثبيت عبر pnpm سيُنشئ `pnpm-lock.yaml`. راجع التغييرات الناتجة، ثم أضف ملف القفل إلى Git. بعد اعتماده، استخدم `corepack pnpm install --frozen-lockfile` في CI.
+استخدم ملف القفل الموجود كما هو عبر `corepack pnpm install --frozen-lockfile` لحزم API والموبايل والعقود وWorker.
 
 ## أوامر التشغيل والفحص
 
 ```bash
 corepack pnpm dev:web
 corepack pnpm dev:api
+corepack pnpm dev:all
 corepack pnpm build:web
 corepack pnpm build:api
 corepack pnpm type-check:web
@@ -39,11 +40,11 @@ corepack pnpm test:api
 يمكن تشغيل أوامر npm الحالية داخل كل تطبيق عند الحاجة:
 
 ```bash
-cd apps/web && npm ci
-cd ../api && npm ci
+cd frontend && npm ci
+# API: استخدم npm ci داخل apps/api فقط عند اتباع CI/npm workflow
 ```
 
-لا تشغّل أوامر تثبيت npm وpnpm في الوقت نفسه على نفس مجلدات `node_modules`. بعد اعتماد pnpm، يُفضّل توحيد CI تدريجيًا بدل تبديل مدير الحزم داخل جميع الوظائف دفعة واحدة.
+لا تشغّل مديري الحزم بالتوازي على مجلد التطبيق نفسه. الواجهة تستخدم npm بشكل مستقل، وبقية حزم monorepo تستخدم pnpm محليًا؛ بعض وظائف CI تستخدم lockfiles الخاصة بها عمدًا.
 
 ## قبل النشر
 

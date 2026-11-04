@@ -1,57 +1,198 @@
 import type { Message } from '@/types/conversation.types';
 
 const DB_NAME = 'market-conversation-media';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE = 'media';
 const STORE_BLOBS = 'blobs';
 const MAX_CACHED_BLOB_BYTES = 12 * 1024 * 1024;
-const MAX_CONVERSATION_CACHE_BYTES = 50 * 1024 * 1024;
+const MAX_CONVERSATION_CACHE_BYTES = 30 * 1024 * 1024;
+const MAX_USER_CACHE_BYTES = 80 * 1024 * 1024;
+const MAX_AUTO_CACHE_ITEMS = 15;
+const MEDIA_FETCH_TIMEOUT_MS = 12_000;
+const MEDIA_FETCH_CONCURRENCY = 3;
 const MEDIA_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MEDIA_PROXY_BASE = '/api/v1/conversations';
 
-type MediaRecord = { key: string; userId: string; conversationId: string; items: Message[]; savedAt: number };
-type BlobRecord = { key: string; userId: string; conversationId: string; messageId: string; kind: 'image' | 'audio' | 'file'; blob: Blob; savedAt: number };
+type MediaRecord = {
+  key: string;
+  userId: string;
+  conversationId: string;
+  items: Message[];
+  savedAt: number;
+};
+type BlobRecord = {
+  key: string;
+  userId: string;
+  conversationId: string;
+  messageId: string;
+  kind: 'image' | 'audio' | 'file';
+  blob: Blob;
+  savedAt: number;
+};
+type MediaCandidate = {
+  messageId: string;
+  kind: BlobRecord['kind'];
+  url: string;
+};
+
+const inFlightBlobLoads = new Map<string, Promise<Blob | null>>();
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    if (typeof indexedDB === 'undefined') { reject(new Error('IndexedDB unavailable')); return; }
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'key' });
-      if (!db.objectStoreNames.contains(STORE_BLOBS)) db.createObjectStore(STORE_BLOBS, { keyPath: 'key' });
+    if (typeof indexedDB === 'undefined') {
+      reject(new Error('IndexedDB unavailable'));
+      return;
+    }
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    let wasBlocked = false;
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: 'key' });
+      }
+      const blobs = db.objectStoreNames.contains(STORE_BLOBS)
+        ? request.transaction?.objectStore(STORE_BLOBS)
+        : db.createObjectStore(STORE_BLOBS, { keyPath: 'key' });
+      if (blobs && !blobs.indexNames.contains('byUserId')) {
+        blobs.createIndex('byUserId', 'userId', { unique: false });
+      }
+      if (blobs && !blobs.indexNames.contains('byUserConversation')) {
+        blobs.createIndex('byUserConversation', ['userId', 'conversationId'], { unique: false });
+      }
     };
-    req.onsuccess = () => {
-      const db = req.result;
-      db.onversionchange = () => { try { db.close(); } catch { /* already closed */ } };
+    request.onsuccess = () => {
+      const db = request.result;
+      // An upgrade may complete after an earlier `blocked` notification. The
+      // open promise has already rejected in that case, so close this late
+      // connection instead of leaving an unowned handle alive.
+      if (wasBlocked) {
+        db.close();
+        return;
+      }
+      db.onversionchange = () => db.close();
       resolve(db);
     };
-    req.onerror = () => reject(req.error);
+    request.onerror = () => reject(request.error ?? new Error('Unable to open media database'));
+    request.onblocked = () => {
+      wasBlocked = true;
+      reject(new Error('Conversation media database upgrade blocked'));
+    };
   });
 }
 
-function key(userId: string, conversationId: string) { return `${userId}:${conversationId}`; }
-function blobKey(userId: string, conversationId: string, messageId: string, kind: string) { return `${userId}:${conversationId}:${messageId}:${kind}`; }
-
-export async function saveConversationMedia(userId: string, conversationId: string, items: Message[]): Promise<void> {
-  if (!userId || !conversationId) return;
+async function withDatabase<T>(operation: (db: IDBDatabase) => Promise<T>): Promise<T> {
   const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put({ key: key(userId, conversationId), userId, conversationId, items, savedAt: Date.now() } satisfies MediaRecord);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
+  try {
+    return await operation(db);
+  } finally {
+    db.close();
+  }
+}
+
+function key(userId: string, conversationId: string): string {
+  return `${userId}:${conversationId}`;
+}
+
+function blobKey(userId: string, conversationId: string, messageId: string, kind: string): string {
+  return `${userId}:${conversationId}:${messageId}:${kind}`;
+}
+
+function requestResult<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed'));
+  });
+}
+
+function transactionDone(transaction: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error('IndexedDB transaction failed'));
+    transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB transaction aborted'));
+  });
+}
+
+export async function saveConversationMedia(
+  userId: string,
+  conversationId: string,
+  items: Message[],
+): Promise<void> {
+  if (!userId || !conversationId) return;
+  await withDatabase(async (db) => {
+    const transaction = db.transaction(STORE, 'readwrite');
+    transaction.objectStore(STORE).put({
+      key: key(userId, conversationId),
+      userId,
+      conversationId,
+      items,
+      savedAt: Date.now(),
+    } satisfies MediaRecord);
+    await transactionDone(transaction);
   });
 }
 
 export async function getConversationMedia(userId: string, conversationId: string): Promise<Message[]> {
   if (!userId || !conversationId) return [];
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(key(userId, conversationId));
-    req.onsuccess = () => resolve((req.result as MediaRecord | undefined)?.items ?? []);
-    req.onerror = () => reject(req.error);
+  return withDatabase(async (db) => {
+    const transaction = db.transaction(STORE, 'readonly');
+    const result = await requestResult<MediaRecord | undefined>(
+      transaction.objectStore(STORE).get(key(userId, conversationId)),
+    );
+    await transactionDone(transaction);
+    return result?.items ?? [];
   });
+}
+
+async function readBoundedBlob(response: Response): Promise<Blob | null> {
+  if (!response.ok || !response.body) return null;
+  const contentLength = response.headers.get('content-length');
+  if (contentLength && /^\d+$/.test(contentLength) && Number(contentLength) > MAX_CACHED_BLOB_BYTES) {
+    await response.body.cancel().catch(() => undefined);
+    return null;
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      totalBytes += value.byteLength;
+      if (totalBytes > MAX_CACHED_BLOB_BYTES) {
+        await reader.cancel().catch(() => undefined);
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  if (totalBytes === 0) return null;
+  return new Blob(chunks, {
+    type: response.headers.get('content-type')?.split(';', 1)[0]?.trim() || 'application/octet-stream',
+  });
+}
+
+async function fetchBounded(
+  url: string,
+  credentials: RequestCredentials = 'include',
+): Promise<Blob | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), MEDIA_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, {
+      credentials,
+      cache: 'no-store',
+      redirect: 'error',
+      signal: controller.signal,
+    });
+    return await readBoundedBlob(response);
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function fetchMediaBlobWithFallback(
@@ -60,56 +201,129 @@ async function fetchMediaBlobWithFallback(
   kind: BlobRecord['kind'],
   remoteUrl: string,
 ): Promise<Blob | null> {
-  // First use the direct provider URL. If CORS blocks it, the same-origin
-  // backend proxy fetches the already-authorized message media server-side.
+  // Provider CORS may reject direct fetches. Never accept a non-HTTPS external
+  // URL here; the same-origin proxy is the authenticated fallback.
   try {
-    const direct = await fetch(remoteUrl, { credentials: 'include', cache: 'no-store' });
-    if (direct.ok) return await direct.blob();
+    const parsed = new URL(remoteUrl, typeof location !== 'undefined' ? location.origin : 'https://invalid.local');
+    if (parsed.protocol === 'https:' && parsed.hostname === 'res.cloudinary.com') {
+      const direct = await fetchBounded(parsed.href, 'omit');
+      if (direct) return direct;
+    }
   } catch {
-    // Expected for providers that omit Access-Control-Allow-Origin.
+    // Expected for provider CORS, expired media, or a failed network request.
   }
 
   try {
     const proxy = `${MEDIA_PROXY_BASE}/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/media/${kind}`;
-    const proxied = await fetch(proxy, { credentials: 'include', cache: 'no-store' });
-    if (!proxied.ok) return null;
-    return await proxied.blob();
+    return await fetchBounded(proxy);
   } catch {
     return null;
   }
 }
 
-/** Cache binary media separately from message metadata so reload/offline can still preview/download it. */
 async function putConversationMediaBlob(
   userId: string,
   conversationId: string,
   record: BlobRecord,
 ): Promise<boolean> {
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_BLOBS, 'readwrite');
-    const store = tx.objectStore(STORE_BLOBS);
-    const allReq = store.getAll();
-    allReq.onsuccess = () => {
-      const rows = (allReq.result as BlobRecord[]).filter(
-        (row) => row.userId === userId && row.conversationId === conversationId && row.key !== record.key,
-      );
-      let total = rows.reduce((sum, row) => sum + (row.blob?.size ?? 0), 0);
-      if (record.blob.size > MAX_CACHED_BLOB_BYTES) return resolve(false);
-      rows.sort((a, b) => a.savedAt - b.savedAt);
-      while (total + record.blob.size > MAX_CONVERSATION_CACHE_BYTES && rows.length) {
-        const oldest = rows.shift();
-        if (!oldest) break;
-        total -= oldest.blob?.size ?? 0;
-        store.delete(oldest.key);
+  if (record.blob.size <= 0 || record.blob.size > MAX_CACHED_BLOB_BYTES) return false;
+
+  return withDatabase(async (db) => new Promise<boolean>((resolve, reject) => {
+    const transaction = db.transaction(STORE_BLOBS, 'readwrite');
+    const store = transaction.objectStore(STORE_BLOBS);
+    const userIndex = store.index('byUserId');
+    const rowsRequest = userIndex.getAll(IDBKeyRange.only(userId));
+    let accepted = false;
+
+    rowsRequest.onsuccess = () => {
+      const rows = (rowsRequest.result as BlobRecord[]).filter((row) => row.key !== record.key);
+      const conversationRows = rows.filter((row) => row.conversationId === conversationId);
+      let userTotal = rows.reduce((sum, row) => sum + (row.blob?.size ?? 0), 0);
+      let conversationTotal = conversationRows.reduce((sum, row) => sum + (row.blob?.size ?? 0), 0);
+      const oldestFirst = [...rows].sort((a, b) => a.savedAt - b.savedAt);
+      const removedKeys = new Set<string>();
+
+      // First enforce the conversation budget, then the account-wide budget.
+      // Track deleted keys explicitly: inferring deletion from the remaining
+      // byte total can subtract a row twice when the cache was already under
+      // the conversation limit but still over the account limit.
+      for (const row of oldestFirst) {
+        if (conversationTotal + record.blob.size <= MAX_CONVERSATION_CACHE_BYTES) break;
+        if (row.conversationId !== conversationId) continue;
+        store.delete(row.key);
+        removedKeys.add(row.key);
+        const bytes = row.blob?.size ?? 0;
+        conversationTotal -= bytes;
+        userTotal -= bytes;
       }
-      if (total + record.blob.size > MAX_CONVERSATION_CACHE_BYTES) return resolve(false);
-      store.put(record);
+      for (const row of oldestFirst) {
+        if (userTotal + record.blob.size <= MAX_USER_CACHE_BYTES) break;
+        if (removedKeys.has(row.key)) continue;
+        store.delete(row.key);
+        removedKeys.add(row.key);
+        const bytes = row.blob?.size ?? 0;
+        userTotal -= bytes;
+        if (row.conversationId === conversationId) conversationTotal -= bytes;
+      }
+
+      if (
+        conversationTotal + record.blob.size <= MAX_CONVERSATION_CACHE_BYTES &&
+        userTotal + record.blob.size <= MAX_USER_CACHE_BYTES
+      ) {
+        store.put(record);
+        accepted = true;
+      }
     };
-    tx.oncomplete = () => resolve(true);
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error ?? new Error('Media cache transaction aborted'));
+    rowsRequest.onerror = () => reject(rowsRequest.error ?? new Error('Unable to inspect media cache budget'));
+    transaction.oncomplete = () => resolve(accepted);
+    transaction.onerror = () => reject(transaction.error ?? new Error('Media cache transaction failed'));
+    transaction.onabort = () => reject(transaction.error ?? new Error('Media cache transaction aborted'));
+  }));
+}
+
+async function loadAndStoreBlob(
+  userId: string,
+  conversationId: string,
+  messageId: string,
+  kind: BlobRecord['kind'],
+  remoteUrl: string,
+): Promise<Blob | null> {
+  const cached = await getConversationMediaBlob(userId, conversationId, messageId, kind);
+  if (cached) return cached;
+
+  const blob = await fetchMediaBlobWithFallback(conversationId, messageId, kind, remoteUrl);
+  if (!blob) return null;
+
+  try {
+    await putConversationMediaBlob(userId, conversationId, {
+      key: blobKey(userId, conversationId, messageId, kind),
+      userId,
+      conversationId,
+      messageId,
+      kind,
+      blob,
+      savedAt: Date.now(),
+    });
+  } catch {
+    // Keep the fetched Blob usable for this view even when storage is unavailable.
+  }
+  return blob;
+}
+
+async function runWithConcurrency<T>(
+  items: readonly T[],
+  concurrency: number,
+  run: (item: T) => Promise<void>,
+): Promise<void> {
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      const item = items[index];
+      if (item !== undefined) await run(item);
+    }
   });
+  await Promise.all(workers);
 }
 
 export async function cacheConversationMediaBlobs(
@@ -118,45 +332,39 @@ export async function cacheConversationMediaBlobs(
   items: Message[],
 ): Promise<void> {
   if (!userId || !conversationId || typeof fetch === 'undefined') return;
-  const candidates = items.flatMap((item) => {
-    const out: Array<{ messageId: string; kind: BlobRecord['kind']; url?: string | null }> = [];
-    if (item.imageUrl) out.push({ messageId: item.id, kind: 'image', url: item.imageUrl });
-    if (item.audioUrl) out.push({ messageId: item.id, kind: 'audio', url: item.audioUrl });
-    if (item.fileUrl) out.push({ messageId: item.id, kind: 'file', url: item.fileUrl });
-    return out;
-  });
-  for (const candidate of candidates) {
-    if (!candidate.url) continue;
+  const candidates: MediaCandidate[] = items.flatMap((item) => {
+    const result: MediaCandidate[] = [];
+    if (item.imageUrl) result.push({ messageId: item.id, kind: 'image', url: item.imageUrl });
+    if (item.audioUrl) result.push({ messageId: item.id, kind: 'audio', url: item.audioUrl });
+    if (item.fileUrl) result.push({ messageId: item.id, kind: 'file', url: item.fileUrl });
+    return result;
+  }).slice(-MAX_AUTO_CACHE_ITEMS);
+
+  await runWithConcurrency(candidates, MEDIA_FETCH_CONCURRENCY, async (candidate) => {
     try {
-      const existing = await getConversationMediaBlob(userId, conversationId, candidate.messageId, candidate.kind);
-      if (existing) continue;
-      const blob = await fetchMediaBlobWithFallback(conversationId, candidate.messageId, candidate.kind, candidate.url);
-      if (!blob || !blob.size || blob.size > MAX_CACHED_BLOB_BYTES) continue;
-      await putConversationMediaBlob(userId, conversationId, {
-        key: blobKey(userId, conversationId, candidate.messageId, candidate.kind),
+      await getOrCacheConversationMediaBlob(
         userId,
         conversationId,
-        messageId: candidate.messageId,
-        kind: candidate.kind,
-        blob,
-        savedAt: Date.now(),
-      });
+        candidate.messageId,
+        candidate.kind,
+        candidate.url,
+      );
     } catch {
-      // CORS/offline/expired URL: metadata remains usable and the next successful fetch retries the cache.
+      // CORS/offline/expired URL: metadata remains usable and the next online pass retries.
     }
-  }
+  });
 }
 
 async function deleteExpiredMediaBlob(keyValue: string): Promise<void> {
   try {
-    const db = await openDb();
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(STORE_BLOBS, 'readwrite');
-      tx.objectStore(STORE_BLOBS).delete(keyValue);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
+    await withDatabase(async (db) => {
+      const transaction = db.transaction(STORE_BLOBS, 'readwrite');
+      transaction.objectStore(STORE_BLOBS).delete(keyValue);
+      await transactionDone(transaction);
     });
-  } catch { /* best effort */ }
+  } catch {
+    // Best effort cleanup; the TTL check still prevents returning expired data.
+  }
 }
 
 export async function getConversationMediaBlob(
@@ -167,19 +375,18 @@ export async function getConversationMediaBlob(
 ): Promise<Blob | null> {
   if (!userId || !conversationId || !messageId) return null;
   try {
-    const db = await openDb();
-    return await new Promise((resolve, reject) => {
-      const req = db.transaction(STORE_BLOBS, 'readonly').objectStore(STORE_BLOBS).get(blobKey(userId, conversationId, messageId, kind));
-      req.onsuccess = () => {
-        const row = req.result as BlobRecord | undefined;
-        if (!row) return resolve(null);
-        if (!Number.isFinite(row.savedAt) || Date.now() - row.savedAt > MEDIA_TTL_MS) {
-          void deleteExpiredMediaBlob(row.key);
-          return resolve(null);
-        }
-        resolve(row.blob ?? null);
-      };
-      req.onerror = () => reject(req.error);
+    return await withDatabase(async (db) => {
+      const transaction = db.transaction(STORE_BLOBS, 'readonly');
+      const row = await requestResult<BlobRecord | undefined>(
+        transaction.objectStore(STORE_BLOBS).get(blobKey(userId, conversationId, messageId, kind)),
+      );
+      await transactionDone(transaction);
+      if (!row) return null;
+      if (!Number.isFinite(row.savedAt) || Date.now() - row.savedAt > MEDIA_TTL_MS) {
+        void deleteExpiredMediaBlob(row.key);
+        return null;
+      }
+      return row.blob ?? null;
     });
   } catch {
     return null;
@@ -187,27 +394,20 @@ export async function getConversationMediaBlob(
 }
 
 export async function clearConversationMediaStore(): Promise<void> {
-  try {
-    const db = await openDb();
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction([STORE, STORE_BLOBS], 'readwrite');
-      tx.objectStore(STORE).clear();
-      tx.objectStore(STORE_BLOBS).clear();
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch (error) {
-    // Propagate cleanup failure so logout can wait for or report it instead
-    // of silently leaving private media behind on disk.
-    throw error;
-  }
+  // Clear only this origin's media database; all opened connections are closed
+  // before this Promise resolves so logout cannot race a lingering transaction.
+  await withDatabase(async (db) => {
+    const transaction = db.transaction([STORE, STORE_BLOBS], 'readwrite');
+    transaction.objectStore(STORE).clear();
+    transaction.objectStore(STORE_BLOBS).clear();
+    await transactionDone(transaction);
+  });
 }
 
-
 /**
- * Returns a durable local object URL when the provider URL is blocked by CORS
- * or unavailable. Online callers populate IndexedDB through the app proxy;
- * offline callers only read the already-cached blob.
+ * Returns a durable local Blob when available, otherwise fetches it once and
+ * stores it under a bounded per-user LRU policy. Concurrent callers for the
+ * same media key share one network operation.
  */
 export async function getOrCacheConversationMediaBlob(
   userId: string,
@@ -218,16 +418,17 @@ export async function getOrCacheConversationMediaBlob(
 ): Promise<Blob | null> {
   const cached = await getConversationMediaBlob(userId, conversationId, messageId, kind);
   if (cached) return cached;
-  if (!remoteUrl || typeof navigator !== 'undefined' && !navigator.onLine) return null;
-  const blob = await fetchMediaBlobWithFallback(conversationId, messageId, kind, remoteUrl);
-  if (!blob || blob.size > MAX_CACHED_BLOB_BYTES) return null;
+  if (!remoteUrl || (typeof navigator !== 'undefined' && !navigator.onLine)) return null;
+
+  const keyValue = blobKey(userId, conversationId, messageId, kind);
+  const pending = inFlightBlobLoads.get(keyValue);
+  if (pending) return pending;
+
+  const task = loadAndStoreBlob(userId, conversationId, messageId, kind, remoteUrl);
+  inFlightBlobLoads.set(keyValue, task);
   try {
-    await putConversationMediaBlob(userId, conversationId, {
-      key: blobKey(userId, conversationId, messageId, kind),
-      userId, conversationId, messageId, kind, blob, savedAt: Date.now(),
-    });
-    return blob;
-  } catch {
-    return blob;
+    return await task;
+  } finally {
+    if (inFlightBlobLoads.get(keyValue) === task) inFlightBlobLoads.delete(keyValue);
   }
 }

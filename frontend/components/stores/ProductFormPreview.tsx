@@ -10,7 +10,7 @@
  * approximation rather than the exact same component.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useObjectUrl } from '@/hooks/useObjectUrl';
 import { PackageX, Clock3 } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
 import { PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -50,15 +50,7 @@ export function ProductFormPreview({ values, className }: Props) {
   // named variable first makes both checks pass and reads no worse.
   const firstImage = values.images[0];
 
-  const filePreview = useMemo(
-    () => (firstImage instanceof File ? URL.createObjectURL(firstImage) : null),
-    [firstImage],
-  );
-
-  useEffect(() => {
-    if (!filePreview) return;
-    return () => URL.revokeObjectURL(filePreview);
-  }, [filePreview]);
+  const filePreview = useObjectUrl(firstImage);
 
   const imageSrc = filePreview || values.existingImages[0] || PLACEHOLDER_SVG;
 

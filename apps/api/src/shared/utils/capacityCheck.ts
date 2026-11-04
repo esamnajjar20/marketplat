@@ -67,7 +67,7 @@ function estimateInstanceCount(): number {
   // re-import specifically to observe such changes) and expects this
   // function to see each new value on its very next call. Reading
   // process.env directly here — same live-per-call-read pattern as
-  // apps/web/lib/pwa.ts's getVapidPublicKey (see its own
+  // frontend/lib/pwa.ts's getVapidPublicKey (see its own
   // comment) — is what the existing test suite actually requires.
   // PM2_INSTANCES is still validated/documented in config/env.ts's
   // schema; this is the one deliberate call site that doesn't consume

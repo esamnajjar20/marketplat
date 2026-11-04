@@ -20,7 +20,7 @@ jobs:
         with:
           scan-args: |-
             --lockfile=apps/api/package-lock.json
-            --lockfile=apps/web/package-lock.json
+            --lockfile=frontend/package-lock.json
             --format=sarif
             --output=osv-results.sarif
         continue-on-error: true

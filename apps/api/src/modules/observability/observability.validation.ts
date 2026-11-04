@@ -9,7 +9,7 @@ import { z } from 'zod';
  * megabyte of junk through it into Sentry's event volume.
  *
  * The payload shape mirrors exactly what the frontend already sends
- * (see reportClientError in apps/web/lib/errorReporter.ts) plus the
+ * (see reportClientError in frontend/lib/errorReporter.ts) plus the
  * three fields that only make sense server-side (ip, receivedAt,
  * serverUserAgent) which the controller attaches itself.
  */

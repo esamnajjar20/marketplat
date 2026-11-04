@@ -1,0 +1,16 @@
+# Build the Next.js app from its own source tree without shipping local artifacts.
+node_modules
+.next
+.git
+coverage
+playwright-report
+test-results
+playwright/.cache
+android/.gradle
+android/app/build
+ios/Pods
+*.log
+.env
+.env.*
+!.env.example
+.DS_Store

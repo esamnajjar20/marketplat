@@ -119,33 +119,31 @@ export function ImageUpload({
 
   function openPicker() { inputRef.current?.click(); }
 
-  // SEC-FIX-06: Track created object URLs so we can revoke them.
+  // Blob URLs are created only after commit, never from render.
   const objectUrlsRef = useRef<Map<File, string>>(new Map());
+  const [objectUrls, setObjectUrls] = useState<Map<File, string>>(() => new Map());
 
-  function getObjectUrl(file: File): string {
-    if (!objectUrlsRef.current.has(file)) {
-      objectUrlsRef.current.set(file, URL.createObjectURL(file));
-    }
-    return objectUrlsRef.current.get(file)!;
-  }
-
-  // Revoke URLs for files that are no longer in the list.
   useEffect(() => {
-    const currentFiles = new Set(value);
-    objectUrlsRef.current.forEach((url, file) => {
-      if (!currentFiles.has(file)) {
+    const activeFiles = new Set(value);
+    for (const [file, url] of objectUrlsRef.current) {
+      if (!activeFiles.has(file)) {
         URL.revokeObjectURL(url);
         objectUrlsRef.current.delete(file);
       }
-    });
+    }
+    for (const file of value) {
+      if (!objectUrlsRef.current.has(file)) {
+        objectUrlsRef.current.set(file, URL.createObjectURL(file));
+      }
+    }
+    setObjectUrls(new Map(objectUrlsRef.current));
   }, [value]);
 
-  // Revoke all URLs on unmount.
   useEffect(() => {
-    const urlMap = objectUrlsRef.current;
+    const urls = objectUrlsRef.current;
     return () => {
-      urlMap.forEach((url) => URL.revokeObjectURL(url));
-      urlMap.clear();
+      urls.forEach((url) => URL.revokeObjectURL(url));
+      urls.clear();
     };
   }, []);
 
@@ -497,13 +495,17 @@ export function ImageUpload({
               picks from the camera or gallery in a single batch. */}
           {value.map((file, i) => (
             <div key={`${file.name}-${file.size}-${file.lastModified}`} className="group relative h-20 w-20 overflow-hidden rounded-md bg-muted">
-              <CloudinaryImage
-                src={getObjectUrl(file)}
-                alt={`Preview ${i + 1}`}
-                width={80}
-                height={80}
-                className="h-full w-full object-cover"
-              />
+              {objectUrls.get(file) ? (
+                <CloudinaryImage
+                  src={objectUrls.get(file)!}
+                  alt={`Preview ${i + 1}`}
+                  width={80}
+                  height={80}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full animate-pulse bg-muted" aria-hidden="true" />
+              )}
               <button
                 type="button"
                 onClick={() => onChange(value.filter((_, j) => j !== i))}

@@ -3,7 +3,7 @@
 # conventions: multi-stage build, non-root user, healthcheck.
 
 # ── Build Stage ──────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 
@@ -25,7 +25,7 @@ ENV NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=${NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}
 RUN npm run build
 
 # ── Production Stage ─────────────────────────────────
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 
 WORKDIR /app
 

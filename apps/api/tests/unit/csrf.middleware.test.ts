@@ -77,7 +77,7 @@ describe('csrfProtection', () => {
     // the assumption the frontend can always read the csrfToken cookie
     // via document.cookie and attach a matching X-CSRF-Token header.
     // That assumption only holds for a same-origin deployment. On a
-    // split-origin deployment (apps/web/backend on different hosts —
+    // split-origin deployment (frontend/backend on different hosts —
     // this app's actual Railway setup), the csrfToken cookie is
     // host-only bound to the backend's origin and is structurally
     // unreadable by frontend JS; the ONLY way the frontend ever learns

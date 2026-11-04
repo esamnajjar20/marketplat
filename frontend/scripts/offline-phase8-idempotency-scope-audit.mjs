@@ -5,7 +5,12 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const project = path.resolve(root, '..');
-const read = (file) => fs.readFileSync(path.join(project, file), 'utf8');
+const read = (file) => {
+  const normalized = file.startsWith('backend/')
+    ? path.join('apps/api', file.slice('backend/'.length))
+    : file;
+  return fs.readFileSync(path.join(project, normalized), 'utf8');
+};
 const client = read('frontend/api/client.ts');
 const id = read('frontend/lib/offlineOperationId.ts');
 const middleware = read('backend/src/middlewares/offlineOperationId.middleware.ts');

@@ -1,8 +1,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = process.cwd();
-const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
+// Resolve audited source files relative to this script, so the audit works
+// both from the monorepo root and when CI runs inside frontend/.
+const frontendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const read = (relative) => fs.readFileSync(path.join(frontendRoot, relative), 'utf8');
 const checks = [];
 const check = (name, condition) => {
   checks.push({ name, passed: Boolean(condition) });

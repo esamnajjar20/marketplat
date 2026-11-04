@@ -666,7 +666,7 @@ export const env = {
     // client in login/register/refresh responses so the frontend can
     // derive its access-token cookie's maxAge from the backend's
     // actual configured TTL instead of a hardcoded constant — see
-    // apps/web/lib/cookies.ts's cookieMaxAgeFromExpiresIn.
+    // frontend/lib/cookies.ts's cookieMaxAgeFromExpiresIn.
     expiresInSeconds: parseExpiresInToSeconds(_env.JWT_EXPIRES_IN),
     // Same treatment as expiresIn/expiresInSeconds above, for the
     // refresh token: jwt.ts's signRefreshToken uses the raw string for

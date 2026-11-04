@@ -1,7 +1,7 @@
 /**
  * pushService.ts is the missing backend half of the
  * frontend's already-built push-subscription plumbing (see
- * apps/web/lib/pwa.ts and apps/web/public/sw.js). These tests mirror
+ * frontend/lib/pwa.ts and frontend/public/sw.js). These tests mirror
  * emailService.test.ts's structure for the same reasons:
  *   1. The graceful-fallback path (VAPID unconfigured — must not throw,
  *      must not attempt a real network call).

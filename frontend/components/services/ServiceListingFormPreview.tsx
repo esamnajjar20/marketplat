@@ -10,7 +10,7 @@
  * account facts, not listing facts) aren't part of this preview.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useObjectUrl } from '@/hooks/useObjectUrl';
 import { Clock } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
 import { PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -47,14 +47,7 @@ export function ServiceListingFormPreview({ values, className }: Props) {
   // the placeholder are plain strings, not blobs, so they skip the
   // whole dance deliberately.
   const firstImage = values.images[0];
-  const filePreview = useMemo(
-    () => (firstImage instanceof File ? URL.createObjectURL(firstImage) : null),
-    [firstImage],
-  );
-  useEffect(() => {
-    if (!filePreview) return;
-    return () => URL.revokeObjectURL(filePreview);
-  }, [filePreview]);
+  const filePreview = useObjectUrl(firstImage);
   const imageSrc = filePreview || values.existingImages[0] || PLACEHOLDER_SVG;
 
   return (

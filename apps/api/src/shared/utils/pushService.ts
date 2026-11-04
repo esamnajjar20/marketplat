@@ -19,8 +19,8 @@ import {
 
 /**
  * this is the missing backend half of the frontend's
- * push-subscription plumbing (apps/web/lib/pwa.ts's subscribeToPush()
- * and apps/web/public/sw.js's 'push' event listener were both already
+ * push-subscription plumbing (frontend/lib/pwa.ts's subscribeToPush()
+ * and frontend/public/sw.js's 'push' event listener were both already
  * built and waiting for this — see that file's own doc comment).
  *
  * Uses the `web-push` package (standard Web Push protocol, works with

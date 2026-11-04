@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { SafeImg } from '@/components/shared/ui/SafeImg';
 import { cn } from '@/lib/utils';
 import { getThumbnailUrl } from '@/lib/cloudinary';
@@ -24,7 +24,17 @@ export const MessageMedia = memo(function MessageMedia({ message, conversationId
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const [filePreviewLoading, setFilePreviewLoading] = useState(false);
   const [filePreviewError, setFilePreviewError] = useState<string | null>(null);
+  const mountedRef = useRef(false);
+  const previewRequestRef = useRef(0);
   const isPdf = message.fileMimeType?.toLowerCase().includes('pdf') || message.fileName?.toLowerCase().endsWith('.pdf') === true;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      previewRequestRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     if (!filePreviewUrl) return;
@@ -33,6 +43,7 @@ export const MessageMedia = memo(function MessageMedia({ message, conversationId
 
   async function loadPdfPreview() {
     if (filePreviewLoading) return;
+    const requestId = ++previewRequestRef.current;
     setFilePreviewLoading(true);
     setFilePreviewError(null);
     try {
@@ -40,6 +51,7 @@ export const MessageMedia = memo(function MessageMedia({ message, conversationId
       // not inherit the Bearer token held by the auth store and was returning
       // 401 from the conversation media endpoint.
       const response = await conversationsApi.downloadMedia(conversationId, message.id, 'file');
+      if (!mountedRef.current || previewRequestRef.current !== requestId) return;
       const blob = response.data;
       if (!(blob instanceof Blob) || blob.size === 0) {
         throw new Error('The PDF response is empty or invalid');
@@ -55,19 +67,30 @@ export const MessageMedia = memo(function MessageMedia({ message, conversationId
       const pdfBlob = contentType === 'application/pdf'
         ? blob
         : new Blob([blob], { type: 'application/pdf' });
-      setFilePreviewUrl(URL.createObjectURL(pdfBlob));
+      const objectUrl = URL.createObjectURL(pdfBlob);
+      if (!mountedRef.current || previewRequestRef.current !== requestId) {
+        URL.revokeObjectURL(objectUrl);
+        return;
+      }
+      setFilePreviewUrl(objectUrl);
     } catch {
-      setFilePreviewError('تعذرت معاينة الملف. يمكنك إعادة المحاولة أو تحميله.');
+      if (mountedRef.current && previewRequestRef.current === requestId) {
+        setFilePreviewError('تعذرت معاينة الملف. يمكنك إعادة المحاولة أو تحميله.');
+      }
     } finally {
-      setFilePreviewLoading(false);
+      if (mountedRef.current && previewRequestRef.current === requestId) {
+        setFilePreviewLoading(false);
+      }
     }
   }
 
   function togglePdfPreview() {
     if (filePreviewOpen) {
+      previewRequestRef.current += 1;
       setFilePreviewOpen(false);
       setFilePreviewUrl(null);
       setFilePreviewError(null);
+      setFilePreviewLoading(false);
       return;
     }
     setFilePreviewOpen(true);

@@ -68,7 +68,7 @@ export const sanitizeClientUrl = (value?: string): string | undefined => {
 
 /**
  * receives error reports from the
- * frontend (see apps/web/lib/errorReporter.ts) and forwards them to
+ * frontend (see frontend/lib/errorReporter.ts) and forwards them to
  * the same logger pipeline the backend already uses for its own
  * errors — which means they reach Sentry via the existing
  * SentryErrorReporterTransport (see logger.ts) without the frontend

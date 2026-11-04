@@ -12,6 +12,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/package.json
 COPY apps/mobile/package.json ./apps/mobile/package.json
 COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY workers/cf-api-proxy/package.json ./workers/cf-api-proxy/package.json
 
 FROM base AS builder
 ENV NODE_ENV=development

@@ -12,7 +12,7 @@
  * share the same shell.
  */
 
-import { useEffect, useMemo } from 'react';
+import { useObjectUrl } from '@/hooks/useObjectUrl';
 import { MapPin } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
 import { CONDITION_LABELS } from '@/lib/constants';
@@ -42,15 +42,7 @@ export function AdFormPreview({ values, className }: Props) {
   // so exhaustive-deps can see the read); a useEffect cleanup revokes
   // each URL as the memo value changes and on unmount.
   const firstImage = values.images[0];
-  const filePreview = useMemo(
-    () => (firstImage instanceof File ? URL.createObjectURL(firstImage) : null),
-    [firstImage],
-  );
-
-  useEffect(() => {
-    if (!filePreview) return;
-    return () => URL.revokeObjectURL(filePreview);
-  }, [filePreview]);
+  const filePreview = useObjectUrl(firstImage);
 
   const imageSrc = filePreview || values.existingImages[0] || PLACEHOLDER_SVG;
   const conditionLabel = values.condition
