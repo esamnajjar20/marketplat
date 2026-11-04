@@ -76,7 +76,10 @@ export function ConversationList({ selectedId }: Props = {}) {
   const hasMore = Boolean(data?.meta?.hasNextPage);
   const loadingMore = isFetching && !isLoading;
 
-  const otherPartyIds = items.slice(0, 50).map((c) => (c.buyerId === user?.id ? c.seller : c.buyer).id);
+  const otherPartyIds = useMemo(
+    () => items.slice(0, 50).map((c) => (c.buyerId === user?.id ? c.seller : c.buyer).id),
+    [items, user?.id],
+  );
   const { data: onlineMap } = usePresence(otherPartyIds);
 
   const filtered = useMemo(() => {

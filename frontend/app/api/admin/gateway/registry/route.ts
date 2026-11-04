@@ -47,6 +47,41 @@ async function callApiWorker(path: string, init: RequestInit, bindings: RuntimeB
   return fetch(new URL(path, origin), { ...init, redirect: 'manual', cache: 'no-store' });
 }
 
+async function readLimitedResponseText(response: Response, maxBytes: number): Promise<string> {
+  const contentLength = response.headers.get('content-length');
+  if (contentLength !== null && (!/^\d+$/.test(contentLength) || Number(contentLength) > maxBytes)) {
+    throw new Error('Upstream response exceeded the configured size limit');
+  }
+  if (!response.body) return '';
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel();
+        throw new Error('Upstream response exceeded the configured size limit');
+      }
+      chunks.push(value);
+    }
+  } catch (error) {
+    await reader.cancel().catch(() => undefined);
+    throw error;
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+}
+
 function roleFromPayload(payload: unknown): string | null {
   if (!payload || typeof payload !== 'object') return null;
   const root = payload as Record<string, unknown>;
@@ -81,9 +116,11 @@ async function verifyAdminSession(request: NextRequest, bindings: RuntimeBinding
       method: 'GET',
       headers,
       cache: 'no-store',
+      signal: AbortSignal.timeout(5_000),
     }, bindings);
     if (!response.ok) return false;
-    const payload: unknown = await response.json();
+    const responseText = await readLimitedResponseText(response, 16_384);
+    const payload: unknown = JSON.parse(responseText);
     const role = roleFromPayload(payload);
     return role !== null && ADMIN_ROLES.has(role);
   } catch {
@@ -107,6 +144,66 @@ function jsonError(error: string, status: number) {
   return NextResponse.json({ ok: false, error }, { status, headers: NO_STORE_HEADERS });
 }
 
+type LimitedJsonBodyResult =
+  | { ok: true; body: string }
+  | { ok: false; reason: 'TOO_LARGE' | 'UNSUPPORTED_MEDIA_TYPE' | 'INVALID_JSON' };
+
+async function readLimitedJsonBody(request: Request, maxBytes: number): Promise<LimitedJsonBodyResult> {
+  const mediaType = request.headers.get('content-type')?.split(';', 1)[0]?.trim().toLowerCase();
+  if (mediaType !== 'application/json') {
+    return { ok: false, reason: 'UNSUPPORTED_MEDIA_TYPE' };
+  }
+
+  const contentLength = request.headers.get('content-length');
+  if (contentLength !== null) {
+    if (!/^\d+$/.test(contentLength) || Number(contentLength) > maxBytes) {
+      return { ok: false, reason: 'TOO_LARGE' };
+    }
+  }
+
+  if (!request.body) return { ok: false, reason: 'INVALID_JSON' };
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        await reader.cancel();
+        return { ok: false, reason: 'TOO_LARGE' };
+      }
+      chunks.push(value);
+    }
+  } catch {
+    await reader.cancel().catch(() => undefined);
+    return { ok: false, reason: 'INVALID_JSON' };
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  let body: string;
+  try {
+    body = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    const parsed: unknown = JSON.parse(body);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return { ok: false, reason: 'INVALID_JSON' };
+    }
+  } catch {
+    return { ok: false, reason: 'INVALID_JSON' };
+  }
+
+  return { ok: true, body };
+}
+
 async function proxyRegistry(request: NextRequest, method: 'GET' | 'PUT' | 'POST') {
   const bindings = runtimeBindings();
   if (!(await verifyAdminSession(request, bindings))) return jsonError('FORBIDDEN', 403);
@@ -124,9 +221,14 @@ async function proxyRegistry(request: NextRequest, method: 'GET' | 'PUT' | 'POST
   });
   let body: string | undefined;
   if (method !== 'GET') {
-    body = await request.text();
     const maxBytes = method === 'PUT' ? 65_536 : 1_024;
-    if (body.length > maxBytes) return jsonError('REQUEST_TOO_LARGE', 413);
+    const parsedBody = await readLimitedJsonBody(request, maxBytes);
+    if (!parsedBody.ok) {
+      if (parsedBody.reason === 'TOO_LARGE') return jsonError('REQUEST_TOO_LARGE', 413);
+      if (parsedBody.reason === 'UNSUPPORTED_MEDIA_TYPE') return jsonError('UNSUPPORTED_MEDIA_TYPE', 415);
+      return jsonError('INVALID_JSON_BODY', 400);
+    }
+    body = parsedBody.body;
     headers.set('content-type', 'application/json');
   }
 
@@ -136,8 +238,11 @@ async function proxyRegistry(request: NextRequest, method: 'GET' | 'PUT' | 'POST
       headers,
       ...(body !== undefined ? { body } : {}),
       cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
     }, bindings);
-    const responseText = await upstream.text();
+    // Registry state is small by contract; cap the upstream payload to avoid
+    // buffering an unbounded Worker response in this Route Handler.
+    const responseText = await readLimitedResponseText(upstream, 262_144);
     return new NextResponse(responseText, {
       status: upstream.status,
       headers: {

@@ -30,6 +30,8 @@ const messageUtils = read('lib/messageUtils.ts');
 const installmentForm = read('components/sales/payments/InstallmentForm.tsx');
 const clock = read('components/shared/cards/cardParts.tsx');
 const renderAudit = read('scripts/render-regression-audit.mjs');
+const cloudinary = read('lib/cloudinary.ts');
+const dataSaver = read('lib/dataSaver.ts');
 
 check(/google:\s*'notranslate'/.test(layout), 'Root metadata opts out of Google auto-translation');
 check(/<html[^>]*translate="no"/.test(layout), 'Root HTML explicitly disables translation mutation');
@@ -39,6 +41,7 @@ check(/process\.env\.NODE_ENV !== 'production'[\s\S]*?<Script src="\/hydration-t
 check(/const \[guestPreference, setGuestPreference\] = useState<[^>]+>\(undefined\)/.test(browseCity) && /const \[guestReady, setGuestReady\] = useState\(false\)/.test(browseCity), 'Browse-city localStorage preference does not change the initial SSR/hydration render');
 check(/useEffect\(\(\) => \{\s*setSuggestions\(suggestRecentSearches\(query\.trim\(\), 5\)\);/.test(headerSearchBar) && !/useMemo\([\s\S]*suggestRecentSearches/.test(headerSearchBar), 'Header search history is read after mount, not during the render used for hydration');
 check(/const INITIAL_NETWORK_POLICY: NetworkPolicy =/.test(networkPolicyHook) && /useState<NetworkPolicy>\(INITIAL_NETWORK_POLICY\)/.test(networkPolicyHook) && /useEffect\(\(\) => \{\s*const refresh = \(\) => setPolicy\(getNetworkPolicy\(\)\)/.test(networkPolicyHook), 'Network policy uses a deterministic first render and reads device-specific connection state after mount');
+check(!/getNetworkPolicy/.test(cloudinary) && !/getNetworkPolicy/.test(dataSaver), 'Cloudinary URL helpers and data-saver reads stay pure during render to prevent network-tier hydration drift and render-time subscriptions');
 check(/function hydrationDomDetails\(\)/.test(deviceMonitor) && /htmlAttributes/.test(deviceMonitor) && /bodyChildElements/.test(deviceMonitor), 'Hydration reports include a privacy-safe HTML/body structure snapshot');
 check(/const \[mounted, setMounted\] = useState\(false\)/.test(themeToggle) && /useEffect\(\(\) => setMounted\(true\), \[\]\)/.test(themeToggle), 'ThemeToggle does not render browser-resolved theme before mount');
 check(/useNowAfterMount\(true, dateStr\)/.test(relativeTime) && /now === null/.test(relativeTime), 'Relative-time UI uses stable initial output and post-mount clock');

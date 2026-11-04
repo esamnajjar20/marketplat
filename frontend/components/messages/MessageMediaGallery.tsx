@@ -24,6 +24,7 @@ interface Props {
 
 type Kind = 'all' | 'images' | 'audio' | 'files';
 type GalleryItem = Message & { localUrl?: string; localBlob?: Blob; queued?: boolean };
+const EMPTY_QUEUED_ITEMS: QueuedMessageEntry[] = [];
 
 function formatBytes(size?: number | null) {
   if (!size) return '';
@@ -32,7 +33,7 @@ function formatBytes(size?: number | null) {
   return `${(size / 1048576).toFixed(1)} MB`;
 }
 
-export function MessageMediaGallery({ items, queuedItems = [], conversationId = '', loading }: Props) {
+export function MessageMediaGallery({ items, queuedItems = EMPTY_QUEUED_ITEMS, conversationId = '', loading }: Props) {
   const userId = useAuthStore(selectUser)?.id ?? null;
   const isOnline = useOnlineStatus();
   const [kind, setKind] = useState<Kind>('all');
@@ -122,11 +123,11 @@ export function MessageMediaGallery({ items, queuedItems = [], conversationId = 
     return Boolean(m.fileUrl);
   }), [allItems, kind]);
   const imageItems = useMemo(() => filtered.filter((item) => Boolean(item.imageUrl)), [filtered]);
-  const counts = {
+  const counts = useMemo(() => ({
     images: allItems.filter((m) => m.imageUrl).length,
     audio: allItems.filter((m) => m.audioUrl).length,
     files: allItems.filter((m) => m.fileUrl).length,
-  };
+  }), [allItems]);
 
   const cacheOnError = useCallback(async (item: GalleryItem, mediaKind: 'image' | 'audio' | 'file') => {
     if (!userId || !conversationId || item.queued) return;
@@ -144,7 +145,7 @@ export function MessageMediaGallery({ items, queuedItems = [], conversationId = 
   if (loading && !allItems.length) return <div className="py-8 text-center text-sm text-muted-foreground">جارٍ تحميل الوسائط…</div>;
   if (!allItems.length) return <div className="rounded-2xl border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">لا توجد صور أو تسجيلات أو ملفات في هذه المحادثة.</div>;
 
-  const tabs: [Kind, string, number][] = [['all', 'الكل', counts.images + counts.audio + counts.files], ['images', 'الصور', counts.images], ['audio', 'الصوت', counts.audio], ['files', 'الملفات', counts.files]];
+  const tabs = useMemo<[Kind, string, number][]>(() => [['all', 'الكل', counts.images + counts.audio + counts.files], ['images', 'الصور', counts.images], ['audio', 'الصوت', counts.audio], ['files', 'الملفات', counts.files]], [counts]);
 
   return <>
     <div className="mb-3 flex gap-1 overflow-x-auto overscroll-x-contain pb-1" role="tablist" aria-label="نوع الوسائط">

@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Eye, Users, UserPlus, Package, Tag, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/shared/ui/Card';
 import { StatCard } from '@/components/shared/ui/StatCard';
@@ -85,11 +85,9 @@ export function MyStoreAnalytics() {
                   <span className="w-4 shrink-0 text-sm text-muted-foreground">{index + 1}</span>
                   <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-muted">
                     {product.image && (
-                      <Image
+                      <SafeImage
                         src={getThumbnailUrl(product.image, 40, 40)}
                         alt={product.name}
-                        width={40}
-                        height={40}
                         fill
                         className="object-cover"
                         sizes="40px"

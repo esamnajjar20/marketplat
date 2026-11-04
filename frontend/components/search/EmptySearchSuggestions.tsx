@@ -149,6 +149,7 @@ export function EmptySearchSuggestions() {
                       alt=""
                       width={200}
                       height={88}
+                      sizes="(max-width: 640px) 50vw, 200px"
                       className="h-full w-full object-cover"
                     />
                   ) : (

@@ -2,20 +2,11 @@
 
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { ProgressiveDetailImage } from '@/components/shared/detail/ProgressiveDetailImage';
-import { ChevronRight, ChevronLeft, ImageOff } from 'lucide-react';
+import { AdDetailGallery } from '@/components/ads/AdDetailGallery';
 import { ROUTES } from '@/lib/constants';
-import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import dynamic from 'next/dynamic';
-// BUNDLE-OPT-02: Lazy-load Lightbox (Dialog + ZoomableDetailImage + icons)
-// Only loads when user opens image gallery
-const AdDetailLightbox = dynamic(
-  () => import('@/components/ads/AdDetailLightbox').then((m) => m.AdDetailLightbox),
-  { ssr: false, loading: () => null },
-);
 // BUNDLE-OPT-03: Lazy-load below-fold sections (metadata, description, sidebar, sticky CTA)
 // These are loaded after initial render to reduce First Load JS
 const AdDetailMetadata = dynamic(
@@ -47,7 +38,6 @@ import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Ad } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
-import { DETAIL_GALLERY_SHELL } from '@/components/shared/detail/detailTokens';
 
 /**
  * FIX BUG-05: ROUTES.category() builds a /categories/:slug URL, but the
@@ -91,55 +81,12 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   // Persisted Zustand state is unavailable during SSR. Delay owner-only
   // presentation until mount so server and first client render agree.
   const isOwnAd = authMounted && currentUser?.id === ad.user.id;
-  const [imgIdx, setImgIdx] = useState(0);
-  const [lightboxOpen, setLightboxOpen] = useState(false);
-  const touchStartX = useRef<number | null>(null);
-  const thumbnailRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const validImages = (Array.isArray(ad.images) ? ad.images : []).filter(
-    (image) => typeof image === 'string' && image.trim().length > 0,
+  const validImages = useMemo(
+    () => (Array.isArray(ad.images) ? ad.images : []).filter(
+      (image) => typeof image === 'string' && image.trim().length > 0,
+    ),
+    [ad.images],
   );
-  const hasImages = validImages.length > 0;
-  const images = hasImages ? validImages : [PLACEHOLDER_SVG];
-
-  function handleStickyMessage() {
-    if (!isAuth) {
-      toast.error('سجّل الدخول لمراسلة البائع');
-      const destination = `${ROUTES.login}?from=${encodeURIComponent(ROUTES.adDetail(ad.id))}`;
-      signalNavigationStart(destination);
-      router.push(destination);
-      return;
-    }
-    track('CONTACT_CLICK', { adId: ad.id, sellerId: ad.user.id });
-    startConversation.mutate(
-      { adId: ad.id },
-      { onSuccess: (conversation) => {
-        const destination = ROUTES.conversationDetail(conversation!.id);
-        signalNavigationStart(destination);
-        router.push(destination);
-      } }
-    );
-  }
-
-  const imageCount = images.length;
-
-  const goPrev = useCallback(() => {
-    setImgIdx((i) => Math.max(0, i - 1));
-  }, []);
-  const goNext = useCallback(() => {
-    setImgIdx((i) => Math.min(imageCount - 1, i + 1));
-  }, [imageCount]);
-
-  // Keyboard arrows remain available while the Dialog is open; Radix Dialog
-  // owns Escape handling, focus trapping, and body scroll locking.
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (!lightboxOpen || imageCount <= 1) return;
-      if (e.key === 'ArrowLeft') goNext();
-      if (e.key === 'ArrowRight') goPrev();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [imageCount, goPrev, goNext, lightboxOpen]);
 
   const toggleFavorite = useToggleFavorite();
   const queryClient = useQueryClient();
@@ -174,17 +121,6 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
   }, [ad.id]);
 
   const favorited = useIsFavorited(ad.id);
-
-  const currentImg = getDetailImageUrl(images[imgIdx] ?? PLACEHOLDER_SVG);
-
-  // Keep the active thumbnail visible when users navigate with arrows,
-  // keyboard shortcuts, swipe gestures, or direct thumbnail selection.
-  // Respect reduced-motion preferences and avoid any work during SSR.
-  useEffect(() => {
-    const activeThumbnail = thumbnailRefs.current[imgIdx];
-    if (!activeThumbnail) return;
-    activeThumbnail.scrollIntoView({ inline: 'center', behavior: 'smooth' });
-  }, [imgIdx]);
 
   const handleFavorite = useCallback(async () => {
     if (!isAuth) {
@@ -221,100 +157,13 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
     autoSaveVisitedAd(ad);
   }, [ad]);
 
-  const handleLightboxOpen = useCallback(() => {
-    setLightboxOpen(true);
-  }, []);
-
   return (
     <>
       {/* Layout aligned with ProductDetail: no nested container (page already provides it). */}
       <div className={cn('flex flex-col gap-6 md:flex-row md:gap-8', isOwnAd && 'pb-8')}>
         <div className="min-w-0 flex-1 space-y-6 lg:w-2/3">
-              {/* Main image gallery - KEEP EAGER (LCP critical) */}
-              <div className={cn(DETAIL_GALLERY_SHELL, 'lg:shadow-md')}>
-                <div
-                  className="relative aspect-[4/3] overflow-hidden bg-muted sm:aspect-[16/9]"
-                  onTouchStart={(e) => {
-                    touchStartX.current = e.changedTouches[0]?.clientX ?? null;
-                  }}
-                  onTouchEnd={(e) => {
-                    if (touchStartX.current == null || images.length <= 1) return;
-                    const dx = (e.changedTouches[0]?.clientX ?? touchStartX.current) - touchStartX.current;
-                    touchStartX.current = null;
-                    if (Math.abs(dx) < 40) return;
-                    // RTL: swipe right (positive dx) → previous; swipe left → next
-                    if (dx > 0) goPrev();
-                    else goNext();
-                  }}
-                >
-                  {hasImages ? (
-                    <button
-                      type="button"
-                      className="absolute inset-0 cursor-zoom-in"
-                      onClick={handleLightboxOpen}
-                      aria-label="تكبير الصورة"
-                    >
-                      <ProgressiveDetailImage
-                        src={currentImg}
-                        alt={ad.title}
-                        className="object-contain select-none pointer-events-none"
-                        sizes="(max-width:1024px) 100vw, 66vw"
-                        priority={imgIdx === 0}
-                        draggable={false}
-                      />
-                    </button>
-                  ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-muted/50 text-muted-foreground">
-                      <ImageOff className="h-10 w-10 opacity-70" aria-hidden="true" />
-                      <span className="text-sm font-medium">لا توجد صور لهذا الإعلان</span>
-                    </div>
-                  )}
-                  {ad.isFeatured && (
-                    <span className="absolute top-4 start-4 bg-accent text-accent-foreground px-3 py-1 rounded-full text-xs font-bold shadow-sm">
-                      مميز
-                    </span>
-                  )}
-                  {images.length > 1 && (
-                    <>
-                      <button onClick={goPrev}
-                        disabled={imgIdx === 0}
-                        aria-label="الصورة السابقة"
-                        className="absolute start-2 top-1/2 -translate-y-1/2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/50 text-white disabled:opacity-30">
-                        <ChevronRight className="h-5 w-5" />
-                      </button>
-                      <button onClick={goNext}
-                        disabled={imgIdx === images.length - 1}
-                        aria-label="الصورة التالية"
-                        className="absolute end-2 top-1/2 -translate-y-1/2 flex h-11 w-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-full bg-black/50 text-white disabled:opacity-30">
-                        <ChevronLeft className="h-5 w-5" />
-                      </button>
-                      <span className="absolute bottom-4 end-4 bg-black/60 backdrop-blur-md text-white text-xs px-3 py-1.5 rounded-full">
-                        {imgIdx + 1} / {images.length}
-                      </span>
-                    </>
-                  )}
-                </div>
-                {images.length > 1 && (
-                  <div className="flex gap-3 p-3 overflow-x-auto overscroll-x-contain">
-                    {images.map((img, i) => (
-                      <button key={i} ref={(node) => { thumbnailRefs.current[i] = node; }} onClick={() => setImgIdx(i)}
-                        aria-label={`عرض الصورة ${i + 1} من ${images.length}`}
-                        aria-current={i === imgIdx ? 'true' : undefined}
-                        className={cn('relative w-16 h-16 sm:w-20 sm:h-20 min-h-[44px] min-w-[44px] rounded-lg shrink-0 overflow-hidden border-2 transition-colors',
-                          i === imgIdx ? 'border-primary' : 'border-transparent opacity-70 hover:opacity-100')}>
-                        {/* FIX PERF-07: was rendering the raw, full-resolution
-                            Cloudinary URL at a 64x48 display size — every
-                            thumbnail downloaded the same multi-MB original as
-                            the main image, just CSS-scaled down visually. A
-                            real Cloudinary-transformed thumbnail costs a
-                            fraction of the bytes for a strip that never
-                            displays larger than 64px wide. */}
-                        <SafeImage src={getThumbnailUrl(img, 128, 128)} alt={`صورة ${i + 1}`} fill className="object-cover" sizes="80px" loading="lazy" />
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* Isolated gallery: image navigation does not re-render the detail page. */}
+              <AdDetailGallery images={validImages} title={ad.title} isFeatured={ad.isFeatured} />
 
               {/* Metadata (single title, status, location, price actions) */}
               <AdDetailMetadata
@@ -342,21 +191,10 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
         isOwnAd={isOwnAd}
         transitionClass={stickyCta.transitionClass}
         hiddenClass={stickyCta.hiddenClass}
-        onMessageClick={handleStickyMessage}
+        onMessageClick={handleStartConversation}
         isMessaging={startConversation.isPending}
       />
 
-      {/* Fullscreen lightbox — lazy loaded */}
-      {lightboxOpen && (
-        <AdDetailLightbox
-          images={images}
-          currentIdx={imgIdx}
-          adTitle={ad.title}
-          onClose={() => setLightboxOpen(false)}
-          onNext={goNext}
-          onPrev={goPrev}
-        />
-      )}
     </>
   );
 }

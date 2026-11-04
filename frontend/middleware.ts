@@ -198,25 +198,16 @@ function isTokenExpired(decoded: DecodedToken): boolean {
 // static 'unsafe-inline' for script-src — there's no way to generate a
 // fresh nonce per request from a static config. Next.js's documented
 // pattern for nonce-based CSP is to generate the nonce here in
-// middleware (which runs per-request) and set an `x-nonce` request
-// header — Next.js's App Router automatically detects this header and
-// applies the same nonce to its own injected scripts (hydration/RSC
-// payload scripts), no extra wiring needed elsewhere. We also set the
-// actual Content-Security-Policy response header here (replacing the
-// static one previously in next.config.ts) so script-src's nonce value
-// matches what was just minted.
-// CACHE-CONTROL-01: Next.js 16 App Router sends
-// `private, no-cache, no-store, max-age=0, must-revalidate` for every
-// dynamic route. Because RootLayout reads headers() for the CSP nonce,
-// every route is dynamic — so `no-store` was being applied to public
-// browse pages too, forcing a full HTML fetch on every navigation. On
-// Gaza's weak links that costs 30-50 KB per click with no 304
-// revalidation.
-//
-// Override the header only for known PUBLIC routes. Their HTML can be
-// stored by shared caches for the route-specific s-maxage, while browsers
-// revalidate on navigation because max-age=0. Protected, auth and stateful
-// routes keep the Next.js default and are never shared-cacheable.
+// middleware (which runs per-request), then put the complete CSP on
+// both the forwarded request and the public response. Next.js extracts
+// the nonce from the request's Content-Security-Policy header and applies
+// it to framework-generated scripts. The separate x-nonce header is kept
+// only for application-owned scripts (for example next-themes).
+// CSP-NONCE-CACHE-01: nonce-bearing HTML must not be shared-cached. A
+// deployment-wide nonce is predictable/reusable and defeats the main CSP
+// property. Public API responses and immutable assets retain their own cache
+// policies; the Service Worker may still save verified visited HTML shells
+// explicitly for offline navigation.
 const PUBLIC_HTML_EXACT = new Set<string>([
   '/',
   '/about',
@@ -264,8 +255,23 @@ function isNextRscRequest(request: NextRequest): boolean {
   );
 }
 
+function getCspApiOrigin(): string | null {
+  const configured = getRawApiUrl()?.trim();
+  if (!configured) return null;
+
+  try {
+    const url = new URL(configured);
+    const isDevelopment = process.env.NODE_ENV !== 'production';
+    if (url.username || url.password) return null;
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && isDevelopment)) return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
 function buildCsp(nonce: string, isDev: boolean, allowEval: boolean = false): string {
-  const apiOrigin = getRawApiUrl()?.trim() ?? '';
+  const apiOrigin = getCspApiOrigin();
   return [
     "default-src 'self'",
     // FIX SEC-06: 'unsafe-inline' removed in production — replaced with
@@ -325,33 +331,31 @@ function buildCsp(nonce: string, isDev: boolean, allowEval: boolean = false): st
   ].join('; ');
 }
 
-// CACHE-TIERS-02: Separate browser HTML freshness from shared-CDN caching.
-// Browsers/WebViews must revalidate HTML on navigation so a document from
-// build A is not reused after deployment B while its hash-named chunks have
-// been replaced. Keep s-maxage for shared caches; do not add stale-while-
-// revalidate to HTML because a stale document can reference deleted chunks.
-// Offline navigation remains the Service Worker's responsibility.
-// Returns null for authenticated pages (Next.js default = no-store).
-function getHtmlCacheControl(pathname: string): string | null {
+// Public HTML paths that previously had a shared-cache profile. They are
+// now explicitly no-store because every rendered document carries a fresh CSP
+// nonce. Keep this classifier to ensure those legacy CDN tiers cannot be
+// reintroduced accidentally; offline navigation remains the Service Worker's
+// responsibility. This function does not return or emit a cache policy.
+function hasLegacyPublicHtmlCacheTier(pathname: string): boolean {
   // Protected routes can live below broad public prefixes such as /ads/,
   // /requests/ and /stories. Always resolve the auth boundary before applying
   // any public HTML tier; otherwise /ads/create or /requests/new can inherit
   // shared s-maxage merely because their pathname matches a public prefix.
   if (isProtected(pathname) || isAdminRoute(pathname) || isAuthPage(pathname)) {
-    return null;
+    return false;
   }
 
   // Tier 1 — static content pages (rarely change)
   if (['/about', '/privacy', '/contact', '/terms'].includes(pathname)) {
-    return 'public, max-age=0, must-revalidate, s-maxage=7200';
+    return true;
   }
   // Tier 2 — category index + detail
   if (pathname === '/categories' || pathname.startsWith('/categories/')) {
-    return 'public, max-age=0, must-revalidate, s-maxage=1200';
+    return true;
   }
   // Tier 3 — store/service indexes + seller ranking (change slowly)
   if (['/stores', '/services', '/service-providers', '/sellers/ranking', '/trending', '/shared', '/saved-payments'].includes(pathname)) {
-    return 'public, max-age=0, must-revalidate, s-maxage=600';
+    return true;
   }
   // Tier 4 — profile / seller / store-stats (bio/avatar rarely change)
   if (
@@ -362,21 +366,21 @@ function getHtmlCacheControl(pathname: string): string | null {
     /^\/stores\/[^/]+$/.test(pathname) ||
     /^\/service-providers\/[^/]+$/.test(pathname)
   ) {
-    return 'public, max-age=0, must-revalidate, s-maxage=600';
+    return true;
   }
   // Tier 5 — individual ad/product/service/request (can be removed)
   if (/^\/(ads|products|services|requests)\/[^/]+$/.test(pathname)) {
-    return 'public, max-age=0, must-revalidate, s-maxage=120';
+    return true;
   }
   // Tier 6 — market feed pages (default for public HTML routes)
   if (['/promoted', '/stories', '/for-you', '/suggestions', '/requests'].includes(pathname)) {
-    return 'public, max-age=0, must-revalidate, s-maxage=60';
+    return true;
   }
   if (isPublicHtmlRoute(pathname)) {
-    return 'public, max-age=0, must-revalidate, s-maxage=60';
+    return true;
   }
   // Authenticated/private — do NOT cache
-  return null;
+  return false;
 }
 
 // ── Middleware ────────────────────────────────────────────────────
@@ -397,6 +401,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const debugConsoleEnabled = request.cookies.get('mp_debug_console')?.value === '1';
   const tokenCookie = request.cookies.get('app_access_token')?.value ?? null;
   const decoded     = tokenCookie ? decodeToken(tokenCookie) : null;
   const hasValidAccessToken = decoded !== null && !isTokenExpired(decoded);
@@ -459,43 +464,25 @@ export function middleware(request: NextRequest) {
     // gated server-side by AdminLayoutClient + backend API authorization.
   }
 
-  // FIX SEC-06: per-request nonce for CSP script-src, replacing the
-  // static 'unsafe-inline' that previously applied even in production.
-  // DEPLOYMENT-NONCE-01: same nonce across all requests within one
-  // deployment so cached HTML matches the CSP header. A per-request nonce
-  // breaks when Cloudflare (or any CDN) caches the HTML: the cached copy
-  // retains the old nonce while the CSP header carries a fresh one, and
-  // the browser then blocks the RSC streaming scripts ($RC) — which is
-  // exactly the trigger for React #418 args[]=HTML. The nonce need not be
-  // secret (it proves script origin, not caller identity), so a
-  // build-time constant is safe. It rotates on every deploy.
-  const deploymentSeed =
-    process.env.NEXT_PUBLIC_BUILD_NONCE ??
-    process.env.CF_VERSION_METADATA_ID ??
-    process.env.GITHUB_SHA ??
-    null;
-  const nonce = deploymentSeed
-    ? deploymentSeed.replace(/[^a-zA-Z0-9]/g, '').slice(0, 32).padEnd(32, '0')
-    : crypto.randomUUID().replace(/-/g, '');
-  // SECURITY: NextResponse.next({ request: { headers } }) serializes
-  // the full header set it's given into internal x-middleware-request-*
-  // headers on the *response* so Next.js can reconstruct the request
-  // downstream — meaning any sensitive header present here (notably
-  // `cookie`, which carries app_access_token) becomes readable on the
-  // outgoing response too. Only x-nonce is actually needed downstream
-  // (App Router auto-detects it for RSC/hydration script nonces), so
-  // strip cookie/authorization instead of forwarding the incoming
-  // headers verbatim.
+  // CSP nonces must be unpredictable and newly generated for each response.
+  // Never derive them from a build ID, deployment ID, or NEXT_PUBLIC variable.
+  // HTML responses carrying this nonce are marked no-store below; static assets
+  // and API responses keep their independent cache policies.
+  const nonce = crypto.randomUUID().replace(/-/g, '');
+  // The App Router needs the CSP on the *request* to extract the nonce
+  // and attach it to its own scripts. Keep cookies and Authorization out
+  // of the forwarded request; expose only the narrowly-scoped debug flag
+  // derived from the HttpOnly cookie above.
+  const csp = buildCsp(nonce, process.env.NODE_ENV !== 'production');
   const requestHeaders = new Headers(request.headers);
   requestHeaders.delete('cookie');
   requestHeaders.delete('authorization');
+  requestHeaders.set('x-debug-console-enabled', debugConsoleEnabled ? '1' : '0');
   requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', csp);
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
-  response.headers.set(
-    'Content-Security-Policy',
-    buildCsp(nonce, process.env.NODE_ENV !== 'production'),
-  );
+  response.headers.set('Content-Security-Policy', csp);
   // Attach request ID for distributed tracing.
   response.headers.set('X-Request-Id', crypto.randomUUID());
 
@@ -508,15 +495,14 @@ export function middleware(request: NextRequest) {
     return response;
   }
 
-  // CACHE-CONTROL-01: override the Next.js default `no-store` for public
-  // HTML documents so browsers keep a copy and revalidate via ETag (304).
-  // Nonce is deployment-scoped (DEPLOYMENT-NONCE-01), so the HTML body
-  // is stable within a deployment.
-  // CACHE-TIERS-01: tiered Cache-Control per page category.
-  // See getHtmlCacheControl() above for the tier table.
-  const htmlCache = getHtmlCacheControl(request.nextUrl.pathname);
-  if (htmlCache) {
-    response.headers.set('Cache-Control', htmlCache);
+  // A fresh nonce is embedded in each rendered document, so do not let a
+  // browser/CDN reuse the document with a different CSP header. The Service
+  // Worker stores visited HTML shells explicitly (Cache API), independently
+  // of the HTTP cache directives; API and immutable asset caching is unchanged.
+  if (hasLegacyPublicHtmlCacheTier(request.nextUrl.pathname)) {
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0, must-revalidate');
+    response.headers.set('CDN-Cache-Control', 'no-store');
+    response.headers.set('Cloudflare-CDN-Cache-Control', 'no-store');
   }
 
   return response;

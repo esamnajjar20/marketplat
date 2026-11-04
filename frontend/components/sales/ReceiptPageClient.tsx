@@ -72,7 +72,7 @@ export default function ReceiptPage({ id }: { id: string }) {
         </header>
         {qr && (
           <div className="my-4 flex justify-center">
-            <CloudinaryImage src={qr} alt="QR للفاتورة" width={120} height={120} />
+            <CloudinaryImage src={qr} alt="QR للفاتورة" width={120} height={120} sizes="120px" />
           </div>
         )}
         <div className="space-y-3 py-5 text-sm">

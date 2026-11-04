@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, ShieldAlert, X as XIcon, Archive, Pin } from 'lucide-react';
 import { toast } from 'sonner';
-import { onTypingEvent } from '@/lib/typingStore';
+import { ConversationTypingIndicator } from './ConversationTypingIndicator';
 import { useSetConversationFlags, useMessageMarkMutation } from '@/hooks/mutations/useConversationMutations';
 import {
   sameCalendarDay,
@@ -134,7 +134,6 @@ export function ChatWindow({ conversationId }: Props) {
   const { mutate: toggleBlock, isPending: togglingBlock } = useToggleUserBlock();
   const { mutate: deleteMessage, isPending: deletingMessage } = useDeleteMessage(conversationId);
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);
-  const [partyTyping, setPartyTyping] = useState(false);
   const { mutate: setFlags, isPending: flagsPending } = useSetConversationFlags();
   const { mutate: markMessage } = useMessageMarkMutation(conversationId);
   const [pendingMarkMessageId, setPendingMarkMessageId] = useState<string | null>(null);
@@ -153,20 +152,6 @@ export function ChatWindow({ conversationId }: Props) {
     const timer = window.setTimeout(() => setShowSafetyTip(false), 9000);
     return () => window.clearTimeout(timer);
   }, [conversationId]);
-  useEffect(() => {
-    setPartyTyping(false);
-    let clearTimer: ReturnType<typeof setTimeout> | null = null;
-    return onTypingEvent((ev) => {
-      if (ev.conversationId !== conversationId) return;
-      if (ev.userId === user?.id) return;
-      setPartyTyping(ev.isTyping);
-      if (clearTimer) clearTimeout(clearTimer);
-      if (ev.isTyping) {
-        clearTimer = setTimeout(() => setPartyTyping(false), 4000);
-      }
-    });
-  }, [conversationId, user?.id]);
-
   const [retryingQueueId, setRetryingQueueId] = useState<number | null>(null);
   const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -688,11 +673,7 @@ export function ChatWindow({ conversationId }: Props) {
         )}
       </div>
 
-      {partyTyping && (
-        <p aria-live="polite" className="border-t border-border/40 px-4 py-1.5 text-2xs-tight text-muted-foreground">
-          يكتب الآن…
-        </p>
-      )}
+      <ConversationTypingIndicator conversationId={conversationId} userId={user?.id} />
       <div className="native-chat-composer shrink-0">
         <MessageInput conversationId={conversationId} disabled={isBlocked} />
         </div>

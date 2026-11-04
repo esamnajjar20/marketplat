@@ -37,6 +37,41 @@ check(/isRetrying:\s*boolean/.test(chatRow), 'ChatMessageRow: shared retryingQue
 check(!/retryingQueueId\s*:/.test(chatRow), 'ChatMessageRow: retryingQueueId still exists in Props');
 check(/isRetrying=\{retryingQueueId === message\.queueId\}/.test(chatWindow), 'ChatWindow: retry state was not reduced to row-local boolean');
 
+const typingIndicator = read('components/messages/ConversationTypingIndicator.tsx');
+check(/<ConversationTypingIndicator/.test(chatWindow), 'ChatWindow: typing indicator was not isolated');
+check(!/partyTyping|onTypingEvent/.test(chatWindow), 'ChatWindow: high-frequency typing state returned to the conversation parent');
+check(/memo\(function ConversationTypingIndicator/.test(typingIndicator), 'ConversationTypingIndicator: memo boundary missing');
+check(/onTypingEvent/.test(typingIndicator), 'ConversationTypingIndicator: typing event subscription missing');
+check(/setTimeout\(\(\) => \{[\s\S]*?isTyping: false[\s\S]*?\}, 4000\)/.test(typingIndicator), 'ConversationTypingIndicator: typing timeout must clear stale status');
+
+const detailGalleryContracts = [
+  {
+    parent: 'components/ads/AdDetail.tsx',
+    gallery: 'components/ads/AdDetailGallery.tsx',
+    component: 'AdDetailGallery',
+    statePattern: /setImgIdx|setImageIndex|lightboxOpen|setLightboxOpen/,
+  },
+  {
+    parent: 'components/stores/ProductDetail.tsx',
+    gallery: 'components/stores/ProductDetailGallery.tsx',
+    component: 'ProductDetailGallery',
+    statePattern: /setImgIdx|setImageIndex|lightboxOpen|setLightboxOpen/,
+  },
+  {
+    parent: 'components/services/ServiceListingDetail.tsx',
+    gallery: 'components/services/ServiceListingGallery.tsx',
+    component: 'ServiceListingGallery',
+    statePattern: /setImgIdx|setImageIndex|lightboxOpen|setLightboxOpen/,
+  },
+];
+for (const contract of detailGalleryContracts) {
+  const parent = read(contract.parent);
+  const gallery = read(contract.gallery);
+  check(parent.includes(`<${contract.component}`), `${contract.parent}: isolated gallery component missing`);
+  check(!contract.statePattern.test(parent), `${contract.parent}: gallery interaction state returned to detail parent`);
+  check(new RegExp(`memo\\(function ${contract.component}`).test(gallery), `${contract.gallery}: memo boundary missing`);
+}
+
 const favorites = read('hooks/queries/useFavorites.ts');
 check(!/cache\.subscribe\(\(event\)/.test(favorites), 'useFavorites: per-card QueryCache subscription returned');
 check(/WeakMap<object, Map<string, FavoriteSetStore>>/.test(favorites), 'useFavorites: shared subscription registry missing');
@@ -59,6 +94,19 @@ check(/<ConversationRow/.test(conversationList), 'ConversationList: rows are sti
 check(/memo\(function ConversationRow/.test(conversationRow), 'ConversationRow: React.memo boundary missing');
 check(/pendingFlagId === conversation\.id/.test(conversationList), 'ConversationList: flag pending state is still global');
 check(/pendingMarkMessageId === message\.id/.test(chatWindowNext), 'ChatWindow: message mark pending state is still global');
+
+const notificationsPage = read('components/notifications/NotificationsPage.tsx');
+const deleteReadAction = read('components/notifications/DeleteReadNotificationsAction.tsx');
+check(/useMemo\([\s\S]*?\[items, readTab\]/.test(notificationsPage), 'NotificationsPage: read filter is not memoized by its real inputs');
+check(/<DeleteReadNotificationsAction/.test(notificationsPage), 'NotificationsPage: delete-read controls were not isolated');
+check(!/confirmDeleteRead|useDeleteAllReadNotifications/.test(notificationsPage), 'NotificationsPage: delete-read dialog state returned to the list parent');
+check(/memo\(function DeleteReadNotificationsAction/.test(deleteReadAction), 'DeleteReadNotificationsAction: memo boundary missing');
+
+const mediaGallery = read('components/messages/MessageMediaGallery.tsx');
+check(/EMPTY_QUEUED_ITEMS/.test(mediaGallery), 'MessageMediaGallery: unstable empty queued-items default returned');
+check(/const counts = useMemo/.test(mediaGallery), 'MessageMediaGallery: media counts are recalculated on every local state update');
+
+check(/const otherPartyIds = useMemo/.test(conversationList), 'ConversationList: presence ID array is not memoized');
 
 const sharedIdSetStore = read('hooks/queries/sharedIdSetStore.ts');
 const storesQuery = read('hooks/queries/useStores.ts');

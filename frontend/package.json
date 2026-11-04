@@ -33,6 +33,8 @@
     "perf:render-regression": "node scripts/render-regression-audit.mjs",
     "perf:query-invalidation-audit": "node scripts/query-invalidation-audit.mjs",
     "hydration:regression-audit": "node scripts/hydration-regression-audit.mjs && node scripts/render-regression-audit.mjs",
+    "prefetch:server-audit": "node scripts/server-prefetch-audit.mjs",
+    "gateway:proxy-audit": "node scripts/gateway-proxy-audit.mjs",
     "perf:virtualization-audit": "node scripts/virtualization-audit.mjs",
     "offline:ux-audit": "node scripts/offline-ux-phases-3-4-audit.mjs",
     "offline:ux-phases-5-6-audit": "node scripts/offline-ux-phases-5-6-audit.mjs",

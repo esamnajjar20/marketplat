@@ -1,7 +1,7 @@
 'use client';
 
 import type { ComponentType } from 'react';
-import Image from 'next/image';
+import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Eye, ListChecks, Clock, CheckCircle2, CalendarClock, Wallet, Star, TrendingUp } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/shared/ui/Card';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -147,11 +147,9 @@ export function MyServiceProviderAnalytics() {
                   </span>
                   <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-muted">
                     {listing.image && (
-                      <Image
+                      <SafeImage
                         src={getThumbnailUrl(listing.image, 40, 40)}
                         alt={listing.title}
-                        width={40}
-                        height={40}
                         fill
                         className="object-cover"
                         sizes="36px"

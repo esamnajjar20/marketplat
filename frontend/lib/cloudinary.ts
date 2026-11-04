@@ -12,7 +12,6 @@
 
 /** Supported image formats for auto-format delivery. */
 import { isDataSaverEnabled } from '@/lib/dataSaver';
-import { getNetworkPolicy, type NetworkTier } from '@/lib/networkPolicy';
 
 type ImageFormat = 'auto' | 'webp' | 'avif' | 'jpg' | 'png';
 
@@ -130,34 +129,27 @@ export function getOptimisedUrl(
 /** Default card size on normal networks. */
 export const CARD_THUMB_WIDTH = 400;
 export const CARD_THUMB_HEIGHT = 300;
-/** Smaller card size when data-saver / 2G is active. */
+/** Smaller card size when data-saver / a constrained connection is active. */
 export const CARD_THUMB_WIDTH_SAVER = 280;
 export const CARD_THUMB_HEIGHT_SAVER = 210;
 
-function adaptiveMaxWidth(
-  requested: number,
-  tier: NetworkTier,
-  saver: boolean,
-  verySlowMax: number,
-  slowMax: number,
-): number {
-  if (saver || tier === 'very-slow') return Math.min(requested, verySlowMax);
-  if (tier === 'slow') return Math.min(requested, slowMax);
-  return requested;
-}
-
 /**
- * Return a card-sized image that adapts to the current network tier.
- * Cloudinary performs the actual resize/format conversion at delivery time.
+ * Build an SSR/hydration-stable thumbnail URL.
+ *
+ * Network Information and request-timing state are intentionally not read
+ * here: these helpers are called during render on both server and client. A
+ * per-device tier would produce different src attributes on the first client
+ * render, and the network-policy resolver also publishes observability updates. The
+ * explicit data-saver preference is hydrated after mount, so it is safe to
+ * apply once that preference is available.
  */
 export function getThumbnailUrl(
   url: string,
   width = CARD_THUMB_WIDTH,
   height = CARD_THUMB_HEIGHT,
 ): string {
-  const policy = getNetworkPolicy();
-  const saver = typeof window !== 'undefined' && isDataSaverEnabled();
-  const w = adaptiveMaxWidth(width, policy.tier, saver, CARD_THUMB_WIDTH_SAVER, 320);
+  const saver = isDataSaverEnabled();
+  const w = saver ? Math.min(width, CARD_THUMB_WIDTH_SAVER) : width;
   const h = Math.max(1, Math.round(height * (w / Math.max(1, width))));
   return getOptimisedUrl(url, {
     width: w,
@@ -187,9 +179,8 @@ export function getPlaceholderUrl(url: string): string {
  * Maintains aspect ratio, delivers at up to 1200px wide.
  */
 export function getDetailImageUrl(url: string, maxWidth = 1200): string {
-  const policy = getNetworkPolicy();
-  const saver = typeof window !== 'undefined' && isDataSaverEnabled();
-  const w = adaptiveMaxWidth(maxWidth, policy.tier, saver, 480, 720);
+  const saver = isDataSaverEnabled();
+  const w = saver ? Math.min(maxWidth, 480) : maxWidth;
   return getOptimisedUrl(url, {
     width: w,
     crop: 'scale',
@@ -197,17 +188,14 @@ export function getDetailImageUrl(url: string, maxWidth = 1200): string {
 }
 
 /**
- * Detail/fullscreen delivery policy. The original asset is only used when
- * the network is fast and the user has not enabled Data Saver.
+ * Fullscreen delivery remains deterministic during SSR/hydration. Data-saver
+ * mode caps the requested width; network tier changes are not read during render.
  */
 export function getFullscreenImageUrl(url: string, maxWidth = 1600): string {
   if (!isCloudinaryUrl(url)) return url;
-
-  const policy = getNetworkPolicy();
-  const saver = typeof window !== 'undefined' && isDataSaverEnabled();
-  if (policy.allowOriginalImages && !saver) return getOptimisedUrl(url, { width: maxWidth, crop: 'scale' });
-
-  return getDetailImageUrl(url, Math.min(maxWidth, 800));
+  const saver = isDataSaverEnabled();
+  const width = saver ? Math.min(maxWidth, 800) : maxWidth;
+  return getOptimisedUrl(url, { width, crop: 'scale' });
 }
 
 /** Small gallery/strip image; never downloads the fullscreen asset. */

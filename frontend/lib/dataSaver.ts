@@ -1,5 +1,3 @@
-import { getNetworkPolicy } from '@/lib/networkPolicy';
-
 const KEY = 'marketplat:data-saver';
 const EVENT = 'marketplat:data-saver';
 
@@ -12,14 +10,22 @@ function connectionWantsSaver(): boolean {
     connection?: {
       effectiveType?: string;
       saveData?: boolean;
+      downlink?: number;
+      rtt?: number;
     };
   }).connection;
 
   if (!conn) return false;
   if (conn.saveData) return true;
 
-  const type = conn.effectiveType;
-  return type === 'slow-2g' || type === '2g';
+  const type = conn.effectiveType?.toLowerCase();
+  return (
+    type === 'slow-2g' ||
+    type === '2g' ||
+    type === '3g' ||
+    (typeof conn.downlink === 'number' && conn.downlink > 0 && conn.downlink < 1.5) ||
+    (typeof conn.rtt === 'number' && conn.rtt >= 1_500)
+  );
 }
 
 export function isDataSaverEnabled(): boolean {
@@ -31,7 +37,7 @@ export function isDataSaverEnabled(): boolean {
     /* ignore */
   }
 
-  return connectionWantsSaver() || getNetworkPolicy().tier === 'very-slow';
+  return connectionWantsSaver();
 }
 
 export function hydrateDataSaver(): void {

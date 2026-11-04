@@ -73,8 +73,8 @@ import { checkBuildVersion } from '@/lib/buildVersionCheck';
 
 interface AppProvidersProps {
   children: React.ReactNode;
-  // FIX CSP-02: forwarded from the root layout (which reads it back out
-  // of the x-nonce request header middleware set) down to ThemeProvider,
+  // FIX CSP-02: forwarded from the root layout (which reads the
+  // application nonce from middleware's x-nonce request header) to ThemeProvider,
   // so next-themes can nonce its pre-hydration inline theme script. See
   // app/layout.tsx's FIX CSP-02 comment for the full explanation.
   nonce?: string;

@@ -2,13 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import Link from 'next/link';
 import {
   Bell,
   CheckCheck,
   Settings,
-  Trash2,
   RefreshCw,
   WifiOff,
   Smartphone,
@@ -18,7 +16,6 @@ import {
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
   useDeleteNotification,
-  useDeleteAllReadNotifications,
   useMarkNotificationUnread,
 } from '@/hooks/mutations/useNotificationMutations';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -40,6 +37,7 @@ import {
 } from '@/lib/pwa';
 
 import { Spinner } from '@/components/ui/spinner';
+import { DeleteReadNotificationsAction } from '@/components/notifications/DeleteReadNotificationsAction';
 const PAGE_SIZE = 20;
 const NotificationRow = dynamic(
   () => import('@/components/notifications/NotificationRow').then((m) => m.NotificationRow),
@@ -57,9 +55,6 @@ export function NotificationsPage() {
   const [pwaReg, setPwaReg] = useState<ServiceWorkerRegistration | null>(null);
   // PHASE-A: device push permission for empty-state CTA + status chip
   const [pushPerm, setPushPerm] = useState<'granted' | 'denied' | 'default' | 'unsupported'>('default');
-  // SW-FIX-NOTIF-CONFIRM-DIALOG: replaced window.confirm with the shared
-  // ConfirmDialog (same as every other destructive action in the app).
-  const [confirmDeleteRead, setConfirmDeleteRead] = useState(false);
   const [pendingReadId, setPendingReadId] = useState<string | null>(null);
   const [pendingUnreadId, setPendingUnreadId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -96,10 +91,12 @@ export function NotificationsPage() {
   const markUnread = useMarkNotificationUnread();
   const markAllRead = useMarkAllNotificationsRead();
   const deleteOne = useDeleteNotification();
-  const deleteAllRead = useDeleteAllReadNotifications();
 
   const items = data?.items ?? [];
-  const filteredByRead = readTab === 'unread' ? items.filter((n) => !n.readAt) : items;
+  const filteredByRead = useMemo(
+    () => readTab === 'unread' ? items.filter((n) => !n.readAt) : items,
+    [items, readTab],
+  );
   const groups = useMemo(() => {
     return groupNotificationsByDay(filteredByRead).map((day) => ({
       ...day,
@@ -187,31 +184,7 @@ export function NotificationsPage() {
               تعليم الكل كمقروء
             </Button>
           )}
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            loading={deleteAllRead.isPending}
-            onClick={() => setConfirmDeleteRead(true)}
-            className="gap-1.5 text-muted-foreground"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            مسح المقروء
-          </Button>
-          <ConfirmDialog
-            open={confirmDeleteRead}
-            onOpenChange={setConfirmDeleteRead}
-            title="حذف كل الإشعارات المقروءة؟"
-            description="سيتم حذف جميع الإشعارات المقروءة نهائياً. لا يمكن التراجع عن هذا الإجراء."
-            confirmLabel="حذف"
-            destructive
-            isPending={deleteAllRead.isPending}
-            onConfirm={() => {
-              deleteAllRead.mutate(undefined, {
-                onSettled: () => setConfirmDeleteRead(false),
-              });
-            }}
-          />
+          <DeleteReadNotificationsAction />
           <Button asChild variant="ghost" size="sm" className="gap-1.5">
             <Link href={ROUTES.settings.notifications}>
               <Settings className="h-3.5 w-3.5" />

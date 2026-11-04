@@ -45,8 +45,20 @@ export function SafeImage({
   // useEffect and no extra render — the same "reset state when a
   // prop changes" pattern the React docs recommend over useEffect.
   const [erroredSrc, setErroredSrc] = useState<string | null>(null);
-  const currentSrc = typeof src === 'string' ? src : '';
+  const currentSrc = typeof src === 'string'
+    ? src
+    : 'src' in src && typeof src.src === 'string'
+      ? src.src
+      : '';
   const errored = erroredSrc !== null && erroredSrc === currentSrc;
+  const isSvgSource = (() => {
+    if (!currentSrc) return false;
+    try {
+      return new URL(currentSrc, 'https://marketplat.invalid').pathname.toLowerCase().endsWith('.svg');
+    } catch {
+      return /\.svg(?:$|[?#])/i.test(currentSrc);
+    }
+  })();
 
   // Data-saver: skip blur-up placeholders (extra network request for
   // a tiny LQIP) — the final image alone is enough on slow links.
@@ -72,7 +84,7 @@ export function SafeImage({
       {...props}
       alt={alt}
       src={errored ? fallback : src}
-      unoptimized={errored ? true : props.unoptimized}
+      unoptimized={errored || isSvgSource ? true : props.unoptimized}
       {...blurProps}
       onError={(e) => {
         setErroredSrc(currentSrc);

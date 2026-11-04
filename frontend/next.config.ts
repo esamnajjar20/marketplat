@@ -43,12 +43,6 @@
  */
 import type { NextConfig } from 'next';
 
-// DEPLOYMENT-NONCE-01: stable, build-scoped CSP nonce. Must be identical
-// across every request within a deployment so cached HTML carries the same
-// nonce as the CSP header. Rotates on each build.
-import { randomBytes } from 'node:crypto';
-const BUILD_NONCE = randomBytes(16).toString('hex');
-
 const isDev  = process.env.NODE_ENV === 'development';
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -60,12 +54,6 @@ const nextConfig: NextConfig = {
   // BUILD-LINT-01: ESLint runs separately; skip during build to avoid
   // version mismatches with eslint-config-next flat config.
   eslint: { ignoreDuringBuilds: true },
-
-  // DEPLOYMENT-NONCE-01: expose the build nonce so middleware.ts can reuse it
-  // for every request within this deployment (see middleware.ts for why).
-  env: {
-    NEXT_PUBLIC_BUILD_NONCE: BUILD_NONCE,
-  },
 
   // FIX D-18: standalone output bundles only the files actually needed
   // to run (a minimal node_modules subset + server code), which is what
@@ -82,6 +70,9 @@ const nextConfig: NextConfig = {
   compress: true,
 
   images: {
+    // Never allow SVG through the Next image optimizer. SVGs are rendered
+    // directly by SafeImage/CloudinaryImage with unoptimized=true instead.
+    dangerouslyAllowSVG: false,
     // FIX: Enable Next.js image optimization (removed unoptimized: true)
     // This allows Next.js to optimize images via Cloudinary CDN and generate
     // responsive srcset/sizes. Cloudinary remotePatterns is still configured
@@ -309,10 +300,9 @@ const nextConfig: NextConfig = {
     // build time and has no way to generate a fresh value per request,
     // so a real nonce was never possible from this file alone.
     // CSP generation (with a per-request nonce) has moved to
-    // middleware.ts, which runs on every request and
-    // nonce and forward it to Next.js's own script injection via the
-    // `x-nonce` request header. All other static security headers
-    // remain here since they don't need to vary per request.
+    // middleware.ts. The complete CSP is forwarded as a request header
+    // so Next.js can attach the nonce to its own generated scripts; x-nonce
+    // remains an application-owned convenience header only.
     return [
       ...perfHeaders,
       {

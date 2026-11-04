@@ -46,11 +46,25 @@ import { homeFeedQueryKey, type HomeFeedPayload } from '@/api/home-feed.api';
  *  2. Guards response body parsing: attempts JSON, falls back gracefully.
  *  3. Propagates HTTP status so callers can distinguish 404 vs 500.
  */
-async function serverFetch<T>(path: string): Promise<ApiResponse<T>> {
+type ServerFetchOptions =
+  | { cache: 'no-store' }
+  | { revalidateSeconds?: number };
+
+const SERVER_FETCH_TIMEOUT_MS = 8_000;
+
+async function serverFetch<T>(
+  path: string,
+  options: ServerFetchOptions = {},
+): Promise<ApiResponse<T>> {
   let res: Response;
   try {
+    const cacheOptions = options.cache === 'no-store'
+      ? { cache: 'no-store' as const }
+      : { next: { revalidate: options.revalidateSeconds ?? 60 } };
+
     res = await fetch(`${API_BASE_URL}${path}`, {
-      next: { revalidate: 60 },
+      ...cacheOptions,
+      signal: AbortSignal.timeout(SERVER_FETCH_TIMEOUT_MS),
     });
   } catch (networkErr) {
     // Network-level failure (DNS, refused connection, etc.)
@@ -66,9 +80,19 @@ async function serverFetch<T>(path: string): Promise<ApiResponse<T>> {
   }
 
   try {
-    return (await res.json()) as ApiResponse<T>;
+    const payload: unknown = await res.json();
+    if (
+      payload === null ||
+      typeof payload !== 'object' ||
+      Array.isArray(payload) ||
+      (payload as Record<string, unknown>).success !== true ||
+      typeof (payload as Record<string, unknown>).message !== 'string'
+    ) {
+      throw new Error('Invalid API response envelope');
+    }
+    return payload as ApiResponse<T>;
   } catch (parseErr) {
-    console.error(`[serverFetch] JSON parse error for ${path}:`, parseErr);
+    console.error(`[serverFetch] Invalid JSON/envelope for ${path}:`, parseErr);
     throw new Error('استجابة الخادم غير صالحة');
   }
 }
@@ -138,43 +162,16 @@ export async function prefetchAdList(
  * matches useAd()'s `.then(r => r.data.data)`.
  */
 const fetchAdDetailCached = cache((id: string) =>
-  serverFetch<Ad>(`/ads/${id}`).then((r) => {
+  // The API increments the ad view buffer on this endpoint. Do not add a
+  // second 60-second Next Data Cache in front of the API's own edge policy;
+  // keep deduplication scoped to this React request instead.
+  serverFetch<Ad>(`/ads/${encodeURIComponent(id)}`, { cache: 'no-store' }).then((r) => {
     if (r.data === undefined) {
       throw new Error(r.message || `Ad ${id} not found`);
     }
     return r.data;
   }),
 );
-
-// Explicit fallback dedup: React's cache() memoizes within an active
-// render/request dispatcher, which may not exist when prefetchAdDetail
-// is invoked directly outside of one (e.g. two independent calls with
-// their own QueryClient, or a plain function call in a test). This map
-// guarantees the same promise (in-flight or already settled) is reused
-// for a given id regardless of that environment nuance — covering both
-// concurrent calls and calls awaited one after another.
-const adDetailPromises = new Map<string, Promise<Ad>>();
-
-function fetchAdDetailDeduped(id: string): Promise<Ad> {
-  const existing = adDetailPromises.get(id);
-  if (existing) return existing;
-
-  const promise = fetchAdDetailCached(id);
-  adDetailPromises.set(id, promise);
-
-  // Do not attach a bare `finally()` here: it creates a second promise that
-  // rejects when the fetch rejects, and ignoring that derived promise can
-  // surface an unhandled-rejection warning even when the caller handles the
-  // original promise. Use both settlement branches and keep the short
-  // post-settlement window for duplicate calls in the same render turn.
-  const release = () => {
-    setTimeout(() => {
-      if (adDetailPromises.get(id) === promise) adDetailPromises.delete(id);
-    }, 0);
-  };
-  void promise.then(release, release);
-  return promise;
-}
 
 /**
  * Prefetch a single ad detail page.
@@ -186,7 +183,7 @@ export async function prefetchAdDetail(
 ): Promise<void> {
   await qc.prefetchQuery({
     queryKey: queryKeys.ads.detail(id),
-    queryFn:  () => fetchAdDetailDeduped(id),
+    queryFn:  () => fetchAdDetailCached(id),
     staleTime: CACHE_TTL.adDetail,
   });
 }

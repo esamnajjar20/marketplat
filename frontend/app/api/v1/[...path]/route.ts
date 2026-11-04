@@ -40,12 +40,16 @@ function getApiOrigin(): string {
   const candidate = configured?.trim();
   if (candidate) {
     const url = new URL(candidate);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-      throw new Error('API_BASE_URL must use http or https');
+    const isProduction = process.env.NODE_ENV === 'production';
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && !isProduction)) {
+      throw new Error('API_BASE_URL must use HTTPS in production (HTTP is development-only)');
     }
+    // Accept either the API origin or an origin already ending in /api/v1.
+    // The previous regex escaped `$`, matching a literal dollar sign instead
+    // of the end of the path and causing a duplicated /api/v1 prefix.
     const basePath = url.pathname
-      .replace(/\/api\/v1\/?\$/, '')
-      .replace(/\/+\$/, '');
+      .replace(/\/api\/v1\/?$/, '')
+      .replace(/\/+$/, '');
     return `${url.origin}${basePath}`;
   }
 
@@ -75,7 +79,7 @@ async function proxy(
 ): Promise<Response> {
   const { path } = await ctx.params;
   const search = req.nextUrl.search;
-  const pathStr = path.join('/');
+  const pathStr = path.map((segment) => encodeURIComponent(segment)).join('/');
 
   const headers = new Headers();
   for (const [k, v] of req.headers.entries()) {
@@ -123,7 +127,7 @@ async function proxy(
   }
 
   // Direct backend fallback (authenticated or non-cacheable requests).
-  return fetch(`${getApiOrigin()}/api/v1/${pathStr}${search}`, init);
+  return fetch(`${getApiOrigin()}/api/v1/${pathStr}${search}`, { ...init, cache: 'no-store' });
 }
 
 export const GET = proxy;

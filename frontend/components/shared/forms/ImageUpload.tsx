@@ -425,7 +425,7 @@ export function ImageUpload({
                     : ''
                 }`}
               >
-                <CloudinaryImage src={url} alt={`صورة الإعلان ${i + 1}`} width={80} height={80} className="h-full w-full object-cover" />
+                <CloudinaryImage src={url} alt={`صورة الإعلان ${i + 1}`} width={80} height={80} sizes="80px" className="h-full w-full object-cover" />
 
                 {/* Gap #11: first image is always the "primary" one —
                     every other place in the app (ProductCard, AdDetail,

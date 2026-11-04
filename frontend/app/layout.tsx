@@ -21,7 +21,7 @@ import '@/app/icon.svg';
 import type { Metadata, Viewport }    from 'next';
 import { Cairo, IBM_Plex_Sans_Arabic, IBM_Plex_Mono } from 'next/font/google';
 import './navigation-progress.css';
-import { headers, cookies }            from 'next/headers';
+import { headers }                     from 'next/headers';
 import FloatingDebugConsole             from '@/components/shared/FloatingDebugConsole';
 import { AppProviders }               from '@/providers/AppProviders';
 import { WebVitals }                  from '@/components/shared/WebVitals';
@@ -172,13 +172,12 @@ export const viewport: Viewport = {
 // down to AppProviders -> ThemeProvider is enough; no change needed
 // inside ThemeProvider.tsx itself. The actual nonce value must be the
 // SAME one middleware just minted (sent via the `x-nonce` request
-// header) — reading it back out here with headers().get('x-nonce') is
-// how a Server Component accesses a header middleware set on the
-// request.
+// header). Next.js itself reads the nonce from the forwarded request CSP;
+// this separate header passes it to next-themes' inline bootstrap script.
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = await cookies();
-  const isDebugConsoleEnabled = cookieStore.get('mp_debug_console')?.value === '1';
-  const nonce = (await headers()).get('x-nonce') ?? undefined;
+  const requestHeaders = await headers();
+  const isDebugConsoleEnabled = requestHeaders.get('x-debug-console-enabled') === '1';
+  const nonce = requestHeaders.get('x-nonce') ?? undefined;
 
   return (
     // FIX UX-03: suppressHydrationWarning is required by next-themes —

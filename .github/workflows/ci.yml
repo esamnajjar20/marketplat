@@ -244,6 +244,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
 
+      - name: Server prefetch cache and timeout audit
+        run: npm run prefetch:server-audit
+
+      - name: Admin gateway proxy security audit
+        run: npm run gateway:proxy-audit
+
       # Dedicated guardrail for query-key identity, cache-prefix semantics,
       # and factory usage. Keep this separate so regressions are easy to spot.
       - name: Query key architecture tests

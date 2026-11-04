@@ -63,7 +63,7 @@ export function AdFormPreview({ values, className }: Props) {
       caption="هكذا سيظهر إعلانك تقريباً في القوائم والبحث."
       media={
         <div className="relative aspect-[4/3] bg-muted">
-          <CloudinaryImage src={imageSrc} alt="" width={400} height={300} className="h-full w-full object-cover" />
+          <CloudinaryImage src={imageSrc} alt="" width={400} height={300} sizes="(max-width: 640px) 100vw, 400px" className="h-full w-full object-cover" />
           {conditionLabel && (
             <span className="absolute top-2 start-2 rounded-full bg-background/90 px-2 py-0.5 text-2xs font-semibold">
               {conditionLabel}
