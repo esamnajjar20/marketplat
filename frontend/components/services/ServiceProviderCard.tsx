@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { CARD_SHELL_SOFT, CARD_AVATAR_FALLBACK, CARD_BADGE_SUCCESS } from '@/components/shared/cards/cardTokens';
 import { formatDistanceKm } from '@/lib/distance';
 import { useAuthStore } from '@/store/auth.store';
-import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
+import { useStartConversation } from '@/hooks/mutations/useStartConversation';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { toast } from 'sonner';
 import type { ServiceProviderDetails, ServiceAvailability } from '@/types/service.types';

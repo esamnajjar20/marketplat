@@ -6,11 +6,14 @@ import { Plus } from 'lucide-react';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { useMounted } from '@/hooks/useMounted';
 import { useStoryFeed } from '@/hooks/queries/useStories';
-import { StoryComposer } from './StoryComposer';
-import { StoryViewer } from './StoryViewer';
+import dynamic from 'next/dynamic';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import type { StoryGroup } from '@/api/stories.api';
+
+// PERF: both are opened by a tap — keep them out of the home page's first load.
+const StoryComposer = dynamic(() => import('./StoryComposer').then((m) => m.StoryComposer), { ssr: false, loading: () => null });
+const StoryViewer = dynamic(() => import('./StoryViewer').then((m) => m.StoryViewer), { ssr: false, loading: () => null });
 
 export function StoriesRail() {
   // FIX HYDRATION-418-HOME-01: in an offline visual session the store is already

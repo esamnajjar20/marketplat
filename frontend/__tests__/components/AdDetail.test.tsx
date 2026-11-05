@@ -30,7 +30,7 @@ vi.mock('@/hooks/mutations/useFavoriteMutations', () => ({
   useToggleFavorite: vi.fn(),
 }));
 
-vi.mock('@/hooks/mutations/useConversationMutations', () => ({
+vi.mock('@/hooks/mutations/useStartConversation', () => ({
   useStartConversation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 

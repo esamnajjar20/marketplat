@@ -10,7 +10,7 @@ import { ROUTES } from '@/lib/constants';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { formatPhone } from '@/lib/formatters';
-import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
+import { useStartConversation } from '@/hooks/mutations/useStartConversation';
 import { useAuthStore, selectUser, selectIsAuthenticated } from '@/store/auth.store';
 import { toast } from 'sonner';
 import type { ServiceListingWithProvider } from '@/types/service.types';

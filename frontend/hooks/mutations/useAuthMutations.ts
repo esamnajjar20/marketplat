@@ -11,7 +11,7 @@
  */
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { authApi }       from '@/api/auth.api';
 import { usersApi }      from '@/api/users.api';
@@ -21,7 +21,6 @@ import { CACHE_POLICY } from '@/lib/cachePolicy';
 import { track }         from '@/lib/analytics';
 import { clearSensitiveLocalData, clearServiceWorkerApiCache, unbindPushBindings } from '@/lib/authCleanup';
 import { publishSessionEnded } from '@/lib/authSessionBroadcast';
-import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
 import { clearNotificationsCache } from '@/lib/notificationsCache';
 import { useAuthStore, selectSetAuth, selectSetUser, selectLogout } from '@/store/auth.store';
 import { resumeSession } from '@/api/client';
@@ -32,6 +31,14 @@ import { unwrapData }    from '@/lib/apiPagination';
 import { toast }         from 'sonner';
 import type { AuthResultUser, AuthTokens, LoginPayload, RegisterPayload } from '@/types/auth.types';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+
+// PERF-BUNDLE-AUTHMUT-01: offlineSelfWarm (+ stores/service-providers/sellers APIs) كان يُستورد
+// ثابتًا فيدخل حزمة /login و/register وكل صفحة تستورد هذا الملف؛ يُحمَّل الآن بعد نجاح الدخول فقط.
+function warmSelfDataLazily(queryClient: QueryClient, userId: string): void {
+  void import('@/lib/offlineSelfWarm')
+    .then((m) => m.warmSelfDataForOffline(queryClient, userId))
+    .catch(() => undefined);
+}
 
 /**
  * Sets the cookies the middleware reads for route protection. Used by
@@ -135,7 +142,7 @@ export function useLogin() {
       // a prior stop at /dashboard or /my-services. See
       // lib/offlineSelfWarm.ts's header for the exact gap this closes.
       // Fire-and-forget — must not delay the toast/navigate below.
-      void warmSelfDataForOffline(queryClient, data.user.id);
+      warmSelfDataLazily(queryClient, data.user.id);
 
       // Background fetch to enrich user with avatarUrl/city.
       // FIX ME-QUERY-UNIFY-01: was a direct usersApi.getMe() call here,
@@ -228,7 +235,7 @@ export function useRegister() {
       // profile setup in a prior session and is re-registering on a
       // shared device, this still saves a network round trip on the
       // first visit to any create page. Harmless when it 404s.
-      void warmSelfDataForOffline(queryClient, data.user.id);
+      warmSelfDataLazily(queryClient, data.user.id);
       // Gap #7 (product analytics): completes the signup funnel this
       // event pairs with (see RegisterForm.tsx's SIGNUP_STARTED on
       // mount, and backend's analyticsRepository.signupFunnelSessions).

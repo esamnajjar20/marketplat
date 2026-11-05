@@ -7,33 +7,12 @@ import { parseApiError } from '@/lib/errorParser';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { toast } from 'sonner';
 import { sendConversationMessage } from '@/lib/sendConversationMessage';
-import type { StartConversationPayload, SendMessagePayload, Message, ConversationListItem } from '@/types/conversation.types';
+import type { SendMessagePayload, Message, ConversationListItem } from '@/types/conversation.types';
 import type { PaginatedResponse } from '@/types/api.types';
 
 export type SendMessageVariables = SendMessagePayload & { operationId?: string };
 
-/**
- * POST /conversations — SellerCard's "مراسلة البائع" (adId) and
- * PublicProfileHeader's "مراسلة" (userId) both go through this same
- * mutation; the payload's shape picks which backend branch handles it
- * (startFromAd vs startFromUser). Idempotent server-side either way —
- * both branches reuse an existing thread instead of creating a
- * duplicate — so the caller can navigate straight to the returned
- * conversation's id without needing to distinguish "created" from
- * "reopened" here.
- */
-export function useStartConversation() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (payload: StartConversationPayload) =>
-      conversationsApi.start(payload).then((r) => r.data.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
-    },
-    onError: (err) => toast.error(parseApiError(err).message),
-  });
-}
+export { useStartConversation } from './useStartConversation';
 
 /**
  * POST /conversations/:id/messages. Optimistically updates both the thread

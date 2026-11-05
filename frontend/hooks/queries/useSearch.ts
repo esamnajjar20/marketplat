@@ -4,7 +4,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { searchApi } from '@/api/search.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import { searchOffline } from '@/lib/offlineSearchIndex';
+import type { searchOffline as SearchOfflineFn } from '@/lib/offlineSearchIndex';
 import type { SearchQuery } from '@/types/search.types';
 
 /**
@@ -23,7 +23,27 @@ import type { SearchQuery } from '@/types/search.types';
  * زر "إعادة المحاولة" بـ SearchResults.tsx يعمل بشكل صحيح لأي خطأ حقيقي،
  * لا يُخفى بصمت خلف نتيجة محلية مزيّفة.
  */
+// PERF: the offline search index (+ core bundle + warming planner, ~50 KB of
+// source) is only needed when the network request fails, so it is loaded on
+// demand instead of being part of the home page's first-load JS. It is warmed
+// during browser idle time so it is already cached when the user goes offline.
+const loadSearchOffline = (): Promise<typeof SearchOfflineFn> =>
+  import('@/lib/offlineSearchIndex').then((m) => m.searchOffline);
+
+let searchOfflineWarmScheduled = false;
+function warmSearchOfflineChunk(): void {
+  if (searchOfflineWarmScheduled || typeof window === 'undefined') return;
+  searchOfflineWarmScheduled = true;
+  const w = window as unknown as {
+    requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+  };
+  const warm = () => { void loadSearchOffline().catch(() => undefined); };
+  if (typeof w.requestIdleCallback === 'function') w.requestIdleCallback(warm, { timeout: 8000 });
+  else window.setTimeout(warm, 5000);
+}
+
 export function useSearch(params?: SearchQuery) {
+  warmSearchOfflineChunk();
   return useQuery({
     queryKey: queryKeys.search.unified(params),
     queryFn: async ({ signal }) => {
@@ -32,7 +52,9 @@ export function useSearch(params?: SearchQuery) {
         return r.data.data;
       } catch (err) {
         if (signal.aborted || (typeof err === 'object' && err !== null && 'code' in err && (err as { code?: unknown }).code === 'ERR_CANCELED')) throw err;
-        const offline = await searchOffline(params ?? {}).catch(() => null);
+        const offline = await loadSearchOffline()
+          .then((fn) => fn(params ?? {}))
+          .catch(() => null);
         if (offline?.hasBundle) {
           return { items: offline.items, meta: offline.meta };
         }

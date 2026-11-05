@@ -16,7 +16,7 @@ import { Archive, FileText, Wifi, WifiOff, X } from 'lucide-react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useConnectivitySuspect } from '@/hooks/useConnectivitySuspect';
 import { cn } from '@/lib/utils';
-import { getLastOfflineQueryCacheSavedAt } from '@/lib/offlineQueryCache';
+import { getLastOfflineQueryCacheSavedAt } from '@/lib/offlineQueryCacheMarker';
 import { formatOfflineSavedAt } from '@/lib/offlineFreshness';
 
 const BACK_ONLINE_DURATION_MS = 3500;

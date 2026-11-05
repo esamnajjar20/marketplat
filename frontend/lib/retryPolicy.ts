@@ -3,6 +3,13 @@ import { RETRYABLE_HTTP_STATUSES as RETRYABLE_STATUS_LIST, isRetryableError } fr
 
 export const RETRYABLE_HTTP_STATUSES = new Set(RETRYABLE_STATUS_LIST);
 export const MAX_QUERY_RETRIES = 1;
+
+// COLD-START-01: 502/503/504 on a safe request usually means the upstream
+// (Render + Postgres) is still waking up, which takes longer than the old
+// 1-2 quick retries covered. Give GETs up to 3 retries (~1.5s, ~3s, ~6s with
+// getRetryDelayMs) before surfacing the error to the user.
+export const COLD_START_HTTP_STATUSES: ReadonlySet<number> = new Set([502, 503, 504]);
+export const COLD_START_MAX_RETRIES = 3;
 const SAFE_METHODS = new Set(['get', 'head', 'options']);
 export const DEFAULT_RETRY_DELAY_MS = 750;
 export const MAX_RETRY_DELAY_MS = 15_000;
@@ -13,6 +20,16 @@ export function isSafeHttpMethod(method?: string): boolean {
 
 export function isRetryableHttpStatus(status?: number): boolean {
   return typeof status === 'number' && (RETRYABLE_HTTP_STATUSES as Set<number>).has(status);
+}
+
+export function isColdStartStatus(status?: number): boolean {
+  return typeof status === 'number' && COLD_START_HTTP_STATUSES.has(status);
+}
+
+/** Max automatic retries for a safe request, by network tier and HTTP status. */
+export function getMaxAutoRetries(tier: string | undefined, status?: number): number {
+  const base = tier === 'slow' || tier === 'fast' ? 2 : 1;
+  return isColdStartStatus(status) ? Math.max(base, COLD_START_MAX_RETRIES) : base;
 }
 
 export function isRetryableParsedError(error: unknown): boolean {

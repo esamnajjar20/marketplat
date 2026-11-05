@@ -232,7 +232,7 @@ export function StoreProducts({ storeId, storeName, offersOnly = false, storeTyp
           }
         />
       ) : (
-        <div className={cn(LIST_CARD_GRID_CLASS, 'stagger-fade-in')}>
+        <div className={cn(LIST_CARD_GRID_CLASS)}>
           {items.map((product) => (
             <div
               key={product.id}

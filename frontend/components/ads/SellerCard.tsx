@@ -11,7 +11,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { useSellerProfile } from '@/hooks/queries/useSellers';
-import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
+import { useStartConversation } from '@/hooks/mutations/useStartConversation';
 import { useAuthStore, selectUser, selectIsAuthenticated } from '@/store/auth.store';
 import { track } from '@/lib/analytics';
 import { toast } from 'sonner';

@@ -123,7 +123,7 @@ export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams =
     }
   }, [initialPage, search, city, categoryId, sortBy, sortOrder, hasPromotion, isBaseOfflineBrowse]);
 
-  const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = query;
+  const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query;
   const items = data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [];
   const firstMeta = data?.pages[0]?.meta;
   const total = firstMeta?.total ?? items.length;
@@ -205,7 +205,7 @@ export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams =
         // ~1600px instead of an extra column of actual content. Same
         // change applied to ServiceListingsGrid/search+ads
         // SearchResults/StoresGrid.
-        <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3' : LIST_CARD_GRID_CLASS, 'stagger-fade-in min-w-0')}>
+        <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3' : LIST_CARD_GRID_CLASS, 'min-w-0')}>
           {items.map((product) => (
             <div key={product.id} className="space-y-1.5">
               <ProductCard product={product} storeId={product.store.id} context="catalog" density={view === 'list' ? 'compact' : 'default'} layout={view} />
@@ -218,6 +218,7 @@ export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams =
         <InfiniteScrollTrigger
           hasNextPage={Boolean(hasNextPage)}
           isFetchingNextPage={isFetchingNextPage}
+          isError={isFetchNextPageError}
           onLoadMore={loadMore}
         />
       )}

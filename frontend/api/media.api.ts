@@ -3,6 +3,7 @@ import { getNetworkPolicy } from '@/lib/networkPolicy';
 import type { ApiResponse } from '@/types/api.types';
 import { recordRequestRetry, recordUploadAttempt, recordUploadResult } from '@/lib/networkObservability';
 import { isNetworkFailure } from '@/lib/networkErrors';
+import { computeUploadTimeoutMs, totalFileBytes } from '@/lib/uploadTimeout';
 
 export type UploadedImage = { url: string; publicId: string };
 
@@ -56,7 +57,12 @@ export const mediaApi = {
   uploadImages: async (files: File[]) => {
     const policy = getNetworkPolicy();
     const retryDelays = policy.uploadRetryDelaysMs;
-    const timeout = policy.uploadTimeoutMs || DEFAULT_UPLOAD_TIMEOUT_MS;
+    // FIX WEAK-NET-UPLOAD-01: المهلة تتناسب مع الحجم الفعلي، وإلا لن تكتمل
+    // أي دفعة صور كبيرة على 2G/3G مهما أعدنا المحاولة.
+    const timeout = computeUploadTimeoutMs(totalFileBytes(files), {
+      tier: policy.tier,
+      uploadTimeoutMs: policy.uploadTimeoutMs || DEFAULT_UPLOAD_TIMEOUT_MS,
+    });
     await acquireUploadSlot(policy.uploadConcurrency);
 
     let lastErr: unknown = null;

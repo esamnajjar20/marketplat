@@ -9,8 +9,7 @@ import { useUIStore } from '@/store/ui.store';
 import { useAuthStore, selectHydratedIsAuthenticated, selectHydratedUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import { ExploreSheet } from '@/components/layout/ExploreSheet';
-import { CreateSheet } from '@/components/layout/CreateSheet';
+import { LazyCreateSheet, LazyExploreSheet } from '@/components/layout/LazySheets';
 import { useQueuedRequestCount } from '@/hooks/useQueuedRequestCount';
 import { usePendingDraftsCount } from '@/hooks/usePendingDraftsCount';
 import { useScrollDirection } from '@/hooks/useScrollDirection';
@@ -272,8 +271,8 @@ export function BottomNav() {
         </div>
       )}
 
-      <ExploreSheet open={exploreOpen} onOpenChange={setExploreOpen} />
-      <CreateSheet open={createOpen} onOpenChange={setCreateOpen} />
+      <LazyExploreSheet open={exploreOpen} onOpenChange={setExploreOpen} />
+      <LazyCreateSheet open={createOpen} onOpenChange={setCreateOpen} />
     </nav>
   );
 }

@@ -31,7 +31,7 @@ export function RecentAds() {
   if (feed.isError && !feed.data) return <ApiError error={feed.error} onRetry={() => void feed.refetch()} variant="inline" />;
 
   return (
-    <HomeScrollRail className="stagger-fade-in">
+    <HomeScrollRail>
       {items.map((ad) => (
         <HomeScrollRailItem key={ad.id} size="wide">
           <AdCard ad={ad} context="public" density="compact" />

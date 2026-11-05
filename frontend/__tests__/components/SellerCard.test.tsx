@@ -16,7 +16,7 @@ import { setupUser } from '@/test-support/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SellerCard } from '@/components/ads/SellerCard';
 import { sellersApi } from '@/api/sellers.api';
-import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
+import { useStartConversation } from '@/hooks/mutations/useStartConversation';
 import { useAuthStore } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
@@ -28,7 +28,7 @@ vi.mock('@/api/sellers.api', () => ({
   },
 }));
 
-vi.mock('@/hooks/mutations/useConversationMutations', () => ({
+vi.mock('@/hooks/mutations/useStartConversation', () => ({
   useStartConversation: vi.fn(),
 }));
 

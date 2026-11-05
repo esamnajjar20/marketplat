@@ -47,6 +47,9 @@ import { toast } from 'sonner';
 import { isNativePlatform } from '@/lib/capacitor/platform';
 import { takeOrPickNativePhoto } from '@/lib/capacitor/nativeCamera';
 import { compressImageForPublish } from '@/lib/imageOffline';
+
+/** فوق هذا الحجم نصغّر الصورة قبل الرفع حتى لو كانت ضمن الحد المسموح. */
+const PREUPLOAD_COMPRESS_ABOVE_BYTES = 1.5 * 1024 * 1024;
 import { CloudinaryImage } from '@/components/shared/CloudinaryImage';
 
 interface ImageUploadProps {
@@ -223,8 +226,20 @@ export function ImageUpload({
       const prepared: File[] = [];
       for (const f of candidates.slice(0, slotsLeft)) {
         try {
-          if (f.size > maxBytes || f.type === 'image/heic' || f.type === 'image/heif') {
-            const compressed = await compressImageForPublish(f);
+          // FIX WEAK-NET-IMAGE-01: كنا نضغط فقط ما يتجاوز الحد (5MB) أو HEIC، فصورة
+          // 4.8MB من الهاتف تُرفع كما هي على 2G/3G وتفشل بالمهلة. compressImageForPublish
+          // تتجاوز تلقائيًا الصور ≤ 1.5MB وتعيد الأصل إن لم يصغر الناتج، فاستدعاؤها
+          // لكل ملف كبير آمن. ضغط الصور الأصغر من الحد اختياري: فشله لا يرفض الملف.
+          const needsCompression = f.size > maxBytes || f.type === 'image/heic' || f.type === 'image/heif';
+          if (needsCompression || f.size > PREUPLOAD_COMPRESS_ABOVE_BYTES) {
+            let compressed: File;
+            try {
+              compressed = await compressImageForPublish(f);
+            } catch (compressErr) {
+              if (needsCompression) throw compressErr;
+              prepared.push(f);
+              continue;
+            }
             if (compressed.size > maxBytes) {
               rejected.push({ name: f.name || 'ملف بدون اسم', reason: `حجم الملف أكبر من ${MAX_FILE_SIZE_MB} ميجابايت بعد الضغط` });
               toast.error(`تعذّر تصغير "${f.name}" تحت ${MAX_FILE_SIZE_MB} ميجابايت`);

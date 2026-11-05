@@ -83,12 +83,14 @@ describe('PublicHeader', () => {
     expect(screen.queryByRole('button', { name: 'قائمة المستخدم' })).not.toBeInTheDocument();
   });
 
-  it('shows "أضف" and UserMenu when authenticated, hiding auth buttons', () => {
+  // PERF-BUNDLE-HEADER-01: UserMenu/NotificationBell/MessagesLink are loaded
+  // lazily (next/dynamic, ssr:false) after mount, so they appear asynchronously.
+  it('shows "أضف" and UserMenu when authenticated, hiding auth buttons', async () => {
     mockAuthState(true);
     render(<PublicHeader />);
 
     expect(screen.getByText('أضف')).toBeInTheDocument();
-    expect(screen.getByTestId('user-menu')).toBeInTheDocument();
+    expect(await screen.findByTestId('user-menu')).toBeInTheDocument();
     expect(screen.queryByText('تسجيل الدخول')).not.toBeInTheDocument();
     expect(screen.queryByText('إنشاء حساب')).not.toBeInTheDocument();
   });
@@ -113,7 +115,9 @@ describe('PublicHeader', () => {
     mockAuthState(false);
     render(<PublicHeader />);
 
-    expect(screen.getByTestId('mobile-nav')).toBeInTheDocument();
+    // PERF-BUNDLE-HEADER-01: the hamburger is a light inline trigger; the heavy
+    // drawer (MobileNav) is only loaded after the first open.
+    expect(screen.getByRole('button', { name: 'افتح القائمة' })).toBeInTheDocument();
   });
 
   // UX-FIX: showSearch={false} is (auth)/layout.tsx's own opt-out for

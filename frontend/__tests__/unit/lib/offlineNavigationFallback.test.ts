@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { getOfflineDocumentUrl, isNextFlightRequest } from '@/lib/offlineNavigationFallback';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { getOfflineDocumentUrl, isNextFlightRequest, isNextPrefetchRequest, installOfflineNavigationFallback } from '@/lib/offlineNavigationFallback';
 
 describe('offline App Router navigation fallback', () => {
   it('converts an internal Flight URL to its document URL without losing page filters', () => {
@@ -37,5 +37,51 @@ describe('offline App Router navigation fallback', () => {
   it('does not treat ordinary API fetches or POST server actions as page navigations', () => {
     expect(isNextFlightRequest('/api/v1/ads', { headers: { Accept: 'application/json' } })).toBeNull();
     expect(isNextFlightRequest('/ads?_rsc=token', { method: 'POST', headers: { RSC: '1' } })).toBeNull();
+  });
+
+  it('detects speculative prefetch requests (OFFLINE-PREFETCH-01)', () => {
+    expect(isNextPrefetchRequest('/services?_rsc=a', { headers: { 'Next-Router-Prefetch': '1' } })).toBe(true);
+    expect(isNextPrefetchRequest('/services?_rsc=a', { headers: { 'Next-Router-Segment-Prefetch': '/_tree' } })).toBe(true);
+    expect(isNextPrefetchRequest('/services?_rsc=a', { headers: { Purpose: 'prefetch' } })).toBe(true);
+    expect(isNextPrefetchRequest('/services?_rsc=a', { headers: { RSC: '1' } })).toBe(false);
+  });
+
+  describe('failed Flight requests', () => {
+    const originalFetch = window.fetch;
+    afterEach(() => {
+      window.fetch = originalFetch;
+      vi.unstubAllGlobals();
+    });
+
+    function install(failWith: Error) {
+      const failing = vi.fn().mockRejectedValue(failWith);
+      window.fetch = failing as unknown as typeof window.fetch;
+      Object.defineProperty(navigator, 'serviceWorker', { value: { controller: {} }, configurable: true });
+      const assign = vi.fn();
+      vi.stubGlobal('location', {
+        href: 'https://marketplat.test/',
+        origin: 'https://marketplat.test',
+        pathname: '/',
+        search: '',
+        hash: '',
+        assign,
+      });
+      const cleanup = installOfflineNavigationFallback();
+      return { assign, cleanup };
+    }
+
+    it('does not navigate away when a prefetch fails offline', async () => {
+      const { assign, cleanup } = install(new TypeError('Failed to fetch'));
+      await expect(window.fetch('/ads?_rsc=x', { headers: { RSC: '1', 'Next-Router-Prefetch': '1' } })).rejects.toThrow();
+      expect(assign).not.toHaveBeenCalled();
+      cleanup();
+    });
+
+    it('still falls back to a document navigation when a real navigation fetch fails', async () => {
+      const { assign, cleanup } = install(new TypeError('Failed to fetch'));
+      await expect(window.fetch('/ads?_rsc=x', { headers: { RSC: '1' } })).rejects.toThrow();
+      expect(assign).toHaveBeenCalledTimes(1);
+      cleanup();
+    });
   });
 });

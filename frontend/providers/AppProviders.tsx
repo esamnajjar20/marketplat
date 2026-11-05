@@ -18,6 +18,11 @@ async function showStorageErrorToast(message: string, description: string, durat
   const { toast } = await import('sonner');
   toast.error(message, { description, duration });
 }
+// COLD-START-01: one deduped toast while the API retries a 502/503/504 (server waking up).
+async function showServerWakingToast() {
+  const { toast } = await import('sonner');
+  toast.loading('السيرفر يستيقظ، لحظات…', { id: 'server-waking', duration: 8000 });
+}
 import { ThemeProvider }       from './ThemeProvider';
 import { PwaBootstrap }        from '@/components/pwa/PwaBootstrap';
 import { OfflineNavigationFallback } from '@/components/pwa/OfflineNavigationFallback';
@@ -68,7 +73,7 @@ import { OfflineStatusNotices } from '@/components/offline/OfflineStatusNotices'
 import { GlobalSearchShortcut } from '@/components/shared/GlobalSearchShortcut';
 import { AnalyticsConsentBanner } from '@/components/shared/AnalyticsConsentBanner';
 import { installGlobalErrorHandlers } from '@/lib/globalErrorHandlers';
-import { restoreOfflineQueryCache, subscribeOfflineQueryCache, persistOfflineQueryCache } from '@/lib/offlineQueryCache';
+// PERF-BUNDLE-PROVIDERS-01: offlineQueryCache (~23 KB مصدر) يُحمَّل داخل useEffect فقط.
 import { checkBuildVersion } from '@/lib/buildVersionCheck';
 
 interface AppProvidersProps {
@@ -132,16 +137,25 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
     return () => window.removeEventListener('marketplat:local-error', onLocalStorageError);
   }, []);
 
+  useEffect(() => {
+    const onServerWaking = () => { void showServerWakingToast(); };
+    window.addEventListener('marketplat:server-waking', onServerWaking);
+    return () => window.removeEventListener('marketplat:server-waking', onServerWaking);
+  }, []);
+
   // Restore safe public query snapshots without blocking initial rendering.
   // Restore only fills missing/older entries, so it cannot overwrite fresher data.
   useEffect(() => {
     let cancelled = false;
     let unsubscribe: (() => void) | undefined;
-    void restoreOfflineQueryCache(queryClient).then(() => {
-      if (cancelled) return;
-      unsubscribe = subscribeOfflineQueryCache(queryClient);
-      void persistOfflineQueryCache(queryClient);
-    });
+    void import('@/lib/offlineQueryCache')
+      .then(async (cache) => {
+        await cache.restoreOfflineQueryCache(queryClient);
+        if (cancelled) return;
+        unsubscribe = cache.subscribeOfflineQueryCache(queryClient);
+        void cache.persistOfflineQueryCache(queryClient);
+      })
+      .catch(() => { /* الكاش المحلي اختياري — فشل تحميل الـ chunk لا يمنع التطبيق */ });
     return () => { cancelled = true; unsubscribe?.(); };
   }, [queryClient]);
 

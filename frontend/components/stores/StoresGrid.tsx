@@ -52,7 +52,7 @@ export function StoresGrid({ initialPage, initialPageUpdatedAt, searchParams = {
     queryFn: ({ pageParam }) => storesApi.getAll({ search, city, sortBy, sortOrder, page: pageParam, limit: pageSize }).then((r) => r.data.data),
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
-  const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = query;
+  const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query;
 
 
   const items = data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [];
@@ -133,7 +133,7 @@ export function StoresGrid({ initialPage, initialPageUpdatedAt, searchParams = {
           description={search ? `لم نجد نتائج لـ "${search}"` : 'لا توجد متاجر مطابقة لهذه الفلاتر'}
         />
       ) : (
-        <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3' : LIST_STORE_GRID_CLASS, 'stagger-fade-in min-w-0')}>
+        <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3' : LIST_STORE_GRID_CLASS, 'min-w-0')}>
           {items.map((store) => (
             <StoreCard key={store.id} store={store} density={view === 'list' ? 'compact' : 'default'} layout={view} />
           ))}
@@ -141,7 +141,7 @@ export function StoresGrid({ initialPage, initialPageUpdatedAt, searchParams = {
       )}
 
       {items.length > 0 && (
-        <InfiniteScrollTrigger hasNextPage={Boolean(hasNextPage)} isFetchingNextPage={isFetchingNextPage} onLoadMore={loadMore} />
+        <InfiniteScrollTrigger hasNextPage={Boolean(hasNextPage)} isFetchingNextPage={isFetchingNextPage} isError={isFetchNextPageError} onLoadMore={loadMore} />
       )}
     </div>
       </>

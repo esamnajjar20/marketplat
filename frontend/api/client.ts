@@ -32,6 +32,7 @@
 // Migrate all imports to: import { ... } from '@/lib/fetchClient'
 import { recordRequestFailure, recordRequestTiming, recordRequestSuccess } from '@/lib/connectionQuality';
 import { getNetworkPolicy } from '@/lib/networkPolicy';
+import { computeUploadTimeoutMs, formDataFileBytes } from '@/lib/uploadTimeout';
 import axios, {
   AxiosError,
   CanceledError,
@@ -45,18 +46,19 @@ import { API_BASE_URL }  from '@/lib/constants';
 import { serverApiAdapter } from '@/lib/serverApiAdapter';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 import { getCsrfToken } from '@/lib/csrf';
-import { toast } from 'sonner';
-import { QUEUE_UPDATED_EVENT } from '@/hooks/useQueuedRequestCount';
+import { QUEUE_UPDATED_EVENT } from '@/lib/offlineQueueEvents';
 import { clearSensitiveLocalData, getSessionCleanupVersion } from '@/lib/authCleanup';
 import { registerSessionRequest } from '@/lib/sessionRequestRegistry';
-import { enqueueOfflineMutationFallback } from '@/lib/offlineQueue';
+// PERF-BUNDLE-CLIENT-01: offlineQueue (~33 KB مصدر) يُحمَّل عند أول فشل شبكة فقط
+// (انظر مسار queueFallbackEligible أدناه) بدل أن يدخل الحزمة الأولى لكل route.
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
 import { recordRequestErrorCode, recordRequestRetry, recordRequestStarted } from '@/lib/networkObservability';
 import { isNetworkFailure } from '@/lib/networkErrors';
-import { invalidateReactQueryForMutation } from '@/lib/cache/queryCacheInvalidation';
 import { getQueryClient } from '@/lib/queryClient';
 import {
+  getMaxAutoRetries,
   getRetryDelayMs,
+  isColdStartStatus,
   isRetryableHttpStatus,
   isSafeHttpMethod,
   parseRetryAfterMs,
@@ -219,6 +221,21 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
       : isSafeHttpMethod(method)
         ? Math.max(effectivePolicyTimeout, 32_000)
         : effectivePolicyTimeout;
+
+    // FIX WEAK-NET-UPLOAD-02: طلبات الكتابة المتعددة الأجزاء (نشر إعلان/منتج/خدمة،
+    // صور الدردشة، الأفاتار...) كانت تأخذ مهلة الكتابة التكيفية (12–25s) مهما كان
+    // حجم الصور، فتُقطع على 2G/3G قبل أن يكتمل الرفع. نمدّد المهلة بحسب حجم
+    // الملفات الفعلي (لا نخفّضها أبدًا). الكتابة لا تُعاد تلقائيًا، لذلك هذه هي
+    // الفرصة الوحيدة لإكمالها دون إنشاء تكرار.
+    if (!isSafeHttpMethod(method)) {
+      const uploadBytes = formDataFileBytes(config.data);
+      if (uploadBytes > 0) {
+        config.timeout = computeUploadTimeoutMs(uploadBytes, {
+          tier: getNetworkPolicy().tier,
+          uploadTimeoutMs: config.timeout,
+        });
+      }
+    }
   }
 
   // PHASE-1 UX: sample RTT for connection quality indicator
@@ -558,7 +575,12 @@ apiClient.interceptors.response.use(
     // URL contract. Only active React Query observers refetch immediately.
     const method = (response.config.method ?? 'get').toLowerCase();
     if (typeof window !== 'undefined' && !['get', 'head', 'options'].includes(method)) {
-      void invalidateReactQueryForMutation(getQueryClient(), response.config.url ?? '');
+      // PERF: load the invalidation contract (and queryKeys) lazily — only
+      // successful mutations need it, never the first paint.
+      const mutationUrl = response.config.url ?? '';
+      void import('@/lib/cache/queryCacheInvalidation')
+        .then((m) => m.invalidateReactQueryForMutation(getQueryClient(), mutationUrl))
+        .catch(() => undefined);
     }
     return response;
   },
@@ -606,6 +628,7 @@ apiClient.interceptors.response.use(
         const operationHeader = String(
           headerObject['X-Offline-Op-Id'] ?? headerObject['x-offline-op-id'] ?? '',
         ) || null;
+        const { enqueueOfflineMutationFallback } = await import('@/lib/offlineQueue');
         const queued = await enqueueOfflineMutationFallback({
           url: apiClient.getUri(original),
           method: methodForFallback,
@@ -677,11 +700,15 @@ apiClient.interceptors.response.use(
     // flows already carry X-Offline-Op-Id for server-side idempotency.
     if (original && isSafeHttpMethod(original.method) && (isNetworkFailure(error) || isRetryableHttpStatus(error.response?.status))) {
       const policy = getNetworkPolicy();
-      const maxRetries = policy.tier === 'very-slow' ? 1 : policy.tier === 'slow' ? 2 : policy.tier === 'fast' ? 2 : 1;
+      const maxRetries = getMaxAutoRetries(policy.tier, error.response?.status);
       const attempt = Number(original[NETWORK_RETRY_MARKER] ?? 0);
       if (attempt < maxRetries && !axios.isCancel(error)) {
         original[NETWORK_RETRY_MARKER] = attempt + 1;
         recordRequestRetry();
+        // COLD-START-01: tell the UI the server is waking up instead of silently waiting.
+        if (typeof window !== 'undefined' && isColdStartStatus(error.response?.status)) {
+          window.dispatchEvent(new CustomEvent('marketplat:server-waking'));
+        }
         await new Promise<void>((resolve) => setTimeout(resolve, getRetryDelayMs(attempt + 1, parseRetryAfterMs(error.response?.headers?.['retry-after']))));
         if (original.signal?.aborted) return Promise.reject(parseForRequest(error, original));
         return apiClient(original);
@@ -954,7 +981,11 @@ apiClient.interceptors.response.use(
         // silently discarding any unsaved form state (e.g. a long ad draft).
         // Show a toast first, then give it a brief moment to actually be
         // seen before the hard navigation tears the page down.
-        toast.error('انتهت جلستك، الرجاء تسجيل الدخول مجددًا');
+        // PERF: sonner is loaded on demand (this is the only static use in
+        // the API client). Failure to load must never block the redirect.
+        void import('sonner')
+          .then(({ toast }) => toast.error('انتهت جلستك، الرجاء تسجيل الدخول مجددًا'))
+          .catch(() => undefined);
 
         const from = encodeURIComponent(
           window.location.pathname + window.location.search,

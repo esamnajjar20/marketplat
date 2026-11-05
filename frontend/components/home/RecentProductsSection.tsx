@@ -112,7 +112,7 @@ export function RecentProductsSection() {
   return (
     <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">
       {header}
-      <HomeScrollRail className="stagger-fade-in">
+      <HomeScrollRail>
         {items.map((product) => (
           <HomeScrollRailItem key={product.id}>
             <ProductCard product={product} storeId={product.store.id} context="public" />

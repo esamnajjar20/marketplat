@@ -56,7 +56,7 @@ export function ForYouMixedSection() {
         icon={<Sparkles className="h-3.5 w-3.5" />}
         cta={{ href: ROUTES.forYou, label: 'عرض الكل ←' }}
       />
-      <HomeScrollRail className="stagger-fade-in">
+      <HomeScrollRail>
         {items.map((item) => (
           <HomeScrollRailItem key={`${item.kind}-${item.data.id}`} size="wide">
             {item.kind === 'ad' ? (

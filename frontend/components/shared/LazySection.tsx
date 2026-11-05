@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { isDataSaverEnabled } from '@/lib/dataSaver';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -39,6 +39,9 @@ export function LazySection({
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  // SCROLL-JUMP-01: height the slot had just before it collapsed, kept only when
+  // the slot sits entirely above the viewport (see the layout effect below).
+  const collapseShiftRef = useRef<number | null>(null);
   const [near, setNear] = useState(false);
   const [visible, setVisible] = useState(false);
   // Set once the mounted children render nothing (e.g. a section that
@@ -102,12 +105,35 @@ export function LazySection({
     if (!visible) return;
     const node = contentRef.current;
     if (!node || typeof ResizeObserver === 'undefined') return;
-    const sync = () => setCollapsed(node.offsetHeight === 0);
+    const sync = () => {
+      const empty = node.offsetHeight === 0;
+      if (empty) {
+        const slot = ref.current;
+        if (slot) {
+          const rect = slot.getBoundingClientRect();
+          // Collapsing a slot above the viewport pushes everything the user is
+          // reading upwards; remember its height so we can scroll by the same amount.
+          collapseShiftRef.current = rect.bottom <= 0 ? slot.offsetHeight : null;
+        }
+      }
+      setCollapsed(empty);
+    };
     sync();
     const observer = new ResizeObserver(sync);
     observer.observe(node);
     return () => observer.disconnect();
   }, [visible]);
+
+  // SCROLL-JUMP-01: runs right after the slot collapses, before paint. If the slot
+  // was above the viewport, compensate scroll so the visible content stays put.
+  useLayoutEffect(() => {
+    const before = collapseShiftRef.current;
+    collapseShiftRef.current = null;
+    const slot = ref.current;
+    if (!collapsed || before == null || !slot || typeof window === 'undefined') return;
+    const delta = before - slot.offsetHeight;
+    if (delta > 0) window.scrollBy({ top: -delta, behavior: 'instant' as ScrollBehavior });
+  }, [collapsed]);
 
   return (
     <div
@@ -143,7 +169,7 @@ function DefaultFallback({ minHeight }: { minHeight: number }) {
       </div>
       <div className="flex gap-3 overflow-hidden sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div
+          <Skeleton
             key={i}
             className="aspect-[4/3] w-40 shrink-0 rounded-xl sm:w-auto"
           />

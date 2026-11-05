@@ -6,40 +6,53 @@ import { EagerHomeSections } from '@/components/home/EagerHomeSections';
 import { HomeBusyBoundary } from '@/components/home/HomeBusyBoundary';
 import { StoriesRail } from '@/components/stories/StoriesRail';
 import { LazySection } from '@/components/shared/LazySection';
+import { HomeSectionFallback } from '@/components/home/HomeSectionFallback';
 import { HomeSectionBoundary } from '@/components/home/HomeSectionBoundary';
 import { PullToRefresh } from '@/components/shared/ui/PullToRefresh';
 import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
+import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
+
+// HOME-FLICKER-01: while a lazy section's JS chunk loads, show the same skeleton
+// LazySection already showed (no blank frame between skeleton and content).
+const sectionLoading = () => <HomeSectionFallback minHeight={240} />;
 
 const HomeAppPromo = dynamic(() =>
   import('@/components/home/HomeAppPromo').then((module) => module.HomeAppPromo),
 );
 const ForYouMixedSection = dynamic(() =>
   import('@/components/home/ForYouMixedSection').then((module) => module.ForYouMixedSection),
+  { loading: sectionLoading },
 );
 const FollowingFeedSection = dynamic(() =>
   import('@/components/home/FollowingFeedSection').then((module) => module.FollowingFeedSection),
+  { loading: sectionLoading },
 );
 const HomeAboveFold = dynamic(() =>
   import('@/components/home/HomeAboveFold').then((module) => module.HomeAboveFold),
+  { loading: sectionLoading },
 );
 const RecentProductsSection = dynamic(() =>
   import('@/components/home/RecentProductsSection').then(
     (module) => module.RecentProductsSection,
   ),
+  { loading: sectionLoading },
 );
 const HomeServicesSection = dynamic(() =>
   import('@/components/home/HomeServicesSection').then((module) => module.HomeServicesSection),
+  { loading: sectionLoading },
 );
 const FeaturedStoresSection = dynamic(() =>
   import('@/components/home/FeaturedStoresSection').then(
     (module) => module.FeaturedStoresSection,
   ),
+  { loading: sectionLoading },
 );
 const NearbyProvidersSection = dynamic(() =>
   import('@/components/home/NearbyProvidersSection').then(
     (module) => module.NearbyProvidersSection,
   ),
+  { loading: sectionLoading },
 );
 
 /**
@@ -61,6 +74,7 @@ export function HomePageContent() {
   const _isNative = useIsNativeApp();
   const isNative = mounted && _isNative;
   const feed = useHomeFeed();
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
 
   const onRefresh = useCallback(async () => {
     await feed.refetch();
@@ -80,11 +94,13 @@ export function HomePageContent() {
               <ForYouMixedSection />
             </HomeSectionBoundary>
           </LazySection>
-          <LazySection minHeight={220} rootMargin="32px 0px" whenIdle={false}>
-            <HomeSectionBoundary>
-              <FollowingFeedSection />
-            </HomeSectionBoundary>
-          </LazySection>
+          {isAuthenticated && (
+            <LazySection minHeight={220} rootMargin="32px 0px" whenIdle={false}>
+              <HomeSectionBoundary>
+                <FollowingFeedSection />
+              </HomeSectionBoundary>
+            </LazySection>
+          )}
           <LazySection minHeight={240} rootMargin="40px 0px" whenIdle>
             <HomeSectionBoundary>
               <HomeAboveFold />

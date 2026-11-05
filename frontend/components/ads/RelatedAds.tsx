@@ -54,7 +54,7 @@ export function RelatedAds({ adId }: Props) {
         ))}
       </div>
       {/* Tablet/desktop grid: progressively use available width without shrinking cards excessively. */}
-      <div className="hidden min-w-0 grid-cols-2 gap-3 sm:grid sm:gap-4 lg:grid-cols-3 xl:grid-cols-4 stagger-fade-in">
+      <div className="hidden min-w-0 grid-cols-2 gap-3 sm:grid sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
         {data.map((ad) => <AdCard key={ad.id} ad={ad} context="related" />)}
       </div>
     </section>

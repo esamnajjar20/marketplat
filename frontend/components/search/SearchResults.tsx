@@ -20,7 +20,6 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { searchApi } from '@/api/search.api';
-import { searchOffline } from '@/lib/offlineSearchIndex';
 import { useProgressiveSearchRadius } from '@/hooks/queries/useProgressiveSearchRadius';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { LocationSourceBadge } from '@/components/home/LocationSourceBadge';
@@ -132,7 +131,10 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
         return r.data.data;
       } catch (err) {
         if (pageParam === 1) {
-          const offline = await searchOffline(params).catch(() => null);
+          // PERF: offline index loaded on demand (already warmed on idle by useSearch).
+          const offline = await import('@/lib/offlineSearchIndex')
+            .then((m) => m.searchOffline(params))
+            .catch(() => null);
           if (offline?.hasBundle) return { items: offline.items, meta: offline.meta };
         }
         throw err;
@@ -140,7 +142,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
     },
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
-  const { data, isLoading: searchLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = infiniteQuery;
+  const { data, isLoading: searchLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = infiniteQuery;
   const isLoading = searchLoading || (Boolean(lat !== undefined && lng !== undefined) && !progressive.resolved);
 
 
@@ -351,7 +353,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
         <EmptySearchAlternatives />
         </>
       ) : (
-        <div className={cn(viewMode === 'list' ? 'grid grid-cols-1 gap-3 sm:gap-4' : LIST_CARD_GRID_CLASS, 'stagger-fade-in')}>
+        <div className={cn(viewMode === 'list' ? 'grid grid-cols-1 gap-3 sm:gap-4' : LIST_CARD_GRID_CLASS)}>
           {items.map((result) => (
             <UnifiedResultCard key={`${result.type}-${result.id}`} result={result} layout={viewMode === 'list' ? 'list' : 'grid'} />
           ))}
@@ -362,6 +364,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
         <InfiniteScrollTrigger
           hasNextPage={Boolean(hasNextPage)}
           isFetchingNextPage={isFetchingNextPage}
+          isError={isFetchNextPageError}
           onLoadMore={() => void fetchNextPage()}
         />
       )}

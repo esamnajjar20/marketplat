@@ -21,21 +21,13 @@
 
 import { clearNotificationsCache } from '@/lib/notificationsCache';
 import { clearAllOfflineLists } from '@/lib/offlineListCache';
-import { clearDraftOnlyAdDrafts } from '@/lib/offlineAdDrafts';
 import { clearAllOfflineJson } from '@/lib/offlineJsonCache';
-import { clearOfflineQueue } from '@/lib/offlineQueue';
-import { clearCatalogDownloads } from '@/lib/downloadStorage';
-import { clearAllSalesDrafts } from '@/lib/sales-offline/salesDraftStore';
 import { clearSavedPaymentMethods } from '@/lib/paymentStorage';
 import { cancelAndClearQueryClient } from '@/lib/queryClient';
 import { abortSessionRequests } from '@/lib/sessionRequestRegistry';
-import { clearOfflineMessagesStore } from '@/lib/offlineMessagesStore';
-import { clearConversationMediaStore } from '@/lib/conversationMediaStore';
 import { clearAppBadge } from '@/lib/appBadge';
 import { clearRecentSearches } from '@/lib/recentSearches';
-import { clearAutoReadCache } from '@/lib/offlineAutoRead';
 import { clearOfflineActivity } from '@/lib/offlineActivityLog';
-import { clearPersonalWarmingState } from '@/lib/offlineWarmingState';
 import { clearNativeSessionMeta } from '@/lib/capacitor/nativeSessionStorage';
 
 /** يطلب من الـ SW مسح كاش API + PERSONAL_SHELL — نفس بروتوكول
@@ -156,6 +148,66 @@ async function clearUnversionedOfflineBuckets(): Promise<void> {
 // even while the remaining storage cleanup is still running.
 let sessionCleanupVersion = 0;
 
+// ── PERF-AUTH-CLEANUP-SPLIT ─────────────────────────────────────────────
+// The heavy store wipes live in lib/authCleanupStores.ts and are loaded on
+// demand so they stay out of every route's first-load JS. A failed load
+// (offline logout with an uncached chunk) must never skip the wipe silently:
+// we retry once, then persist a flag that makes the next app start run it.
+const PENDING_CLEANUP_KEY = 'marketplat:pending-store-cleanup';
+
+type CleanupStage = 'clearAutoReadStage' | 'clearOfflineStoresStage';
+
+function setPendingCleanupFlag(): void {
+  try { localStorage.setItem(PENDING_CLEANUP_KEY, '1'); } catch { /* ignore */ }
+}
+
+async function runCleanupStage(stage: CleanupStage): Promise<void> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const mod = await import('@/lib/authCleanupStores');
+      await mod[stage]();
+      return;
+    } catch (err) {
+      if (attempt === 1) console.warn('[auth-cleanup] stage failed, scheduling retry:', stage, err);
+    }
+  }
+  setPendingCleanupFlag();
+}
+
+/** Warm the stores chunk during idle time so an offline logout can still load it. */
+export function preloadAuthCleanupStores(): void {
+  if (typeof window === 'undefined') return;
+  const w = window as unknown as {
+    requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+  };
+  const warm = () => { void import('@/lib/authCleanupStores').catch(() => undefined); };
+  if (typeof w.requestIdleCallback === 'function') w.requestIdleCallback(warm, { timeout: 8000 });
+  else window.setTimeout(warm, 5000);
+}
+
+/**
+ * Call once at app start (before the user can create new offline data). If a
+ * previous logout could not wipe the heavy stores, finish the job now.
+ */
+export async function runPendingStoreCleanupIfNeeded(isAuthenticated: boolean): Promise<void> {
+  // Never wipe while a session is active: the queue/drafts may already belong
+  // to the NEW user. The flag stays set and the wipe runs on the next
+  // signed-out start instead.
+  if (isAuthenticated) return;
+  let pending = false;
+  try { pending = localStorage.getItem(PENDING_CLEANUP_KEY) === '1'; } catch { return; }
+  if (!pending) return;
+  try {
+    const mod = await import('@/lib/authCleanupStores');
+    await mod.clearAutoReadStage();
+    await mod.clearOfflineStoresStage();
+    try { localStorage.removeItem(PENDING_CLEANUP_KEY); } catch { /* ignore */ }
+  } catch (err) {
+    console.warn('[auth-cleanup] pending store cleanup still failing:', err);
+  }
+}
+
+
 export function getSessionCleanupVersion(): number {
   return sessionCleanupVersion;
 }
@@ -248,7 +300,7 @@ export async function clearSensitiveLocalData(): Promise<void> {
     // history the moment a search returned zero results. Fire-and-forget
     // because the Cache Storage half is async and logout UX shouldn't
     // block on it.
-    await clearAutoReadCache();
+    await runCleanupStage('clearAutoReadStage');
   try {
     // Index for the 'market-saved-ads' bucket wiped above (must match
     // SAVED_INDEX_KEY in offlineSavedAds.ts / offlineSavedEntities.ts).
@@ -258,46 +310,13 @@ export async function clearSensitiveLocalData(): Promise<void> {
   }
   clearAppBadge();
   clearAllOfflineLists();
-  try {
-    await clearDraftOnlyAdDrafts();
-  } catch (err) {
-    console.warn('[auth-cleanup] draft cleanup failed:', err);
-  }
   clearAllOfflineJson();
-  // FIX QUEUE-CLEAR-ON-LOGOUT + FIX QUEUE-AWAIT-ON-LOGOUT-01:
-  // طابور الـ SW كان يخزّن عناصر User A (وربما Authorization قبل
-  // QUEUE-NO-STORE-AUTH-01). ننتظر المسح حتى لا تبقى عناصر بعد التوجيه.
-  try {
-    await clearOfflineQueue();
-  } catch (err) {
-    console.warn('[auth-cleanup] clearOfflineQueue failed:', err);
-  }
-  // Sales drafts contain buyer/contact/cost/internal-note data. Clear them
-  // only after the shared mutation queue is stopped so logout cannot race a
-  // queue replay that is still resolving the same operation.
-  try {
-    await clearAllSalesDrafts();
-  } catch (err) {
-    console.warn('[auth-cleanup] sales draft cleanup failed:', err);
-  }
-  // FIX CATALOG-CLEAR-ON-LOGOUT: سجل تنزيلات كتالوجات المتاجر + أجسامها
-  // في IndexedDB كانت تبقى عبر logout — User B يرى ما نزّله User A.
-  await clearCatalogDownloads();
   // FIX PAYMENT-CLEAR-ON-LOGOUT: جهات دفع + بطاقات نت (بكلمات مرور
   // plaintext) كانت تبقى — User B يرى بيانات User A المالية.
   clearSavedPaymentMethods();
-  await clearOfflineMessagesStore();
-  try {
-    await clearConversationMediaStore();
-  } catch (err) {
-    console.warn('[auth-cleanup] conversation media wipe failed:', err);
-  }
-  // FIX SW-CLEAR-PERSONAL-WARMING-01: without this, the IndexedDB
-  // warming snapshot would still say every personal route was complete
-  // on the next login, so warming would skip them all and the personal
-  // shell cache would stay empty right after login (when offline
-  // coverage is most needed).
-  void clearPersonalWarmingState();
+  // Heavy IndexedDB stores (drafts, queue, sales drafts, catalogs, messages,
+  // media, warming state) — see lib/authCleanupStores.ts.
+  await runCleanupStage('clearOfflineStoresStage');
   clearPushBindingsOnSessionEnd();
   // NATIVE-SESSION-01: drop non-secret session meta on native + web.
   void clearNativeSessionMeta();

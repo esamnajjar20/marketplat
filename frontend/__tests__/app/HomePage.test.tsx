@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HomePage from '@/app/(public)/page';
 import { HomePageContent } from '@/components/home/HomePageContent';
 import { prefetchHomeFeed } from '@/lib/prefetch';
+import { useAuthStore } from '@/store/auth.store';
 
 vi.mock('@/components/home/EagerHomeSections', () => ({ EagerHomeSections: () => <div data-testid="eager" /> }));
 vi.mock('@/components/stories/StoriesRail', () => ({ StoriesRail: () => <div data-testid="stories" /> }));
@@ -36,6 +37,9 @@ vi.mock('@/components/home/HomeSectionBoundary', () => ({
 vi.mock('@/lib/prefetch', () => ({ prefetchHomeFeed: vi.fn().mockResolvedValue(undefined) }));
 
 describe('HomePageContent', () => {
+  // The "following" rail is only mounted for signed-in users (HOME-FLICKER-01).
+  beforeEach(() => useAuthStore.setState({ isAuthenticated: true }));
+
   function renderHomePageContent() {
     return render(
       <QueryClientProvider client={new QueryClient()}>

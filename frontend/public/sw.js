@@ -2017,6 +2017,9 @@ async function isValidJsonApiSnapshot(response) {
   }
 }
 
+// حالات HTTP العابرة التي نفضّل معها نسخة محفوظة صالحة على شاشة خطأ.
+const STALE_ON_ERROR_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+
 // GET للـ API: شبكة أولًا ثم كاش آمن حسب الهوية.
 async function networkFirstApi(event, request, url) {
   const cache = await caches.open(API_CACHE);
@@ -2055,9 +2058,21 @@ async function networkFirstApi(event, request, url) {
   try {
     const response = await withNetworkTimeout(fetchPromise, NETWORK_TIMEOUT_MS);
 
+    // FIX WEAK-NET-5XX-01: على شبكة ضعيفة/خادم يستيقظ تعيد البوابة 408/429/5xx
+    // كاستجابة "ناجحة" من منظور fetch، فكان الـ SW يمررها للصفحة رغم وجود نسخة
+    // محفوظة صالحة. نرمي هنا لنمر على مسار الكاش نفسه، وإن لم توجد نسخة نعيد
+    // استجابة الخطأ الأصلية كما هي (لا نخفي الخطأ ولا نخزّنه).
+    if (STALE_ON_ERROR_STATUSES.has(response.status) && !isSensitiveApi) {
+      throw Object.assign(new Error('SW retryable upstream status'), {
+        name: 'SwUpstreamStatusError',
+        upstreamResponse: response,
+      });
+    }
+
     event.waitUntil(storeIfAllowed(response.clone()).catch(() => {}));
     return response;
   } catch (err) {
+    const upstreamResponse = err && err.name === 'SwUpstreamStatusError' ? err.upstreamResponse : null;
     const timedOut = !!(err && err.name === 'SwTimeoutError');
     if (timedOut) event.waitUntil(fetchPromise.then((late) => storeIfAllowed(late.clone())).catch(() => {}));
 
@@ -2107,6 +2122,7 @@ async function networkFirstApi(event, request, url) {
       const cachedSaved = await savedCache.match(request.url);
       if (cachedSaved && await isValidJsonApiSnapshot(cachedSaved)) return cachedSaved;
     }
+    if (upstreamResponse) return upstreamResponse;
     if (timedOut) return fetchPromise.catch(() => Response.error());
     return Response.error();
   }
@@ -2594,7 +2610,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       replayTimeoutId = setTimeout(() => {
         try { replayController.abort(new DOMException('Offline queue request timed out', 'TimeoutError')); }
         catch { replayController.abort(); }
-      }, QUEUE_REQUEST_TIMEOUT_MS);
+      }, replayTimeoutMsFor(entry));
       response = await fetch(queuedUrl, {
         method: entry.method,
         headers: sendHeaders,
@@ -2860,6 +2876,37 @@ const activeReplayControllers = new Set();
 const QUEUE_PROCESSING_LEASE_MS = 2 * 60_000;
 // Bound each replay request so a half-open mobile connection cannot hold the queue lease indefinitely.
 const QUEUE_REQUEST_TIMEOUT_MS = 15_000;
+// FIX WEAK-NET-REPLAY-01: المهلة الثابتة 15s كانت تُجهض كل إعادة إرسال لطلب
+// فيه صور (حتى 6MB) على اتصال 2G/3G، فيبقى الطلب يُعاد ولا يكتمل أبدًا.
+// المهلة الآن = أساس حسب مستوى الشبكة + زمن يتناسب مع حجم الجسم، وسقفها أقل
+// من QUEUE_PROCESSING_LEASE_MS حتى لا ينتهي القفل أثناء الإرسال.
+const QUEUE_REQUEST_TIMEOUT_MAX_MS = 100_000;
+const QUEUE_BASE_TIMEOUT_BY_TIER = {
+  'very-slow': 30_000,
+  slow: 22_000,
+  unknown: QUEUE_REQUEST_TIMEOUT_MS,
+  normal: QUEUE_REQUEST_TIMEOUT_MS,
+  fast: QUEUE_REQUEST_TIMEOUT_MS,
+};
+// أدنى معدل رفع نفترضه (بايت/ثانية) لكل مستوى شبكة.
+const QUEUE_MIN_UPLOAD_BPS_BY_TIER = {
+  'very-slow': 12 * 1024,
+  slow: 25 * 1024,
+  unknown: 40 * 1024,
+  normal: 60 * 1024,
+  fast: 120 * 1024,
+};
+let queueNetworkTier = 'unknown';
+function replayTimeoutMsFor(entry) {
+  const tier = Object.prototype.hasOwnProperty.call(QUEUE_BASE_TIMEOUT_BY_TIER, queueNetworkTier)
+    ? queueNetworkTier
+    : 'unknown';
+  const base = QUEUE_BASE_TIMEOUT_BY_TIER[tier];
+  const bodyBytes = entry && entry.body && Number.isFinite(entry.body.size) ? entry.body.size : 0;
+  if (!(bodyBytes > 0)) return base;
+  const transferMs = Math.ceil((bodyBytes / QUEUE_MIN_UPLOAD_BPS_BY_TIER[tier]) * 1000);
+  return Math.min(QUEUE_REQUEST_TIMEOUT_MAX_MS, Math.max(base, base + transferMs));
+}
 function hasActiveProcessingLease(entry, now = Date.now()) {
   if (!entry?.processing) return false;
   const startedAt = entry.processingStartedAt;
@@ -3537,6 +3584,7 @@ self.addEventListener('message', (event) => {
         unknown: 30_000,
       };
       queueRetryMinGapMs = gaps[tier] || QUEUE_RETRY_MIN_GAP_MS;
+      queueNetworkTier = tier;
       const requestedConcurrency = Number(event.data?.queueConcurrency);
       queueConcurrencyHint = Number.isFinite(requestedConcurrency)
         ? Math.max(1, Math.min(3, Math.floor(requestedConcurrency)))

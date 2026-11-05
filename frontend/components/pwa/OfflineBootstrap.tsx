@@ -40,6 +40,7 @@ import { initSwTokenSync } from '@/lib/swTokenSync';
 import { initSalesOfflineSync, syncPendingSales } from '@/lib/sales-offline/salesSync';
 import { invalidateOfflineCachesForMutation } from '@/lib/offlineCacheInvalidation';
 import { recordQueueDrainCompleted, recordQueueDrainStarted } from '@/lib/networkObservability';
+import { ensurePersistentStorage, shouldAutoRequestPersist } from '@/lib/offlineStoragePersist';
 
 let __offlineBootstrapInitialized = false;
 
@@ -249,6 +250,18 @@ export function OfflineBootstrap() {
     });
     return unsubscribeNetwork;
   }, []);
+
+  // FIX STORAGE-PERSIST-02: ensurePersistentStorage() كانت مكتوبة ومختبَرة لكن
+  // لا أحد يستدعيها، فبقي كاش الأوفلاين (صفحات، ملفات، بيانات) قابلًا للمسح
+  // بلا إنذار تحت ضغط التخزين خصوصًا على الهواتف قليلة المساحة. نطلبها مرة
+  // بعد الإقلاع لمستخدم مسجّل أو تطبيق مثبّت، متأخرة قليلًا كي لا تنافس التحميل.
+  useEffect(() => {
+    if (!shouldAutoRequestPersist(isAuthenticated)) return;
+    const id = window.setTimeout(() => {
+      safeFire('ensurePersistentStorage', ensurePersistentStorage());
+    }, 5000);
+    return () => window.clearTimeout(id);
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

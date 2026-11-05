@@ -12,14 +12,14 @@ import { render, screen, cleanup } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
-import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
+import { useStartConversation } from '@/hooks/mutations/useStartConversation';
 import { useAuthStore } from '@/store/auth.store';
 import { toast } from 'sonner';
 
 const { mockRouterPush } = vi.hoisted(() => ({ mockRouterPush: vi.fn() }));
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockRouterPush }) }));
 
-vi.mock('@/hooks/mutations/useConversationMutations', () => ({
+vi.mock('@/hooks/mutations/useStartConversation', () => ({
   useStartConversation: vi.fn(),
 }));
 

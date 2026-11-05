@@ -72,6 +72,15 @@ export function makeQueryClient() {
       },
       mutations: {
         retry: 0,
+        // FIX WEAK-NET-MUTATION-MODE-01: TanStack's default mode for mutations is
+        // 'online': once the browser fires `offline`, mutationFn is not even
+        // started — the mutation just sits "pending/paused" (publish button stuck
+        // on «جاري النشر…», onError and the offline-draft/SW-queue fallback never
+        // run) and later fires by itself on reconnect, possibly long after the
+        // user forgot about it. 'offlineFirst' runs the first attempt regardless;
+        // the Service Worker either queues it (202 → OFFLINE_QUEUED) or it fails
+        // fast so onError can save a draft / tell the user. Retries stay off.
+        networkMode: 'offlineFirst',
       },
     },
   });

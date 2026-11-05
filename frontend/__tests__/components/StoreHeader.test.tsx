@@ -49,7 +49,7 @@ vi.mock('@/components/stores/ReportStoreButton', () => ({
 // gate's own self-hide/self-message/unauthenticated logic is covered
 // by MessageUserButtonGate.test.tsx; this file only asserts StoreHeader
 // wires it to the store owner's userId and respects isOwnStore.
-vi.mock('@/hooks/mutations/useConversationMutations', () => ({
+vi.mock('@/hooks/mutations/useStartConversation', () => ({
   useStartConversation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 

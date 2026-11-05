@@ -61,15 +61,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useAuthStore, selectIsHydrated } from '@/store/auth.store';
 import { usersApi }   from '@/api/users.api';
-import { favoritesApi } from '@/api/favorites.api';
+// PERF-BUNDLE-HYDRATION-01: favorites.api يُحمَّل داخل prefetchFavoritesIdle فقط.
 import { getNetworkPolicy } from '@/lib/networkPolicy';
 import { queryKeys }    from '@/lib/queryKeys';
 import { CACHE_TTL, ROUTES }    from '@/lib/constants';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, clearAuthCookies } from '@/lib/cookies';
-import { warmSelfDataForOffline } from '@/lib/offlineSelfWarm';
 import { RouteLoadingState } from '@/components/shared/RouteLoadingState';
 // T735 — see the check just after the refresh await below.
 import {
@@ -77,11 +76,19 @@ import {
   refreshSessionShared,
 } from '@/api/client';
 import { parseApiError } from '@/lib/errorParser';
-import { clearSensitiveLocalData } from '@/lib/authCleanup';
+import { clearSensitiveLocalData, preloadAuthCleanupStores, runPendingStoreCleanupIfNeeded } from '@/lib/authCleanup';
 import { subscribeToSessionEnded } from '@/lib/authSessionBroadcast';
 import { buildSessionExpiredLoginUrl } from '@/lib/sessionRedirect';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { isDefiniteSessionRejection } from '@/lib/authRestoreError';
+
+// PERF-BUNDLE-HYDRATION-01: offlineSelfWarm (+ stores.api/service-providers.api)
+// تُحمَّل بعد نجاح الجلسة فقط وليس مع كل route للزوّار.
+function warmSelfDataLazily(queryClient: QueryClient, userId: string): void {
+  void import('@/lib/offlineSelfWarm')
+    .then((m) => m.warmSelfDataForOffline(queryClient, userId))
+    .catch(() => undefined);
+}
 
 /**
  * FIX AUTH-RESTORE-ERRSHAPE-01: replaces hasServerResponse(). apiClient rejects
@@ -108,6 +115,13 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  // PERF-AUTH-CLEANUP-SPLIT: finish a logout wipe that could not load its chunk
+  // earlier (signed-out starts only), then warm the chunk for the next logout.
+  useEffect(() => {
+    void runPendingStoreCleanupIfNeeded(useAuthStore.getState().isAuthenticated);
+    preloadAuthCleanupStores();
   }, []);
   const sessionEventHandlingRef = useRef(false);
 
@@ -342,7 +356,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
         // intentionally NOT threaded through `controller.signal`, so a
         // slow network doesn't extend this effect's own 8s window and
         // an early unmount doesn't cancel the warmup for nothing.
-        void warmSelfDataForOffline(queryClient, user.id);
+        warmSelfDataLazily(queryClient, user.id);
 
         // AUDIT-FIX M-1: prefetch page 1 of favorites so the ids Set is
         // populated app-wide before the user visits /dashboard or
@@ -370,6 +384,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
           const run = () => {
             void (async () => {
               try {
+                const { favoritesApi } = await import('@/api/favorites.api');
                 const favData = await queryClient.fetchQuery({
                   queryKey: queryKeys.favorites.all({ page: 1 }),
                   queryFn: ({ signal }) =>
@@ -511,7 +526,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
               cookieMaxAgeFromExpiresIn(retryExpires);
             setCookie('app_user_role', retryUser.role, retryCookieMaxAge);
 
-            void warmSelfDataForOffline(queryClient, retryUser.id);
+            warmSelfDataLazily(queryClient, retryUser.id);
             console.info('[auth] session recovered after refresh-race retry');
             return; // success — skip the original error handling entirely
           } catch (retryErr) {

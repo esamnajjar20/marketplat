@@ -3,7 +3,7 @@
 import { memo, useCallback, useEffect, useRef, useState, type TouchEvent } from 'react';
 import { ChevronLeft, ChevronRight, ImageOff, X } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { ZoomableDetailImage } from '@/components/shared/detail/ZoomableDetailImage';
+import dynamic from 'next/dynamic';
 import { ProgressiveDetailImage } from '@/components/shared/detail/ProgressiveDetailImage';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -12,6 +12,12 @@ import {
   DETAIL_GALLERY_SHELL,
   DETAIL_THUMBNAIL_RAIL,
 } from '@/components/shared/detail/detailTokens';
+
+// PERF: only rendered inside the lightbox (opened by tap) — keep it out of the first load.
+const ZoomableDetailImage = dynamic(
+  () => import('@/components/shared/detail/ZoomableDetailImage').then((m) => m.ZoomableDetailImage),
+  { ssr: false, loading: () => null },
+);
 
 interface Props {
   images: string[];

@@ -60,6 +60,21 @@ export function isNextFlightRequest(input: RequestInfo | URL, init?: RequestInit
   return getOfflineDocumentUrl(url);
 }
 
+/**
+ * OFFLINE-PREFETCH-01: Link/router.prefetch requests are speculative (the user has
+ * not asked to go anywhere). A failed prefetch must never turn into a document
+ * navigation, otherwise cutting the connection while viewing a page can throw the
+ * user onto some other page's shell or the SW's "page could not load" screen.
+ */
+export function isNextPrefetchRequest(input: RequestInfo | URL, init?: RequestInit): boolean {
+  const request = resolveRequest(input, init);
+  if (!request) return false;
+  const { headers } = request;
+  return headers.has('next-router-prefetch')
+    || headers.has('next-router-segment-prefetch')
+    || (headers.get('purpose') ?? '').toLowerCase() === 'prefetch';
+}
+
 function findAnchor(target: EventTarget | null): HTMLAnchorElement | null {
   if (!(target instanceof Element)) return null;
   const anchor = target.closest('a[href]');
@@ -112,7 +127,9 @@ export function installOfflineNavigationFallback(): () => void {
   // covered here. AbortError is intentionally ignored because Next aborts
   // obsolete prefetches and superseded navigations during normal operation.
   const wrappedFetch: typeof window.fetch = function (input, init) {
-    const documentUrl = isNextFlightRequest(input, init);
+    const isPrefetch = isNextPrefetchRequest(input, init);
+    // Prefetches are passed through untouched: Next handles their failures itself.
+    const documentUrl = isPrefetch ? null : isNextFlightRequest(input, init);
     let result: Promise<Response>;
     try {
       result = originalFetch(input, init);

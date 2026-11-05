@@ -176,7 +176,7 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
     }
   }, [initialPage, isSearch, q, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder, isBaseOfflineBrowse]);
 
-  const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = infiniteQuery;
+  const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = infiniteQuery;
   const items = data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [];
   const total = data?.pages[0]?.meta?.total ?? items.length;
   const loadMore = () => { void fetchNextPage(); };
@@ -297,7 +297,7 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
         <EmptySearchSuggestions />
         </>
       ) : view === 'grid' ? (
-        <div className={cn(LIST_CARD_GRID_CLASS, "stagger-fade-in")}>
+        <div className={cn(LIST_CARD_GRID_CLASS)}>
           {items.map((ad) => <AdCard key={ad.id} ad={ad} context="catalog" designLayout />)}
         </div>
       ) : (
@@ -310,6 +310,7 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
         <InfiniteScrollTrigger
           hasNextPage={Boolean(hasNextPage)}
           isFetchingNextPage={isFetchingNextPage}
+          isError={isFetchNextPageError}
           onLoadMore={loadMore}
         />
       )}

@@ -3,7 +3,8 @@ main = "index.js"
 compatibility_date = "2024-01-01"
 
 [triggers]
-crons = ["*/10 * * * *"]
+# COLD-START-01: 4 min keeps Postgres/Redis connections warm (idle-suspend DBs sleep ~5 min).
+crons = ["*/4 * * * *"]
 
 [vars]
-KEEPALIVE_URLS = "https://marketplat-nz19.onrender.com/health,https://marketplat-mb9x.onrender.com/healthz,https://marketplat2.onrender.com/health,https://marketplat-df3h.onrender.com/health,https://marketplat-v4cj.onrender.com/health"
+KEEPALIVE_URLS = "https://marketplat-nz19.onrender.com/ready,https://marketplat-mb9x.onrender.com/healthz,https://marketplat2.onrender.com/health,https://marketplat-df3h.onrender.com/health,https://marketplat-v4cj.onrender.com/health"

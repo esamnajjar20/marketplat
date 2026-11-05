@@ -1,5 +1,9 @@
 /** Safe public-query persistence for offline-first UI. Mutations and private/session data are never persisted. */
 import type { QueryClient, QueryKey } from '@tanstack/react-query';
+// PERF-BUNDLE-PROVIDERS-01: المفتاح + قارئ التاريخ في ملف صغير (NetworkStatusBanner يقرأه
+// من الحزمة الأولى دون سحب هذا الملف كاملًا).
+import { LAST_CACHE_AT_KEY, getLastOfflineQueryCacheSavedAt } from './offlineQueryCacheMarker';
+export { getLastOfflineQueryCacheSavedAt };
 
 export const OFFLINE_QUERY_CACHE_DB = 'marketplat-offline-query-cache-v1';
 export const OFFLINE_QUERY_CACHE_STORE = 'queries';
@@ -12,7 +16,6 @@ export const OFFLINE_HOME_FEED_MAX_ENTRY_BYTES = 3 * 1024 * 1024;
 export const OFFLINE_QUERY_MAX_ENTRIES = 800;
 export const OFFLINE_QUERY_MAX_TOTAL_BYTES = 40 * 1024 * 1024;
 export const OFFLINE_QUERY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-const LAST_CACHE_AT_KEY = 'marketplat:offline-query-cache:last-saved-at';
 const SAVE_DEBOUNCE_MS = 250;
 
 interface PersistedQuery { id: string; queryKey: QueryKey; data: unknown; dataUpdatedAt: number; savedAt: number; bytes: number }
@@ -387,19 +390,6 @@ export async function persistOfflineQueryCache(queryClient: QueryClient): Promis
     writeLastCacheMarker(savedAt);
     return persistedCount;
   } catch { return 0; } finally { db?.close(); }
-}
-export function getLastOfflineQueryCacheSavedAt(): number | null {
-  try {
-    if (typeof localStorage === 'undefined') return null;
-    const raw = localStorage.getItem(LAST_CACHE_AT_KEY);
-    if (!raw) return null;
-    const value = Number(raw);
-    // Ignore corrupt/future markers (clock changes or manually edited storage).
-    return Number.isFinite(value) && value > 0 && value <= Date.now() + 60_000 ? value : null;
-  } catch {
-    // Storage can throw in privacy-restricted contexts; offline cache remains best-effort.
-    return null;
-  }
 }
 export async function clearOfflineQueryCache(): Promise<void> {
   let db: IDBDatabase | undefined;

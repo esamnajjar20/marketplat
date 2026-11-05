@@ -20,7 +20,7 @@ import { MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
-import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
+import { useStartConversation } from '@/hooks/mutations/useStartConversation';
 import { useAuthStore, selectUser, selectIsAuthenticated } from '@/store/auth.store';
 import { track } from '@/lib/analytics';
 

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  getMaxAutoRetries,
   getRetryDelayMs,
+  isColdStartStatus,
   isRetryableHttpStatus,
   isRetryableParsedError,
   isSafeHttpMethod,
@@ -47,5 +49,21 @@ describe('retryPolicy', () => {
     expect(isRetryableParsedError({ statusCode: 429 })).toBe(true);
     expect(isRetryableParsedError({ statusCode: 500 })).toBe(true);
     expect(isRetryableParsedError({ statusCode: 400 })).toBe(false);
+  });
+
+  it('gives cold-start gateway statuses (502/503/504) up to 3 retries', () => {
+    for (const status of [502, 503, 504]) {
+      expect(isColdStartStatus(status)).toBe(true);
+      expect(getMaxAutoRetries('normal', status)).toBe(3);
+      expect(getMaxAutoRetries('very-slow', status)).toBe(3);
+    }
+    expect(isColdStartStatus(500)).toBe(false);
+  });
+
+  it('keeps the previous retry budget for other failures', () => {
+    expect(getMaxAutoRetries('normal', 500)).toBe(1);
+    expect(getMaxAutoRetries('very-slow', undefined)).toBe(1);
+    expect(getMaxAutoRetries('slow', 429)).toBe(2);
+    expect(getMaxAutoRetries('fast', undefined)).toBe(2);
   });
 });

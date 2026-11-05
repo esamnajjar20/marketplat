@@ -63,6 +63,8 @@ describe('makeQueryClient', () => {
   it('sets mutation retry to 0', () => {
     const qc = makeQueryClient();
     expect(qc.getDefaultOptions().mutations?.retry).toBe(0);
+    // Weak-net: mutations must start offline so the SW queue / draft fallback runs.
+    expect(qc.getDefaultOptions().mutations?.networkMode).toBe('offlineFirst');
   });
 
   it('sets a custom retry function (not a boolean/number)', () => {

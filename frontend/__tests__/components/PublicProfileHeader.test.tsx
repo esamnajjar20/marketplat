@@ -19,7 +19,7 @@ import type { PublicUser } from '@/types/user.types';
 // MessageUserButtonGate.test.tsx / BlockUserButtonGate.test.tsx mock
 // them, so this file's existing assertions about name/city/bio/ad-count
 // keep working unaffected by that addition.
-vi.mock('@/hooks/mutations/useConversationMutations', () => ({
+vi.mock('@/hooks/mutations/useStartConversation', () => ({
   useStartConversation: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 

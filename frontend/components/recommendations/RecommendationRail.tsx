@@ -76,7 +76,7 @@ export function RecommendationRail<T>({
           </button>
         </div>
       ) : (
-        <div className={cn('grid stagger-fade-in', gridClassName)}>
+        <div className={cn('grid', gridClassName)}>
           {items!.map((item) => (
             <div key={getItemKey(item)}>{renderItem(item)}</div>
           ))}

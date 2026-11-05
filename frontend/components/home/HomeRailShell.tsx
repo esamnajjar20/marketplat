@@ -52,7 +52,6 @@ export function HomeRailShell({
   const sectionClass = cn(
     'container mx-auto max-w-7xl space-y-3 px-3 py-2 sm:space-y-4 sm:px-4 sm:py-3',
     VARIANT_SURFACE[variant],
-    'section-enter',
     className,
   );
 
@@ -96,7 +95,7 @@ export function HomeRailShell({
   return (
     <section className={sectionClass}>
       {header}
-      <HomeScrollRail className="stagger-fade-in">{children}</HomeScrollRail>
+      <HomeScrollRail>{children}</HomeScrollRail>
     </section>
   );
 }

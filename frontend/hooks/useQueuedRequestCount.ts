@@ -2,9 +2,12 @@
 import { reportBackgroundFailure } from '../lib/backgroundTask';
 
 import { useEffect, useState } from 'react';
-import { getQueuedRequestCount } from '@/lib/offlineQueue';
 import { useAuthStore } from '@/store/auth.store';
 import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
+import { QUEUE_UPDATED_EVENT } from '@/lib/offlineQueueEvents';
+
+// PERF-BUNDLE-QUEUE-EVENT-01: الثابت يعيش في lib/offlineQueueEvents.ts ويُعاد تصديره هنا للتوافق.
+export { QUEUE_UPDATED_EVENT };
 
 /**
  * عدّاد "طلبات بالانتظار" كان يُقرأ فقط داخل صفحة
@@ -31,7 +34,11 @@ import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
  * العناصر الفاشلة (غير رسائل المحادثة) لها الآن واجهة مستقلة بصفحة
  * /offline (listFailedRequests/retryFailedRequest/discardFailedRequest).
  */
-export const QUEUE_UPDATED_EVENT = 'offline-queue:queued';
+// PERF-BUNDLE-BOTTOMNAV-01: BottomNav (كل صفحة عامة) يستورد هذا الـ hook؛ الاستيراد
+// الثابت لـ lib/offlineQueue (~33 KB مصدر) كان يدخل الحزمة الأولى لعدّاد صغير.
+// الآن يُحمَّل داخل effect (نفس chunk الذي يحمّله OfflineBootstrap على أي حال).
+const readQueuedRequestCount = () =>
+  import('@/lib/offlineQueue').then((m) => m.getQueuedRequestCount());
 
 export function useQueuedRequestCount(): number {
   const [count, setCount] = useState(0);
@@ -41,7 +48,7 @@ export function useQueuedRequestCount(): number {
     let cancelled = false;
 
     function refresh() {
-      getQueuedRequestCount()
+      readQueuedRequestCount()
         .then((n) => {
           if (!cancelled) setCount(n);
         })

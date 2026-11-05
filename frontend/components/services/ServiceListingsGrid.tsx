@@ -70,7 +70,7 @@ export function ServiceListingsGrid({ initialPage, initialPageUpdatedAt, searchP
     }, { signal }).then((r) => r.data.data),
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
-  const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = query;
+  const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query;
   const items = data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [];
   const firstMeta = data?.pages[0]?.meta;
   const total = firstMeta?.total ?? items.length;
@@ -154,7 +154,6 @@ export function ServiceListingsGrid({ initialPage, initialPageUpdatedAt, searchP
           view === 'list'
             ? 'grid grid-cols-1 gap-3 sm:gap-4'
             : LIST_SERVICE_GRID_CLASS,
-          'stagger-fade-in',
         )}>
           {items.map((listing) => (
             <ServiceListingCard
@@ -170,7 +169,7 @@ export function ServiceListingsGrid({ initialPage, initialPageUpdatedAt, searchP
       )}
 
       {items.length > 0 && (
-        <InfiniteScrollTrigger hasNextPage={Boolean(hasNextPage)} isFetchingNextPage={isFetchingNextPage} onLoadMore={loadMore} />
+        <InfiniteScrollTrigger hasNextPage={Boolean(hasNextPage)} isFetchingNextPage={isFetchingNextPage} isError={isFetchNextPageError} onLoadMore={loadMore} />
       )}
     </div>
       </>

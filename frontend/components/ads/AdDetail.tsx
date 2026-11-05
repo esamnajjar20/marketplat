@@ -31,7 +31,7 @@ import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { autoSaveVisitedAd } from '@/lib/offlineAutoRead';
-import { useStartConversation } from '@/hooks/mutations/useConversationMutations';
+import { useStartConversation } from '@/hooks/mutations/useStartConversation';
 import { track } from '@/lib/analytics';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';

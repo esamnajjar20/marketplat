@@ -21,6 +21,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { ImageUpload } from '@/components/shared/forms/ImageUpload';
 import { toast } from 'sonner';
+import { compressImageForPublish } from '@/lib/imageOffline';
 
 vi.mock('sonner', () => ({
   toast: { error: vi.fn(), success: vi.fn() },
@@ -30,7 +31,7 @@ vi.mock('sonner', () => ({
 // in production, so simulate a file that still cannot be reduced below the limit.
 vi.mock('@/lib/imageOffline', () => ({
   compressImageForPublish: vi.fn(async (file: File) => {
-    if (file.name === 'huge.jpg') throw new Error('compression failed');
+    if (file.name === 'huge.jpg' || file.name === 'flaky.jpg') throw new Error('compression failed');
     return file;
   }),
 }));
@@ -160,6 +161,43 @@ describe('ImageUpload', () => {
       expect(toast.error).toHaveBeenCalled();
     });
     expect(onChange).not.toHaveBeenCalled();
+  });
+
+  // ── Weak-network: shrink big photos BEFORE upload ─────────────────
+
+  it('compresses a within-limit but large photo (3MB) so it uploads on slow links', async () => {
+    const onChange = vi.fn();
+    render(<ImageUpload value={[]} onChange={onChange} />);
+    const dropzone = screen.getByRole('button', { name: /رفع الصور/ });
+
+    fireEvent.drop(dropzone, { dataTransfer: { files: [makeFile('big.jpg', 'image/jpeg', 3 * 1024 * 1024)] } });
+
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+    expect(compressImageForPublish).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0][0]).toHaveLength(1);
+  });
+
+  it('does not run the compressor for small photos', async () => {
+    const onChange = vi.fn();
+    render(<ImageUpload value={[]} onChange={onChange} />);
+    const dropzone = screen.getByRole('button', { name: /رفع الصور/ });
+
+    fireEvent.drop(dropzone, { dataTransfer: { files: [makeFile('small.jpg', 'image/jpeg', 800 * 1024)] } });
+
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+    expect(compressImageForPublish).not.toHaveBeenCalled();
+  });
+
+  it('keeps the original when optional compression of a within-limit photo fails', async () => {
+    const onChange = vi.fn();
+    render(<ImageUpload value={[]} onChange={onChange} />);
+    const dropzone = screen.getByRole('button', { name: /رفع الصور/ });
+
+    fireEvent.drop(dropzone, { dataTransfer: { files: [makeFile('flaky.jpg', 'image/jpeg', 3 * 1024 * 1024)] } });
+
+    await vi.waitFor(() => expect(onChange).toHaveBeenCalledTimes(1));
+    expect(onChange.mock.calls[0][0]).toHaveLength(1);
+    expect(toast.error).not.toHaveBeenCalled();
   });
 
   it('keeps valid files and drops invalid ones from a mixed drop', () => {

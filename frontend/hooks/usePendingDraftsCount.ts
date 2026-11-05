@@ -12,10 +12,14 @@ import { reportBackgroundFailure } from '../lib/backgroundTask';
  *  - visibilitychange عند العودة من tab آخر.
  */
 import { useEffect, useState } from 'react';
-import { countPendingAdDrafts } from '@/lib/offlineAdDrafts';
 import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
 
 const DRAFTS_UPDATED_EVENT = 'offline-drafts:updated';
+
+// PERF-BUNDLE-BOTTOMNAV-01: lib/offlineAdDrafts (~27 KB مصدر) كان يدخل الحزمة الأولى
+// لكل صفحة عامة عبر BottomNav لمجرد شارة عدّاد؛ يُحمَّل الآن داخل effect عند وجود مستخدم.
+const readPendingAdDraftsCount = (userId: string) =>
+  import('@/lib/offlineAdDrafts').then((m) => m.countPendingAdDrafts(userId));
 
 export function usePendingDraftsCount(userId: string | null | undefined): number {
   const [count, setCount] = useState(0);
@@ -25,7 +29,7 @@ export function usePendingDraftsCount(userId: string | null | undefined): number
     let cancelled = false;
 
     function refresh() {
-      countPendingAdDrafts(userId)
+      readPendingAdDraftsCount(userId)
         .then((n) => { if (!cancelled) setCount(n); })
         .catch((error) => reportBackgroundFailure('frontend/hooks/usePendingDraftsCount.ts', error));
     }

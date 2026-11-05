@@ -13,12 +13,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Logo }           from './Logo';
 import { SearchBar }      from './SearchBar';
-import { UserMenu }       from './UserMenu';
-import { NotificationBell } from './NotificationBell';
-import { MessagesLink } from './MessagesLink';
 import { ThemeToggle }    from './ThemeToggle';
-import { MobileNav }      from './MobileNav';
-import { CreateSheet } from './CreateSheet';
+// PERF-BUNDLE-HEADER-01: MobileNav/UserMenu/NotificationBell/MessagesLink كسولة — انظر LazyHeaderParts.
+import {
+  LazyMobileNav as MobileNav,
+  LazyUserMenu as UserMenu,
+  LazyNotificationBell as NotificationBell,
+  LazyMessagesLink as MessagesLink,
+} from './LazyHeaderParts';
+import { LazyCreateSheet } from './LazySheets';
 import { Plus } from 'lucide-react';
 import { Button }         from '@/components/shared/ui/Button';
 import { ROUTES }         from '@/lib/constants';
@@ -220,7 +223,7 @@ export function PublicHeader({ showSearch = true, showMenuTrigger: _showMenuTrig
           <SearchBar />
         </div>
       )}
-          <CreateSheet open={createOpen} onOpenChange={setCreateOpen} />
+          <LazyCreateSheet open={createOpen} onOpenChange={setCreateOpen} />
     </header>
   );
 }

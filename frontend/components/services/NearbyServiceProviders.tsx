@@ -91,7 +91,7 @@ export function NearbyServiceProviders() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 stagger-fade-in">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {items.map((provider) => (
               <ServiceProviderCard key={provider.id} provider={provider} />
             ))}

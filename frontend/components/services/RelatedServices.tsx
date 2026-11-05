@@ -72,7 +72,7 @@ export function RelatedServices({
           </div>
         ))}
       </div>
-      <div className="hidden min-w-0 grid-cols-2 gap-3 sm:grid sm:gap-4 lg:grid-cols-3 xl:grid-cols-4 stagger-fade-in">
+      <div className="hidden min-w-0 grid-cols-2 gap-3 sm:grid sm:gap-4 lg:grid-cols-3 xl:grid-cols-4">
         {items.map((s) => (
           <ServiceListingCard key={s.id} listing={s} context="related" />
         ))}

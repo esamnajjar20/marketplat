@@ -36,9 +36,14 @@ export function useHomeFeed() {
       return payload;
     },
     placeholderData: (previous) => {
-      // Keep the previous city visible only for the same identity. Never show
-      // another user's personalized feed while the auth identity changes.
-      return previous?.meta.personalized === Boolean(identity) ? previous : undefined;
+      if (!previous) return undefined;
+      // HOME-FLICKER-01: the server-prefetched guest feed is public data, so it
+      // is safe to keep on screen while the real identity/city key loads. Without
+      // this, a signed-in user (or a guest with a saved city) lost the SSR data
+      // right after hydration -> every section fell back to a skeleton.
+      // Never keep a PERSONALIZED feed for a different identity.
+      if (previous.meta.personalized === false) return previous;
+      return previous.meta.personalized === Boolean(identity) ? previous : undefined;
     },
     staleTime: CACHE_TTL.recommendations,
     refetchOnWindowFocus: false,

@@ -47,6 +47,25 @@ export function isStandaloneDisplayMode(): boolean {
   }
 }
 
+/**
+ * Firefox يعرض نافذة إذن عند persist() — لا نفتحها تلقائيًا بلا إجراء من
+ * المستخدم (زر «تخزين دائم» في إعدادات الأوفلاين يبقى متاحًا لذلك).
+ */
+export function browserPromptsForPersist(): boolean {
+  try {
+    if (typeof navigator === 'undefined') return false;
+    return /firefox|fxios/i.test(navigator.userAgent || '');
+  } catch {
+    return false;
+  }
+}
+
+/** هل نطلب التخزين الدائم تلقائيًا الآن؟ (مستخدم مسجّل أو تطبيق مثبّت، ولا نافذة إذن). */
+export function shouldAutoRequestPersist(authenticated: boolean): boolean {
+  if (!authenticated && !isStandaloneDisplayMode()) return false;
+  return !browserPromptsForPersist();
+}
+
 export async function ensurePersistentStorage(now: number = Date.now()): Promise<StoragePersistOutcome> {
   if (typeof navigator === 'undefined' || typeof navigator.storage?.persist !== 'function') {
     return 'unsupported';
