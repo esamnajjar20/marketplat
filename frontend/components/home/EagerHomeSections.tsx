@@ -3,7 +3,7 @@
 import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { HomeDiscoverHero } from './HomeDiscoverHero';
 import { HomeContextStrip } from './HomeContextStrip';
-import { FeaturedCarousel } from './FeaturedCarousel';
+import { CAROUSEL_ASPECT, FeaturedCarousel } from './FeaturedCarousel';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 /**
@@ -20,7 +20,7 @@ export function EagerHomeSections() {
         <div className="container mx-auto max-w-7xl space-y-3 px-4 py-4">
           <Skeleton className="h-8 w-2/3 max-w-md rounded-lg" />
           <Skeleton className="h-12 w-full rounded-2xl" />
-          <Skeleton className="aspect-video w-full rounded-2xl md:aspect-[21/9]" />
+          <Skeleton className={`${CAROUSEL_ASPECT} w-full rounded-2xl`} />
         </div>
       </div>
     );

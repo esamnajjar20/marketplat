@@ -65,7 +65,7 @@ check('object URL hook revokes URLs when Blob changes or component unmounts', ()
   assert.match(objectUrlHook, /URL\.revokeObjectURL\(nextUrl\)/);
 });
 check('object URL hook does not render a stale URL for a replacement Blob', () => {
-  assert.match(objectUrlHook, /ownedUrl\?\.blob === blob \? ownedUrl\.url : null/);
+  assert.match(objectUrlHook, /(?:ownedUrl\?\.blob|ownedUrl && ownedUrl\.blob) === blob \? ownedUrl\.url : null/);
 });
 check('gallery discards late Blob reads after unmount or conversation changes', () => {
   assert.match(gallery, /activeConversationRef/);
@@ -119,12 +119,13 @@ check('Redis pending-operation domain errors are thrown outside outage catch', (
   assert.ok(throwIndex > catchIndex);
   assert.match(service, /OFFLINE_OPERATION_IN_FLIGHT/);
 });
-check('message upload memory use is concurrency-bounded through response completion', () => {
-  assert.match(uploads, /MAX_CONCURRENT_MESSAGE_MEDIA_UPLOADS = 3/);
-  assert.match(uploads, /activeMessageMediaUploads >= MAX_CONCURRENT_MESSAGE_MEDIA_UPLOADS/);
-  assert.match(uploads, /audioUpload\.single\('audio'\)[\s\S]*?activeMessageMediaUploads \+= 1/);
-  assert.match(uploads, /res\.once\('finish', releaseSlot\)/);
-  assert.match(uploads, /res\.once\('close', releaseSlot\)/);
+check('message upload memory use is coordinated by one distributed lease through response completion', () => {
+  assert.match(uploads, /acquireMediaUploadLease\(\)/);
+  assert.match(uploads, /runWithDistributedMediaSlot/);
+  assert.match(uploads, /res\.once\('finish', cleanup\)/);
+  assert.match(uploads, /res\.once\('close', cleanup\)/);
+  assert.match(uploads, /audioUpload\.single\('audio'\)/);
+  assert.match(uploads, /messageFileUpload\.single\('file'\)/);
 });
 check('optimistic rollback removes only the failed local message', () => {
   assert.match(mutations, /Remove only this mutation's optimistic row/);

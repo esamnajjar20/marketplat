@@ -1600,6 +1600,43 @@ describe('sw.js — service worker logic', () => {
       expect(await ctx.sandbox.getAllQueuedEntries()).toHaveLength(0);
     });
 
+    it('replays the canonical url field written by queueRequestEntry (not a nonstandard _url field)', async () => {
+      const entry = await seedOne();
+      expect(entry.url).toBe('https://example.com/api/v1/x');
+      expect(entry._url).toBeUndefined();
+
+      const requested: string[] = [];
+      ctx.setFetch(async (input: any) => {
+        requested.push(typeof input === 'string' ? input : input.url);
+        return new Response('{}', { status: 200 });
+      });
+
+      const result = await ctx.sandbox.replayOne(entry, false);
+
+      expect(result).toBe('sent');
+      expect(requested).toEqual(['https://example.com/api/v1/x']);
+      expect(await ctx.sandbox.getAllQueuedEntries()).toHaveLength(0);
+    });
+
+    it('continues to replay legacy persisted rows that only contain _url', async () => {
+      const entry = await seedOne();
+      delete entry.url;
+      entry._url = 'https://example.com/api/v1/x';
+      await ctx.sandbox.markQueuedEntry(entry.id, { url: undefined, _url: entry._url });
+      const [legacyEntry] = await ctx.sandbox.getAllQueuedEntries();
+
+      let requestedUrl = '';
+      ctx.setFetch(async (input: any) => {
+        requestedUrl = typeof input === 'string' ? input : input.url;
+        return new Response('{}', { status: 200 });
+      });
+
+      const result = await ctx.sandbox.replayOne(legacyEntry, false);
+
+      expect(result).toBe('sent');
+      expect(requestedUrl).toBe('https://example.com/api/v1/x');
+    });
+
     it('marks a non-401 4xx as "failed" and keeps it queued with the error, instead of silently dropping it (FIX CONFLICT-01)', async () => {
       const entry = await seedOne();
       ctx.setFetch(async () => new Response(JSON.stringify({ message: 'blocked' }), { status: 403 }));

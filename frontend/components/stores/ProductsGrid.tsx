@@ -2,7 +2,7 @@
 
 import { QueryRetryCard } from '@/components/shared/feedback/QueryRetryCard';
 
-import { useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { ProductCard } from './ProductCard';
@@ -12,7 +12,6 @@ import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryF
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { PullToRefresh } from '@/components/shared/ui/PullToRefresh';
-import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { productsApi } from '@/api/products.api';
 import { cn } from '@/lib/utils';
 import { ListViewToggle } from '@/components/shared/list/ListViewToggle';
@@ -26,11 +25,16 @@ import { queryKeys } from '@/lib/queryKeys';
 import { offlineMeta } from '@/lib/apiPagination';
 import { getOfflineList, saveOfflineList, OFFLINE_LIST_KEYS, OFFLINE_LIST_LIMITS } from '@/lib/offlineListCache';
 import { getOfflineBrowseSnapshot, saveOfflineBrowseSnapshot } from '@/lib/offlineBrowseSnapshots';
+import type { BrowsePage } from '@/types/browse.types';
+import { CACHE_TTL } from '@/lib/constants';
+import { getBrowseParam, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type BrowseSearchParams } from '@/lib/browseSearchParams';
+import { useEffect } from 'react';
 
 /**
  * GET /products directory grid — mirrors StoresGrid's layout/behavior
- * exactly (same URL param reading, same loading/error/empty states,
- * same Pagination usage). useProducts() with no storeId returns
+ * exactly (same loading/error/empty states and infinite pagination).
+ * The Server Page supplies the initial URL filters as serializable props.
+ * useProducts() with no storeId returns
  * ProductWithStore rows across every store (see products.api.ts's
  * getAll — same unwrapPaginated shape StoresGrid already consumes via
  * useStores), so no new API or hook was needed for this page.
@@ -40,25 +44,34 @@ import { getOfflineBrowseSnapshot, saveOfflineBrowseSnapshot } from '@/lib/offli
  * ownerless in this cross-store view — StoreProducts.tsx doesn't need
  * this same treatment since it's already scoped to one store's page.
  */
-export function ProductsGrid() {
-  const isOnline = useOnlineStatus();
-  const sp = useSearchParams();
+const SaveSearchButton = dynamic(
+  () => import('@/components/ads/SaveSearchButton').then((module) => module.SaveSearchButton),
+  { ssr: false, loading: () => null },
+);
 
-  const search = sp.get('search') ?? undefined;
-  // clamp URL page param to positive integer.
-  const city = sp.get('city') ?? undefined;
-  const categoryId = sp.get('categoryId') ?? undefined;
-  const sortBy = (sp.get('sortBy') as ProductSortField) ?? 'createdAt';
-  const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
+interface ProductsGridProps {
+  initialPage?: BrowsePage<ProductWithStore> | null;
+  initialPageUpdatedAt?: number;
+  searchParams?: BrowseSearchParams;
+}
+
+export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams = {} }: ProductsGridProps = {}) {
+  const isOnline = useOnlineStatus();
+  const search = getBrowseParam(searchParams, 'search');
+  // Route params are read in the Server Page and passed in as serializable props.
+  const city = getBrowseParam(searchParams, 'city');
+  const categoryId = getBrowseParam(searchParams, 'categoryId');
+  const sortBy = (getBrowseParam(searchParams, 'sortBy') as ProductSortField) ?? 'createdAt';
+  const sortOrder = (getBrowseParam(searchParams, 'sortOrder') as 'asc' | 'desc') ?? 'desc';
   // PROMO-1 (): reads the same ?hasPromotion=true query param
   // PromotedProductsSection's "عرض الكل" CTA links to — no filter
   // toggle UI here yet (that's the fuller scope), just making
   // the URL param this page already receives actually take effect.
-  const hasPromotion = sp.get('hasPromotion') === 'true' ? true : undefined;
-  const view = sp.get('view') === 'list' ? 'list' : 'grid';
+  const hasPromotion = getBrowseParam(searchParams, 'hasPromotion') === 'true' ? true : undefined;
+  const view = getBrowseParam(searchParams, 'view') === 'list' ? 'list' : 'grid';
 
   const networkPolicy = useNetworkPolicy();
-  const pageSize = getStablePageSize(12, networkPolicy);
+  const pageSize = initialPage ? SSR_BROWSE_PAGE_SIZE : getStablePageSize(12, networkPolicy);
 
   // Only the unfiltered, default-sorted first page belongs in the generic
   // grid snapshot. Filtered/search results must never replace it.
@@ -67,6 +80,9 @@ export function ProductsGrid() {
   const query = useInfiniteQuery({
     queryKey: queryKeys.products.infinite({ search, city, categoryId, sortBy, sortOrder, hasPromotion, pageSize }),
     initialPageParam: 1,
+    initialData: initialPage ? { pages: [initialPage], pageParams: [1] } : undefined,
+    initialDataUpdatedAt: initialPageUpdatedAt,
+    staleTime: CACHE_TTL.adsList,
     queryFn: async ({ pageParam, signal }) => {
       try {
         const page = await productsApi.getAll({
@@ -92,6 +108,21 @@ export function ProductsGrid() {
     },
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
+  useEffect(() => {
+    if (!initialPage?.items.length) return;
+    saveOfflineBrowseSnapshot('products', {
+      search: search || undefined,
+      city: city || undefined,
+      categoryId: categoryId || undefined,
+      sortBy,
+      sortOrder,
+      hasPromotion: hasPromotion ?? undefined,
+    }, initialPage.items);
+    if (isBaseOfflineBrowse) {
+      saveOfflineList(OFFLINE_LIST_KEYS.productsGridBrowse, initialPage.items, OFFLINE_LIST_LIMITS.productsGridBrowse);
+    }
+  }, [initialPage, search, city, categoryId, sortBy, sortOrder, hasPromotion, isBaseOfflineBrowse]);
+
   const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = query;
   const items = data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [];
   const firstMeta = data?.pages[0]?.meta;
@@ -155,7 +186,7 @@ export function ProductsGrid() {
         </p>
         <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
           <SaveSearchButton type="products" queryParamKey="search" />
-          <ListViewToggle />
+          <ListViewToggle value={view} searchParamsString={serializeBrowseSearchParams(searchParams)} />
         </div>
       </div>
       </div>

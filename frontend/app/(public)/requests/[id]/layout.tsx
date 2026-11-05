@@ -5,20 +5,21 @@ import { buildMetadata } from '@/lib/seo';
 import { requestsApi } from '@/api/requests.api';
 import type { RequestDetail } from '@/types/request.types';
 import { buildRequestJsonLd, safeJsonLd } from '@/lib/structuredData';
+import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
+import { getQueryClient } from '@/lib/queryClient';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface Props {
   children: React.ReactNode;
   params: Promise<{ id: string }>;
 }
 
-// this layout fetches the request twice per
-// page load — once in generateMetadata, once in the default export — and
-// unlike stores/[id]/page.tsx and services/[id]/page.tsx (both of which
-// already wrap their fetcher in cache()), this layout had no dedup. On
-// Render Free (Frankfurt) from Gaza that means one extra round-trip per
-// detail-page visit. Wrapping in React.cache() dedups within a single
-// request's render tree, which is exactly the scope generateMetadata +
-// default export share.
+// React.cache() shares the anonymous-safe request read between
+// generateMetadata and this layout within the same render request. The
+// result is then dehydrated for the client page, avoiding a second public
+// GET for guests. Authenticated viewers still make one browser request
+// because the backend intentionally returns a different, permission-scoped
+// offers subset for each viewer.
 const getCachedRequest = cache((id: string) => requestsApi.getById(id));
 
 /**
@@ -79,6 +80,13 @@ export default async function RequestDetailLayout({ children, params }: Props) {
     /* 404 — the page body renders its own empty state */
   }
   const nonce = (await headers()).get('x-nonce') ?? undefined;
+  const queryClient = getQueryClient();
+  if (request) {
+    // SSR runs without the visitor's bearer token and therefore receives
+    // only the privacy-safe public shape (offers: []). Authenticated clients
+    // selectively refresh this query to obtain only their authorized offers.
+    queryClient.setQueryData(queryKeys.requests.detail(id), request);
+  }
 
   return (
     <>
@@ -104,7 +112,7 @@ export default async function RequestDetailLayout({ children, params }: Props) {
           }}
         />
       )}
-      {children}
+      <HydrationBoundary state={dehydrate(queryClient)}>{children}</HydrationBoundary>
     </>
   );
 }

@@ -7,6 +7,9 @@ import { ROUTES } from '@/lib/constants';
 import { cache } from 'react';
 import { headers } from 'next/headers';
 import { buildProductJsonLd, safeJsonLd } from '@/lib/structuredData';
+import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
+import { getQueryClient } from '@/lib/queryClient';
+import { queryKeys } from '@/lib/queryKeys';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -59,6 +62,13 @@ export default async function ProductDetailPage({ params }: Props) {
     void statusCode;
   }
   const nonce = (await headers()).get('x-nonce') ?? undefined;
+  const queryClient = getQueryClient();
+  if (product) {
+    // Seed the exact query consumed by ProductDetailSection/useProduct.
+    // Keep the ProductWithFullStore shape so owner-edit flows retain the
+    // established query contract; the offline snapshot layer redacts its copy.
+    queryClient.setQueryData(queryKeys.products.detail(id), product);
+  }
 
   return (
     <div className="container mx-auto max-w-7xl px-4 py-6">
@@ -82,7 +92,9 @@ export default async function ProductDetailPage({ params }: Props) {
           }}
         />
       )}
-      <ProductDetailSection id={id} />
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <ProductDetailSection id={id} />
+      </HydrationBoundary>
     </div>
   );
 }

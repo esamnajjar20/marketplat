@@ -1,5 +1,3 @@
-'use client';
-
 import { cn } from '@/lib/utils';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { SafeImage } from '@/components/shared/ui/SafeImage';

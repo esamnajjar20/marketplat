@@ -1,5 +1,3 @@
-'use client';
-
 import Link from 'next/link';
 import { ChevronLeft, Home } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';

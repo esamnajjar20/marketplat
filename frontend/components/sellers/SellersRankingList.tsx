@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import type { ApiResponse } from '@/types/api.types';
+import type { SellerRankingRow } from '@/types/seller-ranking.types';
+import { normalizeSellerRankingRows } from '@/lib/sellerRanking';
+import { queryKeys } from '@/lib/queryKeys';
 import Link from 'next/link';
 import { ROUTES } from '@/lib/constants';
 import { ResponseTimeBadge } from '@/components/sellers/ResponseTimeBadge';
@@ -16,20 +19,7 @@ import {
 import { Info, Star, RefreshCw, X, Shield, Zap, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface RankRow {
-  rank: number;
-  medal: 'gold' | 'silver' | 'bronze' | null;
-  sellerProfileId: string;
-  userId: string;
-  displayName: string;
-  avatarUrl: string | null;
-  city: string | null;
-  verified: boolean;
-  averageRating: number;
-  totalRatings: number;
-  responseTimeMinutes: number | null;
-  score: number;
-}
+type RankRow = SellerRankingRow;
 
 function initialLetter(name: string): string {
   const t = name.trim();
@@ -155,9 +145,15 @@ function Podium({ top3 }: { top3: RankRow[] }) {
   );
 }
 
-export function SellersRankingList({ limit = 20 }: { limit?: number }) {
+export function SellersRankingList({
+  limit = 20,
+  persistServerSeed = false,
+}: {
+  limit?: number;
+  persistServerSeed?: boolean;
+}) {
   const [infoOpen, setInfoOpen] = useState(false);
-  const queryKey = ['sellers', 'ranking', limit] as const;
+  const queryKey = queryKeys.sellers.ranking(limit);
   useOfflineListSeed<RankRow, RankRow[]>({
     queryKey,
     cacheKey: OFFLINE_LIST_KEYS.sellersRanking,
@@ -174,12 +170,7 @@ export function SellersRankingList({ limit = 20 }: { limit?: number }) {
         });
         if (!response.ok) throw new Error(`Seller ranking request failed (${response.status})`);
         const payload = (await response.json()) as ApiResponse<RankRow[]>;
-        const rows = (payload.data ?? []).map((row) => ({
-          ...row,
-          displayName: typeof row.displayName === 'string' && row.displayName.trim()
-            ? row.displayName.trim()
-            : `بائع ${row.rank}`,
-        }));
+        const rows = normalizeSellerRankingRows(payload.data ?? []);
         saveOfflineList(OFFLINE_LIST_KEYS.sellersRanking, rows, OFFLINE_LIST_LIMITS.sellersRanking);
         return rows;
       } catch (err) {
@@ -188,7 +179,16 @@ export function SellersRankingList({ limit = 20 }: { limit?: number }) {
         throw err;
       }
     },
+    staleTime: 30_000,
   });
+
+  // Persist only a page payload explicitly prefetched from the server. The
+  // offline seed hook also fills this query after hydration, but must not
+  // refresh the savedAt timestamp of an old snapshot.
+  useEffect(() => {
+    if (!persistServerSeed || data === undefined) return;
+    saveOfflineList(OFFLINE_LIST_KEYS.sellersRanking, data, OFFLINE_LIST_LIMITS.sellersRanking);
+  }, [data, persistServerSeed]);
 
   const rows = data ?? [];
   const top3 = rows.filter((r) => r.rank <= 3).slice(0, 3);
@@ -215,7 +215,13 @@ export function SellersRankingList({ limit = 20 }: { limit?: number }) {
 
       {isLoading && <RankingSkeleton />}
 
-      {isError && (
+      {isError && data !== undefined && (
+        <p role="status" className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground">
+          تعذّر تحديث الترتيب؛ نعرض آخر نسخة متاحة.
+        </p>
+      )}
+
+      {isError && data === undefined && (
         <div className="rounded-[14px] border border-[var(--legacy-danger-border)] bg-card px-4 py-4 text-center">
           <p className="text-[14px] font-bold text-destructive">تعذّر تحميل الترتيب.</p>
           <button
@@ -229,13 +235,13 @@ export function SellersRankingList({ limit = 20 }: { limit?: number }) {
         </div>
       )}
 
-      {!isLoading && !isError && rows.length === 0 && (
+      {!isLoading && !isError && data !== undefined && rows.length === 0 && (
         <div className="rounded-[14px] border border-border bg-card px-4 py-8 text-center">
           <p className="text-[14px] text-muted-foreground">لا يوجد بائعون بعد.</p>
         </div>
       )}
 
-      {!isLoading && !isError && rows.length > 0 && (
+      {!isLoading && data !== undefined && rows.length > 0 && (
         <>
           {top3.length > 0 && <Podium top3={top3} />}
           <ol className="space-y-2" aria-label="ترتيب أفضل البائعين">

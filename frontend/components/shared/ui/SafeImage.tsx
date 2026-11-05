@@ -60,8 +60,8 @@ export function SafeImage({
     }
   })();
 
-  // Data-saver: skip blur-up placeholders (extra network request for
-  // a tiny LQIP) — the final image alone is enough on slow links.
+  // Data-saver: skip the decorative low-quality preview on constrained
+  // connections; the final responsive image remains the only required asset.
   //
   // HYDRATION FIX (#418): reading isDataSaverEnabled() during render
   // returned false on the server (no window) and true on the client
@@ -71,13 +71,15 @@ export function SafeImage({
   // of mismatches. Starting at false (matches SSR) and flipping in a
   // mount-only effect keeps the two renders identical without losing
   // the data-saver behaviour after hydration.
+  const usesBlurPlaceholder = placeholder === 'blur' && Boolean(blurDataURL);
   const [saver, setSaver] = useState(false);
   useEffect(() => {
-    // Blur-up placeholders are a second network request per image. Skip them
-    // when the shared network policy disallows prefetching on slow links.
+    // Most SafeImage instances have no blur payload. Do not read browser
+    // network policy or schedule a state update for those common cases.
+    if (!usesBlurPlaceholder) return;
     setSaver(isDataSaverEnabled() || !getNetworkPolicy().allowPrefetch);
-  }, []);
-  const blurProps = errored || saver ? {} : { placeholder, blurDataURL };
+  }, [usesBlurPlaceholder]);
+  const blurProps = errored || (usesBlurPlaceholder && saver) ? {} : { placeholder, blurDataURL };
 
   return (
     <Image

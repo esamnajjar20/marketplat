@@ -17,7 +17,8 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { AdListItem } from '@/types/ad.types';
 import { cn } from '@/lib/utils';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
-import { CardKindBadge, CardOfflineBadgeView, type CardContext, useNowAfterMount } from '@/components/shared/cards/cardParts';
+import { CardKindBadge, CardOfflineBadgeView, type CardContext } from '@/components/shared/cards/cardParts';
+import { useNowAfterMount } from '@/components/shared/cards/useNowAfterMount';
 import {
   CARD_BODY_COMPACT,
   CARD_BODY_DEFAULT,

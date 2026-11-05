@@ -61,7 +61,7 @@ const ReactQueryDevtools =
       )
     : null;
 import { PageViewTracker }     from '@/components/shared/PageViewTracker';
-import { PresenceHeartbeat }   from '@/components/shared/PresenceHeartbeat';
+import { AuthenticatedPresence } from '@/components/shared/AuthenticatedPresence';
 import { ProfileCompletionGate } from '@/components/auth/ProfileCompletionGate';
 import { NetworkStatusBanner } from '@/components/shared/NetworkStatusBanner';
 import { OfflineStatusNotices } from '@/components/offline/OfflineStatusNotices';
@@ -188,9 +188,9 @@ export function AppProviders({ children, nonce }: AppProvidersProps) {
         <PageViewTracker />
         <AnalyticsConsentBanner />
 
-        {/* Chat presence heartbeat — see PresenceHeartbeat.tsx's own
-            header; same mount-once, no-props posture as the two above. */}
-        <PresenceHeartbeat />
+        {/* Presence needs a verified session; its API/polling chunk is
+            loaded only for authenticated users, not anonymous public traffic. */}
+        <AuthenticatedPresence />
 
         {/* FEAT-GOOGLE-COMPLETE-PROFILE: see the component's own
             header for why this is a client-side redirect rather than

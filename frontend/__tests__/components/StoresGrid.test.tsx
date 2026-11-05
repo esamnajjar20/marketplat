@@ -63,6 +63,10 @@ function mockStores(overrides: Record<string, any> = {}) {
   } as never);
 }
 
+function renderGrid() {
+  return render(<StoresGrid searchParams={Object.fromEntries(mockSearchParams.entries())} />);
+}
+
 describe('StoresGrid', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -72,7 +76,7 @@ describe('StoresGrid', () => {
 
   it('renders skeleton cards (not a spinner) while loading (FIX UX-04)', () => {
     mockStores({ data: undefined, isLoading: true });
-    render(<StoresGrid />);
+    renderGrid();
 
     expect(screen.getAllByTestId('skeleton')).toHaveLength(6);
   });
@@ -80,7 +84,7 @@ describe('StoresGrid', () => {
   it('shows an error message with retry on failure', async () => {
     mockStores({ data: undefined, isError: true });
     const user = setupUser();
-    render(<StoresGrid />);
+    renderGrid();
 
     expect(screen.getByText('حدث خطأ أثناء تحميل المتاجر')).toBeInTheDocument();
     await user.click(screen.getByText('إعادة المحاولة'));
@@ -89,14 +93,14 @@ describe('StoresGrid', () => {
 
   it('shows the total store count', () => {
     mockStores({ data: { items: [store], meta: { totalPages: 1, total: 42 } } });
-    render(<StoresGrid />);
+    renderGrid();
 
     expect(screen.getByText(/42 متجر/)).toBeInTheDocument();
   });
 
   it('shows "لا توجد نتائج" when total is 0', () => {
     mockStores({ data: { items: [], meta: { totalPages: 1, total: 0 } } });
-    render(<StoresGrid />);
+    renderGrid();
 
     expect(screen.getByText('لا توجد نتائج')).toBeInTheDocument();
   });
@@ -104,20 +108,20 @@ describe('StoresGrid', () => {
   it('appends the quoted search term to the summary line when searching', () => {
     mockSearchParams = new URLSearchParams('search=أثاث');
     mockStores({ data: { items: [store], meta: { totalPages: 1, total: 5 } } });
-    render(<StoresGrid />);
+    renderGrid();
 
     expect(screen.getByText('أثاث')).toBeInTheDocument();
   });
 
   it('renders a StoreCard for each store', () => {
-    render(<StoresGrid />);
+    renderGrid();
 
     expect(screen.getByTestId('store-store-1')).toBeInTheDocument();
   });
 
   it('shows the generic empty description with no active search', () => {
     mockStores({ data: { items: [], meta: { totalPages: 1, total: 0 } } });
-    render(<StoresGrid />);
+    renderGrid();
 
     expect(screen.getByText('لا توجد متاجر مطابقة لهذه الفلاتر')).toBeInTheDocument();
   });
@@ -125,14 +129,14 @@ describe('StoresGrid', () => {
   it('shows a search-aware empty description when a search term is active', () => {
     mockSearchParams = new URLSearchParams('search=نجارة');
     mockStores({ data: { items: [], meta: { totalPages: 1, total: 0 } } });
-    render(<StoresGrid />);
+    renderGrid();
 
     expect(screen.getByText(/لم نجد نتائج لـ "نجارة"/)).toBeInTheDocument();
   });
 
   it('passes URL filter params (with defaults) through the infinite-query key', () => {
     mockSearchParams = new URLSearchParams('city=غزة&sortBy=name&sortOrder=asc&page=2');
-    render(<StoresGrid />);
+    renderGrid();
 
     const queryKey = vi.mocked(useInfiniteQuery).mock.calls.at(-1)?.[0].queryKey as unknown[];
     expect(queryKey[0]).toBe('stores');
@@ -141,21 +145,21 @@ describe('StoresGrid', () => {
   });
 
   it('defaults sortBy to createdAt and sortOrder to desc when absent from the URL', () => {
-    render(<StoresGrid />);
+    renderGrid();
 
     const queryKey = vi.mocked(useInfiniteQuery).mock.calls.at(-1)?.[0].queryKey as unknown[];
     expect(queryKey[2]).toEqual(expect.objectContaining({ sortBy: 'createdAt', sortOrder: 'desc' }));
   });
 
   it('does not render pagination for a single page', () => {
-    render(<StoresGrid />);
+    renderGrid();
 
     expect(screen.getByTestId('infinite-scroll-trigger')).toHaveAttribute('data-has-next-page', 'false');
   });
 
   it('renders pagination when there is more than one page', () => {
     mockStores({ data: { items: [store], meta: { totalPages: 4, total: 40 } } });
-    render(<StoresGrid />);
+    renderGrid();
 
     expect(screen.getByTestId('infinite-scroll-trigger')).toHaveAttribute('data-has-next-page', 'true');
   });

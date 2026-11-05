@@ -93,7 +93,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
       {/* الغلاف */}
       <div className="relative h-[168px] w-full overflow-hidden rounded-b-[28px] bg-muted sm:h-52 md:h-60 lg:h-72">
         {cover ? (
-          <SafeImage src={cover} alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1024px" priority />
+          <SafeImage src={cover} alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1152px" priority />
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-primary-strong via-primary to-primary-muted" aria-hidden>
             <svg className="absolute inset-0 h-full w-full" viewBox="0 0 390 168" preserveAspectRatio="xMidYMid slice" fill="none" stroke="white" strokeOpacity={0.12} strokeWidth={1.5} aria-hidden="true">

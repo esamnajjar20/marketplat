@@ -41,14 +41,17 @@ export function useMyRequestOffers(params?: Parameters<typeof requestsApi.getMyO
   });
 }
 
-export function useRequestDetail(id: string) {
+export function useRequestDetail(
+  id: string,
+  options?: { enabled?: boolean; staleTime?: number },
+) {
   return useQuery({
     queryKey: queryKeys.requests.detail(id),
     queryFn: async ({ signal }) => {
       const res = await requestsApi.getById(id, { signal });
       return res.data.data;
     },
-    enabled: Boolean(id),
-    staleTime: CACHE_TTL.adDetail,
+    enabled: Boolean(id) && (options?.enabled ?? true),
+    staleTime: options?.staleTime ?? CACHE_TTL.adDetail,
   });
 }

@@ -10,7 +10,7 @@ import { ArrowRight, MapPin, CalendarClock, Clock, MessageSquare } from 'lucide-
 import { useRequestDetail } from '@/hooks/queries/useRequests';
 import { useCancelRequest } from '@/hooks/mutations/useRequestMutations';
 import { useAuthStore, selectUser, selectIsAuthenticated } from '@/store/auth.store';
-import { ROUTES } from '@/lib/constants';
+import { CACHE_TTL, ROUTES } from '@/lib/constants';
 import {
   REQUEST_STATUS_LABEL,
   REQUEST_STATUS_VARIANT,
@@ -26,6 +26,7 @@ import { SafeImg } from '@/components/shared/ui/SafeImg';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { parseApiError } from '@/lib/errorParser';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+import { OfflineStaleDataNotice } from '@/components/shared/feedback/OfflineStaleDataNotice';
 
 const RequestOfferForm = dynamic(
   () =>
@@ -44,9 +45,15 @@ export default function RequestDetailPage() {
   const params = useParams();
   const [confirmCancel, setConfirmCancel] = useState(false);
   const id = String(params.id ?? '');
-  const { data: request, isLoading, isError, error } = useRequestDetail(id);
   const user = useAuthStore(selectUser);
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const { data: request, isLoading, isFetching, isError, error, refetch } = useRequestDetail(id, {
+    // A fresh SSR-hydrated public result prevents a guest duplicate GET. Keep
+    // the query enabled so a browser fetch remains available when SSR failed
+    // or the hydrated entry has gone stale. Authenticated viewers refetch once
+    // to receive only their permission-scoped offer subset.
+    staleTime: isAuthenticated ? 0 : CACHE_TTL.adDetail,
+  });
   const cancel = useCancelRequest();
 
   if (isLoading) {
@@ -60,8 +67,9 @@ export default function RequestDetailPage() {
     );
   }
 
-  if (isError || !request) {
-    const statusCode = parseApiError(error).statusCode;
+  const requestErrorStatus = isError ? parseApiError(error).statusCode : undefined;
+  if (!request || requestErrorStatus === 404) {
+    const statusCode = requestErrorStatus;
     const notFound = statusCode === 404;
     return (
       <div className="mx-auto max-w-3xl px-3 py-4 pb-24 sm:p-4" dir="rtl">
@@ -93,15 +101,27 @@ export default function RequestDetailPage() {
   const offersCount = request._count?.offers ?? offers.length;
   const hiddenForCompetition =
     !isOwner && request.status === 'OPEN' && offers.length < offersCount;
-  const canOffer = isAuthenticated && !isOwner && request.status === 'OPEN';
+  const canOffer = isAuthenticated && !isOwner && request.status === 'OPEN' && !isError;
   const loginHref = `${ROUTES.login}?from=${encodeURIComponent(`/requests/${id}`)}`;
   const expiringSoon = isRequestExpiringSoon(request.expiresAt);
 
   return (
     <div
-      className={`mx-auto max-w-3xl space-y-5 px-3 py-4 sm:space-y-6 sm:p-4 sm:pb-10 ${!isOwner && request.status === 'OPEN' ? 'pb-sticky-contact' : 'pb-4'}`}
+      className={`mx-auto max-w-3xl space-y-5 px-3 py-4 sm:space-y-6 sm:p-4 sm:pb-10 ${!isOwner && request.status === 'OPEN' && !isError ? 'pb-sticky-contact' : 'pb-4'}`}
       dir="rtl"
     >
+      {isError && request && isAuthenticated && (
+        <>
+          <OfflineStaleDataNotice
+            onRetry={() => { if (!isFetching) void refetch(); }}
+            isFetching={isFetching}
+          />
+          <p className="-mt-3 text-xs leading-relaxed text-muted-foreground">
+            لم نتمكن من تحديث العروض المرتبطة بحسابك؛ لن نعرض بيانات العروض الخاصة حتى ينجح التحقق.
+          </p>
+        </>
+      )}
+
       <div>
         <Link
           href={ROUTES.requests}
@@ -235,17 +255,19 @@ export default function RequestDetailPage() {
         </div>
       )}
 
-      <RequestOffersList
-        requestId={id}
-        offers={offers}
-        isOwner={isOwner}
-        requestStatus={request.status}
-        hiddenForCompetition={hiddenForCompetition}
-        totalOffersCount={offersCount}
-      />
+      {!(isError && isAuthenticated) && (
+        <RequestOffersList
+          requestId={id}
+          offers={offers}
+          isOwner={isOwner}
+          requestStatus={request.status}
+          hiddenForCompetition={hiddenForCompetition}
+          totalOffersCount={offersCount}
+        />
+      )}
 
       {/* Mobile sticky CTA — matches design mockup */}
-      {!isOwner && request.status === 'OPEN' && (
+      {!isOwner && request.status === 'OPEN' && !isError && (
         <div
           className="sticky-contact-bar fixed inset-x-0 z-40 border-t border-border bg-card/95 px-4 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_-8px_hsl(var(--shadow-color)/0.12)] backdrop-blur md:hidden"
         >

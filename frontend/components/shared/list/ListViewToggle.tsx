@@ -10,19 +10,19 @@ interface Props {
   value?: ListView;
   onChange?: (value: ListView) => void;
   className?: string;
+  /** When supplied by a Server Page, avoids useSearchParams during SSR. */
+  searchParamsString?: string;
 }
 
-/** Consistent browse-list view switch. The choice is URL-backed so refresh/share preserves it. */
-export function ListViewToggle({ value, onChange, className }: Props) {
+function ListViewToggleWithParams({ value, onChange, className, searchParamsString }: Props & { searchParamsString: string }) {
   const router = useRouter();
   const pathname = usePathname();
-  const sp = useSearchParams();
-  const current = value ?? (sp.get('view') === 'list' ? 'list' : 'grid');
+  const current = value ?? (new URLSearchParams(searchParamsString).get('view') === 'list' ? 'list' : 'grid');
 
   function setView(next: ListView) {
     onChange?.(next);
     if (onChange) return;
-    const params = new URLSearchParams(sp.toString());
+    const params = new URLSearchParams(searchParamsString);
     if (next === 'grid') params.delete('view');
     else params.set('view', next);
     params.delete('page');
@@ -42,4 +42,17 @@ export function ListViewToggle({ value, onChange, className }: Props) {
       </button>
     </div>
   );
+}
+
+function ListViewToggleFromUrl(props: Props) {
+  const searchParams = useSearchParams();
+  return <ListViewToggleWithParams {...props} searchParamsString={searchParams.toString()} />;
+}
+
+/** Consistent browse-list view switch. The choice is URL-backed by default. */
+export function ListViewToggle(props: Props) {
+  if (props.searchParamsString !== undefined) {
+    return <ListViewToggleWithParams {...props} searchParamsString={props.searchParamsString} />;
+  }
+  return <ListViewToggleFromUrl {...props} />;
 }

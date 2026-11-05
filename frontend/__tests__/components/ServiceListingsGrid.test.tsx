@@ -57,6 +57,10 @@ function page(items: ServiceListingWithProvider[] = [], total = items.length, ha
   return { pages: [{ items, meta: { total, page: 1, hasNextPage } }] };
 }
 
+function renderGrid() {
+  return render(<ServiceListingsGrid searchParams={Object.fromEntries(mockSearchParams.entries())} />);
+}
+
 describe('ServiceListingsGrid', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -66,7 +70,7 @@ describe('ServiceListingsGrid', () => {
 
   it('shows skeleton placeholder cards while loading', () => {
     mockQueryState({ isLoading: true });
-    const { container } = render(<ServiceListingsGrid />);
+    const { container } = renderGrid();
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
     expect(screen.queryByTestId('listing-card')).not.toBeInTheDocument();
   });
@@ -74,7 +78,7 @@ describe('ServiceListingsGrid', () => {
   it('shows an error message and retry action', () => {
     const refetch = vi.fn();
     mockQueryState({ isError: true, refetch });
-    render(<ServiceListingsGrid />);
+    renderGrid();
     expect(screen.getByText('حدث خطأ أثناء تحميل الخدمات')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'إعادة المحاولة' }));
     expect(refetch).toHaveBeenCalledTimes(1);
@@ -82,7 +86,7 @@ describe('ServiceListingsGrid', () => {
 
   it('shows the empty state when the first page has no items', () => {
     mockQueryState({ data: page([], 0) });
-    render(<ServiceListingsGrid />);
+    renderGrid();
     expect(screen.getByText('لا توجد خدمات')).toBeInTheDocument();
     expect(screen.getByText('لا توجد نتائج')).toBeInTheDocument();
   });
@@ -90,7 +94,7 @@ describe('ServiceListingsGrid', () => {
   it('shows a search-aware empty description', () => {
     mockSearchParams = new URLSearchParams({ search: 'سباك' });
     mockQueryState({ data: page([], 0) });
-    render(<ServiceListingsGrid />);
+    renderGrid();
     expect(screen.getByText('لم نجد نتائج لـ "سباك"')).toBeInTheDocument();
   });
 
@@ -99,7 +103,7 @@ describe('ServiceListingsGrid', () => {
       { items: [makeListing({ id: 'l1', title: 'خدمة أولى' })], meta: { total: 2, page: 1, hasNextPage: true } },
       { items: [makeListing({ id: 'l2', title: 'خدمة ثانية' })], meta: { total: 2, page: 2, hasNextPage: false } },
     ] } });
-    render(<ServiceListingsGrid />);
+    renderGrid();
     expect(screen.getAllByTestId('listing-card')).toHaveLength(2);
     expect(screen.getByText('2 خدمة')).toBeInTheDocument();
   });
@@ -107,14 +111,14 @@ describe('ServiceListingsGrid', () => {
   it('echoes the search term in the result summary', () => {
     mockSearchParams = new URLSearchParams({ search: 'تنظيف' });
     mockQueryState({ data: page([makeListing()], 1) });
-    render(<ServiceListingsGrid />);
+    renderGrid();
     expect(screen.getByText(/بحثاً عن/)).toHaveTextContent('تنظيف');
   });
 
   it('offers an explicit load-more action when another page exists', () => {
     const fetchNextPage = vi.fn();
     mockQueryState({ data: page([makeListing()], 20, true), hasNextPage: true, fetchNextPage });
-    render(<ServiceListingsGrid />);
+    renderGrid();
     fireEvent.click(screen.getByRole('button', { name: 'تحميل المزيد' }));
     expect(fetchNextPage).toHaveBeenCalledTimes(1);
   });
@@ -122,7 +126,7 @@ describe('ServiceListingsGrid', () => {
   it('builds its infinite query key from the current URL filters', () => {
     mockSearchParams = new URLSearchParams('search=كهربائي&categoryId=cat-5&city=غزة&serviceLocation=REMOTE&minPrice=50&maxPrice=300&sortBy=price&sortOrder=asc');
     mockQueryState({ data: page([], 0) });
-    render(<ServiceListingsGrid />);
+    renderGrid();
     const options = vi.mocked(useInfiniteQuery).mock.calls.at(-1)?.[0] as { queryKey?: unknown } | undefined;
     expect(JSON.stringify(options?.queryKey)).toContain('كهربائي');
     expect(JSON.stringify(options?.queryKey)).toContain('cat-5');

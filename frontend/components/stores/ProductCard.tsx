@@ -1,10 +1,11 @@
-'use client';
-
 import { memo } from 'react';
-import { Clock3, MapPin, Package } from 'lucide-react';
+import { MapPin, Package } from 'lucide-react';
 import Link from 'next/link';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { CardKindBadge, CardOfflineBadge, type CardContext, useNowAfterMount } from '@/components/shared/cards/cardParts';
+import { CardKindBadge } from '@/components/shared/cards/cardDisplayParts';
+import { CardOfflineBadge } from '@/components/shared/cards/CardOfflineBadge';
+import { CardRelativeTime } from '@/components/shared/cards/CardRelativeTime';
+import type { CardContext } from '@/components/shared/cards/cardTypes';
 import {
   CARD_BODY_COMPACT,
   CARD_BODY_DEFAULT,
@@ -23,12 +24,10 @@ import {
   CARD_TITLE,
   CARD_TITLE_GRID,
   HIT_AREA,
-  TIME_PLACEHOLDER,
-  freshnessClass,
   cardPlaceholderToneForId,
 } from '@/components/shared/cards/cardTokens';
 import { Badge } from '@/components/ui/badge';
-import { formatPrice, formatRelativeTime } from '@/lib/formatters';
+import { formatPrice } from '@/lib/formatters';
 import { ROUTES } from '@/lib/constants';
 import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
@@ -71,8 +70,6 @@ export const ProductCard = memo(function ProductCard({
   const blurDataURL = rawImage && isCloudinaryUrl(rawImage) ? getPlaceholderUrl(rawImage) : undefined;
   const outOfStock = product.availability === 'OUT_OF_STOCK';
   const showTime = context === 'public' || context === 'favorites' || context === 'featured' || context === 'owner';
-  const now = useNowAfterMount(showTime, product.createdAt);
-  const timeColorClass = freshnessClass(now, product.createdAt);
   const showLocation = context !== 'store' && context !== 'owner' && !isCatalogGrid;
   const showStore = context === 'favorites' || context === 'catalog';
   const showHeart = context !== 'owner';
@@ -292,7 +289,7 @@ export const ProductCard = memo(function ProductCard({
             alt={product.name}
             fill
             className={cn('object-cover', CARD_IMAGE_HOVER, outOfStock && 'opacity-60')}
-            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            sizes={layout === 'list' ? '(max-width: 640px) 96px, 160px' : '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw'}
             priority={priority}
             loading={priority ? undefined : 'lazy'}
             {...(blurDataURL && { placeholder: 'blur' as const, blurDataURL })}
@@ -357,18 +354,7 @@ export const ProductCard = memo(function ProductCard({
                 <span className="truncate">{product.store.name}</span>
               </span>
             )}
-            {showTime && now !== null && (
-              <span className={cn(CARD_META_ITEM, 'ms-auto shrink-0 whitespace-nowrap tabular-nums', timeColorClass)}>
-                <Clock3 className="h-3 w-3" aria-hidden />
-                {formatRelativeTime(product.createdAt, now)}
-              </span>
-            )}
-            {showTime && now === null && (
-              <span className={cn(CARD_META_ITEM, 'ms-auto shrink-0')}>
-                <Clock3 className="h-3 w-3" aria-hidden />
-                {TIME_PLACEHOLDER}
-              </span>
-            )}
+            {showTime && <CardRelativeTime date={product.createdAt} />}
           </div>
         </div>
       </Link>

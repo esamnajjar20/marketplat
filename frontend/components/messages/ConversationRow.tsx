@@ -7,7 +7,7 @@ import { Pin, Archive, Trash2, MoreVertical, BellOff, Bell } from 'lucide-react'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/shared/ui/DropdownMenu';
 import { ROUTES } from '@/lib/constants';
 import { formatRelativeTimeShort } from '@/lib/formatters';
-import { useNowAfterMount } from '@/components/shared/cards/cardParts';
+import { useNowAfterMount } from '@/components/shared/cards/useNowAfterMount';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import type { Conversation, ConversationListItem } from '@/types/conversation.types';

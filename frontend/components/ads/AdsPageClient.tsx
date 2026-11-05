@@ -3,6 +3,9 @@
 import dynamic from 'next/dynamic';
 import { ListPageShell, LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
+import type { BrowsePage } from '@/types/browse.types';
+import type { AdListItem } from '@/types/ad.types';
+import type { BrowseSearchParams } from '@/lib/browseSearchParams';
 
 const SearchFilters = dynamic(
   () => import('@/components/ads/SearchFilters').then((module) => module.SearchFilters),
@@ -23,7 +26,6 @@ const AdCategoryChips = dynamic(
 const SearchResults = dynamic(
   () => import('@/components/ads/SearchResults').then((module) => module.SearchResults),
   {
-    ssr: false,
     loading: () => (
       <div className="space-y-3 py-4" role="status" aria-live="polite">
         <p className="text-sm text-muted-foreground">جارٍ تحميل الإعلانات…</p>
@@ -41,7 +43,13 @@ const SearchResults = dynamic(
  * صفحة الإعلانات العامة — نفس نمط صفحة المنتجات (تصميم المرجع):
  * عنوان بدون أيقونة، شريط بحث/ترتيب، شرائح تصنيفات، ثم الشبكة.
  */
-export function AdsPageClient() {
+interface AdsPageClientProps {
+  initialPage?: BrowsePage<AdListItem> | null;
+  initialPageUpdatedAt?: number;
+  searchParams?: BrowseSearchParams;
+}
+
+export function AdsPageClient({ initialPage, initialPageUpdatedAt, searchParams }: AdsPageClientProps = {}) {
   return (
     <ListPageShell
       title="الإعلانات"
@@ -60,7 +68,7 @@ export function AdsPageClient() {
       }
       sidebar={<SearchFilters />}
     >
-      <SearchResults />
+      <SearchResults initialPage={initialPage} initialPageUpdatedAt={initialPageUpdatedAt} searchParams={searchParams} />
     </ListPageShell>
   );
 }

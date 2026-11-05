@@ -63,7 +63,7 @@ describe('SearchResults', () => {
 
   it('calls only adsApi.getAll (browse) when there is no search query', async () => {
     mockSearchParams = new URLSearchParams({ page: '1' });
-    renderWithClient(<SearchResults />);
+    renderWithClient(<SearchResults searchParams={Object.fromEntries(mockSearchParams.entries())} />);
 
     await waitFor(() => expect(adsApi.getAll).toHaveBeenCalled());
 
@@ -76,7 +76,7 @@ describe('SearchResults', () => {
   // FIX PERF-04 — the core regression guard.
   it('calls only adsApi.searchAds (not adsApi.getAll) when a real search query is present', async () => {
     mockSearchParams = new URLSearchParams({ q: 'laptop' });
-    renderWithClient(<SearchResults />);
+    renderWithClient(<SearchResults searchParams={Object.fromEntries(mockSearchParams.entries())} />);
 
     await waitFor(() => expect(adsApi.searchAds).toHaveBeenCalled());
 
@@ -87,7 +87,7 @@ describe('SearchResults', () => {
 
   it('falls back to the browse query when q is present but shorter than 2 trimmed characters', async () => {
     mockSearchParams = new URLSearchParams({ q: 'a' });
-    renderWithClient(<SearchResults />);
+    renderWithClient(<SearchResults searchParams={Object.fromEntries(mockSearchParams.entries())} />);
 
     await waitFor(() => expect(adsApi.getAll).toHaveBeenCalled());
     expect(adsApi.searchAds).not.toHaveBeenCalled();
@@ -99,7 +99,7 @@ describe('SearchResults', () => {
     it('shows an error message with a retry button when the browse query fails', async () => {
       (adsApi.getAll as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network error'));
       mockSearchParams = new URLSearchParams({ page: '1' });
-      renderWithClient(<SearchResults />);
+      renderWithClient(<SearchResults searchParams={Object.fromEntries(mockSearchParams.entries())} />);
 
       expect(await screen.findByText('حدث خطأ أثناء تحميل الإعلانات')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'إعادة المحاولة' })).toBeInTheDocument();
@@ -108,7 +108,7 @@ describe('SearchResults', () => {
     it('re-fetches when the retry button is clicked', async () => {
       (adsApi.getAll as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network error'));
       mockSearchParams = new URLSearchParams({ page: '1' });
-      renderWithClient(<SearchResults />);
+      renderWithClient(<SearchResults searchParams={Object.fromEntries(mockSearchParams.entries())} />);
 
       const retryButton = await screen.findByRole('button', { name: 'إعادة المحاولة' });
       (adsApi.getAll as ReturnType<typeof vi.fn>).mockClear();

@@ -4,20 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { BadgeCheck, BarChart3, Star } from 'lucide-react';
 import type { ApiResponse } from '@/types/api.types';
+import type { PublicStoreSalesStats } from '@/types/public-store-stats.types';
 import { queryKeys } from '@/lib/queryKeys';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/ui/skeleton';
 
-type Stats = {
-  storeId: string;
-  storeName: string;
-  storeSlug: string;
-  totalSales: number;
-  averageRating: number;
-  reviewCount: number;
-  verifiedSeller: boolean;
-  lastSaleAt: string | null;
-};
+type Stats = PublicStoreSalesStats;
 
 export function PublicSalesStats({ slug }: { slug: string }) {
   const { data, isLoading, isError, isFetching } = useQuery({
@@ -32,6 +24,7 @@ export function PublicSalesStats({ slug }: { slug: string }) {
       if (!payload.data) throw new Error(payload.message || 'Store statistics response is empty');
       return payload.data;
     },
+    staleTime: 20_000,
   });
 
   // A failed background refetch must not hide a valid persisted snapshot.

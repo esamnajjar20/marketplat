@@ -6,7 +6,6 @@ import { cn } from '@/lib/utils';
 import { ListViewToggle } from '@/components/shared/list/ListViewToggle';
 import { LIST_STORE_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 
-import { useSearchParams } from 'next/navigation';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { StoreCard } from './StoreCard';
@@ -17,29 +16,39 @@ import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { storesApi } from '@/api/stores.api';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
-import type { StoreSortField } from '@/types/store.types';
+import type { StoreSortField, StoreWithSeller } from '@/types/store.types';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
 import { getStablePageSize } from '@/lib/networkPolicy';
 import { queryKeys } from '@/lib/queryKeys';
+import type { BrowsePage } from '@/types/browse.types';
+import { CACHE_TTL } from '@/lib/constants';
+import { getBrowseParam, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type BrowseSearchParams } from '@/lib/browseSearchParams';
 
-/** GET /stores directory grid. Mirrors ServiceListingsGrid's layout/behaviour. */
-export function StoresGrid() {
-  const sp = useSearchParams();
+/** GET /stores directory grid. Route filters arrive from the Server Page as props. */
+interface StoresGridProps {
+  initialPage?: BrowsePage<StoreWithSeller> | null;
+  initialPageUpdatedAt?: number;
+  searchParams?: BrowseSearchParams;
+}
+
+export function StoresGrid({ initialPage, initialPageUpdatedAt, searchParams = {} }: StoresGridProps = {}) {
   const isOnline = useOnlineStatus();
 
-  const search = sp.get('search') ?? undefined;
-  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
-  const city = sp.get('city') ?? undefined;
-  const sortBy = (sp.get('sortBy') as StoreSortField) ?? 'createdAt';
-  const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
-  const view = sp.get('view') === 'list' ? 'list' : 'grid';
+  const search = getBrowseParam(searchParams, 'search');
+  const city = getBrowseParam(searchParams, 'city');
+  const sortBy = (getBrowseParam(searchParams, 'sortBy') as StoreSortField) ?? 'createdAt';
+  const sortOrder = (getBrowseParam(searchParams, 'sortOrder') as 'asc' | 'desc') ?? 'desc';
+  const view = getBrowseParam(searchParams, 'view') === 'list' ? 'list' : 'grid';
 
   const networkPolicy = useNetworkPolicy();
-  const pageSize = getStablePageSize(12, networkPolicy);
+  const pageSize = initialPage ? SSR_BROWSE_PAGE_SIZE : getStablePageSize(12, networkPolicy);
 
   const query = useInfiniteQuery({
     queryKey: queryKeys.stores.infinite({ search, city, sortBy, sortOrder, pageSize }),
     initialPageParam: 1,
+    initialData: initialPage ? { pages: [initialPage], pageParams: [1] } : undefined,
+    initialDataUpdatedAt: initialPageUpdatedAt,
+    staleTime: CACHE_TTL.adsList,
     queryFn: ({ pageParam }) => storesApi.getAll({ search, city, sortBy, sortOrder, page: pageParam, limit: pageSize }).then((r) => r.data.data),
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
@@ -114,7 +123,7 @@ export function StoresGrid() {
         {total > 0 ? `${total} متجر` : 'لا توجد نتائج'}
         {search && <> بحثاً عن «<span className="font-medium text-foreground">{search}</span>»</>}
       </p>
-      <ListViewToggle />
+      <ListViewToggle value={view} searchParamsString={serializeBrowseSearchParams(searchParams)} />
       </div>
 
       {items.length === 0 ? (

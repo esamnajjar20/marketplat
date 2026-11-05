@@ -3,7 +3,7 @@
 import { memo } from 'react';
 import { cn } from '@/lib/utils';
 import { messageDayLabel } from '@/lib/messageUtils';
-import { useNowAfterMount } from '@/components/shared/cards/cardParts';
+import { useNowAfterMount } from '@/components/shared/cards/useNowAfterMount';
 import { classifyHttpConflict } from '@/lib/conflictResolver';
 import { MessageActionsMenu } from './MessageActionsMenu';
 import { MessageMedia } from './MessageMedia';

@@ -197,6 +197,7 @@ export const queryKeys = {
     // same (id, params) key shape.
     ratings: (sellerProfileId: string, params?: Parameters<typeof sellersApi.getRatings>[1]) =>
       ['sellers', sellerProfileId, 'ratings', params ?? {}] as const,
+    ranking: (limit = 20) => ['sellers', 'ranking', limit] as const,
   },
 
   // ── Service providers ─────────────────────────────────────────

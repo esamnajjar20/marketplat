@@ -55,7 +55,7 @@ export function FollowedStoresList() {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 stagger-fade-in">
         {items.map((follow) => (
-          <StoreCard key={follow.id} store={follow.store} />
+          <StoreCard key={follow.id} store={follow.store} coverSizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 300px" />
         ))}
       </div>
 

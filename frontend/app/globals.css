@@ -118,7 +118,6 @@
     --shadow-glow-accent: 0 0 0 3px hsl(var(--accent) / 0.22);
 
     --font-cairo: 'Cairo', sans-serif;
-    --font-ibm-plex-sans-arabic: 'IBM Plex Sans Arabic', sans-serif;
     --font-ibm-plex-mono: 'IBM Plex Mono', monospace;
   }
 

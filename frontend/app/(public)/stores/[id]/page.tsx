@@ -12,6 +12,7 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
 import { headers } from 'next/headers';
 import { buildStoreJsonLd, safeJsonLd } from '@/lib/structuredData';
+import { StoreVisitSnapshot } from '@/components/stores/StoreVisitSnapshot';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -86,7 +87,6 @@ export default async function StorePage({ params }: Props) {
   }
 
   const nonce = (await headers()).get('x-nonce') ?? undefined;
-
   return (
     // widen from max-w-3xl → max-w-5xl so the
     // product grid and tabs breathe on tablet/desktop without losing
@@ -116,6 +116,7 @@ export default async function StorePage({ params }: Props) {
           ),
         }}
       />
+      <StoreVisitSnapshot lookupKey={id} store={store} />
       <StoreHeader store={store} />
 
       <Suspense fallback={<div className="flex justify-center py-8"><LoadingSpinner /></div>}>

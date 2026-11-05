@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import { productsApi } from '@/api/products.api';
@@ -105,7 +106,7 @@ export function useProducts(params?: ProductsQuery, options?: { enabled?: boolea
 
 /** GET /products/:id — public detail. */
 export function useProduct(id: string) {
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.products.detail(id),
     queryFn: async ({ signal }) => {
       try {
@@ -127,6 +128,17 @@ export function useProduct(id: string) {
     staleTime: CACHE_TTL.adDetail,
     enabled: Boolean(id),
   });
+
+  // A successful browser fetch is saved in queryFn. SSR-hydrated data skips
+  // queryFn, so persist it once after mount. Do not re-save data returned by
+  // the offline fallback: that would incorrectly extend the snapshot TTL.
+  useEffect(() => {
+    if (query.data?.id === id && !query.isFetchedAfterMount) {
+      saveVisitedProduct(query.data);
+    }
+  }, [id, query.data, query.isFetchedAfterMount]);
+
+  return query;
 }
 
 /** GET /products/me — caller's own products (my-store products tab). */

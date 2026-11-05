@@ -10,6 +10,13 @@ import { buildMetadata }       from '@/lib/seo';
 import { usersApi }            from '@/api/users.api';
 import { ROUTES }              from '@/lib/constants';
 import type { PublicUser }     from '@/types/user.types';
+import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
+import { getQueryClient } from '@/lib/queryClient';
+import { queryKeys } from '@/lib/queryKeys';
+import { CACHE_TTL } from '@/lib/constants';
+import { fetchServerApi } from '@/lib/server/serverApiFetch';
+import type { AdListItem } from '@/types/ad.types';
+import type { PaginationMeta } from '@/types/api.types';
 
 const PublicProfileClient = dynamic(
   () =>
@@ -18,7 +25,19 @@ const PublicProfileClient = dynamic(
     ),
 );
 
-interface Props { params: Promise<{ id: string }> }
+interface Props {
+  params: Promise<{ id: string }> ;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+}
+
+function first(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function positivePage(value: string | undefined): number {
+  const parsed = Number(value ?? 1);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? Math.min(parsed, 10_000) : 1;
+}
 
 /**
  * generateMetadata and the page component both called
@@ -42,8 +61,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function PublicProfilePage({ params }: Props) {
+export default async function PublicProfilePage({ params, searchParams }: Props) {
   const { id } = await params;
+  const rawSearch = searchParams ? await searchParams : {};
+  const requestedTab = first(rawSearch.tab);
+  const requestedPage = positivePage(first(rawSearch.page));
   let user: PublicUser | null = null;
   let loadFailed = false;
   try {
@@ -83,10 +105,44 @@ export default async function PublicProfilePage({ params }: Props) {
     );
   }
 
+  const seller = user.sellerProfile;
+  const hasStore = Boolean(seller?.storeDetails);
+  const hasServices = Boolean(seller?.serviceProviderDetails);
+  const hasRatings = Boolean(seller && (seller.totalRatings > 0 || seller._count.serviceReviews > 0));
+  const sectionCount = [true, hasStore, hasServices, hasRatings].filter(Boolean).length;
+  const defaultTab = sectionCount > 1 ? 'overview' : 'ads';
+  const allowedTabs = new Set(['overview', 'ads', 'store', 'services', 'ratings']);
+  const selectedTab = requestedTab && allowedTabs.has(requestedTab) ? requestedTab : defaultTab;
+  const queryClient = getQueryClient();
+
+  // The overview tab currently renders the public ads grid. Seed only that
+  // initial tab (including deep links to ?tab=ads), not every profile section.
+  // This keeps tab code lazy while avoiding a client GET on the first view.
+  if (selectedTab === 'overview' || selectedTab === 'ads') {
+    const query = new URLSearchParams({ page: String(requestedPage) });
+    try {
+      const response = await fetchServerApi<AdListItem[]>(
+        `/users/${encodeURIComponent(id)}/ads?${query.toString()}`,
+        { mode: 'no-store', timeoutMs: 3_000 },
+      );
+      const pagination = response.meta?.pagination as PaginationMeta | undefined;
+      if (Array.isArray(response.data) && pagination) {
+        queryClient.setQueryData(queryKeys.users.ads(id, { page: requestedPage }), {
+          items: response.data,
+          meta: pagination,
+        });
+      }
+    } catch {
+      // PublicProfileAds keeps its existing client-fetch/error fallback.
+    }
+  }
+
   return (
     <div className="container mx-auto w-full max-w-6xl space-y-6 px-3 py-5 sm:px-5 sm:py-7 lg:py-9">
       <PublicProfileHeader user={user} />
-      <ProfileTabsSection user={user} />
+      <HydrationBoundary state={dehydrate(queryClient)}>
+        <ProfileTabsSection user={user} />
+      </HydrationBoundary>
     </div>
   );
 }

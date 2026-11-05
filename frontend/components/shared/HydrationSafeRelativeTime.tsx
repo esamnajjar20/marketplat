@@ -1,7 +1,7 @@
 'use client';
 
 import { formatRelativeTime } from '@/lib/formatters';
-import { useNowAfterMount } from '@/components/shared/cards/cardParts';
+import { useNowAfterMount } from '@/components/shared/cards/useNowAfterMount';
 
 /** Keeps relative-time text identical during SSR and the first hydration render. */
 export function HydrationSafeRelativeTime({ date }: { date: string | Date | null | undefined }) {

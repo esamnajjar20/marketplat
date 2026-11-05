@@ -24,7 +24,7 @@ function check(label, condition) {
 
 check('network-first handler derives the request URL locally (no free url variable)', /async function networkFirstPage\(event, request\)\s*\{[\s\S]{0,180}const url = new URL\(request\.url\);/.test(sw));
 check('hard document visits trigger HTML plus initial asset capture', /if \(isHtmlVisit\)[\s\S]{0,300}cacheVisitedDocumentShell\(url, cache, response\.clone\(\), STATIC_CACHE\)/.test(sw));
-check('route-commit messages, not RSC requests or prefetches, capture visited HTML shells', /async function networkOnlyRscRequest\([\s\S]{0,1000}Do not infer a real visit from an RSC request/.test(sw) && /if \(type === 'CACHE_VISITED_PAGE'\)/.test(sw) && /cacheVisitedPageFromClient\(event\.data\?\.url\)/.test(sw) && /VisitedPageShellTracker/.test(read('components/pwa/VisitedPageShellTracker.tsx')));
+check('route-commit messages, not RSC requests or prefetches, capture visited HTML shells', /async function networkOnlyRscRequest\([\s\S]{0,1000}Do not infer a real visit from an RSC request/.test(sw) && /if \(type === 'CACHE_VISITED_PAGE'\)/.test(sw) && /cacheVisitedPageFromClient\(event\.data\?\.url \?\? event\.data\?\._url\)/.test(sw) && /VisitedPageShellTracker/.test(read('components/pwa/VisitedPageShellTracker.tsx')));
 check('all active RSC requests bypass shared shell lookup and use the network-only handler', /async function handlePageRequest\(event, request, url\) \{\s*\/\/ RSC responses[\s\S]{0,140}if \(isRscShellRequest\(request\)\) return networkOnlyRscRequest/.test(sw));
 check('public document navigations use network-first freshness while retaining offline fallback', /return networkFirstPage\(event, request\);/.test(sw) && !/return staleWhileRevalidatePage\(event, request, cacheKey\);/.test(sw));
 check('HTML cache writes remove Vary and distinguish new visits from recovery',
@@ -48,6 +48,14 @@ check('regex capture groups are narrowed before Cache API and string calls', (ro
 check('visited complete shells are not overwritten by automatic warming', /isFreshVisitCopy/.test(routes) && /keepLatestVisit/.test(routes) && /force \? Number\.MAX_SAFE_INTEGER/.test(routes));
 check('route list uses the live cache inspection result', /inspectRouteCaches\(/.test(list) && /missingAssets|complete/.test(list));
 check('regression tests cover hard navigation, route-commit shell capture, query privacy, RSC isolation, and visit-priority trimming', /caches HTML and dependencies on a full-document navigation/.test(tests) && /committed SPA visit then stores its HTML shell/.test(tests) && /private search.location route commits/.test(tests) && /drops legacy Flight payloads/.test(tests) && /visited shell ahead of warm-only pages/.test(tests));
+check('native Request/Response/Client/Cache objects use the standard .url property (legacy _url is limited to queue records/messages)',
+  !/\b(?:request|response|client|key|req|asset\.request)\._url\b/.test(sw) &&
+  /new URL\(request\.url\)/.test(sw) &&
+  /new URL\(response\.url\)/.test(sw) &&
+  /new URL\(req\.url\)/.test(sw) &&
+  /event\.data\?\.url \?\? event\.data\?\._url/.test(sw));
+check('visited-page tracker sends the standard url property',
+  /type:\s*['"]CACHE_VISITED_PAGE['"],\s*url\s*\}/.test(read('components/pwa/VisitedPageShellTracker.tsx')));
 check('SW and TypeScript cache versions are synchronized', (() => {
   const swVersion = sw.match(/const CACHE_VERSION\s*=\s*['"]v(\d+)['"]/);
   const tsVersion = read('lib/cacheVersion.ts').match(/CACHE_VERSION\s*=\s*['"]v(\d+)['"]/);

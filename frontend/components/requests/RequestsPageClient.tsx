@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import {
   ClipboardList,
   Plus,
@@ -19,7 +18,6 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { RequestCard } from '@/components/requests/RequestCard';
 import {
   RequestFilters,
-  parseRequestSort,
   type RequestSort,
 } from '@/components/requests/RequestFilters';
 import { RequestListSkeleton } from '@/components/requests/RequestListSkeleton';
@@ -27,6 +25,7 @@ import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryF
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { REQUEST_TYPE_LABEL } from '@/lib/requestStatus';
 import { cn } from '@/lib/utils';
+import type { OpenRequestsPageParams } from './RequestsPageShell';
 
 const TYPE_CHIPS: Array<{
   value: RequestType | undefined;
@@ -73,28 +72,10 @@ function emptyDescription(opts: {
   return `لا نتائج لـ ${parts.join(' · ')}. جرّب مسح الفلاتر أو نشر طلب جديد.`;
 }
 
-export function RequestsPageClient() {
-  const searchParams = useSearchParams();
-  const page = Math.max(1, Number(searchParams.get('page') || '1') || 1);
-  const typeParam = searchParams.get('type');
-  const type =
-    typeParam === 'SERVICE' || typeParam === 'PRODUCT' || typeParam === 'RENTAL'
-      ? (typeParam as RequestType)
-      : undefined;
-  const city = searchParams.get('city') || undefined;
-  const serviceTypeId = type === 'SERVICE' ? searchParams.get('serviceTypeId') || undefined : undefined;
-  const q = searchParams.get('q') || undefined;
-  const sort = parseRequestSort(searchParams.get('sort'));
+export function RequestsPageClient({ params }: { params: OpenRequestsPageParams }) {
+  const { page, type, city, serviceTypeId, q, sort } = params;
 
-  const { data, isLoading, isFetching, isError, refetch } = useOpenRequests({
-    type,
-    city,
-    serviceTypeId,
-    q,
-    page,
-    limit: 20,
-    sort,
-  });
+  const { data, isLoading, isFetching, isError, refetch } = useOpenRequests(params);
 
   const items = Array.isArray(data?.data) ? data.data : [];
 

@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { Suspense } from 'react';
 
 const SearchBox = dynamic(
   () => import('@/components/search/SearchBox').then((module) => module.SearchBox),
@@ -25,7 +26,6 @@ const SearchSortBarWrapper = dynamic(
 const SearchResults = dynamic(
   () => import('@/components/search/SearchResults').then((module) => module.SearchResults),
   {
-    ssr: false,
     loading: () => (
       <div className="space-y-3 py-8" role="status" aria-live="polite">
         <p className="text-center text-sm text-muted-foreground">جارٍ تحميل نتائج البحث…</p>
@@ -46,7 +46,7 @@ const SearchActiveFilters = dynamic(
 /**
  * صفحة البحث — مطابقة لتصاميم المرجع (بداية / نتائج / فارغ / بدون اتصال).
  */
-export function SearchPageClient({ query }: { query: string }) {
+export function SearchPageClient({ query, pageSize = 10 }: { query: string; pageSize?: number }) {
   return (
     <div className="bg-[var(--legacy-page-surface)] pb-0 dark:bg-background md:pb-8">
       <h1 className="sr-only">البحث</h1>
@@ -72,7 +72,7 @@ export function SearchPageClient({ query }: { query: string }) {
             role="tabpanel"
             aria-label="نتائج البحث"
           >
-            <SearchResults />
+            <Suspense fallback={<div className="min-h-40" aria-hidden="true" />}><SearchResults pageSize={pageSize} /></Suspense>
           </section>
         </div>
       </div>

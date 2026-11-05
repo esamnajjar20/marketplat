@@ -1,14 +1,20 @@
 import type { Metadata }    from 'next';
 import dynamic from 'next/dynamic';
-import { Suspense }         from 'react';
+import { Suspense, cache } from 'react';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { getQueryClient }   from '@/lib/queryClient';
-import { prefetchCategories } from '@/lib/prefetch';
+import { fetchPublicBrowsePage, prefetchCategories } from '@/lib/prefetch';
 import { buildCategoryMetadata } from '@/lib/seo';
 import { LoadingSpinner }   from '@/components/shared/feedback/LoadingSpinner';
 import { categoriesApi }    from '@/api/categories.api';
+import { queryKeys } from '@/lib/queryKeys';
+import { SSR_BROWSE_PAGE_SIZE, getBrowseNumber, getBrowseParam } from '@/lib/browseSearchParams';
+import type { AdListItem } from '@/types/ad.types';
+import type { Category } from '@/types/category.types';
+import type { BrowsePage } from '@/types/browse.types';
+import type { BrowseSearchParams } from '@/lib/browseSearchParams';
 
-interface Props { params: Promise<{ slug: string }> }
+interface Props { params: Promise<{ slug: string }>; searchParams?: Promise<BrowseSearchParams> }
 
 const CategoryHero = dynamic(
   () => import('@/components/home/CategoryHero').then((module) => module.CategoryHero),
@@ -42,6 +48,9 @@ const SearchResults = dynamic(
   },
 );
 
+// Metadata and the route body share one category lookup within the request.
+const getCachedCategory = cache((slug: string) => categoriesApi.getBySlug(slug));
+
 // UX-FIX (audit P2-04): previously called buildCategoryMetadata({ slug,
 // name: slug }) — the raw URL slug stood in for the display name, so
 // <title>/meta description showed e.g. "electronics-devices — App"
@@ -53,7 +62,7 @@ const SearchResults = dynamic(
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   try {
-    const res = await categoriesApi.getBySlug(slug);
+    const res = await getCachedCategory(slug);
     const category = res.data.data;
     if (!category) return { title: 'القسم غير موجود' };
     return buildCategoryMetadata({ slug, name: category.nameAr });
@@ -62,10 +71,51 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function CategoryPage({ params }: Props) {
+export default async function CategoryPage({ params, searchParams }: Props) {
   const { slug } = await params;
+  const routeSearchParams: BrowseSearchParams = searchParams ? await searchParams : {};
   const qc = getQueryClient();
   await prefetchCategories(qc);
+
+  let category: Category | null = null;
+  try {
+    const response = await getCachedCategory(slug);
+    category = response.data.data ?? null;
+    if (category) qc.setQueryData(queryKeys.categories.slug(slug), category);
+  } catch {
+    // CategoryHero and SearchResults retain their client retry/offline paths.
+  }
+
+  const routeCategoryId = getBrowseParam(routeSearchParams, 'categoryId') ?? category?.id;
+  const query = getBrowseParam(routeSearchParams, 'q')?.trim() ?? '';
+  const searchEnabled = query.length >= 2;
+  const browseParams = {
+    page: 1,
+    limit: SSR_BROWSE_PAGE_SIZE,
+    q: searchEnabled ? query : undefined,
+    categoryId: routeCategoryId,
+    city: getBrowseParam(routeSearchParams, 'city'),
+    condition: getBrowseParam(routeSearchParams, 'condition'),
+    minPrice: getBrowseNumber(routeSearchParams, 'minPrice'),
+    maxPrice: getBrowseNumber(routeSearchParams, 'maxPrice'),
+    sortBy: getBrowseParam(routeSearchParams, 'sortBy') ?? 'createdAt',
+    sortOrder: getBrowseParam(routeSearchParams, 'sortOrder') ?? 'desc',
+  };
+
+  let initialPage: BrowsePage<AdListItem> | null = null;
+  let initialPageUpdatedAt: number | undefined;
+  if (category && routeCategoryId) {
+    try {
+      initialPage = await fetchPublicBrowsePage<AdListItem>(
+        searchEnabled ? '/ads/search' : '/ads',
+        browseParams,
+        { timeoutMs: 2_500 },
+      );
+      initialPageUpdatedAt = Date.now();
+    } catch {
+      // Do not fail the category shell if the optional first-page fetch times out.
+    }
+  }
 
   return (
     <div className="container mx-auto w-full max-w-7xl space-y-6 px-3 py-6 sm:px-4 lg:py-8">
@@ -94,7 +144,12 @@ export default async function CategoryPage({ params }: Props) {
           </aside>
           <div className="lg:col-span-3">
             <Suspense fallback={<div className="flex justify-center py-12"><LoadingSpinner /></div>}>
-              <SearchResults categorySlug={slug} />
+              <SearchResults
+                categorySlug={slug}
+                searchParams={routeSearchParams}
+                initialPage={initialPage}
+                initialPageUpdatedAt={initialPageUpdatedAt}
+              />
             </Suspense>
           </div>
         </div>

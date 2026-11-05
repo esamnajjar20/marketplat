@@ -33,6 +33,7 @@ import {
 import { storesApi } from '@/api/stores.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth.store';
+import { saveVisitedPublicStore } from '@/lib/offlineVisitedPublicEntities';
 
 vi.mock('@/api/stores.api', () => ({
   storesApi: {
@@ -41,6 +42,12 @@ vi.mock('@/api/stores.api', () => ({
     getMyStore: vi.fn(),
     getMyFollowedStores: vi.fn(),
   },
+}));
+
+vi.mock('@/lib/offlineVisitedPublicEntities', () => ({
+  clearVisitedPublicStore: vi.fn(),
+  getVisitedPublicStore: vi.fn(),
+  saveVisitedPublicStore: vi.fn(),
 }));
 
 const mockUser = { id: 'user-1', name: 'Ahmed', email: 'ahmed@example.com', role: 'USER' as const };
@@ -88,9 +95,10 @@ describe('useStore', () => {
     expect(storesApi.getById).not.toHaveBeenCalled();
   });
 
-  it('fires and unwraps r.data.data with a non-empty id', async () => {
+  it('fires once and persists an active browser-fetched store for offline revisits', async () => {
+    const store = { id: 's1', name: 'Store A', status: 'ACTIVE' };
     (storesApi.getById as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { id: 's1', name: 'Store A' } },
+      data: { data: store },
     });
 
     const { result } = renderHook(() => useStore('s1'), { wrapper: createWrapper() });
@@ -100,7 +108,19 @@ describe('useStore', () => {
       's1',
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
-    expect(result.current.data).toEqual({ id: 's1', name: 'Store A' });
+    expect(result.current.data).toEqual(store);
+    await waitFor(() => expect(saveVisitedPublicStore).toHaveBeenCalledWith('s1', store));
+  });
+
+  it('does not re-save a stale offline store snapshot after a failed network read', async () => {
+    const snapshot = { id: 's2', name: 'Store B', status: 'ACTIVE' };
+    (storesApi.getById as ReturnType<typeof vi.fn>).mockRejectedValue({ statusCode: 0 });
+    const { getVisitedPublicStore } = await import('@/lib/offlineVisitedPublicEntities');
+    vi.mocked(getVisitedPublicStore).mockReturnValue(snapshot as never);
+
+    const { result } = renderHook(() => useStore('s2'), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.data).toEqual(snapshot));
+    expect(saveVisitedPublicStore).not.toHaveBeenCalled();
   });
 });
 

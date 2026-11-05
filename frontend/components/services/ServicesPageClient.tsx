@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { Users } from 'lucide-react';
 import { ListPageShell } from '@/components/shared/list/ListPageShell';
 import { ROUTES } from '@/lib/constants';
+import type { BrowsePage } from '@/types/browse.types';
+import type { ServiceListingWithProvider } from '@/types/service.types';
+import type { BrowseSearchParams } from '@/lib/browseSearchParams';
 
 const ServiceCategoryFilter = dynamic(
   () => import('@/components/services/ServiceCategoryFilter').then((module) => module.ServiceCategoryFilter),
@@ -17,7 +20,6 @@ const ServiceFiltersSheet = dynamic(
 const ServiceListingsGrid = dynamic(
   () => import('@/components/services/ServiceListingsGrid').then((module) => module.ServiceListingsGrid),
   {
-    ssr: false,
     loading: () => (
       <div className="space-y-3 py-4" role="status" aria-live="polite">
         <p className="text-sm text-muted-foreground">جارٍ تحميل الخدمات…</p>
@@ -42,7 +44,13 @@ const ServiceCategoryChips = dynamic(
 /**
  * صفحة الخدمات — مطابقة لتصميم المرجع (قائمة أفقية + شرائح تصنيفات).
  */
-export function ServicesPageClient() {
+interface ServicesPageClientProps {
+  initialPage?: BrowsePage<ServiceListingWithProvider> | null;
+  initialPageUpdatedAt?: number;
+  searchParams?: BrowseSearchParams;
+}
+
+export function ServicesPageClient({ initialPage, initialPageUpdatedAt, searchParams }: ServicesPageClientProps = {}) {
   return (
     <ListPageShell
       title="الخدمات"
@@ -70,7 +78,7 @@ export function ServicesPageClient() {
       }
       sidebar={<ServiceCategoryFilter />}
     >
-      <ServiceListingsGrid />
+      <ServiceListingsGrid initialPage={initialPage} initialPageUpdatedAt={initialPageUpdatedAt} searchParams={searchParams} />
     </ListPageShell>
   );
 }

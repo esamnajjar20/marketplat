@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { ListViewToggle } from '@/components/shared/list/ListViewToggle';
 import { Button } from '@/components/shared/ui/Button';
 
-import { useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import Link from 'next/link';
@@ -18,37 +18,51 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
-import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import type { ServiceListingSortField } from '@/types/service.types';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
 import { getStablePageSize } from '@/lib/networkPolicy';
 import { queryKeys } from '@/lib/queryKeys';
+import type { BrowsePage } from '@/types/browse.types';
+import type { ServiceListingWithProvider } from '@/types/service.types';
+import { CACHE_TTL } from '@/lib/constants';
+import { getBrowseNumber, getBrowseParam, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type BrowseSearchParams } from '@/lib/browseSearchParams';
 
-export function ServiceListingsGrid() {
+const SaveSearchButton = dynamic(
+  () => import('@/components/ads/SaveSearchButton').then((module) => module.SaveSearchButton),
+  { ssr: false, loading: () => null },
+);
+
+interface ServiceListingsGridProps {
+  initialPage?: BrowsePage<ServiceListingWithProvider> | null;
+  initialPageUpdatedAt?: number;
+  searchParams?: BrowseSearchParams;
+}
+
+export function ServiceListingsGrid({ initialPage, initialPageUpdatedAt, searchParams = {} }: ServiceListingsGridProps = {}) {
   const isOnline = useOnlineStatus();
-  const sp = useSearchParams();
-
-  const search = sp.get('search') ?? undefined;
-  // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
-  const categoryId = sp.get('categoryId') ?? undefined;
-  const serviceTypeId = sp.get('serviceTypeId') ?? undefined;
-  const providerId = sp.get('providerId') ?? undefined;
-  const city = sp.get('city') ?? undefined;
-  const serviceLocation = (sp.get('serviceLocation') as 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE' | undefined) ?? undefined;
-  const minPrice = sp.get('minPrice') ? Number(sp.get('minPrice')) : undefined;
-  const maxPrice = sp.get('maxPrice') ? Number(sp.get('maxPrice')) : undefined;
-  const sortBy = (sp.get('sortBy') as ServiceListingSortField) ?? 'createdAt';
-  const sortOrder = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
-  const view = sp.get('view') === 'list' ? 'list' : 'grid';
+  const search = getBrowseParam(searchParams, 'search');
+  const categoryId = getBrowseParam(searchParams, 'categoryId');
+  const serviceTypeId = getBrowseParam(searchParams, 'serviceTypeId');
+  const providerId = getBrowseParam(searchParams, 'providerId');
+  const city = getBrowseParam(searchParams, 'city');
+  const serviceLocation = (getBrowseParam(searchParams, 'serviceLocation') as 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE' | undefined) ?? undefined;
+  const minPrice = getBrowseNumber(searchParams, 'minPrice');
+  const maxPrice = getBrowseNumber(searchParams, 'maxPrice');
+  const sortBy = (getBrowseParam(searchParams, 'sortBy') as ServiceListingSortField) ?? 'createdAt';
+  const sortOrder = (getBrowseParam(searchParams, 'sortOrder') as 'asc' | 'desc') ?? 'desc';
+  const view = getBrowseParam(searchParams, 'view') === 'list' ? 'list' : 'grid';
 
   const networkPolicy = useNetworkPolicy();
-  const pageSize = getStablePageSize(12, networkPolicy);
+  const pageSize = initialPage ? SSR_BROWSE_PAGE_SIZE : getStablePageSize(12, networkPolicy);
 
   const query = useInfiniteQuery({
     queryKey: queryKeys.serviceListings.infinite({ search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder, pageSize }),
     initialPageParam: 1,
+    initialData: initialPage ? { pages: [initialPage], pageParams: [1] } : undefined,
+    initialDataUpdatedAt: initialPageUpdatedAt,
+    staleTime: CACHE_TTL.adsList,
     queryFn: ({ pageParam, signal }) => serviceListingsApi.getAll({
       search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder,
       page: pageParam,
@@ -119,7 +133,7 @@ export function ServiceListingsGrid() {
           {total > 0 ? `${total} خدمة` : 'لا توجد نتائج'}
           {search && <> بحثاً عن «<span className="font-medium">{search}</span>»</>}
         </p>
-        <div className="flex items-center gap-2"><SaveSearchButton type="services" queryParamKey="search" /><ListViewToggle /></div>
+        <div className="flex items-center gap-2"><SaveSearchButton type="services" queryParamKey="search" /><ListViewToggle value={view} searchParamsString={serializeBrowseSearchParams(searchParams)} /></div>
       </div>
 
       {items.length === 0 ? (
@@ -128,7 +142,7 @@ export function ServiceListingsGrid() {
           title="لا توجد خدمات"
           description={search ? `لم نجد نتائج لـ "${search}"` : 'لا توجد خدمات مطابقة لهذه الفلاتر'}
           action={
-            (search || serviceTypeId || categoryId || city || serviceLocation || minPrice !== undefined || maxPrice !== undefined || sp.get('attributeFilters')) ? (
+            (search || serviceTypeId || categoryId || city || serviceLocation || minPrice !== undefined || maxPrice !== undefined || getBrowseParam(searchParams, 'attributeFilters')) ? (
               <Button variant="outline" size="sm" asChild>
                 <Link href={ROUTES.services}>مسح الفلاتر وتجربة الكل</Link>
               </Button>

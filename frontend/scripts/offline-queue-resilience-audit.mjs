@@ -31,6 +31,18 @@ pass('failed request list remains bounded in the UI', /\.slice\(0, 20\)/.test(qu
 pass('queued mutations receive a stable operation identity', /createOfflineOperationId\(\)/.test(sw) && /headers\['x-offline-op-id'\] = operationId/.test(sw));
 pass('replay restores the persisted idempotency header', /sendHeaders\['x-offline-op-id'\] = entry\.operationId/.test(sw));
 pass('page fallback persists the same idempotency header', /safeHeaders\['x-offline-op-id'\] = operationId/.test(queueLib));
+pass('queue records use url as the canonical field and retain a legacy _url fallback',
+  /function queuedEntryUrl\(entry\)/.test(sw) &&
+  /typeof entry\?\.url === 'string'/.test(sw) &&
+  /typeof entry\?\._url === 'string'/.test(sw));
+pass('queue replay validates, fetches, and refreshes against the canonical queue URL',
+  /const queuedUrl = queuedEntryUrl\(entry\)/.test(sw) &&
+  /isTrustedQueueUrl\(queuedUrl\)/.test(sw) &&
+  /fetch\(queuedUrl,/.test(sw) &&
+  /refreshAccessToken\(queuedUrl\)/.test(sw));
+pass('analytics coalescing and queue priority use canonical URLs',
+  /isBatchableAnalyticsUrl\(queuedEntryUrl\(entry\)\)/.test(sw) &&
+  /inferQueuePriority\(queuedEntryUrl\(a\), a\.method\)/.test(sw));
 
 const failed = checks.filter((c) => !c.passed);
 console.log(`[offline-queue-resilience] ${checks.length - failed.length}/${checks.length} checks passed`);

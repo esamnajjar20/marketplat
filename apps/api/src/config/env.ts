@@ -278,6 +278,20 @@ const envSchema = z.object({
   // e.g. https://api.example.com/__purge__ — must match the Worker's PURGE_TOKEN.
   EDGE_WORKER_PURGE_URL: z.string().url().optional(),
   EDGE_WORKER_PURGE_TOKEN: z.string().optional(),
+  // Next.js Data Cache invalidation webhook. The backend signs `{ tags }`
+  // with HMAC-SHA256; the matching secret is stored only in the frontend
+  // Cloudflare Worker and this API service. Blank values disable this target.
+  NEXT_CACHE_REVALIDATION_URL: z.preprocess(
+    value => (typeof value === 'string' ? value.trim() || undefined : value),
+    z.string().url().refine(
+      value => new URL(value).protocol === 'https:',
+      'NEXT_CACHE_REVALIDATION_URL must use HTTPS',
+    ).optional(),
+  ),
+  NEXT_CACHE_REVALIDATION_SECRET: z.preprocess(
+    value => (typeof value === 'string' ? value.trim() || undefined : value),
+    z.string().min(32).optional(),
+  ),
   // previously there was no cap on how many active ads
   // a single user could have simultaneously. Combined with no per-user
   // listing quota, a single account (even unverified) could create an
@@ -887,13 +901,16 @@ export const env = {
     apiToken: (_env.CF_PURGE_API_TOKEN ?? '').trim(),
     workerPurgeUrl: (_env.EDGE_WORKER_PURGE_URL ?? '').trim(),
     workerPurgeToken: (_env.EDGE_WORKER_PURGE_TOKEN ?? '').trim(),
-    // Never fire real Cloudflare calls from the test suite. The explicit kill
+    nextRevalidationUrl: (_env.NEXT_CACHE_REVALIDATION_URL ?? '').trim(),
+    nextRevalidationSecret: (_env.NEXT_CACHE_REVALIDATION_SECRET ?? '').trim(),
+    // Never fire real cache calls from the test suite. The explicit kill
     // switch is required, and at least one complete purge destination must exist.
     enabled:
       _env.NODE_ENV !== 'test' &&
       _env.CF_CACHE_TAG_PURGE_ENABLED === 'true' &&
       (Boolean((_env.EDGE_WORKER_PURGE_URL ?? '').trim() && (_env.EDGE_WORKER_PURGE_TOKEN ?? '').trim()) ||
-        Boolean((_env.CF_PURGE_ZONE_ID ?? '').trim() && (_env.CF_PURGE_API_TOKEN ?? '').trim())),
+        Boolean((_env.CF_PURGE_ZONE_ID ?? '').trim() && (_env.CF_PURGE_API_TOKEN ?? '').trim()) ||
+        Boolean((_env.NEXT_CACHE_REVALIDATION_URL ?? '').trim() && (_env.NEXT_CACHE_REVALIDATION_SECRET ?? '').trim())),
   },
   ads: {
     maxPerUser: parseInt(_env.MAX_ADS_PER_USER, 10),

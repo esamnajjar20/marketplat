@@ -80,7 +80,7 @@ const messageInput = read('components/messages/MessageInput.tsx');
 check(!/const \[body,\s*setBody\]/.test(messageInput), 'MessageInput: body state is still owned by the whole composer');
 check(/MessageBodyEditor/.test(messageInput), 'MessageInput: MessageBodyEditor isolation missing');
 
-const clock = read('components/shared/cards/cardParts.tsx');
+const clock = read('components/shared/cards/useNowAfterMount.ts');
 check(/setInterval\(notifyNow,\s*60_000\)/.test(clock), 'card clock: minute ticker missing');
 check(/useNowAfterMount\(enabled:\s*boolean\s*=\s*true,\s*dateStr\?:\s*string\)/.test(clock), 'card clock: timestamp-aware scheduler API missing');
 check(/enabled \? subscribeToNow\(listener,\s*dateStr\) : noopSubscribe\(listener\)/.test(clock), 'card clock: disabled cards still subscribe to the shared clock');

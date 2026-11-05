@@ -347,6 +347,7 @@ describe('queryKeys centralized query families', () => {
     expect(queryKeys.sales.receipt('sale-1')).toEqual(['sales', 'receipt', 'sale-1']);
     expect(queryKeys.serviceListingMatches('listing-1')).toEqual(['service-listing-matches', 'listing-1']);
     expect(queryKeys.publicStoreSalesStats('store-slug')).toEqual(['public-store-sales-stats', 'store-slug']);
+    expect(queryKeys.sellers.ranking(30)).toEqual(['sellers', 'ranking', 30]);
     expect(queryKeys.serviceProviders.myServiceTypes()).toEqual(['my-service-provider-service-types']);
   });
 

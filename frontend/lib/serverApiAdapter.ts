@@ -7,10 +7,11 @@
  * RSC / generateMetadata call failed -> "Minified React error #441" (same
  * digest on every page) and profile pages showing "user not found".
  *
- * This adapter routes viewer-independent public GETs through the API_WORKER
- * Service Binding (same path app/api/v1/[...path]/route.ts already uses).
- * Anything else, or any failure to obtain the binding, falls back to axios's
- * normal adapter, so behaviour is never worse than before.
+ * This adapter routes anonymous GETs through the API_WORKER Service Binding
+ * (same path app/api/v1/[...path]/route.ts already uses). Local Node development
+ * keeps Axios's normal adapter. In an active Cloudflare request, a missing or
+ * failing Service Binding is treated as an error: falling back to workers.dev
+ * from one Worker to another can trigger Cloudflare error 1042.
  */
 import axios, {
   AxiosError,
@@ -21,14 +22,20 @@ import axios, {
 import { stripIdentityHeaders } from '@/lib/edgeProxy';
 
 type BindingFetcher = { fetch: typeof fetch };
+type BindingContext = { contextAvailable: boolean; worker: BindingFetcher | null };
 
-async function getApiWorker(): Promise<BindingFetcher | null> {
+async function getApiWorkerContext(): Promise<BindingContext> {
+  if (process.env.NODE_ENV !== 'production') {
+    return { contextAvailable: false, worker: null };
+  }
+
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare');
     const env = getCloudflareContext().env as unknown as { API_WORKER?: BindingFetcher };
-    return env.API_WORKER ?? null;
+    return { contextAvailable: true, worker: env.API_WORKER ?? null };
   } catch {
-    return null; // not on Cloudflare (local dev / tests)
+    // A non-Cloudflare Node deployment has no OpenNext request context.
+    return { contextAvailable: false, worker: null };
   }
 }
 
@@ -59,12 +66,19 @@ export const serverApiAdapter: AxiosAdapter = async (config) => {
   const hasAuth = Boolean(h?.get?.('Authorization') || h?.get?.('authorization') || h?.get?.('Cookie'));
   if (!parts || hasAuth) return fallback(config);
 
-  const worker = await getApiWorker();
-  if (!worker) return fallback(config);
+  const bindingContext = await getApiWorkerContext();
+  if (!bindingContext.contextAvailable) return fallback(config);
+  if (!bindingContext.worker) {
+    throw new AxiosError(
+      'API_WORKER service binding is unavailable in Cloudflare runtime',
+      AxiosError.ERR_NETWORK,
+      config,
+    );
+  }
 
   let res: Response;
   try {
-    res = await worker.fetch(
+    res = await bindingContext.worker.fetch(
       new Request(`https://api/api/v1/${parts.segs.join('/')}${parts.search}`, {
         method: 'GET',
         headers: stripIdentityHeaders(new Headers(config.headers as unknown as Record<string, string>)),
@@ -72,7 +86,11 @@ export const serverApiAdapter: AxiosAdapter = async (config) => {
       }),
     );
   } catch {
-    return fallback(config); // binding failed -> try the normal path
+    throw new AxiosError(
+      'API_WORKER service binding request failed',
+      AxiosError.ERR_NETWORK,
+      config,
+    );
   }
 
   const text = await res.text();

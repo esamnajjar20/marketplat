@@ -181,7 +181,7 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-cairo)', 'sans-serif'],
         cairo: ['var(--font-cairo)', 'sans-serif'],
-        'sans-arabic': ['var(--font-ibm-plex-sans-arabic)', 'var(--font-cairo)', 'sans-serif'],
+        'sans-arabic': ['var(--font-cairo)', 'sans-serif'],
         mono: ['var(--font-ibm-plex-mono)', 'monospace'],
       },
 

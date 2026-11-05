@@ -123,7 +123,7 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
         <section className="rounded-2xl border border-border/60 bg-background/60 p-1" role="tabpanel"
           id="store-panel-products"
           aria-labelledby="store-tab-products">
-          <StoreProducts storeId={storeId} storeName={storeName} />
+          <StoreProducts storeId={storeId} storeName={storeName} storeType={store?.storeType} />
         </section>
       )}
 
@@ -140,7 +140,7 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
           id="store-panel-offers"
           aria-labelledby="store-tab-offers">
           <p className="text-sm text-muted-foreground">{presentation.page.offers}</p>
-          <StoreProducts storeId={storeId} storeName={storeName} offersOnly />
+          <StoreProducts storeId={storeId} storeName={storeName} storeType={store?.storeType} offersOnly />
         </section>
       )}
 

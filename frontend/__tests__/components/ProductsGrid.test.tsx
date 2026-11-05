@@ -61,6 +61,10 @@ async function invokeQuery() {
   await options.queryFn({ pageParam: 1, signal: new AbortController().signal });
 }
 
+function renderGrid() {
+  return render(<ProductsGrid searchParams={Object.fromEntries(mockSearchParams.entries())} />);
+}
+
 describe('ProductsGrid', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -71,14 +75,14 @@ describe('ProductsGrid', () => {
 
   it('renders skeleton cards while loading', () => {
     mockQuery({ data: undefined, isLoading: true });
-    render(<ProductsGrid />);
+    renderGrid();
     expect(screen.getAllByTestId('skeleton')).toHaveLength(12);
   });
 
   it('shows an error message with retry on failure', async () => {
     mockQuery({ data: undefined, isError: true });
     const user = setupUser();
-    render(<ProductsGrid />);
+    renderGrid();
     expect(screen.getByText('حدث خطأ أثناء تحميل المنتجات')).toBeInTheDocument();
     await user.click(screen.getByText('إعادة المحاولة'));
     expect(mockRefetch).toHaveBeenCalled();
@@ -86,13 +90,13 @@ describe('ProductsGrid', () => {
 
   it('shows the total product count', () => {
     mockQuery({ data: { pages: [page([product], { totalPages: 1, total: 42, page: 1, hasNextPage: false })] } });
-    render(<ProductsGrid />);
+    renderGrid();
     expect(screen.getByText(/42 منتج/)).toBeInTheDocument();
   });
 
   it('shows the empty state when total is zero', () => {
     mockQuery({ data: { pages: [page([], { totalPages: 1, total: 0, page: 1, hasNextPage: false })] } });
-    render(<ProductsGrid />);
+    renderGrid();
     expect(screen.getByText('لا توجد نتائج')).toBeInTheDocument();
     expect(screen.getByText('لا توجد منتجات مطابقة لهذه الفلاتر')).toBeInTheDocument();
   });
@@ -100,12 +104,12 @@ describe('ProductsGrid', () => {
   it('appends the search term to the summary when searching', () => {
     mockSearchParams = new URLSearchParams('search=غطاء');
     mockQuery({ data: { pages: [page([product], { totalPages: 1, total: 5, page: 1, hasNextPage: false })] } });
-    render(<ProductsGrid />);
+    renderGrid();
     expect(screen.getByText('غطاء')).toBeInTheDocument();
   });
 
   it('renders each product and passes through storeId', () => {
-    render(<ProductsGrid />);
+    renderGrid();
     const card = screen.getByTestId('product-product-1');
     expect(card).toBeInTheDocument();
     expect(card).toHaveAttribute('data-store-id', 'store-1');
@@ -114,13 +118,13 @@ describe('ProductsGrid', () => {
   it('shows a search-aware empty description', () => {
     mockSearchParams = new URLSearchParams('search=سماعات');
     mockQuery({ data: { pages: [page([], { totalPages: 1, total: 0, page: 1, hasNextPage: false })] } });
-    render(<ProductsGrid />);
+    renderGrid();
     expect(screen.getByText('لم نجد نتائج لـ "سماعات"')).toBeInTheDocument();
   });
 
   it('passes URL filters and defaults to the products API query function', async () => {
     mockSearchParams = new URLSearchParams('city=غزة&search=خلاط&sortBy=price&sortOrder=asc&hasPromotion=true');
-    render(<ProductsGrid />);
+    renderGrid();
     await invokeQuery();
     expect(productsApi.getAll).toHaveBeenCalledWith(expect.objectContaining({
       search: 'خلاط', city: 'غزة', sortBy: 'price', sortOrder: 'asc', hasPromotion: true, page: 1, limit: expect.any(Number),
@@ -129,13 +133,13 @@ describe('ProductsGrid', () => {
 
   it('defaults sort and promotion filters when URL values are absent or invalid', async () => {
     mockSearchParams = new URLSearchParams('hasPromotion=false');
-    render(<ProductsGrid />);
+    renderGrid();
     await invokeQuery();
     expect(productsApi.getAll).toHaveBeenCalledWith(expect.objectContaining({ sortBy: 'createdAt', sortOrder: 'desc', hasPromotion: undefined }));
   });
 
   it('does not render the infinite-scroll trigger when there is no next page', () => {
-    render(<ProductsGrid />);
+    renderGrid();
     expect(screen.getByText('تم عرض كل النتائج')).toBeInTheDocument();
   });
 
@@ -144,7 +148,7 @@ describe('ProductsGrid', () => {
       data: { pages: [page([product], { totalPages: 4, total: 40, page: 1, hasNextPage: true })] },
       hasNextPage: true,
     });
-    render(<ProductsGrid />);
+    renderGrid();
     expect(screen.getByRole('button', { name: 'تحميل المزيد' })).toBeInTheDocument();
   });
 });

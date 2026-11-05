@@ -4,10 +4,13 @@ import dynamic from 'next/dynamic';
 import { ListPageShell, LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { ProductCardSkeleton } from '@/components/shared/skeletons/ProductCardSkeleton';
 import { cn } from '@/lib/utils';
+import type { BrowsePage } from '@/types/browse.types';
+import type { ProductWithStore } from '@/types/product.types';
+import type { BrowseSearchParams } from '@/lib/browseSearchParams';
 
 const ProductsGrid = dynamic(
   () => import('@/components/stores/ProductsGrid').then((module) => module.ProductsGrid),
-  { ssr: false, loading: () => <BrowseGridLoading label="جارٍ تحميل المنتجات…" /> },
+  { loading: () => <BrowseGridLoading label="جارٍ تحميل المنتجات…" /> },
 );
 const ProductsFilters = dynamic(
   () => import('@/components/stores/ProductsFilters').then((module) => module.ProductsFilters),
@@ -41,7 +44,13 @@ function BrowseGridLoading({ label }: { label: string }) {
  * صفحة المنتجات العامة — مطابقة لتصميم المرجع:
  * عنوان بدون أيقونة، شريط بحث، شرائح تصنيفات، ثم شبكة البطاقات.
  */
-export function ProductsPageClient() {
+interface ProductsPageClientProps {
+  initialPage?: BrowsePage<ProductWithStore> | null;
+  initialPageUpdatedAt?: number;
+  searchParams?: BrowseSearchParams;
+}
+
+export function ProductsPageClient({ initialPage, initialPageUpdatedAt, searchParams }: ProductsPageClientProps = {}) {
   return (
     <ListPageShell
       title="المنتجات"
@@ -60,7 +69,7 @@ export function ProductsPageClient() {
       }
       sidebar={<ProductsFilters />}
     >
-      <ProductsGrid />
+      <ProductsGrid initialPage={initialPage} initialPageUpdatedAt={initialPageUpdatedAt} searchParams={searchParams} />
     </ListPageShell>
   );
 }

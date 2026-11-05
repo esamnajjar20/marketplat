@@ -17,6 +17,8 @@ interface Props {
   density?: 'default' | 'compact';
   context?: CardContext;
   layout?: 'grid' | 'list';
+  /** Override cover srcset sizing for denser parent grids. */
+  coverSizes?: string;
 }
 
 /** Directory card for /stores — matches design mockup (cover + overlapping logo + meta + CTA). */
@@ -26,10 +28,16 @@ export const StoreCard = memo(function StoreCard({
   density = 'default',
   context = 'public',
   layout = 'grid',
+  coverSizes,
 }: Props) {
   const compact = density === 'compact' || layout === 'list';
   const avatar = getAvatarUrl(store.logoUrl ?? '', 96);
   const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 720) : null;
+  const resolvedCoverSizes = coverSizes ?? (
+    compact
+      ? '(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 900px'
+      : '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1535px) 23vw, 250px'
+  );
   const rating = parseFloat(store.sellerProfile.averageRating);
   const hasRating = store.sellerProfile.totalRatings > 0 && Number.isFinite(rating);
   const presentation = getStoreTypePresentation(store.storeType);
@@ -68,7 +76,7 @@ export const StoreCard = memo(function StoreCard({
               alt=""
               fill
               className="object-cover transition-transform duration-normal ease-standard group-hover:scale-[1.02]"
-              sizes="(max-width: 640px) 100vw, 360px"
+              sizes={resolvedCoverSizes}
             />
           ) : (
             <div className={coverFallbackClass} aria-hidden>

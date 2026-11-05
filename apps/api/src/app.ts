@@ -29,6 +29,8 @@ import { fcmPushService } from './shared/utils/fcmPushService';
 import { fcmDeviceTokensRepository } from './shared/utils/fcmDeviceTokensRepository';
 import { prisma } from './config/prisma';
 import { publishDurableNotifications } from './shared/go-worker/publishDurableNotifications';
+import { publicMutationCacheTags } from './shared/cache/publicMutationTags';
+import { purgeEdgeTags } from './shared/cache/edgePurge';
 
 const app = express();
 
@@ -593,6 +595,20 @@ app.post('/internal/go-worker/send-push-target', async (req: Request, res: Respo
 });
 
 // ── API Routes ────────────────────────────────────────
+// Invalidate public Next Data Cache entries only after a successful write.
+// The API cache layer coalesces these tags with the existing Worker/Cloudflare
+// purge events; private routes never enter this allowlist.
+app.use('/api/v1', (req: Request, res: Response, next) => {
+  const tags = publicMutationCacheTags(req.method, req.originalUrl);
+  if (tags.length > 0) {
+    res.once('finish', () => {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        purgeEdgeTags(tags);
+      }
+    });
+  }
+  next();
+});
 app.use('/api/v1', router);
 
 // ── 404 Handler ───────────────────────────────────────

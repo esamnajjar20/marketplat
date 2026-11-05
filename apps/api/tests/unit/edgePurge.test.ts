@@ -6,6 +6,7 @@
  * vocabulary, BOTH tests must change or purges silently stop matching.
  */
 import type { Request, Response, NextFunction } from 'express';
+import { createHmac } from 'node:crypto';
 
 type EdgeModule = typeof import('../../src/shared/cache/edgePurge');
 
@@ -25,6 +26,7 @@ const ENABLED = { enabled: true, zoneId: 'zone123', apiToken: 'tok', workerPurge
 const DISABLED = { enabled: false, zoneId: '', apiToken: '', workerPurgeUrl: '', workerPurgeToken: '' };
 const WORKER_CACHE_ENABLED = { enabled: true, zoneId: '', apiToken: '', workerPurgeUrl: 'https://api.example.com/__purge__', workerPurgeToken: 's3cret' };
 const BOTH_ENABLED = { enabled: true, zoneId: 'zone123', apiToken: 'tok', workerPurgeUrl: 'https://api.example.com/__purge__', workerPurgeToken: 's3cret' };
+const NEXT_CACHE_ENABLED = { enabled: true, zoneId: '', apiToken: '', workerPurgeUrl: '', workerPurgeToken: '', nextRevalidationUrl: 'https://marketplat.example/api/internal/cache/revalidate', nextRevalidationSecret: 'a'.repeat(40) };
 
 describe('edge tag vocabulary (parity with the Worker)', () => {
   const edge = loadEdge(DISABLED);
@@ -109,6 +111,33 @@ describe('purgeEdgeTags transport', () => {
     expect(url).toBe('https://api.example.com/__purge__');
     expect(init.headers['x-purge-token']).toBe('s3cret');
     expect(JSON.parse(init.body)).toEqual({ tags: ['ad:1', 'route:ads'] });
+  });
+
+  it('sends an HMAC-signed tag batch to the Next.js Data Cache endpoint', async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true }) });
+    const edge = loadEdge(NEXT_CACHE_ENABLED);
+    edge.purgeEdgeTags(['route:products', 'product:product-1']);
+    await edge.flushEdgePurge();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(NEXT_CACHE_ENABLED.nextRevalidationUrl);
+    expect(init.method).toBe('POST');
+    expect(init.headers['content-type']).toBe('application/json');
+    const timestamp = init.headers['x-marketplat-timestamp'];
+    const body = init.body as string;
+    const expected = createHmac('sha256', NEXT_CACHE_ENABLED.nextRevalidationSecret)
+      .update(`${timestamp}.${body}`)
+      .digest('hex');
+    expect(init.headers['x-marketplat-signature']).toBe(`sha256=${expected}`);
+    expect(JSON.parse(body)).toEqual({ tags: ['route:products', 'product:product-1'] });
+  });
+
+  it('keeps the Next.js target disabled unless both URL and secret exist', async () => {
+    const edge = loadEdge({ ...NEXT_CACHE_ENABLED, nextRevalidationSecret: '' });
+    edge.purgeEdgeTags(['route:products']);
+    await edge.flushEdgePurge();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('purges both native Worker Cache and zone cache when both targets are configured', async () => {

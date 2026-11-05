@@ -15,7 +15,8 @@ import {
 import type { RequestListItem } from '@/types/request.types';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { useNowAfterMount, type CardContext } from '@/components/shared/cards/cardParts';
+import type { CardContext } from '@/components/shared/cards/cardParts';
+import { useNowAfterMount } from '@/components/shared/cards/useNowAfterMount';
 import { CARD_PRESS, CARD_FOCUS, CARD_SHELL_SOFT, CARD_BADGE_SUCCESS, CARD_BADGE_WARNING } from '@/components/shared/cards/cardTokens';
 
 type Props = {

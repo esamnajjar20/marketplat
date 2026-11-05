@@ -28,14 +28,14 @@ const relativeTime = read('components/shared/HydrationSafeRelativeTime.tsx');
 const chatRow = read('components/messages/ChatMessageRow.tsx');
 const messageUtils = read('lib/messageUtils.ts');
 const installmentForm = read('components/sales/payments/InstallmentForm.tsx');
-const clock = read('components/shared/cards/cardParts.tsx');
+const clock = read('components/shared/cards/useNowAfterMount.ts');
 const renderAudit = read('scripts/render-regression-audit.mjs');
 const cloudinary = read('lib/cloudinary.ts');
 const dataSaver = read('lib/dataSaver.ts');
 
 check(/google:\s*'notranslate'/.test(layout), 'Root metadata opts out of Google auto-translation');
 check(/<html[^>]*translate="no"/.test(layout), 'Root HTML explicitly disables translation mutation');
-check(/<body[\s\S]*?className=\{`notranslate[\s\S]*?translate="no"/.test(layout), 'Body is protected from translation wrappers/rewrites');
+check(/<body[\s\S]*?className=\{`[^`]*\bnotranslate\b[\s\S]*?translate="no"/.test(layout), 'Body is protected from translation wrappers/rewrites');
 check(/suppressHydrationWarning/.test(layout), 'Root accounts for next-themes HTML attributes changing before hydration');
 check(/process\.env\.NODE_ENV !== 'production'[\s\S]*?<Script src="\/hydration-trace\.js" strategy="lazyOnload" \/>/.test(layout), 'Hydration DOM tracing is excluded from production pages');
 check(/const \[guestPreference, setGuestPreference\] = useState<[^>]+>\(undefined\)/.test(browseCity) && /const \[guestReady, setGuestReady\] = useState\(false\)/.test(browseCity), 'Browse-city localStorage preference does not change the initial SSR/hydration render');
@@ -45,6 +45,7 @@ check(!/getNetworkPolicy/.test(cloudinary) && !/getNetworkPolicy/.test(dataSaver
 check(/function hydrationDomDetails\(\)/.test(deviceMonitor) && /htmlAttributes/.test(deviceMonitor) && /bodyChildElements/.test(deviceMonitor), 'Hydration reports include a privacy-safe HTML/body structure snapshot');
 check(/const \[mounted, setMounted\] = useState\(false\)/.test(themeToggle) && /useEffect\(\(\) => setMounted\(true\), \[\]\)/.test(themeToggle), 'ThemeToggle does not render browser-resolved theme before mount');
 check(/useNowAfterMount\(true, dateStr\)/.test(relativeTime) && /now === null/.test(relativeTime), 'Relative-time UI uses stable initial output and post-mount clock');
+check(/setInterval\(notifyNow,\s*60_000\)/.test(clock) && /visibilitychange/.test(clock), 'Shared relative-time clock uses a single visibility-aware minute scheduler');
 check(/useNowAfterMount\(true, message\.createdAt\)/.test(chatRow), 'Chat day separator avoids implicit server/client current-time calculations');
 check(/messageDayLabel\(iso: string, now: Date\)/.test(messageUtils), 'Message day formatter requires an explicit reference clock');
 check(/useState<number\|null>\(null\)/.test(installmentForm) && /useEffect\(\(\)\s*=>\s*\{\s*setBaseTime\(Date\.now\(\)\);\s*\},\s*\[\]\)/.test(installmentForm), 'Installment dates are not generated during initial SSR/hydration render');

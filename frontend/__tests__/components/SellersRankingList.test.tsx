@@ -56,4 +56,36 @@ describe('SellersRankingList', () => {
       expect(screen.getByText('أحمد')).toBeInTheDocument();
     });
   });
+  it('keeps hydrated rows visible when a background refresh fails', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    qc.setQueryData(['sellers', 'ranking', 10], [
+      {
+        rank: 1,
+        medal: 'gold',
+        sellerProfileId: 'sp-hydrated',
+        userId: 'u-hydrated',
+        displayName: 'بائع محفوظ',
+        avatarUrl: null,
+        city: 'غزة',
+        verified: true,
+        averageRating: 4.9,
+        totalRatings: 10,
+        responseTimeMinutes: 15,
+        score: 100,
+      },
+    ], { updatedAt: Date.now() - 60_000 });
+    vi.mocked(fetch).mockRejectedValue(new Error('network unavailable'));
+    const hydratedWrapper = ({ children }: { children: ReactNode }) =>
+      createElement(QueryClientProvider, { client: qc }, children);
+
+    render(<SellersRankingList limit={10} />, { wrapper: hydratedWrapper });
+
+    await waitFor(() => {
+      expect(screen.getByText('بائع محفوظ')).toBeInTheDocument();
+      expect(screen.getByText(/نعرض آخر نسخة متاحة/)).toBeInTheDocument();
+    });
+  });
+
 });

@@ -100,7 +100,14 @@
     "a11y:visibility-audit": "node scripts/accessibility-visibility-audit.mjs",
     "responsive:visual-audit": "node scripts/responsive-visual-consistency-audit.mjs",
     "navigation:integrity-audit": "node scripts/navigation-integrity-audit.mjs",
-    "network:fetch-client-csrf-audit": "node scripts/fetch-client-csrf-audit.mjs"
+    "network:fetch-client-csrf-audit": "node scripts/fetch-client-csrf-audit.mjs",
+    "server:cache-phase2-audit": "node scripts/server-prefetch-audit.mjs && node scripts/server-cache-phase2-audit.mjs && npm run cache:contract-audit",
+    "detail:dedup-phase3-audit": "node scripts/detail-query-dedup-phase3-audit.mjs",
+    "rsc:phase4-audit": "node scripts/rsc-boundary-phase4-audit.mjs",
+    "perf:phase5-audit": "node scripts/performance-phase5-audit.mjs",
+    "perf:final-pages-audit": "node scripts/final-remaining-pages-audit.mjs",
+    "perf:remaining-pages-repair-audit": "node scripts/remaining-pages-repair-audit.mjs",
+    "sw:native-url-runtime-audit": "node scripts/sw-native-url-runtime-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

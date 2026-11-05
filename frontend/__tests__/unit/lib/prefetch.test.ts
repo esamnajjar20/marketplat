@@ -1,8 +1,8 @@
 /**
  * __tests__/unit/lib/prefetch.test.ts
  *
- * Coverage for lib/prefetch.ts. The most important surface here is the
- * internal serverFetch() helper (API-INT-09): it must distinguish
+ * Coverage for lib/prefetch.ts and its shared lib/server/serverApiFetch.ts
+ * transport (API-INT-09): it must distinguish
  * network failure / non-OK HTTP status / JSON parse failure, log the
  * real cause server-side only, and throw a generic Arabic message in
  * every case — never leaking the internal API path or raw error
@@ -31,10 +31,14 @@ import {
   prefetchCategories,
   prefetchAdList,
   prefetchAdDetail,
+  fetchPublicBrowsePage,
   dehydrateClient,
 } from '@/lib/prefetch';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
+
+const unstableCacheMock = vi.hoisted(() => vi.fn((fn: (...args: unknown[]) => unknown) => fn));
+vi.mock('next/cache', () => ({ unstable_cache: unstableCacheMock }));
 
 function jsonResponse(body: unknown, init?: { status?: number }) {
   return {
@@ -50,6 +54,69 @@ describe('prefetch helpers', () => {
   beforeEach(() => {
     qc = new QueryClient();
     vi.restoreAllMocks();
+  });
+
+  describe('fetchPublicBrowsePage cache policy', () => {
+    it('keeps free-text search SSR but bypasses persistent Next Data Cache', async () => {
+      unstableCacheMock.mockClear();
+      const pagination = { total: 1, page: 1, limit: 10, totalPages: 1, hasNextPage: false, hasPrevPage: false };
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+        jsonResponse({ success: true, message: 'ok', data: [{ id: 'ad-1' }], meta: { pagination } }),
+      ));
+
+      const result = await fetchPublicBrowsePage('/ads/search', { q: 'a unique phrase' });
+
+      expect(result.items).toEqual([{ id: 'ad-1' }]);
+      expect(unstableCacheMock).not.toHaveBeenCalled();
+      vi.unstubAllGlobals();
+    });
+
+    it('bypasses persistent caching for provider-specific result sets', async () => {
+      unstableCacheMock.mockClear();
+      const pagination = { total: 0, page: 1, limit: 10, totalPages: 0, hasNextPage: false, hasPrevPage: false };
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+        jsonResponse({ success: true, message: 'ok', data: [], meta: { pagination } }),
+      ));
+
+      await fetchPublicBrowsePage('/service-listings', { providerId: 'provider_123' });
+
+      expect(unstableCacheMock).not.toHaveBeenCalled();
+      vi.unstubAllGlobals();
+    });
+
+    it('bypasses persistent caching for city, category and numeric filters', async () => {
+      const pagination = { total: 0, page: 1, limit: 10, totalPages: 0, hasNextPage: false, hasPrevPage: false };
+      for (const params of [
+        { city: 'Nablus' },
+        { categoryId: 'category_123' },
+        { minPrice: 10, maxPrice: 500 },
+      ]) {
+        unstableCacheMock.mockClear();
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+          jsonResponse({ success: true, message: 'ok', data: [], meta: { pagination } }),
+        ));
+
+        await fetchPublicBrowsePage('/products', params);
+
+        expect(unstableCacheMock).not.toHaveBeenCalled();
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it('caches only the canonical unfiltered first-page listing', async () => {
+      unstableCacheMock.mockClear();
+      const pagination = { total: 0, page: 1, limit: 10, totalPages: 0, hasNextPage: false, hasPrevPage: false };
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+        jsonResponse({ success: true, message: 'ok', data: [], meta: { pagination } }),
+      ));
+
+      await fetchPublicBrowsePage('/ads', {
+        page: 1, limit: 10, sortBy: 'createdAt', sortOrder: 'desc',
+      });
+
+      expect(unstableCacheMock).toHaveBeenCalledTimes(1);
+      vi.unstubAllGlobals();
+    });
   });
 
   describe('prefetchCategories', () => {

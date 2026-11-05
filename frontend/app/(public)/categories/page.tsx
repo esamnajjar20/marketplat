@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import dynamic from 'next/dynamic';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { getQueryClient } from '@/lib/queryClient';
-import { prefetchHomepage } from '@/lib/prefetch';
+import { prefetchCategoryCatalog } from '@/lib/prefetch';
 import { buildMetadata } from '@/lib/seo';
 import { PageHeader } from '@/components/shared/layout/PageHeader';
 import { Layers3 } from 'lucide-react';
@@ -31,12 +31,12 @@ export const metadata: Metadata = buildMetadata({
 
 /**
  * فهرس الفئات — وجهة "كل الفئات" من الصفحة الرئيسية.
- * تُقرأ الفئات الثلاث من نفس payload الـ /home المُجلب مسبقاً على السيرفر،
- * فلا طلبات إضافية ويظهر المحتوى في أول HTML.
+ * تُجلب أشجار التصنيفات الثلاثة فقط بالتوازي، بدلاً من تنزيل payload /home
+ * الكبير، وتُهيّأ على مفاتيح hooks نفسها لضمان عدم تكرار GET بعد Hydration.
  */
 export default async function CategoriesIndexPage() {
   const qc = getQueryClient();
-  await prefetchHomepage(qc);
+  await prefetchCategoryCatalog(qc);
 
   return (
     <div className="container mx-auto max-w-7xl space-y-5 px-3 py-5 pb-0 md:pb-8 sm:space-y-6 sm:px-4 sm:py-6">

@@ -8,12 +8,7 @@ import { ProductCard } from '@/components/stores/ProductCard';
 import { ServiceListingCard } from '@/components/services/ServiceListingCard';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
-import {
-  useRecommendations,
-  useProductRecommendations,
-  useServiceRecommendations,
-  useMixedRecommendations,
-} from '@/hooks/queries/useRecommendations';
+import { useMixedRecommendations } from '@/hooks/queries/useRecommendations';
 import { useAds } from '@/hooks/queries/useAds';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { useServiceListings } from '@/hooks/queries/useServiceListings';
@@ -41,32 +36,40 @@ export function SuggestionsPageClient({ mode = 'suggestions' }: { mode?: Suggest
   const cityParam = city ? { city } : {};
 
   const wantsPersonalized = mode !== 'trending';
+  const usePersonalized = isAuth && wantsPersonalized;
+
+  // The mixed endpoint returns all three recommendation rails in one call.
+  // This replaces three parallel recommendation requests for guests and
+  // keeps the existing personalized scope for signed-in visitors.
   const mixedQ = useMixedRecommendations(
     { limit: PER_TYPE, ...cityParam },
-    { enabled: ready && isAuth && wantsPersonalized, scope: 'user' },
-  );
-  const guestOpts = { enabled: ready && (!isAuth || mode === 'trending'), scope: 'guest' as const };
-  const adsQ = useRecommendations({ limit: PER_TYPE, ...cityParam }, guestOpts);
-  const productsQ = useProductRecommendations({ limit: PER_TYPE, ...cityParam }, guestOpts);
-  const servicesQ = useServiceRecommendations({ limit: PER_TYPE, ...cityParam }, guestOpts);
-
-  const fallbackAds = useAds(
-    { limit: PER_TYPE, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) },
-    { enabled: ready, disableOfflineCache: true },
-  );
-  const fallbackProducts = useProducts(
-    { limit: PER_TYPE, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) },
-    { enabled: ready },
-  );
-  const fallbackServices = useServiceListings(
-    { limit: PER_TYPE, sortBy: 'createdAt', sortOrder: 'desc', ...(city ? { city } : {}) },
-    { enabled: ready },
+    { enabled: ready, scope: usePersonalized ? 'user' : 'guest' },
   );
 
-  const usePersonalized = isAuth && wantsPersonalized;
-  const recAds = usePersonalized ? mixedQ.data?.ads : adsQ.data;
-  const recProducts = usePersonalized ? mixedQ.data?.products : productsQ.data;
-  const recServices = usePersonalized ? mixedQ.data?.services : servicesQ.data;
+  const recAds = mixedQ.data?.ads ?? undefined;
+  const recProducts = mixedQ.data?.products ?? undefined;
+  const recServices = mixedQ.data?.services ?? undefined;
+
+  const recommendationSettled = mixedQ.isSuccess || mixedQ.isError;
+  const fallbackParams = {
+    limit: PER_TYPE,
+    sortBy: 'createdAt' as const,
+    sortOrder: 'desc' as const,
+    ...(city ? { city } : {}),
+  };
+  // Fetch a public recent-list fallback only for a type that the completed
+  // recommendation response could not fill. Never issue all three fallback
+  // requests speculatively while recommendations are still in flight.
+  const fallbackAdsEnabled = ready && recommendationSettled && (recAds?.length ?? 0) < PER_TYPE;
+  const fallbackProductsEnabled = ready && recommendationSettled && (recProducts?.length ?? 0) < PER_TYPE;
+  const fallbackServicesEnabled = ready && recommendationSettled && (recServices?.length ?? 0) < PER_TYPE;
+
+  const fallbackAds = useAds(fallbackParams, {
+    enabled: fallbackAdsEnabled,
+    disableOfflineCache: true,
+  });
+  const fallbackProducts = useProducts(fallbackParams, { enabled: fallbackProductsEnabled });
+  const fallbackServices = useServiceListings(fallbackParams, { enabled: fallbackServicesEnabled });
 
   const recAdsFeed = Array.isArray(recAds) ? recAds : undefined;
   const recProductsFeed = Array.isArray(recProducts) ? recProducts : undefined;
@@ -95,11 +98,12 @@ export function SuggestionsPageClient({ mode = 'suggestions' }: { mode?: Suggest
     ],
   );
 
+  const hasRecommendationContent = items.length > 0;
   const loading =
-    !ready ||
-    (usePersonalized ? mixedQ.isLoading : adsQ.isLoading || productsQ.isLoading || servicesQ.isLoading) ||
-    (items.length === 0 &&
-      (fallbackAds.isLoading || fallbackProducts.isLoading || fallbackServices.isLoading));
+    ((!ready || mixedQ.isLoading) && !hasRecommendationContent) ||
+    (fallbackAdsEnabled && fallbackAds.isLoading) ||
+    (fallbackProductsEnabled && fallbackProducts.isLoading) ||
+    (fallbackServicesEnabled && fallbackServices.isLoading);
 
   const [grace, setGrace] = useState(false);
   useEffect(() => {

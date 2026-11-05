@@ -281,7 +281,7 @@ export function FeaturedCarousel() {
               src={slide.imageUrl}
               alt={slide.title}
               fill
-              sizes="100vw"
+              sizes="(max-width: 1280px) 100vw, 1280px"
               className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               priority={i === 0}
             />

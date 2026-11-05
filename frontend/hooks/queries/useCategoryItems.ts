@@ -3,35 +3,26 @@
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
-import { useHomepage } from '@/hooks/queries/useHomepage';
 import { interleave, toCategoryItems, type Item } from '@/lib/categoryItems';
 
 /**
  * كل فئات الجذر (إعلانات/منتجات/خدمات) بشكل موحّد، مرتّبة بالتناوب.
  *
- * تُقرأ من GET /home أولاً؛ ولا تُطلب القوائم الثلاث منفردة إلا إذا فشل
- * /home أو رجع أحد الأجزاء null. تُستخدم في صف الرئيسية وصفحة /categories.
+ * تُقرأ أشجار الإعلانات والمنتجات والخدمات من hooks مستقلة بمفاتيحها
+ * القياسية؛ صفحة /categories تهيّئ هذه المفاتيح خادمياً دون جلب حمولة /home.
  */
 export function useCategoryItems(): { items: Item[]; byType: Record<Item['type'], Item[]>; isLoading: boolean } {
-  const home = useHomepage();
-  const fromHome = home.data?.categories;
-  const homeSettled = home.isError || home.isSuccess;
-  const needAds = home.isError || (home.isSuccess && (fromHome?.ads ?? null) === null);
-  const needProducts = home.isError || (home.isSuccess && (fromHome?.products ?? null) === null);
-  const needServices = home.isError || (home.isSuccess && (fromHome?.services ?? null) === null);
+  // This directory needs only the three taxonomy trees. Depending on the
+  // homepage aggregate here forced /categories to download unrelated feeds,
+  // recommendations, counters and carousel payloads.
+  const adsQuery = useCategories();
+  const productsQuery = useProductCategories();
+  const servicesQuery = useServiceCategories();
 
-  const { data: adCats, isLoading: adLoading } = useCategories({ enabled: needAds });
-  const { data: productCats, isLoading: productLoading } = useProductCategories({ enabled: needProducts });
-  const { data: serviceCats, isLoading: serviceLoading } = useServiceCategories({ enabled: needServices });
-
-  const isLoading =
-    home.isPending ||
-    (homeSettled &&
-      ((needAds && adLoading) || (needProducts && productLoading) || (needServices && serviceLoading)));
-
-  const ads = toCategoryItems('ad', fromHome?.ads ?? adCats);
-  const products = toCategoryItems('product', fromHome?.products ?? productCats);
-  const services = toCategoryItems('service', fromHome?.services ?? serviceCats);
+  const ads = toCategoryItems('ad', adsQuery.data);
+  const products = toCategoryItems('product', productsQuery.data);
+  const services = toCategoryItems('service', servicesQuery.data);
+  const isLoading = adsQuery.isLoading || productsQuery.isLoading || servicesQuery.isLoading;
 
   return {
     items: interleave(ads, products, services),

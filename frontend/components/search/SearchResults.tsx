@@ -30,8 +30,6 @@ import { track } from '@/lib/analytics';
 import type { SearchSort, SearchType } from '@/types/search.types';
 import { SearchViewToggle, type SearchViewMode } from '@/components/search/SearchViewToggle';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
-import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
-import { getAdaptivePageSize } from '@/lib/networkPolicy';
 import { queryKeys } from '@/lib/queryKeys';
 
 /**
@@ -41,7 +39,7 @@ import { queryKeys } from '@/lib/queryKeys';
  * SearchTabs/city filter/sort control all just push a new URL rather
  * than lifting shared state up through props.
  */
-export function SearchResults() {
+export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
   const sp = useSearchParams();
   const router = useRouter();
   const isOnline = useOnlineStatus();
@@ -50,8 +48,15 @@ export function SearchResults() {
   const city       = sp.get('city') ?? undefined;
   const type       = (sp.get('type') as SearchType) ?? 'all';
   const categoryId = sp.get('categoryId') ?? undefined;
-  const minPrice = sp.get('minPrice') ? Number(sp.get('minPrice')) : undefined;
-  const maxPrice = sp.get('maxPrice') ? Number(sp.get('maxPrice')) : undefined;
+  const minPriceRaw = sp.get('minPrice');
+  const maxPriceRaw = sp.get('maxPrice');
+  const parseUrlNumber = (value: string | null): number | undefined => {
+    if (value === null || value.trim() === '') return undefined;
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+  const minPrice = parseUrlNumber(minPriceRaw);
+  const maxPrice = parseUrlNumber(maxPriceRaw);
   const condition = type === 'ads' ? (sp.get('condition') as 'NEW' | 'USED' | 'REFURBISHED' | null) ?? undefined : undefined;
   const sort       = (sp.get('sort') as SearchSort) ?? 'relevance';
   // TRACK-NEARBY-SEARCH: lat/lng/radius live in the URL like every
@@ -61,20 +66,21 @@ export function SearchResults() {
   // NearbyServiceProviders.tsx's local useState, this page's filters/
   // sort/pagination are already URL-driven, so geo belongs there too
   // rather than introducing a second, inconsistent state mechanism.
-  const latParam    = sp.get('lat');
-  const lngParam    = sp.get('lng');
   // SW-FIX-SEARCH-LATLNG-NAN: a hand-edited ?lat=abc&lng=def used to flow
   // Number('abc')=NaN through useSearch (sent as NaN on the wire),
   // effectiveSort='distance' (invalid with no real coords), and the map's
   // userLocation marker. Clamp both to finite numbers here — invalid
   // values are treated as "no location", matching how SearchNearbyToggle
   // already validates via isUsableNearbyCoord before writing them.
-  const latNum      = latParam !== null ? Number(latParam) : NaN;
-  const lngNum      = lngParam !== null ? Number(lngParam) : NaN;
-  const lat         = Number.isFinite(latNum) ? latNum : undefined;
-  const lng         = Number.isFinite(lngNum) ? lngNum : undefined;
+  const latParam    = sp.get('lat');
+  const lngParam    = sp.get('lng');
+  const latValue    = parseUrlNumber(latParam);
+  const lngValue    = parseUrlNumber(lngParam);
+  const hasCoordinates = latValue !== undefined && lngValue !== undefined;
+  const lat         = hasCoordinates ? latValue : undefined;
+  const lng         = hasCoordinates ? lngValue : undefined;
   const radiusParam = sp.get('radius');
-  const radius      = radiusParam !== null ? Number(radiusParam) : undefined;
+  const radius      = parseUrlNumber(radiusParam);
 
   // توسيع تدريجي عندما يتوفر GPS ولم يُحدَّد radius يدويًا وليس هناك مدينة
   const progressive = useProgressiveSearchRadius({
@@ -108,8 +114,8 @@ export function SearchResults() {
   // previous expression missed.
   const hasActiveFilters = Boolean(city || categoryId || minPrice !== undefined || maxPrice !== undefined || condition || (sort && sort !== 'relevance') || lat !== undefined || lng !== undefined);
 
-  const networkPolicy = useNetworkPolicy();
-  const pageSize = getAdaptivePageSize(12, networkPolicy);
+  // Keep page size stable for SSR hydration and pagination consistency.
+  // Network-aware request scheduling remains active elsewhere in the feed.
 
   const infiniteQuery = useInfiniteQuery({
     queryKey: queryKeys.search.infinite({ q, city, type, categoryId, minPrice, maxPrice, condition, sort: effectiveSort, lat, lng, radius: effectiveRadius, pageSize }),

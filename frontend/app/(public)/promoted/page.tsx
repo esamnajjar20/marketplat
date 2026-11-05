@@ -1,13 +1,15 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, Flame, ShoppingBag } from 'lucide-react';
-import { ProductCard } from '@/components/stores/ProductCard';
 import { PromotedLoadMore } from '@/components/promoted/PromotedLoadMore';
-import { EmptyState } from '@/components/shared/feedback/EmptyState';
-import { productsApi } from '@/api/products.api';
+import { ProductCard } from '@/components/stores/ProductCard';
+import { fetchServerApi } from '@/lib/server/serverApiFetch';
+import { getQueryClient } from '@/lib/queryClient';
+import { queryKeys } from '@/lib/queryKeys';
+import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { ROUTES } from '@/lib/constants';
-import { unwrapData } from '@/lib/apiPagination';
 import type { ProductWithStore } from '@/types/product.types';
+import type { PaginationMeta } from '@/types/api.types';
 import { buildMetadata } from '@/lib/seo';
 
 export const dynamic = 'force-dynamic';
@@ -22,13 +24,25 @@ export const metadata: Metadata = buildMetadata({
 const PAGE_SIZE = 16;
 
 export default async function PromotedPage() {
-  const { items, meta } = unwrapData(await productsApi.getAll({
-    hasPromotion: true,
-    sortBy: 'createdAt',
-    sortOrder: 'desc',
-    page: 1,
-    limit: PAGE_SIZE,
-  }));
+  const queryClient = getQueryClient();
+  let items: ProductWithStore[] = [];
+  let meta: PaginationMeta | null = null;
+  try {
+    const response = await fetchServerApi<ProductWithStore[]>(
+      `/products?hasPromotion=true&sortBy=createdAt&sortOrder=desc&page=1&limit=${PAGE_SIZE}`,
+      { mode: 'no-store', timeoutMs: 3_000 },
+    );
+    items = response.data ?? [];
+    meta = response.meta?.pagination as PaginationMeta | undefined ?? null;
+    if (meta) {
+      queryClient.setQueryData(queryKeys.products.promotedInfinite(PAGE_SIZE), {
+        pages: [{ items, meta }],
+        pageParams: [1],
+      });
+    }
+  } catch {
+    // The infinite query below performs the client retry if the server read fails.
+  }
 
   return (
     <div className="min-h-[50vh]">
@@ -44,7 +58,7 @@ export default async function PromotedPage() {
               <p className="max-w-lg text-sm text-muted-foreground">
                 منتجات بخصومات وعروض من متاجر سوق غزة — تُحدَّث باستمرار.
               </p>
-              {meta.total > 0 && (
+              {typeof meta?.total === 'number' && meta.total > 0 && (
                 <p className="text-xs text-muted-foreground">{meta.total.toLocaleString('ar')} منتج مُروَّج</p>
               )}
             </div>
@@ -63,23 +77,16 @@ export default async function PromotedPage() {
       </div>
 
       <main className="container mx-auto max-w-7xl space-y-5 px-3 py-5 sm:px-4 sm:py-8">
-        {items.length === 0 ? (
-          <EmptyState
-            icon={<Flame className="h-8 w-8" />}
-            title="لا عروض مروَّجة حالياً"
-            description="عند تفعيل المتاجر لعروض جديدة ستظهر هنا."
-            action={<Link href={ROUTES.products} className="text-sm font-medium text-primary">تصفّح كل المنتجات</Link>}
-          />
-        ) : (
-          <>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-              {items.map((product: ProductWithStore) => (
-                <ProductCard key={product.id} product={product} storeId={product.store?.id} context="featured" />
-              ))}
-            </div>
-            <PromotedLoadMore initialPage={1} hasNextPage={meta.hasNextPage} />
-          </>
-        )}
+        {meta && items.length > 0 ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+            {items.map((product) => (
+              <ProductCard key={product.id} product={product} storeId={product.store?.id} context="featured" />
+            ))}
+          </div>
+        ) : null}
+        <HydrationBoundary state={dehydrate(queryClient)}>
+          <PromotedLoadMore hasServerSeed={Boolean(meta)} />
+        </HydrationBoundary>
       </main>
     </div>
   );

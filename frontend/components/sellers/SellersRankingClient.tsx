@@ -1,25 +1,19 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-
-const RankingList = dynamic(
-  () => import('@/components/sellers/SellersRankingList').then((module) => module.SellersRankingList),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex justify-center py-10" role="status" aria-live="polite">
-        <span className="text-sm text-muted-foreground">جارٍ تحميل ترتيب البائعين…</span>
-      </div>
-    ),
-  },
-);
+import { SellersRankingList } from '@/components/sellers/SellersRankingList';
 
 /**
- * The ranking depends on browser-persisted offline cache state. Rendering it
- * on the server can produce a loading placeholder while the first client
- * render immediately seeds cached rows, triggering React hydration error #418.
- * Keep the data-dependent list behind a stable client boundary.
+ * Thin interactive boundary around the ranking list. The route now supplies
+ * the first public page through HydrationBoundary, so this component can be
+ * server-rendered without disabling SSR; local offline seeding still runs in
+ * useEffect and cannot change the hydration render.
  */
-export function SellersRankingClient({ limit }: { limit: number }) {
-  return <RankingList limit={limit} />;
+export function SellersRankingClient({
+  limit,
+  persistServerSeed = false,
+}: {
+  limit: number;
+  persistServerSeed?: boolean;
+}) {
+  return <SellersRankingList limit={limit} persistServerSeed={persistServerSeed} />;
 }

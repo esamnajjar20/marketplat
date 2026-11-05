@@ -1,9 +1,10 @@
+import { createHmac } from 'node:crypto';
 import { env } from '../../config/env';
 import { logger } from '../utils/logger';
 
 /**
- * Edge cache purge by Cache-Tag (Workers Cache + optional zone cache) and
- * purge-aware edge TTLs.
+ * Shared cache invalidation by Cache-Tag (Workers Cache, optional zone cache,
+ * and the Next.js Data Cache webhook) plus purge-aware edge TTLs.
  *
  * The API Worker runs on workers.dev, where the legacy Cache API is unavailable.
  * The Worker-native cache therefore receives tag purges through its authenticated
@@ -21,6 +22,7 @@ import { logger } from '../utils/logger';
  *   ad:<id>                 /api/v1/ads/<id>
  *   city:<slug>             response filtered by ?city=<city>
  *   city:any                response NOT filtered by city
+ * Next.js route tags use the same route:* vocabulary; entity tags are ad/product/store/service/provider/category:<id>.
  */
 
 export type AdEdgeKind = 'edit' | 'create' | 'hide';
@@ -104,7 +106,13 @@ export const isWorkerCachePurgeEnabled = (): boolean => {
 };
 export const isEdgePurgeEnabled = (): boolean => {
   const cfg = config();
-  return Boolean(cfg?.enabled && (isZonePurgeConfigured(cfg) || (cfg.workerPurgeUrl && cfg.workerPurgeToken)));
+  return Boolean(
+    cfg?.enabled && (
+      isZonePurgeConfigured(cfg) ||
+      (cfg.workerPurgeUrl && cfg.workerPurgeToken) ||
+      (cfg.nextRevalidationUrl && cfg.nextRevalidationSecret)
+    )
+  );
 };
 
 const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
@@ -159,6 +167,36 @@ async function postPurge(tags: string[]): Promise<PurgeResult> {
         status: res.status,
         accepted: payload?.ok === true,
         detail: payload?.error ? `Workers Cache purge rejected: ${payload.error}` : `Workers Cache purge HTTP ${res.status}`,
+      };
+    }, tags));
+  }
+
+  // Next.js Data Cache invalidation. This shares the same coalesced tag batch
+  // as the Worker purge, but uses an HMAC-signed webhook so the Route Handler
+  // never accepts unauthenticated cache invalidation requests.
+  if (cfg.nextRevalidationUrl && cfg.nextRevalidationSecret) {
+    jobs.push(retryPurgeTarget('Next.js Data Cache', async () => {
+      const timestamp = Math.floor(Date.now() / 1000).toString();
+      const body = JSON.stringify({ tags });
+      const signature = createHmac('sha256', cfg.nextRevalidationSecret!)
+        .update(`${timestamp}.${body}`)
+        .digest('hex');
+      const res = await fetch(cfg.nextRevalidationUrl!, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-marketplat-timestamp': timestamp,
+          'x-marketplat-signature': `sha256=${signature}`,
+        },
+        body,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      const payload = (typeof res.json === 'function' ? await res.json().catch(() => null) : null) as { ok?: boolean; error?: string } | null;
+      return {
+        ok: res.ok,
+        status: res.status,
+        accepted: payload?.ok === true,
+        detail: payload?.error ? `Next.js cache revalidation rejected: ${payload.error}` : `Next.js cache revalidation HTTP ${res.status}`,
       };
     }, tags));
   }

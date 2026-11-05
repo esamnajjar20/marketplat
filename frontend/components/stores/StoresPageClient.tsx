@@ -2,11 +2,13 @@
 
 import dynamic from 'next/dynamic';
 import { ListPageShell } from '@/components/shared/list/ListPageShell';
+import type { BrowsePage } from '@/types/browse.types';
+import type { StoreWithSeller } from '@/types/store.types';
+import type { BrowseSearchParams } from '@/lib/browseSearchParams';
 
 const StoresGrid = dynamic(
   () => import('@/components/stores/StoresGrid').then((module) => module.StoresGrid),
   {
-    ssr: false,
     loading: () => (
       <div className="grid grid-cols-1 gap-3 py-2 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         {Array.from({ length: 6 }, (_, i) => (
@@ -30,7 +32,13 @@ const SearchSortBarWrapper = dynamic(
 );
 
 /** Public stores directory — copy & spacing aligned with design mockup «دليل المتاجر». */
-export function StoresPageClient() {
+interface StoresPageClientProps {
+  initialPage?: BrowsePage<StoreWithSeller> | null;
+  initialPageUpdatedAt?: number;
+  searchParams?: BrowseSearchParams;
+}
+
+export function StoresPageClient({ initialPage, initialPageUpdatedAt, searchParams }: StoresPageClientProps = {}) {
   return (
     <ListPageShell
       title="المتاجر"
@@ -45,7 +53,7 @@ export function StoresPageClient() {
       }
       sidebar={<StoresFilters />}
     >
-      <StoresGrid />
+      <StoresGrid initialPage={initialPage} initialPageUpdatedAt={initialPageUpdatedAt} searchParams={searchParams} />
     </ListPageShell>
   );
 }

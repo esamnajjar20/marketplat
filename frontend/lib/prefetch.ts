@@ -30,72 +30,80 @@
 import { dehydrate, type QueryClient } from '@tanstack/react-query';
 import { cache }        from 'react';
 import { queryKeys }    from './queryKeys';
-import { API_BASE_URL, CACHE_TTL } from './constants';
-import type { ApiResponse, PaginationMeta } from '@/types/api.types';
+import { CACHE_TTL } from './constants';
+import { fetchServerApi } from '@/lib/server/serverApiFetch';
+import { getPublicApiCacheTags } from '@/lib/server/serverCacheTags';
+import type { PaginationMeta } from '@/types/api.types';
+import type { BrowsePage } from '@/types/browse.types';
 import type { Category }    from '@/types/category.types';
+import type { ProductCategory } from '@/types/product.types';
+import type { ServiceCategory } from '@/types/service.types';
 import type { AdListItem, Ad } from '@/types/ad.types';
 import type { HomepagePayload } from '@/api/home.api';
 import { homeFeedQueryKey, type HomeFeedPayload } from '@/api/home-feed.api';
 
-// ── Raw fetch (no Axios — server context) ─────────────────────────
+// ── Public browse-page fetches ─────────────────────────────────────
 
 /**
- * API-INT-09 FIX: serverFetch improvements:
- *  1. Error message no longer leaks the internal API path — logs it server-side
- *     but throws a generic message that could surface to the client.
- *  2. Guards response body parsing: attempts JSON, falls back gracefully.
- *  3. Propagates HTTP status so callers can distinguish 404 vs 500.
+ * Fetch the first page of a public directory from a Server Component.
+ * The result is deliberately kept in the same `{ items, meta }` shape
+ * returned by the browser API clients' unwrapPaginated() helpers, so it
+ * can seed an existing useInfiniteQuery without changing pagination.
  */
-type ServerFetchOptions = {
-  cache?: 'no-store';
-  revalidateSeconds?: number;
-};
-
-const SERVER_FETCH_TIMEOUT_MS = 8_000;
-
-async function serverFetch<T>(
+export async function fetchPublicBrowsePage<T>(
   path: string,
-  options: ServerFetchOptions = {},
-): Promise<ApiResponse<T>> {
-  let res: Response;
-  try {
-    const cacheOptions = options.cache === 'no-store'
-      ? { cache: 'no-store' as const }
-      : { next: { revalidate: options.revalidateSeconds ?? 60 } };
-
-    res = await fetch(`${API_BASE_URL}${path}`, {
-      ...cacheOptions,
-      signal: AbortSignal.timeout(SERVER_FETCH_TIMEOUT_MS),
-    });
-  } catch (networkErr) {
-    // Network-level failure (DNS, refused connection, etc.)
-    console.error(`[serverFetch] Network error for ${path}:`, networkErr);
-    throw new Error('فشل الاتصال بالخادم');
+  params: Record<string, string | number | boolean | undefined>,
+  options: { revalidateSeconds?: number; timeoutMs?: number } = {},
+): Promise<BrowsePage<T>> {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue;
+    query.set(key, String(value));
   }
 
-  if (!res.ok) {
-    // Log path server-side only — do NOT include in the thrown Error
-    // because Next.js may surface thrown messages in RSC error boundaries.
-    console.error(`[serverFetch] HTTP ${res.status} for ${path}`);
-    throw new Error(`طلب الخادم فشل (${res.status})`);
+  const queryString = query.toString();
+  const url = `${path}${queryString ? `?${queryString}` : ''}`;
+
+  // Only the unfiltered first page with the canonical sort has useful,
+  // bounded cache-key reuse. Category/city/price/condition/type/location and
+  // free-text filters can all have high cardinality; keep them SSR-rendered,
+  // but bypass persistent Data Cache to avoid one entry per filter combination.
+  // Unknown future parameters are also no-store until explicitly reviewed.
+  const cacheableParams = new Set(['page', 'limit', 'sortBy', 'sortOrder']);
+  const meaningfulParams = Object.entries(params).filter(([, value]) =>
+    value !== undefined && value !== null && String(value).trim() !== ''
+  );
+  const isCanonicalDefaultList = meaningfulParams.every(([key, value]) => {
+    if (!cacheableParams.has(key)) return false;
+    if (key === 'page') return Number(value) === 1;
+    if (key === 'limit') return Number(value) === 10;
+    if (key === 'sortBy') return value === 'createdAt';
+    if (key === 'sortOrder') return value === 'desc';
+    return false;
+  });
+  const bypassPublicCache = !isCanonicalDefaultList;
+  const timeoutMs = options.timeoutMs ?? 3_000;
+  const response = bypassPublicCache
+    ? await fetchServerApi<T[]>(url, { mode: 'no-store', timeoutMs })
+    : await fetchServerApi<T[]>(url, {
+        mode: 'public',
+        revalidateSeconds: options.revalidateSeconds ?? 60,
+        tags: getPublicApiCacheTags(path),
+        timeoutMs,
+      });
+  if (!Array.isArray(response.data)) {
+    throw new Error('Public browse response did not contain a list');
   }
 
-  try {
-    const payload: unknown = await res.json();
-    if (
-      payload === null ||
-      typeof payload !== 'object' ||
-      Array.isArray(payload) ||
-      (payload as Record<string, unknown>).success !== true ||
-      typeof (payload as Record<string, unknown>).message !== 'string'
-    ) {
-      throw new Error('Invalid API response envelope');
-    }
-    return payload as ApiResponse<T>;
-  } catch (parseErr) {
-    console.error(`[serverFetch] Invalid JSON/envelope for ${path}:`, parseErr);
-    throw new Error('استجابة الخادم غير صالحة');
+  const pagination = response.meta?.pagination as PaginationMeta | undefined;
+  if (!pagination) {
+    throw new Error('Public browse response did not contain pagination metadata');
   }
+
+  return {
+    items: response.data,
+    meta: pagination,
+  };
 }
 
 // ── Prefetch functions ────────────────────────────────────────────
@@ -111,9 +119,44 @@ async function serverFetch<T>(
 export async function prefetchCategories(qc: QueryClient): Promise<void> {
   await qc.prefetchQuery({
     queryKey: queryKeys.categories.all(),
-    queryFn:  () => serverFetch<Category[]>('/categories').then((r) => r.data ?? []),
+    queryFn:  () => fetchServerApi<Category[]>('/categories', {
+      mode: 'public', revalidateSeconds: 300, tags: getPublicApiCacheTags('/categories'),
+    }).then((r) => r.data ?? []),
     staleTime: CACHE_TTL.categories,
   });
+}
+
+/**
+ * Prefetch the three small public taxonomy resources used by /categories.
+ * Do not fetch /home here: that aggregate also contains product, store,
+ * service, provider, carousel, recommendation and statistics payloads.
+ * The query keys and unwrapped array shapes intentionally match the three
+ * existing category hooks, including their offline snapshot fallback.
+ */
+export async function prefetchCategoryCatalog(qc: QueryClient): Promise<void> {
+  await Promise.all([
+    qc.prefetchQuery({
+      queryKey: queryKeys.categories.all(),
+      queryFn: () => fetchServerApi<Category[]>('/categories', {
+        mode: 'public', revalidateSeconds: 300, tags: getPublicApiCacheTags('/categories'),
+      }).then((response) => response.data ?? []),
+      staleTime: CACHE_TTL.categories,
+    }),
+    qc.prefetchQuery({
+      queryKey: queryKeys.productCategories.all(),
+      queryFn: () => fetchServerApi<ProductCategory[]>('/product-categories', {
+        mode: 'public', revalidateSeconds: 300, tags: getPublicApiCacheTags('/product-categories'),
+      }).then((response) => response.data ?? []),
+      staleTime: CACHE_TTL.categories,
+    }),
+    qc.prefetchQuery({
+      queryKey: queryKeys.serviceCategories.all(),
+      queryFn: () => fetchServerApi<ServiceCategory[]>('/service-categories', {
+        mode: 'public', revalidateSeconds: 300, tags: getPublicApiCacheTags('/service-categories'),
+      }).then((response) => response.data ?? []),
+      staleTime: CACHE_TTL.categories,
+    }),
+  ]);
 }
 
 /**
@@ -138,7 +181,9 @@ export async function prefetchAdList(
   await qc.prefetchQuery({
     queryKey: queryKeys.ads.list(params),
     queryFn:  () =>
-      serverFetch<AdListItem[]>(`/ads${query ? `?${query}` : ''}`).then((r) => ({
+      fetchServerApi<AdListItem[]>(`/ads${query ? `?${query}` : ''}`, {
+        mode: 'public', revalidateSeconds: 60, tags: getPublicApiCacheTags('/ads'),
+      }).then((r) => ({
         items: r.data ?? [],
         meta:  (r.meta?.pagination ?? {}) as PaginationMeta,
       })),
@@ -166,7 +211,7 @@ const fetchAdDetailCached = cache((id: string) =>
   // The API increments the ad view buffer on this endpoint. Do not add a
   // second 60-second Next Data Cache in front of the API's own edge policy;
   // keep deduplication scoped to this React request instead.
-  serverFetch<Ad>(`/ads/${encodeURIComponent(id)}`, { cache: 'no-store' }).then((r) => {
+  fetchServerApi<Ad>(`/ads/${encodeURIComponent(id)}`, { mode: 'no-store' }).then((r) => {
     if (r.data === undefined) {
       throw new Error(r.message || `Ad ${id} not found`);
     }
@@ -225,7 +270,9 @@ export async function prefetchHomepage(
       qc.prefetchQuery({
         queryKey: queryKeys.home.page(undefined),
         queryFn:  async () => {
-          const res = await serverFetch<HomepagePayload>('/home');
+          const res = await fetchServerApi<HomepagePayload>('/home', {
+            mode: 'public', revalidateSeconds: 60, tags: getPublicApiCacheTags('/home'),
+          });
           if (!res.data) throw new Error('empty /home response');
           return res.data;
         },
@@ -262,7 +309,9 @@ export async function prefetchHomeFeed(
         queryFn: async () => {
           // Guest SSR: the public /home/static is served from the Cloudflare edge
           // (the private /home/feed always went to Render).
-          const res = await serverFetch<HomeFeedPayload>('/home/static');
+          const res = await fetchServerApi<HomeFeedPayload>('/home/static', {
+            mode: 'public', revalidateSeconds: 60, tags: getPublicApiCacheTags('/home/static'),
+          });
           if (!res.data) throw new Error('empty /home/static response');
           return res.data;
         },

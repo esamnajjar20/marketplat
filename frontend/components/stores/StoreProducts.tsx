@@ -15,7 +15,7 @@ import { ROUTES } from '@/lib/constants';
 import { track } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 import type { ProductSortField } from '@/types/product.types';
-import { useStore } from '@/hooks/queries/useStores';
+import type { StoreType } from '@/types/store.types';
 import { getStoreTypeLabels } from '@/types/store.types';
 
 interface Props {
@@ -23,6 +23,7 @@ interface Props {
   /** اسم المتجر لعنوان ملف التحميل — اختياري */
   storeName?: string;
   offersOnly?: boolean;
+  storeType?: StoreType | null;
 }
 
 const SORT_OPTIONS: { value: string; label: string; sortBy: ProductSortField; sortOrder: 'asc' | 'desc' }[] = [
@@ -32,7 +33,7 @@ const SORT_OPTIONS: { value: string; label: string; sortBy: ProductSortField; so
   { value: 'views', label: 'الأكثر مشاهدة', sortBy: 'views', sortOrder: 'desc' },
 ];
 
-export function StoreProducts({ storeId, storeName, offersOnly = false }: Props) {
+export function StoreProducts({ storeId, storeName, offersOnly = false, storeType }: Props) {
   const router = useRouter();
   const sp = useSearchParams();
   // clamp URL page param to positive integer.
@@ -58,8 +59,7 @@ export function StoreProducts({ storeId, storeName, offersOnly = false }: Props)
     };
   }, []);
 
-  const { data: store } = useStore(storeId);
-  const storeLabels = getStoreTypeLabels(store?.storeType);
+  const storeLabels = getStoreTypeLabels(storeType);
   const { data, isLoading, isError, refetch } = useProducts({
     storeId,
     page,

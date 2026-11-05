@@ -8,21 +8,21 @@ import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { useInfiniteQuery } from '@tanstack/react-query';
 
 import Link from 'next/link';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { AdCard }         from '@/components/ads/AdCard';
 import { AdListItem }     from '@/components/ads/AdListItem';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { AdListItemSkeleton } from '@/components/shared/skeletons/AdListItemSkeleton';
-import { EmptySearchSuggestions } from '@/components/search/EmptySearchSuggestions';
 import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { Button }        from '@/components/shared/ui/Button';
 import { adsApi } from '@/api/ads.api';
-import { SaveSearchButton } from '@/components/ads/SaveSearchButton';
-import { ROUTES } from '@/lib/constants';
+import { CACHE_TTL, ROUTES } from '@/lib/constants';
+import { getBrowseNumber, getBrowseParam, type BrowseSearchParams } from '@/lib/browseSearchParams';
 import { useCategoryBySlug } from '@/hooks/queries/useCategories';
 import type { AdSortField } from '@/types/ad.types';
 import { LayoutGrid, LayoutList, Search } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
@@ -33,8 +33,23 @@ import { offlineMeta } from '@/lib/apiPagination';
 import { getOfflineList, saveOfflineList, OFFLINE_LIST_KEYS, OFFLINE_LIST_LIMITS } from '@/lib/offlineListCache';
 import { getOfflineBrowseSnapshot, saveOfflineBrowseSnapshot } from '@/lib/offlineBrowseSnapshots';
 import type { AdListItem as AdListItemData } from '@/types/ad.types';
+import type { BrowsePage } from '@/types/browse.types';
+import { SSR_BROWSE_PAGE_SIZE } from '@/lib/browseSearchParams';
+
+const SaveSearchButton = dynamic(
+  () => import('@/components/ads/SaveSearchButton').then((module) => module.SaveSearchButton),
+  { ssr: false, loading: () => null },
+);
+const EmptySearchSuggestions = dynamic(
+  () => import('@/components/search/EmptySearchSuggestions').then((module) => module.EmptySearchSuggestions),
+  { ssr: false, loading: () => null },
+);
 
 interface Props {
+  /** First page fetched by the route's Server Component. */
+  initialPage?: BrowsePage<AdListItemData> | null;
+  initialPageUpdatedAt?: number;
+  searchParams?: BrowseSearchParams;
   /**
    * FIX BUG-01: when SearchResults is rendered from the category page
    * (app/(public)/categories/[slug]/page.tsx), the category was never
@@ -52,9 +67,8 @@ interface Props {
   categorySlug?: string;
 }
 
-export function SearchResults({ categorySlug }: Props = {}) {
+export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt, searchParams = {} }: Props = {}) {
   const isOnline = useOnlineStatus();
-  const sp   = useSearchParams();
   const router = useRouter();
   // FIX ADS-PAGE-01: mirrors BUG-06 below (SearchFilters.tsx/
   // SearchSortBarWrapper.tsx already do this) — every base-URL fallback
@@ -71,15 +85,15 @@ export function SearchResults({ categorySlug }: Props = {}) {
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const { data: slugCategory } = useCategoryBySlug(categorySlug ?? '');
 
-  const q          = sp.get('q') ?? '';
+  const q          = getBrowseParam(searchParams, 'q') ?? '';
   // An explicit ?categoryId= in the URL (e.g. a sub-filter picked from
   // SearchFilters while already on the category page) takes precedence
   // over the route's own slug so users can still narrow further.
-  const categoryId = sp.get('categoryId') ?? slugCategory?.id ?? undefined;
-  const city       = sp.get('city') ?? undefined;
-  const condition  = sp.get('condition') as 'NEW' | 'USED' | 'REFURBISHED' | undefined;
-  const minPrice   = sp.get('minPrice') ? Number(sp.get('minPrice')) : undefined;
-  const maxPrice   = sp.get('maxPrice') ? Number(sp.get('maxPrice')) : undefined;
+  const categoryId = getBrowseParam(searchParams, 'categoryId') ?? slugCategory?.id ?? undefined;
+  const city       = getBrowseParam(searchParams, 'city');
+  const condition  = getBrowseParam(searchParams, 'condition') as 'NEW' | 'USED' | 'REFURBISHED' | undefined;
+  const minPrice   = getBrowseNumber(searchParams, 'minPrice');
+  const maxPrice   = getBrowseNumber(searchParams, 'maxPrice');
   // L-4 (audit fix): was hardcoded as 'createdAt' | 'price', excluding
   // 'views' even though AD_SORT_OPTIONS (lib/constants.ts) already
   // offers a "الأكثر مشاهدة" (Most Viewed) option that sets
@@ -90,8 +104,8 @@ export function SearchResults({ categorySlug }: Props = {}) {
   // shared AdSortField type (same one ad.types.ts and constants.ts
   // already use) instead of re-declaring the union here means this
   // can't drift from those again.
-  const sortBy     = (sp.get('sortBy') as AdSortField) ?? 'createdAt';
-  const sortOrder  = (sp.get('sortOrder') as 'asc' | 'desc') ?? 'desc';
+  const sortBy     = (getBrowseParam(searchParams, 'sortBy') as AdSortField) ?? 'createdAt';
+  const sortOrder  = (getBrowseParam(searchParams, 'sortOrder') as 'asc' | 'desc') ?? 'desc';
 
   const hasActiveFilters = Boolean(
     categoryId || city || condition || minPrice != null || maxPrice != null ||
@@ -104,7 +118,7 @@ export function SearchResults({ categorySlug }: Props = {}) {
   // instead of firing a dedicated search request.
   const isSearch = q.trim().length >= 2;
   const networkPolicy = useNetworkPolicy();
-  const pageSize = getAdaptivePageSize(12, networkPolicy);
+  const pageSize = initialPage ? SSR_BROWSE_PAGE_SIZE : getAdaptivePageSize(12, networkPolicy);
 
   // This screen uses useInfiniteQuery directly (not useAds), so its first
   // page previously bypassed the offline list snapshot entirely. Cache only
@@ -116,6 +130,9 @@ export function SearchResults({ categorySlug }: Props = {}) {
   const infiniteQuery = useInfiniteQuery({
     queryKey: queryKeys.ads.infinite(isSearch ? 'search' : 'browse', { q: isSearch ? q : undefined, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder, pageSize }),
     initialPageParam: 1,
+    initialData: initialPage ? { pages: [initialPage], pageParams: [1] } : undefined,
+    initialDataUpdatedAt: initialPageUpdatedAt,
+    staleTime: CACHE_TTL.adsList,
     queryFn: async ({ pageParam, signal }) => {
       try {
         const page = isSearch
@@ -141,6 +158,24 @@ export function SearchResults({ categorySlug }: Props = {}) {
     },
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
+  useEffect(() => {
+    if (!initialPage?.items.length) return;
+    saveOfflineBrowseSnapshot('ads', {
+      mode: isSearch ? 'search' : 'browse',
+      q: isSearch ? q : undefined,
+      categoryId: categoryId || undefined,
+      city: city || undefined,
+      condition: condition || undefined,
+      minPrice: minPrice ?? undefined,
+      maxPrice: maxPrice ?? undefined,
+      sortBy,
+      sortOrder,
+    }, initialPage.items);
+    if (isBaseOfflineBrowse) {
+      saveOfflineList(OFFLINE_LIST_KEYS.adsGridBrowse, initialPage.items, OFFLINE_LIST_LIMITS.adsGridBrowse);
+    }
+  }, [initialPage, isSearch, q, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder, isBaseOfflineBrowse]);
+
   const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = infiniteQuery;
   const items = data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [];
   const total = data?.pages[0]?.meta?.total ?? items.length;

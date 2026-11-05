@@ -1,4 +1,3 @@
-'use client';
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import Link from 'next/link';

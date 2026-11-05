@@ -13,7 +13,7 @@ try { importScripts('/cache-policy.js', '/cache-contract.js'); } catch (_) {}
 const MARKET_STORAGE_POLICY = self.MARKET_CACHE_POLICY?.storage?.serviceWorker ?? {};
 
 // ارفع الرقم عند تغيير سياسة الكاش أو استراتيجيات fetch.
-const CACHE_VERSION = 'v95';
+const CACHE_VERSION = 'v96';
 
 const STATIC_CACHE = `market-static-${CACHE_VERSION}`;
 const IMAGE_CACHE = `market-images-${CACHE_VERSION}`;
@@ -153,10 +153,10 @@ function extractStaticAssetUrls(html) {
 function isSafeShellMigrationEntry(request, response, sourceCacheName) {
   if (!request || !response || !response.ok || response.status === 206) return false;
   let url;
-  try { url = new URL(request._url); } catch { return false; }
+  try { url = new URL(request.url); } catch { return false; }
   if (url.origin !== self.location.origin) return false;
   if (url.pathname.startsWith('/api/') || url.pathname === '/api') return false;
-  if (url.pathname.startsWith('/admin') || isAuthPage(_url)) return false;
+  if (url.pathname.startsWith('/admin') || isAuthPage(url)) return false;
   if (url.pathname.startsWith('/_next/image')) return false;
 
   const contentType = (response.headers.get('content-type') || '').toLowerCase();
@@ -172,10 +172,10 @@ function isSafeShellMigrationEntry(request, response, sourceCacheName) {
   if (isRscKey || url.pathname.startsWith('/_next/') && !isStaticAsset) return false;
 
   if (sourceCacheName.startsWith('market-personal-shell-')) {
-    if (PROTECTED_AD_EDIT_RE.test(url.pathname) || !isPersonalShellRoute(_url)) return false;
+    if (PROTECTED_AD_EDIT_RE.test(url.pathname) || !isPersonalShellRoute(url)) return false;
     return isHtml;
   }
-  if (isProtectedPage(_url)) return false;
+  if (isProtectedPage(url)) return false;
   if (isStaticAsset) return true;
   if (isHtml) {
     // Don't migrate arbitrary query-specific pages; each query-specific
@@ -247,7 +247,7 @@ async function migrateShellCaches(cacheNames) {
         if (seen.has(dedupeKey)) continue;
         const response = await from.match(request, { ignoreVary: true });
         if (!isSafeShellMigrationEntry(request, response, migration.from)) continue;
-        const url = new URL(request._url);
+        const url = new URL(request.url);
         const cachedAt = Number(response.headers.get('X-SW-Cached-At')) || 0;
         const source = response.headers.get('X-SW-Cache-Source') || '';
         const contentType = (response.headers.get('content-type') || '').toLowerCase();
@@ -306,7 +306,7 @@ async function migrateShellCaches(cacheNames) {
 
   for (const asset of assetCandidates) {
     try {
-      const pathname = new URL(asset.request._url).pathname;
+      const pathname = new URL(asset.request.url).pathname;
       const age = asset.cachedAt ? now - asset.cachedAt : Infinity;
       const recent = age >= 0 && age <= SHELL_CACHE_MIGRATION_MAX_AGE_MS;
       if (!neededAssetPaths.has(pathname) && !recent) continue;
@@ -565,7 +565,7 @@ const API_PATH_PREFIX = '/api/v1';
 const PROTECTED_AD_EDIT_RE = /^\/ads\/[^/]+\/edit(?:\/.*)?$/;
 
 // صفحات شخصية: لا تُخزَّن في STATIC_CACHE العام. طابِقها مع middleware.ts.
-function isProtectedPage(_url) {
+function isProtectedPage(url) {
   if (PROTECTED_AD_EDIT_RE.test(url.pathname)) return true;
   const protectedPrefixes = [
     '/dashboard',
@@ -601,19 +601,19 @@ function isProtectedPage(_url) {
   );
 }
 
-function isNeverCache(_url) {
+function isNeverCache(url) {
   // FIX BUILD-ID-NOCACHE-01: /build-id.json?t=<now> is a version probe; it must
   // always hit the network and must never create a new STATIC_CACHE entry per load.
   return url.pathname.includes('/auth/') || url.pathname.includes('/csrf') ||
     url.pathname === '/build-id.json';
 }
 
-function isAuthPage(_url) {
+function isAuthPage(url) {
   const authPaths = ['/login', '/register', '/forgot-password', '/reset-password'];
   return authPaths.some((p) => url.pathname === p || url.pathname.startsWith(`${p}/`));
 }
 
-function isApiRequest(_url) {
+function isApiRequest(url) {
   return url.pathname.includes('/api/');
 }
 
@@ -633,18 +633,18 @@ const PUBLIC_LIST_API_PREFIXES = [
   '/api/v1/home/feed',
 ];
 
-function isPublicListApiPath(_url) {
+function isPublicListApiPath(url) {
   const path = url.pathname;
   return PUBLIC_LIST_API_PREFIXES.some((prefix) => path === prefix);
 }
 
 // تفاصيل العناصر العامة تُخزّن في مساحة المستخدم عند وجود Authorization،
 // كي تعمل الصفحات التي زارها المستخدم وهو مسجّل دون تسريبها إلى الكاش المشترك.
-function isPublicEntityDetailApiPath(_url) {
+function isPublicEntityDetailApiPath(url) {
   return /^\/api\/v\d+\/(?:ads|products|stores|sellers|service-listings)\/[^/]+\/?$/.test(url.pathname);
 }
 
-function isImageRequest(request, _url) {
+function isImageRequest(request, url) {
   if (request.destination === 'image') return true;
 
   const host = String(url.hostname || '').toLowerCase();
@@ -658,8 +658,17 @@ const EXTRA_API_ORIGINS = new Set(
     : [],
 );
 
-function isTrustedApiOrigin(_url) {
+function isTrustedApiOrigin(url) {
   return url.origin === self.location.origin || EXTRA_API_ORIGINS.has(url.origin);
+}
+
+// Queue records created by the current worker store `url`. Older worker builds
+// briefly persisted `_url`; accept it only as a migration fallback so already
+// queued operations remain replayable after a service-worker upgrade.
+function queuedEntryUrl(entry) {
+  if (typeof entry?.url === 'string' && entry.url.trim()) return entry.url.trim();
+  if (typeof entry?._url === 'string' && entry._url.trim()) return entry._url.trim();
+  return '';
 }
 
 // عناصر الطابور تُرسل مع الكوكيز والتوكن: لا تُرسل إلا لـ API الخاص بنا.
@@ -720,7 +729,7 @@ function _isUsableRscResponse(response) {
   return Boolean(response && response.ok && response.status !== 206 && hasRscContentType(response));
 }
 
-async function networkOnlyRscRequest(event, request, _url) {
+async function networkOnlyRscRequest(event, request) {
   try {
     const response = await withNavigationDeadline(fetch(request), NAVIGATE_MAX_WAIT_MS);
     if (!response) return Response.error();
@@ -769,7 +778,7 @@ function canonicalDocumentUrl(input) {
   return url;
 }
 
-function hubDocumentKey(request, _url) {
+function hubDocumentKey(request, url) {
   if (
     request.mode === 'navigate' &&
     HUB_PATHS.has(url.pathname) &&
@@ -799,14 +808,14 @@ function rscShellKey(input) {
   return `${url.pathname}?${query ? `${query}&` : ''}__offline_rsc_shell`;
 }
 
-function isPersonalShellRoute(_url) {
+function isPersonalShellRoute(url) {
   const path = url.pathname;
 
   if (PROTECTED_AD_EDIT_RE.test(path)) return false;
   if (path === '/admin' || path.startsWith('/admin/')) return false;
-  if (isAuthPage(_url)) return false;
+  if (isAuthPage(url)) return false;
 
-  return isProtectedPage(_url);
+  return isProtectedPage(url);
 }
 
 // يكشف captive portal (تحويل لأصل مختلف).
@@ -814,7 +823,7 @@ function isSameOriginResponse(response) {
   if (!response) return false;
   if (!response.redirected) return true;
   try {
-    return new URL(response._url).origin === self.location.origin;
+    return new URL(response.url).origin === self.location.origin;
   } catch {
     return false;
   }
@@ -843,7 +852,7 @@ async function normalizeExistingHtmlCache(cacheName) {
     for (const request of requests) {
       try {
         let url;
-        try { url = new URL(request._url); } catch { continue; }
+        try { url = new URL(request.url); } catch { continue; }
         if (url.origin !== self.location.origin || url.pathname.startsWith('/_next/') || url.pathname.startsWith('/api/')) continue;
         if (url.searchParams.has('_rsc') || url.searchParams.has('__offline_rsc_shell')) continue;
         if (/\.[a-z0-9]{2,8}$/i.test(url.pathname)) continue;
@@ -1101,7 +1110,7 @@ async function storeShellSaveFailure(statusKey) {
     await cache.put(markerUrl, new Response('failed', { headers: { 'Content-Type': 'text/plain' } }));
     const markers = (await cache.keys()).filter((request) => {
       try {
-        return new URL(request._url).pathname === SHELL_FAILURE_MARKER_PATH;
+        return new URL(request.url).pathname === SHELL_FAILURE_MARKER_PATH;
       } catch {
         return false;
       }
@@ -1124,7 +1133,7 @@ async function clearShellSaveFailure(statusKey) {
   }
 }
 
-function hasPrivateOfflineDocumentQuery(_url) {
+function hasPrivateOfflineDocumentQuery(url) {
   const privateKeys = new Set([
     'q', 'query', 'search', 'term', 'lat', 'lng', 'latitude', 'longitude',
     'location', 'coordinates', 'providerid', 'userid', 'ownerid', 'sellerid', 'storeownerid',
@@ -1142,7 +1151,7 @@ const inFlightShellSaves = new Map();
 function cacheVisitedDocumentShell(url, htmlCache, documentResponse, htmlCacheName = STATIC_CACHE) {
   let dedupeKey;
   try {
-    dedupeKey = `${htmlCacheName}\n${canonicalDocumentUrl(_url).href}`;
+    dedupeKey = `${htmlCacheName}\n${canonicalDocumentUrl(url).href}`;
   } catch {
     return Promise.resolve('failed');
   }
@@ -1178,7 +1187,7 @@ async function cacheVisitedDocumentShellInternal(url, htmlCache, documentRespons
   };
 
   try {
-    docUrl = canonicalDocumentUrl(_url);
+    docUrl = canonicalDocumentUrl(url);
     targetUrl = docUrl;
     // Search phrases and user/location context are intentionally not written
     // into the shared HTML shell cache. Their result data is not persisted either.
@@ -1210,7 +1219,7 @@ async function cacheVisitedDocumentShellInternal(url, htmlCache, documentRespons
     if (response.redirected) {
       let finalUrl = null;
       try {
-        finalUrl = canonicalDocumentUrl(response._url);
+        finalUrl = canonicalDocumentUrl(response.url);
       } catch {
         finalUrl = null;
       }
@@ -1306,7 +1315,7 @@ async function cacheVisitedDocumentShellInternal(url, htmlCache, documentRespons
 // كتابة الكاش بالخلفية دون حجب الرد.
 async function staleWhileRevalidate(event, request, cacheKey) {
   // Defense in depth: no call site may persist or replay Flight payloads as page data.
-  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request, new URL(request._url));
+  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request);
   const cache = await caches.open(STATIC_CACHE);
   const cachedResponse = await cache.match(cacheKey);
 
@@ -1354,7 +1363,7 @@ async function verifyCachedChunks(cachedResponse, cache) {
     // فعليًا؛ لا تعرض shell فارغًا على أنه نسخة أوفلاين صالحة.
     if (chunkUrls.length === 0) return /<body[^>]*>[\s\S]*?\S[\s\S]*?<\/body>/i.test(html);
     for (const url of chunkUrls) {
-      const hit = await cache.match(_url);
+      const hit = await cache.match(url);
       if (!isUsableStaticAssetResponse(url, hit)) return false;
     }
     return true;
@@ -1370,13 +1379,13 @@ async function verifyCachedChunks(cachedResponse, cache) {
 async function lookupShellWithFallback(cache, request, url, opts) {
   const allowBare = opts && typeof opts.allowBare === 'boolean'
     ? opts.allowBare
-    : !hasPrivateOfflineDocumentQuery(_url);
+    : !hasPrivateOfflineDocumentQuery(url);
   const isRsc = isRscShellRequest(request);
   const exact = await cache.match(request);
   if (exact) return exact;
   if (request.mode !== 'navigate' && !isRsc) return null;
   if (url.search) {
-    const canonicalUrl = canonicalDocumentUrl(_url);
+    const canonicalUrl = canonicalDocumentUrl(url);
     if (canonicalUrl.href !== url.href) {
       const canonicalKey = isRsc ? rscShellKey(canonicalUrl) : canonicalUrl.href;
       const canonicalHit = await cache.match(canonicalKey);
@@ -1397,11 +1406,11 @@ async function lookupShellWithFallback(cache, request, url, opts) {
 
 // صفحات عامة: شبكة أولًا ثم آخر نسخة مخزنة.
 async function networkFirstPage(event, request) {
-  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request, new URL(request._url));
-  const url = new URL(request._url);
+  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request);
+  const url = new URL(request.url);
   const cache = await caches.open(STATIC_CACHE);
 
-  const hasCachedShell = !!(await lookupShellWithFallback(cache, request, _url));
+  const hasCachedShell = !!(await lookupShellWithFallback(cache, request, url));
   const navigateTimeout = hasCachedShell ? NAVIGATE_TIMEOUT_CACHED_MS : NAVIGATE_TIMEOUT_MS;
   const fetchPromise = fetch(request);
   try {
@@ -1434,7 +1443,7 @@ async function networkFirstPage(event, request) {
       );
     }
 
-    const cachedResponse = await lookupShellWithFallback(cache, request, _url);
+    const cachedResponse = await lookupShellWithFallback(cache, request, url);
     if (cachedResponse) {
 
       if (!isRscShellRequest(request)) {
@@ -1469,15 +1478,15 @@ const protectedNavGeneration = new Map();
 // This deliberately prevents stale RSC patches or stale HTML from being returned
 // before the current deployment has had a chance to respond.
 async function _staleWhileRevalidatePage(event, request) {
-  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request, new URL(request._url));
+  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request);
   return networkFirstPage(event, request);
 }
 
 // صفحات محمية: شبكة أولًا؛ كاش PERSONAL_SHELL للمسارات المسموحة فقط.
-async function handleProtectedPage(event, request, _url) {
-  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request, new URL(request._url));
-  const useShellCache = isPersonalShellRoute(_url);
-  const cacheKey = hubDocumentKey(request, _url);
+async function handleProtectedPage(event, request, url) {
+  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request);
+  const useShellCache = isPersonalShellRoute(url);
+  const cacheKey = hubDocumentKey(request, url);
 
   const myGeneration = (protectedNavGeneration.get(url.pathname) || 0) + 1;
   protectedNavGeneration.set(url.pathname, myGeneration);
@@ -1536,7 +1545,7 @@ async function handleProtectedPage(event, request, _url) {
     if (useShellCache) {
       const shellCache = await caches.open(PERSONAL_SHELL_CACHE);
 
-      const cachedShell = await lookupShellWithFallback(shellCache, request, _url);
+      const cachedShell = await lookupShellWithFallback(shellCache, request, url);
       if (cachedShell) {
 
         if (!isRscShellRequest(request)) {
@@ -1567,15 +1576,15 @@ async function handleProtectedPage(event, request, _url) {
   }
 }
 
-async function handlePageRequest(event, request, _url) {
+async function handlePageRequest(event, request, url) {
   // RSC responses are router-state-specific transport, never public/personal page shells.
-  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request, new URL(request._url));
+  if (isRscShellRequest(request)) return networkOnlyRscRequest(event, request);
 
-  if (isProtectedPage(_url)) {
-    return handleProtectedPage(event, request, _url);
+  if (isProtectedPage(url)) {
+    return handleProtectedPage(event, request, url);
   }
 
-  if (isAuthPage(_url)) {
+  if (isAuthPage(url)) {
     return withNavigationDeadline(fetch(request), NAVIGATE_TIMEOUT_MS);
   }
 
@@ -1611,7 +1620,7 @@ async function findUsableImage(cache, request) {
 // Next.js may request an optimized URL (/_next/image?url=...&w=...&q=...),
 // while the original image was cached under its source URL. Try every bounded
 // image-capable cache for that source before giving up offline.
-async function findCachedNextImageSource(_url) {
+async function findCachedNextImageSource(url) {
   if (url.pathname !== '/_next/image') return null;
   const inner = url.searchParams.get('url');
   if (!inner) return null;
@@ -1636,7 +1645,7 @@ async function findCachedNextImageSource(_url) {
 }
 
 // الصور: IMAGE_CACHE ثم SAVED_ADS ثم CORE ثم الشبكة.
-async function cacheFirstImage(event, request, _url) {
+async function cacheFirstImage(event, request, url) {
 
   const cache = await caches.open(IMAGE_CACHE);
   const cached = await findUsableImage(cache, request);
@@ -1692,7 +1701,7 @@ async function cacheFirstImage(event, request, _url) {
     return response;
   } catch (error) {
 
-    const cachedSourceAfterNetworkFailure = await findCachedNextImageSource(_url);
+    const cachedSourceAfterNetworkFailure = await findCachedNextImageSource(url);
     if (cachedSourceAfterNetworkFailure) return cachedSourceAfterNetworkFailure;
     console.warn('[SW IMAGE] network error', request.url, error && error.message);
     return Response.error();
@@ -1721,7 +1730,7 @@ function inferCacheTier(cacheName, request) {
   if (cacheName.includes('personal-shell')) {
 
     try {
-      const path = new URL(request._url).pathname;
+      const path = new URL(request.url).pathname;
 
       if (path === '/settings/storage' || path === '/settings/sync') return 55;
     } catch {
@@ -1733,7 +1742,7 @@ function inferCacheTier(cacheName, request) {
   if (cacheName.includes('api')) return 15;
   if (cacheName.includes('static')) {
     try {
-      const parsedRequestUrl = new URL(request._url);
+      const parsedRequestUrl = new URL(request.url);
       if (parsedRequestUrl.searchParams.has('__offline_rsc_shell')) return 8;
       const path = parsedRequestUrl.pathname;
       if (path === '/offline' || path === '/') return 100;
@@ -1854,7 +1863,7 @@ async function trimCache(cacheName, maxEntries, maxBytes) {
       const contentType = (res && res.headers.get('content-type') || '').toLowerCase();
 
       const permanentShell = isPermanentShellKey(key, cacheName);
-      const permanentAsset = cacheName === STATIC_CACHE && permanentAssets.has(new URL(key._url).href);
+      const permanentAsset = cacheName === STATIC_CACHE && permanentAssets.has(new URL(key.url).href);
       const permanentBonus = permanentShell ? 1_000_000_000 : permanentAsset ? 900_000_000 : 0;
       const visitBonus = contentType.includes('text/html') && (source === 'visit' || source === 'visit-recovery')
         ? 100000
@@ -1938,7 +1947,7 @@ function isSafeUserApiSnapshot(response) {
 
 // حدّ صريح لعمر بيانات API عند العمل دون شبكة. نعتمد hardAfterMs من
 // السياسة المشتركة، ولا نسمح ببيانات مجهولة العمر أو بطابع زمني من المستقبل.
-function apiSnapshotMaxAgeMs(_url) {
+function apiSnapshotMaxAgeMs(url) {
   const policy = self.MARKET_CACHE_POLICY || {};
   const path = typeof url === 'string' ? new URL(url, self.location.origin).pathname : url.pathname;
   if (/\/api\/v\d+\/(?:categories|product-categories|service-categories)(?:\/|$)/i.test(path)) {
@@ -1961,7 +1970,7 @@ function isFreshCachedApiSnapshot(url, response, now = Date.now()) {
   const raw = response.headers?.get('X-SW-Cached-At');
   const cachedAt = raw ? Number(raw) : NaN;
   if (!Number.isFinite(cachedAt) || cachedAt <= 0 || cachedAt > now + 60_000) return false;
-  const maxAge = apiSnapshotMaxAgeMs(_url);
+  const maxAge = apiSnapshotMaxAgeMs(url);
   return Number.isFinite(maxAge) && maxAge > 0 && now - cachedAt <= maxAge;
 }
 
@@ -1977,7 +1986,7 @@ async function asStaleApiSnapshotIfInGrace(url, response) {
     const now = Date.now();
     if (!Number.isFinite(cachedAt) || cachedAt <= 0 || cachedAt > now + 60_000) return null;
     const age = now - cachedAt;
-    if (!(age > apiSnapshotMaxAgeMs(_url)) || age > STALE_API_GRACE_MS) return null;
+    if (!(age > apiSnapshotMaxAgeMs(url)) || age > STALE_API_GRACE_MS) return null;
     if (!(await isValidJsonApiSnapshot(response))) return null;
     const headers = new Headers(response.headers);
     headers.set('X-SW-Stale', '1');
@@ -2009,15 +2018,15 @@ async function isValidJsonApiSnapshot(response) {
 }
 
 // GET للـ API: شبكة أولًا ثم كاش آمن حسب الهوية.
-async function networkFirstApi(event, request, _url) {
+async function networkFirstApi(event, request, url) {
   const cache = await caches.open(API_CACHE);
   const fetchPromise = fetch(request);
   const hadAuth = request.headers.get('authorization') != null;
   const userCacheName = hadAuth ? userDataCacheForRequest(request) : null;
-  const publicListOk = isPublicListApiPath(_url);
-  const publicEntityDetail = isPublicEntityDetailApiPath(_url);
+  const publicListOk = isPublicListApiPath(url);
+  const publicEntityDetail = isPublicEntityDetailApiPath(url);
   const isAdminApi = url.pathname === '/api/admin' || url.pathname.startsWith('/api/admin/') || /\/api\/v\d+\/admin(?:\/|$)/i.test(url.pathname);
-  const isSensitiveApi = isNeverCache(_url) || isAdminApi || /\/(?:auth|csrf|sessions?|tokens?|password|payment-intents?|checkout\/confirm)(?:\/|$)/i.test(url.pathname);
+  const isSensitiveApi = isNeverCache(url) || isAdminApi || /\/(?:auth|csrf|sessions?|tokens?|password|payment-intents?|checkout\/confirm)(?:\/|$)/i.test(url.pathname);
 
   const storeIfAllowed = async (response) => {
     if (!response || isSensitiveApi) return;
@@ -2066,10 +2075,10 @@ async function networkFirstApi(event, request, _url) {
         if (cachedApi) { const staleSnapshot = await asStaleApiSnapshotIfInGrace(url, cachedApi); if (staleSnapshot) return staleSnapshot; }
         if (cachedApi && !isFreshCachedApiSnapshot(url, cachedApi)) await cache.delete(request).catch(() => {});
         const coreCache = await caches.open(CORE_CACHE);
-        const cachedCore = await coreCache.match(request._url);
+        const cachedCore = await coreCache.match(request.url);
         if (cachedCore && isSafeSharedApiSnapshot(cachedCore) && isFreshCachedApiSnapshot(url, cachedCore) && await isValidJsonApiSnapshot(cachedCore)) return cachedCore;
         if (cachedCore) { const staleSnapshot = await asStaleApiSnapshotIfInGrace(url, cachedCore); if (staleSnapshot) return staleSnapshot; }
-        if (cachedCore && !isFreshCachedApiSnapshot(url, cachedCore)) await coreCache.delete(request._url).catch(() => {});
+        if (cachedCore && !isFreshCachedApiSnapshot(url, cachedCore)) await coreCache.delete(request.url).catch(() => {});
       }
     } else {
 
@@ -2087,15 +2096,15 @@ async function networkFirstApi(event, request, _url) {
       if (cachedApi) { const staleSnapshot = await asStaleApiSnapshotIfInGrace(url, cachedApi); if (staleSnapshot) return staleSnapshot; }
       if (cachedApi && !isFreshCachedApiSnapshot(url, cachedApi)) await cache.delete(request).catch(() => {});
       const coreCache = await caches.open(CORE_CACHE);
-      const cachedCore = await coreCache.match(request._url);
+      const cachedCore = await coreCache.match(request.url);
       if (cachedCore && isSafeSharedApiSnapshot(cachedCore) && isFreshCachedApiSnapshot(url, cachedCore) && await isValidJsonApiSnapshot(cachedCore)) return cachedCore;
       if (cachedCore) { const staleSnapshot = await asStaleApiSnapshotIfInGrace(url, cachedCore); if (staleSnapshot) return staleSnapshot; }
-      if (cachedCore && !isFreshCachedApiSnapshot(url, cachedCore)) await coreCache.delete(request._url).catch(() => {});
+      if (cachedCore && !isFreshCachedApiSnapshot(url, cachedCore)) await coreCache.delete(request.url).catch(() => {});
     }
 
     if (!isSensitiveApi) {
       const savedCache = await caches.open(SAVED_ADS_CACHE);
-      const cachedSaved = await savedCache.match(request._url);
+      const cachedSaved = await savedCache.match(request.url);
       if (cachedSaved && await isValidJsonApiSnapshot(cachedSaved)) return cachedSaved;
     }
     if (timedOut) return fetchPromise.catch(() => Response.error());
@@ -2182,7 +2191,7 @@ function queueRequestEntryOnDb(db, entry, lifecycleVersion) {
           )
         : null;
       if (duplicate) {
-        if (duplicate.url !== entry.url || String(duplicate.method || '').toUpperCase() !== String(entry.method || '').toUpperCase()) {
+        if (queuedEntryUrl(duplicate) !== queuedEntryUrl(entry) || String(duplicate.method || '').toUpperCase() !== String(entry.method || '').toUpperCase()) {
           rejected = true;
           reject(Object.assign(new Error('Offline operation id was reused for a different request'), {
             code: 'QUEUE_OPERATION_ID_CONFLICT',
@@ -2494,10 +2503,11 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
     if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return 'still-offline';
     // Defense-in-depth: re-check immediately before any network side effect.
 
-    if (!isTrustedQueueUrl(entry._url)) {
+    const queuedUrl = queuedEntryUrl(entry);
+    if (!isTrustedQueueUrl(queuedUrl)) {
       const message = 'عنوان العملية غير مسموح به ولن تُرسل.';
       await markQueuedEntry(entry.id, { status: 'failed', lastError: { status: 400, message } });
-      await notifyClients({ type: 'QUEUE_ITEM_FAILED', id: entry.id, url: entry.url, status: 400, message, operationId: entry.operationId || null });
+      await notifyClients({ type: 'QUEUE_ITEM_FAILED', id: entry.id, url: queuedUrl, status: 400, message, operationId: entry.operationId || null });
       return 'failed';
     }
 
@@ -2528,7 +2538,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       await notifyClients({
         type: 'QUEUE_ITEM_FAILED',
         id: entry.id,
-        url: entry.url,
+        url: queuedUrl,
         status: 409,
         message: 'تعذّر التحقق من الحساب الذي أنشأ هذه العملية؛ لن تُرسل بجلسة حساب آخر.',
         operationId: entry.operationId || null,
@@ -2547,7 +2557,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       await notifyClients({
         type: 'QUEUE_ITEM_FAILED',
         id: entry.id,
-        url: entry.url,
+        url: queuedUrl,
         status: 409,
         message: 'عملية أوفلاين قديمة لا يمكن التحقق من الحساب الذي أنشأها. أعد تنفيذها من جديد.',
         operationId: entry.operationId || null,
@@ -2569,7 +2579,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       await notifyClients({
         type: 'QUEUE_ITEM_FAILED',
         id: entry.id,
-        url: entry.url,
+        url: queuedUrl,
         status: 403,
         message: 'هذه العملية مرتبطة بحساب آخر. سجّل الدخول بالحساب الأصلي قبل إعادة المحاولة.',
         operationId: entry.operationId || null,
@@ -2585,7 +2595,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
         try { replayController.abort(new DOMException('Offline queue request timed out', 'TimeoutError')); }
         catch { replayController.abort(); }
       }, QUEUE_REQUEST_TIMEOUT_MS);
-      response = await fetch(entry.url, {
+      response = await fetch(queuedUrl, {
         method: entry.method,
         headers: sendHeaders,
         body: entry.body ?? undefined,
@@ -2605,7 +2615,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       await notifyClients({
         type: 'QUEUE_ITEM_SENT',
         id: entry.id,
-        url: entry.url,
+        url: queuedUrl,
         operationId: entry.operationId || null,
       });
       return 'sent';
@@ -2622,7 +2632,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
     }
 
     if ((response.status === 401 || csrfRejected) && !hasRetriedAfterRefresh) {
-      const fresh = await refreshAccessToken(entry._url);
+      const fresh = await refreshAccessToken(queuedUrl);
       if (fresh && fresh.ok) {
 
         const updatedEntry = await getQueuedEntry(entry.id);
@@ -2663,7 +2673,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       await notifyClients({
         type: 'QUEUE_ITEM_FAILED',
         id: entry.id,
-        url: entry.url,
+        url: queuedUrl,
         status: response.status,
         message: message || 'الخادم لا يدعم هذه العملية أو إصدار البروتوكول؛ أوقفنا إعادة المحاولة التلقائية.',
         operationId: entry.operationId || null,
@@ -2698,7 +2708,7 @@ async function replayOne(entry, hasRetriedAfterRefresh, freshCreds, refreshReaso
       await notifyClients({
         type: 'QUEUE_ITEM_FAILED',
         id: entry.id,
-        url: entry.url,
+        url: queuedUrl,
         status: response.status,
         message,
         operationId: entry.operationId || null,
@@ -2748,12 +2758,12 @@ function queuePriorityRank(p) {
   return 2;
 }
 
-function isBatchableAnalyticsUrl(_url) {
+function isBatchableAnalyticsUrl(url) {
   return String(url || '').includes('/analytics/events');
 }
 
 async function tryCoalesceAnalyticsEntry(entry) {
-  if (!isBatchableAnalyticsUrl(entry._url) || entry.method !== 'POST') return false;
+  if (!isBatchableAnalyticsUrl(queuedEntryUrl(entry)) || entry.method !== 'POST') return false;
   if (!entry.body) return false;
 
   let newEvents;
@@ -2774,7 +2784,7 @@ async function tryCoalesceAnalyticsEntry(entry) {
     (e) =>
       e.status !== 'failed' && e.status !== 'cancelled' &&
       e.method === 'POST' &&
-      isBatchableAnalyticsUrl(e._url),
+      isBatchableAnalyticsUrl(queuedEntryUrl(e)),
   );
   if (!existing) return false;
 
@@ -2817,7 +2827,7 @@ async function tryCoalesceAnalyticsEntry(entry) {
 function getQueueConversationId(entry) {
   if (typeof entry?.conversationId === 'string' && entry.conversationId) return entry.conversationId;
   try {
-    const path = new URL(String(entry?.url || ''), self.location.origin).pathname;
+    const path = new URL(queuedEntryUrl(entry), self.location.origin).pathname;
     const match = path.match(/(?:^|\/)conversations\/([^/]+)\/messages(?:\/|$)/i);
     return match ? decodeURIComponent(match[1]) : null;
   } catch {
@@ -2827,7 +2837,7 @@ function getQueueConversationId(entry) {
 
 function isOrderSensitiveQueueEntry(entry) {
   try {
-    const path = new URL(String(entry?.url || ''), self.location.origin).pathname;
+    const path = new URL(queuedEntryUrl(entry), self.location.origin).pathname;
     return /\/(?:messages|chat)(?:\/|$)/i.test(path);
   } catch {
     return false;
@@ -2923,7 +2933,12 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
       (e.needsCsrf || e.needsAuth || isUnsafeMethod(e.method)),
   );
   if (anyNeedsCsrf && !(typeof navigator !== 'undefined' && navigator.onLine === false)) {
-    const r = await refreshAccessToken(entries[0]._url);
+    const refreshSample = entries.find((entry) =>
+      entry.status !== 'failed' && entry.status !== 'cancelled' &&
+      !hasActiveProcessingLease(entry) &&
+      (entry.needsCsrf || entry.needsAuth || isUnsafeMethod(entry.method))
+    ) || entries[0];
+    const r = await refreshAccessToken(queuedEntryUrl(refreshSample));
     if (queueClearInFlight || lifecycleVersion !== queueLifecycleVersion) return metrics;
     if (r && r.ok) {
       freshCreds = r;
@@ -2936,8 +2951,8 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
     typeof navigator !== 'undefined' && navigator.onLine === false;
 
   entries = entries.slice().sort((a, b) => {
-    const ra = queuePriorityRank(a.priority || inferQueuePriority(a.url, a.method));
-    const rb = queuePriorityRank(b.priority || inferQueuePriority(b.url, b.method));
+    const ra = queuePriorityRank(a.priority || inferQueuePriority(queuedEntryUrl(a), a.method));
+    const rb = queuePriorityRank(b.priority || inferQueuePriority(queuedEntryUrl(b), b.method));
     if (ra !== rb) return ra - rb;
     return (a.queuedAt || 0) - (b.queuedAt || 0);
   });
@@ -3045,7 +3060,7 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
       await notifyClients({
         type: 'QUEUE_ITEM_FAILED',
         id: entry.id,
-        url: entry.url,
+        url: queuedUrl,
         status: isServer ? 500 : 0,
         message: isServer
           ? 'فشل السيرفر بعد عدة محاولات'
@@ -3075,14 +3090,14 @@ async function replayQueueImpl(lifecycleVersion = queueLifecycleVersion) {
   return metrics;
 }
 
-function isAnalyticsBeacon(_url) {
+function isAnalyticsBeacon(url) {
   return url.pathname === '/api/v1/analytics/events';
 }
 
 // قائمة بيضاء لعمليات الكتابة التي يجوز تأجيلها.
 function isOfflineMutationQueueAllowed(request) {
   try {
-    const url = new URL(request._url);
+    const url = new URL(request.url);
     const path = url.pathname;
     const method = String(request.method || 'POST').toUpperCase();
     if (!path.startsWith('/api/v1/')) return false;
@@ -3109,7 +3124,7 @@ async function handleMutation(request) {
   const enqueueLifecycleVersion = queueLifecycleVersion;
 
   try {
-    const beaconUrl = new URL(request._url);
+    const beaconUrl = new URL(request.url);
     if (isAnalyticsBeacon(beaconUrl)) {
       try {
         return await fetch(request);
@@ -3122,7 +3137,7 @@ async function handleMutation(request) {
   }
 
   try {
-    const presenceUrl = new URL(request._url);
+    const presenceUrl = new URL(request.url);
     if (presenceUrl.pathname.endsWith('/users/me/presence')) {
 
       return fetch(request);
@@ -3351,7 +3366,7 @@ self.addEventListener('activate', (event) => {
           keys
             .filter((req) => {
               try {
-                const p = new URL(req._url).pathname;
+                const p = new URL(req.url).pathname;
                 return authPathPrefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
               } catch {
                 return false;
@@ -3413,7 +3428,7 @@ self.addEventListener('message', (event) => {
   }
 
   if (type === 'CACHE_VISITED_PAGE') {
-    event.waitUntil(cacheVisitedPageFromClient(event.data?._url).catch(() => 'failed'));
+    event.waitUntil(cacheVisitedPageFromClient(event.data?.url ?? event.data?._url).catch(() => 'failed'));
     return;
   }
 
@@ -3457,7 +3472,7 @@ self.addEventListener('message', (event) => {
 
     const matchesPrefix = (request) => {
       try {
-        const pathname = new URL(request._url).pathname;
+        const pathname = new URL(request.url).pathname;
         return effectivePrefixes.some((prefix) =>
           pathname === prefix || pathname.startsWith(`${prefix}/`) || pathname.startsWith(`${prefix}?`),
         );
@@ -3751,7 +3766,7 @@ self.addEventListener('push', (event) => {
   if (!data || typeof data !== 'object' || Array.isArray(data)) data = {};
 
   const title = (typeof data.title === 'string' && data.title.trim() ? data.title : 'سوق غزة').slice(0, 120);
-  const targetUrl = safeSameOriginUrl(data._url);
+  const targetUrl = safeSameOriginUrl(data.url ?? data._url);
   const pushTag = typeof data.tag === 'string' && data.tag ? data.tag.slice(0, 100) : undefined;
   const options = {
     body: typeof data.body === 'string' ? data.body.slice(0, 400) : '',
@@ -3789,7 +3804,7 @@ self.addEventListener('push', (event) => {
               return (
                 c.visibilityState === 'visible' &&
                 c.focused === true &&
-                new URL(c._url).pathname === targetPath
+                new URL(c.url).pathname === targetPath
               );
             } catch {
               return false;
@@ -3810,7 +3825,7 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   if (action === 'dismiss') return;
 
-  const rawUrl = safeSameOriginUrl(event.notification.data && event.notification.data._url);
+  const rawUrl = safeSameOriginUrl(event.notification.data && (event.notification.data.url ?? event.notification.data._url));
 
   const targetPath = (() => {
     try {
@@ -3826,7 +3841,7 @@ self.addEventListener('notificationclick', (event) => {
       let sameOriginFallback = null;
       for (const client of clientsList) {
         try {
-          const parsed = new URL(client._url);
+          const parsed = new URL(client.url);
           if (parsed.origin !== self.location.origin) continue;
           if (parsed.pathname === targetPath && 'focus' in client) {
             return client.focus();
@@ -3854,14 +3869,14 @@ self.addEventListener('notificationclick', (event) => {
 // الموجِّه الرئيسي للطلبات.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
-  const url = new URL(request._url);
+  const url = new URL(request.url);
 
   if (isReadBatchRequest(url, request)) return;
 
   if (
     url.origin !== self.location.origin &&
-    !(isApiRequest(_url) && isTrustedApiOrigin(_url)) &&
-    !isImageRequest(request, _url)
+    !(isApiRequest(url) && isTrustedApiOrigin(url)) &&
+    !isImageRequest(request, url)
   ) {
     return;
   }
@@ -3870,13 +3885,13 @@ self.addEventListener('fetch', (event) => {
   if (request.cache === 'only-if-cached' && request.mode !== 'same-origin') return;
 
   if (request.method !== 'GET' && request.method !== 'OPTIONS') {
-    if (isApiRequest(_url) && isTrustedApiOrigin(_url) && !isNeverCache(_url)) {
+    if (isApiRequest(url) && isTrustedApiOrigin(url) && !isNeverCache(url)) {
       event.respondWith(handleMutation(request));
     }
     return;
   }
 
-  if (isNeverCache(_url)) {
+  if (isNeverCache(url)) {
     return;
   }
 
@@ -3884,7 +3899,7 @@ self.addEventListener('fetch', (event) => {
   // without respondWith made an offline navigation to /login (logged-out user, or
   // the protected layout's redirect) show the browser's native error page. Keep the
   // network passthrough, and fall back to the in-app retry page on a real failure.
-  if (request.mode === 'navigate' && isAuthPage(_url)) {
+  if (request.mode === 'navigate' && isAuthPage(url)) {
     event.respondWith(
       withNavigationDeadline(fetch(request), NAVIGATE_TIMEOUT_MS)
         .catch(() => buildOfflineErrorPage()),
@@ -3892,23 +3907,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (isAuthPage(_url)) {
+  if (isAuthPage(url)) {
     return;
   }
 
-  if (isImageRequest(request, _url)) {
+  if (isImageRequest(request, url)) {
 
-    event.respondWith(cacheFirstImage(event, request, _url));
+    event.respondWith(cacheFirstImage(event, request, url));
     return;
   }
 
-  if (isApiRequest(_url) && isTrustedApiOrigin(_url)) {
-    event.respondWith(networkFirstApi(event, request, _url));
+  if (isApiRequest(url) && isTrustedApiOrigin(url)) {
+    event.respondWith(networkFirstApi(event, request, url));
     return;
   }
 
   if (request.mode === 'navigate' || isRscShellRequest(request)) {
-    event.respondWith(handlePageRequest(event, request, _url));
+    event.respondWith(handlePageRequest(event, request, url));
     return;
   }
 
