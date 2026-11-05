@@ -13,7 +13,6 @@ import type { PublicUser }     from '@/types/user.types';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { getQueryClient } from '@/lib/queryClient';
 import { queryKeys } from '@/lib/queryKeys';
-import { CACHE_TTL } from '@/lib/constants';
 import { fetchServerApi } from '@/lib/server/serverApiFetch';
 import type { AdListItem } from '@/types/ad.types';
 import type { PaginationMeta } from '@/types/api.types';
