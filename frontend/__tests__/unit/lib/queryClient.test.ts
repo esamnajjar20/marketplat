@@ -5,9 +5,9 @@
  *  - makeQueryClient: creates a QueryClient with correct default options
  *  - shouldRetry (via defaultOptions.queries.retry):
  *    * network error (status 0) → retry on first failure, not second
- *    * 5xx → retry once
+ *    * transient server errors (including 500) → retry once
  *    * 4xx → never retry
- *    * 401/403/404/409/422/429 → never retry
+ *    * permanent client errors (401/403/404/409/422) → never retry
  *  - getQueryClient: returns browser singleton
  *  - getQueryClient: creates new instance on each SSR call
  */
@@ -101,9 +101,10 @@ describe('shouldRetry (via QueryClient defaultOptions)', () => {
 
   // ── 5xx server errors ─────────────────────────────────────────
 
-  it('does NOT retry generic 500 (only 502/503/504 are retryable 5xx)', () => {
+  it('retries 500 Internal Server Error once for safe queries', () => {
     const qc = makeQueryClient();
-    expect(retry(qc, 0, 500)).toBe(false);
+    expect(retry(qc, 0, 500)).toBe(true);
+    expect(retry(qc, 1, 500)).toBe(false);
   });
 
   it('retries 503 on first failure', () => {

@@ -1,7 +1,7 @@
 import type { ParsedError } from '@/lib/errorParser';
 
 /** Single frontend policy for interpreting the normalized API error contract. */
-export const RETRYABLE_HTTP_STATUSES = [408, 425, 429, 502, 503, 504] as const;
+export const RETRYABLE_HTTP_STATUSES = [408, 425, 429, 500, 502, 503, 504] as const;
 
 export function isNetworkError(error: Partial<ParsedError> | null | undefined): boolean {
   return error?.statusCode === 0 || error?.code === 'NETWORK_ERROR' || error?.code === 'ERR_NETWORK';

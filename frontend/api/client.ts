@@ -199,40 +199,26 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   // the response interceptor below converts that into OFFLINE_QUEUED,
   // preventing UI code from falsely claiming the server already changed.
 
-  // FIX MUTATION-TIMEOUT-01: cap state-changing requests at 8s instead
-  // of the global 15s. On Gaza mobile networks (this app's target
-  // audience) a POST the browser thinks is "online" can sit silently
-  // for the full 15s before axios gives up and onError fires — during
-  // which the user sees "جاري الحفظ..." with zero progress. 8s halves
-  // the worst perceived hang. Multipart uploads (which need real
-  // bandwidth) override this via mediaApi's own 30s budget; GETs keep
-  // the 15s global since they have no fallback.
-  // FIX MUTATION-TIMEOUT-02: axios merges the instance's timeout
-  // default into config before this interceptor runs, so config.timeout
-  // was never undefined and the 8s cap for mutations never actually
-  // applied - every POST/PUT/PATCH/DELETE hung the full 15s that
-  // FIX MUTATION-TIMEOUT-01 was written to avoid. Drop the instance-level
-  // default and decide here: safe methods get 15s, mutations 8s. Explicit
-  // per-call timeouts (e.g. mediaApi's 30s multipart budget) still win -
-  // they arrive as a non-undefined config.timeout and are left alone.
-  // T665 — axios's own default is `timeout: 0` (no timeout), not
-  // `undefined`. mergeConfig copies that 0 into config before this
-  // interceptor runs, so `config.timeout === undefined` was always
-  // false and the caps below never actually applied — every request
-  // (GET included) ran with axios's "no timeout" default. `!config.timeout`
-  // catches both 0 and undefined, and still leaves any explicit
-  // per-call timeout (e.g. mediaApi's 30s multipart budget) alone
-  // since those arrive non-zero.
+  // Respect explicit per-call timeouts (for example, media uploads). For
+  // the default, keep the browser read deadline above the API Gateway's
+  // maximum 30s per-origin timeout. The previous adaptive values could be
+  // 12s (fast) or 18s (unknown), causing the browser to abort a GET before
+  // the Worker finished its upstream attempt and could return a status or
+  // fail over. That surfaced as generic errors across otherwise unrelated
+  // pages; a fresh manual retry often succeeded once the backend was warm.
+  // Mutations retain the adaptive policy because replaying writes is unsafe.
   if (!config.timeout) {
-    // Phase 2: use the central NetworkPolicy instead of a fixed timeout.
-    // Auth remains deliberately longer because refresh rotation is a
-    // correctness-critical path; explicit per-call timeouts still win.
     const url = config.url ?? '';
     const isAuthPath = url.includes('/auth/');
     const policyTimeout = getNetworkPolicy().requestTimeoutMs;
+    const effectivePolicyTimeout = policyTimeout > 0
+      ? policyTimeout
+      : (isSafeHttpMethod(method) ? 15_000 : 8_000);
     config.timeout = isAuthPath
       ? 20_000
-      : (policyTimeout > 0 ? policyTimeout : (isSafeHttpMethod(method) ? 15_000 : 8_000));
+      : isSafeHttpMethod(method)
+        ? Math.max(effectivePolicyTimeout, 32_000)
+        : effectivePolicyTimeout;
   }
 
   // PHASE-1 UX: sample RTT for connection quality indicator

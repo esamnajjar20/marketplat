@@ -18,4 +18,10 @@ describe('unified frontend error contract', () => {
     expect(errorMessages[ErrorCode.INTERNAL_ERROR]).toBe('خطأ في الخادم، يرجى المحاولة لاحقاً');
     expect(errorMessages[ErrorCode.RATE_LIMIT_EXCEEDED]).toContain('طلبات كثيرة');
   });
+
+  it('explains the open-request quota and uses the limit returned by the API', () => {
+    expect(getErrorMessage('MAX_OPEN_REQUESTS')).toContain('(5)');
+    expect(getErrorMessage('MAX_OPEN_REQUESTS', { maxOpenRequests: 8 })).toContain('(8)');
+    expect(getErrorMessage('MAX_OPEN_REQUESTS', { maxOpenRequests: -1 })).toContain('(5)');
+  });
 });

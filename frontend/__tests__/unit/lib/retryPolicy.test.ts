@@ -17,7 +17,7 @@ describe('retryPolicy', () => {
   });
 
   it('recognizes transient HTTP statuses including rate limiting', () => {
-    for (const status of [408, 425, 429, 502, 503, 504]) {
+    for (const status of [408, 425, 429, 500, 502, 503, 504]) {
       expect(isRetryableHttpStatus(status)).toBe(true);
     }
     expect(isRetryableHttpStatus(400)).toBe(false);
@@ -45,6 +45,7 @@ describe('retryPolicy', () => {
   it('treats status 0 and transient HTTP statuses as retryable parsed errors', () => {
     expect(isRetryableParsedError({ statusCode: 0 })).toBe(true);
     expect(isRetryableParsedError({ statusCode: 429 })).toBe(true);
+    expect(isRetryableParsedError({ statusCode: 500 })).toBe(true);
     expect(isRetryableParsedError({ statusCode: 400 })).toBe(false);
   });
 });

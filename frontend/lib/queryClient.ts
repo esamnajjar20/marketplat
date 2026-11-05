@@ -7,7 +7,7 @@
  *
  * API-INT-04 FIX: Default retry:1 was retrying ALL errors including 4xx.
  *   Permanent client errors (400/401/403/404/409/422) are not retried.
- *   Transient network/408/429/502/503/504 failures may retry once.
+ *   Transient network/408/429/500/502/503/504 failures may retry once.
  *   Axios marks a retry it already consumed so TanStack Query does not stack another one.
  */
 import { QueryClient } from '@tanstack/react-query';

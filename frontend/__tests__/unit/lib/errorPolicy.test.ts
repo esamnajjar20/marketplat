@@ -4,6 +4,7 @@ describe('unified error policy', () => {
   it('uses one retry policy for transient failures', () => {
     expect(isRetryableStatus(408)).toBe(true);
     expect(isRetryableStatus(429)).toBe(true);
+    expect(isRetryableStatus(500)).toBe(true);
     expect(isRetryableStatus(503)).toBe(true);
     expect(isRetryableStatus(400)).toBe(false);
     expect(isRetryableError({ statusCode: 0, code: 'NETWORK_ERROR' })).toBe(true);

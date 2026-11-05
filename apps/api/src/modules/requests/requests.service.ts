@@ -163,7 +163,8 @@ export const requestsService = {
     if (openCount >= MAX_OPEN_REQUESTS) {
       throw new ConflictError(
         `You already have ${MAX_OPEN_REQUESTS} open requests. Close or wait for one to expire.`,
-        'MAX_OPEN_REQUESTS'
+        'MAX_OPEN_REQUESTS',
+        { maxOpenRequests: MAX_OPEN_REQUESTS }
       );
     }
 

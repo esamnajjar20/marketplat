@@ -86,8 +86,19 @@ export const requestsRepository = {
       },
     }),
 
-  countOpenByCustomer: (customerId: string): Promise<number> =>
-    prisma.request.count({ where: { customerId, status: 'OPEN' } }),
+  // Count only requests that are still active. The public feed and offer
+  // acceptance already treat an OPEN row with an elapsed expiresAt as
+  // expired; the daily expiry worker may not have flipped its status yet.
+  // Excluding those rows here prevents stale OPEN records from exhausting
+  // the customer's creation quota between worker runs.
+  countOpenByCustomer: (customerId: string, now = new Date()): Promise<number> =>
+    prisma.request.count({
+      where: {
+        customerId,
+        status: 'OPEN',
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+      },
+    }),
 
   findById: (id: string): Promise<RequestWithRelations | null> =>
     prisma.request.findUnique({ where: { id }, include: requestDetailInclude }),

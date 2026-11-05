@@ -13,7 +13,7 @@ describe('handleChunkLoadError', () => {
     reload.mockReset();
     Object.defineProperty(window, 'location', {
       configurable: true,
-      value: { ...window.location, reload },
+      value: { ...window.location, pathname: '/ads', reload },
     });
     onLineSpy = vi.spyOn(navigator, 'onLine', 'get');
   });
@@ -29,10 +29,21 @@ describe('handleChunkLoadError', () => {
     expect(isChunkLoadError(new TypeError("Cannot read properties of null (reading 'name')"))).toBe(false);
   });
 
-  it('reloads once when online', () => {
+  it('reloads once on a non-home route when online', () => {
     onLineSpy.mockReturnValue(true);
     expect(handleChunkLoadError(chunkError)).toBe(true);
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not automatically reload the homepage when a scroll-loaded chunk fails', () => {
+    onLineSpy.mockReturnValue(true);
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, pathname: '/', reload },
+    });
+
+    expect(handleChunkLoadError(chunkError)).toBe(false);
+    expect(reload).not.toHaveBeenCalled();
   });
 
   it('does not reload when offline', () => {

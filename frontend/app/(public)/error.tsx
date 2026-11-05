@@ -43,6 +43,7 @@ interface PublicErrorProps {
  */
 export default function PublicError({ error, reset }: PublicErrorProps) {
   const [recovering, setRecovering] = useState(false);
+  const chunkFailed = isChunkLoadError(error);
 
 
 useEffect(() => {
@@ -82,7 +83,7 @@ useEffect(() => {
         </code>
       )}
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <Button onClick={reset}>حاول مجدداً</Button>
+        <Button onClick={chunkFailed ? () => window.location.reload() : reset}>حاول مجدداً</Button>
         <Button variant="outline" asChild>
           <Link href={ROUTES.home}>العودة للرئيسية</Link>
         </Button>

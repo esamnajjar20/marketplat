@@ -28,6 +28,11 @@ vi.mock('@/components/home/HomeBusyBoundary', () => ({
 vi.mock('@/components/shared/LazySection', () => ({
   LazySection: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
+vi.mock('@/components/home/HomeSectionBoundary', () => ({
+  HomeSectionBoundary: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="home-section-boundary">{children}</div>
+  ),
+}));
 vi.mock('@/lib/prefetch', () => ({ prefetchHomeFeed: vi.fn().mockResolvedValue(undefined) }));
 
 describe('HomePageContent', () => {
@@ -47,6 +52,9 @@ describe('HomePageContent', () => {
     ]) {
       expect(await screen.findByTestId(id)).toBeInTheDocument();
     }
+    // Every scroll-loaded dynamic section (including the bottom app promo)
+    // must fail locally instead of bubbling to the route-level auto-reload.
+    expect(screen.getAllByTestId('home-section-boundary')).toHaveLength(8);
   });
 
   it('keeps the documented section order', async () => {

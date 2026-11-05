@@ -304,6 +304,23 @@ const PUBLIC_LIVE = {
   assert.equal(r.headers.get('x-proxy-cache'), 'STALE-ERROR');
 }
 
+/* ───────────── stale public data also survives a transient rate-limit response ───────────── */
+{
+  let limited = false;
+  const { call, settle, ageEntry } = harness({
+    upstream: async () => limited
+      ? new Response('rate limited', { status: 429, headers: { 'retry-after': '2' } })
+      : json({ items: [{ id: 'store-1' }] }, PUBLIC_LIVE),
+  });
+  await call('/api/v1/stores?limit=10'); await settle();
+  await ageEntry(() => true, 1000);
+  limited = true;
+  const response = await call('/api/v1/stores?limit=10');
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('x-proxy-cache'), 'STALE-ERROR');
+  assert.deepEqual(await response.json(), { items: [{ id: 'store-1' }] });
+}
+
 /* ───────────── #9 negative caching ───────────── */
 {
   const { call, upstreamLog, settle, ageEntry } = harness({
@@ -494,7 +511,7 @@ const PUBLIC_LIVE = {
     kv,
     envOverrides: { GATEWAY_ADMIN_TOKEN: 'admin-secret', GATEWAY_HEALTH: registryCoordinator },
     upstream: async (url) => {
-      if (new URL(url).hostname === 'backend-a.example.com') return new Response('temporarily unavailable', { status: 503 });
+      if (new URL(url).hostname === 'backend-a.example.com') return new Response('internal error', { status: 500 });
       return json({ backend: 'b' }, { 'cache-control': 'private, no-store' });
     },
   });
@@ -510,7 +527,7 @@ const PUBLIC_LIVE = {
   assert.equal(failover.headers.get('x-mp-route-attempts'), '2');
   assert.equal(failover.headers.get('x-mp-route-mode'), 'pool');
 
-  // A second failure opens backend-a's isolate-local circuit in this no-DO scenario; the next request goes
+  // A second 500 opens backend-a's isolate-local circuit in this no-DO scenario; the next request goes
   // directly to backend-b. This state is intentionally not written to KV per request.
   const failoverAgain = await h.call('/api/v1/home/for-you');
   assert.equal(failoverAgain.status, 200);

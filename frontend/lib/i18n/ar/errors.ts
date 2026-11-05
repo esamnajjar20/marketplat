@@ -16,6 +16,7 @@
 
 export interface ErrorMeta {
   maxPerUser?: number;
+  maxOpenRequests?: number;
   [key: string]: unknown;
 }
 
@@ -249,7 +250,15 @@ export const errorMessages: Record<KnownErrorCode, ErrorMessageEntry> = {
   LIST_LIMIT: 'تم تجاوز الحد المسموح، يرجى المحاولة لاحقاً',
   LIST_NAME_EXISTS: 'هذه العملية أو البيانات موجودة بالفعل',
   LIST_NOT_FOUND: 'العنصر المطلوب غير موجود',
-  MAX_OPEN_REQUESTS: 'تعذّر تنفيذ الطلب، يرجى المحاولة مرة أخرى',
+  MAX_OPEN_REQUESTS: (meta) => {
+    const limit =
+      typeof meta?.maxOpenRequests === 'number' &&
+      Number.isFinite(meta.maxOpenRequests) &&
+      meta.maxOpenRequests > 0
+        ? meta.maxOpenRequests
+        : 5;
+    return `وصلت إلى الحد الأقصى (${limit}) من الطلبات المفتوحة. ألغِ طلبًا مفتوحًا أو انتظر انتهاء صلاحيته قبل نشر طلب جديد.`;
+  },
   MEMBER_NOT_FOUND: 'العنصر المطلوب غير موجود',
   MEMBER_REMOVED: 'تعذّر تنفيذ الطلب، يرجى المحاولة مرة أخرى',
   MESSAGE_EMPTY: 'تعذّر تنفيذ الطلب، يرجى المحاولة مرة أخرى',

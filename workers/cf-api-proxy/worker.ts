@@ -706,7 +706,19 @@ function buildGatewayTargetUrl(origin: string, target: GatewayTarget): string {
 }
 
 function isFailoverStatus(status: number): boolean {
-  return status === 502 || status === 503 || status === 504;
+  // Only read-only GET/HEAD requests reach this policy. 500 is an application
+  // server failure just as transient as 502/503/504 for a replicated pool;
+  // 408/425 also indicate that this origin could not safely serve the read.
+  // Deliberately exclude 429: it is commonly a shared user/IP rate limit, so
+  // fanning it out to every replica would amplify load instead of helping.
+  return status === 408 || status === 425 || status === 500 || status === 502 || status === 503 || status === 504;
+}
+
+function isTransientUpstreamFailure(status: number): boolean {
+  // For public cacheable GETs, stale content is safer and more useful than a
+  // hard page-level error during a short upstream outage or rate-limit window.
+  return status === 408 || status === 425 || status === 429 ||
+    status === 500 || status === 502 || status === 503 || status === 504;
 }
 
 function gatewayHealthObject(env: Env): DurableObjectStubLike | null {
@@ -1630,8 +1642,8 @@ function timingSafeEqual(a: string | null, b: string): boolean {
  * waiters.
  */
 async function processUpstream(upstream: Response | null, ms: number, { canon, cache, cacheKey, ctx, env, awaitStore }: ProcessUpstreamArgs): Promise<ResponseDescriptor> {
-  // Network error / 5xx -> stale-on-error
-  if (!upstream || upstream.status >= 500) {
+  // Network error / transient upstream status -> stale-on-error.
+  if (!upstream || isTransientUpstreamFailure(upstream.status)) {
     if (STALE_ON_ERROR) {
       const stale = await safeCacheMatch(cache, cacheKey);
       if (stale) return storedToDesc(stale, 'STALE-ERROR', ms);

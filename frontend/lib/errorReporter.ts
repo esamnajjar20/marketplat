@@ -73,11 +73,10 @@ export function reportClientError(error: Error, context?: Record<string, unknown
  * load a page, the referenced chunk has rotated, and the route's error
  * boundary renders "حدث خطأ أثناء تحميل هذه الصفحة" instead of the page.
  *
- * Fix: detect that specific failure, force ONE hard reload to fetch the
- * new chunks, and — if the same failure recurs within a short window —
- * stop looping and let the normal error UI show instead. The short
- * window prevents a genuinely broken deployment (where the chunks
- * never resolve) from reloading forever.
+ * Recovery policy: a single hard reload may repair a stale chunk on
+ * ordinary routes. Repeated failures are left to the route/section error
+ * UI; automatic cache purges are deliberately avoided because transient
+ * network failures do not prove that the Service Worker caches are corrupt.
  *
  * Called from every error.tsx before it renders the fallback UI. If it
  * returns true, a reload was triggered and the caller should render
@@ -91,8 +90,9 @@ export function reportClientError(error: Error, context?: Record<string, unknown
  * this fires for every user, every time they open a cached page while
  * the link is briefly down. Report noise, not signal.
  *
- * Online ChunkLoadError still reaches the reporter — that one is
- * actionable (stale deploy). See handleChunkLoadError above.
+ * Online ChunkLoadError still reaches the recovery/error UI. It may be
+ * a stale deployment or a transient request failure; handleChunkLoadError
+ * applies the route-specific recovery policy above.
  */
 export function isOfflineChunkLoadError(
   error: Error | null | undefined,
@@ -137,68 +137,43 @@ export function handleChunkLoadError(error: Error): boolean {
     return false;
   }
 
+  // Homepage rails are intentionally loaded as separate chunks only when
+  // the visitor scrolls near them. A transient network failure for one of
+  // those chunks must not reload the entire document (which sends the user
+  // back to the top and repeats the same sequence on the next scroll).
+  // HomeSectionBoundary catches the section error and offers an explicit
+  // user-initiated reload instead.
+  if (window.location.pathname === '/') {
+    console.warn('[chunk-recovery] deferred on homepage; keeping the current scroll session');
+    return false;
+  }
+
   const KEY = 'chunk-load-reload-at';
-  const PURGE_AT_KEY = 'chunk-load-purged-at';
   const RELOAD_WINDOW_MS = 30_000;
 
+  const now = Date.now();
   try {
     const last = Number(sessionStorage.getItem(KEY) ?? 0);
-    const lastPurgeAt = Number(sessionStorage.getItem(PURGE_AT_KEY) ?? 0);
-    const now = Date.now();
 
     if (last && now - last < RELOAD_WINDOW_MS) {
-      // A plain reload already ran within the last 30s and the same
-      // chunk is still missing — classic symptom of a stale HTML
-      // document served from the Service Worker cache that points at
-      // rotated chunk hashes. A second plain reload would just loop.
-      if (lastPurgeAt && now - lastPurgeAt < RELOAD_WINDOW_MS) {
-        // We already tried the hard purge and it still failed — this
-        // is a genuine server-side issue (bad build, missing chunk).
-        // Let the error UI show so the user can report it.
-        console.warn('[chunk-recovery] skipped: purge already attempted, letting error UI show');
-        return false;
-      }
-
-      // HARD PURGE: unregister every Service Worker and wipe every
-      // Cache Storage bucket, then reload. This guarantees the next
-      // navigation hits the network for HTML, so the manifest and the
-      // chunk hashes finally match.
-      console.warn('[chunk-recovery] reload did not fix — purging SW + caches');
-      try { sessionStorage.setItem(PURGE_AT_KEY, String(now)); } catch {}
-      void purgeCachesThenReload();
-      return true;
+      // One recovery reload was already attempted. Do not unregister the
+      // Service Worker or erase every Cache Storage bucket automatically:
+      // a transient chunk/network failure is not proof that all offline
+      // caches are corrupt. Let the route/section error UI offer recovery.
+      console.warn('[chunk-recovery] skipped: one reload already attempted; preserving caches');
+      return false;
     }
 
     sessionStorage.setItem(KEY, String(now));
   } catch {
-    // sessionStorage unavailable — still reload once, since the lack of
-    // a persistent marker only risks a loop in a narrow edge case.
+    // Without a persistent loop guard, do not risk reloading on every visit.
+    console.warn('[chunk-recovery] skipped: session storage unavailable; preserving the current page');
+    return false;
   }
 
   console.warn('[chunk-recovery] stale chunk detected — forcing reload to fetch new build');
   window.location.reload();
   return true;
-}
-
-/**
- * Last-resort recovery: unregister all Service Workers and clear all
- * Cache Storage buckets, then reload. Safe to call from the browser
- * console for manual debugging too.
- */
-async function purgeCachesThenReload(): Promise<void> {
-  try {
-    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map((r) => r.unregister()));
-    }
-  } catch { /* ignore */ }
-  try {
-    if (typeof caches !== 'undefined') {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k)));
-    }
-  } catch { /* ignore */ }
-  window.location.reload();
 }
 
 // ── Global unhandled rejection filter ─────────────────────────────

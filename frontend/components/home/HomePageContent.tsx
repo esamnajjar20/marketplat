@@ -6,6 +6,7 @@ import { EagerHomeSections } from '@/components/home/EagerHomeSections';
 import { HomeBusyBoundary } from '@/components/home/HomeBusyBoundary';
 import { StoriesRail } from '@/components/stories/StoriesRail';
 import { LazySection } from '@/components/shared/LazySection';
+import { HomeSectionBoundary } from '@/components/home/HomeSectionBoundary';
 import { PullToRefresh } from '@/components/shared/ui/PullToRefresh';
 import { useIsNativeApp } from '@/hooks/useIsNativeApp';
 import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
@@ -75,33 +76,49 @@ export function HomePageContent() {
 
         <div className="mt-3 space-y-4 sm:mt-5 sm:space-y-6">
           <LazySection minHeight={240} rootMargin="20px 0px" whenIdle={false}>
-            <ForYouMixedSection />
+            <HomeSectionBoundary>
+              <ForYouMixedSection />
+            </HomeSectionBoundary>
           </LazySection>
           <LazySection minHeight={220} rootMargin="32px 0px" whenIdle={false}>
-            <FollowingFeedSection />
+            <HomeSectionBoundary>
+              <FollowingFeedSection />
+            </HomeSectionBoundary>
           </LazySection>
           <LazySection minHeight={240} rootMargin="40px 0px" whenIdle>
-            <HomeAboveFold />
+            <HomeSectionBoundary>
+              <HomeAboveFold />
+            </HomeSectionBoundary>
           </LazySection>
           <LazySection minHeight={240} rootMargin="48px 0px" whenIdle>
-            <RecentProductsSection />
+            <HomeSectionBoundary>
+              <RecentProductsSection />
+            </HomeSectionBoundary>
           </LazySection>
           <LazySection minHeight={240} rootMargin="56px 0px" whenIdle>
-            <HomeServicesSection />
+            <HomeSectionBoundary>
+              <HomeServicesSection />
+            </HomeSectionBoundary>
           </LazySection>
           <LazySection minHeight={240} rootMargin="64px 0px" whenIdle>
-            <FeaturedStoresSection />
+            <HomeSectionBoundary>
+              <FeaturedStoresSection />
+            </HomeSectionBoundary>
           </LazySection>
           {!isNative && (
             <LazySection minHeight={220} rootMargin="72px 0px" whenIdle>
-              <NearbyProvidersSection />
+              <HomeSectionBoundary>
+                <NearbyProvidersSection />
+              </HomeSectionBoundary>
             </LazySection>
           )}
         </div>
 
         {!isNative && (
           <div className="mx-auto mt-5 max-w-7xl space-y-3 px-3 sm:mt-10 sm:space-y-4 sm:px-4">
-            <HomeAppPromo />
+            <HomeSectionBoundary>
+              <HomeAppPromo />
+            </HomeSectionBoundary>
           </div>
         )}
       </HomeBusyBoundary>

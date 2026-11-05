@@ -133,6 +133,41 @@ describe('api/client.ts — request interceptor', () => {
     expect(capturedAuthHeader).toBeNull();
   });
 
+  it('keeps default safe-read timeout above the API Gateway deadline', async () => {
+    let capturedTimeout: number | undefined;
+    await apiClient.get('/users/me', {
+      adapter: async (config) => {
+        capturedTimeout = config.timeout;
+        return {
+          data: { success: true, data: {} },
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config,
+        };
+      },
+    });
+    expect(capturedTimeout).toBeGreaterThanOrEqual(32_000);
+  });
+
+  it('preserves explicit per-call timeouts for safe reads', async () => {
+    let capturedTimeout: number | undefined;
+    await apiClient.get('/users/me', {
+      timeout: 2_000,
+      adapter: async (config) => {
+        capturedTimeout = config.timeout;
+        return {
+          data: { success: true, data: {} },
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config,
+        };
+      },
+    });
+    expect(capturedTimeout).toBe(2_000);
+  });
+
   it('rejects a late response after the active account changes', async () => {
     setAuthenticatedState('user-1-token');
     let releaseResponse: (() => void) | undefined;

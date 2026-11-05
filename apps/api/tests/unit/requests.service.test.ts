@@ -8,7 +8,6 @@ import { serviceProvidersRepository } from '../../src/modules/service-providers/
 import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
-import { ConflictError } from '../../src/shared/errors/ConflictError';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/modules/requests/requests.repository');
@@ -96,17 +95,21 @@ describe('requestsService.create category guard', () => {
     expect(requestsRepository.create).toHaveBeenCalled();
   });
 
-  it('blocks when max open requests reached', async () => {
-    (serviceCategoriesRepository.findById as jest.Mock).mockResolvedValue({ id: 'sc1', isActive: true, serviceTypeId: 'st-digital' });
+  it('returns an actionable MAX_OPEN_REQUESTS conflict for PRODUCT creates at the quota', async () => {
+    (productCategoriesRepository.findById as jest.Mock).mockResolvedValue({ id: 'pc1', isActive: true });
     (requestsRepository.countOpenByCustomer as jest.Mock).mockResolvedValue(5);
     await expect(
       requestsService.create('u1', {
-        type: 'SERVICE',
-        categoryId: 'sc1',
-        title: 'Need electrician',
-        description: 'Apartment fuse keeps tripping daily',
+        type: 'PRODUCT',
+        categoryId: 'pc1',
+        title: 'Want a used laptop',
+        description: 'Looking for a used laptop in good condition',
       }),
-    ).rejects.toBeInstanceOf(ConflictError);
+    ).rejects.toMatchObject({
+      code: 'MAX_OPEN_REQUESTS',
+      meta: { maxOpenRequests: 5 },
+    });
+    expect(requestsRepository.create).not.toHaveBeenCalled();
   });
 });
 
