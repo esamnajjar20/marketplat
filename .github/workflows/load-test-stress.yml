@@ -1,0 +1,343 @@
+name: Load Test — Stress 70K
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Frontend URL'
+        required: true
+        default: 'https://marketplat.esamnajjar6.workers.dev'
+      api:
+        description: 'API URL'
+        required: true
+        default: 'https://marketplat-api.esamnajjar6.workers.dev'
+      strategy:
+        description: 'Stress strategy'
+        type: choice
+        options:
+          - 'burst'    # 70K in 60s — aggressive
+          - 'ramp'     # ramp to 1170/s then sustain — recommended
+          - 'chunks'   # 7 × 10K with cooldowns — safest
+        default: 'ramp'
+      content_mix:
+        description: 'Content mix'
+        type: choice
+        options:
+          - 'api-only'    # lightest (recommended for 70K)
+          - 'mixed'       # 80% pages + 20% api (heavier)
+          - 'pages-only'  # heaviest (likely to fail)
+        default: 'api-only'
+      i_confirm_quota:
+        description: 'I confirm ~70K requests (70% of daily quota)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require quota confirmation
+        run: |
+          if [ "${{ inputs.i_confirm_quota }}" != "true" ]; then
+            echo "❌ Please tick 'i_confirm_quota' to proceed"
+            exit 1
+          fi
+          echo "✅ Quota confirmation received"
+
+  discover:
+    needs: guard
+    runs-on: ubuntu-latest
+    outputs:
+      product_id: ${{ steps.find.outputs.product_id }}
+      store_id:   ${{ steps.find.outputs.store_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch one ID
+        id: find
+        env:
+          API: ${{ inputs.api }}
+        run: |
+          python3 << 'PY'
+          import json, os, urllib.request
+          API = os.environ['API']
+          def fetch(p):
+              try:
+                  r = urllib.request.urlopen(urllib.request.Request(API+p), timeout=10)
+                  return json.loads(r.read().decode())
+              except: return None
+          def first_id(p):
+              d = fetch(p)
+              if not d: return ''
+              items = d.get('data') if isinstance(d.get('data'), list) else d.get('data', {}).get('items', [])
+              return items[0]['id'] if items else ''
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"product_id={first_id('/api/v1/products?limit=1')}\n")
+              f.write(f"store_id={first_id('/api/v1/stores?limit=1')}\n")
+          PY
+
+  k6-stress:
+    needs: [guard, discover]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq
+          sudo apt-get install -y k6
+          k6 version
+
+      - name: Warmup (5 requests)
+        env:
+          FRONT: ${{ inputs.target }}
+          API: ${{ inputs.api }}
+        run: |
+          echo "🔥 Warming up (must be fast, using cached responses)..."
+          for path in \
+            "/api/v1/categories" \
+            "/api/v1/products?limit=10" \
+            "/api/v1/ads?limit=10" \
+            "/api/v1/stores?limit=10" \
+            "/api/v1/home/static"; do
+            curl -so /dev/null -w "  %{http_code}  %{time_total}s  $path\n" "$API$path" || true
+          done
+          sleep 3
+
+      - name: Write k6 script
+        env:
+          STRATEGY: ${{ inputs.strategy }}
+          MIX: ${{ inputs.content_mix }}
+        run: |
+          cat > /tmp/k6-stress.js <<'K6'
+          import http from 'k6/http';
+          import { check } from 'k6';
+          import { Counter, Rate, Trend } from 'k6/metrics';
+
+          const FRONT = __ENV.FRONT;
+          const API   = __ENV.API;
+          const PRODUCT_ID = __ENV.PRODUCT_ID || '';
+          const STORE_ID   = __ENV.STORE_ID   || '';
+          const STRATEGY   = __ENV.STRATEGY || 'ramp';
+          const MIX        = __ENV.MIX || 'api-only';
+
+          const http5xx   = new Counter('http_5xx');
+          const httpErr   = new Rate('errors_rate');
+          const durTrend  = new Trend('req_duration');
+
+          // Profiles — target 70,000 total requests in ~60s
+          // 70,000 / 60 = 1,167 req/s
+          const TARGET_RATE = 1170;
+
+          const profiles = {
+            // Single sustained burst: 1,170 req/s × 60s = 70,200
+            burst: {
+              scenarios: {
+                burst: {
+                  executor: 'constant-arrival-rate',
+                  rate: TARGET_RATE,
+                  timeUnit: '1s',
+                  duration: '60s',
+                  preAllocatedVUs: 2000,
+                  maxVUs: 5000,
+                  gracefulStop: '15s',
+                },
+              },
+            },
+            // Ramp 0→1170 in 20s, then sustain for 40s = ~70,000
+            ramp: {
+              scenarios: {
+                ramp: {
+                  executor: 'ramping-arrival-rate',
+                  startRate: 50,
+                  timeUnit: '1s',
+                  preAllocatedVUs: 2000,
+                  maxVUs: 5000,
+                  stages: [
+                    { duration: '20s', target: TARGET_RATE },  // ramp up
+                    { duration: '40s', target: TARGET_RATE },  // sustain
+                  ],
+                  gracefulStop: '15s',
+                },
+              },
+            },
+            // 7 chunks × 10,000 req + 20s cooldown = 70,000 total over ~7 min
+            chunks: {
+              scenarios: {
+                chunk1: { executor: 'shared-iterations', vus: 500, iterations: 10000, startTime: '0s',   maxDuration: '30s' },
+                chunk2: { executor: 'shared-iterations', vus: 500, iterations: 10000, startTime: '50s',  maxDuration: '30s' },
+                chunk3: { executor: 'shared-iterations', vus: 500, iterations: 10000, startTime: '100s', maxDuration: '30s' },
+                chunk4: { executor: 'shared-iterations', vus: 500, iterations: 10000, startTime: '150s', maxDuration: '30s' },
+                chunk5: { executor: 'shared-iterations', vus: 500, iterations: 10000, startTime: '200s', maxDuration: '30s' },
+                chunk6: { executor: 'shared-iterations', vus: 500, iterations: 10000, startTime: '250s', maxDuration: '30s' },
+                chunk7: { executor: 'shared-iterations', vus: 500, iterations: 10000, startTime: '300s', maxDuration: '30s' },
+              },
+            },
+          };
+
+          export const options = {
+            ...profiles[STRATEGY],
+            thresholds: {
+              'http_req_failed':       ['rate<0.30'],   // allow 30% failure (realistic for stress)
+              'http_req_duration':     ['p(95)<15000'], // very lenient (backend may struggle)
+              'http_5xx':              ['count<30000'], // allow 30K 5xx (30K success is enough to verify)
+            },
+            summaryTrendStats: ['avg','min','med','p(90)','p(95)','p(99)','max'],
+            discardResponseBodies: true,
+            noConnectionReuse: false,
+            userAgent: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
+          };
+
+          // ── Routes ───────────────────────────────────
+          const apiRoutes = [
+            { path: '/api/v1/categories',          name: 'api-categories' },
+            { path: '/api/v1/products?limit=10',   name: 'api-products' },
+            { path: '/api/v1/ads?limit=10',        name: 'api-ads' },
+            { path: '/api/v1/stores?limit=10',     name: 'api-stores' },
+            { path: '/api/v1/home/static',         name: 'api-home' },
+            { path: '/api/v1/service-listings?limit=10', name: 'api-services' },
+            { path: '/api/v1/product-categories',  name: 'api-product-cats' },
+          ];
+
+          const pageRoutes = [
+            { path: '/',          name: 'page-home' },
+            { path: '/products',  name: 'page-products' },
+            { path: '/stores',    name: 'page-stores' },
+            { path: '/services',  name: 'page-services' },
+            { path: '/ads',       name: 'page-ads' },
+            { path: '/categories',name: 'page-categories' },
+          ];
+          if (PRODUCT_ID) pageRoutes.push({ path: `/products/${PRODUCT_ID}`, name: 'page-product-detail' });
+          if (STORE_ID)   pageRoutes.push({ path: `/stores/${STORE_ID}`,     name: 'page-store-detail' });
+
+          const pick = (a) => a[Math.floor(Math.random() * a.length)];
+          const pageWeight = MIX === 'api-only' ? 0 : MIX === 'mixed' ? 0.2 : 1.0;
+
+          export default function () {
+            const usePage = Math.random() < pageWeight;
+            const route = usePage ? pick(pageRoutes) : pick(apiRoutes);
+            const url = (usePage ? FRONT : API) + route.path;
+
+            const res = http.get(url, {
+              headers: {
+                'Accept': usePage
+                  ? 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+                  : 'application/json',
+                'Accept-Encoding': 'gzip, br',
+              },
+              tags: { kind: usePage ? 'page' : 'api', route: route.name },
+              redirects: usePage ? 0 : 0,
+              timeout: '30s',
+            });
+
+            durTrend.add(res.timings.duration, { kind: usePage ? 'page' : 'api' });
+            if (res.status >= 500) http5xx.add(1);
+
+            const ok = check(res, {
+              'status < 500': (r) => r.status < 500,
+              'status ok':    (r) => [200, 204, 301, 302, 304, 307, 308].includes(r.status),
+            });
+            httpErr.add(!ok, { kind: usePage ? 'page' : 'api' });
+          }
+
+          export function handleSummary(data) {
+            const m = data.metrics;
+            const md = [];
+            const total = m.http_reqs?.values?.count || 0;
+            const dur   = (data.state?.testRunDurationMs || 0) / 1000;
+            const fail  = (m.http_req_failed?.values?.rate || 0) * 100;
+            const c5xx  = m.http_5xx?.values?.count || 0;
+            const vusMax = m.vus_max?.values?.max || 0;
+            const t = m.http_req_duration?.values || {};
+
+            md.push(`# 🚨 STRESS TEST — ${STRATEGY.toUpperCase()} — 70K target\n`);
+            md.push(`**Strategy:** ${STRATEGY} | **Mix:** ${MIX}`);
+            md.push(`**Total requests:** ${total} (~${(total/dur).toFixed(0)} req/s avg)`);
+            md.push(`**Duration:** ${dur.toFixed(1)}s | **Max VUs:** ${vusMax}`);
+            md.push(`**Target achieved:** ${total >= 65000 ? '✅ (≥65K)' : total >= 50000 ? '🟡 (50-65K)' : '🔴 (<50K)'}\n`);
+
+            md.push('## Outcome\n');
+            md.push('| Metric | Value |');
+            md.push('|---|---|');
+            md.push(`| Success rate | ${(100 - fail).toFixed(2)}% |`);
+            md.push(`| Error rate | ${fail.toFixed(2)}% |`);
+            md.push(`| 5xx count | ${c5xx} |`);
+            md.push(`| p50 | ${(t.med||0).toFixed(0)}ms |`);
+            md.push(`| p95 | ${(t['p(95)']||0).toFixed(0)}ms |`);
+            md.push(`| p99 | ${(t['p(99)']||0).toFixed(0)}ms |`);
+            md.push(`| max | ${(t.max||0).toFixed(0)}ms |\n`);
+
+            // Sub-metrics by kind
+            md.push('## By kind\n');
+            md.push('| Kind | avg | p95 | p99 | Errors |');
+            md.push('|---|---|---|---|---|');
+            for (const kind of ['page','api']) {
+              const dk = m[`http_req_duration{kind:${kind}}`]?.values || {};
+              const ek = (m[`errors_rate{kind:${kind}}`]?.values?.rate || 0) * 100;
+              md.push(`| ${kind} | ${(dk.avg||0).toFixed(0)}ms | ${(dk['p(95)']||0).toFixed(0)}ms | ${(dk['p(99)']||0).toFixed(0)}ms | ${ek.toFixed(2)}% |`);
+            }
+
+            const verdict = fail < 5  ? '✅ **PASS** — system survived 70K/min'
+                          : fail < 20 ? '🟡 **DEGRADED** — partial failures, backend struggling'
+                          : fail < 50 ? '🟠 **OVERLOAD** — backend overwhelmed'
+                          : '🔴 **FAILED** — system collapsed';
+            md.push(`\n## Verdict: ${verdict}`);
+            md.push(`\n> **Note:** Stress tests intentionally push past capacity. Failures are expected and informative.`);
+
+            return {
+              stdout: md.join('\n'),
+              '/tmp/k6-stress-summary.md': md.join('\n'),
+              '/tmp/k6-stress.json': JSON.stringify(data, null, 2),
+            };
+          }
+          K6
+
+      - name: Run stress test
+        env:
+          FRONT: ${{ inputs.target }}
+          API: ${{ inputs.api }}
+          PRODUCT_ID: ${{ needs.discover.outputs.product_id }}
+          STORE_ID: ${{ needs.discover.outputs.store_id }}
+          STRATEGY: ${{ inputs.strategy }}
+          MIX: ${{ inputs.content_mix }}
+        run: |
+          echo "🚨 Starting stress test — this will consume ~70% of daily quota"
+          k6 run /tmp/k6-stress.js
+        continue-on-error: true
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f /tmp/k6-stress-summary.md ]; then
+            cat /tmp/k6-stress-summary.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-stress-70k
+          path: |
+            /tmp/k6-stress-summary.md
+            /tmp/k6-stress.json
+          retention-days: 7
+
+      - name: Quota reminder
+        if: always()
+        run: |
+          echo "⚠️ QUOTA WARNING"
+          echo "This test consumed ~70,000 of your 100,000 daily Worker requests."
+          echo "Remaining today: ~30,000."
+          echo "DO NOT run another stress test today."
+          echo "Check dashboard: https://dash.cloudflare.com/51646c01b171c7eea220a0bb5abfcb86/workers"

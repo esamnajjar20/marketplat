@@ -1,0 +1,432 @@
+name: Load Test — Full Public Site
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Frontend base URL'
+        required: true
+        default: 'https://marketplat.esamnajjar6.workers.dev'
+      api:
+        description: 'API base URL'
+        required: true
+        default: 'https://marketplat-api.esamnajjar6.workers.dev'
+      profile:
+        description: 'Load profile'
+        type: choice
+        options:
+          - 'smoke'    # ~100 req
+          - 'light'    # ~1,200 req (recommended)
+          - 'normal'   # ~3,000 req
+          - 'heavy'    # ~10,000 req
+        default: 'light'
+      discover_more:
+        description: 'Fetch 3 real IDs per type (better cache behavior)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      product_ids: ${{ steps.find.outputs.product_ids }}
+      store_ids:   ${{ steps.find.outputs.store_ids }}
+      service_ids: ${{ steps.find.outputs.service_ids }}
+      ad_ids:      ${{ steps.find.outputs.ad_ids }}
+      provider_ids: ${{ steps.find.outputs.provider_ids }}
+      seller_ids:  ${{ steps.find.outputs.seller_ids }}
+      user_ids:    ${{ steps.find.outputs.user_ids }}
+      category_slugs: ${{ steps.find.outputs.category_slugs }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Discover IDs
+        id: find
+        env:
+          API: ${{ inputs.api }}
+          MORE: ${{ inputs.discover_more }}
+        run: |
+          python3 << 'PY'
+          import json, os, urllib.request, sys
+
+          API = os.environ['API']
+          MORE = os.environ.get('MORE', 'false').lower() == 'true'
+          n = 3 if MORE else 1
+
+          def fetch(path):
+              try:
+                  req = urllib.request.Request(API + path, headers={'User-Agent': 'load-test-bot'})
+                  with urllib.request.urlopen(req, timeout=15) as r:
+                      return json.loads(r.read().decode())
+              except Exception as e:
+                  print(f"  fetch {path} failed: {e}", file=sys.stderr)
+                  return None
+
+          def extract_items(payload):
+              if not payload: return []
+              data = payload.get('data')
+              if isinstance(data, list): return data
+              if isinstance(data, dict):
+                  return data.get('items', [])
+              return []
+
+          resources = {
+              'product_ids':  '/api/v1/products?limit=%d' % n,
+              'store_ids':    '/api/v1/stores?limit=%d' % n,
+              'service_ids':  '/api/v1/service-listings?limit=%d' % n,
+              'ad_ids':       '/api/v1/ads?limit=%d' % n,
+              'provider_ids': '/api/v1/service-providers?limit=%d' % n,
+              'seller_ids':   '/api/v1/sellers/ranking?limit=%d' % n,
+              'user_ids':     '/api/v1/users/me',  # usually empty for anon
+              'category_slugs': '/api/v1/categories',
+          }
+
+          out = {}
+          for key, path in resources.items():
+              payload = fetch(path)
+              items = extract_items(payload)
+              if key == 'category_slugs':
+                  ids = [c.get('slug') for c in items if c.get('slug')][:n]
+              elif key == 'seller_ids':
+                  ids = [c.get('id') or c.get('sellerProfileId') for c in items if c.get('id') or c.get('sellerProfileId')][:n]
+              else:
+                  ids = [c.get('id') for c in items if c.get('id')][:n]
+              out[key] = ','.join(filter(None, ids))
+              print(f"{key} = {out[key]}")
+
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              for k, v in out.items():
+                  f.write(f"{k}={v}\n")
+          PY
+
+  k6-pages:
+    needs: discover
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring \
+            --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 \
+            --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update -qq
+          sudo apt-get install -y k6
+          k6 version
+
+      - name: Warmup
+        env:
+          FRONT: ${{ inputs.target }}
+          API: ${{ inputs.api }}
+          PRODUCTS: ${{ needs.discover.outputs.product_ids }}
+        run: |
+          echo "🔥 Warming pages..."
+          for path in / /stores /products /services /categories /ads; do
+            curl -so /dev/null -w "  %{http_code}  %{time_total}s  $path\n" "$FRONT$path" || true
+            sleep 0.3
+          done
+          echo "🔥 Warming API..."
+          for path in /api/v1/categories "/api/v1/products?limit=10" "/api/v1/ads?limit=10"; do
+            curl -so /dev/null -w "  %{http_code}  %{time_total}s  $path\n" "$API$path" || true
+            sleep 0.2
+          done
+          sleep 2
+
+      - name: Write k6 script
+        run: |
+          cat > /tmp/k6-full.js <<'K6'
+          import http from 'k6/http';
+          import { check, sleep } from 'k6';
+          import { Rate, Trend, Counter } from 'k6/metrics';
+
+          const FRONT = __ENV.FRONT;
+          const API   = __ENV.API;
+
+          // Dynamic IDs from discover job
+          const PRODUCT_IDS  = (__ENV.PRODUCT_IDS  || '').split(',').filter(Boolean);
+          const STORE_IDS    = (__ENV.STORE_IDS    || '').split(',').filter(Boolean);
+          const SERVICE_IDS  = (__ENV.SERVICE_IDS  || '').split(',').filter(Boolean);
+          const AD_IDS       = (__ENV.AD_IDS       || '').split(',').filter(Boolean);
+          const PROVIDER_IDS = (__ENV.PROVIDER_IDS || '').split(',').filter(Boolean);
+          const SELLER_IDS   = (__ENV.SELLER_IDS   || '').split(',').filter(Boolean);
+          const CATEGORY_SLUGS = (__ENV.CATEGORY_SLUGS || '').split(',').filter(Boolean);
+
+          // Metrics
+          const errorsByKind = new Rate('errors_by_kind');
+          const durationByKind = new Trend('duration_by_kind');
+          const routeCount = new Counter('route_count');
+
+          // Profiles
+          const profiles = {
+            smoke:  { rate: 5,   duration: '20s' },
+            light:  { rate: 20,  duration: '60s' },
+            normal: { rate: 25,  duration: '120s' },
+            heavy:  { rate: 55,  duration: '180s' },
+          };
+          const p = profiles[__ENV.PROFILE || 'light'] || profiles.light;
+
+          export const options = {
+            scenarios: {
+              full: {
+                executor: 'constant-arrival-rate',
+                rate: p.rate,
+                timeUnit: '1s',
+                duration: p.duration,
+                preAllocatedVUs: Math.max(50, p.rate * 4),
+                maxVUs: Math.max(300, p.rate * 12),
+              },
+            },
+            thresholds: {
+              'http_req_duration{kind:marketing}': ['p(95)<3000', 'p(99)<8000'],
+              'http_req_duration{kind:browse}':    ['p(95)<4000', 'p(99)<10000'],
+              'http_req_duration{kind:detail}':    ['p(95)<4000', 'p(99)<10000'],
+              'http_req_duration{kind:discovery}': ['p(95)<4000', 'p(99)<10000'],
+              'http_req_duration{kind:utility}':   ['p(95)<1500', 'p(99)<4000'],
+              'http_req_duration{kind:api}':       ['p(95)<800',  'p(99)<2000'],
+              'errors_by_kind': ['rate<0.10'],
+              'http_req_failed': ['rate<0.10'],
+            },
+            summaryTrendStats: ['avg','min','med','p(90)','p(95)','p(99)','max'],
+            discardResponseBodies: true,
+          };
+
+          // ── Page catalog ─────────────────────────────
+          const pages = {
+            marketing: [
+              { path: '/',              name: 'home' },
+              { path: '/about',         name: 'about' },
+              { path: '/contact',       name: 'contact' },
+              { path: '/privacy',       name: 'privacy' },
+              { path: '/terms',         name: 'terms' },
+              { path: '/login',         name: 'login' },
+              { path: '/register',      name: 'register' },
+              { path: '/forgot-password', name: 'forgot-password' },
+              { path: '/reset-password',  name: 'reset-password' },
+              { path: '/verify-email',    name: 'verify-email' },
+              { path: '/complete-profile',name: 'complete-profile' },
+            ],
+            browse: [
+              { path: '/products',           name: 'products-list' },
+              { path: '/stores',             name: 'stores-list' },
+              { path: '/services',           name: 'services-list' },
+              { path: '/ads',                name: 'ads-list' },
+              { path: '/requests',           name: 'requests-list' },
+              { path: '/categories',         name: 'categories-list' },
+              { path: '/service-providers',  name: 'providers-list' },
+              { path: '/sellers/ranking',    name: 'sellers-ranking' },
+              { path: '/stories',            name: 'stories' },
+            ],
+            detail: [],
+            discovery: [
+              { path: '/search?q=' + encodeURIComponent('هاتف'),    name: 'search-phone' },
+              { path: '/search?q=' + encodeURIComponent('سيارة'),   name: 'search-car' },
+              { path: '/search?q=' + encodeURIComponent('لابتوب'),  name: 'search-laptop' },
+              { path: '/trending',     name: 'trending' },
+              { path: '/promoted',     name: 'promoted' },
+              { path: '/suggestions',  name: 'suggestions' },
+            ],
+            utility: [
+              { path: '/robots.txt',            name: 'robots' },
+              { path: '/manifest.webmanifest',  name: 'manifest' },
+              { path: '/offline',               name: 'offline' },
+              { path: '/update',                name: 'update' },
+              { path: '/sitemap.xml',           name: 'sitemap' },
+            ],
+            api: [
+              { path: '/api/v1/categories',          name: 'api-categories' },
+              { path: '/api/v1/products?limit=10',   name: 'api-products' },
+              { path: '/api/v1/ads?limit=10',        name: 'api-ads' },
+              { path: '/api/v1/stores?limit=10',     name: 'api-stores' },
+              { path: '/api/v1/home/static',         name: 'api-home-static' },
+            ],
+          };
+
+          // Populate detail pages from discovered IDs
+          for (const id of PRODUCT_IDS)  pages.detail.push({ path: `/products/${id}`, name: 'product-detail' });
+          for (const id of STORE_IDS)    pages.detail.push({ path: `/stores/${id}`,   name: 'store-detail' });
+          for (const id of SERVICE_IDS)  pages.detail.push({ path: `/services/${id}`, name: 'service-detail' });
+          for (const id of AD_IDS)       pages.detail.push({ path: `/ads/${id}`,      name: 'ad-detail' });
+          for (const id of PROVIDER_IDS) pages.detail.push({ path: `/service-providers/${id}`, name: 'provider-detail' });
+          for (const id of SELLER_IDS)   pages.detail.push({ path: `/sellers/${id}`,  name: 'seller-detail' });
+          for (const slug of CATEGORY_SLUGS) pages.detail.push({ path: `/categories/${slug}`, name: 'category-detail' });
+
+          // Weights: reflects real browsing (browse > detail > marketing > discovery > utility > api)
+          const weights = {
+            marketing: 15,
+            browse:    25,
+            detail:    25,
+            discovery: 15,
+            utility:   5,
+            api:       15,
+          };
+
+          function pickCategory() {
+            const total = Object.values(weights).reduce((s, w) => s + w, 0);
+            let r = Math.random() * total;
+            for (const [k, w] of Object.entries(weights)) {
+              if (r < w) return k;
+              r -= w;
+            }
+            return 'browse';
+          }
+
+          function pickRoute(cat) {
+            const arr = pages[cat];
+            if (!arr || arr.length === 0) return pages.browse[0];
+            return arr[Math.floor(Math.random() * arr.length)];
+          }
+
+          export default function () {
+            const cat = pickCategory();
+            const route = pickRoute(cat);
+            const baseUrl = cat === 'api' ? API : FRONT;
+
+            const res = http.get(baseUrl + route.path, {
+              headers: {
+                'Accept': cat === 'api'
+                  ? 'application/json'
+                  : 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Encoding': 'gzip, br',
+              },
+              tags: { kind: cat, route: route.name },
+              redirects: cat === 'api' ? 0 : 3,
+            });
+
+            durationByKind.add(res.timings.duration, { kind: cat, route: route.name });
+            routeCount.add(1, { route: route.name, kind: cat });
+
+            const ok = check(res, {
+              'status < 500': (r) => r.status < 500,
+              'status 200/204/301/302/304/307/308': (r) =>
+                [200, 204, 301, 302, 304, 307, 308].includes(r.status),
+              'api 2xx': (r) => cat !== 'api' || (r.status >= 200 && r.status < 300),
+            });
+            errorsByKind.add(!ok, { kind: cat });
+
+            sleep(Math.random() * 0.25);
+          }
+
+          export function handleSummary(data) {
+            const m = data.metrics;
+            const md = [];
+            const failed  = (m.http_req_failed?.values?.rate || 0) * 100;
+            const reqs    = m.http_reqs?.values?.count || 0;
+            const dur     = (data.state?.testRunDurationMs || 0) / 1000;
+            const vusMax  = m.vus_max?.values?.max || 0;
+
+            md.push(`# 🚀 Full Site Load Test — ${__ENV.PROFILE || 'light'}\n`);
+            md.push(`**Frontend:** ${FRONT}`);
+            md.push(`**API:** ${API}`);
+            md.push(`**Duration:** ${dur.toFixed(1)}s | **Total:** ${reqs} req (${(reqs/dur).toFixed(0)}/s) | **Max VUs:** ${vusMax}`);
+            md.push(`**Error rate:** ${failed.toFixed(2)}%\n`);
+
+            md.push('## Overall latency\n');
+            md.push('| Metric | ms |');
+            md.push('|---|---|');
+            const t = m.http_req_duration?.values || {};
+            ['avg','med','p(90)','p(95)','p(99)','max'].forEach(k => {
+              const label = k === 'med' ? 'p50' : k;
+              md.push(`| ${label} | ${(t[k]||0).toFixed(0)} |`);
+            });
+
+            md.push('\n## Per category\n');
+            md.push('| Category | Requests | avg | p95 | p99 |');
+            md.push('|---|---|---|---|---|');
+
+            const cats = ['marketing','browse','detail','discovery','utility','api'];
+            const catDurations = {};
+            const catCounts = {};
+
+            for (const [metricName, groups] of Object.entries(m)) {
+              if (metricName !== 'http_req_duration' && metricName !== 'duration_by_kind') continue;
+              // k6 doesn't split this cleanly; use the tags-based approach
+            }
+
+            // Parse sub-metrics with {kind:...}
+            const allMetrics = data.metrics;
+            for (const [name, mv] of Object.entries(allMetrics)) {
+              if (!name.startsWith('http_req_duration{kind:')) continue;
+              const match = name.match(/kind:(\w+)/);
+              if (!match) continue;
+              const cat = match[1];
+              catDurations[cat] = mv.values || {};
+            }
+
+            // Count from route_count sub-metrics
+            for (const [name, mv] of Object.entries(allMetrics)) {
+              if (!name.startsWith('route_count{')) continue;
+              const km = name.match(/kind:(\w+)/);
+              if (!km) continue;
+              const cat = km[1];
+              catCounts[cat] = (catCounts[cat] || 0) + (mv.values?.count || 0);
+            }
+
+            for (const cat of cats) {
+              const d = catDurations[cat] || {};
+              const c = catCounts[cat] || 0;
+              md.push(`| **${cat}** | ${c} | ${(d.avg||0).toFixed(0)}ms | ${(d['p(95)']||0).toFixed(0)}ms | ${(d['p(99)']||0).toFixed(0)}ms |`);
+            }
+
+            md.push('\n## Slowest routes (p95)\n');
+            const routeDurations = {};
+            for (const [name, mv] of Object.entries(allMetrics)) {
+              if (!name.startsWith('http_req_duration{route:')) continue;
+              const rm = name.match(/route:([^,}]+)/);
+              if (!rm) continue;
+              routeDurations[rm[1]] = mv.values?.p95 || 0;
+            }
+            const sorted = Object.entries(routeDurations).sort((a, b) => b[1] - a[1]).slice(0, 10);
+            md.push('| Route | p95 |');
+            md.push('|---|---|');
+            for (const [r, ms] of sorted) md.push(`| ${r} | ${ms.toFixed(0)}ms |`);
+
+            const verdict = failed < 5 ? '✅ PASS' : failed < 15 ? '🟡 WARN' : '🔴 FAIL';
+            md.push(`\n## Verdict: ${verdict}`);
+
+            return {
+              stdout: md.join('\n'),
+              '/tmp/k6-full-summary.md': md.join('\n'),
+              '/tmp/k6-full.json': JSON.stringify(data, null, 2),
+            };
+          }
+          K6
+
+      - name: Run k6
+        env:
+          FRONT: ${{ inputs.target }}
+          API: ${{ inputs.api }}
+          PROFILE: ${{ inputs.profile }}
+          PRODUCT_IDS: ${{ needs.discover.outputs.product_ids }}
+          STORE_IDS: ${{ needs.discover.outputs.store_ids }}
+          SERVICE_IDS: ${{ needs.discover.outputs.service_ids }}
+          AD_IDS: ${{ needs.discover.outputs.ad_ids }}
+          PROVIDER_IDS: ${{ needs.discover.outputs.provider_ids }}
+          SELLER_IDS: ${{ needs.discover.outputs.seller_ids }}
+          CATEGORY_SLUGS: ${{ needs.discover.outputs.category_slugs }}
+        run: k6 run /tmp/k6-full.js
+        continue-on-error: true
+
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f /tmp/k6-full-summary.md ]; then
+            cat /tmp/k6-full-summary.md >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-full-report
+          path: |
+            /tmp/k6-full-summary.md
+            /tmp/k6-full.json
+          retention-days: 7
