@@ -87,8 +87,8 @@ function parseGatewayHealthStates(value: unknown): Record<string, GatewayHealthS
  *       the SWR window is served immediately and refreshed in the background
  *       (single-flight, ETag-aware). Stale-on-error still applies on top.
  * - #9  Negative caching: 404s of detail-like paths are cached for 60s.
- * - #10 Optional Workers KV tier (binding REFERENCE_KV) for near-static reference
- *       data (categories & co.): KV -> background refresh, ~0 origin queries.
+ * - #10 D1-backed reference tier (binding DB), with REFERENCE_KV as a
+ *       compatibility fallback: tagged rows, bounded query keys, and SWR refresh.
  * - #8  Cache-Tag header on every stored response + POST /__purge__ for native
  *       Workers Cache tag invalidation; empty-body POST keeps legacy KV flush support.
  * - #13 Native Workers Cache is enabled before fetch() on workers.dev; inner Cache API
@@ -99,7 +99,7 @@ function parseGatewayHealthStates(value: unknown): Record<string, GatewayHealthS
  * pools with weighted routing, passive circuit breaking, and safe GET/HEAD failover.
  * Go services are selected by longest internal path prefix and can have multiple
  * replicas. A SQLite-backed Durable Object coordinates health across isolates;
- * each isolate caches that snapshot briefly and keeps a local fallback. Warm-up stays off.
+ * each isolate caches that snapshot briefly and keeps a local fallback. Cache warm-up is limited to fixed public routes; health probing remains manual.
  */
 
 const DEFAULT_RENDER_ORIGIN = 'https://marketplat-nz19.onrender.com';
@@ -144,6 +144,10 @@ const CACHEABLE_PREFIXES = [
   '/api/v1/stores',
   '/api/v1/service-listings',
   '/api/v1/service-providers',
+  '/api/v1/service-reviews',
+  '/api/v1/badges',
+  '/api/v1/collections',
+  '/api/v1/public/stores',
   '/api/v1/sellers',
   '/api/v1/sellers/ranking',
   '/api/v1/recommendations',
@@ -165,7 +169,7 @@ const CACHE_KEY_VERSION = 'v3';
 const NEGATIVE_TTL_SEC = 60;
 const NEGATIVE_MAX_BODY = 4096;
 
-// Workers KV tier (#10)
+// Reference cache tier: D1 with Workers KV fallback (#10)
 const REFERENCE_ROUTES = new Set([
   'categories',
   'product-categories',
@@ -178,32 +182,34 @@ const REFERENCE_ROUTES = new Set([
   'stores',
   'service-listings',
   'service-providers',
+  'service-reviews',
+  'collections',
+  'public',
   'sellers',
-  'recommendations',
   'search',
   'requests',
 ]);
 
-// Routes where only base queries (limit/page) are cached in KV/D1.
-// Filtered queries rely on CF edge cache to preserve the write quota.
-const BASE_ONLY_KV_ROUTES = new Set([
-  'products',
-  'ads',
-  'stores',
-  'service-listings',
-  'service-providers',
-  'sellers',
-  'recommendations',
-  'search',
-  'requests',
-  'home',
-]);
+// D1 reference-cache namespace. v2 adds invalidation tags to every entry;
+// the v1 namespace is intentionally abandoned so untagged legacy rows can never
+// be served after this deployment. Expired v1 rows are removed by the daily sweep.
+const KV_PREFIX = 'ref:v2:';
+const KV_DEFAULT_FRESH_SEC = 3600; // Safe default until Worker-tag purge is enabled and verified
+const KV_DEFAULT_MAX_AGE_SEC = 86400; // Keep the default D1 entry for at most 24h
+const KV_LONG_FRESH_SEC = 86400; // Opt-in: 24h between origin refreshes
+const KV_LONG_MAX_AGE_SEC = 604800; // Opt-in: serve stale-once-refresh entries for at most 7 days
+const MAX_SEARCH_CACHE_TERMS = 500;
+// These route families enter D1 only in the explicit purge-ready long-TTL mode.
+const MUTABLE_REFERENCE_ROUTES_REQUIRE_PURGE = new Set(['collections', 'public', 'service-reviews']);
+const KV_MAX_PARAMS = 12;
+const KV_MAX_PARAM_VALUE = 160;
 
-// Routes where only base queries (limit/page) are cached in KV to conserve
-// the free-tier write quota. Filtered queries rely on CF edge cache instead.
-const KV_PREFIX = 'ref:v1:';
-const KV_FRESH_SEC = 3600; // 60 min — extended to conserve free-tier write quota
-const KV_STALE_SEC = 86400; // keep serving (and refresh in background) up to 24h
+// Search caching is deliberately bounded. These are the initial terms supplied
+// for this rollout; add terms only after confirming they are common in analytics.
+const DEFAULT_SEARCH_CACHE_WHITELIST = new Set([
+  'سيارة', 'هاتف', 'لابتوب', 'شقة', 'غرفة', 'كرسي',
+  'ثلاجة', 'غسالة', 'تكييف', 'سباك', 'كهربائي',
+]);
 const KV_MAX_BODY = 1024 * 1024;
 const KV_MAX_KEY = 400;
 
@@ -217,6 +223,7 @@ const DETAIL_TAG_PREFIX: Record<string, string> = {
   stores: 'store',
   'service-listings': 'service',
   'service-providers': 'provider',
+  sellers: 'seller',
 };
 
 // Cache-busting guard: a client can make every URL unique with junk params and
@@ -251,6 +258,8 @@ const FRONTEND_RELEASE_COOKIE = '__Host-mp-frontend-release';
 // by roughly 2/3 versus 5s while local circuit breakers still react immediately.
 const GATEWAY_HEALTH_CACHE_MS = 15000;
 const GATEWAY_HEALTH_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const GATEWAY_HEALTH_HISTORY_INTERVAL_SEC = 15 * 60;
+const GATEWAY_HEALTH_HISTORY_RETENTION_SEC = 30 * 24 * 60 * 60;
 const gatewayFailures = new Map<string, GatewayFailureState>();
 const goTrafficSampleCounters = new Map<string, number>();
 // Sample successful Go traffic at 10% instead of 20%; failures remain unsampled
@@ -1309,9 +1318,10 @@ function canonicalizePath(pathname: string): string {
 
 function canonicalPairs(searchParams: URLSearchParams): Array<[string, string]> {
   const pairs = [];
+  const cacheBusterParams = new Set(['_t', 't', 'timestamp', 'probe']);
   for (const [rawKey, rawValue] of searchParams) {
     const key = rawKey.normalize('NFC').trim();
-    if (!key || IGNORED_PARAM.test(key)) continue;
+    if (!key || IGNORED_PARAM.test(key) || cacheBusterParams.has(key.toLowerCase())) continue;
     pairs.push([key, rawValue.normalize('NFC').trim()] as [string, string]);
   }
   // Stable sort by key only: repeated keys keep their relative order.
@@ -1604,37 +1614,69 @@ function isNegativeEligible(canon: CanonicalUrl, upstream: Response, body: Array
   return body.byteLength <= NEGATIVE_MAX_BODY;
 }
 
-/* ───────────────────────── Workers KV tier (#10) ───────────────────────── */
+/* ───────────────────── Reference cache tier: D1 / Workers KV (#10) ───────────────────── */
 
 
 /**
- * Resolve a KV-compatible adapter. Prefers D1 (Workers KV-compatible via
- * d1-namespace) and falls back to REFERENCE_KV for local/tests.
+ * Resolve the reference-cache adapter. D1 is the production store;
+ * REFERENCE_KV remains a compatibility fallback for tests and older setups.
  */
+const D1_SCHEMA_INIT = new WeakMap<object, Promise<void>>();
+
 class D1KVAdapter {
   private initPromise: Promise<void> | null = null;
   constructor(private db: any, private tableName = 'd1_namespace') {}
 
   private ensureSchema(): Promise<void> {
     if (this.initPromise) return this.initPromise;
-    this.initPromise = (async () => {
-      try {
-        await this.db.prepare(
-          `CREATE TABLE IF NOT EXISTS ${this.tableName} (
-            key TEXT PRIMARY KEY NOT NULL,
-            value BLOB NOT NULL,
-            metadata TEXT,
-            expires_at INTEGER
-          )`
-        ).run();
-        await this.db.prepare(
-          `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_expires ON ${this.tableName}(expires_at)`
-        ).run();
-      } catch (e) {
-        console.error('[d1-kv] ensureSchema failed:', e instanceof Error ? e.message : String(e));
+    const dbIdentity = this.db as object;
+    const existing = D1_SCHEMA_INIT.get(dbIdentity);
+    if (existing) {
+      this.initPromise = existing;
+      return existing;
+    }
+
+    const initialization = (async () => {
+      await this.db.prepare(
+        `CREATE TABLE IF NOT EXISTS ${this.tableName} (
+          key TEXT PRIMARY KEY NOT NULL,
+          value BLOB NOT NULL,
+          metadata TEXT,
+          expires_at INTEGER
+        )`
+      ).run();
+
+      // Add indexed tag columns to existing deployments. A duplicate-column
+      // error means this isolate is racing another isolate's same migration.
+      for (const column of ['route_tag', 'entity_tag', 'city_tag']) {
+        try {
+          await this.db.prepare(`ALTER TABLE ${this.tableName} ADD COLUMN ${column} TEXT`).run();
+        } catch (error) {
+          if (!/duplicate column/i.test(errorMessage(error))) throw error;
+        }
       }
-    })();
-    return this.initPromise;
+
+      await this.db.prepare(
+        `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_expires ON ${this.tableName}(expires_at)`
+      ).run();
+      await this.db.prepare(
+        `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_route_tag ON ${this.tableName}(route_tag)`
+      ).run();
+      await this.db.prepare(
+        `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_entity_tag ON ${this.tableName}(entity_tag)`
+      ).run();
+      await this.db.prepare(
+        `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_city_tag ON ${this.tableName}(city_tag)`
+      ).run();
+    })().catch((error) => {
+      D1_SCHEMA_INIT.delete(dbIdentity);
+      console.error('[d1-kv] ensureSchema failed:', errorMessage(error));
+      throw error;
+    });
+
+    D1_SCHEMA_INIT.set(dbIdentity, initialization);
+    this.initPromise = initialization;
+    return initialization;
   }
 
   async put(
@@ -1652,15 +1694,24 @@ class D1KVAdapter {
       ? Math.floor(Date.now() / 1000) + opts.expirationTtl
       : null;
     const metaJson = opts?.metadata ? JSON.stringify(opts.metadata) : null;
+    const tags = Array.isArray((opts?.metadata as { tags?: unknown[] } | undefined)?.tags)
+      ? (opts?.metadata as { tags: unknown[] }).tags.map(String)
+      : [];
+    const routeTag = tags.find((tag) => tag.startsWith('route:')) ?? null;
+    const entityTag = tags.find((tag) => /^(ad|product|store|service|provider|category):/.test(tag)) ?? null;
+    const cityTag = tags.find((tag) => tag.startsWith('city:')) ?? null;
 
     await this.db.prepare(
-      `INSERT INTO ${this.tableName} (key, value, metadata, expires_at)
-       VALUES (?, ?, ?, ?)
+      `INSERT INTO ${this.tableName} (key, value, metadata, expires_at, route_tag, entity_tag, city_tag)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(key) DO UPDATE SET
          value = excluded.value,
          metadata = excluded.metadata,
-         expires_at = excluded.expires_at`
-    ).bind(key, buf, metaJson, expiresAt).run();
+         expires_at = excluded.expires_at,
+         route_tag = excluded.route_tag,
+         entity_tag = excluded.entity_tag,
+         city_tag = excluded.city_tag`
+    ).bind(key, buf, metaJson, expiresAt, routeTag, entityTag, cityTag).run();
   }
 
   async getWithMetadata(
@@ -1707,6 +1758,57 @@ class D1KVAdapter {
     await this.ensureSchema();
     await this.db.prepare(`DELETE FROM ${this.tableName} WHERE key = ?`).bind(key).run();
   }
+
+  async deleteByTags(tags: string[]): Promise<number> {
+    if (tags.length === 0) return 0;
+    if (tags.includes('api')) return this.deleteReferenceEntries();
+    await this.ensureSchema();
+
+    const routeTags = tags.filter((tag) => tag.startsWith('route:'));
+    const entityTags = tags.filter((tag) => /^(ad|product|store|service|provider|category):/.test(tag));
+    const cityTags = tags.filter((tag) => tag.startsWith('city:'));
+    const clauses: string[] = [];
+    const values: string[] = [];
+    for (const [column, group] of [
+      ['route_tag', routeTags],
+      ['entity_tag', entityTags],
+      ['city_tag', cityTags],
+    ] as const) {
+      if (group.length === 0) continue;
+      clauses.push(`${column} IN (${group.map(() => '?').join(', ')})`);
+      values.push(...group);
+    }
+    if (clauses.length === 0) return 0;
+
+    const result = await this.db.prepare(
+      `DELETE FROM ${this.tableName}
+       WHERE key LIKE 'ref:v%:%' AND (${clauses.join(' OR ')})`
+    ).bind(...values).run();
+    return Number(result?.meta?.changes ?? result?.changes ?? 0);
+  }
+
+  async deleteReferenceEntries(): Promise<number> {
+    await this.ensureSchema();
+    const result = await this.db.prepare(
+      `DELETE FROM ${this.tableName} WHERE key LIKE 'ref:v%:%'`
+    ).run();
+    return Number(result?.meta?.changes ?? result?.changes ?? 0);
+  }
+
+  async deleteExpired(now = Math.floor(Date.now() / 1000), limit = 10000): Promise<number> {
+    await this.ensureSchema();
+    const safeLimit = Math.max(1, Math.min(10000, Math.floor(limit)));
+    const result = await this.db.prepare(
+      `DELETE FROM ${this.tableName}
+       WHERE key IN (
+         SELECT key FROM ${this.tableName}
+         WHERE key LIKE 'ref:v%:%'
+           AND expires_at IS NOT NULL AND expires_at < ?
+         ORDER BY expires_at ASC LIMIT ?
+       )`
+    ).bind(now, safeLimit).run();
+    return Number(result?.meta?.changes ?? result?.changes ?? 0);
+  }
 }
 
 function getKv(env: Env): any {
@@ -1716,16 +1818,200 @@ function getKv(env: Env): any {
   return (env as any)?.REFERENCE_KV ?? null;
 }
 
+/**
+ * Operator-managed feature flags stored beside the reference cache.
+ * Writes and full listing use a private control-plane endpoint; the separate
+ * public endpoint exposes only PUBLIC_* names and never exposes this store's
+ * internal flags or administration token.
+ */
+class D1FeatureFlagStore {
+  private initPromise: Promise<void> | null = null;
+  constructor(private db: any) {}
+
+  private ensureSchema(): Promise<void> {
+    if (!this.initPromise) {
+      this.initPromise = (async () => {
+        await this.db.prepare(
+          `CREATE TABLE IF NOT EXISTS feature_flags (
+            name TEXT PRIMARY KEY NOT NULL,
+            enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+            rollout_percent INTEGER NOT NULL DEFAULT 100 CHECK (rollout_percent BETWEEN 0 AND 100),
+            updated_at INTEGER NOT NULL
+          )`
+        ).run();
+
+        // Existing installations created before rollout support need an additive migration.
+        const columns = await this.db.prepare('PRAGMA table_info(feature_flags)').all();
+        const hasRolloutPercent = Array.isArray(columns?.results) && columns.results.some((column: any) => column?.name === 'rollout_percent');
+        if (!hasRolloutPercent) {
+          try {
+            await this.db.prepare('ALTER TABLE feature_flags ADD COLUMN rollout_percent INTEGER NOT NULL DEFAULT 100 CHECK (rollout_percent BETWEEN 0 AND 100)').run();
+          } catch (error) {
+            // Another isolate may have completed the same additive migration concurrently.
+            if (!/duplicate column/i.test(errorMessage(error))) throw error;
+          }
+        }
+      })().catch((error: unknown) => {
+        this.initPromise = null;
+        throw error;
+      });
+    }
+    return this.initPromise!;
+  }
+
+  async list(): Promise<Array<{ name: string; enabled: boolean; rolloutPercent: number; updatedAt: number }>> {
+    await this.ensureSchema();
+    const result = await this.db.prepare(
+      'SELECT name, enabled, rollout_percent, updated_at FROM feature_flags ORDER BY name ASC'
+    ).all();
+    const rows = Array.isArray(result?.results) ? result.results : [];
+    return rows.map((row: any) => ({
+      name: String(row.name),
+      enabled: Number(row.enabled) === 1,
+      rolloutPercent: Math.max(0, Math.min(100, Number.isInteger(Number(row.rollout_percent)) ? Number(row.rollout_percent) : 100)),
+      updatedAt: Number(row.updated_at) || 0,
+    }));
+  }
+
+  async set(name: string, enabled: boolean, rolloutPercent = 100): Promise<{ name: string; enabled: boolean; rolloutPercent: number; updatedAt: number }> {
+    await this.ensureSchema();
+    const updatedAt = Math.floor(Date.now() / 1000);
+    await this.db.prepare(
+      `INSERT INTO feature_flags (name, enabled, rollout_percent, updated_at) VALUES (?, ?, ?, ?)
+       ON CONFLICT(name) DO UPDATE SET enabled = excluded.enabled, rollout_percent = excluded.rollout_percent, updated_at = excluded.updated_at`
+    ).bind(name, enabled ? 1 : 0, rolloutPercent, updatedAt).run();
+    return { name, enabled, rolloutPercent, updatedAt };
+  }
+}
+
+async function handleFeatureFlagsPublic(request: Request, env: Env): Promise<Response> {
+  const headers = { 'content-type': 'application/json', 'cache-control': 'no-store, max-age=0' };
+  if (request.method !== 'GET') {
+    return new Response(JSON.stringify({ ok: false, error: 'METHOD_NOT_ALLOWED' }), {
+      status: 405,
+      headers: { ...headers, allow: 'GET' },
+    });
+  }
+  if (!env || !(env as any).DB) {
+    return new Response(JSON.stringify({ ok: false, error: 'D1_NOT_CONFIGURED' }), { status: 503, headers });
+  }
+
+  try {
+    const store = new D1FeatureFlagStore((env as any).DB);
+    const rows = await store.list();
+    const flags = Object.fromEntries(
+      rows
+        .filter((flag) => flag.name.startsWith('PUBLIC_'))
+        .map((flag) => [flag.name, { enabled: flag.enabled, rolloutPercent: flag.rolloutPercent }]),
+    );
+    return new Response(JSON.stringify({ ok: true, flags }), { status: 200, headers });
+  } catch (error) {
+    console.error('[feature-flags-public] D1 read failed:', errorMessage(error));
+    return new Response(JSON.stringify({ ok: false, error: 'FEATURE_FLAGS_STORAGE_ERROR' }), { status: 503, headers });
+  }
+}
+
+async function handleFeatureFlagsAdmin(request: Request, env: Env): Promise<Response> {
+  const headers = { 'content-type': 'application/json', 'cache-control': 'no-store' };
+  const secret = env && env.FEATURE_FLAGS_ADMIN_TOKEN;
+  if (!secret || secret.length < 32) return new Response(JSON.stringify({ ok: false, error: 'FEATURE_FLAGS_ADMIN_NOT_CONFIGURED' }), { status: 503, headers });
+  if (!timingSafeEqual(request.headers.get('x-feature-flags-token'), secret)) {
+    return new Response(JSON.stringify({ ok: false, error: 'FORBIDDEN' }), { status: 403, headers });
+  }
+  if (request.method !== 'GET' && request.method !== 'PUT') {
+    return new Response(JSON.stringify({ ok: false, error: 'METHOD_NOT_ALLOWED' }), { status: 405, headers: { ...headers, allow: 'GET, PUT' } });
+  }
+  if (!env || !(env as any).DB) {
+    return new Response(JSON.stringify({ ok: false, error: 'D1_NOT_CONFIGURED' }), { status: 503, headers });
+  }
+
+  try {
+    const store = new D1FeatureFlagStore((env as any).DB);
+    if (request.method === 'GET') {
+      return new Response(JSON.stringify({ ok: true, flags: await store.list() }), { status: 200, headers });
+    }
+
+    const declaredLength = Number(request.headers.get('content-length') || 0);
+    if (declaredLength > 4096) return new Response(JSON.stringify({ ok: false, error: 'REQUEST_TOO_LARGE' }), { status: 413, headers });
+    const body = await request.text();
+    if (body.length > 4096) return new Response(JSON.stringify({ ok: false, error: 'REQUEST_TOO_LARGE' }), { status: 413, headers });
+    let payload: unknown;
+    try { payload = JSON.parse(body); } catch {
+      return new Response(JSON.stringify({ ok: false, error: 'INVALID_JSON' }), { status: 400, headers });
+    }
+    if (!isRecord(payload) || typeof payload.name !== 'string' ||
+        !/^[A-Z][A-Z0-9_]{0,63}$/.test(payload.name) || typeof payload.enabled !== 'boolean' ||
+        (payload.rolloutPercent !== undefined && (!Number.isInteger(payload.rolloutPercent) || Number(payload.rolloutPercent) < 0 || Number(payload.rolloutPercent) > 100))) {
+      return new Response(JSON.stringify({ ok: false, error: 'INVALID_FEATURE_FLAG', expected: { name: 'UPPER_SNAKE_CASE', enabled: 'boolean', rolloutPercent: 'integer 0..100 (optional; defaults to 100)' } }), { status: 400, headers });
+    }
+    const flag = await store.set(payload.name, payload.enabled, payload.rolloutPercent === undefined ? 100 : Number(payload.rolloutPercent));
+    return new Response(JSON.stringify({ ok: true, flag }), { status: 200, headers });
+  } catch (error) {
+    console.error('[feature-flags] D1 operation failed:', errorMessage(error));
+    return new Response(JSON.stringify({ ok: false, error: 'FEATURE_FLAGS_STORAGE_ERROR' }), { status: 503, headers });
+  }
+}
+
+function normalizeSearchCacheTerm(value: string): string {
+  return value.normalize('NFC').trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+}
+
+function searchCacheTerms(env: Env): Set<string> {
+  // Keep the combined built-in + operator-configured dictionary within 500
+  // entries so a large Worker variable cannot silently expand the D1 keyspace.
+  const terms = new Set(DEFAULT_SEARCH_CACHE_WHITELIST);
+  if (typeof env.SEARCH_CACHE_WHITELIST !== 'string') return terms;
+
+  for (const rawTerm of env.SEARCH_CACHE_WHITELIST.split('|')) {
+    const term = normalizeSearchCacheTerm(rawTerm);
+    if (!term || term.length > 40 || terms.has(term)) continue;
+    terms.add(term);
+    if (terms.size >= MAX_SEARCH_CACHE_TERMS) break;
+  }
+  return terms;
+}
+
+function searchCacheAllowed(env: Env, canon: CanonicalUrl): boolean {
+  const isSearchEndpoint =
+    (canon.route === 'search' && canon.rest.length === 0) ||
+    (canon.route === 'ads' && canon.rest[0] === 'search');
+  const queryPairs = canon.pairs.filter(([key]) => key === 'q');
+  if (queryPairs.length === 0) return !isSearchEndpoint;
+  if (queryPairs.length !== 1) return false;
+
+  const query = queryPairs[0]?.[1] ?? '';
+  if (!query || query.length > 40) return false;
+
+  const allowed = searchCacheTerms(env);
+  // Also protect q-based filters on /stores and other catalog routes from
+  // generating an unbounded D1 keyspace, not only the top-level /search route.
+  return allowed.has(normalizeSearchCacheTerm(query));
+}
+
+function isLongReferenceCacheEnabled(env: Env): boolean {
+  return env.REFERENCE_CACHE_LONG_TTL_ENABLED === 'true' &&
+    typeof env.PURGE_TOKEN === 'string' && env.PURGE_TOKEN.length >= 32;
+}
+
+function kvTtlPolicy(env: Env): { freshSec: number; maxAgeSec: number } {
+  // Long-lived D1 rows are safe only after mutation invalidation is configured
+  // in Express and the Worker purge endpoint shares the same PURGE_TOKEN.
+  // The runtime secret check prevents an accidental long-TTL toggle without
+  // the corresponding authenticated purge path being present.
+  return isLongReferenceCacheEnabled(env)
+    ? { freshSec: KV_LONG_FRESH_SEC, maxAgeSec: KV_LONG_MAX_AGE_SEC }
+    : { freshSec: KV_DEFAULT_FRESH_SEC, maxAgeSec: KV_DEFAULT_MAX_AGE_SEC };
+}
+
 function kvEnabled(env: Env, canon: CanonicalUrl): boolean {
-  return Boolean(
-    env && ((env as any).DB || (env as any).REFERENCE_KV)
-    && REFERENCE_ROUTES.has(canon.route)
-    && canon.key.length <= KV_MAX_KEY
-    && (
-      !BASE_ONLY_KV_ROUTES.has(canon.route)
-      || canon.pairs.every(([k]) => k === 'limit' || k === 'page')
-    ),
-  );
+  if (!env || (!(env as any).DB && !(env as any).REFERENCE_KV)) return false;
+  if (!REFERENCE_ROUTES.has(canon.route) || canon.key.length > KV_MAX_KEY) return false;
+  if (MUTABLE_REFERENCE_ROUTES_REQUIRE_PURGE.has(canon.route) && !isLongReferenceCacheEnabled(env)) return false;
+  if (canon.pairs.length > KV_MAX_PARAMS) return false;
+  if (canon.pairs.some(([, value]) => value.length > KV_MAX_PARAM_VALUE)) return false;
+  // Keep free-text queries out of D1 unless they are explicitly allowlisted.
+  if (canon.pairs.some(([key, value]) => key === 'q' && value.length > 40)) return false;
+  return searchCacheAllowed(env, canon);
 }
 
 async function kvRead(env: Env, canon: CanonicalUrl): Promise<ReferenceCacheRead | null> {
@@ -1736,7 +2022,7 @@ async function kvRead(env: Env, canon: CanonicalUrl): Promise<ReferenceCacheRead
     if (!value || !metadata || !metadata.storedAt) return null;
     return { body: value, meta: metadata, age: Math.max(0, (Date.now() - metadata.storedAt) / 1000) };
   } catch (err) {
-    console.error('[kvRead] D1 read failed:', err instanceof Error ? err.message : String(err), 'key:', canon.key);
+    console.error('[referenceCache] read failed:', err instanceof Error ? err.message : String(err), 'key:', canon.key);
     return null;
   }
 }
@@ -1745,23 +2031,54 @@ async function kvWrite(env: Env, canon: CanonicalUrl, body: ArrayBuffer, meta: R
   const kv = getKv(env);
   if (!kv || !kvEnabled(env, canon) || body.byteLength > KV_MAX_BODY) return;
   try {
+    const { maxAgeSec } = kvTtlPolicy(env);
     await kv.put(KV_PREFIX + canon.key, body, {
-      expirationTtl: KV_STALE_SEC + KV_FRESH_SEC,
+      // Entries stop being useful once they exceed the maximum serve age.
+      // Do not retain dead rows for an additional freshness window in D1.
+      expirationTtl: maxAgeSec,
       metadata: meta,
     });
   } catch (err) {
-    console.error('[kvWrite] D1 write failed:', err instanceof Error ? err.message : String(err), 'key:', canon.key);
+    console.error('[referenceCache] write failed:', err instanceof Error ? err.message : String(err), 'key:', canon.key);
   }
 }
 
-async function kvPurgeAll(env: Env): Promise<number> {
-  if (!env || !env.REFERENCE_KV) return 0;
+async function kvPurgeByTags(env: Env, tags: string[]): Promise<number> {
+  if (!env) return 0;
+  if ((env as any).DB) return new D1KVAdapter((env as any).DB).deleteByTags(tags);
+  if (!env.REFERENCE_KV) return 0;
+
+  // Compatibility fallback for local/test deployments that use Workers KV.
+  // Production uses D1 above, where tag deletion is a single indexed SQL operation.
   let deleted = 0;
-  let cursor;
+  let cursor: string | undefined;
   do {
-    const page = await env.REFERENCE_KV.list({ prefix: KV_PREFIX, ...(cursor ? { cursor } : {}) });
-    for (const k of page.keys) {
-      await env.REFERENCE_KV.delete(k.name);
+    const page = await env.REFERENCE_KV.list({ prefix: 'ref:', ...(cursor ? { cursor } : {}) });
+    for (const key of page.keys) {
+      if (!key.name.startsWith('ref:v')) continue;
+      const entry = await env.REFERENCE_KV.getWithMetadata(key.name, 'arrayBuffer');
+      const entryTags = Array.isArray(entry.metadata?.tags) ? entry.metadata.tags : [];
+      if (entryTags.some((tag) => tags.includes(String(tag)))) {
+        await env.REFERENCE_KV.delete(key.name);
+        deleted += 1;
+      }
+    }
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  return deleted;
+}
+
+async function kvPurgeAll(env: Env): Promise<number> {
+  if (!env) return 0;
+  if ((env as any).DB) return new D1KVAdapter((env as any).DB).deleteReferenceEntries();
+  if (!env.REFERENCE_KV) return 0;
+  let deleted = 0;
+  let cursor: string | undefined;
+  do {
+    const page = await env.REFERENCE_KV.list({ prefix: 'ref:', ...(cursor ? { cursor } : {}) });
+    for (const key of page.keys) {
+      if (!key.name.startsWith('ref:v')) continue;
+      await env.REFERENCE_KV.delete(key.name);
       deleted += 1;
     }
     cursor = page.list_complete ? undefined : page.cursor;
@@ -1856,7 +2173,10 @@ async function processUpstream(upstream: Response | null, ms: number, { canon, c
   if (body.byteLength <= MAX_CACHE_SIZE) {
     await store(buildStored(body, { contentType, etag, vary, tags, ttl, swr, clientCc, storedAt }));
     if (kvEnabled(env, canon)) {
-      const kvTask = kvWrite(env, canon, body, { ct: contentType, etag, vary, ttl, swr, bcc: browserMaxAge, storedAt });
+      const kvTask = kvWrite(env, canon, body, {
+        ct: contentType, etag, vary, ttl, swr, bcc: browserMaxAge, storedAt,
+        tags: edgeTagsFor(canon).split(','),
+      });
       if (awaitStore) await kvTask;
       else if (ctx) ctx.waitUntil(kvTask);
     }
@@ -1902,6 +2222,8 @@ async function revalidateLoad(args: RevalidateArgs): Promise<ResponseDescriptor 
   if (upstream && upstream.status === 304) {
     const info = storedInfo(stale);
     const body = await stale.arrayBuffer();
+    const storedAt = Date.now();
+    const clientCc = stale.headers.get('x-mp-client-cc') || clientCacheControl(0, info.ttl, info.swr);
     await safeCachePut(cache,
       cacheKey,
       buildStored(body, {
@@ -1911,10 +2233,23 @@ async function revalidateLoad(args: RevalidateArgs): Promise<ResponseDescriptor 
         tags: stale.headers.get('cache-tag'),
         ttl: info.ttl,
         swr: info.swr,
-        clientCc: stale.headers.get('x-mp-client-cc') || clientCacheControl(0, info.ttl, info.swr),
-        storedAt: Date.now(),
+        clientCc,
+        storedAt,
       }),
     );
+    // A 304 confirms the D1 body is still current. Touch metadata so other colos
+    // do not repeatedly revalidate the same unchanged reference row.
+    const browserMaxAge = parseCacheControl(clientCc).browserMaxAge;
+    await kvWrite(args.env, canon, body, {
+      ct: stale.headers.get('content-type') || 'application/json',
+      etag,
+      vary: stale.headers.get('vary'),
+      ttl: info.ttl,
+      swr: info.swr,
+      bcc: browserMaxAge,
+      storedAt,
+      tags: edgeTagsFor(canon).split(','),
+    });
     return null;
   }
   return processUpstream(upstream, ms, args);
@@ -1973,12 +2308,12 @@ async function handleCacheable(request: Request, canon: CanonicalUrl, ctx: Execu
         vary: m.vary,
         tags: edgeTagsFor(canon),
         age: kv.age,
-        cacheStatus: kv.age <= KV_FRESH_SEC ? 'KV-HIT' : 'KV-STALE',
+        cacheStatus: kv.age <= kvTtlPolicy(env).freshSec ? 'KV-HIT' : 'KV-STALE',
         ms: 0,
         ttl: m.ttl,
       }),
     };
-    if (kv.age <= KV_STALE_SEC) {
+    if (kv.age <= kvTtlPolicy(env).maxAgeSec) {
       ctx.waitUntil(
         safeCachePut(cache,
           cacheKey,
@@ -1994,7 +2329,7 @@ async function handleCacheable(request: Request, canon: CanonicalUrl, ctx: Execu
           }),
         ),
       );
-      if (kv.age > KV_FRESH_SEC) {
+      if (kv.age > kvTtlPolicy(env).freshSec) {
         ctx.waitUntil(startLoad(`rv:${flightKey}`, () => originLoad(loadArgs)).catch(() => {}));
       }
       return descToResponse(kvDesc, clientINM, origin);
@@ -2579,7 +2914,169 @@ export class GatewayHealthCoordinator {
   }
 }
 
+const SCHEDULED_WARM_CRON = '0 */6 * * *';
+const SCHEDULED_PURGE_CRON = '30 3 * * *'; // UTC; removes expired cache and health-history rows.
+const SCHEDULED_HEALTH_HISTORY_CRON = '*/15 * * * *'; // UTC; one batched snapshot per 15-minute bucket.
+const GATEWAY_HEALTH_HISTORY_SCHEMA_INIT = new WeakMap<object, Promise<void>>();
+
+async function ensureGatewayHealthHistorySchema(db: any): Promise<void> {
+  const identity = db as object;
+  const existing = GATEWAY_HEALTH_HISTORY_SCHEMA_INIT.get(identity);
+  if (existing) return existing;
+  const initialization = (async () => {
+    await db.prepare(
+      `CREATE TABLE IF NOT EXISTS gateway_health_history (
+        server_id TEXT NOT NULL,
+        server_url TEXT NOT NULL,
+        recorded_at INTEGER NOT NULL,
+        healthy INTEGER,
+        status INTEGER,
+        duration_ms REAL,
+        failures INTEGER NOT NULL,
+        open_until INTEGER NOT NULL,
+        quarantined INTEGER NOT NULL DEFAULT 0,
+        error_rate REAL NOT NULL DEFAULT 0,
+        ewma_duration_ms REAL,
+        sample_count INTEGER NOT NULL DEFAULT 0,
+        source TEXT,
+        checked_at TEXT,
+        PRIMARY KEY (server_id, server_url, recorded_at)
+      )`
+    ).run();
+    await db.prepare('CREATE INDEX IF NOT EXISTS idx_gateway_health_history_recorded_at ON gateway_health_history(recorded_at)').run();
+  })().catch((error: unknown) => {
+    GATEWAY_HEALTH_HISTORY_SCHEMA_INIT.delete(identity);
+    throw error;
+  });
+  GATEWAY_HEALTH_HISTORY_SCHEMA_INIT.set(identity, initialization);
+  return initialization;
+}
+
+/**
+ * Persist one 15-minute snapshot from the Durable Object to D1.
+ * The DO remains authoritative for real-time routing; D1 is an append-like,
+ * bounded operational history and never participates in a request decision.
+ */
+async function exportGatewayHealthHistory(env: Env, nowMs = Date.now()): Promise<number> {
+  const db = env && env.DB;
+  const stub = gatewayHealthObject(env);
+  if (!db || typeof db.batch !== 'function' || !stub) return 0;
+
+  const response = await stub.fetch('https://gateway-health.internal/snapshot', { method: 'GET' });
+  if (!response.ok) throw new Error(`health coordinator returned ${response.status}`);
+  const payload: unknown = await response.json();
+  const states = isRecord(payload) ? parseGatewayHealthStates(payload.states) : {};
+  const recordedAt = Math.floor(nowMs / 1000 / GATEWAY_HEALTH_HISTORY_INTERVAL_SEC) * GATEWAY_HEALTH_HISTORY_INTERVAL_SEC;
+  const statements = [];
+
+  for (const [key, state] of Object.entries(states)) {
+    const separator = key.indexOf('|');
+    if (separator < 1) continue;
+    const serverId = key.slice(0, separator);
+    let serverUrl: URL;
+    try {
+      serverUrl = new URL(key.slice(separator + 1));
+      if (serverUrl.protocol !== 'https:' || serverUrl.username || serverUrl.password || serverUrl.pathname !== '/' || serverUrl.search || serverUrl.hash) continue;
+    } catch { continue; }
+
+    statements.push(db.prepare(
+      `INSERT INTO gateway_health_history (
+        server_id, server_url, recorded_at, healthy, status, duration_ms,
+        failures, open_until, quarantined, error_rate, ewma_duration_ms,
+        sample_count, source, checked_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(server_id, server_url, recorded_at) DO UPDATE SET
+        healthy = excluded.healthy, status = excluded.status, duration_ms = excluded.duration_ms,
+        failures = excluded.failures, open_until = excluded.open_until,
+        quarantined = excluded.quarantined, error_rate = excluded.error_rate,
+        ewma_duration_ms = excluded.ewma_duration_ms, sample_count = excluded.sample_count,
+        source = excluded.source, checked_at = excluded.checked_at`
+    ).bind(
+      serverId,
+      serverUrl.origin,
+      recordedAt,
+      typeof state.healthy === 'boolean' ? (state.healthy ? 1 : 0) : null,
+      Number.isInteger(state.status) ? state.status : null,
+      Number.isFinite(state.durationMs) ? state.durationMs : null,
+      Math.max(0, Math.floor(Number(state.failures) || 0)),
+      Math.max(0, Math.floor(Number(state.openUntil) || 0)),
+      state.quarantined === true ? 1 : 0,
+      Math.max(0, Math.min(1, Number(state.errorRate) || 0)),
+      Number.isFinite(state.ewmaDurationMs) ? state.ewmaDurationMs : null,
+      Math.max(0, Math.floor(Number(state.sampleCount) || 0)),
+      state.source === 'probe' ? 'probe' : state.source === 'traffic' ? 'traffic' : null,
+      typeof state.checkedAt === 'string' ? state.checkedAt.slice(0, 40) : null,
+    ));
+  }
+
+  if (!statements.length) return 0;
+  await ensureGatewayHealthHistorySchema(db);
+  await db.batch(statements);
+  return statements.length;
+}
+
+async function pruneGatewayHealthHistory(db: any, now = Math.floor(Date.now() / 1000)): Promise<number> {
+  if (!db) return 0;
+  await ensureGatewayHealthHistorySchema(db);
+  const cutoff = now - GATEWAY_HEALTH_HISTORY_RETENTION_SEC;
+  const result = await db.prepare('DELETE FROM gateway_health_history WHERE recorded_at < ?').bind(cutoff).run();
+  return Number(result?.meta?.changes ?? result?.changes ?? 0);
+}
+
+const PREWARM_PATHS = [
+  '/api/v1/home/static',
+  '/api/v1/categories',
+  '/api/v1/product-categories',
+  '/api/v1/service-categories',
+  '/api/v1/service-types',
+  '/api/v1/store-types',
+  '/api/v1/products?limit=10',
+  '/api/v1/ads?limit=10',
+  '/api/v1/stores?limit=10',
+  '/api/v1/service-listings?limit=10',
+  '/api/v1/service-providers?limit=10',
+  '/api/v1/sellers/ranking?limit=20',
+] as const;
+
+async function runScheduledWarm(env: Env, ctx: ExecutionContextLike): Promise<void> {
+  const origin = getRenderOrigin(env);
+  const tasks = PREWARM_PATHS.map(async (path) => {
+    const url = new URL(path, origin);
+    const request = new Request(url, { method: 'GET', headers: { accept: 'application/json' } });
+    await handleCacheable(request, canonicalize(url), ctx, env);
+  });
+  const results = await Promise.allSettled(tasks);
+  const failed = results.filter((result) => result.status === 'rejected').length;
+  if (failed) console.warn(`[scheduled-cache-warm] ${failed}/${PREWARM_PATHS.length} warm requests failed`);
+}
+
 export default {
+  async scheduled(event: { cron?: string }, env: Env, ctx: ExecutionContextLike): Promise<void> {
+    if (event.cron === SCHEDULED_WARM_CRON) {
+      ctx.waitUntil(runScheduledWarm(env, ctx));
+      return;
+    }
+    if (event.cron === SCHEDULED_HEALTH_HISTORY_CRON) {
+      ctx.waitUntil(exportGatewayHealthHistory(env).then((count) => {
+        if (count) console.info(`[scheduled-health-history] stored ${count} server snapshots`);
+      }).catch((error) => {
+        console.error('[scheduled-health-history] export failed:', errorMessage(error));
+      }));
+      return;
+    }
+    if (event.cron === SCHEDULED_PURGE_CRON && (env as any).DB) {
+      ctx.waitUntil(Promise.all([
+        new D1KVAdapter((env as any).DB).deleteExpired(),
+        pruneGatewayHealthHistory((env as any).DB),
+      ]).then(([deletedCache, deletedHealth]) => {
+        if (deletedCache) console.info(`[scheduled-d1-cleanup] removed ${deletedCache} expired cache rows`);
+        if (deletedHealth) console.info(`[scheduled-d1-cleanup] removed ${deletedHealth} expired health-history rows`);
+      }).catch((error) => {
+        console.error('[scheduled-d1-cleanup] failed:', errorMessage(error));
+      }));
+    }
+  },
+
   async fetch(request: Request, env: Env, ctx: ExecutionContextLike): Promise<Response> {
     const url = new URL(request.url);
 
@@ -2593,6 +3090,14 @@ export default {
     // Match it before API-only maintenance endpoints so every app path is proxied.
     if (isFrontendGatewayHost(url, env)) {
       return handleFrontendGateway(request, url, env, ctx);
+    }
+
+    if (url.pathname === '/__gateway/feature-flags') {
+      return handleFeatureFlagsAdmin(request, env);
+    }
+
+    if (url.pathname === '/__gateway/public-feature-flags') {
+      return handleFeatureFlagsPublic(request, env);
     }
 
     if (url.pathname === '/__gateway/registry') {
@@ -2628,11 +3133,38 @@ export default {
             return new Response(JSON.stringify({ ok: false, error: 'INVALID_PURGE_TAG' }), { status: 400, headers: noStore });
           }
           purgeMode = 'tags';
-          if (!ctx.cache || typeof ctx.cache.purge !== 'function') {
-            return new Response(JSON.stringify({ ok: false, error: 'WORKERS_CACHE_PURGE_UNAVAILABLE' }), { status: 503, headers: noStore });
+          // Purge both tiers independently: a missing/failed native Cache API
+          // must not leave stale D1 rows behind. Any partial failure returns 503
+          // so the API's existing retry queue can retry the complete tag batch.
+          const nativePurge = ctx.cache && typeof ctx.cache.purge === 'function'
+            ? ctx.cache.purge({ tags })
+            : Promise.reject(new Error('WORKERS_CACHE_PURGE_UNAVAILABLE'));
+          const [nativeResult, referenceResult] = await Promise.allSettled([
+            nativePurge,
+            kvPurgeByTags(env, tags),
+          ]);
+          const purgedReferenceEntries = referenceResult.status === 'fulfilled'
+            ? referenceResult.value
+            : null;
+          if (nativeResult.status === 'rejected' || referenceResult.status === 'rejected') {
+            const error = nativeResult.status === 'rejected'
+              ? (errorMessage(nativeResult.reason) === 'WORKERS_CACHE_PURGE_UNAVAILABLE'
+                ? 'WORKERS_CACHE_PURGE_UNAVAILABLE'
+                : 'WORKERS_CACHE_PURGE_FAILED')
+              : 'REFERENCE_CACHE_PURGE_FAILED';
+            console.error('[purge] partial tag purge failure', {
+              error,
+              nativeError: nativeResult.status === 'rejected' ? errorMessage(nativeResult.reason) : null,
+              referenceError: referenceResult.status === 'rejected' ? errorMessage(referenceResult.reason) : null,
+              purgedReferenceEntries,
+            });
+            return new Response(JSON.stringify({ ok: false, error, purgedReferenceEntries }), { status: 503, headers: noStore });
           }
-          await ctx.cache.purge({ tags });
-          return new Response(JSON.stringify({ ok: true, purgedTags: tags.length }), { headers: noStore });
+          return new Response(JSON.stringify({
+            ok: true,
+            purgedTags: tags.length,
+            purgedReferenceEntries,
+          }), { headers: noStore });
         }
         const deleted = await kvPurgeAll(env);
         return new Response(JSON.stringify({ ok: true, deleted }), { headers: noStore });

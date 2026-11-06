@@ -327,13 +327,13 @@ export function purgeReferenceKv(): void {
 /* ───────────────────────── purge-aware TTLs ───────────────────────── */
 
 /**
- * Edge (s-maxage) TTLs used ONLY when purging is on. Applied to the ads routes
- * because those are the routes every ad mutation purges; products/stores/services
- * keep their policy TTL until they get purge hooks of their own.
- *   adsList   600s   create/edit/pin/boost/expiry paths purge city/list tags or route:ads
- *   adsDetail 3600s  edit/status/remove paths purge the matching `ad:<id>` tag
+ * Edge (s-maxage) TTL promotions used ONLY when the native Worker purge path is on.
+ * Public mutation tags also cover product/store/service/provider detail resources.
+ *   adsList       600s   create/edit/pin/boost/expiry paths purge city/list tags or route:ads
+ *   adsDetail    3600s   edit/status/remove paths purge the matching `ad:<id>` tag
+ *   staticDetail  600s   product/store/service/provider writes purge route + entity tags
  */
-export const EDGE_PURGE_SHARED_MAX_AGE = { adsList: 600, adsDetail: 3600 } as const;
+export const EDGE_PURGE_SHARED_MAX_AGE = { adsList: 600, adsDetail: 3600, staticDetail: 600 } as const;
 
 export function purgeAwareSharedMaxAge(
   kind: keyof typeof EDGE_PURGE_SHARED_MAX_AGE,

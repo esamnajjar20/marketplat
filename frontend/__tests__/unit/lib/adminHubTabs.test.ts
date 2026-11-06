@@ -24,20 +24,22 @@ import {
 } from '@/lib/adminHubTabs';
 
 describe('admin tab model', () => {
-  it('has 21 unique tabs after adding infrastructure management', () => {
-    expect(ADMIN_TABS).toHaveLength(21);
-    expect(new Set(ADMIN_TABS).size).toBe(21);
+  it('has 22 unique tabs after adding feature flag management', () => {
+    expect(ADMIN_TABS).toHaveLength(22);
+    expect(new Set(ADMIN_TABS).size).toBe(22);
   });
 
   it('every old /admin/<section> page maps to its tab', () => {
     for (const tab of ADMIN_TABS) expect(LEGACY_ADMIN_PATH_TO_TAB[`/admin/${tab}`]).toBe(tab);
-    expect(Object.keys(LEGACY_ADMIN_PATH_TO_TAB)).toHaveLength(21);
+    expect(Object.keys(LEGACY_ADMIN_PATH_TO_TAB)).toHaveLength(22);
   });
 
   it('isAdminTab / resolveAdminTab and legacy monitoring aliases', () => {
     expect(isAdminTab('ads')).toBe(true);
     expect(isAdminTab('infrastructure')).toBe(true);
     expect(resolveAdminTab('?tab=infrastructure')).toBe('infrastructure');
+    expect(isAdminTab('feature-flags')).toBe(true);
+    expect(resolveAdminTab('?tab=feature-flags')).toBe('feature-flags');
     expect(isAdminTab('debug')).toBe(false);
     expect(resolveAdminTab('?tab=users')).toBe('users');
     expect(resolveAdminTab('?tab=console')).toBe('monitoring');
@@ -92,11 +94,13 @@ describe('hrefs', () => {
 });
 
 describe('role tiers', () => {
-  it('ADMIN and SUPER_ADMIN open everything', () => {
-    for (const role of ['ADMIN', 'SUPER_ADMIN']) {
-      expect(adminTabsForRole(role)).toHaveLength(21);
-      expect(defaultAdminTabForRole(role)).toBe('dashboard');
-    }
+  it('ADMIN opens standard admin sections; only SUPER_ADMIN opens feature flags', () => {
+    expect(adminTabsForRole('ADMIN')).toHaveLength(21);
+    expect(canOpenAdminTab('feature-flags', 'ADMIN')).toBe(false);
+    expect(adminTabsForRole('SUPER_ADMIN')).toHaveLength(22);
+    expect(canOpenAdminTab('feature-flags', 'SUPER_ADMIN')).toBe(true);
+    expect(defaultAdminTabForRole('ADMIN')).toBe('dashboard');
+    expect(defaultAdminTabForRole('SUPER_ADMIN')).toBe('dashboard');
   });
 
   it('MODERATOR opens exactly the backend MODERATOR sections, defaulting to ads', () => {
@@ -117,7 +121,10 @@ describe('role tiers', () => {
     expect(canOpenAdminTab('open-requests', 'MODERATOR')).toBe(true);
     expect(canOpenAdminTab('infrastructure', 'ADMIN')).toBe(true);
     expect(canOpenAdminTab('infrastructure', 'SUPER_ADMIN')).toBe(true);
+    expect(canOpenAdminTab('feature-flags', 'SUPER_ADMIN')).toBe(true);
+    expect(canOpenAdminTab('feature-flags', 'ADMIN')).toBe(false);
     expect(canOpenAdminTab('dashboard', 'MODERATOR')).toBe(false);
+    expect(canOpenAdminTab('feature-flags', 'MODERATOR')).toBe(false);
   });
 
   it('fails closed for USER, undefined and null', () => {
@@ -132,6 +139,8 @@ describe('effective tab & active state', () => {
   it('uses the requested tab when the role may open it', () => {
     expect(effectiveAdminTab('?tab=users', 'ADMIN')).toBe('users');
     expect(effectiveAdminTab('?tab=reports&status=PENDING', 'MODERATOR')).toBe('reports');
+    expect(effectiveAdminTab('?tab=feature-flags', 'SUPER_ADMIN')).toBe('feature-flags');
+    expect(effectiveAdminTab('?tab=feature-flags', 'ADMIN')).toBe('dashboard');
   });
 
   it('falls back to the role default for a missing / unknown / forbidden tab', () => {

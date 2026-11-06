@@ -1,0 +1,206 @@
+{
+  "phase": 2,
+  "project_root": "marketplat-main",
+  "base_for_incremental": "marketplat-cache-d1-phase1-complete.zip",
+  "archive_type": "cumulative",
+  "files": [
+    {
+      "path": "CACHE-ANALYTICS-OPERATIONS-AR.md",
+      "sha256": "544e05fdbd50f4cce78a93b7a87ff619dae8489c83d92b99ac4d279e7b18d29c",
+      "size": 7189
+    },
+    {
+      "path": "CACHE-D1-OPTIMIZATION-PHASE1-AR.md",
+      "sha256": "025afd7362300dae51c3ace8dbe89a4573378d927c19508f74b9ad1bfefb809c",
+      "size": 6232
+    },
+    {
+      "path": "CACHE-D1-OPTIMIZATION-PHASE2-AR.md",
+      "sha256": "b06e49cd7236cacc6bd1d1072a48b81511dc01b8540ad8cab05bd51de6304b9e",
+      "size": 9384
+    },
+    {
+      "path": "CACHE-D1-OPTIMIZATION-REPORT-AR.md",
+      "sha256": "76e1bd2bc257895c6770d663d29af24099a6df2721e6c332f61a83dc5dca3cb4",
+      "size": 12685
+    },
+    {
+      "path": "apps/api/.env.example",
+      "sha256": "01e608bbb6294eab5e8bde9c70c4117c4aff803f46c8d100ee8a25de868bd7ee",
+      "size": 22468
+    },
+    {
+      "path": "apps/api/src/middlewares/cacheControl.middleware.ts",
+      "sha256": "001691fe75fd53ccc4bb24fb40e60f20d2976f6c88ac39cba2c9cbbfee7486b1",
+      "size": 6940
+    },
+    {
+      "path": "apps/api/src/modules/products/products.routes.ts",
+      "sha256": "639e2695242da79be987576825d3f9fdc684c7543539f3c6fcd3ab6a09d28569",
+      "size": 3410
+    },
+    {
+      "path": "apps/api/src/modules/service-listings/service-listings.routes.ts",
+      "sha256": "e0bb20e7933a80be8dbd60a274a991ad6bbc4bcb00df83634cd040e768225749",
+      "size": 2868
+    },
+    {
+      "path": "apps/api/src/modules/service-providers/service-providers.routes.ts",
+      "sha256": "f0bfbe2e37c533dda2bb1bd5471ac185654b01d548ee1d997831ba3447a3113f",
+      "size": 3471
+    },
+    {
+      "path": "apps/api/src/modules/stores/stores.routes.ts",
+      "sha256": "bb0630aaf0aaf96193e0896253571d95d741fca95eab4c142b99f1f8c12e243d",
+      "size": 4768
+    },
+    {
+      "path": "apps/api/src/shared/cache/cache-policy.json",
+      "sha256": "3206674d53111e5bad7c3268583569165b0d1511dd5ac514e53baa42cdcdc06d",
+      "size": 4043
+    },
+    {
+      "path": "apps/api/src/shared/cache/edgePurge.ts",
+      "sha256": "f5eb782d9cd0c577e81b102f583b63cfc498d79aaa5ca498d822389a728684c8",
+      "size": 13591
+    },
+    {
+      "path": "apps/api/src/shared/cache/publicMutationTags.ts",
+      "sha256": "44ed7e49aa75b43005b16bf38a984140aef07a3f9f5a7189b099ea2a52a945d2",
+      "size": 4248
+    },
+    {
+      "path": "apps/api/tests/unit/edgePurge.test.ts",
+      "sha256": "6172268e2df72c43023d413d263892eec50f65609f182cb63e292308780ee414",
+      "size": 14263
+    },
+    {
+      "path": "apps/api/tests/unit/publicMutationCacheTags.test.ts",
+      "sha256": "5b7c7f2d150e3057dc00b0d933fb8ed6425eaf7fbe4c4e57c211eba07bbf2773",
+      "size": 4075
+    },
+    {
+      "path": "frontend/__tests__/components/AdminSidebar.test.tsx",
+      "sha256": "006af8e277d639d722c91635d7e855b4b995d4622ca2f3586904d436f1a4468f",
+      "size": 17455
+    },
+    {
+      "path": "frontend/__tests__/unit/api/admin-feature-flags-route.test.ts",
+      "sha256": "ba46e892388e04097b1cd2628ea1fac4e6ae780e8e5952a9507b4a46b35c19f0",
+      "size": 5302
+    },
+    {
+      "path": "frontend/__tests__/unit/api/public-feature-flags-route.test.ts",
+      "sha256": "319c784d8f092b8f2909cb53fcd9ab58ae5faf42587338a62195e983bf604820",
+      "size": 1500
+    },
+    {
+      "path": "frontend/__tests__/unit/lib/adminHubTabs.test.ts",
+      "sha256": "5f8a84ded22b773c28228ef07ad6159272b926120879442e8476a7e9e2d022f1",
+      "size": 7122
+    },
+    {
+      "path": "frontend/__tests__/unit/lib/publicFeatureFlags.test.ts",
+      "sha256": "7c3e15bc51beddb79857efa9b29f9efe2bb8997eff47767091a194d0703eaec9",
+      "size": 1025
+    },
+    {
+      "path": "frontend/app/api/admin/feature-flags/route.ts",
+      "sha256": "b278292dbe5e77fb4c02a23caa8c9516fe531dd3505e3ff4c2154564194419ff",
+      "size": 7901
+    },
+    {
+      "path": "frontend/app/api/public/feature-flags/route.ts",
+      "sha256": "c8da3e5626df5bf2bd367a9b8539efdf619f4cd7079fda0829d923136060d4bb",
+      "size": 3176
+    },
+    {
+      "path": "frontend/components/admin/AdminFeatureFlags.tsx",
+      "sha256": "e597e9c0521199d87d23c788cdd3d186e8fec295a13c3c4f355899fb2bf168b7",
+      "size": 13293
+    },
+    {
+      "path": "frontend/components/admin/AdminSidebar.tsx",
+      "sha256": "c25718113339700b3387cf346ac3e3d64d079b338d14f11cd9760d925937bb39",
+      "size": 13110
+    },
+    {
+      "path": "frontend/components/admin/AdminTabsHub.tsx",
+      "sha256": "e8acd104b174a83812c0c8e14bb5715caf77a26d69339f1c57559236486f877c",
+      "size": 15569
+    },
+    {
+      "path": "frontend/hooks/usePublicFeatureFlag.ts",
+      "sha256": "2ba52172cef2e596682b066c4da112e9c39489a3b408bceb9f5c4b96d560e1dd",
+      "size": 1853
+    },
+    {
+      "path": "frontend/lib/adminHubTabs.ts",
+      "sha256": "ba22144c2a546441e0df4233477e586b837c9060844252001d2b47f47fc89fc0",
+      "size": 6601
+    },
+    {
+      "path": "frontend/lib/cache-policy.json",
+      "sha256": "8e8c2c8f421433d1067883886a162e0ecd7edc7e07486921de5899523f334e24",
+      "size": 4011
+    },
+    {
+      "path": "frontend/lib/publicFeatureFlags.ts",
+      "sha256": "20a28a9e5cf6a306120e8b896742736c722ed4083d3423aa179ba7dc51742a1e",
+      "size": 902
+    },
+    {
+      "path": "frontend/next.config.ts",
+      "sha256": "9ef40d49d780ce95d354bd242f9b47e49c813b66bc75c5a5d743b8adccc5dd1e",
+      "size": 17939
+    },
+    {
+      "path": "frontend/wrangler.jsonc",
+      "sha256": "deeb673384e22d1dfe3884f32912178ef62e15acb6d6923233c5aa7b56b61f4b",
+      "size": 1672
+    },
+    {
+      "path": "shared/cache-policy.json",
+      "sha256": "8e8c2c8f421433d1067883886a162e0ecd7edc7e07486921de5899523f334e24",
+      "size": 4011
+    },
+    {
+      "path": "workers/cf-api-proxy/SMART-GATEWAY-IMPLEMENTATION-AR.md",
+      "sha256": "a5d1457956c6e384b718c3c3aba6eee2afc7a735a88f13da9cd1e3e35bdf03dd",
+      "size": 38439
+    },
+    {
+      "path": "workers/cf-api-proxy/cache-policy.test.mjs",
+      "sha256": "b6b0b6214d431d82c27e24d6c5100467ad2b8c60039712cc1f07a58243c3d0dc",
+      "size": 98328
+    },
+    {
+      "path": "workers/cf-api-proxy/src/types.ts",
+      "sha256": "4a32f93b31172addf22379329bd37ef3bad9addf20be12ff46ae78830f391b68",
+      "size": 8773
+    },
+    {
+      "path": "workers/cf-api-proxy/worker.ts",
+      "sha256": "cb0cb094b6c600693c977f4504b828d3e76828389b78734111ecb05f1094c927",
+      "size": 154178
+    },
+    {
+      "path": "workers/cf-api-proxy/wrangler.example.jsonc",
+      "sha256": "8c7256744c9ead5311c49f7be598e4ed274d9774e460c4a5078e18a759ed2ba9",
+      "size": 3424
+    },
+    {
+      "path": "workers/cf-api-proxy/wrangler.toml",
+      "sha256": "f416c2bb4dab1fcd71ac8aca0341977407f008d22fcf9de91e26f06166599e69",
+      "size": 3300
+    }
+  ],
+  "verification": {
+    "worker_typecheck": "passed",
+    "worker_build": "passed",
+    "worker_regression_tests": "passed",
+    "frontend_typescript_syntax": "passed",
+    "frontend_vitest_and_next_build": "not_run_dependencies_missing",
+    "live_cloudflare_deployment": "not_performed"
+  }
+}

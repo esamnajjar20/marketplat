@@ -94,6 +94,6 @@ serviceProvidersRouter.get('/nearby', CACHE.SHORT, serviceProvidersController.ge
 // Public — anyone can view a service provider's page, no auth required.
 serviceProvidersRouter.get(
   '/:id',
-  CACHE.MEDIUM,
+  CACHE.STATIC_DETAIL,
   serviceProvidersController.getPublicServiceProvider
 );

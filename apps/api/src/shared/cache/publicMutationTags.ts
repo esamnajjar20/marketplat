@@ -18,13 +18,16 @@ const SAFE_ENTITY_ID = /^[A-Za-z0-9_-]{1,128}$/;
 
 const TAGS_BY_RESOURCE: Record<string, readonly string[]> = {
   ads: ['route:ads', 'route:home', 'route:search'],
-  products: ['route:products', 'route:home'],
-  promotions: ['route:products', 'route:home'],
-  collections: ['route:products', 'route:home'],
-  stores: ['route:stores', 'route:home'],
+  products: ['route:products', 'route:collections', 'route:home'],
+  promotions: ['route:products', 'route:collections', 'route:home'],
+  collections: ['route:collections', 'route:products', 'route:home'],
+  stores: ['route:stores', 'route:badges', 'route:public', 'route:home'],
+  sellers: ['route:sellers', 'route:badges', 'route:public'],
+  'service-reviews': ['route:service-reviews', 'route:badges'],
+  sales: ['route:public'],
   'store-types': ['route:store-types', 'route:stores', 'route:home'],
   'service-listings': ['route:service-listings', 'route:home'],
-  'service-providers': ['route:service-providers', 'route:service-listings', 'route:home'],
+  'service-providers': ['route:service-providers', 'route:service-listings', 'route:badges', 'route:home'],
   'service-categories': ['route:service-categories', 'route:service-listings', 'route:home'],
   'service-types': ['route:service-types', 'route:service-listings', 'route:home'],
   categories: ['route:categories', 'route:ads', 'route:products', 'route:home'],
@@ -40,6 +43,7 @@ const ENTITY_TAG_PREFIX_BY_RESOURCE: Record<string, string> = {
   categories: 'category',
   'product-categories': 'category',
   'service-categories': 'category',
+  sellers: 'seller',
 };
 
 /**

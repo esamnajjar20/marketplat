@@ -42,6 +42,17 @@
       "hardAfterMs": 86400000
     }
   },
+  "staticDetail": {
+    "http": {
+      "maxAgeSec": 120,
+      "staleWhileRevalidateSec": 600,
+      "sharedMaxAgeSec": 600
+    },
+    "client": {
+      "staleTimeMs": 120000,
+      "gcTimeMs": 600000
+    }
+  },
   "publicHome": {
     "server": {
       "softTtlMs": 120000,

@@ -10,8 +10,22 @@ enabled = true
 [vars]
 FRONTEND_ORIGIN = "https://marketplat.esamnajjar6.workers.dev"
 RENDER_ORIGIN = "https://marketplat-nz19.onrender.com"
+# Opt-in only after Express tag purge + the matching PURGE_TOKEN are deployed.
+# When enabled: D1 references are fresh for 24h and may be served for at most 7d.
+# Optional pipe-separated search terms; total cap is 500 including the 11 built-in defaults.
+# Populate from anonymized search analytics; do not add raw user queries indiscriminately.
+# SEARCH_CACHE_WHITELIST = "موبايل|سيارة|ثلاجة"
+REFERENCE_CACHE_LONG_TTL_ENABLED = "false"
 # Configure FRONTEND_ORIGIN in Cloudflare Worker Variables with the exact deployed
 # frontend origin(s), comma-separated. Credentialed CORS fails closed if omitted.
+# Private D1 feature-flag endpoint; configure separately from gateway and purge tokens:
+#   npx wrangler secret put FEATURE_FLAGS_ADMIN_TOKEN
+# Set the SAME secret on the frontend Worker; its server route forwards it over API_WORKER.
+# GET/PUT https://<api-worker-host>/__gateway/feature-flags
+# Never send this token to browser JavaScript or embed it in NEXT_PUBLIC_ variables.
+# CACHE_METRICS writes cache status, route, colo, upstream milliseconds and HTTP status only.
+# Every 15 minutes, health snapshots are batch-upserted into gateway_health_history in D1.
+# Durable Objects remain the authoritative real-time circuit-breaker state.
 # Set GO_WORKER_TOKEN to the ingress bearer secret shared by Express and this Worker.
 # Optionally set GO_WORKER_TOKENS_JSON as a secret JSON map: {"analytics":"...32+ chars...","push":"..."}.
 # When the map exists, every registered serviceKey must have a 32+ character token; no fallback is used.
@@ -42,3 +56,11 @@ new_sqlite_classes = ["GatewayHealthCoordinator"]
 binding = "DB"
 database_name = "marketplat-cache-db"
 database_id = "1a105c8b-d165-42a6-8173-2e8091a11e1d"
+
+# Cache hit/miss and upstream timing telemetry; dataset is created on first write.
+[[analytics_engine_datasets]]
+binding = "CACHE_METRICS"
+dataset = "marketplat_cache"
+
+[triggers]
+crons = ["0 */6 * * *", "*/15 * * * *", "30 3 * * *"]

@@ -118,7 +118,7 @@ storesRouter.delete(
 );
 
 // Public store page
-storesRouter.get('/:id', CACHE.MEDIUM, storesController.getPublicStore);
+storesRouter.get('/:id', CACHE.STATIC_DETAIL, storesController.getPublicStore);
 
 // Admin-only approval/blocking
 // Admin store-type assignment lives under /admin/stores/:id/type; this

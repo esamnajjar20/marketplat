@@ -338,15 +338,17 @@ describe('AdminSidebar', () => {
       expect(within(desktopNav).getByText('المستخدمون')).toBeInTheDocument();
       expect(within(desktopNav).getByText('التحليلات')).toBeInTheDocument();
       expect(within(desktopNav).getByText('إدارة البنية التحتية')).toBeInTheDocument();
+      expect(within(desktopNav).queryByText('مفاتيح الخصائص')).not.toBeInTheDocument();
     });
 
-    it('a SUPER_ADMIN actor sees the infrastructure link', () => {
+    it('a SUPER_ADMIN actor sees the infrastructure and feature flags links', () => {
       mockActor('SUPER_ADMIN');
       render(<AdminSidebar />);
       const desktopNav = screen.getAllByRole('navigation', { name: 'قائمة الإدارة' })[0];
       expect(within(desktopNav).getByText('المستخدمون')).toBeInTheDocument();
       expect(within(desktopNav).getByText('التحليلات')).toBeInTheDocument();
       expect(within(desktopNav).getByText('إدارة البنية التحتية')).toBeInTheDocument();
+      expect(within(desktopNav).getByText('مفاتيح الخصائص')).toBeInTheDocument();
     });
   });
 });

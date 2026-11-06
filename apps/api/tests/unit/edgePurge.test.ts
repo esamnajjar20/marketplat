@@ -246,19 +246,22 @@ describe('purge-aware edge TTL (only safe once purging works)', () => {
     const edge = loadEdge(DISABLED);
     expect(edge.purgeAwareSharedMaxAge('adsDetail', 120)).toBe(120);
     expect(edge.purgeAwareSharedMaxAge('adsList', undefined)).toBeUndefined();
+    expect(edge.purgeAwareSharedMaxAge('staticDetail', 240)).toBe(240);
   });
 
   it('does not raise ads TTLs for a zone-only purge on a workers.dev Worker', () => {
     const edge = loadEdge(ENABLED);
     expect(edge.purgeAwareSharedMaxAge('adsDetail', 120)).toBe(120);
     expect(edge.purgeAwareSharedMaxAge('adsList', 120)).toBe(120);
+    expect(edge.purgeAwareSharedMaxAge('staticDetail', 240)).toBe(240);
   });
 
-  it('raises ads TTLs only when the native Worker purge path is configured', () => {
+  it('raises ads and static-detail TTLs only when the native Worker purge path is configured', () => {
     const edge = loadEdge(WORKER_CACHE_ENABLED);
     expect(edge.purgeAwareSharedMaxAge('adsDetail', 120)).toBe(3600);
     expect(edge.purgeAwareSharedMaxAge('adsList', 120)).toBe(600);
     expect(edge.purgeAwareSharedMaxAge('adsList', 9999)).toBe(9999);
+    expect(edge.purgeAwareSharedMaxAge('staticDetail', 240)).toBe(600);
   });
 
   const header = (mw: (q: Request, r: Response, n: NextFunction) => void): string => {
@@ -279,16 +282,18 @@ describe('purge-aware edge TTL (only safe once purging works)', () => {
     return CACHE;
   };
 
-  it('ADS_* presets are byte-identical to LIVE while purging is off', () => {
+  it('ADS_* presets are byte-identical to LIVE while purging is off; static details retain the previous shared TTL', () => {
     const CACHE = loadCache(DISABLED);
     expect(header(CACHE.ADS_LIST)).toBe(header(CACHE.LIVE));
     expect(header(CACHE.ADS_DETAIL)).toBe(header(CACHE.LIVE));
+    expect(header(CACHE.STATIC_DETAIL)).toMatch(/max-age=120, s-maxage=240, stale-while-revalidate=600$/);
   });
 
   it('ADS_* presets lengthen ONLY s-maxage when purging is on; other routes are untouched', () => {
     const CACHE = loadCache(WORKER_CACHE_ENABLED);
     expect(header(CACHE.ADS_DETAIL)).toMatch(/max-age=30, s-maxage=3600, stale-while-revalidate=120$/);
     expect(header(CACHE.ADS_LIST)).toMatch(/max-age=30, s-maxage=600, stale-while-revalidate=120$/);
+    expect(header(CACHE.STATIC_DETAIL)).toMatch(/max-age=120, s-maxage=600, stale-while-revalidate=600$/);
     expect(header(CACHE.LIVE)).not.toMatch(/s-maxage=(600|3600)/);
     expect(header(CACHE.MEDIUM)).not.toMatch(/s-maxage=3600/);
   });

@@ -8,22 +8,31 @@
 
   // Required for browser clients: exact frontend origins, comma-separated.
   // Do not use a wildcard when credentials/cookies are enabled.
-  "vars": { "FRONTEND_ORIGIN": "https://your-frontend-domain.example" },
+  "vars": {
+    "FRONTEND_ORIGIN": "https://your-frontend-domain.example",
+    // Set true only after Express-to-Worker tag invalidation and the shared PURGE_TOKEN are verified.
+    // Enabled mode: 24h fresh, 7d maximum D1 serve age.
+    "REFERENCE_CACHE_LONG_TTL_ENABLED": "false"
+  },
 
   // Workers Cache is the outer cache and works on *.workers.dev. Cache API inside
   // worker.ts remains an optional per-colo layer; Cache-Tag purges use /__purge__.
 
-  // #10 طبقة KV للتصنيفات (اختياري — بدونها يعمل الـ Worker كما هو):
+  // #10 طبقة D1 المرجعية (الإنتاج) مع REFERENCE_KV كمسار توافق احتياطي:
   //   npx wrangler kv namespace create REFERENCE_KV
   "kv_namespaces": [{ "binding": "REFERENCE_KV", "id": "<KV_NAMESPACE_ID>" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "marketplat-cache-db", "database_id": "<D1_DATABASE_ID>" }],
 
   // قياس HIT ratio الحقيقي (اختياري) — Workers Analytics Engine:
   "analytics_engine_datasets": [{ "binding": "CACHE_METRICS", "dataset": "marketplat_cache" }],
 
-  // Secret for POST /__purge__ (must match EDGE_WORKER_PURGE_TOKEN in Express):
+  // Private feature-flag control plane: npx wrangler secret put FEATURE_FLAGS_ADMIN_TOKEN
+  // GET/PUT /__gateway/feature-flags; never expose this token to browser clients.
+
+  // Secret for POST /__purge__ (32+ chars; must match EDGE_WORKER_PURGE_TOKEN in Express):
   //   npx wrangler secret put PURGE_TOKEN
   // Express should set EDGE_WORKER_PURGE_URL to https://<worker-host>/__purge__;
-  // JSON { tags: [...] } invalidates Workers Cache; empty body still flushes reference KV.
+  // JSON { tags: [...] } invalidates Workers Cache + tagged D1 rows; empty body flushes reference rows.
 
   // Shared backend health state across Worker isolates (SQLite-backed Durable Object).
   "durable_objects": {
@@ -31,7 +40,8 @@
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GatewayHealthCoordinator"] }],
 
-  // intentionally no Cron trigger: cache warm-up is disabled by project policy.
+  // Public-route warm-up every 6h, health history batch every 15m, and D1 cleanup daily (UTC).
+  "triggers": { "crons": ["0 */6 * * *", "*/15 * * * *", "30 3 * * *"] },
   // Add GATEWAY_ADMIN_TOKEN with: npx wrangler secret put GATEWAY_ADMIN_TOKEN
   // Add GO_WORKER_TOKEN with: npx wrangler secret put GO_WORKER_TOKEN (API-to-Gateway ingress secret).
   // Optional per-service upstream secrets: npx wrangler secret put GO_WORKER_TOKENS_JSON

@@ -23,7 +23,7 @@ export const productsRouter = Router();
 productsRouter.get('/', CACHE.SHORT, productsController.getProducts);
 // Registered before /:id so "me" is never swallowed as an :id param.
 productsRouter.get('/me', authenticate, CACHE.NONE, productsController.getMyProducts);
-productsRouter.get('/:id', CACHE.MEDIUM, productsController.getProductById);
+productsRouter.get('/:id', CACHE.STATIC_DETAIL, productsController.getProductById);
 
 // Inventory reads are scoped to the caller's store by the service layer.
 productsRouter.get('/stock/summary', authenticate, CACHE.NONE, productsStockController.getSummary);

@@ -30,7 +30,7 @@ serviceListingsRouter.get(
   CACHE.SHORT,
   serviceListingsController.getServiceListingMatches
 );
-serviceListingsRouter.get('/:id', CACHE.MEDIUM, serviceListingsController.getServiceListingById);
+serviceListingsRouter.get('/:id', CACHE.STATIC_DETAIL, serviceListingsController.getServiceListingById);
 
 // Protected — owner-only, enforced in service-listings.service.ts
 serviceListingsRouter.post(

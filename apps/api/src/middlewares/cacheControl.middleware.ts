@@ -4,7 +4,7 @@ import { purgeAwareSharedMaxAge } from '../shared/cache/edgePurge';
 
 /**
  * Safe default for every API response. Public routes must explicitly opt in
- * with CACHE.SHORT/MEDIUM/STATIC/PUBLIC_HOME. This closes omissions where a
+ * with CACHE.SHORT/MEDIUM/STATIC/STATIC_DETAIL/PUBLIC_HOME. This closes omissions where a
  * newly-added authenticated GET accidentally inherits browser/CDN defaults.
  */
 function varyByAuthState(res: Response): void {
@@ -118,6 +118,7 @@ const sharedMaxOf = (p: object): number | undefined => {
 // compatibility aliases for existing routes; the policy itself is not defined here.
 const PUBLIC_LIVE = cachePolicy('publicLive').http;
 const PUBLIC_DETAIL = cachePolicy('publicDetail').http;
+const STATIC_DETAIL = cachePolicy('staticDetail').http;
 const REFERENCE = cachePolicy('reference').http;
 
 export const CACHE = {
@@ -140,6 +141,13 @@ export const CACHE = {
     PUBLIC_DETAIL.maxAgeSec,
     PUBLIC_DETAIL.staleWhileRevalidateSec,
     sharedMaxOf(PUBLIC_DETAIL)
+  ),
+  STATIC_DETAIL: cacheControl(
+    STATIC_DETAIL.maxAgeSec,
+    STATIC_DETAIL.staleWhileRevalidateSec,
+    // Keep the former publicDetail shared TTL (240s) until the Worker purge
+    // endpoint is configured; promote to 600s only when tag invalidation works.
+    purgeAwareSharedMaxAge('staticDetail', sharedMaxOf(PUBLIC_DETAIL))
   ),
   LIVE: cacheControl(
     PUBLIC_LIVE.maxAgeSec,

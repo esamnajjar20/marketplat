@@ -10,17 +10,30 @@
 - `npm run build` يولّد `dist/worker.js` للاختبار المحلي فقط؛ مجلد `dist` غير مصدر ولا يُنشر مباشرة. Wrangler يبني من `worker.ts` وفق `main` في ملف الإعداد.
 - أوامر الفحص من جذر المشروع: `pnpm --filter @marketplat/cf-api-proxy type-check` ثم `pnpm --filter @marketplat/cf-api-proxy test`.
 - Durable Object هو سلطة الكتابة الذرية لسجل Registry وحالة الصحة عند توفر Binding؛ KV يحتفظ بنسخة قراءة احتياطية/توافقية، وليس قفل التزامن.
-- التسخين التلقائي ما زال معطلًا: لا Cron ولا Alarm ولا فحص دوري خلفي. فحص الصحة يدوي أو ينتج عن طلبات المرور الفعلية.
+- لا يوجد فحص صحة دوري أو Alarm. أضيف Cron منفصل لتسخين 12 مسارًا عامًا ثابتًا كل 6 ساعات، وتنظيف ما يصل إلى 10,000 صف D1 منتهٍ يوميًا؛ ولا ينفذ أي فحص Backend صحي تلقائي.
 
 
 ## ما الذي تغيّر؟
 
-تم توسيع `worker.ts` الحالي بدل إنشاء Worker موازٍ. توجد الآن طبقتان: Workers Cache الأصلية (تسبق تنفيذ Worker وتعمل على `workers.dev`) ثم Cache API الداخلية كطبقة إضافية محلية لكل colo، مع KV المرجعي وSWR وETag/304 وCache Tags وSingle-flight. أضيف إبطال Tags مباشرًا عبر `/__purge__`، مع إبقاء إفراغ KV متوافقًا عبر طلب POST بلا جسم.
+تم توسيع `worker.ts` الحالي بدل إنشاء Worker موازٍ. توجد الآن طبقتان: Workers Cache الأصلية (تسبق تنفيذ Worker وتعمل على `workers.dev`) ثم Cache API الداخلية كطبقة إضافية محلية لكل colo، مع D1 المرجعي و`REFERENCE_KV` كمسار توافق احتياطي وSWR وETag/304 وCache Tags وSingle-flight. يزيل `/__purge__` الوسوم من طبقة Workers Cache وD1/KV؛ وإذا فشلت إحدى الطبقتين يعيد `503` كي يعيد الباكند المحاولة.
+
+## استثمار D1 وتقليل طلبات API (تحديث 2026-11-06)
+
+- أزيل القيد `BASE_ONLY_KV_ROUTES`: أصبحت استعلامات القوائم المفلترة المؤهلة تستخدم مفتاحاً مستقلاً في D1، مع حد أقصى 12 معاملًا، و160 حرفًا لكل قيمة، و400 حرف للمفتاح. معاملات تتبع/كسر الكاش `_t` و`t` و`timestamp` و`probe` لا تضاعف مفاتيح الكاش.
+- البحث النصي الحر لا يدخل D1 إلا عند مطابقة قائمة السماح. القائمة الافتراضية 11 مصطلحًا عربيًا، ويمكن توسيعها عبر `SEARCH_CACHE_WHITELIST` بصيغة مفصولة بعلامة `|`، مع حد إجمالي 500 مصطلح يشمل الافتراضية. يطبق الشرط على `/search` و`/ads/search` وأي مرشح `q` في مسارات الكتالوج.
+- لم تكن صفحات التفاصيل كلها بلا كاش كما ورد في الخطة: مسارات التفاصيل كانت بالفعل ضمن طبقة Worker، ومسارات الإعلانات كانت تملك `CACHE.ADS_DETAIL`. أضيف preset `staticDetail` للمنتجات والمتاجر وقوائم الخدمات ومقدمي الخدمات: `max-age=120` و`stale-while-revalidate=600`؛ وترتفع `s-maxage` إلى 600 ثانية فقط عند تفعيل Worker tag purge، وإلا تبقى 240 ثانية كما في السياسة السابقة. لا يوجد مسار منتجات `/:id/related` في شجرة API الحالية، لذلك لم يُنشأ endpoint جديد.
+- صار D1 يخزن `route_tag` و`entity_tag` و`city_tag` كأعمدة مفهرسة إلى جانب بيانات الوسوم، كي يكون حذف النسخ المطابقة عملية SQL محدودة بدلاً من مسح JSON لكل الصفوف. بادئة مفاتيح المرجع انتقلت من `ref:v1:` إلى `ref:v2:` حتى لا تُقرأ الصفوف القديمة التي لم تكن تحمل بيانات إبطال.
+- TTL الافتراضي ساعة freshness و24 ساعة كحد أقصى لعمر الصف. يمكن اختيارياً تفعيل 24 ساعة freshness و7 أيام كحد أقصى عبر `REFERENCE_CACHE_LONG_TTL_ENABLED=true` بعد التحقق من تفعيل إبطال الوسوم ومطابقة أسرار API وWorker؛ الخيار مضبوط `false` افتراضياً، ووجود `PURGE_TOKEN` وحده لا يثبت تطابق الإعدادين.
+- تمت إضافة Cron محدود لتسخين 12 مسارًا عامًا ثابتًا كل 6 ساعات، وCron يومي الساعة 03:30 UTC لحذف حتى 10,000 صف منتهي الصلاحية من D1. لا يستخدم التسخين قائمة URL ديناميكية، ولا يفتح endpoint عام؛ `/__warm__` يبقى `404`.
+- توسعت أهلية Workers Cache للمسارات العامة الموجودة فعليًا: `/badges` و`/collections` و`/public/stores/:slug/stats` و`/service-reviews`. لا يفرض Worker تخزينها قسرًا؛ يجب أن تكون استجابة Express عامة، والطلبات التي تحمل Authorization أو Cookie تتجاوز الكاش. بقيت هذه المسارات خارج D1 افتراضيًا؛ لا تدخل طبقة المرجع إلا في وضع TTL الطويل مع وجود سر التطهير، وتُبطل وسومها من الباكند عند التعديلات ذات الصلة.
+- أضيف `/api/v1/sellers/ranking?limit=20` إلى مسارات التسخين لأنها نقطة عامة فعلية. الترقيم لا يحتاج تسخين كل الصفحات: كل مجموعة معاملات، ومنها `page` و`limit`، تنشئ مفتاحًا منفصلًا؛ أضيف اختبار يمنع مشاركة الصفحة الأولى والثانية للمفتاح نفسه.
+- بقي `/api/v1/recommendations` و`/api/v1/home/feed` و`/api/v1/home/for-you` خارج الكاش المشترك لأنها قد تختلف باختلاف المستخدم. لا يوجد في API الحالي مسار منفصل `/products/:id/related`؛ لا يُنشأ مسار صوري لهذا الغرض.
+- لم تُضف جداول أحداث D1 أو `feature_flags` في هذه الدفعة. يمكن الاستمرار باستخدام binding `CACHE_METRICS` الاختياري لـ Workers Analytics Engine لمؤشرات HIT/MISS من دون كتابة حدث D1 لكل طلب.
 
 ### المزايا المنفذة
 
 - سجل Backend/Frontend مركزي محفوظ في Durable Object تحت مفتاح `gateway:registry:v1`؛ ويحتفظ `REFERENCE_KV` بنسخة قراءة احتياطية/توافقية.
-- لا يتأثر سجل التوجيه بمسار `/__purge__`؛ عملية التطهير تحذف مفاتيح `ref:v1:*` فقط.
+- لا يتأثر سجل التوجيه بمسار `/__purge__`؛ عملية التطهير تستهدف مفاتيح `ref:v*:*` فقط، كما أن purge بالوسوم يحذف الصفوف المطابقة من D1.
 - استراتيجية `weighted-random` بأوزان من 1 إلى 1000، مع اختيار موزون لكل طلب يحتاج الوصول إلى الأصل.
 - عند غياب سجل Registry أو تعذّر DO وKV معًا، يستمر Backend fallback باستخدام `RENDER_ORIGIN` الحالي.
 - Failover تلقائي لطلبات `GET` و`HEAD` عند فشل الاتصال أو استجابات `502/503/504`، ويجمع زمن محاولات الأصل في `x-upstream-ms`.
@@ -165,9 +178,12 @@ npm test
 node cache-probe.mjs https://marketplat-api.esamnajjar6.workers.dev 3
 ```
 
-## إبقاء التسخين معطلًا
+## التسخين المحدود وتنظيف D1 (تحديث 2026-11-06)
 
-أزيل Cron التسخين من `wrangler.toml` و`wrangler.example.jsonc`، وأزيل Handler المجدول ودالة التسخين. يعيد `/__warm__` الآن `404` ولا يرسل طلبات إلى Render. لا تعِد إضافة Cron لهذا الـ Worker ما دام قرار المشروع هو إبقاء التسخين معطلًا.
+- يعمل Cron `0 */6 * * *` على تسخين 12 مسارًا عامًا ثابتًا فقط: الصفحة الثابتة، التصنيفات والأنواع، وأول صفحة من المنتجات والإعلانات والمتاجر والخدمات ومقدمي الخدمات. لا يوجد توليد تلقائي لقائمة URL غير محدودة.
+- يعمل Cron `30 3 * * *` (UTC) على حذف حتى 10,000 صف منتهي الصلاحية من جدول `d1_namespace` يوميًا. الفهرس الموجود على `expires_at` يدعم هذا المسار.
+- يظل المسار اليدوي `/__warm__` مغلقًا (`404`)؛ التسخين لا يقبل طلبات عامة من المستخدمين. كما أن Cron لا يشغّل فحوص صحة Backend.
+- TTL الافتراضي ساعة freshness و24 ساعة حدًا أقصى للعمر. بعد التحقق من مسار إبطال الوسوم وتفعيل `REFERENCE_CACHE_LONG_TTL_ENABLED=true` تصبح القيم 24 ساعة freshness و7 أيام حدًا أقصى للعمر. تُهمل بادئة `ref:v1:` القديمة وتُترك صفوفها لتنتهي ثم ينظفها الجدول اليومي.
 
 ## الاختبارات
 
@@ -178,7 +194,7 @@ npm test
 npm run type-check
 ```
 
-تشمل اختبارات Worker: المحافظة على سياسة الكاش، سجل KV، إضافة وتحديث Registry، رفض نسخة سجل قديمة، التحقق من روابط الخوادم، Weighted failover، Circuit Breaker، عدم إعادة طلبات POST، حماية الإدارة، الفحص الصحي اليدوي، بقاء سجل التوجيه بعد purge، وبقاء التسخين معطلًا. أضيفت اختبارات واجهة لمسار الإدارة للتحقق من دور المستخدم وCSRF وعدم تسريب سر البوابة؛ فحوص TypeScript للواجهة واختبارات Vitest تحتاج تثبيت اعتمادات الواجهة وتشغيلها في بيئة المشروع.
+تشمل اختبارات Worker: المحافظة على سياسة الكاش، مرجع D1/KV ذي الوسوم، إضافة وتحديث Registry، رفض نسخة سجل قديمة، التحقق من روابط الخوادم، Weighted failover، Circuit Breaker، عدم إعادة طلبات POST، حماية الإدارة، الفحص الصحي اليدوي، بقاء سجل التوجيه بعد purge، والتسخين الدوري المحدود وتنظيف D1. أضيفت اختبارات واجهة لمسار الإدارة للتحقق من دور المستخدم وCSRF وعدم تسريب سر البوابة؛ فحوص TypeScript للواجهة واختبارات Vitest تحتاج تثبيت اعتمادات الواجهة وتشغيلها في بيئة المشروع.
 
 
 ## المرحلة الثالثة — تنسيق مركزي لحالة الصحة (Central Health Coordination)
@@ -297,4 +313,4 @@ eight targets per Worker invocation; Cron, alarms, and warmup remain disabled.
 - Admin TSX syntax parse: passed. Full Next.js type-check/build was not run because frontend dependencies are not installed in the supplied archive/runtime.
 - `go test ./...` could not complete because the environment could not resolve `proxy.golang.org` while downloading `github.com/jackc/pgx/v5@v5.7.2`; no Go runtime source was changed in this extension.
 - Wrangler deploy/dry-run and live multi-origin tests were not performed. No production deployment is claimed.
-- No Cron, alarm, scheduled health polling, or cache warm-up was added.
+- No Cron, alarm, or scheduled health polling was added for Go targets. The separate API reference-cache warm-up uses a fixed route list and does not probe Go services.

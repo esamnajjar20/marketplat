@@ -187,6 +187,21 @@ export interface ReferenceCacheMetadata {
   swr: number;
   bcc: number;
   storedAt: number;
+  /** Cache-Tag vocabulary shared with edgePurge.ts for selective D1 invalidation. */
+  tags?: string[];
+}
+
+export interface D1PreparedStatementLike {
+  bind(...values: unknown[]): D1PreparedStatementLike;
+  first<T = unknown>(): Promise<T | null>;
+  run<T = unknown>(): Promise<T>;
+  all<T = unknown>(): Promise<{ results?: T[] }>;
+}
+
+export interface D1DatabaseLike {
+  prepare(query: string): D1PreparedStatementLike;
+  /** Executes a group of prepared statements as one D1 batch. */
+  batch?<T = unknown>(statements: D1PreparedStatementLike[]): Promise<T[]>;
 }
 
 export interface ReferenceCacheRead {
@@ -291,11 +306,17 @@ export interface Env {
   FRONTEND_GATEWAY_HOSTS?: string;
   GATEWAY_ALLOWED_HOSTS?: string;
   GATEWAY_ADMIN_TOKEN?: string;
+  /** Dedicated token for the private D1 feature-flag control plane. */
+  FEATURE_FLAGS_ADMIN_TOKEN?: string;
   /** Shared secret used by Express to authenticate requests entering the Go gateway. */
   GO_WORKER_TOKEN?: string;
   GO_WORKER_TOKENS_JSON?: string;
   PURGE_TOKEN?: string;
   REFERENCE_KV?: KVNamespaceLike;
+  DB?: D1DatabaseLike;
+  SEARCH_CACHE_WHITELIST?: string;
+  /** Set true only after Express-to-Worker tag invalidation is enabled and verified. */
+  REFERENCE_CACHE_LONG_TTL_ENABLED?: string;
   GATEWAY_HEALTH?: DurableObjectNamespaceLike;
   CACHE_METRICS?: AnalyticsDatasetLike;
 }

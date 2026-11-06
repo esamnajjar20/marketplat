@@ -71,6 +71,7 @@ const AdminAuditLogsTable = dynamic(() => import('@/components/admin/AdminAuditL
 const AdminMonitoringCenter = dynamic(() => import('@/components/admin/AdminMonitoringCenter').then((m) => m.AdminMonitoringCenter), { loading: adminTabLoading });
 const AdminInfrastructureGateway = dynamic(() => import('@/components/admin/AdminInfrastructureGateway').then((m) => m.AdminInfrastructureGateway), { loading: adminTabLoading });
 const AdminDeveloperToolsControl = dynamic(() => import('@/components/admin/AdminDeveloperToolsControl').then((m) => m.AdminDeveloperToolsControl), { loading: adminTabLoading });
+const AdminFeatureFlags = dynamic(() => import('@/components/admin/AdminFeatureFlags').then((m) => m.AdminFeatureFlags), { loading: adminTabLoading });
 
 const AdminAnalyticsDashboard = dynamic(
   () =>
@@ -248,6 +249,8 @@ function TabBody({ tab }: { tab: AdminTab }) {
       return <AdminMonitoringCenter />;
     case 'infrastructure':
       return <AdminInfrastructureGateway />;
+    case 'feature-flags':
+      return <AdminFeatureFlags />;
     case 'dashboard':
     default:
       return (
@@ -278,13 +281,13 @@ export function AdminTabsHub() {
   const requested = resolveAdminTab(search);
   const active = effectiveAdminTab(search, role);
 
-  // A MODERATOR who typed / followed a link to a tier-restricted section:
+  // A user who typed / followed a link to a tier-restricted section:
   // explain, then move them to their default tab (same treatment the layout
   // gives other out-of-scope pages).
-  const blocked = role === 'MODERATOR' && requested !== null && !canOpenAdminTab(requested, role);
+  const blocked = role !== null && role !== undefined && requested !== null && !canOpenAdminTab(requested, role);
   useEffect(() => {
     if (!blocked) return;
-    toast.error('هذا القسم غير متاح لدور المشرف المساعد');
+    toast.error(role === 'ADMIN' ? 'إدارة مفاتيح الخصائص متاحة للمدير الأعلى فقط.' : 'هذا القسم غير متاح لصلاحيات حسابك.');
     router.replace(adminTabHref(defaultAdminTabForRole(role)));
   }, [blocked, role, router]);
 

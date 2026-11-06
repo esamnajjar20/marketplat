@@ -1,6 +1,8 @@
-// Configure the same server-only GATEWAY_ADMIN_TOKEN secret used by the API Worker
-// via: npx wrangler secret put GATEWAY_ADMIN_TOKEN and
-// npx wrangler secret put NEXT_CACHE_REVALIDATION_SECRET. Never use NEXT_PUBLIC_.
+// Configure server-only secrets for admin proxy routes. Never use NEXT_PUBLIC_.
+// Feature flags are managed by SUPER_ADMIN through this frontend Worker; the
+// same 32+ character FEATURE_FLAGS_ADMIN_TOKEN must be set on both Workers.
+// Run `npx wrangler secret put FEATURE_FLAGS_ADMIN_TOKEN` from this folder too.
+// The secret is forwarded only over the API_WORKER Service Binding.
 {
   "name": "marketplat",
   "main": ".open-next/worker.js",

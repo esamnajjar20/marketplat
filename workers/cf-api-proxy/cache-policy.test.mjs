@@ -70,7 +70,7 @@ function harness({ upstream, kv, cacheFailure = false, nativeCacheUnavailable = 
       return upstream(String(url), headers, upstreamLog.length, init);
     },
   };
-  vm.runInNewContext(`${source}\nglobalThis.__internals = { isUpstreamCacheable, makeCacheKey, edgeTagsFor, canonicalize, isValidIpAddress, getRenderOrigin, validateGatewayRegistry, validateBackendOrigin, validateGatewayPath, normalizeGatewayRequestTarget, weightedPriorityOrder, backendCandidates, goAdaptiveWeightMap, loadGatewayRegistry, recordBackendResult, fetchBackend, GatewayHealthCoordinator };`, context);
+  vm.runInNewContext(`${source}\nglobalThis.__internals = { isUpstreamCacheable, makeCacheKey, edgeTagsFor, canonicalize, kvEnabled, kvTtlPolicy, searchCacheAllowed, isValidIpAddress, getRenderOrigin, validateGatewayRegistry, validateBackendOrigin, validateGatewayPath, normalizeGatewayRequestTarget, weightedPriorityOrder, backendCandidates, goAdaptiveWeightMap, loadGatewayRegistry, recordBackendResult, fetchBackend, GatewayHealthCoordinator, exportGatewayHealthHistory, pruneGatewayHealthHistory, D1FeatureFlagStore };`, context);
   const pending = [];
   const ctx = {
     waitUntil: (p) => pending.push(Promise.resolve(p).catch(() => {})),
@@ -358,7 +358,7 @@ const PUBLIC_LIVE = {
   assert.equal(store.size, 0);
 }
 
-/* ───────────── #10 Workers KV tier ───────────── */
+/* ───────────── #10 D1 reference tier / Workers KV fallback ───────────── */
 {
   const kvStore = new Map();
   const kv = {
@@ -376,7 +376,7 @@ const PUBLIC_LIVE = {
   const miss = await h.call('/api/v1/categories'); await h.settle();
   assert.equal(miss.headers.get('x-proxy-cache'), 'MISS');
   assert.equal(kvStore.size, 1, 'reference response written to KV');
-  assert.ok([...kvStore.keys()][0].startsWith('ref:v1:/api/v1/categories'));
+  assert.ok([...kvStore.keys()][0].startsWith('ref:v2:/api/v1/categories'));
 
   // Another colo (empty Cache API) is served from KV: no origin call.
   h.store.clear();
@@ -386,49 +386,63 @@ const PUBLIC_LIVE = {
   await h.settle();
   assert.equal(h.upstreamLog.length, 1, 'KV-HIT must not touch the origin (0 Neon queries)');
 
-  // KV older than KV_FRESH (15 min): serve it, refresh in background.
-  for (const e of kvStore.values()) e.metadata.storedAt -= 20 * 60 * 1000;
+  // D1/KV older than its 1h default fresh window: serve stale, then refresh in background.
+  for (const e of kvStore.values()) e.metadata.storedAt -= 7 * 60 * 60 * 1000;
   h.store.clear();
   const stale = await h.call('/api/v1/categories');
   assert.equal(stale.headers.get('x-proxy-cache'), 'KV-STALE');
   await h.settle();
   assert.equal(h.upstreamLog.length, 2);
 
-  // Non-reference routes never use KV.
+  // Filtered catalog routes now use the reference tier (stage 1).
   await h.call('/api/v1/ads?limit=3'); await h.settle();
-  assert.equal([...kvStore.keys()].some((k) => k.includes('/ads')), false);
+  assert.equal([...kvStore.keys()].some((k) => k.includes('/api/v1/ads?limit=3')), true);
 
-  // Authenticated tag purge targets the native Workers Cache, not KV.
+  // Tag purge invalidates both the native Workers Cache and the D1/KV reference tier.
   const nativeTags = await h.call('/__purge__', {
     method: 'POST',
     headers: { 'x-purge-token': 's3cret', 'content-type': 'application/json' },
-    body: JSON.stringify({ tags: ['ad:123', 'route:ads', 'ad:123'] }),
+    body: JSON.stringify({ tags: ['route:categories', 'route:categories'] }),
   });
   assert.equal(nativeTags.status, 200);
-  assert.deepEqual(await nativeTags.json(), { ok: true, purgedTags: 2 });
-  assert.deepEqual(h.nativeCachePurges, [{ tags: ['ad:123', 'route:ads'] }]);
+  assert.deepEqual(await nativeTags.json(), { ok: true, purgedTags: 1, purgedReferenceEntries: 1 });
+  assert.deepEqual(h.nativeCachePurges, [{ tags: ['route:categories'] }]);
+  assert.equal(kvStore.has('ref:v2:/api/v1/categories'), false, 'tag purge must remove the matching reference entry');
 
   const invalidTags = await h.call('/__purge__', {
     method: 'POST', headers: { 'x-purge-token': 's3cret', 'content-type': 'application/json' },
     body: JSON.stringify({ tags: ['route:ads\n'] }),
   });
   assert.equal(invalidTags.status, 400);
-  const noNativeCache = harness({ nativeCacheUnavailable: true, upstream: async () => json({}) });
+  const noNativeCacheKvStore = new Map();
+  const noNativeCacheKv = {
+    getWithMetadata: async (key) => {
+      const entry = noNativeCacheKvStore.get(key);
+      return entry ? { value: entry.value.slice(0), metadata: entry.metadata } : { value: null, metadata: null };
+    },
+    put: async (key, value, options) => { noNativeCacheKvStore.set(key, { value, metadata: options.metadata }); },
+    list: async ({ prefix }) => ({ keys: [...noNativeCacheKvStore.keys()].filter((key) => key.startsWith(prefix)).map((name) => ({ name })), list_complete: true }),
+    delete: async (key) => { noNativeCacheKvStore.delete(key); },
+  };
+  const noNativeCache = harness({ kv: noNativeCacheKv, nativeCacheUnavailable: true, upstream: async () => json({}) });
+  await noNativeCache.call('/api/v1/ads?limit=1'); await noNativeCache.settle();
+  assert.equal(noNativeCacheKvStore.size, 1, 'test fixture should contain a reference-cache entry before partial purge');
   const unavailable = await noNativeCache.call('/__purge__', {
     method: 'POST', headers: { 'x-purge-token': 's3cret', 'content-type': 'application/json' },
     body: JSON.stringify({ tags: ['route:ads'] }),
   });
   assert.equal(unavailable.status, 503);
-  assert.deepEqual(await unavailable.json(), { ok: false, error: 'WORKERS_CACHE_PURGE_UNAVAILABLE' });
+  assert.deepEqual(await unavailable.json(), { ok: false, error: 'WORKERS_CACHE_PURGE_UNAVAILABLE', purgedReferenceEntries: 1 });
+  assert.equal(noNativeCacheKvStore.size, 0, 'D1/KV tier should still be purged when native Workers Cache is unavailable');
   const brokenNativeCache = harness({ nativeCacheFailure: true, upstream: async () => json({}) });
   const purgeFailed = await brokenNativeCache.call('/__purge__', {
     method: 'POST', headers: { 'x-purge-token': 's3cret', 'content-type': 'application/json' },
     body: JSON.stringify({ tags: ['route:ads'] }),
   });
   assert.equal(purgeFailed.status, 503);
-  assert.deepEqual(await purgeFailed.json(), { ok: false, error: 'WORKERS_CACHE_PURGE_FAILED' });
+  assert.deepEqual(await purgeFailed.json(), { ok: false, error: 'WORKERS_CACHE_PURGE_FAILED', purgedReferenceEntries: 0 });
 
-  // /__purge__ only flushes ref:v1:* and must never erase dynamic gateway config.
+  // /__purge__ flushes all ref:v* generations and must never erase dynamic gateway config.
   kvStore.set('gateway:registry:v1', JSON.stringify({ backend: { servers: [] } }));
   // Empty-body /__purge__ remains token-protected and flushes the KV tier.
   assert.equal((await h.call('/__purge__', { method: 'POST' })).status, 403);
@@ -437,13 +451,124 @@ const PUBLIC_LIVE = {
   const purged = await h.call('/__purge__', { method: 'POST', headers: { 'x-purge-token': 's3cret' } });
   assert.deepEqual(await purged.json(), { ok: true, deleted: 1 });
   assert.equal(kvStore.has('gateway:registry:v1'), true, 'reference purge must preserve gateway registry');
-  assert.equal([...kvStore.keys()].filter((key) => key.startsWith('ref:v1:')).length, 0);
+  assert.equal([...kvStore.keys()].filter((key) => key.startsWith('ref:v')).length, 0);
 
   const brokenKv = { list: async () => { throw new Error('KV unavailable'); } };
   const failedPurge = harness({ kv: brokenKv, upstream: async () => json({}) });
   const failed = await failedPurge.call('/__purge__', { method: 'POST', headers: { 'x-purge-token': 's3cret' } });
   assert.equal(failed.status, 503);
   assert.deepEqual(await failed.json(), { ok: false, error: 'KV_PURGE_FAILED' });
+}
+
+/* ───────────── long reference TTL requires explicit purge-readiness opt-in ───────────── */
+{
+  const kvStore = new Map();
+  const kv = {
+    getWithMetadata: async (key) => {
+      const entry = kvStore.get(key);
+      return entry ? { value: entry.value.slice(0), metadata: entry.metadata } : { value: null, metadata: null };
+    },
+    put: async (key, value, options) => { kvStore.set(key, { value, metadata: options.metadata, expirationTtl: options.expirationTtl }); },
+    list: async ({ prefix }) => ({ keys: [...kvStore.keys()].filter((key) => key.startsWith(prefix)).map((name) => ({ name })), list_complete: true }),
+    delete: async (key) => { kvStore.delete(key); },
+  };
+  const h = harness({ kv, upstream: async () => json({ ok: true }, PUBLIC_LIVE) });
+  await h.call('/api/v1/categories');
+  await h.settle();
+  assert.equal([...kvStore.values()][0].expirationTtl, 24 * 60 * 60, 'default D1 retention is capped at 24h');
+  kvStore.clear();
+
+  const longTtlHarness = harness({ kv, envOverrides: { REFERENCE_CACHE_LONG_TTL_ENABLED: 'true', PURGE_TOKEN: 'p'.repeat(32) }, upstream: async () => json({ ok: true }, PUBLIC_LIVE) });
+  await longTtlHarness.call('/api/v1/categories');
+  await longTtlHarness.settle();
+  assert.equal([...kvStore.values()][0].expirationTtl, 7 * 24 * 60 * 60, 'opt-in D1 retention is capped at 7 days');
+}
+
+/* ───────────── filtered reference caching is bounded and search is allowlisted ───────────── */
+{
+  const kvStore = new Map();
+  const kv = {
+    getWithMetadata: async (key) => {
+      const entry = kvStore.get(key);
+      return entry ? { value: entry.value.slice(0), metadata: entry.metadata } : { value: null, metadata: null };
+    },
+    put: async (key, value, options) => { kvStore.set(key, { value, metadata: options.metadata }); },
+    list: async ({ prefix }) => ({ keys: [...kvStore.keys()].filter((key) => key.startsWith(prefix)).map((name) => ({ name })), list_complete: true }),
+    delete: async (key) => { kvStore.delete(key); },
+  };
+  const h = harness({ kv, upstream: async () => json({ ok: true }, { ...PUBLIC_LIVE }) });
+
+  await h.call('/api/v1/products?categoryId=cat-1&city=gaza&sortBy=price');
+  await h.settle();
+  const filteredKey = [...kvStore.keys()].find((key) => key.includes('/api/v1/products?'));
+  assert.ok(filteredKey, 'filtered products lists should be stored in the reference tier');
+  const filteredMeta = kvStore.get(filteredKey).metadata;
+  assert.ok(filteredMeta.tags.includes('route:products'));
+  assert.ok(filteredMeta.tags.includes('city:gaza'));
+
+  await h.call('/api/v1/products/prod-1');
+  await h.settle();
+  const productDetail = [...kvStore.entries()].find(([key]) => key.endsWith('/api/v1/products/prod-1'));
+  assert.ok(productDetail, 'public product detail responses use the reference tier');
+  assert.ok(productDetail[1].metadata.tags.includes('product:prod-1'), 'detail cache entry carries its entity invalidation tag');
+
+  await h.call('/api/v1/search?q=سيارة');
+  await h.settle();
+  assert.ok([...kvStore.keys()].some((key) => key.includes('/api/v1/search?q=')), 'allowlisted search terms use the reference tier');
+
+  await h.call('/api/v1/search?q=استعلام-غير-موجود-في-القائمة');
+  await h.call('/api/v1/ads/search?q=استعلام-آخر');
+  await h.settle();
+  assert.equal([...kvStore.keys()].filter((key) => key.includes('/api/v1/search')).length, 1, 'unlisted search terms must not create D1/KV rows');
+  assert.equal([...kvStore.keys()].some((key) => key.includes('/api/v1/ads/search')), false, 'the nested ads search endpoint is also allowlisted');
+
+  const canonical = h.internals.canonicalize(new URL('https://api.example.com/api/v1/products?city=gaza&_t=123&t=456&timestamp=789&probe=1'));
+  assert.equal(canonical.key, '/api/v1/products?city=gaza', 'cache-buster params must not multiply cache keys');
+  assert.equal(h.internals.kvEnabled({ REFERENCE_KV: kv }, h.internals.canonicalize(new URL('https://api.example.com/api/v1/search?q=' + 'x'.repeat(41)))), false, 'long free-text queries must bypass the reference tier');
+
+  const pageOne = h.internals.canonicalize(new URL('https://api.example.com/api/v1/products?page=1&limit=10'));
+  const pageTwo = h.internals.canonicalize(new URL('https://api.example.com/api/v1/products?page=2&limit=10'));
+  assert.notEqual(pageOne.key, pageTwo.key, 'each paginated catalog page has its own cache key');
+  assert.equal(h.internals.kvEnabled({ REFERENCE_KV: kv }, pageOne), true);
+  assert.equal(h.internals.kvEnabled({ REFERENCE_KV: kv }, pageTwo), true);
+
+  const configuredTerms = Array.from({ length: 501 }, (_, i) => `term-${i}`).join('|');
+  const configuredEnv = { REFERENCE_KV: kv, SEARCH_CACHE_WHITELIST: configuredTerms };
+  assert.equal(h.internals.kvEnabled(configuredEnv, h.internals.canonicalize(new URL('https://api.example.com/api/v1/search?q=term-488'))), true, 'the configured dictionary fills the remaining slots up to 500 total');
+  assert.equal(h.internals.kvEnabled(configuredEnv, h.internals.canonicalize(new URL('https://api.example.com/api/v1/search?q=term-489'))), false, 'built-in plus configured search dictionary is capped at 500 total terms');
+
+  const longPolicyWithoutPurge = h.internals.kvTtlPolicy({ REFERENCE_CACHE_LONG_TTL_ENABLED: 'true' });
+  assert.deepEqual({ ...longPolicyWithoutPurge }, { freshSec: 3600, maxAgeSec: 86400 }, 'long TTL cannot activate without a purge secret');
+  const longPolicyWithPurge = h.internals.kvTtlPolicy({ REFERENCE_CACHE_LONG_TTL_ENABLED: 'true', PURGE_TOKEN: 'p'.repeat(32) });
+  assert.deepEqual({ ...longPolicyWithPurge }, { freshSec: 86400, maxAgeSec: 604800 }, 'long TTL is 24h fresh / 7d maximum age');
+
+  for (const path of ['/api/v1/collections/store/store-1', '/api/v1/public/stores/market/stats', '/api/v1/service-reviews/seller/seller-1']) {
+    const canon = h.internals.canonicalize(new URL(`https://api.example.com${path}`));
+    assert.equal(h.internals.kvEnabled({ REFERENCE_KV: kv }, canon), false, `${path} must wait for purge-ready mode before using D1`);
+    assert.equal(h.internals.kvEnabled({ REFERENCE_KV: kv, REFERENCE_CACHE_LONG_TTL_ENABLED: 'true', PURGE_TOKEN: 'p'.repeat(32) }, canon), true, `${path} becomes D1-eligible in purge-ready mode`);
+  }
+}
+
+
+/* ───────────── public route expansion uses upstream cache policy ───────────── */
+{
+  const { call, settle, upstreamLog } = harness({ upstream: async () => json({ ok: true }, PUBLIC_LIVE) });
+  for (const path of [
+    '/api/v1/badges/store/store-1',
+    '/api/v1/collections/store/store-1',
+    '/api/v1/public/stores/market/stats',
+    '/api/v1/service-reviews/seller/seller-1',
+  ]) {
+    const first = await call(path);
+    await settle();
+    const second = await call(path);
+    assert.equal(first.headers.get('x-proxy-cache'), 'MISS', `${path} first request should populate the Worker cache`);
+    assert.equal(second.headers.get('x-proxy-cache'), 'HIT', `${path} second request should use the Worker cache`);
+  }
+  assert.equal(upstreamLog.length, 4, 'each public route should reach the origin once');
+
+  const privateRecs = await call('/api/v1/recommendations?type=PRODUCT');
+  assert.equal(privateRecs.headers.get('x-proxy-cache'), 'BYPASS', 'recommendations remain outside the shared cache');
 }
 
 /* ───────────── native Workers Cache is default-deny outside explicit public routes ───────────── */
@@ -1278,6 +1403,138 @@ const PUBLIC_LIVE = {
   }
 }
 
+/* ───────────── private D1 feature-flag control plane ───────────── */
+{
+  const values = new Map();
+  const db = {
+    prepare(sql) {
+      let bound = [];
+      return {
+        bind(...args) { bound = args; return this; },
+        async run() {
+          if (sql.includes('INSERT INTO feature_flags')) {
+            const [name, enabled, rolloutPercent, updatedAt] = bound;
+            values.set(name, { name, enabled, rollout_percent: rolloutPercent, updated_at: updatedAt });
+          }
+          return { success: true, meta: { changes: 1 } };
+        },
+        async all() {
+          if (sql.includes('PRAGMA table_info(feature_flags)')) {
+            return { results: ['name', 'enabled', 'rollout_percent', 'updated_at'].map((name) => ({ name })) };
+          }
+          if (sql.includes('SELECT name, enabled, rollout_percent, updated_at FROM feature_flags')) {
+            return { results: [...values.values()].sort((a, b) => a.name.localeCompare(b.name)) };
+          }
+          return { results: [] };
+        },
+      };
+    },
+  };
+  const h = harness({ envOverrides: { DB: db, FEATURE_FLAGS_ADMIN_TOKEN: 'flags-secret-0123456789abcdef0123456789' } });
+  assert.equal((await h.call('/__gateway/feature-flags')).status, 403, 'feature flag control plane must reject unauthenticated access');
+  const headers = { 'x-feature-flags-token': 'flags-secret-0123456789abcdef0123456789', 'content-type': 'application/json' };
+  const empty = await h.call('/__gateway/feature-flags', { headers });
+  assert.equal(empty.status, 200);
+  assert.deepEqual((await empty.json()).flags, []);
+
+  const saved = await h.call('/__gateway/feature-flags', {
+    method: 'PUT', headers, body: JSON.stringify({ name: 'PUBLIC_NEW_SEARCH', enabled: true, rolloutPercent: 35 }),
+  });
+  assert.equal(saved.status, 200);
+  const savedBody = await saved.json();
+  assert.equal(savedBody.flag.name, 'PUBLIC_NEW_SEARCH');
+  assert.equal(savedBody.flag.enabled, true);
+  assert.equal(savedBody.flag.rolloutPercent, 35);
+  const listedFlag = (await h.call('/__gateway/feature-flags', { headers }).then((r) => r.json())).flags[0];
+  assert.equal(listedFlag.enabled, true);
+  assert.equal(listedFlag.rolloutPercent, 35);
+
+  await h.call('/__gateway/feature-flags', {
+    method: 'PUT', headers, body: JSON.stringify({ name: 'INTERNAL_OPERATIONS_SWITCH', enabled: true, rolloutPercent: 100 }),
+  });
+  const publicFlags = await h.call('/__gateway/public-feature-flags');
+  assert.equal(publicFlags.status, 200);
+  assert.deepEqual((await publicFlags.json()).flags, { PUBLIC_NEW_SEARCH: { enabled: true, rolloutPercent: 35 } });
+  assert.equal((await h.call('/__gateway/public-feature-flags', { method: 'PUT', headers })).status, 405);
+
+  const invalid = await h.call('/__gateway/feature-flags', {
+    method: 'PUT', headers, body: JSON.stringify({ name: 'new flag', enabled: true }),
+  });
+  assert.equal(invalid.status, 400, 'flag keys must use bounded UPPER_SNAKE_CASE identifiers');
+  const invalidPercent = await h.call('/__gateway/feature-flags', {
+    method: 'PUT', headers, body: JSON.stringify({ name: 'PUBLIC_BAD_ROLLOUT', enabled: true, rolloutPercent: 101 }),
+  });
+  assert.equal(invalidPercent.status, 400, 'rollout percent must be an integer from 0 to 100');
+  const wrongToken = await h.call('/__gateway/feature-flags', { headers: { 'x-feature-flags-token': 'wrong' } });
+  assert.equal(wrongToken.status, 403);
+
+  // A pre-rollout table is upgraded additively and existing rows default to 100%.
+  let migrated = false;
+  const oldDb = {
+    prepare(sql) {
+      return {
+        bind() { return this; },
+        async run() { if (sql.startsWith('ALTER TABLE feature_flags ADD COLUMN rollout_percent')) migrated = true; return { success: true }; },
+        async all() {
+          if (sql.includes('PRAGMA table_info(feature_flags)')) {
+            return { results: ['name', 'enabled', 'updated_at', ...(migrated ? ['rollout_percent'] : [])].map((name) => ({ name })) };
+          }
+          if (sql.includes('SELECT name, enabled, rollout_percent, updated_at FROM feature_flags')) {
+            return { results: [{ name: 'PUBLIC_OLD_FLAG', enabled: 1, updated_at: 10, rollout_percent: 100 }] };
+          }
+          return { results: [] };
+        },
+      };
+    },
+  };
+  const oldSchema = harness({ envOverrides: { DB: oldDb, FEATURE_FLAGS_ADMIN_TOKEN: 'flags-secret-0123456789abcdef0123456789' } });
+  const migratedResponse = await oldSchema.call('/__gateway/feature-flags', { headers });
+  assert.equal(migratedResponse.status, 200);
+  assert.equal(migrated, true, 'legacy feature_flags schema must gain rollout_percent');
+  assert.equal((await migratedResponse.json()).flags[0].rolloutPercent, 100);
+}
+
+/* ───────────── bounded D1 gateway health history snapshots ───────────── */
+{
+  const batched = [];
+  const executed = [];
+  const db = {
+    prepare(sql) {
+      let values = [];
+      return {
+        sql,
+        bind(...args) { values = args; this.values = values; return this; },
+        async run() { executed.push({ sql, values }); return { meta: { changes: 3 } }; },
+        async all() { return { results: [] }; },
+      };
+    },
+    async batch(statements) { batched.push(...statements); return []; },
+  };
+  const state = {
+    failures: 0, openUntil: 0, healthy: true, status: 200, durationMs: 42,
+    quarantined: false, errorRate: 0.05, ewmaDurationMs: 38, sampleCount: 12,
+    source: 'traffic', updatedAt: Date.now(), checkedAt: new Date().toISOString(),
+  };
+  const env = {
+    DB: db,
+    GATEWAY_HEALTH: {
+      idFromName: () => 'health-do',
+      get: () => ({ fetch: async () => Response.json({ states: { 'backend--origin-a|https://origin-a.example': state } }) }),
+    },
+  };
+  const count = await harness({ upstream: async () => json({}) }).internals.exportGatewayHealthHistory(env, 1_800_000);
+  assert.equal(count, 1);
+  assert.equal(batched.length, 1, 'server snapshots must be written through one D1 batch');
+  assert.match(batched[0].sql, /INSERT INTO gateway_health_history/);
+  assert.equal(batched[0].values[0], 'backend--origin-a');
+  assert.equal(batched[0].values[1], 'https://origin-a.example');
+  assert.equal(batched[0].values[2], 1_800_000 / 1000 / 900 * 900);
+  assert.equal(batched[0].values[3], 1);
+  const pruned = await harness({ upstream: async () => json({}) }).internals.pruneGatewayHealthHistory(db, 3_000_000);
+  assert.equal(pruned, 3);
+  assert.ok(executed.some((entry) => entry.sql.includes('DELETE FROM gateway_health_history')));
+}
+
 /* ───────────── bounded manual health probe batches ───────────── */
 {
   const servers = Array.from({ length: 10 }, (_, index) => ({
@@ -1346,13 +1603,21 @@ const PUBLIC_LIVE = {
   assert.equal((await staleTarget.json()).error, 'PROBE_TARGET_NOT_FOUND');
 }
 
-/* ───────────── cache warm-up stays disabled ───────────── */
+/* ───────────── scheduled warm-up is bounded; manual warm-up stays disabled ───────────── */
 {
   const h = harness({ upstream: async () => json({ items: [] }, PUBLIC_LIVE) });
-  assert.equal(typeof h.context.__worker.scheduled, 'undefined', 'no scheduled warm-up handler is deployed');
+  assert.equal(typeof h.context.__worker.scheduled, 'function', 'scheduled cache warmer must be deployed');
+  const scheduledTasks = [];
+  await h.context.__worker.scheduled({ cron: '0 */6 * * *' }, {}, {
+    waitUntil: (promise) => scheduledTasks.push(Promise.resolve(promise)),
+  });
+  while (scheduledTasks.length) await Promise.all(scheduledTasks.splice(0));
+  assert.equal(h.upstreamLog.length, 12, 'cron should warm only the fixed allowlisted public paths');
+  assert.ok(h.upstreamLog.some((entry) => entry.url.includes('/api/v1/sellers/ranking?limit=20')), 'seller ranking is prewarmed as a real public route');
+  assert.ok(h.upstreamLog.some((entry) => entry.url.endsWith('/api/v1/home/static')));
+
   const disabled = await h.call('/__warm__');
   assert.equal(disabled.status, 404, 'manual warm-up endpoint must remain disabled');
-  assert.equal(h.upstreamLog.length, 0, 'warm-up endpoint must not contact the origin');
 }
 
 /* ───────────── cache-busting shapes are never stored ───────────── */
@@ -1431,6 +1696,8 @@ const PUBLIC_LIVE = {
 }
 
 const wrangler = fs.readFileSync(new URL('./wrangler.toml', import.meta.url), 'utf8');
-assert.doesNotMatch(wrangler, /\[triggers\]|crons\s*=/, 'warm-up cron must remain disabled');
+assert.ok(wrangler.includes('crons = [\"0 */6 * * *\", \"*/15 * * * *\", \"30 3 * * *\"]'), 'six-hour cache warm, 15-minute health snapshots, and daily D1 cleanup crons must be configured');
+assert.ok(wrangler.includes('[[analytics_engine_datasets]]'), 'Workers Analytics Engine binding must be enabled in production config');
+assert.ok(wrangler.includes('binding = \"CACHE_METRICS\"') && wrangler.includes('dataset = \"marketplat_cache\"'), 'cache metrics dataset must be configured');
 
-console.log('PASS API Worker cache/gateway: policy, SWR, negative cache, KV tier, tags, single-flight, dynamic routing, failover, warm-up disabled');
+console.log('PASS API Worker cache/gateway: policy, SWR, negative cache, tagged D1/KV tier, filtered-query cache, scheduled warm/cleanup, feature-flag rollout control plane, batched D1 health history, analytics binding, single-flight, dynamic routing, failover');
