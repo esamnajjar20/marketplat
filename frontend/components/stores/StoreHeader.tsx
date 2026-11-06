@@ -12,13 +12,16 @@ import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
 import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
 import { useToggleStoreFollow } from '@/hooks/mutations/useStoreMutations';
 import { useIsFollowingStore } from '@/hooks/queries/useStores';
-import { ReportStoreButton } from '@/components/stores/ReportStoreButton';
-import { ShareAdButton } from '@/components/ads/ShareAdButton';
+// PERF-BUNDLE-DETAIL-01: الأزرار الثانوية كسولة (LazyDetailActions).
+import {
+  LazyReportStoreButton as ReportStoreButton,
+  LazyShareAdButton as ShareAdButton,
+  LazySaveOfflineButton as SaveOfflineButton,
+  LazyDownloadStoreCatalogButton as DownloadStoreCatalogButton,
+  LazyStorePaymentMethods as StorePaymentMethods,
+} from '@/components/shared/LazyDetailActions';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
-import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
-import { DownloadStoreCatalogButton } from '@/components/stores/DownloadStoreCatalogButton';
-import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 import { StoreAttributesSummary } from '@/components/stores/StoreAttributesSummary';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { getStoreTypeLabels, getStoreTypePresentation, type StoreWithSellerAndCounts, type StoreWeekday } from '@/types/store.types';

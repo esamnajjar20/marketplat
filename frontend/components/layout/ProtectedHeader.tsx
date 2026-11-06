@@ -14,7 +14,8 @@ import { UserMenu } from './UserMenu';
 import { NotificationBell } from './NotificationBell';
 import { MessagesLink } from './MessagesLink';
 import { ThemeToggle } from './ThemeToggle';
-import { ProtectedMobileNav } from './ProtectedMobileNav';
+// PERF-BUNDLE-HEADER-02: الدرج الثقيل كسول — انظر LazyHeaderParts.
+import { LazyProtectedMobileNav as ProtectedMobileNav } from './LazyHeaderParts';
 import { Button }  from '@/components/shared/ui/Button';
 import { CreateSheet } from './CreateSheet';
 import { Plus } from 'lucide-react';

@@ -30,7 +30,7 @@ import { useIsFavorited } from '@/hooks/queries/useFavorites';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
 import { useCategories } from '@/hooks/queries/useCategories';
-import { autoSaveVisitedAd } from '@/lib/offlineAutoRead';
+// PERF-BUNDLE-AD-01: offlineAutoRead (~10 KB) يُحمَّل داخل الـ effect (fire-and-forget أصلًا).
 import { useStartConversation } from '@/hooks/mutations/useStartConversation';
 import { track } from '@/lib/analytics';
 import { toast } from 'sonner';
@@ -154,7 +154,9 @@ export function AdDetail({ ad, isFavorited = false }: Props) {
 
   // Auto-save visited ad for offline reading (fire-and-forget)
   useEffect(() => {
-    autoSaveVisitedAd(ad);
+    void import('@/lib/offlineAutoRead')
+      .then((m) => m.autoSaveVisitedAd(ad))
+      .catch(() => undefined);
   }, [ad]);
 
   return (

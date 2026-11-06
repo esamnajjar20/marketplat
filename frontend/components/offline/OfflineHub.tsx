@@ -19,6 +19,7 @@ import { reportBackgroundFailure } from '../../lib/backgroundTask';
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Download,
   FileText,
@@ -54,19 +55,47 @@ import {
   type OfflineActivityEntry,
 } from '@/lib/offlineActivityLog';
 import { Button } from '@/components/shared/ui/Button';
-import { SavedOfflineAdsPageClient } from '@/components/ads/SavedOfflineAdsPageClient';
-import { DownloadsPageClient } from '@/components/downloads/DownloadsPageClient';
-import { DraftsCenterClient } from '@/components/settings/DraftsCenterClient';
-import { SyncCenterClient } from '@/components/settings/SyncCenterClient';
-import { StorageManagementClient } from '@/components/settings/StorageManagementClient';
-import { OfflineControlClient } from '@/components/settings/OfflineControlClient';
-import { SavedPaymentsPageClient } from '@/components/payments/SavedPaymentsPageClient';
 import {
   DEFAULT_OFFLINE_TAB,
   resolveOfflineTab,
   visibleOfflineTabs,
   type OfflineTab,
 } from '@/lib/offlineHubTabs';
+
+// PERF-BUNDLE-OFFLINE-01: كل تبويب يُحمَّل عند فتحه فقط. المحتوى لا يُرسَم على الخادم أصلًا
+// (initialTab=null حتى أول effect) فلا خسارة SSR. ملاحظة: chunks هذه يجب أن تبقى ضمن
+// warming-manifest/precache حتى يعمل المركز دون اتصال (generate-warming-manifest يقرأ react-loadable).
+const TabFallback = () => (
+  <div aria-busy="true" className="min-h-40 animate-pulse rounded-2xl bg-muted/40" />
+);
+const SavedOfflineAdsPageClient = dynamic(
+  () => import('@/components/ads/SavedOfflineAdsPageClient').then((mod) => mod.SavedOfflineAdsPageClient),
+  { ssr: false, loading: TabFallback },
+);
+const DownloadsPageClient = dynamic(
+  () => import('@/components/downloads/DownloadsPageClient').then((mod) => mod.DownloadsPageClient),
+  { ssr: false, loading: TabFallback },
+);
+const DraftsCenterClient = dynamic(
+  () => import('@/components/settings/DraftsCenterClient').then((mod) => mod.DraftsCenterClient),
+  { ssr: false, loading: TabFallback },
+);
+const SyncCenterClient = dynamic(
+  () => import('@/components/settings/SyncCenterClient').then((mod) => mod.SyncCenterClient),
+  { ssr: false, loading: TabFallback },
+);
+const StorageManagementClient = dynamic(
+  () => import('@/components/settings/StorageManagementClient').then((mod) => mod.StorageManagementClient),
+  { ssr: false, loading: TabFallback },
+);
+const OfflineControlClient = dynamic(
+  () => import('@/components/settings/OfflineControlClient').then((mod) => mod.OfflineControlClient),
+  { ssr: false, loading: TabFallback },
+);
+const SavedPaymentsPageClient = dynamic(
+  () => import('@/components/payments/SavedPaymentsPageClient').then((mod) => mod.SavedPaymentsPageClient),
+  { ssr: false, loading: TabFallback },
+);
 
 const TAB_META: Record<
   OfflineTab,

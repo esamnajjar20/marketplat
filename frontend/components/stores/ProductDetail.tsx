@@ -26,20 +26,41 @@ import { ProductDetailGallery } from '@/components/stores/ProductDetailGallery';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Button } from '@/components/shared/ui/Button';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
-import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
-import { ShareAdButton } from '@/components/ads/ShareAdButton';
-import { ReportProductButton } from '@/components/stores/ReportProductButton';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';
-import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
 import { ProductCard } from '@/components/stores/ProductCard';
-import { ProductRecommendations } from '@/components/recommendations/ProductRecommendations';
+import dynamic from 'next/dynamic';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { formatPrice, formatPhone } from '@/lib/formatters';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import type { ProductWithFullStore, ProductAvailability } from '@/types/product.types';
 import type { ProductWithStore } from '@/types/product.types';
+
+// PERF-BUNDLE-PRODUCT-01: أجزاء ثانوية/تحت الطيّة تُحمَّل بعد الـ hydration بدل دخولها
+// حزمة /products/[id] الأولى: حفظ للأوفلاين (offlineSavedEntities)، مشاركة + QR،
+// إبلاغ (+Select)، طرق الدفع، وتوصيات المتاجر الأخرى (استعلام عميل أصلًا).
+// الـ placeholders بأبعاد تقريبية لتقليل CLS.
+const SaveOfflineButton = dynamic(
+  () => import('@/components/shared/SaveOfflineButton').then((m) => m.SaveOfflineButton),
+  { ssr: false, loading: () => <span aria-hidden="true" className="inline-block h-10 w-full" /> },
+);
+const ShareAdButton = dynamic(
+  () => import('@/components/ads/ShareAdButton').then((m) => m.ShareAdButton),
+  { ssr: false, loading: () => <span aria-hidden="true" className="inline-block h-10 w-full" /> },
+);
+const ReportProductButton = dynamic(
+  () => import('@/components/stores/ReportProductButton').then((m) => m.ReportProductButton),
+  { ssr: false, loading: () => <span aria-hidden="true" className="inline-block h-8 w-full" /> },
+);
+const StorePaymentMethods = dynamic(
+  () => import('@/components/payment/StorePaymentMethods').then((m) => m.StorePaymentMethods),
+  { ssr: false, loading: () => <span aria-hidden="true" className="mt-1 block h-12 w-full" /> },
+);
+const ProductRecommendations = dynamic(
+  () => import('@/components/recommendations/ProductRecommendations').then((m) => m.ProductRecommendations),
+  { ssr: false, loading: () => null },
+);
 
 const AVAILABILITY_LABEL: Record<ProductAvailability, string> = {
   IN_STOCK: 'متوفر',

@@ -3,7 +3,7 @@
 import { memo } from 'react';
 import { toast } from 'sonner';
 import { RotateCw } from 'lucide-react';
-import { classifyHttpConflict } from '@/lib/conflictResolver';
+import { classifyHttpConflict } from '@/lib/conflictClassifier';
 import { cn } from '@/lib/utils';
 import type { DisplayMessage } from './messageTypes';
 

@@ -29,6 +29,7 @@
     "cache:performance-audit": "node scripts/cache-performance-audit.mjs",
     "cache:final-audit": "node scripts/cache-final-audit.mjs",
     "warming:audit": "node scripts/warming-final-audit.mjs",
+    "perf:bundle-report": "node scripts/bundle-report.mjs",
     "perf:render-audit": "node scripts/render-audit.mjs",
     "perf:render-regression": "node scripts/render-regression-audit.mjs",
     "perf:query-invalidation-audit": "node scripts/query-invalidation-audit.mjs",

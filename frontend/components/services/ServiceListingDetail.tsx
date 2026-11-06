@@ -5,9 +5,12 @@ import { useMemo, useState, useEffect, type ReactNode } from 'react';
 import { Clock, Eye } from 'lucide-react';
 import { ServiceListingGallery } from '@/components/services/ServiceListingGallery';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
-import { ShareAdButton } from '@/components/ads/ShareAdButton';
-import { ReportServiceButton } from '@/components/services/ReportServiceButton';
-import { SaveOfflineButton } from '@/components/shared/SaveOfflineButton';
+// PERF-BUNDLE-DETAIL-01: الأزرار الثانوية كسولة (LazyDetailActions).
+import {
+  LazyShareAdButton as ShareAdButton,
+  LazyReportServiceButton as ReportServiceButton,
+  LazySaveOfflineButton as SaveOfflineButton,
+} from '@/components/shared/LazyDetailActions';
 import { ProviderContactCard } from '@/components/services/ProviderContactCard';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';

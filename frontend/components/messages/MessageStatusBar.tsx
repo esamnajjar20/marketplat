@@ -3,7 +3,7 @@
 import { memo } from 'react';
 import { AlertTriangle, Check, CheckCheck, Clock } from 'lucide-react';
 import { formatTime } from '@/lib/formatters';
-import { classifyHttpConflict } from '@/lib/conflictResolver';
+import { classifyHttpConflict } from '@/lib/conflictClassifier';
 import type { DisplayMessage } from './messageTypes';
 
 type Props = { message: DisplayMessage; isMine: boolean };

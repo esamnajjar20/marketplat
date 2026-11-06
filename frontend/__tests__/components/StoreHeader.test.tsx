@@ -171,10 +171,11 @@ describe('StoreHeader', () => {
     expect(screen.getByText('متجر لبيع الأدوات المنزلية')).toBeInTheDocument();
   });
 
-  it('shows the report button for an authenticated non-owner viewer (FEAT-REPORT-USER-STORE)', () => {
+  // PERF-BUNDLE-DETAIL-01: ReportStoreButton is lazy (next/dynamic, ssr:false) → async.
+  it('shows the report button for an authenticated non-owner viewer (FEAT-REPORT-USER-STORE)', async () => {
     render(<StoreHeader store={store} />);
 
-    expect(screen.getByTestId('report-store-button')).toBeInTheDocument();
+    expect(await screen.findByTestId('report-store-button')).toBeInTheDocument();
   });
 
   it('hides the report button on the user\'s own store', () => {

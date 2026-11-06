@@ -157,7 +157,7 @@ function DrawerDisclosureGroup({
   );
 }
 
-export function ProtectedMobileNav() {
+export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {}) {
   const isOpen = useUIStore(selectIsMobileNavOpen);
   const toggle = useUIStore(selectToggleMobileNav);
   const close = useUIStore(selectCloseMobileNav);
@@ -248,18 +248,21 @@ export function ProtectedMobileNav() {
 
   return (
     <>
-      <button
-        id={TOGGLE_ID}
-        onClick={toggle}
-        className="rounded p-2 hover:bg-muted lg:hidden"
-        aria-label={isOpen ? 'أغلق القائمة' : 'افتح القائمة'}
-        aria-expanded={isOpen}
-        aria-controls={NAV_ID}
-      >
-        <span aria-hidden="true" className="block h-0.5 w-5 bg-foreground" />
-        <span aria-hidden="true" className="mt-1 block h-0.5 w-5 bg-foreground" />
-        <span aria-hidden="true" className="mt-1 block h-0.5 w-5 bg-foreground" />
-      </button>
+      {/* PERF-BUNDLE-HEADER-02: hideTrigger → الزر يرسمه LazyProtectedMobileNav (خفيف) والدرج يُحمَّل عند أول فتح. */}
+      {!hideTrigger && (
+        <button
+          id={TOGGLE_ID}
+          onClick={toggle}
+          className="rounded p-2 hover:bg-muted lg:hidden"
+          aria-label={isOpen ? 'أغلق القائمة' : 'افتح القائمة'}
+          aria-expanded={isOpen}
+          aria-controls={NAV_ID}
+        >
+          <span aria-hidden="true" className="block h-0.5 w-5 bg-foreground" />
+          <span aria-hidden="true" className="mt-1 block h-0.5 w-5 bg-foreground" />
+          <span aria-hidden="true" className="mt-1 block h-0.5 w-5 bg-foreground" />
+        </button>
+      )}
 
       {portalReady && createPortal(
         <>

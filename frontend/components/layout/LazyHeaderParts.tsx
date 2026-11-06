@@ -94,3 +94,55 @@ export function LazyMobileNav({ hideTrigger = false }: { hideTrigger?: boolean }
     </>
   );
 }
+
+// ───────── Protected variant (PERF-BUNDLE-HEADER-02) ─────────
+const loadProtectedMobileNav = () =>
+  import('@/components/layout/ProtectedMobileNav').then((m) => m.ProtectedMobileNav);
+const ProtectedMobileNavImpl = dynamic(loadProtectedMobileNav, { ssr: false, loading: () => null });
+
+// يجب أن تطابق الثوابت داخل ProtectedMobileNav.tsx.
+const P_NAV_ID = 'protected-mobile-nav-drawer';
+const P_TOGGLE_ID = 'protected-mobile-nav-toggle';
+
+/** نفس فكرة LazyMobileNav لكن لهيدر الصفحات المحمية (زر lg:hidden طبق الأصل). */
+export function LazyProtectedMobileNav() {
+  const isOpen = useUIStore(selectIsMobileNavOpen);
+  const toggleMobileNav = useUIStore(selectToggleMobileNav);
+  const [armed, setArmed] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) setArmed(true);
+  }, [isOpen]);
+
+  useEffect(() => {
+    const w = window as unknown as {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+    const warm = () => { void loadProtectedMobileNav().catch(() => undefined); };
+    if (typeof w.requestIdleCallback === 'function') {
+      const id = w.requestIdleCallback(warm, { timeout: 6000 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const t = window.setTimeout(warm, 4000);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  return (
+    <>
+      <button
+        id={P_TOGGLE_ID}
+        onClick={toggleMobileNav}
+        className="rounded p-2 hover:bg-muted lg:hidden"
+        aria-label={isOpen ? 'أغلق القائمة' : 'افتح القائمة'}
+        aria-expanded={isOpen}
+        aria-controls={P_NAV_ID}
+      >
+        <span aria-hidden="true" className="block h-0.5 w-5 bg-foreground" />
+        <span aria-hidden="true" className="mt-1 block h-0.5 w-5 bg-foreground" />
+        <span aria-hidden="true" className="mt-1 block h-0.5 w-5 bg-foreground" />
+      </button>
+      {armed ? <ProtectedMobileNavImpl hideTrigger /> : null}
+    </>
+  );
+}
