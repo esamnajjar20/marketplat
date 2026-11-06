@@ -63,14 +63,16 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function roleFromPayload(payload: unknown): string | null {
+function superAdminIdFromPayload(payload: unknown): string | null {
   const root = asRecord(payload);
   if (!root) return null;
   const data = asRecord(root.data);
   const candidates = [data?.user, root.user, data?.profile, data, root];
   for (const candidate of candidates) {
     const record = asRecord(candidate);
-    if (typeof record?.role === 'string') return record.role.toUpperCase();
+    if (typeof record?.role !== 'string' || record.role.toUpperCase() !== 'SUPER_ADMIN') continue;
+    if (typeof record.id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(record.id)) return null;
+    return record.id;
   }
   return null;
 }
@@ -108,10 +110,10 @@ async function readLimitedText(response: Response, maxBytes: number): Promise<st
   return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 }
 
-async function verifySuperAdminSession(request: NextRequest, bindings: RuntimeBindings): Promise<boolean> {
+async function verifySuperAdminSession(request: NextRequest, bindings: RuntimeBindings): Promise<string | null> {
   const cookie = request.headers.get('cookie');
   const authorization = request.headers.get('authorization');
-  if (!cookie && !authorization) return false;
+  if (!cookie && !authorization) return null;
   const headers = new Headers({ accept: 'application/json' });
   if (cookie) headers.set('cookie', cookie);
   if (authorization) headers.set('authorization', authorization);
@@ -119,11 +121,11 @@ async function verifySuperAdminSession(request: NextRequest, bindings: RuntimeBi
     const response = await callApiWorker('/api/v1/users/me', {
       method: 'GET', headers, cache: 'no-store', signal: AbortSignal.timeout(5_000),
     }, bindings);
-    if (!response.ok) return false;
+    if (!response.ok) return null;
     const payload: unknown = JSON.parse(await readLimitedText(response, 16_384));
-    return roleFromPayload(payload) === 'SUPER_ADMIN';
+    return superAdminIdFromPayload(payload);
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -167,7 +169,8 @@ async function readLimitedJsonBody(request: NextRequest): Promise<string | null>
 async function proxy(request: NextRequest, method: 'GET' | 'PUT') {
   const bindings = runtimeBindings();
   if (method === 'PUT' && !isSameOriginMutation(request)) return jsonError('CSRF_REJECTED', 403);
-  if (!(await verifySuperAdminSession(request, bindings))) return jsonError('SUPER_ADMIN_REQUIRED', 403);
+  const actorId = await verifySuperAdminSession(request, bindings);
+  if (!actorId) return jsonError('SUPER_ADMIN_REQUIRED', 403);
 
   const secret = bindings.FEATURE_FLAGS_ADMIN_TOKEN || process.env.FEATURE_FLAGS_ADMIN_TOKEN;
   if (!secret || secret.length < 32) return jsonError('FEATURE_FLAGS_ADMIN_TOKEN_NOT_CONFIGURED_ON_FRONTEND', 503);
@@ -180,11 +183,19 @@ async function proxy(request: NextRequest, method: 'GET' | 'PUT') {
   }
 
   try {
-    const upstream = await callApiWorker('/__gateway/feature-flags', {
+    const auditLimitRaw = request.nextUrl.searchParams.get('auditLimit');
+    const auditLimit = auditLimitRaw && /^\d{1,3}$/.test(auditLimitRaw)
+      ? Math.max(1, Math.min(100, Number(auditLimitRaw)))
+      : 25;
+    const upstreamPath = method === 'GET'
+      ? `/__gateway/feature-flags?auditLimit=${auditLimit}`
+      : '/__gateway/feature-flags';
+    const upstream = await callApiWorker(upstreamPath, {
       method,
       headers: {
         accept: 'application/json',
         'x-feature-flags-token': secret,
+        ...(method === 'PUT' ? { 'x-feature-flags-actor': actorId } : {}),
         ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
       },
       ...(body !== undefined ? { body } : {}),

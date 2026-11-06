@@ -1403,16 +1403,35 @@ const PUBLIC_LIVE = {
   }
 }
 
-/* ───────────── private D1 feature-flag control plane ───────────── */
+/* ───────────── private D1 feature-flag control plane + audit history ───────────── */
 {
   const values = new Map();
+  const auditRows = [];
+  let failNextUpsert = false;
   const db = {
     prepare(sql) {
       let bound = [];
-      return {
+      const statement = {
         bind(...args) { bound = args; return this; },
         async run() {
-          if (sql.includes('INSERT INTO feature_flags')) {
+          if (sql.includes('INSERT INTO feature_flag_audit')) {
+            const [name, newEnabled, newRollout, changedBy, changedAt, lookupName, compareEnabled, compareRollout] = bound;
+            const previous = values.get(lookupName);
+            if (previous && previous.enabled === compareEnabled && previous.rollout_percent === compareRollout) {
+              return { success: true, meta: { changes: 0 } };
+            }
+            auditRows.push({
+              id: auditRows.length + 1,
+              flag_name: name,
+              old_enabled: previous?.enabled ?? null,
+              new_enabled: newEnabled,
+              old_rollout_percent: previous?.rollout_percent ?? null,
+              new_rollout_percent: newRollout,
+              changed_by: changedBy,
+              changed_at: changedAt,
+            });
+          } else if (sql.includes('INSERT INTO feature_flags')) {
+            if (failNextUpsert) { failNextUpsert = false; throw new Error('simulated D1 upsert failure'); }
             const [name, enabled, rolloutPercent, updatedAt] = bound;
             values.set(name, { name, enabled, rollout_percent: rolloutPercent, updated_at: updatedAt });
           }
@@ -1425,9 +1444,30 @@ const PUBLIC_LIVE = {
           if (sql.includes('SELECT name, enabled, rollout_percent, updated_at FROM feature_flags')) {
             return { results: [...values.values()].sort((a, b) => a.name.localeCompare(b.name)) };
           }
+          if (sql.includes('FROM feature_flag_audit ORDER BY id DESC LIMIT')) {
+            const limit = Number(bound[0]);
+            return { results: auditRows.slice(-limit).reverse() };
+          }
           return { results: [] };
         },
       };
+      return statement;
+    },
+    async batch(statements) {
+      // D1 executes a batch sequentially and transactionally. This fake
+      // preserves statement order and rolls back both tables on failure.
+      const previousValues = new Map(values);
+      const previousAuditLength = auditRows.length;
+      const results = [];
+      try {
+        for (const statement of statements) results.push(await statement.run());
+        return results;
+      } catch (error) {
+        values.clear();
+        for (const [key, value] of previousValues) values.set(key, value);
+        auditRows.length = previousAuditLength;
+        throw error;
+      }
     },
   };
   const h = harness({ envOverrides: { DB: db, FEATURE_FLAGS_ADMIN_TOKEN: 'flags-secret-0123456789abcdef0123456789' } });
@@ -1437,32 +1477,74 @@ const PUBLIC_LIVE = {
   assert.equal(empty.status, 200);
   assert.deepEqual((await empty.json()).flags, []);
 
-  const saved = await h.call('/__gateway/feature-flags', {
+  const missingActor = await h.call('/__gateway/feature-flags', {
     method: 'PUT', headers, body: JSON.stringify({ name: 'PUBLIC_NEW_SEARCH', enabled: true, rolloutPercent: 35 }),
+  });
+  assert.equal(missingActor.status, 400, 'audited updates must require a trusted actor ID');
+
+  const saved = await h.call('/__gateway/feature-flags', {
+    method: 'PUT', headers: { ...headers, 'x-feature-flags-actor': 'root-1' },
+    body: JSON.stringify({ name: 'PUBLIC_NEW_SEARCH', enabled: true, rolloutPercent: 35 }),
   });
   assert.equal(saved.status, 200);
   const savedBody = await saved.json();
   assert.equal(savedBody.flag.name, 'PUBLIC_NEW_SEARCH');
   assert.equal(savedBody.flag.enabled, true);
   assert.equal(savedBody.flag.rolloutPercent, 35);
-  const listedFlag = (await h.call('/__gateway/feature-flags', { headers }).then((r) => r.json())).flags[0];
-  assert.equal(listedFlag.enabled, true);
-  assert.equal(listedFlag.rolloutPercent, 35);
+  const listed = await h.call('/__gateway/feature-flags', { headers }).then((r) => r.json());
+  assert.equal(listed.flags[0].enabled, true);
+  assert.equal(listed.flags[0].rolloutPercent, 35);
+  assert.equal(listed.audit.length, 1);
+  assert.equal(listed.audit[0].oldEnabled, null, 'new flags record a NULL previous state');
+  assert.equal(listed.audit[0].enabled, true);
+  assert.equal(listed.audit[0].changedBy, 'root-1');
 
   await h.call('/__gateway/feature-flags', {
-    method: 'PUT', headers, body: JSON.stringify({ name: 'INTERNAL_OPERATIONS_SWITCH', enabled: true, rolloutPercent: 100 }),
+    method: 'PUT', headers: { ...headers, 'x-feature-flags-actor': 'root-2' },
+    body: JSON.stringify({ name: 'PUBLIC_NEW_SEARCH', enabled: false, rolloutPercent: 20 }),
+  });
+  const changed = await h.call('/__gateway/feature-flags', { headers }).then((r) => r.json());
+  assert.equal(changed.audit.length, 2);
+  assert.equal(changed.audit[0].oldEnabled, true);
+  assert.equal(changed.audit[0].enabled, false);
+  assert.equal(changed.audit[0].oldRolloutPercent, 35);
+  assert.equal(changed.audit[0].rolloutPercent, 20);
+  assert.equal(changed.audit[0].changedBy, 'root-2');
+
+  await h.call('/__gateway/feature-flags', {
+    method: 'PUT', headers: { ...headers, 'x-feature-flags-actor': 'root-2' },
+    body: JSON.stringify({ name: 'PUBLIC_NEW_SEARCH', enabled: false, rolloutPercent: 20 }),
+  });
+  const afterNoOp = await h.call('/__gateway/feature-flags', { headers }).then((r) => r.json());
+  assert.equal(afterNoOp.audit.length, 2, 'writing the same value must not create a false change event');
+
+  failNextUpsert = true;
+  const failedBatch = await h.call('/__gateway/feature-flags', {
+    method: 'PUT', headers: { ...headers, 'x-feature-flags-actor': 'root-2' },
+    body: JSON.stringify({ name: 'PUBLIC_ROLLBACK_TEST', enabled: true, rolloutPercent: 10 }),
+  });
+  assert.equal(failedBatch.status, 503);
+  const afterRollback = await h.call('/__gateway/feature-flags', { headers }).then((r) => r.json());
+  assert.equal(afterRollback.audit.length, 2, 'failed D1 batch must roll back the audit row');
+  assert.equal(afterRollback.flags.some((flag) => flag.name === 'PUBLIC_ROLLBACK_TEST'), false, 'failed D1 batch must not leave the flag behind');
+
+  await h.call('/__gateway/feature-flags', {
+    method: 'PUT', headers: { ...headers, 'x-feature-flags-actor': 'root-1' },
+    body: JSON.stringify({ name: 'INTERNAL_OPERATIONS_SWITCH', enabled: true, rolloutPercent: 100 }),
   });
   const publicFlags = await h.call('/__gateway/public-feature-flags');
   assert.equal(publicFlags.status, 200);
-  assert.deepEqual((await publicFlags.json()).flags, { PUBLIC_NEW_SEARCH: { enabled: true, rolloutPercent: 35 } });
+  const publicBody = await publicFlags.json();
+  assert.deepEqual(publicBody.flags, { PUBLIC_NEW_SEARCH: { enabled: false, rolloutPercent: 20 } });
+  assert.equal('audit' in publicBody, false, 'public feature flags must never expose audit history');
   assert.equal((await h.call('/__gateway/public-feature-flags', { method: 'PUT', headers })).status, 405);
 
   const invalid = await h.call('/__gateway/feature-flags', {
-    method: 'PUT', headers, body: JSON.stringify({ name: 'new flag', enabled: true }),
+    method: 'PUT', headers: { ...headers, 'x-feature-flags-actor': 'root-1' }, body: JSON.stringify({ name: 'new flag', enabled: true }),
   });
   assert.equal(invalid.status, 400, 'flag keys must use bounded UPPER_SNAKE_CASE identifiers');
   const invalidPercent = await h.call('/__gateway/feature-flags', {
-    method: 'PUT', headers, body: JSON.stringify({ name: 'PUBLIC_BAD_ROLLOUT', enabled: true, rolloutPercent: 101 }),
+    method: 'PUT', headers: { ...headers, 'x-feature-flags-actor': 'root-1' }, body: JSON.stringify({ name: 'PUBLIC_BAD_ROLLOUT', enabled: true, rolloutPercent: 101 }),
   });
   assert.equal(invalidPercent.status, 400, 'rollout percent must be an integer from 0 to 100');
   const wrongToken = await h.call('/__gateway/feature-flags', { headers: { 'x-feature-flags-token': 'wrong' } });
@@ -1482,6 +1564,7 @@ const PUBLIC_LIVE = {
           if (sql.includes('SELECT name, enabled, rollout_percent, updated_at FROM feature_flags')) {
             return { results: [{ name: 'PUBLIC_OLD_FLAG', enabled: 1, updated_at: 10, rollout_percent: 100 }] };
           }
+          if (sql.includes('FROM feature_flag_audit ORDER BY id DESC LIMIT')) return { results: [] };
           return { results: [] };
         },
       };

@@ -1839,6 +1839,24 @@ class D1FeatureFlagStore {
             updated_at INTEGER NOT NULL
           )`
         ).run();
+        await this.db.prepare(
+          `CREATE TABLE IF NOT EXISTS feature_flag_audit (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            flag_name TEXT NOT NULL,
+            old_enabled INTEGER CHECK (old_enabled IS NULL OR old_enabled IN (0, 1)),
+            new_enabled INTEGER NOT NULL CHECK (new_enabled IN (0, 1)),
+            old_rollout_percent INTEGER CHECK (old_rollout_percent IS NULL OR old_rollout_percent BETWEEN 0 AND 100),
+            new_rollout_percent INTEGER NOT NULL CHECK (new_rollout_percent BETWEEN 0 AND 100),
+            changed_by TEXT NOT NULL,
+            changed_at INTEGER NOT NULL
+          )`
+        ).run();
+        await this.db.prepare(
+          'CREATE INDEX IF NOT EXISTS idx_feature_flag_audit_name_time ON feature_flag_audit (flag_name, changed_at DESC, id DESC)'
+        ).run();
+        await this.db.prepare(
+          'CREATE INDEX IF NOT EXISTS idx_feature_flag_audit_time ON feature_flag_audit (changed_at DESC, id DESC)'
+        ).run();
 
         // Existing installations created before rollout support need an additive migration.
         const columns = await this.db.prepare('PRAGMA table_info(feature_flags)').all();
@@ -1873,14 +1891,52 @@ class D1FeatureFlagStore {
     }));
   }
 
-  async set(name: string, enabled: boolean, rolloutPercent = 100): Promise<{ name: string; enabled: boolean; rolloutPercent: number; updatedAt: number }> {
+  async set(name: string, enabled: boolean, rolloutPercent: number, changedBy: string): Promise<{ name: string; enabled: boolean; rolloutPercent: number; updatedAt: number }> {
     await this.ensureSchema();
+    if (typeof this.db.batch !== 'function') throw new Error('D1_BATCH_REQUIRED_FOR_AUDITED_FLAG_WRITES');
     const updatedAt = Math.floor(Date.now() / 1000);
-    await this.db.prepare(
+
+    // D1 batch runs these statements sequentially in one transaction. The
+    // first statement snapshots the previous values (or NULL for a new flag);
+    // the upsert then commits with the audit row or both statements roll back.
+    const auditInsert = this.db.prepare(
+      `INSERT INTO feature_flag_audit
+         (flag_name, old_enabled, new_enabled, old_rollout_percent, new_rollout_percent, changed_by, changed_at)
+       SELECT ?, old.enabled, ?, old.rollout_percent, ?, ?, ?
+       FROM (SELECT 1) AS seed
+       LEFT JOIN feature_flags AS old ON old.name = ?
+       WHERE old.name IS NULL OR old.enabled != ? OR old.rollout_percent != ?`
+    ).bind(name, enabled ? 1 : 0, rolloutPercent, changedBy, updatedAt, name, enabled ? 1 : 0, rolloutPercent);
+    const flagUpsert = this.db.prepare(
       `INSERT INTO feature_flags (name, enabled, rollout_percent, updated_at) VALUES (?, ?, ?, ?)
        ON CONFLICT(name) DO UPDATE SET enabled = excluded.enabled, rollout_percent = excluded.rollout_percent, updated_at = excluded.updated_at`
-    ).bind(name, enabled ? 1 : 0, rolloutPercent, updatedAt).run();
+    ).bind(name, enabled ? 1 : 0, rolloutPercent, updatedAt);
+    await this.db.batch([auditInsert, flagUpsert]);
     return { name, enabled, rolloutPercent, updatedAt };
+  }
+
+  async listAudit(limit = 25): Promise<Array<{
+    id: number; name: string; oldEnabled: boolean | null; enabled: boolean;
+    oldRolloutPercent: number | null; rolloutPercent: number; changedBy: string; changedAt: number;
+  }>> {
+    await this.ensureSchema();
+    const boundedLimit = Math.max(1, Math.min(100, Math.trunc(limit) || 25));
+    const result = await this.db.prepare(
+      `SELECT id, flag_name, old_enabled, new_enabled, old_rollout_percent,
+              new_rollout_percent, changed_by, changed_at
+       FROM feature_flag_audit ORDER BY id DESC LIMIT ?`
+    ).bind(boundedLimit).all();
+    const rows = Array.isArray(result?.results) ? result.results : [];
+    return rows.map((row: any) => ({
+      id: Number(row.id) || 0,
+      name: String(row.flag_name),
+      oldEnabled: row.old_enabled === null || row.old_enabled === undefined ? null : Number(row.old_enabled) === 1,
+      enabled: Number(row.new_enabled) === 1,
+      oldRolloutPercent: row.old_rollout_percent === null || row.old_rollout_percent === undefined ? null : Number(row.old_rollout_percent),
+      rolloutPercent: Number(row.new_rollout_percent),
+      changedBy: String(row.changed_by),
+      changedAt: Number(row.changed_at) || 0,
+    }));
   }
 }
 
@@ -1928,7 +1984,13 @@ async function handleFeatureFlagsAdmin(request: Request, env: Env): Promise<Resp
   try {
     const store = new D1FeatureFlagStore((env as any).DB);
     if (request.method === 'GET') {
-      return new Response(JSON.stringify({ ok: true, flags: await store.list() }), { status: 200, headers });
+      const auditLimitRaw = new URL(request.url).searchParams.get('auditLimit');
+      const auditLimit = auditLimitRaw && /^\d{1,3}$/.test(auditLimitRaw) ? Number(auditLimitRaw) : 25;
+      return new Response(JSON.stringify({
+        ok: true,
+        flags: await store.list(),
+        audit: await store.listAudit(Math.max(1, Math.min(100, auditLimit))),
+      }), { status: 200, headers });
     }
 
     const declaredLength = Number(request.headers.get('content-length') || 0);
@@ -1944,8 +2006,17 @@ async function handleFeatureFlagsAdmin(request: Request, env: Env): Promise<Resp
         (payload.rolloutPercent !== undefined && (!Number.isInteger(payload.rolloutPercent) || Number(payload.rolloutPercent) < 0 || Number(payload.rolloutPercent) > 100))) {
       return new Response(JSON.stringify({ ok: false, error: 'INVALID_FEATURE_FLAG', expected: { name: 'UPPER_SNAKE_CASE', enabled: 'boolean', rolloutPercent: 'integer 0..100 (optional; defaults to 100)' } }), { status: 400, headers });
     }
-    const flag = await store.set(payload.name, payload.enabled, payload.rolloutPercent === undefined ? 100 : Number(payload.rolloutPercent));
-    return new Response(JSON.stringify({ ok: true, flag }), { status: 200, headers });
+    const changedBy = request.headers.get('x-feature-flags-actor')?.trim() || '';
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(changedBy)) {
+      return new Response(JSON.stringify({ ok: false, error: 'FEATURE_FLAG_ACTOR_REQUIRED' }), { status: 400, headers });
+    }
+    const flag = await store.set(
+      payload.name,
+      payload.enabled,
+      payload.rolloutPercent === undefined ? 100 : Number(payload.rolloutPercent),
+      changedBy,
+    );
+    return new Response(JSON.stringify({ ok: true, flag, audit: await store.listAudit(25) }), { status: 200, headers });
   } catch (error) {
     console.error('[feature-flags] D1 operation failed:', errorMessage(error));
     return new Response(JSON.stringify({ ok: false, error: 'FEATURE_FLAGS_STORAGE_ERROR' }), { status: 503, headers });

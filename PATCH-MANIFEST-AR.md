@@ -1,93 +1,49 @@
-# بيان ملفات التعديلات المجمّعة – MarketPlat
+# حزمة استكمال D1 — الملفات المضافة والمعدّلة
 
-تحتوي هذه الحزمة الملفات الجديدة والمعدّلة فقط مقارنةً بالأرشيف الأصلي للمشروع.
-المسارات داخل ZIP **نسبية مباشرة إلى جذر المشروع**؛ فك الضغط من داخل مجلد المستودع لدمج الملفات في أماكنها الصحيحة.
-المحتوى مأخوذ من آخر نسخة موحّدة، ويشمل تحسين Worker وService Worker وتجربة المستخدم وإصلاحات الشبكة والمصادقة.
-
-- ملفات جديدة: **13**
-- ملفات معدّلة: **50**
-- إجمالي الملفات المضمّنة: **63**
-- ملفات محذوفة عمدًا من المشروع: **1**
-
-## الملفات الجديدة
-
-- `UX-EXPERIENCE-AUDIT-REPORT-AR.md`
-- `WORKER-UPGRADE-REPORT-AR.md`
-- `apps/mobile/scripts/verify-appointment-booking-ux.mjs`
-- `apps/mobile/src/features/appointments/__tests__/appointment-slots.test.ts`
-- `apps/mobile/src/features/appointments/appointment-slots.ts`
-- `apps/mobile/src/lib/__tests__/formatters.test.ts`
-- `frontend/__tests__/unit/lib/adminDeveloperToolsSetting.test.ts`
-- `frontend/__tests__/unit/lib/fetchClient.test.ts`
-- `frontend/__tests__/unit/lib/fileArrayBuffer.test.ts`
-- `frontend/app/(public)/services/[id]/error.tsx`
-- `frontend/lib/adminDeveloperToolsSetting.ts`
-- `frontend/lib/fileArrayBuffer.ts`
-- `frontend/scripts/fetch-client-csrf-audit.mjs`
+هذه الحزمة Patch وليست نسخة كاملة من المشروع. استخرج محتوياتها فوق جذر مستودع MarketPlat مع الحفاظ على المسارات.
 
 ## الملفات المعدّلة
 
-- `apps/api/.env.example`
-- `apps/api/src/config/env.ts`
-- `apps/api/src/shared/cache/edgePurge.ts`
-- `apps/api/tests/unit/edgePurge.test.ts`
-- `apps/mobile/app/appointment-create.tsx`
-- `apps/mobile/app/appointments.tsx`
-- `apps/mobile/app/my-services.tsx`
-- `apps/mobile/app/products/[id].tsx`
-- `apps/mobile/app/service-requests.tsx`
-- `apps/mobile/scripts/verify-feature-phase1.mjs`
-- `apps/mobile/scripts/verify-feature-phase2.mjs`
-- `apps/mobile/scripts/verify-feature-remaining-account-pages.mjs`
-- `apps/mobile/scripts/verify-mobile-unification-round4.mjs`
-- `apps/mobile/scripts/verify-product-contact-flow.mjs`
-- `apps/mobile/src/features/appointments/appointments.api.ts`
-- `apps/mobile/src/features/services/services.api.ts`
-- `apps/mobile/src/lib/formatters.ts`
-- `frontend/__tests__/components/OfflineBootstrap.test.tsx`
-- `frontend/__tests__/unit/lib/buildVersionCheck.test.ts`
-- `frontend/__tests__/unit/lib/pwa.test.ts`
-- `frontend/app/update/page.tsx`
-- `frontend/components/admin/AdminDeveloperToolsControl.tsx`
-- `frontend/components/admin/AdminInfrastructureGateway.tsx`
-- `frontend/components/admin/AdminNetworkRequestsPanel.tsx`
-- `frontend/components/debug/AdminScriptConsole.tsx`
-- `frontend/components/pwa/OfflineBootstrap.tsx`
-- `frontend/components/sales/SalesAutomationPanel.tsx`
-- `frontend/hooks/mutations/useAuthMutations.ts`
-- `frontend/hooks/useAuthRestoreRetry.ts`
-- `frontend/hooks/useFormDraftAttachments.ts`
-- `frontend/lib/buildVersionCheck.ts`
-- `frontend/lib/fetchClient.ts`
-- `frontend/lib/networkRequestMonitor.ts`
-- `frontend/lib/offlineAdDrafts.ts`
-- `frontend/lib/pwa.ts`
-- `frontend/lib/swStaleActivation.ts`
-- `frontend/lib/swTokenSync.ts`
-- `frontend/package.json`
-- `frontend/scripts/loading-system-audit.mjs`
-- `frontend/scripts/network-request-monitor-audit.mjs`
-- `frontend/scripts/offline-final-audit.mjs`
-- `frontend/scripts/sw-lifecycle-resilience-audit.mjs`
-- `frontend/scripts/sw-update-safety-audit.mjs`
-- `workers/cf-api-proxy/SMART-GATEWAY-IMPLEMENTATION-AR.md`
-- `workers/cf-api-proxy/cache-policy.test.mjs`
-- `workers/cf-api-proxy/cache-probe.mjs`
-- `workers/cf-api-proxy/src/types.ts`
 - `workers/cf-api-proxy/worker.ts`
-- `workers/cf-api-proxy/wrangler.example.jsonc`
-- `workers/cf-api-proxy/wrangler.toml`
+- `workers/cf-api-proxy/cache-policy.test.mjs`
+- `frontend/app/api/admin/feature-flags/route.ts`
+- `frontend/components/admin/AdminFeatureFlags.tsx`
+- `frontend/__tests__/unit/api/admin-feature-flags-route.test.ts`
+- `apps/api/package.json`
 
-## الملفات المحذوفة عمدًا
+## الملفات الجديدة
 
-- `workers/cf-api-proxy/worker.js` — حُذف لأنه مصدر قديم/متعارض؛ النشر يعتمد ملف TypeScript المقابل.
+- `apps/api/src/shared/utils/searchCacheWhitelist.ts`
+- `apps/api/src/scripts/exportSearchCacheWhitelist.ts`
+- `apps/api/tests/unit/search-cache-whitelist.test.ts`
+- `CACHE-D1-NEXT-IMPLEMENTATION-AR.md`
 
-## طريقة الدمج
+## تطبيق الحزمة والتحقق
 
-1. خذ نسخة احتياطية من المشروع الحالي أو أنشئ فرع Git جديدًا.
-2. فك ضغط ZIP من داخل جذر المشروع؛ ستظهر المسارات مثل `frontend/...` و`apps/...` مباشرة دون مجلد وسيط.
-3. راجع حذف `workers/cf-api-proxy/worker.js` يدويًا إن كانت لديك تعديلات محلية عليه؛ لا تستعده فوق `worker.ts`.
-4. راجع ملفات البيئة والأسرار يدويًا؛ الحزمة لا تحتوي أسرار حسابك أو إعدادات Cloudflare الفعلية.
-5. شغّل فحوص المشروع الكاملة قبل النشر.
+من مجلد المشروع:
 
-لم أضمّن الملفات التي لم تتغير عن الأصل، ولا ملفات JSON المستخدمة كمدخلات تشخيص، ولا تقارير خارج شجرة المشروع.
+```bash
+unzip -o marketplat-d1-improvements.zip -d .
+cd workers/cf-api-proxy
+npm test
+```
+
+بعد ذلك شغّل اختبارات API المعتادة في بيئة التطوير، ثم انشر API Worker بعد مراجعة متغيراته وأسراره:
+
+```bash
+cd workers/cf-api-proxy
+npx wrangler deploy
+```
+
+سيتكوّن جدول `feature_flag_audit` وفهارسه تلقائيًا عند أول استخدام لمسار Feature Flags بعد النشر. اختبر إنشاء علم ثم تغيير الحالة والنسبة، وتحقق من ظهور السجل في لوحة `SUPER_ADMIN`.
+
+لتوليد قائمة المرشحين من Neon بعد ضبط `DATABASE_URL` في بيئة API:
+
+```bash
+cd apps/api
+npm run report:search-cache-whitelist -- --days=30 --min-count=5
+```
+
+راجع النتائج يدويًا قبل وضعها في `SEARCH_CACHE_WHITELIST`؛ لا تُرسل الاستعلامات الخام أو بيانات المستخدمين إلى D1.
+
+**لا تفعّل** `REFERENCE_CACHE_LONG_TTL_ENABLED` ضمن هذا التغيير. فعّله فقط بعد اختبار purge حي ناجح على بيانات الإنتاج.

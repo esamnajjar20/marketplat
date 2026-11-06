@@ -41,10 +41,11 @@ function installResponses(role = 'SUPER_ADMIN') {
     if (url.pathname === '/__gateway/feature-flags') {
       expect(incoming.headers.get('x-feature-flags-token')).toBe('feature-flags-server-secret-0123456789abcdef');
       if (incoming.method === 'PUT') {
+        expect(incoming.headers.get('x-feature-flags-actor')).toBe('root-1');
         const body = await incoming.json() as { name: string; enabled: boolean; rolloutPercent: number };
         return Response.json({ ok: true, flag: { ...body, updatedAt: 1 } });
       }
-      return Response.json({ ok: true, flags: [] });
+      return Response.json({ ok: true, flags: [], audit: [] });
     }
     return new Response('Not Found', { status: 404 });
   });
@@ -77,7 +78,7 @@ describe('admin feature flags route security', () => {
     const response = await GET(request('GET', { cookie: false, accessToken: 'access-token-only' }));
     expect(response.status).toBe(200);
     const responseText = await response.clone().text();
-    expect(JSON.parse(responseText)).toEqual({ ok: true, flags: [] });
+    expect(JSON.parse(responseText)).toEqual({ ok: true, flags: [], audit: [] });
     expect(responseText.includes('feature-flags-server-secret')).toBe(false);
     expect(mockBindingFetch).toHaveBeenCalledTimes(2);
     const authRequest = mockBindingFetch.mock.calls[0]![0] as Request;
@@ -85,6 +86,23 @@ describe('admin feature flags route security', () => {
     const controlPlaneRequest = mockBindingFetch.mock.calls[1]![0] as Request;
     expect(new URL(controlPlaneRequest.url).pathname).toBe('/__gateway/feature-flags');
     expect(controlPlaneRequest.headers.get('x-feature-flags-token')).toBe('feature-flags-server-secret-0123456789abcdef');
+    expect(new URL(controlPlaneRequest.url).searchParams.get('auditLimit')).toBe('25');
+  });
+
+
+  it('requires the verified SUPER_ADMIN profile to include a usable actor ID', async () => {
+    mockBindingFetch.mockImplementation(async (incoming: Request) => {
+      if (new URL(incoming.url).pathname === '/api/v1/users/me') {
+        return Response.json({ success: true, data: { role: 'SUPER_ADMIN' } });
+      }
+      return Response.json({ ok: true, flags: [], audit: [] });
+    });
+    const response = await PUT(request('PUT', {
+      origin: APP_ORIGIN,
+      body: JSON.stringify({ name: 'PUBLIC_ACTOR_CHECK', enabled: true }),
+    }));
+    expect(response.status).toBe(403);
+    expect(mockBindingFetch).toHaveBeenCalledTimes(1);
   });
 
   it('rejects cross-origin mutations and validates the body before proxying', async () => {

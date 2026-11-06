@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Flag, Plus, RefreshCw, ShieldCheck, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Flag, History, Plus, RefreshCw, ShieldCheck, ToggleLeft, ToggleRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { AdminPageShell } from '@/components/admin/AdminPageShell';
@@ -16,10 +16,22 @@ type FeatureFlag = {
   updatedAt: number;
 };
 
+type FeatureFlagAuditEntry = {
+  id: number;
+  name: string;
+  oldEnabled: boolean | null;
+  enabled: boolean;
+  oldRolloutPercent: number | null;
+  rolloutPercent: number;
+  changedBy: string;
+  changedAt: number;
+};
+
 type FeatureFlagsResponse = {
   ok: boolean;
   flags?: FeatureFlag[];
   flag?: FeatureFlag;
+  audit?: FeatureFlagAuditEntry[];
   error?: string;
 };
 
@@ -53,6 +65,7 @@ function flagErrorMessage(error: unknown): string {
     case 'FORBIDDEN': return 'رفض API Worker الطلب؛ تحقق من تطابق سر الإدارة بين Worker الواجهة وWorker API.';
     case 'FEATURE_FLAGS_WORKER_UNAVAILABLE': return 'تعذّر الاتصال بخدمة الخصائص في API Worker.';
     case 'FEATURE_FLAGS_STORAGE_ERROR': return 'تعذّر الوصول إلى تخزين الخصائص في D1.';
+    case 'FEATURE_FLAG_ACTOR_REQUIRED': return 'تعذّر التحقق من هوية المدير المنفّذ.';
     case 'CSRF_REJECTED': return 'تم رفض الطلب لأسباب أمنية. أعد تحميل الصفحة وحاول مجدداً.';
     default: return 'تعذّر تنفيذ العملية. تحقق من الاتصال والإعدادات ثم أعد المحاولة.';
   }
@@ -68,6 +81,7 @@ export function AdminFeatureFlags() {
   const accessToken = useAuthStore((state) => state.accessToken);
   const queryClient = useQueryClient();
   const [flags, setFlags] = useState<FeatureFlag[]>([]);
+  const [audit, setAudit] = useState<FeatureFlagAuditEntry[]>([]);
   const [name, setName] = useState('PUBLIC_');
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -81,6 +95,7 @@ export function AdminFeatureFlags() {
     try {
       const result = await requestFlags('GET', undefined, accessToken);
       setFlags(result.flags ?? []);
+      setAudit(result.audit ?? []);
     } catch (error) {
       toast.error(flagErrorMessage(error));
     } finally {
@@ -108,6 +123,7 @@ export function AdminFeatureFlags() {
         return next.sort((a, b) => a.name.localeCompare(b.name));
       });
       await queryClient.invalidateQueries({ queryKey: PUBLIC_FEATURE_FLAGS_QUERY_KEY });
+      setAudit((current) => result.audit ?? current);
       toast.success(enabled ? 'تم تفعيل الخاصية' : 'تم إيقاف الخاصية');
       return true;
     } catch (error) {
@@ -236,6 +252,36 @@ export function AdminFeatureFlags() {
               );
             })}
           </div>
+        )}
+      </section>
+
+      <section className="space-y-3 rounded-xl border bg-card p-4 shadow-sm" aria-labelledby="feature-flags-audit-heading">
+        <div className="flex items-center gap-3">
+          <span className="rounded-lg bg-muted p-2 text-muted-foreground"><History className="h-5 w-5" /></span>
+          <div>
+            <h2 id="feature-flags-audit-heading" className="font-semibold">سجل تغييرات الخصائص</h2>
+            <p className="mt-1 text-xs text-muted-foreground">آخر {audit.length} تغييرًا محفوظًا في D1، بما في ذلك القيمة السابقة والجديدة وهوية المدير المنفّذ.</p>
+          </div>
+        </div>
+        {audit.length === 0 ? (
+          <p className="rounded-lg border border-dashed p-5 text-center text-sm text-muted-foreground">لا توجد تغييرات مسجّلة بعد.</p>
+        ) : (
+          <ol className="divide-y rounded-lg border">
+            {audit.map((entry) => (
+              <li key={entry.id} className="space-y-2 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <code dir="ltr" className="break-all text-sm font-semibold">{entry.name}</code>
+                  <time className="text-xs text-muted-foreground" dateTime={new Date(entry.changedAt * 1000).toISOString()}>{formatUpdatedAt(entry.changedAt)}</time>
+                </div>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {entry.oldEnabled === null
+                    ? `إنشاء المفتاح: ${entry.enabled ? 'مفعّلة' : 'معطّلة'} (${entry.rolloutPercent}%)`
+                    : `من ${entry.oldEnabled ? 'مفعّلة' : 'معطّلة'} (${entry.oldRolloutPercent ?? '—'}%) إلى ${entry.enabled ? 'مفعّلة' : 'معطّلة'} (${entry.rolloutPercent}%)`}
+                </p>
+                <p className="text-[11px] text-muted-foreground">المدير المنفّذ: <code dir="ltr">{entry.changedBy}</code></p>
+              </li>
+            ))}
+          </ol>
         )}
       </section>
     </AdminPageShell>
