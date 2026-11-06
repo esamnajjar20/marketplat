@@ -26,10 +26,11 @@ export function usePendingDraftsCount(userId: string | null | undefined): number
 
   useEffect(() => {
     if (!userId) { setCount(0); return; }
+  const uid = userId;
     let cancelled = false;
 
     function refresh() {
-      readPendingAdDraftsCount(userId)
+      readPendingAdDraftsCount(uid)
         .then((n) => { if (!cancelled) setCount(n); })
         .catch((error) => reportBackgroundFailure('frontend/hooks/usePendingDraftsCount.ts', error));
     }
