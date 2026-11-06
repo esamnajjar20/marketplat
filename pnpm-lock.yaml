@@ -313,6 +313,10 @@ importers:
         version: 5.9.3
 
   workers/cf-api-proxy:
+    dependencies:
+      d1-namespace:
+        specifier: ^1.1.1
+        version: 1.1.1
     devDependencies:
       typescript:
         specifier: ^5.9.3
@@ -3483,6 +3487,9 @@ packages:
 
   culvert@0.1.2:
     resolution: {integrity: sha512-yi1x3EAWKjQTreYWeSd98431AV+IEE0qoDyOoaHJ7KJ21gv6HtBXHVLX74opVSGqcR8/AbjJBHAHpcOy2bj5Gg==}
+
+  d1-namespace@1.1.1:
+    resolution: {integrity: sha512-n9b2WO2iGuPmQUDzWFaw+dVIHODbzfrj54JabSnGJegNPpERAAaja51nu+nU2GYN+sewr3KNbmHWg4wSF+g8wQ==}
 
   data-uri-to-buffer@4.0.1:
     resolution: {integrity: sha512-0R9ikRb668HB7QDxT1vkpuUBtqc53YyAwMwGeUFKRojY/NWKvdZ+9UYtRfGmhqNbRkTSVpMbmyhXipFFv2cb/A==}
@@ -9276,7 +9283,9 @@ snapshots:
       metro-runtime: 0.87.1
     transitivePeerDependencies:
       - '@babel/core'
+      - bufferutil
       - supports-color
+      - utf-8-validate
 
   '@react-native/normalize-colors@0.88.0': {}
 
@@ -10808,6 +10817,8 @@ snapshots:
   csstype@3.2.3: {}
 
   culvert@0.1.2: {}
+
+  d1-namespace@1.1.1: {}
 
   data-uri-to-buffer@4.0.1: {}
 
