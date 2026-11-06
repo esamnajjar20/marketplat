@@ -22,7 +22,7 @@ jobs:
     # Leave enough time for the bounded Go attempt and a full Express fallback.
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Run scheduled jobs on Go
         id: go-scheduler
