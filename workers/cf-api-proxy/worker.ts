@@ -172,9 +172,34 @@ const REFERENCE_ROUTES = new Set([
   'service-categories',
   'service-types',
   'store-types',
+  'home',
+  'ads',
+  'products',
+  'stores',
+  'service-listings',
+  'service-providers',
+  'sellers',
+  'recommendations',
+  'search',
+  'requests',
+]);
+
+// Routes where only base queries (limit/page) are cached in KV to conserve
+// the free-tier write quota. Filtered queries rely on CF edge cache instead.
+const BASE_ONLY_KV_ROUTES = new Set([
+  'products',
+  'ads',
+  'stores',
+  'service-listings',
+  'service-providers',
+  'sellers',
+  'recommendations',
+  'search',
+  'requests',
+  'home',
 ]);
 const KV_PREFIX = 'ref:v1:';
-const KV_FRESH_SEC = 900; // serve from KV without touching the origin
+const KV_FRESH_SEC = 3600; // 60 min — extended to conserve free-tier write quota
 const KV_STALE_SEC = 86400; // keep serving (and refresh in background) up to 24h
 const KV_MAX_BODY = 1024 * 1024;
 const KV_MAX_KEY = 400;
@@ -1580,7 +1605,13 @@ function isNegativeEligible(canon: CanonicalUrl, upstream: Response, body: Array
 
 function kvEnabled(env: Env, canon: CanonicalUrl): boolean {
   return Boolean(
-    env && env.REFERENCE_KV && REFERENCE_ROUTES.has(canon.route) && canon.key.length <= KV_MAX_KEY,
+    env && env.REFERENCE_KV
+    && REFERENCE_ROUTES.has(canon.route)
+    && canon.key.length <= KV_MAX_KEY
+    && (
+      !BASE_ONLY_KV_ROUTES.has(canon.route)
+      || canon.pairs.every(([k]) => k === 'limit' || k === 'page')
+    ),
   );
 }
 

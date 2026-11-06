@@ -8,9 +8,9 @@
       "lockTtlMs": 10000
     },
     "http": {
-      "maxAgeSec": 30,
-      "staleWhileRevalidateSec": 120,
-      "sharedMaxAgeSec": 120
+      "maxAgeSec": 60,
+      "staleWhileRevalidateSec": 600,
+      "sharedMaxAgeSec": 180
     },
     "client": {
       "staleTimeMs": 90000,
@@ -29,9 +29,9 @@
       "lockTtlMs": 10000
     },
     "http": {
-      "maxAgeSec": 30,
-      "staleWhileRevalidateSec": 180,
-      "sharedMaxAgeSec": 180
+      "maxAgeSec": 60,
+      "staleWhileRevalidateSec": 600,
+      "sharedMaxAgeSec": 240
     },
     "client": {
       "staleTimeMs": 60000,
@@ -50,9 +50,9 @@
       "lockTtlMs": 15000
     },
     "http": {
-      "maxAgeSec": 30,
-      "staleWhileRevalidateSec": 180,
-      "sharedMaxAgeSec": 180
+      "maxAgeSec": 60,
+      "staleWhileRevalidateSec": 600,
+      "sharedMaxAgeSec": 240
     },
     "client": {
       "staleTimeMs": 90000,
@@ -86,8 +86,9 @@
   },
   "reference": {
     "http": {
-      "maxAgeSec": 300,
-      "staleWhileRevalidateSec": 600
+      "maxAgeSec": 600,
+      "staleWhileRevalidateSec": 3600,
+      "sharedMaxAgeSec": 1800
     },
     "client": {
       "staleTimeMs": 3600000,
