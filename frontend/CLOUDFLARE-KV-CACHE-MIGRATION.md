@@ -18,7 +18,7 @@ npx wrangler@latest kv namespace create NEXT_INC_CACHE_KV
 ```
 
 Copy the returned 32-character `id` into `wrangler.jsonc`, replacing
-`REPLACE_WITH_NEXT_INC_CACHE_KV_NAMESPACE_ID`. Do not deploy while the placeholder remains.
+`aa4ca4859c924617954a7752d4fc4c80` (created successfully in the user account). The binding uses the remote namespace during local development.
 
 ## Validate and deploy
 

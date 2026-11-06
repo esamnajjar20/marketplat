@@ -22,7 +22,8 @@
   "kv_namespaces": [
     {
       "binding": "NEXT_INC_CACHE_KV",
-      "id": "REPLACE_WITH_NEXT_INC_CACHE_KV_NAMESPACE_ID"
+      "id": "aa4ca4859c924617954a7752d4fc4c80",
+      "remote": true
     }
   ],
   "durable_objects": {
