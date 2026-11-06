@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fetchServerApi } from '@/lib/server/serverApiFetch';
+import { fetchServerApi, ServerApiHttpError } from '@/lib/server/serverApiFetch';
 import { getPublicApiCacheTags } from '@/lib/server/serverCacheTags';
 
 const mocks = vi.hoisted(() => ({
@@ -147,5 +147,23 @@ describe('fetchServerApi', () => {
       revalidateSeconds: 300,
       tags: getPublicApiCacheTags('/categories'),
     })).rejects.toThrow('استجابة الخادم غير صالحة');
+  });
+
+  it('preserves HTTP 404 status so public detail pages can render not-found states', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ success: false, message: 'not found' }, 404)));
+
+    const error = await fetchServerApi('/service-listings/missing', { mode: 'no-store' }).catch((value) => value);
+
+    expect(error).toBeInstanceOf(ServerApiHttpError);
+    expect(error).toMatchObject({ statusCode: 404, status: 404 });
+  });
+
+  it('preserves server failures instead of converting them into missing-resource errors', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ success: false, message: 'unavailable' }, 503)));
+
+    const error = await fetchServerApi('/service-providers/provider-1', { mode: 'no-store' }).catch((value) => value);
+
+    expect(error).toBeInstanceOf(ServerApiHttpError);
+    expect(error).toMatchObject({ statusCode: 503, status: 503 });
   });
 });

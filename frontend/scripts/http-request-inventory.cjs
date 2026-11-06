@@ -100,6 +100,10 @@ const noSignalCount = queryFunctionCount - signalAwareCount;
 const asRows = missingSignal.map(([file, stats]) =>
   `| \`${file}\` | ${stats.count} | ${stats.signal} | ${stats.count - stats.signal} |`,
 ).join('\n');
+const queryFileRows = [...byFile.entries()]
+  .sort(([left], [right]) => left.localeCompare(right))
+  .map(([file, stats]) => `| \`${file}\` | ${stats.count} | ${stats.signal} | ${stats.count - stats.signal} |`)
+  .join('\n');
 
 const report = `# MarketPlat — HTTP Request Optimization Inventory
 
@@ -124,6 +128,16 @@ const report = `# MarketPlat — HTTP Request Optimization Inventory
 | Query functions missing transport cancellation forwarding (phase-2 audit) | 0 (0.0%) |
 
 The query-key guardrail separately verifies that 144 query hook/queryOptions declarations use the centralized \`queryKeys\` factory in this snapshot (run \`npm run query-keys:audit\`). The counts above cover query functions in hooks, components, and app source, so the scopes are not identical.
+
+### Query declarations by source file
+
+This table maps the declarative read-query layer to its owning source file. The endpoint implementation is shown separately in the generated callsite CSV, because query functions normally call API wrapper methods rather than constructing raw URLs.
+
+| Source file | Query functions | Signal-aware | Missing signal |
+| --- | ---: | ---: | ---: |
+${queryFileRows || '| No query functions found | 0 | 0 | 0 |'}
+
+The companion [HTTP request callsite inventory](./HTTP_REQUEST_CALLSITE_INVENTORY.csv) lists API-client calls, server API reads, native fetch callsites, and TanStack query/mutation declarations with their file and line number. It is a static source map, not a count of requests sent on one page.
 
 ### Query sources requiring AbortSignal review
 

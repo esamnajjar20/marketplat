@@ -67,7 +67,7 @@ export function AdminNetworkRequestsPanel() {
   const selected = filtered.find((row) => row.id === selectedId) ?? filtered[0] ?? null;
   const failureCount = records.filter((row) => row.outcome === 'http-error' || row.outcome === 'network-error').length;
   const successCount = records.filter((row) => row.outcome === 'success').length;
-  const durationStats = summarizeDurations(records.map((row) => row.durationMs));
+  const durationStats = summarizeDurations(filtered.map((row) => row.durationMs));
   const knownResponseBytes = filtered.reduce((total, row) => total + (row.responseBytes ?? 0), 0);
   const trackedReadCount = filtered.filter((row) =>
     (row.method === 'GET' || row.method === 'HEAD' || row.method === 'OPTIONS')
@@ -76,6 +76,11 @@ export function AdminNetworkRequestsPanel() {
   const concurrentDuplicateCount = filtered.filter((row) => row.concurrentDuplicate === true).length;
   const duplicateRate = trackedReadCount ? `${((concurrentDuplicateCount / trackedReadCount) * 100).toFixed(1)}%` : '—';
   const sizedResponses = filtered.filter((row) => Number.isSafeInteger(row.responseBytes) && (row.responseBytes ?? -1) >= 0).length;
+  const cacheHitCount = filtered.filter((row) => row.cacheStatus === 'HIT').length;
+  const cacheMissCount = filtered.filter((row) => row.cacheStatus === 'MISS').length;
+  const cacheStaleCount = filtered.filter((row) => row.cacheStatus === 'STALE').length;
+  const cacheEligibleCount = cacheHitCount + cacheMissCount + cacheStaleCount;
+  const cacheHitRate = cacheEligibleCount ? `${((cacheHitCount / cacheEligibleCount) * 100).toFixed(1)}%` : '—';
   const routeSummaries = useMemo(() => summarizeNetworkRequestsByRoute(filtered).slice(0, 8), [filtered]);
 
   const copyReport = async (row?: NetworkRequestRecord) => {
@@ -128,6 +133,7 @@ export function AdminNetworkRequestsPanel() {
         <Metric title="P99 / المئين 99" value={formatDuration(durationStats.p99)} detail="قد لا يكون ذا دلالة مع عينة صغيرة" icon={<Clock3 className="h-4 w-4" />} />
         <Metric title="حجم الاستجابات المعروف" value={formatBytes(knownResponseBytes)} detail={`${sizedResponses} من ${filtered.length} استجابة لديها Content-Length قابل للقراءة`} icon={<ArrowDownToLine className="h-4 w-4" />} />
         <Metric title="قراءات متطابقة متزامنة" value={concurrentDuplicateCount} detail={`${duplicateRate} من طلبات القراءة الآمنة؛ أول طلب في المجموعة لا يُحسب`} icon={<Activity className="h-4 w-4" />} />
+        <Metric title="معدل إصابة الكاش" value={cacheHitRate} detail={`${cacheHitCount} HIT · ${cacheMissCount} MISS · ${cacheStaleCount} STALE؛ لا يشمل BYPASS`} icon={<Activity className="h-4 w-4" />} />
       </div>
 
       <section className="space-y-3 rounded-2xl border bg-card p-4">
@@ -145,7 +151,7 @@ export function AdminNetworkRequestsPanel() {
 
       <section className="space-y-3 rounded-2xl border bg-card p-4">
         <div><h2 className="font-semibold">ملخص الطلبات حسب الصفحة</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">تعرض العينة المحفوظة فقط. الحجم يجمع ترويسة Content-Length المتاحة؛ الاستجابات التي لا تعرضها تُحسب كحجم غير معروف، ولا يُفترض أن المجموع يساوي إجمالي النقل الفعلي.</p></div>
-        {routeSummaries.length === 0 ? <p className="py-5 text-center text-sm text-muted-foreground">لا توجد بيانات كافية بعد.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-right text-sm"><thead className="bg-muted/60 text-xs text-muted-foreground"><tr><th className="p-2.5">مسار الصفحة</th><th className="p-2.5">الطلبات</th><th className="p-2.5">الأخطاء</th><th className="p-2.5">الملغاة</th><th className="p-2.5">قراءات متزامنة</th><th className="p-2.5">متوسط الزمن</th><th className="p-2.5">الحجم المعروف</th><th className="p-2.5">عينات الحجم</th></tr></thead><tbody>{routeSummaries.map((item) => <tr key={item.pageRoute} className="border-t"><td className="max-w-[220px] p-2.5 font-mono text-xs" dir="ltr"><span className="block truncate" title={item.pageRoute}>{item.pageRoute}</span></td><td className="p-2.5 tabular-nums">{item.requestCount}</td><td className="p-2.5 tabular-nums">{item.failedCount}</td><td className="p-2.5 tabular-nums">{item.abortedCount}</td><td className="p-2.5 tabular-nums">{item.concurrentDuplicateCount}</td><td className="p-2.5 tabular-nums">{formatDuration(item.averageDurationMs)}</td><td className="p-2.5 tabular-nums">{formatBytes(item.knownResponseBytes)}</td><td className="p-2.5 tabular-nums">{item.sizedResponseCount}/{item.requestCount}</td></tr>)}</tbody></table></div>}
+        {routeSummaries.length === 0 ? <p className="py-5 text-center text-sm text-muted-foreground">لا توجد بيانات كافية بعد.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[820px] text-right text-sm"><thead className="bg-muted/60 text-xs text-muted-foreground"><tr><th className="p-2.5">مسار الصفحة</th><th className="p-2.5">الطلبات</th><th className="p-2.5">الأخطاء</th><th className="p-2.5">الملغاة</th><th className="p-2.5">قراءات متزامنة</th><th className="p-2.5">متوسط الزمن</th><th className="p-2.5">P95</th><th className="p-2.5">إصابة الكاش</th><th className="p-2.5">الحجم المعروف</th><th className="p-2.5">عينات الحجم</th></tr></thead><tbody>{routeSummaries.map((item) => <tr key={item.pageRoute} className="border-t"><td className="max-w-[220px] p-2.5 font-mono text-xs" dir="ltr"><span className="block truncate" title={item.pageRoute}>{item.pageRoute}</span></td><td className="p-2.5 tabular-nums">{item.requestCount}</td><td className="p-2.5 tabular-nums">{item.failedCount}</td><td className="p-2.5 tabular-nums">{item.abortedCount}</td><td className="p-2.5 tabular-nums">{item.concurrentDuplicateCount}</td><td className="p-2.5 tabular-nums">{formatDuration(item.averageDurationMs)}</td><td className="p-2.5 tabular-nums">{formatDuration(item.p95DurationMs)}</td><td className="p-2.5 tabular-nums">{item.cacheHitRate === null ? '—' : `${item.cacheHitRate.toFixed(1)}% (${item.cacheHitCount}/${item.cacheHitCount + item.cacheMissCount + item.cacheStaleCount})`}</td><td className="p-2.5 tabular-nums">{formatBytes(item.knownResponseBytes)}</td><td className="p-2.5 tabular-nums">{item.sizedResponseCount}/{item.requestCount}</td></tr>)}</tbody></table></div>}
       </section>
 
       <section className="overflow-hidden rounded-2xl border bg-card">

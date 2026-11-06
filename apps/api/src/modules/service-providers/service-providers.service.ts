@@ -10,6 +10,7 @@ import {
 import {
   serviceProvidersRepository,
   NearbyServiceProviderRow,
+  PublicServiceProviderSummary,
 } from './service-providers.repository';
 import { serviceListingsRepository } from '../service-listings/service-listings.repository';
 import { serviceRequestsRepository } from '../service-requests/service-requests.repository';
@@ -381,7 +382,7 @@ export const serviceProvidersService = {
   // wrapper mirroring storesService.getStores/productsService.getProducts.
   getServiceProviders: async (
     query: GetServiceProvidersQuery
-  ): Promise<{ providers: ServiceProviderDetails[]; meta: PaginationMeta }> => {
+  ): Promise<{ providers: PublicServiceProviderSummary[]; meta: PaginationMeta }> => {
     // Redis SWR cache; see publicListCache.ts.
     return cachedPublicList('service-providers', query, async () => {
       const { page, limit, skip, take } = getPaginationParams(query.page, query.limit);

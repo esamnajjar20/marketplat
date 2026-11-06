@@ -3,7 +3,8 @@ import { cache } from 'react';
 import Link from 'next/link';
 import { SearchX } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
-import { serviceListingsApi } from '@/api/service-listings.api';
+import type { ServiceListingWithProvider } from '@/types/service.types';
+import { fetchServerApi, ServerApiHttpError } from '@/lib/server/serverApiFetch';
 import { ServiceListingDetail } from '@/components/services/ServiceListingDetail';
 import { ServiceRequestButton } from '@/components/services/ServiceRequestButton';
 import { ServiceViewTracker } from '@/components/services/ServiceViewTracker';
@@ -18,13 +19,25 @@ interface Props {
   params: Promise<{ id: string }>;
 }
 
-const getCachedListing = cache((id: string) => serviceListingsApi.getById(id));
+const getCachedListing = cache(async (id: string): Promise<ServiceListingWithProvider> => {
+  const response = await fetchServerApi<ServiceListingWithProvider>(
+    `/service-listings/${encodeURIComponent(id)}`,
+    { mode: 'no-store' },
+  );
+  const listing = response.data;
+  // A 200 response without the required provider relation is an API contract
+  // failure, not evidence that the listing was deleted.
+  if (!listing || typeof listing !== 'object' || !listing.id || !listing.provider?.sellerProfile) {
+    throw new Error('Service listing response is incomplete');
+  }
+  return listing;
+});
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   try {
     const listing = await getCachedListing(id);
-    return buildMetadata({ title: listing.data.data!.title, path: `/services/${id}` });
+    return buildMetadata({ title: listing.title, path: `/services/${id}` });
   } catch {
     return { title: 'خدمة' };
   }
@@ -32,39 +45,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ServiceListingPage({ params }: Props) {
   const { id } = await params;
-  let listing: Awaited<ReturnType<typeof serviceListingsApi.getById>>['data']['data'] | null =
-    null;
+  let listing: ServiceListingWithProvider | null = null;
 
   try {
-    const res = await getCachedListing(id);
-    listing = res.data.data ?? null;
+    listing = await getCachedListing(id);
   } catch (err) {
-    // Only a confirmed "not found" means the service is missing. Network
-    // failures and server errors must reach the public error boundary.
-    //
-    // HTTP status extraction is defensive because axios running under
-    // Cloudflare Workers (via OpenNext's nodejs_compat layer) can lose
-    // the .response property or store the status under .status/.cause.
-    // We accept any of the shapes axios produces in practice.
-    const e = err as {
-      statusCode?: number;
-      status?: number;
-      response?: { status?: number };
-      cause?: { statusCode?: number; status?: number; response?: { status?: number } };
-    } | null;
-    const statusCode =
-      e?.statusCode ??
-      e?.status ??
-      e?.response?.status ??
-      e?.cause?.statusCode ??
-      e?.cause?.status ??
-      e?.cause?.response?.status;
-
-    // 400/404/422 all mean "no such resource as far as the user cares":
-    // 400 from a malformed ID (e.g. 'test-id' instead of a UUID),
-    // 404 for a truly missing listing, 422 for validation failures.
-    const isNotFound = statusCode === 404 || statusCode === 400 || statusCode === 422;
-    if (!isNotFound) throw err;
+    // Only an HTTP 404 is a confirmed missing listing. Network failures,
+    // timeouts, malformed payloads and every other HTTP status must remain
+    // visible to the route error boundary so users can retry the request.
+    if (err instanceof ServerApiHttpError && [400, 404, 422].includes(err.statusCode)) {
+      listing = null;
+    } else {
+      throw err;
+    }
   }
 
   if (!listing) {

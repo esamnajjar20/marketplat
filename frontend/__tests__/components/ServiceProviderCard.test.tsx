@@ -1,17 +1,17 @@
 /**
  * __tests__/components/ServiceProviderCard.test.tsx
  *
- * Previously uncovered (0%), ~238 lines (mostly styling). Pure
- * presentational card for /service-providers results — both nearby
- * search (has distanceKm) and the Phase 3 city/browse directory (no
- * distanceKm) — deliberately reads only plain ServiceProviderDetails
- * fields plus optional distanceKm (no sellerProfile join, so no
- * verified badge/rating here, unlike ServiceListingCard/ServiceProviderHeader).
+ * Presentational card for /service-providers results — both nearby search
+ * (has distanceKm) and the city/browse directory (no distanceKm). Public
+ * directory rows include a safe seller profile reference; nearby results may
+ * omit it. Cards link directly to the user profile when that identity exists
+ * and retain the provider resolver route as a fallback.
  *
  * Coverage targets:
- *  - Links to /service-providers/:id
- *  - Renders businessName, description, contact phone (formatted),
- *    joined serviceAreaCities
+ *  - Links directly to /profile/:userId when sellerProfile.userId exists
+ *  - Falls back to /service-providers/:id when it does not
+ *  - Renders businessName and joined serviceAreaCities without exposing
+ *    the provider's contact phone
  *  - Distance label: meters under 1km, one-decimal km at/above 1km
  *  - Phase 3: distanceKm absent → shows shared city (serviceAreaCities ∩
  *    user.city) instead of a distance; shows nothing if no overlap
@@ -76,10 +76,24 @@ describe('ServiceProviderCard', () => {
     expect(screen.getByRole('link')).toHaveAttribute('href', '/service-providers/provider-42');
   });
 
-  it('renders the business name and description without exposing a phone number', () => {
+  it('links directly to the user profile when a directory row includes its public seller identity', () => {
+    const provider = {
+      ...makeProvider({ id: 'provider-42' }),
+      sellerProfile: {
+        userId: 'user-42',
+        verified: true,
+        averageRating: '4.8',
+        totalRatings: 12,
+      },
+    };
+
+    render(<ServiceProviderCard provider={provider} />);
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/profile/user-42');
+  });
+
+  it('renders the business name without exposing a phone number', () => {
     render(<ServiceProviderCard provider={makeProvider({ contactPhone: '+970591234567' })} />);
     expect(screen.getByText('خدمات السباكة السريعة')).toBeInTheDocument();
-    expect(screen.getByText('خدمات سباكة منزلية سريعة وموثوقة')).toBeInTheDocument();
     expect(screen.getByText('غزة، خان يونس')).toBeInTheDocument();
     expect(screen.queryByText('+970591234567')).not.toBeInTheDocument();
   });

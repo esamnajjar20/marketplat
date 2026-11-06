@@ -43,6 +43,19 @@ const MIN_PUBLIC_REVALIDATE_SECONDS = 5;
 const MAX_PUBLIC_REVALIDATE_SECONDS = 86_400;
 const MAX_CACHE_TAGS = 16;
 
+/** HTTP response failure with a stable status field for route-level classification. */
+export class ServerApiHttpError extends Error {
+  readonly statusCode: number;
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`API request failed with status ${status}`);
+    this.name = 'ServerApiHttpError';
+    this.statusCode = status;
+    this.status = status;
+  }
+}
+
 /**
  * React request memoization only. This does not persist data between visits.
  * The stable public cache below is owned by Next's incremental cache.
@@ -151,7 +164,7 @@ async function requestApiEnvelopeUncached(
 
     if (!response.ok) {
       console.error(`[serverApiFetch] HTTP ${response.status} for ${safeLogPath}`);
-      throw new Error(`طلب الخادم فشل (${response.status})`);
+      throw new ServerApiHttpError(response.status);
     }
 
     let payload: unknown;
@@ -175,7 +188,7 @@ async function requestApiEnvelopeUncached(
 
     return payload as ApiResponse<unknown>;
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith('طلب الخادم فشل')) throw error;
+    if (error instanceof ServerApiHttpError) throw error;
     if (error instanceof Error && error.message === 'استجابة الخادم غير صالحة') throw error;
 
     const errorName = error instanceof Error ? error.name : 'UnknownError';

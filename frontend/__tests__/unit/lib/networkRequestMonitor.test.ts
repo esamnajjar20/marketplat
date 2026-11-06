@@ -64,10 +64,10 @@ describe('network request payload telemetry', () => {
 
   it('aggregates request count, failures, cancellations, known bytes and latency by route', () => {
     const summary = summarizeNetworkRequestsByRoute([
-      request({ id: 'a', responseBytes: 1024, durationMs: 100 }),
-      request({ id: 'b', responseBytes: 512, durationMs: 300, outcome: 'http-error', status: 503, concurrentDuplicate: true }),
-      request({ id: 'c', responseBytes: undefined, durationMs: 200, outcome: 'aborted', status: 0 }),
-      request({ id: 'd', pageRoute: '/stores/one', responseBytes: 2048 }),
+      request({ id: 'a', responseBytes: 1024, durationMs: 100, cacheStatus: 'HIT' }),
+      request({ id: 'b', responseBytes: 512, durationMs: 300, outcome: 'http-error', status: 503, concurrentDuplicate: true, cacheStatus: 'MISS' }),
+      request({ id: 'c', responseBytes: undefined, durationMs: 200, outcome: 'aborted', status: 0, cacheStatus: 'STALE' }),
+      request({ id: 'd', pageRoute: '/stores/one', responseBytes: 2048, cacheStatus: 'BYPASS' }),
     ]);
 
     expect(summary).toEqual([
@@ -80,6 +80,14 @@ describe('network request payload telemetry', () => {
         knownResponseBytes: 1536,
         sizedResponseCount: 2,
         averageDurationMs: 200,
+        p50DurationMs: 200,
+        p95DurationMs: 300,
+        p99DurationMs: 300,
+        cacheHitCount: 1,
+        cacheMissCount: 1,
+        cacheStaleCount: 1,
+        cacheBypassCount: 0,
+        cacheHitRate: 33.3,
       },
       {
         pageRoute: '/stores/one',
@@ -90,6 +98,14 @@ describe('network request payload telemetry', () => {
         knownResponseBytes: 2048,
         sizedResponseCount: 1,
         averageDurationMs: 100,
+        p50DurationMs: 100,
+        p95DurationMs: 100,
+        p99DurationMs: 100,
+        cacheHitCount: 0,
+        cacheMissCount: 0,
+        cacheStaleCount: 0,
+        cacheBypassCount: 1,
+        cacheHitRate: null,
       },
     ]);
   });
@@ -98,6 +114,8 @@ describe('network request payload telemetry', () => {
     const [summary] = summarizeNetworkRequestsByRoute([request()]);
     expect(summary?.knownResponseBytes).toBe(0);
     expect(summary?.sizedResponseCount).toBe(0);
+    expect(summary?.cacheHitRate).toBeNull();
+    expect(summary?.p95DurationMs).toBe(100);
   });
 
   it('normalizes optional telemetry fields loaded from the local journal', () => {

@@ -11,7 +11,7 @@ export default function ServiceDetailError({ reset }: { error: Error & { digest?
       </span>
       <h1 className="text-xl font-bold">تعذّر تحميل تفاصيل الخدمة</h1>
       <p className="mt-2 max-w-lg text-sm leading-6 text-muted-foreground">
-        قد تكون الخدمة غير متاحة مؤقتًا أو تعذّر الاتصال بالخادم. لم نحذف أي بيانات؛ أعد المحاولة أو ارجع إلى قائمة الخدمات.
+        تعذّر الاتصال بالخادم أو تحميل تفاصيل الخدمة. هذا لا يعني بالضرورة أن الخدمة حُذفت؛ أعد المحاولة أو ارجع إلى قائمة الخدمات.
       </p>
       <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
         <button type="button" onClick={reset} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">

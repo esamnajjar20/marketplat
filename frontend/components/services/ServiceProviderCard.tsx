@@ -16,17 +16,22 @@ import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { toast } from 'sonner';
 import type { ServiceProviderDetails, ServiceAvailability } from '@/types/service.types';
 
-interface Props {
-  provider: Omit<ServiceProviderDetails, 'latitude' | 'longitude'> & {
-    distanceKm?: number;
-    sellerProfile?: {
-      verified?: boolean;
-      averageRating?: string | number | null;
-      totalRatings?: number | null;
-      userId?: string;
-    };
-    serviceTypes?: { nameAr?: string; name?: string }[];
+type ServiceProviderCardData = Pick<
+  ServiceProviderDetails,
+  'id' | 'businessName' | 'logoUrl' | 'availabilityStatus' | 'serviceAreaCities'
+> & {
+  distanceKm?: number;
+  sellerProfile?: {
+    verified?: boolean;
+    averageRating?: string | number | null;
+    totalRatings?: number | null;
+    userId?: string;
   };
+  serviceTypes?: { nameAr?: string; name?: string }[];
+};
+
+interface Props {
+  provider: ServiceProviderCardData;
   className?: string;
 }
 

@@ -113,6 +113,14 @@ export type NetworkRouteSummary = {
   knownResponseBytes: number;
   sizedResponseCount: number;
   averageDurationMs: number;
+  p50DurationMs: number;
+  p95DurationMs: number;
+  p99DurationMs: number;
+  cacheHitCount: number;
+  cacheMissCount: number;
+  cacheStaleCount: number;
+  cacheBypassCount: number;
+  cacheHitRate: number | null;
 };
 
 /** Aggregate only safe metadata; missing Content-Length stays explicitly unknown. */
@@ -126,6 +134,18 @@ export function summarizeNetworkRequestsByRoute(records: NetworkRequestRecord[])
 
   return [...groups.entries()].map(([pageRoute, rows]) => {
     const sized = rows.filter((row) => Number.isSafeInteger(row.responseBytes) && (row.responseBytes ?? -1) >= 0);
+    const durations = rows
+      .map((row) => row.durationMs)
+      .filter((duration) => Number.isFinite(duration) && duration >= 0)
+      .sort((a, b) => a - b);
+    const percentile = (value: number) => durations.length
+      ? durations[Math.max(0, Math.ceil((value / 100) * durations.length) - 1)] ?? 0
+      : 0;
+    const cacheHitCount = rows.filter((row) => row.cacheStatus === 'HIT').length;
+    const cacheMissCount = rows.filter((row) => row.cacheStatus === 'MISS').length;
+    const cacheStaleCount = rows.filter((row) => row.cacheStatus === 'STALE').length;
+    const cacheBypassCount = rows.filter((row) => row.cacheStatus === 'BYPASS').length;
+    const cacheEligibleCount = cacheHitCount + cacheMissCount + cacheStaleCount;
     return {
       pageRoute,
       requestCount: rows.length,
@@ -134,7 +154,15 @@ export function summarizeNetworkRequestsByRoute(records: NetworkRequestRecord[])
       concurrentDuplicateCount: rows.filter((row) => row.concurrentDuplicate === true).length,
       knownResponseBytes: sized.reduce((total, row) => total + (row.responseBytes ?? 0), 0),
       sizedResponseCount: sized.length,
-      averageDurationMs: rows.length ? Math.round(rows.reduce((total, row) => total + row.durationMs, 0) / rows.length) : 0,
+      averageDurationMs: durations.length ? Math.round(durations.reduce((total, duration) => total + duration, 0) / durations.length) : 0,
+      p50DurationMs: percentile(50),
+      p95DurationMs: percentile(95),
+      p99DurationMs: percentile(99),
+      cacheHitCount,
+      cacheMissCount,
+      cacheStaleCount,
+      cacheBypassCount,
+      cacheHitRate: cacheEligibleCount ? Math.round((cacheHitCount / cacheEligibleCount) * 1000) / 10 : null,
     };
   }).sort((a, b) => b.requestCount - a.requestCount || a.pageRoute.localeCompare(b.pageRoute));
 }

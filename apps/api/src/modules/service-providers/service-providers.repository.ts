@@ -12,6 +12,33 @@ export interface NearbyServiceProviderRow extends ServiceProviderDetails {
   distanceKm: number;
 }
 
+const publicServiceProviderSummarySelect = {
+  id: true,
+  businessName: true,
+  businessType: true,
+  logoUrl: true,
+  description: true,
+  serviceAreaCities: true,
+  workingHours: true,
+  availabilityStatus: true,
+  completedRequestsCount: true,
+  fulfillmentRate: true,
+  createdAt: true,
+  updatedAt: true,
+  sellerProfile: {
+    select: {
+      userId: true,
+      verified: true,
+      averageRating: true,
+      totalRatings: true,
+    },
+  },
+} satisfies Prisma.ServiceProviderDetailsSelect;
+
+export type PublicServiceProviderSummary = Prisma.ServiceProviderDetailsGetPayload<{
+  select: typeof publicServiceProviderSummarySelect;
+}>;
+
 export const serviceProvidersRepository = {
   findBySellerProfileId: (sellerProfileId: string): Promise<ServiceProviderDetails | null> =>
     prisma.serviceProviderDetails.findUnique({ where: { sellerProfileId } }),
@@ -138,7 +165,7 @@ export const serviceProvidersRepository = {
     query: GetServiceProvidersQuery,
     skip: number,
     take: number
-  ): Promise<{ rows: ServiceProviderDetails[]; total: number }> => {
+  ): Promise<{ rows: PublicServiceProviderSummary[]; total: number }> => {
     const where: Prisma.ServiceProviderDetailsWhereInput = {
       availabilityStatus: { not: 'UNAVAILABLE' },
       sellerProfile: { suspended: false },
@@ -148,6 +175,7 @@ export const serviceProvidersRepository = {
     const [rows, total] = await Promise.all([
       prisma.serviceProviderDetails.findMany({
         where,
+        select: publicServiceProviderSummarySelect,
         orderBy: { createdAt: 'desc' },
         skip,
         take,

@@ -111,9 +111,10 @@
     "sw:native-url-runtime-audit": "node scripts/sw-native-url-runtime-audit.mjs",
     "cloudflare:cache-audit": "node scripts/cloudflare-cache-config-audit.mjs",
     "network:request-dedup-audit": "node scripts/request-dedup-concurrency-audit.mjs",
-    "network:request-inventory": "node scripts/http-request-inventory.cjs --write",
+    "network:request-inventory": "node scripts/http-request-inventory.cjs --write && node scripts/export-http-request-inventory.cjs",
     "network:query-abort-audit": "node scripts/query-abort-signal-phase2-audit.cjs",
-    "network:phase3-audit": "node scripts/http-request-phase3-audit.mjs && node scripts/network-request-monitor-audit.mjs"
+    "network:phase3-audit": "node scripts/http-request-phase3-audit.mjs && node scripts/network-request-monitor-audit.mjs",
+    "network:phase6-audit": "node scripts/http-request-phase6-audit.mjs && node scripts/fetch-client-csrf-audit.mjs && node scripts/http-request-phase3-audit.mjs && node scripts/network-request-monitor-audit.mjs && node scripts/request-dedup-concurrency-audit.mjs && node scripts/query-abort-signal-phase2-audit.cjs && node scripts/export-http-request-inventory.cjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

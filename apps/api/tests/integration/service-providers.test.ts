@@ -29,6 +29,15 @@ describe('Service Providers API', () => {
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body.data)).toBe(true);
       expect(res.body.data.map((p: any) => p.id)).toContain(provider.id);
+      const row = res.body.data.find((p: any) => p.id === provider.id);
+      expect(row.sellerProfile.userId).toBe(owner.id);
+      expect(row.sellerProfile).toEqual(expect.objectContaining({
+        verified: expect.any(Boolean),
+      }));
+      // Directory payloads expose only the public identity needed by cards.
+      expect(row).not.toHaveProperty('contactPhone');
+      expect(row).not.toHaveProperty('latitude');
+      expect(row).not.toHaveProperty('longitude');
     });
 
     it('filters by city (serviceAreaCities contains the given city)', async () => {

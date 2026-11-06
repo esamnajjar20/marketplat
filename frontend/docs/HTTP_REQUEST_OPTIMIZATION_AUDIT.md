@@ -22,6 +22,76 @@
 
 The query-key guardrail separately verifies that 144 query hook/queryOptions declarations use the centralized `queryKeys` factory in this snapshot (run `npm run query-keys:audit`). The counts above cover query functions in hooks, components, and app source, so the scopes are not identical.
 
+### Query declarations by source file
+
+This table maps the declarative read-query layer to its owning source file. The endpoint implementation is shown separately in the generated callsite CSV, because query functions normally call API wrapper methods rather than constructing raw URLs.
+
+| Source file | Query functions | Signal-aware | Missing signal |
+| --- | ---: | ---: | ---: |
+| `components/ads/AdCategoryChips.tsx` | 1 | 1 | 0 |
+| `components/ads/SearchResults.tsx` | 1 | 1 | 0 |
+| `components/promoted/PromotedLoadMore.tsx` | 1 | 1 | 0 |
+| `components/sales/ReceiptPageClient.tsx` | 1 | 1 | 0 |
+| `components/search/SearchResults.tsx` | 1 | 1 | 0 |
+| `components/sellers/SellersRankingList.tsx` | 1 | 1 | 0 |
+| `components/services/ServiceCategoryChips.tsx` | 1 | 1 | 0 |
+| `components/services/ServiceListingMatches.tsx` | 1 | 1 | 0 |
+| `components/services/ServiceListingsGrid.tsx` | 1 | 1 | 0 |
+| `components/services/ServiceProviderServiceTypesEditor.tsx` | 2 | 2 | 0 |
+| `components/stores/ProductCategoryChips.tsx` | 1 | 1 | 0 |
+| `components/stores/ProductsGrid.tsx` | 1 | 1 | 0 |
+| `components/stores/PublicSalesStats.tsx` | 1 | 1 | 0 |
+| `components/stores/StoreAds.tsx` | 1 | 1 | 0 |
+| `components/stores/StoresGrid.tsx` | 1 | 1 | 0 |
+| `hooks/queries/useActivity.ts` | 1 | 1 | 0 |
+| `hooks/queries/useAdmin.ts` | 20 | 20 | 0 |
+| `hooks/queries/useAds.ts` | 7 | 7 | 0 |
+| `hooks/queries/useAppointments.ts` | 2 | 2 | 0 |
+| `hooks/queries/useAuth.ts` | 2 | 2 | 0 |
+| `hooks/queries/useBadges.ts` | 2 | 2 | 0 |
+| `hooks/queries/useBlockedUsers.ts` | 1 | 1 | 0 |
+| `hooks/queries/useCategories.ts` | 3 | 3 | 0 |
+| `hooks/queries/useCollections.ts` | 4 | 4 | 0 |
+| `hooks/queries/useConversations.ts` | 5 | 5 | 0 |
+| `hooks/queries/useCustomers.ts` | 3 | 3 | 0 |
+| `hooks/queries/useDebts.ts` | 1 | 1 | 0 |
+| `hooks/queries/useFavoriteLists.ts` | 1 | 1 | 0 |
+| `hooks/queries/useFavorites.ts` | 4 | 4 | 0 |
+| `hooks/queries/useFollows.ts` | 5 | 5 | 0 |
+| `hooks/queries/useHomeFeed.ts` | 1 | 1 | 0 |
+| `hooks/queries/useHomepage.ts` | 1 | 1 | 0 |
+| `hooks/queries/useMyReports.ts` | 1 | 1 | 0 |
+| `hooks/queries/useNotificationDevices.ts` | 1 | 1 | 0 |
+| `hooks/queries/useNotifications.ts` | 2 | 2 | 0 |
+| `hooks/queries/usePresence.ts` | 1 | 1 | 0 |
+| `hooks/queries/useProductCategories.ts` | 3 | 3 | 0 |
+| `hooks/queries/useProducts.ts` | 3 | 3 | 0 |
+| `hooks/queries/usePromotions.ts` | 2 | 2 | 0 |
+| `hooks/queries/useRecommendations.ts` | 6 | 6 | 0 |
+| `hooks/queries/useRequests.ts` | 4 | 4 | 0 |
+| `hooks/queries/useSales.ts` | 10 | 10 | 0 |
+| `hooks/queries/useSavedSearches.ts` | 1 | 1 | 0 |
+| `hooks/queries/useSearch.ts` | 2 | 2 | 0 |
+| `hooks/queries/useSearchFacets.ts` | 1 | 1 | 0 |
+| `hooks/queries/useSellerRatings.ts` | 1 | 1 | 0 |
+| `hooks/queries/useSellers.ts` | 3 | 3 | 0 |
+| `hooks/queries/useSequentialGeoSearch.ts` | 1 | 1 | 0 |
+| `hooks/queries/useServiceCategories.ts` | 3 | 3 | 0 |
+| `hooks/queries/useServiceListings.ts` | 3 | 3 | 0 |
+| `hooks/queries/useServiceProviders.ts` | 5 | 5 | 0 |
+| `hooks/queries/useServiceRequests.ts` | 3 | 3 | 0 |
+| `hooks/queries/useServiceReviews.ts` | 1 | 1 | 0 |
+| `hooks/queries/useServiceTypes.ts` | 2 | 2 | 0 |
+| `hooks/queries/useStockInventory.ts` | 2 | 2 | 0 |
+| `hooks/queries/useStoreMembers.ts` | 2 | 2 | 0 |
+| `hooks/queries/useStoreReviews.ts` | 1 | 1 | 0 |
+| `hooks/queries/useStores.ts` | 5 | 5 | 0 |
+| `hooks/queries/useStoreTypes.ts` | 2 | 2 | 0 |
+| `hooks/queries/useStories.ts` | 3 | 3 | 0 |
+| `hooks/queries/useUsers.ts` | 1 | 1 | 0 |
+
+The companion [HTTP request callsite inventory](./HTTP_REQUEST_CALLSITE_INVENTORY.csv) lists API-client calls, server API reads, native fetch callsites, and TanStack query/mutation declarations with their file and line number. It is a static source map, not a count of requests sent on one page.
+
 ### Query sources requiring AbortSignal review
 
 The phase-2 cancellation audit now verifies that every discovered query function both accepts TanStack AbortSignal and forwards it in a request config object. The remaining count is zero. Short immutable reference-data reads still benefit from safe cancellation on route changes, while cache freshness remains governed by each query's existing staleTime.
@@ -80,38 +150,44 @@ The cancellation phase does not reduce the number of requests required by an ini
 
 This report combines static source review with instrumented local request metadata. No production credentials or authenticated browser session were available in the uploaded archive, so it does not claim live page measurements or numeric before/after reductions. Dependencies were not installed in the extracted project; full Vitest, semantic TypeScript type-check, production build, and live network/DB profiling must run in the project's normal environment.
 
-## Phase 4 — Backend payload projection and authorization query reduction
+## Phase 6 — Cancellation safety and route-level performance metrics
 
-- The public `GET /stores` directory and homepage featured-store list now use an explicit Prisma `select` (`storeDirectorySelect`) instead of `sellerProfile: true` and the full `StoreType` relation. The response contains only the directory card fields: seven store fields, four seller summary fields (`id`, `verified`, `averageRating`, `totalRatings`), and six store-type presentation fields (`id`, `slug`, `nameAr`, `icon`, `labels`, `presentation`). It omits unused store description/contact/address/hours/coordinates, the seller's unrelated profile/payment/moderation/analytics fields, and dynamic `StoreType.fields` definitions.
-- The frontend public directory contract is now `StoreDirectoryItem` and is used by `/stores`, its paginated query/offline snapshot, and homepage store slices. Full `StoreWithSeller` / `StoreWithSellerAndCounts` contracts remain in detail, favorites, followed-store, and admin-oriented paths where those richer fields are still needed.
-- The Redis SWR cache key for store directory and featured-store responses now includes `__projectionVersion: 2`. This prevents an older cached response with the previous wider projection from satisfying the new response shape after deployment. Existing namespace-level invalidation behavior remains unchanged.
-- `requireStoreAccessForProducts` now loads candidate stores and owner-suspension flags with one bounded Prisma `findMany` (`id IN (...)`) and checks candidates in the original oldest-membership order. It deduplicates store IDs, skips empty batches without querying, and preserves blocked-store / suspended-owner behavior. This removes the prior per-candidate store read plus seller-profile read pattern.
-- The general `requireStoreAccess` gate now reads the store together with the owning seller's `id`, `userId`, and `suspended` fields. Owner identification and suspension checks reuse that joined row rather than issuing separate seller-profile queries. ID and slug lookup paths use the same authorization projection; membership lookup and role capability checks remain unchanged.
-- Regression coverage was added for the exact public projection, cache-key version, empty and non-empty staff batches, original membership precedence, owner/member access, blocked/suspended behavior, and public API response types.
-- No new HTTP batch endpoint or `batchGet` callsite was added. Existing homepage aggregation and active-tab store loading remain in place; there was no static evidence that another batch would reduce useful page requests without fetching unnecessary data.
+- `fetchClient` now waits for the shared 401 refresh promise through a per-caller abortable wrapper. Aborting one request removes that caller's wait and prevents its retry dispatch, but does not abort token rotation shared by other requests. A second abort check closes the race between refresh completion and retry dispatch.
+- The network monitor reports per-route P50, P95, and P99 latency using nearest-rank percentiles over finite, non-negative samples. The existing overall percentile cards now respect the active filters rather than showing unfiltered latency while the request table is filtered.
+- The network monitor aggregates `X-Cache` outcomes by route and globally. HIT rate is calculated as `HIT / (HIT + MISS + STALE)`; BYPASS is reported separately and excluded from the cacheable denominator. When there are no cacheable samples, the rate remains unknown rather than displaying 0%.
+- The static inventory exporter writes `HTTP_REQUEST_CALLSITE_INVENTORY.csv`. In this snapshot it records 743 source callsites: 366 Axios API-client calls, 19 server API calls, 27 direct native-fetch calls, 15 fetch-with-timeout calls, 156 TanStack query/queryOptions declarations, and 160 TanStack mutation declarations. These are source locations, not requests executed by one page. The CSV includes method, endpoint/query-key expression, source expression, file, and line.
+- The narrower query-function audit remains 154 query functions across 61 files, all 154 accepting and forwarding AbortSignal. The CSV's 156 query entries use a broader scan scope and include queryOptions; these counts are intentionally not interchangeable.
+- No generic batch callsites were introduced. The application inventory still reports zero `apiClient.batchGet()` callsites; existing homepage aggregation and active-tab storefront loading are retained because they already avoid unnecessary independent reads. The batch API remains opt-in until a production trace demonstrates lower total bytes/latency without excess backend concurrency.
 
-### Phase 4 verification
+### Phase 6 verification
 
-- The dedicated backend source audit passes 13/13 checks (`npm run audit:http-payload-phase4` from `apps/api`, or `pnpm audit:http-payload-phase4` from the repository root).
-- Existing phase-3 request-monitor tests pass their static audit: 20/20. Phase-3 inventory: 12/12. Concurrent-read dedupe: 9/9. Fetch-client/CSRF retry guardrails: 13/13.
-- Query cancellation guards remain 154/154; the phase-12 and phase-13 focused audits pass 10/10 and 22/22. Package script references pass 110/110.
-- A TypeScript compiler parser pass covered 2,537 frontend and API TS/TSX/JS/JSX/MJS/CJS source files with zero syntax diagnostics. This is a syntax parse only, not semantic type-checking.
-- No production Redis, browser, or Postgres session was available. Therefore actual transferred-byte savings and live query-count reductions were not measured. The projection and SQL round-trip changes are verified from source and regression tests, but Vitest/Jest, semantic type-check, and production build still need to be run in the dependency-installed workspace.
-
-## Phase 5 — Prisma query telemetry and database write batching
-
-- `apps/api/src/shared/utils/dbQueryTelemetry.ts` adds request-scoped Prisma operation counts and duration using `AsyncLocalStorage`, then finalizes aggregates from the existing Express HTTP metrics finish hook. New metrics include global operation count/duration by model/action, Prisma operation count and summed operation time per HTTP route, max repeated read-shape count, repeated-shape candidate groups, and slow operation counts (>=250ms).
-- Telemetry is enabled by default outside tests and can be emergency-disabled with `DB_QUERY_METRICS_ENABLED=0`. It is fail-open. It does not log SQL text or parameter values; read arguments are reduced to bounded structural shapes, hashed in memory, and never exposed as metric labels. Per-request tracking is capped at 256 signatures, each shape is capped at 512 nodes, depth 5, and 40 object keys per level. Writes and opaque `$queryRaw` actions are excluded from repeated-read N+1 heuristics but remain counted and timed.
-- These are Prisma client-operation metrics, not a guaranteed count of PostgreSQL SQL statements. One Prisma operation may execute multiple SQL statements (e.g. nested relation work), and observed duration includes application-side Prisma engine/connection overhead as well as database round-trip. The repeated-shape metric is only a heuristic candidate, not proof of N+1. Use PostgreSQL `pg_stat_statements` and staging `EXPLAIN (ANALYZE, BUFFERS)` for SQL-level profiling.
-- Service-request expiry previously executed up to 200 conditional per-row updates for a full batch. It now performs one parameterized `UPDATE ... RETURNING` for the batch and only notifies IDs actually returned. The conditional `status = PENDING` predicate preserves races with accept/reject/cancel operations; `respondedAt` remains unchanged to preserve system-expiry semantics. This is a 99.5% reduction in expiry UPDATE operations for a full 200-row batch, not a reduction in all statements or notifications.
-- `ServiceRequest` already has `@@index([status, createdAt])`; no duplicate index was introduced without database execution plans.
-
-### Phase 5 verification
-
-- Prisma telemetry + expiry static audit: 16/16.
+- Phase-6 focused audit: 9/9.
+- Fetch client auth/CSRF/retry audit: 14/14.
+- HTTP phase-3 and request-monitor audits: 15/15 and 21/21.
+- GET dedup/concurrency audit: 9/9.
+- Query AbortSignal coverage: 154/154.
+- Query-key and cache-operation guardrails: 144 declarations and 251 cache operations.
 - Store payload/authorization audit: 13/13.
-- Phase-3 inventory audit: 12/12; network monitor: 20/20; request deduplication: 9/9.
-- Query cancellation phase 12: 10/10; phase 13: 22/22; fetch client/CSRF/retry: 13/13.
-- Package script references: 110/110.
-- API TypeScript source/test/script syntax scan: 731 files, zero parse diagnostics. Strict type-check passed only for the telemetry module and metrics registry with external-type stubs; it is not a full project type-check.
-- Jest/Vitest, full semantic TypeScript check, production build, live PostgreSQL profiling, and runtime before/after measurements were not run because project dependencies and a live database/browser session were not present in the archive.
+- Prisma query phase 5 and 6 audits: 16/16 and 15/15.
+- Package-script references: 111/111.
+- TypeScript parser scan: 2,434 source files and zero parse diagnostics. This is syntax validation only; it is not semantic type-checking, Vitest execution, or a production build.
+
+### Before/after interpretation
+
+| Scenario | Before phase 6 | After phase 6 |
+| --- | --- | --- |
+| Safe request is aborted while shared token refresh is pending | Caller could remain awaiting refresh and then enter the retry branch with an already-aborted signal | Caller stops waiting immediately; shared refresh continues for other callers; no retry dispatch is made for the cancelled caller |
+| Route-level latency reporting | Route summary exposed average latency only | Route summary exposes average, P50, P95, and P99 |
+| Cache effectiveness | `X-Cache` was recorded per request but no aggregate route/global hit rate was shown | Route and global cache hit rates are calculated; BYPASS is excluded and no-sample state remains unknown |
+| Filtering the request panel | Some latency cards used the full journal despite active filters | Summary cards use the filtered sample |
+| Static source mapping | Query file counts were listed, but individual HTTP/query/mutation callsites lacked a generated line-level index | A CSV indexes 743 source callsites with file and line; it is not a runtime request count |
+
+The phase-6 cancellation change prevents an unnecessary fetch invocation after cancellation; because `fetch` given an already-aborted signal generally rejects before sending, this must not be represented as a measured network-request reduction. The telemetry changes add no API calls. A numeric before/after page request count, transfer-byte reduction, live cache hit rate, or database SQL reduction still requires equivalent deployed browser traces and backend metrics.
+
+## Current limits and production measurement
+
+- The ZIP contains no authenticated browser session, production traces, or database connection. It cannot establish true cold/warm request counts or transfer sizes for individual pages.
+- `Content-Length` is only an observable response-size hint; use browser DevTools Transfer Size for wire-level bytes, particularly for compressed, streamed, CORS, and cached responses.
+- Prisma metrics count Prisma client operations, not necessarily SQL statements. Use PostgreSQL `pg_stat_statements` and staging `EXPLAIN (ANALYZE, BUFFERS)` to verify database-level changes.
+- Vitest, semantic TypeScript checks, and production build were not run because project dependencies are absent in this extracted workspace. `pnpm` and `vitest` are not installed in this runtime.
+- Regenerate both inventories with `npm --prefix frontend run network:request-inventory`. Run focused checks with `npm --prefix frontend run network:phase6-audit`; the monorepo aggregate `pnpm audit:http-requests` additionally runs API payload and Prisma audits in a pnpm-enabled workspace.

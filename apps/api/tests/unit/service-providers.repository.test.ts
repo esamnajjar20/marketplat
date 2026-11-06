@@ -160,16 +160,19 @@ describe('serviceProvidersRepository', () => {
 
       const result = await serviceProvidersRepository.findMany({ city: 'Gaza' }, 0, 20);
 
-      expect(prisma.serviceProviderDetails.findMany).toHaveBeenCalledWith({
+      expect(prisma.serviceProviderDetails.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: {
           availabilityStatus: { not: 'UNAVAILABLE' },
           sellerProfile: { suspended: false },
           serviceAreaCities: { has: 'Gaza' },
         },
+        select: expect.objectContaining({
+          sellerProfile: { select: expect.objectContaining({ userId: true, verified: true }) },
+        }),
         orderBy: { createdAt: 'desc' },
         skip: 0,
         take: 20,
-      });
+      }));
       expect(prisma.serviceProviderDetails.count).toHaveBeenCalledWith({
         where: {
           availabilityStatus: { not: 'UNAVAILABLE' },
@@ -186,12 +189,15 @@ describe('serviceProvidersRepository', () => {
 
       await serviceProvidersRepository.findMany({}, 0, 20);
 
-      expect(prisma.serviceProviderDetails.findMany).toHaveBeenCalledWith({
+      expect(prisma.serviceProviderDetails.findMany).toHaveBeenCalledWith(expect.objectContaining({
         where: { availabilityStatus: { not: 'UNAVAILABLE' }, sellerProfile: { suspended: false } },
+        select: expect.objectContaining({
+          sellerProfile: { select: expect.objectContaining({ userId: true, verified: true }) },
+        }),
         orderBy: { createdAt: 'desc' },
         skip: 0,
         take: 20,
-      });
+      }));
     });
 
     it('returns an empty array with total 0 for a city with no matches, not an error', async () => {

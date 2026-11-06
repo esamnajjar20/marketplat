@@ -176,6 +176,33 @@ describe('fetchClient CSRF headers', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+
+  it('does not replay a safe request when it is aborted during shared token refresh', async () => {
+    const controller = new AbortController();
+    let resolveRefresh!: () => void;
+    refreshMock.mockImplementation(() => new Promise<void>((resolve) => { resolveRefresh = resolve; }));
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      statusText: 'Unauthorized',
+      json: async () => ({ message: 'expired' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const pending = fetchClient.get('/api/v1/categories', { signal: controller.signal });
+    await vi.waitFor(() => expect(refreshMock).toHaveBeenCalledTimes(1));
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    // Resolve the shared refresh afterwards: aborting this caller must not
+    // cancel token rotation for other requests waiting on the same promise.
+    resolveRefresh();
+    await Promise.resolve();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it('does not invent an Authorization header when no session token is in memory', async () => {
     authState.accessToken = null;
     const fetchMock = vi.fn().mockResolvedValue({

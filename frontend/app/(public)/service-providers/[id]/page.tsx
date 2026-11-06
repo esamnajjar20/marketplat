@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { UserRound } from 'lucide-react';
-import { serviceProvidersApi } from '@/api/service-providers.api';
+import type { ServiceProviderPublic } from '@/types/service.types';
+import { fetchServerApi, ServerApiHttpError } from '@/lib/server/serverApiFetch';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
 
@@ -18,25 +19,29 @@ export default async function LegacyServiceProviderRedirectPage({ params }: Prop
   const { id } = await params;
   if (!id?.trim()) notFound();
 
-  let targetUserId: string | null = null;
-  let statusCode: number | undefined;
+  let provider: ServiceProviderPublic | null = null;
   try {
-    const res = await serviceProvidersApi.getById(id);
-    targetUserId = res.data.data?.sellerProfile?.userId?.trim() || null;
+    const response = await fetchServerApi<ServiceProviderPublic>(
+      `/service-providers/${encodeURIComponent(id)}`,
+      { mode: 'no-store' },
+    );
+    provider = response.data ?? null;
   } catch (error) {
-    const failure = error as { statusCode?: number; response?: { status?: number } };
-    statusCode = failure.statusCode ?? failure.response?.status;
+    // A missing provider is a real 404. Do not turn transport/5xx failures
+    // into a misleading message that claims the linked account is missing.
+    if (error instanceof ServerApiHttpError && [400, 404, 422].includes(error.statusCode)) notFound();
+    throw error;
   }
 
-  if (statusCode === 404) notFound();
+  const targetUserId = provider?.sellerProfile?.userId?.trim() || null;
   if (targetUserId) redirect(ROUTES.userProfile(targetUserId));
 
   return (
     <div className="container mx-auto max-w-3xl px-4 py-8">
       <EmptyState
         icon={<UserRound className="h-10 w-10" />}
-        title="تعذر فتح الملف الشخصي لمقدم الخدمة"
-        description="لم نتمكن من تحديد حساب المستخدم المرتبط بهذا الرابط. يمكنك تصفح مقدمي الخدمة والمحاولة من جديد."
+        title="بيانات ملف مقدم الخدمة غير مكتملة"
+        description="تم العثور على مقدم الخدمة، لكن بيانات الحساب المرتبط به غير متاحة. يمكنك تصفح مقدمي الخدمة والمحاولة من جديد."
         tone="warning"
         role="alert"
         action={<Link href={ROUTES.serviceProviders} className="text-sm font-semibold text-primary hover:underline">تصفح مقدمي الخدمة</Link>}

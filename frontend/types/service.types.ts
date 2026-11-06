@@ -320,8 +320,28 @@ export type UpdateServiceProviderPayload = Partial<CreateServiceProviderPayload>
  * directory. Mirrors StoresQuery/AdSearchParams' city-optional shape;
  * omitted city means general/unfiltered, never an error.
  */
-/** GET /service-providers — public directory summary (no lat/lng). */
-export type PublicServiceProviderSummary = Omit<ServiceProviderDetails, 'latitude' | 'longitude'>;
+/**
+ * GET /service-providers — safe public directory summary. The backend joins
+ * only the public seller identity fields required for direct profile links;
+ * contact phone and precise coordinates are intentionally omitted.
+ */
+export type PublicServiceProviderSummary = Pick<
+  ServiceProviderDetails,
+  | 'id'
+  | 'businessName'
+  | 'businessType'
+  | 'logoUrl'
+  | 'description'
+  | 'serviceAreaCities'
+  | 'workingHours'
+  | 'availabilityStatus'
+  | 'completedRequestsCount'
+  | 'fulfillmentRate'
+  | 'createdAt'
+  | 'updatedAt'
+> & {
+  sellerProfile: Pick<SellerProfile, 'userId' | 'verified' | 'averageRating' | 'totalRatings'>;
+};
 
 export interface ServiceProvidersQuery {
   page?: number;

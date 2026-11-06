@@ -32,6 +32,36 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 		if (signal?.aborted) onAbort();
 	});
 }
+
+/**
+ * Stop waiting for a shared operation when this caller is cancelled without
+ * aborting the shared operation itself. Refresh is shared across requests, so
+ * one navigation must not cancel token rotation needed by another request.
+ */
+function waitForPromiseWithSignal<T>(promise: Promise<T>, signal?: AbortSignal | null): Promise<T> {
+	if (!signal) return promise;
+	if (signal.aborted) return Promise.reject(createAbortError(signal));
+
+	return new Promise((resolve, reject) => {
+		let settled = false;
+		const cleanup = () => signal.removeEventListener('abort', onAbort);
+		const finish = (callback: () => void) => {
+			if (settled) return;
+			settled = true;
+			cleanup();
+			callback();
+		};
+		const onAbort = () => finish(() => reject(createAbortError(signal)));
+
+		signal.addEventListener('abort', onAbort, { once: true });
+		promise.then(
+			(value) => finish(() => resolve(value)),
+			(error) => finish(() => reject(error)),
+		);
+		// Close the race where the signal was aborted while the listener was added.
+		if (signal.aborted) onAbort();
+	});
+}
 let refreshPromise: Promise<unknown> | null = null;
 
 /** Use the same deduplicated Axios refresh flow as the rest of the web app.
@@ -92,7 +122,10 @@ async function request(url: string, options: RequestInit = {}): Promise<unknown>
 			const status = (error as { status?: number }).status;
 			if (status === 401 && !refreshed && !options.signal?.aborted) {
 				refreshed = true;
-				await refreshOnce();
+				await waitForPromiseWithSignal(refreshOnce(), options.signal);
+				// The shared refresh may have completed at the same instant as a
+				// route change. Never dispatch a new request for an aborted caller.
+				if (options.signal?.aborted) throw createAbortError(options.signal);
 				continue;
 			}
 
