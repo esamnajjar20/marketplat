@@ -12,10 +12,10 @@
  *    2. Protected route + no token → redirect /login?from=path
  *    3. Protected route + valid token → passes through
  *    4. Admin route + no token → redirect /login
- *    5. Admin route + USER role → redirect /dashboard
+ *    5. Admin route + USER role → passes through to client UX gate
  *    6. Admin route + ADMIN role → passes through
  *    7. Public route → passes through (no redirect)
- *    8. Role cookie validation (SEC-05): unknown role treated as null
+ *    8. Role cookie is ignored for authorization decisions
  *    9. Request-ID header is always set on pass-through
  */
 import { describe, it, expect } from 'vitest';

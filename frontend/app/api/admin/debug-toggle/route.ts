@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from 'next/server';
+import { PRODUCTION_API_ORIGIN } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const COOKIE_NAME = 'mp_debug_console';
 const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
-const DEFAULT_API_ORIGIN = 'https://marketplat-api.esamnajjar6.workers.dev';
 
 function isSameOriginMutation(request: NextRequest): boolean {
   const origin = request.headers.get('origin');
@@ -21,7 +21,7 @@ function isSameOriginMutation(request: NextRequest): boolean {
 
 function apiAuthUrl(): URL | null {
   try {
-    const configured = process.env.API_BASE_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim() || DEFAULT_API_ORIGIN;
+    const configured = process.env.API_BASE_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim() || PRODUCTION_API_ORIGIN;
     const url = new URL(configured);
     if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') return null;
     if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;

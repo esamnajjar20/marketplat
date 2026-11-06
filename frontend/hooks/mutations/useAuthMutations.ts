@@ -5,7 +5,7 @@
  *           After login, setAuth() populates minimal user (id/name/email/role).
  *           A background /users/me call enriches avatarUrl/city.
  *
- * FIX AUTH-03 + C-04: Login sets middleware cookies (app_access_token, app_user_role).
+ * FIX AUTH-03 + C-04: Login sets non-authoritative routing hints (app_access_token, app_user_role).
  *                      Cookie helpers extracted to @/lib/cookies to remove duplication
  *                      with AuthHydrationProvider.
  */

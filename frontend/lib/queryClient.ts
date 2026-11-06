@@ -11,6 +11,7 @@
  *   Axios marks a retry it already consumed so TanStack Query does not stack another one.
  */
 import { QueryClient } from '@tanstack/react-query';
+import { cache } from 'react';
 import { CLIENT_CACHE_DEFAULTS } from '@/lib/cachePolicy';
 import {
   getRetryAfterFromParsedError,
@@ -107,13 +108,17 @@ export function makeQueryClient() {
   return client;
 }
 
-// Singleton for the browser — new instance per request on the server.
+// Browser singleton; server instance is memoized only within the current
+// React server request. React.cache is request-scoped, so user data is never
+// shared between independent requests.
 let browserQueryClient: QueryClient | undefined;
+const getServerQueryClient = cache(makeQueryClient);
 
 export function getQueryClient(): QueryClient {
   if (typeof window === 'undefined') {
-    // Server: always create a new client (no shared state between requests).
-    return makeQueryClient();
+    // Reuse within one server render/request (e.g. page + generateMetadata),
+    // while React.cache keeps separate requests isolated.
+    return getServerQueryClient();
   }
   if (!browserQueryClient) {
     browserQueryClient = makeQueryClient();

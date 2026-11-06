@@ -130,16 +130,8 @@ const nextConfig: NextConfig = {
     optimizePackageImports: ['lucide-react', 'sonner', 'zod'],
   },
 
-  // BUNDLE-OPT-01: modularizeImports for better tree-shaking of lucide-react
-  // This ensures only the specific icons imported are included in the bundle
-  // Moved to top-level config in Next.js 14+ (was experimental.modularizeImports)
-  // NOTE: Only lucide-react supports the {{member}} transform pattern reliably.
-  // Radix UI packages in current versions don't export individual members as separate modules.
-  // Other packages (sonner, zod, @tanstack/react-query, clsx, tailwind-merge, cva)
-  // are handled via optimizePackageImports instead.
-  modularizeImports: {
-    'lucide-react': { transform: 'lucide-react/{{member}}' },
-  },
+  // lucide-react is optimized through optimizePackageImports above. Avoid
+  // configuring a second, overlapping import-rewrite mechanism here.
 
 
 

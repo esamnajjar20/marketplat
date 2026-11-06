@@ -3,10 +3,10 @@
 /**
  * Client-side admin layout gate and shell.
  *
- * / T-08: Role check uses useAuthStore (client-side),
- *                   NOT the JWT payload (which doesn't contain role).
- *                   Middleware provides a first layer of protection via the
- *                   app_user_role cookie; this layout is the second layer.
+ * Role check uses the user profile hydrated from the API. This is a
+ * client-side UX gate only; every privileged API operation is independently
+ * authenticated and role-checked by the backend. Neither middleware nor
+ * app_user_role is an authorization boundary.
  *
  * waits for isAuthResolving to settle (not just isHydrated)
  *              before making any redirect decision — see ProtectedLayout

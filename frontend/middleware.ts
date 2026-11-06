@@ -22,20 +22,13 @@
  *                        short-lived access-token cookie has expired.
  *   app_user_role      — 'USER' | 'MODERATOR' | 'ADMIN' | 'SUPER_ADMIN', mirrors Zustand store
  *
- * ⚠️  SECURITY NOTE — role cookie trust model:
- *   app_user_role is a non-HttpOnly, JS-writable cookie.
- *   An attacker can set it to 'ADMIN' directly from the browser console.
- *   This middleware provides ROUTING convenience only — it is NOT a security boundary.
- *   The real security boundary is the backend API (Bearer token + server-side role check).
- *   Admin PAGES load for a forged role, but every /admin/* API call returns 403.
- *
- *   Long-term fix: embed the role inside the signed JWT payload so the token
- *   itself carries the role — readable in Edge Runtime without a crypto library
- *   (JWT payload is base64url-encoded, not encrypted). See decodeToken() below.
- *   Until the backend adds `role` to the JWT, the current two-layer model is the
- *   best available option. The AdminLayout provides a second Zustand-based check.
- *
- * SEC-05 FIX: roleCookie value is validated against the known enum before use.
+ * SECURITY MODEL:
+ *   app_user_role and app_has_session are browser-visible routing hints only.
+ *   app_access_token is also JS-readable because the frontend uses it to call
+ *   the API; middleware only decodes its shape/expiry and NEVER verifies its
+ *   signature or authorizes a role. The API verifies the Bearer signature,
+ *   checks revocation/account status, and resolves the current role server-side.
+ *   Keep all privileged data/actions behind those API checks.
  *
  * AUDIT-FIX C-1 — false-logout on fresh page loads:
  *   Previously, "logged in" was decided SOLELY from app_access_token —
@@ -53,7 +46,7 @@
  *   Fix: `isLoggedIn` below now ALSO accepts a valid (non-expired)
  *   app_access_token OR the presence of the app_has_session hint
  *   cookie. app_has_session carries no secret and grants no access by
- *   itself (same trust model as app_user_role above) — it only tells
+ *   itself — it only tells
  *   middleware "assume a session exists, let the page mount and let
  *   AuthHydrationProvider's real /auth/refresh call either confirm it
  *   (silently, before the user notices) or actually log the user out
@@ -152,15 +145,7 @@ function isAuthPage(pathname: string): boolean {
 
 interface DecodedToken {
   userId: string;
-  exp:    number;
-  /**
-   * SEC-05 hardening: when the backend's JWT includes a role claim,
-   * middleware cross-checks it against app_user_role below instead of
-   * trusting the (JS-writable, forgeable) cookie alone. Optional so
-   * tokens issued before the backend added this claim still decode —
-   * those fall back to cookie-only trust, same as before this fix.
-   */
-  role?: string;
+  exp: number;
 }
 
 /**
@@ -170,8 +155,11 @@ interface DecodedToken {
  */
 function decodeToken(token: string): DecodedToken | null {
   try {
-    const part    = token.split('.')[1];
-    if (!part) return null;
+    // A compact JWT has exactly three non-empty segments. This is only
+    // structural validation; the API remains responsible for signature checks.
+    const segments = token.split('.');
+    if (segments.length !== 3 || segments.some((segment) => !segment)) return null;
+    const part = segments[1];
 
     // base64url → base64
     const b64     = part.replace(/-/g, '+').replace(/_/g, '/');
@@ -179,8 +167,20 @@ function decodeToken(token: string): DecodedToken | null {
     const padded  = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
     const binary  = atob(padded);
     const bytes   = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-    const json    = new TextDecoder().decode(bytes);
-    return JSON.parse(json) as DecodedToken;
+    const json = new TextDecoder().decode(bytes);
+    const payload: unknown = JSON.parse(json);
+    if (!payload || typeof payload !== 'object') return null;
+
+    const candidate = payload as Record<string, unknown>;
+    if (
+      typeof candidate.userId !== 'string' ||
+      candidate.userId.trim().length === 0 ||
+      typeof candidate.exp !== 'number' ||
+      !Number.isFinite(candidate.exp) ||
+      candidate.exp <= 0
+    ) return null;
+
+    return { userId: candidate.userId, exp: candidate.exp };
   } catch {
     return null;
   }
@@ -188,7 +188,7 @@ function decodeToken(token: string): DecodedToken | null {
 
 function isTokenExpired(decoded: DecodedToken): boolean {
   // Add 10s buffer to account for clock skew between client and server.
-  return decoded.exp * 1000 < Date.now() + 10_000;
+  return !Number.isFinite(decoded.exp) || decoded.exp * 1000 < Date.now() + 10_000;
 }
 
 // ── CSP nonce ─────────────────────────────────────────────────────
@@ -279,13 +279,11 @@ function buildCsp(nonce: string, isDev: boolean, allowEval: boolean = false): st
     // 'unsafe-inline' when a nonce is present anyway, but we drop it
     // entirely outside dev so older-browser fallback behavior can't
     // silently widen the policy back open.
-    // FIX OCR-01: cdn.jsdelivr.net مضاف لِـ script-src لأن قارئ نصوص بطاقات
-    // النت (Tesseract.js — بطاقات نت بلا رمز QR أصلاً) يُحمَّل من هذا الـCDN
-    // وقت التشغيل. 'wasm-unsafe-eval' ضروري لأن Tesseract.js ينفّذ WASM —
-    // بدونه بعض المتصفحات ترفض تشغيل الكود حتى لو تحمّل بنجاح.
+    // No third-party OCR runtime is shipped by this frontend. Keep script
+    // execution limited to the app and the explicitly required Google SDKs.
     // Google Sign-In widget loads its SDK from accounts.google.com (gsi/client)
     // and apis.google.com (legacy platform.js).
-    `script-src 'self' 'nonce-${nonce}' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://accounts.google.com https://apis.google.com${isDev ? " 'unsafe-eval' 'unsafe-inline'" : (allowEval ? " 'unsafe-eval'" : '')}`,
+    `script-src 'self' 'nonce-${nonce}' https://accounts.google.com https://apis.google.com${isDev ? " 'unsafe-eval' 'unsafe-inline'" : (allowEval ? " 'unsafe-eval'" : '')}`,
     // FIX OFFLINE-01: fonts.googleapis.com/fonts.gstatic.com dropped —
     // fonts are now self-hosted via @fontsource (see app/layout.tsx)
     // and served from this app's own origin, not Google's CDN, so
@@ -309,21 +307,18 @@ function buildCsp(nonce: string, isDev: boolean, allowEval: boolean = false): st
     // 'self' and silently blocks Cloudinary audio — voice notes render as
     // empty bubbles with no player and no error.
     "media-src 'self' blob: https://res.cloudinary.com",
-    // FIX OCR-01: cdn.jsdelivr.net مضاف — Tesseract.js يجلب عبره ملفات
-    // WASM وبيانات اللغة (eng.traineddata) بعد تحميل السكربت نفسه.
     // res.cloudinary.com is the delivery CDN; api.cloudinary.com is only
     // uploads. Both are needed — fetch() of an image goes to res.*.
     // Google Sign-In renders its button in an iframe from accounts.google.com.
     `frame-src 'self' blob: https://accounts.google.com`,
-    `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''} https://api.cloudinary.com https://res.cloudinary.com https://cdn.jsdelivr.net https://tessdata.projectnaptha.com https://accounts.google.com`,
+    `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''} https://api.cloudinary.com https://res.cloudinary.com https://accounts.google.com`,
     // FIX PWA-11: بدون worker-src صريح، بعض المتصفحات (خاصة القديمة أو
     // الصارمة) قد ترفض تسجيل public/sw.js حتى لو كان default-src 'self'
     // يسمح به نظريًا — worker-src ليس دائمًا يرث من default-src في كل
     // التطبيقات. manifest-src ضروري لتحميل /manifest.webmanifest (app/manifest.ts)
     // الذي يعتمد عليه اكتشاف قابلية التثبيت بالكامل.
-    // FIX OCR-01: blob: و cdn.jsdelivr.net مضافين لأن Tesseract.js ينشئ
-    // Web Worker من كود مُحمَّل من الـCDN (غالبًا عبر blob: URL داخليًا).
-    "worker-src 'self' blob: https://cdn.jsdelivr.net",
+    // blob: remains for app-created workers; no third-party worker host is needed.
+    "worker-src 'self' blob:",
     "manifest-src 'self'",
     "frame-ancestors 'none'",
     "base-uri 'self'",

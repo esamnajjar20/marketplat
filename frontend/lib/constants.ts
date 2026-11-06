@@ -308,14 +308,15 @@ export const PRESENCE_HEARTBEAT_INTERVAL = 60_000; // 60 s — raised from 45s: 
 // own profile page while online — a 404 caught and swallowed by the
 // page's try/catch.
 //
-// Rule:
-//   - Server-side: `${NEXT_PUBLIC_API_URL || backendOrigin}/api/v1` — absolute.
-//   - Client-side: '/api/v1' — relative, same-origin via Worker rewrites,
-//     keeps refreshToken first-party (the whole point of PROXY-API-01).
+// API origin is absolute for browser auth redirects and server-side reads.
+// Ordinary browser API requests are routed through the same-origin proxy by
+// the API client configuration below.
+export const PRODUCTION_API_ORIGIN = 'https://marketplat-api.esamnajjar6.workers.dev';
+
 export const API_BASE_URL = (() => {
-  // Force production to use the dedicated API Worker
+  // Production browser/server API calls use the dedicated API Worker.
   if (process.env.NODE_ENV === 'production') {
-    return 'https://marketplat-api.esamnajjar6.workers.dev/api/v1';
+    return `${PRODUCTION_API_ORIGIN}/api/v1`;
   }
   return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
 })();

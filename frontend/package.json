@@ -108,7 +108,8 @@
     "perf:phase5-audit": "node scripts/performance-phase5-audit.mjs",
     "perf:final-pages-audit": "node scripts/final-remaining-pages-audit.mjs",
     "perf:remaining-pages-repair-audit": "node scripts/remaining-pages-repair-audit.mjs",
-    "sw:native-url-runtime-audit": "node scripts/sw-native-url-runtime-audit.mjs"
+    "sw:native-url-runtime-audit": "node scripts/sw-native-url-runtime-audit.mjs",
+    "cloudflare:cache-audit": "node scripts/cloudflare-cache-config-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

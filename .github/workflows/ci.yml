@@ -246,6 +246,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
 
+      - name: Cloudflare persistent cache configuration audit
+        run: npm run cloudflare:cache-audit
+
       - name: Server prefetch cache and timeout audit
         run: npm run prefetch:server-audit
 

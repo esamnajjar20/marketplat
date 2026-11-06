@@ -2,7 +2,7 @@
  * __tests__/security/middleware.test.ts
  *
  * Security-focused middleware tests:
- *  - SEC-05: Role cookie injection (arbitrary role values rejected)
+ *  - Role-cookie isolation: browser-controlled role values never authorize routes
  *  - Token manipulation: tampered payload, truncated token
  *  - Admin escalation: USER forging ADMIN role cookie
  *  - Expired-token bypass attempts
@@ -47,25 +47,24 @@ const VALID_USER_TOKEN  = makeJwt({ userId: 'user-1',  role: 'USER',  exp: futur
 const VALID_ADMIN_TOKEN = makeJwt({ userId: 'admin-1', role: 'ADMIN', exp: futureExp() });
 const EXPIRED_TOKEN     = makeJwt({ userId: 'user-1',  role: 'USER',  exp: pastExp() });
 
-// ── SEC-05: Role cookie injection attacks ─────────────────────────
+// ── Browser-controlled role cookies are ignored by middleware ─────
 
-describe('SEC-05: Role cookie injection', () => {
+describe('SEC: role cookie is a non-authoritative routing hint', () => {
   const injectedRoles = [
     'ADMIN',          // valid attack — but only works if token is also valid
-    'admin',          // lowercase — should fail
-    'Admin',          // mixed case — should fail
-    'SUPERADMIN',     // unknown value — should fail
-    '1',              // numeric — should fail
-    'true',           // boolean string — should fail
-    '{"role":"ADMIN"}', // JSON injection — should fail
-    '; role=ADMIN',   // header injection attempt — should fail
-    'ADMIN\x00',      // null byte — should fail
+    'admin',          // lowercase
+    'Admin',          // mixed case
+    'SUPERADMIN',     // unknown value
+    '1',              // numeric
+    'true',           // boolean string
+    '{"role":"ADMIN"}', // JSON-shaped value
+    '; role=ADMIN',   // header injection attempt
+    'ADMIN\x00',      // null byte
     '',               // empty — should fail
-    'USER; path=/',   // cookie attribute injection — should fail
+    'USER; path=/',   // cookie attribute injection
     ];
-  // USER token + fake ADMIN role -> middleware allows logged-in users to reach /admin/*
-  // (role check happens downstream in AdminLayoutClient + backend API)
-  // The middleware only requires isLoggedIn (valid token or session hint)
+  // Middleware deliberately ignores role cookies. The client layout uses the
+  // hydrated profile for UX; the backend authorizes every privileged API call.
   injectedRoles.forEach((role) => {
     it(`allows /admin access for logged-in USER with injected role="${role.slice(0, 30)}"`, () => {
       const req = makeRequest('/admin', {
@@ -74,12 +73,12 @@ describe('SEC-05: Role cookie injection', () => {
       });
       const res = middleware(req);
       // Middleware allows logged-in users to reach admin pages
-      // Actual role enforcement happens downstream (AdminLayoutClient + backend)
+      // This is only a routing decision; backend authorization is independent.
       expect(res.status).toBe(200);
     });
   });
 
-  it('allows ADMIN access only with BOTH valid token AND exact "ADMIN" role', () => {
+  it('does not treat an ADMIN cookie as authorization', () => {
     const req = makeRequest('/admin/dashboard', {
       token: VALID_ADMIN_TOKEN,
       role:  'ADMIN',
@@ -107,15 +106,11 @@ describe('SEC: Token manipulation / forgery', () => {
     // This test documents the known limitation: the backend MUST verify the token.
     const forgedToken = makeJwt({ userId: 'other-user', exp: futureExp(), role: 'ADMIN' });
     const req = makeRequest('/admin', { token: forgedToken, role: 'ADMIN' });
-    // Note: middleware allows this because it trusts the JWT payload for userId/exp.
-    // The REAL security check is on the backend. This test documents that the
-    // middleware's role check still requires the cookie, which adds a second
-    // barrier for unauthenticated users (but NOT for authenticated ones who can
-    // freely set the cookie — see the security note in middleware.ts).
+    // Middleware only decodes token structure/expiry for routing. It does not
+    // verify the signature or authorize roles; the backend does both.
     const res = middleware(req);
-    // With a forged valid-looking token + ADMIN role cookie → middleware allows it
-    // (documented limitation — backend validates on each API call)
-    // This is not a bug — it's the documented two-layer model.
+    // A forged valid-looking token may pass this routing-hint check; it must
+    // never authorize data or actions. Backend verification remains mandatory.
     expect(typeof res.status).toBe('number');
   });
 
@@ -124,14 +119,14 @@ describe('SEC: Token manipulation / forgery', () => {
     expect(middleware(req).status).toBe(307);
   });
 
-  it('rejects token with missing exp field (treated as expired)', () => {
-    const token = makeJwt({ userId: 'user-1' }); // no exp
-    const req = makeRequest('/dashboard', { token });
-    // decoded.exp would be undefined → undefined * 1000 = NaN → NaN < now+10000 = false
-    // isTokenExpired returns false for NaN comparison, meaning no exp = not expired
-    // Document actual behavior to prevent regression if logic changes.
-    const res = middleware(req);
-    expect(typeof res.status).toBe('number');
+  it('rejects token with missing exp field', () => {
+    const token = makeJwt({ userId: 'user-1' });
+    expect(middleware(makeRequest('/dashboard', { token })).status).toBe(307);
+  });
+
+  it('rejects token with missing userId', () => {
+    const token = makeJwt({ exp: futureExp() });
+    expect(middleware(makeRequest('/dashboard', { token })).status).toBe(307);
   });
 
   it('rejects token where payload segment is base64 gibberish', () => {
@@ -145,14 +140,10 @@ describe('SEC: Token manipulation / forgery', () => {
   });
 
   it('rejects token with only 2 parts (missing signature)', () => {
-    const header  = btoa(JSON.stringify({ alg: 'HS256' })).replace(/=/g, '');
+    const header = btoa(JSON.stringify({ alg: 'HS256' })).replace(/=/g, '');
     const payload = btoa(JSON.stringify({ userId: 'u', exp: futureExp() })).replace(/=/g, '');
-    // 2-part token — no signature
     const req = makeRequest('/dashboard', { token: `${header}.${payload}` });
-    const res = middleware(req);
-    // middleware uses token.split('.')[1] → still gets the payload → may decode successfully
-    // Document actual behavior
-    expect(typeof res.status).toBe('number');
+    expect(middleware(req).status).toBe(307);
   });
 });
 

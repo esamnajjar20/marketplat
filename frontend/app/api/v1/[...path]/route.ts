@@ -7,27 +7,25 @@
  *
  * Public GET/HEAD بدون Authorization/Cookie → عبر API Worker (edge cache).
  * الباقي (POST/PATCH, auth, admin) → مباشرة إلى أصل الـAPI المضبوط
- * عبر API_BASE_URL / NEXT_PUBLIC_API_URL، مع Render كقيمة افتراضية للإنتاج.
+ * عبر API_BASE_URL، مع Cloudflare API Worker كقيمة افتراضية للإنتاج.
  *
  * EDGE-AUTH-STRIP-01: المستخدم المسجّل يرسل Authorization + cookie مع كل طلب،
  * فكان يتجاوز الـedge بالكامل حتى للقوائم العامة المتطابقة للجميع. الآن، لمسارات
  * القراءة العامة المطابقة لقائمة lib/edgeProxy.ts فقط (deny-by-default)، تُحذف
  * ترويسات الهوية قبل الانتقال إلى API Worker فيُخدَم من نفس كاش الزوار.
- * أي مسار غير مدرج هناك يبقى على السلوك السابق (Render مباشرة عند وجود هوية).
+ * أي مسار غير مدرج هناك يبقى على السلوك السابق (الأصل المضبوط مباشرة عند وجود هوية).
  */
 import type { NextRequest } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { isViewerIndependentPath, stripIdentityHeaders } from '@/lib/edgeProxy';
-
-const PRODUCTION_API_ORIGIN = 'https://marketplat-api.esamnajjar6.workers.dev';
+import { PRODUCTION_API_ORIGIN } from '@/lib/constants';
 const DEV_API_ORIGIN = 'http://localhost:5000';
 
 /**
- * Keep the server-side proxy pointed at the same backend as the app.
- * CI and local development set NEXT_PUBLIC_API_URL to the disposable
- * backend (for example http://localhost:5000); hard-coding Render here
- * made browser login and all authenticated E2E journeys hit production
- * instead of the migrated/seeded test database.
+ * Keep the server-side proxy pointed at the configured backend.
+ * This route intentionally reads only the private API_BASE_URL variable;
+ * it must not consume NEXT_PUBLIC_API_URL as a production fallback because
+ * that public variable may point to this Worker and reintroduce error 1042.
  */
 function getApiOrigin(): string {
   // Only API_BASE_URL is consulted (not NEXT_PUBLIC_API_URL).

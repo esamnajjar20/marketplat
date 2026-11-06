@@ -78,14 +78,16 @@ const eslintConfig = [
       // cause regressions. Tracked for manual review.
       'react-hooks/exhaustive-deps': 'warn',
 
-      'react-hooks/set-state-in-effect': 'off',
-      'react-hooks/static-components': 'off',
-      'react-hooks/purity': 'off',
-      'react-hooks/refs': 'off',
+      // Enable diagnostics without making the existing baseline block CI.
+      // Promote each rule to error only after its reported violations are fixed.
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/static-components': 'warn',
+      'react-hooks/purity': 'warn',
+      'react-hooks/refs': 'warn',
       'react/display-name': 'off',
 
       // Next.js
-      '@next/next/no-html-link-for-pages': 'off',
+      '@next/next/no-html-link-for-pages': 'warn',
       '@next/next/no-img-element': 'warn',
     },
   },
