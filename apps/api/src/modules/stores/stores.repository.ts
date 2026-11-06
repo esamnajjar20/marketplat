@@ -80,7 +80,7 @@ export type StoreDirectoryRow = Prisma.StoreDetailsGetPayload<{
   select: typeof storeDirectorySelect;
 }>;
 
-const storeAccessInclude = {
+const storeAccessInclude = Prisma.validator<Prisma.StoreDetailsInclude>()({
   sellerProfile: { select: { suspended: true } },
   storeType: {
     include: {
@@ -90,13 +90,13 @@ const storeAccessInclude = {
       },
     },
   },
-} as const;
+});
 
 type StoreStaffAccessRow = Prisma.StoreDetailsGetPayload<{
   include: typeof storeAccessInclude;
 }>;
 
-const storeAuthorizationInclude = {
+const storeAuthorizationInclude = Prisma.validator<Prisma.StoreDetailsInclude>()({
   sellerProfile: { select: { id: true, userId: true, suspended: true } },
   storeType: {
     include: {
@@ -106,7 +106,7 @@ const storeAuthorizationInclude = {
       },
     },
   },
-} as const;
+});
 
 export type StoreAccessRow = Prisma.StoreDetailsGetPayload<{
   include: typeof storeAuthorizationInclude;

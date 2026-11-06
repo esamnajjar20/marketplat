@@ -107,7 +107,7 @@ async function request(url: string, options: RequestInit = {}): Promise<unknown>
 
 			networkAttempts += 1;
 			if (networkAttempts >= maxNetworkAttempts) throw error;
-			await sleep(1000 * Math.pow(2, networkAttempts - 1), options.signal);
+			await sleep(1000 * Math.pow(2, networkAttempts - 1), options.signal ?? undefined);
 		}
 	}
 }

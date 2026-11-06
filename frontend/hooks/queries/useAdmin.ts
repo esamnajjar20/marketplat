@@ -20,7 +20,7 @@
 // from the hook result. Same lesson as useRequests.
 'use client';
 
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { adminApi }  from '@/api/admin.api';
 import { analyticsApi, type GetAnalyticsSummaryParams } from '@/api/analytics.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -36,7 +36,7 @@ export function useAdminAds(params?: AdminGetAdsParams) {
   return useQuery({
     queryKey:        queryKeys.admin.ads(params),
     queryFn:         ({ signal }) => adminApi.getAds(params, { signal }).then((r) => r.data.data),
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData) => previousData,
     staleTime:       CACHE_TTL.adminList,
   });
 }
@@ -49,7 +49,7 @@ export function useAdminUsers(params?: AdminGetUsersParams) {
   return useQuery({
     queryKey:        queryKeys.admin.users(params),
     queryFn:         ({ signal }) => adminApi.getUsers(params, { signal }).then((r) => r.data.data),
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData) => previousData,
     staleTime:       CACHE_TTL.adminList,
   });
 }
@@ -63,7 +63,7 @@ export function useAdminSellers(params?: AdminGetSellersParams) {
   return useQuery({
     queryKey:        queryKeys.admin.sellers(params),
     queryFn:         ({ signal }) => adminApi.getSellers(params, { signal }).then((r) => r.data.data),
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData) => previousData,
     staleTime:       CACHE_TTL.adminList,
   });
 }
@@ -79,7 +79,7 @@ export function useAdminStores(params?: AdminGetStoresParams) {
   return useQuery({
     queryKey:        queryKeys.admin.stores(params),
     queryFn:         ({ signal }) => adminApi.getStores(params, { signal }).then((r) => r.data.data),
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData) => previousData,
     staleTime:       CACHE_TTL.adminList,
   });
 }
@@ -104,7 +104,7 @@ export function useAdminReports(
   return useQuery({
     queryKey:        queryKeys.admin.reports(params),
     queryFn:         ({ signal }) => adminApi.getReports(params, { signal }).then((r) => r.data.data),
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData) => previousData,
     staleTime:       CACHE_TTL.adminList,
     enabled:         options?.enabled ?? true,
   });
@@ -129,7 +129,7 @@ export function useAdminAuditLogs(params?: AdminGetAuditLogsParams) {
   return useQuery({
     queryKey:        queryKeys.admin.auditLogs(params),
     queryFn:         ({ signal }) => adminApi.getAuditLogs(params, { signal }).then((r) => r.data.data),
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData) => previousData,
     staleTime:       CACHE_TTL.adminList,
   });
 }
@@ -179,7 +179,7 @@ export function useAdminFlaggedAds(params?: AdminGetFlaggedAdsParams) {
   return useQuery({
     queryKey:        queryKeys.admin.fraudAds(params),
     queryFn:         ({ signal }) => adminApi.getFlaggedAds(params, { signal }).then((r) => r.data.data),
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData) => previousData,
     staleTime:       CACHE_TTL.adminList,
   });
 }
@@ -189,7 +189,7 @@ export function useAdminFraudSignals(params?: AdminGetFraudSignalsParams) {
   return useQuery({
     queryKey:        queryKeys.admin.fraudSignals(params),
     queryFn:         ({ signal }) => adminApi.getFraudSignals(params, { signal }).then((r) => r.data.data),
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData) => previousData,
     staleTime:       CACHE_TTL.adminList,
     // Signals are fetched per-ad (params.adId) from an expandable row —
     // no point issuing the request before an ad is actually expanded.
@@ -210,7 +210,7 @@ export function useAdminProducts(params?: Parameters<typeof adminApi.getAdminPro
     queryKey: queryKeys.admin.products(params),
     queryFn: ({ signal }) => adminApi.getAdminProducts(params, { signal }).then((r) => r.data),
     staleTime: CACHE_TTL.adminList,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData) => previousData,
   });
 }
 
@@ -219,7 +219,7 @@ export function useAdminServiceListings(params?: Parameters<typeof adminApi.getA
     queryKey: queryKeys.admin.serviceListings(params),
     queryFn: ({ signal }) => adminApi.getAdminServiceListings(params, { signal }).then((r) => r.data),
     staleTime: CACHE_TTL.adminList,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData) => previousData,
   });
 }
 
@@ -228,7 +228,7 @@ export function useAdminServiceRequestDisputes(params?: { page?: number; limit?:
     queryKey: queryKeys.admin.serviceRequestDisputes(params),
     queryFn: ({ signal }) => adminApi.getServiceRequestDisputes(params, { signal }).then((r) => r.data),
     staleTime: CACHE_TTL.adminList,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData) => previousData,
   });
 }
 
@@ -237,7 +237,7 @@ export function useAdminOpenRequests(params?: Parameters<typeof adminApi.getAdmi
     queryKey: queryKeys.admin.openRequests(params),
     queryFn: ({ signal }) => adminApi.getAdminOpenRequests(params, { signal }).then((r) => r.data),
     staleTime: CACHE_TTL.adminList,
-    placeholderData: keepPreviousData,
+    placeholderData: (previousData) => previousData,
   });
 }
 

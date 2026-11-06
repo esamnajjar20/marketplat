@@ -59,7 +59,7 @@ check(
 );
 check(
   'Staff authorization uses one bounded ID-IN lookup',
-  /const storeAccessInclude = \{[\s\S]*?sellerProfile:\s*\{\s*select:\s*\{\s*suspended:\s*true/.test(repository)
+  /const storeAccessInclude = (?:Prisma\.validator<Prisma\.StoreDetailsInclude>\(\)\()?\{[\s\S]*?sellerProfile:\s*\{\s*select:\s*\{\s*suspended:\s*true/.test(repository)
     && /findManyForStaffAccess:[\s\S]*?where:\s*\{\s*id:\s*\{\s*in:\s*storeIds\s*\}\s*\}[\s\S]*?include:\s*storeAccessInclude/.test(repository),
   'The repository loads all candidate stores and suspension flags in one Prisma findMany.',
 );
@@ -88,7 +88,7 @@ check(
 
 check(
   'General store authorization joins owner identity and suspension',
-  /storeAuthorizationInclude = \{[\s\S]*?userId:\s*true[\s\S]*?suspended:\s*true/.test(repository)
+  /storeAuthorizationInclude = (?:Prisma\.validator<Prisma\.StoreDetailsInclude>\(\)\()?\{[\s\S]*?userId:\s*true[\s\S]*?suspended:\s*true/.test(repository)
     && /findByIdForAccess:[\s\S]*?include:\s*storeAuthorizationInclude/.test(repository)
     && /findBySlugForAccess:[\s\S]*?include:\s*storeAuthorizationInclude/.test(repository),
   'Both id and slug lookups return owner identity and suspension in the store read.',

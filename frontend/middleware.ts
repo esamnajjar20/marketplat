@@ -160,6 +160,7 @@ function decodeToken(token: string): DecodedToken | null {
     const segments = token.split('.');
     if (segments.length !== 3 || segments.some((segment) => !segment)) return null;
     const part = segments[1];
+    if (typeof part !== 'string' || part.length === 0) return null;
 
     // base64url → base64
     const b64     = part.replace(/-/g, '+').replace(/_/g, '/');

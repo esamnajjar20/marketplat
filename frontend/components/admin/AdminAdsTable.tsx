@@ -248,7 +248,7 @@ export const AdminAdsTable = memo(function AdminAdsTable() {
                     size="sm"
                     className="h-8 gap-1 text-xs"
                     aria-label={ad.isFeatured ? `إلغاء تمييز ${ad.title}` : `تمييز ${ad.title}`}
-                    disabled={pendingToggle?.adId === ad.id && pendingToggle.field === 'featured'}
+                    disabled={pendingToggle?.adId === ad.id && pendingToggle?.field === 'featured'}
                     onClick={() => toggleFeatured(ad.id, !ad.isFeatured)}
                   >
                     <Star className={`h-3.5 w-3.5 ${ad.isFeatured ? 'fill-warning text-warning' : ''}`} />
@@ -260,7 +260,7 @@ export const AdminAdsTable = memo(function AdminAdsTable() {
                     size="sm"
                     className="h-8 gap-1 text-xs"
                     aria-label={ad.isPinned ? `إلغاء تثبيت ${ad.title}` : `تثبيت ${ad.title}`}
-                    disabled={pendingToggle?.adId === ad.id && pendingToggle.field === 'pinned'}
+                    disabled={pendingToggle?.adId === ad.id && pendingToggle?.field === 'pinned'}
                     onClick={() => togglePinned(ad.id, !ad.isPinned)}
                   >
                     <Pin className={`h-3.5 w-3.5 ${ad.isPinned ? 'text-primary' : ''}`} />
