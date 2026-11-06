@@ -17,10 +17,12 @@
     "not_found_handling": "none",
     "run_worker_first": ["/*", "!/_next/static/*"]
   },
-  "r2_buckets": [
+  // Create with: npx wrangler kv namespace create NEXT_INC_CACHE_KV
+  // Replace the placeholder with the returned 32-character namespace ID before deploy.
+  "kv_namespaces": [
     {
-      "binding": "NEXT_INC_CACHE_R2_BUCKET",
-      "bucket_name": "marketplat-next-cache"
+      "binding": "NEXT_INC_CACHE_KV",
+      "id": "REPLACE_WITH_NEXT_INC_CACHE_KV_NAMESPACE_ID"
     }
   ],
   "durable_objects": {
