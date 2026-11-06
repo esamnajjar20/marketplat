@@ -19,8 +19,8 @@ interface Props {
 export function StoreAds({ storeId, storeName }: Props) {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.ads.list({ storeId, limit: 24 }),
-    queryFn: async () => {
-      const res = await adsApi.getAll({ storeId, limit: 24, page: 1 } as never);
+    queryFn: async ({ signal }) => {
+      const res = await adsApi.getAll({ storeId, limit: 24, page: 1 } as never, { signal });
       // دعم أشكال الاستجابة المختلفة
       const body = (res as { data?: { data?: unknown } }).data?.data ?? (res as { data?: unknown }).data ?? res;
       if (body && typeof body === 'object' && 'items' in (body as object)) {

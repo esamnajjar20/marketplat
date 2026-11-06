@@ -8,11 +8,12 @@ import { apiClient } from './client';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type { UserActivity, ActivityQuery } from '@/types/activity.types';
+import type { ApiRequestConfig } from './requestConfig';
 
 export const activityApi = {
   /** GET /activity */
-  getMine: (params?: ActivityQuery) =>
+  getMine: (params?: ActivityQuery, config?: ApiRequestConfig) =>
     apiClient
-      .get<ApiResponse<UserActivity[]>>('/activity', { params })
+      .get<ApiResponse<UserActivity[]>>('/activity', { ...config, params })
       .then((r) => unwrapPaginated<UserActivity>(r)),
 };

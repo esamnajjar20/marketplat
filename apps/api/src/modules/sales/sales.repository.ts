@@ -70,9 +70,10 @@ export const salesRepository = {
 
   summary: async (sellerId: string, from: Date, to: Date) => {
     const where: Prisma.SaleRecordWhereInput = { sellerId, soldAt: { gte: from, lt: to } };
-    // Let PostgreSQL aggregate the sale-level totals instead of loading every sale row.
-    // Item-level cost remains a narrow projection because returned quantities affect cost.
-    const [sales, items] = await Promise.all([
+    // Aggregate both sale-level totals and item cost in PostgreSQL. Fetching
+    // every item only to sum cost in Node transferred data proportional to the
+    // seller's line-item volume for the selected period.
+    const [sales, itemCostRows] = await Promise.all([
       prisma.saleRecord.aggregate({
         where,
         _count: { _all: true },
@@ -84,21 +85,23 @@ export const salesRepository = {
           quantity: true,
         },
       }),
-      prisma.saleItem.findMany({
-        where: { sale: { sellerId, soldAt: { gte: from, lt: to } } },
-        select: { quantity: true, returnedQuantity: true, costPrice: true },
-      }),
+      prisma.$queryRaw<Array<{ totalCost: Prisma.Decimal | number | string | null }>>`
+        SELECT COALESCE(
+          SUM(
+            COALESCE(si."costPrice", 0) * GREATEST(si."quantity" - si."returnedQuantity", 0)
+          ),
+          0
+        ) AS "totalCost"
+        FROM "sale_items" si
+        INNER JOIN "sale_records" sr ON sr."id" = si."saleId"
+        WHERE sr."sellerId" = ${sellerId}
+          AND sr."soldAt" >= ${from}
+          AND sr."soldAt" < ${to}
+      `,
     ]);
     const totalRevenue =
       Number(sales._sum.totalPrice ?? 0) - Number(sales._sum.refundedAmount ?? 0);
-    const totalCost = items.reduce(
-      (sum, item) =>
-        sum +
-        (item.costPrice === null
-          ? 0
-          : Number(item.costPrice) * Math.max(item.quantity - item.returnedQuantity, 0)),
-      0
-    );
+    const totalCost = Number(itemCostRows[0]?.totalCost ?? 0);
     const totalRefunded = Number(sales._sum.refundedAmount ?? 0);
     return {
       salesCount: sales._count._all,

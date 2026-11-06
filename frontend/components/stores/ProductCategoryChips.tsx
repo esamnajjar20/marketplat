@@ -19,8 +19,8 @@ export function ProductCategoryChips() {
 
   const { data } = useQuery({
     queryKey: queryKeys.productCategories.all(),
-    queryFn: async () => {
-      const res = await productCategoriesApi.getAll();
+    queryFn: async ({ signal }) => {
+      const res = await productCategoriesApi.getAll({ signal });
       return res.data.data ?? [];
     },
     staleTime: 5 * 60_000,

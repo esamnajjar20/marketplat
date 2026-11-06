@@ -4,9 +4,10 @@ import type { AdListItem } from '@/types/ad.types';
 import type { ProductCategory, ProductWithStore } from '@/types/product.types';
 import type { Category } from '@/types/category.types';
 import type { ServiceCategory, ServiceListingWithProvider, ServiceProviderDetails } from '@/types/service.types';
-import type { StoreType, StoreWithSeller } from '@/types/store.types';
+import type { StoreDirectoryItem, StoreType } from '@/types/store.types';
 import type { HomepageLocationSource } from './home.api';
 import { queryKeys } from '@/lib/queryKeys';
+import type { ApiRequestConfig } from './requestConfig';
 
 export interface HomeFeedPayload {
   meta: {
@@ -29,7 +30,7 @@ export interface HomeFeedPayload {
     carousel: {
       ads: { items: AdListItem[] } | null;
       products: { items: ProductWithStore[] } | null;
-      stores: { items: StoreWithSeller[] } | null;
+      stores: { items: StoreDirectoryItem[] } | null;
     };
   };
   rails: {
@@ -41,7 +42,7 @@ export interface HomeFeedPayload {
     ads: { items: AdListItem[]; source: HomepageLocationSource };
     products: { items: ProductWithStore[]; source: HomepageLocationSource };
     services: { items: ServiceListingWithProvider[]; source: HomepageLocationSource };
-    stores: { items: StoreWithSeller[]; source: HomepageLocationSource };
+    stores: { items: StoreDirectoryItem[]; source: HomepageLocationSource };
     providers: { items: ServiceProviderDetails[]; source: HomepageLocationSource };
   };
 }
@@ -65,8 +66,9 @@ export const homeFeedApi = {
    * GET /home/feed — personalised ("مخصص لك"), private, never edge-cached.
    * For signed-in users only.
    */
-  get: (params: { city?: string; explicitAll?: boolean } = {}) =>
+  get: (params: { city?: string; explicitAll?: boolean } = {}, config?: ApiRequestConfig) =>
     apiClient.get<ApiResponse<HomeFeedPayload>>('/home/feed', {
+      ...config,
       // FIX HOME-CITY-EXPLICIT-ALL: when the user chose "كل المدن", send
       // city=__ALL__ explicitly. Omitting the param would be interpreted
       // by the backend as "no preference" → profile-city fallback.
@@ -78,8 +80,9 @@ export const homeFeedApi = {
    * anonymous visitor, so it is public + edge-cacheable (Cloudflare HIT for the
    * ~90% of visitors who are not signed in). Never send it an identity.
    */
-  getStatic: (params: { city?: string; explicitAll?: boolean } = {}) =>
+  getStatic: (params: { city?: string; explicitAll?: boolean } = {}, config?: ApiRequestConfig) =>
     apiClient.get<ApiResponse<HomeFeedPayload>>('/home/static', {
+      ...config,
       params: homeFeedParams(params),
     }),
 };

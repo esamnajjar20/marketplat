@@ -90,16 +90,26 @@ export const serviceRequestsRepository = {
       take: limit,
     }),
 
-  // Conditional on status + age so a request the provider answered a
-  // moment ago is never overwritten. respondedAt is deliberately left NULL:
-  // that is what marks "closed by the system, nobody responded".
-  expirePending: (id: string, cutoff: Date): Promise<Prisma.BatchPayload> =>
-    prisma.serviceRequest.updateMany({
-      where: { id, status: 'PENDING', createdAt: { lt: cutoff } },
-      // (audit H4): EXPIRED, not CANCELLED — distinguishes
-      // system-closed from user-closed.
-      data: { status: 'EXPIRED' },
-    }),
+  // Expire one fetched batch in a single conditional UPDATE. RETURNING
+  // reports exactly which rows this worker changed, so a provider/customer
+  // transition that won the race is never sent a false expiry notification.
+  // respondedAt remains NULL to preserve the system-expiry marker.
+  expirePendingBatch: async (ids: string[], cutoff: Date): Promise<string[]> => {
+    const uniqueIds = Array.from(new Set(ids.filter(id => typeof id === 'string' && id.length > 0)));
+    if (uniqueIds.length === 0) return [];
+
+    const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+      UPDATE "service_requests"
+      SET "status" = 'EXPIRED'::"ServiceRequestStatus",
+          "updatedAt" = CURRENT_TIMESTAMP
+      WHERE "id" IN (${Prisma.join(uniqueIds)})
+        AND "status" = 'PENDING'::"ServiceRequestStatus"
+        AND "createdAt" < ${cutoff}
+      RETURNING "id"
+    `);
+
+    return rows.map(row => row.id);
+  },
 
   findById: (id: string): Promise<ServiceRequestWithListing | null> =>
     prisma.serviceRequest.findUnique({ where: { id }, include: requestWithRelations }),

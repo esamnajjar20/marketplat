@@ -11,12 +11,13 @@ import type {
 // same shape as GET /favorites' items — declared here rather than
 // retyped so a future field on FavoriteRecord propagates.
 import type { FavoriteRecord } from './favorites.api';
+import type { ApiRequestConfig } from './requestConfig';
 
 export const favoriteListsApi = {
   /** GET /favorites/lists */
-  list: () =>
+  list: (config?: ApiRequestConfig) =>
     apiClient
-      .get<ApiResponse<FavoriteList[]>>('/favorites/lists')
+      .get<ApiResponse<FavoriteList[]>>('/favorites/lists', config)
       .then((r) => r.data.data ?? []),
 
   /** POST /favorites/lists */

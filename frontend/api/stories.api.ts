@@ -1,5 +1,6 @@
 import { apiClient } from './client';
 import type { ApiResponse } from '@/types/api.types';
+import type { ApiRequestConfig } from './requestConfig';
 
 export type StoryVisibility = 'PUBLIC' | 'FOLLOWERS';
 export interface StoryUser { id: string; name: string; avatarUrl: string | null; }
@@ -21,8 +22,8 @@ export interface StoryGroup { user: StoryUser; stories: StoryItem[]; hasUnseen: 
 export interface StoryViewer { viewer: StoryUser; viewedAt: string; }
 
 export const storiesApi = {
-  feed: () => apiClient.get<ApiResponse<StoryGroup[]>>('/stories/feed'),
-  userStories: (userId: string) => apiClient.get<ApiResponse<StoryItem[]>>(`/stories/user/${userId}`),
+  feed: (config?: ApiRequestConfig) => apiClient.get<ApiResponse<StoryGroup[]>>('/stories/feed', config),
+  userStories: (userId: string, config?: ApiRequestConfig) => apiClient.get<ApiResponse<StoryItem[]>>(`/stories/user/${userId}`, config),
   create: (input: { file?: File; text?: string; background?: string; visibility: StoryVisibility }) => {
     const form = new FormData();
     if (input.file) form.append('image', input.file);
@@ -33,5 +34,5 @@ export const storiesApi = {
   },
   view: (storyId: string) => apiClient.post<ApiResponse<{ storyId: string; viewed: boolean }>>(`/stories/${storyId}/view`),
   remove: (storyId: string) => apiClient.delete<ApiResponse<null>>(`/stories/${storyId}`),
-  viewers: (storyId: string) => apiClient.get<ApiResponse<StoryViewer[]>>(`/stories/${storyId}/viewers`),
+  viewers: (storyId: string, config?: ApiRequestConfig) => apiClient.get<ApiResponse<StoryViewer[]>>(`/stories/${storyId}/viewers`, config),
 };

@@ -24,8 +24,9 @@ interface ReceiptData {
 export default function ReceiptPage({ id }: { id: string }) {
   const q = useQuery({
     queryKey: queryKeys.sales.receipt(id),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const response = await fetch(`/api/v1/sales/${encodeURIComponent(id)}/receipt`, {
+        signal,
         credentials: 'include',
         cache: 'no-store',
       });

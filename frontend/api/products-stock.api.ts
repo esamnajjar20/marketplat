@@ -41,14 +41,14 @@ export const adjustProductStock = (
     })
     .then((r) => r.data.data);
 
-export const getStockSummary = () =>
+export const getStockSummary = (config?: { signal?: AbortSignal }) =>
   apiClient
-    .get<ApiResponse<StockSummary>>('/products/stock/summary')
+    .get<ApiResponse<StockSummary>>('/products/stock/summary', config)
     .then((r) => r.data.data);
 
-export const getStockHistory = (params?: { page?: number; limit?: number; productId?: string }) =>
+export const getStockHistory = (params?: { page?: number; limit?: number; productId?: string }, config?: { signal?: AbortSignal }) =>
   apiClient
-    .get<ApiResponse<StockMovement[]>>('/products/stock/history', { params })
+    .get<ApiResponse<StockMovement[]>>('/products/stock/history', { ...config, params })
     .then((r) => ({
       items: r.data.data,
       meta: r.data.meta?.pagination as PaginationMeta | undefined,

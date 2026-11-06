@@ -8,11 +8,12 @@
 import { apiClient } from './client';
 import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import type { AdListItem } from '@/types/ad.types';
-import type { StoreWithSeller } from '@/types/store.types';
+import type { StoreDirectoryItem } from '@/types/store.types';
 import type { ServiceListingWithProvider, ServiceProviderDetails } from '@/types/service.types';
 import type { Category } from '@/types/category.types';
 import type { ProductCategory, ProductWithStore } from '@/types/product.types';
 import type { ServiceCategory } from '@/types/service.types';
+import type { ApiRequestConfig } from './requestConfig';
 
 interface Page<T> {
   items: T[];
@@ -34,7 +35,7 @@ export interface HomepagePayload {
   featuredCarousel: {
     ads: Page<AdListItem> | null;
     products: Page<ProductWithStore> | null;
-    stores: Page<StoreWithSeller> | null;
+    stores: Page<StoreDirectoryItem> | null;
   };
   categories: {
     ads: Category[] | null;
@@ -55,15 +56,16 @@ export interface HomepagePayload {
     recentProducts: HomepageLocationPage<ProductWithStore> | null;
     promotedProducts: Page<ProductWithStore> | null;
     homeServices: HomepageLocationPage<ServiceListingWithProvider> | null;
-    featuredStores: HomepageLocationPage<StoreWithSeller> | null;
+    featuredStores: HomepageLocationPage<StoreDirectoryItem> | null;
     nearbyProviders: HomepageLocationPage<ServiceProviderDetails> | null;
   };
 }
 
 export const homeApi = {
   /** GET /home?city= — city omitted unless already resolved client-side */
-  getHomepage: (city?: string) =>
+  getHomepage: (city?: string, config?: ApiRequestConfig) =>
     apiClient.get<ApiResponse<HomepagePayload>>('/home', {
+      ...config,
       params: city ? { city } : undefined,
     }),
 };

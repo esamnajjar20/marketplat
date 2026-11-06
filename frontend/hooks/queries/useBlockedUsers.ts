@@ -31,7 +31,7 @@ export function useMyBlockedUsers(params?: BlockedUsersQuery) {
 
   const query = useQuery({
     queryKey: queryKeys.blockedUsers.all(params),
-    queryFn: () => blockedUsersApi.getMine(params).then((r) => r.data.data),
+    queryFn: ({ signal }) => blockedUsersApi.getMine(params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.favorites,
     enabled: isAuthenticated && (hasToken || !isOnline),
   });

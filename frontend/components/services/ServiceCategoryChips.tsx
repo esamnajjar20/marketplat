@@ -18,8 +18,8 @@ export function ServiceCategoryChips() {
 
   const { data } = useQuery({
     queryKey: queryKeys.serviceCategories.all(),
-    queryFn: async () => {
-      const res = await serviceCategoriesApi.getAll();
+    queryFn: async ({ signal }) => {
+      const res = await serviceCategoriesApi.getAll({ signal });
       return res.data.data ?? [];
     },
     staleTime: 5 * 60_000,

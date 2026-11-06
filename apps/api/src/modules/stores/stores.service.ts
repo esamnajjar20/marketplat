@@ -8,7 +8,7 @@ import {
   cleanupUploadedImages,
   deleteCloudinaryAsset,
 } from '../../shared/utils/cloudinaryHelpers';
-import { storesRepository, StoreWithSeller, StoreWithSellerAndCounts } from './stores.repository';
+import { storesRepository, StoreWithSeller, StoreWithSellerAndCounts, StoreDirectoryRow } from './stores.repository';
 import { storeFollowersRepository, StoreFollowerWithStore } from './store-followers.repository';
 import { followsRepository } from '../follows/follows.repository';
 import { storeReviewsRepository, StoreReviewWithRater } from './store-reviews.repository';
@@ -46,6 +46,11 @@ import { isOpenAt } from '../../shared/utils/marketTime';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { storeTypesRepository } from '../store-types/store-types.repository';
 import { storeTypeFieldsService } from '../store-types/store-type-fields.service';
+
+/** Bump when the public store-list response projection changes.
+ * A new key prevents Redis from serving an older, wider cached payload.
+ */
+const STORE_DIRECTORY_CACHE_VERSION = 2;
 
 // STORE-HOURS: derives a live open/closed flag from workingHours.
 // (audit H2): this used the *server's* local clock
@@ -324,27 +329,35 @@ export const storesService = {
 
   getStores: async (
     query: GetStoresQuery
-  ): Promise<{ stores: StoreWithSeller[]; meta: PaginationMeta }> => {
+  ): Promise<{ stores: StoreDirectoryRow[]; meta: PaginationMeta }> => {
     const { page = 1, limit = 20 } = query;
     // Redis SWR cache; see publicListCache.ts.
-    return cachedPublicList('stores', query, async () => {
-      const { stores, total } = await storesRepository.findMany(query);
-      return { stores, meta: buildPaginationMeta(total, page, limit) };
-    });
+    return cachedPublicList(
+      'stores',
+      { ...query, __projectionVersion: STORE_DIRECTORY_CACHE_VERSION },
+      async () => {
+        const { stores, total } = await storesRepository.findMany(query);
+        return { stores, meta: buildPaginationMeta(total, page, limit) };
+      },
+    );
   },
 
   getFeaturedStores: async (params: {
     limit: number;
     city?: string;
-  }): Promise<{ stores: StoreWithSeller[]; meta: PaginationMeta }> => {
+  }): Promise<{ stores: StoreDirectoryRow[]; meta: PaginationMeta }> => {
     const { limit, city } = params;
-    return cachedPublicList('stores', { __op: 'featured', limit, city }, async () => {
-      const { stores, total } = await storesRepository.findFeatured({ limit, city });
-      return {
-        stores,
-        meta: buildPaginationMeta(total, 1, limit),
-      };
-    });
+    return cachedPublicList(
+      'stores',
+      { __op: 'featured', __projectionVersion: STORE_DIRECTORY_CACHE_VERSION, limit, city },
+      async () => {
+        const { stores, total } = await storesRepository.findFeatured({ limit, city });
+        return {
+          stores,
+          meta: buildPaginationMeta(total, 1, limit),
+        };
+      },
+    );
   },
 
   // FEAT-REPORT-USER-STORE: facade for cross-module use (reportsService),

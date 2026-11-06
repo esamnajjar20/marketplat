@@ -1,3 +1,4 @@
+import type { ApiRequestConfig } from './requestConfig';
 /**
  * Promotions API — maps to backend /api/v1/promotions/* endpoints.
  * Verified against promotions.routes.ts / promotions.controller.ts /
@@ -25,10 +26,10 @@ export const promotionsApi = {
     apiClient.post<ApiResponse<Promotion>>('/promotions', payload),
 
   /** GET /promotions/me — caller's own store's promotions (not paginated — MVP list size). */
-  getMine: () => apiClient.get<ApiResponse<Promotion[]>>('/promotions/me'),
+  getMine: (config?: ApiRequestConfig) => apiClient.get<ApiResponse<Promotion[]>>('/promotions/me', config),
 
   /** GET /promotions/:id */
-  getById: (id: string) => apiClient.get<ApiResponse<Promotion>>(`/promotions/${id}`),
+  getById: (id: string, config?: ApiRequestConfig) => apiClient.get<ApiResponse<Promotion>>(`/promotions/${id}`, config),
 
   /** PATCH /promotions/:id */
   update: (id: string, payload: UpdatePromotionPayload) =>

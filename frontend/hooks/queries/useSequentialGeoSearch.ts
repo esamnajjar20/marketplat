@@ -106,7 +106,7 @@ export function useSequentialGeoSearch(
 
   const query = useQuery({
     queryKey: queryKeys.search.unified(params),
-    queryFn: () => searchApi.search(params).then((r) => r.data.data),
+    queryFn: ({ signal }) => searchApi.search(params, { signal }).then((r) => r.data.data),
     enabled: canRun,
     staleTime: CACHE_TTL.search,
   });

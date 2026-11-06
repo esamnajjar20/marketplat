@@ -52,6 +52,7 @@ import type {
   ManualFraudFlagPayload,
 } from '@/types/admin.types';
 import type { ApiResponse } from '@/types/api.types';
+import type { AxiosRequestConfig } from 'axios';
 
 /**
  * FIX ADMIN-API-TYPING-01: platform-trends response shape (admin.api.ts's
@@ -189,8 +190,8 @@ export const adminApi = {
   // lists. unknown[] is honest about the element shape (Product is
   // not exported from the frontend types yet) while still giving
   // Array.isArray(data.data) meaning.
-  getAdminProducts: (params?: { page?: number; limit?: number; status?: string; q?: string }) =>
-    apiClient.get<ApiResponse<unknown[]>>('/admin/products', { params }),
+  getAdminProducts: (params?: { page?: number; limit?: number; status?: string; q?: string }, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<unknown[]>>('/admin/products', { ...config, params }),
 
   // FIX ADMIN-API-TYPING-01: explicit ApiResponse<unknown> instead of
   // the implicit `any` — the write response body is not read by any
@@ -202,16 +203,16 @@ export const adminApi = {
     apiClient.patch<ApiResponse<unknown>>(`/admin/products/${id}/status`, body),
 
   // FIX ADMIN-API-TYPING-01: see getAdminProducts above.
-  getAdminServiceListings: (params?: { page?: number; limit?: number; status?: string; q?: string }) =>
-    apiClient.get<ApiResponse<unknown[]>>('/admin/service-listings', { params }),
+  getAdminServiceListings: (params?: { page?: number; limit?: number; status?: string; q?: string }, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<unknown[]>>('/admin/service-listings', { ...config, params }),
 
   // FIX ADMIN-API-TYPING-01: see setProductStatus above.
   setServiceListingStatus: (id: string, body: { status: string; reason?: string }) =>
     apiClient.patch<ApiResponse<unknown>>(`/admin/service-listings/${id}/status`, body),
 
 
-  getServiceRequestDisputes: (params?: { page?: number; limit?: number }) =>
-    apiClient.get<ApiResponse<unknown[]>>('/admin/service-request-disputes', { params }),
+  getServiceRequestDisputes: (params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<unknown[]>>('/admin/service-request-disputes', { ...config, params }),
 
   resolveServiceRequestDispute: (id: string, body: { resolution: 'COMPLETED' | 'CANCELLED'; note?: string }) =>
     apiClient.patch<ApiResponse<unknown>>(`/admin/service-request-disputes/${id}/resolve`, body),
@@ -223,7 +224,7 @@ export const adminApi = {
     status?: string;
     type?: string;
     q?: string;
-  }) => apiClient.get<ApiResponse<unknown[]>>('/admin/open-requests', { params }),
+  }, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<unknown[]>>('/admin/open-requests', { ...config, params }),
 
   // FIX ADMIN-API-TYPING-01: see setProductStatus above.
   cancelOpenRequest: (id: string, body?: { reason?: string }) =>
@@ -233,12 +234,12 @@ export const adminApi = {
   // wrapper. Type is defined above (AdminPlatformTrendsResponse)
   // so the .series read in AdminPlatformTrends.tsx is typed end to
   // end; the index signature keeps any future field readable.
-  getPlatformTrends: (days?: number) =>
-    apiClient.get<ApiResponse<AdminPlatformTrendsResponse>>('/admin/trends', { params: { days } }),
+  getPlatformTrends: (days?: number, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<AdminPlatformTrendsResponse>>('/admin/trends', { ...config, params: { days } }),
 
   // FIX ADMIN-API-TYPING-01: type defined above (AdminSystemHealthResponse).
-  getSystemHealth: () =>
-    apiClient.get<ApiResponse<AdminSystemHealthResponse>>('/admin/system-health'),
+  getSystemHealth: (config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<AdminSystemHealthResponse>>('/admin/system-health', config),
   scanDataIntegrity: () =>
     apiClient.post<ApiResponse<AdminDataIntegrityReport>>('/admin/data-integrity/scan', {}, { timeout: 30_000 }),
 
@@ -271,7 +272,7 @@ export const adminApi = {
 
   // FIX ADMIN-API-TYPING-01: see getPlatformTrends above.
 
-  getOpsQueue: () =>
+  getOpsQueue: (config?: AxiosRequestConfig) =>
     apiClient.get<
       ApiResponse<{
         openReports: number;
@@ -280,16 +281,16 @@ export const adminApi = {
         unreviewedFraud: number;
         total: number;
       }>
-    >('/admin/ops-queue'),
+    >('/admin/ops-queue', config),
 
-  getStats: () =>
-    apiClient.get<ApiResponse<AdminStats>>('/admin/stats'),
+  getStats: (config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<AdminStats>>('/admin/stats', config),
 
   // ── Ads ──────────────────────────────────────────────────────────
 
-  getAds: (params?: AdminGetAdsParams) =>
+  getAds: (params?: AdminGetAdsParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdminAd[]>>('/admin/ads', { params })
+      .get<ApiResponse<AdminAd[]>>('/admin/ads', { ...config, params })
       .then((r) => unwrapPaginated<AdminAd>(r)),
 
   setFeatured: (adId: string, payload: SetFeaturedPayload) =>
@@ -314,9 +315,9 @@ export const adminApi = {
 
   // ── Users ─────────────────────────────────────────────────────────
 
-  getUsers: (params?: AdminGetUsersParams) =>
+  getUsers: (params?: AdminGetUsersParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdminUser[]>>('/admin/users', { params })
+      .get<ApiResponse<AdminUser[]>>('/admin/users', { ...config, params })
       .then((r) => unwrapPaginated<AdminUser>(r)),
 
   toggleUserActive: (userId: string, payload: ToggleActivePayload) =>
@@ -342,9 +343,9 @@ export const adminApi = {
   // PATCH /admin/sellers/:id/suspend now all exist server-side
   // (admin.routes.ts) — this wires the frontend to them.
 
-  getSellers: (params?: AdminGetSellersParams) =>
+  getSellers: (params?: AdminGetSellersParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdminSeller[]>>('/admin/sellers', { params })
+      .get<ApiResponse<AdminSeller[]>>('/admin/sellers', { ...config, params })
       .then((r) => unwrapPaginated<AdminSeller>(r)),
 
   setSellerVerified: (sellerProfileId: string, payload: SetSellerVerifiedPayload) =>
@@ -375,9 +376,9 @@ export const adminApi = {
   // GET /admin/stores and PATCH /admin/stores/:id/status now exist
   // server-side (admin.routes.ts) — this wires the frontend to them.
 
-  getStores: (params?: AdminGetStoresParams) =>
+  getStores: (params?: AdminGetStoresParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AdminStore[]>>('/admin/stores', { params })
+      .get<ApiResponse<AdminStore[]>>('/admin/stores', { ...config, params })
       .then((r) => unwrapPaginated<AdminStore>(r)),
 
   updateStoreStatus: (storeId: string, payload: UpdateStoreStatusPayload) =>
@@ -397,8 +398,8 @@ export const adminApi = {
   updateStoreType: (storeId: string, payload: UpdateStoreTypePayload) =>
     apiClient.patch<ApiResponse<AdminStore>>(`/admin/stores/${storeId}/type`, payload),
 
-  getStoreTypes: () =>
-    apiClient.get<ApiResponse<AdminStoreType[]>>('/admin/store-types'),
+  getStoreTypes: (config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<AdminStoreType[]>>('/admin/store-types', config),
 
   createStoreType: (payload: CreateAdminStoreTypePayload) =>
     apiClient.post<ApiResponse<AdminStoreType>>('/admin/store-types', payload),
@@ -409,8 +410,8 @@ export const adminApi = {
   updateStoreTypeStatus: (id: string, isActive: boolean) =>
     apiClient.patch<ApiResponse<AdminStoreType>>(`/admin/store-types/${id}/status`, { isActive }),
 
-  getStoreTypeFields: (storeTypeId: string) =>
-    apiClient.get<ApiResponse<import('@/types/store.types').StoreTypeField[]>>(`/admin/store-types/${storeTypeId}/fields`),
+  getStoreTypeFields: (storeTypeId: string, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<import('@/types/store.types').StoreTypeField[]>>(`/admin/store-types/${storeTypeId}/fields`, config),
   createStoreTypeField: (storeTypeId: string, payload: import('@/types/admin.types').CreateStoreTypeFieldPayload) =>
     apiClient.post<ApiResponse<import('@/types/store.types').StoreTypeField>>(`/admin/store-types/${storeTypeId}/fields`, payload),
   updateStoreTypeField: (storeTypeId: string, fieldId: string, payload: import('@/types/admin.types').UpdateStoreTypeFieldPayload) =>
@@ -423,13 +424,13 @@ export const adminApi = {
     targetType?: ReportTargetType;
     page?: number;
     limit?: number;
-  }) =>
+  }, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<Report[]>>('/reports', { params })
+      .get<ApiResponse<Report[]>>('/reports', { ...config, params })
       .then((r) => unwrapPaginated<Report>(r)),
 
-  getReportById: (reportId: string) =>
-    apiClient.get<ApiResponse<Report>>(`/reports/${reportId}`),
+  getReportById: (reportId: string, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<Report>>(`/reports/${reportId}`, config),
 
   /**
    * FIX C-08: Backend route is PATCH /reports/:id/status (in reportsRouter).
@@ -463,9 +464,9 @@ export const adminApi = {
   // src/modules/audit-logs). Admin-only, same guard pattern as every
   // other /admin/* route.
 
-  getAuditLogs: (params?: AdminGetAuditLogsParams) =>
+  getAuditLogs: (params?: AdminGetAuditLogsParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AuditLog[]>>('/admin/audit-logs', { params })
+      .get<ApiResponse<AuditLog[]>>('/admin/audit-logs', { ...config, params })
       .then((r) => unwrapPaginated<AuditLog>(r)),
 
   // ── Fraud detection ──────────────────────────────────────────────
@@ -481,9 +482,9 @@ export const adminApi = {
   getFraudMonitorHistory: () =>
     apiClient.get<ApiResponse<FraudMonitorHistoryResponse>>('/admin/fraud/monitor/history').then((r) => r.data.data),
 
-  getFlaggedAds: (params?: AdminGetFlaggedAdsParams) =>
+  getFlaggedAds: (params?: AdminGetFlaggedAdsParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<FlaggedAd[]>>('/admin/fraud/ads', { params })
+      .get<ApiResponse<FlaggedAd[]>>('/admin/fraud/ads', { ...config, params })
       .then((r) => unwrapPaginated<FlaggedAd>(r)),
 
   clearAdFraudFlag: (adId: string) =>
@@ -492,9 +493,9 @@ export const adminApi = {
   manualFraudFlag: (adId: string, payload: ManualFraudFlagPayload) =>
     apiClient.post<ApiResponse<null>>(`/admin/fraud/ads/${adId}/flag`, payload),
 
-  getFraudSignals: (params?: AdminGetFraudSignalsParams) =>
+  getFraudSignals: (params?: AdminGetFraudSignalsParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<FraudSignal[]>>('/admin/fraud/signals', { params })
+      .get<ApiResponse<FraudSignal[]>>('/admin/fraud/signals', { ...config, params })
       .then((r) => unwrapPaginated<FraudSignal>(r)),
 
   reviewFraudSignal: (signalId: string) =>

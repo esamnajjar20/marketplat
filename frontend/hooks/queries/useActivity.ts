@@ -1,5 +1,7 @@
 'use client';
 
+import { throwIfQueryCancelled } from '@/lib/queryCancellation';
+
 import { useQuery } from '@tanstack/react-query';
 import { activityApi } from '@/api/activity.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -73,9 +75,9 @@ export function useMyActivity(params?: ActivityQuery) {
   // from queryFn; the effect was unique to this file and redundant.
   return useQuery({
     queryKey: queryKeys.activity.mine(params),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await activityApi.getMine(params).then((r) => r.data.data);
+        const data = await activityApi.getMine(params, { signal }).then((r) => r.data.data);
         if (isBase && data?.items) {
           saveOfflineList(
             OFFLINE_LIST_KEYS.activity,
@@ -86,6 +88,7 @@ export function useMyActivity(params?: ActivityQuery) {
         }
         return data;
       } catch (err) {
+        throwIfQueryCancelled(err, signal);
         if (isBase) {
           const local = getOfflineList<UserActivity>(OFFLINE_LIST_KEYS.activity, userId);
           if (local) {

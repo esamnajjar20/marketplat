@@ -40,22 +40,22 @@ describe('serviceRequestsService.expireStalePending (audit H4)', () => {
     expect((cutoff as Date).getTime()).toBe(now.getTime() - 7 * DAY);
   });
 
-  it('expires each stale request and notifies its customer', async () => {
+  it('expires a stale batch with one repository update and notifies its customers', async () => {
     (serviceRequestsRepository.findStalePending as jest.Mock).mockResolvedValue([row('a'), row('b')]);
-    (serviceRequestsRepository.expirePending as jest.Mock).mockResolvedValue({ count: 1 });
+    (serviceRequestsRepository.expirePendingBatch as jest.Mock).mockResolvedValue(['a', 'b']);
 
     const n = await serviceRequestsService.expireStalePending(now);
 
     expect(n).toBe(2);
+    expect(serviceRequestsRepository.expirePendingBatch).toHaveBeenCalledTimes(1);
+    expect(serviceRequestsRepository.expirePendingBatch).toHaveBeenCalledWith(['a', 'b'], expect.any(Date));
     expect(notificationEvents.onServiceRequestExpired).toHaveBeenCalledWith('cust-a', 'a', 'Service a', 7);
     expect(notificationEvents.onServiceRequestExpired).toHaveBeenCalledWith('cust-b', 'b', 'Service b', 7);
   });
 
-  it('skips (no count, no notification) a request answered between the read and the update', async () => {
+  it('skips rows answered between the read and the atomic batch update', async () => {
     (serviceRequestsRepository.findStalePending as jest.Mock).mockResolvedValue([row('a'), row('b')]);
-    (serviceRequestsRepository.expirePending as jest.Mock)
-      .mockResolvedValueOnce({ count: 0 })
-      .mockResolvedValueOnce({ count: 1 });
+    (serviceRequestsRepository.expirePendingBatch as jest.Mock).mockResolvedValue(['b']);
 
     const n = await serviceRequestsService.expireStalePending(now);
 
@@ -66,7 +66,7 @@ describe('serviceRequestsService.expireStalePending (audit H4)', () => {
 
   it('a failing notification never fails the run', async () => {
     (serviceRequestsRepository.findStalePending as jest.Mock).mockResolvedValue([row('a')]);
-    (serviceRequestsRepository.expirePending as jest.Mock).mockResolvedValue({ count: 1 });
+    (serviceRequestsRepository.expirePendingBatch as jest.Mock).mockResolvedValue(['a']);
     (notificationEvents.onServiceRequestExpired as jest.Mock).mockRejectedValue(new Error('push down'));
 
     await expect(serviceRequestsService.expireStalePending(now)).resolves.toBe(1);
@@ -75,7 +75,7 @@ describe('serviceRequestsService.expireStalePending (audit H4)', () => {
   it('stops instead of looping forever when a full batch makes no progress', async () => {
     const full = Array.from({ length: 200 }, (_, i) => row(String(i)));
     (serviceRequestsRepository.findStalePending as jest.Mock).mockResolvedValue(full);
-    (serviceRequestsRepository.expirePending as jest.Mock).mockResolvedValue({ count: 0 });
+    (serviceRequestsRepository.expirePendingBatch as jest.Mock).mockResolvedValue([]);
 
     await expect(serviceRequestsService.expireStalePending(now)).resolves.toBe(0);
     expect(serviceRequestsRepository.findStalePending).toHaveBeenCalledTimes(1);
@@ -86,7 +86,9 @@ describe('serviceRequestsService.expireStalePending (audit H4)', () => {
     (serviceRequestsRepository.findStalePending as jest.Mock)
       .mockResolvedValueOnce(full)
       .mockResolvedValueOnce([row('last')]);
-    (serviceRequestsRepository.expirePending as jest.Mock).mockResolvedValue({ count: 1 });
+    (serviceRequestsRepository.expirePendingBatch as jest.Mock)
+      .mockResolvedValueOnce(full.map(item => item.id))
+      .mockResolvedValueOnce(['last']);
 
     await expect(serviceRequestsService.expireStalePending(now)).resolves.toBe(201);
     expect(serviceRequestsRepository.findStalePending).toHaveBeenCalledTimes(2);

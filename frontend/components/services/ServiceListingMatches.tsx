@@ -11,7 +11,7 @@ import { LIST_SERVICE_GRID_CLASS } from '@/components/shared/list/ListPageShell'
 export function ServiceListingMatches({ listingId }: { listingId: string }) {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.serviceListingMatches(listingId),
-    queryFn: () => serviceListingsApi.getMatches(listingId, 8).then((r) => r.data.data ?? []),
+    queryFn: ({ signal }) => serviceListingsApi.getMatches(listingId, 8, { signal }).then((r) => r.data.data ?? []),
     staleTime: 5 * 60_000,
   });
 

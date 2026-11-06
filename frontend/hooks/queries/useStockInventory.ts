@@ -8,7 +8,7 @@ import { CACHE_TTL } from '@/lib/constants';
 export function useStockSummary() {
   return useQuery({
     queryKey: queryKeys.products.stockSummary(),
-    queryFn: getStockSummary,
+    queryFn: ({ signal }) => getStockSummary({ signal }),
     staleTime: CACHE_TTL.myAds,
   });
 }
@@ -16,7 +16,7 @@ export function useStockSummary() {
 export function useStockHistory(params?: { page?: number; limit?: number; productId?: string }) {
   return useQuery({
     queryKey: queryKeys.products.stockHistory(params),
-    queryFn: () => getStockHistory(params),
+    queryFn: ({ signal }) => getStockHistory(params, { signal }),
     staleTime: CACHE_TTL.myAds,
   });
 }

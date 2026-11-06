@@ -1,5 +1,7 @@
 'use client';
 
+import { throwIfQueryCancelled } from '@/lib/queryCancellation';
+
 import { useQuery } from '@tanstack/react-query';
 import { savedSearchesApi } from '@/api/savedSearches.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -34,9 +36,9 @@ export function useSavedSearches() {
 
   const query = useQuery({
     queryKey: queryKeys.savedSearches.all(),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await savedSearchesApi.getAll();
+        const data = await savedSearchesApi.getAll({ signal });
         saveOfflineList(
           OFFLINE_LIST_KEYS.savedSearches,
           data ?? [],
@@ -45,6 +47,7 @@ export function useSavedSearches() {
         );
         return data;
       } catch (err) {
+        throwIfQueryCancelled(err, signal);
         const local = getOfflineList<SavedSearch>(OFFLINE_LIST_KEYS.savedSearches, userId);
         if (local) return local.items;
         throw err;

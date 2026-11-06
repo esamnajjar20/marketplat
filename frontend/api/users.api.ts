@@ -105,8 +105,8 @@ export const usersApi = {
   updateNotificationPreferences: (payload: Partial<NotificationPreferences>) =>
     apiClient.patch<ApiResponse<User>>('/users/me/notifications', payload),
 
-  getById: (id: string) =>
-    apiClient.get<ApiResponse<PublicUser>>(`/users/${id}`),
+  getById: (id: string, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<PublicUser>>(`/users/${id}`, config),
 
   getUserAds: (id: string, params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) =>
     apiClient

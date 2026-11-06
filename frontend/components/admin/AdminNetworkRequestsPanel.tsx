@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Activity, CheckCircle2, CircleAlert, Clipboard, Download, Filter, RefreshCw, Search, Trash2, Wifi, WifiOff, Clock3, ArrowDownToLine, ArrowUpRight } from 'lucide-react';
-import { clearNetworkRequests, getNetworkRequests, NETWORK_REQUESTS_EVENT, type NetworkRequestOutcome, type NetworkRequestRecord } from '@/lib/networkRequestMonitor';
+import { clearNetworkRequests, getNetworkRequests, NETWORK_REQUESTS_EVENT, summarizeNetworkRequestsByRoute, type NetworkRequestOutcome, type NetworkRequestRecord } from '@/lib/networkRequestMonitor';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { summarizeDurations } from '@/lib/monitoringMetrics';
 
@@ -20,6 +20,11 @@ const formatTime = (value: string) => {
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ar-PS', { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 }).format(date);
 };
 const formatDuration = (value: number | null) => value === null ? '—' : `${Math.max(0, Math.round(value)).toLocaleString('ar-PS')} مللي ثانية`;
+const formatBytes = (value: number) => {
+  if (value < 1024) return `${value.toLocaleString('ar-PS')} بايت`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+};
 
 export function AdminNetworkRequestsPanel() {
   const [records, setRecords] = useState<NetworkRequestRecord[]>([]);
@@ -63,6 +68,15 @@ export function AdminNetworkRequestsPanel() {
   const failureCount = records.filter((row) => row.outcome === 'http-error' || row.outcome === 'network-error').length;
   const successCount = records.filter((row) => row.outcome === 'success').length;
   const durationStats = summarizeDurations(records.map((row) => row.durationMs));
+  const knownResponseBytes = filtered.reduce((total, row) => total + (row.responseBytes ?? 0), 0);
+  const trackedReadCount = filtered.filter((row) =>
+    (row.method === 'GET' || row.method === 'HEAD' || row.method === 'OPTIONS')
+    && typeof row.concurrentDuplicate === 'boolean',
+  ).length;
+  const concurrentDuplicateCount = filtered.filter((row) => row.concurrentDuplicate === true).length;
+  const duplicateRate = trackedReadCount ? `${((concurrentDuplicateCount / trackedReadCount) * 100).toFixed(1)}%` : '—';
+  const sizedResponses = filtered.filter((row) => Number.isSafeInteger(row.responseBytes) && (row.responseBytes ?? -1) >= 0).length;
+  const routeSummaries = useMemo(() => summarizeNetworkRequestsByRoute(filtered).slice(0, 8), [filtered]);
 
   const copyReport = async (row?: NetworkRequestRecord) => {
     const payload = {
@@ -112,6 +126,8 @@ export function AdminNetworkRequestsPanel() {
         <Metric title="P50 / الوسيط" value={formatDuration(durationStats.p50)} detail="نصف العينة تقريبًا أسرع أو يساوي هذه القيمة" icon={<Clock3 className="h-4 w-4" />} />
         <Metric title="P95 / المئين 95" value={formatDuration(durationStats.p95)} detail="قياس ذيل زمن الاستجابة في هذه العينة" icon={<Clock3 className="h-4 w-4" />} />
         <Metric title="P99 / المئين 99" value={formatDuration(durationStats.p99)} detail="قد لا يكون ذا دلالة مع عينة صغيرة" icon={<Clock3 className="h-4 w-4" />} />
+        <Metric title="حجم الاستجابات المعروف" value={formatBytes(knownResponseBytes)} detail={`${sizedResponses} من ${filtered.length} استجابة لديها Content-Length قابل للقراءة`} icon={<ArrowDownToLine className="h-4 w-4" />} />
+        <Metric title="قراءات متطابقة متزامنة" value={concurrentDuplicateCount} detail={`${duplicateRate} من طلبات القراءة الآمنة؛ أول طلب في المجموعة لا يُحسب`} icon={<Activity className="h-4 w-4" />} />
       </div>
 
       <section className="space-y-3 rounded-2xl border bg-card p-4">
@@ -127,18 +143,23 @@ export function AdminNetworkRequestsPanel() {
         <p className="text-xs text-muted-foreground">يعرض {filtered.length.toLocaleString('ar-PS')} من أصل {records.length.toLocaleString('ar-PS')} طلب. تُخفى قيم query string الحساسة/الشخصية في السجل عمدًا.</p>
       </section>
 
+      <section className="space-y-3 rounded-2xl border bg-card p-4">
+        <div><h2 className="font-semibold">ملخص الطلبات حسب الصفحة</h2><p className="mt-1 text-xs leading-5 text-muted-foreground">تعرض العينة المحفوظة فقط. الحجم يجمع ترويسة Content-Length المتاحة؛ الاستجابات التي لا تعرضها تُحسب كحجم غير معروف، ولا يُفترض أن المجموع يساوي إجمالي النقل الفعلي.</p></div>
+        {routeSummaries.length === 0 ? <p className="py-5 text-center text-sm text-muted-foreground">لا توجد بيانات كافية بعد.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[640px] text-right text-sm"><thead className="bg-muted/60 text-xs text-muted-foreground"><tr><th className="p-2.5">مسار الصفحة</th><th className="p-2.5">الطلبات</th><th className="p-2.5">الأخطاء</th><th className="p-2.5">الملغاة</th><th className="p-2.5">قراءات متزامنة</th><th className="p-2.5">متوسط الزمن</th><th className="p-2.5">الحجم المعروف</th><th className="p-2.5">عينات الحجم</th></tr></thead><tbody>{routeSummaries.map((item) => <tr key={item.pageRoute} className="border-t"><td className="max-w-[220px] p-2.5 font-mono text-xs" dir="ltr"><span className="block truncate" title={item.pageRoute}>{item.pageRoute}</span></td><td className="p-2.5 tabular-nums">{item.requestCount}</td><td className="p-2.5 tabular-nums">{item.failedCount}</td><td className="p-2.5 tabular-nums">{item.abortedCount}</td><td className="p-2.5 tabular-nums">{item.concurrentDuplicateCount}</td><td className="p-2.5 tabular-nums">{formatDuration(item.averageDurationMs)}</td><td className="p-2.5 tabular-nums">{formatBytes(item.knownResponseBytes)}</td><td className="p-2.5 tabular-nums">{item.sizedResponseCount}/{item.requestCount}</td></tr>)}</tbody></table></div>}
+      </section>
+
       <section className="overflow-hidden rounded-2xl border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3"><h2 className="font-semibold">سجل الطلبات</h2><span className="text-xs text-muted-foreground">الأحدث أولًا · اختر طلبًا لعرض التفاصيل</span></div>
         {filtered.length === 0 ? <div className="flex min-h-44 flex-col items-center justify-center gap-2 p-6 text-center"><Activity className="h-8 w-8 text-muted-foreground/60" /><p className="font-medium">لا توجد طلبات مطابقة</p><p className="max-w-lg text-sm text-muted-foreground">انتقل إلى صفحات التطبيق ونفّذ عمليات مثل البحث أو فتح الإعلانات أو تحميل الرسائل، ثم ارجع إلى هنا. يبدأ التسجيل بعد تثبيت هذه النسخة.</p></div> : <div className="max-h-[560px] overflow-auto">
           <table className="w-full min-w-[850px] border-collapse text-right text-sm">
-            <thead className="sticky top-0 z-10 bg-muted/90 text-xs text-muted-foreground backdrop-blur"><tr><th className="px-3 py-3 font-medium">الوقت</th><th className="px-3 py-3 font-medium">الطريقة</th><th className="px-3 py-3 font-medium">المسار</th><th className="px-3 py-3 font-medium">صفحة المصدر</th><th className="px-3 py-3 font-medium">الحالة</th><th className="px-3 py-3 font-medium">المدة</th><th className="px-3 py-3 font-medium">المصدر</th></tr></thead>
+            <thead className="sticky top-0 z-10 bg-muted/90 text-xs text-muted-foreground backdrop-blur"><tr><th className="px-3 py-3 font-medium">الوقت</th><th className="px-3 py-3 font-medium">الطريقة</th><th className="px-3 py-3 font-medium">المسار</th><th className="px-3 py-3 font-medium">صفحة المصدر</th><th className="px-3 py-3 font-medium">الحالة</th><th className="px-3 py-3 font-medium">المدة</th><th className="px-3 py-3 font-medium">الحجم</th><th className="px-3 py-3 font-medium">المصدر</th></tr></thead>
             <tbody>{filtered.map((row) => <tr key={row.id} onClick={() => setSelectedId(row.id)} className={`cursor-pointer border-t transition-colors hover:bg-muted/60 ${selected?.id === row.id ? 'bg-primary/5' : ''}`}>
               <td className="whitespace-nowrap px-3 py-3 font-mono text-xs text-muted-foreground">{formatTime(row.startedAt)}</td>
               <td className="px-3 py-3"><span className="rounded-md border px-2 py-1 font-mono text-[11px] font-semibold">{row.method}</span></td>
               <td className="max-w-[360px] px-3 py-3"><p className="break-all font-mono text-xs" dir="ltr">{row.url}</p>{row.error && <p className="mt-1 max-w-md truncate text-xs text-red-600" title={row.error}>{row.error}</p>}</td>
               <td className="max-w-[180px] px-3 py-3"><p className="truncate font-mono text-xs" dir="ltr" title={row.pageRoute}>{row.pageRoute}</p></td>
               <td className="whitespace-nowrap px-3 py-3"><span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${outcomeClass[row.outcome]}`}>{row.status ? `${row.status} · ` : ''}{outcomeLabel[row.outcome]}</span></td>
-              <td className="whitespace-nowrap px-3 py-3 font-mono text-xs">{row.durationMs} ms</td><td className="px-3 py-3 text-xs text-muted-foreground">{row.kind === 'fetch' ? 'Fetch' : 'XHR'}</td>
+              <td className="whitespace-nowrap px-3 py-3 font-mono text-xs">{row.durationMs} ms</td><td className="whitespace-nowrap px-3 py-3 text-xs">{row.responseBytes === undefined ? '—' : formatBytes(row.responseBytes)}</td><td className="px-3 py-3 text-xs text-muted-foreground">{row.kind === 'fetch' ? 'Fetch' : 'XHR'}</td>
             </tr>)}</tbody>
           </table>
         </div>}
@@ -147,10 +168,10 @@ export function AdminNetworkRequestsPanel() {
       {selected && <section className="space-y-3 rounded-2xl border bg-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><h2 className="font-semibold">تفاصيل الطلب المحدد</h2><span className={`rounded-full px-2 py-1 text-xs ${outcomeClass[selected.outcome]}`}>{outcomeLabel[selected.outcome]}</span></div><p className="mt-1 text-xs text-muted-foreground">{formatTime(selected.startedAt)} · معرّف محلي: {selected.id}</p></div><button type="button" onClick={() => void copyReport(selected)} className="inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm hover:bg-muted"><Clipboard className="h-4 w-4" /> نسخ هذا الطلب</button></div>
         <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[
-          ['صفحة المصدر', selected.pageRoute], ['الطريقة', selected.method], ['الحالة', selected.status ? `${selected.status} ${selected.statusText ?? ''}`.trim() : 'لا توجد استجابة HTTP'], ['المدة', `${selected.durationMs} ms`], ['نوع التنفيذ', selected.kind === 'fetch' ? 'Fetch API' : 'XMLHttpRequest'], ['Request ID', selected.requestId ?? 'غير متاح من الخادم'],
+          ['صفحة المصدر', selected.pageRoute], ['الطريقة', selected.method], ['الحالة', selected.status ? `${selected.status} ${selected.statusText ?? ''}`.trim() : 'لا توجد استجابة HTTP'], ['المدة', `${selected.durationMs} ms`], ['نوع التنفيذ', selected.kind === 'fetch' ? 'Fetch API' : 'XMLHttpRequest'], ['حجم الاستجابة', selected.responseBytes === undefined ? 'غير متاح من Content-Length' : formatBytes(selected.responseBytes)], ['حالة X-Cache', selected.cacheStatus ?? 'غير متاحة'], ['قراءة متطابقة متزامنة', selected.concurrentDuplicate === true ? 'نعم، طلب قراءة مطابق آخر كان جاريًا' : selected.concurrentDuplicate === false ? 'لا' : 'غير مسجل (سجل قديم)'], ['Request ID', selected.requestId ?? 'غير متاح من الخادم'],
         ].map(([label, value]) => <div key={label} className="rounded-xl bg-muted/50 p-3"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 break-words font-medium" dir={label === 'الطريقة' ? 'ltr' : 'auto'}>{value}</dd></div>)}</dl>
         <div className="rounded-xl border p-3"><p className="mb-2 text-xs text-muted-foreground">عنوان الطلب بعد إخفاء قيم معاملات URL</p><p className="break-all font-mono text-sm" dir="ltr">{selected.url}</p>{selected.error && <p className="mt-3 break-words text-sm text-red-600">{selected.error}</p>}</div>
-        <p className="flex items-start gap-2 text-xs leading-5 text-muted-foreground"><ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0" /> لا يتضمن هذا السجل أجسام الطلبات أو الاستجابات أو ترويسات المصادقة؛ يُحفظ X-Request-Id وحده بعد التحقق من أنه UUID. وهو مراقب داخل التطبيق وليس بديلًا كاملًا لأدوات Network في DevTools.</p>
+        <p className="flex items-start gap-2 text-xs leading-5 text-muted-foreground"><ArrowUpRight className="mt-0.5 h-3.5 w-3.5 shrink-0" /> لا يتضمن هذا السجل أجسام الطلبات أو الاستجابات أو ترويسات المصادقة. يُحفظ X-Request-Id بعد التحقق من UUID، وContent-Length كرقم، وX-Cache من قائمة حالات محددة. حجم الاستجابة غير متاح دائمًا وقد لا يعكس حجم النقل في كل طبقات التخزين المؤقت؛ استخدم DevTools لقياس Transfer Size بدقة. مؤشر التكرار لا يحسب إلا طلبات GET/HEAD/OPTIONS المتطابقة والمتداخلة على مستوى النقل، ولا يعني أن تكرار استدعاء مسار بمرشحات مختلفة خطأ.</p>
       </section>}
     </div>
   );

@@ -18,8 +18,8 @@ export function AdCategoryChips() {
 
   const { data } = useQuery({
     queryKey: queryKeys.categories.all(),
-    queryFn: async () => {
-      const res = await categoriesApi.getAll();
+    queryFn: async ({ signal }) => {
+      const res = await categoriesApi.getAll({ signal });
       return res.data.data ?? [];
     },
     staleTime: 5 * 60_000,

@@ -14,8 +14,9 @@ type Stats = PublicStoreSalesStats;
 export function PublicSalesStats({ slug }: { slug: string }) {
   const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: queryKeys.publicStoreSalesStats(slug),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       const response = await fetch(`/api/v1/public/stores/${encodeURIComponent(slug)}/stats`, {
+        signal,
         credentials: 'include',
         cache: 'no-store',
       });

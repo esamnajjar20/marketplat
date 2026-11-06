@@ -41,24 +41,25 @@ export const serviceProvidersApi = {
     apiClient.post<ApiResponse<ServiceProviderDetails>>('/service-providers/me', payload),
 
   /** GET /service-providers/me — the caller's own provider profile. 404 if none yet. */
-  getMyProvider: () =>
-    apiClient.get<ApiResponse<ServiceProviderDetails>>('/service-providers/me'),
+  getMyProvider: (config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<ServiceProviderDetails>>('/service-providers/me', config),
 
   /** PATCH /service-providers/me — partial update, including availabilityStatus. */
   updateMyProvider: (payload: UpdateServiceProviderPayload) =>
     apiClient.patch<ApiResponse<ServiceProviderDetails>>('/service-providers/me', payload),
 
   /** GET /service-providers/me/service-types — provider-specific dynamic fields by service type. */
-  getMyServiceTypeProfiles: () =>
-    apiClient.get<ApiResponse<ServiceProviderServiceTypeProfile[]>>('/service-providers/me/service-types'),
+  getMyServiceTypeProfiles: (config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<ServiceProviderServiceTypeProfile[]>>('/service-providers/me/service-types', config),
 
   /** PATCH /service-providers/me/service-types/:serviceTypeId — update provider attributes for one service type. */
   updateMyServiceTypeProfile: (serviceTypeId: string, payload: { attributes: Record<string, unknown>; isActive?: boolean }) =>
     apiClient.patch<ApiResponse<ServiceProviderServiceTypeProfile>>(`/service-providers/me/service-types/${serviceTypeId}`, payload),
 
   /** GET /service-providers/me/analytics — owner-only dashboard. */
-  getMyAnalytics: (period: '7d' | '30d' | 'all' = 'all') =>
+  getMyAnalytics: (period: '7d' | '30d' | 'all' = 'all', config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<ServiceProviderAnalytics>>('/service-providers/me/analytics', {
+      ...config,
       params: { period },
     }),
 
@@ -75,9 +76,9 @@ export const serviceProvidersApi = {
     apiClient.get<ApiResponse<ServiceProviderPublic>>(`/service-providers/${id}`, config),
 
   /** GET /service-providers/nearby — Haversine search around a lat/lng pin. */
-  getNearby: (params: NearbyServiceProvidersParams) =>
+  getNearby: (params: NearbyServiceProvidersParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<NearbyServiceProviderRow[]>>('/service-providers/nearby', { params })
+      .get<ApiResponse<NearbyServiceProviderRow[]>>('/service-providers/nearby', { ...config, params })
       .then((r) => unwrapPaginated<NearbyServiceProviderRow>(r)),
 };
 

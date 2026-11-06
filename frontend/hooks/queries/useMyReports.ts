@@ -27,7 +27,7 @@ export function useMyReports(params?: PaginationParams) {
 
   return useQuery({
     queryKey: queryKeys.myReports.all(params),
-    queryFn: () => reportsApi.getMyReports(params).then((r) => r.data.data),
+    queryFn: ({ signal }) => reportsApi.getMyReports(params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.activity,
     enabled: isAuthenticated && (hasToken || !isOnline),
   });

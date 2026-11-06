@@ -1,5 +1,7 @@
 'use client';
 
+import { throwIfQueryCancelled } from '@/lib/queryCancellation';
+
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
@@ -162,9 +164,10 @@ export function SellersRankingList({
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
         const response = await fetch(`/api/v1/sellers/ranking?limit=${limit}`, {
+          signal,
           credentials: 'include',
           cache: 'no-store',
         });
@@ -174,6 +177,7 @@ export function SellersRankingList({
         saveOfflineList(OFFLINE_LIST_KEYS.sellersRanking, rows, OFFLINE_LIST_LIMITS.sellersRanking);
         return rows;
       } catch (err) {
+        throwIfQueryCancelled(err, signal);
         const local = getOfflineList<RankRow>(OFFLINE_LIST_KEYS.sellersRanking);
         if (local?.items.length) return local.items.map((row) => ({ ...row, displayName: row.displayName?.trim() || `بائع ${row.rank}` }));
         throw err;

@@ -12,6 +12,7 @@ import { apiClient } from './client';
 import type { ReportReason, Report } from '@/types/admin.types';
 import type { ApiResponse, PaginationParams } from '@/types/api.types';
 import { unwrapPaginated } from '@/lib/apiPagination';
+import type { ApiRequestConfig } from './requestConfig';
 
 export interface CreateReportPayload {
   /** must be one of SCAM | FAKE | OFFENSIVE | SPAM */
@@ -59,8 +60,8 @@ export const reportsApi = {
    * so a query hook consumes it the same way, via `.then(r => r.data.data)`.
    * FEAT-REPORT-USER-STORE
    */
-  getMyReports: (params?: PaginationParams) =>
+  getMyReports: (params?: PaginationParams, config?: ApiRequestConfig) =>
     apiClient
-      .get<ApiResponse<Report[]>>('/reports/me', { params })
+      .get<ApiResponse<Report[]>>('/reports/me', { ...config, params })
       .then((r) => unwrapPaginated<Report>(r)),
 };

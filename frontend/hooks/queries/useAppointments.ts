@@ -1,5 +1,7 @@
 'use client';
 
+import { throwIfQueryCancelled } from '@/lib/queryCancellation';
+
 import { useQuery } from '@tanstack/react-query';
 import { appointmentsApi } from '@/api/appointments.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -54,10 +56,10 @@ export function useMyAppointments(params?: AppointmentsQuery) {
   return useQuery<MyAppointmentsData>({
     queryKey: queryKeys.appointments.mine(params),
 
-    queryFn: async (): Promise<MyAppointmentsData> => {
+    queryFn: async ({ signal }): Promise<MyAppointmentsData> => {
       try {
         const data = await appointmentsApi
-          .getMine(params)
+          .getMine(params, { signal })
           .then((r) => r.data.data);
 
         if (isBase && data) {
@@ -70,6 +72,7 @@ export function useMyAppointments(params?: AppointmentsQuery) {
         if (!data) throw new Error('Appointments response is empty');
         return data;
       } catch (err) {
+        throwIfQueryCancelled(err, signal);
         if (isBase) {
           const local = getOfflineJson<MyAppointmentsData>(
             OFFLINE_JSON_KEYS.appointmentsMine,
@@ -102,7 +105,7 @@ export function useMyAppointments(params?: AppointmentsQuery) {
 export function useAvailability(providerId: string, date: string) {
   return useQuery({
     queryKey: queryKeys.appointments.availability(providerId, date),
-    queryFn: () => appointmentsApi.getAvailability(providerId, date).then((r) => r.data.data),
+    queryFn: ({ signal }) => appointmentsApi.getAvailability(providerId, date, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.availability,
     enabled: Boolean(providerId) && Boolean(date),
   });

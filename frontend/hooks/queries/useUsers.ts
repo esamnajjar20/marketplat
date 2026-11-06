@@ -9,7 +9,7 @@ import { CACHE_TTL } from '@/lib/constants';
 export function useUser(id: string) {
   return useQuery({
     queryKey: queryKeys.users.detail(id),
-    queryFn: () => usersApi.getById(id).then((r) => r.data.data),
+    queryFn: ({ signal }) => usersApi.getById(id, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.userProfile,
     enabled: Boolean(id),
   });

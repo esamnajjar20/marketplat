@@ -1,7 +1,7 @@
 import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { StoreDetails, StoreMember, StoreMemberRole, StoreMemberStatus } from '@prisma/client';
 import { storeMembersRepository, StoreMemberWithUser } from './store-members.repository';
-import { storesRepository } from './stores.repository';
+import { storesRepository, type StoreAccessRow } from './stores.repository';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { prisma } from '../../config/prisma';
 import { ConflictError } from '../../shared/errors/ConflictError';
@@ -68,16 +68,17 @@ export type StoreAccess =
   | { kind: 'member'; store: StoreDetails; member: StoreMember; role: StoreMemberRole };
 
 /** Resolve store by id or slug (same convention as getPublicStore). */
-const resolveStore = async (idOrSlug: string): Promise<StoreDetails> => {
+const resolveStore = async (idOrSlug: string): Promise<StoreAccessRow> => {
   const store =
-    (await storesRepository.findById(idOrSlug)) ?? (await storesRepository.findBySlug(idOrSlug));
+    (await storesRepository.findByIdForAccess(idOrSlug)) ??
+    (await storesRepository.findBySlugForAccess(idOrSlug));
   if (!store) throw new NotFoundError('Store not found.', 'STORE_NOT_FOUND');
   return store;
 };
 
 /**
- * Owner = SellerProfile that owns the store.
- * Used by every /me write path already; we reuse the same gate.
+ * Checks whether an arbitrary user owns a store. Used by invitation
+ * validation; access gates compare the owner identity from their joined row.
  */
 const isStoreOwner = async (userId: string, store: StoreDetails): Promise<boolean> => {
   const sellerProfile = await sellersRepository.findByUserId(userId);
@@ -106,14 +107,13 @@ export const requireStoreAccess = async (
   if (capability && store.status === 'BLOCKED') {
     throw new ForbiddenError('This store is blocked and cannot be managed.', 'STORE_BLOCKED');
   }
-  if (capability) {
-    const ownerProfile = await sellersRepository.findById(store.sellerProfileId);
-    if (ownerProfile?.suspended) {
-      throw new ForbiddenError("This store's owner account is suspended.", 'STORE_OWNER_SUSPENDED');
-    }
+  if (capability && store.sellerProfile.suspended) {
+    throw new ForbiddenError("This store's owner account is suspended.", 'STORE_OWNER_SUSPENDED');
   }
 
-  if (await isStoreOwner(userId, store)) {
+  // The authorization lookup already joined the owning profile, so do not
+  // issue a second seller query merely to identify the store owner.
+  if (store.sellerProfile.userId === userId) {
     return { kind: 'owner', store };
   }
 
@@ -478,13 +478,21 @@ export const requireStoreAccessForProducts = async (
     .filter(m => ROLE_CAPABILITIES[m.role][capability])
     .sort((a, b) => new Date(a.invitedAt).getTime() - new Date(b.invitedAt).getTime());
 
-  for (const m of productCapable) {
-    const store = await storesRepository.findById(m.storeId);
+  // Fetch all candidate stores and their owner-suspension flags once.
+  // Iteration below still follows the oldest eligible membership, preserving
+  // the established multi-store selection and error semantics.
+  const candidateStores = productCapable.length
+    ? await storesRepository.findManyForStaffAccess(
+        Array.from(new Set(productCapable.map(m => m.storeId)))
+      )
+    : [];
+  const storesById = new Map(candidateStores.map(store => [store.id, store]));
+
+  for (const membership of productCapable) {
+    const store = storesById.get(membership.storeId);
     if (!store || store.status === 'BLOCKED') continue;
 
-    // Block writes if the *owning* seller is suspended.
-    const ownerProfile = await sellersRepository.findById(store.sellerProfileId);
-    if (ownerProfile?.suspended) {
+    if (store.sellerProfile.suspended) {
       throw new ForbiddenError("This store's owner account is suspended.", 'STORE_OWNER_SUSPENDED');
     }
     return store;

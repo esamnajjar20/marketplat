@@ -34,7 +34,7 @@ function normalize(raw: unknown): PaginatedCustomers {
 }
 
 export function useCustomerSummary() {
-  return useQuery({ queryKey: queryKeys.customers.summary(), queryFn: () => customersApi.summary().then(r => r.data.data), staleTime: 30_000 });
+  return useQuery({ queryKey: queryKeys.customers.summary(), queryFn: ({ signal }) => customersApi.summary({ signal }).then(r => r.data.data), staleTime: 30_000 });
 }
 
 export function customerListQueryOptions(params?: CustomerListQueryParams) {

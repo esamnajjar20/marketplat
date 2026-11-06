@@ -1,5 +1,7 @@
 'use client';
 
+import { throwIfQueryCancelled } from '@/lib/queryCancellation';
+
 import { useQuery } from '@tanstack/react-query';
 import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import { productCategoriesApi } from '@/api/product-categories.api';
@@ -30,9 +32,9 @@ export function useProductCategories(options?: { enabled?: boolean }) {
 
   return useQuery({
     queryKey,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await productCategoriesApi.getAll().then((r) => r.data.data);
+        const data = await productCategoriesApi.getAll({ signal }).then((r) => r.data.data);
         if (Array.isArray(data)) {
           saveOfflineList(
             OFFLINE_LIST_KEYS.productCategories,
@@ -42,6 +44,7 @@ export function useProductCategories(options?: { enabled?: boolean }) {
         }
         return data;
       } catch (err) {
+        throwIfQueryCancelled(err, signal);
         const local = getOfflineList<unknown>(OFFLINE_LIST_KEYS.productCategories);
         if (local) return local.items as never;
         throw err;
@@ -55,7 +58,7 @@ export function useProductCategories(options?: { enabled?: boolean }) {
 export function useProductCategoryBySlug(slug: string) {
   return useQuery({
     queryKey: queryKeys.productCategories.slug(slug),
-    queryFn: () => productCategoriesApi.getBySlug(slug).then((r) => r.data.data),
+    queryFn: ({ signal }) => productCategoriesApi.getBySlug(slug, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.categories,
     enabled: Boolean(slug),
   });
@@ -65,7 +68,7 @@ export function useProductCategoryBySlug(slug: string) {
 export function useProductCategoriesForAdmin() {
   return useQuery({
     queryKey: queryKeys.productCategories.adminAll(),
-    queryFn: () => productCategoriesApi.getAllForAdmin().then((r) => r.data.data),
+    queryFn: ({ signal }) => productCategoriesApi.getAllForAdmin({ signal }).then((r) => r.data.data),
     staleTime: 0,
   });
 }

@@ -29,6 +29,37 @@ const computeStatus = (total: number, paid: number, dueDate?: Date | null): Sale
   return paid > 0 ? 'PARTIAL' : 'UNPAID';
 };
 
+const getPeriodStart = (
+  end: Date,
+  period: 'day' | 'week' | 'month' | 'year'
+): Date => {
+  const start = new Date(end);
+  if (period === 'day') start.setDate(start.getDate() - 1);
+  if (period === 'week') start.setDate(start.getDate() - 7);
+  if (period === 'month') start.setMonth(start.getMonth() - 1);
+  if (period === 'year') start.setFullYear(start.getFullYear() - 1);
+  return start;
+};
+
+const getPreviousPeriodStart = (end: Date, currentStart: Date): Date =>
+  new Date(currentStart.getTime() - (end.getTime() - currentStart.getTime()));
+
+const buildComparison = (
+  period: 'week' | 'month' | 'year',
+  current: Awaited<ReturnType<typeof salesRepository.summary>>,
+  previous: Awaited<ReturnType<typeof salesRepository.summary>>
+) => ({
+  period,
+  current,
+  previous,
+  revenueChangePercentage:
+    previous.totalRevenue === 0
+      ? current.totalRevenue === 0
+        ? 0
+        : null
+      : roundMoney(((current.totalRevenue - previous.totalRevenue) / previous.totalRevenue) * 100),
+});
+
 const ensureEntityOwnership = async (userId: string, input: CreateSaleInput) => {
   if (input.entityType === 'FREE') {
     // A caller-supplied storeId is still a tenant boundary even for manual
@@ -228,6 +259,10 @@ const preparePosItems = async (userId: string, input: CreateSaleInput) => {
     lineTotal: number;
   }>;
   let storeId: string | null = null;
+
+  // Resolve the cart's product records in one bounded query rather than one
+  // lookup per line item. The schema caps POS carts at 200 lines; duplicate
+  // IDs are rejected before the query so the returned map is deterministic.
   for (const item of input.items) {
     if (seen.has(item.productId))
       throw new BadRequestError(
@@ -235,27 +270,47 @@ const preparePosItems = async (userId: string, input: CreateSaleInput) => {
         'DUPLICATE_POS_PRODUCT'
       );
     seen.add(item.productId);
-    const product = await prisma.product.findUnique({
-      where: { id: item.productId },
-      select: {
-        id: true,
-        name: true,
-        images: true,
-        price: true,
-        costPrice: true,
-        storeId: true,
-        status: true,
-      },
-    });
+  }
+
+  const products = await prisma.product.findMany({
+    where: { id: { in: Array.from(seen) } },
+    select: {
+      id: true,
+      name: true,
+      images: true,
+      price: true,
+      costPrice: true,
+      storeId: true,
+      status: true,
+    },
+  });
+  const productsById = new Map(products.map(product => [product.id, product]));
+  let authorizedStoreId: string | null = null;
+
+  for (const item of input.items) {
+    const product = productsById.get(item.productId);
     if (!product || product.status === 'DELETED')
       throw new NotFoundError('Product not found.', 'PRODUCT_NOT_FOUND');
-    await requireStoreAccess(userId, product.storeId, 'manageProducts');
-    if (storeId && storeId !== product.storeId)
+
+    if (storeId && storeId !== product.storeId) {
+      // Preserve the former authorization boundary for a cross-store cart:
+      // prove access to the second store before returning the single-store
+      // validation error. Valid carts still perform only one access check.
+      await requireStoreAccess(userId, product.storeId, 'manageProducts');
       throw new BadRequestError(
         'A POS sale must contain products from the same store.',
         'POS_MULTI_STORE_NOT_SUPPORTED'
       );
-    storeId = product.storeId;
+    }
+
+    if (!storeId) {
+      storeId = product.storeId;
+      // Every accepted POS cart belongs to one store. Authorize that store
+      // once, not once per product line.
+      const access = await requireStoreAccess(userId, storeId, 'manageProducts');
+      authorizedStoreId = access.store.id;
+    }
+
     const unitPrice = roundMoney(item.unitPrice);
     const discount = roundMoney(item.discount ?? 0);
     const lineTotal = roundMoney(Math.max(unitPrice - discount, 0) * item.quantity);
@@ -273,7 +328,7 @@ const preparePosItems = async (userId: string, input: CreateSaleInput) => {
   }
   return {
     items: prepared,
-    storeId: storeId!,
+    storeId: authorizedStoreId ?? storeId!,
     total: roundMoney(prepared.reduce((s, item) => s + item.lineTotal, 0)),
     quantity: prepared.reduce((s, item) => s + item.quantity, 0),
   };
@@ -859,11 +914,7 @@ export const salesService = {
   },
   summary: async (userId: string, period: 'day' | 'week' | 'month' | 'year') => {
     const end = new Date();
-    const start = new Date(end);
-    if (period === 'day') start.setDate(start.getDate() - 1);
-    if (period === 'week') start.setDate(start.getDate() - 7);
-    if (period === 'month') start.setMonth(start.getMonth() - 1);
-    if (period === 'year') start.setFullYear(start.getFullYear() - 1);
+    const start = getPeriodStart(end, period);
     return salesRepository.summary(userId, start, end);
   },
 
@@ -891,28 +942,13 @@ export const salesService = {
 
   compare: async (userId: string, period: 'week' | 'month' | 'year') => {
     const end = new Date();
-    const currentStart = new Date(end);
-    if (period === 'week') currentStart.setDate(currentStart.getDate() - 7);
-    if (period === 'month') currentStart.setMonth(currentStart.getMonth() - 1);
-    if (period === 'year') currentStart.setFullYear(currentStart.getFullYear() - 1);
-    const previousStart = new Date(currentStart);
-    const previousEnd = new Date(currentStart);
-    const span = end.getTime() - currentStart.getTime();
-    previousStart.setTime(currentStart.getTime() - span);
-    previousEnd.setTime(currentStart.getTime());
+    const currentStart = getPeriodStart(end, period);
+    const previousStart = getPreviousPeriodStart(end, currentStart);
     const [current, previous] = await Promise.all([
       salesRepository.summary(userId, currentStart, end),
-      salesRepository.summary(userId, previousStart, previousEnd),
+      salesRepository.summary(userId, previousStart, currentStart),
     ]);
-    const percentage =
-      previous.totalRevenue === 0
-        ? current.totalRevenue === 0
-          ? 0
-          : null
-        : roundMoney(
-            ((current.totalRevenue - previous.totalRevenue) / previous.totalRevenue) * 100
-          );
-    return { period, current, previous, revenueChangePercentage: percentage };
+    return buildComparison(period, current, previous);
   },
 
   top: (userId: string, limit: number) =>
@@ -921,9 +957,16 @@ export const salesService = {
       salesRepository.topCustomers(userId, limit),
     ]),
   dashboard: async (userId: string) => {
-    const [summary, compare, debt, top, lowStock] = await Promise.all([
-      salesService.summary(userId, 'month'),
-      salesService.compare(userId, 'month'),
+    const end = new Date();
+    const currentStart = getPeriodStart(end, 'month');
+    const previousStart = getPreviousPeriodStart(end, currentStart);
+    // The previous implementation calculated the current-month summary once
+    // for `summary` and a second time inside `compare`. Reuse the same result so
+    // both dashboard fields are consistent and the duplicate two-operation
+    // aggregate is avoided.
+    const [summary, previousSummary, debt, top, lowStock] = await Promise.all([
+      salesRepository.summary(userId, currentStart, end),
+      salesRepository.summary(userId, previousStart, currentStart),
       salesService.debtSummary(userId),
       salesService.top(userId, 5),
       prisma.product.findMany({
@@ -943,6 +986,7 @@ export const salesService = {
         take: 10,
       }),
     ]);
+    const compare = buildComparison('month', summary, previousSummary);
     return { summary, compare, debt, topProducts: top[0], topCustomers: top[1], lowStock };
   },
   report: async (userId: string, query: import('./sales.validation').ReportQuery) => {

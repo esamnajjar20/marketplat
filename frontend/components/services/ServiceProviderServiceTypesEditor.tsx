@@ -16,8 +16,8 @@ import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/ui/skeleton';
 export function ServiceProviderServiceTypesEditor() {
   const queryClient = useQueryClient();
-  const profiles = useQuery({ queryKey: queryKeys.serviceProviders.myServiceTypes(), queryFn: () => serviceProvidersApi.getMyServiceTypeProfiles().then(r => r.data.data) });
-  const allTypes = useQuery({ queryKey: queryKeys.serviceTypes.all(), queryFn: () => serviceTypesApi.getAll().then(r => r.data.data) });
+  const profiles = useQuery({ queryKey: queryKeys.serviceProviders.myServiceTypes(), queryFn: ({ signal }) => serviceProvidersApi.getMyServiceTypeProfiles({ signal }).then(r => r.data.data) });
+  const allTypes = useQuery({ queryKey: queryKeys.serviceTypes.all(), queryFn: ({ signal }) => serviceTypesApi.getAll({ signal }).then(r => r.data.data) });
   const [drafts, setDrafts] = useState<Record<string, Record<string, unknown>>>({});
   const [savingTypeId, setSavingTypeId] = useState<string | null>(null);
   const save = useMutation({

@@ -11,6 +11,7 @@ import { apiClient } from './client';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type { ServiceReview, CreateServiceReviewPayload } from '@/types/service.types';
+import type { ApiRequestConfig } from './requestConfig';
 
 export const serviceReviewsApi = {
   /** POST /service-reviews */
@@ -18,8 +19,8 @@ export const serviceReviewsApi = {
     apiClient.post<ApiResponse<ServiceReview>>('/service-reviews', payload),
 
   /** GET /service-reviews/seller/:sellerProfileId — paginated. */
-  getForSeller: (sellerProfileId: string, params?: { page?: number; limit?: number }) =>
+  getForSeller: (sellerProfileId: string, params?: { page?: number; limit?: number }, config?: ApiRequestConfig) =>
     apiClient
-      .get<ApiResponse<ServiceReview[]>>(`/service-reviews/seller/${sellerProfileId}`, { params })
+      .get<ApiResponse<ServiceReview[]>>(`/service-reviews/seller/${sellerProfileId}`, { ...config, params })
       .then((r) => unwrapPaginated<ServiceReview>(r)),
 };

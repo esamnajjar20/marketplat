@@ -1,3 +1,4 @@
+import type { ApiRequestConfig } from './requestConfig';
 /**
  * Store collections API — maps to backend /api/v1/collections/*
  * endpoints. Verified against collections.routes.ts /
@@ -26,10 +27,10 @@ export const collectionsApi = {
     apiClient.post<ApiResponse<StoreCollection>>('/collections', payload),
 
   /** GET /collections/me — caller's own store's collections, owner view (includes inactive). */
-  getMine: () => apiClient.get<ApiResponse<StoreCollectionWithCount[]>>('/collections/me'),
+  getMine: (config?: ApiRequestConfig) => apiClient.get<ApiResponse<StoreCollectionWithCount[]>>('/collections/me', config),
 
   /** GET /collections/:id — owner-only single-collection read. */
-  getById: (id: string) => apiClient.get<ApiResponse<StoreCollection>>(`/collections/${id}`),
+  getById: (id: string, config?: ApiRequestConfig) => apiClient.get<ApiResponse<StoreCollection>>(`/collections/${id}`, config),
 
   /** PATCH /collections/:id */
   update: (id: string, payload: UpdateCollectionPayload) =>
@@ -53,10 +54,10 @@ export const collectionsApi = {
   // --- Public ---
 
   /** GET /collections/store/:storeId — active collections only, public storefront tab. */
-  getPublicCollections: (storeId: string) =>
-    apiClient.get<ApiResponse<StoreCollectionWithCount[]>>(`/collections/store/${storeId}`),
+  getPublicCollections: (storeId: string, config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<StoreCollectionWithCount[]>>(`/collections/store/${storeId}`, config),
 
   /** GET /collections/:id/products — public, active products only. */
-  getPublicCollectionProducts: (id: string) =>
-    apiClient.get<ApiResponse<CollectionProducts>>(`/collections/${id}/products`),
+  getPublicCollectionProducts: (id: string, config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<CollectionProducts>>(`/collections/${id}/products`, config),
 };

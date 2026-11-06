@@ -18,7 +18,7 @@ import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type {
   StoreDetails,
-  StoreWithSeller,
+  StoreDirectoryItem,
   StoreWithSellerAndCounts,
   StoreFollowerWithStore,
   StoreReview,
@@ -42,8 +42,8 @@ export const storesApi = {
   /** GET /stores — public directory, paginated. FEATURED-plan stores sort first server-side. */
   getAll: (params?: StoresQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<StoreWithSeller[]>>('/stores', { ...config, params })
-      .then((r) => unwrapPaginated<StoreWithSeller>(r)),
+      .get<ApiResponse<StoreDirectoryItem[]>>('/stores', { ...config, params })
+      .then((r) => unwrapPaginated<StoreDirectoryItem>(r)),
 
   /** GET /stores/me — the caller's own store. 404 if none yet. */
   getMyStore: (config?: AxiosRequestConfig) => (config ? apiClient.get<ApiResponse<StoreDetails>>('/stores/me', config) : apiClient.get<ApiResponse<StoreDetails>>('/stores/me')),
@@ -96,9 +96,9 @@ export const storesApi = {
     apiClient.post<ApiResponse<ToggleStoreFollowResult>>(`/stores/${id}/follow`),
 
   /** GET /stores/:id/reviews — paginated. */
-  getReviews: (id: string, params?: StoreReviewsQuery) =>
+  getReviews: (id: string, params?: StoreReviewsQuery, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<StoreReview[]>>(`/stores/${id}/reviews`, { params })
+      .get<ApiResponse<StoreReview[]>>(`/stores/${id}/reviews`, { ...config, params })
       .then((r) => unwrapPaginated<StoreReview>(r)),
 
   /** POST /stores/:id/reviews. */

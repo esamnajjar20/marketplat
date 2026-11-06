@@ -8,7 +8,7 @@ import { CACHE_TTL } from '@/lib/constants';
 export function useStoreTypes() {
   return useQuery({
     queryKey: queryKeys.storeTypes.all(),
-    queryFn: () => storeTypesApi.getAll().then((r) => r.data.data),
+    queryFn: ({ signal }) => storeTypesApi.getAll({ signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.storeTypes,
   });
 }
@@ -16,7 +16,7 @@ export function useStoreTypes() {
 export function useStoreTypeFields(storeTypeId?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.storeTypes.fields(storeTypeId ?? ''),
-    queryFn: () => storeTypesApi.getFields(storeTypeId!).then((r) => r.data.data),
+    queryFn: ({ signal }) => storeTypesApi.getFields(storeTypeId!, { signal }).then((r) => r.data.data),
     enabled: Boolean(storeTypeId) && (options?.enabled ?? true),
     staleTime: 15 * 60 * 1000,
   });

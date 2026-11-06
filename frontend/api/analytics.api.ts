@@ -9,6 +9,7 @@ import { apiClient } from './client';
 import { unwrapData } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type { AnalyticsEventType } from '@/lib/analytics';
+import type { AxiosRequestConfig } from 'axios';
 
 export interface AnalyticsTrendPoint {
   bucket: string;
@@ -48,9 +49,9 @@ export interface GetAnalyticsSummaryParams {
 
 export const analyticsApi = {
   /** GET /admin/analytics/summary */
-  getSummary: (params?: GetAnalyticsSummaryParams) =>
+  getSummary: (params?: GetAnalyticsSummaryParams, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<AnalyticsSummary>>('/admin/analytics/summary', { params })
+      .get<ApiResponse<AnalyticsSummary>>('/admin/analytics/summary', { ...config, params })
       // FIX UNWRAPDATA-CONSISTENCY: was `r.data.data!` — a silent
       // undefined if the backend ever returns a body without
       // `data`, consumed as a valid AnalyticsSummary downstream.

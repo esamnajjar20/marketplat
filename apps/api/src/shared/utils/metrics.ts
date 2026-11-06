@@ -46,6 +46,7 @@ function safeTokenEquals(a: string, b: string): boolean {
 
 import { register } from './metricsRegistry';
 import { recordRequestObservation } from './monitoringState';
+import { createDatabaseRequestMetricsFinalizer } from './dbQueryTelemetry';
 export { register };
 
 // Default process/runtime metrics are registered once in metricsRegistry.ts
@@ -147,10 +148,12 @@ function resolveRouteLabel(req: Request): string {
  */
 export const metricsMiddleware = (req: Request, res: Response, next: NextFunction): void => {
   const startTime = process.hrtime.bigint();
+  const finalizeDatabaseMetrics = createDatabaseRequestMetricsFinalizer();
 
   res.on('finish', () => {
     const durationSeconds = Number(process.hrtime.bigint() - startTime) / 1e9;
     const route = resolveRouteLabel(req);
+    finalizeDatabaseMetrics({ method: req.method, route, statusCode: res.statusCode });
     const labels = {
       method: req.method,
       route,

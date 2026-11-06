@@ -68,7 +68,11 @@
     "audit:product-update-pricing-concurrency": "node scripts/product-update-pricing-concurrency-audit.mjs",
     "audit:sale-deleted-product-reconciliation": "node scripts/sale-deleted-product-reconciliation-audit.mjs",
     "report:cleanup-media-assets": "ts-node-dev --transpile-only --exit-child src/scripts/cleanupMediaAssets.ts",
-    "report:fraud-monitor": "ts-node-dev --transpile-only --exit-child src/scripts/fraudMonitor.ts"
+    "report:fraud-monitor": "ts-node-dev --transpile-only --exit-child src/scripts/fraudMonitor.ts",
+    "audit:http-payload-phase4": "node scripts/http-payload-phase4-audit.mjs",
+    "audit:db-query-phase5": "node scripts/prisma-query-phase5-audit.mjs",
+    "audit:db-query-phase6": "node scripts/prisma-query-phase6-audit.mjs",
+    "profile:db-queries": "node scripts/profile-prisma-metrics.mjs"
   },
   "lint-staged": {
     "src/**/*.ts": [

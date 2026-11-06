@@ -22,7 +22,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { isUnfilteredFirstPage } from '@/lib/offlineCachePolicy';
 import { useQueryIdSetMembership } from '@/hooks/queries/sharedIdSetStore';
 import { clearVisitedPublicStore, getVisitedPublicStore, saveVisitedPublicStore } from '@/lib/offlineVisitedPublicEntities';
-import type { StoresQuery, StoreDetails, StoreWithSeller } from '@/types/store.types';
+import type { StoresQuery, StoreDetails, StoreDirectoryItem } from '@/types/store.types';
 import {
   getOfflineJson,
   saveOfflineJson,
@@ -59,20 +59,20 @@ export function useStores(
   const queryKey = queryKeys.stores.list(params);
   const isHomeSnapshot = params?.limit === 6 && params?.sortBy === 'createdAt' && params?.sortOrder === 'desc'
     && !params?.page && !params?.search && !params?.city && !params?.type;
-  useOfflineListSeed<StoreWithSeller, Awaited<ReturnType<typeof storesApi.getAll>>['data']['data']>({
+  useOfflineListSeed<StoreDirectoryItem, Awaited<ReturnType<typeof storesApi.getAll>>['data']['data']>({
     queryKey,
     cacheKey: OFFLINE_LIST_KEYS.homeStores,
     enabled: isHomeSnapshot && (options?.enabled ?? true),
-    mapItems: (items: StoreWithSeller[]) => ({
+    mapItems: (items: StoreDirectoryItem[]) => ({
       items,
       meta: { total: items.length, page: 1, limit: items.length || 1, totalPages: 1, hasNextPage: false, hasPrevPage: false },
     }),
   });
-  useOfflineListSeed<StoreWithSeller, Awaited<ReturnType<typeof storesApi.getAll>>['data']['data']>({
+  useOfflineListSeed<StoreDirectoryItem, Awaited<ReturnType<typeof storesApi.getAll>>['data']['data']>({
     queryKey,
     cacheKey: OFFLINE_LIST_KEYS.storesBrowse,
     enabled: isBaseBrowse && (options?.enabled ?? true),
-    mapItems: (items: StoreWithSeller[]) => ({
+    mapItems: (items: StoreDirectoryItem[]) => ({
       items,
       meta: { total: items.length, page: 1, limit: items.length || 1, totalPages: 1, hasNextPage: false, hasPrevPage: false },
     }),
@@ -86,7 +86,7 @@ export function useStores(
         if (isBaseBrowse && Array.isArray(data?.items)) {
           saveOfflineList(
             OFFLINE_LIST_KEYS.storesBrowse,
-            data.items as StoreWithSeller[],
+            data.items as StoreDirectoryItem[],
             OFFLINE_LIST_LIMITS.storesBrowse,
           );
         }
@@ -95,7 +95,7 @@ export function useStores(
         // React Query cancellation is intentional; never turn it into stale offline data.
         if (signal.aborted) throw err;
         if (isBaseBrowse) {
-          const local = getOfflineList<StoreWithSeller>(OFFLINE_LIST_KEYS.storesBrowse);
+          const local = getOfflineList<StoreDirectoryItem>(OFFLINE_LIST_KEYS.storesBrowse);
           if (local) {
             return {
               items: local.items,

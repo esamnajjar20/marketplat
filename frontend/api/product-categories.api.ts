@@ -1,3 +1,4 @@
+import type { ApiRequestConfig } from './requestConfig';
 /**
  * Product categories API — maps to backend /api/v1/product-categories/*.
  * Mirrors service-categories.api.ts exactly — verified against the
@@ -14,12 +15,12 @@ import type {
 
 export const productCategoriesApi = {
   /** GET /product-categories */
-  getAll: () =>
-    apiClient.get<ApiResponse<ProductCategory[]>>('/product-categories'),
+  getAll: (config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<ProductCategory[]>>('/product-categories', config),
 
   /** GET /product-categories/slug/:slug */
-  getBySlug: (slug: string) =>
-    apiClient.get<ApiResponse<ProductCategory>>(`/product-categories/slug/${slug}`),
+  getBySlug: (slug: string, config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<ProductCategory>>(`/product-categories/slug/${slug}`, config),
 
   /** GET /product-categories/:id */
   getById: (id: string) =>
@@ -28,8 +29,8 @@ export const productCategoriesApi = {
   // ── Admin operations ──────────────────────────────────────────────
 
   /** GET /product-categories/admin/all — every category including inactive ones, uncached. */
-  getAllForAdmin: () =>
-    apiClient.get<ApiResponse<ProductCategory[]>>('/product-categories/admin/all'),
+  getAllForAdmin: (config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<ProductCategory[]>>('/product-categories/admin/all', config),
 
   create: (payload: CreateProductCategoryPayload) =>
     apiClient.post<ApiResponse<ProductCategory>>('/product-categories', payload),

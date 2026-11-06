@@ -3,8 +3,34 @@ import { useAuthStore } from '@/store/auth.store';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
 
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolve) => setTimeout(resolve, ms));
+const SAFE_HTTP_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+function createAbortError(signal?: AbortSignal): Error {
+	if (signal?.reason instanceof Error) return signal.reason;
+	if (typeof DOMException !== 'undefined') {
+		return new DOMException('The operation was aborted', 'AbortError');
+	}
+	const error = new Error('The operation was aborted');
+	error.name = 'AbortError';
+	return error;
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+	if (signal?.aborted) return Promise.reject(createAbortError(signal));
+	return new Promise((resolve, reject) => {
+		const cleanup = () => signal?.removeEventListener('abort', onAbort);
+		const timer = setTimeout(() => {
+			cleanup();
+			resolve();
+		}, ms);
+		const onAbort = () => {
+			clearTimeout(timer);
+			cleanup();
+			reject(createAbortError(signal));
+		};
+		signal?.addEventListener('abort', onAbort, { once: true });
+		if (signal?.aborted) onAbort();
+	});
 }
 let refreshPromise: Promise<unknown> | null = null;
 
@@ -50,32 +76,46 @@ async function _requestInner(url: string, options: RequestInit = {}): Promise<un
 	try { return await response.json(); } catch { return undefined; }
 }
 async function request(url: string, options: RequestInit = {}): Promise<unknown> {
-	const maxAttempts = 3;
-	let lastError: unknown;
+	const method = (options.method ?? 'GET').toUpperCase();
+	const canRetryNetworkFailure = SAFE_HTTP_METHODS.has(method);
+	// A lost response does not prove that a write was not committed. Retry
+	// network/5xx failures only for safe methods; mutations may be replayed
+	// only by an endpoint-specific idempotency contract, not this generic client.
+	const maxNetworkAttempts = canRetryNetworkFailure ? 3 : 1;
+	let networkAttempts = 0;
 	let refreshed = false;
-	for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+
+	while (true) {
 		try {
 			return await _requestInner(url, options);
 		} catch (error) {
-			lastError = error;
 			const status = (error as { status?: number }).status;
-			if (status === 401 && !refreshed) {
+			if (status === 401 && !refreshed && !options.signal?.aborted) {
 				refreshed = true;
 				await refreshOnce();
 				continue;
 			}
+
 			const isRetryable = !status || (status >= 500 && status < 600);
-			if (!isRetryable || attempt === maxAttempts) throw error;
-			await sleep(1000 * Math.pow(2, attempt - 1));
+			if (
+				!canRetryNetworkFailure ||
+				!isRetryable ||
+				options.signal?.aborted
+			) {
+				throw error;
+			}
+
+			networkAttempts += 1;
+			if (networkAttempts >= maxNetworkAttempts) throw error;
+			await sleep(1000 * Math.pow(2, networkAttempts - 1), options.signal);
 		}
 	}
-	throw lastError;
 }
 export const fetchClient = {
 	get: (url: string, options?: RequestInit) => request(url, { ...options, method: 'GET' }),
-	post: (url: string, body?: unknown, options?: RequestInit) => request(url, { ...options, method: 'POST', body: body ? JSON.stringify(body) : undefined }),
-	put: (url: string, body?: unknown, options?: RequestInit) => request(url, { ...options, method: 'PUT', body: body ? JSON.stringify(body) : undefined }),
-	patch: (url: string, body?: unknown, options?: RequestInit) => request(url, { ...options, method: 'PATCH', body: body ? JSON.stringify(body) : undefined }),
+	post: (url: string, body?: unknown, options?: RequestInit) => request(url, { ...options, method: 'POST', body: body !== undefined ? JSON.stringify(body) : undefined }),
+	put: (url: string, body?: unknown, options?: RequestInit) => request(url, { ...options, method: 'PUT', body: body !== undefined ? JSON.stringify(body) : undefined }),
+	patch: (url: string, body?: unknown, options?: RequestInit) => request(url, { ...options, method: 'PATCH', body: body !== undefined ? JSON.stringify(body) : undefined }),
 	delete: (url: string, options?: RequestInit & { data?: unknown }) => {
     const { data, ...rest } = options ?? {};
     return request(url, {

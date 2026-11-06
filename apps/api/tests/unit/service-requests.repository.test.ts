@@ -3,6 +3,7 @@ import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
+    $queryRaw: jest.fn(),
     serviceRequest: {
       findUnique: jest.fn(),
       findMany: jest.fn(),
@@ -58,6 +59,37 @@ describe('serviceRequestsRepository', () => {
       expect(mockTx.serviceRequest.create).toHaveBeenCalledWith({
         data: expect.objectContaining({ attachedImages: [] }),
       });
+    });
+  });
+
+  describe('expirePendingBatch', () => {
+    it('expires only still-pending stale rows with one parameterized UPDATE ... RETURNING query', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ id: 'a' }, { id: 'b' }]);
+      const cutoff = new Date('2026-10-01T00:00:00.000Z');
+
+      await expect(serviceRequestsRepository.expirePendingBatch(['a', 'b', 'a'], cutoff)).resolves.toEqual([
+        'a',
+        'b',
+      ]);
+
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      const query = (prisma.$queryRaw as jest.Mock).mock.calls[0][0] as {
+        sql?: string;
+        strings?: string[];
+        values?: unknown[];
+      };
+      const sqlText = query.sql ?? query.strings?.join('?') ?? '';
+      expect(sqlText).toContain('UPDATE "service_requests"');
+      expect(sqlText).toContain('RETURNING "id"');
+      expect(sqlText).toContain(`"status" = 'PENDING'`);
+      expect(sqlText).toContain('"createdAt" <');
+      expect(sqlText).not.toContain('IN (a, b)');
+      expect(query.values).toEqual(expect.arrayContaining(['a', 'b', cutoff]));
+    });
+
+    it('does not issue raw SQL for an empty batch', async () => {
+      await expect(serviceRequestsRepository.expirePendingBatch([], new Date())).resolves.toEqual([]);
+      expect(prisma.$queryRaw).not.toHaveBeenCalled();
     });
   });
 

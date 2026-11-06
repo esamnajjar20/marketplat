@@ -14,7 +14,7 @@ export function useMyCollections(options?: { enabled?: boolean }) {
 
   return useQuery({
     queryKey: queryKeys.collections.mine(),
-    queryFn: () => collectionsApi.getMine().then((r) => r.data.data ?? []),
+    queryFn: ({ signal }) => collectionsApi.getMine({ signal }).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.myAds,
     enabled: (options?.enabled ?? true) && isAuthenticated && hasAccessToken && !isAuthResolving,
   });
@@ -24,7 +24,7 @@ export function useMyCollections(options?: { enabled?: boolean }) {
 export function useCollection(id: string) {
   return useQuery({
     queryKey: queryKeys.collections.detail(id),
-    queryFn: () => collectionsApi.getById(id).then((r) => r.data.data),
+    queryFn: ({ signal }) => collectionsApi.getById(id, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.myAds,
     enabled: Boolean(id),
   });
@@ -34,7 +34,7 @@ export function useCollection(id: string) {
 export function usePublicCollections(storeId: string) {
   return useQuery({
     queryKey: queryKeys.collections.forStore(storeId),
-    queryFn: () => collectionsApi.getPublicCollections(storeId).then((r) => r.data.data ?? []),
+    queryFn: ({ signal }) => collectionsApi.getPublicCollections(storeId, { signal }).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.sellerProfile,
     enabled: Boolean(storeId),
   });
@@ -44,7 +44,7 @@ export function usePublicCollections(storeId: string) {
 export function useCollectionProducts(id: string) {
   return useQuery({
     queryKey: queryKeys.collections.products(id),
-    queryFn: () => collectionsApi.getPublicCollectionProducts(id).then((r) => r.data.data ?? []),
+    queryFn: ({ signal }) => collectionsApi.getPublicCollectionProducts(id, { signal }).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.sellerProfile,
     enabled: Boolean(id),
   });

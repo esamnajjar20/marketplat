@@ -10,12 +10,13 @@ import { apiClient } from './client';
 import { unwrapData } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type { SavedSearch, CreateSavedSearchInput } from '@/types/savedSearch.types';
+import type { ApiRequestConfig } from './requestConfig';
 
 export const savedSearchesApi = {
   /** GET /saved-searches — the current user's saved searches, newest first. */
-  getAll: () =>
+  getAll: (config?: ApiRequestConfig) =>
     apiClient
-      .get<ApiResponse<SavedSearch[]>>('/saved-searches')
+      .get<ApiResponse<SavedSearch[]>>('/saved-searches', config)
       .then((r) => unwrapData(r)),
 
   /** POST /saved-searches — create a new saved search. */

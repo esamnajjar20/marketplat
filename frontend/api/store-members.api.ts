@@ -1,3 +1,4 @@
+import type { ApiRequestConfig } from './requestConfig';
 /**
  * Store Members API — maps to backend /api/v1/stores/* member routes.
  * Kept as its own module rather than folded into stores.api.ts — same
@@ -16,9 +17,9 @@ import type {
 
 export const storeMembersApi = {
   /** GET /stores/:id/members — team list (owner or active member). */
-  list: (storeId: string, params?: ListStoreMembersQuery) =>
+  list: (storeId: string, params?: ListStoreMembersQuery, config?: ApiRequestConfig) =>
     apiClient
-      .get<ApiResponse<StoreMember[]>>(`/stores/${storeId}/members`, { params })
+      .get<ApiResponse<StoreMember[]>>(`/stores/${storeId}/members`, { ...config, params })
       .then((r) => unwrapPaginated<StoreMember>(r)),
 
   /** POST /stores/:id/members — invite by email. */
@@ -37,8 +38,8 @@ export const storeMembersApi = {
     apiClient.delete<ApiResponse<null>>(`/stores/${storeId}/members/${memberId}`),
 
   /** GET /stores/me/member-invites — pending invites for the current user. */
-  listMyPendingInvites: () =>
-    apiClient.get<ApiResponse<StoreMember[]>>('/stores/me/member-invites'),
+  listMyPendingInvites: (config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<StoreMember[]>>('/stores/me/member-invites', config),
 
   /** POST /stores/me/member-invites/:memberId/accept */
   acceptInvite: (memberId: string) =>

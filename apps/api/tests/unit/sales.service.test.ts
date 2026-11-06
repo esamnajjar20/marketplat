@@ -111,6 +111,91 @@ describe('salesService', () => {
     }));
   });
 
+  it('loads a POS cart in one product query and authorizes its store once', async () => {
+    const products = [
+      {
+        id: 'product-1', name: 'First', images: ['first.jpg'], price: 10,
+        costPrice: 4, storeId: 'store-1', status: 'ACTIVE',
+      },
+      {
+        id: 'product-2', name: 'Second', images: [], price: 20,
+        costPrice: 8, storeId: 'store-1', status: 'ACTIVE',
+      },
+    ];
+    (prisma.product.findMany as jest.Mock).mockResolvedValue(products);
+    (requireStoreAccess as jest.Mock).mockResolvedValue({ kind: 'owner', store: { id: 'store-1' } });
+    tx.$queryRaw
+      .mockResolvedValueOnce([{ id: 'product-1', storeId: 'store-1', stockQuantity: 10, status: 'ACTIVE' }])
+      .mockResolvedValueOnce([{ id: 'product-2', storeId: 'store-1', stockQuantity: 10, status: 'ACTIVE' }]);
+    (tx.stockMovement.create as jest.Mock).mockResolvedValue({ id: 'movement-1' });
+
+    await salesService.create('user-1', {
+      ...base,
+      entityType: 'PRODUCT',
+      paidAmount: 0,
+      items: [
+        { productId: 'product-1', quantity: 2, unitPrice: 10, discount: 0 },
+        { productId: 'product-2', quantity: 1, unitPrice: 20, discount: 0 },
+      ],
+    });
+
+    expect(prisma.product.findMany).toHaveBeenCalledTimes(1);
+    expect(prisma.product.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: { in: ['product-1', 'product-2'] } },
+      select: expect.objectContaining({ id: true, storeId: true, status: true }),
+    }));
+    expect(prisma.product.findUnique).not.toHaveBeenCalled();
+    expect(requireStoreAccess).toHaveBeenCalledTimes(1);
+    expect(requireStoreAccess).toHaveBeenCalledWith('user-1', 'store-1', 'manageProducts');
+    expect(tx.saleItem.create).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects a mixed-store POS cart before sale creation', async () => {
+    (prisma.product.findMany as jest.Mock).mockResolvedValue([
+      { id: 'product-1', name: 'First', images: [], price: 10, costPrice: null, storeId: 'store-1', status: 'ACTIVE' },
+      { id: 'product-2', name: 'Second', images: [], price: 20, costPrice: null, storeId: 'store-2', status: 'ACTIVE' },
+    ]);
+    (requireStoreAccess as jest.Mock).mockResolvedValue({ kind: 'owner', store: { id: 'store-1' } });
+
+    await expect(salesService.create('user-1', {
+      ...base,
+      entityType: 'PRODUCT',
+      items: [
+        { productId: 'product-1', quantity: 1, unitPrice: 10, discount: 0 },
+        { productId: 'product-2', quantity: 1, unitPrice: 20, discount: 0 },
+      ],
+    })).rejects.toMatchObject({ code: 'POS_MULTI_STORE_NOT_SUPPORTED' });
+
+    expect(prisma.product.findMany).toHaveBeenCalledTimes(1);
+    expect(requireStoreAccess).toHaveBeenCalledTimes(2);
+    expect(requireStoreAccess).toHaveBeenNthCalledWith(1, 'user-1', 'store-1', 'manageProducts');
+    expect(requireStoreAccess).toHaveBeenNthCalledWith(2, 'user-1', 'store-2', 'manageProducts');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+    expect(salesRepository.create).not.toHaveBeenCalled();
+  });
+
+  it('reuses the current-month summary for both dashboard summary and comparison', async () => {
+    const current = { totalRevenue: 100, totalCost: 30, netProfit: 70 } as any;
+    const previous = { totalRevenue: 80, totalCost: 25, netProfit: 55 } as any;
+    (salesRepository.summary as jest.Mock)
+      .mockResolvedValueOnce(current)
+      .mockResolvedValueOnce(previous);
+    (salesRepository.topProducts as jest.Mock).mockResolvedValue([]);
+    (salesRepository.topCustomers as jest.Mock).mockResolvedValue([]);
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+      { totalDue: 0, overdueDue: 0, dueToday: 0, debtorCount: 0n },
+    ]);
+    (prisma.product.findMany as jest.Mock).mockResolvedValue([]);
+
+    const result = await salesService.dashboard('user-1');
+
+    expect(salesRepository.summary).toHaveBeenCalledTimes(2);
+    expect(result.summary).toBe(current);
+    expect(result.compare.current).toBe(current);
+    expect(result.compare.previous).toBe(previous);
+    expect(result.compare.revenueChangePercentage).toBe(25);
+  });
+
   it('locks and re-reads a sale before recalculating derived payment fields during edit', async () => {
     const freshSale = {
       id: 'sale-1', sellerId: 'user-1', customerId: null, totalPrice: 100, refundedAmount: 20,

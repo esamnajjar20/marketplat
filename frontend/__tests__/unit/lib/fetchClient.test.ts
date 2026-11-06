@@ -26,6 +26,7 @@ function setCookie(value: string) {
 
 describe('fetchClient CSRF headers', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     setCookie('');
     authState.accessToken = 'test-access-token';
@@ -105,6 +106,74 @@ describe('fetchClient CSRF headers', () => {
     expect(firstHeaders.get('X-CSRF-Token')).toBe('old-csrf-token');
     expect(retryHeaders.get('Authorization')).toBe('Bearer fresh-access-token');
     expect(retryHeaders.get('X-CSRF-Token')).toBe('fresh-csrf-token');
+  });
+
+  it('does not automatically replay a POST after a server error', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      statusText: 'Service Unavailable',
+      json: async () => ({ message: 'temporary failure' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchClient.post('/api/v1/notifications/push-subscriptions', { endpoint: 'https://push.test/3' }))
+      .rejects.toMatchObject({ status: 503 });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not automatically replay a POST after a network failure', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchClient.post('/api/v1/notifications/push-subscriptions', { endpoint: 'https://push.test/4' }))
+      .rejects.toThrow('Failed to fetch');
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries transient GET failures but stops after the configured safe-request attempts', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        statusText: 'Service Unavailable',
+        json: async () => ({ message: 'warming up' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const pending = fetchClient.get('/api/v1/categories');
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await expect(pending).resolves.toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('cancels a pending safe-request retry when its AbortSignal fires', async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      statusText: 'Service Unavailable',
+      json: async () => ({ message: 'warming up' }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const pending = fetchClient.get('/api/v1/categories', { signal: controller.signal });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    controller.abort();
+
+    await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not invent an Authorization header when no session token is in memory', async () => {

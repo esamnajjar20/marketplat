@@ -546,12 +546,17 @@ export const serviceRequestsService = {
       const stale = await serviceRequestsRepository.findStalePending(cutoff, EXPIRY_BATCH_SIZE);
       if (stale.length === 0) break;
 
-      let progressed = 0;
+      // One atomic UPDATE replaces up to 200 per-row UPDATE statements.
+      // PostgreSQL RETURNING gives the exact winners, preserving the race
+      // guard: rows answered between the read and update are not notified.
+      const expiredIds = new Set(
+        await serviceRequestsRepository.expirePendingBatch(stale.map(row => row.id), cutoff)
+      );
+      const progressed = expiredIds.size;
+      expired += progressed;
+
       for (const row of stale) {
-        const { count } = await serviceRequestsRepository.expirePending(row.id, cutoff);
-        if (count === 0) continue; // answered in the meantime
-        progressed += 1;
-        expired += 1;
+        if (!expiredIds.has(row.id)) continue; // another transition won the race
         // (audit H4): pass ttlDays so the body
         // cannot lie if the TTL constant changes.
         notificationEvents

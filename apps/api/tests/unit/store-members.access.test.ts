@@ -19,6 +19,7 @@ jest.mock('../../src/shared/utils/auditLog', () => ({
 
 const userId = 'staff-1';
 const store = { id: 'store-1', sellerProfileId: 'owner-seller', status: 'ACTIVE' } as any;
+const accessStore = { ...store, sellerProfile: { id: 'owner-seller', userId: 'store-owner', suspended: false } };
 
 const membership = (role: 'MANAGER' | 'EDITOR' | 'STAFF', storeId = store.id, invitedAt = '2026-01-01') =>
   ({ userId, storeId, role, status: 'ACTIVE', invitedAt: new Date(invitedAt) }) as any;
@@ -29,7 +30,11 @@ describe('requireStoreAccessForProducts (audit H1: members, not just owners)', (
     // Caller has no seller profile of their own → staff path.
     (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(null);
     (storesRepository.findById as jest.Mock).mockResolvedValue(store);
-    (sellersRepository.findById as jest.Mock).mockResolvedValue({ id: 'owner-seller', suspended: false });
+    (storesRepository.findByIdForAccess as jest.Mock).mockResolvedValue(accessStore);
+    (storesRepository.findBySlugForAccess as jest.Mock).mockResolvedValue(null);
+    (storesRepository.findManyForStaffAccess as jest.Mock).mockResolvedValue([
+      { ...store, sellerProfile: { suspended: false } },
+    ]);
   });
 
   // Role × capability matrix, mirrors ROLE_CAPABILITIES.
@@ -51,7 +56,7 @@ describe('requireStoreAccessForProducts (audit H1: members, not just owners)', (
     const call = requireStoreAccessForProducts(userId, capability);
 
     if (allowed) {
-      await expect(call).resolves.toEqual(store);
+      await expect(call).resolves.toMatchObject(store);
     } else {
       await expect(call).rejects.toThrow(BadRequestError);
     }
@@ -59,7 +64,7 @@ describe('requireStoreAccessForProducts (audit H1: members, not just owners)', (
 
   it('defaults to the manageProducts capability', async () => {
     (storeMembersRepository.findActiveByUserId as jest.Mock).mockResolvedValue([membership('EDITOR')]);
-    await expect(requireStoreAccessForProducts(userId)).resolves.toEqual(store);
+    await expect(requireStoreAccessForProducts(userId)).resolves.toMatchObject(store);
   });
 
   it('prefers the caller\'s own store over a membership elsewhere', async () => {
@@ -79,7 +84,9 @@ describe('requireStoreAccessForProducts (audit H1: members, not just owners)', (
 
   it('blocks staff writes while the store owner is suspended', async () => {
     (storeMembersRepository.findActiveByUserId as jest.Mock).mockResolvedValue([membership('MANAGER')]);
-    (sellersRepository.findById as jest.Mock).mockResolvedValue({ id: 'owner-seller', suspended: true });
+    (storesRepository.findManyForStaffAccess as jest.Mock).mockResolvedValue([
+      { ...store, sellerProfile: { suspended: true } },
+    ]);
 
     await expect(requireStoreAccessForProducts(userId)).rejects.toThrow(ForbiddenError);
   });
@@ -91,11 +98,34 @@ describe('requireStoreAccessForProducts (audit H1: members, not just owners)', (
       membership('MANAGER', 'store-blocked', '2026-01-01'),
       membership('EDITOR', 'store-2', '2026-02-01'),
     ]);
-    (storesRepository.findById as jest.Mock).mockImplementation(async (id: string) =>
-      id === 'store-blocked' ? blocked : second
-    );
+    (storesRepository.findManyForStaffAccess as jest.Mock).mockResolvedValue([
+      { ...blocked, sellerProfile: { suspended: false } },
+      { ...second, sellerProfile: { suspended: false } },
+    ]);
 
-    await expect(requireStoreAccessForProducts(userId)).resolves.toEqual(second);
+    await expect(requireStoreAccessForProducts(userId)).resolves.toEqual({
+      ...second,
+      sellerProfile: { suspended: false },
+    });
+  });
+
+  it('batches owner access checks for all eligible memberships into one query', async () => {
+    const first = { ...store, id: 'store-oldest' };
+    const second = { ...store, id: 'store-newer' };
+    (storeMembersRepository.findActiveByUserId as jest.Mock).mockResolvedValue([
+      membership('MANAGER', second.id, '2026-02-01'),
+      membership('EDITOR', first.id, '2026-01-01'),
+    ]);
+    (storesRepository.findManyForStaffAccess as jest.Mock).mockResolvedValue([
+      { ...second, sellerProfile: { suspended: false } },
+      { ...first, sellerProfile: { suspended: false } },
+    ]);
+
+    await expect(requireStoreAccessForProducts(userId)).resolves.toMatchObject({ id: first.id });
+    expect(storesRepository.findManyForStaffAccess).toHaveBeenCalledTimes(1);
+    expect(storesRepository.findManyForStaffAccess).toHaveBeenCalledWith([second.id, first.id]);
+    expect(storesRepository.findById).not.toHaveBeenCalled();
+    expect(sellersRepository.findById).not.toHaveBeenCalled();
   });
 
   it('throws BadRequestError (STORE_REQUIRED) when the user has neither a store nor a membership', async () => {
@@ -104,22 +134,53 @@ describe('requireStoreAccessForProducts (audit H1: members, not just owners)', (
     await expect(requireStoreAccessForProducts(userId)).rejects.toMatchObject({ code: 'STORE_REQUIRED' });
   });
 
+  it('resolves an owner from the joined store row without extra seller queries', async () => {
+    (storesRepository.findByIdForAccess as jest.Mock).mockResolvedValue({
+      ...accessStore,
+      sellerProfile: { ...accessStore.sellerProfile, userId },
+    });
+
+    await expect(requireStoreAccess(userId, store.id, 'manageAds')).resolves.toMatchObject({
+      kind: 'owner',
+      store: { id: store.id },
+    });
+    expect(storesRepository.findByIdForAccess).toHaveBeenCalledTimes(1);
+    expect(sellersRepository.findById).not.toHaveBeenCalled();
+    expect(sellersRepository.findByUserId).not.toHaveBeenCalled();
+    expect(storeMembersRepository.findActive).not.toHaveBeenCalled();
+  });
+
+  it('uses the joined store row for staff authorization and fetches only the membership', async () => {
+    (storeMembersRepository.findActive as jest.Mock).mockResolvedValue(membership('MANAGER'));
+
+    await expect(requireStoreAccess(userId, store.id, 'manageAds')).resolves.toMatchObject({
+      kind: 'member',
+      role: 'MANAGER',
+    });
+    expect(storesRepository.findByIdForAccess).toHaveBeenCalledTimes(1);
+    expect(sellersRepository.findById).not.toHaveBeenCalled();
+    expect(sellersRepository.findByUserId).not.toHaveBeenCalled();
+  });
+
   it('blocks capability writes to a BLOCKED store for owners and members', async () => {
-    (storesRepository.findById as jest.Mock).mockResolvedValue({ ...store, status: 'BLOCKED' });
+    (storesRepository.findByIdForAccess as jest.Mock).mockResolvedValue({ ...accessStore, status: 'BLOCKED' });
     (storeMembersRepository.findActive as jest.Mock).mockResolvedValue(membership('MANAGER'));
 
     await expect(requireStoreAccess(userId, store.id, 'manageAds')).rejects.toMatchObject({ code: 'STORE_BLOCKED' });
   });
 
   it('blocks capability writes when the owning seller is suspended', async () => {
-    (sellersRepository.findById as jest.Mock).mockResolvedValue({ id: 'owner-seller', suspended: true });
+    (storesRepository.findByIdForAccess as jest.Mock).mockResolvedValue({
+      ...accessStore,
+      sellerProfile: { ...accessStore.sellerProfile, suspended: true },
+    });
     (storeMembersRepository.findActive as jest.Mock).mockResolvedValue(membership('MANAGER'));
 
     await expect(requireStoreAccess(userId, store.id, 'manageAds')).rejects.toMatchObject({ code: 'STORE_OWNER_SUSPENDED' });
   });
 
   it('keeps read-only access to the member list available for a blocked store', async () => {
-    (storesRepository.findById as jest.Mock).mockResolvedValue({ ...store, status: 'BLOCKED' });
+    (storesRepository.findByIdForAccess as jest.Mock).mockResolvedValue({ ...accessStore, status: 'BLOCKED' });
     (storeMembersRepository.findActive as jest.Mock).mockResolvedValue(membership('MANAGER'));
 
     await expect(requireStoreAccess(userId, store.id)).resolves.toMatchObject({ kind: 'member', store: { status: 'BLOCKED' } });

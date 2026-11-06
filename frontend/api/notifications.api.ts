@@ -50,8 +50,8 @@ export const notificationsApi = {
     apiClient.post<ApiResponse<{ devices: number }>>('/notifications/push-test'),
 
   /** GET /notifications/devices — كل الأجهزة المسجّلة للإشعارات الخارجية. */
-  getDevices: () =>
-    apiClient.get<ApiResponse<NotificationDevice[]>>('/notifications/devices'),
+  getDevices: (config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<NotificationDevice[]>>('/notifications/devices', config),
 
   /** PATCH /notifications/devices/:kind/:id — إعادة تسمية جهاز. */
   renameDevice: (kind: NotificationDevice['kind'], id: string, label: string) =>

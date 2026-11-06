@@ -20,7 +20,7 @@ export function useStoreMembers(storeId: string | undefined, params?: ListStoreM
   return useQuery({
     queryKey: queryKeys.stores.members(storeId ?? '', params),
     // unwrapPaginated → { items, meta } under r.data.data
-    queryFn: () => storeMembersApi.list(storeId!, params).then((r) => r.data.data),
+    queryFn: ({ signal }) => storeMembersApi.list(storeId!, params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.sellerProfile,
     enabled: isAuthenticated && Boolean(storeId) && (hasToken || !isOnline),
   });
@@ -34,8 +34,8 @@ export function useMyMemberInvites() {
 
   return useQuery({
     queryKey: queryKeys.stores.memberInvites(),
-    queryFn: () =>
-      storeMembersApi.listMyPendingInvites().then((r) => r.data.data ?? []),
+    queryFn: ({ signal }) =>
+      storeMembersApi.listMyPendingInvites({ signal }).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.sellerProfile,
     enabled: isAuthenticated && (hasToken || !isOnline),
   });

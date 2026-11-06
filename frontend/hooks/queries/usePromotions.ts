@@ -9,7 +9,7 @@ import { CACHE_TTL } from '@/lib/constants';
 export function useMyPromotions() {
   return useQuery({
     queryKey: queryKeys.promotions.mine(),
-    queryFn: () => promotionsApi.getMine().then((r) => r.data.data ?? []),
+    queryFn: ({ signal }) => promotionsApi.getMine({ signal }).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.myAds,
   });
 }
@@ -17,7 +17,7 @@ export function useMyPromotions() {
 export function usePromotion(id: string) {
   return useQuery({
     queryKey: queryKeys.promotions.detail(id),
-    queryFn: () => promotionsApi.getById(id).then((r) => r.data.data),
+    queryFn: ({ signal }) => promotionsApi.getById(id, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.myAds,
     enabled: Boolean(id),
   });

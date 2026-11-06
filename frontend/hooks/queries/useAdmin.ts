@@ -35,7 +35,7 @@ import type { AdminGetAdsParams, AdminGetUsersParams, AdminGetSellersParams, Adm
 export function useAdminAds(params?: AdminGetAdsParams) {
   return useQuery({
     queryKey:        queryKeys.admin.ads(params),
-    queryFn:         () => adminApi.getAds(params).then((r) => r.data.data),
+    queryFn:         ({ signal }) => adminApi.getAds(params, { signal }).then((r) => r.data.data),
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.adminList,
   });
@@ -48,7 +48,7 @@ export function useAdminAds(params?: AdminGetAdsParams) {
 export function useAdminUsers(params?: AdminGetUsersParams) {
   return useQuery({
     queryKey:        queryKeys.admin.users(params),
-    queryFn:         () => adminApi.getUsers(params).then((r) => r.data.data),
+    queryFn:         ({ signal }) => adminApi.getUsers(params, { signal }).then((r) => r.data.data),
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.adminList,
   });
@@ -62,7 +62,7 @@ export function useAdminUsers(params?: AdminGetUsersParams) {
 export function useAdminSellers(params?: AdminGetSellersParams) {
   return useQuery({
     queryKey:        queryKeys.admin.sellers(params),
-    queryFn:         () => adminApi.getSellers(params).then((r) => r.data.data),
+    queryFn:         ({ signal }) => adminApi.getSellers(params, { signal }).then((r) => r.data.data),
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.adminList,
   });
@@ -78,7 +78,7 @@ export function useAdminSellers(params?: AdminGetSellersParams) {
 export function useAdminStores(params?: AdminGetStoresParams) {
   return useQuery({
     queryKey:        queryKeys.admin.stores(params),
-    queryFn:         () => adminApi.getStores(params).then((r) => r.data.data),
+    queryFn:         ({ signal }) => adminApi.getStores(params, { signal }).then((r) => r.data.data),
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.adminList,
   });
@@ -87,7 +87,7 @@ export function useAdminStores(params?: AdminGetStoresParams) {
 export function useAdminStoreTypes() {
   return useQuery({
     queryKey: queryKeys.admin.storeTypes(),
-    queryFn: () => adminApi.getStoreTypes().then((r) => r.data.data),
+    queryFn: ({ signal }) => adminApi.getStoreTypes({ signal }).then((r) => r.data.data),
     staleTime: 60 * 60 * 1000,
   });
 }
@@ -103,7 +103,7 @@ export function useAdminReports(
 ) {
   return useQuery({
     queryKey:        queryKeys.admin.reports(params),
-    queryFn:         () => adminApi.getReports(params).then((r) => r.data.data),
+    queryFn:         ({ signal }) => adminApi.getReports(params, { signal }).then((r) => r.data.data),
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.adminList,
     enabled:         options?.enabled ?? true,
@@ -114,7 +114,7 @@ export function useAdminReports(
 export function useAdminReportDetail(reportId: string) {
   return useQuery({
     queryKey:  queryKeys.admin.reportDetail(reportId),
-    queryFn:   () => adminApi.getReportById(reportId).then((r) => r.data.data),
+    queryFn:   ({ signal }) => adminApi.getReportById(reportId, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.adminList,
     enabled:   Boolean(reportId),
   });
@@ -128,7 +128,7 @@ export function useAdminReportDetail(reportId: string) {
 export function useAdminAuditLogs(params?: AdminGetAuditLogsParams) {
   return useQuery({
     queryKey:        queryKeys.admin.auditLogs(params),
-    queryFn:         () => adminApi.getAuditLogs(params).then((r) => r.data.data),
+    queryFn:         ({ signal }) => adminApi.getAuditLogs(params, { signal }).then((r) => r.data.data),
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.adminList,
   });
@@ -147,7 +147,7 @@ export function useAdminAuditLogs(params?: AdminGetAuditLogsParams) {
 export function useAdminOpsQueue() {
   return useQuery({
     queryKey: queryKeys.admin.opsQueue(),
-    queryFn: () => adminApi.getOpsQueue().then((r) => r.data.data),
+    queryFn: ({ signal }) => adminApi.getOpsQueue({ signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.adminList,
     // Respect visibility/online policy: do not poll admin counters in a
     // hidden tab or while offline. These are operational summaries, not
@@ -159,7 +159,7 @@ export function useAdminOpsQueue() {
 export function useAdminStats() {
   return useQuery({
     queryKey:  queryKeys.admin.stats(),
-    queryFn:   () => adminApi.getStats().then((r) => r.data.data),
+    queryFn:   ({ signal }) => adminApi.getStats({ signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.adminList,
   });
 }
@@ -178,7 +178,7 @@ export function useAdminStats() {
 export function useAdminFlaggedAds(params?: AdminGetFlaggedAdsParams) {
   return useQuery({
     queryKey:        queryKeys.admin.fraudAds(params),
-    queryFn:         () => adminApi.getFlaggedAds(params).then((r) => r.data.data),
+    queryFn:         ({ signal }) => adminApi.getFlaggedAds(params, { signal }).then((r) => r.data.data),
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.adminList,
   });
@@ -188,7 +188,7 @@ export function useAdminFlaggedAds(params?: AdminGetFlaggedAdsParams) {
 export function useAdminFraudSignals(params?: AdminGetFraudSignalsParams) {
   return useQuery({
     queryKey:        queryKeys.admin.fraudSignals(params),
-    queryFn:         () => adminApi.getFraudSignals(params).then((r) => r.data.data),
+    queryFn:         ({ signal }) => adminApi.getFraudSignals(params, { signal }).then((r) => r.data.data),
     placeholderData: keepPreviousData,
     staleTime:       CACHE_TTL.adminList,
     // Signals are fetched per-ad (params.adId) from an expandable row —
@@ -200,7 +200,7 @@ export function useAdminFraudSignals(params?: AdminGetFraudSignalsParams) {
 export function useAdminAnalyticsSummary(params?: GetAnalyticsSummaryParams) {
   return useQuery({
     queryKey:  queryKeys.admin.analyticsSummary(params),
-    queryFn:   () => analyticsApi.getSummary(params),
+    queryFn:   ({ signal }) => analyticsApi.getSummary(params, { signal }),
     staleTime: CACHE_TTL.adminAnalytics,
   });
 }
@@ -208,7 +208,7 @@ export function useAdminAnalyticsSummary(params?: GetAnalyticsSummaryParams) {
 export function useAdminProducts(params?: Parameters<typeof adminApi.getAdminProducts>[0]) {
   return useQuery({
     queryKey: queryKeys.admin.products(params),
-    queryFn: () => adminApi.getAdminProducts(params).then((r) => r.data),
+    queryFn: ({ signal }) => adminApi.getAdminProducts(params, { signal }).then((r) => r.data),
     staleTime: CACHE_TTL.adminList,
     placeholderData: keepPreviousData,
   });
@@ -217,7 +217,7 @@ export function useAdminProducts(params?: Parameters<typeof adminApi.getAdminPro
 export function useAdminServiceListings(params?: Parameters<typeof adminApi.getAdminServiceListings>[0]) {
   return useQuery({
     queryKey: queryKeys.admin.serviceListings(params),
-    queryFn: () => adminApi.getAdminServiceListings(params).then((r) => r.data),
+    queryFn: ({ signal }) => adminApi.getAdminServiceListings(params, { signal }).then((r) => r.data),
     staleTime: CACHE_TTL.adminList,
     placeholderData: keepPreviousData,
   });
@@ -226,7 +226,7 @@ export function useAdminServiceListings(params?: Parameters<typeof adminApi.getA
 export function useAdminServiceRequestDisputes(params?: { page?: number; limit?: number }) {
   return useQuery({
     queryKey: queryKeys.admin.serviceRequestDisputes(params),
-    queryFn: () => adminApi.getServiceRequestDisputes(params).then((r) => r.data),
+    queryFn: ({ signal }) => adminApi.getServiceRequestDisputes(params, { signal }).then((r) => r.data),
     staleTime: CACHE_TTL.adminList,
     placeholderData: keepPreviousData,
   });
@@ -235,7 +235,7 @@ export function useAdminServiceRequestDisputes(params?: { page?: number; limit?:
 export function useAdminOpenRequests(params?: Parameters<typeof adminApi.getAdminOpenRequests>[0]) {
   return useQuery({
     queryKey: queryKeys.admin.openRequests(params),
-    queryFn: () => adminApi.getAdminOpenRequests(params).then((r) => r.data),
+    queryFn: ({ signal }) => adminApi.getAdminOpenRequests(params, { signal }).then((r) => r.data),
     staleTime: CACHE_TTL.adminList,
     placeholderData: keepPreviousData,
   });
@@ -244,7 +244,7 @@ export function useAdminOpenRequests(params?: Parameters<typeof adminApi.getAdmi
 export function useAdminPlatformTrends(days = 30) {
   return useQuery({
     queryKey: queryKeys.admin.trends(days),
-    queryFn: () => adminApi.getPlatformTrends(days).then((r) => r.data.data),
+    queryFn: ({ signal }) => adminApi.getPlatformTrends(days, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.adminAnalytics,
   });
 }
@@ -252,7 +252,7 @@ export function useAdminPlatformTrends(days = 30) {
 export function useAdminSystemHealth() {
   return useQuery({
     queryKey: queryKeys.admin.systemHealth(),
-    queryFn: () => adminApi.getSystemHealth().then((r) => r.data.data),
+    queryFn: ({ signal }) => adminApi.getSystemHealth({ signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.adminList,
     // Respect visibility/online policy: do not poll admin counters in a
     // hidden tab or while offline. These are operational summaries, not
@@ -264,7 +264,7 @@ export function useAdminSystemHealth() {
 export function useAdminStoreTypeFields(storeTypeId?: string) {
   return useQuery({
     queryKey: queryKeys.storeTypes.fields(`admin:${storeTypeId ?? ''}`),
-    queryFn: () => adminApi.getStoreTypeFields(storeTypeId!).then((r) => r.data.data),
+    queryFn: ({ signal }) => adminApi.getStoreTypeFields(storeTypeId!, { signal }).then((r) => r.data.data),
     enabled: Boolean(storeTypeId),
     staleTime: 5 * 60 * 1000,
   });

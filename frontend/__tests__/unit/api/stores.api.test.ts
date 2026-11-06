@@ -17,7 +17,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { storesApi } from '@/api/stores.api';
 import { apiClient } from '@/api/client';
-import type { StoreWithSeller, StoreFollowerWithStore, StoreReview } from '@/types/store.types';
+import type { StoreDirectoryItem, StoreWithSeller, StoreFollowerWithStore, StoreReview } from '@/types/store.types';
 
 vi.mock('@/api/client', () => ({
   apiClient: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
@@ -107,9 +107,9 @@ describe('storesApi — endpoint/method correctness', () => {
 
 describe('storesApi — paginated response unwrapping', () => {
   const store: StoreWithSeller = {
-    id: 's-1', sellerProfileId: 'sp-1', name: 'متجر تجريبي', description: 'وصف',
+    id: 's-1', sellerProfileId: 'sp-1', storeTypeId: 'st_general', slug: 'store-slug', name: 'متجر تجريبي', description: 'وصف',
     logoUrl: null, coverImageUrl: null, city: 'غزة', address: null, phone: '0599000000',
-    status: 'ACTIVE', plan: 'FREE', latitude: null, longitude: null,
+    status: 'ACTIVE', plan: 'FREE', latitude: null, longitude: null, workingHours: null, views: 0,
     createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
     sellerProfile: {
       id: 'sp-1', userId: 'u-1', displayName: 'بائع', bio: null, avatarUrl: null,
@@ -120,11 +120,19 @@ describe('storesApi — paginated response unwrapping', () => {
       createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
     },
   };
+  const directoryStore: StoreDirectoryItem = {
+    ...store,
+    storeType: {
+      id: 'st_general', slug: 'general', nameAr: 'عام', icon: 'store',
+      labels: { products: 'المنتجات', product: 'منتج', addProduct: 'أضف منتجًا', categories: 'التصنيفات' },
+    },
+    sellerProfile: { id: 'sp-1', verified: false, averageRating: '0', totalRatings: 0 },
+  };
 
-  it('getAll returns { items, meta } with the store list under items', async () => {
-    (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(paginatedResponse([store]));
+  it('getAll returns { items, meta } with the compact store card list under items', async () => {
+    (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue(paginatedResponse([directoryStore]));
     const res = await storesApi.getAll();
-    expect(res.data.data.items).toEqual([store]);
+    expect(res.data.data.items).toEqual([directoryStore]);
     expect(res.data.data.meta.total).toBe(1);
   });
 

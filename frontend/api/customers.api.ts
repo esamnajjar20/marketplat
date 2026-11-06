@@ -4,7 +4,7 @@ import type { AxiosRequestConfig } from 'axios';
 import type { Customer } from '@/types/customer.types';
 
 export const customersApi = {
-  summary: () => apiClient.get<ApiResponse<{ totalCustomers:number; vipCustomers:number; debtors:number; inactiveCustomers:number; totalSpent:number; averageCustomerSpend:number }>>('/customers/summary'),
+  summary: (config?: AxiosRequestConfig) => apiClient.get<ApiResponse<{ totalCustomers:number; vipCustomers:number; debtors:number; inactiveCustomers:number; totalSpent:number; averageCustomerSpend:number }>>('/customers/summary', config),
   // NOTE: backend returns { data: { items, meta } } directly (paginated),
   // so we don't wrap with unwrapPaginated — that helper expects the raw
   // list on data[] and would incorrectly nest { items, meta } inside items.

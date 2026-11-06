@@ -1,4 +1,4 @@
-import { storesRepository, storeWithSeller } from '../../src/modules/stores/stores.repository';
+import { storesRepository, storeDirectorySelect } from '../../src/modules/stores/stores.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({
@@ -64,6 +64,61 @@ const createData = {
 
 describe('storesRepository', () => {
   beforeEach(() => jest.clearAllMocks());
+
+  describe('store access projections', () => {
+    it('loads owner identity and suspension with the store row for the access gate', async () => {
+      (prisma.storeDetails.findUnique as jest.Mock).mockResolvedValue(null);
+      await storesRepository.findByIdForAccess(storeId);
+      expect(prisma.storeDetails.findUnique).toHaveBeenCalledWith({
+        where: { id: storeId },
+        include: {
+          sellerProfile: { select: { id: true, userId: true, suspended: true } },
+          storeType: {
+            include: {
+              fields: {
+                where: { isActive: true },
+                orderBy: [{ sortOrder: 'asc', createdAt: 'asc' }],
+              },
+            },
+          },
+        },
+      });
+    });
+
+    it('supports the same joined access projection for slug lookup', async () => {
+      (prisma.storeDetails.findUnique as jest.Mock).mockResolvedValue(null);
+      await storesRepository.findBySlugForAccess('store-slug');
+      expect(prisma.storeDetails.findUnique).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { slug: 'store-slug' } })
+      );
+    });
+  });
+
+  describe('findManyForStaffAccess', () => {
+    it('loads candidate stores and owner suspension flags in one query', async () => {
+      (prisma.storeDetails.findMany as jest.Mock).mockResolvedValue([]);
+      await storesRepository.findManyForStaffAccess(['store-1', 'store-2']);
+      expect(prisma.storeDetails.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ['store-1', 'store-2'] } },
+        include: {
+          sellerProfile: { select: { suspended: true } },
+          storeType: {
+            include: {
+              fields: {
+                where: { isActive: true },
+                orderBy: [{ sortOrder: 'asc', createdAt: 'asc' }],
+              },
+            },
+          },
+        },
+      });
+    });
+
+    it('does not issue a database query for an empty id list', async () => {
+      await expect(storesRepository.findManyForStaffAccess([])).resolves.toEqual([]);
+      expect(prisma.storeDetails.findMany).not.toHaveBeenCalled();
+    });
+  });
 
   describe('findBySellerProfileId', () => {
     it('queries storeDetails by sellerProfileId', async () => {
@@ -182,7 +237,7 @@ describe('storesRepository', () => {
 
       expect(prisma.storeDetails.findMany).toHaveBeenCalledWith({
         where: { status: 'ACTIVE', sellerProfile: { suspended: false } },
-        include: storeWithSeller,
+        select: storeDirectorySelect,
         orderBy: [{ plan: 'desc' }, { createdAt: 'desc' }],
         skip: 0,
         take: 20,
@@ -196,6 +251,22 @@ describe('storesRepository', () => {
     // store directory previously had no suspended-seller filter at
     // all — a suspended seller's store kept showing up here, the same
     // gap already in ads.repository.ts and search.repository.ts.
+    it('selects only card-safe seller and store-type fields for public directory rows', async () => {
+      (prisma.storeDetails.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.storeDetails.count as jest.Mock).mockResolvedValue(0);
+
+      await storesRepository.findMany({});
+
+      expect(prisma.storeDetails.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ select: storeDirectorySelect })
+      );
+      expect(storeDirectorySelect.sellerProfile.select).not.toHaveProperty('paymentMethods');
+      expect(storeDirectorySelect.storeType.select).not.toHaveProperty('fields');
+      expect(storeDirectorySelect).not.toHaveProperty('description');
+      expect(storeDirectorySelect).not.toHaveProperty('phone');
+      expect(storeDirectorySelect).not.toHaveProperty('workingHours');
+    });
+
     it('excludes stores belonging to suspended sellers', async () => {
       (prisma.storeDetails.findMany as jest.Mock).mockResolvedValue([]);
       (prisma.storeDetails.count as jest.Mock).mockResolvedValue(0);
@@ -296,6 +367,22 @@ describe('storesRepository', () => {
       const result = await storesRepository.findMany({});
 
       expect(result).toEqual({ stores, total: 1 });
+    });
+  });
+
+  describe('findFeatured', () => {
+    it('uses the compact directory projection for homepage featured stores', async () => {
+      (prisma.storeDetails.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.storeDetails.count as jest.Mock).mockResolvedValue(0);
+
+      await storesRepository.findFeatured({ limit: 6 });
+
+      expect(prisma.storeDetails.findMany).toHaveBeenCalledWith({
+        where: { status: 'ACTIVE', plan: 'FEATURED', sellerProfile: { suspended: false } },
+        select: storeDirectorySelect,
+        orderBy: { createdAt: 'desc' },
+        take: 6,
+      });
     });
   });
 

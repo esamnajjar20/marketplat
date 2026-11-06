@@ -49,8 +49,8 @@ export const sellersApi = {
     apiClient.post<ApiResponse<null>>(`/sellers/${sellerProfileId}/ratings`, payload),
 
   /** GET /sellers/:id/ratings — paginated, public. Same unwrapPaginated shape as serviceReviewsApi.getForSeller/storeReviewsApi's own. */
-  getRatings: (sellerProfileId: string, params?: { page?: number; limit?: number }) =>
+  getRatings: (sellerProfileId: string, params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) =>
     apiClient
-      .get<ApiResponse<SellerRating[]>>(`/sellers/${sellerProfileId}/ratings`, { params })
+      .get<ApiResponse<SellerRating[]>>(`/sellers/${sellerProfileId}/ratings`, { ...config, params })
       .then((r) => unwrapPaginated<SellerRating>(r)),
 };

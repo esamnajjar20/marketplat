@@ -8,7 +8,7 @@ import { CACHE_TTL } from '@/lib/constants';
 export function useServiceTypes() {
   return useQuery({
     queryKey: queryKeys.serviceTypes.all(),
-    queryFn: () => serviceTypesApi.getAll().then((r) => r.data.data),
+    queryFn: ({ signal }) => serviceTypesApi.getAll({ signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.categories,
   });
 }
@@ -16,7 +16,7 @@ export function useServiceTypes() {
 export function useServiceTypesForAdmin() {
   return useQuery({
     queryKey: queryKeys.serviceTypes.adminAll(),
-    queryFn: () => serviceTypesApi.getAllForAdmin().then((r) => r.data.data),
+    queryFn: ({ signal }) => serviceTypesApi.getAllForAdmin({ signal }).then((r) => r.data.data),
     staleTime: 0,
   });
 }

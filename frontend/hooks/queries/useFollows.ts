@@ -13,7 +13,7 @@ export function useFollowStatus(targetType: FollowTargetType, targetId: string) 
   const isOnline = useOnlineStatus();
   return useQuery({
     queryKey: queryKeys.follows.status(targetType, targetId),
-    queryFn: () => followsApi.status(targetType, targetId).then((r) => r.data.data?.following ?? false),
+    queryFn: ({ signal }) => followsApi.status(targetType, targetId, { signal }).then((r) => r.data.data?.following ?? false),
     staleTime: CACHE_TTL.favorites,
     enabled: isAuthenticated && Boolean(targetId) && (hasToken || !isOnline),
   });
@@ -25,7 +25,7 @@ export function useMyFollowing(params?: Parameters<typeof followsApi.myFollowing
   const isOnline = useOnlineStatus();
   return useQuery({
     queryKey: queryKeys.follows.my(params),
-    queryFn: () => followsApi.myFollowing(params).then((r) => r.data.data),
+    queryFn: ({ signal }) => followsApi.myFollowing(params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.favorites,
     enabled: isAuthenticated && (hasToken || !isOnline),
   });
@@ -34,7 +34,7 @@ export function useMyFollowing(params?: Parameters<typeof followsApi.myFollowing
 export function useUserFollowers(id: string, params?: Parameters<typeof followsApi.userFollowers>[1]) {
   return useQuery({
     queryKey: queryKeys.follows.followers('USER', id, params),
-    queryFn: () => followsApi.userFollowers(id, params).then((r) => r.data.data),
+    queryFn: ({ signal }) => followsApi.userFollowers(id, params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.userProfile,
     enabled: Boolean(id),
   });
@@ -43,7 +43,7 @@ export function useUserFollowers(id: string, params?: Parameters<typeof followsA
 export function useUserFollowing(id: string, params?: Parameters<typeof followsApi.userFollowing>[1]) {
   return useQuery({
     queryKey: queryKeys.follows.following('USER', id, params),
-    queryFn: () => followsApi.userFollowing(id, params).then((r) => r.data.data),
+    queryFn: ({ signal }) => followsApi.userFollowing(id, params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.userProfile,
     enabled: Boolean(id),
   });
@@ -53,7 +53,7 @@ export function useFollowingFeed(params?: Parameters<typeof followsApi.feed>[0])
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   return useQuery({
     queryKey: queryKeys.follows.feed(params),
-    queryFn: () => followsApi.feed(params).then((r) => r.data.data),
+    queryFn: ({ signal }) => followsApi.feed(params, { signal }).then((r) => r.data.data),
     staleTime: 30_000,
     enabled: isAuthenticated,
   });

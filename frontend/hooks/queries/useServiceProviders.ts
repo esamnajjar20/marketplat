@@ -1,5 +1,7 @@
 'use client';
 
+import { throwIfQueryCancelled } from '@/lib/queryCancellation';
+
 import { useEffect } from 'react';
 
 import { useQuery } from '@tanstack/react-query';
@@ -78,12 +80,13 @@ export function useMyServiceProvider() {
 
   return useQuery({
     queryKey: queryKeys.serviceProviders.me(),
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       try {
-        const data = await serviceProvidersApi.getMyProvider().then((r) => r.data.data);
+        const data = await serviceProvidersApi.getMyProvider({ signal }).then((r) => r.data.data);
         if (data) saveOfflineJson(OFFLINE_JSON_KEYS.serviceProviderSelf, data, userId);
         return data;
       } catch (err) {
+        throwIfQueryCancelled(err, signal);
         const isNetworkFailure = (err as { statusCode?: number })?.statusCode === 0;
         if (isNetworkFailure) {
           const cached = getOfflineJson<ServiceProviderDetails>(OFFLINE_JSON_KEYS.serviceProviderSelf, userId);
@@ -140,7 +143,7 @@ export function useIsProvider(): {
 export function useNearbyServiceProviders(params: NearbyServiceProvidersParams | null) {
   return useQuery({
     queryKey: queryKeys.serviceProviders.nearby(params ?? undefined),
-    queryFn: () => serviceProvidersApi.getNearby(params!).then((r) => r.data.data),
+    queryFn: ({ signal }) => serviceProvidersApi.getNearby(params!, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.adsList,
     enabled: params !== null,
   });
@@ -159,7 +162,7 @@ export function useMyServiceProviderAnalytics(period: '7d' | '30d' | 'all' = 'al
 
   return useQuery({
     queryKey: queryKeys.serviceProviders.analyticsForPeriod(period),
-    queryFn: () => serviceProvidersApi.getMyAnalytics(period).then((r) => r.data.data),
+    queryFn: ({ signal }) => serviceProvidersApi.getMyAnalytics(period, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.sellerProfile,
     enabled: isAuthenticated && (hasToken || !isOnline),
     retry: false,

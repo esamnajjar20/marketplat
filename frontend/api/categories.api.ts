@@ -8,18 +8,19 @@
 import { apiClient } from './client';
 import type { Category, CreateCategoryPayload, UpdateCategoryPayload } from '@/types/category.types';
 import type { ApiResponse } from '@/types/api.types';
+import type { ApiRequestConfig } from './requestConfig';
 
 export const categoriesApi = {
   /** GET /categories — full tree with children */
-  getAll: () =>
-    apiClient.get<ApiResponse<Category[]>>('/categories'),
+  getAll: (config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<Category[]>>('/categories', config),
 
   /**
    * GET /categories/slug/:slug
    * backend route is /categories/slug/:slug not /categories/:slug.
    */
-  getBySlug: (slug: string) =>
-    apiClient.get<ApiResponse<Category>>(`/categories/slug/${slug}`),
+  getBySlug: (slug: string, config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<Category>>(`/categories/slug/${slug}`, config),
 
   // L-7 (audit fix): getById (GET /categories/:id) removed — grepped
   // across components/hooks/tests and found zero callers. The app only
@@ -42,8 +43,8 @@ export const categoriesApi = {
    * change without waiting up to an hour for the public Redis cache
    * to expire.
    */
-  getAllForAdmin: () =>
-    apiClient.get<ApiResponse<Category[]>>('/categories/admin/all'),
+  getAllForAdmin: (config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<Category[]>>('/categories/admin/all', config),
 
   create: (payload: CreateCategoryPayload) =>
     apiClient.post<ApiResponse<Category>>('/categories', payload),

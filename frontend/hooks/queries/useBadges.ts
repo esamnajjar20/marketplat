@@ -11,7 +11,7 @@ import { CACHE_TTL } from '@/lib/constants';
 export function useStoreBadges(storeId: string) {
   return useQuery({
     queryKey: queryKeys.badges.forStore(storeId),
-    queryFn: () => badgesApi.getStoreBadges(storeId).then((r) => r.data.data ?? []),
+    queryFn: ({ signal }) => badgesApi.getStoreBadges(storeId, { signal }).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.sellerProfile,
     enabled: Boolean(storeId),
   });
@@ -22,7 +22,7 @@ export function useStoreBadges(storeId: string) {
 export function useProviderBadges(providerId: string) {
   return useQuery({
     queryKey: queryKeys.badges.forProvider(providerId),
-    queryFn: () => badgesApi.getProviderBadges(providerId).then((r) => r.data.data ?? []),
+    queryFn: ({ signal }) => badgesApi.getProviderBadges(providerId, { signal }).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.sellerProfile,
     enabled: Boolean(providerId),
   });

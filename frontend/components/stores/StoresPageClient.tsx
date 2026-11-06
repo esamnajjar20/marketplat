@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { ListPageShell } from '@/components/shared/list/ListPageShell';
 import type { BrowsePage } from '@/types/browse.types';
-import type { StoreWithSeller } from '@/types/store.types';
+import type { StoreDirectoryItem } from '@/types/store.types';
 import type { BrowseSearchParams } from '@/lib/browseSearchParams';
 
 const StoresGrid = dynamic(
@@ -33,7 +33,7 @@ const SearchSortBarWrapper = dynamic(
 
 /** Public stores directory — copy & spacing aligned with design mockup «دليل المتاجر». */
 interface StoresPageClientProps {
-  initialPage?: BrowsePage<StoreWithSeller> | null;
+  initialPage?: BrowsePage<StoreDirectoryItem> | null;
   initialPageUpdatedAt?: number;
   searchParams?: BrowseSearchParams;
 }

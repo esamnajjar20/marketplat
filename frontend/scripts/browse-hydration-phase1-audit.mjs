@@ -10,7 +10,7 @@ const read = (file) => {
 const checks = [
   ['ads route fetches the first page on the server', 'app/(public)/ads/page.tsx', 'fetchPublicBrowsePage<AdListItem>'],
   ['products route fetches the first page on the server', 'app/(public)/products/page.tsx', 'fetchPublicBrowsePage<ProductWithStore>'],
-  ['stores route fetches the first page on the server', 'app/(public)/stores/page.tsx', 'fetchPublicBrowsePage<StoreWithSeller>'],
+  ['stores route fetches the first page on the server', 'app/(public)/stores/page.tsx', 'fetchPublicBrowsePage<StoreDirectoryItem>'],
   ['services route fetches the first page on the server', 'app/(public)/services/page.tsx', 'fetchPublicBrowsePage<ServiceListingWithProvider>'],
   ['server browse fetch has a bounded SSR timeout', 'lib/server/serverApiFetch.ts', 'const DEFAULT_SERVER_API_TIMEOUT_MS = 8_000;'],
   ['SSR page size is shared with the initial client query', 'lib/browseSearchParams.ts', 'export const SSR_BROWSE_PAGE_SIZE = 10;'],

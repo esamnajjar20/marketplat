@@ -1,3 +1,4 @@
+import type { ApiRequestConfig } from './requestConfig';
 /**
  * Appointments API — maps to backend /api/v1/appointments/*.
  * Verified against appointments.routes.ts:
@@ -22,16 +23,16 @@ import type {
 
 export const appointmentsApi = {
   /** GET /appointments/availability/:providerId?date=YYYY-MM-DD — public. */
-  getAvailability: (providerId: string, date: string) =>
+  getAvailability: (providerId: string, date: string, config?: ApiRequestConfig) =>
     apiClient.get<ApiResponse<AvailabilityResponse>>(
       `/appointments/availability/${providerId}`,
-      { params: { date } }
+      { ...config, params: { date } }
     ),
 
   /** GET /appointments/me — caller's appointments as provider or customer, paginated. */
-  getMine: (params?: AppointmentsQuery) =>
+  getMine: (params?: AppointmentsQuery, config?: ApiRequestConfig) =>
     apiClient
-      .get<ApiResponse<Appointment[]>>('/appointments/me', { params })
+      .get<ApiResponse<Appointment[]>>('/appointments/me', { ...config, params })
       .then((r) => unwrapPaginated<Appointment>(r)),
 
   /** POST /appointments — provider books standalone/request slots; a customer may book a slot for their accepted request. */

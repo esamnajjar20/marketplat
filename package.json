@@ -35,6 +35,10 @@
     "dev:all": "node tooling/dev-all.mjs",
     "test:worker": "pnpm --filter @marketplat/cf-api-proxy test",
     "type-check:worker": "pnpm --filter @marketplat/cf-api-proxy type-check",
-    "check:worker": "pnpm --filter @marketplat/cf-api-proxy check"
+    "check:worker": "pnpm --filter @marketplat/cf-api-proxy check",
+    "audit:http-payload-phase4": "pnpm --filter classifieds-platform-backend audit:http-payload-phase4",
+    "audit:db-query-phase5": "pnpm --filter classifieds-platform-backend audit:db-query-phase5",
+    "audit:db-query-phase6": "pnpm --filter classifieds-platform-backend audit:db-query-phase6",
+    "profile:db-queries": "pnpm --filter classifieds-platform-backend profile:db-queries"
   }
 }

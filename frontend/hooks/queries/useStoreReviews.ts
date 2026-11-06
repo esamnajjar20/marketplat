@@ -10,7 +10,7 @@ import type { StoreReviewsQuery } from '@/types/store.types';
 export function useStoreReviews(storeId: string, params?: StoreReviewsQuery) {
   return useQuery({
     queryKey: queryKeys.storeReviews.forStore(storeId, params),
-    queryFn: () => storesApi.getReviews(storeId, params).then((r) => r.data.data),
+    queryFn: ({ signal }) => storesApi.getReviews(storeId, params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.serviceReviews,
     enabled: Boolean(storeId),
   });

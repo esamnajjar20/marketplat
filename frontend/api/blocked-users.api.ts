@@ -9,6 +9,7 @@
  *     tells the caller which way it went (same shape as stores' follow
  *     toggle).
  */
+import type { ApiRequestConfig } from "./requestConfig";
 import { apiClient } from './client';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
@@ -20,9 +21,9 @@ import type {
 
 export const blockedUsersApi = {
   /** GET /blocked-users — the caller's blocked users, paginated. */
-  getMine: (params?: BlockedUsersQuery) =>
+  getMine: (params?: BlockedUsersQuery, config?: ApiRequestConfig) =>
     apiClient
-      .get<ApiResponse<UserBlockWithBlockedUser[]>>('/blocked-users', { params })
+      .get<ApiResponse<UserBlockWithBlockedUser[]>>('/blocked-users', { ...config, params })
       .then((r) => unwrapPaginated<UserBlockWithBlockedUser>(r)),
 
   /** POST /blocked-users/:userId — toggles block/unblock. */

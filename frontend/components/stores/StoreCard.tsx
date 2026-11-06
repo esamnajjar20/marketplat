@@ -7,12 +7,12 @@ import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { CARD_SHELL_SOFT, CARD_PRESS, CARD_FOCUS, CARD_HOVER, HIT_AREA } from '@/components/shared/cards/cardTokens';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
-import { getStoreTypePresentation, type StoreWithSeller } from '@/types/store.types';
+import { getStoreTypePresentation, type StoreDirectoryItem, type StoreWithSeller } from '@/types/store.types';
 import { CardOfflineBadge, type CardContext } from '@/components/shared/cards/cardParts';
 import { Button } from '@/components/ui/button';
 
 interface Props {
-  store: StoreWithSeller;
+  store: StoreDirectoryItem | StoreWithSeller;
   className?: string;
   density?: 'default' | 'compact';
   context?: CardContext;

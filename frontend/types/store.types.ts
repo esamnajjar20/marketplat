@@ -164,7 +164,13 @@ export interface StoreDetails {
   updatedAt: string;
 }
 
-/** GET /stores (public directory) — each row includes its parent seller. */
+/** GET /stores (public directory) — only fields rendered by directory cards. */
+export type StoreDirectoryItem = Pick<StoreDetails, 'id' | 'name' | 'logoUrl' | 'coverImageUrl' | 'city' | 'status' | 'plan'> & {
+  sellerProfile: Pick<SellerProfile, 'id' | 'verified' | 'averageRating' | 'totalRatings'>;
+  storeType: Pick<StoreType, 'id' | 'slug' | 'nameAr' | 'icon' | 'labels' | 'presentation'>;
+};
+
+/** Full store + seller shape retained for detail, favorites and owner-related surfaces. */
 export type StoreWithSeller = StoreDetails & {
   sellerProfile: SellerProfile;
 };

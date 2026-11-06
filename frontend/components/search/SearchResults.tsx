@@ -30,6 +30,7 @@ import type { SearchSort, SearchType } from '@/types/search.types';
 import { SearchViewToggle, type SearchViewMode } from '@/components/search/SearchViewToggle';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import { queryKeys } from '@/lib/queryKeys';
+import { throwIfQueryCancelled } from '@/lib/queryCancellation';
 
 /**
  * Unified results grid — reads q/city/type/categoryId/sort/page
@@ -130,6 +131,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
         const r = await searchApi.search(params, { signal });
         return r.data.data;
       } catch (err) {
+        throwIfQueryCancelled(err, signal);
         if (pageParam === 1) {
           // PERF: offline index loaded on demand (already warmed on idle by useSearch).
           const offline = await import('@/lib/offlineSearchIndex')

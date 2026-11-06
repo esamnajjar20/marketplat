@@ -41,18 +41,76 @@ export const storeWithSeller = {
   },
 };
 
-/** SLOW-NET public directory — lighter seller fields. */
-const storeListInclude = {
+/**
+ * Public directory/card payload. Do not use `sellerProfile: true` here:
+ * SellerProfile contains payment methods and internal moderation/analytics
+ * fields that the public card never renders. StoreType.fields are also
+ * excluded; dynamic fields are needed on the store detail/form surfaces,
+ * not for a directory card.
+ */
+export const storeDirectorySelect = {
+  id: true,
+  name: true,
+  logoUrl: true,
+  coverImageUrl: true,
+  city: true,
+  status: true,
+  plan: true,
   sellerProfile: {
     select: {
       id: true,
       verified: true,
       averageRating: true,
       totalRatings: true,
-      suspended: true,
+    },
+  },
+  storeType: {
+    select: {
+      id: true,
+      slug: true,
+      nameAr: true,
+      icon: true,
+      labels: true,
+      presentation: true,
     },
   },
 } as const;
+
+export type StoreDirectoryRow = Prisma.StoreDetailsGetPayload<{
+  select: typeof storeDirectorySelect;
+}>;
+
+const storeAccessInclude = {
+  sellerProfile: { select: { suspended: true } },
+  storeType: {
+    include: {
+      fields: {
+        where: { isActive: true },
+        orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+      },
+    },
+  },
+} as const;
+
+type StoreStaffAccessRow = Prisma.StoreDetailsGetPayload<{
+  include: typeof storeAccessInclude;
+}>;
+
+const storeAuthorizationInclude = {
+  sellerProfile: { select: { id: true, userId: true, suspended: true } },
+  storeType: {
+    include: {
+      fields: {
+        where: { isActive: true },
+        orderBy: [{ sortOrder: 'asc' as const }, { createdAt: 'asc' as const }],
+      },
+    },
+  },
+} as const;
+
+export type StoreAccessRow = Prisma.StoreDetailsGetPayload<{
+  include: typeof storeAuthorizationInclude;
+}>;
 
 // per-property `as const` keeps
 // 'asc'/'ACTIVE' narrowed to literal types; without it TS widens to
@@ -110,6 +168,29 @@ export const storesRepository = {
         },
       },
     }),
+
+  /**
+   * Batched store + owner-suspension lookup for staff authorization.
+   * Replaces one store query plus one seller query per membership with a
+   * single bounded IN query, while retaining membership order in the caller.
+   */
+  findManyForStaffAccess: (storeIds: string[]): Promise<StoreStaffAccessRow[]> =>
+    storeIds.length
+      ? prisma.storeDetails.findMany({
+          where: { id: { in: storeIds } },
+          include: storeAccessInclude,
+        })
+      : Promise.resolve([]),
+
+  /**
+   * Store + owner identity/suspension in the same read used by the
+   * authorization gate. Avoids follow-up seller-profile lookups.
+   */
+  findByIdForAccess: (id: string): Promise<StoreAccessRow | null> =>
+    prisma.storeDetails.findUnique({ where: { id }, include: storeAuthorizationInclude }),
+
+  findBySlugForAccess: (slug: string): Promise<StoreAccessRow | null> =>
+    prisma.storeDetails.findUnique({ where: { slug }, include: storeAuthorizationInclude }),
 
   // STORE-SLUG: used by storesService.createStore's collision-retry
   // loop (find-then-suffix, not a DB-level generated column) and by
@@ -231,7 +312,7 @@ export const storesRepository = {
   // requested sort within each tier.
   findMany: async (
     query: GetStoresQuery
-  ): Promise<{ stores: StoreWithSeller[]; total: number }> => {
+  ): Promise<{ stores: StoreDirectoryRow[]; total: number }> => {
     const { page = 1, limit = 20, city, search, sortBy = 'createdAt', sortOrder = 'desc' } = query;
     const { skip, take } = getPaginationParams(page, limit);
 
@@ -272,7 +353,7 @@ export const storesRepository = {
     const [stores, total] = await Promise.all([
       prisma.storeDetails.findMany({
         where,
-        include: storeWithSeller,
+        select: storeDirectorySelect,
         orderBy: [{ plan: 'desc' }, { [sortBy]: sortOrder }],
         skip,
         take,
@@ -286,7 +367,7 @@ export const storesRepository = {
   findFeatured: async (params: {
     limit: number;
     city?: string;
-  }): Promise<{ stores: StoreWithSeller[]; total: number }> => {
+  }): Promise<{ stores: StoreDirectoryRow[]; total: number }> => {
     const { limit, city } = params;
 
     const where: Prisma.StoreDetailsWhereInput = {
@@ -299,7 +380,7 @@ export const storesRepository = {
     const [stores, total] = await Promise.all([
       prisma.storeDetails.findMany({
         where,
-        include: storeWithSeller,
+        select: storeDirectorySelect,
         orderBy: { createdAt: 'desc' },
         take: limit,
       }),

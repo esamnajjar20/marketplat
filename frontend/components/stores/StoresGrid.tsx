@@ -16,7 +16,7 @@ import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { storesApi } from '@/api/stores.api';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
-import type { StoreSortField, StoreWithSeller } from '@/types/store.types';
+import type { StoreSortField, StoreDirectoryItem } from '@/types/store.types';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
 import { getStablePageSize } from '@/lib/networkPolicy';
 import { queryKeys } from '@/lib/queryKeys';
@@ -26,7 +26,7 @@ import { getBrowseParam, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type
 
 /** GET /stores directory grid. Route filters arrive from the Server Page as props. */
 interface StoresGridProps {
-  initialPage?: BrowsePage<StoreWithSeller> | null;
+  initialPage?: BrowsePage<StoreDirectoryItem> | null;
   initialPageUpdatedAt?: number;
   searchParams?: BrowseSearchParams;
 }
@@ -49,7 +49,7 @@ export function StoresGrid({ initialPage, initialPageUpdatedAt, searchParams = {
     initialData: initialPage ? { pages: [initialPage], pageParams: [1] } : undefined,
     initialDataUpdatedAt: initialPageUpdatedAt,
     staleTime: CACHE_TTL.adsList,
-    queryFn: ({ pageParam }) => storesApi.getAll({ search, city, sortBy, sortOrder, page: pageParam, limit: pageSize }).then((r) => r.data.data),
+    queryFn: ({ pageParam, signal }) => storesApi.getAll({ search, city, sortBy, sortOrder, page: pageParam, limit: pageSize }, { signal }).then((r) => r.data.data),
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
   const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query;

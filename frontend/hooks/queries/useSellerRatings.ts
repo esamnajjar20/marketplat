@@ -19,7 +19,7 @@ export function useSellerRatings(
 ) {
   return useQuery({
     queryKey: queryKeys.sellers.ratings(sellerProfileId, params),
-    queryFn: () => sellersApi.getRatings(sellerProfileId, params).then((r) => r.data.data),
+    queryFn: ({ signal }) => sellersApi.getRatings(sellerProfileId, params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.serviceReviews,
     enabled: Boolean(sellerProfileId),
   });

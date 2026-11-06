@@ -152,8 +152,8 @@ export function useHomepage() {
   const query = useQuery({
     queryKey: queryKeys.home.page(city),
     enabled: isHydrated && isReady,
-    queryFn: async (): Promise<HomepagePayload> => {
-      const payload = await homeApi.getHomepage(city).then((r) => r.data.data);
+    queryFn: async ({ signal }): Promise<HomepagePayload> => {
+      const payload = await homeApi.getHomepage(city, { signal }).then((r) => r.data.data);
       if (!payload) {
         throw new Error('empty /home response');
       }

@@ -17,7 +17,7 @@ export function useServiceReviewsForSeller(
 ) {
   return useQuery({
     queryKey: queryKeys.serviceReviews.forSeller(sellerProfileId, params),
-    queryFn: () => serviceReviewsApi.getForSeller(sellerProfileId, params).then((r) => r.data.data),
+    queryFn: ({ signal }) => serviceReviewsApi.getForSeller(sellerProfileId, params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.serviceReviews,
     enabled: Boolean(sellerProfileId),
   });

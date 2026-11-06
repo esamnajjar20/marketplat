@@ -20,7 +20,7 @@ export function useFavoriteLists() {
 
   return useQuery({
     queryKey: queryKeys.favorites.lists(),
-    queryFn: () => favoriteListsApi.list(),
+    queryFn: ({ signal }) => favoriteListsApi.list({ signal }),
     // FIX FAV-LISTS-TTL-CLEANUP-01: was CACHE_TTL.favorites ?? 60_000.
     // CACHE_TTL.favorites is a real constant; the ?? could only fire if
     // someone renamed/deleted it, at which point falling back to a

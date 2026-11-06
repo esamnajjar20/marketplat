@@ -25,12 +25,12 @@ export function useHomeFeed() {
   return useQuery({
     queryKey: queryKeys.home.feed(city, identity, explicitAll),
     enabled: isHydrated && isReady,
-    queryFn: async (): Promise<HomeFeedPayload> => {
+    queryFn: async ({ signal }): Promise<HomeFeedPayload> => {
       // Anonymous visitors read the public, edge-cached /home/static; only a signed-in
       // user pays for the private, personalised /home/feed. Same payload shape.
       const request = identity
-        ? homeFeedApi.get({ city, explicitAll })
-        : homeFeedApi.getStatic({ city, explicitAll });
+        ? homeFeedApi.get({ city, explicitAll }, { signal })
+        : homeFeedApi.getStatic({ city, explicitAll }, { signal });
       const payload = await request.then((response) => response.data.data);
       if (!payload) throw new Error(`empty /home/${identity ? 'feed' : 'static'} response`);
       return payload;

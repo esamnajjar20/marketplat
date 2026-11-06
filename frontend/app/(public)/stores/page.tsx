@@ -4,7 +4,7 @@ import { fetchPublicBrowsePage } from '@/lib/prefetch';
 import { getBrowseParam, SSR_BROWSE_MAX_CACHE_AGE_MS, SSR_BROWSE_PAGE_SIZE, SSR_BROWSE_REVALIDATE_SECONDS, type BrowseSearchParams } from '@/lib/browseSearchParams';
 import { buildMetadata } from '@/lib/seo';
 import type { BrowsePage } from '@/types/browse.types';
-import type { StoreWithSeller } from '@/types/store.types';
+import type { StoreDirectoryItem } from '@/types/store.types';
 
 export const dynamic = 'force-dynamic';
 export const metadata: Metadata = buildMetadata({ title: 'المتاجر', path: '/stores' });
@@ -24,9 +24,9 @@ export default async function StoresPage({ searchParams }: StoresPageProps) {
     sortOrder: getBrowseParam(params, 'sortOrder') ?? 'desc',
   };
 
-  let initialPage: BrowsePage<StoreWithSeller> | null = null;
+  let initialPage: BrowsePage<StoreDirectoryItem> | null = null;
   try {
-    initialPage = await fetchPublicBrowsePage<StoreWithSeller>(
+    initialPage = await fetchPublicBrowsePage<StoreDirectoryItem>(
       '/stores',
       browseParams,
       { revalidateSeconds: SSR_BROWSE_REVALIDATE_SECONDS, timeoutMs: 3_000 },

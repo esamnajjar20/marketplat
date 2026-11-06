@@ -11,6 +11,7 @@ import { router } from './routes';
 import { errorMiddleware } from './middlewares/error.middleware';
 import { globalRateLimit } from './middlewares/rateLimit.middleware';
 import { requestIdMiddleware } from './middlewares/requestId.middleware';
+import { databaseRequestContextMiddleware } from './shared/utils/dbQueryTelemetry';
 import { offlineOperationIdMiddleware } from './middlewares/offlineOperationId.middleware';
 import { sendApiError } from './shared/errors/errorResponse';
 import { ErrorCode } from './shared/errors/errorCodes';
@@ -147,6 +148,7 @@ app.use(passport.initialize());
 
 // ── Request ID ────────────────────────────────────────
 app.use(requestIdMiddleware);
+app.use(databaseRequestContextMiddleware);
 
 // Validate the optional offline idempotency key before any route consumes it.
 // Missing headers are valid for ordinary online requests.

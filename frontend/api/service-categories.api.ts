@@ -1,3 +1,4 @@
+import type { ApiRequestConfig } from './requestConfig';
 /**
  * Service categories API — maps to backend /api/v1/service-categories/*.
  *
@@ -17,12 +18,12 @@ import type {
 
 export const serviceCategoriesApi = {
   /** GET /service-categories */
-  getAll: () =>
-    apiClient.get<ApiResponse<ServiceCategory[]>>('/service-categories'),
+  getAll: (config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<ServiceCategory[]>>('/service-categories', config),
 
   /** GET /service-categories/slug/:slug */
-  getBySlug: (slug: string) =>
-    apiClient.get<ApiResponse<ServiceCategory>>(`/service-categories/slug/${slug}`),
+  getBySlug: (slug: string, config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<ServiceCategory>>(`/service-categories/slug/${slug}`, config),
 
   /** GET /service-categories/:id */
   getById: (id: string) =>
@@ -36,8 +37,8 @@ export const serviceCategoriesApi = {
    * uncached (see service-categories.service.ts's
    * getServiceCategoriesForAdmin), which getAll()'s public tree never did.
    */
-  getAllForAdmin: () =>
-    apiClient.get<ApiResponse<ServiceCategory[]>>('/service-categories/admin/all'),
+  getAllForAdmin: (config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<ServiceCategory[]>>('/service-categories/admin/all', config),
 
   create: (payload: CreateServiceCategoryPayload) =>
     apiClient.post<ApiResponse<ServiceCategory>>('/service-categories', payload),

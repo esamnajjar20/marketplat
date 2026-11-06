@@ -14,6 +14,7 @@ import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { storeTypesRepository } from '../../src/modules/store-types/store-types.repository';
+import { cachedPublicList } from '../../src/shared/utils/publicListCache';
 
 // isPrismaError inside stores.service.ts does an `instanceof
 // Prisma.PrismaClientKnownRequestError` check, so a plain
@@ -408,6 +409,11 @@ describe('storesService', () => {
         hasNextPage: false,
         hasPrevPage: false,
       });
+      expect(cachedPublicList).toHaveBeenCalledWith(
+        'stores',
+        expect.objectContaining({ __projectionVersion: 2, page: 1, limit: 20 }),
+        expect.any(Function)
+      );
     });
 
     it('defaults page and limit when not provided in the query', async () => {
@@ -417,6 +423,11 @@ describe('storesService', () => {
 
       expect(result.meta.page).toBe(1);
       expect(result.meta.limit).toBe(20);
+      expect(cachedPublicList).toHaveBeenCalledWith(
+        'stores',
+        expect.objectContaining({ __projectionVersion: 2 }),
+        expect.any(Function)
+      );
     });
   });
 

@@ -20,7 +20,7 @@ export function useNotificationDevices() {
 
   return useQuery({
     queryKey: queryKeys.notifications.devices(),
-    queryFn: () => notificationsApi.getDevices().then((r) => r.data.data ?? []),
+    queryFn: ({ signal }) => notificationsApi.getDevices({ signal }).then((r) => r.data.data ?? []),
     enabled: isAuthenticated && hasToken,
     staleTime: 30_000,
   });
