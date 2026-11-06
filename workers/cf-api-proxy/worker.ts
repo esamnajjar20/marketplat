@@ -184,8 +184,8 @@ const REFERENCE_ROUTES = new Set([
   'requests',
 ]);
 
-// Routes where only base queries (limit/page) are cached in KV to conserve
-// the free-tier write quota. Filtered queries rely on CF edge cache instead.
+// Routes where only base queries (limit/page) are cached in KV/D1.
+// Filtered queries rely on CF edge cache to preserve the write quota.
 const BASE_ONLY_KV_ROUTES = new Set([
   'products',
   'ads',
@@ -198,6 +198,9 @@ const BASE_ONLY_KV_ROUTES = new Set([
   'requests',
   'home',
 ]);
+
+// Routes where only base queries (limit/page) are cached in KV to conserve
+// the free-tier write quota. Filtered queries rely on CF edge cache instead.
 const KV_PREFIX = 'ref:v1:';
 const KV_FRESH_SEC = 3600; // 60 min — extended to conserve free-tier write quota
 const KV_STALE_SEC = 86400; // keep serving (and refresh in background) up to 24h
@@ -526,7 +529,7 @@ async function loadGatewayRegistry(env: Env, force = false): Promise<GatewayRegi
   let kvValue = null;
   if (!value && env && env.REFERENCE_KV) {
     try {
-      const stored = await env.REFERENCE_KV.get(GATEWAY_REGISTRY_KEY, 'json');
+      const stored = await getKv(env).get(GATEWAY_REGISTRY_KEY, 'json');
       if (stored) {
         kvValue = validateGatewayRegistry(stored, env);
         value = kvValue;
@@ -1252,7 +1255,7 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
       registrySource = 'durable-object';
       if (env.REFERENCE_KV) {
         try {
-          await env.REFERENCE_KV.put(GATEWAY_REGISTRY_KEY, JSON.stringify(next));
+          await getKv(env).put(GATEWAY_REGISTRY_KEY, JSON.stringify(next));
           replicaStatus = 'synced';
         } catch (replicaError) {
           replicaStatus = 'write-failed';
@@ -1262,7 +1265,7 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
     } else if (env.REFERENCE_KV) {
       // Compatibility path for local development only. Production should bind the
       // coordinator so registry writes have atomic compare-and-swap semantics.
-      await env.REFERENCE_KV.put(GATEWAY_REGISTRY_KEY, JSON.stringify(next));
+      await getKv(env).put(GATEWAY_REGISTRY_KEY, JSON.stringify(next));
       registrySource = 'kv-compatibility-fallback';
       replicaStatus = 'primary';
     } else {
@@ -1603,9 +1606,119 @@ function isNegativeEligible(canon: CanonicalUrl, upstream: Response, body: Array
 
 /* ───────────────────────── Workers KV tier (#10) ───────────────────────── */
 
+
+/**
+ * Resolve a KV-compatible adapter. Prefers D1 (Workers KV-compatible via
+ * d1-namespace) and falls back to REFERENCE_KV for local/tests.
+ */
+class D1KVAdapter {
+  private initPromise: Promise<void> | null = null;
+  constructor(private db: any, private tableName = 'd1_namespace') {}
+
+  private ensureSchema(): Promise<void> {
+    if (this.initPromise) return this.initPromise;
+    this.initPromise = (async () => {
+      try {
+        await this.db.prepare(
+          `CREATE TABLE IF NOT EXISTS ${this.tableName} (
+            key TEXT PRIMARY KEY NOT NULL,
+            value BLOB NOT NULL,
+            metadata TEXT,
+            expires_at INTEGER
+          )`
+        ).run();
+        await this.db.prepare(
+          `CREATE INDEX IF NOT EXISTS idx_${this.tableName}_expires ON ${this.tableName}(expires_at)`
+        ).run();
+      } catch (e) {
+        console.error('[d1-kv] ensureSchema failed:', e instanceof Error ? e.message : String(e));
+      }
+    })();
+    return this.initPromise;
+  }
+
+  async put(
+    key: string,
+    value: string | ArrayBuffer | ArrayBufferView,
+    opts?: { expirationTtl?: number; metadata?: Record<string, unknown> }
+  ): Promise<void> {
+    await this.ensureSchema();
+    const buf = typeof value === 'string'
+      ? new TextEncoder().encode(value)
+      : value instanceof ArrayBuffer
+        ? new Uint8Array(value)
+        : new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+    const expiresAt = opts?.expirationTtl
+      ? Math.floor(Date.now() / 1000) + opts.expirationTtl
+      : null;
+    const metaJson = opts?.metadata ? JSON.stringify(opts.metadata) : null;
+
+    await this.db.prepare(
+      `INSERT INTO ${this.tableName} (key, value, metadata, expires_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET
+         value = excluded.value,
+         metadata = excluded.metadata,
+         expires_at = excluded.expires_at`
+    ).bind(key, buf, metaJson, expiresAt).run();
+  }
+
+  async getWithMetadata(
+    key: string,
+    type: 'arrayBuffer' | 'text' | 'json' = 'text'
+  ): Promise<{ value: any; metadata: any }> {
+    await this.ensureSchema();
+    const row = await this.db.prepare(
+      `SELECT value, metadata, expires_at FROM ${this.tableName} WHERE key = ?`
+    ).bind(key).first();
+
+    if (!row) return { value: null, metadata: null };
+
+    if (row.expires_at && row.expires_at < Math.floor(Date.now() / 1000)) {
+      await this.db.prepare(`DELETE FROM ${this.tableName} WHERE key = ?`).bind(key).run();
+      return { value: null, metadata: null };
+    }
+
+    let parsed: any = row.value;
+    if (row.value && type !== 'arrayBuffer') {
+      try {
+        const bytes = row.value instanceof ArrayBuffer ? new Uint8Array(row.value) : row.value;
+        const text = new TextDecoder().decode(bytes);
+        parsed = type === 'json' ? JSON.parse(text) : text;
+      } catch {
+        parsed = null;
+      }
+    } else if (row.value && row.value instanceof Uint8Array) {
+      parsed = row.value.buffer.slice(row.value.byteOffset, row.value.byteOffset + row.value.byteLength);
+    }
+
+    return {
+      value: parsed,
+      metadata: row.metadata ? JSON.parse(row.metadata) : null,
+    };
+  }
+
+  async get(key: string, type: 'arrayBuffer' | 'text' | 'json' = 'text'): Promise<any> {
+    const { value } = await this.getWithMetadata(key, type);
+    return value;
+  }
+
+  async delete(key: string): Promise<void> {
+    await this.ensureSchema();
+    await this.db.prepare(`DELETE FROM ${this.tableName} WHERE key = ?`).bind(key).run();
+  }
+}
+
+function getKv(env: Env): any {
+  if (env && (env as any).DB) {
+    return new D1KVAdapter((env as any).DB);
+  }
+  return (env as any)?.REFERENCE_KV ?? null;
+}
+
 function kvEnabled(env: Env, canon: CanonicalUrl): boolean {
   return Boolean(
-    env && env.REFERENCE_KV
+    env && ((env as any).DB || (env as any).REFERENCE_KV)
     && REFERENCE_ROUTES.has(canon.route)
     && canon.key.length <= KV_MAX_KEY
     && (
@@ -1616,27 +1729,28 @@ function kvEnabled(env: Env, canon: CanonicalUrl): boolean {
 }
 
 async function kvRead(env: Env, canon: CanonicalUrl): Promise<ReferenceCacheRead | null> {
-  const kv = env.REFERENCE_KV;
+  const kv = getKv(env);
   if (!kv || !kvEnabled(env, canon)) return null;
   try {
     const { value, metadata } = await kv.getWithMetadata(KV_PREFIX + canon.key, 'arrayBuffer');
     if (!value || !metadata || !metadata.storedAt) return null;
     return { body: value, meta: metadata, age: Math.max(0, (Date.now() - metadata.storedAt) / 1000) };
-  } catch {
+  } catch (err) {
+    console.error('[kvRead] D1 read failed:', err instanceof Error ? err.message : String(err), 'key:', canon.key);
     return null;
   }
 }
 
 async function kvWrite(env: Env, canon: CanonicalUrl, body: ArrayBuffer, meta: ReferenceCacheMetadata): Promise<void> {
-  const kv = env.REFERENCE_KV;
+  const kv = getKv(env);
   if (!kv || !kvEnabled(env, canon) || body.byteLength > KV_MAX_BODY) return;
   try {
     await kv.put(KV_PREFIX + canon.key, body, {
       expirationTtl: KV_STALE_SEC + KV_FRESH_SEC,
       metadata: meta,
     });
-  } catch {
-    /* KV is an optimisation: never fail a request because of it */
+  } catch (err) {
+    console.error('[kvWrite] D1 write failed:', err instanceof Error ? err.message : String(err), 'key:', canon.key);
   }
 }
 

@@ -37,3 +37,8 @@ class_name = "GatewayHealthCoordinator"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["GatewayHealthCoordinator"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "marketplat-cache-db"
+database_id = "1a105c8b-d165-42a6-8173-2e8091a11e1d"
