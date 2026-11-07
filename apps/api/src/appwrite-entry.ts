@@ -2,89 +2,51 @@ import './instrument';
 import serverless from 'serverless-http';
 import { app } from './app';
 
-interface AppwriteRequest {
-  path?: string;
-  method?: string;
-  headers?: Record<string, string | string[] | undefined>;
-  queryString?: string;
-  bodyRaw?: string;
-  body?: unknown;
-}
-
-interface AppwriteResponse {
-  send(body: string, statusCode?: number, headers?: Record<string, string>): unknown;
-  json(body: unknown, statusCode?: number, headers?: Record<string, string>): unknown;
-}
-
-interface AppwriteFunctionContext {
-  req?: AppwriteRequest;
-  res: AppwriteResponse;
-  log: (message: string) => void;
-  error: (message: string) => void;
-}
-
 const expressHandler = serverless(app);
-const HOP_BY_HOP_HEADERS = new Set([
-  'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
-  'te', 'trailer', 'transfer-encoding', 'upgrade',
-]);
 
-function normalizeHeaders(
-  headers: Record<string, string | number | string[] | undefined> | undefined
-): Record<string, string> {
-  const normalized: Record<string, string> = {};
-  for (const [name, value] of Object.entries(headers ?? {})) {
-    if (value === undefined || HOP_BY_HOP_HEADERS.has(name.toLowerCase())) continue;
-    normalized[name] = Array.isArray(value) ? value.join(', ') : String(value);
-  }
-  return normalized;
-}
-
-function serializeBody(req: AppwriteRequest): string | undefined {
-  if (typeof req.bodyRaw === 'string') return req.bodyRaw;
-  if (typeof req.body === 'string') return req.body;
-  if (req.body === undefined || req.body === null) return undefined;
-  return JSON.stringify(req.body);
-}
-
-export default async ({ req, res, log, error }: AppwriteFunctionContext) => {
+export default async ({ req, res, log, error }: any) => {
   try {
-    // حماية: إذا لم يرسل Appwrite كائن الطلب، نعيد خطأ 400 بدلاً من الانهيار
+    // حماية 1: إذا كان req غير موجود
     if (!req) {
       error('Appwrite context is missing the "req" object.');
-      return res.json({ error: 'Invalid Request Context' }, 400);
+      return res.json({ error: 'Missing request context' }, 400);
     }
 
-    const rawPath = req.path || '/';
-    const path = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
-    const method = (req.method || 'GET').toUpperCase();
-    const queryString = req.queryString?.replace(/^\?/, '') ?? '';
+    // حماية 2: قراءة الحقول بأمان
+    const path = req.path || '/';
+    const method = req.method || 'GET';
+    const headers = req.headers || {};
+    const queryString = req.queryString || '';
+    const rawBody = req.bodyRaw || req.body || undefined;
+    
+    // حماية 3: تحويل الجسم إلى نص إن كان كائناً
+    const body = typeof rawBody === 'object' && rawBody !== null ? JSON.stringify(rawBody) : rawBody;
 
-    const event: Record<string, unknown> = {
+    // تجهيز الحدث لـ serverless-http
+    const event = {
       version: '2.0',
       rawPath: path,
-      path,
-      httpMethod: method,
-      method: method,
-      headers: req.headers ?? {},
+      path: path,
+      httpMethod: method.toUpperCase(),
+      method: method.toUpperCase(),
+      headers: headers,
       queryStringParameters: Object.fromEntries(new URLSearchParams(queryString)),
       rawQueryString: queryString,
-      body: serializeBody(req),
+      body: body,
       isBase64Encoded: false,
     };
 
     const response = await expressHandler(event, {});
-    const statusCode = response.statusCode ?? 200;
-    const headers = normalizeHeaders(response.headers);
-    const body = response.body ?? '';
+    
+    // إرجاع الاستجابة إلى Appwrite
+    return res.send(
+      response.body || '', 
+      response.statusCode || 200, 
+      response.headers || {}
+    );
 
-    log(`Express request completed: ${method} ${path} (${statusCode})`);
-    return res.send(body, statusCode, headers);
-  } catch (caught) {
-    const message = caught instanceof Error ? caught.message : String(caught);
-    error(`Express Appwrite handler failed: ${message}`);
-    return res.json({ error: 'Internal Server Error' }, 500, {
-      'content-type': 'application/json; charset=utf-8',
-    });
+  } catch (err: any) {
+    error(`Express Appwrite handler failed: ${err.message}`);
+    return res.json({ error: 'Internal Server Error' }, 500);
   }
 };
