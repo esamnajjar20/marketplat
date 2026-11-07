@@ -36,6 +36,7 @@ import { analyticsRouter, analyticsAdminRouter } from './modules/analytics';
 import { activityRouter } from './modules/activity';
 import { recommendationsRouter } from './modules/recommendations';
 import { fraudRouter } from './modules/fraud';
+import { userSimulatorRouter } from './modules/user-simulator/user-simulator.routes';
 import { observabilityRouter } from './modules/observability';
 import { homeRouter } from './modules/home';
 import { followsRouter } from './modules/follows';
@@ -90,6 +91,8 @@ router.use('/favorites', favoritesRouter);
 // stores + service-listings unioned and ranked together), which A-05
 // never addressed and doesn't apply to.
 router.use('/search', searchRouter);
+// Dedicated Playwright browser runner control plane; ADMIN+ only.
+router.use('/admin/user-simulator', userSimulatorRouter);
 router.use('/admin', adminRouter);
 // Own module (repository/service/controller/validation) mounted at
 // /admin/audit-logs — kept out of admin.routes.ts/admin.service.ts

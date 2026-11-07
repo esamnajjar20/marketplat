@@ -72,6 +72,7 @@ const AdminMonitoringCenter = dynamic(() => import('@/components/admin/AdminMoni
 const AdminInfrastructureGateway = dynamic(() => import('@/components/admin/AdminInfrastructureGateway').then((m) => m.AdminInfrastructureGateway), { loading: adminTabLoading });
 const AdminDeveloperToolsControl = dynamic(() => import('@/components/admin/AdminDeveloperToolsControl').then((m) => m.AdminDeveloperToolsControl), { loading: adminTabLoading });
 const AdminFeatureFlags = dynamic(() => import('@/components/admin/AdminFeatureFlags').then((m) => m.AdminFeatureFlags), { loading: adminTabLoading });
+const AdminUserSimulatorPanel = dynamic(() => import('@/components/admin/AdminUserSimulatorPanel').then((m) => m.AdminUserSimulatorPanel), { loading: adminTabLoading });
 
 const AdminAnalyticsDashboard = dynamic(
   () =>
@@ -251,6 +252,12 @@ function TabBody({ tab }: { tab: AdminTab }) {
       return <AdminInfrastructureGateway />;
     case 'feature-flags':
       return <AdminFeatureFlags />;
+    case 'user-simulator':
+      return (
+        <AdminPageShell title="محاكي المستخدمين الحقيقي" description="تشغيل جلسات Chromium مستقلة على الموقع المنشور، مع إعداد التزامن والسيناريوهات وسجل تفصيلي لكل عملية.">
+          <AdminUserSimulatorPanel />
+        </AdminPageShell>
+      );
     case 'dashboard':
     default:
       return (

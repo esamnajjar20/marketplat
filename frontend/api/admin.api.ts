@@ -63,6 +63,82 @@ import type { AxiosRequestConfig } from 'axios';
  * trade-off being that a typo on an undefined key reads as unknown
  * rather than erroring.
  */
+export interface UserSimulatorConfig {
+  targetUrl: string;
+  virtualUsers: number;
+  browserConcurrency: number;
+  rampUpMs: number;
+  thinkTimeMs: number;
+  iterations: number;
+  actionTimeoutMs: number;
+  viewport: 'desktop' | 'mobile';
+  stopOnFailure: boolean;
+  defaultAllowWrites: boolean;
+  allowedHosts: string[];
+  hardMaxUsers: number;
+  hardMaxConcurrency: number;
+  hardMaxWriteUsers: number;
+  registrationConfigured: boolean;
+  testAccountsConfigured: boolean;
+  testAccountCount: number;
+  testAccountRoleCounts: { buyer: number; seller: number; any: number };
+  seedAdConfigured: boolean;
+  seedSellerConfigured: boolean;
+  seedProductConfigured: boolean;
+  seedServiceConfigured: boolean;
+}
+
+export interface UserSimulatorScenario {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  writes: boolean;
+  requiresAccount: boolean;
+  accountRole?: 'buyer' | 'seller';
+  requiresSeedAd?: boolean;
+  requiresSeedSeller?: boolean;
+  requiresSeedProduct?: boolean;
+  requiresSeedService?: boolean;
+  tags: string[];
+  steps: Array<Record<string, unknown>>;
+}
+
+export interface UserSimulatorRunSummary {
+  usersTotal: number;
+  usersStarted: number;
+  usersCompleted: number;
+  usersFailed: number;
+  stepsTotal: number;
+  stepsPassed: number;
+  stepsFailed: number;
+  httpRequests: number;
+  httpErrors: number;
+  consoleErrors: number;
+  pageErrors: number;
+  averagePageLoadMs: number | null;
+  p95PageLoadMs: number | null;
+  averageLcpMs: number | null;
+  p95LcpMs: number | null;
+  averageApiDurationMs: number | null;
+  p95ApiDurationMs: number | null;
+  durationMs: number;
+}
+
+export interface UserSimulatorRun {
+  id: string;
+  status: 'queued' | 'running' | 'stopping' | 'stopped' | 'completed' | 'completed_with_errors' | 'failed';
+  startedAt: string;
+  finishedAt: string | null;
+  options: Record<string, unknown>;
+  summary: UserSimulatorRunSummary;
+  users: Array<Record<string, unknown>>;
+  operations: Array<Record<string, unknown>>;
+  apiRequests: Array<Record<string, unknown>>;
+  errors: Array<Record<string, unknown>>;
+  artifacts: Array<Record<string, unknown>>;
+}
+
 export interface AdminPlatformTrendsResponse {
   series?: Array<{ date: string; users: number; ads: number; reports: number }>;
   [key: string]: unknown;
@@ -240,6 +316,36 @@ export const adminApi = {
   // FIX ADMIN-API-TYPING-01: type defined above (AdminSystemHealthResponse).
   getSystemHealth: (config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<AdminSystemHealthResponse>>('/admin/system-health', config),
+
+  // Real-browser user simulator. The API backend enforces ADMIN+ and proxies
+  // these calls to the separately hosted Playwright runner; its secret never
+  // reaches the browser bundle.
+  getUserSimulatorStatus: () =>
+    apiClient.get<ApiResponse<Record<string, unknown>>>('/admin/user-simulator/status').then(r => r.data.data),
+  getUserSimulatorConfig: () =>
+    apiClient.get<ApiResponse<UserSimulatorConfig>>('/admin/user-simulator/config').then(r => r.data.data),
+  updateUserSimulatorConfig: (payload: Partial<UserSimulatorConfig>) =>
+    apiClient.patch<ApiResponse<UserSimulatorConfig>>('/admin/user-simulator/config', payload).then(r => r.data.data),
+  getUserSimulatorScenarios: () =>
+    apiClient.get<ApiResponse<UserSimulatorScenario[]>>('/admin/user-simulator/scenarios').then(r => r.data.data),
+  createUserSimulatorScenario: (payload: UserSimulatorScenario) =>
+    apiClient.post<ApiResponse<UserSimulatorScenario>>('/admin/user-simulator/scenarios', payload).then(r => r.data.data),
+  updateUserSimulatorScenario: (id: string, payload: UserSimulatorScenario) =>
+    apiClient.put<ApiResponse<UserSimulatorScenario>>(`/admin/user-simulator/scenarios/${encodeURIComponent(id)}`, payload).then(r => r.data.data),
+  deleteUserSimulatorScenario: (id: string) =>
+    apiClient.delete<ApiResponse<{ deleted: boolean }>>(`/admin/user-simulator/scenarios/${encodeURIComponent(id)}`),
+  getUserSimulatorRuns: (limit = 30) =>
+    apiClient.get<ApiResponse<UserSimulatorRun[]>>('/admin/user-simulator/runs', { params: { limit } }).then(r => r.data.data),
+  startUserSimulatorRun: (payload: Record<string, unknown>) =>
+    apiClient.post<ApiResponse<UserSimulatorRun>>('/admin/user-simulator/runs', payload, { timeout: 20_000 }).then(r => r.data.data),
+  getUserSimulatorRun: (id: string) =>
+    apiClient.get<ApiResponse<UserSimulatorRun>>(`/admin/user-simulator/runs/${encodeURIComponent(id)}`).then(r => r.data.data),
+  stopUserSimulatorRun: (id: string) =>
+    apiClient.post<ApiResponse<UserSimulatorRun>>(`/admin/user-simulator/runs/${encodeURIComponent(id)}/stop`, {}).then(r => r.data.data),
+  getUserSimulatorReport: (id: string) =>
+    apiClient.get<ApiResponse<UserSimulatorRun>>(`/admin/user-simulator/runs/${encodeURIComponent(id)}/report`).then(r => r.data.data),
+  getUserSimulatorArtifact: (id: string, name: string) =>
+    apiClient.get<Blob>(`/admin/user-simulator/runs/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(name)}`, { responseType: 'blob' }).then(r => r.data),
   scanDataIntegrity: () =>
     apiClient.post<ApiResponse<AdminDataIntegrityReport>>('/admin/data-integrity/scan', {}, { timeout: 30_000 }),
 

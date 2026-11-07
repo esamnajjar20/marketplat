@@ -40,7 +40,11 @@
     "audit:db-query-phase5": "pnpm --filter classifieds-platform-backend audit:db-query-phase5",
     "audit:db-query-phase6": "pnpm --filter classifieds-platform-backend audit:db-query-phase6",
     "profile:db-queries": "pnpm --filter classifieds-platform-backend profile:db-queries",
-    "audit:http-requests": "npm --prefix frontend run network:phase6-audit && pnpm --filter classifieds-platform-backend audit:http-payload-phase4 && pnpm --filter classifieds-platform-backend audit:db-query-phase5 && pnpm --filter classifieds-platform-backend audit:db-query-phase6"
+    "audit:http-requests": "npm --prefix frontend run network:phase6-audit && pnpm --filter classifieds-platform-backend audit:http-payload-phase4 && pnpm --filter classifieds-platform-backend audit:db-query-phase5 && pnpm --filter classifieds-platform-backend audit:db-query-phase6",
+    "simulator:install": "npm --prefix tools/user-simulator install",
+    "simulator:browser:install": "npm --prefix tools/user-simulator run install:browser",
+    "simulator:start": "npm --prefix tools/user-simulator start",
+    "simulator:test": "npm --prefix tools/user-simulator test"
   },
   "pnpm": {
     "overrides": {

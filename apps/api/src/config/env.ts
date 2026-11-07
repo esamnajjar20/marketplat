@@ -311,6 +311,18 @@ const envSchema = z.object({
   // modules (e.g. logger.ts, to decide whether to mention Sentry status
   // in a health-check payload) can read env.observability.sentryDsn
   // without reaching into process.env directly themselves.
+  // Dedicated Node/Playwright runner. The browser engine is deployed separately
+  // from the Cloudflare Worker; only this API backend can reach it with the
+  // service token. Both values remain optional so deployments without the
+  // simulator continue to boot normally.
+  USER_SIMULATOR_RUNNER_URL: z.preprocess(
+    value => (typeof value === 'string' ? value.trim() || undefined : value),
+    z.string().url().optional(),
+  ),
+  USER_SIMULATOR_RUNNER_TOKEN: z.preprocess(
+    value => (typeof value === 'string' ? value.trim() || undefined : value),
+    z.string().min(32).optional(),
+  ),
   SENTRY_DSN: z.string().url().optional(),
   SENTRY_TRACES_SAMPLE_RATE: z
     .string()
@@ -470,6 +482,26 @@ const envSchema = z.object({
 // at startup (same place JWT_SECRET/DATABASE_URL failures surface),
 // not silently at connection time.
 const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
+  if (Boolean(data.USER_SIMULATOR_RUNNER_URL) !== Boolean(data.USER_SIMULATOR_RUNNER_TOKEN)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['USER_SIMULATOR_RUNNER_URL'],
+      message: 'USER_SIMULATOR_RUNNER_URL and USER_SIMULATOR_RUNNER_TOKEN must be configured together',
+    });
+  }
+  if (data.NODE_ENV === 'production' && data.USER_SIMULATOR_RUNNER_URL) {
+    try {
+      if (new URL(data.USER_SIMULATOR_RUNNER_URL).protocol !== 'https:') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['USER_SIMULATOR_RUNNER_URL'],
+          message: 'USER_SIMULATOR_RUNNER_URL must use HTTPS in production',
+        });
+      }
+    } catch {
+      // The URL schema above already reports malformed values.
+    }
+  }
   // Validate the normalized value that config/redis.ts will actually use.
   // A whitespace-only value is truthy before trim(), but becomes undefined
   // in env.redis.password below and silently disables Redis AUTH.
@@ -937,6 +969,11 @@ export const env = {
   analytics: {
     queryTimeoutMs: parseInt(_env.ANALYTICS_QUERY_TIMEOUT_MS, 10),
     retentionDays: parseInt(_env.ANALYTICS_RETENTION_DAYS, 10),
+  },
+  userSimulator: {
+    runnerUrl: (_env.USER_SIMULATOR_RUNNER_URL || '').trim().replace(/\/$/, ''),
+    runnerToken: (_env.USER_SIMULATOR_RUNNER_TOKEN || '').trim(),
+    isConfigured: Boolean(_env.USER_SIMULATOR_RUNNER_URL && _env.USER_SIMULATOR_RUNNER_TOKEN),
   },
   observability: {
     sentryDsn: _env.SENTRY_DSN || '',

@@ -24,14 +24,14 @@ import {
 } from '@/lib/adminHubTabs';
 
 describe('admin tab model', () => {
-  it('has 22 unique tabs after adding feature flag management', () => {
-    expect(ADMIN_TABS).toHaveLength(22);
-    expect(new Set(ADMIN_TABS).size).toBe(22);
+  it('has 23 unique tabs after adding the user simulator', () => {
+    expect(ADMIN_TABS).toHaveLength(23);
+    expect(new Set(ADMIN_TABS).size).toBe(23);
   });
 
   it('every old /admin/<section> page maps to its tab', () => {
     for (const tab of ADMIN_TABS) expect(LEGACY_ADMIN_PATH_TO_TAB[`/admin/${tab}`]).toBe(tab);
-    expect(Object.keys(LEGACY_ADMIN_PATH_TO_TAB)).toHaveLength(22);
+    expect(Object.keys(LEGACY_ADMIN_PATH_TO_TAB)).toHaveLength(23);
   });
 
   it('isAdminTab / resolveAdminTab and legacy monitoring aliases', () => {
@@ -95,9 +95,9 @@ describe('hrefs', () => {
 
 describe('role tiers', () => {
   it('ADMIN opens standard admin sections; only SUPER_ADMIN opens feature flags', () => {
-    expect(adminTabsForRole('ADMIN')).toHaveLength(21);
+    expect(adminTabsForRole('ADMIN')).toHaveLength(22);
     expect(canOpenAdminTab('feature-flags', 'ADMIN')).toBe(false);
-    expect(adminTabsForRole('SUPER_ADMIN')).toHaveLength(22);
+    expect(adminTabsForRole('SUPER_ADMIN')).toHaveLength(23);
     expect(canOpenAdminTab('feature-flags', 'SUPER_ADMIN')).toBe(true);
     expect(defaultAdminTabForRole('ADMIN')).toBe('dashboard');
     expect(defaultAdminTabForRole('SUPER_ADMIN')).toBe('dashboard');
@@ -120,6 +120,9 @@ describe('role tiers', () => {
     expect(canOpenAdminTab('users', 'MODERATOR')).toBe(false);
     expect(canOpenAdminTab('open-requests', 'MODERATOR')).toBe(true);
     expect(canOpenAdminTab('infrastructure', 'ADMIN')).toBe(true);
+    expect(canOpenAdminTab('user-simulator', 'ADMIN')).toBe(true);
+    expect(canOpenAdminTab('user-simulator', 'SUPER_ADMIN')).toBe(true);
+    expect(canOpenAdminTab('user-simulator', 'MODERATOR')).toBe(false);
     expect(canOpenAdminTab('infrastructure', 'SUPER_ADMIN')).toBe(true);
     expect(canOpenAdminTab('feature-flags', 'SUPER_ADMIN')).toBe(true);
     expect(canOpenAdminTab('feature-flags', 'ADMIN')).toBe(false);

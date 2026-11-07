@@ -94,3 +94,9 @@ Modelfile.fast
 
 # Workflow YAML backups — never commit
 .workflow-backups-*/
+
+# MarketPlat browser user-simulator local secrets and generated data
+/tools/user-simulator/.env
+/tools/user-simulator/node_modules/
+/tools/user-simulator/data/
+/tools/user-simulator/reports/

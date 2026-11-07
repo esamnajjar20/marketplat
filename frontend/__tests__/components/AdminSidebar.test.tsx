@@ -213,7 +213,7 @@ describe('AdminSidebar', () => {
     const { container } = render(<AdminSidebar />);
     const desktopAside = container.querySelector('aside');
     const hiddenIcons = desktopAside?.querySelectorAll('[aria-hidden="true"]');
-    expect(hiddenIcons?.length).toBe(22); // 21 nav links (NAV_LINKS) + the search-box icon
+    expect(hiddenIcons?.length).toBe(23); // 22 nav links (NAV_LINKS) + the search-box icon
   });
 
   // ── Mobile drawer ────────────────────────────────────────────────────

@@ -43,6 +43,7 @@ export const ADMIN_TABS = [
   'monitoring',
   'infrastructure',
   'feature-flags',
+  'user-simulator',
 ] as const;
 export type AdminTab = (typeof ADMIN_TABS)[number];
 
@@ -78,6 +79,7 @@ export function isAdminTierRole(role: AdminRoleLike): boolean {
 /** Fails closed: an unknown / missing role can open nothing. */
 export function canOpenAdminTab(tab: AdminTab, role: AdminRoleLike): boolean {
   if (tab === 'feature-flags') return role === 'SUPER_ADMIN';
+  if (tab === 'user-simulator') return role === 'ADMIN' || role === 'SUPER_ADMIN';
   if (role === 'ADMIN' || role === 'SUPER_ADMIN') return true;
   if (role === 'MODERATOR') return MODERATOR_ADMIN_TABS.includes(tab);
   return false;
