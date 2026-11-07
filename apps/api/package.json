@@ -1,7 +1,7 @@
 {
   "name": "classifieds-platform-backend",
   "version": "3.0.0",
-  "description": "Classifieds & Marketplace Platform \u2014 Backend API",
+  "description": "Classifieds & Marketplace Platform — Backend API",
   "license": "UNLICENSED",
   "main": "dist/server.js",
   "engines": {
