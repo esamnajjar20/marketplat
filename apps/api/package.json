@@ -1,7 +1,7 @@
 {
   "name": "classifieds-platform-backend",
   "version": "3.0.0",
-  "description": "Classifieds & Marketplace Platform — Backend API",
+  "description": "Classifieds & Marketplace Platform \u2014 Backend API",
   "license": "UNLICENSED",
   "main": "dist/server.js",
   "engines": {
@@ -111,7 +111,7 @@
     "winston": "^3.11.0",
     "winston-daily-rotate-file": "^4.7.1",
     "winston-transport": "^4.7.0",
-    "zod": "^3.22.0",
+    "zod": "3.22.0",
     "serverless-http": "^3.2.0"
   },
   "optionalDependencies": {
