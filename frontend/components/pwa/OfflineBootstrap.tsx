@@ -1,4 +1,5 @@
 'use client';
+import { reportBackgroundFailure } from '@/lib/backgroundTask';
 
 /**
  * نقطة إقلاع نظام الـ Offline — تُركَّب مرة واحدة في AppProviders.

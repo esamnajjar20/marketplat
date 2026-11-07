@@ -110,9 +110,11 @@ export default async function ({ req, res, log, error }: any) {
     };
 
     const response = await expressHandler(event, {});
-    const statusCode = Number.isInteger(response?.statusCode) && response.statusCode >= 100 && response.statusCode <= 599
-      ? response.statusCode
-      : 200;
+    const rawStatus = response?.statusCode;
+    const statusCode =
+      typeof rawStatus === 'number' && Number.isInteger(rawStatus) && rawStatus >= 100 && rawStatus <= 599
+        ? rawStatus
+        : 200;
     const responseHeaders = normalizeHeaders(response?.headers);
     const responseBody = response?.body == null ? '' : String(response.body);
     const outputBody = response?.isBase64Encoded ? Buffer.from(responseBody, 'base64') : responseBody;
