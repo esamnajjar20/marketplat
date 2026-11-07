@@ -1,13 +1,10 @@
-// Appwrite Functions entrypoint. Import instrumentation before the Express
-// application, but deliberately do not import server.ts: server.ts owns the
-// persistent-process bootstrap (listen, queue consumers, timers and signals).
 import './instrument';
 import serverless from 'serverless-http';
 import { app } from './app';
 
 interface AppwriteRequest {
-  path: string;
-  method: string;
+  path?: string;
+  method?: string;
   headers?: Record<string, string | string[] | undefined>;
   queryString?: string;
   bodyRaw?: string;
@@ -20,7 +17,7 @@ interface AppwriteResponse {
 }
 
 interface AppwriteFunctionContext {
-  req: AppwriteRequest;
+  req?: AppwriteRequest;
   res: AppwriteResponse;
   log: (message: string) => void;
   error: (message: string) => void;
@@ -28,14 +25,8 @@ interface AppwriteFunctionContext {
 
 const expressHandler = serverless(app);
 const HOP_BY_HOP_HEADERS = new Set([
-  'connection',
-  'keep-alive',
-  'proxy-authenticate',
-  'proxy-authorization',
-  'te',
-  'trailer',
-  'transfer-encoding',
-  'upgrade',
+  'connection', 'keep-alive', 'proxy-authenticate', 'proxy-authorization',
+  'te', 'trailer', 'transfer-encoding', 'upgrade',
 ]);
 
 function normalizeHeaders(
@@ -58,14 +49,23 @@ function serializeBody(req: AppwriteRequest): string | undefined {
 
 export default async ({ req, res, log, error }: AppwriteFunctionContext) => {
   try {
-    const path = req.path.startsWith('/') ? req.path : `/${req.path}`;
+    // حماية: إذا لم يرسل Appwrite كائن الطلب، نعيد خطأ 400 بدلاً من الانهيار
+    if (!req) {
+      error('Appwrite context is missing the "req" object.');
+      return res.json({ error: 'Invalid Request Context' }, 400);
+    }
+
+    const rawPath = req.path || '/';
+    const path = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
+    const method = (req.method || 'GET').toUpperCase();
     const queryString = req.queryString?.replace(/^\?/, '') ?? '';
+
     const event: Record<string, unknown> = {
       version: '2.0',
       rawPath: path,
       path,
-      httpMethod: req.method.toUpperCase(),
-      method: req.method.toUpperCase(),
+      httpMethod: method,
+      method: method,
       headers: req.headers ?? {},
       queryStringParameters: Object.fromEntries(new URLSearchParams(queryString)),
       rawQueryString: queryString,
@@ -78,7 +78,7 @@ export default async ({ req, res, log, error }: AppwriteFunctionContext) => {
     const headers = normalizeHeaders(response.headers);
     const body = response.body ?? '';
 
-    log(`Express request completed: ${req.method.toUpperCase()} ${path} (${statusCode})`);
+    log(`Express request completed: ${method} ${path} (${statusCode})`);
     return res.send(body, statusCode, headers);
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : String(caught);
