@@ -1,6 +1,6 @@
 /** Shared runtime contracts for the MarketPlat Cloudflare gateway. */
 export type GatewayKind = 'backend' | 'frontend' | 'go';
-export type RegistrySource = 'durable-object' | 'kv' | 'env-fallback' | 'kv-compatibility-fallback';
+export type RegistrySource = 'durable-object' | 'kv' | 'd1' | 'env-fallback' | 'kv-compatibility-fallback';
 export type HealthSource = 'traffic' | 'probe';
 
 export interface BackendServer {
@@ -110,6 +110,8 @@ export interface GatewayHealthSnapshot {
 export interface GatewayRegistryLoad {
   registry: GatewayRegistry;
   source: RegistrySource;
+  coordinatorStatus?: 'available' | 'unavailable' | 'backoff' | 'not-configured' | 'not-checked';
+  readOnly?: boolean;
 }
 
 export interface RegistryCacheEntry {
@@ -306,6 +308,8 @@ export interface Env {
   FRONTEND_GATEWAY_HOSTS?: string;
   GATEWAY_ALLOWED_HOSTS?: string;
   GATEWAY_ADMIN_TOKEN?: string;
+  /** Production guard: registry writes require a reachable Durable Object coordinator. */
+  GATEWAY_REQUIRE_DURABLE_REGISTRY?: string;
   /** Dedicated token for the private D1 feature-flag control plane. */
   FEATURE_FLAGS_ADMIN_TOKEN?: string;
   /** Shared secret used by Express to authenticate requests entering the Go gateway. */

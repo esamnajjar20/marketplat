@@ -10,6 +10,8 @@ enabled = true
 [vars]
 FRONTEND_ORIGIN = "https://marketplat.esamnajjar6.workers.dev"
 RENDER_ORIGIN = "https://marketplat-nz19.onrender.com"
+# Prevent production registry writes from silently downgrading to a stale replica.
+GATEWAY_REQUIRE_DURABLE_REGISTRY = "true"
 # Both flags must be enabled only after the API durable purge outbox is deployed,
 # its Worker purge URL/token are verified, and the API outbox worker is running.
 # Every route-backed catalog/reference family is bypassed until purge readiness is verified.

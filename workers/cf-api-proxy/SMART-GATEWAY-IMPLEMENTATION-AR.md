@@ -1,6 +1,6 @@
 # MarketPlat Smart Cache & Gateway — دليل التنفيذ
 
-> **الحالة الحالية — بعد تحويل Worker إلى TypeScript وتفعيل Workers Cache:** ملف الدخول المعتمد هو `worker.ts`، ويشير إليه `wrangler.toml` و`wrangler.example.jsonc`. ملف `worker.js` الجذري نسخة قديمة غير مستخدمة، ويُزال في التحديث الحالي حتى لا يختلط مصدر النشر. الأقسام اللاحقة تحتفظ بتسلسل تاريخ المراحل، وقد تصف بعض تفاصيل المرحلة الأولى قبل أن تستبدلها التحديثات اللاحقة الواردة في هذا الدليل.
+> **الحالة الحالية — بعد تحويل Worker إلى TypeScript وتفعيل Workers Cache:** ملف الدخول المعتمد هو `worker.ts`، ويشير إليه `wrangler.toml` و`wrangler.example.jsonc`. تم حذف ملف `worker.js` الجذري القديم غير المستخدم؛ لا يزال `dist/worker.js` ناتج بناء محليًا للاختبارات فقط، وليس مصدر نشر. الأقسام اللاحقة تحتفظ بتسلسل تاريخ المراحل، وقد تصف بعض تفاصيل المرحلة الأولى قبل أن تستبدلها التحديثات اللاحقة الواردة في هذا الدليل.
 
 ## المصدر الحالي وطبقة الأنواع
 
@@ -314,3 +314,18 @@ eight targets per Worker invocation; Cron, alarms, and warmup remain disabled.
 - `go test ./...` could not complete because the environment could not resolve `proxy.golang.org` while downloading `github.com/jackc/pgx/v5@v5.7.2`; no Go runtime source was changed in this extension.
 - Wrangler deploy/dry-run and live multi-origin tests were not performed. No production deployment is claimed.
 - No Cron, alarm, or scheduled health polling was added for Go targets. The separate API reference-cache warm-up uses a fixed route list and does not probe Go services.
+
+
+## استعادة سجل Gateway وتقليل استهلاك Durable Objects (نوفمبر 2026)
+
+- يستخدم `GatewayHealthCoordinator` كائنين منفصلين بالاسم: سجل الإعدادات وحالة الصحة، لكنهما يشتركان في حد طلبات Durable Objects الخاص بالحساب.
+- طلبات التوجيه العادية تقرأ نسختي D1 وWorkers KV بالتوازي عند امتلاء/انتهاء كاش isolate، وتختار أعلى `version` ثم أحدث `updatedAt`؛ وتستخدم كاش isolate لمدة 5 دقائق. قراءة Durable Object مخصصة لقراءة الإدارة الصريحة (`?refresh=1`) ولحالات عدم وجود نسخة احتياطية. تمت إضافة `DB` إلى بصمة ربط الكاش حتى لا تبقى نسخة isolate قديمة عند تغير bindings.
+- قراءة الإدارة القسرية عند تعذر المنسّق تقارن نسخة D1 التاريخية ونسخة Workers KV بواسطة `version` ثم `updatedAt`، وتعرض مصدر النسخة الاحتياطية.
+- `getKv()` خاص بطبقة بيانات المرجع ويختار D1 عند وجود `DB`. لا يجوز استعماله لنسخة Gateway الاحتياطية؛ يجب الوصول إلى `REFERENCE_KV` مباشرة، مع قراءة نسخة D1 التاريخية صراحة للتوافق.
+- لا يحاول Worker تنفيذ `/registry/seed` بعد فشل قراءة المنسّق؛ لا تتم عملية seed إلا إذا رد Durable Object بنجاح وبلا سجل.
+- سجل KV/D1 الاحتياطي قابل للقراءة فقط عند تعذر Durable Object. تُرفض عمليات PUT في وضع التدهور، كما يفرض `GATEWAY_REQUIRE_DURABLE_REGISTRY = "true"` وجود المنسّق في الإنتاج.
+- بعد نجاح تعديل السجل المركزي، يحدّث Worker نسختي D1 وWorkers KV بأفضل جهد ويعيد `replicaStatus` لتوضيح نجاح النسخ أو فشلها الجزئي. واجهة الأدمن تعرض تحذيراً عند عدم اكتمال المزامنة بدلاً من إظهار نجاح غير مشروط.
+- فشل أحد طلبات Durable Objects يفعّل backoff أسيّاً يبدأ من 30 ثانية ويصل إلى 15 دقيقة، ويمنع طلب لقطة الصحة من استهلاك طلب ثانٍ فور فشل قراءة السجل. فشل/نجاح القراءة والكتابة الصحية يحدّث حالة backoff المشتركة داخل isolate.
+- القيم التشغيلية الحالية التي تستبدل الأرقام التاريخية في المراحل السابقة: كاش Registry محلي 5 دقائق، كاش لقطة الصحة دقيقتان، ومقارنة نسختي D1/KV لطلبات البيانات العادية. تحديث الأدمن الصريح يتجاوز كاش Registry ويفحص DO.
+- عينات نجاح Go الحالية 1 من كل 25 طلبًا وبفاصل لا يقل عن 30 ثانية لكل هدف؛ وتُرسل الإخفاقات حتى يفتح قاطع الدائرة، ولا يستمر إرسال حدث لكل طلب أثناء بقاء الدائرة مفتوحة.
+- فحص Worker المحلي يختبر انقطاع Durable Objects، عدم استبدال النسخة الاحتياطية، وفضّ التعارض بين نسختي D1 وKV حسب الإصدار، ويؤكد منع قراءة DO إضافية للصحة بعد فشل قراءة Registry في isolate نفسه، وكذلك تهيئة سجل فارغ فقط بعد استجابة مركزية ناجحة تؤكد أنه فارغ.

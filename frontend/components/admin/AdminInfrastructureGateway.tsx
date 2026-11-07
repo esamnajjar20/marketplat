@@ -69,6 +69,9 @@ type ProbeResult = {
 type RegistryResponse = {
   ok: boolean;
   source?: string;
+  coordinatorStatus?: 'available' | 'unavailable' | 'backoff' | 'not-configured' | 'not-checked';
+  registryReadOnly?: boolean;
+  replicaStatus?: string;
   registry?: {
     version: number;
     updatedAt?: string | null;
@@ -175,6 +178,7 @@ export function AdminInfrastructureGateway() {
   const [savedSnapshot, setSavedSnapshot] = useState('{"backend":[],"frontend":[],"go":[]}');
   const [version, setVersion] = useState(0);
   const [source, setSource] = useState('');
+  const [coordinatorStatus, setCoordinatorStatus] = useState<RegistryResponse['coordinatorStatus']>('not-checked');
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [localHealth, setLocalHealth] = useState<LocalHealth[]>([]);
   const [healthScope, setHealthScope] = useState('single-worker-isolate');
@@ -214,6 +218,9 @@ export function AdminInfrastructureGateway() {
 
   const currentSnapshot = useMemo(() => JSON.stringify({ backend: servers, frontend: frontendServers, go: goServices, goAdaptive: { enabled: goAdaptiveEnabled, sensitivity: goAdaptiveSensitivity } }), [servers, frontendServers, goServices, goAdaptiveEnabled, goAdaptiveSensitivity]);
   const isDirty = currentSnapshot !== savedSnapshot;
+  const canSaveRegistry = source === 'durable-object' || (source === 'env-fallback' && coordinatorStatus === 'available');
+  const registryReadOnly = Boolean(source) && !canSaveRegistry;
+  const registryBootstrap = source === 'env-fallback' && coordinatorStatus === 'available';
   const enabledCount = useMemo(() => servers.filter((server) => server.enabled).length, [servers]);
   const totalWeight = useMemo(() => servers.filter((server) => server.enabled).reduce((sum, server) => sum + server.weight, 0), [servers]);
   const frontendEnabledCount = useMemo(() => frontendServers.filter((server) => server.enabled).length, [frontendServers]);
@@ -223,11 +230,11 @@ export function AdminInfrastructureGateway() {
   const healthById = useMemo(() => new Map(localHealth.map((item) => [`${item.kind}:${item.id}`, item])), [localHealth]);
   const probeById = useMemo(() => new Map(probeResults.map((item) => [`${item.kind}:${item.id}`, item])), [probeResults]);
 
-  const loadRegistry = useCallback(async () => {
+  const loadRegistry = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(API_PATH, {
+      const response = await fetch(forceRefresh ? `${API_PATH}?refresh=1` : API_PATH, {
         method: 'GET',
         credentials: 'same-origin',
         cache: 'no-store',
@@ -249,6 +256,7 @@ export function AdminInfrastructureGateway() {
       setSavedSnapshot(JSON.stringify({ backend: nextServers, frontend: nextFrontendServers, go: nextGoServices, goAdaptive: { enabled: nextAdaptive.enabled !== false, sensitivity: Number.isInteger(nextAdaptive.sensitivity) ? nextAdaptive.sensitivity : 65 } }));
       setVersion(payload.registry.version || 0);
       setSource(payload.source || 'unknown');
+      setCoordinatorStatus(payload.coordinatorStatus || 'not-checked');
       setUpdatedAt(payload.registry.updatedAt || null);
       setLocalHealth(payload.localHealth || []);
       setHealthScope(payload.healthScope || payload.localHealthScope || 'single-worker-isolate');
@@ -260,7 +268,7 @@ export function AdminInfrastructureGateway() {
     }
   }, [authorizationHeaders]);
 
-  useEffect(() => { void loadRegistry(); }, [loadRegistry]);
+  useEffect(() => { void loadRegistry(true); }, [loadRegistry]);
 
   const addServer = () => {
     setError(null);
@@ -574,6 +582,10 @@ export function AdminInfrastructureGateway() {
   };
 
   const saveRegistry = async () => {
+    if (!canSaveRegistry) {
+      setError('السجل الحالي نسخة احتياطية للقراءة فقط. استعد اتصال Durable Object ثم حدّث السجل قبل الحفظ.');
+      return;
+    }
     setSaving(true);
     setError(null);
     setNotice(null);
@@ -624,12 +636,16 @@ export function AdminInfrastructureGateway() {
       setSavedSnapshot(JSON.stringify({ backend: saved, frontend: savedFrontend, go: savedGo, goAdaptive: { enabled: savedAdaptive.enabled !== false, sensitivity: Number.isInteger(savedAdaptive.sensitivity) ? savedAdaptive.sensitivity : 65 } }));
       setVersion(payload.registry.version || version + 1);
       setSource(payload.source || 'durable-object');
+      setCoordinatorStatus('available');
       setUpdatedAt(payload.registry.updatedAt || null);
       setLocalHealth([]);
       setProbeResults([]);
       setProbeCheckedAt(null);
       setPropagation(payload.propagation || 'تم تحديث سجل البوابة.');
-      setNotice('تم حفظ سجل السيرفرات بنجاح.');
+      const replicaStatus = payload.replicaStatus || 'not-configured';
+      setNotice(replicaStatus.startsWith('partial:') || replicaStatus === 'write-failed' || replicaStatus === 'not-configured'
+        ? `حُفظ السجل المركزي بإصدار ${payload.registry.version}، لكن مزامنة النسخ الاحتياطية غير مكتملة (${replicaStatus}). لا تفقد هذه النسخة؛ افحص D1 وWorkers KV.`
+        : `تم حفظ سجل السيرفرات ومزامنة النسخ الاحتياطية (${replicaStatus}).`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'تعذّر حفظ الإعدادات');
     } finally {
@@ -666,7 +682,7 @@ export function AdminInfrastructureGateway() {
       }
       setProbeResults(collected);
       setProbeCheckedAt(checkedAt);
-      await loadRegistry();
+      await loadRegistry(true);
       setNotice(collected.every((result) => result.healthy !== false)
         ? 'اكتمل فحص جميع مجموعات السيرفرات دون أخطاء.'
         : 'اكتمل الفحص، وهناك سيرفر واحد أو أكثر يحتاج إلى مراجعة.');
@@ -683,14 +699,14 @@ export function AdminInfrastructureGateway() {
       description="إدارة مجموعات Backend وFrontend وخدمات Go بشكل مستقل، مع قبول أي أصل HTTPS متوافق وفحص الصحة وتوزيع المرور."
       actions={(
         <>
-          <button type="button" onClick={() => void loadRegistry()} disabled={loading || saving || probing || isDirty} title={isDirty ? 'تراجع عن التغييرات المحلية أولًا' : undefined} className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium hover:bg-muted disabled:opacity-60">
+          <button type="button" onClick={() => void loadRegistry(true)} disabled={loading || saving || probing || isDirty} title={isDirty ? 'تراجع عن التغييرات المحلية أولًا' : undefined} className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium hover:bg-muted disabled:opacity-60">
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> تحديث
           </button>
           <button type="button" onClick={() => void runHealthCheck()} disabled={loading || probing || (servers.length + frontendServers.length + goServices.length) === 0 || isDirty} title={isDirty ? 'احفظ التغييرات قبل فحصها' : undefined} className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium hover:bg-muted disabled:opacity-60">
             <Activity className={`h-4 w-4 ${probing ? 'animate-pulse' : ''}`} /> {probing ? 'جارٍ الفحص…' : 'فحص الصحة الآن'}
           </button>
           {isDirty && <button type="button" onClick={() => { const snapshot = JSON.parse(savedSnapshot) as { backend: GatewayServer[]; frontend: FrontendServer[]; go: GoServiceServer[]; goAdaptive?: { enabled: boolean; sensitivity: number } }; setServers(snapshot.backend); setFrontendServers(snapshot.frontend); setGoServices(snapshot.go || []); setGoAdaptiveEnabled(snapshot.goAdaptive?.enabled !== false); setGoAdaptiveSensitivity(snapshot.goAdaptive?.sensitivity ?? 65); setError(null); setNotice('تم التراجع عن التغييرات المحلية.'); }} disabled={saving || loading} className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium hover:bg-muted disabled:opacity-60">تراجع</button>}
-          <button type="button" onClick={() => void saveRegistry()} disabled={!isDirty || saving || loading || enabledCount === 0} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
+          <button type="button" onClick={() => void saveRegistry()} disabled={!isDirty || saving || loading || enabledCount === 0 || !canSaveRegistry} className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-3 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50">
             <Save className="h-4 w-4" /> {saving ? 'جارٍ الحفظ…' : 'حفظ التغييرات'}
           </button>
         </>
@@ -699,9 +715,12 @@ export function AdminInfrastructureGateway() {
       <div className="space-y-5" dir="rtl">
         {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}
         {notice && <div role="status" className="flex items-start gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm text-emerald-700 dark:text-emerald-300"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />{notice}</div>}
+        {registryBootstrap && <div role="status" className="flex items-start gap-2 rounded-xl border border-sky-500/30 bg-sky-500/5 p-3 text-sm text-sky-900 dark:text-sky-100"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-semibold">السجل المركزي فارغ وجاهز للتهيئة</p><p className="mt-1 leading-6">أكد المنسّق المركزي عدم وجود سجل محفوظ؛ يمكنك إعداد المجموعة وحفظها كإصدار أول. لا يظهر هذا الخيار عند تعذر الاتصال بالمنسّق.</p></div></div>}
+        {registryReadOnly && <div role="alert" className="flex items-start gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-100"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-semibold">السجل في وضع الاستعادة — القراءة فقط</p><p className="mt-1 leading-6">المصدر الحالي {source === 'kv' ? 'نسخة Workers KV الاحتياطية' : source === 'd1' ? 'نسخة D1 الاحتياطية' : 'إعداد fallback الافتراضي'}، وليس Durable Object المركزي. تم تعطيل تعديل إعدادات الخوادم والحفظ لمنع استبدال سجل أحدث بنسخة احتياطية قديمة. أعد التحديث بعد استعادة المنسّق المركزي.</p></div></div>}
 
+        <fieldset disabled={!canSaveRegistry || loading || saving} className="m-0 min-w-0 space-y-5 border-0 p-0">
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6" aria-label="ملخص البوابة">
-          <div className="rounded-xl border bg-card p-4"><p className="text-xs text-muted-foreground">مصدر الإعدادات</p><p className="mt-2 text-lg font-bold">{source === 'durable-object' ? 'Central Registry' : source === 'kv' || source === 'kv-compatibility-fallback' ? 'KV Replica' : source === 'env-fallback' ? 'Fallback Origin' : loading ? '…' : 'غير معروف'}</p><p className="mt-1 text-xs text-muted-foreground">النسخة {version || 0}</p></div>
+          <div className="rounded-xl border bg-card p-4"><p className="text-xs text-muted-foreground">مصدر الإعدادات</p><p className="mt-2 text-lg font-bold">{source === 'durable-object' ? 'Central Registry' : source === 'kv' ? 'KV Replica' : source === 'd1' ? 'D1 Replica' : source === 'kv-compatibility-fallback' ? 'KV Compatibility' : source === 'env-fallback' ? 'Fallback Origin' : loading ? '…' : 'غير معروف'}</p><p className="mt-1 text-xs text-muted-foreground">النسخة {version || 0} · المنسّق: {coordinatorStatus === 'available' ? 'متصل' : coordinatorStatus === 'unavailable' ? 'غير متاح' : coordinatorStatus === 'backoff' ? 'في مهلة إعادة المحاولة' : coordinatorStatus === 'not-configured' ? 'غير مربوط' : 'لم يُفحص'}</p></div>
           <div className="rounded-xl border bg-card p-4"><p className="text-xs text-muted-foreground">السيرفرات المفعّلة</p><p className="mt-2 text-lg font-bold tabular-nums">{loading ? '…' : `${enabledCount} / ${servers.length}`}</p><p className="mt-1 text-xs text-muted-foreground">حد المجموعة {MAX_SERVERS}</p></div>
           <div className="rounded-xl border bg-card p-4"><p className="text-xs text-muted-foreground">مجموع الأوزان</p><p className="mt-2 text-lg font-bold tabular-nums">{totalWeight}</p><p className="mt-1 text-xs text-muted-foreground">الحصة داخل مستوى الأولوية نفسه، وبين الأصول المفعّلة فقط</p></div>
           <div className="rounded-xl border bg-card p-4"><p className="text-xs text-muted-foreground">أصول Frontend المفعّلة</p><p className="mt-2 text-lg font-bold tabular-nums">{loading ? '…' : `${frontendEnabledCount} / ${frontendServers.length}`}</p><p className="mt-1 text-xs text-muted-foreground">الوزن النشط {frontendTotalWeight}</p></div>
@@ -1008,7 +1027,7 @@ export function AdminInfrastructureGateway() {
               <p>• Backend وFrontend: مهلة مستقلة من ثانية إلى 30 ثانية. Go: مهلة مستقلة من ثانية إلى 10 دقائق، والافتراضي 9 دقائق ليتوافق مع أطول مهام API الحالية؛ عدّلها لكل خدمة عند الحاجة.</p>
               <p>• GET وHEAD فقط يمكن تحويلهما تلقائيًا عند أخطاء الاتصال و502/503/504؛ محاولات Go محدودة بثلاث نسخ كحد أقصى لكل طلب.</p>
               <p>• POST لا يعاد إرساله أو تحويله تلقائيًا بين نسخ Go؛ تُترك سلامة إعادة التنفيذ إلى fallback وعقود advisory-lock/idempotency في API.</p>
-              <p>• حالة الصحة مشتركة عبر Durable Object، وسجل الإعدادات مركزي مع KV كنسخة احتياطية. تُخزّن كل نسخة Worker لقطة محلية للصحة لمدة 5 ثوانٍ، وتُعزل الواجهة تلقائيًا عند اكتشاف Build ID مختلف حتى ينجح فحص إصدار مطابق.</p>
+              <p>• حالة الصحة مشتركة عبر Durable Object، وسجل الإعدادات مركزي مع D1 وWorkers KV كنسختين احتياطيتين. تُخزّن كل نسخة Worker لقطة للصحة لمدة دقيقتين، وتُعزل الواجهة تلقائيًا عند اكتشاف Build ID مختلف حتى ينجح فحص إصدار مطابق.</p>
             </div>
           </div>
           <div className="rounded-2xl border bg-card p-4 sm:p-5">
@@ -1026,6 +1045,7 @@ export function AdminInfrastructureGateway() {
           <p className="mt-2 text-xs leading-5 text-muted-foreground">إضافة أصل هنا لا تنشئ خدمة أو قاعدة بيانات جديدة. كل Backend يجب أن يطابق عقد API ويتشارك PostgreSQL وRedis ومخطط Prisma المتوافق. وكل Frontend يجب أن يخدم بناء Next.js نفسه مع مفاتيح الجلسات وServer Actions المتوافقة. خدمات Go تُسجّل بمفتاح خدمة ومسار داخلي؛ افتراضيًا تستخدم GO_WORKER_TOKEN، ويمكن عزل رمز كل serviceKey عبر سر GO_WORKER_TOKENS_JSON، وتشارك النسخ التابعة للخدمة رمزها. كما يلزم ربط اسم النطاق العام بالـ Worker مرة واحدة من إعدادات Cloudflare؛ إضافة الأصل وحدها لا تنشئ DNS أو Route.</p>
           {isDirty && <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300" aria-live="polite">لديك تغييرات محلية غير محفوظة. اضغط «حفظ التغييرات» لتطبيقها.</p>}
         </section>
+        </fieldset>
       </div>
     </AdminPageShell>
   );

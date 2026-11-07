@@ -65,7 +65,7 @@ function harness({ upstream, kv, cacheFailure = false, nativeCacheUnavailable = 
   const upstreamLog = [];
   const nativeCachePurges = [];
   const context = {
-    URL, Request, Response, Headers, Map, Set, Date, Math, String, Number, JSON, Promise, RegExp, Object, Array, AbortSignal,
+    URL, Request, Response, Headers, Map, Set, Date, Math, String, Number, JSON, Promise, RegExp, Object, Array, AbortSignal, TextEncoder, TextDecoder,
     encodeURIComponent, decodeURIComponent,
     console: { log() {}, error() {} },
     caches: { default: cache },
@@ -757,7 +757,7 @@ const PUBLIC_LIVE = {
   // Registry API is server-to-server only and requires its dedicated secret.
   assert.equal((await h.call('/__gateway/registry')).status, 403);
   const adminHeaders = { 'x-gateway-admin-token': 'admin-secret' };
-  const current = await h.call('/__gateway/registry', { headers: adminHeaders });
+  const current = await h.call('/__gateway/registry?refresh=1', { headers: adminHeaders });
   assert.equal(current.status, 200);
   assert.equal((await current.json()).registry.backend.servers.length, 2);
   const doOnlyAdmin = harness({ upstream: async () => json({ ok: true }), envOverrides: { GATEWAY_ADMIN_TOKEN: 'admin-secret', GATEWAY_HEALTH: registryCoordinator } });
@@ -832,6 +832,154 @@ const PUBLIC_LIVE = {
     body: JSON.stringify({ action: 'delete' }),
   });
   assert.equal(unsupportedProbe.status, 400);
+}
+
+
+/* ───────────── registry recovery: explicit KV, legacy D1, no unsafe seed/write ───────────── */
+{
+  const backupRegistry = {
+    version: 3,
+    strategy: 'weighted-random',
+    backend: { strategy: 'weighted-random', servers: [
+      { id: 'render-primary', url: 'https://primary.example.com', weight: 100, priority: 100, timeoutMs: 20000, enabled: true, healthPath: '/health', healthKind: 'backend' },
+      { id: 'render-secondary', url: 'https://secondary.example.com', weight: 100, priority: 100, timeoutMs: 20000, enabled: true, healthPath: '/health', healthKind: 'backend' },
+      { id: 'render-tertiary', url: 'https://tertiary.example.com', weight: 100, priority: 100, timeoutMs: 20000, enabled: true, healthPath: '/health', healthKind: 'backend' },
+      { id: 'render-fourth', url: 'https://fourth.example.com', weight: 100, priority: 100, timeoutMs: 20000, enabled: true, healthPath: '/health', healthKind: 'backend' },
+    ] },
+    frontend: { strategy: 'weighted-random', servers: [] },
+    go: { strategy: 'weighted-random', servers: [], adaptive: { enabled: true, sensitivity: 65 } },
+    updatedAt: '2026-11-04T13:43:53.992Z',
+  };
+  const kvStore = new Map([['gateway:registry:v1', JSON.stringify(backupRegistry)]]);
+  const kv = {
+    get: async (key, type) => type === 'json' && kvStore.has(key) ? JSON.parse(kvStore.get(key)) : null,
+    put: async (key, value) => { kvStore.set(key, value); },
+    getWithMetadata: async () => ({ value: null, metadata: null }),
+    list: async () => ({ keys: [], list_complete: true }),
+    delete: async (key) => { kvStore.delete(key); },
+  };
+  const coordinatorCalls = [];
+  const unavailableCoordinator = {
+    idFromName: (name) => ({ name }),
+    get: (id) => ({ fetch: async (input) => {
+      coordinatorCalls.push({ name: id.name, url: String(input) });
+      throw new Error('Exceeded allowed volume of requests in Durable Objects free tier');
+    } }),
+  };
+  const h = harness({
+    kv,
+    envOverrides: { GATEWAY_ADMIN_TOKEN: 'admin-secret', GATEWAY_HEALTH: unavailableCoordinator },
+    upstream: async () => json({ ok: true }),
+  });
+  const headers = { 'x-gateway-admin-token': 'admin-secret' };
+  const read = await h.call('/__gateway/registry?refresh=1', { headers });
+  assert.equal(read.status, 200);
+  const readBody = await read.json();
+  assert.equal(readBody.source, 'kv', 'the registry outage must fall back to the explicit Workers KV replica');
+  assert.equal(readBody.registry.version, 3);
+  assert.equal(readBody.registry.backend.servers.length, 4);
+  assert.equal(readBody.registryReadOnly, true);
+  assert.equal(coordinatorCalls.some((call) => call.url.endsWith('/registry/seed')), false, 'must not issue a second Durable Object request after the coordinator has failed');
+  assert.equal(coordinatorCalls.length, 1, 'a registry DO quota failure must suppress the redundant health snapshot DO read in the same isolate');
+
+  const before = kvStore.get('gateway:registry:v1');
+  const save = await h.call('/__gateway/registry', {
+    method: 'PUT', headers: { ...headers, 'content-type': 'application/json' },
+    body: JSON.stringify({ version: 3, backend: { servers: backupRegistry.backend.servers } }),
+  });
+  assert.equal(save.status, 503, 'a replica-only read must not be writable while DO is configured but unavailable');
+  assert.equal((await save.json()).error, 'GATEWAY_REGISTRY_READ_ONLY_DEGRADED');
+  assert.equal(kvStore.get('gateway:registry:v1'), before, 'failed coordinator must not cause the fallback replica to be overwritten');
+}
+
+{
+  const kvRegistry = { version: 3, backend: { strategy: 'weighted-random', servers: [
+    { id: 'kv-old', url: 'https://kv-old.example.com', weight: 100, enabled: true },
+  ] } };
+  const d1Registry = { version: 5, backend: { strategy: 'weighted-random', servers: [
+    { id: 'd1-newer', url: 'https://d1-newer.example.com', weight: 100, enabled: true },
+  ] } };
+  const kv = { get: async (key, type) => key === 'gateway:registry:v1' && type === 'json' ? kvRegistry : null };
+  const d1Value = new TextEncoder().encode(JSON.stringify(d1Registry));
+  const db = {
+    prepare(sql) {
+      let params = [];
+      return {
+        bind(...values) { params = values; return this; },
+        run: async () => ({ meta: { changes: 0 } }),
+        first: async () => sql.includes('SELECT value, metadata, expires_at') && params[0] === 'gateway:registry:v1'
+          ? { value: d1Value, metadata: null, expires_at: null }
+          : null,
+        all: async () => ({ results: [] }),
+      };
+    },
+  };
+  const namespace = { idFromName: (name) => ({ name }), get: () => ({ fetch: async () => { throw new Error('DO quota unavailable'); } }) };
+  const h = harness({ kv, envOverrides: { DB: db, GATEWAY_ADMIN_TOKEN: 'admin-secret', GATEWAY_HEALTH: namespace } });
+  const response = await h.call('/__gateway/registry?refresh=1', { headers: { 'x-gateway-admin-token': 'admin-secret' } });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.source, 'd1', 'the highest-version legacy D1 replica must win over stale KV');
+  assert.equal(body.registry.version, 5);
+  assert.equal(body.registry.backend.servers[0].id, 'd1-newer');
+}
+
+
+{
+  // A genuinely empty coordinator may be initialized with version 1. This is
+  // distinct from a quota/network outage, where replica-only writes are blocked.
+  const h = harness({ upstream: async () => json({ ok: true }) });
+  const coordinator = makeHealthNamespace(h.internals.GatewayHealthCoordinator);
+  const env = {
+    REFERENCE_KV: { get: async () => null, put: async () => {} },
+    GATEWAY_ADMIN_TOKEN: 'admin-secret',
+    GATEWAY_REQUIRE_DURABLE_REGISTRY: 'true',
+    GATEWAY_HEALTH: coordinator,
+  };
+  const initialResponse = await h.context.__worker.fetch(new Request(`${EDGE}/__gateway/registry?refresh=1`, {
+    headers: { 'x-gateway-admin-token': 'admin-secret' },
+  }), env, { waitUntil() {} });
+  assert.equal(initialResponse.status, 200);
+  const initial = await initialResponse.json();
+  assert.equal(initial.source, 'env-fallback');
+  assert.equal(initial.coordinatorStatus, 'available');
+  assert.equal(initial.registryReadOnly, false, 'a confirmed empty central registry is bootstrappable, unlike an outage fallback');
+  const saveResponse = await h.context.__worker.fetch(new Request(`${EDGE}/__gateway/registry`, {
+    method: 'PUT', headers: { 'x-gateway-admin-token': 'admin-secret', 'content-type': 'application/json' },
+    body: JSON.stringify({ version: 0, backend: { servers: [{ id: 'bootstrapped', url: 'https://bootstrapped.example.com', weight: 100, enabled: true }] } }),
+  }), env, { waitUntil() {} });
+  assert.equal(saveResponse.status, 200, 'the first registry write is allowed only after a successful empty-coordinator read');
+  assert.equal((await saveResponse.json()).registry.version, 1);
+}
+
+
+{
+  // Normal data-plane reads must choose the newer backup, not blindly trust D1.
+  const oldD1 = { version: 2, backend: { strategy: 'weighted-random', servers: [
+    { id: 'd1-old', url: 'https://d1-old.example.com', weight: 100, enabled: true },
+  ] } };
+  const freshKv = { version: 3, backend: { strategy: 'weighted-random', servers: [
+    { id: 'kv-fresh', url: 'https://kv-fresh.example.com', weight: 100, enabled: true },
+  ] } };
+  const kv = { get: async (key, type) => key === 'gateway:registry:v1' && type === 'json' ? freshKv : null };
+  const d1Value = new TextEncoder().encode(JSON.stringify(oldD1));
+  const db = {
+    prepare(sql) {
+      let params = [];
+      return {
+        bind(...values) { params = values; return this; },
+        run: async () => ({ meta: { changes: 0 } }),
+        first: async () => sql.includes('SELECT value, metadata, expires_at') && params[0] === 'gateway:registry:v1'
+          ? { value: d1Value, metadata: null, expires_at: null }
+          : null,
+        all: async () => ({ results: [] }),
+      };
+    },
+  };
+  const h = harness({ kv, envOverrides: { DB: db }, upstream: async () => json({ ok: true }) });
+  const response = await h.call('/api/v1/home/for-you?registry=replica-compare');
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('x-mp-backend-id'), 'kv-fresh', 'the latest version across D1/KV must drive normal routing');
 }
 
 /* ───────────── provider-agnostic frontend routing, build checks, and affinity ───────────── */

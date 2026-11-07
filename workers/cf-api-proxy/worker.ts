@@ -258,12 +258,13 @@ const inflight = new Map<string, Promise<unknown>>();
 
 /* ───────────────────── dynamic backend gateway ───────────────────── */
 
-// Separate namespace prefix from reference-cache entries. /__purge__ only deletes
-// ref:v1:* keys, so a reference-data purge can never erase routing configuration.
+// Gateway registry is a control-plane record, isolated from reference-cache purges.
+// /__purge__ only deletes ref:v1:* keys, so it cannot erase routing configuration.
 const GATEWAY_REGISTRY_KEY = 'gateway:registry:v1';
-// The registry changes only on an admin save, which refreshes the saving isolate
-// immediately. 60s keeps steady-state DO reads low; other isolates may lag that long.
-const GATEWAY_REGISTRY_CACHE_MS = 60000;
+// The registry changes only on an admin save. Data-plane isolates read the D1 replica
+// first and cache it locally; admin refresh/save always bypasses this cache and checks DO.
+// Other isolates may see an update after this TTL, but they never need a DO read per cache miss.
+const GATEWAY_REGISTRY_CACHE_MS = 5 * 60 * 1000;
 const GATEWAY_MAX_SERVERS = 16;
 const GATEWAY_MAX_GO_TARGETS = 32;
 const GATEWAY_MAX_GO_FAILOVER_ATTEMPTS = 3;
@@ -278,9 +279,9 @@ const GATEWAY_HEALTH_STATE_KEY = 'health:backend:v1';
 const GATEWAY_HEALTH_OBJECT_NAME = 'backend-pool-v1';
 const GATEWAY_REGISTRY_OBJECT_NAME = 'gateway-registry-v1';
 const FRONTEND_RELEASE_COOKIE = '__Host-mp-frontend-release';
-// Health snapshots are control-plane reads. A 15s isolate cache cuts DO reads
-// by roughly 2/3 versus 5s while local circuit breakers still react immediately.
-const GATEWAY_HEALTH_CACHE_MS = 45000; // was 15s; local circuit breakers still react immediately
+// Health snapshots are control-plane reads. A bounded isolate cache reduces DO reads;
+// local circuit breakers continue reacting immediately to failures seen in this isolate.
+const GATEWAY_HEALTH_CACHE_MS = 2 * 60 * 1000; // local circuit breakers react immediately; central telemetry is bounded
 const GATEWAY_HEALTH_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const GATEWAY_HEALTH_HISTORY_INTERVAL_SEC = 15 * 60;
 const GATEWAY_HEALTH_HISTORY_RETENTION_SEC = 30 * 24 * 60 * 60;
@@ -299,6 +300,8 @@ let gatewayHealthSnapshotCache: HealthSnapshotCacheEntry | null = null;
 let gatewayRegistryBinding: string | null = null;
 let gatewayRegistryGeneration = 0;
 let gatewayRegistryInflight: { binding: string; generation: number; promise: Promise<GatewayRegistryLoad> } | null = null;
+let gatewayCoordinatorFailureCount = 0;
+let gatewayCoordinatorRetryAt = 0;
 let gatewayHealthInflight: { binding: unknown; promise: Promise<GatewayHealthSnapshot> } | null = null;
 
 function validateBackendOrigin(raw: unknown, env: Env, label = 'Backend'): string {
@@ -544,7 +547,7 @@ async function callRegistryCoordinator(env: Env, path: string, init?: RequestIni
 }
 
 async function loadGatewayRegistry(env: Env, force = false): Promise<GatewayRegistryLoad> {
-  const cacheBinding = `${Boolean(env && env.REFERENCE_KV)}:${Boolean(env && env.GATEWAY_HEALTH)}`;
+  const cacheBinding = `${Boolean(env && env.REFERENCE_KV)}:${Boolean(env && env.DB)}:${Boolean(env && env.GATEWAY_HEALTH)}`;
 
   // An isolate may be reused with a different set of bindings in tests or during
   // deployment. A binding change invalidates both cached and pending reads.
@@ -572,7 +575,7 @@ async function loadGatewayRegistry(env: Env, force = false): Promise<GatewayRegi
     return gatewayRegistryInflight.promise;
   }
 
-  const promise = loadGatewayRegistryUncached(env, cacheBinding, generation);
+  const promise = loadGatewayRegistryUncached(env, cacheBinding, generation, force);
   const entry = { binding: cacheBinding, generation, promise };
   gatewayRegistryInflight = entry;
   const clear = () => { if (gatewayRegistryInflight === entry) gatewayRegistryInflight = null; };
@@ -580,57 +583,194 @@ async function loadGatewayRegistry(env: Env, force = false): Promise<GatewayRegi
   return promise;
 }
 
+type RegistryReplicaCandidate = {
+  registry: GatewayRegistry;
+  source: 'kv' | 'd1';
+};
+
+function chooseNewestRegistryReplica(candidates: RegistryReplicaCandidate[]): RegistryReplicaCandidate | null {
+  if (candidates.length === 0) return null;
+  return [...candidates].sort((a, b) => {
+    const versionDelta = b.registry.version - a.registry.version;
+    if (versionDelta !== 0) return versionDelta;
+    const timeA = Date.parse(a.registry.updatedAt || '') || 0;
+    const timeB = Date.parse(b.registry.updatedAt || '') || 0;
+    if (timeA !== timeB) return timeB - timeA;
+    // KV is the explicitly provisioned Workers KV replica and is the preferred
+    // tie-breaker when both stores contain the same version and timestamp.
+    return a.source === 'kv' ? -1 : b.source === 'kv' ? 1 : 0;
+  })[0] || null;
+}
+
+async function readGatewayRegistryReplicas(env: Env): Promise<RegistryReplicaCandidate | null> {
+  const reads: Array<Promise<RegistryReplicaCandidate | null>> = [];
+  const readD1 = async (): Promise<RegistryReplicaCandidate | null> => {
+    if (!env || !env.DB) return null;
+    try {
+      const stored = await new D1KVAdapter(env.DB).get(GATEWAY_REGISTRY_KEY, 'json');
+      if (!stored) return null;
+      return { registry: validateGatewayRegistry(stored, env), source: 'd1' };
+    } catch (error) {
+      console.error('[gateway] registry D1 compatibility replica read failed', errorMessage(error));
+      return null;
+    }
+  };
+
+  // Compare both persisted replicas by version on each cold isolate/cache miss.
+  // This prevents a stale D1 row from hiding a newer Workers KV copy (or vice versa).
+  // The isolate cache below bounds this to one pair of reads per cache lifetime.
+  if (env && env.DB) reads.push(readD1());
+
+  // Do not use getKv() here: that abstraction intentionally prefers D1 for the
+  // reference-data cache. Gateway's explicitly provisioned KV replica is a
+  // separate control-plane store and must be read directly.
+  if (env && env.REFERENCE_KV) {
+    reads.push((async () => {
+      try {
+        const stored = await env.REFERENCE_KV!.get(GATEWAY_REGISTRY_KEY, 'json');
+        if (!stored) return null;
+        return { registry: validateGatewayRegistry(stored, env), source: 'kv' as const };
+      } catch (error) {
+        console.error('[gateway] registry Workers KV replica read failed', errorMessage(error));
+        return null;
+      }
+    })());
+  }
+
+  if (reads.length === 0) return null;
+  const candidates = (await Promise.all(reads)).filter((candidate): candidate is RegistryReplicaCandidate => candidate !== null);
+  return chooseNewestRegistryReplica(candidates);
+}
+
+async function writeGatewayRegistryReplicas(env: Env, registry: GatewayRegistry): Promise<string> {
+  const writes: Array<{ name: 'kv' | 'd1'; promise: Promise<void> }> = [];
+  const serialized = JSON.stringify(registry);
+
+  if (env && env.REFERENCE_KV) {
+    writes.push({ name: 'kv', promise: Promise.resolve().then(() => env.REFERENCE_KV!.put(GATEWAY_REGISTRY_KEY, serialized)) });
+  }
+  if (env && env.DB) {
+    writes.push({ name: 'd1', promise: Promise.resolve().then(() => new D1KVAdapter(env.DB!).put(GATEWAY_REGISTRY_KEY, serialized)) });
+  }
+
+  if (writes.length === 0) return 'not-configured';
+  const results = await Promise.allSettled(writes.map((write) => write.promise));
+  const successful = writes.filter((_write, index) => results[index]?.status === 'fulfilled').map((write) => write.name);
+  const failed = writes.filter((_write, index) => results[index]?.status === 'rejected');
+  failed.forEach((write) => {
+    const result = results[writes.indexOf(write)];
+    if (result?.status === 'rejected') {
+      console.error(`[gateway] registry ${write.name.toUpperCase()} replica write failed`, errorMessage(result.reason));
+    }
+  });
+
+  if (failed.length > 0) return successful.length > 0 ? `partial:${successful.join('+')}` : 'write-failed';
+  return `${successful.join('+')}-synced`;
+}
+
+function markGatewayCoordinatorFailure(): void {
+  gatewayCoordinatorFailureCount = Math.min(gatewayCoordinatorFailureCount + 1, 8);
+  const backoffMs = Math.min(15 * 60 * 1000, 30 * 1000 * (2 ** (gatewayCoordinatorFailureCount - 1)));
+  gatewayCoordinatorRetryAt = Date.now() + backoffMs;
+}
+
+function markGatewayCoordinatorHealthy(): void {
+  gatewayCoordinatorFailureCount = 0;
+  gatewayCoordinatorRetryAt = 0;
+}
+
 async function loadGatewayRegistryUncached(
   env: Env,
   cacheBinding: string,
   generation: number,
+  forceCoordinatorRead = false,
 ): Promise<GatewayRegistryLoad> {
-
-  let value = null;
+  let value: GatewayRegistry | null = null;
   let source: RegistrySource = 'env-fallback';
-  // The Durable Object is the strongly-consistent control-plane authority. KV is
-  // retained as a low-latency read replica and a fallback when the coordinator is
-  // unavailable, but it is not the concurrency authority when the DO is bound.
-  try {
-    const response = await callRegistryCoordinator(env, '/registry', { method: 'GET' });
-    if (response && response.ok) {
+  let coordinatorStatus: GatewayRegistryLoad['coordinatorStatus'] = gatewayRegistryObject(env)
+    ? 'available'
+    : 'not-configured';
+  let coordinatorCanSeed = false;
+
+  if (!forceCoordinatorRead) {
+    const primaryReplica = await readGatewayRegistryReplicas(env);
+    if (primaryReplica) {
+      const replicaResult: GatewayRegistryLoad = {
+        registry: primaryReplica.registry,
+        source: primaryReplica.source,
+        coordinatorStatus: gatewayRegistryObject(env) ? 'not-checked' : 'not-configured',
+        readOnly: true,
+      };
+      if (gatewayRegistryBinding === cacheBinding && gatewayRegistryGeneration === generation) {
+        gatewayRegistryCache = { binding: cacheBinding, expiresAt: Date.now() + GATEWAY_REGISTRY_CACHE_MS, value: replicaResult };
+      }
+      return replicaResult;
+    }
+  }
+
+  const hasCoordinator = Boolean(gatewayRegistryObject(env));
+  const inBackoff = hasCoordinator && !forceCoordinatorRead && Date.now() < gatewayCoordinatorRetryAt;
+  if (inBackoff) {
+    coordinatorStatus = 'backoff';
+  } else if (hasCoordinator) {
+    try {
+      const response = await callRegistryCoordinator(env, '/registry', { method: 'GET' });
+      if (!response || !response.ok) throw new Error(`registry coordinator returned ${response?.status ?? 'no response'}`);
       const payload: unknown = await response.json();
-      if (isRecord(payload) && payload.registry) {
+      if (!isRecord(payload)) throw new Error('registry coordinator returned an invalid payload');
+      markGatewayCoordinatorHealthy();
+      coordinatorStatus = 'available';
+      if (payload.registry) {
         value = validateGatewayRegistry(payload.registry, env);
         source = 'durable-object';
-      }
-    }
-  } catch (error) {
-    console.error('[gateway] durable registry read failed; checking KV replica', errorMessage(error));
-  }
-
-  let kvValue = null;
-  if (!value && env && env.REFERENCE_KV) {
-    try {
-      const stored = await getKv(env).get(GATEWAY_REGISTRY_KEY, 'json');
-      if (stored) {
-        kvValue = validateGatewayRegistry(stored, env);
-        value = kvValue;
-        source = 'kv';
+      } else {
+        // Only a healthy coordinator that explicitly has no registry may be seeded.
+        // Never spend a second DO request trying to seed after a quota/network failure.
+        coordinatorCanSeed = true;
       }
     } catch (error) {
-      console.error('[gateway] registry KV read failed; using RENDER_ORIGIN fallback', errorMessage(error));
+      markGatewayCoordinatorFailure();
+      coordinatorStatus = 'unavailable';
+      console.error('[gateway] durable registry read failed; using persisted replicas', errorMessage(error));
     }
   }
 
-  // First-read bootstrap: migrate an existing KV registry into the DO exactly once.
-  if (kvValue && gatewayRegistryObject(env)) {
+  let replica: RegistryReplicaCandidate | null = null;
+  if (!value) {
+    replica = await readGatewayRegistryReplicas(env);
+    if (replica) {
+      value = replica.registry;
+      source = replica.source;
+    }
+  }
+
+  if (coordinatorCanSeed && replica && gatewayRegistryObject(env)) {
     try {
-      await callRegistryCoordinator(env, '/registry/seed', {
-        method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ registry: kvValue }),
+      const seedResponse = await callRegistryCoordinator(env, '/registry/seed', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ registry: replica.registry }),
       });
+      if (!seedResponse || !seedResponse.ok) throw new Error(`registry seed returned ${seedResponse?.status ?? 'no response'}`);
+      const seedPayload: unknown = await seedResponse.json();
+      if (isRecord(seedPayload) && seedPayload.seeded === true) {
+        source = 'durable-object';
+        markGatewayCoordinatorHealthy();
+      }
     } catch (error) {
-      console.error('[gateway] registry bootstrap failed; retaining KV replica', errorMessage(error));
+      markGatewayCoordinatorFailure();
+      coordinatorStatus = 'unavailable';
+      console.error('[gateway] registry bootstrap failed; retaining persisted replica', errorMessage(error));
     }
   }
 
   if (!value) value = fallbackGatewayRegistry(env);
-  const result = { registry: value, source };
+  const result: GatewayRegistryLoad = {
+    registry: value,
+    source,
+    coordinatorStatus,
+    readOnly: source !== 'durable-object' && !(source === 'env-fallback' && coordinatorStatus === 'available'),
+  };
   // Only the newest read for the active bindings may publish to the cache.
   if (gatewayRegistryBinding === cacheBinding && gatewayRegistryGeneration === generation) {
     gatewayRegistryCache = { binding: cacheBinding, expiresAt: Date.now() + GATEWAY_REGISTRY_CACHE_MS, value: result };
@@ -888,11 +1028,20 @@ async function loadGatewayHealthSnapshot(env: Env, force = false): Promise<Gatew
 async function loadGatewayHealthSnapshotUncached(env: Env, binding: Env['GATEWAY_HEALTH'], now: number): Promise<GatewayHealthSnapshot> {
   const stub = gatewayHealthObject(env);
   if (!stub) return localGatewayHealthSnapshot();
+  // Registry and health objects share the same Durable Objects binding/quota.
+  // Once one object reports a quota/network failure, do not immediately spend
+  // another DO request for the health snapshot in the same isolate.
+  if (Date.now() < gatewayCoordinatorRetryAt) {
+    const fallback = localGatewayHealthSnapshot();
+    gatewayHealthSnapshotCache = { binding, expiresAt: Math.max(now + GATEWAY_HEALTH_CACHE_MS, gatewayCoordinatorRetryAt), value: fallback };
+    return fallback;
+  }
   try {
     const response = await stub.fetch('https://gateway-health.internal/snapshot', { method: 'GET' });
     if (!response.ok) throw new Error(`health coordinator returned ${response.status}`);
     const payload = await response.json();
     const states = isRecord(payload) ? parseGatewayHealthStates(payload.states) : {};
+    markGatewayCoordinatorHealthy();
     const value = {
       states,
       scope: 'central-durable-object' as const,
@@ -910,6 +1059,7 @@ async function loadGatewayHealthSnapshotUncached(env: Env, binding: Env['GATEWAY
     gatewayHealthSnapshotCache = { binding, expiresAt: now + GATEWAY_HEALTH_CACHE_MS, value };
     return value;
   } catch (error) {
+    markGatewayCoordinatorFailure();
     console.error('[gateway] central health read failed; using isolate-local state', errorMessage(error));
     const fallback = localGatewayHealthSnapshot();
     gatewayHealthSnapshotCache = { binding, expiresAt: now + GATEWAY_HEALTH_CACHE_MS, value: fallback };
@@ -919,7 +1069,7 @@ async function loadGatewayHealthSnapshotUncached(env: Env, binding: Env['GATEWAY
 
 async function persistGatewayHealth(env: Env, server: GatewayServer, healthy: boolean, details: HealthRecordDetails = {}, source: HealthSource = 'traffic'): Promise<boolean> {
   const stub = gatewayHealthObject(env);
-  if (!stub) return false;
+  if (!stub || Date.now() < gatewayCoordinatorRetryAt) return false;
   try {
     const response = await stub.fetch('https://gateway-health.internal/record', {
       method: 'POST',
@@ -939,6 +1089,7 @@ async function persistGatewayHealth(env: Env, server: GatewayServer, healthy: bo
       }),
     });
     if (!response.ok) throw new Error(`health coordinator returned ${response.status}`);
+    markGatewayCoordinatorHealthy();
     const payload: unknown = await response.json();
     const key = backendStateKey(server);
     if (gatewayHealthSnapshotCache && gatewayHealthSnapshotCache.binding === env.GATEWAY_HEALTH && isRecord(payload) && isGatewayHealthState(payload.state)) {
@@ -952,6 +1103,7 @@ async function persistGatewayHealth(env: Env, server: GatewayServer, healthy: bo
     }
     return true;
   } catch (error) {
+    markGatewayCoordinatorFailure();
     console.error('[gateway] central health write failed; isolate-local circuit remains active', errorMessage(error));
     return false;
   }
@@ -966,7 +1118,7 @@ function scheduleGatewayHealthWrite(env: Env, ctx: ExecutionContextLike | null, 
 
 async function reconcileGatewayHealth(env: Env, servers: GatewayServer[]): Promise<boolean> {
   const stub = gatewayHealthObject(env);
-  if (!stub) return false;
+  if (!stub || Date.now() < gatewayCoordinatorRetryAt) return false;
   try {
     const response = await stub.fetch('https://gateway-health.internal/reconcile', {
       method: 'POST',
@@ -974,9 +1126,11 @@ async function reconcileGatewayHealth(env: Env, servers: GatewayServer[]): Promi
       body: JSON.stringify({ servers: servers.map((server) => ({ id: gatewayHealthId(server), url: server.url })) }),
     });
     if (!response.ok) throw new Error(`health coordinator returned ${response.status}`);
+    markGatewayCoordinatorHealthy();
     gatewayHealthSnapshotCache = null;
     return true;
   } catch (error) {
+    markGatewayCoordinatorFailure();
     console.error('[gateway] central health reconcile failed', errorMessage(error));
     return false;
   }
@@ -1128,6 +1282,8 @@ async function fetchBackend(pathAndSearch: string, initFactory: RequestInit | ((
       if (!result.res || isFailoverStatus(result.res.status)) {
         const alreadyOpen = circuitAlreadyOpen(server);
         recordBackendResult(server, false);
+        // Keep each pre-open failure visible to the shared coordinator so
+        // independent isolates can aggregate their failures into one circuit.
         if (!alreadyOpen) {
           void scheduleGatewayHealthWrite(env, ctx, server, false, {
             status: result.res ? result.res.status : null,
@@ -1190,7 +1346,7 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
   if (request.method !== 'GET' && request.method !== 'PUT' && request.method !== 'POST') {
     return new Response('Method Not Allowed', { status: 405, headers: { allow: 'GET, PUT, POST', 'cache-control': 'no-store' } });
   }
-  if (!env || (!env.REFERENCE_KV && !gatewayRegistryObject(env))) {
+  if (!env || (!env.REFERENCE_KV && !env.DB && !gatewayRegistryObject(env))) {
     return new Response(JSON.stringify({ ok: false, error: 'GATEWAY_STORAGE_NOT_CONFIGURED' }), {
       status: 503, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
     });
@@ -1261,8 +1417,9 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
   }
 
   if (request.method === 'GET') {
-    const current = await loadGatewayRegistry(env, true);
-    const healthSnapshot = await loadGatewayHealthSnapshot(env, true);
+    const forceRefresh = new URL(request.url).searchParams.get('refresh') === '1';
+    const current = await loadGatewayRegistry(env, forceRefresh);
+    const healthSnapshot = await loadGatewayHealthSnapshot(env, forceRefresh);
     const goWeights = goAdaptiveWeightMap(current.registry.go.servers, current.registry.go.adaptive, healthSnapshot.states);
     const health = [
       ...current.registry.backend.servers.map((server) => ({ ...server, kind: 'backend' as const })),
@@ -1302,6 +1459,8 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
       ok: true,
       source: current.source,
       registry: current.registry,
+      registryReadOnly: current.readOnly === true,
+      coordinatorStatus: current.coordinatorStatus || 'not-configured',
       localHealth: health,
       localHealthScope: healthSnapshot.scope,
       healthScope: healthSnapshot.scope,
@@ -1334,7 +1493,38 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
   let registrySource: RegistrySource = 'kv-compatibility-fallback';
   let replicaStatus = 'not-configured';
   try {
+    const coordinator = gatewayRegistryObject(env);
+    if (String(env.GATEWAY_REQUIRE_DURABLE_REGISTRY || '').toLowerCase() === 'true' && !coordinator) {
+      return new Response(JSON.stringify({ ok: false, error: 'GATEWAY_COORDINATOR_NOT_CONFIGURED' }), {
+        status: 503, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },
+      });
+    }
+
     const current = await loadGatewayRegistry(env, true);
+    // An empty registry is bootstrappable only when the coordinator itself
+    // answered successfully and explicitly reported registry=null. A timeout,
+    // quota error, or replica fallback must remain read-only to prevent rollback.
+    const safeEmptyCoordinator = Boolean(
+      coordinator && current.source === 'env-fallback' && current.coordinatorStatus === 'available'
+    );
+    // A replica is suitable for serving requests during a coordinator outage, but
+    // it is not safe for admin writes: doing so could overwrite a newer central
+    // version after a transient read failure or stale KV propagation.
+    if (coordinator && current.source !== 'durable-object' && !safeEmptyCoordinator) {
+      return new Response(JSON.stringify({
+        ok: false,
+        error: 'GATEWAY_REGISTRY_READ_ONLY_DEGRADED',
+        source: current.source,
+        coordinatorStatus: current.coordinatorStatus || 'unavailable',
+        message: 'The authoritative registry coordinator is unavailable. The persisted replica is read-only until central consistency is restored.',
+      }), { status: 503, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+    }
+    if (current.source === 'env-fallback' && !safeEmptyCoordinator) {
+      return new Response(JSON.stringify({
+        ok: false, error: 'GATEWAY_REGISTRY_EMPTY',
+        message: 'No valid persisted registry is available. Saving fallback configuration is blocked.',
+      }), { status: 503, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+    }
     const currentVersion = Math.max(0, Number(current.registry.version) || 0);
     if (Number.isInteger(payload.version) && payload.version !== currentVersion) {
       return new Response(JSON.stringify({
@@ -1348,7 +1538,6 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
     }
     next = { ...validated, version: currentVersion + 1, updatedAt: new Date().toISOString() };
 
-    const coordinator = gatewayRegistryObject(env);
     if (coordinator) {
       const commit = await coordinator.fetch('https://gateway-registry.internal/registry', {
         method: 'PUT', headers: { 'content-type': 'application/json' },
@@ -1362,24 +1551,21 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
         }), { status: 409, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
       }
       if (!commit.ok) throw new Error(`registry coordinator returned ${commit.status}`);
+      markGatewayCoordinatorHealthy();
       registrySource = 'durable-object';
-      if (env.REFERENCE_KV) {
-        try {
-          await getKv(env).put(GATEWAY_REGISTRY_KEY, JSON.stringify(next));
-          replicaStatus = 'synced';
-        } catch (replicaError) {
-          replicaStatus = 'write-failed';
-          console.error('[gateway] registry KV replica write failed', errorMessage(replicaError));
-        }
+      // Keep both explicitly configured recovery stores current. Do not route this
+      // key through getKv(): that abstraction intentionally selects D1 first.
+      replicaStatus = await writeGatewayRegistryReplicas(env, next);
+    } else if (String(env.GATEWAY_REQUIRE_DURABLE_REGISTRY || '').toLowerCase() !== 'true' && (env.REFERENCE_KV || env.DB)) {
+      // Development/legacy compatibility only. Production wrangler.toml enables
+      // GATEWAY_REQUIRE_DURABLE_REGISTRY and therefore cannot silently downgrade.
+      replicaStatus = await writeGatewayRegistryReplicas(env, next);
+      if (replicaStatus === 'not-configured' || replicaStatus === 'write-failed') {
+        throw new Error('No writable registry replica is configured');
       }
-    } else if (env.REFERENCE_KV) {
-      // Compatibility path for local development only. Production should bind the
-      // coordinator so registry writes have atomic compare-and-swap semantics.
-      await getKv(env).put(GATEWAY_REGISTRY_KEY, JSON.stringify(next));
       registrySource = 'kv-compatibility-fallback';
-      replicaStatus = 'primary';
     } else {
-      throw new Error('No registry coordinator or KV binding is configured');
+      throw new Error('No registry coordinator or replica is configured');
     }
   } catch (error) {
     console.error('[gateway] registry write failed', errorMessage(error));
@@ -1390,7 +1576,7 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
 
   gatewayFailures.clear();
   gatewayHealthSnapshotCache = null;
-  const cacheBinding = `${Boolean(env && env.REFERENCE_KV)}:${Boolean(env && env.GATEWAY_HEALTH)}`;
+  const cacheBinding = `${Boolean(env && env.REFERENCE_KV)}:${Boolean(env && env.DB)}:${Boolean(env && env.GATEWAY_HEALTH)}`;
   // Publishing an admin save supersedes every registry read started before
   // the commit, preventing a late stale read from replacing this new version.
   gatewayRegistryBinding = cacheBinding;
@@ -1399,7 +1585,7 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
   gatewayRegistryCache = { binding: cacheBinding, expiresAt: Date.now() + GATEWAY_REGISTRY_CACHE_MS, value: { registry: next, source: registrySource } };
   await reconcileGatewayHealth(env, [...next.backend.servers, ...next.frontend.servers, ...next.go.servers]);
   const propagation = registrySource === 'durable-object'
-    ? 'السجل الأساسي مركزي ومتسق؛ قد تحتفظ بعض نسخ Worker بالنسخة المحلية لمدة تصل إلى 60 ثانية.'
+    ? 'السجل الأساسي مركزي ومتسق؛ قد تستخدم بعض نسخ Worker نسخة قراءة محلية لمدة تصل إلى 5 دقائق.'
     : 'تم استخدام KV كمسار توافق احتياطي؛ قد تتأخر المواقع الأخرى حتى انتشار KV.';
   return new Response(JSON.stringify({ ok: true, registry: next, source: registrySource, replicaStatus, propagation }, null, 2), {
     headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },

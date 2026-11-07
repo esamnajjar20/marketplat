@@ -10,6 +10,8 @@
   // Do not use a wildcard when credentials/cookies are enabled.
   "vars": {
     "FRONTEND_ORIGIN": "https://your-frontend-domain.example",
+    // Production must not allow registry writes to downgrade to a replica-only store.
+    "GATEWAY_REQUIRE_DURABLE_REGISTRY": "true",
     // Keep both flags false until the API's durable outbox worker is deployed and a live
     // mutation has purged Workers Cache + D1 through EDGE_WORKER_PURGE_URL.
     // PURGE_TOKEN must match EDGE_WORKER_PURGE_TOKEN in the API.

@@ -233,7 +233,10 @@ async function proxyRegistry(request: NextRequest, method: 'GET' | 'PUT' | 'POST
   }
 
   try {
-    const upstream = await callApiWorker('/__gateway/registry', {
+    const upstreamPath = method === 'GET' && request.nextUrl.searchParams.get('refresh') === '1'
+      ? '/__gateway/registry?refresh=1'
+      : '/__gateway/registry';
+    const upstream = await callApiWorker(upstreamPath, {
       method,
       headers,
       ...(body !== undefined ? { body } : {}),
