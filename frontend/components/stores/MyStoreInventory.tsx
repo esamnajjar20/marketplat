@@ -98,7 +98,7 @@ function StockRow({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Link
               href={ROUTES.myStoreProductEdit(id)}
-              className="line-clamp-1 text-[13px] font-bold hover:underline sm:text-sm"
+              className="line-clamp-1 text-[13px] font-bold hover:underline sm:text-sm" prefetch={false}
             >
               {name}
             </Link>
@@ -281,7 +281,7 @@ export function MyStoreInventory() {
           </p>
         </div>
         <Button asChild size="sm" variant="outline">
-          <Link href={ROUTES.myStoreProducts}>كل المنتجات</Link>
+          <Link href={ROUTES.myStoreProducts} prefetch={false}>كل المنتجات</Link>
         </Button>
       </div>
 
@@ -399,7 +399,7 @@ export function MyStoreInventory() {
           description="أضف منتجات من صفحة المنتجات أو غيّر الفلتر."
           action={
             <Button asChild size="sm">
-              <Link href={ROUTES.myStoreProductCreate}>إضافة منتج</Link>
+              <Link href={ROUTES.myStoreProductCreate} prefetch={false}>إضافة منتج</Link>
             </Button>
           }
         />

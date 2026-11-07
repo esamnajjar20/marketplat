@@ -189,7 +189,7 @@ export function EntityFavoritesList({ type }: Props) {
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{copy.description}</p>
         <div className="mt-5 flex justify-center">
           <Button asChild size="sm" className="rounded-xl font-bold">
-            <Link href={copy.href}>{copy.cta}</Link>
+            <Link href={copy.href} prefetch={false}>{copy.cta}</Link>
           </Button>
         </div>
       </div>

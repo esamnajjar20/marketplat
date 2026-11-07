@@ -20,7 +20,7 @@ const LAST_SEEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 // request, a brief network blip — doesn't flip someone to "offline"
 // and back within seconds. 90s gives two full heartbeat cycles of
 // slack before the key actually expires.
-const PRESENCE_TTL_SECONDS = 90;
+const PRESENCE_TTL_SECONDS = 200; // > 1.5x the 120s client heartbeat
 
 export const presence = {
   /** Refreshes the caller's own online marker. Called by PATCH

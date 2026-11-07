@@ -46,6 +46,7 @@
  */
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { buildUrlWithParams } from '@/lib/urlWithParams';
 
 interface UseOwnedListPageResult<S extends string> {
   page: number;
@@ -73,7 +74,8 @@ export function useOwnedListPage<S extends string>(baseUrl: string): UseOwnedLis
     const params = new URLSearchParams(sp.toString());
     if (s) params.set('status', s); else params.delete('status');
     params.delete('page');
-    router.push(`${baseUrl}?${params.toString()}`);
+    // baseUrl may already carry a query (ROUTES.myAds = '/activity?tab=ads').
+    router.push(buildUrlWithParams(baseUrl, params));
   }
 
   return { page, status, setStatus, searchParams: sp };
@@ -120,7 +122,7 @@ export function useOutOfRangeRedirect({
       const params = new URLSearchParams(sp.toString());
       if (resolvedTotalPages > 1) params.set('page', String(resolvedTotalPages));
       else params.delete('page');
-      router.replace(`${baseUrl}?${params.toString()}`);
+      router.replace(buildUrlWithParams(baseUrl, params));
     }
      
   }, [hasData, page, resolvedTotalPages, sp, router, baseUrl]);

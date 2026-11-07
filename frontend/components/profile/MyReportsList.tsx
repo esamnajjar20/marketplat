@@ -56,7 +56,7 @@ function MyReportRow({ report }: { report: Report }) {
       </div>
       <Link
         href={targetHref(report.targetType, report.targetId)}
-        className="mt-2 block text-[15px] font-extrabold text-foreground hover:underline"
+        className="mt-2 block text-[15px] font-extrabold text-foreground hover:underline" prefetch={false}
       >
         {title}
       </Link>

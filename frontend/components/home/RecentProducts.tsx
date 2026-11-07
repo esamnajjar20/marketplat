@@ -50,7 +50,7 @@ export function RecentProducts() {
         ))}
       </div>
       <div className="flex justify-center">
-        <Link href={ROUTES.products}>
+        <Link href={ROUTES.products} prefetch={false}>
           <Button variant="outline">عرض جميع المنتجات</Button>
         </Link>
       </div>

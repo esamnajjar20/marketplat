@@ -26,7 +26,7 @@ export default function ServiceProvidersPage() {
           actions={
             <Link
               href={ROUTES.services}
-              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-sm font-medium text-primary shadow-xs hover:border-primary/30 hover:bg-primary-soft/40"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-sm font-medium text-primary shadow-xs hover:border-primary/30 hover:bg-primary-soft/40" prefetch={false}
             >
               <Wrench className="h-4 w-4" aria-hidden />
               عروض الخدمات

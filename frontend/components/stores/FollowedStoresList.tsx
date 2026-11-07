@@ -46,7 +46,7 @@ export function FollowedStoresList() {
         icon={<Heart className="h-10 w-10" />}
         title="لا تتابع أي متجر بعد"
         description="تابع متاجرك المفضلة لتصلك آخر منتجاتها"
-        action={<Link href={ROUTES.stores}><Button variant="outline">تصفح المتاجر</Button></Link>}
+        action={<Link href={ROUTES.stores} prefetch={false}><Button variant="outline">تصفح المتاجر</Button></Link>}
       />
     );
   }

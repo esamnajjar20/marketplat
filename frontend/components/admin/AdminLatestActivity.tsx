@@ -85,7 +85,7 @@ export function AdminLatestActivity() {
               <Link
                 key={item.id}
                 href={item.href}
-                className="flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-[13px] transition-colors hover:bg-[var(--legacy-surface)]"
+                className="flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-[13px] transition-colors hover:bg-[var(--legacy-surface)]" prefetch={false}
               >
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--legacy-surface)] text-primary">
                   <Icon className="h-4 w-4" strokeWidth={1.8} />

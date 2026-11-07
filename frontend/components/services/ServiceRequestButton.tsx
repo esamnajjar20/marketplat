@@ -149,7 +149,7 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
             <Link
               href={ROUTES.myServiceRequests}
               className="inline-block text-[13px] font-bold text-primary hover:underline"
-              onClick={() => setOpen(false)}
+              onClick={() => setOpen(false)} prefetch={false}
             >
               عرض طلباتي السابقة
             </Link>

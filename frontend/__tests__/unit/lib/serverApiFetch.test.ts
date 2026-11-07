@@ -166,4 +166,42 @@ describe('fetchServerApi', () => {
     expect(error).toBeInstanceOf(ServerApiHttpError);
     expect(error).toMatchObject({ statusCode: 503, status: 503 });
   });
+
+  describe('Invalid JSON diagnostics', () => {
+    async function failWith(response: Response) {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(response));
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const error = await fetchServerApi('/products?limit=10', { mode: 'no-store' }).catch((value) => value);
+      const line = errorSpy.mock.calls.map((call) => String(call[0])).find((text) => text.includes('Invalid JSON')) ?? '';
+      return { error, line };
+    }
+
+    it('logs status/content-type/kind for an empty 2xx body', async () => {
+      const { error, line } = await failWith(new Response('', { status: 200, headers: { 'content-type': 'application/json' } }));
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('استجابة الخادم غير صالحة');
+      expect(line).toContain('/products');
+      expect(line).toContain('status=200');
+      expect(line).toContain('content-type=application/json');
+      expect(line).toContain('kind=empty');
+      expect(line).toContain('bodyChars=0');
+    });
+
+    it('includes a short preview for non-JSON text such as an HTML error page', async () => {
+      const html = '<html><body>error code: 1042</body></html>';
+      const { line } = await failWith(new Response(html, { status: 200, headers: { 'content-type': 'text/html' } }));
+      expect(line).toContain('kind=non-json-text');
+      expect(line).toContain('error code: 1042');
+    });
+
+    it('never logs the content of a truncated JSON body (could hold private data)', async () => {
+      const { line } = await failWith(new Response('{"success":true,"data":{"email":"secret@example.com"', {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }));
+      expect(line).toContain('kind=truncated-or-malformed-json');
+      expect(line).not.toContain('secret@example.com');
+      expect(line).not.toContain('preview=');
+    });
+  });
 });

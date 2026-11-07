@@ -142,6 +142,12 @@ let registrationContainer: ServiceWorkerContainer | null = null;
 // usable. Coalesce overlapping visibility/online/interval checks and throttle
 // reports so a transient fetch failure does not flood console telemetry.
 let swUpdateCheckInFlight = false;
+// Each registration.update() re-fetches /sw.js and, when it changed, the two
+// importScripts files (cache-policy.js, cache-contract.js). Tail logs showed 15
+// sw.js + 30 script requests in 30 minutes from tab switches and 'online' events
+// firing back-to-back, so repeat checks inside this window are skipped.
+const SW_UPDATE_MIN_GAP_MS = 4 * 60 * 1000;
+let lastSwUpdateCheckAt = 0;
 let lastSwUpdateFailureReportAt = 0;
 const SW_UPDATE_FAILURE_REPORT_INTERVAL_MS = 15 * 60 * 1000;
 
@@ -156,6 +162,9 @@ function isTransientSwUpdateFailure(error: unknown): boolean {
 function checkServiceWorkerUpdate(registration: ServiceWorkerRegistration): void {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
   if (swUpdateCheckInFlight) return;
+  const startedAt = Date.now();
+  if (lastSwUpdateCheckAt && startedAt - lastSwUpdateCheckAt < SW_UPDATE_MIN_GAP_MS) return;
+  lastSwUpdateCheckAt = startedAt;
   swUpdateCheckInFlight = true;
   void Promise.resolve()
     .then(() => registration.update())

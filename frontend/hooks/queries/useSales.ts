@@ -64,16 +64,16 @@ export function useSalesCostProducts(enabled = true) {
 }
 
 export function useDebtSummary() {
-  return useQuery({ queryKey: queryKeys.sales.debtSummary(), queryFn: ({ signal }) => salesApi.debtSummary({ signal }).then(r => r.data.data), staleTime: 30_000 });
+  return useQuery({ queryKey: queryKeys.sales.debtSummary(), queryFn: ({ signal }) => salesApi.debtSummary({ signal }).then(r => r.data.data), staleTime: 180_000 });
 }
 
 
 export function useSalesDashboard() {
-  return useQuery({ queryKey: queryKeys.sales.dashboard(), queryFn: ({ signal }) => salesApi.dashboard({ signal }).then(r => r.data.data), staleTime: 30_000 });
+  return useQuery({ queryKey: queryKeys.sales.dashboard(), queryFn: ({ signal }) => salesApi.dashboard({ signal }).then(r => r.data.data), staleTime: 180_000 });
 }
 
 export function useSalesReport(params?: Parameters<typeof salesApi.report>[0]) {
-  return useQuery({ queryKey: queryKeys.sales.report(params), queryFn: ({ signal }) => salesApi.report(params, { signal }).then(r => r.data.data), staleTime: 30_000 });
+  return useQuery({ queryKey: queryKeys.sales.report(params), queryFn: ({ signal }) => salesApi.report(params, { signal }).then(r => r.data.data), staleTime: 180_000 });
 }
 
 export function useSalesSmartInsights() {

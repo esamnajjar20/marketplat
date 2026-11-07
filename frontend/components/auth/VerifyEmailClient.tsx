@@ -111,7 +111,7 @@ function VerifyEmailInner() {
           <p className="text-[18px] font-extrabold text-[var(--legacy-ink)]">تم تأكيد بريدك الإلكتروني بنجاح</p>
           <p className="text-[13px] text-[var(--legacy-muted-text)]">يمكنك الآن استخدام جميع ميزات سوق غزة.</p>
           <Button asChild className="h-12 w-full rounded-2xl text-[15px] font-bold">
-            <Link href={ROUTES.home}>الذهاب إلى الصفحة الرئيسية</Link>
+            <Link href={ROUTES.home} prefetch={false}>الذهاب إلى الصفحة الرئيسية</Link>
           </Button>
         </div>
       )}
@@ -126,7 +126,7 @@ function VerifyEmailInner() {
             قد يكون الرابط منتهي الصلاحية. يمكنك طلب رابط جديد من صفحة الملف الشخصي.
           </p>
           <Button asChild variant="outline" className="h-11 w-full rounded-2xl border-[var(--legacy-border)] font-bold">
-            <Link href={ROUTES.home}>العودة للرئيسية</Link>
+            <Link href={ROUTES.home} prefetch={false}>العودة للرئيسية</Link>
           </Button>
         </div>
       )}

@@ -42,13 +42,13 @@ export default function ContactPage() {
       <h2>روابط مفيدة</h2>
       <ul>
         <li>
-          <Link href={ROUTES.privacy}>سياسة الخصوصية</Link>
+          <Link href={ROUTES.privacy} prefetch={false}>سياسة الخصوصية</Link>
         </li>
         <li>
-          <Link href={ROUTES.terms}>شروط الاستخدام</Link>
+          <Link href={ROUTES.terms} prefetch={false}>شروط الاستخدام</Link>
         </li>
         <li>
-          <Link href={ROUTES.about}>من نحن</Link>
+          <Link href={ROUTES.about} prefetch={false}>من نحن</Link>
         </li>
       </ul>
       </div>

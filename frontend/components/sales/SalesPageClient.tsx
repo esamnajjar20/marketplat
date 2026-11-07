@@ -46,7 +46,7 @@ export function SalesPageClient() {
         <div className="flex items-center justify-between gap-2">
           <div><h3 className="font-extrabold">أحدث المبيعات</h3><p className="text-sm text-muted-foreground">آخر العمليات المسجلة.</p></div>
           <Button variant="ghost" size="sm" asChild>
-            <Link href={salesHubTabHref('sales')}>عرض الكل</Link>
+            <Link href={salesHubTabHref('sales')} prefetch={false}>عرض الكل</Link>
           </Button>
         </div>
         {isLoading ? (

@@ -10,27 +10,32 @@ import type { SalePaymentStatus } from '@/types/sale.types';
 
 const money = (value: number) => Number(value || 0).toFixed(2);
 
+// The on-screen table is a preview: the server caps JSON rows at 500 (totals above it
+// still cover every matching sale). The CSV export is streamed and may carry more.
+const REPORT_PREVIEW_LIMIT = 500;
+const REPORT_EXPORT_LIMIT = 5000;
+
 export function SalesReports() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [status, setStatus] = useState<SalePaymentStatus | ''>('');
   const [isExporting, setIsExporting] = useState(false);
-  const params = useMemo(
+  const filters = useMemo(
     () => ({
       from: from || undefined,
       to: to ? `${to}T23:59:59.999` : undefined,
       status: status || undefined,
-      limit: 5000,
     }),
     [from, to, status]
   );
+  const params = useMemo(() => ({ ...filters, limit: REPORT_PREVIEW_LIMIT }), [filters]);
   const { data, isLoading, isError } = useSalesReport(params);
 
   const download = async () => {
     if (!data || isExporting) return;
     setIsExporting(true);
     try {
-      const response = await salesApi.exportReportCsv(params);
+      const response = await salesApi.exportReportCsv({ ...filters, limit: REPORT_EXPORT_LIMIT });
       const blob = response.data instanceof Blob
         ? response.data
         : new Blob([response.data], { type: 'text/csv;charset=utf-8' });
@@ -118,6 +123,12 @@ export function SalesReports() {
               </div>
             ))}
           </div>
+          {data.hasMore ? (
+            <p className="rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground" role="status">
+              يعرض الجدول أحدث {data.count} عملية من أصل {data.totalCount ?? data.count}. المجاميع أعلاه تشمل كل
+              العمليات المطابقة للفلتر، ويمكنك تصدير CSV للحصول على عدد أكبر من الصفوف.
+            </p>
+          ) : null}
           <div className="overflow-x-auto overscroll-x-contain rounded-xl border bg-card">
             <table className="w-full min-w-[900px] text-sm">
               <thead className="bg-muted/50 text-right">

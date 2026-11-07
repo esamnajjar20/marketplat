@@ -59,7 +59,7 @@ export default function MyRequestsPage() {
           <p className="mt-1 text-sm leading-6 text-muted-foreground">الطلبات التي نشرتها في السوق، تابع حالتها وعدّل خياراتك بسهولة.</p>
         </div>
         <Button asChild size="sm" className="min-h-10 w-full sm:w-auto">
-          <Link href={ROUTES.requestNew}>طلب جديد</Link>
+          <Link href={ROUTES.requestNew} prefetch={false}>طلب جديد</Link>
         </Button>
       </div>
 
@@ -78,7 +78,7 @@ export default function MyRequestsPage() {
                 active
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground hover:text-foreground',
-              )}
+              )} prefetch={false}
             >
               {tab.label}
             </Link>
@@ -113,7 +113,7 @@ export default function MyRequestsPage() {
           description="انشر احتياجك ليصل للبائعين ومقدّمي الخدمة."
           action={
             <Button asChild>
-              <Link href={ROUTES.requestNew}>نشر طلب</Link>
+              <Link href={ROUTES.requestNew} prefetch={false}>نشر طلب</Link>
             </Button>
           }
         />

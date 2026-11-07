@@ -23,12 +23,12 @@ export function ServiceBreadcrumb({ title, categoryName }: Props) {
       aria-label="مسار التصفح"
       className="mb-4 flex items-center gap-1.5 overflow-x-auto overscroll-x-contain text-sm text-muted-foreground"
     >
-      <Link href={ROUTES.home} className="flex shrink-0 items-center gap-1 hover:text-primary">
+      <Link href={ROUTES.home} className="flex shrink-0 items-center gap-1 hover:text-primary" prefetch={false}>
         <Home className="h-3.5 w-3.5" />
         الرئيسية
       </Link>
       <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
-      <Link href={ROUTES.services} className="shrink-0 hover:text-primary">
+      <Link href={ROUTES.services} className="shrink-0 hover:text-primary" prefetch={false}>
         الخدمات
       </Link>
       {categoryName && (

@@ -27,7 +27,7 @@ export function EditProfileButtonGate({ targetUserId }: Props) {
   if (!currentUser || currentUser.id !== targetUserId) return null;
 
   return (
-    <Link href={ROUTES.settings.profile}>
+    <Link href={ROUTES.settings.profile} prefetch={false}>
       <Button variant="outline" size="sm" className="gap-2">
         <Pencil className="h-4 w-4" />
         تعديل الملف الشخصي

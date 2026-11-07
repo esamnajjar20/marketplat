@@ -1003,7 +1003,7 @@ export const salesService = {
           }
         : {}),
     };
-    const [sales, totalCount] = await Promise.all([
+    const [sales, totalCount, totals] = await Promise.all([
       prisma.saleRecord.findMany({
         where,
         orderBy: [{ soldAt: 'desc' }, { id: 'desc' }],
@@ -1035,6 +1035,8 @@ export const salesService = {
         },
       }),
       prisma.saleRecord.count({ where }),
+      // Totals must cover every matching sale, not just the (capped) rows above.
+      salesRepository.reportTotals(userId, query),
     ]);
     const rows = sales.map(sale => {
       const cost = sale.items.reduce(
@@ -1073,17 +1075,7 @@ export const salesService = {
       count: rows.length,
       totalCount,
       hasMore: totalCount > rows.length,
-      totals: rows.reduce(
-        (a, r) => ({
-          revenue: roundMoney(a.revenue + r.revenue),
-          cost: roundMoney(a.cost + r.cost),
-          profit: roundMoney(a.profit + r.profit),
-          paid: roundMoney(a.paid + r.paid),
-          due: roundMoney(a.due + r.due),
-          refunded: roundMoney(a.refunded + r.refunded),
-        }),
-        { revenue: 0, cost: 0, profit: 0, paid: 0, due: 0, refunded: 0 }
-      ),
+      totals,
     };
   },
   debtSummary: async (userId: string) => {

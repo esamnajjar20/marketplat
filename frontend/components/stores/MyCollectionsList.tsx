@@ -199,7 +199,7 @@ export function MyCollectionsList() {
                       <ChevronDown className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Link href={ROUTES.myStoreCollectionManage(collection.id)}>
+                  <Link href={ROUTES.myStoreCollectionManage(collection.id)} prefetch={false}>
                     <Button variant="ghost" size="sm" className="gap-1.5">
                       <PackagePlus className="h-3.5 w-3.5" />المنتجات
                     </Button>

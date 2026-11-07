@@ -39,7 +39,7 @@ export function AdminRecentActivity() {
         <h2 className="text-[15px] font-extrabold">أحدث الإعلانات</h2>
         <Link
           href={adminTabHref('ads')}
-          className="text-[12px] font-bold text-[var(--legacy-primary-deep)] hover:underline"
+          className="text-[12px] font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}
         >
           عرض الكل ←
         </Link>

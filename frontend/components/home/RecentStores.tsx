@@ -44,7 +44,7 @@ export function RecentStores() {
         {items.map((store) => <StoreCard key={store.id} store={store} />)}
       </div>
       <div className="flex justify-center">
-        <Link href={ROUTES.stores}>
+        <Link href={ROUTES.stores} prefetch={false}>
           <Button variant="outline">عرض جميع المتاجر</Button>
         </Link>
       </div>

@@ -47,7 +47,7 @@ useEffect(() => {
           إعادة المحاولة
         </Button>
         <Button asChild>
-          <Link href={ROUTES.home}>الرئيسية</Link>
+          <Link href={ROUTES.home} prefetch={false}>الرئيسية</Link>
         </Button>
       </div>
     </div>

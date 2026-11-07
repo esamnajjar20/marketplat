@@ -98,7 +98,7 @@ export function UserMenu() {
         <DropdownMenuSeparator />
 
         <DropdownMenuItem asChild>
-          <Link href={ROUTES.dashboard} className="flex items-center gap-2 cursor-pointer">
+          <Link href={ROUTES.dashboard} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
             <LayoutDashboard className="h-4 w-4" />
             لوحة التحكم
           </Link>
@@ -109,7 +109,7 @@ export function UserMenu() {
             same signal already computed above for the "بائع" badge. */}
         {isSeller && (
           <DropdownMenuItem asChild>
-            <Link href={ROUTES.myAds} className="flex items-center gap-2 cursor-pointer">
+            <Link href={ROUTES.myAds} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
               <ListOrdered className="h-4 w-4" />
               إعلاناتي
             </Link>
@@ -121,7 +121,7 @@ export function UserMenu() {
             /settings/seller. Disappears once isSeller flips true. */}
         {sellerLoaded && !isSeller && (
           <DropdownMenuItem asChild>
-            <Link href={ROUTES.settings.seller} className="flex items-center gap-2 cursor-pointer">
+            <Link href={ROUTES.settings.seller} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
               <Store className="h-4 w-4" />
               أنشئ حساب بائع
             </Link>
@@ -129,14 +129,14 @@ export function UserMenu() {
         )}
 
         <DropdownMenuItem asChild>
-          <Link href={ROUTES.favorites} className="flex items-center gap-2 cursor-pointer">
+          <Link href={ROUTES.favorites} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
             <Heart className="h-4 w-4" />
             المفضلة
           </Link>
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild>
-          <Link href={ROUTES.savedSearches} className="flex items-center gap-2 cursor-pointer">
+          <Link href={ROUTES.savedSearches} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
             <BellPlus className="h-4 w-4" />
             عمليات البحث المحفوظة
           </Link>
@@ -150,14 +150,14 @@ export function UserMenu() {
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild>
-          <Link href={ROUTES.userProfile(user.id)} className="flex items-center gap-2 cursor-pointer">
+          <Link href={ROUTES.userProfile(user.id)} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
             <User className="h-4 w-4" />
             عرض الملف الشخصي
           </Link>
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild>
-          <Link href={ROUTES.settings.profile} className="flex items-center gap-2 cursor-pointer">
+          <Link href={ROUTES.settings.profile} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
             <Settings className="h-4 w-4" />
             الإعدادات
           </Link>
@@ -165,7 +165,7 @@ export function UserMenu() {
 
         {isAdmin && (
           <DropdownMenuItem asChild>
-            <Link href={ROUTES.admin.dashboard} className="flex items-center gap-2 cursor-pointer">
+            <Link href={ROUTES.admin.dashboard} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
               <Shield className="h-4 w-4" />
               لوحة الإدارة
             </Link>

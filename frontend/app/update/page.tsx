@@ -116,7 +116,7 @@ export default function UpdatePage() {
         </Button>
       ) : (
         <Button asChild>
-          <Link href="/">العودة للرئيسية</Link>
+          <Link href="/" prefetch={false}>العودة للرئيسية</Link>
         </Button>
       )}
     </main>

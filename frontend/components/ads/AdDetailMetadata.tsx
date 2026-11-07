@@ -112,7 +112,7 @@ export function AdDetailMetadata({
           href={`/search?status=${encodeURIComponent(ad.status)}`}
           aria-label={`عرض الإعلانات بحالة ${STATUS_LABELS[ad.status]}`}
           className={cn(badgeVariants({ variant: AD_STATUS_VARIANT[ad.status] }), 'min-h-11 items-center cursor-pointer hover:opacity-80')}
-          onClick={handleStatusClick}
+          onClick={handleStatusClick} prefetch={false}
         >
           {STATUS_LABELS[ad.status]}
         </Link>
@@ -121,7 +121,7 @@ export function AdDetailMetadata({
             href={`/search?condition=${encodeURIComponent(ad.condition)}`}
             aria-label={`عرض الإعلانات حسب الحالة ${conditionLabel}`}
             className={cn(badgeVariants({ variant: 'secondary' }), 'min-h-11 items-center cursor-pointer hover:opacity-80')}
-            onClick={handleConditionClick}
+            onClick={handleConditionClick} prefetch={false}
           >
             {conditionLabel}
           </Link>
@@ -130,7 +130,7 @@ export function AdDetailMetadata({
           href={categoryUrl}
           aria-label={`عرض إعلانات التصنيف ${ad.category?.name ?? ad.category?.nameAr ?? 'غير مصنف'}`}
           className={cn(badgeVariants({ variant: 'outline' }), 'min-h-11 items-center cursor-pointer hover:opacity-80')}
-          onClick={handleCategoryClick}
+          onClick={handleCategoryClick} prefetch={false}
         >
           {ad.category?.name ?? ad.category?.nameAr ?? 'غير مصنف'}
         </Link>

@@ -101,7 +101,7 @@ export function ProfileBadges({ sellerProfile, className }: Props) {
         </Badge>
       )}
       {store && (
-        <Link href={ROUTES.storeDetail(store.id)} aria-label={`زيارة متجر ${store.name}`}>
+        <Link href={ROUTES.storeDetail(store.id)} aria-label={`زيارة متجر ${store.name}`} prefetch={false}>
           <Badge
             variant="success"
             className={cn(pillBase, 'cursor-pointer transition-colors hover:bg-success/80')}

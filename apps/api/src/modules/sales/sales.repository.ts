@@ -1,7 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { Prisma } from '@prisma/client';
 import { getPaginationParams } from '../../shared/utils/pagination';
-import { ListSalesQuery } from './sales.validation';
+import { ListSalesQuery, ReportQuery } from './sales.validation';
 
 const saleInclude = {
   customer: true,
@@ -112,6 +112,70 @@ export const salesRepository = {
       totalPaid: Math.round(Number(sales._sum.paidAmount ?? 0) * 100) / 100,
       totalRefunded: Math.round(totalRefunded * 100) / 100,
       totalDue: Math.round(Number(sales._sum.dueAmount ?? 0) * 100) / 100,
+    };
+  },
+
+  /**
+   * Totals for the sales report over EVERY sale matching the filters, not only
+   * the rows returned under `limit`. Same semantics as the per-row mapping in
+   * salesService.report: revenue = total - refunded, cost = SUM(costPrice *
+   * (quantity - returned)) with a missing costPrice counting as 0, profit =
+   * revenue - cost. Aggregated in PostgreSQL so the row cap can be small
+   * without making the totals wrong.
+   */
+  reportTotals: async (
+    sellerId: string,
+    filters: Pick<ReportQuery, 'storeId' | 'status' | 'from' | 'to'>
+  ) => {
+    const where: Prisma.SaleRecordWhereInput = {
+      sellerId,
+      ...(filters.storeId ? { storeId: filters.storeId } : {}),
+      ...(filters.status ? { paymentStatus: filters.status } : {}),
+      ...(filters.from || filters.to
+        ? {
+            soldAt: {
+              ...(filters.from ? { gte: filters.from } : {}),
+              ...(filters.to ? { lte: filters.to } : {}),
+            },
+          }
+        : {}),
+    };
+    // Same filters as `where`, expressed for the raw item-cost query. Every value
+    // is a bound parameter; only fixed column names are interpolated as SQL.
+    const conditions: Prisma.Sql[] = [Prisma.sql`sr."sellerId" = ${sellerId}`];
+    if (filters.storeId) conditions.push(Prisma.sql`sr."storeId" = ${filters.storeId}`);
+    if (filters.status) conditions.push(Prisma.sql`sr."paymentStatus"::text = ${filters.status}`);
+    if (filters.from) conditions.push(Prisma.sql`sr."soldAt" >= ${filters.from}`);
+    if (filters.to) conditions.push(Prisma.sql`sr."soldAt" <= ${filters.to}`);
+
+    const [sales, itemCostRows] = await Promise.all([
+      prisma.saleRecord.aggregate({
+        where,
+        _sum: { totalPrice: true, refundedAmount: true, paidAmount: true, dueAmount: true },
+      }),
+      prisma.$queryRaw<Array<{ totalCost: Prisma.Decimal | number | string | null }>>`
+        SELECT COALESCE(
+          SUM(
+            COALESCE(si."costPrice", 0) * GREATEST(si."quantity" - si."returnedQuantity", 0)
+          ),
+          0
+        ) AS "totalCost"
+        FROM "sale_items" si
+        INNER JOIN "sale_records" sr ON sr."id" = si."saleId"
+        WHERE ${Prisma.join(conditions, ' AND ')}
+      `,
+    ]);
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+    const refunded = Number(sales._sum.refundedAmount ?? 0);
+    const revenue = Number(sales._sum.totalPrice ?? 0) - refunded;
+    const cost = Number(itemCostRows[0]?.totalCost ?? 0);
+    return {
+      revenue: round2(revenue),
+      cost: round2(cost),
+      profit: round2(revenue - cost),
+      paid: round2(Number(sales._sum.paidAmount ?? 0)),
+      due: round2(Number(sales._sum.dueAmount ?? 0)),
+      refunded: round2(refunded),
     };
   },
 

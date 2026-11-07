@@ -86,7 +86,7 @@ export function PendingOfflinePublishCard({ kind, className }: Props) {
                 </p>
               </div>
               <Button asChild variant="ghost" size="sm">
-                <Link href={resumeHrefForDraft(draft)}>تعديل</Link>
+                <Link href={resumeHrefForDraft(draft)} prefetch={false}>تعديل</Link>
               </Button>
             </div>
           ))}

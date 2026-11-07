@@ -153,7 +153,10 @@ function ActivityRow({ activity }: { activity: GroupedActivity }) {
   if (!href) return content;
 
   return (
-    <Link href={href} className="block transition-opacity hover:opacity-80">
+    // prefetch={false}: timeline rows point at ads/stores/conversations that may
+    // since have been deleted or expired; viewport prefetch of those fired a burst
+    // of 404 _rsc requests as soon as the timeline rendered.
+    <Link href={href} prefetch={false} className="block transition-opacity hover:opacity-80">
       {content}
     </Link>
   );

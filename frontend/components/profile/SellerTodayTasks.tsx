@@ -113,7 +113,7 @@ export function SellerTodayTasks() {
               href={task.href}
               className={cn(
                 'flex min-h-[48px] items-center gap-3 rounded-lg border bg-card px-3 py-2.5 transition-colors hover:bg-muted/50',
-              )}
+              )} prefetch={false}
             >
               <task.icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
               <span className="flex-1 text-start text-sm font-medium">{task.label}</span>

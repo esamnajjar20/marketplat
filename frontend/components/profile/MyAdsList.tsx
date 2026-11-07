@@ -291,7 +291,7 @@ export function MyAdsList() {
             : status === 'EXPIRED' ? 'لا توجد إعلانات منتهية'
             : 'لا توجد إعلانات محذوفة'
           }
-          action={!status ? <Link href={ROUTES.adCreate}><Button>نشر إعلان</Button></Link> : undefined} />
+          action={!status ? <Link href={ROUTES.adCreate} prefetch={false}><Button>نشر إعلان</Button></Link> : undefined} />
       ) : (
         <div className="space-y-3">
           {items.map((ad) => {

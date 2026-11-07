@@ -186,7 +186,7 @@ export function NotificationsPage() {
           )}
           <DeleteReadNotificationsAction />
           <Button asChild variant="ghost" size="sm" className="gap-1.5">
-            <Link href={ROUTES.settings.notifications}>
+            <Link href={ROUTES.settings.notifications} prefetch={false}>
               <Settings className="h-3.5 w-3.5" />
               الإعدادات
             </Link>
@@ -268,7 +268,7 @@ export function NotificationsPage() {
             <p className="font-medium">إشعارات الجهاز متوقفة</p>
             <p className="text-xs opacity-90">
               المتصفح رفض الإذن. افتح إعدادات الموقع في المتصفح واسمح بالإشعارات، أو راجع{' '}
-              <Link href={ROUTES.settings.notifications} className="underline underline-offset-2">
+              <Link href={ROUTES.settings.notifications} className="underline underline-offset-2" prefetch={false}>
                 إعدادات الإشعارات
               </Link>
               .
@@ -323,17 +323,17 @@ export function NotificationsPage() {
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {(pushPerm === 'default' || pushPerm === 'denied') && (
                   <Button asChild size="sm">
-                    <Link href={ROUTES.settings.notifications} className="gap-1.5">
+                    <Link href={ROUTES.settings.notifications} className="gap-1.5" prefetch={false}>
                       <Smartphone className="h-4 w-4" />
                       إعدادات الإشعارات
                     </Link>
                   </Button>
                 )}
                 <Button asChild size="sm" variant="outline">
-                  <Link href={ROUTES.messages}>الرسائل</Link>
+                  <Link href={ROUTES.messages} prefetch={false}>الرسائل</Link>
                 </Button>
                 <Button asChild size="sm" variant="ghost">
-                  <Link href={ROUTES.home}>الرئيسية</Link>
+                  <Link href={ROUTES.home} prefetch={false}>الرئيسية</Link>
                 </Button>
               </div>
             }
@@ -343,7 +343,7 @@ export function NotificationsPage() {
             {pwaReg && (
               <Link
                 href="/update"
-                className="flex w-full items-start gap-3 border-b bg-primary/[0.04] p-4 text-start transition-colors hover:bg-primary/10"
+                className="flex w-full items-start gap-3 border-b bg-primary/[0.04] p-4 text-start transition-colors hover:bg-primary/10" prefetch={false}
               >
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <RefreshCw className="h-4 w-4" />

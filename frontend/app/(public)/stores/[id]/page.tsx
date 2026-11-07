@@ -77,7 +77,7 @@ export default async function StorePage({ params }: Props) {
           title="المتجر غير موجود"
           description="ربما تم حذف هذا المتجر أو أن الرابط غير صحيح"
           action={
-            <Link href={ROUTES.stores} className="text-sm text-primary hover:underline">
+            <Link href={ROUTES.stores} className="text-sm text-primary hover:underline" prefetch={false}>
               تصفح المتاجر
             </Link>
           }

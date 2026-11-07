@@ -118,7 +118,7 @@ function Podium({ top3 }: { top3: RankRow[] }) {
               'relative flex flex-col items-center rounded-[16px] border-2 px-2 pb-3 pt-5 text-center transition-transform hover:-translate-y-0.5',
               ring,
               isFirst ? 'min-h-[160px]' : 'min-h-[140px]',
-            )}
+            )} prefetch={false}
           >
             <span className={cn('absolute -top-3 flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-extrabold', badge)}>
               {place}
@@ -253,7 +253,7 @@ export function SellersRankingList({
               <li key={r.sellerProfileId}>
                 <Link
                   href={ROUTES.userProfile(r.userId)}
-                  className="flex items-center gap-3 rounded-[14px] border border-border bg-card px-3 py-3 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors hover:bg-muted/60"
+                  className="flex items-center gap-3 rounded-[14px] border border-border bg-card px-3 py-3 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors hover:bg-muted/60" prefetch={false}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">

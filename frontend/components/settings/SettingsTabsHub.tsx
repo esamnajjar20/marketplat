@@ -124,7 +124,7 @@ function TabBody({ tab }: { tab: SettingsTab }) {
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <Link
                 href={ROUTES.offline.drafts}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline" prefetch={false}
               >
                 <FileEdit className="h-4 w-4" />
                 مركز المسودات

@@ -70,7 +70,7 @@ export function ProductDetailSection({ id }: { id: string }) {
                   </Button>
                 )}
                 <Button asChild size="sm">
-                  <Link href={ROUTES.search + '?type=products'}>تصفّح المنتجات</Link>
+                  <Link href={ROUTES.search + '?type=products'} prefetch={false}>تصفّح المنتجات</Link>
                 </Button>
               </div>
             }
@@ -95,11 +95,11 @@ export function ProductDetailSection({ id }: { id: string }) {
     <div className="space-y-4">
       {isError && <OfflineStaleDataNotice onRetry={() => { if (!isFetching) void refetch(); }} isFetching={isFetching} />}
       <nav aria-label="مسار التصفح" className="mb-4 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-        <Link href={ROUTES.home} className="hover:text-primary">الرئيسية</Link>
+        <Link href={ROUTES.home} className="hover:text-primary" prefetch={false}>الرئيسية</Link>
         <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        <Link href={ROUTES.products} className="hover:text-primary">المنتجات</Link>
+        <Link href={ROUTES.products} className="hover:text-primary" prefetch={false}>المنتجات</Link>
         <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        <Link href={ROUTES.storeDetail(product.store.slug || product.storeId)} className="hover:text-primary">
+        <Link href={ROUTES.storeDetail(product.store.slug || product.storeId)} className="hover:text-primary" prefetch={false}>
           {product.store.name}
         </Link>
         <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />

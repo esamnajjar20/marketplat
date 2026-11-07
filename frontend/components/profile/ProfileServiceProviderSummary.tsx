@@ -106,7 +106,7 @@ export function ProfileServiceProviderSummary({
         </p>
 
         <Button asChild variant="outline" size="sm" className="w-full gap-1.5">
-          <Link href={`${ROUTES.services}?providerId=${provider.id}`}>
+          <Link href={`${ROUTES.services}?providerId=${provider.id}`} prefetch={false}>
             <Wrench className="h-3.5 w-3.5" />
             تصفح خدمات هذا المقدّم
           </Link>
@@ -115,7 +115,7 @@ export function ProfileServiceProviderSummary({
 
       {isOwnProvider && (
         <Button asChild variant="outline" className="w-full rounded-full py-3 h-auto gap-2">
-          <Link href={ROUTES.adCreate}>
+          <Link href={ROUTES.adCreate} prefetch={false}>
             <PlusCircle className="h-4 w-4" />
             نشر إعلان
           </Link>

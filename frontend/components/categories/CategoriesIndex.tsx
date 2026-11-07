@@ -35,7 +35,7 @@ export function CategoriesIndex() {
     return (
       <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
         تعذّر تحميل الفئات الآن. حاول مرة أخرى بعد قليل، أو{' '}
-        <Link href={ROUTES.search} className="font-semibold text-primary underline-offset-2 hover:underline">
+        <Link href={ROUTES.search} className="font-semibold text-primary underline-offset-2 hover:underline" prefetch={false}>
           ابحث مباشرة
         </Link>
         .
@@ -61,7 +61,7 @@ export function CategoriesIndex() {
                   <Link
                     href={item.href}
                     aria-label={`${item.nameAr} — ${TYPE_LABEL[item.type]}`}
-                    className="flex h-full min-h-[5.5rem] flex-col items-center justify-center gap-1.5 rounded-2xl border border-border bg-card px-2 py-3 active:scale-[0.98] sm:gap-2 sm:py-3.5 text-center shadow-xs transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/40"
+                    className="flex h-full min-h-[5.5rem] flex-col items-center justify-center gap-1.5 rounded-2xl border border-border bg-card px-2 py-3 active:scale-[0.98] sm:gap-2 sm:py-3.5 text-center shadow-xs transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/40" prefetch={false}
                   >
                     <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
                       <Icon className="h-5 w-5" aria-hidden />

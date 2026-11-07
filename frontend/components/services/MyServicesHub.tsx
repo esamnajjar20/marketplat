@@ -157,7 +157,7 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-extrabold">قائمة الخدمات</h2>
           <Button variant="outline" size="sm" asChild className="h-9 gap-1 rounded-xl font-bold">
-            <Link href={ROUTES.myServiceCreate}>
+            <Link href={ROUTES.myServiceCreate} prefetch={false}>
               <Plus className="h-3.5 w-3.5" /> خدمة جديدة
             </Link>
           </Button>
@@ -168,7 +168,7 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
             لا توجد خدمات نشطة بعد.
             <div className="mt-3">
               <Button size="sm" asChild className="rounded-xl font-bold">
-                <Link href={ROUTES.myServiceCreate}>إضافة خدمة</Link>
+                <Link href={ROUTES.myServiceCreate} prefetch={false}>إضافة خدمة</Link>
               </Button>
             </div>
           </div>
@@ -193,7 +193,7 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
                 <Link
                   key={item.id}
                   href={ROUTES.myServiceEdit(item.id)}
-                  className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm transition-colors hover:bg-muted/30"
+                  className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm transition-colors hover:bg-muted/30" prefetch={false}
                 >
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <Wrench className="h-4 w-4" />

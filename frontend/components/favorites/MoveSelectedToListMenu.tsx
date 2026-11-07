@@ -76,7 +76,7 @@ export function MoveSelectedToListMenu({ favoriteIds, currentListId = null, disa
         ))}
         {items.length === 0 && (
           <DropdownMenuItem asChild className="rounded-xl">
-            <Link href={ROUTES.favorites}>لا قوائم — أنشئ قائمة من المفضلة</Link>
+            <Link href={ROUTES.favorites} prefetch={false}>لا قوائم — أنشئ قائمة من المفضلة</Link>
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

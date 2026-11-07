@@ -113,7 +113,7 @@ function SavedSearchRow({ search }: { search: SavedSearch }) {
       </div>
       <Link
         href={searchUrlFor(search.filters)}
-        className="mt-3 flex h-10 w-full items-center justify-center rounded-[10px] border border-[var(--legacy-primary-border)] bg-card text-[13px] font-bold text-[var(--legacy-primary-deep)] transition-colors hover:bg-primary-soft"
+        className="mt-3 flex h-10 w-full items-center justify-center rounded-[10px] border border-[var(--legacy-primary-border)] bg-card text-[13px] font-bold text-[var(--legacy-primary-deep)] transition-colors hover:bg-primary-soft" prefetch={false}
       >
         عرض النتائج المطابقة
       </Link>
@@ -193,13 +193,13 @@ export function SavedSearchesList() {
             </Link>
             <Link
               href={ROUTES.products}
-              className="flex h-11 items-center justify-center rounded-[10px] border border-[var(--legacy-primary-border)] bg-card text-[13px] font-bold text-[var(--legacy-primary-deep)]"
+              className="flex h-11 items-center justify-center rounded-[10px] border border-[var(--legacy-primary-border)] bg-card text-[13px] font-bold text-[var(--legacy-primary-deep)]" prefetch={false}
             >
               تصفح المنتجات
             </Link>
             <Link
               href={ROUTES.services}
-              className="flex h-11 items-center justify-center rounded-[10px] border border-[var(--legacy-primary-border)] bg-card text-[13px] font-bold text-[var(--legacy-primary-deep)]"
+              className="flex h-11 items-center justify-center rounded-[10px] border border-[var(--legacy-primary-border)] bg-card text-[13px] font-bold text-[var(--legacy-primary-deep)]" prefetch={false}
             >
               تصفح الخدمات
             </Link>

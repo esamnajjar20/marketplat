@@ -76,7 +76,7 @@ function NotificationRow({
 
   if (href) {
     return (
-      <Link href={href} onClick={handleClick} className="block">
+      <Link href={href} onClick={handleClick} className="block" prefetch={false}>
         {content}
       </Link>
     );
@@ -242,7 +242,7 @@ export function NotificationBell() {
           {pushDenied && (
             <Link
               href={ROUTES.settings.notifications}
-              className="text-2xs text-warning-strong hover:underline dark:text-warning"
+              className="text-2xs text-warning-strong hover:underline dark:text-warning" prefetch={false}
             >
               الجهاز متوقف
             </Link>
@@ -266,7 +266,7 @@ export function NotificationBell() {
           {pwaReg && (
             <Link
               href="/update"
-              className="flex w-full items-start gap-2.5 border-b bg-primary/5 p-3 text-start transition-colors hover:bg-primary/10"
+              className="flex w-full items-start gap-2.5 border-b bg-primary/5 p-3 text-start transition-colors hover:bg-primary/10" prefetch={false}
             >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <RefreshCw className="h-4 w-4" />
@@ -330,7 +330,7 @@ export function NotificationBell() {
         <div className="notification-dropdown-footer p-2.5">
           <Link
             href={ROUTES.notifications}
-            className="flex min-h-10 w-full items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-h-10 w-full items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" prefetch={false}
           >
             عرض كل الإشعارات
           </Link>

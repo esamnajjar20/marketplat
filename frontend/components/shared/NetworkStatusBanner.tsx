@@ -108,14 +108,14 @@ export function NetworkStatusBanner() {
           <nav aria-label="خيارات الأوفلاين" className="ms-2 flex shrink-0 items-center gap-2">
             <Link
               href="/offline?tab=saved"
-              className="inline-flex items-center gap-1 rounded-md border border-current/30 px-2 py-1 text-xs underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              className="inline-flex items-center gap-1 rounded-md border border-current/30 px-2 py-1 text-xs underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" prefetch={false}
             >
               <Archive className="h-3.5 w-3.5" aria-hidden />
               المحفوظات
             </Link>
             <Link
               href="/offline?tab=drafts"
-              className="hidden items-center gap-1 rounded-md border border-current/30 px-2 py-1 text-xs underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:inline-flex"
+              className="hidden items-center gap-1 rounded-md border border-current/30 px-2 py-1 text-xs underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:inline-flex" prefetch={false}
             >
               <FileText className="h-3.5 w-3.5" aria-hidden />
               المسودات
@@ -141,7 +141,7 @@ export function NetworkStatusBanner() {
           <Link
             href="/offline?tab=saved"
             aria-label="فتح المحفوظات دون اتصال"
-            className="ms-1 inline-flex shrink-0 items-center gap-1 rounded-full border border-current/40 px-2 py-1 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="ms-1 inline-flex shrink-0 items-center gap-1 rounded-full border border-current/40 px-2 py-1 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" prefetch={false}
           >
             <Archive className="h-3 w-3" aria-hidden />
             <span>المحفوظات</span>
@@ -165,7 +165,7 @@ export function NetworkStatusBanner() {
           <Link
             href="/offline?tab=saved"
             aria-label="فتح المحفوظات دون اتصال"
-            className="ms-1 inline-flex shrink-0 items-center gap-1 rounded-full border border-current/40 px-2 py-1 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="ms-1 inline-flex shrink-0 items-center gap-1 rounded-full border border-current/40 px-2 py-1 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" prefetch={false}
           >
             <Archive className="h-3 w-3" aria-hidden />
             <span>المحفوظات</span>

@@ -241,7 +241,7 @@ export function StorageManagementClient() {
               </p>
             </div>
             <Button type="button" variant="outline" size="sm" asChild>
-              <Link href={ROUTES.offline.saved}>
+              <Link href={ROUTES.offline.saved} prefetch={false}>
                 عرض
                 <ExternalLink className="ms-1 h-3.5 w-3.5" />
               </Link>
@@ -263,14 +263,14 @@ export function StorageManagementClient() {
               </p>
             </div>
             <Button type="button" variant="outline" size="sm" asChild>
-              <Link href={ROUTES.offline.sync}>
+              <Link href={ROUTES.offline.sync} prefetch={false}>
                 المزامنة
                 <WifiOff className="ms-1 h-3.5 w-3.5" />
               </Link>
             </Button>
             {/* DRAFTS-LINKS-01 */}
             <Button type="button" variant="ghost" size="sm" asChild>
-              <Link href={ROUTES.offline.drafts}>مسوداتي</Link>
+              <Link href={ROUTES.offline.drafts} prefetch={false}>مسوداتي</Link>
             </Button>
           </li>
         </ul>

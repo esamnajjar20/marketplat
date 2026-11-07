@@ -123,20 +123,20 @@ export function RequestsPageClient({ params }: { params: OpenRequestsPageParams 
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
               href={ROUTES.requestNew}
-              className="inline-flex h-10 flex-[1.4] items-center justify-center gap-1.5 rounded-full bg-[var(--legacy-primary)] px-4 text-sm font-bold text-primary-foreground shadow-sm transition-opacity hover:opacity-95 sm:flex-none"
+              className="inline-flex h-10 flex-[1.4] items-center justify-center gap-1.5 rounded-full bg-[var(--legacy-primary)] px-4 text-sm font-bold text-primary-foreground shadow-sm transition-opacity hover:opacity-95 sm:flex-none" prefetch={false}
             >
               <Plus className="h-4 w-4" aria-hidden />
               أضف طلبًا
             </Link>
             <Link
               href={ROUTES.myOpenRequests}
-              className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[var(--legacy-primary-border)] bg-card px-4 text-sm font-bold text-[var(--legacy-primary-deep)] dark:border-border dark:bg-card dark:text-primary sm:flex-none"
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[var(--legacy-primary-border)] bg-card px-4 text-sm font-bold text-[var(--legacy-primary-deep)] dark:border-border dark:bg-card dark:text-primary sm:flex-none" prefetch={false}
             >
               طلباتي
             </Link>
             <Link
               href={ROUTES.myOpenRequestOffers}
-              className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[var(--legacy-primary-border)] bg-card px-4 text-sm font-bold text-[var(--legacy-primary-deep)] dark:border-border dark:bg-card dark:text-primary sm:flex-none"
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[var(--legacy-primary-border)] bg-card px-4 text-sm font-bold text-[var(--legacy-primary-deep)] dark:border-border dark:bg-card dark:text-primary sm:flex-none" prefetch={false}
             >
               عروضي
             </Link>
@@ -162,7 +162,7 @@ export function RequestsPageClient({ params }: { params: OpenRequestsPageParams 
                   active
                     ? 'border-[var(--legacy-primary)] font-extrabold text-[var(--legacy-primary-deep)] dark:border-primary dark:text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground',
-                )}
+                )} prefetch={false}
               >
                 <Icon className="h-3.5 w-3.5" aria-hidden />
                 {label}
@@ -219,11 +219,11 @@ export function RequestsPageClient({ params }: { params: OpenRequestsPageParams 
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   {hasActiveFilters ? (
                     <Button variant="outline" asChild>
-                      <Link href={ROUTES.requests}>مسح الفلاتر</Link>
+                      <Link href={ROUTES.requests} prefetch={false}>مسح الفلاتر</Link>
                     </Button>
                   ) : null}
                   <Button asChild>
-                    <Link href={ROUTES.requestNew}>
+                    <Link href={ROUTES.requestNew} prefetch={false}>
                       <Plus className="me-1.5 h-4 w-4" aria-hidden />
                       نشر طلب
                     </Link>

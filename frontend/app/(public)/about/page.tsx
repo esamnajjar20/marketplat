@@ -31,8 +31,8 @@ export default function AboutPage() {
       </ul>
       <h2>ابدأ الآن</h2>
       <p>
-        تصفّح <Link href={ROUTES.search}>البحث</Link> أو{' '}
-        <Link href={ROUTES.register}>أنشئ حسابًا</Link> لنشر أول إعلان.
+        تصفّح <Link href={ROUTES.search} prefetch={false}>البحث</Link> أو{' '}
+        <Link href={ROUTES.register} prefetch={false}>أنشئ حسابًا</Link> لنشر أول إعلان.
       </p>
       </div>
     </LegalPageShell>

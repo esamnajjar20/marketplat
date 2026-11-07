@@ -267,6 +267,14 @@ export const updateProductCostSchema = z.object({
 export type UpdateCostSettingsInput = z.infer<typeof updateCostSettingsSchema>['body'];
 export type UpdateProductCostInput = z.infer<typeof updateProductCostSchema>['body'];
 
+/**
+ * Max rows the JSON report endpoint (GET /sales/reports) returns per request.
+ * The CSV export shares reportQuerySchema (up to 5000 rows) and streams, so it
+ * is unaffected. Report totals are computed over ALL matching sales in SQL, so
+ * this cap only bounds the row list / response size.
+ */
+export const SALES_REPORT_JSON_MAX_LIMIT = 500;
+
 export const reportQuerySchema = z.object({
   query: z
     .object({

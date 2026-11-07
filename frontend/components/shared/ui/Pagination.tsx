@@ -5,7 +5,7 @@
  * UX-01 FIX: When Button uses asChild + Link, the disabled prop on Button
  *   only adds visual opacity — it does NOT prevent the Link from being
  *   focusable or navigated by keyboard/screen reader. Fix: render a <span>
- *   with aria-disabled when on the first/last page instead of a <Link>.
+ *   with aria-disabled when on the first/last page instead of a <Link prefetch={false}>.
  *
  * Prev/Next + a bare "N / total" counter gave no way to jump
  *   more than one page at a time — costly on admin tables with dozens
@@ -19,6 +19,7 @@
 
 import Link from 'next/link';
 import { Button } from './Button';
+import { buildUrlWithParams } from '@/lib/urlWithParams';
 
 interface PaginationProps {
   totalPages:   number;
@@ -79,7 +80,8 @@ export function Pagination({
       Object.entries({ ...searchParams, [pageParam]: String(page) })
         .filter(([, v]) => v !== undefined) as [string, string][],
     );
-    return `${baseUrl}?${params.toString()}`;
+    // baseUrl may already contain '?tab=…' (e.g. ROUTES.myAds); merge, don't append a 2nd '?'.
+    return buildUrlWithParams(baseUrl, params);
   }
 
   if (totalPages <= 1) return null;
@@ -106,7 +108,7 @@ export function Pagination({
         </Button>
       ) : (
         <Button asChild variant="outline" size="sm">
-          <Link href={buildPageUrl(currentPage - 1)} aria-label="الصفحة السابقة">
+          <Link href={buildPageUrl(currentPage - 1)} aria-label="الصفحة السابقة" prefetch={false}>
             السابق
           </Link>
         </Button>
@@ -132,7 +134,7 @@ export function Pagination({
             </span>
           ) : (
             <Button key={p} asChild variant="outline" size="sm" className="h-9 min-w-9 px-2">
-              <Link href={buildPageUrl(p)} aria-label={`الصفحة ${p}`}>
+              <Link href={buildPageUrl(p)} aria-label={`الصفحة ${p}`} prefetch={false}>
                 {p}
               </Link>
             </Button>
@@ -160,7 +162,7 @@ export function Pagination({
         </Button>
       ) : (
         <Button asChild variant="outline" size="sm">
-          <Link href={buildPageUrl(currentPage + 1)} aria-label="الصفحة التالية">
+          <Link href={buildPageUrl(currentPage + 1)} aria-label="الصفحة التالية" prefetch={false}>
             التالي
           </Link>
         </Button>

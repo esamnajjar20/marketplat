@@ -47,11 +47,11 @@ export function Forbidden({
           </Button>
         ) : (
           <Button asChild variant="outline">
-            <Link href={ROUTES.dashboard}>الذهاب إلى لوحة التحكم</Link>
+            <Link href={ROUTES.dashboard} prefetch={false}>الذهاب إلى لوحة التحكم</Link>
           </Button>
         )}
         <Button asChild>
-          <Link href={ROUTES.home}>الرئيسية</Link>
+          <Link href={ROUTES.home} prefetch={false}>الرئيسية</Link>
         </Button>
       </div>
     </div>

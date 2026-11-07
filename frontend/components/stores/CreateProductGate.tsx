@@ -43,7 +43,7 @@ export function CreateProductGate() {
         description="لا يمكنك نشر منتجات حتى يوافق الأدمن على متجرك. ستتمكن من الإضافة مباشرة بعد الموافقة."
         action={
           <Button asChild variant="outline">
-            <Link href={ROUTES.myStore}>الذهاب إلى متجري</Link>
+            <Link href={ROUTES.myStore} prefetch={false}>الذهاب إلى متجري</Link>
           </Button>
         }
       />
@@ -58,7 +58,7 @@ export function CreateProductGate() {
         description="لا يمكنك نشر منتجات في الوقت الحالي. تواصل مع الدعم لمعرفة السبب."
         action={
           <Button asChild variant="outline">
-            <Link href={ROUTES.myStore}>الذهاب إلى متجري</Link>
+            <Link href={ROUTES.myStore} prefetch={false}>الذهاب إلى متجري</Link>
           </Button>
         }
       />

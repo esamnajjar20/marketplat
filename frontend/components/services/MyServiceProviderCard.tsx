@@ -231,16 +231,16 @@ export function MyServiceProviderCard({ provider }: Props) {
 
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" asChild className="gap-1.5">
-          <Link href={ROUTES.userProfile(currentUser!.id)}>
+          <Link href={ROUTES.userProfile(currentUser!.id)} prefetch={false}>
             عرض صفحتي العامة <ExternalLink className="h-3.5 w-3.5" />
           </Link>
         </Button>
         <Button variant="outline" size="sm" asChild>
-          <Link href={ROUTES.myServices}>إدارة خدماتي</Link>
+          <Link href={ROUTES.myServices} prefetch={false}>إدارة خدماتي</Link>
         </Button>
         {/* ANALYTICS: mirrors MyStoreCard's own "الإحصائيات" button. */}
         <Button variant="outline" size="sm" asChild>
-          <Link href={ROUTES.myServiceProviderAnalytics}>الإحصائيات</Link>
+          <Link href={ROUTES.myServiceProviderAnalytics} prefetch={false}>الإحصائيات</Link>
         </Button>
       </div>
       <div className="border-t pt-4">

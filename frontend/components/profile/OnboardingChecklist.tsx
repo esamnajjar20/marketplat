@@ -126,13 +126,13 @@ export function OnboardingChecklist() {
           </ul>
           <div className="flex flex-wrap gap-2 pt-1">
             <Button size="sm" asChild>
-              <Link href={ROUTES.adCreate}>إعلان سريع</Link>
+              <Link href={ROUTES.adCreate} prefetch={false}>إعلان سريع</Link>
             </Button>
             <Button size="sm" variant="outline" asChild>
-              <Link href={ROUTES.myStore}>فتح متجر</Link>
+              <Link href={ROUTES.myStore} prefetch={false}>فتح متجر</Link>
             </Button>
             <Button size="sm" variant="outline" asChild>
-              <Link href={ROUTES.settings.serviceProvider}>مزود خدمة</Link>
+              <Link href={ROUTES.settings.serviceProvider} prefetch={false}>مزود خدمة</Link>
             </Button>
           </div>
         </div>
@@ -152,7 +152,7 @@ export function OnboardingChecklist() {
                 className={cn(
                   'flex min-h-[44px] items-center gap-2 rounded-md px-2 py-2.5 text-sm font-medium transition-colors',
                   step === next ? 'bg-primary/5 text-foreground' : 'hover:bg-muted',
-                )}
+                )} prefetch={false}
               >
                 <Circle className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                 <step.icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
@@ -166,7 +166,7 @@ export function OnboardingChecklist() {
 
       <div className="flex justify-end pt-1">
         <Button asChild className="font-semibold" size="sm">
-          <Link href={next.href}>
+          <Link href={next.href} prefetch={false}>
             {next.label}
             <ArrowLeft className="ms-1 h-4 w-4" aria-hidden />
           </Link>

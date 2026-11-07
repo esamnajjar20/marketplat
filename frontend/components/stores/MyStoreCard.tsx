@@ -350,19 +350,19 @@ export function MyStoreCard({ store }: Props) {
           approval. Always shown here regardless of store.status. */}
       <div className="grid grid-cols-3 gap-2 border-t pt-4">
         <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">
-          <Link href={ROUTES.myStoreProductCreate}>
+          <Link href={ROUTES.myStoreProductCreate} prefetch={false}>
             <PackagePlus className="h-4 w-4" aria-hidden />
             {storeLabels.addProduct}
           </Link>
         </Button>
         <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">
-          <Link href={ROUTES.myStoreProducts}>
+          <Link href={ROUTES.myStoreProducts} prefetch={false}>
             <Package className="h-4 w-4" aria-hidden />
             {storeLabels.products}
           </Link>
         </Button>
         <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-2xl py-2.5 text-2xs-tight">
-          <Link href={ROUTES.myFollowedStores}>
+          <Link href={ROUTES.myFollowedStores} prefetch={false}>
             <Heart className="h-4 w-4" aria-hidden />
             المتابَعة
           </Link>
@@ -371,11 +371,11 @@ export function MyStoreCard({ store }: Props) {
 
       <div className="space-y-2 border-t pt-4">
         <Button variant="outline" size="sm" asChild className="gap-1.5">
-          <Link href={ROUTES.myStore}>العودة للوحة المتجر</Link>
+          <Link href={ROUTES.myStore} prefetch={false}>العودة للوحة المتجر</Link>
         </Button>
         {store.status === 'ACTIVE' && (
           <Button variant="ghost" size="sm" asChild className="gap-1.5 text-muted-foreground">
-            <Link href={ROUTES.storeDetail(store.id)}>
+            <Link href={ROUTES.storeDetail(store.id)} prefetch={false}>
               عرض صفحتي العامة <ExternalLink className="h-3.5 w-3.5" />
             </Link>
           </Button>

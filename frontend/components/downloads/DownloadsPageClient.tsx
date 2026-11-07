@@ -66,7 +66,7 @@ export function DownloadsPageClient() {
         action={
           online ? (
             <Button asChild>
-              <Link href={ROUTES.stores}>تصفح المتاجر</Link>
+              <Link href={ROUTES.stores} prefetch={false}>تصفح المتاجر</Link>
             </Button>
           ) : undefined
         }
@@ -152,7 +152,7 @@ export function DownloadsPageClient() {
               )}
               {online && (
                 <Button type="button" variant="outline" size="sm" className="gap-1.5" asChild>
-                  <Link href={ROUTES.storeDetail(item.storeId)}>
+                  <Link href={ROUTES.storeDetail(item.storeId)} prefetch={false}>
                     <Store className="h-3.5 w-3.5" />
                     المتجر
                   </Link>

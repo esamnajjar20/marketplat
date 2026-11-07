@@ -117,7 +117,7 @@ export const NotificationRow = memo(function NotificationRow({
   return (
     <li>
       {href ? (
-        <Link href={href} onClick={() => onOpen(n)} className="block">
+        <Link href={href} onClick={() => onOpen(n)} className="block" prefetch={false}>
           {inner}
         </Link>
       ) : (

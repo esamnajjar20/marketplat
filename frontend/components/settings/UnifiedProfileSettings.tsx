@@ -106,7 +106,7 @@ export function UnifiedProfileSettings() {
               <div className="divide-y divide-border/60">
                 <Link
                   href={ROUTES.settings.notifications}
-                  className="flex min-h-12 items-center justify-between gap-2 px-2 text-sm font-medium transition-colors hover:bg-muted/40"
+                  className="flex min-h-12 items-center justify-between gap-2 px-2 text-sm font-medium transition-colors hover:bg-muted/40" prefetch={false}
                 >
                   <span className="inline-flex items-center gap-2">
                     <span className="text-muted-foreground" aria-hidden>🔔</span>
@@ -116,7 +116,7 @@ export function UnifiedProfileSettings() {
                 </Link>
                 <Link
                   href={ROUTES.settings.security}
-                  className="flex min-h-12 items-center justify-between gap-2 px-2 text-sm font-medium transition-colors hover:bg-muted/40"
+                  className="flex min-h-12 items-center justify-between gap-2 px-2 text-sm font-medium transition-colors hover:bg-muted/40" prefetch={false}
                 >
                   <span className="inline-flex items-center gap-2">
                     <span className="text-muted-foreground" aria-hidden>🔒</span>
@@ -126,7 +126,7 @@ export function UnifiedProfileSettings() {
                 </Link>
                 <Link
                   href={ROUTES.offline.drafts}
-                  className="flex min-h-12 items-center justify-between gap-2 px-2 text-sm font-medium transition-colors hover:bg-muted/40"
+                  className="flex min-h-12 items-center justify-between gap-2 px-2 text-sm font-medium transition-colors hover:bg-muted/40" prefetch={false}
                 >
                   <span className="inline-flex items-center gap-2">
                     <span className="text-muted-foreground" aria-hidden>📄</span>

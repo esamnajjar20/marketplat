@@ -39,7 +39,7 @@ export function AdminCategoryTypeTabs({ active }: { active: CategoryTypeTab }) {
               isActive
                 ? 'border-primary text-primary'
                 : 'border-transparent text-muted-foreground hover:text-foreground',
-            )}
+            )} prefetch={false}
           >
             <tab.icon className="h-4 w-4" aria-hidden="true" />
             {tab.label}

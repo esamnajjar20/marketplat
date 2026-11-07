@@ -85,7 +85,7 @@ export function SellerCard({ seller, adId, sellerProfileId, store }: Props) {
     <section className={`${CARD_SHELL_SOFT} p-3.5 sm:p-4 space-y-4`} aria-label={isStoreAd ? 'معلومات المتجر' : 'معلومات البائع'}>
       <h3 className="font-semibold">{isStoreAd ? 'معلومات المتجر' : 'معلومات البائع'}</h3>
 
-      <Link href={profileHref} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+      <Link href={profileHref} className="flex items-center gap-4 hover:opacity-80 transition-opacity" prefetch={false}>
         <div className="relative shrink-0">
           <div className={`relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-muted sm:h-14 sm:w-14 ${CARD_AVATAR_FALLBACK}`} >
             <SafeImage variant="avatar" src={avatar} alt={displayName} fill className="object-cover" sizes="64px" />

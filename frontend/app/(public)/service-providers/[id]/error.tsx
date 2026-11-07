@@ -32,7 +32,7 @@ export default function ServiceProviderError({ reset }: ServiceProviderErrorProp
         </button>
         <Link
           href="/service-providers"
-          className="inline-flex min-h-11 items-center rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-muted"
+          className="inline-flex min-h-11 items-center rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-muted" prefetch={false}
         >
           تصفح مقدمي الخدمة
         </Link>

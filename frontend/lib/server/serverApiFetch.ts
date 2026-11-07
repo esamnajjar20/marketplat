@@ -124,6 +124,36 @@ function validatePublicCachePolicy(policy: Extract<ServerApiCachePolicy, { mode:
   }
 }
 
+/**
+ * Diagnostic summary for a 2xx response whose body is not JSON. Logged on the
+ * failure path only. Never logs a body that looks like JSON (a truncated JSON
+ * prefix of a private endpoint could carry user data): for `{`/`[` bodies only
+ * the length is reported. Non-JSON bodies (empty, HTML/text error pages such as
+ * a Cloudflare error page) are the useful case, so a short control-char-free
+ * preview of those is included.
+ */
+function describeInvalidBody(response: Response, rawBody: string): string {
+  const contentType = response.headers.get('content-type') ?? 'none';
+  const contentLength = response.headers.get('content-length') ?? 'none';
+  const cfRay = response.headers.get('cf-ray') ?? 'none';
+  const trimmed = rawBody.trimStart();
+  const kind =
+    trimmed.length === 0
+      ? 'empty'
+      : trimmed.startsWith('{') || trimmed.startsWith('[')
+        ? 'truncated-or-malformed-json'
+        : 'non-json-text';
+  const preview =
+    kind === 'non-json-text'
+      // eslint-disable-next-line no-control-regex
+      ? ` preview=${JSON.stringify(trimmed.slice(0, 200).replace(/[\u0000-\u001f\u007f]+/g, ' '))}`
+      : '';
+  return (
+    `(status=${response.status} content-type=${contentType} content-length=${contentLength} ` +
+    `bodyChars=${rawBody.length} kind=${kind} cf-ray=${cfRay}${preview})`
+  );
+}
+
 async function requestApiEnvelopeUncached(
   path: string,
   timeoutMs: number,
@@ -167,11 +197,17 @@ async function requestApiEnvelopeUncached(
       throw new ServerApiHttpError(response.status);
     }
 
+    // Read as text first so a failed parse can be diagnosed (see describeInvalidBody).
+    // Behaviour is otherwise identical to response.json().
+    let rawBody = '';
     let payload: unknown;
     try {
-      payload = await response.json();
+      rawBody = await response.text();
+      payload = JSON.parse(rawBody);
     } catch {
-      console.error(`[serverApiFetch] Invalid JSON for ${safeLogPath}`);
+      console.error(
+        `[serverApiFetch] Invalid JSON for ${safeLogPath} ${describeInvalidBody(response, rawBody)}`,
+      );
       throw new Error('استجابة الخادم غير صالحة');
     }
 

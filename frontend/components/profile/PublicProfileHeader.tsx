@@ -94,7 +94,7 @@ export function PublicProfileHeader({ user }: Props) {
                     </>
                   );
                   return t.href ? (
-                    <Link key={t.label} href={t.href} className={`${tileCls} transition hover:bg-primary-soft`}>{inner}</Link>
+                    <Link key={t.label} href={t.href} className={`${tileCls} transition hover:bg-primary-soft`} prefetch={false}>{inner}</Link>
                   ) : (
                     <div key={t.label} className={tileCls}>{inner}</div>
                   );
@@ -109,7 +109,7 @@ export function PublicProfileHeader({ user }: Props) {
               {store && (
                 <Link
                   href={ROUTES.storeDetail(store.id)}
-                  className="mt-4 flex items-center gap-3 rounded-[20px] border border-border bg-card p-3 text-start shadow-sm transition hover:border-primary/30"
+                  className="mt-4 flex items-center gap-3 rounded-[20px] border border-border bg-card p-3 text-start shadow-sm transition hover:border-primary/30" prefetch={false}
                 >
                   <span className="relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-[14px] bg-primary-soft">
                     <SafeImage variant="avatar" src={getAvatarUrl(store.logoUrl ?? '', 96)} alt={store.name} fill className="object-cover" sizes="52px" />

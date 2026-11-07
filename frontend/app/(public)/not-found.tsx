@@ -23,10 +23,10 @@ export default function GroupNotFound() {
       <p className="max-w-sm text-muted-foreground">ربما حُذف هذا المحتوى أو تغيّر رابطه.</p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Button asChild>
-          <Link href={ROUTES.home}>العودة للرئيسية</Link>
+          <Link href={ROUTES.home} prefetch={false}>العودة للرئيسية</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href={ROUTES.search}>البحث في المنصة</Link>
+          <Link href={ROUTES.search} prefetch={false}>البحث في المنصة</Link>
         </Button>
       </div>
     </div>

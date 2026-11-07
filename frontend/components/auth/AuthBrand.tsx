@@ -6,7 +6,7 @@ export function AuthBrand() {
   return (
     <Link
       href={ROUTES.home}
-      className="mb-5 inline-flex items-center justify-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--legacy-primary)]/40"
+      className="mb-5 inline-flex items-center justify-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--legacy-primary)]/40" prefetch={false}
     >
       <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--legacy-primary)] text-[15px] font-extrabold text-primary-foreground">
         س

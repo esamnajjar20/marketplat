@@ -81,7 +81,7 @@ export function SaleCard({ sale }: { sale: SaleRecord }) {
 
         <div className="mt-3 flex flex-wrap gap-2">
           <Button variant="outline" size="sm" asChild className="h-10 flex-1 rounded-xl font-bold gap-1.5">
-            <Link href={`/account/sales/${sale.id}/receipt`}>
+            <Link href={`/account/sales/${sale.id}/receipt`} prefetch={false}>
               <Receipt className="h-3.5 w-3.5" />
               الإيصال
             </Link>

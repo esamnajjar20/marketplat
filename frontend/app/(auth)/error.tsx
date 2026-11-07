@@ -62,7 +62,7 @@ export default function AuthError({ error, reset }: AuthErrorProps) {
       <div className="flex flex-wrap items-center justify-center gap-2">
         <Button onClick={reset}>حاول مجدداً</Button>
         <Button variant="outline" asChild>
-          <Link href={ROUTES.login}>صفحة تسجيل الدخول</Link>
+          <Link href={ROUTES.login} prefetch={false}>صفحة تسجيل الدخول</Link>
         </Button>
       </div>
     </div>

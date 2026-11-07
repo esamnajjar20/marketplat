@@ -95,9 +95,9 @@ export function ResetPasswordForm({ token }: Props) {
           رابط إعادة تعيين كلمة المرور غير صالح. يرجى طلب رابط جديد.
         </p>
         <Button asChild className="h-12 w-full rounded-2xl text-[15px] font-bold">
-          <Link href={ROUTES.forgotPassword}>طلب رابط جديد</Link>
+          <Link href={ROUTES.forgotPassword} prefetch={false}>طلب رابط جديد</Link>
         </Button>
-        <Link href={ROUTES.login} className="block text-[13px] font-bold text-[var(--legacy-primary-deep)] hover:underline">
+        <Link href={ROUTES.login} className="block text-[13px] font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>
           العودة لتسجيل الدخول
         </Link>
       </div>
@@ -122,7 +122,7 @@ export function ResetPasswordForm({ token }: Props) {
       </Button>
 
       <p className="text-center text-[13px] font-bold text-[var(--legacy-primary-deep)]">
-        <Link href={ROUTES.login} className="text-primary hover:underline">العودة لتسجيل الدخول</Link>
+        <Link href={ROUTES.login} className="text-primary hover:underline" prefetch={false}>العودة لتسجيل الدخول</Link>
       </p>
     </form>
   );

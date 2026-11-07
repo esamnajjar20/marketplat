@@ -390,7 +390,7 @@ export function ChatWindow({ conversationId }: Props) {
       <div className="flex flex-col items-center gap-3 py-12 text-center">
         <AlertTriangle className="h-10 w-10 text-muted-foreground" />
         <p className="text-destructive">تعذّر تحميل المحادثة</p>
-        <Link href={ROUTES.messages} className="text-sm text-primary hover:underline">
+        <Link href={ROUTES.messages} className="text-sm text-primary hover:underline" prefetch={false}>
           العودة للمحادثات
         </Link>
       </div>

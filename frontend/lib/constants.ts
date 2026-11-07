@@ -294,7 +294,7 @@ export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'ima
  * caller's own online marker. Must stay comfortably under the backend's
  * presence.ts PRESENCE_TTL_SECONDS (90s) so a slow tick or one missed
  * beat doesn't flip the caller to "offline" between heartbeats. */
-export const PRESENCE_HEARTBEAT_INTERVAL = 60_000; // 60 s — raised from 45s: on Gaza's weak links the per-beat overhead (TLS + round-trip ~250-300ms) costs more than the accuracy the extra 15s buys. Presence dots tolerate minute-level lag; backend presence TTL has enough headroom (see backend presence.service).
+export const PRESENCE_HEARTBEAT_INTERVAL = 120_000; // 120 s (was 60s; backend PRESENCE_TTL_SECONDS raised to 200 to match, ~30 PATCH/30min per user -> ~15). // 60 s — raised from 45s: on Gaza's weak links the per-beat overhead (TLS + round-trip ~250-300ms) costs more than the accuracy the extra 15s buys. Presence dots tolerate minute-level lag; backend presence TTL has enough headroom (see backend presence.service).
 
 /** Base URL for the backend API, consumed by api/client.ts */
 // SW-SSR-CLIENT-SPLIT-01: server-side (RSC, generateMetadata, server
@@ -328,7 +328,7 @@ export const API_BASE_URL = (() => {
 export const CACHE_TTL = {
   adsList:     90_000,   //  90 s — N2 public lists
   adDetail:    120_000,  // 120 s — N2
-  myAds:       45_000,   //  45 s — N2
+  myAds:       120_000,  // 120 s (was 45s) — mutations invalidate explicitly
   categories:  300_000,  //   5 m
   // Store business types (pharmacy/restaurant/...) — admin-managed
   // reference list. Shorter than categories: a label/icon tweak by an

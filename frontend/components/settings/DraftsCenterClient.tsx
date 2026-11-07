@@ -304,7 +304,7 @@ function DraftRow({
           className="h-10 min-w-0 flex-1 rounded-full bg-[var(--legacy-primary)] text-sm font-bold text-primary-foreground hover:bg-[var(--legacy-primary)]/90"
           disabled={busy}
         >
-          <Link href={resumeHref}>{isFailed ? 'إعادة المحاولة' : 'متابعة التعديل'}</Link>
+          <Link href={resumeHref} prefetch={false}>{isFailed ? 'إعادة المحاولة' : 'متابعة التعديل'}</Link>
         </Button>
       </div>
     </li>

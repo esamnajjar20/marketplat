@@ -261,7 +261,9 @@ const inflight = new Map<string, Promise<unknown>>();
 // Separate namespace prefix from reference-cache entries. /__purge__ only deletes
 // ref:v1:* keys, so a reference-data purge can never erase routing configuration.
 const GATEWAY_REGISTRY_KEY = 'gateway:registry:v1';
-const GATEWAY_REGISTRY_CACHE_MS = 15000;
+// The registry changes only on an admin save, which refreshes the saving isolate
+// immediately. 60s keeps steady-state DO reads low; other isolates may lag that long.
+const GATEWAY_REGISTRY_CACHE_MS = 60000;
 const GATEWAY_MAX_SERVERS = 16;
 const GATEWAY_MAX_GO_TARGETS = 32;
 const GATEWAY_MAX_GO_FAILOVER_ATTEMPTS = 3;
@@ -278,17 +280,24 @@ const GATEWAY_REGISTRY_OBJECT_NAME = 'gateway-registry-v1';
 const FRONTEND_RELEASE_COOKIE = '__Host-mp-frontend-release';
 // Health snapshots are control-plane reads. A 15s isolate cache cuts DO reads
 // by roughly 2/3 versus 5s while local circuit breakers still react immediately.
-const GATEWAY_HEALTH_CACHE_MS = 15000;
+const GATEWAY_HEALTH_CACHE_MS = 45000; // was 15s; local circuit breakers still react immediately
 const GATEWAY_HEALTH_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
 const GATEWAY_HEALTH_HISTORY_INTERVAL_SEC = 15 * 60;
 const GATEWAY_HEALTH_HISTORY_RETENTION_SEC = 30 * 24 * 60 * 60;
 const gatewayFailures = new Map<string, GatewayFailureState>();
 const goTrafficSampleCounters = new Map<string, number>();
-// Sample successful Go traffic at 10% instead of 20%; failures remain unsampled
+// Sample successful Go traffic at 1-in-25 (was 1-in-10); failures remain unsampled
 // (every failure is still recorded), reducing DO writes on healthy high-volume paths.
-const GATEWAY_GO_METRIC_SAMPLE_EVERY = 10;
+const GATEWAY_GO_METRIC_SAMPLE_EVERY = 25;
+// Healthy-traffic samples are also rate-limited per target (failures/recovery are never delayed).
+const GATEWAY_HEALTHY_WRITE_MIN_GAP_MS = 30000;
+const lastHealthyWriteAt = new Map<string, number>();
 let gatewayRegistryCache: RegistryCacheEntry | null = null;
 let gatewayHealthSnapshotCache: HealthSnapshotCacheEntry | null = null;
+// Single-flight: concurrent cache misses in one isolate share one Durable Object read
+// instead of each issuing its own (the 12 same-second registry reads seen in tail logs).
+let gatewayRegistryInflight: { binding: string; promise: Promise<GatewayRegistryLoad> } | null = null;
+let gatewayHealthInflight: { binding: unknown; promise: Promise<GatewayHealthSnapshot> } | null = null;
 
 function validateBackendOrigin(raw: unknown, env: Env, label = 'Backend'): string {
   if (typeof raw !== 'string' || !raw.trim() || raw.length > 2048) throw new Error(`${label} URL is required and must be at most 2048 characters`);
@@ -538,6 +547,19 @@ async function loadGatewayRegistry(env: Env, force = false): Promise<GatewayRegi
   if (!force && gatewayRegistryCache && gatewayRegistryCache.binding === cacheBinding && now < gatewayRegistryCache.expiresAt) {
     return gatewayRegistryCache.value;
   }
+  // Forced reads (admin save/refresh) must never reuse a load that started before a write.
+  if (force) return loadGatewayRegistryUncached(env, cacheBinding);
+  if (gatewayRegistryInflight && gatewayRegistryInflight.binding === cacheBinding) return gatewayRegistryInflight.promise;
+  const promise = loadGatewayRegistryUncached(env, cacheBinding);
+  const entry = { binding: cacheBinding, promise };
+  gatewayRegistryInflight = entry;
+  const clear = () => { if (gatewayRegistryInflight === entry) gatewayRegistryInflight = null; };
+  promise.then(clear, clear);
+  return promise;
+}
+
+async function loadGatewayRegistryUncached(env: Env, cacheBinding: string): Promise<GatewayRegistryLoad> {
+  const now = Date.now();
 
   let value = null;
   let source: RegistrySource = 'env-fallback';
@@ -719,6 +741,16 @@ function shouldSampleGoTraffic(server: GoWorkerServer): boolean {
   return next % GATEWAY_GO_METRIC_SAMPLE_EVERY === 0;
 }
 
+/**
+ * True while this isolate's circuit for the server is already open. The central Durable
+ * Object already received the failures that opened it, so repeating one write per
+ * further failed request only adds DO load (and CPU) without changing any state.
+ */
+function circuitAlreadyOpen(server: GatewayServer): boolean {
+  const state = gatewayFailures.get(backendStateKey(server));
+  return Boolean(state && state.openUntil > Date.now());
+}
+
 function recordBackendResult(server: GatewayServer, healthy: boolean, options: HealthRecordDetails = {}): void {
   const stateKey = backendStateKey(server);
   const existing = gatewayFailures.get(stateKey);
@@ -815,6 +847,17 @@ async function loadGatewayHealthSnapshot(env: Env, force = false): Promise<Gatew
     return gatewayHealthSnapshotCache.value;
   }
 
+  if (force) return loadGatewayHealthSnapshotUncached(env, binding, now);
+  if (gatewayHealthInflight && gatewayHealthInflight.binding === binding) return gatewayHealthInflight.promise;
+  const promise = loadGatewayHealthSnapshotUncached(env, binding, now);
+  const entry = { binding: binding as unknown, promise };
+  gatewayHealthInflight = entry;
+  const clear = () => { if (gatewayHealthInflight === entry) gatewayHealthInflight = null; };
+  promise.then(clear, clear);
+  return promise;
+}
+
+async function loadGatewayHealthSnapshotUncached(env: Env, binding: Env['GATEWAY_HEALTH'], now: number): Promise<GatewayHealthSnapshot> {
   const stub = gatewayHealthObject(env);
   if (!stub) return localGatewayHealthSnapshot();
   try {
@@ -1055,12 +1098,15 @@ async function fetchBackend(pathAndSearch: string, initFactory: RequestInit | ((
       totalMs += result.ms;
       last = { ...result, serverId: server.id, attempts: (last ? last.attempts : 0) + 1, mode: source === 'env-fallback' ? 'fallback' : 'pool' };
       if (!result.res || isFailoverStatus(result.res.status)) {
+        const alreadyOpen = circuitAlreadyOpen(server);
         recordBackendResult(server, false);
-        void scheduleGatewayHealthWrite(env, ctx, server, false, {
-          status: result.res ? result.res.status : null,
-          durationMs: result.ms,
-          activeRequests,
-        }, 'traffic');
+        if (!alreadyOpen) {
+          void scheduleGatewayHealthWrite(env, ctx, server, false, {
+            status: result.res ? result.res.status : null,
+            durationMs: result.ms,
+            activeRequests,
+          }, 'traffic');
+        }
         if (retryAllowed && attemptIndex < attemptServers.length - 1) {
           try { if (result.res && result.res.body) await result.res.body.cancel(); } catch { /* discard failed upstream body before the next attempt */ }
           continue;
@@ -1072,16 +1118,21 @@ async function fetchBackend(pathAndSearch: string, initFactory: RequestInit | ((
       const hadFailure = gatewayFailures.has(backendStateKey(server));
       recordBackendResult(server, true);
       const adaptiveSample = poolKind === 'go' && server.healthKind === 'go' && shouldSampleGoTraffic(server);
-      if (adaptiveSample || hadFailure) {
-        // Go success samples are sampled at 1-in-10 per target to bound the
+      const nowMs = Date.now();
+      const healthyKey = backendStateKey(server);
+      const gapOk = nowMs - (lastHealthyWriteAt.get(healthyKey) || 0) >= GATEWAY_HEALTHY_WRITE_MIN_GAP_MS;
+      if (hadFailure || (adaptiveSample && gapOk)) {
+        lastHealthyWriteAt.set(healthyKey, nowMs);
+        // Go success samples are sampled at 1-in-25 per target to bound the
         // central Durable Object write rate; failures and circuit recovery
         // events remain unsampled so health protection is not delayed.
         void scheduleGatewayHealthWrite(env, ctx, server, true, { status: result.res.status, durationMs: result.ms, activeRequests }, 'traffic');
       }
       return { ...last, ms: totalMs };
     } catch (error) {
+      const alreadyOpen = circuitAlreadyOpen(server);
       recordBackendResult(server, false);
-      void scheduleGatewayHealthWrite(env, ctx, server, false, { status: null }, 'traffic');
+      if (!alreadyOpen) void scheduleGatewayHealthWrite(env, ctx, server, false, { status: null }, 'traffic');
       last = { res: null, error: errorMessage(error), serverId: server.id,
         ms: totalMs, attempts: (last ? last.attempts : 0) + 1, mode: source === 'env-fallback' ? 'fallback' : 'pool' };
       if (!retryAllowed) return last;
@@ -1315,7 +1366,7 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
   gatewayRegistryCache = { binding: cacheBinding, expiresAt: Date.now() + GATEWAY_REGISTRY_CACHE_MS, value: { registry: next, source: registrySource } };
   await reconcileGatewayHealth(env, [...next.backend.servers, ...next.frontend.servers, ...next.go.servers]);
   const propagation = registrySource === 'durable-object'
-    ? 'السجل الأساسي مركزي ومتسق؛ قد تحتفظ بعض نسخ Worker بالنسخة المحلية لمدة تصل إلى 15 ثانية.'
+    ? 'السجل الأساسي مركزي ومتسق؛ قد تحتفظ بعض نسخ Worker بالنسخة المحلية لمدة تصل إلى 60 ثانية.'
     : 'تم استخدام KV كمسار توافق احتياطي؛ قد تتأخر المواقع الأخرى حتى انتشار KV.';
   return new Response(JSON.stringify({ ok: true, registry: next, source: registrySource, replicaStatus, propagation }, null, 2), {
     headers: { 'content-type': 'application/json', 'cache-control': 'no-store' },

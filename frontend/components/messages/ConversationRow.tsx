@@ -87,7 +87,7 @@ export const ConversationRow = memo(function ConversationRow({
       <Link
         href={ROUTES.conversationDetail(conversation.id)}
         aria-current={isSelected ? 'page' : undefined}
-        className="flex min-w-0 flex-1 items-start gap-3 touch-manipulation"
+        className="flex min-w-0 flex-1 items-start gap-3 touch-manipulation" prefetch={false}
       >
         {isSelected && <span className="absolute inset-y-3 start-0 w-1 rounded-e-full bg-primary" aria-hidden />}
         <div className="relative shrink-0">

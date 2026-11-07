@@ -45,7 +45,8 @@ interface QueuedEvent {
 }
 
 const SESSION_STORAGE_KEY = 'analytics_session_id';
-const FLUSH_INTERVAL_MS = 5_000;
+// 30s (was 5s): events are batched up to 20 per request; hidden/pagehide still flush at once.
+const FLUSH_INTERVAL_MS = 30_000;
 const MAX_BATCH_SIZE = 20; // matches backend's trackEventsSchema cap
 
 /**

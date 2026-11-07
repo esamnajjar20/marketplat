@@ -111,7 +111,7 @@ export function BecomeServiceProviderCard() {
           يجب أن يكون لديك ملف بائع أولاً قبل تفعيل تقديم الخدمات.
         </p>
         <Button asChild>
-          <Link href={ROUTES.settings.seller}>إنشاء ملف بائع</Link>
+          <Link href={ROUTES.settings.seller} prefetch={false}>إنشاء ملف بائع</Link>
         </Button>
       </div>
     );

@@ -27,10 +27,10 @@ export default function NotFound() {
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Button asChild>
-          <Link href="/">العودة للرئيسية</Link>
+          <Link href="/" prefetch={false}>العودة للرئيسية</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href="/search">البحث في المنصة</Link>
+          <Link href="/search" prefetch={false}>البحث في المنصة</Link>
         </Button>
       </div>
     </main>

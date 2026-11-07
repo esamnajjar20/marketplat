@@ -36,12 +36,12 @@ export function PublishedSuccessBanner() {
         description="إعلانك الآن ظاهر للجميع. يمكنك تعديله أو متابعة مشاهداته من «إعلاناتي»."
         primaryAction={
           <Button asChild className="h-11 w-full rounded-xl font-bold">
-            <Link href={pathname}>عرض الإعلان</Link>
+            <Link href={pathname} prefetch={false}>عرض الإعلان</Link>
           </Button>
         }
         secondaryAction={
           <Button asChild variant="outline" className="h-11 w-full rounded-xl border-[var(--legacy-border)] font-bold">
-            <Link href={ROUTES.myAds}>إعلاناتي</Link>
+            <Link href={ROUTES.myAds} prefetch={false}>إعلاناتي</Link>
           </Button>
         }
       />

@@ -30,11 +30,11 @@ export function StorePendingBanner() {
       <p>
         <span className="text-sm font-extrabold">متجرك غير ظاهر للزوار بعد</span>
         {' — '}قيد مراجعة الإدارة. يمكنك تجهيز{' '}
-        <Link href={ROUTES.myStoreProducts} className="text-primary hover:underline">
+        <Link href={ROUTES.myStoreProducts} className="text-primary hover:underline" prefetch={false}>
           المنتجات
         </Link>
         {' '}و{' '}
-        <Link href={ROUTES.myStorePromotions} className="text-primary hover:underline">
+        <Link href={ROUTES.myStorePromotions} className="text-primary hover:underline" prefetch={false}>
           العروض
         </Link>
         .

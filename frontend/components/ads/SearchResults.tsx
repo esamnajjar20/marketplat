@@ -289,7 +289,7 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
                 </Button>
               )}
               <Button variant="default" size="sm" asChild>
-                <Link href={ROUTES.home}>العودة للرئيسية</Link>
+                <Link href={ROUTES.home} prefetch={false}>العودة للرئيسية</Link>
               </Button>
             </div>
           }

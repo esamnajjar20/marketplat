@@ -43,7 +43,7 @@ export default function PrivacyPage() {
       <h2>حقوقك</h2>
       <p>
         يمكنك تحديث ملفك من الإعدادات، وطلب الدعم عبر{' '}
-        <Link href={ROUTES.contact}>صفحة التواصل</Link>.
+        <Link href={ROUTES.contact} prefetch={false}>صفحة التواصل</Link>.
       </p>
       <h2>التحديثات</h2>
       <p>قد نحدّث هذه الصفحة عند تغيّر الممارسات؛ تاريخ السريان يظهر عند النشر الرسمي.</p>

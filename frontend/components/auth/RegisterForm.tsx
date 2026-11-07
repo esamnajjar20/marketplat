@@ -215,7 +215,7 @@ export function RegisterForm() {
 
       <p className="text-center text-[13px] text-[var(--legacy-muted-text)]">
         لديك حساب بالفعل؟{' '}
-        <Link href={loginHref} className="font-bold text-[var(--legacy-primary-deep)] hover:underline">تسجيل الدخول</Link>
+        <Link href={loginHref} className="font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>تسجيل الدخول</Link>
       </p>
     </form>
   );

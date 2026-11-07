@@ -226,7 +226,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
               </div>
               <Link
                 href={ROUTES.favorites}
-                className="flex items-center justify-between rounded-2xl border border-[var(--legacy-border)] bg-card px-3 py-3 dark:border-border dark:bg-card"
+                className="flex items-center justify-between rounded-2xl border border-[var(--legacy-border)] bg-card px-3 py-3 dark:border-border dark:bg-card" prefetch={false}
               >
                 <span className="flex items-center gap-2">
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-primary" aria-hidden>
@@ -241,7 +241,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
               </Link>
               <Link
                 href={ROUTES.offline.hub}
-                className="flex items-center justify-between rounded-2xl border border-[var(--legacy-border)] bg-card px-3 py-3 dark:border-border dark:bg-card"
+                className="flex items-center justify-between rounded-2xl border border-[var(--legacy-border)] bg-card px-3 py-3 dark:border-border dark:bg-card" prefetch={false}
               >
                 <span className="flex items-center gap-2">
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-primary" aria-hidden>

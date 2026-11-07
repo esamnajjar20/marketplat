@@ -75,7 +75,7 @@ export class ErrorBoundary extends Component<Props, State> {
             إعادة المحاولة
           </Button>
           <Button type="button" variant="outline" className="gap-1.5 rounded-xl" asChild>
-            <Link href={ROUTES.home}>
+            <Link href={ROUTES.home} prefetch={false}>
               <Home className="h-4 w-4" aria-hidden />
               الرئيسية
             </Link>

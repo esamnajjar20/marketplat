@@ -78,7 +78,7 @@ export function RecentActivityFeed() {
       <div className="rounded-[14px] border border-[var(--legacy-border)] bg-card px-4 py-8 text-center">
         <p className="text-[15px] font-extrabold">لا يوجد نشاط بعد</p>
         <p className="mt-1 text-[13px] text-[var(--legacy-muted-text)]">ستظهر هنا كل الأنشطة المرتبطة بحسابك</p>
-        <Link href={ROUTES.adCreate} className="mt-3 inline-flex h-9 items-center rounded-full bg-[var(--legacy-primary)] px-4 text-[13px] font-bold text-primary-foreground">
+        <Link href={ROUTES.adCreate} className="mt-3 inline-flex h-9 items-center rounded-full bg-[var(--legacy-primary)] px-4 text-[13px] font-bold text-primary-foreground" prefetch={false}>
           انشر أول إعلان
         </Link>
       </div>
@@ -109,7 +109,7 @@ export function RecentActivityFeed() {
           <Link
             key={activity.id}
             href={href}
-            className="flex items-center gap-3 rounded-[14px] border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors hover:bg-[var(--legacy-page-surface)]"
+            className="flex items-center gap-3 rounded-[14px] border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors hover:bg-[var(--legacy-page-surface)]" prefetch={false}
           >
             {body}
           </Link>

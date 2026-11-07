@@ -144,7 +144,7 @@ export function ServiceListingsGrid({ initialPage, initialPageUpdatedAt, searchP
           action={
             (search || serviceTypeId || categoryId || city || serviceLocation || minPrice !== undefined || maxPrice !== undefined || getBrowseParam(searchParams, 'attributeFilters')) ? (
               <Button variant="outline" size="sm" asChild>
-                <Link href={ROUTES.services}>مسح الفلاتر وتجربة الكل</Link>
+                <Link href={ROUTES.services} prefetch={false}>مسح الفلاتر وتجربة الكل</Link>
               </Button>
             ) : undefined
           }

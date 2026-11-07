@@ -13,7 +13,7 @@ export const metadata: Metadata = buildMetadata({
 export default function SavedPaymentsPage() {
   return (
     <div className="container mx-auto max-w-2xl space-y-6 px-4 py-8">
-      <Link href="/offline?tab=payments" className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline">
+      <Link href="/offline?tab=payments" className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline" prefetch={false}>
         <ArrowRight className="h-4 w-4" aria-hidden="true" />
         العودة إلى مركز الأوفلاين
       </Link>

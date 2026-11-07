@@ -85,7 +85,7 @@ export default function ServiceRequestDetailPage({ params }: Props) {
 
   return (
     <div className="container mx-auto w-full max-w-5xl space-y-6 px-3 py-6 sm:px-4 lg:py-8">
-      <Link href={backHref} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+      <Link href={backHref} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" prefetch={false}>
         <ArrowRight className="h-4 w-4" />رجوع
       </Link>
 
@@ -104,7 +104,7 @@ export default function ServiceRequestDetailPage({ params }: Props) {
               />
             </div>
             <div>
-              <Link href={ROUTES.serviceDetail(request.listing.id)} className="font-semibold hover:underline">
+              <Link href={ROUTES.serviceDetail(request.listing.id)} className="font-semibold hover:underline" prefetch={false}>
                 {request.listing.title}
               </Link>
               <p className="text-sm text-muted-foreground">
@@ -177,7 +177,7 @@ export default function ServiceRequestDetailPage({ params }: Props) {
           detail view; duplicating those mutations here would mean two
           places doing the same status transition. */}
       <Button asChild variant="outline" size="sm">
-        <Link href={backHref}>عرض كل الطلبات</Link>
+        <Link href={backHref} prefetch={false}>عرض كل الطلبات</Link>
       </Button>
     </div>
   );

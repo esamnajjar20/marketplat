@@ -102,7 +102,7 @@ export function BecomeStoreOwnerCard() {
           يجب أن يكون لديك ملف بائع أولاً قبل فتح متجر.
         </p>
         <Button asChild>
-          <Link href={ROUTES.settings.seller}>إنشاء ملف بائع</Link>
+          <Link href={ROUTES.settings.seller} prefetch={false}>إنشاء ملف بائع</Link>
         </Button>
       </div>
     );

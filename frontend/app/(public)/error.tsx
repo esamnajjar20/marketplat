@@ -86,7 +86,7 @@ useEffect(() => {
       <div className="flex flex-wrap items-center justify-center gap-2">
         <Button onClick={chunkFailed ? () => window.location.reload() : reset}>حاول مجدداً</Button>
         <Button variant="outline" asChild>
-          <Link href={ROUTES.home}>العودة للرئيسية</Link>
+          <Link href={ROUTES.home} prefetch={false}>العودة للرئيسية</Link>
         </Button>
       </div>
     </div>

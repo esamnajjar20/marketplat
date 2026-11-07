@@ -66,7 +66,7 @@ export function PublicSalesStats({ slug }: { slug: string }) {
           <div className="rounded-xl bg-muted/40 p-4"><p className="text-xs text-muted-foreground">آخر مبيعة</p><p className="mt-1 text-sm font-semibold">{data.lastSaleAt ? new Date(data.lastSaleAt).toLocaleDateString('ar-PS', { timeZone: 'Asia/Gaza' }) : 'لا توجد'}</p></div>
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
-          <Link href={`/stores/${data.storeId}`} className="rounded-lg border px-4 py-2 text-sm">عرض المتجر</Link>
+          <Link href={`/stores/${data.storeId}`} className="rounded-lg border px-4 py-2 text-sm" prefetch={false}>عرض المتجر</Link>
 
         </div>
       </div>

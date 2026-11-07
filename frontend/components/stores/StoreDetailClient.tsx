@@ -41,7 +41,7 @@ export function StoreDetailClient({ id }: { id: string }) {
           title={notFound ? 'المتجر غير موجود' : 'تعذّر تحميل المتجر'}
           description={notFound ? 'ربما تم حذف هذا المتجر أو أن الرابط غير صحيح' : 'حدثت مشكلة في الاتصال، حاول مرة أخرى'}
           action={notFound
-            ? <Link href={ROUTES.stores} className="text-sm text-primary hover:underline">تصفح المتاجر</Link>
+            ? <Link href={ROUTES.stores} className="text-sm text-primary hover:underline" prefetch={false}>تصفح المتاجر</Link>
             : <Button type="button" variant="outline" onClick={() => refetch()}>إعادة المحاولة</Button>}
         />
       </div>

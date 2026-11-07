@@ -147,7 +147,7 @@ export function UpdatePrompt() {
       <RefreshCw className="h-5 w-5 shrink-0 text-primary" />
       <p className="flex-1 text-sm">يتوفر تحديث جديد للتطبيق</p>
       <Button size="sm" asChild>
-        <Link href="/update">تحديث الآن</Link>
+        <Link href="/update" prefetch={false}>تحديث الآن</Link>
       </Button>
       <button
         type="button"

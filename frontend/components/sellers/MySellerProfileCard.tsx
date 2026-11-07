@@ -251,12 +251,12 @@ export function MySellerProfileCard({ profile }: Props) {
 
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" asChild className="gap-1.5">
-          <Link href={ROUTES.userProfile(profile.userId)}>
+          <Link href={ROUTES.userProfile(profile.userId)} prefetch={false}>
             عرض صفحتي العامة <ExternalLink className="h-3.5 w-3.5" />
           </Link>
         </Button>
         <Button size="sm" asChild className="gap-1.5">
-          <Link href={ROUTES.myStore}>
+          <Link href={ROUTES.myStore} prefetch={false}>
             <ShoppingBag className="h-3.5 w-3.5" /> أنشئ متجرك الآن
           </Link>
         </Button>

@@ -78,7 +78,7 @@ export function ProviderContactCard({ listing, showPhone = false }: Props) {
     <div className="space-y-3 rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
       <Link
         href={profileHref}
-        className="flex items-center gap-3 transition-opacity hover:opacity-90"
+        className="flex items-center gap-3 transition-opacity hover:opacity-90" prefetch={false}
       >
         <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full border bg-muted">
           <SafeImage

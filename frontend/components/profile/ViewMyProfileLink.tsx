@@ -20,7 +20,7 @@ export function ViewMyProfileLink() {
 
   return (
     <Button variant="outline" size="sm" asChild className="gap-1.5 shrink-0">
-      <Link href={ROUTES.userProfile(user.id)}>
+      <Link href={ROUTES.userProfile(user.id)} prefetch={false}>
         عرض ملفي كما يظهر للآخرين <ExternalLink className="h-3.5 w-3.5" />
       </Link>
     </Button>

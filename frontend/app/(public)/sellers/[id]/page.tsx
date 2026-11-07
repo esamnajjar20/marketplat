@@ -40,7 +40,7 @@ export default async function LegacySellerProfileRedirectPage({ params }: Props)
         description="لم نتمكن من تحديد حساب المستخدم المرتبط بهذا الرابط. يمكنك العودة إلى قائمة البائعين والمحاولة من جديد."
         tone="warning"
         role="alert"
-        action={<Link href={ROUTES.sellersRanking} className="text-sm font-semibold text-primary hover:underline">العودة إلى البائعين</Link>}
+        action={<Link href={ROUTES.sellersRanking} className="text-sm font-semibold text-primary hover:underline" prefetch={false}>العودة إلى البائعين</Link>}
       />
     </div>
   );

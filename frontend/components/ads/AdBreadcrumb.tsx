@@ -24,14 +24,14 @@ export function AdBreadcrumb({ ad }: Props) {
 
   return (
     <nav aria-label="مسار التصفح" className="mb-4 flex items-center gap-1.5 overflow-x-auto overscroll-x-contain text-sm text-muted-foreground">
-      <Link href={ROUTES.home} className="flex shrink-0 items-center gap-1 hover:text-primary">
+      <Link href={ROUTES.home} className="flex shrink-0 items-center gap-1 hover:text-primary" prefetch={false}>
         <Home className="h-3.5 w-3.5" />
         الرئيسية
       </Link>
       {ad.category && categoryHref && (
         <>
           <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
-          <Link href={categoryHref} className="shrink-0 hover:text-primary">
+          <Link href={categoryHref} className="shrink-0 hover:text-primary" prefetch={false}>
             {ad.category.nameAr}
           </Link>
         </>

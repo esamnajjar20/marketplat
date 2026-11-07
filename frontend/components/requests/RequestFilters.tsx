@@ -200,7 +200,7 @@ export function RequestFilters({
           {hasFilters ? (
             <Link
               href={ROUTES.requests}
-              className="inline-flex h-9 items-center gap-1 rounded-full px-2 text-xs font-semibold text-muted-foreground hover:text-foreground"
+              className="inline-flex h-9 items-center gap-1 rounded-full px-2 text-xs font-semibold text-muted-foreground hover:text-foreground" prefetch={false}
             >
               <X className="h-3.5 w-3.5" aria-hidden />
               مسح

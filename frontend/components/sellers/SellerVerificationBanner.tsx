@@ -35,7 +35,7 @@ export function SellerVerificationBanner() {
           </p>
         </div>
         <Button size="sm" variant="outline" asChild>
-          <Link href={ROUTES.settings.seller}>ملف البائع</Link>
+          <Link href={ROUTES.settings.seller} prefetch={false}>ملف البائع</Link>
         </Button>
       </div>
     );
@@ -51,7 +51,7 @@ export function SellerVerificationBanner() {
         </p>
       </div>
       <Button size="sm" variant="outline" asChild>
-        <Link href={ROUTES.settings.seller}>طلب التوثيق</Link>
+        <Link href={ROUTES.settings.seller} prefetch={false}>طلب التوثيق</Link>
       </Button>
     </div>
   );

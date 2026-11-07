@@ -16,6 +16,7 @@ import { ReviewServiceRequestDialog } from '@/components/services/ReviewServiceR
 import { useMyServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
 import { ROUTES } from '@/lib/constants';
+import { buildUrlWithParams } from '@/lib/urlWithParams';
 import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import {
@@ -64,7 +65,7 @@ export function MyServiceRequestsList() {
       const params = new URLSearchParams(sp.toString());
       if (totalPages > 1) params.set('page', String(totalPages));
       else params.delete('page');
-      router.replace(`${ROUTES.myServiceRequests}?${params.toString()}`);
+      router.replace(buildUrlWithParams(ROUTES.myServiceRequests, params));
     }
   }, [data, page, totalPages, sp, router]);
 
@@ -72,7 +73,7 @@ export function MyServiceRequestsList() {
     const params = new URLSearchParams(sp.toString());
     if (s) params.set('status', s); else params.delete('status');
     params.delete('page');
-    router.push(`${ROUTES.myServiceRequests}?${params.toString()}`);
+    router.push(buildUrlWithParams(ROUTES.myServiceRequests, params));
   }
 
   const isOutOfRange = !!data && page > totalPages && totalPages >= 1;
@@ -114,7 +115,7 @@ export function MyServiceRequestsList() {
           icon={<MessageSquare className="h-10 w-10" />}
           title="لا توجد طلبات"
           description="لم ترسل أي طلب خدمة بعد"
-          action={<Link href={ROUTES.services}><Button>تصفّح الخدمات</Button></Link>}
+          action={<Link href={ROUTES.services} prefetch={false}><Button>تصفّح الخدمات</Button></Link>}
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -134,7 +135,7 @@ export function MyServiceRequestsList() {
                   <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:justify-between">
                     <Link
                       href={ROUTES.serviceDetail(request.listing.id)}
-                      className="min-w-0 break-words text-sm font-semibold leading-6 hover:underline sm:line-clamp-1"
+                      className="min-w-0 break-words text-sm font-semibold leading-6 hover:underline sm:line-clamp-1" prefetch={false}
                     >
                       {request.listing.title}
                     </Link>
@@ -156,7 +157,7 @@ export function MyServiceRequestsList() {
                   {/* AUDIT-FIX (issue #6): details/attachedImages were
                       clipped here with no way to see the full request —
                       this links to the new detail page for both. */}
-                  <Link href={ROUTES.serviceRequestDetail(request.id)} className="inline-flex min-h-9 items-center text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                  <Link href={ROUTES.serviceRequestDetail(request.id)} className="inline-flex min-h-9 items-center text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" prefetch={false}>
                     عرض التفاصيل الكاملة
                   </Link>
                   {request.status === 'COMPLETED' && !canReview && (

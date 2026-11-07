@@ -70,6 +70,9 @@ const nextConfig: NextConfig = {
   compress: true,
 
   images: {
+    // Cloudinary images bypass the /_next/image Worker route (see lib/imageLoader.ts).
+    loader: 'custom',
+    loaderFile: './lib/imageLoader.ts',
     // Never allow SVG through the Next image optimizer. SVGs are rendered
     // directly by SafeImage/CloudinaryImage with unoptimized=true instead.
     dangerouslyAllowSVG: false,

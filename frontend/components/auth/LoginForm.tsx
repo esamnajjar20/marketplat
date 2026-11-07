@@ -161,7 +161,7 @@ export function LoginForm() {
       </AuthField>
 
       <div className="flex justify-end">
-        <Link href={ROUTES.forgotPassword} className="text-[13px] font-bold text-[var(--legacy-primary-deep)] hover:underline">
+        <Link href={ROUTES.forgotPassword} className="text-[13px] font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>
           نسيت كلمة المرور؟
         </Link>
       </div>
@@ -194,7 +194,7 @@ export function LoginForm() {
 
       <p className="text-center text-[13px] text-[var(--legacy-muted-text)]">
         ليس لديك حساب؟{' '}
-        <Link href={registerHref} className="font-bold text-[var(--legacy-primary-deep)] hover:underline">
+        <Link href={registerHref} className="font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>
           إنشاء حساب
         </Link>
       </p>

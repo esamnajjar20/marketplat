@@ -63,11 +63,11 @@ export default async function PromotedPage() {
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              <Link href={ROUTES.products} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium hover:border-primary/40">
+              <Link href={ROUTES.products} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-sm font-medium hover:border-primary/40" prefetch={false}>
                 <ShoppingBag className="h-4 w-4" aria-hidden />
                 كل المنتجات
               </Link>
-              <Link href={ROUTES.home} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+              <Link href={ROUTES.home} className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline" prefetch={false}>
                 الرئيسية
                 <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden />
               </Link>

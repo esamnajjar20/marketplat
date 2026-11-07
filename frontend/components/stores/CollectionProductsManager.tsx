@@ -58,7 +58,7 @@ export function CollectionProductsManager({ collectionId }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
-        <Link href={ROUTES.myStoreCollections}>
+        <Link href={ROUTES.myStoreCollections} prefetch={false}>
           <Button variant="ghost" size="sm" className="gap-1.5">
             <ArrowRight className="h-4 w-4" />المجموعات
           </Button>
@@ -86,7 +86,7 @@ export function CollectionProductsManager({ collectionId }: Props) {
           title="لا توجد منتجات نشطة"
           description="أضف منتجات نشطة إلى متجرك أولاً لتتمكن من إضافتها إلى هذه المجموعة"
           action={
-            <Link href={ROUTES.myStoreProductCreate}>
+            <Link href={ROUTES.myStoreProductCreate} prefetch={false}>
               <Button>إضافة منتج</Button>
             </Link>
           }

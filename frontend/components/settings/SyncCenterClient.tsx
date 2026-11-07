@@ -460,11 +460,11 @@ export function SyncCenterClient() {
           تحديث القائمة
         </Button>
         <Button variant="ghost" asChild>
-          <Link href={ROUTES.offline.storage}>التخزين والبيانات</Link>
+          <Link href={ROUTES.offline.storage} prefetch={false}>التخزين والبيانات</Link>
         </Button>
         {/* DRAFTS-LINKS-01 */}
         <Button variant="ghost" asChild>
-          <Link href={ROUTES.offline.drafts}>مركز المسودات</Link>
+          <Link href={ROUTES.offline.drafts} prefetch={false}>مركز المسودات</Link>
         </Button>
       </div>
 
@@ -550,7 +550,7 @@ export function SyncCenterClient() {
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={resumeHrefForDraft(d)}>
+                    <Link href={resumeHrefForDraft(d)} prefetch={false}>
                       <Pencil className="me-1 h-3.5 w-3.5" />
                       تعديل
                     </Link>
@@ -647,7 +647,7 @@ export function SyncCenterClient() {
                   {action === 'edit' ? (
                     item.operationId ? (
                       <Button asChild size="sm" variant="outline">
-                        <Link href="/offline?tab=drafts" title="افتح مركز المسودات لمراجعة العملية قبل إرسالها">
+                        <Link href="/offline?tab=drafts" title="افتح مركز المسودات لمراجعة العملية قبل إرسالها" prefetch={false}>
                           مراجعة المسودة
                         </Link>
                       </Button>

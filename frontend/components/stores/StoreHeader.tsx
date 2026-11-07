@@ -270,7 +270,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
           <div className="mt-4 space-y-3 rounded-[20px] border border-primary/15 bg-primary/[0.035] p-3 sm:p-4">
             {store.status === 'ACTIVE' && (
               <Button asChild className="h-auto w-full gap-2 rounded-[14px] py-3 font-bold">
-                <Link href={ROUTES.myStoreProductCreate}>
+                <Link href={ROUTES.myStoreProductCreate} prefetch={false}>
                   <PackagePlus className="h-4 w-4" aria-hidden />
                   {storeLabels.addProduct}
                 </Link>
@@ -278,13 +278,13 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             )}
             <div className="grid grid-cols-3 gap-2">
               <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-[14px] py-2.5 text-2xs-tight">
-                <Link href={ROUTES.myStoreProducts}><Package className="h-4 w-4" aria-hidden />{storeLabels.products}</Link>
+                <Link href={ROUTES.myStoreProducts} prefetch={false}><Package className="h-4 w-4" aria-hidden />{storeLabels.products}</Link>
               </Button>
               <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-[14px] py-2.5 text-2xs-tight">
-                <Link href={ROUTES.myStoreAnalytics}><BarChart3 className="h-4 w-4" aria-hidden />الإحصائيات</Link>
+                <Link href={ROUTES.myStoreAnalytics} prefetch={false}><BarChart3 className="h-4 w-4" aria-hidden />الإحصائيات</Link>
               </Button>
               <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-[14px] py-2.5 text-2xs-tight">
-                <Link href={ROUTES.myStore}><Settings2 className="h-4 w-4" aria-hidden />تعديل المتجر</Link>
+                <Link href={ROUTES.myStore} prefetch={false}><Settings2 className="h-4 w-4" aria-hidden />تعديل المتجر</Link>
               </Button>
             </div>
           </div>

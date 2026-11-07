@@ -100,7 +100,7 @@ export function makeQueryClient() {
 
   // Dynamic — 30 sec
   client.setQueryDefaults(['notifications'], { staleTime: 30 * 1000 });
-  client.setQueryDefaults(['activity'], { staleTime: 30 * 1000 });
+  client.setQueryDefaults(['activity'], { staleTime: 90 * 1000 });
 
   // Real-time — 0 (always refetch): chat messages + unread counts
   client.setQueryDefaults(['conversations'], { staleTime: 0 });

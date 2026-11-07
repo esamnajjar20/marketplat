@@ -150,7 +150,7 @@ export function FavoritesList() {
             </Link>
           </Button>
           <Button asChild size="sm" variant="outline" className="rounded-xl font-bold">
-            <Link href={ROUTES.home}>العودة للرئيسية</Link>
+            <Link href={ROUTES.home} prefetch={false}>العودة للرئيسية</Link>
           </Button>
         </div>
       </div>
@@ -294,7 +294,7 @@ export function FavoritesList() {
 
 /**
  * EPIC 1.4: non-navigable placeholder for a favorited ad whose owner
- * (or an admin) deleted it. Deliberately not a <Link> — the ad detail
+ * (or an admin) deleted it. Deliberately not a <Link prefetch={false}> — the ad detail
  * page for a DELETED ad genuinely 404s (see ads.service.ts), so a
  * clickable card here would just move the surprise from "silent 404
  * after a click" to "a click that looks live but goes nowhere useful."

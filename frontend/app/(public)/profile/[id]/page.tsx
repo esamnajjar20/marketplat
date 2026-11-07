@@ -95,7 +95,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
           title="المستخدم غير موجود"
           description="ربما تم حذف هذا الحساب أو أن الرابط غير صحيح"
           action={
-            <Link href={ROUTES.home} className="text-sm text-primary hover:underline">
+            <Link href={ROUTES.home} className="text-sm text-primary hover:underline" prefetch={false}>
               العودة للرئيسية
             </Link>
           }

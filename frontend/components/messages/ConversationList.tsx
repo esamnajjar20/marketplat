@@ -154,7 +154,7 @@ export function ConversationList({ selectedId }: Props = {}) {
             <Link prefetch={false} href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
           </Button>
           <Button asChild size="sm" variant="outline" className="rounded-xl">
-            <Link href={ROUTES.home}>الرئيسية</Link>
+            <Link href={ROUTES.home} prefetch={false}>الرئيسية</Link>
           </Button>
         </div>
       </div>

@@ -1133,7 +1133,7 @@ const PUBLIC_LIVE = {
     envOverrides: { GO_WORKER_TOKEN: 'go-secret', GATEWAY_HEALTH: coordinator },
     upstream: async () => new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json', 'x-mp-worker-active-requests': '3' } }),
   });
-  for (let index = 0; index < 10; index += 1) {
+  for (let index = 0; index < 25; index += 1) {
     const response = await routeHarness.call('/__go/internal/analytics/summary', { headers: { authorization: 'Bearer go-secret' } });
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('x-mp-worker-active-requests'), null, 'the internal load hint must not leak to API clients');
@@ -1868,6 +1868,47 @@ const PUBLIC_LIVE = {
   const broken = { CACHE_METRICS: { writeDataPoint: () => { throw new Error('x'); } } };
   const ok = await h.context.__worker.fetch(new Request(`${EDGE}/api/v1/ads?limit=1`), broken, ctx);
   assert.equal(ok.status, 200);
+}
+
+{
+  // Regression: tail logs showed 12 registry reads in the same second and ~380 health
+  // writes in 30 minutes. Concurrent cache misses must share one DO read, and failed
+  // requests against an already-open circuit must not each write to the DO again.
+  const registryDoc = { backend: { servers: [{ id: 'api-primary', url: 'https://api-primary.example.com', weight: 100, enabled: true }] } };
+  const calls = { registry: 0, snapshot: 0, record: 0 };
+  const countingNamespace = {
+    idFromName: (name) => ({ name }),
+    get: () => ({
+      fetch: async (input, init = {}) => {
+        const url = String(input);
+        const method = String(init.method || 'GET').toUpperCase();
+        await new Promise((resolve) => setTimeout(resolve, 15));
+        if (url.endsWith('/registry') && method === 'GET') { calls.registry += 1; return json({ registry: registryDoc }); }
+        if (url.endsWith('/snapshot')) { calls.snapshot += 1; return json({ states: {}, updatedAt: null }); }
+        if (url.endsWith('/record')) { calls.record += 1; return json({ ok: true }); }
+        return json({ ok: true });
+      },
+    }),
+  };
+  const flightHarness = harness({ upstream: async () => new Response('upstream down', { status: 503 }) });
+  const flightEnv = { GATEWAY_HEALTH: countingNamespace, PURGE_TOKEN: 's3cret' };
+
+  const loads = await Promise.all(Array.from({ length: 12 }, () => flightHarness.internals.loadGatewayRegistry(flightEnv)));
+  assert.equal(calls.registry, 1, '12 concurrent registry cache misses must share a single Durable Object read');
+  assert.ok(loads.every((load) => load === loads[0]), 'all concurrent callers receive the same load result');
+  await flightHarness.internals.loadGatewayRegistry(flightEnv);
+  assert.equal(calls.registry, 1, 'a warm registry cache serves later callers without another DO read');
+  await flightHarness.internals.loadGatewayRegistry(flightEnv, true);
+  assert.equal(calls.registry, 2, 'a forced reload (admin save/refresh) bypasses cache and in-flight sharing');
+
+  const pending = [];
+  const flightCtx = { waitUntil: (promise) => pending.push(Promise.resolve(promise).catch(() => {})) };
+  for (let index = 0; index < 8; index += 1) {
+    await flightHarness.internals.fetchBackend('/api/v1/ping', { method: 'GET' }, flightEnv, false, flightCtx);
+  }
+  while (pending.length) await Promise.all(pending.splice(0));
+  assert.equal(calls.snapshot, 1, 'health snapshot is read once, then served from the isolate cache');
+  assert.equal(calls.record, 2, 'only the failures that open the circuit (threshold 2) are written; later failures while open are not');
 }
 
 const wrangler = fs.readFileSync(new URL('./wrangler.toml', import.meta.url), 'utf8');

@@ -39,7 +39,7 @@ function MyRequestOffersContent() {
           <p className="text-sm text-muted-foreground">العروض التي قدّمتها على طلبات السوق</p>
         </div>
         <Button variant="outline" size="sm" asChild>
-          <Link href={ROUTES.requests}>سوق الطلبات</Link>
+          <Link href={ROUTES.requests} prefetch={false}>سوق الطلبات</Link>
         </Button>
       </div>
 
@@ -64,7 +64,7 @@ function MyRequestOffersContent() {
               className={cn(
                 'inline-flex min-h-10 items-center rounded-full px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground',
-              )}
+              )} prefetch={false}
             >
               {tab.label}
             </Link>
@@ -108,7 +108,7 @@ function MyRequestOffersContent() {
           description="تصفّح سوق الطلبات وقدّم عرضك على ما يناسبك."
           action={
             <Button asChild>
-              <Link href={ROUTES.requests}>تصفح السوق</Link>
+              <Link href={ROUTES.requests} prefetch={false}>تصفح السوق</Link>
             </Button>
           }
         />

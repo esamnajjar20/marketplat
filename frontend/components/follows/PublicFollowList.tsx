@@ -62,7 +62,7 @@ export function PublicFollowersList({
         >
           <Link
             href={`/profile/${user.id}`}
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" prefetch={false}
           >
             <FollowAvatar src={user.avatarUrl} name={user.name} kind="user" />
             <span className="min-w-0 flex-1">
@@ -129,7 +129,7 @@ function PublicFollowingRow({
     <div className="group flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-3 shadow-sm transition hover:border-primary/30 hover:shadow-md sm:p-4">
       <Link
         href={href}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" prefetch={false}
       >
         <FollowAvatar src={image} name={label} kind={kind} />
         <span className="min-w-0 flex-1">
@@ -190,7 +190,7 @@ export function PublicFollowPagination({
       {page > 1 ? (
         <Link
           href={pageHref(page - 1)}
-          className="inline-flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-medium transition hover:bg-muted"
+          className="inline-flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-medium transition hover:bg-muted" prefetch={false}
         >
           <ChevronRight className="h-4 w-4" /> السابق
         </Link>
@@ -205,7 +205,7 @@ export function PublicFollowPagination({
       {meta.hasNextPage ? (
         <Link
           href={pageHref(page + 1)}
-          className="inline-flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-medium transition hover:bg-muted"
+          className="inline-flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-medium transition hover:bg-muted" prefetch={false}
         >
           التالي <ChevronLeft className="h-4 w-4" />
         </Link>

@@ -165,6 +165,10 @@ export interface SalesReportRow {
 }
 export interface SalesReport {
   rows: SalesReportRow[]; count: number;
+  /** Matching sales overall (rows is capped by the server). */
+  totalCount?: number;
+  /** True when more sales match than `rows` holds; `totals` still cover all of them. */
+  hasMore?: boolean;
   totals: { revenue: number; cost: number; profit: number; paid: number; due: number; refunded: number };
 }
 

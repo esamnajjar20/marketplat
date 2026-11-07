@@ -243,7 +243,7 @@ export function IncomingServiceRequestsList() {
                   <div className="flex items-start justify-between gap-2">
                     <Link
                       href={ROUTES.serviceDetail(request.listing.id)}
-                      className="font-medium text-sm hover:underline line-clamp-1"
+                      className="font-medium text-sm hover:underline line-clamp-1" prefetch={false}
                     >
                       {request.listing.title}
                     </Link>
@@ -257,7 +257,7 @@ export function IncomingServiceRequestsList() {
                   {/* AUDIT-FIX (issue #6): details/attachedImages were
                       clipped here with no way to see the full request —
                       this links to the new detail page for both. */}
-                  <Link href={ROUTES.serviceRequestDetail(request.id)} className="inline-block text-xs text-primary hover:underline">
+                  <Link href={ROUTES.serviceRequestDetail(request.id)} className="inline-block text-xs text-primary hover:underline" prefetch={false}>
                     عرض التفاصيل الكاملة
                   </Link>
                 </div>

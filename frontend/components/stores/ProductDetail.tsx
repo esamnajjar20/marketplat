@@ -317,7 +317,7 @@ function StorePanel({ store, productId }: { store: ProductWithFullStore['store']
       <p className="text-xs font-medium text-muted-foreground">المتجر</p>
       <Link
         href={ROUTES.storeDetail(store.slug || store.id)}
-        className="flex items-center gap-3 rounded-lg transition-colors hover:bg-muted/50"
+        className="flex items-center gap-3 rounded-lg transition-colors hover:bg-muted/50" prefetch={false}
       >
         <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-muted">
           {store.logoUrl ? (

@@ -221,7 +221,7 @@ export function MyServiceListingsList() {
       {showPendingOffline && <PendingOfflinePublishCard kind="service" />}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h2 className="text-sm font-semibold text-muted-foreground">قائمة الخدمات</h2>
-        <Link href={ROUTES.myServiceCreate}>
+        <Link href={ROUTES.myServiceCreate} prefetch={false}>
           <Button size="sm" className="rounded-xl font-bold gap-1"><Plus className="h-3.5 w-3.5" />خدمة جديدة</Button>
         </Link>
       </div>
@@ -325,17 +325,17 @@ export function MyServiceListingsList() {
           }
           action={
             <div className="flex flex-col sm:flex-row gap-2 items-center">
-              <Link href={ROUTES.myServiceCreate}>
+              <Link href={ROUTES.myServiceCreate} prefetch={false}>
                 <Button>إضافة خدمة</Button>
               </Link>
               {!searchQ && (
                 <>
-                  <Link href={ROUTES.incomingServiceRequests}>
+                  <Link href={ROUTES.incomingServiceRequests} prefetch={false}>
                     <Button variant="outline" className="gap-1.5">
                       <Inbox className="h-4 w-4" /> الطلبات
                     </Button>
                   </Link>
-                  <Link href={ROUTES.myServiceAppointments}>
+                  <Link href={ROUTES.myServiceAppointments} prefetch={false}>
                     <Button variant="outline" className="gap-1.5">
                       <CalendarClock className="h-4 w-4" /> المواعيد
                     </Button>
@@ -369,7 +369,7 @@ export function MyServiceListingsList() {
                   <div className="flex items-start justify-between gap-2">
                     <Link
                       href={ROUTES.serviceDetail(listing.id)}
-                      className="font-medium text-sm hover:underline line-clamp-1"
+                      className="font-medium text-sm hover:underline line-clamp-1" prefetch={false}
                     >
                       {listing.title}
                     </Link>
@@ -403,7 +403,7 @@ export function MyServiceListingsList() {
                       <Briefcase className="h-3.5 w-3.5" />
                     </Button>
                   )}
-                  <Link href={ROUTES.myServiceEdit(listing.id)}>
+                  <Link href={ROUTES.myServiceEdit(listing.id)} prefetch={false}>
                     <Button
                       variant="ghost"
                       size="icon"

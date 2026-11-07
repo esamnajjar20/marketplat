@@ -143,7 +143,7 @@ function HubBody({ store }: { store: StoreDetails }) {
           <div className="flex flex-wrap gap-2 pt-1">
             {store.status === 'ACTIVE' && (
               <Button variant="outline" size="sm" asChild className="h-9 gap-1.5 rounded-xl font-bold">
-                <Link href={ROUTES.storeDetail(store.id)}>
+                <Link href={ROUTES.storeDetail(store.id)} prefetch={false}>
                   عرض الصفحة العامة <ExternalLink className="h-3.5 w-3.5" />
                 </Link>
               </Button>

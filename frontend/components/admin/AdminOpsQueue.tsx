@@ -103,7 +103,7 @@ export function AdminOpsQueue() {
                 className={cn(
                   'mt-2 inline-flex h-[30px] w-fit items-center justify-center rounded-lg border border-[var(--legacy-primary-border)] bg-card px-2.5 text-[12px] font-bold text-[var(--legacy-primary-deep)]',
                   'hover:bg-primary-soft transition-colors',
-                )}
+                )} prefetch={false}
               >
                 عرض
               </Link>

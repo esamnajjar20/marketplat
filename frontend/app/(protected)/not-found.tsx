@@ -23,10 +23,10 @@ export default function GroupNotFound() {
       <p className="max-w-sm text-muted-foreground">هذا المحتوى غير موجود، أو لا تملك صلاحية الوصول إليه.</p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Button asChild>
-          <Link href={ROUTES.dashboard}>العودة للوحة التحكم</Link>
+          <Link href={ROUTES.dashboard} prefetch={false}>العودة للوحة التحكم</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href={ROUTES.search}>البحث في المنصة</Link>
+          <Link href={ROUTES.search} prefetch={false}>البحث في المنصة</Link>
         </Button>
       </div>
     </div>

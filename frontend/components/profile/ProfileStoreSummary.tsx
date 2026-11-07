@@ -29,7 +29,7 @@ export function ProfileStoreSummary({ store, sellerPaymentMethods }: Props) {
     <div className="space-y-4">
       <Link
         href={ROUTES.storeDetail(store.id)}
-        className="group block overflow-hidden rounded-[20px] border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className="group block overflow-hidden rounded-[20px] border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" prefetch={false}
       >
         {cover && (
           <div className="relative h-32 w-full bg-muted sm:h-40">

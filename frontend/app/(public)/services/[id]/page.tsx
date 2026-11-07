@@ -68,7 +68,7 @@ export default async function ServiceListingPage({ params }: Props) {
           title="الخدمة غير موجودة"
           description="ربما تم حذف هذه الخدمة أو أن الرابط غير صحيح"
           action={
-            <Link href={ROUTES.services} className="text-sm text-primary hover:underline">
+            <Link href={ROUTES.services} className="text-sm text-primary hover:underline" prefetch={false}>
               تصفح الخدمات
             </Link>
           }

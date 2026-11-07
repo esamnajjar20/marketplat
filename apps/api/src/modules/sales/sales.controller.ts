@@ -18,6 +18,7 @@ import {
   updateCostSettingsSchema,
   updateProductCostSchema,
   reportQuerySchema,
+  SALES_REPORT_JSON_MAX_LIMIT,
 } from './sales.validation';
 import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
@@ -249,8 +250,11 @@ export const salesController = {
     try {
       const user = requireUser(req);
       const { query } = reportQuerySchema.parse({ query: req.query });
+      // Clamp (don't reject) so older clients that still send limit=5000 keep
+      // working; totals stay exact because they are aggregated over every match.
+      const boundedQuery = { ...query, limit: Math.min(query.limit, SALES_REPORT_JSON_MAX_LIMIT) };
       res.json(
-        successResponse('Sales report fetched', await salesService.report(user.userId, query))
+        successResponse('Sales report fetched', await salesService.report(user.userId, boundedQuery))
       );
     } catch (e) {
       next(e);

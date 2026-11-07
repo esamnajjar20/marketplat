@@ -75,7 +75,7 @@ export function ForgotPasswordForm() {
           <span className="font-bold text-[var(--legacy-ink)]">{email}</span>
         </p>
         <Button asChild variant="outline" className="h-11 w-full rounded-2xl border-[var(--legacy-border)] font-bold">
-          <Link href={loginHref}>العودة لتسجيل الدخول</Link>
+          <Link href={loginHref} prefetch={false}>العودة لتسجيل الدخول</Link>
         </Button>
       </div>
     );
@@ -127,7 +127,7 @@ export function ForgotPasswordForm() {
       </Button>
 
       <p className="text-center text-[13px] font-bold text-[var(--legacy-primary-deep)]">
-        <Link href={loginHref} className="text-primary hover:underline">العودة لتسجيل الدخول</Link>
+        <Link href={loginHref} className="text-primary hover:underline" prefetch={false}>العودة لتسجيل الدخول</Link>
       </p>
     </form>
   );

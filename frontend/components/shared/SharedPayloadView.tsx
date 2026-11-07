@@ -67,7 +67,7 @@ export function SharedPayloadView() {
           اطلب من المرسل إعادة المشاركة.
         </p>
         <Button asChild variant="outline">
-          <Link href="/">الرئيسية</Link>
+          <Link href="/" prefetch={false}>الرئيسية</Link>
         </Button>
       </div>
     );
@@ -83,7 +83,7 @@ export function SharedPayloadView() {
           اطلب من المرسل إعادة توليد الرمز.
         </p>
         <Button asChild variant="outline">
-          <Link href="/">الرئيسية</Link>
+          <Link href="/" prefetch={false}>الرئيسية</Link>
         </Button>
       </div>
     );
@@ -142,7 +142,7 @@ export function SharedPayloadView() {
       </p>
 
       <Button asChild variant="outline" className="w-full">
-        <Link href="/">تصفّح السوق</Link>
+        <Link href="/" prefetch={false}>تصفّح السوق</Link>
       </Button>
     </div>
   );

@@ -227,7 +227,7 @@ function DisclosureGroup({
                   className={cn(
                     'flex h-10 items-center border-inline-start-2 ms-3 pe-3 ps-3 text-[14px] transition-colors',
                     isActive ? 'rounded-e-[10px] border-primary bg-primary/10 font-extrabold text-primary' : 'border-border font-semibold text-foreground hover:bg-muted/60',
-                  )}
+                  )} prefetch={false}
                 >
                   {child.label}
                 </Link>
@@ -483,7 +483,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                             pathname === ROUTES.settings.root
                               ? 'bg-primary/10 font-extrabold text-primary'
                               : 'text-foreground hover:bg-muted/60',
-                          )}
+                          )} prefetch={false}
                         >
                           <Store className="h-4 w-4 shrink-0 text-muted-foreground" />
                           أنشئ حساب بائع
@@ -510,7 +510,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                             pathname.startsWith(ROUTES.userProfile(user.id))
                               ? 'bg-primary/10 font-extrabold text-primary'
                               : 'text-foreground hover:bg-muted/60',
-                          )}
+                          )} prefetch={false}
                         >
                           <User className="h-4 w-4 shrink-0 text-muted-foreground" />
                           عرض ملفي
@@ -551,7 +551,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                             className={cn(
                               'flex h-11 items-center gap-3 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
                               isActive ? 'rounded-e-[10px] border-primary bg-primary/10 font-extrabold text-primary' : 'border-border font-semibold text-foreground hover:bg-muted/60',
-                            )}
+                            )} prefetch={false}
                           >
                             <link.icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                             {link.label}
@@ -576,7 +576,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                         <Link
                           href={ROUTES.admin.dashboard}
                           onClick={closeMobileNav}
-                          className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-foreground hover:bg-muted"
+                          className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-foreground hover:bg-muted" prefetch={false}
                         >
                           <Shield className="h-4 w-4 shrink-0 text-muted-foreground" />
                           لوحة الإدارة

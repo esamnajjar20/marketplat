@@ -173,7 +173,7 @@ export function DashboardStats() {
               href && 'hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
             );
             return href ? (
-              <Link key={label} href={href} className={className}>
+              <Link key={label} href={href} className={className} prefetch={false}>
                 {inner}
               </Link>
             ) : (
@@ -193,7 +193,7 @@ export function DashboardStats() {
           {storeOk && myStore && (
             <Link
               href={ROUTES.myStore}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm shadow-xs transition-colors hover:bg-muted/50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm shadow-xs transition-colors hover:bg-muted/50" prefetch={false}
             >
               <Store className="h-3.5 w-3.5" />
               لوحة المتجر
@@ -202,7 +202,7 @@ export function DashboardStats() {
           {storeOk && myStore && (
             <Link
               href={ROUTES.myStoreAnalytics}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground shadow-xs transition-colors hover:bg-muted/50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground shadow-xs transition-colors hover:bg-muted/50" prefetch={false}
             >
               إحصائيات المتجر
             </Link>
@@ -210,7 +210,7 @@ export function DashboardStats() {
           {providerOk && myProvider && (
             <Link
               href={ROUTES.myServices}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm shadow-xs transition-colors hover:bg-muted/50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm shadow-xs transition-colors hover:bg-muted/50" prefetch={false}
             >
               <Wrench className="h-3.5 w-3.5" />
               لوحة الخدمات
@@ -219,7 +219,7 @@ export function DashboardStats() {
           {providerOk && myProvider && (
             <Link
               href={ROUTES.myServiceProviderAnalytics}
-              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground shadow-xs transition-colors hover:bg-muted/50"
+              className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground shadow-xs transition-colors hover:bg-muted/50" prefetch={false}
             >
               إحصائيات الخدمات
             </Link>

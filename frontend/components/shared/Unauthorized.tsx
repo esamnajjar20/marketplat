@@ -42,10 +42,10 @@ export function Unauthorized({
 
       <div className="flex gap-3">
         <Button asChild>
-          <Link href={loginHref}>تسجيل الدخول</Link>
+          <Link href={loginHref} prefetch={false}>تسجيل الدخول</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href={ROUTES.register}>إنشاء حساب</Link>
+          <Link href={ROUTES.register} prefetch={false}>إنشاء حساب</Link>
         </Button>
       </div>
     </div>

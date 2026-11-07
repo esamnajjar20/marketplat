@@ -94,11 +94,11 @@ export function RecentProductsSection() {
           action={
             isAuth ? (
               <Button asChild size="sm">
-                <Link href={ROUTES.myStoreProductCreate}>إضافة منتج</Link>
+                <Link href={ROUTES.myStoreProductCreate} prefetch={false}>إضافة منتج</Link>
               </Button>
             ) : (
               <Button asChild size="sm" variant="outline">
-                <Link href={`${ROUTES.login}?from=${encodeURIComponent(ROUTES.myStoreProductCreate)}`}>
+                <Link href={`${ROUTES.login}?from=${encodeURIComponent(ROUTES.myStoreProductCreate)}`} prefetch={false}>
                   تسجيل الدخول
                 </Link>
               </Button>

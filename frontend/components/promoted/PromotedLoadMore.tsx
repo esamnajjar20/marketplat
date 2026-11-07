@@ -74,7 +74,7 @@ export function PromotedLoadMore({ hasServerSeed }: { hasServerSeed: boolean }) 
           icon={<Flame className="h-8 w-8" />}
           title="لا عروض مروَّجة حالياً"
           description="عند تفعيل المتاجر لعروض جديدة ستظهر هنا."
-          action={<Link href={ROUTES.products} className="text-sm font-medium text-primary">تصفّح كل المنتجات</Link>}
+          action={<Link href={ROUTES.products} className="text-sm font-medium text-primary" prefetch={false}>تصفّح كل المنتجات</Link>}
         />
       ) : null}
       {products.length > 0 && (
