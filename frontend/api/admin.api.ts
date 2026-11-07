@@ -63,6 +63,19 @@ import type { AxiosRequestConfig } from 'axios';
  * trade-off being that a typo on an undefined key reads as unknown
  * rather than erroring.
  */
+/**
+ * Validate simulator API payloads so consumers receive non-optional data.
+ */
+function requireUserSimulatorData<T>(
+  value: T | null | undefined,
+  endpoint: string
+): T {
+  if (value === null || value === undefined) {
+    throw new Error(`استجابة محاكي المستخدمين فارغة: ${endpoint}`);
+  }
+  return value;
+}
+
 export interface UserSimulatorConfig {
   targetUrl: string;
   virtualUsers: number;
@@ -321,29 +334,29 @@ export const adminApi = {
   // these calls to the separately hosted Playwright runner; its secret never
   // reaches the browser bundle.
   getUserSimulatorStatus: () =>
-    apiClient.get<ApiResponse<Record<string, unknown>>>('/admin/user-simulator/status').then(r => r.data.data),
+    apiClient.get<ApiResponse<Record<string, unknown>>>('/admin/user-simulator/status').then(r => requireUserSimulatorData(r.data.data, 'status')),
   getUserSimulatorConfig: () =>
-    apiClient.get<ApiResponse<UserSimulatorConfig>>('/admin/user-simulator/config').then(r => r.data.data),
+    apiClient.get<ApiResponse<UserSimulatorConfig>>('/admin/user-simulator/config').then(r => requireUserSimulatorData(r.data.data, 'config')),
   updateUserSimulatorConfig: (payload: Partial<UserSimulatorConfig>) =>
-    apiClient.patch<ApiResponse<UserSimulatorConfig>>('/admin/user-simulator/config', payload).then(r => r.data.data),
+    apiClient.patch<ApiResponse<UserSimulatorConfig>>('/admin/user-simulator/config', payload).then(r => requireUserSimulatorData(r.data.data, 'config update')),
   getUserSimulatorScenarios: () =>
-    apiClient.get<ApiResponse<UserSimulatorScenario[]>>('/admin/user-simulator/scenarios').then(r => r.data.data),
+    apiClient.get<ApiResponse<UserSimulatorScenario[]>>('/admin/user-simulator/scenarios').then(r => requireUserSimulatorData(r.data.data, 'scenarios')),
   createUserSimulatorScenario: (payload: UserSimulatorScenario) =>
-    apiClient.post<ApiResponse<UserSimulatorScenario>>('/admin/user-simulator/scenarios', payload).then(r => r.data.data),
+    apiClient.post<ApiResponse<UserSimulatorScenario>>('/admin/user-simulator/scenarios', payload).then(r => requireUserSimulatorData(r.data.data, 'scenario create')),
   updateUserSimulatorScenario: (id: string, payload: UserSimulatorScenario) =>
-    apiClient.put<ApiResponse<UserSimulatorScenario>>(`/admin/user-simulator/scenarios/${encodeURIComponent(id)}`, payload).then(r => r.data.data),
+    apiClient.put<ApiResponse<UserSimulatorScenario>>(`/admin/user-simulator/scenarios/${encodeURIComponent(id)}`, payload).then(r => requireUserSimulatorData(r.data.data, 'scenario update')),
   deleteUserSimulatorScenario: (id: string) =>
     apiClient.delete<ApiResponse<{ deleted: boolean }>>(`/admin/user-simulator/scenarios/${encodeURIComponent(id)}`),
   getUserSimulatorRuns: (limit = 30) =>
-    apiClient.get<ApiResponse<UserSimulatorRun[]>>('/admin/user-simulator/runs', { params: { limit } }).then(r => r.data.data),
+    apiClient.get<ApiResponse<UserSimulatorRun[]>>('/admin/user-simulator/runs', { params: { limit } }).then(r => requireUserSimulatorData(r.data.data, 'runs')),
   startUserSimulatorRun: (payload: Record<string, unknown>) =>
-    apiClient.post<ApiResponse<UserSimulatorRun>>('/admin/user-simulator/runs', payload, { timeout: 20_000 }).then(r => r.data.data),
+    apiClient.post<ApiResponse<UserSimulatorRun>>('/admin/user-simulator/runs', payload, { timeout: 20_000 }).then(r => requireUserSimulatorData(r.data.data, 'run start')),
   getUserSimulatorRun: (id: string) =>
-    apiClient.get<ApiResponse<UserSimulatorRun>>(`/admin/user-simulator/runs/${encodeURIComponent(id)}`).then(r => r.data.data),
+    apiClient.get<ApiResponse<UserSimulatorRun>>(`/admin/user-simulator/runs/${encodeURIComponent(id)}`).then(r => requireUserSimulatorData(r.data.data, 'run detail')),
   stopUserSimulatorRun: (id: string) =>
-    apiClient.post<ApiResponse<UserSimulatorRun>>(`/admin/user-simulator/runs/${encodeURIComponent(id)}/stop`, {}).then(r => r.data.data),
+    apiClient.post<ApiResponse<UserSimulatorRun>>(`/admin/user-simulator/runs/${encodeURIComponent(id)}/stop`, {}).then(r => requireUserSimulatorData(r.data.data, 'run stop')),
   getUserSimulatorReport: (id: string) =>
-    apiClient.get<ApiResponse<UserSimulatorRun>>(`/admin/user-simulator/runs/${encodeURIComponent(id)}/report`).then(r => r.data.data),
+    apiClient.get<ApiResponse<UserSimulatorRun>>(`/admin/user-simulator/runs/${encodeURIComponent(id)}/report`).then(r => requireUserSimulatorData(r.data.data, 'run report')),
   getUserSimulatorArtifact: (id: string, name: string) =>
     apiClient.get<Blob>(`/admin/user-simulator/runs/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(name)}`, { responseType: 'blob' }).then(r => r.data),
   scanDataIntegrity: () =>
