@@ -49,7 +49,12 @@ function harness({ upstream, kv, cacheFailure = false, nativeCacheUnavailable = 
       cacheCalls.push(['match', key.url]);
       if (cacheFailure === 'match' || cacheFailure === true) throw new Error('Cache API match unavailable');
       const hit = store.get(key.url);
-      return hit ? hit.clone() : undefined;
+      if (!hit) return undefined;
+      // Cloudflare Cache API strips Cache-Tag from cache.match(); retain normal
+      // custom headers exactly as the real runtime does.
+      const headers = new Headers(hit.headers);
+      headers.delete('cache-tag');
+      return new Response(await hit.clone().arrayBuffer(), { status: hit.status, headers });
     },
     put: async (key, res) => {
       cacheCalls.push(['put', key.url]);
@@ -208,6 +213,7 @@ const PUBLIC_LIVE = {
   assert.equal(a.headers.get('x-proxy-cache'), 'MISS');
   assert.equal(a.headers.get('cache-control'), 'public, max-age=30, s-maxage=120, stale-while-revalidate=30');
   assert.match(a.headers.get('cache-tag'), /route:ads/);
+  assert.equal(a.headers.get('x-mp-cache-tags'), null, 'internal revalidation metadata must not leak to clients');
   assert.deepEqual(await a.json(), { items: [1] });
 
   const b = await call('/api/v1/ads?city=غزة&sort=latest&utm_campaign=x');
@@ -243,7 +249,7 @@ const PUBLIC_LIVE = {
 /* ───────────── #12 stale-while-revalidate ───────────── */
 {
   let version = 1;
-  const { call, upstreamLog, settle, ageEntry } = harness({
+  const { call, upstreamLog, settle, ageEntry, store } = harness({
     upstream: async (_u, headers) => {
       if (headers.get('if-none-match') === '"v1"' && version === 1) {
         return new Response(null, { status: 304, headers: { etag: '"v1"' } });
@@ -267,8 +273,14 @@ const PUBLIC_LIVE = {
   assert.equal(upstreamLog.length, 2, 'one background revalidation');
   assert.equal(upstreamLog[1].headers.get('if-none-match'), '"v1"', 'conditional revalidation');
   // 304 restarts the clock without dropping tags required by Cloudflare purge.
+  // The fake Cache API strips Cache-Tag on match(), so the copy in
+  // x-mp-cache-tags is what must be restored on the refreshed cache.put().
+  const storedAfter304 = [...store.values()][0];
+  assert.match(storedAfter304.headers.get('x-mp-cache-tags') || '', /route:ads/);
+  assert.match(storedAfter304.headers.get('cache-tag') || '', /route:ads/);
   const refreshed = await call('/api/v1/ads?limit=10');
   assert.equal(refreshed.headers.get('x-proxy-cache'), 'HIT');
+  assert.equal(refreshed.headers.get('x-mp-cache-tags'), null, 'internal tag backup remains private to stored cache entries');
   assert.match(refreshed.headers.get('cache-tag') || '', /route:ads/);
   assert.match(refreshed.headers.get('cache-tag') || '', /city:any/);
   assert.equal(upstreamLog.length, 2);
@@ -358,6 +370,31 @@ const PUBLIC_LIVE = {
   assert.equal(store.size, 0);
 }
 
+/* ───────────── legacy Cache API entries recover purge tags during 304 migration ───────────── */
+{
+  let version = 1;
+  const h = harness({
+    upstream: async (_url, headers) => headers.get('if-none-match')
+      ? new Response(null, { status: 304, headers: { etag: '"legacy-v1"' } })
+      : json({ version }, { ...PUBLIC_LIVE, etag: '"legacy-v1"' }),
+  });
+  await h.call('/api/v1/ads?limit=10'); await h.settle();
+  // Simulate an entry written by the pre-fix Worker: Cloudflare strips
+  // Cache-Tag and no internal backup header exists yet.
+  const [legacyKey, legacyValue] = [...h.store.entries()][0];
+  const legacyHeaders = new Headers(legacyValue.headers);
+  legacyHeaders.delete('cache-tag');
+  legacyHeaders.delete('x-mp-cache-tags');
+  h.store.set(legacyKey, new Response(await legacyValue.clone().arrayBuffer(), { status: 200, headers: legacyHeaders }));
+  await h.ageEntry(() => true, 130);
+  const stale = await h.call('/api/v1/ads?limit=10');
+  assert.equal(stale.headers.get('x-proxy-cache'), 'STALE');
+  await h.settle();
+  const upgraded = [...h.store.values()][0];
+  assert.match(upgraded.headers.get('x-mp-cache-tags') || '', /route:ads/);
+  assert.match(upgraded.headers.get('cache-tag') || '', /route:ads/);
+}
+
 /* ───────────── #10 D1 reference tier / Workers KV fallback ───────────── */
 {
   const kvStore = new Map();
@@ -371,7 +408,11 @@ const PUBLIC_LIVE = {
     delete: async (k) => { kvStore.delete(k); },
   };
   const REF = { 'cache-control': 'public, max-age=300, stale-while-revalidate=600', etag: '"c1"' };
-  const h = harness({ kv, upstream: async () => json({ data: ['cat'] }, REF) });
+  const h = harness({
+    kv,
+    envOverrides: { REFERENCE_CACHE_PURGE_READY: 'true', PURGE_TOKEN: 'p'.repeat(32) },
+    upstream: async () => json({ data: ['cat'] }, REF),
+  });
 
   const miss = await h.call('/api/v1/categories'); await h.settle();
   assert.equal(miss.headers.get('x-proxy-cache'), 'MISS');
@@ -386,22 +427,36 @@ const PUBLIC_LIVE = {
   await h.settle();
   assert.equal(h.upstreamLog.length, 1, 'KV-HIT must not touch the origin (0 Neon queries)');
 
-  // D1/KV older than its 1h default fresh window: serve stale, then refresh in background.
-  for (const e of kvStore.values()) e.metadata.storedAt -= 7 * 60 * 60 * 1000;
+  // Mutable catalog D1/KV older than its 60s fresh window: serve stale, then refresh in background.
+  for (const e of kvStore.values()) e.metadata.storedAt -= 2 * 60 * 1000;
   h.store.clear();
   const stale = await h.call('/api/v1/categories');
   assert.equal(stale.headers.get('x-proxy-cache'), 'KV-STALE');
   await h.settle();
   assert.equal(h.upstreamLog.length, 2);
 
-  // Filtered catalog routes now use the reference tier (stage 1).
-  await h.call('/api/v1/ads?limit=3'); await h.settle();
+  // Mutable route families bypass D1 until the API purge path has been
+  // explicitly verified and opted in on the Worker deployment.
+  const noPurgeReadyHarness = harness({ kv, upstream: async () => json({ items: [] }, REF) });
+  await noPurgeReadyHarness.call('/api/v1/ads?limit=3'); await noPurgeReadyHarness.settle();
+  assert.equal([...kvStore.keys()].some((k) => k.includes('/api/v1/ads?limit=3')), false);
+
+  const mutableRefHarness = harness({
+    kv,
+    envOverrides: {
+      REFERENCE_CACHE_LONG_TTL_ENABLED: 'true',
+      REFERENCE_CACHE_PURGE_READY: 'true',
+      PURGE_TOKEN: 'p'.repeat(32),
+    },
+    upstream: async () => json({ items: [{ id: 'ad-1' }] }, REF),
+  });
+  await mutableRefHarness.call('/api/v1/ads?limit=3'); await mutableRefHarness.settle();
   assert.equal([...kvStore.keys()].some((k) => k.includes('/api/v1/ads?limit=3')), true);
 
   // Tag purge invalidates both the native Workers Cache and the D1/KV reference tier.
   const nativeTags = await h.call('/__purge__', {
     method: 'POST',
-    headers: { 'x-purge-token': 's3cret', 'content-type': 'application/json' },
+    headers: { 'x-purge-token': 'p'.repeat(32), 'content-type': 'application/json' },
     body: JSON.stringify({ tags: ['route:categories', 'route:categories'] }),
   });
   assert.equal(nativeTags.status, 200);
@@ -410,7 +465,7 @@ const PUBLIC_LIVE = {
   assert.equal(kvStore.has('ref:v2:/api/v1/categories'), false, 'tag purge must remove the matching reference entry');
 
   const invalidTags = await h.call('/__purge__', {
-    method: 'POST', headers: { 'x-purge-token': 's3cret', 'content-type': 'application/json' },
+    method: 'POST', headers: { 'x-purge-token': 'p'.repeat(32), 'content-type': 'application/json' },
     body: JSON.stringify({ tags: ['route:ads\n'] }),
   });
   assert.equal(invalidTags.status, 400);
@@ -424,11 +479,16 @@ const PUBLIC_LIVE = {
     list: async ({ prefix }) => ({ keys: [...noNativeCacheKvStore.keys()].filter((key) => key.startsWith(prefix)).map((name) => ({ name })), list_complete: true }),
     delete: async (key) => { noNativeCacheKvStore.delete(key); },
   };
-  const noNativeCache = harness({ kv: noNativeCacheKv, nativeCacheUnavailable: true, upstream: async () => json({}) });
+  const noNativeCache = harness({
+    kv: noNativeCacheKv,
+    nativeCacheUnavailable: true,
+    envOverrides: { REFERENCE_CACHE_LONG_TTL_ENABLED: 'true', REFERENCE_CACHE_PURGE_READY: 'true', PURGE_TOKEN: 'p'.repeat(32) },
+    upstream: async () => json({}, PUBLIC_LIVE),
+  });
   await noNativeCache.call('/api/v1/ads?limit=1'); await noNativeCache.settle();
   assert.equal(noNativeCacheKvStore.size, 1, 'test fixture should contain a reference-cache entry before partial purge');
   const unavailable = await noNativeCache.call('/__purge__', {
-    method: 'POST', headers: { 'x-purge-token': 's3cret', 'content-type': 'application/json' },
+    method: 'POST', headers: { 'x-purge-token': 'p'.repeat(32), 'content-type': 'application/json' },
     body: JSON.stringify({ tags: ['route:ads'] }),
   });
   assert.equal(unavailable.status, 503);
@@ -448,7 +508,7 @@ const PUBLIC_LIVE = {
   assert.equal((await h.call('/__purge__', { method: 'POST' })).status, 403);
   assert.equal((await h.call('/__purge__', { method: 'POST', headers: { 'x-purge-token': 'nope' } })).status, 403);
   assert.equal((await h.call('/__purge__')).status, 405);
-  const purged = await h.call('/__purge__', { method: 'POST', headers: { 'x-purge-token': 's3cret' } });
+  const purged = await h.call('/__purge__', { method: 'POST', headers: { 'x-purge-token': 'p'.repeat(32) } });
   assert.deepEqual(await purged.json(), { ok: true, deleted: 1 });
   assert.equal(kvStore.has('gateway:registry:v1'), true, 'reference purge must preserve gateway registry');
   assert.equal([...kvStore.keys()].filter((key) => key.startsWith('ref:v')).length, 0);
@@ -472,13 +532,17 @@ const PUBLIC_LIVE = {
     list: async ({ prefix }) => ({ keys: [...kvStore.keys()].filter((key) => key.startsWith(prefix)).map((name) => ({ name })), list_complete: true }),
     delete: async (key) => { kvStore.delete(key); },
   };
-  const h = harness({ kv, upstream: async () => json({ ok: true }, PUBLIC_LIVE) });
+  const h = harness({
+    kv,
+    envOverrides: { REFERENCE_CACHE_PURGE_READY: 'true', PURGE_TOKEN: 'p'.repeat(32) },
+    upstream: async () => json({ ok: true }, PUBLIC_LIVE),
+  });
   await h.call('/api/v1/categories');
   await h.settle();
-  assert.equal([...kvStore.values()][0].expirationTtl, 24 * 60 * 60, 'default D1 retention is capped at 24h');
+  assert.equal([...kvStore.values()][0].expirationTtl, 10 * 60, 'mutable catalog D1 retention is capped at 10m after purge readiness');
   kvStore.clear();
 
-  const longTtlHarness = harness({ kv, envOverrides: { REFERENCE_CACHE_LONG_TTL_ENABLED: 'true', PURGE_TOKEN: 'p'.repeat(32) }, upstream: async () => json({ ok: true }, PUBLIC_LIVE) });
+  const longTtlHarness = harness({ kv, envOverrides: { REFERENCE_CACHE_LONG_TTL_ENABLED: 'true', REFERENCE_CACHE_PURGE_READY: 'true', PURGE_TOKEN: 'p'.repeat(32) }, upstream: async () => json({ ok: true }, PUBLIC_LIVE) });
   await longTtlHarness.call('/api/v1/categories');
   await longTtlHarness.settle();
   assert.equal([...kvStore.values()][0].expirationTtl, 7 * 24 * 60 * 60, 'opt-in D1 retention is capped at 7 days');
@@ -496,7 +560,15 @@ const PUBLIC_LIVE = {
     list: async ({ prefix }) => ({ keys: [...kvStore.keys()].filter((key) => key.startsWith(prefix)).map((name) => ({ name })), list_complete: true }),
     delete: async (key) => { kvStore.delete(key); },
   };
-  const h = harness({ kv, upstream: async () => json({ ok: true }, { ...PUBLIC_LIVE }) });
+  const h = harness({
+    kv,
+    envOverrides: {
+      REFERENCE_CACHE_LONG_TTL_ENABLED: 'true',
+      REFERENCE_CACHE_PURGE_READY: 'true',
+      PURGE_TOKEN: 'p'.repeat(32),
+    },
+    upstream: async () => json({ ok: true }, { ...PUBLIC_LIVE }),
+  });
 
   await h.call('/api/v1/products?categoryId=cat-1&city=gaza&sortBy=price');
   await h.settle();
@@ -529,23 +601,43 @@ const PUBLIC_LIVE = {
   const pageOne = h.internals.canonicalize(new URL('https://api.example.com/api/v1/products?page=1&limit=10'));
   const pageTwo = h.internals.canonicalize(new URL('https://api.example.com/api/v1/products?page=2&limit=10'));
   assert.notEqual(pageOne.key, pageTwo.key, 'each paginated catalog page has its own cache key');
-  assert.equal(h.internals.kvEnabled({ REFERENCE_KV: kv }, pageOne), true);
-  assert.equal(h.internals.kvEnabled({ REFERENCE_KV: kv }, pageTwo), true);
+  assert.equal(h.internals.kvEnabled({ REFERENCE_KV: kv }, pageOne), false, 'mutable product lists are not eligible without verified purge readiness');
+  assert.equal(h.internals.kvEnabled({ REFERENCE_KV: kv }, pageTwo), false, 'all mutable product pages follow the same safety gate');
+  const purgeReadyEnv = {
+    REFERENCE_KV: kv,
+    REFERENCE_CACHE_PURGE_READY: 'true',
+    PURGE_TOKEN: 'p'.repeat(32),
+  };
+  assert.equal(h.internals.kvEnabled(purgeReadyEnv, pageOne), true);
+  assert.equal(h.internals.kvEnabled(purgeReadyEnv, pageTwo), true);
+  assert.deepEqual({ ...h.internals.kvTtlPolicy(purgeReadyEnv, pageOne) }, { freshSec: 60, maxAgeSec: 600 }, 'mutable catalog routes use short default D1 TTLs after purge readiness');
+  assert.deepEqual({ ...h.internals.kvTtlPolicy(purgeReadyEnv, h.internals.canonicalize(new URL('https://api.example.com/api/v1/categories'))) }, { freshSec: 60, maxAgeSec: 600 }, 'admin-managed category dictionaries are also treated as mutable');
+  assert.deepEqual({ ...h.internals.kvTtlPolicy(purgeReadyEnv) }, { freshSec: 3600, maxAgeSec: 86400 }, 'unclassified reference data retains the conservative default TTL');
 
   const configuredTerms = Array.from({ length: 501 }, (_, i) => `term-${i}`).join('|');
-  const configuredEnv = { REFERENCE_KV: kv, SEARCH_CACHE_WHITELIST: configuredTerms };
+  const configuredEnv = { ...purgeReadyEnv, SEARCH_CACHE_WHITELIST: configuredTerms };
   assert.equal(h.internals.kvEnabled(configuredEnv, h.internals.canonicalize(new URL('https://api.example.com/api/v1/search?q=term-488'))), true, 'the configured dictionary fills the remaining slots up to 500 total');
   assert.equal(h.internals.kvEnabled(configuredEnv, h.internals.canonicalize(new URL('https://api.example.com/api/v1/search?q=term-489'))), false, 'built-in plus configured search dictionary is capped at 500 total terms');
 
   const longPolicyWithoutPurge = h.internals.kvTtlPolicy({ REFERENCE_CACHE_LONG_TTL_ENABLED: 'true' });
   assert.deepEqual({ ...longPolicyWithoutPurge }, { freshSec: 3600, maxAgeSec: 86400 }, 'long TTL cannot activate without a purge secret');
-  const longPolicyWithPurge = h.internals.kvTtlPolicy({ REFERENCE_CACHE_LONG_TTL_ENABLED: 'true', PURGE_TOKEN: 'p'.repeat(32) });
-  assert.deepEqual({ ...longPolicyWithPurge }, { freshSec: 86400, maxAgeSec: 604800 }, 'long TTL is 24h fresh / 7d maximum age');
+  const longPolicyWithSecretOnly = h.internals.kvTtlPolicy({ REFERENCE_CACHE_LONG_TTL_ENABLED: 'true', PURGE_TOKEN: 'p'.repeat(32) });
+  assert.deepEqual({ ...longPolicyWithSecretOnly }, { freshSec: 3600, maxAgeSec: 86400 }, 'a purge token alone cannot enable long TTL');
+  const longPolicyWithPurge = h.internals.kvTtlPolicy({ REFERENCE_CACHE_LONG_TTL_ENABLED: 'true', REFERENCE_CACHE_PURGE_READY: 'true', PURGE_TOKEN: 'p'.repeat(32) });
+  assert.deepEqual({ ...longPolicyWithPurge }, { freshSec: 86400, maxAgeSec: 604800 }, 'long TTL requires both the explicit purge-ready flag and shared secret');
 
-  for (const path of ['/api/v1/collections/store/store-1', '/api/v1/public/stores/market/stats', '/api/v1/service-reviews/seller/seller-1']) {
+  for (const path of [
+    '/api/v1/categories', '/api/v1/product-categories', '/api/v1/service-categories',
+    '/api/v1/service-types', '/api/v1/store-types',
+    '/api/v1/home', '/api/v1/ads', '/api/v1/products', '/api/v1/stores',
+    '/api/v1/service-listings', '/api/v1/service-providers', '/api/v1/service-reviews',
+    '/api/v1/collections/store/store-1', '/api/v1/public/stores/market/stats',
+    '/api/v1/sellers', '/api/v1/search?q=سيارة', '/api/v1/requests',
+  ]) {
     const canon = h.internals.canonicalize(new URL(`https://api.example.com${path}`));
-    assert.equal(h.internals.kvEnabled({ REFERENCE_KV: kv }, canon), false, `${path} must wait for purge-ready mode before using D1`);
-    assert.equal(h.internals.kvEnabled({ REFERENCE_KV: kv, REFERENCE_CACHE_LONG_TTL_ENABLED: 'true', PURGE_TOKEN: 'p'.repeat(32) }, canon), true, `${path} becomes D1-eligible in purge-ready mode`);
+    assert.equal(h.internals.kvEnabled({ REFERENCE_KV: kv }, canon), false, `${path} must wait for explicit purge-ready mode before using D1`);
+    assert.equal(h.internals.kvEnabled(purgeReadyEnv, canon), true, `${path} becomes D1-eligible only when purge readiness is explicitly enabled`);
+    assert.deepEqual({ ...h.internals.kvTtlPolicy(purgeReadyEnv, canon) }, { freshSec: 60, maxAgeSec: 600 }, `${path} must use bounded mutable-content TTLs`);
   }
 }
 

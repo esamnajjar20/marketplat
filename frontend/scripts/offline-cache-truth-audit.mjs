@@ -87,14 +87,17 @@ check('shell migration keeps allowed personal HTML and rejects all legacy Flight
   /if \(PROTECTED_AD_EDIT_RE\.test\(url\.pathname\) \|\| !isPersonalShellRoute\(url\)\) return false;\s*return isHtml;/.test(sw));
 check('migration keeps the most recent visited shells and the chunks they reference',
   /SHELL_MIGRATION_KEEP_PUBLIC/.test(sw) && /SHELL_MIGRATION_KEEP_PERSONAL/.test(sw) && /neededAssetPaths/.test(sw));
-check('stale API grace is limited to shared public snapshots and can be disabled with STALE_API_GRACE_MS = 0',
-  /const STALE_API_GRACE_MS = /.test(sw) && /!\(STALE_API_GRACE_MS > 0\)/.test(sw) &&
+check('stale API grace is route-aware, bounded by the canonical policy, and limited to shared public snapshots',
+  /const STALE_API_GRACE_MS = /.test(sw) && /function apiSnapshotStaleGraceMs\(url\)/.test(sw) &&
+  /policy\[domain\]\?\.offline\?\.staleGraceMs/.test(sw) &&
+  /age - apiSnapshotMaxAgeMs\(url\) > graceMs/.test(sw) &&
   (sw.match(/asStaleApiSnapshotIfInGrace\(url, cached(?:Api|Core)\)/g) || []).length === 4 &&
   !/asStaleApiSnapshotIfInGrace\(url, cached(?:UserData|ForUser)\)/.test(sw));
-check('persistent storage is requested only from an explicit offline-settings action',
-  !read('components/pwa/OfflineBootstrap.tsx').includes('ensurePersistentStorage') &&
+check('automatic and user-triggered persistent storage requests share one stateful implementation',
+  read('components/pwa/OfflineBootstrap.tsx').includes('ensurePersistentStorage') &&
   read('components/settings/OfflineControlClient.tsx').includes('requestPersistentStorageFromUserGesture') &&
-  /navigator\.storage\.persist\(\)/.test(read('lib/offlineStoragePressure.ts')));
+  read('lib/offlineStoragePressure.ts').includes("from '@/lib/offlineStoragePersist'") &&
+  /navigator\.storage\.persist\(\)/.test(read('lib/offlineStoragePersist.ts')));
 
 if (failures.length) {
   console.error(`[offline-cache-truth] ${failures.length} failure(s), ${passed} passed`);

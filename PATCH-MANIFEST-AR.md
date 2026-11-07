@@ -46,4 +46,4 @@ npm run report:search-cache-whitelist -- --days=30 --min-count=5
 
 راجع النتائج يدويًا قبل وضعها في `SEARCH_CACHE_WHITELIST`؛ لا تُرسل الاستعلامات الخام أو بيانات المستخدمين إلى D1.
 
-**لا تفعّل** `REFERENCE_CACHE_LONG_TTL_ENABLED` ضمن هذا التغيير. فعّله فقط بعد اختبار purge حي ناجح على بيانات الإنتاج.
+**لا تفعّل** `REFERENCE_CACHE_PURGE_READY` أو `REFERENCE_CACHE_LONG_TTL_ENABLED` من هذه الحزمة مباشرة. انشر API/Worker، تأكد من تشغيل Outbox الدائم وتطابق أسرار purge، ثم نفّذ اختبار purge حي لكل الأنواع. فعّل readiness أولاً؛ TTL الطويل قرار منفصل لاحق.

@@ -1,4 +1,5 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
+import { prisma } from '../../config/prisma';
 import { env } from '../../config/env';
 import { logger } from '../utils/logger';
 
@@ -11,8 +12,10 @@ import { logger } from '../utils/logger';
  * /__purge__ endpoint. A zone API purge remains optional for custom-domain caches.
  * Long ads TTLs are enabled only when the native Worker purge path is configured.
  *
- * Everything here is opt-in (env.edgePurge.enabled) and best-effort: a purge
- * failure is logged, never thrown, and never blocks the mutation.
+ * Everything here is opt-in (env.edgePurge.enabled). Public mutations persist a
+ * write-ahead intent and fail closed if that durable record cannot be created;
+ * delivery failures are retried by the transactional outbox. The in-memory
+ * coalescing queue remains only a best-effort fast path for legacy callers.
  *
  * TAG VOCABULARY — MUST stay identical to `edgeTagsFor()` in the Worker
  * (tests/unit/edgePurge.test.ts and workers/cf-api-proxy/cache-policy.test.mjs pin
@@ -81,6 +84,8 @@ const REQUEST_TIMEOUT_MS = 5000;
 const MAX_PENDING_TAGS = 1000;
 const RETRY_DELAY_MS = 30_000;
 const BLOCKED_RETRY_DELAY_MS = 5 * 60_000;
+const EDGE_PURGE_INTENT_FALLBACK_DELAY_MS = 2 * 60_000;
+const MIN_WORKER_PURGE_TOKEN_LENGTH = 32;
 
 const pending = new Set<string>();
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -102,14 +107,19 @@ const config = () => (env as { edgePurge?: typeof env.edgePurge }).edgePurge;
 const isZonePurgeConfigured = (cfg = config()): boolean => Boolean(cfg?.zoneId && cfg.apiToken);
 export const isWorkerCachePurgeEnabled = (): boolean => {
   const cfg = config();
-  return Boolean(cfg?.enabled && cfg.workerPurgeUrl && cfg.workerPurgeToken);
+  return Boolean(
+    cfg?.enabled &&
+    cfg.workerPurgeUrl &&
+    typeof cfg.workerPurgeToken === 'string' &&
+    cfg.workerPurgeToken.trim().length >= MIN_WORKER_PURGE_TOKEN_LENGTH
+  );
 };
 export const isEdgePurgeEnabled = (): boolean => {
   const cfg = config();
   return Boolean(
     cfg?.enabled && (
       isZonePurgeConfigured(cfg) ||
-      (cfg.workerPurgeUrl && cfg.workerPurgeToken) ||
+      (cfg.workerPurgeUrl && typeof cfg.workerPurgeToken === 'string' && cfg.workerPurgeToken.trim().length >= MIN_WORKER_PURGE_TOKEN_LENGTH) ||
       (cfg.nextRevalidationUrl && cfg.nextRevalidationSecret)
     )
   );
@@ -150,7 +160,7 @@ async function postPurge(tags: string[]): Promise<PurgeResult> {
   const jobs: Array<Promise<PurgeResult>> = [];
 
   // The native Workers Cache is the real edge cache for this workers.dev host.
-  if (cfg.workerPurgeUrl && cfg.workerPurgeToken) {
+  if (isWorkerCachePurgeEnabled()) {
     jobs.push(retryPurgeTarget('Workers Cache', async () => {
       const res = await fetch(cfg.workerPurgeUrl!, {
         method: 'POST',
@@ -237,6 +247,78 @@ async function postPurge(tags: string[]): Promise<PurgeResult> {
   return results.includes('blocked') ? 'blocked' : 'retry';
 }
 
+/**
+ * Persist a write-ahead purge intent before a public mutation is allowed to run.
+ * The event is initially delayed so a process crash after the DB mutation but
+ * before the HTTP response finishes still leads to an eventual purge. On a
+ * normal response the caller activates it immediately; a failed 4xx response
+ * cancels it. This makes process-local Set/setTimeout queues an optimization,
+ * never the only record of a required invalidation.
+ */
+export async function createEdgePurgeIntent(tags: readonly string[]): Promise<string | null> {
+  if (!isEdgePurgeEnabled() || tags.length === 0) return null;
+  const uniqueTags = [...new Set(tags)];
+  if (
+    uniqueTags.length > 30 ||
+    uniqueTags.some(tag => typeof tag !== 'string' || tag.length < 1 || tag.length > 256 || !/^[\x21-\x7E]+$/.test(tag))
+  ) {
+    throw new Error('Invalid edge cache purge intent tags');
+  }
+
+  const id = randomUUID();
+  const event = await prisma.outboxEvent.create({
+    data: {
+      eventType: 'EDGE_CACHE_PURGE',
+      aggregateType: 'edge-cache',
+      aggregateId: id,
+      payload: { tags: uniqueTags },
+      idempotencyKey: `edge-cache-purge:${id}`,
+      availableAt: new Date(Date.now() + EDGE_PURGE_INTENT_FALLBACK_DELAY_MS),
+    },
+    select: { id: true },
+  });
+  return event.id;
+}
+
+/** Activate or cancel a previously persisted write-ahead purge intent. */
+export async function activateEdgePurgeIntent(id: string, shouldPurge: boolean): Promise<void> {
+  try {
+    await prisma.outboxEvent.updateMany({
+      where: { id, eventType: 'EDGE_CACHE_PURGE', processedAt: null },
+      data: shouldPurge
+        ? { availableAt: new Date() }
+        : { processedAt: new Date(), lockedAt: null, lockedBy: null, lastError: null },
+    });
+  } catch (error) {
+    // If activation is lost, the delayed write-ahead row remains eligible and
+    // will perform a harmless purge after its fallback delay.
+    logger.error('Could not activate edge cache purge intent; delayed recovery remains scheduled', {
+      eventId: id,
+      shouldPurge,
+      error,
+    });
+  }
+}
+
+/** Deliver one durable outbox event; throw so the outbox worker can retry it. */
+export async function deliverEdgePurgeTags(tags: readonly string[]): Promise<void> {
+  const uniqueTags = [...new Set(tags)];
+  if (
+    uniqueTags.length === 0 ||
+    uniqueTags.length > 100 ||
+    uniqueTags.some(tag => typeof tag !== 'string' || tag.length < 1 || tag.length > 256 || !/^[\x21-\x7E]+$/.test(tag))
+  ) {
+    throw new Error('Invalid durable edge cache purge payload');
+  }
+  for (let i = 0; i < uniqueTags.length; i += MAX_TAGS_PER_CALL) {
+    const chunk = uniqueTags.slice(i, i + MAX_TAGS_PER_CALL);
+    const result = await postPurge(chunk);
+    if (result !== 'success') {
+      throw new Error(`Durable edge cache purge failed (${result}) for ${chunk.join(',')}`);
+    }
+  }
+}
+
 /** Sends everything queued right now. Exposed for graceful shutdown and tests. */
 export async function flushEdgePurge(): Promise<void> {
   if (timer) {
@@ -309,7 +391,7 @@ export function purgeAdEdge(ctx?: AdEdgeContext): void {
  */
 export function purgeReferenceKv(): void {
   const cfg = config();
-  if (!cfg?.workerPurgeUrl || !cfg.workerPurgeToken) return;
+  if (!isWorkerCachePurgeEnabled() || !cfg?.workerPurgeUrl || !cfg.workerPurgeToken) return;
   fetch(cfg.workerPurgeUrl, {
     method: 'POST',
     headers: { 'x-purge-token': cfg.workerPurgeToken },

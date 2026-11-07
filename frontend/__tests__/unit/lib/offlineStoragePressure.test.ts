@@ -68,7 +68,7 @@ describe('offline storage pressure', () => {
     expect(cacheNames.has('market-user-data-v44')).toBe(true);
   });
 
-  it('requests persistent storage once and remembers a user denial for the session', async () => {
+  it('delegates to the shared persistence service and remembers a user denial for the session', async () => {
     expect(await requestPersistentStorageFromUserGesture()).toBe('denied');
     expect(await requestPersistentStorageFromUserGesture()).toBe('already-denied');
     expect(persist).toHaveBeenCalledTimes(1);

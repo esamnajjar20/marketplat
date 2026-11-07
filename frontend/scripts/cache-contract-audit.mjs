@@ -9,6 +9,12 @@ const policy = JSON.parse(read('shared/cache-policy.json'));
 const errors = [];
 const scopes = new Set(['public', 'personal', 'private']);
 const names = new Set();
+for (const domain of ['publicLive', 'publicDetail', 'publicHome', 'recommendations', 'reference']) {
+  const grace = policy[domain]?.offline?.staleGraceMs;
+  if (!Number.isInteger(grace) || grace < 0 || grace > 7 * 24 * 60 * 60 * 1000) {
+    errors.push(`invalid offline stale grace for ${domain}`);
+  }
+}
 for (const [name, d] of Object.entries(contract.domains ?? {})) {
   if (names.has(name)) errors.push(`duplicate domain ${name}`); names.add(name);
   if (!d.namespace || !d.policy || !policy[d.policy] || !scopes.has(d.scope)) errors.push(`incomplete domain ${name}`);

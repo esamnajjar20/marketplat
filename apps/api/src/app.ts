@@ -31,7 +31,7 @@ import { fcmDeviceTokensRepository } from './shared/utils/fcmDeviceTokensReposit
 import { prisma } from './config/prisma';
 import { publishDurableNotifications } from './shared/go-worker/publishDurableNotifications';
 import { publicMutationCacheTags } from './shared/cache/publicMutationTags';
-import { purgeEdgeTags } from './shared/cache/edgePurge';
+import { activateEdgePurgeIntent, createEdgePurgeIntent } from './shared/cache/edgePurge';
 
 const app = express();
 
@@ -598,15 +598,45 @@ app.post('/internal/go-worker/send-push-target', async (req: Request, res: Respo
 
 // ── API Routes ────────────────────────────────────────
 // Invalidate public Next Data Cache entries only after a successful write.
-// The API cache layer coalesces these tags with the existing Worker/Cloudflare
-// purge events; private routes never enter this allowlist.
-app.use('/api/v1', (req: Request, res: Response, next) => {
+// Public writes persist a purge intent before entering their route handler;
+// private routes never enter this allowlist.
+app.use('/api/v1', async (req: Request, res: Response, next) => {
   const tags = publicMutationCacheTags(req.method, req.originalUrl);
-  if (tags.length > 0) {
+  if (tags.length === 0) {
+    next();
+    return;
+  }
+
+  let purgeIntentId: string | null = null;
+  try {
+    // Record a durable intent BEFORE allowing a public mutation to execute.
+    // If the API process dies after the database commit, the delayed outbox
+    // event still purges the edge. When purging is not configured this is a no-op.
+    purgeIntentId = await createEdgePurgeIntent(tags);
+  } catch (error) {
+    logger.error('Could not persist required public-cache invalidation intent; mutation was not started', {
+      method: req.method,
+      path: req.path,
+      tags,
+      error,
+    });
+    sendApiError(
+      req,
+      res,
+      503,
+      ErrorCode.SERVICE_UNAVAILABLE,
+      'Public cache invalidation is temporarily unavailable. Please retry.',
+      { retryAfterSeconds: 5 },
+    );
+    return;
+  }
+
+  if (purgeIntentId) {
     res.once('finish', () => {
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        purgeEdgeTags(tags);
-      }
+      // A 5xx can happen after a mutation transaction committed, so retain and
+      // activate its purge intent. A 4xx is treated as a rejected mutation.
+      const shouldPurge = res.statusCode < 400 || res.statusCode >= 500;
+      void activateEdgePurgeIntent(purgeIntentId!, shouldPurge);
     });
   }
   next();

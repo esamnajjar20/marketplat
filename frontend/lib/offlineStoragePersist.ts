@@ -66,22 +66,53 @@ export function shouldAutoRequestPersist(authenticated: boolean): boolean {
   return !browserPromptsForPersist();
 }
 
-export async function ensurePersistentStorage(now: number = Date.now()): Promise<StoragePersistOutcome> {
+let persistenceInFlight: Promise<StoragePersistOutcome> | null = null;
+
+async function requestPersistentStorage(
+  now: number,
+  allowUserRetryAfterDenial: boolean,
+): Promise<StoragePersistOutcome> {
   if (typeof navigator === 'undefined' || typeof navigator.storage?.persist !== 'function') {
     return 'unsupported';
   }
-  try {
-    if (typeof navigator.storage.persisted === 'function' && (await navigator.storage.persisted())) {
-      writeState({ result: 'granted', at: now });
-      return 'already';
-    }
-    const last = readState();
-    if (last?.result === 'denied' && now - last.at < DENIED_RETRY_AFTER_MS) return 'throttled';
 
-    const granted = await navigator.storage.persist();
-    writeState({ result: granted ? 'granted' : 'denied', at: now });
-    return granted ? 'granted' : 'denied';
-  } catch {
-    return 'denied';
+  if (persistenceInFlight) return persistenceInFlight;
+  const request = (async (): Promise<StoragePersistOutcome> => {
+    try {
+      if (typeof navigator.storage.persisted === 'function' && (await navigator.storage.persisted())) {
+        writeState({ result: 'granted', at: now });
+        return 'already';
+      }
+      const last = readState();
+      if (
+        !allowUserRetryAfterDenial &&
+        last?.result === 'denied' &&
+        now - last.at < DENIED_RETRY_AFTER_MS
+      ) {
+        return 'throttled';
+      }
+
+      const granted = await navigator.storage.persist();
+      writeState({ result: granted ? 'granted' : 'denied', at: now });
+      return granted ? 'granted' : 'denied';
+    } catch {
+      return 'denied';
+    }
+  })();
+  persistenceInFlight = request;
+  try {
+    return await request;
+  } finally {
+    if (persistenceInFlight === request) persistenceInFlight = null;
   }
+}
+
+/** Automatic request: a denial is throttled for three days to avoid repeated prompts. */
+export function ensurePersistentStorage(now: number = Date.now()): Promise<StoragePersistOutcome> {
+  return requestPersistentStorage(now, false);
+}
+
+/** Explicit user action: the user may retry even after an earlier automatic denial. */
+export function requestPersistentStorageFromUserGesture(now: number = Date.now()): Promise<StoragePersistOutcome> {
+  return requestPersistentStorage(now, true);
 }

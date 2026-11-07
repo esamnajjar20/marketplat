@@ -908,7 +908,10 @@ export const env = {
     enabled:
       _env.NODE_ENV !== 'test' &&
       _env.CF_CACHE_TAG_PURGE_ENABLED === 'true' &&
-      (Boolean((_env.EDGE_WORKER_PURGE_URL ?? '').trim() && (_env.EDGE_WORKER_PURGE_TOKEN ?? '').trim()) ||
+      (Boolean(
+        (_env.EDGE_WORKER_PURGE_URL ?? '').trim() &&
+        (_env.EDGE_WORKER_PURGE_TOKEN ?? '').trim().length >= 32
+      ) ||
         Boolean((_env.CF_PURGE_ZONE_ID ?? '').trim() && (_env.CF_PURGE_API_TOKEN ?? '').trim()) ||
         Boolean((_env.NEXT_CACHE_REVALIDATION_URL ?? '').trim() && (_env.NEXT_CACHE_REVALIDATION_SECRET ?? '').trim())),
   },

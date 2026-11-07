@@ -144,7 +144,9 @@ export function OfflineBootstrap() {
         // SW replay bypasses Axios, so the normal response interceptor cannot
         // invalidate local/API caches. Mirror the same post-commit invalidation
         // here, but only after the SW confirms the server accepted the mutation.
-        invalidateOfflineCachesForMutation(data.url, data.method);
+        void invalidateOfflineCachesForMutation(data.url, data.method).catch((error) =>
+          reportBackgroundFailure('frontend/components/pwa/OfflineBootstrap.tsx', error),
+        );
       } else if (data?.type === 'QUEUE_CANCEL_REJECTED') {
         // FIX CANCEL-REJECTED-UX-01: the SW refused our cancel because another
         // drain is actively sending the entry. Tell the user to retry shortly.

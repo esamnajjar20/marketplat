@@ -16,4 +16,15 @@ describe('durable cache-generation retry wiring', () => {
     expect(workerSource).toContain("bumpGeneration(genKey, { persistRetry: false })");
     expect(workerSource).toContain('Outbox lease lost before cache-generation acknowledgement');
   });
+
+  it('bounds orphaned generation markers while keeping them longer than payload envelopes', () => {
+    expect(swrSource).toContain('GENERATION_TTL_SECONDS = 7 * 24 * 60 * 60');
+    expect(swrSource).toContain("set(genKey, newToken(), 'EX', GENERATION_TTL_SECONDS)");
+    expect(swrSource).toContain("set(genKey, token, 'EX', GENERATION_TTL_SECONDS, 'NX')");
+  });
+
+  it('keeps generation retries on the TypeScript path until Go shares the TTL contract', () => {
+    expect(workerSource).toContain('use the TypeScript path');
+    expect(workerSource).toContain('generation-marker TTL contract');
+  });
 });

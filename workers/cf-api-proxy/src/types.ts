@@ -317,6 +317,7 @@ export interface Env {
   SEARCH_CACHE_WHITELIST?: string;
   /** Set true only after Express-to-Worker tag invalidation is enabled and verified. */
   REFERENCE_CACHE_LONG_TTL_ENABLED?: string;
+  REFERENCE_CACHE_PURGE_READY?: string;
   GATEWAY_HEALTH?: DurableObjectNamespaceLike;
   CACHE_METRICS?: AnalyticsDatasetLike;
 }

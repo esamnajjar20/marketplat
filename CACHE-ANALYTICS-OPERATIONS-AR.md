@@ -145,7 +145,7 @@ curl -sS 'https://<API_WORKER_HOST>/__gateway/feature-flags' \
 
 ## 4. بوابة تفعيل TTL الطويل
 
-يبقى `REFERENCE_CACHE_LONG_TTL_ENABLED=false` حتى يتحقق كل ما يلي:
+يبقى `REFERENCE_CACHE_PURGE_READY=false` و`REFERENCE_CACHE_LONG_TTL_ENABLED=false` حتى يتحقق كل ما يلي:
 
 - API Worker منشور وD1 binding متاح.
 - `PURGE_TOKEN` مضبوط في API Worker.
@@ -153,7 +153,7 @@ curl -sS 'https://<API_WORKER_HOST>/__gateway/feature-flags' \
 - تعديل سجل عام فعلي يؤدي إلى purge ناجح ويزيل صف D1 الذي يحمل وسم الكيان.
 - تكرار الاختبار على المنتجات والإعلانات والمتاجر والخدمات ومقدمي الخدمات.
 
-بعد نجاح الاختبارات فقط، غيّر `REFERENCE_CACHE_LONG_TTL_ENABLED` إلى `true` وانشر API Worker.
+بعد نجاح الاختبارات فقط، غيّر `REFERENCE_CACHE_PURGE_READY` إلى `true` أولاً واترك TTL الطويل مغلقاً. وبعد مراقبة TTL المحافظ ونجاح الإبطال، يمكن تفعيل `REFERENCE_CACHE_LONG_TTL_ENABLED=true` كقرار منفصل.
 
 ## 5. مراجعة ما بعد النشر
 

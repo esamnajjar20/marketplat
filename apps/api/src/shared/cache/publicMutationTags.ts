@@ -18,20 +18,23 @@ const SAFE_ENTITY_ID = /^[A-Za-z0-9_-]{1,128}$/;
 
 const TAGS_BY_RESOURCE: Record<string, readonly string[]> = {
   ads: ['route:ads', 'route:home', 'route:search'],
-  products: ['route:products', 'route:collections', 'route:home'],
-  promotions: ['route:products', 'route:collections', 'route:home'],
-  collections: ['route:collections', 'route:products', 'route:home'],
-  stores: ['route:stores', 'route:badges', 'route:public', 'route:home'],
-  sellers: ['route:sellers', 'route:badges', 'route:public'],
-  'service-reviews': ['route:service-reviews', 'route:badges'],
+  products: ['route:products', 'route:collections', 'route:home', 'route:search'],
+  promotions: ['route:products', 'route:collections', 'route:home', 'route:search'],
+  collections: ['route:collections', 'route:products', 'route:home', 'route:search'],
+  stores: ['route:stores', 'route:badges', 'route:public', 'route:home', 'route:search'],
+  sellers: ['route:sellers', 'route:badges', 'route:public', 'route:search'],
+  'service-reviews': ['route:service-reviews', 'route:badges', 'route:search'],
   sales: ['route:public'],
-  'store-types': ['route:store-types', 'route:stores', 'route:home'],
-  'service-listings': ['route:service-listings', 'route:home'],
-  'service-providers': ['route:service-providers', 'route:service-listings', 'route:badges', 'route:home'],
-  'service-categories': ['route:service-categories', 'route:service-listings', 'route:home'],
-  'service-types': ['route:service-types', 'route:service-listings', 'route:home'],
-  categories: ['route:categories', 'route:ads', 'route:products', 'route:home'],
-  'product-categories': ['route:product-categories', 'route:products', 'route:ads', 'route:home'],
+  'store-types': ['route:store-types', 'route:stores', 'route:home', 'route:search'],
+  'service-listings': ['route:service-listings', 'route:home', 'route:search'],
+  'service-providers': ['route:service-providers', 'route:service-listings', 'route:badges', 'route:home', 'route:search'],
+  'service-categories': ['route:service-categories', 'route:service-listings', 'route:home', 'route:search'],
+  'service-types': ['route:service-types', 'route:service-listings', 'route:home', 'route:search'],
+  // The open public request feed is cached by the API Worker/D1 tier. Every
+  // lifecycle mutation must invalidate it, including offer creation/acceptance.
+  requests: ['route:requests'],
+  categories: ['route:categories', 'route:ads', 'route:products', 'route:home', 'route:search'],
+  'product-categories': ['route:product-categories', 'route:products', 'route:ads', 'route:home', 'route:search'],
 };
 
 const ENTITY_TAG_PREFIX_BY_RESOURCE: Record<string, string> = {

@@ -8,9 +8,9 @@
       "lockTtlMs": 10000
     },
     "http": {
-      "maxAgeSec": 60,
-      "staleWhileRevalidateSec": 600,
-      "sharedMaxAgeSec": 180
+      "maxAgeSec": 30,
+      "staleWhileRevalidateSec": 120,
+      "sharedMaxAgeSec": 120
     },
     "client": {
       "staleTimeMs": 90000,
@@ -18,7 +18,8 @@
     },
     "offline": {
       "staleAfterMs": 1800000,
-      "hardAfterMs": 86400000
+      "hardAfterMs": 86400000,
+      "staleGraceMs": 3600000
     }
   },
   "publicDetail": {
@@ -29,9 +30,9 @@
       "lockTtlMs": 10000
     },
     "http": {
-      "maxAgeSec": 60,
-      "staleWhileRevalidateSec": 600,
-      "sharedMaxAgeSec": 240
+      "maxAgeSec": 30,
+      "staleWhileRevalidateSec": 180,
+      "sharedMaxAgeSec": 180
     },
     "client": {
       "staleTimeMs": 60000,
@@ -39,7 +40,8 @@
     },
     "offline": {
       "staleAfterMs": 1800000,
-      "hardAfterMs": 86400000
+      "hardAfterMs": 86400000,
+      "staleGraceMs": 3600000
     }
   },
   "staticDetail": {
@@ -61,9 +63,9 @@
       "lockTtlMs": 15000
     },
     "http": {
-      "maxAgeSec": 60,
-      "staleWhileRevalidateSec": 600,
-      "sharedMaxAgeSec": 240
+      "maxAgeSec": 30,
+      "staleWhileRevalidateSec": 180,
+      "sharedMaxAgeSec": 180
     },
     "client": {
       "staleTimeMs": 90000,
@@ -71,7 +73,8 @@
     },
     "offline": {
       "staleAfterMs": 1800000,
-      "hardAfterMs": 86400000
+      "hardAfterMs": 86400000,
+      "staleGraceMs": 10800000
     }
   },
   "recommendations": {
@@ -92,14 +95,14 @@
     },
     "offline": {
       "staleAfterMs": 900000,
-      "hardAfterMs": 86400000
+      "hardAfterMs": 86400000,
+      "staleGraceMs": 7200000
     }
   },
   "reference": {
     "http": {
-      "maxAgeSec": 600,
-      "staleWhileRevalidateSec": 3600,
-      "sharedMaxAgeSec": 1800
+      "maxAgeSec": 300,
+      "staleWhileRevalidateSec": 600
     },
     "client": {
       "staleTimeMs": 3600000,
@@ -107,7 +110,8 @@
     },
     "offline": {
       "staleAfterMs": 86400000,
-      "hardAfterMs": 172800000
+      "hardAfterMs": 172800000,
+      "staleGraceMs": 604800000
     }
   },
   "personal": {

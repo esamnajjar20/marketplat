@@ -1,0 +1,197 @@
+name: Cache integrity
+
+on:
+  push:
+    paths:
+      - 'shared/cache-policy.json'
+      - 'frontend/lib/cache-policy.json'
+      - 'frontend/public/cache-policy.js'
+      - 'frontend/lib/cache/cache-contract.json'
+      - 'frontend/public/cache-contract.js'
+      - 'apps/api/src/shared/cache/cache-policy.json'
+      - 'apps/api/src/shared/cache/cache-contract.json'
+      - 'workers/cf-api-proxy/wrangler.toml'
+      - 'workers/cf-api-proxy/wrangler.example.jsonc'
+      - 'apps/api/.env.example'
+      - 'shared/cache/**'
+      - 'workers/cf-api-proxy/**'
+      - 'apps/api/src/app.ts'
+      - 'apps/api/src/shared/cache/**'
+      - 'apps/api/src/modules/requests/**'
+      - 'apps/api/src/shared/outbox/**'
+      - 'apps/go-worker/internal/outboxworker/worker.go'
+      - 'apps/go-worker/cmd/server/outbox_handlers.go'
+      - 'apps/api/tests/unit/edgePurge.test.ts'
+      - 'apps/api/tests/unit/publicMutationCacheTags.test.ts'
+      - 'apps/api/prisma/schema.prisma'
+      - 'frontend/public/sw.js'
+      - 'frontend/lib/offlineStoragePersist.ts'
+      - 'frontend/lib/offlineStoragePressure.ts'
+      - 'frontend/scripts/cache-*.mjs'
+      - 'frontend/scripts/offline-cache-truth-audit.mjs'
+      - 'frontend/__tests__/unit/lib/swCachePolicy.test.ts'
+      - 'frontend/__tests__/unit/lib/swShellDurability.test.ts'
+      - 'apps/mobile/src/api/**'
+      - 'apps/mobile/vitest.config.ts'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/cache-integrity.yml'
+  pull_request:
+    paths:
+      - 'shared/cache-policy.json'
+      - 'frontend/lib/cache-policy.json'
+      - 'frontend/public/cache-policy.js'
+      - 'frontend/lib/cache/cache-contract.json'
+      - 'frontend/public/cache-contract.js'
+      - 'apps/api/src/shared/cache/cache-policy.json'
+      - 'apps/api/src/shared/cache/cache-contract.json'
+      - 'workers/cf-api-proxy/wrangler.toml'
+      - 'workers/cf-api-proxy/wrangler.example.jsonc'
+      - 'apps/api/.env.example'
+      - 'shared/cache/**'
+      - 'workers/cf-api-proxy/**'
+      - 'apps/api/src/app.ts'
+      - 'apps/api/src/shared/cache/**'
+      - 'apps/api/src/modules/requests/**'
+      - 'apps/api/src/shared/outbox/**'
+      - 'apps/go-worker/internal/outboxworker/worker.go'
+      - 'apps/go-worker/cmd/server/outbox_handlers.go'
+      - 'apps/api/tests/unit/edgePurge.test.ts'
+      - 'apps/api/tests/unit/publicMutationCacheTags.test.ts'
+      - 'apps/api/prisma/schema.prisma'
+      - 'frontend/public/sw.js'
+      - 'frontend/lib/offlineStoragePersist.ts'
+      - 'frontend/lib/offlineStoragePressure.ts'
+      - 'frontend/scripts/cache-*.mjs'
+      - 'frontend/scripts/offline-cache-truth-audit.mjs'
+      - 'frontend/__tests__/unit/lib/swCachePolicy.test.ts'
+      - 'frontend/__tests__/unit/lib/swShellDurability.test.ts'
+      - 'apps/mobile/src/api/**'
+      - 'apps/mobile/vitest.config.ts'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/cache-integrity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cache-integrity-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  edge-and-policy:
+    name: Worker, policy, Service Worker audits
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: workers/cf-api-proxy/package-lock.json
+      - name: Install Worker dependencies
+        working-directory: workers/cf-api-proxy
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Type-check and test the Cloudflare Worker
+        working-directory: workers/cf-api-proxy
+        run: npm run check
+      - name: Regenerate and verify canonical policy copies
+        run: |
+          node frontend/scripts/sync-cache-policy.mjs
+          git diff --exit-code -- shared/cache-policy.json shared/cache/cache-contract.json frontend/lib/cache-policy.json frontend/lib/cache/cache-contract.json frontend/public/cache-policy.js frontend/public/cache-contract.js apps/api/src/shared/cache/cache-policy.json apps/api/src/shared/cache/cache-contract.json
+      - name: Run cache architecture audits
+        run: |
+          node frontend/scripts/cache-layer-audit.mjs
+          node frontend/scripts/cache-contract-audit.mjs
+          node frontend/scripts/offline-cache-truth-audit.mjs
+          node frontend/scripts/cache-invalidation-ack-audit.mjs
+          node --check frontend/public/sw.js
+
+  api-cache-unit:
+    name: API cache invalidation and durable outbox tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: apps/api
+    env:
+      NODE_ENV: test
+      SKIP_DB: '1'
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/classifieds_test?connection_limit=5
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/classifieds_test
+      JWT_SECRET: ci-test-jwt-secret-please-change-me-32chars
+      JWT_REFRESH_SECRET: ci-test-refresh-secret-please-change-me-32c
+      FRONTEND_URL: http://localhost:3000
+      TRUST_PROXY: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/api/package-lock.json
+      - name: Install API dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Generate Prisma client
+        run: npx prisma generate
+      - name: Type-check API and tests
+        run: npm run type-check -- --pretty false
+      - name: Run cache invalidation and durable outbox tests
+        run: npx jest tests/unit/edgePurge.test.ts tests/unit/publicMutationCacheTags.test.ts --runInBand --coverage=false
+
+
+  frontend-offline-tests:
+    name: Frontend Service Worker and storage tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Test offline snapshot policy and storage persistence
+        run: npx vitest run __tests__/unit/lib/swCachePolicy.test.ts __tests__/unit/lib/swShellDurability.test.ts __tests__/unit/lib/offlineStoragePersist.test.ts __tests__/unit/lib/offlineStoragePressure.test.ts
+
+  mobile-api-cache-tests:
+    name: Mobile API cache invalidation tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Install Mobile workspace dependencies
+        run: pnpm install --frozen-lockfile --prefer-offline --filter @marketplat/mobile...
+      - name: Test Mobile cache race and mutation invalidation
+        run: pnpm --filter @marketplat/mobile exec vitest run src/api/__tests__/client.test.ts
+
+  go-worker-outbox-status:
+    name: Go outbox fallback readiness
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    defaults:
+      run:
+        working-directory: apps/go-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/go-worker/go.mod
+          cache: true
+          cache-dependency-path: apps/go-worker/go.sum
+      - name: Test Go outbox status handler
+        run: go test ./cmd/server

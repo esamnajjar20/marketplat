@@ -93,6 +93,7 @@ func (s *server) outboxWorkerStatus(w http.ResponseWriter, r *http.Request) {
 		err := s.db.QueryRowContext(r.Context(), `
 			SELECT "eventType" FROM "outbox_events"
 			WHERE "processedAt" IS NULL AND "deadLetterAt" IS NULL
+			  AND "availableAt" <= NOW()
 			  AND NOT ("eventType" = ANY($1::text[]))
 			LIMIT 1
 		`, outboxworker.EventTypes).Scan(&unsupported)

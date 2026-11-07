@@ -18,6 +18,7 @@ import { fcmPushService } from '../utils/fcmPushService';
 import { isGoWorkerFcmPushEnabled, sendFcmTargetViaGo } from '../go-worker/fcmPush';
 import { env } from '../../config/env';
 import { bumpGeneration } from '../utils/swrCache';
+import { deliverEdgePurgeTags } from '../cache/edgePurge';
 
 // Claim one event at a time: leasing a batch and then processing it serially lets
 // later events' leases expire while they wait behind a slow high-fan-out event.
@@ -1515,13 +1516,43 @@ async function reportOutboxHealth(): Promise<void> {
   });
 }
 
+async function processEdgeCachePurgeEvent(event: OutboxEvent, workerId: string): Promise<void> {
+  const payload = event.payload;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw new Error('Edge-cache purge outbox payload must be an object');
+  }
+  const rawTags = (payload as Record<string, unknown>).tags;
+  if (
+    !Array.isArray(rawTags) ||
+    rawTags.length < 1 ||
+    rawTags.length > 100 ||
+    !rawTags.every(tag => typeof tag === 'string' && tag.length > 0 && tag.length <= 256 && /^[\x21-\x7E]+$/.test(tag))
+  ) {
+    throw new Error('Edge-cache purge outbox payload contains invalid tags');
+  }
+
+  // Purging is idempotent. If the worker dies after Cloudflare accepts the
+  // request but before acknowledgement, the lease expires and the purge repeats.
+  await deliverEdgePurgeTags(rawTags as string[]);
+  const acknowledged = await prisma.outboxEvent.updateMany({
+    where: { id: event.id, lockedBy: workerId, processedAt: null },
+    data: { processedAt: new Date(), lockedAt: null, lockedBy: null, lastError: null },
+  });
+  if (acknowledged.count !== 1) {
+    throw new Error('Outbox lease lost before edge-cache purge acknowledgement');
+  }
+}
+
 async function processCacheGenerationBumpEvent(
   event: OutboxEvent,
   workerId: string,
   allowGoExecution = true
 ): Promise<void> {
-  const goResult = allowGoExecution ? await tryExecuteOutboxEventInGo(event, workerId) : null;
-  if (goResult) return;
+  // Go may execute this event only if its implementation applies the same
+  // generation-marker TTL contract as swrCache.ts. Until the Go contract is
+  // versioned and asserted by the integration suite, use the TypeScript path
+  // for generation events to avoid divergent Redis semantics.
+  void allowGoExecution;
 
   const payload = event.payload;
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
@@ -1591,6 +1622,8 @@ export async function processOutboxBatch(
           await processSavedSearchMatchEvent(event, workerId, allowGoExecution);
         else if (event.eventType === 'CACHE_GENERATION_BUMP')
           await processCacheGenerationBumpEvent(event, workerId, allowGoExecution);
+        else if (event.eventType === 'EDGE_CACHE_PURGE')
+          await processEdgeCachePurgeEvent(event, workerId);
         else throw new Error(`Unsupported outbox event type: ${event.eventType}`);
       });
     } catch (error) {

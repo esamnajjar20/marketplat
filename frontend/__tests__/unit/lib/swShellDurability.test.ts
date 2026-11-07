@@ -41,6 +41,13 @@ function loadSw(opts: { onLine?: boolean } = {}) {
       addEventListener() {}, skipWaiting() {},
       clients: { claim: async () => {}, matchAll: async () => [{ postMessage: (m: any) => messages.push(m) }] },
       registration: {}, location: { origin: ORIGIN },
+      MARKET_CACHE_POLICY: {
+        publicLive: { offline: { hardAfterMs: 24 * 60 * 60 * 1000, staleGraceMs: 60 * 60 * 1000 } },
+        publicDetail: { offline: { hardAfterMs: 24 * 60 * 60 * 1000, staleGraceMs: 60 * 60 * 1000 } },
+        publicHome: { offline: { hardAfterMs: 24 * 60 * 60 * 1000, staleGraceMs: 3 * 60 * 60 * 1000 } },
+        recommendations: { offline: { hardAfterMs: 24 * 60 * 60 * 1000, staleGraceMs: 2 * 60 * 60 * 1000 } },
+        reference: { offline: { hardAfterMs: 2 * 24 * 60 * 60 * 1000, staleGraceMs: 7 * 24 * 60 * 60 * 1000 } },
+      },
       navigator: opts.onLine === undefined ? undefined : { onLine: opts.onLine },
     },
     caches: fakeCaches, fetch: (...a: any[]) => currentFetch(a[0], a[1]), indexedDB: {}, console,
@@ -250,15 +257,34 @@ describe('sw.js — stale public API snapshot grace (FIX API-STALE-GRACE-01)', (
     expect(res.headers.get('X-SW-Stale')).toBeNull();
   });
 
-  it('serves a snapshot past the hard TTL with X-SW-Stale and notifies the client', async () => {
-    const { res, ctx } = await run(48);
+  it('serves a snapshot only inside the route-specific stale grace after the hard TTL', async () => {
+    const { res, ctx } = await run(24.5);
     expect(res.ok).toBe(true);
     expect(res.headers.get('X-SW-Stale')).toBe('1');
+    expect(Number(res.headers.get('X-SW-Stale-For-Ms'))).toBeGreaterThan(0);
     expect(ctx.messages.some((m) => m.type === 'STALE_API_SERVED')).toBe(true);
   });
 
+  it('uses the longer reference-data grace only for reference routes', async () => {
+    const ctx = loadSw();
+    const url = `${ORIGIN}/api/v1/categories`;
+    const cache = await ctx.fakeCaches.open(ctx.sb.self.__API);
+    await cache.put(url, new Response(JSON.stringify({ items: [1] }), {
+      status: 200,
+      headers: {
+        'content-type': 'application/json', 'cache-control': 'public, max-age=60',
+        'X-SW-Cached-At': String(Date.now() - 5 * DAY),
+      },
+    }));
+    ctx.setFetch(async () => { throw new TypeError('offline'); });
+    const req = { url, method: 'GET', headers: new Headers(), mode: 'cors', clone() { return this; } };
+    const res = await ctx.sb.networkFirstApi({ waitUntil() {} }, req, new URL(url));
+    expect(res.ok).toBe(true);
+    expect(res.headers.get('X-SW-Stale')).toBe('1');
+  });
+
   it('still deletes snapshots older than the grace window', async () => {
-    const { res, ctx } = await run(24 * 10);
+    const { res, ctx } = await run(26);
     expect(res.ok).toBeFalsy();
     expect(await ctx.has(ctx.sb.self.__API, url)).toBe(false);
   });

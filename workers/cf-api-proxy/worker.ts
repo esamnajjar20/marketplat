@@ -194,13 +194,35 @@ const REFERENCE_ROUTES = new Set([
 // the v1 namespace is intentionally abandoned so untagged legacy rows can never
 // be served after this deployment. Expired v1 rows are removed by the daily sweep.
 const KV_PREFIX = 'ref:v2:';
-const KV_DEFAULT_FRESH_SEC = 3600; // Safe default until Worker-tag purge is enabled and verified
-const KV_DEFAULT_MAX_AGE_SEC = 86400; // Keep the default D1 entry for at most 24h
-const KV_LONG_FRESH_SEC = 86400; // Opt-in: 24h between origin refreshes
+const KV_DEFAULT_FRESH_SEC = 3600; // Reference data can use a longer default window
+const KV_DEFAULT_MAX_AGE_SEC = 86400; // Reference data: at most 24h before origin fallback
+const KV_MUTABLE_FRESH_SEC = 60; // Mutable catalog data: refresh at least every minute
+const KV_MUTABLE_MAX_AGE_SEC = 600; // Mutable catalog data: never serve older than 10 minutes
+const KV_LONG_FRESH_SEC = 86400; // Explicit opt-in: 24h between origin refreshes
 const KV_LONG_MAX_AGE_SEC = 604800; // Opt-in: serve stale-once-refresh entries for at most 7 days
 const MAX_SEARCH_CACHE_TERMS = 500;
-// These route families enter D1 only in the explicit purge-ready long-TTL mode.
-const MUTABLE_REFERENCE_ROUTES_REQUIRE_PURGE = new Set(['collections', 'public', 'service-reviews']);
+// Mutable route families enter D1 only after the explicit purge-readiness gate.
+const MUTABLE_REFERENCE_ROUTES_REQUIRE_PURGE = new Set([
+  // Admin-managed dictionaries are mutable too; they must not inherit the
+  // long static-reference fallback window when purge readiness is disabled.
+  'categories',
+  'product-categories',
+  'service-categories',
+  'service-types',
+  'store-types',
+  'home',
+  'ads',
+  'products',
+  'stores',
+  'service-listings',
+  'service-providers',
+  'service-reviews',
+  'collections',
+  'public',
+  'sellers',
+  'search',
+  'requests',
+]);
 const KV_MAX_PARAMS = 12;
 const KV_MAX_PARAM_VALUE = 160;
 
@@ -1445,7 +1467,12 @@ function buildStored(body: ArrayBuffer | string, o: CacheStoreOptions): Response
   if (o.neg) h.set('x-mp-neg', '1');
   if (o.etag) h.set('etag', o.etag);
   if (o.vary) h.set('vary', o.vary);
-  if (o.tags) h.set('cache-tag', o.tags);
+  if (o.tags) {
+    h.set('cache-tag', o.tags);
+    // Cloudflare strips Cache-Tag from Cache API match() responses. Keep a
+    // normal, internal copy so a 304 refresh can restore purge metadata.
+    h.set('x-mp-cache-tags', o.tags);
+  }
   return new Response(body, { status: 200, headers: h });
 }
 
@@ -1476,6 +1503,12 @@ function publicHeaders(o: { contentType?: string | null; clientCc: string; etag?
   return h;
 }
 
+// Cache-Tag is omitted by Cloudflare from Cache API match() responses. The
+// custom header survives and is the authoritative copy for every re-put.
+function storedCacheTags(stored: Response): string | null {
+  return stored.headers.get('x-mp-cache-tags') || stored.headers.get('cache-tag');
+}
+
 // Entry (stored Response) -> descriptor that is safe to hand to many waiters.
 async function storedToDesc(stored: Response, cacheStatus: string, ms: number): Promise<ResponseDescriptor> {
   const info = storedInfo(stored);
@@ -1490,7 +1523,7 @@ async function storedToDesc(stored: Response, cacheStatus: string, ms: number): 
       clientCc: stored.headers.get('x-mp-client-cc') || clientCacheControl(0, info.ttl, info.swr),
       etag: stored.headers.get('etag'),
       vary: stored.headers.get('vary'),
-      tags: stored.headers.get('cache-tag'),
+      tags: storedCacheTags(stored),
       age: info.age,
       cacheStatus,
       ms,
@@ -2059,25 +2092,36 @@ function searchCacheAllowed(env: Env, canon: CanonicalUrl): boolean {
   return allowed.has(normalizeSearchCacheTerm(query));
 }
 
-function isLongReferenceCacheEnabled(env: Env): boolean {
-  return env.REFERENCE_CACHE_LONG_TTL_ENABLED === 'true' &&
+function isReferencePurgeReady(env: Env): boolean {
+  return env.REFERENCE_CACHE_PURGE_READY === 'true' &&
     typeof env.PURGE_TOKEN === 'string' && env.PURGE_TOKEN.length >= 32;
 }
 
-function kvTtlPolicy(env: Env): { freshSec: number; maxAgeSec: number } {
-  // Long-lived D1 rows are safe only after mutation invalidation is configured
-  // in Express and the Worker purge endpoint shares the same PURGE_TOKEN.
-  // The runtime secret check prevents an accidental long-TTL toggle without
-  // the corresponding authenticated purge path being present.
-  return isLongReferenceCacheEnabled(env)
-    ? { freshSec: KV_LONG_FRESH_SEC, maxAgeSec: KV_LONG_MAX_AGE_SEC }
-    : { freshSec: KV_DEFAULT_FRESH_SEC, maxAgeSec: KV_DEFAULT_MAX_AGE_SEC };
+function isLongReferenceCacheEnabled(env: Env): boolean {
+  return env.REFERENCE_CACHE_LONG_TTL_ENABLED === 'true' && isReferencePurgeReady(env);
+}
+
+function kvTtlPolicy(env: Env, canon?: CanonicalUrl): { freshSec: number; maxAgeSec: number } {
+  // Long-lived D1 rows are safe only after an operator explicitly confirms the
+  // API durable outbox worker + authenticated Worker purge path are deployed.
+  // The shared secret is necessary but not sufficient; a separate readiness
+  // flag prevents a matching-looking token from enabling D1 by accident.
+  if (isLongReferenceCacheEnabled(env)) {
+    return { freshSec: KV_LONG_FRESH_SEC, maxAgeSec: KV_LONG_MAX_AGE_SEC };
+  }
+  // Mutable catalog routes have a shorter default stale window than reference
+  // dictionaries. A transient purge failure therefore cannot preserve an old
+  // price/listing state for the generic 24h reference-data fallback window.
+  if (canon && MUTABLE_REFERENCE_ROUTES_REQUIRE_PURGE.has(canon.route)) {
+    return { freshSec: KV_MUTABLE_FRESH_SEC, maxAgeSec: KV_MUTABLE_MAX_AGE_SEC };
+  }
+  return { freshSec: KV_DEFAULT_FRESH_SEC, maxAgeSec: KV_DEFAULT_MAX_AGE_SEC };
 }
 
 function kvEnabled(env: Env, canon: CanonicalUrl): boolean {
   if (!env || (!(env as any).DB && !(env as any).REFERENCE_KV)) return false;
   if (!REFERENCE_ROUTES.has(canon.route) || canon.key.length > KV_MAX_KEY) return false;
-  if (MUTABLE_REFERENCE_ROUTES_REQUIRE_PURGE.has(canon.route) && !isLongReferenceCacheEnabled(env)) return false;
+  if (MUTABLE_REFERENCE_ROUTES_REQUIRE_PURGE.has(canon.route) && !isReferencePurgeReady(env)) return false;
   if (canon.pairs.length > KV_MAX_PARAMS) return false;
   if (canon.pairs.some(([, value]) => value.length > KV_MAX_PARAM_VALUE)) return false;
   // Keep free-text queries out of D1 unless they are explicitly allowlisted.
@@ -2102,7 +2146,7 @@ async function kvWrite(env: Env, canon: CanonicalUrl, body: ArrayBuffer, meta: R
   const kv = getKv(env);
   if (!kv || !kvEnabled(env, canon) || body.byteLength > KV_MAX_BODY) return;
   try {
-    const { maxAgeSec } = kvTtlPolicy(env);
+    const { maxAgeSec } = kvTtlPolicy(env, canon);
     await kv.put(KV_PREFIX + canon.key, body, {
       // Entries stop being useful once they exceed the maximum serve age.
       // Do not retain dead rows for an additional freshness window in D1.
@@ -2301,7 +2345,9 @@ async function revalidateLoad(args: RevalidateArgs): Promise<ResponseDescriptor 
         contentType: stale.headers.get('content-type') || 'application/json',
         etag,
         vary: stale.headers.get('vary'),
-        tags: stale.headers.get('cache-tag'),
+        // Derive tags from the canonical request when upgrading legacy cache
+        // entries that predate x-mp-cache-tags; never re-store an untagged row.
+        tags: storedCacheTags(stale) || edgeTagsFor(canon),
         ttl: info.ttl,
         swr: info.swr,
         clientCc,
@@ -2379,12 +2425,12 @@ async function handleCacheable(request: Request, canon: CanonicalUrl, ctx: Execu
         vary: m.vary,
         tags: edgeTagsFor(canon),
         age: kv.age,
-        cacheStatus: kv.age <= kvTtlPolicy(env).freshSec ? 'KV-HIT' : 'KV-STALE',
+        cacheStatus: kv.age <= kvTtlPolicy(env, canon).freshSec ? 'KV-HIT' : 'KV-STALE',
         ms: 0,
         ttl: m.ttl,
       }),
     };
-    if (kv.age <= kvTtlPolicy(env).maxAgeSec) {
+    if (kv.age <= kvTtlPolicy(env, canon).maxAgeSec) {
       ctx.waitUntil(
         safeCachePut(cache,
           cacheKey,
@@ -2400,7 +2446,7 @@ async function handleCacheable(request: Request, canon: CanonicalUrl, ctx: Execu
           }),
         ),
       );
-      if (kv.age > kvTtlPolicy(env).freshSec) {
+      if (kv.age > kvTtlPolicy(env, canon).freshSec) {
         ctx.waitUntil(startLoad(`rv:${flightKey}`, () => originLoad(loadArgs)).catch(() => {}));
       }
       return descToResponse(kvDesc, clientINM, origin);

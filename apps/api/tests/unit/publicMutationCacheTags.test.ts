@@ -15,8 +15,32 @@ describe('publicMutationCacheTags', () => {
 
   it('adds a validated entity tag for a detail mutation', () => {
     expect(publicMutationCacheTags('PATCH', '/api/v1/products/product_123?from=admin')).toEqual([
-      'route:products', 'route:collections', 'route:home', 'product:product_123',
+      'route:products', 'route:collections', 'route:home', 'route:search', 'product:product_123',
     ]);
+  });
+
+  it('invalidates unified search when products, stores, or services change', () => {
+    for (const [method, path] of [
+      ['PATCH', '/api/v1/products/product-7'],
+      ['PATCH', '/api/v1/stores/store-7'],
+      ['PATCH', '/api/v1/service-listings/service-7'],
+      ['PATCH', '/api/v1/service-providers/provider-7'],
+      ['PATCH', '/api/v1/sellers/seller-7'],
+    ]) {
+      expect(publicMutationCacheTags(method, path)).toContain('route:search');
+    }
+  });
+
+  it('invalidates the public request feed for request and offer lifecycle mutations', () => {
+    for (const [method, path] of [
+      ['POST', '/api/v1/requests'],
+      ['PATCH', '/api/v1/requests/request-1/cancel'],
+      ['POST', '/api/v1/requests/request-1/offers'],
+      ['DELETE', '/api/v1/requests/request-1/offers/offer-1'],
+      ['PATCH', '/api/v1/requests/request-1/offers/offer-1/accept'],
+    ]) {
+      expect(publicMutationCacheTags(method, path)).toContain('route:requests');
+    }
   });
 
   it('invalidates service listings when a provider changes', () => {
@@ -35,7 +59,7 @@ describe('publicMutationCacheTags', () => {
       'route:ads', 'route:home', 'route:search', 'ad:ad_7',
     ]);
     expect(publicMutationCacheTags('PATCH', '/api/v1/admin/products/product_7/status')).toEqual([
-      'route:products', 'route:collections', 'route:home', 'product:product_7',
+      'route:products', 'route:collections', 'route:home', 'route:search', 'product:product_7',
     ]);
     expect(publicMutationCacheTags('PATCH', '/api/v1/admin/service-listings/service_7/status')).toContain('service:service_7');
     expect(publicMutationCacheTags('PATCH', '/api/v1/admin/fraud/ads/ad_9/clear')).toContain('route:ads');
@@ -57,6 +81,7 @@ describe('publicMutationCacheTags', () => {
 
   it('invalidates public collections when products, promotions, or collection membership change', () => {
     expect(publicMutationCacheTags('PATCH', '/api/v1/products/product_1')).toContain('route:collections');
+    expect(publicMutationCacheTags('PATCH', '/api/v1/products/product_1')).toContain('route:search');
     expect(publicMutationCacheTags('POST', '/api/v1/collections')).toContain('route:collections');
     expect(publicMutationCacheTags('POST', '/api/v1/collections/collection_1/products/product_1')).toContain('route:collections');
     expect(publicMutationCacheTags('PATCH', '/api/v1/promotions/promotion_1')).toContain('route:collections');
@@ -68,6 +93,8 @@ describe('publicMutationCacheTags', () => {
     expect(sellerRatingTags).toContain('seller:seller_1');
     expect(publicMutationCacheTags('POST', '/api/v1/service-reviews')).toContain('route:badges');
     expect(publicMutationCacheTags('POST', '/api/v1/sales')).toEqual(['route:public']);
+    expect(publicMutationCacheTags('PATCH', '/api/v1/categories/cat-1')).toContain('route:search');
+    expect(publicMutationCacheTags('PATCH', '/api/v1/store-types/st-1')).toContain('route:search');
   });
 
   it('ignores malformed and non-API paths', () => {

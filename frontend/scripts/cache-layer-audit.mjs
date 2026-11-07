@@ -62,14 +62,18 @@ for (const dir of ['apps/api/src/modules', 'apps/api/src/shared']) {
       if (st.isDirectory()) walk(full);
       else if (name.endsWith('.ts') && !full.endsWith(path.join('middlewares', 'cacheControl.middleware.ts'))) {
         const text = fs.readFileSync(full, 'utf8');
-        if ((/\b(?:setHeader|set|header|append)\s*\(\s*['"]Cache-Control['"]/.test(text) || /\bCache-Control\s*['"]?\s*[:=]/.test(text)) && !full.endsWith(path.join('shared', 'go-worker', 'streamCsvWithFallback.ts'))) controllerHeaders.push(path.relative(repoRoot, full));
+        const writesCacheControl = /\b(?:setHeader|set|header|append)\s*\(\s*['"]Cache-Control['"]/.test(text) || /\bCache-Control\s*['"]?\s*[:=]/.test(text);
+        const explicitPrivateNoStore = full.endsWith(path.join('modules', 'conversations', 'conversations.controller.ts'))
+          && /setHeader\(\s*['"]Cache-Control['"]\s*,\s*['"]private,\s*no-store,\s*max-age=0['"]\s*\)/i.test(text);
+        const legacyCsvStreamOverride = full.endsWith(path.join('shared', 'go-worker', 'streamCsvWithFallback.ts'));
+        if (writesCacheControl && !explicitPrivateNoStore && !legacyCsvStreamOverride) controllerHeaders.push(path.relative(repoRoot, full));
       }
     }
   };
   walk(root);
 }
 if (controllerHeaders.length) fail(`Cache-Control ownership violation: ${controllerHeaders.join(', ')}`);
-else pass('no Cache-Control writes outside the policy middleware');
+else pass('no public Cache-Control writes outside the policy middleware (explicit private/no-store exceptions only)');
 
 const homeFeedRoute = read('apps/api/src/modules/home/home.routes.ts');
 if (!homeFeedRoute.includes("homeRouter.get('/feed', CACHE.PERSONAL")) fail('home feed route has no explicit personal cache policy');

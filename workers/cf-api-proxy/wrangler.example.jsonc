@@ -10,9 +10,13 @@
   // Do not use a wildcard when credentials/cookies are enabled.
   "vars": {
     "FRONTEND_ORIGIN": "https://your-frontend-domain.example",
-    // Set true only after Express-to-Worker tag invalidation and the shared PURGE_TOKEN are verified.
-    // Enabled mode: 24h fresh, 7d maximum D1 serve age.
-    "REFERENCE_CACHE_LONG_TTL_ENABLED": "false"
+    // Keep both flags false until the API's durable outbox worker is deployed and a live
+    // mutation has purged Workers Cache + D1 through EDGE_WORKER_PURGE_URL.
+    // PURGE_TOKEN must match EDGE_WORKER_PURGE_TOKEN in the API.
+    // Purge-ready mode enables mutable-route D1 with a 60s fresh / 10m max-age window.
+    // Long TTL is a separate opt-in (24h fresh / 7d max) and must be enabled last.
+    "REFERENCE_CACHE_LONG_TTL_ENABLED": "false",
+    "REFERENCE_CACHE_PURGE_READY": "false"
   },
 
   // Workers Cache is the outer cache and works on *.workers.dev. Cache API inside

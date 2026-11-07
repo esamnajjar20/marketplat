@@ -90,6 +90,14 @@ const inflight = new Map<string, Promise<unknown>>();
 
 const newToken = (): string => randomUUID();
 
+/** Generation markers outlive every payload envelope (whose hard TTL is shorter).
+ * A 7-day TTL bounds orphaned per-user/per-namespace markers without allowing
+ * an envelope to outlive its marker. If a marker expires, old envelopes fail
+ * closed because the atomic writer requires the marker to exist and readers
+ * create a fresh random token before accepting any payload.
+ */
+export const GENERATION_TTL_SECONDS = 7 * 24 * 60 * 60;
+
 /** Persist a failed generation bump so the outbox worker can retry after Redis recovers. */
 async function enqueueGenerationRetry(
   genKey: string,
@@ -137,7 +145,7 @@ export async function bumpGeneration(
       // Timeout only (no circuit breaker): an invalidation must still be
       // attempted while the breaker is open, otherwise entries written before
       // the outage could be read as fresh after the breaker closes.
-      await withCacheTimeout(() => cacheClient().set(genKey, newToken()));
+      await withCacheTimeout(() => cacheClient().set(genKey, newToken(), 'EX', GENERATION_TTL_SECONDS));
       const elapsedSeconds = Number(process.hrtime.bigint() - startedAt) / 1_000_000_000;
       cacheMetrics.record('generation', 'generation_bump_ok');
       cacheMetrics.observeDuration('generation', 'generation_bump_ok', elapsedSeconds);
@@ -166,7 +174,7 @@ export async function bumpGeneration(
 /** First reader creates the token (NX), everyone then reads the same one. */
 async function ensureGeneration(genKey: string): Promise<string> {
   const token = newToken();
-  await guardedCache(() => cacheClient().set(genKey, token, 'NX'));
+  await guardedCache(() => cacheClient().set(genKey, token, 'EX', GENERATION_TTL_SECONDS, 'NX'));
   const current = await guardedCache(() => cacheClient().get(genKey));
   return current ?? token;
 }

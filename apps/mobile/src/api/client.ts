@@ -46,9 +46,12 @@ function tagFromCache<T>(value: T, savedAt: number): CachedResult<T> {
 async function readValidatedCache<T>(
   cacheKey: string,
   responseSchema?: ZodType<T>,
+  expectedEpoch?: number,
 ): Promise<CachedResult<T> | null> {
   try {
+    if (expectedEpoch !== undefined && expectedEpoch !== publicCacheEpoch) return null;
     const entry = await readPublicCacheEntry<unknown>(cacheKey);
+    if (expectedEpoch !== undefined && expectedEpoch !== publicCacheEpoch) return null;
     if (!entry || !Number.isFinite(entry.savedAt)) return null;
     const cached = entry.value;
     if (!cached || !isSuccessfulPublicEnvelope(cached)) return null;
@@ -109,6 +112,9 @@ export function setAuthFailureHandler(handler: ((error: ApiError) => void) | nul
 
 const DEFAULT_TIMEOUT_MS = 10_000;
 export const UPLOAD_TIMEOUT_MS = 120_000;
+// Prevent a GET that started before a successful mutation from re-inserting its
+// stale response after that mutation has cleared the local SQLite snapshots.
+let publicCacheEpoch = 0;
 
 /** Only explicitly public, read-only API families are eligible for anonymous offline caching; mutations are always excluded. */
 function publicGetCacheKey(path: string, method: string, hasToken: boolean): string | null {
@@ -300,6 +306,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
   const { timeoutMs: requestedTimeoutMs, token, headers, signal: externalSignal, cacheOwnerId, responseSchema, _retried, _networkRetried, ...init } = options;
   const isMultipartUpload = typeof FormData !== 'undefined' && init.body instanceof FormData;
   const timeoutMs = requestedTimeoutMs ?? (isMultipartUpload ? UPLOAD_TIMEOUT_MS : DEFAULT_TIMEOUT_MS);
+  const cacheEpochAtRequestStart = publicCacheEpoch;
   const cacheKey = publicGetCacheKey(path, init.method ?? 'GET', Boolean(token?.trim()))
     ?? privateGetCacheKey(path, init.method ?? 'GET', token, cacheOwnerId);
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
@@ -307,7 +314,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
   }
   if (!API_BASE_URL) {
     if (cacheKey) {
-      const cached = await readValidatedCache<T>(cacheKey, responseSchema);
+      const cached = await readValidatedCache<T>(cacheKey, responseSchema, cacheEpochAtRequestStart);
       if (cached) return cached;
     }
     throw new ApiError(API_BASE_URL_ERROR);
@@ -428,12 +435,21 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
       validatedPayload = parsed.data;
     }
     if (cacheKey && isSuccessfulPublicEnvelope(validatedPayload)) {
-      markFreshApiResponse(cacheKey);
-      // SQLite is best-effort: don't hold a successful UI request open while it writes.
-      void writePublicCache(cacheKey, validatedPayload).catch(() => undefined);
-    } else if (init.method && init.method.toUpperCase() !== 'GET' && token) {
-      // Mutations return as soon as the server succeeds; cache invalidation follows safely.
-      void invalidateMutationCaches(path, cacheOwnerId).catch(() => undefined);
+      // A GET that began before a mutation must not resurrect the pre-mutation
+      // snapshot after invalidation has completed. Keep the normal write async.
+      if (cacheEpochAtRequestStart === publicCacheEpoch) {
+        markFreshApiResponse(cacheKey);
+        void writePublicCache(cacheKey, validatedPayload).catch(() => undefined);
+      }
+    } else if (init.method && init.method.toUpperCase() !== 'GET') {
+      // Invalidate before resolving the successful mutation to its caller. The
+      // epoch fence also blocks already-running GETs from writing older data.
+      publicCacheEpoch += 1;
+      try {
+        await invalidateMutationCaches(path, cacheOwnerId);
+      } catch {
+        // Cache maintenance never changes the authoritative mutation result.
+      }
     }
     return validatedPayload as T;
   } catch (error) {
@@ -458,7 +474,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
     // Fall back for explicitly allow-listed read endpoints after transport failures,
     // HTTP 5xx or rate limiting. Do not hide ordinary 4xx or malformed 2xx payloads.
     if (cacheKey && (allowHttpCacheFallback || !(error instanceof ApiError && error.status !== undefined))) {
-      const cached = await readValidatedCache<T>(cacheKey, responseSchema);
+      const cached = await readValidatedCache<T>(cacheKey, responseSchema, cacheEpochAtRequestStart);
       if (cached) return cached;
     }
     if (error instanceof ApiError) throw error;

@@ -10,11 +10,10 @@
 'use client';
 
 import { getActiveSW } from '@/lib/swReady';
+import { requestPersistentStorageFromUserGesture as requestPersistentStorage } from '@/lib/offlineStoragePersist';
 
 export const STORAGE_WARNING_RATIO = 0.8;
 export const STORAGE_CRITICAL_RATIO = 0.9;
-const PERSISTENCE_DENIED_KEY = 'market-offline-persistence-denied';
-
 export type StoragePressure = 'unknown' | 'normal' | 'warning' | 'critical';
 export type PersistentStorageRequest = 'granted' | 'denied' | 'already-denied' | 'unsupported' | 'failed';
 
@@ -55,47 +54,30 @@ export async function getStorageEstimate(): Promise<StorageEstimate> {
 }
 
 /**
- * Request durable origin storage only from an explicit user action.
- * A denial is remembered so subsequent warming actions do not repeat it.
+ * User-initiated persistence request. The shared offlineStoragePersist module
+ * owns the browser state and denial timestamp; this wrapper only coalesces
+ * simultaneous button taps and maps the shared result to this module's UI type.
  */
 export function requestPersistentStorageFromUserGesture(): Promise<PersistentStorageRequest> {
   if (typeof navigator === 'undefined' || !navigator.storage?.persist) {
     return Promise.resolve('unsupported');
   }
   if (persistenceDeniedInMemory) return Promise.resolve('already-denied');
-  try {
-    if (localStorage.getItem(PERSISTENCE_DENIED_KEY) === 'true') {
-      persistenceDeniedInMemory = true;
-      return Promise.resolve('already-denied');
-    }
-  } catch {
-    // Storage access can be blocked independently of the persist API.
-  }
   if (persistenceRequest) return persistenceRequest;
 
-  let request: Promise<boolean>;
-  try {
-    request = navigator.storage.persist();
-  } catch (error) {
-    console.warn('[offline] persistent storage request failed:', error);
-    return Promise.resolve('failed');
-  }
-
-  persistenceRequest = request
-    .then((granted) => {
-      if (granted) return 'granted' as const;
-      persistenceDeniedInMemory = true;
-      try {
-        localStorage.setItem(PERSISTENCE_DENIED_KEY, 'true');
-      } catch {
-        // The in-memory guard still prevents repeated prompts this session.
+  persistenceRequest = requestPersistentStorage()
+    .then((result): PersistentStorageRequest => {
+      if (result === 'granted' || result === 'already') {
+        persistenceDeniedInMemory = false;
+        return 'granted';
       }
-      return 'denied' as const;
+      if (result === 'denied' || result === 'throttled') {
+        persistenceDeniedInMemory = true;
+        return 'denied';
+      }
+      return result === 'unsupported' ? 'unsupported' : 'failed';
     })
-    .catch((error: unknown) => {
-      console.warn('[offline] persistent storage request failed:', error);
-      return 'failed' as const;
-    })
+    .catch(() => 'failed' as const)
     .finally(() => {
       persistenceRequest = null;
     });

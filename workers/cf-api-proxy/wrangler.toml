@@ -10,8 +10,12 @@ enabled = true
 [vars]
 FRONTEND_ORIGIN = "https://marketplat.esamnajjar6.workers.dev"
 RENDER_ORIGIN = "https://marketplat-nz19.onrender.com"
-# Opt-in only after Express tag purge + the matching PURGE_TOKEN are deployed.
-# When enabled: D1 references are fresh for 24h and may be served for at most 7d.
+# Both flags must be enabled only after the API durable purge outbox is deployed,
+# its Worker purge URL/token are verified, and the API outbox worker is running.
+# Every route-backed catalog/reference family is bypassed until purge readiness is verified.
+# Purge-ready mode uses 60s fresh / 10m max age for mutable routes.
+# Only with the separate long-TTL opt-in do rows use 24h fresh / 7d max age.
+REFERENCE_CACHE_PURGE_READY = "false"
 # Optional pipe-separated search terms; total cap is 500 including the 11 built-in defaults.
 # Populate from anonymized search analytics; do not add raw user queries indiscriminately.
 # SEARCH_CACHE_WHITELIST = "موبايل|سيارة|ثلاجة"

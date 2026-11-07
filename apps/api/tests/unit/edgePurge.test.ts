@@ -7,12 +7,23 @@
  */
 import type { Request, Response, NextFunction } from 'express';
 import { createHmac } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 type EdgeModule = typeof import('../../src/shared/cache/edgePurge');
+
+let outboxPrismaMock: { outboxEvent: { create: jest.Mock; updateMany: jest.Mock } };
 
 const loadEdge = (edgePurge: Record<string, unknown>): EdgeModule => {
   let mod!: EdgeModule;
   jest.isolateModules(() => {
+    outboxPrismaMock = {
+      outboxEvent: {
+        create: jest.fn().mockResolvedValue({ id: 'edge-purge-event-1' }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+      },
+    };
+    jest.doMock('../../src/config/prisma', () => ({ prisma: outboxPrismaMock }));
     jest.doMock('../../src/config/env', () => ({ env: { edgePurge } }));
     jest.doMock('../../src/shared/utils/logger', () => ({
       logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
@@ -24,8 +35,8 @@ const loadEdge = (edgePurge: Record<string, unknown>): EdgeModule => {
 
 const ENABLED = { enabled: true, zoneId: 'zone123', apiToken: 'tok', workerPurgeUrl: '', workerPurgeToken: '' };
 const DISABLED = { enabled: false, zoneId: '', apiToken: '', workerPurgeUrl: '', workerPurgeToken: '' };
-const WORKER_CACHE_ENABLED = { enabled: true, zoneId: '', apiToken: '', workerPurgeUrl: 'https://api.example.com/__purge__', workerPurgeToken: 's3cret' };
-const BOTH_ENABLED = { enabled: true, zoneId: 'zone123', apiToken: 'tok', workerPurgeUrl: 'https://api.example.com/__purge__', workerPurgeToken: 's3cret' };
+const WORKER_CACHE_ENABLED = { enabled: true, zoneId: '', apiToken: '', workerPurgeUrl: 'https://api.example.com/__purge__', workerPurgeToken: 's'.repeat(32) };
+const BOTH_ENABLED = { enabled: true, zoneId: 'zone123', apiToken: 'tok', workerPurgeUrl: 'https://api.example.com/__purge__', workerPurgeToken: 's'.repeat(32) };
 const NEXT_CACHE_ENABLED = { enabled: true, zoneId: '', apiToken: '', workerPurgeUrl: '', workerPurgeToken: '', nextRevalidationUrl: 'https://marketplat.example/api/internal/cache/revalidate', nextRevalidationSecret: 'a'.repeat(40) };
 
 describe('edge tag vocabulary (parity with the Worker)', () => {
@@ -62,6 +73,55 @@ describe('edge tag vocabulary (parity with the Worker)', () => {
   });
 });
 
+describe('worker purge credential validation', () => {
+  it('does not enable the Worker purge target with a short token', () => {
+    const edge = loadEdge({
+      enabled: true,
+      zoneId: '',
+      apiToken: '',
+      workerPurgeUrl: 'https://api.example.com/__purge__',
+      workerPurgeToken: 'too-short',
+    });
+    expect(edge.isWorkerCachePurgeEnabled()).toBe(false);
+    expect(edge.isEdgePurgeEnabled()).toBe(false);
+  });
+
+  it('keeps a separately configured valid purge target enabled when the Worker token is short', () => {
+    const edge = loadEdge({
+      enabled: true,
+      zoneId: 'zone123',
+      apiToken: 'zone-token',
+      workerPurgeUrl: 'https://api.example.com/__purge__',
+      workerPurgeToken: 'too-short',
+    });
+    expect(edge.isWorkerCachePurgeEnabled()).toBe(false);
+    expect(edge.isEdgePurgeEnabled()).toBe(true);
+  });
+});
+
+describe('durable purge outbox routing', () => {
+  it('processes EDGE_CACHE_PURGE in Express and keeps it off the Go allowlist until implemented there', () => {
+    const workerSource = readFileSync(join(__dirname, '../../src/shared/outbox/outbox.worker.ts'), 'utf8');
+    const goAllowlist = readFileSync(join(__dirname, '../../../go-worker/internal/outboxworker/worker.go'), 'utf8');
+    const goStatus = readFileSync(join(__dirname, '../../../go-worker/cmd/server/outbox_handlers.go'), 'utf8');
+    expect(workerSource).toContain("event.eventType === 'EDGE_CACHE_PURGE'");
+    expect(workerSource).toContain('await processEdgeCachePurgeEvent(event, workerId)');
+    expect(goAllowlist).toContain('EventTypes is deliberately allowlisted');
+    expect(goAllowlist).not.toContain('EDGE_CACHE_PURGE');
+    expect(goStatus).toContain('AND \"availableAt\" <= NOW()');
+  });
+
+  it('persists the purge intent before handing the request to the API router', () => {
+    const appSource = readFileSync(join(__dirname, '../../src/app.ts'), 'utf8');
+    const intentAt = appSource.indexOf('purgeIntentId = await createEdgePurgeIntent(tags)');
+    const routerAt = appSource.indexOf("app.use('/api/v1', router)");
+    expect(intentAt).toBeGreaterThan(-1);
+    expect(routerAt).toBeGreaterThan(intentAt);
+    expect(appSource).toContain("res.once('finish'");
+    expect(appSource).toContain('activateEdgePurgeIntent(purgeIntentId!, shouldPurge)');
+  });
+});
+
 describe('purgeEdgeTags transport', () => {
   const realFetch = global.fetch;
   let fetchMock: jest.Mock;
@@ -73,6 +133,47 @@ describe('purgeEdgeTags transport', () => {
   afterEach(() => {
     global.fetch = realFetch;
     jest.useRealTimers();
+  });
+
+  it('persists a delayed write-ahead purge intent and activates it only after a successful mutation', async () => {
+    const edge = loadEdge(WORKER_CACHE_ENABLED);
+    const before = Date.now();
+    const eventId = await edge.createEdgePurgeIntent(['route:ads', 'route:search', 'route:ads']);
+    expect(eventId).toBe('edge-purge-event-1');
+    expect(outboxPrismaMock.outboxEvent.create).toHaveBeenCalledTimes(1);
+    const createArgs = outboxPrismaMock.outboxEvent.create.mock.calls[0][0];
+    expect(createArgs.data.eventType).toBe('EDGE_CACHE_PURGE');
+    expect(createArgs.data.payload).toEqual({ tags: ['route:ads', 'route:search'] });
+    expect(createArgs.data.availableAt.getTime()).toBeGreaterThanOrEqual(before + 120_000);
+
+    await edge.activateEdgePurgeIntent(eventId!, true);
+    expect(outboxPrismaMock.outboxEvent.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: eventId, eventType: 'EDGE_CACHE_PURGE', processedAt: null },
+      data: expect.objectContaining({ availableAt: expect.any(Date) }),
+    }));
+
+    await edge.activateEdgePurgeIntent(eventId!, false);
+    expect(outboxPrismaMock.outboxEvent.updateMany).toHaveBeenLastCalledWith(expect.objectContaining({
+      where: { id: eventId, eventType: 'EDGE_CACHE_PURGE', processedAt: null },
+      data: expect.objectContaining({ processedAt: expect.any(Date) }),
+    }));
+  });
+
+  it('does not create write-ahead events when no purge destination is configured', async () => {
+    const edge = loadEdge(DISABLED);
+    await expect(edge.createEdgePurgeIntent(['route:ads'])).resolves.toBeNull();
+    expect(outboxPrismaMock.outboxEvent.create).not.toHaveBeenCalled();
+  });
+
+  it('delivers durable purge tags and rejects a failed destination so the outbox can retry', async () => {
+    const edge = loadEdge(WORKER_CACHE_ENABLED);
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ok: true }) });
+    await edge.deliverEdgePurgeTags(['route:ads', 'route:search']);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ tags: ['route:ads', 'route:search'] });
+
+    fetchMock.mockResolvedValue({ ok: false, status: 503, json: async () => ({ ok: false }) });
+    await expect(edge.deliverEdgePurgeTags(['route:ads'])).rejects.toThrow('Durable edge cache purge failed');
   });
 
   it('does nothing (no outbound call) when purging is not configured', async () => {
@@ -214,7 +315,7 @@ describe('purgeEdgeTags transport', () => {
     const edge = loadEdge({
       ...ENABLED,
       workerPurgeUrl: 'https://api.example.com/__purge__',
-      workerPurgeToken: 's3cret',
+      workerPurgeToken: 's'.repeat(32),
     });
     edge.purgeReferenceKv();
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -228,7 +329,7 @@ describe('purgeEdgeTags transport', () => {
     const edge = loadEdge({
       ...ENABLED,
       workerPurgeUrl: 'https://api.example.com/__purge__',
-      workerPurgeToken: 's3cret',
+      workerPurgeToken: 's'.repeat(32),
     });
     edge.purgeReferenceKv();
     await new Promise(resolve => setImmediate(resolve));

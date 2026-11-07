@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { DENIED_RETRY_AFTER_MS, ensurePersistentStorage } from '@/lib/offlineStoragePersist';
+import { DENIED_RETRY_AFTER_MS, ensurePersistentStorage, requestPersistentStorageFromUserGesture } from '@/lib/offlineStoragePersist';
 
 type StorageStub = { persisted?: () => Promise<boolean>; persist?: () => Promise<boolean> };
 
@@ -48,6 +48,29 @@ describe('ensurePersistentStorage', () => {
     expect(calls).toBe(1);
     expect(await ensurePersistentStorage(t0 + DENIED_RETRY_AFTER_MS + 1)).toBe('denied');
     expect(calls).toBe(2);
+  });
+
+  it('allows an explicit user action to retry immediately after an automatic denial', async () => {
+    installNavigatorStorage({ persisted: async () => false, persist: async () => { calls += 1; return calls > 1; } });
+    const t0 = 2_000_000;
+    expect(await ensurePersistentStorage(t0)).toBe('denied');
+    expect(await ensurePersistentStorage(t0 + 1000)).toBe('throttled');
+    expect(await requestPersistentStorageFromUserGesture(t0 + 2000)).toBe('granted');
+    expect(calls).toBe(2);
+  });
+
+  it('coalesces concurrent automatic and user-triggered requests', async () => {
+    let release!: (value: boolean) => void;
+    installNavigatorStorage({
+      persisted: async () => false,
+      persist: async () => { calls += 1; return new Promise<boolean>((resolve) => { release = resolve; }); },
+    });
+    const automatic = ensurePersistentStorage();
+    const manual = requestPersistentStorageFromUserGesture();
+    release(true);
+    await expect(automatic).resolves.toBe('granted');
+    await expect(manual).resolves.toBe('granted');
+    expect(calls).toBe(1);
   });
 
   it('swallows API errors', async () => {

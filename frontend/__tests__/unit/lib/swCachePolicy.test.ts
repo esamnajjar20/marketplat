@@ -88,6 +88,9 @@ describe('service worker cache policy', () => {
     expect(sw).toMatch(/function isFreshCachedApiSnapshot\(url, response, now = Date\.now\(\)\)/);
     expect(sw).toMatch(/cachedAt > now \+ 60_000/);
     expect(sw).toMatch(/now - cachedAt <= maxAge/);
+    expect(sw).toMatch(/function apiSnapshotStaleGraceMs\(url\)/);
+    expect(sw).toMatch(/policy\[domain\]\?\.offline\?\.staleGraceMs/);
+    expect(sw).toMatch(/age - apiSnapshotMaxAgeMs\(url\) > graceMs/);
     const body = fnBody(sw, 'networkFirstApi');
     expect(body.match(/isFreshCachedApiSnapshot\(url, cachedApi\)/g)?.length).toBeGreaterThanOrEqual(2);
     expect(body).toMatch(/isFreshCachedApiSnapshot\(url, cachedUserData\)/);

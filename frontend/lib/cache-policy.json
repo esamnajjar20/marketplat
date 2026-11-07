@@ -18,7 +18,8 @@
     },
     "offline": {
       "staleAfterMs": 1800000,
-      "hardAfterMs": 86400000
+      "hardAfterMs": 86400000,
+      "staleGraceMs": 3600000
     }
   },
   "publicDetail": {
@@ -39,7 +40,8 @@
     },
     "offline": {
       "staleAfterMs": 1800000,
-      "hardAfterMs": 86400000
+      "hardAfterMs": 86400000,
+      "staleGraceMs": 3600000
     }
   },
   "staticDetail": {
@@ -71,7 +73,8 @@
     },
     "offline": {
       "staleAfterMs": 1800000,
-      "hardAfterMs": 86400000
+      "hardAfterMs": 86400000,
+      "staleGraceMs": 10800000
     }
   },
   "recommendations": {
@@ -92,7 +95,8 @@
     },
     "offline": {
       "staleAfterMs": 900000,
-      "hardAfterMs": 86400000
+      "hardAfterMs": 86400000,
+      "staleGraceMs": 7200000
     }
   },
   "reference": {
@@ -106,7 +110,8 @@
     },
     "offline": {
       "staleAfterMs": 86400000,
-      "hardAfterMs": 172800000
+      "hardAfterMs": 172800000,
+      "staleGraceMs": 604800000
     }
   },
   "personal": {

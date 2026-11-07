@@ -40,8 +40,9 @@
 - يجري تطهير Workers Cache وD1/KV كمحاولتين مستقلتين؛ فشل أحدهما لا يمنع محاولة الآخر.
 - عند فشل عملية purge يرجع Worker `503` كي يستطيع الباكند إعادة المحاولة وفق آلية retry القائمة.
 - رُفعت بادئة المفاتيح إلى `ref:v2:` حتى لا تُقرأ صفوف الإصدار السابق التي لا تحمل أعمدة الوسوم الجديدة.
-- الوضع الآمن الافتراضي: `REFERENCE_CACHE_LONG_TTL_ENABLED=false`.
-- عند التفعيل الصريح: 24 ساعة Fresh وحد أقصى 7 أيام للعمر، مع احتفاظ حتى الحد الأقصى للعمر المحدد (7 أيام في الوضع الطويل).
+- يبقى `REFERENCE_CACHE_PURGE_READY=false` و`REFERENCE_CACHE_LONG_TTL_ENABLED=false` افتراضياً؛ لذلك تتجاوز المسارات المتغيرة D1 حتى اكتمال التحقق من الإبطال.
+- بعد ضبط `REFERENCE_CACHE_PURGE_READY=true` فقط، تدخل جميع مجموعات المسارات المرجعية المعروفة (بما فيها التصنيفات وأنواع المتاجر والخدمات) D1 بمدة 60 ثانية Fresh و10 دقائق كحد أقصى. سياسة ساعة Fresh و24 ساعة كحد أقصى هي قيمة احتياطية للمسارات المرجعية غير المصنفة، وليست مدة المسارات الحالية القابلة للتعديل.
+- وضع 24 ساعة Fresh/7 أيام حد أقصى يحتاج تفعيل العلمين معاً، ويُترك مغلقاً حتى نجاح اختبار purge حي لكل أنواع المحتوى.
 
 ### المرحلة 4 — كاش البحث
 
@@ -112,7 +113,7 @@ EDGE_WORKER_PURGE_URL=https://<api-worker-host>/__purge__
 EDGE_WORKER_PURGE_TOKEN=<نفس قيمة PURGE_TOKEN في API Worker>
 ```
 
-لا تضبط `CF_CACHE_TAG_PURGE_ENABLED=true` قبل التأكد من نشر endpoint `/__purge__` ووصول Express إليه. يجب أن يبقى `REFERENCE_CACHE_LONG_TTL_ENABLED=false` حتى اكتمال الاختبار التالي؛ يتطلب الوضع الطويل 24 ساعة freshness و7 أيام حدًا أقصى للعمر، وسر Worker بطول 32 حرفًا على الأقل.
+لا تضبط `CF_CACHE_TAG_PURGE_ENABLED=true` قبل التأكد من نشر endpoint `/__purge__` وتشغيل عامل Outbox في API ووصوله إليه. يبقى كل من `REFERENCE_CACHE_PURGE_READY=false` و`REFERENCE_CACHE_LONG_TTL_ENABLED=false` حتى اكتمال الاختبار التالي. يجب أن يطابق `EDGE_WORKER_PURGE_TOKEN` قيمة `PURGE_TOKEN` وأن يكون طولها 32 حرفاً على الأقل.
 
 ## اختبارات ما بعد النشر — بوابة التفعيل
 
@@ -123,7 +124,7 @@ EDGE_WORKER_PURGE_TOKEN=<نفس قيمة PURGE_TOKEN في API Worker>
 5. تحقق من سجلات Cron: تشغيل warm، وعدم تجاوز حد التنظيف، وعدم حذف مفاتيح D1 غير التابعة للبادئة `ref:v*`.
 6. تحقق من ظهور نقاط في Analytics Engine، وقارن عدد الطلبات وحالات HIT/MISS ومتوسط زمن المصدر.
 7. اختبر صفحة Feature Flags بحساب `SUPER_ADMIN`، وتأكد من رفض `ADMIN` و`MODERATOR`. أنشئ علماً `PUBLIC_...` وتأكد أن `/api/public/feature-flags` لا يعيد الأعلام الداخلية.
-8. بعد نجاح الإبطال لكل الأنواع، اضبط `REFERENCE_CACHE_LONG_TTL_ENABLED=true` وانشر API Worker مجدداً.
+8. بعد نجاح الإبطال لكل الأنواع، اضبط `REFERENCE_CACHE_PURGE_READY=true` أولاً مع إبقاء TTL الطويل مغلقاً، اختبر مدة 60 ثانية/10 دقائق، ثم فعّل `REFERENCE_CACHE_LONG_TTL_ENABLED=true` فقط إن أثبتت المراقبة أن purge موثوق لكل المسارات.
 9. راقب D1 Rows Written وStorage وCache Hit Ratio بعد 24 و72 ساعة. أوقف التوسع إذا اقترب الاستهلاك من عتبة التنبيه المتفق عليها أو زادت المفاتيح بلا عائد واضح.
 
 ## التحقق المحلي المنفذ

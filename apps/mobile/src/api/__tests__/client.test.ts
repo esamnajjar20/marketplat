@@ -205,6 +205,47 @@ describe('account-scoped offline cache extensions', () => {
     expect(cache.clearPrivateCache).not.toHaveBeenCalled();
   });
 
+  it('awaits local cache invalidation before resolving a successful mutation', async () => {
+    let finishInvalidation!: () => void;
+    cache.deletePublicCacheEntriesByPrefix.mockImplementationOnce(() => new Promise<void>((resolve) => {
+      finishInvalidation = resolve;
+    }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
+      jsonResponse(200, { success: true, data: { id: 'product-1' } }),
+    ));
+
+    const { apiRequest } = await loadClient();
+    let settled = false;
+    const mutation = apiRequest('/api/v1/products/product-1', {
+      method: 'PATCH', token: 'token-a', cacheOwnerId: 'owner-a', body: JSON.stringify({ title: 'Updated' }),
+    }).finally(() => { settled = true; });
+    await vi.waitFor(() => expect(cache.deletePublicCacheEntriesByPrefix).toHaveBeenCalled());
+    expect(settled).toBe(false);
+    finishInvalidation();
+    await mutation;
+    expect(settled).toBe(true);
+  });
+
+  it('does not let a pre-mutation GET repopulate the local cache after a mutation', async () => {
+    let finishGet!: (response: Response) => void;
+    const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+      if (url.endsWith('/api/v1/products/product-1') && !init?.method) {
+        return new Promise<Response>((resolve) => { finishGet = resolve; });
+      }
+      return Promise.resolve(jsonResponse(200, { success: true, data: { id: 'product-1' } }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { apiRequest } = await loadClient();
+    const oldRead = apiRequest('/api/v1/products/product-1');
+    await apiRequest('/api/v1/products/product-1', {
+      method: 'PATCH', token: 'token-a', cacheOwnerId: 'owner-a', body: JSON.stringify({ title: 'Updated' }),
+    });
+    finishGet(jsonResponse(200, { success: true, data: { id: 'product-1', title: 'Old title' } }));
+    await oldRead;
+    expect(cache.writePublicCache).not.toHaveBeenCalled();
+  });
+
   it('never clears another account private cache when a mutation omits cacheOwnerId', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
       jsonResponse(200, { success: true, data: null }),

@@ -37,7 +37,7 @@ npm run report:search-cache-whitelist -- --days=30 --min-count=5
 
 ## ما لم يُفعّل أو يُضف عمدًا
 
-- **Long TTL:** بقي `REFERENCE_CACHE_LONG_TTL_ENABLED=false`. اختبارات Worker المحلية لا تثبت نجاح التطهير بين Express وWorker في الإنتاج.
+- **Long TTL:** بقي `REFERENCE_CACHE_PURGE_READY=false` و`REFERENCE_CACHE_LONG_TTL_ENABLED=false`. المسارات المتغيرة لا تدخل D1 دون جاهزية purge صريحة؛ اختبارات Worker المحلية لا تثبت نجاح التطهير بين Express وWorker في الإنتاج.
 - **Inbox / Notifications / Conversations:** لا تُضاف إلى كاش D1 المشترك؛ هذه بيانات خاصة متغيرة، ومفتاح URL مع `__uid` وحده ليس بديلًا عن كاش خاص وهوية موثوقة وإبطال مضبوط.
 - **City Aggregates:** لم يُنشأ جدول D1؛ المصدر الحقيقي للمنتجات والإعلانات والخدمات هو Neon، وWorker لا يملك حاليًا مسار مزامنة موثوقًا ومحدّثًا من Neon. إنشاء جدول وحده سيعطي قراءات فارغة أو قديمة.
 - **Daily Stats:** لم يُكرر في D1؛ المشروع لديه `AnalyticsEventDailyRollup` وعمليات تجميع قائمة في PostgreSQL.

@@ -1950,7 +1950,7 @@ function isSafeUserApiSnapshot(response) {
 function apiSnapshotMaxAgeMs(url) {
   const policy = self.MARKET_CACHE_POLICY || {};
   const path = typeof url === 'string' ? new URL(url, self.location.origin).pathname : url.pathname;
-  if (/\/api\/v\d+\/(?:categories|product-categories|service-categories)(?:\/|$)/i.test(path)) {
+  if (/\/api\/v\d+\/(?:categories|product-categories|service-categories|service-types|store-types)(?:\/|$)/i.test(path)) {
     return Number(policy.reference?.offline?.hardAfterMs) || 48 * 60 * 60 * 1000;
   }
   if (/\/api\/v\d+\/(?:recommendations|suggestions)(?:\/|$)/i.test(path)) {
@@ -1974,22 +1974,40 @@ function isFreshCachedApiSnapshot(url, response, now = Date.now()) {
   return Number.isFinite(maxAge) && maxAge > 0 && now - cachedAt <= maxAge;
 }
 
-const STALE_API_GRACE_MS = 7 * 24 * 60 * 60 * 1000;
+const STALE_API_GRACE_MS = 7 * 24 * 60 * 60 * 1000; // hard upper bound, never a universal grace period
 const STALE_NOTICE_MIN_GAP_MS = 30_000;
 let lastStaleNoticeAt = 0;
 
+function apiSnapshotStaleGraceMs(url) {
+  const policy = self.MARKET_CACHE_POLICY || {};
+  const path = typeof url === 'string' ? new URL(url, self.location.origin).pathname : url.pathname;
+  let domain = 'publicLive';
+  if (/\/api\/v\d+\/(?:categories|product-categories|service-categories|service-types|store-types)(?:\/|$)/i.test(path)) domain = 'reference';
+  else if (/\/api\/v\d+\/(?:recommendations|suggestions)(?:\/|$)/i.test(path)) domain = 'recommendations';
+  else if (/\/api\/v\d+\/home(?:\/|$)/i.test(path)) domain = 'publicHome';
+  else if (isPublicEntityDetailApiPath({ pathname: path })) domain = 'publicDetail';
+
+  const configured = policy[domain]?.offline?.staleGraceMs;
+  const fallback = domain === 'reference' ? STALE_API_GRACE_MS : 60 * 60 * 1000;
+  const value = configured === undefined ? fallback : Number(configured);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.min(STALE_API_GRACE_MS, value);
+}
+
 async function asStaleApiSnapshotIfInGrace(url, response) {
   try {
-    if (!(STALE_API_GRACE_MS > 0) || !response || !isSafeSharedApiSnapshot(response)) return null;
+    const graceMs = apiSnapshotStaleGraceMs(url);
+    if (!(STALE_API_GRACE_MS > 0) || !(graceMs > 0) || !response || !isSafeSharedApiSnapshot(response)) return null;
     const raw = response.headers.get('X-SW-Cached-At');
     const cachedAt = raw ? Number(raw) : NaN;
     const now = Date.now();
     if (!Number.isFinite(cachedAt) || cachedAt <= 0 || cachedAt > now + 60_000) return null;
     const age = now - cachedAt;
-    if (!(age > apiSnapshotMaxAgeMs(url)) || age > STALE_API_GRACE_MS) return null;
+    if (!(age > apiSnapshotMaxAgeMs(url)) || age - apiSnapshotMaxAgeMs(url) > graceMs) return null;
     if (!(await isValidJsonApiSnapshot(response))) return null;
     const headers = new Headers(response.headers);
     headers.set('X-SW-Stale', '1');
+    headers.set('X-SW-Stale-For-Ms', String(age));
     if (now - lastStaleNoticeAt > STALE_NOTICE_MIN_GAP_MS) {
       lastStaleNoticeAt = now;
       notifyClients({ type: 'STALE_API_SERVED', cachedAt }).catch(() => {});
@@ -3508,7 +3526,19 @@ self.addEventListener('message', (event) => {
       ? event.data.domains.filter((value) => typeof value === 'string')
       : [];
 
-    if (prefixes.length === 0 && domains.length === 0) return;
+    const replyPort = event.ports && event.ports[0];
+    const requestId = typeof event.data?.requestId === 'string' ? event.data.requestId : null;
+    const acknowledge = (ok, deleted = 0) => {
+      if (replyPort) replyPort.postMessage({
+        type: ok ? 'INVALIDATE_API_CACHE_DONE' : 'INVALIDATE_API_CACHE_FAILED',
+        requestId,
+        deleted,
+      });
+    };
+    if (prefixes.length === 0 && domains.length === 0) {
+      acknowledge(true, 0);
+      return;
+    }
 
     const contractPrefixes = domains.length && self.MARKET_CACHE_CONTRACT?.invalidation
       ? self.MARKET_CACHE_CONTRACT.invalidation
@@ -3529,16 +3559,24 @@ self.addEventListener('message', (event) => {
     };
 
     event.waitUntil((async () => {
-      const cacheNames = await caches.keys();
-      const targetNames = cacheNames.filter((name) =>
-        name === API_CACHE ||
-        name.startsWith(USER_DATA_CACHE_PREFIX),
-      );
-      await Promise.all(targetNames.map(async (name) => {
-        const cache = await caches.open(name);
-        const keys = await cache.keys();
-        await Promise.all(keys.filter(matchesPrefix).map((request) => cache.delete(request)));
-      }));
+      try {
+        const cacheNames = await caches.keys();
+        const targetNames = cacheNames.filter((name) =>
+          name === API_CACHE ||
+          name.startsWith(USER_DATA_CACHE_PREFIX),
+        );
+        let deleted = 0;
+        await Promise.all(targetNames.map(async (name) => {
+          const cache = await caches.open(name);
+          const keys = await cache.keys();
+          const results = await Promise.all(keys.filter(matchesPrefix).map((request) => cache.delete(request)));
+          deleted += results.filter(Boolean).length;
+        }));
+        acknowledge(true, deleted);
+      } catch (error) {
+        acknowledge(false, 0);
+        throw error;
+      }
     })());
     return;
   }
