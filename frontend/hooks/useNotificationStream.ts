@@ -9,11 +9,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { API_BASE_URL } from '@/lib/constants';
-import { emitTypingEvent } from '@/lib/typingStore';
 import { useAuthStore, selectIsAuthenticated, selectAccessToken, selectUser } from '@/store/auth.store';
 import { queryKeys } from '@/lib/queryKeys';
 import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
-import type { Message } from '@/types/conversation.types';
+import type { Message, ConversationListItem } from '@/types/conversation.types';
+import type { PaginatedResponse } from '@/types/api.types';
 import type { NotificationData } from '@/types/notification.types';
 
 export type LiveNotificationPayload = {
@@ -40,18 +40,10 @@ export type LiveMessageDeletedPayload = {
   deletedAt: string;
 };
 
-export type LiveTypingPayload = {
-  type: 'typing';
-  conversationId: string;
-  userId: string;
-  isTyping: boolean;
-};
-
 export type LiveStreamPayload =
   | LiveNotificationPayload
   | LiveMessageNewPayload
-  | LiveMessageDeletedPayload
-  | LiveTypingPayload;
+  | LiveMessageDeletedPayload;
 
 type Options = {
   onEvent?: (event: LiveStreamPayload) => void;
@@ -144,7 +136,28 @@ function appendMessageToCaches(
       };
     },
   );
-  void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
+  // Keep the conversation preview current from the same SSE event; do not
+  // refetch the entire conversation list after every incoming message.
+  queryClient.setQueriesData<PaginatedResponse<ConversationListItem>>(
+    { queryKey: queryKeys.conversations.mineRoot() },
+    (old) => {
+      if (!old?.items) return old;
+      const items = old.items.map((item) => {
+        if (item.id !== conversationId) return item;
+        const currentTime = Date.parse(item.lastMessage?.createdAt ?? item.updatedAt);
+        const incomingTime = Date.parse(message.createdAt);
+        if (Number.isFinite(currentTime) && Number.isFinite(incomingTime) && incomingTime < currentTime) return item;
+        return { ...item, lastMessage: message, updatedAt: message.createdAt };
+      });
+      return {
+        ...old,
+        items: items.sort((a, b) => {
+          if (Boolean(a.mySettings?.pinnedAt) !== Boolean(b.mySettings?.pinnedAt)) return a.mySettings?.pinnedAt ? -1 : 1;
+          return Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
+        }),
+      };
+    },
+  );
 }
 
 function markDeletedInCaches(
@@ -348,12 +361,6 @@ export function useNotificationStream(options?: Options) {
                   payload.messageId,
                   payload.deletedAt,
                 );
-              } else if (payload.type === 'typing') {
-                emitTypingEvent({
-                  conversationId: payload.conversationId,
-                  userId: payload.userId,
-                  isTyping: payload.isTyping,
-                });
               } else if (payload.type === 'notification') {
                 void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.mineRoot() });
                 void queryClient.invalidateQueries({

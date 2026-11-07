@@ -705,23 +705,6 @@ export const conversationsService = {
     });
   },
 
-  /** Ephemeral typing signal — no DB write; SSE only. */
-  signalTyping: async (
-    userId: string,
-    conversationId: string,
-    isTyping: boolean
-  ): Promise<void> => {
-    const conversation = await conversationsRepository.findById(conversationId);
-    if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
-    assertParty(conversation, userId);
-    const otherId = conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId;
-    void publishNotificationEvent(otherId, {
-      type: 'typing',
-      conversationId,
-      userId,
-      isTyping,
-    });
-  },
 
   getMedia: async (userId: string, conversationId: string, limit = 100): Promise<Message[]> => {
     const conversation = await conversationsRepository.findById(conversationId);

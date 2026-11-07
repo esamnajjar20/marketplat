@@ -17,7 +17,8 @@ import { RecordingTimer } from './RecordingTimer';
 import { MessageBodyEditor, type MessageBodyEditorHandle } from './MessageBodyEditor';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { hapticMessageSent, hapticMessageError } from '@/lib/capacitor/nativeHaptics';
-import type { Message } from '@/types/conversation.types';
+import type { Message, ConversationListItem } from '@/types/conversation.types';
+import type { PaginatedResponse } from '@/types/api.types';
 
 import { Spinner } from '@/components/ui/spinner';
 interface Props {
@@ -57,6 +58,37 @@ export function MessageInput({ conversationId, disabled }: Props) {
   const bodyEditorRef = useRef<MessageBodyEditorHandle>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const attachmentRef = useRef<HTMLInputElement>(null);
+
+  // Successful media POSTs already return the canonical message. Update the
+  // active thread and list preview directly instead of issuing follow-up GETs.
+  function cacheSentMessage(message: Message) {
+    queryClient.setQueriesData<PaginatedResponse<Message>>(
+      { queryKey: queryKeys.conversations.messagesRoot(conversationId) },
+      (current) => {
+        if (!current?.items || current.items.some((item) => item.id === message.id)) return current;
+        return { ...current, items: [...current.items, message] };
+      },
+    );
+    queryClient.setQueriesData<PaginatedResponse<ConversationListItem>>(
+      { queryKey: queryKeys.conversations.mineRoot() },
+      (current) => {
+        if (!current?.items) return current;
+        const items = current.items.map((item) => {
+          if (item.id !== conversationId) return item;
+          const currentTime = Date.parse(item.lastMessage?.createdAt ?? item.updatedAt);
+          const incomingTime = Date.parse(message.createdAt);
+          if (Number.isFinite(currentTime) && Number.isFinite(incomingTime) && incomingTime < currentTime) return item;
+          return { ...item, lastMessage: message, updatedAt: message.createdAt };
+        });
+        return { ...current, items: items.sort((a, b) => {
+          if (Boolean(a.mySettings?.pinnedAt) !== Boolean(b.mySettings?.pinnedAt)) {
+            return a.mySettings?.pinnedAt ? -1 : 1;
+          }
+          return Date.parse(b.updatedAt) - Date.parse(a.updatedAt);
+        }) };
+      },
+    );
+  }
 
   useEffect(() => {
     mountedRef.current = true;
@@ -217,14 +249,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
             file,
             body: bodyEditorRef.current?.getValue().trim() ?? '',
           });
-          queryClient.setQueryData(
-            queryKeys.conversations.messages(conversationId, { limit: 50 }),
-            (current: { items?: Message[]; meta?: unknown } | undefined) => {
-              if (!current || !Array.isArray(current.items)) return current;
-              if (current.items.some((item) => item.id === sentMessage.id)) return current;
-              return { ...current, items: [...current.items, sentMessage] };
-            },
-          );
+          cacheSentMessage(sentMessage);
           if (mountedRef.current && lifecycleRef.current === startGeneration) {
             bodyEditorRef.current?.clear();
             setHasBody(false);
@@ -233,8 +258,6 @@ export function MessageInput({ conversationId, disabled }: Props) {
             setUploadKind(null);
           }
           clearMessageDraft(conversationId);
-          void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.messagesRoot(conversationId) });
-          void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
         } catch (err) {
           const parsed = parseApiError(err);
           if (parsed.queued) {
@@ -244,8 +267,6 @@ export function MessageInput({ conversationId, disabled }: Props) {
               setLastSendError(null);
             }
             clearMessageDraft(conversationId);
-            void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.messagesRoot(conversationId) });
-            void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
           } else if (mountedRef.current && lifecycleRef.current === startGeneration) {
             setLastSendError(parsed.message);
             toast.error(parsed.message);
@@ -301,7 +322,11 @@ export function MessageInput({ conversationId, disabled }: Props) {
 
     if (attachmentFile) {
       setUploading(true); setUploadKind('file');
-      try { const sentMessage=await sendConversationMessage(conversationId,{kind:'file',file:attachmentFile,body:trimmed}); queryClient.setQueryData(queryKeys.conversations.messages(conversationId, { limit: 50 }),(current: { items?: Message[]; meta?: unknown } | undefined) => { if (!current || !Array.isArray(current.items) || current.items.some((item) => item.id === sentMessage.id)) return current; return { ...current, items: [...current.items, sentMessage] }; }); bodyEditorRef.current?.clear(); setHasBody(false); clearMessageDraft(conversationId); clearAttachment(); setLastSendError(null); void hapticMessageSent(); void queryClient.invalidateQueries({queryKey:queryKeys.conversations.messagesRoot(conversationId)}); }
+      try {
+        const sentMessage = await sendConversationMessage(conversationId, { kind: 'file', file: attachmentFile, body: trimmed });
+        cacheSentMessage(sentMessage);
+        bodyEditorRef.current?.clear(); setHasBody(false); clearMessageDraft(conversationId); clearAttachment(); setLastSendError(null); void hapticMessageSent();
+      }
       catch(err){const parsed=parseApiError(err); if(parsed.queued){bodyEditorRef.current?.clear(); setHasBody(false);clearMessageDraft(conversationId);clearAttachment();setLastSendError(null);void hapticMessageSent();}else{setLastSendError(parsed.message);void hapticMessageError();toast.error(parsed.message);}} finally{setUploading(false);setUploadKind(null);} keepComposerFocus(); return;
     }
 
@@ -309,19 +334,16 @@ export function MessageInput({ conversationId, disabled }: Props) {
       setUploading(true);
       setUploadKind('image');
       try {
-        await sendConversationMessage(
+        const sentMessage = await sendConversationMessage(
           conversationId,
           { kind: 'image', file: imageFile, body: trimmed },
           newOfflineOperationId(),
         );
+        cacheSentMessage(sentMessage);
         bodyEditorRef.current?.clear(); setHasBody(false);
         setLastSendError(null);
         clearMessageDraft(conversationId);
         clearImage();
-        void queryClient.invalidateQueries({
-          queryKey: queryKeys.conversations.messagesRoot(conversationId),
-        });
-        void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
       } catch (err) {
         // FIX N3-IMG-OFFLINE-QUEUED: mirror the text-path behaviour —
         // SW returns 202 {queued:true} which the interceptor rejects as
@@ -334,10 +356,6 @@ export function MessageInput({ conversationId, disabled }: Props) {
           setLastSendError(null);
           clearMessageDraft(conversationId);
           clearImage();
-          void queryClient.invalidateQueries({
-            queryKey: queryKeys.conversations.messagesRoot(conversationId),
-          });
-          void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
         } else {
           setLastSendError(parsed.message);
           toast.error(parsed.message);

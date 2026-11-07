@@ -117,7 +117,6 @@ DELETE,/api/v1/conversations/:id/messages/:messageId/star,/:id/messages/:message
 DELETE,/api/v1/conversations/:id/messages/:messageId,/:id/messages/:messageId,conversations,src/modules/conversations/conversations.routes.ts,89,", authenticate, // neither deleteMessage nor setFlags below // had any rate limit — an authenticated caller could loop either // endpoint arbitrarily. Reused sendMessageRateLimit as the closest // fitting bucket: same per-conversation mutat",definitions
 DELETE,/api/v1/conversations/:id,/:id,conversations,src/modules/conversations/conversations.routes.ts,102,", authenticate, sendMessageRateLimit, conversationsController.deleteConversation",deleteConversation
 PATCH,/api/v1/conversations/:id/flags,/:id/flags,conversations,src/modules/conversations/conversations.routes.ts,103,", authenticate, sendMessageRateLimit, conversationsController.setFlags ",setFlags
-POST,/api/v1/conversations/:id/typing,/:id/typing,conversations,src/modules/conversations/conversations.routes.ts,112,", authenticate, typingRateLimit, conversationsController.typing ",typing
 GET,/api/v1/customers/summary,/summary,customers,src/modules/customers/customers.routes.ts,7,", customersController.summary",summary
 GET,/api/v1/customers,/,customers,src/modules/customers/customers.routes.ts,8,", customersController.list",list
 GET,/api/v1/customers/search,/search,customers,src/modules/customers/customers.routes.ts,9,", customersController.search",search

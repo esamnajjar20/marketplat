@@ -9,7 +9,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useIsOnline } from '@/lib/connectivity';
 import { useAuth } from '@/features/auth/AuthContext';
-import { deleteChatMessage, fetchConversation, fetchMessagesPage, setMessageMark, signalChatTyping, type ChatMessage, type ConversationItem } from '@/features/messaging/messaging.api';
+import { deleteChatMessage, fetchConversation, fetchMessagesPage, setMessageMark, type ChatMessage, type ConversationItem } from '@/features/messaging/messaging.api';
 import { syncChatMediaOutbox } from '@/features/messaging/chat-media-outbox-sync';
 import { createChatMediaOperationId, enqueueChatMedia, listChatMediaOutbox, discardFailedChatMessage, enqueueChatMessage, listChatMessagesForConversation, retryChatMessage, type ChatMediaKind } from '@/storage/outbox-manager';
 import { subscribeChatOutboxSent, syncChatMessageOutbox } from '@/features/messaging/chat-message-outbox-sync';
@@ -55,7 +55,7 @@ export default function ConversationScreen() {
   const audioPlayerStatus = useAudioPlayerStatus(audioPlayer);
   const [playingAudioUrl, setPlayingAudioUrl] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<ScreenMessage | null>(null);
-  useEffect(() => { lastEventIdRef.current = null; }, [id]); const audioRecorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, directory: 'document' }); const sessionAbort = useRef(new AbortController()); const [conversation, setConversation] = useState<ConversationItem | null>(null); const [messages, setMessages] = useState<ScreenMessage[]>([]); const [draft, setDraft] = useState(''); const [searchOpen, setSearchOpen] = useState(false); const [messageSearch, setMessageSearch] = useState(''); const [uploadingImage, setUploadingImage] = useState(false); const [isRecordingAudio, setIsRecordingAudio] = useState(false); const [pendingMediaCount, setPendingMediaCount] = useState(0); const [partyTyping, setPartyTyping] = useState(false); const lastTypingSignalAt = useRef(0); const typingActive = useRef(false); const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null); const [loading, setLoading] = useState(true); const [sending, setSending] = useState(false); const [loadingOlder, setLoadingOlder] = useState(false); const [nextCursor, setNextCursor] = useState<string | null>(null); const olderRequest = useRef(false); const hasLoadedOlder = useRef(false); const activeConversationId = useRef(id); const hasRenderableMessages = useRef(false); const previousConnectivity = useRef<boolean | null>(null); const [error, setError] = useState<string | null>(null); const listRef = useRef<FlatList<ScreenMessage>>(null); const loadSequence = useRef(0); const initialScrollDone = useRef(false); const userScrolledAway = useRef(false);
+  useEffect(() => { lastEventIdRef.current = null; }, [id]); const audioRecorder = useAudioRecorder({ ...RecordingPresets.HIGH_QUALITY, directory: 'document' }); const sessionAbort = useRef(new AbortController()); const [conversation, setConversation] = useState<ConversationItem | null>(null); const [messages, setMessages] = useState<ScreenMessage[]>([]); const [draft, setDraft] = useState(''); const [searchOpen, setSearchOpen] = useState(false); const [messageSearch, setMessageSearch] = useState(''); const [uploadingImage, setUploadingImage] = useState(false); const [isRecordingAudio, setIsRecordingAudio] = useState(false); const [pendingMediaCount, setPendingMediaCount] = useState(0); const [loading, setLoading] = useState(true); const [sending, setSending] = useState(false); const [loadingOlder, setLoadingOlder] = useState(false); const [nextCursor, setNextCursor] = useState<string | null>(null); const olderRequest = useRef(false); const hasLoadedOlder = useRef(false); const activeConversationId = useRef(id); const hasRenderableMessages = useRef(false); const previousConnectivity = useRef<boolean | null>(null); const [error, setError] = useState<string | null>(null); const listRef = useRef<FlatList<ScreenMessage>>(null); const loadSequence = useRef(0); const initialScrollDone = useRef(false); const userScrolledAway = useRef(false);
   const load = useCallback(async (showLoader = true) => {
     const currentToken = accessTokenRef.current;
     if (activeConversationId.current !== id) {
@@ -131,7 +131,6 @@ export default function ConversationScreen() {
   }, [id, user?.id]);
   const handleLiveEvent = useCallback((event: ChatLiveEvent) => {
     if (event.type === 'resync') { void refreshLatestMessages(); return; }
-    if (event.type === 'typing' && event.conversationId === id && event.userId && event.userId !== user?.id) { setPartyTyping(event.isTyping === true); return; }
     if (event.type === 'message:new' && event.conversationId === id && event.message &&
         typeof event.message.id === 'string' && typeof event.message.senderId === 'string' &&
         typeof event.message.createdAt === 'string' && Number.isFinite(Date.parse(event.message.createdAt))) {
@@ -276,20 +275,6 @@ export default function ConversationScreen() {
       } },
     ]);
   }, [user?.id]);
-  useEffect(() => {
-    if (!accessToken || !id) return;
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-    if (draft.trim()) {
-      if (!typingActive.current || Date.now() - lastTypingSignalAt.current > 2500) {
-        lastTypingSignalAt.current = Date.now(); typingActive.current = true;
-        void signalChatTyping(id, true, accessToken, csrfToken).catch(() => undefined);
-      }
-      typingTimer.current = setTimeout(() => { typingActive.current = false; void signalChatTyping(id, false, accessToken, csrfToken).catch(() => undefined); }, 1800);
-    } else if (typingActive.current) {
-      typingActive.current = false; void signalChatTyping(id, false, accessToken, csrfToken).catch(() => undefined);
-    }
-    return () => { if (typingTimer.current) clearTimeout(typingTimer.current); };
-  }, [draft, accessToken, csrfToken, id]);
   const queueAndTryMedia = useCallback(async (kind: ChatMediaKind, asset: { uri: string; fileName: string; mimeType: string }) => {
     if (!accessToken || !id || !user?.id) return;
     const queued = await enqueueChatMedia({ ownerId: user.id, conversationId: id, kind, ...asset, operationId: createChatMediaOperationId(kind) });
@@ -399,7 +384,7 @@ export default function ConversationScreen() {
         ...(actionMessage.senderId === user?.id ? [{ key: 'delete', label: 'حذف الرسالة', tone: 'danger' as const, onPress: () => confirmDeleteOwnMessage(actionMessage) }] : []),
       ] : []}
     />
-    <View style={styles.header}><Pressable onPress={() => router.back()} accessibilityRole="button"><Text style={styles.link}>رجوع</Text></Pressable><View style={styles.headerCenter}><Text numberOfLines={1} style={styles.heading}>{other?.name || 'المحادثة'}</Text>{conversation?.ad?.title ? <Text numberOfLines={1} style={styles.context}>{conversation.ad.title}</Text> : null}{partyTyping ? <Text style={styles.typing}>يكتب الآن…</Text> : null}</View><Pressable onPress={() => setSearchOpen(value => !value)} accessibilityRole="button"><Text style={styles.link}>{searchOpen ? 'إغلاق البحث' : 'بحث'}</Text></Pressable></View>
+    <View style={styles.header}><Pressable onPress={() => router.back()} accessibilityRole="button"><Text style={styles.link}>رجوع</Text></Pressable><View style={styles.headerCenter}><Text numberOfLines={1} style={styles.heading}>{other?.name || 'المحادثة'}</Text>{conversation?.ad?.title ? <Text numberOfLines={1} style={styles.context}>{conversation.ad.title}</Text> : null}</View><Pressable onPress={() => setSearchOpen(value => !value)} accessibilityRole="button"><Text style={styles.link}>{searchOpen ? 'إغلاق البحث' : 'بحث'}</Text></Pressable></View>
     {searchOpen ? <View style={styles.searchBar}><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="البحث في الرسائل المحمّلة" value={messageSearch} onChangeText={setMessageSearch} placeholder="ابحث في الرسائل المحمّلة…" placeholderTextColor={colors.muted} style={styles.searchInput} textAlign="right"/><Text style={styles.searchCount}>{normalizedSearch ? `${visibleMessages.length} نتيجة` : 'بحث محلي دون طلبات إضافية'}</Text></View> : null}
     {loading ? <View style={styles.center}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جاري تحميل الرسائل…</Text></View> : error ? <View style={styles.center}><Text style={styles.title}>تعذر فتح المحادثة</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void load()}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View> : <>
       <FlatList ref={listRef} data={visibleMessages} keyExtractor={(item) => item.id} contentContainerStyle={styles.messages} keyboardShouldPersistTaps="handled" maintainVisibleContentPosition={{ minIndexForVisible: 0 }} onContentSizeChange={() => { if (!initialScrollDone.current && messages.length > 0) requestAnimationFrame(() => requestAnimationFrame(() => { if (initialScrollDone.current || loadingOlder || userScrolledAway.current) return; listRef.current?.scrollToEnd({ animated: false }); initialScrollDone.current = true; })); }} onScroll={(event) => { const offset = event.nativeEvent.contentOffset.y; const distanceFromBottom = event.nativeEvent.contentSize.height - event.nativeEvent.layoutMeasurement.height - offset; userScrolledAway.current = distanceFromBottom > 120; if (offset <= 40) void loadOlder(); }} scrollEventThrottle={250} ListHeaderComponent={loadingOlder ? <ActivityIndicator size="small" color={colors.brand} /> : nextCursor ? <Text style={styles.olderHint}>اسحب إلى الأعلى لتحميل الرسائل الأقدم</Text> : undefined} ListEmptyComponent={<Text style={styles.muted}>لا توجد رسائل بعد. ابدأ المحادثة برسالة واضحة.</Text>} renderItem={({ item }) => (
@@ -433,7 +418,6 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   headerCenter: { flex: 1, alignItems: 'center' },
-  typing: { fontSize: fontSizes[10], color: colors.brand, marginTop: 2 },
   searchBar: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,

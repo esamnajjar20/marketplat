@@ -10,7 +10,6 @@
  *    per-user Redis Stream (replayBuffer.ts); the entry id is sent as the SSE
  *    `id:`. A client that reconnects with `Last-Event-ID` gets what it missed
  *    replayed, or an `event: resync` when the buffer cannot prove completeness.
- *  - `typing` is ephemeral: live only, never buffered, no id.
  *  - Bulk fan-outs (admin broadcasts) skip the buffer: one stream per recipient
  *    for 100K users would cost far more memory than a missed promo toast is
  *    worth; their rows are in Postgres and the client refetches on reconnect.
@@ -66,12 +65,7 @@ export type LiveStreamEvent =
       messageId: string;
       deletedAt: string;
     }
-  | {
-      type: 'typing';
-      conversationId: string;
-      userId: string;
-      isTyping: boolean;
-    };
+;
 
 /** @deprecated alias — prefer LiveStreamEvent */
 export type NotificationLiveEvent = LiveStreamEvent;
@@ -132,15 +126,8 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   return Promise.race([p, timeout]).finally(() => clearTimeout(timer));
 }
 
-/** Typing indicators are ephemeral by nature; everything else can be replayed. */
-function isReplayable(event: LiveStreamEvent): boolean {
-  return event.type !== 'typing';
-}
-
 function eventNameFor(payload: LiveStreamEvent): 'message' | 'notification' {
-  return payload.type === 'message:new' ||
-    payload.type === 'message:deleted' ||
-    payload.type === 'typing'
+  return payload.type === 'message:new' || payload.type === 'message:deleted'
     ? 'message'
     : 'notification';
 }
@@ -364,7 +351,7 @@ export async function publishNotificationEvent(
   event: LiveStreamEvent,
   opts: { buffer?: boolean } = {}
 ): Promise<void> {
-  const id = opts.buffer !== false && isReplayable(event) ? await bufferEvent(userId, event) : null;
+  const id = opts.buffer !== false ? await bufferEvent(userId, event) : null;
 
   deliverLocal(userId, event, id ?? undefined);
 

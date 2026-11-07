@@ -77,6 +77,4 @@ export const conversationsApi = {
   downloadMedia: (conversationId: string, messageId: string, kind: 'image' | 'audio' | 'file') =>
     apiClient.get<Blob>(`/conversations/${conversationId}/messages/${messageId}/media/${kind}`, { responseType: 'blob' }),
 
-  signalTyping: (id: string, isTyping: boolean) =>
-    apiClient.post<ApiResponse<void>>(`/conversations/${id}/typing`, { isTyping }),
 };

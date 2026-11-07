@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, ShieldAlert, X as XIcon, Archive, Pin } from 'lucide-react';
 import { toast } from 'sonner';
-import { ConversationTypingIndicator } from './ConversationTypingIndicator';
 import { useSetConversationFlags, useMessageMarkMutation } from '@/hooks/mutations/useConversationMutations';
 import {
   sameCalendarDay,
@@ -673,7 +672,6 @@ export function ChatWindow({ conversationId }: Props) {
         )}
       </div>
 
-      <ConversationTypingIndicator conversationId={conversationId} userId={user?.id} />
       <div className="native-chat-composer shrink-0">
         <MessageInput conversationId={conversationId} disabled={isBlocked} />
         </div>

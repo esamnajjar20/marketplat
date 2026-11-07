@@ -102,13 +102,6 @@ export const setConversationFlagsSchema = z.object({
     }),
 });
 
-export const typingSchema = z.object({
-  params: z.object({ id: z.string().min(1) }),
-  body: z.object({
-    isTyping: z.boolean(),
-  }),
-});
-
 export const messageMarkSchema = z.object({
   params: z.object({ id: z.string().min(1), messageId: z.string().min(1) }),
 });

@@ -13,10 +13,8 @@ import {
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 /**
- * GET /users/presence?ids=... — bulk online lookup for however many
- * user IDs the current view needs a dot for. Polls at CACHE_TTL.presence
- * (paused when tab hidden/offline; stretched when SSE is up) — same posture as
- * useMessages/useMyConversations (see those hooks' own doc comments).
+ * GET /users/presence?ids=... — one bulk lookup for the visible user IDs.
+ * No polling: the cached result is reused until stale or explicitly refreshed.
  *
  * userIds should be a stable array (memoized by the caller) — it feeds
  * queryKeys.presence.bulk, which sorts+joins it into the cache key, so
@@ -34,7 +32,6 @@ export function usePresence(userIds: string[]) {
     queryFn: ({ signal }) => usersApi.getPresence(userIds, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.presence,
     // refetchInterval: () => pollingInterval(CACHE_TTL.presence, 3), // FIX: Disabled polling to save server resources
-    // Presence already pauses through pollingInterval when hidden/offline.
     // Avoid an extra immediate fetch merely because a long-lived protected
     // page regained focus; reconnect/online changes still refresh normally.
     refetchOnWindowFocus: false,

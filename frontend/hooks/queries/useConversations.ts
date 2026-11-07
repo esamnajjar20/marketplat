@@ -1,7 +1,7 @@
 'use client';
 import { reportBackgroundFailure } from '../../lib/backgroundTask';
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { conversationsApi } from '@/api/conversations.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
@@ -13,7 +13,8 @@ import {
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 // import { pollingInterval } from '@/lib/polling'; // FIX: unused after disabling polling
-import type { ConversationsQuery, MessagesQuery } from '@/types/conversation.types';
+import type { ConversationsQuery, MessagesQuery, ConversationListItem } from '@/types/conversation.types';
+import type { PaginatedResponse } from '@/types/api.types';
 import {
   saveConversationsList,
   getConversationsList,
@@ -54,6 +55,8 @@ export function useMyConversations(params?: ConversationsQuery) {
       }
     },
     staleTime: CACHE_TTL.conversations,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     // refetchInterval: () => pollingInterval(CACHE_TTL.conversations, 6), // FIX: Disabled polling to save server resources
     // أونلاين: فقط مع توكن. أوفلاين: شغّل queryFn لإرجاع الكاش المحلي.
     enabled: isAuthenticated && (hasToken || !isOnline),
@@ -66,6 +69,14 @@ export function useConversation(id: string) {
   const hasToken = useAuthStore(selectHasAccessToken);
   const userId = useAuthStore(selectUser)?.id ?? null;
   const isOnline = useOnlineStatus();
+  const queryClient = useQueryClient();
+  const cachedEntry = queryClient.getQueriesData<PaginatedResponse<ConversationListItem>>({
+    queryKey: queryKeys.conversations.mineRoot(),
+  }).find(([, data]) => data?.items?.some((item) => item.id === id));
+  const cachedConversation = cachedEntry?.[1]?.items.find((item) => item.id === id);
+  const cachedUpdatedAt = cachedEntry
+    ? queryClient.getQueryState(cachedEntry[0])?.dataUpdatedAt
+    : undefined;
 
   return useQuery({
     queryKey: queryKeys.conversations.detail(id),
@@ -83,6 +94,10 @@ export function useConversation(id: string) {
       }
     },
     staleTime: CACHE_TTL.conversations,
+    initialData: cachedConversation,
+    initialDataUpdatedAt: cachedUpdatedAt,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     enabled: isAuthenticated && Boolean(id) && (hasToken || !isOnline),
   });
 }
@@ -158,7 +173,9 @@ export function useMessages(conversationId: string, params?: MessagesQuery) {
       }
     },
     staleTime: CACHE_TTL.messages,
-    // refetchInterval: () => pollingInterval(CACHE_TTL.messages, 8), // FIX: Disabled polling to save server resources
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    // SSE delivers new/deleted messages; resync invalidates this query only after a detected gap.
     enabled: isAuthenticated && Boolean(conversationId) && params?.before !== '__disabled__' && (hasToken || !isOnline),
   });
 }

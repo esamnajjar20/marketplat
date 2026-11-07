@@ -8,8 +8,6 @@ import {
   useState,
   type KeyboardEvent,
 } from 'react';
-import { conversationsApi } from '@/api/conversations.api';
-import { reportBackgroundFailure } from '@/lib/backgroundTask';
 import { loadMessageDraft, saveMessageDraft } from '@/lib/messageUtils';
 import { cn } from '@/lib/utils';
 
@@ -36,8 +34,6 @@ export const MessageBodyEditor = forwardRef<MessageBodyEditorHandle, Props>(func
 ) {
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const typingActive = useRef(false);
   const valueRef = useRef('');
 
   const syncValue = (next: string) => {
@@ -59,8 +55,6 @@ export const MessageBodyEditor = forwardRef<MessageBodyEditorHandle, Props>(func
     valueRef.current = initial;
     setValue(initial);
     onContentChange(Boolean(initial.trim()));
-    typingActive.current = false;
-    if (typingTimer.current) clearTimeout(typingTimer.current);
 
     const onOfflineMessageEdit = (event: Event) => {
       const detail = (event as CustomEvent<{ conversationId?: string; body?: string }>).detail;
@@ -71,12 +65,6 @@ export const MessageBodyEditor = forwardRef<MessageBodyEditorHandle, Props>(func
     window.addEventListener('offline-message-edit', onOfflineMessageEdit);
     return () => {
       window.removeEventListener('offline-message-edit', onOfflineMessageEdit);
-      if (typingTimer.current) clearTimeout(typingTimer.current);
-      if (typingActive.current) {
-        void conversationsApi.signalTyping(conversationId, false).catch((error) =>
-          reportBackgroundFailure('frontend/components/messages/MessageBodyEditor.tsx', error),
-        );
-      }
     };
   }, [conversationId, onContentChange]);
 
@@ -92,23 +80,8 @@ export const MessageBodyEditor = forwardRef<MessageBodyEditorHandle, Props>(func
     el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
   }, [value]);
 
-  function signalTyping(isTyping: boolean) {
-    if (disabled) return;
-    typingActive.current = isTyping;
-    void conversationsApi.signalTyping(conversationId, isTyping).catch((error) =>
-      reportBackgroundFailure('frontend/components/messages/MessageBodyEditor.tsx', error),
-    );
-  }
-
   function handleChange(next: string) {
     syncValue(next);
-    if (!next.trim()) {
-      if (typingActive.current) signalTyping(false);
-      return;
-    }
-    if (!typingActive.current) signalTyping(true);
-    if (typingTimer.current) clearTimeout(typingTimer.current);
-    typingTimer.current = setTimeout(() => signalTyping(false), 2000);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {

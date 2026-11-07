@@ -138,7 +138,6 @@
 "api-client","POST","`/conversations/${id}/messages/file`","apiClient.post<ApiResponse<Message>>(`/conversations/${id}/messages/file`, form, { headers: { [OFFLINE_OP_ID_HEADER]: newOfflineOperationId() } })","api/conversations.api.ts","65"
 "api-client","POST","`/conversations/${id}/messages/audio`","apiClient.post<ApiResponse<Message>>(`/conversations/${id}/messages/audio`, form, { headers: { [OFFLINE_OP_ID_HEADER]: newOfflineOperationId() }, })","api/conversations.api.ts","72"
 "api-client","GET","`/conversations/${conversationId}/messages/${messageId}/media/${kind}`","apiClient.get<Blob>(`/conversations/${conversationId}/messages/${messageId}/media/${kind}`, { responseType: 'blob' })","api/conversations.api.ts","78"
-"api-client","POST","`/conversations/${id}/typing`","apiClient.post<ApiResponse<void>>(`/conversations/${id}/typing`, { isTyping })","api/conversations.api.ts","81"
 "api-client","GET","'/customers/summary'","apiClient.get<ApiResponse<{ totalCustomers:number; vipCustomers:number; debtors:number; inactiveCustomers:number; totalSpent:number; averageCustomerSpend:number }>>('/customers/summary', config)","api/customers.api.ts","7"
 "api-client","GET","'/customers'","apiClient.get<ApiResponse<{ items: Customer[]; meta: import('@/types/api.types').PaginationMeta }>>('/customers', { ...config, params })","api/customers.api.ts","12"
 "api-client","GET","`/customers/${id}`","apiClient.get<ApiResponse<Customer>>(`/customers/${id}`)","api/customers.api.ts","13"

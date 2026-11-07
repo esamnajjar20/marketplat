@@ -11,7 +11,6 @@ import { CACHE } from '../../middlewares/cacheControl.middleware';
 import {
   startConversationRateLimit,
   sendMessageRateLimit,
-  typingRateLimit,
 } from '../../middlewares/rateLimit.middleware';
 
 export const conversationsRouter = Router();
@@ -146,12 +145,4 @@ conversationsRouter.patch(
   sendMessageRateLimit,
   conversationsController.setFlags
 );
-// rate-limited now. See typingRateLimit's
-// own comment for why it's a separate bucket from send_message and why
-// the budget is 600/15min rather than sendMessage's 60.
-conversationsRouter.post(
-  '/:id/typing',
-  authenticate,
-  typingRateLimit,
-  conversationsController.typing
-);
+

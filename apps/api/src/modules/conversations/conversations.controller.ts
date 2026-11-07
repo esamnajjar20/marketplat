@@ -11,7 +11,6 @@ import {
   getMessagesSchema,
   deleteMessageSchema,
   setConversationFlagsSchema,
-  typingSchema,
   messageMarkSchema,
   mediaQuerySchema,
 } from './conversations.validation';
@@ -510,14 +509,5 @@ export const conversationsController = {
     }
   },
 
-  typing: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const user = requireUser(req);
-      const { params, body } = typingSchema.parse({ params: req.params, body: req.body });
-      await conversationsService.signalTyping(user.userId, params.id, body.isTyping);
-      res.status(200).json(successResponse('Typing signal sent'));
-    } catch (error) {
-      next(error);
-    }
-  },
+
 };

@@ -4,7 +4,7 @@ import { chatMessageResponseSchema } from '@/api/response-schemas';
 import { getApiBaseUrl } from '@/api/client';
 
 export type ChatLiveEvent = {
-  type: 'message:new' | 'message:deleted' | 'typing' | 'notification' | 'resync' | 'connected' | string;
+  type: 'message:new' | 'message:deleted' | 'notification' | 'resync' | 'connected' | string;
   conversationId?: string;
   message?: {
     id: string;
@@ -20,8 +20,6 @@ export type ChatLiveEvent = {
   };
   messageId?: string;
   deletedAt?: string;
-  userId?: string;
-  isTyping?: boolean;
 };
 
 export type ChatLiveStreamOptions = {
@@ -57,8 +55,6 @@ const chatLiveEventSchema = z.object({
   message: chatMessageResponseSchema.optional(),
   messageId: z.string().min(1).optional(),
   deletedAt: z.string().optional(),
-  userId: z.string().min(1).optional(),
-  isTyping: z.boolean().optional(),
 }).passthrough();
 
 const MAX_SSE_BUFFER_BYTES = 1_000_000;

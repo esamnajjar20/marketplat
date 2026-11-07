@@ -30,6 +30,9 @@ for (const file of cards) {
 
 const chatRow = read('components/messages/ChatMessageRow.tsx');
 const chatWindow = read('components/messages/ChatWindow.tsx');
+check(!/ConversationTypingIndicator|signalTyping|typingActive/.test(chatWindow), 'ChatWindow: typing feature must be removed');
+check(!/signalTyping|typingTimer|typingActive/.test(read('components/messages/MessageBodyEditor.tsx')), 'MessageBodyEditor: typing requests must be removed');
+check(!/signalTyping/.test(read('api/conversations.api.ts')), 'Conversations API: typing endpoint must be removed');
 const messageUtils = read('lib/messageUtils.ts');
 check(/useNowAfterMount\(true, message\.createdAt\)/.test(chatRow), 'ChatMessageRow: day separator must use the hydration-safe shared clock');
 check(/messageDayLabel\(iso: string, now: Date\)/.test(messageUtils), 'messageDayLabel: implicit current-time default can reintroduce hydration mismatch');
@@ -37,12 +40,6 @@ check(/isRetrying:\s*boolean/.test(chatRow), 'ChatMessageRow: shared retryingQue
 check(!/retryingQueueId\s*:/.test(chatRow), 'ChatMessageRow: retryingQueueId still exists in Props');
 check(/isRetrying=\{retryingQueueId === message\.queueId\}/.test(chatWindow), 'ChatWindow: retry state was not reduced to row-local boolean');
 
-const typingIndicator = read('components/messages/ConversationTypingIndicator.tsx');
-check(/<ConversationTypingIndicator/.test(chatWindow), 'ChatWindow: typing indicator was not isolated');
-check(!/partyTyping|onTypingEvent/.test(chatWindow), 'ChatWindow: high-frequency typing state returned to the conversation parent');
-check(/memo\(function ConversationTypingIndicator/.test(typingIndicator), 'ConversationTypingIndicator: memo boundary missing');
-check(/onTypingEvent/.test(typingIndicator), 'ConversationTypingIndicator: typing event subscription missing');
-check(/setTimeout\(\(\) => \{[\s\S]*?isTyping: false[\s\S]*?\}, 4000\)/.test(typingIndicator), 'ConversationTypingIndicator: typing timeout must clear stale status');
 
 const detailGalleryContracts = [
   {

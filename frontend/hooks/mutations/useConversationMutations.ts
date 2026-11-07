@@ -33,10 +33,8 @@ export { useStartConversation } from './useStartConversation';
  * same way a real message would. onError rolls that specific cache
  * write back and restores the composer's text (MessageInput's onError
  * below) so a failed send doesn't silently lose what was typed.
- * onSettled still invalidates as before — the refetch it triggers
- * replaces the temporary id with the server's real one (and a real
- * readAt/deliveredAt going forward), so this is purely additive to the
- * existing flow, not a replacement for it.
+ * onSuccess reconciles the optimistic row with the canonical POST response.
+ * SSE updates other participants' caches, so no follow-up GET is needed.
  *
  * FEAT-OFFLINE-MSG: offline sends used to hit this exact onError path
  * too — sw.js's 202 {queued:true} becomes a rejected promise with
@@ -197,13 +195,6 @@ export function useSendMessage(conversationId: string) {
               : { ...data.meta, total: (data.meta.total ?? withoutOptimistic.length) + 1 },
         });
       }
-      // Safety net: reconcile server-side fields (Cloudinary transforms,
-      // readAt, etc.) the raw POST body may not carry. Inactive-only so
-      // the visible list does not flash.
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.conversations.messagesRoot(conversationId),
-        refetchType: 'inactive',
-      });
     },
 
     onError: (err, _payload, context) => {
@@ -285,12 +276,6 @@ export function useSendMessage(conversationId: string) {
       toast.error(parsed.message);
     },
 
-    onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.conversations.messagesRoot(conversationId),
-      });
-      queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
-    },
   });
 }
 
