@@ -3,7 +3,7 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 
 import { useRef, useState } from 'react';
 import { toast } from 'sonner';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Pencil, Trash2, Eye, CheckCircle, Check, X, CheckSquare } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
@@ -291,7 +291,7 @@ export function MyAdsList() {
             : status === 'EXPIRED' ? 'لا توجد إعلانات منتهية'
             : 'لا توجد إعلانات محذوفة'
           }
-          action={!status ? <Link href={ROUTES.adCreate} prefetch={false}><Button>نشر إعلان</Button></Link> : undefined} />
+          action={!status ? <IntentPrefetchLink href={ROUTES.adCreate} prefetch={false}><Button>نشر إعلان</Button></IntentPrefetchLink> : undefined} />
       ) : (
         <div className="space-y-3">
           {items.map((ad) => {
@@ -334,7 +334,7 @@ export function MyAdsList() {
                 </div>
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-start justify-between gap-2">
-                    <Link href={ROUTES.adDetail(ad.id)} prefetch={false} className="font-medium text-sm hover:underline line-clamp-1">{ad.title}</Link>
+                    <IntentPrefetchLink href={ROUTES.adDetail(ad.id)} prefetch={false} className="font-medium text-sm hover:underline line-clamp-1">{ad.title}</IntentPrefetchLink>
                     <Badge variant={AD_STATUS_VARIANT[ad.status]} className="shrink-0 text-xs">
                       {STATUS_LABELS[ad.status]}
                     </Badge>
@@ -375,11 +375,11 @@ export function MyAdsList() {
                     <PinAdButton adId={ad.id} isPinned={Boolean(ad.isPinned)} />
                   )}
                   <RepublishAdButton adId={ad.id} status={ad.status} />
-                  <Link href={ROUTES.adEdit(ad.id)} prefetch={false}>
+                  <IntentPrefetchLink href={ROUTES.adEdit(ad.id)} prefetch={false}>
                     <Button variant="ghost" size="icon" className="h-9 w-9 rounded-[10px] border border-[var(--legacy-border)]" aria-label={`تعديل ${ad.title}`}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                  </Link>
+                  </IntentPrefetchLink>
                   <Button variant="ghost" size="icon" className="h-9 w-9 rounded-[10px] border border-[var(--legacy-border)] text-[var(--legacy-danger)] hover:text-[var(--legacy-danger)]"
                     aria-label={`حذف ${ad.title}`}
                     onClick={() => scheduleDelete(ad.id)}>

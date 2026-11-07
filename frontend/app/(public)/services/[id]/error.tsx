@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function ServiceDetailError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
@@ -17,9 +17,9 @@ export default function ServiceDetailError({ reset }: { error: Error & { digest?
         <button type="button" onClick={reset} className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
           <RefreshCw className="h-4 w-4" aria-hidden="true" />إعادة المحاولة
         </button>
-        <Link href="/services" className="inline-flex min-h-11 items-center rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-muted" prefetch={false}>
+        <IntentPrefetchLink href="/services" className="inline-flex min-h-11 items-center rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-muted" prefetch={false}>
           تصفح الخدمات
-        </Link>
+        </IntentPrefetchLink>
       </div>
     </section>
   );

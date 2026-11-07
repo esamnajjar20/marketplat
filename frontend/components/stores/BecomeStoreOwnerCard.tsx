@@ -3,7 +3,7 @@
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
@@ -102,7 +102,7 @@ export function BecomeStoreOwnerCard() {
           يجب أن يكون لديك ملف بائع أولاً قبل فتح متجر.
         </p>
         <Button asChild>
-          <Link href={ROUTES.settings.seller} prefetch={false}>إنشاء ملف بائع</Link>
+          <IntentPrefetchLink href={ROUTES.settings.seller} prefetch={false}>إنشاء ملف بائع</IntentPrefetchLink>
         </Button>
       </div>
     );

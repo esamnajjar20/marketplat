@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Archive, FileText, Wifi, WifiOff, X } from 'lucide-react';
 
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -106,20 +106,20 @@ export function NetworkStatusBanner() {
           <span className="shrink-0">لا يوجد اتصال بالإنترنت</span>
           {offlineQuerySavedAt != null && <span className="hidden max-w-[30vw] truncate text-xs font-normal opacity-90 sm:inline">— بيانات محفوظة · {formatOfflineSavedAt(new Date(offlineQuerySavedAt).toISOString())}</span>}
           <nav aria-label="خيارات الأوفلاين" className="ms-2 flex shrink-0 items-center gap-2">
-            <Link
+            <IntentPrefetchLink
               href="/offline?tab=saved"
               className="inline-flex items-center gap-1 rounded-md border border-current/30 px-2 py-1 text-xs underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" prefetch={false}
             >
               <Archive className="h-3.5 w-3.5" aria-hidden />
               المحفوظات
-            </Link>
-            <Link
+            </IntentPrefetchLink>
+            <IntentPrefetchLink
               href="/offline?tab=drafts"
               className="hidden items-center gap-1 rounded-md border border-current/30 px-2 py-1 text-xs underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 sm:inline-flex" prefetch={false}
             >
               <FileText className="h-3.5 w-3.5" aria-hidden />
               المسودات
-            </Link>
+            </IntentPrefetchLink>
           </nav>
         </div>
       )}
@@ -138,14 +138,14 @@ export function NetworkStatusBanner() {
           <WifiOff className="h-3.5 w-3.5" aria-hidden />
           <span>غير متصل</span>
           {offlineQuerySavedAt != null && <span className="max-w-[30vw] truncate font-normal opacity-90">· {formatOfflineSavedAt(new Date(offlineQuerySavedAt).toISOString())}</span>}
-          <Link
+          <IntentPrefetchLink
             href="/offline?tab=saved"
             aria-label="فتح المحفوظات دون اتصال"
             className="ms-1 inline-flex shrink-0 items-center gap-1 rounded-full border border-current/40 px-2 py-1 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" prefetch={false}
           >
             <Archive className="h-3 w-3" aria-hidden />
             <span>المحفوظات</span>
-          </Link>
+          </IntentPrefetchLink>
         </div>
       )}
 
@@ -162,14 +162,14 @@ export function NetworkStatusBanner() {
         >
           <WifiOff className="h-3.5 w-3.5" aria-hidden />
           <span>الاتصال لا يستجيب</span>
-          <Link
+          <IntentPrefetchLink
             href="/offline?tab=saved"
             aria-label="فتح المحفوظات دون اتصال"
             className="ms-1 inline-flex shrink-0 items-center gap-1 rounded-full border border-current/40 px-2 py-1 underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" prefetch={false}
           >
             <Archive className="h-3 w-3" aria-hidden />
             <span>المحفوظات</span>
-          </Link>
+          </IntentPrefetchLink>
         </div>
       )}
 

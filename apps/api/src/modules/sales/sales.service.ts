@@ -1003,7 +1003,7 @@ export const salesService = {
           }
         : {}),
     };
-    const [sales, totalCount, totals] = await Promise.all([
+    const [sales, reportTotals] = await Promise.all([
       prisma.saleRecord.findMany({
         where,
         orderBy: [{ soldAt: 'desc' }, { id: 'desc' }],
@@ -1034,10 +1034,10 @@ export const salesService = {
           },
         },
       }),
-      prisma.saleRecord.count({ where }),
-      // Totals must cover every matching sale, not just the (capped) rows above.
+      // Count and totals cover every matching sale, not only the capped rows.
       salesRepository.reportTotals(userId, query),
     ]);
+    const { count: totalCount, ...totals } = reportTotals;
     const rows = sales.map(sale => {
       const cost = sale.items.reduce(
         (sum, item) =>

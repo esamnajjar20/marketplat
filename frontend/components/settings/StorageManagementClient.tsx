@@ -6,7 +6,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   HardDrive,
   Trash2,
@@ -241,10 +241,10 @@ export function StorageManagementClient() {
               </p>
             </div>
             <Button type="button" variant="outline" size="sm" asChild>
-              <Link href={ROUTES.offline.saved} prefetch={false}>
+              <IntentPrefetchLink href={ROUTES.offline.saved} prefetch={false}>
                 عرض
                 <ExternalLink className="ms-1 h-3.5 w-3.5" />
-              </Link>
+              </IntentPrefetchLink>
             </Button>
           </li>
           <li className="flex items-center gap-3 rounded-xl bg-muted/40 px-3 py-2.5">
@@ -263,14 +263,14 @@ export function StorageManagementClient() {
               </p>
             </div>
             <Button type="button" variant="outline" size="sm" asChild>
-              <Link href={ROUTES.offline.sync} prefetch={false}>
+              <IntentPrefetchLink href={ROUTES.offline.sync} prefetch={false}>
                 المزامنة
                 <WifiOff className="ms-1 h-3.5 w-3.5" />
-              </Link>
+              </IntentPrefetchLink>
             </Button>
             {/* DRAFTS-LINKS-01 */}
             <Button type="button" variant="ghost" size="sm" asChild>
-              <Link href={ROUTES.offline.drafts} prefetch={false}>مسوداتي</Link>
+              <IntentPrefetchLink href={ROUTES.offline.drafts} prefetch={false}>مسوداتي</IntentPrefetchLink>
             </Button>
           </li>
         </ul>

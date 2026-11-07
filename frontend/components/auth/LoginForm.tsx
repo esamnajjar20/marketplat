@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useSearchParams } from 'next/navigation';
 import { Mail, Lock } from 'lucide-react';
 import { useLogin } from '@/hooks/mutations/useAuthMutations';
@@ -161,9 +161,9 @@ export function LoginForm() {
       </AuthField>
 
       <div className="flex justify-end">
-        <Link href={ROUTES.forgotPassword} className="text-[13px] font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.forgotPassword} className="text-[13px] font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>
           نسيت كلمة المرور؟
-        </Link>
+        </IntentPrefetchLink>
       </div>
 
       {/* FIX BUG-XX: this block duplicated useLogin's onError toast —
@@ -194,9 +194,9 @@ export function LoginForm() {
 
       <p className="text-center text-[13px] text-[var(--legacy-muted-text)]">
         ليس لديك حساب؟{' '}
-        <Link href={registerHref} className="font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>
+        <IntentPrefetchLink href={registerHref} className="font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>
           إنشاء حساب
-        </Link>
+        </IntentPrefetchLink>
       </p>
     </form>
   );

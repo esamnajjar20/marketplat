@@ -8,7 +8,7 @@
  * CORE_ROUTES, no network is touched for the payload.
  */
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { AlertTriangle, MapPin, Package, Store, Tag, Wrench } from 'lucide-react';
 import type { Home } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
@@ -67,7 +67,7 @@ export function SharedPayloadView() {
           اطلب من المرسل إعادة المشاركة.
         </p>
         <Button asChild variant="outline">
-          <Link href="/" prefetch={false}>الرئيسية</Link>
+          <IntentPrefetchLink href="/" prefetch={false}>الرئيسية</IntentPrefetchLink>
         </Button>
       </div>
     );
@@ -83,7 +83,7 @@ export function SharedPayloadView() {
           اطلب من المرسل إعادة توليد الرمز.
         </p>
         <Button asChild variant="outline">
-          <Link href="/" prefetch={false}>الرئيسية</Link>
+          <IntentPrefetchLink href="/" prefetch={false}>الرئيسية</IntentPrefetchLink>
         </Button>
       </div>
     );
@@ -142,7 +142,7 @@ export function SharedPayloadView() {
       </p>
 
       <Button asChild variant="outline" className="w-full">
-        <Link href="/" prefetch={false}>تصفّح السوق</Link>
+        <IntentPrefetchLink href="/" prefetch={false}>تصفّح السوق</IntentPrefetchLink>
       </Button>
     </div>
   );

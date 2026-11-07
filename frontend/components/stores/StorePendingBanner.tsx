@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Clock, Ban } from 'lucide-react';
 import { useMyStore } from '@/hooks/queries/useStores';
 import { ROUTES } from '@/lib/constants';
@@ -30,13 +30,13 @@ export function StorePendingBanner() {
       <p>
         <span className="text-sm font-extrabold">متجرك غير ظاهر للزوار بعد</span>
         {' — '}قيد مراجعة الإدارة. يمكنك تجهيز{' '}
-        <Link href={ROUTES.myStoreProducts} className="text-primary hover:underline" prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.myStoreProducts} className="text-primary hover:underline" prefetch={false}>
           المنتجات
-        </Link>
+        </IntentPrefetchLink>
         {' '}و{' '}
-        <Link href={ROUTES.myStorePromotions} className="text-primary hover:underline" prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.myStorePromotions} className="text-primary hover:underline" prefetch={false}>
           العروض
-        </Link>
+        </IntentPrefetchLink>
         .
       </p>
     </div>

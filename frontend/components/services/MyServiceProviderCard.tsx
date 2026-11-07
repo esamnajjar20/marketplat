@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Briefcase, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
@@ -231,16 +231,16 @@ export function MyServiceProviderCard({ provider }: Props) {
 
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" asChild className="gap-1.5">
-          <Link href={ROUTES.userProfile(currentUser!.id)} prefetch={false}>
+          <IntentPrefetchLink href={ROUTES.userProfile(currentUser!.id)} prefetch={false}>
             عرض صفحتي العامة <ExternalLink className="h-3.5 w-3.5" />
-          </Link>
+          </IntentPrefetchLink>
         </Button>
         <Button variant="outline" size="sm" asChild>
-          <Link href={ROUTES.myServices} prefetch={false}>إدارة خدماتي</Link>
+          <IntentPrefetchLink href={ROUTES.myServices} prefetch={false}>إدارة خدماتي</IntentPrefetchLink>
         </Button>
         {/* ANALYTICS: mirrors MyStoreCard's own "الإحصائيات" button. */}
         <Button variant="outline" size="sm" asChild>
-          <Link href={ROUTES.myServiceProviderAnalytics} prefetch={false}>الإحصائيات</Link>
+          <IntentPrefetchLink href={ROUTES.myServiceProviderAnalytics} prefetch={false}>الإحصائيات</IntentPrefetchLink>
         </Button>
       </div>
       <div className="border-t pt-4">

@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ShieldCheck, Clock } from 'lucide-react';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { ROUTES } from '@/lib/constants';
@@ -35,7 +35,7 @@ export function SellerVerificationBanner() {
           </p>
         </div>
         <Button size="sm" variant="outline" asChild>
-          <Link href={ROUTES.settings.seller} prefetch={false}>ملف البائع</Link>
+          <IntentPrefetchLink href={ROUTES.settings.seller} prefetch={false}>ملف البائع</IntentPrefetchLink>
         </Button>
       </div>
     );
@@ -51,7 +51,7 @@ export function SellerVerificationBanner() {
         </p>
       </div>
       <Button size="sm" variant="outline" asChild>
-        <Link href={ROUTES.settings.seller} prefetch={false}>طلب التوثيق</Link>
+        <IntentPrefetchLink href={ROUTES.settings.seller} prefetch={false}>طلب التوثيق</IntentPrefetchLink>
       </Button>
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface ServiceProviderErrorProps {
@@ -30,12 +30,12 @@ export default function ServiceProviderError({ reset }: ServiceProviderErrorProp
         >
           <RefreshCw className="h-4 w-4" aria-hidden="true" />إعادة المحاولة
         </button>
-        <Link
+        <IntentPrefetchLink
           href="/service-providers"
           className="inline-flex min-h-11 items-center rounded-lg border px-4 py-2 text-sm font-semibold hover:bg-muted" prefetch={false}
         >
           تصفح مقدمي الخدمة
-        </Link>
+        </IntentPrefetchLink>
       </div>
     </section>
   );

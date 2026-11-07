@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { notFound, redirect } from 'next/navigation';
 import { UserRound } from 'lucide-react';
 import type { ServiceProviderPublic } from '@/types/service.types';
@@ -44,7 +44,7 @@ export default async function LegacyServiceProviderRedirectPage({ params }: Prop
         description="تم العثور على مقدم الخدمة، لكن بيانات الحساب المرتبط به غير متاحة. يمكنك تصفح مقدمي الخدمة والمحاولة من جديد."
         tone="warning"
         role="alert"
-        action={<Link href={ROUTES.serviceProviders} className="text-sm font-semibold text-primary hover:underline" prefetch={false}>تصفح مقدمي الخدمة</Link>}
+        action={<IntentPrefetchLink href={ROUTES.serviceProviders} className="text-sm font-semibold text-primary hover:underline" prefetch={false}>تصفح مقدمي الخدمة</IntentPrefetchLink>}
       />
     </div>
   );

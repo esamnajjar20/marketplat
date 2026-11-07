@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ArrowRight } from 'lucide-react';
 
 interface Props {
@@ -30,13 +30,13 @@ interface Props {
 export function EditPageHeader({ backTo, backLabel, title }: Props) {
   return (
     <div className="mb-6 space-y-3">
-      <Link
+      <IntentPrefetchLink
         href={backTo}
         className="inline-flex min-h-10 items-center gap-1.5 rounded-[var(--radius-control)] px-2 text-sm text-muted-foreground transition-[background-color,color] duration-fast hover:bg-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" prefetch={false}
       >
         <ArrowRight className="h-4 w-4" />
         {backLabel}
-      </Link>
+      </IntentPrefetchLink>
       <h1 className="text-[length:var(--font-size-page-title)] font-semibold tracking-tight">{title}</h1>
     </div>
   );

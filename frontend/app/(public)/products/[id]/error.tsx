@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
@@ -47,7 +47,7 @@ useEffect(() => {
           إعادة المحاولة
         </Button>
         <Button asChild>
-          <Link href={ROUTES.home} prefetch={false}>الرئيسية</Link>
+          <IntentPrefetchLink href={ROUTES.home} prefetch={false}>الرئيسية</IntentPrefetchLink>
         </Button>
       </div>
     </div>

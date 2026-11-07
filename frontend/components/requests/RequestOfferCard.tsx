@@ -1,7 +1,7 @@
 'use client';
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { ROUTES } from '@/lib/constants';
@@ -120,7 +120,7 @@ export function RequestOfferCard({ offer, context = 'public', action, className 
           {formatPrice(offer.price)}
         </span>
         {request ? (
-          <Link
+          <IntentPrefetchLink
             href={ROUTES.request(offer.requestId)}
             prefetch={false}
             className={cn(
@@ -129,7 +129,7 @@ export function RequestOfferCard({ offer, context = 'public', action, className 
             )}
           >
             {request.title ?? 'طلب'}
-          </Link>
+          </IntentPrefetchLink>
         ) : showOfferer ? (
           <p className="truncate text-sm font-semibold text-foreground">من: {offer.offerer?.name}</p>
         ) : null}

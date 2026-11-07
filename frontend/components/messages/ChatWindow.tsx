@@ -2,7 +2,7 @@
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useRouter } from 'next/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { AlertTriangle, ChevronRight, ChevronDown, MoreVertical, UserX, UserCheck, ShieldAlert, X as XIcon, Archive, Pin } from 'lucide-react';
@@ -390,9 +390,9 @@ export function ChatWindow({ conversationId }: Props) {
       <div className="flex flex-col items-center gap-3 py-12 text-center">
         <AlertTriangle className="h-10 w-10 text-muted-foreground" />
         <p className="text-destructive">تعذّر تحميل المحادثة</p>
-        <Link href={ROUTES.messages} className="text-sm text-primary hover:underline" prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.messages} className="text-sm text-primary hover:underline" prefetch={false}>
           العودة للمحادثات
-        </Link>
+        </IntentPrefetchLink>
       </div>
     );
   }
@@ -455,7 +455,7 @@ export function ChatWindow({ conversationId }: Props) {
         </SheetContent>
       </Sheet>
       {contextCard && (
-        <Link
+        <IntentPrefetchLink
           prefetch={false}
           href={contextCard.url}
           className="mx-3 mt-2.5 flex shrink-0 items-center gap-2.5 rounded-xl border border-border/80 bg-card px-3 py-2.5 shadow-xs transition-colors hover:bg-muted/30"
@@ -480,7 +480,7 @@ export function ChatWindow({ conversationId }: Props) {
               {String(contextCard.price)}
             </span>
           ) : null}
-        </Link>
+        </IntentPrefetchLink>
       )}
       {showSafetyTip && (
         <div
@@ -524,7 +524,7 @@ export function ChatWindow({ conversationId }: Props) {
               />
             )}
           </button>
-        <Link prefetch={false} href={ROUTES.userProfile(party.id)} className="min-w-0 flex-1 hover:opacity-80 transition-opacity">
+        <IntentPrefetchLink prefetch={false} href={ROUTES.userProfile(party.id)} className="min-w-0 flex-1 hover:opacity-80 transition-opacity">
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-sm line-clamp-1">{party.name}</p>
             {/* DESIGN-PASS MSG-01: "بخصوص: {title}" dropped here — the
@@ -540,7 +540,7 @@ export function ChatWindow({ conversationId }: Props) {
               <p className="text-xs text-muted-foreground line-clamp-1">آخر ظهور {<HydrationSafeRelativeTime date={partyPresence.lastSeenAt} />}</p>
             ) : null}
           </div>
-        </Link>
+        </IntentPrefetchLink>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

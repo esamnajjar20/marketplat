@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ClipboardList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { RequestOfferStatus } from '@/types/request.types';
@@ -39,7 +39,7 @@ function MyRequestOffersContent() {
           <p className="text-sm text-muted-foreground">العروض التي قدّمتها على طلبات السوق</p>
         </div>
         <Button variant="outline" size="sm" asChild>
-          <Link href={ROUTES.requests} prefetch={false}>سوق الطلبات</Link>
+          <IntentPrefetchLink href={ROUTES.requests} prefetch={false}>سوق الطلبات</IntentPrefetchLink>
         </Button>
       </div>
 
@@ -56,7 +56,7 @@ function MyRequestOffersContent() {
           if (tab.value) qs.set('status', tab.value);
           const href = qs.toString() ? `${ROUTES.myOpenRequestOffers}?${qs}` : ROUTES.myOpenRequestOffers;
           return (
-            <Link
+            <IntentPrefetchLink
               key={tab.label}
               href={href}
               role="tab"
@@ -67,7 +67,7 @@ function MyRequestOffersContent() {
               )} prefetch={false}
             >
               {tab.label}
-            </Link>
+            </IntentPrefetchLink>
           );
         })}
       </div>
@@ -108,7 +108,7 @@ function MyRequestOffersContent() {
           description="تصفّح سوق الطلبات وقدّم عرضك على ما يناسبك."
           action={
             <Button asChild>
-              <Link href={ROUTES.requests} prefetch={false}>تصفح السوق</Link>
+              <IntentPrefetchLink href={ROUTES.requests} prefetch={false}>تصفح السوق</IntentPrefetchLink>
             </Button>
           }
         />

@@ -1,7 +1,7 @@
 'use client';
 
 import { useInfiniteQuery } from '@tanstack/react-query';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { Button } from '@/components/shared/ui/Button';
 import { Spinner } from '@/components/ui/spinner';
@@ -74,7 +74,7 @@ export function PromotedLoadMore({ hasServerSeed }: { hasServerSeed: boolean }) 
           icon={<Flame className="h-8 w-8" />}
           title="لا عروض مروَّجة حالياً"
           description="عند تفعيل المتاجر لعروض جديدة ستظهر هنا."
-          action={<Link href={ROUTES.products} className="text-sm font-medium text-primary" prefetch={false}>تصفّح كل المنتجات</Link>}
+          action={<IntentPrefetchLink href={ROUTES.products} className="text-sm font-medium text-primary" prefetch={false}>تصفّح كل المنتجات</IntentPrefetchLink>}
         />
       ) : null}
       {products.length > 0 && (

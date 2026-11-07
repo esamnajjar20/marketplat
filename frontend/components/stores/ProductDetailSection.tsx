@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SearchX, AlertTriangle, ChevronLeft } from 'lucide-react';
 import { ProductDetail } from '@/components/stores/ProductDetail';
 import { AdDetailsSkeleton } from '@/components/shared/skeletons/AdDetailsSkeleton';
@@ -70,7 +70,7 @@ export function ProductDetailSection({ id }: { id: string }) {
                   </Button>
                 )}
                 <Button asChild size="sm">
-                  <Link href={ROUTES.search + '?type=products'} prefetch={false}>تصفّح المنتجات</Link>
+                  <IntentPrefetchLink href={ROUTES.search + '?type=products'} prefetch={false}>تصفّح المنتجات</IntentPrefetchLink>
                 </Button>
               </div>
             }
@@ -95,13 +95,13 @@ export function ProductDetailSection({ id }: { id: string }) {
     <div className="space-y-4">
       {isError && <OfflineStaleDataNotice onRetry={() => { if (!isFetching) void refetch(); }} isFetching={isFetching} />}
       <nav aria-label="مسار التصفح" className="mb-4 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
-        <Link href={ROUTES.home} className="hover:text-primary" prefetch={false}>الرئيسية</Link>
+        <IntentPrefetchLink href={ROUTES.home} className="hover:text-primary" prefetch={false}>الرئيسية</IntentPrefetchLink>
         <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        <Link href={ROUTES.products} className="hover:text-primary" prefetch={false}>المنتجات</Link>
+        <IntentPrefetchLink href={ROUTES.products} className="hover:text-primary" prefetch={false}>المنتجات</IntentPrefetchLink>
         <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        <Link href={ROUTES.storeDetail(product.store.slug || product.storeId)} className="hover:text-primary" prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.storeDetail(product.store.slug || product.storeId)} className="hover:text-primary" prefetch={false}>
           {product.store.name}
-        </Link>
+        </IntentPrefetchLink>
         <ChevronLeft className="h-3.5 w-3.5 shrink-0" aria-hidden />
         <span className="line-clamp-1 text-foreground/80">{product.name}</span>
       </nav>

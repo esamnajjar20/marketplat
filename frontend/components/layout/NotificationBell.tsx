@@ -2,7 +2,7 @@
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   Bell,
   CheckCheck,
@@ -76,9 +76,9 @@ function NotificationRow({
 
   if (href) {
     return (
-      <Link href={href} onClick={handleClick} className="block" prefetch={false}>
+      <IntentPrefetchLink href={href} onClick={handleClick} className="block" prefetch={false}>
         {content}
-      </Link>
+      </IntentPrefetchLink>
     );
   }
 
@@ -240,12 +240,12 @@ export function NotificationBell() {
           <DropdownMenuLabel className="p-0 font-normal">الإشعارات</DropdownMenuLabel>
           <div className="flex items-center gap-2">
           {pushDenied && (
-            <Link
+            <IntentPrefetchLink
               href={ROUTES.settings.notifications}
               className="text-2xs text-warning-strong hover:underline dark:text-warning" prefetch={false}
             >
               الجهاز متوقف
-            </Link>
+            </IntentPrefetchLink>
           )}
           {unreadCount > 0 && (
             <button
@@ -264,7 +264,7 @@ export function NotificationBell() {
 
         <div className="notification-dropdown-scroll max-h-[min(28rem,70vh)] overflow-y-auto">
           {pwaReg && (
-            <Link
+            <IntentPrefetchLink
               href="/update"
               className="flex w-full items-start gap-2.5 border-b bg-primary/5 p-3 text-start transition-colors hover:bg-primary/10" prefetch={false}
             >
@@ -280,7 +280,7 @@ export function NotificationBell() {
                   اضغط لعرض تفاصيل التحديث وتفعيله
                 </p>
               </div>
-            </Link>
+            </IntentPrefetchLink>
           )}
           {isLoading ? (
             <div className="flex flex-col gap-0 divide-y" role="status" aria-label="جارٍ التحميل">
@@ -328,12 +328,12 @@ export function NotificationBell() {
 
         <DropdownMenuSeparator className="m-0" />
         <div className="notification-dropdown-footer p-2.5">
-          <Link
+          <IntentPrefetchLink
             href={ROUTES.notifications}
             className="flex min-h-10 w-full items-center justify-center rounded-xl px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/8 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" prefetch={false}
           >
             عرض كل الإشعارات
-          </Link>
+          </IntentPrefetchLink>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

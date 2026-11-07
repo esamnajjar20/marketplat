@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Store as StoreIcon } from 'lucide-react';
 import { StoreCard } from '@/components/stores/StoreCard';
 import { StoreCardSkeleton } from '@/components/shared/skeletons/StoreCardSkeleton';
@@ -44,9 +44,9 @@ export function RecentStores() {
         {items.map((store) => <StoreCard key={store.id} store={store} />)}
       </div>
       <div className="flex justify-center">
-        <Link href={ROUTES.stores} prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.stores} prefetch={false}>
           <Button variant="outline">عرض جميع المتاجر</Button>
-        </Link>
+        </IntentPrefetchLink>
       </div>
     </div>
   );

@@ -2,7 +2,7 @@
 import { isChunkLoadError } from '@/lib/errorReporter';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Button } from '@/components/shared/ui/Button';
 import { Spinner } from '@/components/ui/spinner';
 import { reportClientError, handleChunkLoadError, isOfflineChunkLoadError} from '@/lib/errorReporter';
@@ -86,7 +86,7 @@ useEffect(() => {
       <div className="flex flex-wrap items-center justify-center gap-2">
         <Button onClick={chunkFailed ? () => window.location.reload() : reset}>حاول مجدداً</Button>
         <Button variant="outline" asChild>
-          <Link href={ROUTES.home} prefetch={false}>العودة للرئيسية</Link>
+          <IntentPrefetchLink href={ROUTES.home} prefetch={false}>العودة للرئيسية</IntentPrefetchLink>
         </Button>
       </div>
     </div>

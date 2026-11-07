@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { LayoutGrid, Store } from 'lucide-react';
 import { useMemo } from 'react';
 import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
@@ -89,15 +89,15 @@ export function CategoriesRow() {
     <section aria-label="الفئات" className="space-y-2">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold sm:text-base">الفئات</h2>
-        <Link href={ROUTES.categories} prefetch={false} className="text-xs font-semibold text-primary hover:underline">
+        <IntentPrefetchLink href={ROUTES.categories} prefetch={false} className="text-xs font-semibold text-primary hover:underline">
           كل الفئات ←
-        </Link>
+        </IntentPrefetchLink>
       </div>
       <div className="-mx-3 flex gap-2.5 overflow-x-auto overscroll-x-contain px-3 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:-mx-4 sm:px-4">
         {unified.map((item) => {
           const Icon = item.type === 'store' ? Store : iconFor(item.slug, item.nameAr, item.type);
           return (
-            <Link
+            <IntentPrefetchLink
               key={`${item.type}-${item.id}`}
               href={item.href}
               prefetch={false}
@@ -112,10 +112,10 @@ export function CategoriesRow() {
               <span className="line-clamp-2 w-full text-xs font-semibold leading-tight text-foreground">
                 {item.nameAr}
               </span>
-            </Link>
+            </IntentPrefetchLink>
           );
         })}
-        <Link
+        <IntentPrefetchLink
           href={ROUTES.categories}
           prefetch={false}
           className="inline-flex min-h-[5.5rem] w-[5.5rem] shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border bg-card/80 px-2 py-2.5 text-center transition-colors hover:border-primary/40"
@@ -124,7 +124,7 @@ export function CategoriesRow() {
             <LayoutGrid className="h-5 w-5" aria-hidden />
           </span>
           <span className="text-xs font-semibold leading-tight">كل الفئات</span>
-        </Link>
+        </IntentPrefetchLink>
       </div>
     </section>
   );

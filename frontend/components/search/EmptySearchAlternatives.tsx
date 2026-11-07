@@ -5,7 +5,7 @@
  * so the user still has something to browse (not a dead end).
  */
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { AdCard } from '@/components/ads/AdCard';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { useAds } from '@/hooks/queries/useAds';
@@ -24,13 +24,12 @@ export function EmptySearchAlternatives() {
     <div className="mt-8 space-y-3 border-t pt-6">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">أحدث الإعلانات بدلاً من ذلك</h2>
-        {/* SW-FIX-ESA-PREFETCH-MALFORM: `prefetch={false}` was placed after
-            the opening tag — as JSX text it rendered the literal string
-            "prefetch=" above the link. Same malformed pattern fixed in
-            RecentAds/ConversationList. */}
-        <Link prefetch={false} href={`${ROUTES.search}?type=ads`} className="text-xs font-medium text-primary hover:underline">
+        {/* SW-FIX-ESA-PREFETCH-MALFORM: historical malformed prefetch markup was
+            corrected. This link now uses IntentPrefetchLink, so it warms only
+            after user intent rather than on initial viewport entry. */}
+        <IntentPrefetchLink prefetch={false} href={`${ROUTES.search}?type=ads`} className="text-xs font-medium text-primary hover:underline">
           عرض الكل
-        </Link>
+        </IntentPrefetchLink>
       </div>
       {isLoading ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

@@ -1,6 +1,6 @@
 import { memo } from 'react';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 
@@ -322,7 +322,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
 
             </div>
 
-            <Link
+            <IntentPrefetchLink
 
               href={detailHref}
 
@@ -340,7 +340,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
 
               التفاصيل
 
-            </Link>
+            </IntentPrefetchLink>
 
           </div>
 
@@ -388,7 +388,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
 
     >
 
-      <Link
+      <IntentPrefetchLink
 
         href={detailHref}
 
@@ -472,7 +472,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
 
         </div>
 
-      </Link>
+      </IntentPrefetchLink>
 
       {showHeart && (
 

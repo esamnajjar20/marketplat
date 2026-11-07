@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from 'react';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { usePathname } from 'next/navigation';
 import { Logo }           from './Logo';
 import { SearchBar }      from './SearchBar';
@@ -116,15 +116,15 @@ export function PublicHeader({ showSearch = true, showMenuTrigger: _showMenuTrig
         {/* Keep the menu trigger on the same RTL edge as the protected header. */}
         <div className="flex shrink-0 items-center gap-1">
           <MobileNav />
-          <Link prefetch={false} href={ROUTES.home} className="shrink-0">
+          <IntentPrefetchLink prefetch={false} href={ROUTES.home} className="shrink-0">
             <Logo size="sm" />
-          </Link>
+          </IntentPrefetchLink>
         </div>
         <div className="ms-auto flex items-center gap-1">
           <ThemeToggle />
           {isAuthenticated && <NotificationBell />}
           {showSearch && (
-            <Link
+            <IntentPrefetchLink
               prefetch={false}
               href={ROUTES.search}
               aria-label="بحث"
@@ -134,15 +134,15 @@ export function PublicHeader({ showSearch = true, showMenuTrigger: _showMenuTrig
                 <circle cx="11" cy="11" r="7" />
                 <path d="M20 20l-3-3" />
               </svg>
-            </Link>
+            </IntentPrefetchLink>
           )}
         </div>
       </div>
 
       <div className="container mx-auto hidden min-h-16 max-w-7xl items-center gap-3 px-4 py-2 lg:gap-4 lg:flex">
-        <Link prefetch={false} href={ROUTES.home} className="shrink-0">
+        <IntentPrefetchLink prefetch={false} href={ROUTES.home} className="shrink-0">
           <Logo />
-        </Link>
+        </IntentPrefetchLink>
 
         {/* DESKTOP-RESPONSIVE-01: keep the full five-link desktop navigation
             for lg and wider viewports. At 768–1023px, the full row can
@@ -155,19 +155,19 @@ export function PublicHeader({ showSearch = true, showMenuTrigger: _showMenuTrig
               reachable from the services surface and the shared Explore
               drawer instead of consuming a top-level slot. */}
           <Button asChild variant="ghost" size="sm" className={navItemClass(onSearchPage)}>
-            <Link prefetch={false} href={ROUTES.search} aria-current={onSearchPage ? 'page' : undefined}>استكشاف</Link>
+            <IntentPrefetchLink prefetch={false} href={ROUTES.search} aria-current={onSearchPage ? 'page' : undefined}>استكشاف</IntentPrefetchLink>
           </Button>
           <Button asChild variant="ghost" size="sm" className={navItemClass(isAdsBrowseActive)}>
-            <Link prefetch={false} href={`${ROUTES.search}?type=ads`} aria-current={isAdsBrowseActive ? 'page' : undefined}>الإعلانات</Link>
+            <IntentPrefetchLink prefetch={false} href={`${ROUTES.search}?type=ads`} aria-current={isAdsBrowseActive ? 'page' : undefined}>الإعلانات</IntentPrefetchLink>
           </Button>
           <Button asChild variant="ghost" size="sm" className={navItemClass(isActive(ROUTES.products))}>
-            <Link prefetch={false} href={ROUTES.products} aria-current={isActive(ROUTES.products) ? 'page' : undefined}>المنتجات</Link>
+            <IntentPrefetchLink prefetch={false} href={ROUTES.products} aria-current={isActive(ROUTES.products) ? 'page' : undefined}>المنتجات</IntentPrefetchLink>
           </Button>
           <Button asChild variant="ghost" size="sm" className={navItemClass(isActive(ROUTES.services))}>
-            <Link prefetch={false} href={ROUTES.services} aria-current={isActive(ROUTES.services) ? 'page' : undefined}>الخدمات</Link>
+            <IntentPrefetchLink prefetch={false} href={ROUTES.services} aria-current={isActive(ROUTES.services) ? 'page' : undefined}>الخدمات</IntentPrefetchLink>
           </Button>
           <Button asChild variant="ghost" size="sm" className={navItemClass(isActive(ROUTES.stores))}>
-            <Link prefetch={false} href={ROUTES.stores} aria-current={isActive(ROUTES.stores) ? 'page' : undefined}>المتاجر</Link>
+            <IntentPrefetchLink prefetch={false} href={ROUTES.stores} aria-current={isActive(ROUTES.stores) ? 'page' : undefined}>المتاجر</IntentPrefetchLink>
           </Button>
         </nav>
 
@@ -202,10 +202,10 @@ export function PublicHeader({ showSearch = true, showMenuTrigger: _showMenuTrig
                 أضف
               </Button>
               <Button asChild variant="ghost" size="sm" className="transition-colors">
-                <Link prefetch={false} href={ROUTES.login}>تسجيل الدخول</Link>
+                <IntentPrefetchLink prefetch={false} href={ROUTES.login}>تسجيل الدخول</IntentPrefetchLink>
               </Button>
               <Button asChild size="sm">
-                <Link prefetch={false} href={ROUTES.register}>إنشاء حساب</Link>
+                <IntentPrefetchLink prefetch={false} href={ROUTES.register}>إنشاء حساب</IntentPrefetchLink>
               </Button>
             </>
           )}

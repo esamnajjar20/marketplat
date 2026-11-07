@@ -12,7 +12,7 @@
  * token expires mid-session before the refresh interceptor fires.
  */
 
-import Link     from 'next/link';
+import IntentPrefetchLink     from '@/components/navigation/IntentPrefetchLink';
 import { usePathname } from 'next/navigation';
 import { Button }   from '@/components/shared/ui/Button';
 import { ROUTES }   from '@/lib/constants';
@@ -42,10 +42,10 @@ export function Unauthorized({
 
       <div className="flex gap-3">
         <Button asChild>
-          <Link href={loginHref} prefetch={false}>تسجيل الدخول</Link>
+          <IntentPrefetchLink href={loginHref} prefetch={false}>تسجيل الدخول</IntentPrefetchLink>
         </Button>
         <Button asChild variant="outline">
-          <Link href={ROUTES.register} prefetch={false}>إنشاء حساب</Link>
+          <IntentPrefetchLink href={ROUTES.register} prefetch={false}>إنشاء حساب</IntentPrefetchLink>
         </Button>
       </div>
     </div>

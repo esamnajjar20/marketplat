@@ -12,7 +12,7 @@ import {
 } from '@/components/shared/ui/DropdownMenu';
 import { useFavoriteLists } from '@/hooks/queries/useFavoriteLists';
 import { useMoveFavoriteToList } from '@/hooks/mutations/useFavoriteListMutations';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ROUTES } from '@/lib/constants';
 
 interface Props {
@@ -62,7 +62,7 @@ export function MoveToListMenu({ favoriteId, currentListId = null, className }: 
           ))}
           {items.length === 0 && (
             <DropdownMenuItem asChild>
-              <Link href={ROUTES.favorites} prefetch={false}>لا قوائم — أنشئ قائمة من المفضلة</Link>
+              <IntentPrefetchLink href={ROUTES.favorites} prefetch={false}>لا قوائم — أنشئ قائمة من المفضلة</IntentPrefetchLink>
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>

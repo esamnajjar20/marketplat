@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useClampedPage } from '@/hooks/useClampedPage';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { FolderOpen, Store, UserRound, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMyFollowing, useFollowStatus } from '@/hooks/queries/useFollows';
 import { useToggleFollow } from '@/hooks/mutations/useFollowMutations';
@@ -67,13 +67,13 @@ export function TargetRow({ type, target }: { type: FollowTargetType; target: Fo
 
   return (
     <div className="group flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-3 shadow-sm transition hover:border-primary/30 hover:shadow-md sm:p-4">
-      <Link href={href} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" prefetch={false}>
+      <IntentPrefetchLink href={href} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" prefetch={false}>
         <FollowAvatar src={image} name={label} kind={kind} />
         <span className="min-w-0 flex-1">
           <span className="block truncate font-semibold text-foreground">{label}</span>
           <span className="mt-0.5 block truncate text-xs text-muted-foreground">{subtitle}</span>
         </span>
-      </Link>
+      </IntentPrefetchLink>
       <button
         type="button"
         disabled={statusLoading || toggle.isPending}
@@ -108,10 +108,10 @@ function FollowPersonRow({ user }: { user: FollowPerson }) {
   const toggle = useToggleFollow();
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-3 shadow-sm transition hover:border-primary/30 sm:p-4">
-      <Link href={`/profile/${user.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" prefetch={false}>
+      <IntentPrefetchLink href={`/profile/${user.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" prefetch={false}>
         <FollowAvatar src={user.avatarUrl} name={user.name} kind="user" />
         <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{user.name}</span><span className="mt-0.5 block truncate text-xs text-muted-foreground">{user.city || 'مستخدم في Marketplat'}</span></span>
-      </Link>
+      </IntentPrefetchLink>
       {currentUserId !== user.id && <button type="button" disabled={statusLoading || toggle.isPending} aria-pressed={following} onClick={() => toggle.mutate({ targetType: 'USER', targetId: user.id })} className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border px-3 text-xs font-semibold transition disabled:opacity-60 ${following ? 'border-border bg-muted/60 hover:bg-muted' : 'border-primary bg-primary text-primary-foreground hover:bg-primary/90'}`}>
         {(statusLoading || toggle.isPending) && <Spinner size="xs" />}{statusLoading ? 'جارٍ التحقق' : toggle.isPending ? 'جارٍ التحديث' : following ? 'تتابعه' : 'متابعة'}
       </button>}

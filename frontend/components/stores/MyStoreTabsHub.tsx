@@ -23,7 +23,7 @@
 
 import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   BarChart3,
   Boxes,
@@ -114,12 +114,12 @@ function TabBody({ tab, storeLabels }: { tab: MyStoreTab; storeLabels: ReturnTyp
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h1 className="text-xl font-extrabold">{storeLabels.products}</h1>
-            <Link prefetch={false} href={ROUTES.myStoreProductCreate}>
+            <IntentPrefetchLink prefetch={false} href={ROUTES.myStoreProductCreate}>
               <Button size="sm" className="gap-1.5">
                 <PackagePlus className="h-4 w-4" />
                 {storeLabels.addProduct}
               </Button>
-            </Link>
+            </IntentPrefetchLink>
           </div>
           <Suspense fallback={<SuspenseFallback />}>
             <MyProductsList />
@@ -170,10 +170,10 @@ function TabBody({ tab, storeLabels }: { tab: MyStoreTab; storeLabels: ReturnTyp
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h1 className="text-xl font-extrabold">إحصائيات المتجر</h1>
             <Button size="sm" asChild className="gap-1.5 font-semibold">
-              <Link prefetch={false} href={ROUTES.myStoreProductCreate}>
+              <IntentPrefetchLink prefetch={false} href={ROUTES.myStoreProductCreate}>
                 <PackagePlus className="h-4 w-4" />
                 {storeLabels.addProduct}
-              </Link>
+              </IntentPrefetchLink>
             </Button>
           </div>
           <MyStoreAnalytics />

@@ -20,7 +20,7 @@
 
 import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { BarChart3, CalendarClock, Inbox, LayoutDashboard, Plus } from 'lucide-react';
 import { TabsHub } from '@/components/shared/hub/TabsHub';
 import { ROUTES } from '@/lib/constants';
@@ -110,10 +110,10 @@ function TabBody({ tab }: { tab: MyServicesTab }) {
               <p className="mt-1 text-sm text-muted-foreground">مؤشرات تساعدك على فهم أداء خدماتك واتخاذ قرارات أفضل.</p>
             </div>
             <Button size="sm" asChild className="gap-1.5 font-semibold">
-              <Link prefetch={false} href={ROUTES.myServiceCreate}>
+              <IntentPrefetchLink prefetch={false} href={ROUTES.myServiceCreate}>
                 <Plus className="h-4 w-4" />
                 خدمة جديدة
-              </Link>
+              </IntentPrefetchLink>
             </Button>
           </div>
           <MyServiceProviderAnalytics />

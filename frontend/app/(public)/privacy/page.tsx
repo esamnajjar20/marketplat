@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { LegalPageShell } from '@/components/shared/legal/LegalPageShell';
 import { buildMetadata } from '@/lib/seo';
 import { ROUTES } from '@/lib/constants';
@@ -43,7 +43,7 @@ export default function PrivacyPage() {
       <h2>حقوقك</h2>
       <p>
         يمكنك تحديث ملفك من الإعدادات، وطلب الدعم عبر{' '}
-        <Link href={ROUTES.contact} prefetch={false}>صفحة التواصل</Link>.
+        <IntentPrefetchLink href={ROUTES.contact} prefetch={false}>صفحة التواصل</IntentPrefetchLink>.
       </p>
       <h2>التحديثات</h2>
       <p>قد نحدّث هذه الصفحة عند تغيّر الممارسات؛ تاريخ السريان يظهر عند النشر الرسمي.</p>

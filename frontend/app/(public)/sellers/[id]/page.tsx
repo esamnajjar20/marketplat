@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { notFound, redirect } from 'next/navigation';
 import { UserRound } from 'lucide-react';
 import { sellersApi } from '@/api/sellers.api';
@@ -40,7 +40,7 @@ export default async function LegacySellerProfileRedirectPage({ params }: Props)
         description="لم نتمكن من تحديد حساب المستخدم المرتبط بهذا الرابط. يمكنك العودة إلى قائمة البائعين والمحاولة من جديد."
         tone="warning"
         role="alert"
-        action={<Link href={ROUTES.sellersRanking} className="text-sm font-semibold text-primary hover:underline" prefetch={false}>العودة إلى البائعين</Link>}
+        action={<IntentPrefetchLink href={ROUTES.sellersRanking} className="text-sm font-semibold text-primary hover:underline" prefetch={false}>العودة إلى البائعين</IntentPrefetchLink>}
       />
     </div>
   );

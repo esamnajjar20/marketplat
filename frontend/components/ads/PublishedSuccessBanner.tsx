@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { SuccessCard } from '@/components/shared/feedback/SuccessCard';
 import { Button } from '@/components/shared/ui/Button';
@@ -36,12 +36,12 @@ export function PublishedSuccessBanner() {
         description="إعلانك الآن ظاهر للجميع. يمكنك تعديله أو متابعة مشاهداته من «إعلاناتي»."
         primaryAction={
           <Button asChild className="h-11 w-full rounded-xl font-bold">
-            <Link href={pathname} prefetch={false}>عرض الإعلان</Link>
+            <IntentPrefetchLink href={pathname} prefetch={false}>عرض الإعلان</IntentPrefetchLink>
           </Button>
         }
         secondaryAction={
           <Button asChild variant="outline" className="h-11 w-full rounded-xl border-[var(--legacy-border)] font-bold">
-            <Link href={ROUTES.myAds} prefetch={false}>إعلاناتي</Link>
+            <IntentPrefetchLink href={ROUTES.myAds} prefetch={false}>إعلاناتي</IntentPrefetchLink>
           </Button>
         }
       />

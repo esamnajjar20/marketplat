@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Bell, Image as ImageIcon } from 'lucide-react';
 import { useFollowingFeed } from '@/hooks/queries/useFollows';
 import { useAuthStore } from '@/store/auth.store';
@@ -25,10 +25,10 @@ export function FollowingFeedSection() {
           : item.type === 'PRODUCT'
             ? ROUTES.productDetail(item.id)
             : ROUTES.serviceDetail(item.id);
-        return <Link key={`${item.type}-${item.id}`} href={href} className="flex gap-3 rounded-xl border border-border p-3 transition hover:bg-muted" prefetch={false}>
+        return <IntentPrefetchLink key={`${item.type}-${item.id}`} href={href} className="flex gap-3 rounded-xl border border-border p-3 transition hover:bg-muted" prefetch={false}>
           {item.images?.[0] ? <SafeImage src={item.images[0]} alt="" width={72} height={72} className="h-18 w-18 rounded-lg object-cover" /> : <div className="flex h-18 w-18 items-center justify-center rounded-lg bg-muted"><ImageIcon className="h-5 w-5" /></div>}
           <div className="min-w-0"><div className="text-xs text-muted-foreground">{item.type === 'AD' ? 'إعلان' : item.type === 'PRODUCT' ? 'منتج' : 'خدمة'}</div><h3 className="truncate font-medium">{item.title}</h3>{item.price != null && <p className="mt-1 text-sm font-semibold">{String(item.price)}</p>}</div>
-        </Link>;
+        </IntentPrefetchLink>;
       })}</div>}</></LoadingGate>}
     </section>
   );

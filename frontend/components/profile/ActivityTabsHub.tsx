@@ -17,7 +17,7 @@
 
 import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ClipboardList, Flag, History, ListOrdered, Plus } from 'lucide-react';
 import { TabsHub } from '@/components/shared/hub/TabsHub';
 import { ROUTES } from '@/lib/constants';
@@ -69,10 +69,10 @@ function TabBody({ tab }: { tab: ActivityTab }) {
               </p>
             </div>
             <Button size="sm" asChild className="h-10 gap-1.5 rounded-full bg-[var(--legacy-primary)] px-4 text-[13px] font-bold text-primary-foreground hover:bg-[var(--legacy-primary-deep)]">
-              <Link prefetch={false} href={ROUTES.adCreate}>
+              <IntentPrefetchLink prefetch={false} href={ROUTES.adCreate}>
                 <Plus className="h-4 w-4" aria-hidden />
                 إعلان جديد
-              </Link>
+              </IntentPrefetchLink>
             </Button>
           </div>
           <Suspense fallback={<SuspenseFallback />}>

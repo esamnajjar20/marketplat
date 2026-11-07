@@ -2,7 +2,7 @@
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { memo } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { CheckCircle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -62,7 +62,7 @@ export const AdminReportRow = memo(function AdminReportRow({
         </div>
       </td>
       <td className="p-3 hidden md:table-cell">
-        <Link
+        <IntentPrefetchLink
           prefetch={false}
           href={targetHref(report.targetType, report.targetId)}
           target="_blank"
@@ -72,7 +72,7 @@ export const AdminReportRow = memo(function AdminReportRow({
           <ExternalLink className="h-3 w-3" />
           <span className="text-muted-foreground">[{TARGET_TYPE_LABELS[report.targetType]}]</span>
           {report.ad?.title ? report.ad.title.slice(0, 40) : report.targetId.slice(-8)}
-        </Link>
+        </IntentPrefetchLink>
       </td>
       <td className="p-3 hidden sm:table-cell text-muted-foreground text-xs">{report.user?.name ?? '—'}</td>
       <td className="p-3 hidden lg:table-cell text-muted-foreground text-xs">{<HydrationSafeRelativeTime date={report.createdAt} />}</td>

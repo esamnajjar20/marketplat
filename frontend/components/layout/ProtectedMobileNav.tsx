@@ -53,7 +53,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { usePathname } from 'next/navigation';
 import { WithSearch } from '@/components/layout/WithSearch';
 import { ChevronDown, ChevronLeft, User, ExternalLink, Store } from 'lucide-react';
@@ -83,7 +83,7 @@ const TOGGLE_ID = 'protected-mobile-nav-toggle';
 
 function MyAdsDrawerLink({ active, onNavigate }: { active: boolean; onNavigate: () => void }) {
   return (
-    <Link
+    <IntentPrefetchLink
       href={ROUTES.myAds}
       prefetch={false}
       onClick={onNavigate}
@@ -94,7 +94,7 @@ function MyAdsDrawerLink({ active, onNavigate }: { active: boolean; onNavigate: 
       )}
     >
       إعلاناتي
-    </Link>
+    </IntentPrefetchLink>
   );
 }
 
@@ -133,9 +133,9 @@ function DrawerDisclosureGroup({
             const isActive = navChildIsActive(pathname, child, search);
             return (
               <li key={child.href}>
-                <Link
+                <IntentPrefetchLink
                   href={child.href}
-                  // FIX RSC-PREFETCH-STORM-02: see ProtectedSidebar.
+                  // FIX RSC-PREFETCH-STORM-02: defer sidebar/drawer prefetch until intent.
                   prefetch={false}
                   onClick={onNavigate}
                   aria-current={isActive ? 'page' : undefined}
@@ -147,7 +147,7 @@ function DrawerDisclosureGroup({
                   )}
                 >
                   {child.label}
-                </Link>
+                </IntentPrefetchLink>
               </li>
             );
           })}
@@ -353,7 +353,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
           <ul className="flex flex-col gap-1">
             {BROWSE_LINKS.map((link) => (
               <li key={link.href}>
-                <Link
+                <IntentPrefetchLink
                   href={link.href}
                   prefetch={false}
                   onClick={() => { recordNavigation(link.href); close(); }}
@@ -367,7 +367,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
                 >
                   <link.icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                   {link.label}
-                </Link>
+                </IntentPrefetchLink>
               </li>
             ))}
           </ul>
@@ -380,7 +380,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
             const isActive = pathname.startsWith(link.href);
             return (
               <li key={link.href}>
-                <Link
+                <IntentPrefetchLink
                   href={link.href}
                   // FIX RSC-PREFETCH-STORM-02: see ProtectedSidebar.
                   prefetch={false}
@@ -392,7 +392,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
                   )}
                 >
                   {link.label}
-                </Link>
+                </IntentPrefetchLink>
               </li>
             );
           })}
@@ -423,7 +423,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
           )}
           {sellerLoaded && !isSeller && (
             <li>
-              <Link
+              <IntentPrefetchLink
                 href={ROUTES.settings.seller}
                 prefetch={false}
                 onClick={close}
@@ -437,7 +437,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
               >
                 <Store className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                 أنشئ حساب بائع
-              </Link>
+              </IntentPrefetchLink>
             </li>
           )}
           {isSeller && (
@@ -451,7 +451,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
           )}
           {isSeller && myStore?.status === 'ACTIVE' && (
             <li>
-              <Link
+              <IntentPrefetchLink
                 href={ROUTES.storeDetail(myStore.id)}
                 prefetch={false}
                 onClick={close}
@@ -465,7 +465,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
               >
                 <ExternalLink className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                 عرض متجري
-              </Link>
+              </IntentPrefetchLink>
             </li>
           )}
           {showProviderSkeleton && (
@@ -494,7 +494,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
           <DrawerDisclosureGroup group={requestsGroupFor(false)} pathname={pathname} onNavigate={() => { recordNavigation(ROUTES.myOpenRequests); close(); }} />
           {user && (
             <li>
-              <Link
+              <IntentPrefetchLink
                 href={ROUTES.userProfile(user.id)}
                 prefetch={false}
                 onClick={close}
@@ -508,7 +508,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
               >
                 <User className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
                 عرض ملفي
-              </Link>
+              </IntentPrefetchLink>
             </li>
           )}
           {(pathname.startsWith(ROUTES.activity) || isUsed(ROUTES.activity) || isUsed(ROUTES.favorites) || isUsed(ROUTES.savedSearches)) && (
@@ -531,7 +531,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
 
           {isAdminTier && (
             <li>
-              <Link
+              <IntentPrefetchLink
                 href={ROUTES.admin.dashboard}
                 prefetch={false}
                 onClick={close}
@@ -544,7 +544,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
                 )}
               >
                 لوحة الإدارة
-              </Link>
+              </IntentPrefetchLink>
             </li>
           )}
           <li>

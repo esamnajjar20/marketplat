@@ -37,7 +37,7 @@ import { UserAvatar } from '@/components/shared/UserAvatar';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import Link       from 'next/link';
+import IntentPrefetchLink       from '@/components/navigation/IntentPrefetchLink';
 import { usePathname } from 'next/navigation';
 import { WithSearch } from '@/components/layout/WithSearch';
 import {
@@ -153,17 +153,17 @@ function NavSection({
       <ul className="flex flex-col gap-1">
         {links.map(({ label, href, icon: Icon }) => (
           <li key={href}>
-            <Link
+            <IntentPrefetchLink
               href={href}
-              // FIX RSC-PREFETCH-STORM-01: mapped list in the mobile
-              // drawer — see ExploreSheet.tsx for the full rationale.
+              // FIX RSC-PREFETCH-STORM-01: mapped mobile-drawer destinations stay
+              // out of viewport prefetch; IntentPrefetchLink warms on intent.
               prefetch={false}
               onClick={onNavigate}
               className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-foreground hover:bg-muted"
             >
               <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
               {label}
-            </Link>
+            </IntentPrefetchLink>
           </li>
         ))}
       </ul>
@@ -220,7 +220,7 @@ function DisclosureGroup({
             const isActive = navChildIsActive(pathname, child, search);
             return (
               <li key={child.href}>
-                <Link
+                <IntentPrefetchLink
                   href={child.href}
                   onClick={onNavigate}
                   aria-current={isActive ? 'page' : undefined}
@@ -230,7 +230,7 @@ function DisclosureGroup({
                   )} prefetch={false}
                 >
                   {child.label}
-                </Link>
+                </IntentPrefetchLink>
               </li>
             );
           })}
@@ -474,7 +474,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                   <div className="border-t pt-3">
                     <ul className="flex flex-col gap-1">
                       <li>
-                        <Link
+                        <IntentPrefetchLink
                           href={ROUTES.settings.seller}
                           onClick={closeMobileNav}
                           aria-current={pathname === ROUTES.settings.root ? 'page' : undefined}
@@ -487,7 +487,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                         >
                           <Store className="h-4 w-4 shrink-0 text-muted-foreground" />
                           أنشئ حساب بائع
-                        </Link>
+                        </IntentPrefetchLink>
                       </li>
                     </ul>
                   </div>
@@ -501,7 +501,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                   <div className="border-t pt-3">
                     <ul className="flex flex-col gap-1">
                       <li>
-                        <Link
+                        <IntentPrefetchLink
                           href={ROUTES.userProfile(user.id)}
                           onClick={closeMobileNav}
                           aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) ? 'page' : undefined}
@@ -514,7 +514,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                         >
                           <User className="h-4 w-4 shrink-0 text-muted-foreground" />
                           عرض ملفي
-                        </Link>
+                        </IntentPrefetchLink>
                       </li>
                     </ul>
                   </div>
@@ -544,7 +544,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                       const isActive = pathname.startsWith(link.href);
                       return (
                         <li key={link.href}>
-                          <Link
+                          <IntentPrefetchLink
                             href={link.href}
                             onClick={closeMobileNav}
                             aria-current={isActive ? 'page' : undefined}
@@ -555,7 +555,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                           >
                             <link.icon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                             {link.label}
-                          </Link>
+                          </IntentPrefetchLink>
                         </li>
                       );
                     })}
@@ -573,14 +573,14 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                     </Suspense>
                     {isAdmin && (
                       <li>
-                        <Link
+                        <IntentPrefetchLink
                           href={ROUTES.admin.dashboard}
                           onClick={closeMobileNav}
                           className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-foreground hover:bg-muted" prefetch={false}
                         >
                           <Shield className="h-4 w-4 shrink-0 text-muted-foreground" />
                           لوحة الإدارة
-                        </Link>
+                        </IntentPrefetchLink>
                       </li>
                     )}
                   </ul>

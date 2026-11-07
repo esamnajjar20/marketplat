@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { cache, Suspense } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SearchX } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import { storesApi } from '@/api/stores.api';
@@ -77,9 +77,9 @@ export default async function StorePage({ params }: Props) {
           title="المتجر غير موجود"
           description="ربما تم حذف هذا المتجر أو أن الرابط غير صحيح"
           action={
-            <Link href={ROUTES.stores} className="text-sm text-primary hover:underline" prefetch={false}>
+            <IntentPrefetchLink href={ROUTES.stores} className="text-sm text-primary hover:underline" prefetch={false}>
               تصفح المتاجر
-            </Link>
+            </IntentPrefetchLink>
           }
         />
       </div>

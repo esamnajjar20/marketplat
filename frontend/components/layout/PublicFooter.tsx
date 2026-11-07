@@ -2,7 +2,7 @@
  * PublicFooter — only links that resolve to real pages.
  * Disabled placeholders (404) were removed; add links back when pages ship.
  */
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Logo } from './Logo';
 import { ROUTES, APP_NAME } from '@/lib/constants';
 
@@ -34,9 +34,9 @@ export function PublicFooter() {
       <div className="container mx-auto max-w-7xl px-4 py-12">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
           <div className="col-span-2 space-y-4 md:col-span-1">
-            <Link href={ROUTES.home} prefetch={false} className="inline-block">
+            <IntentPrefetchLink href={ROUTES.home} prefetch={false} className="inline-block">
               <Logo />
-            </Link>
+            </IntentPrefetchLink>
             <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
               المكان الموثوق للبيع والشراء والخدمات — من جيرانك، إلى جيرانك.
             </p>
@@ -47,16 +47,15 @@ export function PublicFooter() {
               <ul className="space-y-2.5">
                 {links.map((link) => (
                   <li key={link.href}>
-                    <Link
+                    <IntentPrefetchLink
                       href={link.href}
-                      // FIX RSC-PREFETCH-STORM-01: multi-section footer
-                      // link list — see ExploreSheet.tsx for the full
-                      // rationale.
+                      // FIX RSC-PREFETCH-STORM-01: keep the multi-section footer list out of
+                      // viewport prefetch; IntentPrefetchLink warms only on intent.
                       prefetch={false}
                       className="text-sm text-muted-foreground transition-colors hover:text-primary"
                     >
                       {link.label}
-                    </Link>
+                    </IntentPrefetchLink>
                   </li>
                 ))}
               </ul>
@@ -68,23 +67,23 @@ export function PublicFooter() {
             © {new Date().getFullYear()} {APP_NAME}. جميع الحقوق محفوظة.
           </p>
           <div className="flex flex-wrap justify-center gap-3 text-xs">
-            {/* FIX RSC-PREFETCH-STORM-02: privacy/terms are the largest RSC
-                payloads (tens of KB) and were prefetched on every page load. */}
-            <Link href={ROUTES.privacy} prefetch={false} className="hover:text-primary">
+            {/* FIX RSC-PREFETCH-STORM-02: privacy/terms have large RSC payloads;
+                defer them until hover/focus instead of prefetching on page load. */}
+            <IntentPrefetchLink href={ROUTES.privacy} prefetch={false} className="hover:text-primary">
               الخصوصية
-            </Link>
+            </IntentPrefetchLink>
             <span aria-hidden className="text-border">
               ·
             </span>
-            <Link href={ROUTES.terms} prefetch={false} className="hover:text-primary">
+            <IntentPrefetchLink href={ROUTES.terms} prefetch={false} className="hover:text-primary">
               الشروط
-            </Link>
+            </IntentPrefetchLink>
             <span aria-hidden className="text-border">
               ·
             </span>
-            <Link href={ROUTES.contact} prefetch={false} className="hover:text-primary">
+            <IntentPrefetchLink href={ROUTES.contact} prefetch={false} className="hover:text-primary">
               تواصل
-            </Link>
+            </IntentPrefetchLink>
           </div>
         </div>
       </div>

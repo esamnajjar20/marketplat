@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Plus } from 'lucide-react';
 import { useAuthStore, selectIsAuthenticated } from '@/store/auth.store';
 import { useMounted } from '@/hooks/useMounted';
@@ -29,7 +29,7 @@ export function StoriesRail() {
   return (
     <>
       <section className="rounded-2xl border border-border/60 bg-card/70 p-3 shadow-sm">
-        <div className="mb-3 flex items-center justify-between gap-3 px-1"><div><h2 className="text-sm font-bold">القصص</h2><p className="text-[11px] text-muted-foreground">قصص الأشخاص · تختفي بعد 24 ساعة</p></div><Link href="/stories" prefetch={false} className="shrink-0 rounded-lg px-2 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">عرض الكل</Link></div>
+        <div className="mb-3 flex items-center justify-between gap-3 px-1"><div><h2 className="text-sm font-bold">القصص</h2><p className="text-[11px] text-muted-foreground">قصص الأشخاص · تختفي بعد 24 ساعة</p></div><IntentPrefetchLink href="/stories" prefetch={false} className="shrink-0 rounded-lg px-2 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">عرض الكل</IntentPrefetchLink></div>
         <div className="flex gap-3 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none]" aria-label="قصص الأشخاص" role="list">
           <button type="button" onClick={() => setComposerOpen(true)} className="flex w-16 shrink-0 flex-col items-center gap-1.5 rounded-xl p-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label="إنشاء ستوري شخصية">
             <span className="relative flex h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-primary/50 bg-primary/5"><Plus className="h-5 w-5 text-primary" /></span><span className="max-w-16 truncate text-[11px]">قصتك</span>

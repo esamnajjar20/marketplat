@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
@@ -32,13 +32,13 @@ export function LegalPageShell({ title, description, children, className }: Prop
         )}
         <nav aria-label="صفحات المعلومات" className="flex flex-wrap gap-2 pt-2">
           {LEGAL_NAV.map((item) => (
-            <Link
+            <IntentPrefetchLink
               key={item.href}
               href={item.href}
               className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground shadow-xs transition-colors hover:border-primary/30 hover:bg-primary-soft hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 motion-reduce:transition-none" prefetch={false}
             >
               {item.label}
-            </Link>
+            </IntentPrefetchLink>
           ))}
         </nav>
       </header>

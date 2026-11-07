@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { LegalPageShell } from '@/components/shared/legal/LegalPageShell';
 import { buildMetadata } from '@/lib/seo';
 import { ROUTES } from '@/lib/constants';
@@ -18,7 +18,7 @@ export default function TermsPage() {
     >
       <div className="content-prose space-y-5">
       <h2>قبول الشروط</h2>
-      <p>استخدام سوق غزة يعني الالتزام بهذه الشروط وبـ<Link href={ROUTES.privacy} prefetch={false}>سياسة الخصوصية</Link>.</p>
+      <p>استخدام سوق غزة يعني الالتزام بهذه الشروط وبـ<IntentPrefetchLink href={ROUTES.privacy} prefetch={false}>سياسة الخصوصية</IntentPrefetchLink>.</p>
       <h2>حسابك</h2>
       <ul>
         <li>أنت مسؤول عن سرية بيانات الدخول ونشاط حسابك.</li>
@@ -33,7 +33,7 @@ export default function TermsPage() {
       <h2>المحادثات والإبلاغ</h2>
       <p>
         استخدم نظام البلاغات عند المحتوى المخالف. للاستفسارات:{' '}
-        <Link href={ROUTES.contact} prefetch={false}>تواصل معنا</Link>.
+        <IntentPrefetchLink href={ROUTES.contact} prefetch={false}>تواصل معنا</IntentPrefetchLink>.
       </p>
       <h2>إخلاء مسؤولية</h2>
       <p>

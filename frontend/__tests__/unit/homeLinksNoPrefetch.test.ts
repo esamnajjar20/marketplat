@@ -1,10 +1,9 @@
 /**
  * regression guard.
  *
- * Every <Link> on the always-mounted homepage path must opt out of Next's
- * default viewport prefetch: each one costs an RSC request (a Worker
- * invocation) on EVERY page load. Checked statically because the prop is
- * not observable in the rendered DOM.
+ * Home surfaces remain out of automatic viewport prefetch. The project Link
+ * adapter turns these opt-outs into hover/focus intent prefetch, avoiding a
+ * request burst on every page load without leaving desktop/keyboard navigation cold.
  */
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -18,12 +17,13 @@ const FILES = [
   'components/layout/PublicFooter.tsx',
 ];
 
-describe('homepage links do not prefetch on load', () => {
-  it.each(FILES)('%s: every <Link> has prefetch={false}', (file) => {
+describe('homepage links defer automatic prefetch', () => {
+  it.each(FILES)('%s: uses the intent-aware Link adapter', (file) => {
     const src = readFileSync(resolve(__dirname, '../../', file), 'utf8');
-    const links = (src.match(/<Link\b/g) ?? []).length;
+    const links = (src.match(/<IntentPrefetchLink\b/g) ?? []).length;
     const optedOut = (src.match(/prefetch=\{false\}/g) ?? []).length;
+    expect(src).toContain("from '@/components/navigation/IntentPrefetchLink'");
     expect(links).toBeGreaterThan(0);
-    expect(optedOut).toBeGreaterThanOrEqual(links);
+    expect(optedOut).toBe(links);
   });
 });

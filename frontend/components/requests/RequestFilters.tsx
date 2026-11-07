@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useEffect, useState } from 'react';
 import { Search, X } from 'lucide-react';
@@ -198,13 +198,13 @@ export function RequestFilters({
             ))}
           </select>
           {hasFilters ? (
-            <Link
+            <IntentPrefetchLink
               href={ROUTES.requests}
               className="inline-flex h-9 items-center gap-1 rounded-full px-2 text-xs font-semibold text-muted-foreground hover:text-foreground" prefetch={false}
             >
               <X className="h-3.5 w-3.5" aria-hidden />
               مسح
-            </Link>
+            </IntentPrefetchLink>
           ) : null}
         </div>
       </div>

@@ -16,7 +16,7 @@ import { useLongPress } from '@/hooks/ui/useLongPress';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Heart, Check } from 'lucide-react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ROUTES } from '@/lib/constants';
 import type { FavoriteEntityKind } from '@/types/favorite.types';
 import type { ProductWithStore } from '@/types/product.types';
@@ -189,7 +189,7 @@ export function EntityFavoritesList({ type }: Props) {
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{copy.description}</p>
         <div className="mt-5 flex justify-center">
           <Button asChild size="sm" className="rounded-xl font-bold">
-            <Link href={copy.href} prefetch={false}>{copy.cta}</Link>
+            <IntentPrefetchLink href={copy.href} prefetch={false}>{copy.cta}</IntentPrefetchLink>
           </Button>
         </div>
       </div>

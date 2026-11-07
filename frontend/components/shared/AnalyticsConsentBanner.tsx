@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useEffect, useState } from 'react';
 import { ROUTES } from '@/lib/constants';
 import { getAnalyticsConsent, setAnalyticsConsent, type AnalyticsConsent } from '@/lib/analyticsConsent';
@@ -42,9 +42,9 @@ export function AnalyticsConsentBanner() {
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             نستخدم تحليلات أساسية مثل مشاهدات الصفحات والبحث لفهم استخدام المنصة وتحسينها.
             يمكنك السماح بها أو رفضها دون التأثير على استخدام الموقع.{' '}
-            <Link href={ROUTES.privacy} className="underline underline-offset-2" prefetch={false}>
+            <IntentPrefetchLink href={ROUTES.privacy} className="underline underline-offset-2" prefetch={false}>
               سياسة الخصوصية
-            </Link>
+            </IntentPrefetchLink>
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

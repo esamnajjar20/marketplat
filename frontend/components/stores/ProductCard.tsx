@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { MapPin, Package } from 'lucide-react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { CardKindBadge } from '@/components/shared/cards/cardDisplayParts';
 import { CardOfflineBadge } from '@/components/shared/cards/CardOfflineBadge';
@@ -170,7 +170,7 @@ export const ProductCard = memo(function ProductCard({
           className,
         )}
       >
-        <Link
+        <IntentPrefetchLink
           href={detailHref}
           prefetch={false}
           className={cn(
@@ -249,7 +249,7 @@ export const ProductCard = memo(function ProductCard({
               </span>
             )}
           </div>
-        </Link>
+        </IntentPrefetchLink>
         {showHeart && (
           <FavoriteButton
             entityType="PRODUCT"
@@ -271,7 +271,7 @@ export const ProductCard = memo(function ProductCard({
         className,
       )}
     >
-      <Link
+      <IntentPrefetchLink
         href={detailHref}
         prefetch={false}
         className={cn(
@@ -357,7 +357,7 @@ export const ProductCard = memo(function ProductCard({
             {showTime && <CardRelativeTime date={product.createdAt} />}
           </div>
         </div>
-      </Link>
+      </IntentPrefetchLink>
       {showHeart && (
         <FavoriteButton
           entityType="PRODUCT"

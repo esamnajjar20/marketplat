@@ -2,7 +2,7 @@
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { memo } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Circle, MailOpen, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hrefFor } from '@/lib/notificationMeta';
@@ -117,9 +117,9 @@ export const NotificationRow = memo(function NotificationRow({
   return (
     <li>
       {href ? (
-        <Link href={href} onClick={() => onOpen(n)} className="block" prefetch={false}>
+        <IntentPrefetchLink href={href} onClick={() => onOpen(n)} className="block" prefetch={false}>
           {inner}
-        </Link>
+        </IntentPrefetchLink>
       ) : (
         <button type="button" className="w-full text-start" onClick={() => onOpen(n)}>
           {inner}

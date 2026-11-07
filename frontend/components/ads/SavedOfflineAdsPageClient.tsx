@@ -10,7 +10,7 @@
  * storeDetail) عبر ROUTES.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { WifiOff, Trash2, Search } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
@@ -218,7 +218,7 @@ export function SavedOfflineAdsPageClient() {
               key={`${e.type}:${e.id}`}
               className="flex items-center gap-3 rounded-2xl border border-[var(--legacy-border)] bg-card p-3 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card"
             >
-              <Link
+              <IntentPrefetchLink
                 prefetch={false}
                 href={hrefFor(e)}
                 className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[var(--legacy-primary-soft)] dark:bg-primary/10"
@@ -226,9 +226,9 @@ export function SavedOfflineAdsPageClient() {
                 {e.thumbnail && (
                   <SafeImage src={e.thumbnail} alt={e.title} fill className="object-cover" sizes="64px" />
                 )}
-              </Link>
+              </IntentPrefetchLink>
               <div className="min-w-0 flex-1">
-                <Link href={hrefFor(e)} className="block min-w-0" prefetch={false}>
+                <IntentPrefetchLink href={hrefFor(e)} className="block min-w-0" prefetch={false}>
                   <div className="flex items-center gap-2">
                     <span className="rounded-full bg-[var(--legacy-primary-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--legacy-primary-deep)] dark:bg-primary/15 dark:text-primary">
                       {TYPE_LABEL[e.type]}
@@ -239,7 +239,7 @@ export function SavedOfflineAdsPageClient() {
                     {e.subtitle ?? '—'}
                     {e.city ? ` · ${e.city}` : ''}
                   </p>
-                </Link>
+                </IntentPrefetchLink>
                 {missingSnapshots.has(`${e.type}:${e.id}`) && (
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <p className="text-xs font-medium text-destructive" role="status">

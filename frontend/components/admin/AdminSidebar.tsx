@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { LayoutDashboard, ShoppingBag, Users, Flag, FolderTree, UserCheck, Wrench, Store, ScrollText, BarChart3, Menu, X, Package, ShieldAlert,
   ListOrdered, Bell, Search, Activity, Server, SlidersHorizontal } from 'lucide-react';
@@ -103,7 +103,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
         const badge =
           badgeKey && queue && typeof queue[badgeKey] === 'number' ? queue[badgeKey] : 0;
         return (
-          <Link prefetch={false}
+          <IntentPrefetchLink prefetch={false}
             key={href}
             href={href}
             onClick={onNavigate}
@@ -125,7 +125,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
                 {badge > 99 ? '99+' : badge}
               </span>
             )}
-          </Link>
+          </IntentPrefetchLink>
         );
       })}
     </nav>

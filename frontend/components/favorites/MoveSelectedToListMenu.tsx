@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Folder, FolderInput } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import {
@@ -76,7 +76,7 @@ export function MoveSelectedToListMenu({ favoriteIds, currentListId = null, disa
         ))}
         {items.length === 0 && (
           <DropdownMenuItem asChild className="rounded-xl">
-            <Link href={ROUTES.favorites} prefetch={false}>لا قوائم — أنشئ قائمة من المفضلة</Link>
+            <IntentPrefetchLink href={ROUTES.favorites} prefetch={false}>لا قوائم — أنشئ قائمة من المفضلة</IntentPrefetchLink>
           </DropdownMenuItem>
         )}
       </DropdownMenuContent>

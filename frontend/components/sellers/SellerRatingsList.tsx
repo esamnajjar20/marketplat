@@ -1,7 +1,7 @@
 'use client';
 
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useSearchParams } from 'next/navigation';
 import { Star, AlertTriangle } from 'lucide-react';
 import { Pagination } from '@/components/shared/ui/Pagination';
@@ -109,13 +109,13 @@ export function SellerRatingsList({ sellerProfileId, baseUrl }: Props) {
                 </div>
                 {rating.comment && <p className="text-sm text-muted-foreground">{rating.comment}</p>}
                 {rating.ad && (
-                  <Link
+                  <IntentPrefetchLink
                     prefetch={false}
                     href={ROUTES.adDetail(rating.ad.id)}
                     className="block text-xs text-primary hover:underline line-clamp-1"
                   >
                     عن إعلان: {rating.ad.title}
-                  </Link>
+                  </IntentPrefetchLink>
                 )}
                 <p className="text-xs text-muted-foreground">{formatDate(rating.createdAt)}</p>
               </div>

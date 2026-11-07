@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { cache } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SearchX } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import type { ServiceListingWithProvider } from '@/types/service.types';
@@ -68,9 +68,9 @@ export default async function ServiceListingPage({ params }: Props) {
           title="الخدمة غير موجودة"
           description="ربما تم حذف هذه الخدمة أو أن الرابط غير صحيح"
           action={
-            <Link href={ROUTES.services} className="text-sm text-primary hover:underline" prefetch={false}>
+            <IntentPrefetchLink href={ROUTES.services} className="text-sm text-primary hover:underline" prefetch={false}>
               تصفح الخدمات
-            </Link>
+            </IntentPrefetchLink>
           }
         />
       </div>

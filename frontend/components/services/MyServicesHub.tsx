@@ -6,7 +6,7 @@ import type { ComponentType } from 'react';
  * Provider hub overview — layout aligned with design mockup «خدماتي — نظرة عامة».
  */
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   ExternalLink,
   Plus,
@@ -106,15 +106,15 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
           </span>
           {publicProfileHref && (
             <Button variant="outline" size="sm" asChild className="h-9 gap-1.5 rounded-xl font-bold">
-              <Link prefetch={false} href={publicProfileHref}>
+              <IntentPrefetchLink prefetch={false} href={publicProfileHref}>
                 البروفايل العام <ExternalLink className="h-3.5 w-3.5" />
-              </Link>
+              </IntentPrefetchLink>
             </Button>
           )}
           <Button variant="outline" size="icon" asChild className="h-9 w-9 rounded-xl">
-            <Link prefetch={false} href={ROUTES.settings.serviceProvider} aria-label="الإعدادات">
+            <IntentPrefetchLink prefetch={false} href={ROUTES.settings.serviceProvider} aria-label="الإعدادات">
               <Settings2 className="h-4 w-4" />
-            </Link>
+            </IntentPrefetchLink>
           </Button>
         </div>
       </section>
@@ -145,9 +145,9 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
               <p className="text-xs text-muted-foreground">راجع الطلبات وحدد الإجراء المناسب.</p>
             </div>
             <Button size="sm" asChild className="h-9 shrink-0 rounded-xl font-bold">
-              <Link prefetch={false} href={ROUTES.incomingServiceRequests}>
+              <IntentPrefetchLink prefetch={false} href={ROUTES.incomingServiceRequests}>
                 مراجعة
-              </Link>
+              </IntentPrefetchLink>
             </Button>
           </div>
         </section>
@@ -157,9 +157,9 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-extrabold">قائمة الخدمات</h2>
           <Button variant="outline" size="sm" asChild className="h-9 gap-1 rounded-xl font-bold">
-            <Link href={ROUTES.myServiceCreate} prefetch={false}>
+            <IntentPrefetchLink href={ROUTES.myServiceCreate} prefetch={false}>
               <Plus className="h-3.5 w-3.5" /> خدمة جديدة
-            </Link>
+            </IntentPrefetchLink>
           </Button>
         </div>
 
@@ -168,7 +168,7 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
             لا توجد خدمات نشطة بعد.
             <div className="mt-3">
               <Button size="sm" asChild className="rounded-xl font-bold">
-                <Link href={ROUTES.myServiceCreate} prefetch={false}>إضافة خدمة</Link>
+                <IntentPrefetchLink href={ROUTES.myServiceCreate} prefetch={false}>إضافة خدمة</IntentPrefetchLink>
               </Button>
             </div>
           </div>
@@ -190,7 +190,7 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
                       ? 'عن بُعد'
                       : null;
               return (
-                <Link
+                <IntentPrefetchLink
                   key={item.id}
                   href={ROUTES.myServiceEdit(item.id)}
                   className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm transition-colors hover:bg-muted/30" prefetch={false}
@@ -208,7 +208,7 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
                   <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-primary/10 px-2.5 text-[11px] font-bold text-primary">
                     نشطة
                   </span>
-                </Link>
+                </IntentPrefetchLink>
               );
             })}
           </div>

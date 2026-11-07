@@ -131,7 +131,7 @@ export const usersApi = {
   },
 
   /** PATCH /users/me/presence — heartbeat, called on an interval by
-   * useHeartbeat while the caller is authenticated. 204 No Content, so
+   * PresenceHeartbeat while the caller is authenticated. 204 No Content, so
    * there's no response body to unwrap. */
   touchPresence: () => apiClient.patch<void>('/users/me/presence'),
 

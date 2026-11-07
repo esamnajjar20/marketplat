@@ -151,6 +151,7 @@ export const salesRepository = {
     const [sales, itemCostRows] = await Promise.all([
       prisma.saleRecord.aggregate({
         where,
+        _count: { _all: true },
         _sum: { totalPrice: true, refundedAmount: true, paidAmount: true, dueAmount: true },
       }),
       prisma.$queryRaw<Array<{ totalCost: Prisma.Decimal | number | string | null }>>`
@@ -170,6 +171,7 @@ export const salesRepository = {
     const revenue = Number(sales._sum.totalPrice ?? 0) - refunded;
     const cost = Number(itemCostRows[0]?.totalCost ?? 0);
     return {
+      count: sales._count._all,
       revenue: round2(revenue),
       cost: round2(cost),
       profit: round2(revenue - cost),

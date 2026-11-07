@@ -1911,6 +1911,51 @@ const PUBLIC_LIVE = {
   assert.equal(calls.record, 2, 'only the failures that open the circuit (threshold 2) are written; later failures while open are not');
 }
 
+/* ───────── registry force-refresh generation guard ───────── */
+{
+  let registryReads = 0;
+  let releaseOlderRead;
+  let markOlderReadStarted;
+  const olderReadStarted = new Promise((resolve) => { markOlderReadStarted = resolve; });
+  const olderReadGate = new Promise((resolve) => { releaseOlderRead = resolve; });
+  const registryFor = (version) => ({
+    version,
+    backend: { servers: [{ id: `api-v${version}`, url: `https://api-v${version}.example.com`, weight: 100, enabled: true }] },
+  });
+  const namespace = {
+    idFromName: (name) => ({ name }),
+    get: () => ({
+      fetch: async (input, init = {}) => {
+        const url = String(input);
+        const method = String(init.method || 'GET').toUpperCase();
+        if (url.endsWith('/registry') && method === 'GET') {
+          registryReads += 1;
+          const readNumber = registryReads;
+          if (readNumber === 1) {
+            markOlderReadStarted();
+            await olderReadGate;
+          }
+          return json({ registry: registryFor(readNumber) });
+        }
+        return json({ ok: true });
+      },
+    }),
+  };
+  const h = harness({ upstream: async () => json({ ok: true }) });
+  const env = { GATEWAY_HEALTH: namespace };
+
+  const olderLoad = h.internals.loadGatewayRegistry(env);
+  await olderReadStarted;
+  const forcedLoad = await h.internals.loadGatewayRegistry(env, true);
+  assert.equal(forcedLoad.registry.version, 2, 'forced read returns the newer registry');
+
+  releaseOlderRead();
+  await olderLoad;
+  const cachedLoad = await h.internals.loadGatewayRegistry(env);
+  assert.equal(cachedLoad.registry.version, 2, 'late older read must not overwrite the forced result');
+  assert.equal(registryReads, 2, 'the cached newest result avoids a third DO read');
+}
+
 const wrangler = fs.readFileSync(new URL('./wrangler.toml', import.meta.url), 'utf8');
 assert.ok(wrangler.includes('crons = [\"0 */6 * * *\", \"*/15 * * * *\", \"30 3 * * *\"]'), 'six-hour cache warm, 15-minute health snapshots, and daily D1 cleanup crons must be configured');
 assert.ok(wrangler.includes('[[analytics_engine_datasets]]'), 'Workers Analytics Engine binding must be enabled in production config');

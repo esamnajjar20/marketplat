@@ -3,7 +3,7 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useRouter } from 'next/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import {
@@ -221,9 +221,9 @@ export function MyServiceListingsList() {
       {showPendingOffline && <PendingOfflinePublishCard kind="service" />}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <h2 className="text-sm font-semibold text-muted-foreground">قائمة الخدمات</h2>
-        <Link href={ROUTES.myServiceCreate} prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.myServiceCreate} prefetch={false}>
           <Button size="sm" className="rounded-xl font-bold gap-1"><Plus className="h-3.5 w-3.5" />خدمة جديدة</Button>
-        </Link>
+        </IntentPrefetchLink>
       </div>
 
       <form onSubmit={submitSearch} className="flex flex-col gap-2 sm:flex-row">
@@ -325,21 +325,21 @@ export function MyServiceListingsList() {
           }
           action={
             <div className="flex flex-col sm:flex-row gap-2 items-center">
-              <Link href={ROUTES.myServiceCreate} prefetch={false}>
+              <IntentPrefetchLink href={ROUTES.myServiceCreate} prefetch={false}>
                 <Button>إضافة خدمة</Button>
-              </Link>
+              </IntentPrefetchLink>
               {!searchQ && (
                 <>
-                  <Link href={ROUTES.incomingServiceRequests} prefetch={false}>
+                  <IntentPrefetchLink href={ROUTES.incomingServiceRequests} prefetch={false}>
                     <Button variant="outline" className="gap-1.5">
                       <Inbox className="h-4 w-4" /> الطلبات
                     </Button>
-                  </Link>
-                  <Link href={ROUTES.myServiceAppointments} prefetch={false}>
+                  </IntentPrefetchLink>
+                  <IntentPrefetchLink href={ROUTES.myServiceAppointments} prefetch={false}>
                     <Button variant="outline" className="gap-1.5">
                       <CalendarClock className="h-4 w-4" /> المواعيد
                     </Button>
-                  </Link>
+                  </IntentPrefetchLink>
                 </>
               )}
             </div>
@@ -367,12 +367,12 @@ export function MyServiceListingsList() {
                 </div>
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-start justify-between gap-2">
-                    <Link
+                    <IntentPrefetchLink
                       href={ROUTES.serviceDetail(listing.id)}
                       className="font-medium text-sm hover:underline line-clamp-1" prefetch={false}
                     >
                       {listing.title}
-                    </Link>
+                    </IntentPrefetchLink>
                     <Badge
                       variant={
                         listing.status === 'ACTIVE'
@@ -403,7 +403,7 @@ export function MyServiceListingsList() {
                       <Briefcase className="h-3.5 w-3.5" />
                     </Button>
                   )}
-                  <Link href={ROUTES.myServiceEdit(listing.id)} prefetch={false}>
+                  <IntentPrefetchLink href={ROUTES.myServiceEdit(listing.id)} prefetch={false}>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -412,7 +412,7 @@ export function MyServiceListingsList() {
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                  </Link>
+                  </IntentPrefetchLink>
                   {listing.status !== 'DELETED' && (
                     <Button
                       variant="ghost"

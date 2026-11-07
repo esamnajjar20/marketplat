@@ -5,7 +5,7 @@
  * Pulls recent pending reports + pending stores as the most actionable signals.
  */
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Flag, Store, UserCheck, ShoppingBag } from 'lucide-react';
 import { useAdminOpsQueue, useAdminReports, useAdminStores } from '@/hooks/queries/useAdmin';
 import { adminTabHref } from '@/lib/adminHubTabs';
@@ -82,7 +82,7 @@ export function AdminLatestActivity() {
           {items.slice(0, 5).map((item) => {
             const Icon = item.icon;
             return (
-              <Link
+              <IntentPrefetchLink
                 key={item.id}
                 href={item.href}
                 className="flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-[13px] transition-colors hover:bg-[var(--legacy-surface)]" prefetch={false}
@@ -96,7 +96,7 @@ export function AdminLatestActivity() {
                     <HydrationSafeRelativeTime date={item.at} />
                   </span>
                 ) : null}
-              </Link>
+              </IntentPrefetchLink>
             );
           })}
         </div>

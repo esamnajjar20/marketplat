@@ -6,7 +6,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Package, AlertTriangle, History, Boxes, TrendingDown, CircleAlert } from 'lucide-react';
 import { useMyProducts } from '@/hooks/queries/useProducts';
@@ -96,12 +96,12 @@ function StockRow({
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Link
+            <IntentPrefetchLink
               href={ROUTES.myStoreProductEdit(id)}
               className="line-clamp-1 text-[13px] font-bold hover:underline sm:text-sm" prefetch={false}
             >
               {name}
-            </Link>
+            </IntentPrefetchLink>
             <Badge variant={stockBadgeVariant(availability)} className="shrink-0">
               {AVAIL_LABELS[availability]}
             </Badge>
@@ -281,7 +281,7 @@ export function MyStoreInventory() {
           </p>
         </div>
         <Button asChild size="sm" variant="outline">
-          <Link href={ROUTES.myStoreProducts} prefetch={false}>كل المنتجات</Link>
+          <IntentPrefetchLink href={ROUTES.myStoreProducts} prefetch={false}>كل المنتجات</IntentPrefetchLink>
         </Button>
       </div>
 
@@ -399,7 +399,7 @@ export function MyStoreInventory() {
           description="أضف منتجات من صفحة المنتجات أو غيّر الفلتر."
           action={
             <Button asChild size="sm">
-              <Link href={ROUTES.myStoreProductCreate} prefetch={false}>إضافة منتج</Link>
+              <IntentPrefetchLink href={ROUTES.myStoreProductCreate} prefetch={false}>إضافة منتج</IntentPrefetchLink>
             </Button>
           }
         />

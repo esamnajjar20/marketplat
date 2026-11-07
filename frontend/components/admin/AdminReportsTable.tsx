@@ -2,7 +2,7 @@
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { memo, useState, useMemo, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { CheckCircle, ExternalLink, Search } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
@@ -269,7 +269,7 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
                   <p className="text-2xs-tight text-muted-foreground">
                     {report.user?.name ?? '—'} · {<HydrationSafeRelativeTime date={report.createdAt} />}
                   </p>
-                  <Link prefetch={false}
+                  <IntentPrefetchLink prefetch={false}
                     href={targetHref(report.targetType, report.targetId)}
                     target="_blank" rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
@@ -277,7 +277,7 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
                     <ExternalLink className="h-3 w-3" />
                     [{TARGET_TYPE_LABELS[report.targetType]}]{' '}
                     {report.ad?.title ? report.ad.title.slice(0, 36) : report.targetId.slice(-8)}
-                  </Link>
+                  </IntentPrefetchLink>
                 </div>
               </div>
               {report.status === 'PENDING' && (

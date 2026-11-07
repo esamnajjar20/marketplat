@@ -7,7 +7,7 @@ import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryF
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { useInfiniteQuery } from '@tanstack/react-query';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
@@ -224,7 +224,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
                 <p className="text-sm font-extrabold text-foreground">المتاح بدون اتصال</p>
                 <p className="text-xs text-muted-foreground">تصفّح ما حفظته على هذا الجهاز.</p>
               </div>
-              <Link
+              <IntentPrefetchLink
                 href={ROUTES.favorites}
                 className="flex items-center justify-between rounded-2xl border border-[var(--legacy-border)] bg-card px-3 py-3 dark:border-border dark:bg-card" prefetch={false}
               >
@@ -238,8 +238,8 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
                   </span>
                 </span>
                 <span className="rounded-full border border-[var(--legacy-border)] px-3 py-1.5 text-xs font-bold text-[var(--legacy-primary-deep)]">فتح</span>
-              </Link>
-              <Link
+              </IntentPrefetchLink>
+              <IntentPrefetchLink
                 href={ROUTES.offline.hub}
                 className="flex items-center justify-between rounded-2xl border border-[var(--legacy-border)] bg-card px-3 py-3 dark:border-border dark:bg-card" prefetch={false}
               >
@@ -253,7 +253,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
                   </span>
                 </span>
                 <span className="rounded-full border border-[var(--legacy-border)] px-3 py-1.5 text-xs font-bold text-[var(--legacy-primary-deep)]">فتح</span>
-              </Link>
+              </IntentPrefetchLink>
             </div>
           }
         />
@@ -346,7 +346,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
                 </Button>
               )}
               <Button variant="default" size="sm" asChild>
-                <Link href={ROUTES.adCreate} prefetch={false}>انشر إعلاناً بدلاً من ذلك</Link>
+                <IntentPrefetchLink href={ROUTES.adCreate} prefetch={false}>انشر إعلاناً بدلاً من ذلك</IntentPrefetchLink>
               </Button>
             </div>
           }

@@ -65,7 +65,7 @@
  */
 
 import { Suspense, useId, useState } from 'react';
-import Link           from 'next/link';
+import IntentPrefetchLink           from '@/components/navigation/IntentPrefetchLink';
 import { usePathname } from 'next/navigation';
 import { WithSearch } from '@/components/layout/WithSearch';
 import {
@@ -107,17 +107,14 @@ function NavLink({
   isActive: boolean; indent?: boolean; badge?: number; onNavigate?: () => void;
 }) {
   return (
-    <Link
+    <IntentPrefetchLink
       href={href}
       onClick={onNavigate}
-      // FIX RSC-PREFETCH-STORM-02: every nav row this renders (top-level
-      // items + all disclosure children) is a Link. Next.js auto-prefetches
-      // every one of them on mount, so a signed-in page load fired RSC
-      // fetches for /messages, /my-ads, /my-store, /favorites, /activity,
-      // /settings/*, /admin/dashboard — the full sidebar — before the user
-      // picked any destination. On a weak network each prefetch competes
-      // with the current page's own data. Click still works: Next.js
-      // fetches on navigation, just not ahead of time.
+      // FIX RSC-PREFETCH-STORM-02: keep sidebar destinations out of automatic
+      // viewport prefetch. IntentPrefetchLink enables the default Next.js
+      // prefetch policy only after hover or keyboard focus, so a signed-in
+      // page load does not warm the full /messages, /my-ads, /my-store,
+      // /favorites, /activity, /settings and admin navigation tree.
       prefetch={false}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
@@ -144,7 +141,7 @@ function NavLink({
           {badge > 9 ? '9+' : badge}
         </span>
       )}
-    </Link>
+    </IntentPrefetchLink>
   );
 }
 

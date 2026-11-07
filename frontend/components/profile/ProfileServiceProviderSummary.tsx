@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { PlusCircle, Wrench } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Button } from '@/components/shared/ui/Button';
@@ -106,19 +106,19 @@ export function ProfileServiceProviderSummary({
         </p>
 
         <Button asChild variant="outline" size="sm" className="w-full gap-1.5">
-          <Link href={`${ROUTES.services}?providerId=${provider.id}`} prefetch={false}>
+          <IntentPrefetchLink href={`${ROUTES.services}?providerId=${provider.id}`} prefetch={false}>
             <Wrench className="h-3.5 w-3.5" />
             تصفح خدمات هذا المقدّم
-          </Link>
+          </IntentPrefetchLink>
         </Button>
       </div>
 
       {isOwnProvider && (
         <Button asChild variant="outline" className="w-full rounded-full py-3 h-auto gap-2">
-          <Link href={ROUTES.adCreate} prefetch={false}>
+          <IntentPrefetchLink href={ROUTES.adCreate} prefetch={false}>
             <PlusCircle className="h-4 w-4" />
             نشر إعلان
-          </Link>
+          </IntentPrefetchLink>
         </Button>
       )}
 

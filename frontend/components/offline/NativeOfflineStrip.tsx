@@ -5,7 +5,7 @@
  * Mount once near root (e.g. next to CapacitorBootstrap in providers).
  */
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { WifiOff } from 'lucide-react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useIsNativeApp } from '@/hooks/useIsNativeApp';
@@ -24,9 +24,9 @@ export function NativeOfflineStrip() {
     >
       <WifiOff className="h-3.5 w-3.5 shrink-0" aria-hidden />
       <span>أنت غير متصل — بعض الإجراءات تُحفظ للمزامنة لاحقاً</span>
-      <Link prefetch={false} href={ROUTES.offline.sync} className="underline underline-offset-2">
+      <IntentPrefetchLink prefetch={false} href={ROUTES.offline.sync} className="underline underline-offset-2">
         مركز المزامنة
-      </Link>
+      </IntentPrefetchLink>
     </div>
   );
 }

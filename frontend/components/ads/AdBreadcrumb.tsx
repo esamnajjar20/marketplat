@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ChevronLeft, Home } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { useCategoryHref } from '@/components/ads/AdDetail';
@@ -24,16 +24,16 @@ export function AdBreadcrumb({ ad }: Props) {
 
   return (
     <nav aria-label="مسار التصفح" className="mb-4 flex items-center gap-1.5 overflow-x-auto overscroll-x-contain text-sm text-muted-foreground">
-      <Link href={ROUTES.home} className="flex shrink-0 items-center gap-1 hover:text-primary" prefetch={false}>
+      <IntentPrefetchLink href={ROUTES.home} className="flex shrink-0 items-center gap-1 hover:text-primary" prefetch={false}>
         <Home className="h-3.5 w-3.5" />
         الرئيسية
-      </Link>
+      </IntentPrefetchLink>
       {ad.category && categoryHref && (
         <>
           <ChevronLeft className="h-3.5 w-3.5 shrink-0" />
-          <Link href={categoryHref} className="shrink-0 hover:text-primary" prefetch={false}>
+          <IntentPrefetchLink href={categoryHref} className="shrink-0 hover:text-primary" prefetch={false}>
             {ad.category.nameAr}
-          </Link>
+          </IntentPrefetchLink>
         </>
       )}
       <ChevronLeft className="h-3.5 w-3.5 shrink-0" />

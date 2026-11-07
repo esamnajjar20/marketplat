@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { LegalPageShell } from '@/components/shared/legal/LegalPageShell';
 import { buildMetadata } from '@/lib/seo';
 import { ROUTES } from '@/lib/constants';
@@ -31,8 +31,8 @@ export default function AboutPage() {
       </ul>
       <h2>ابدأ الآن</h2>
       <p>
-        تصفّح <Link href={ROUTES.search} prefetch={false}>البحث</Link> أو{' '}
-        <Link href={ROUTES.register} prefetch={false}>أنشئ حسابًا</Link> لنشر أول إعلان.
+        تصفّح <IntentPrefetchLink href={ROUTES.search} prefetch={false}>البحث</IntentPrefetchLink> أو{' '}
+        <IntentPrefetchLink href={ROUTES.register} prefetch={false}>أنشئ حسابًا</IntentPrefetchLink> لنشر أول إعلان.
       </p>
       </div>
     </LegalPageShell>

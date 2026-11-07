@@ -3,7 +3,7 @@
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useRouter } from 'next/navigation';
 import { useResetPassword } from '@/hooks/mutations/useAuthMutations';
 import { Button }    from '@/components/shared/ui/Button';
@@ -95,11 +95,11 @@ export function ResetPasswordForm({ token }: Props) {
           رابط إعادة تعيين كلمة المرور غير صالح. يرجى طلب رابط جديد.
         </p>
         <Button asChild className="h-12 w-full rounded-2xl text-[15px] font-bold">
-          <Link href={ROUTES.forgotPassword} prefetch={false}>طلب رابط جديد</Link>
+          <IntentPrefetchLink href={ROUTES.forgotPassword} prefetch={false}>طلب رابط جديد</IntentPrefetchLink>
         </Button>
-        <Link href={ROUTES.login} className="block text-[13px] font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.login} className="block text-[13px] font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>
           العودة لتسجيل الدخول
-        </Link>
+        </IntentPrefetchLink>
       </div>
     );
   }
@@ -122,7 +122,7 @@ export function ResetPasswordForm({ token }: Props) {
       </Button>
 
       <p className="text-center text-[13px] font-bold text-[var(--legacy-primary-deep)]">
-        <Link href={ROUTES.login} className="text-primary hover:underline" prefetch={false}>العودة لتسجيل الدخول</Link>
+        <IntentPrefetchLink href={ROUTES.login} className="text-primary hover:underline" prefetch={false}>العودة لتسجيل الدخول</IntentPrefetchLink>
       </p>
     </form>
   );

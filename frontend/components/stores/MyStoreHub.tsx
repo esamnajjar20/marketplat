@@ -7,7 +7,7 @@ import type { ComponentType } from 'react';
  * Layout aligned with design mockup «لوحة متجري — نظرة عامة».
  */
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   ExternalLink,
   PackagePlus,
@@ -81,14 +81,14 @@ function QuickAction({
   label: string;
 }) {
   return (
-    <Link
+    <IntentPrefetchLink
       prefetch={false}
       href={href}
       className="flex h-11 items-center gap-2 rounded-xl border border-border/80 bg-card px-3 text-[13px] font-bold text-foreground shadow-sm transition-colors hover:bg-muted/40"
     >
       <Icon className="h-4 w-4 shrink-0 text-primary" />
       {label}
-    </Link>
+    </IntentPrefetchLink>
   );
 }
 
@@ -143,20 +143,20 @@ function HubBody({ store }: { store: StoreDetails }) {
           <div className="flex flex-wrap gap-2 pt-1">
             {store.status === 'ACTIVE' && (
               <Button variant="outline" size="sm" asChild className="h-9 gap-1.5 rounded-xl font-bold">
-                <Link href={ROUTES.storeDetail(store.id)} prefetch={false}>
+                <IntentPrefetchLink href={ROUTES.storeDetail(store.id)} prefetch={false}>
                   عرض الصفحة العامة <ExternalLink className="h-3.5 w-3.5" />
-                </Link>
+                </IntentPrefetchLink>
               </Button>
             )}
             <Button variant="outline" size="sm" asChild className="h-9 gap-1.5 rounded-xl font-bold">
-              <Link prefetch={false} href={ROUTES.myStoreAnalytics}>
+              <IntentPrefetchLink prefetch={false} href={ROUTES.myStoreAnalytics}>
                 <BarChart3 className="h-3.5 w-3.5" /> الإحصائيات
-              </Link>
+              </IntentPrefetchLink>
             </Button>
             <Button variant="outline" size="icon" asChild className="h-9 w-9 rounded-xl">
-              <Link prefetch={false} href={ROUTES.myStoreSettings} aria-label="الإعدادات">
+              <IntentPrefetchLink prefetch={false} href={ROUTES.myStoreSettings} aria-label="الإعدادات">
                 <Settings2 className="h-4 w-4" />
-              </Link>
+              </IntentPrefetchLink>
             </Button>
           </div>
         </div>
@@ -175,12 +175,12 @@ function HubBody({ store }: { store: StoreDetails }) {
                 {attention.productsOutOfStock} {storeLabels.product} غير متوفر
               </p>
               <Button variant="outline" size="sm" asChild className="h-9 shrink-0 rounded-xl font-bold">
-                <Link
+                <IntentPrefetchLink
                   prefetch={false}
                   href={myStoreTabHref('products', { availability: 'OUT_OF_STOCK' })}
                 >
                   مراجعة
-                </Link>
+                </IntentPrefetchLink>
               </Button>
             </div>
           )}
@@ -193,9 +193,9 @@ function HubBody({ store }: { store: StoreDetails }) {
                 {attention.productsMissingImages} {storeLabels.product} بدون صور
               </p>
               <Button variant="outline" size="sm" asChild className="h-9 shrink-0 rounded-xl font-bold">
-                <Link prefetch={false} href={ROUTES.myStoreProducts}>
+                <IntentPrefetchLink prefetch={false} href={ROUTES.myStoreProducts}>
                   إضافة صور
-                </Link>
+                </IntentPrefetchLink>
               </Button>
             </div>
           )}
@@ -206,10 +206,10 @@ function HubBody({ store }: { store: StoreDetails }) {
       <section className="space-y-2.5">
         <h2 className="text-sm font-extrabold">إجراءات سريعة</h2>
         <Button asChild className="h-11 w-full rounded-xl text-sm font-bold shadow-md shadow-primary/25">
-          <Link prefetch={false} href={ROUTES.myStoreProductCreate}>
+          <IntentPrefetchLink prefetch={false} href={ROUTES.myStoreProductCreate}>
             <PackagePlus className="h-4 w-4" />
             {storeLabels.addProduct}
-          </Link>
+          </IntentPrefetchLink>
         </Button>
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
           <QuickAction href={ROUTES.myStoreInventory} icon={Package} label="المخزون" />

@@ -8,7 +8,7 @@
  * selectHydratedIsAuthenticated. See PublicHeader.tsx for the same pattern.
  */
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { MessageCircle } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { useUnreadConversationCount } from '@/hooks/queries/useConversations';
@@ -27,7 +27,7 @@ export function MessagesLink({ className }: { className?: string }) {
   if (!isAuthenticated) return null;
 
   return (
-    <Link
+    <IntentPrefetchLink
       href={ROUTES.messages}
       prefetch={false}
       className={cn(
@@ -42,6 +42,6 @@ export function MessagesLink({ className }: { className?: string }) {
           {unread > 99 ? '99+' : unread}
         </span>
       )}
-    </Link>
+    </IntentPrefetchLink>
   );
 }

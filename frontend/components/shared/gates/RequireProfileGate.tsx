@@ -1,7 +1,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { AlertTriangle, Store } from 'lucide-react';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -131,7 +131,7 @@ export function RequireProfileGate<T>({
         description={description}
         action={
           <Button asChild>
-            <Link href={`${setupHref}${setupHref.includes('?') ? '&' : '?'}from=${encodeURIComponent(from)}`} prefetch={false}>{ctaLabel}</Link>
+            <IntentPrefetchLink href={`${setupHref}${setupHref.includes('?') ? '&' : '?'}from=${encodeURIComponent(from)}`} prefetch={false}>{ctaLabel}</IntentPrefetchLink>
           </Button>
         }
       />

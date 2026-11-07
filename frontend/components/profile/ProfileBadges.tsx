@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ShoppingBag, Wrench, Store, Award, Flame, Zap } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { cn } from '@/lib/utils';
@@ -101,7 +101,7 @@ export function ProfileBadges({ sellerProfile, className }: Props) {
         </Badge>
       )}
       {store && (
-        <Link href={ROUTES.storeDetail(store.id)} aria-label={`زيارة متجر ${store.name}`} prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.storeDetail(store.id)} aria-label={`زيارة متجر ${store.name}`} prefetch={false}>
           <Badge
             variant="success"
             className={cn(pillBase, 'cursor-pointer transition-colors hover:bg-success/80')}
@@ -109,7 +109,7 @@ export function ProfileBadges({ sellerProfile, className }: Props) {
             <Store className="h-3.5 w-3.5" />
             صاحب متجر
           </Badge>
-        </Link>
+        </IntentPrefetchLink>
       )}
       {/* FIX P2-3 precedent (StoreCard/ServiceListingCard/AdCard): this
           app deliberately replaced raw Tailwind colors (amber/emerald)

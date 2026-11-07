@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useRouter } from 'next/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, MessageCircle } from 'lucide-react';
@@ -198,13 +198,13 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
       </div>
 
       <div className="mt-3 flex gap-2">
-        <Link
+        <IntentPrefetchLink
           href={profileHref}
           prefetch={false}
           className="inline-flex h-10 flex-1 items-center justify-center rounded-full bg-[var(--legacy-primary)] px-3 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           عرض الملف
-        </Link>
+        </IntentPrefetchLink>
         {!isOwnProvider && (
           <button
             type="button"

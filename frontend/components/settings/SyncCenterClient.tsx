@@ -10,7 +10,7 @@ import { OfflineFreshnessBadge } from '@/components/offline/OfflineFreshnessBadg
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { RefreshCw, Trash2, AlertCircle, CheckCircle2, FileText, Pencil } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
@@ -460,11 +460,11 @@ export function SyncCenterClient() {
           تحديث القائمة
         </Button>
         <Button variant="ghost" asChild>
-          <Link href={ROUTES.offline.storage} prefetch={false}>التخزين والبيانات</Link>
+          <IntentPrefetchLink href={ROUTES.offline.storage} prefetch={false}>التخزين والبيانات</IntentPrefetchLink>
         </Button>
         {/* DRAFTS-LINKS-01 */}
         <Button variant="ghost" asChild>
-          <Link href={ROUTES.offline.drafts} prefetch={false}>مركز المسودات</Link>
+          <IntentPrefetchLink href={ROUTES.offline.drafts} prefetch={false}>مركز المسودات</IntentPrefetchLink>
         </Button>
       </div>
 
@@ -550,10 +550,10 @@ export function SyncCenterClient() {
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                   <Button variant="outline" size="sm" asChild>
-                    <Link href={resumeHrefForDraft(d)} prefetch={false}>
+                    <IntentPrefetchLink href={resumeHrefForDraft(d)} prefetch={false}>
                       <Pencil className="me-1 h-3.5 w-3.5" />
                       تعديل
-                    </Link>
+                    </IntentPrefetchLink>
                   </Button>
                   {d.status === 'failed' ? (
                     <>
@@ -647,9 +647,9 @@ export function SyncCenterClient() {
                   {action === 'edit' ? (
                     item.operationId ? (
                       <Button asChild size="sm" variant="outline">
-                        <Link href="/offline?tab=drafts" title="افتح مركز المسودات لمراجعة العملية قبل إرسالها" prefetch={false}>
+                        <IntentPrefetchLink href="/offline?tab=drafts" title="افتح مركز المسودات لمراجعة العملية قبل إرسالها" prefetch={false}>
                           مراجعة المسودة
-                        </Link>
+                        </IntentPrefetchLink>
                       </Button>
                     ) : (
                       <Button size="sm" variant="outline" disabled title="راجع البيانات في الصفحة الأصلية قبل إعادة الإرسال">

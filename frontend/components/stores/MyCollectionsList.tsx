@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Layers, Plus, Pencil, Trash2, ChevronUp, ChevronDown, PackagePlus, AlertTriangle, EyeOff, Check, Square, CheckSquare } from 'lucide-react';
 import { toast } from 'sonner';
@@ -199,11 +199,11 @@ export function MyCollectionsList() {
                       <ChevronDown className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Link href={ROUTES.myStoreCollectionManage(collection.id)} prefetch={false}>
+                  <IntentPrefetchLink href={ROUTES.myStoreCollectionManage(collection.id)} prefetch={false}>
                     <Button variant="ghost" size="sm" className="gap-1.5">
                       <PackagePlus className="h-3.5 w-3.5" />المنتجات
                     </Button>
-                  </Link>
+                  </IntentPrefetchLink>
                   <Button
                     variant="ghost"
                     size="icon"

@@ -1,7 +1,7 @@
 'use client';
 
 /** FIX SSR-FALLBACK-02: client-side profile render when the SSR fetch failed. */
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { BadgeCheck, UserX, AlertTriangle } from 'lucide-react';
 import { ProfileBadges } from '@/components/profile/ProfileBadges';
 import {
@@ -40,12 +40,12 @@ function ClientProfileFallbackHeader({ user }: { user: PublicUser }) {
         {user.city && <p className="text-sm text-muted-foreground">{user.city}</p>}
         {user.bio && <p className="max-w-prose text-sm leading-relaxed text-foreground/75">{user.bio}</p>}
         <div className="flex w-full gap-2">
-          <Link href={ROUTES.userFollowers(user.id)} className="flex-1 rounded-xl bg-surface-2 p-2 text-sm" prefetch={false}>
+          <IntentPrefetchLink href={ROUTES.userFollowers(user.id)} className="flex-1 rounded-xl bg-surface-2 p-2 text-sm" prefetch={false}>
             {user.followStats.followers} متابع
-          </Link>
-          <Link href={ROUTES.userFollowing(user.id)} className="flex-1 rounded-xl bg-surface-2 p-2 text-sm" prefetch={false}>
+          </IntentPrefetchLink>
+          <IntentPrefetchLink href={ROUTES.userFollowing(user.id)} className="flex-1 rounded-xl bg-surface-2 p-2 text-sm" prefetch={false}>
             {user.followStats.following} أتابعهم
-          </Link>
+          </IntentPrefetchLink>
         </div>
         <div className="flex w-full gap-2">
           <PublicProfileFollowAction user={user} />
@@ -72,7 +72,7 @@ export function PublicProfileClient({ id }: { id: string }) {
           title={notFound ? 'المستخدم غير موجود' : 'تعذّر تحميل الملف الشخصي'}
           description={notFound ? 'ربما تم حذف هذا الحساب أو أن الرابط غير صحيح' : 'حدثت مشكلة في الاتصال، حاول مرة أخرى'}
           action={notFound
-            ? <Link href={ROUTES.home} className="text-sm text-primary hover:underline" prefetch={false}>العودة للرئيسية</Link>
+            ? <IntentPrefetchLink href={ROUTES.home} className="text-sm text-primary hover:underline" prefetch={false}>العودة للرئيسية</IntentPrefetchLink>
             : <Button type="button" variant="outline" onClick={() => refetch()}>إعادة المحاولة</Button>}
         />
       </div>

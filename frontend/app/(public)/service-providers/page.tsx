@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Users, Wrench } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import { ROUTES } from '@/lib/constants';
@@ -24,13 +24,13 @@ export default function ServiceProvidersPage() {
           title="مقدمو الخدمة"
           description="ابحث عن مقدّم قريب منك أو في مدينتك"
           actions={
-            <Link
+            <IntentPrefetchLink
               href={ROUTES.services}
               className="inline-flex min-h-10 items-center gap-1.5 rounded-xl border border-border bg-card px-3 text-sm font-medium text-primary shadow-xs hover:border-primary/30 hover:bg-primary-soft/40" prefetch={false}
             >
               <Wrench className="h-4 w-4" aria-hidden />
               عروض الخدمات
-            </Link>
+            </IntentPrefetchLink>
           }
         />
       </div>

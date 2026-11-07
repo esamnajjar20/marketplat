@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import type { Metadata } from 'next';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
@@ -23,10 +23,10 @@ export default function GroupNotFound() {
       <p className="max-w-sm text-muted-foreground">ربما حُذف هذا المحتوى أو تغيّر رابطه.</p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Button asChild>
-          <Link href={ROUTES.home} prefetch={false}>العودة للرئيسية</Link>
+          <IntentPrefetchLink href={ROUTES.home} prefetch={false}>العودة للرئيسية</IntentPrefetchLink>
         </Button>
         <Button asChild variant="outline">
-          <Link href={ROUTES.search} prefetch={false}>البحث في المنصة</Link>
+          <IntentPrefetchLink href={ROUTES.search} prefetch={false}>البحث في المنصة</IntentPrefetchLink>
         </Button>
       </div>
     </div>

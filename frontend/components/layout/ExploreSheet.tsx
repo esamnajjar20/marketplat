@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/shared/ui/Sheet';
 import { ROUTES } from '@/lib/constants';
 import { BROWSE_LINKS } from '@/lib/navigation';
@@ -39,7 +39,7 @@ export function ExploreSheet({
           {GRID_LINKS.map(({ label, href, icon: Icon }) => {
             if (!Icon) return null;
             return (
-              <Link
+              <IntentPrefetchLink
                 key={href}
                 href={href}
                 prefetch={false}
@@ -54,7 +54,7 @@ export function ExploreSheet({
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--legacy-primary-soft)] text-primary">
                   <Icon className="h-[18px] w-[18px]" strokeWidth={1.8} aria-hidden />
                 </span>
-              </Link>
+              </IntentPrefetchLink>
             );
           })}
         </nav>

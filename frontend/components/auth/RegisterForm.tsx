@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useSearchParams } from 'next/navigation';
 import { User, Mail, Lock, LockKeyhole, Phone } from 'lucide-react';
 import { useRegister } from '@/hooks/mutations/useAuthMutations';
@@ -215,7 +215,7 @@ export function RegisterForm() {
 
       <p className="text-center text-[13px] text-[var(--legacy-muted-text)]">
         لديك حساب بالفعل؟{' '}
-        <Link href={loginHref} className="font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>تسجيل الدخول</Link>
+        <IntentPrefetchLink href={loginHref} className="font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>تسجيل الدخول</IntentPrefetchLink>
       </p>
     </form>
   );

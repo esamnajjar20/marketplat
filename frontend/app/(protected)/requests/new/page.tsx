@@ -1,6 +1,6 @@
 import dynamic from 'next/dynamic';
 import { Suspense } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ArrowRight } from 'lucide-react';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { ROUTES } from '@/lib/constants';
@@ -34,13 +34,13 @@ export default function NewRequestPage() {
   return (
     <div className="mx-auto max-w-5xl space-y-4 px-3 pb-12 sm:px-4" dir="rtl">
       <div>
-        <Link
+        <IntentPrefetchLink
           href={ROUTES.requests}
           className="inline-flex min-h-10 items-center gap-1 rounded-lg px-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" prefetch={false}
         >
           <ArrowRight className="h-4 w-4" aria-hidden />
           سوق الطلبات
-        </Link>
+        </IntentPrefetchLink>
         <h1 className="mt-2 text-xl font-bold tracking-tight text-foreground">نشر طلب / احتياج</h1>
         <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
           أربع خطوات بسيطة: اختر النوع، اكتب التفاصيل، حدّد الميزانية، ثم راجع وانشر.

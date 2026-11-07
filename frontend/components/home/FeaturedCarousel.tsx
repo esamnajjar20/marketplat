@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ChevronLeft, ChevronRight, Pause, Play, Sparkles } from 'lucide-react';
 import { useHomeFeed } from '@/hooks/queries/useHomeFeed';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
@@ -260,11 +260,12 @@ export function FeaturedCarousel() {
         aria-live={autoPlaying ? 'off' : 'polite'}
       >
         {slides.map((slide, i) => (
-          <Link
+          <IntentPrefetchLink
             key={slide.key}
             href={slide.href}
-            // FIX RSC-PREFETCH-STORM-02: each slide links to a dynamic detail
-            // page; prefetching all of them on load cost a request per slide.
+            // FIX RSC-PREFETCH-STORM-02: each slide links to a dynamic detail page.
+            // IntentPrefetchLink waits for hover/focus instead of warming every
+            // slide destination on initial viewport entry.
             prefetch={false}
             onPointerDown={() => {
               lastInteractionRef.current = Date.now();
@@ -300,7 +301,7 @@ export function FeaturedCarousel() {
               <p className="truncate text-base font-bold leading-snug drop-shadow-sm sm:text-lg">{slide.title}</p>
               <p className="truncate text-xs opacity-95 sm:text-sm">{slide.subtitle}</p>
             </div>
-          </Link>
+          </IntentPrefetchLink>
         ))}
       </div>
 

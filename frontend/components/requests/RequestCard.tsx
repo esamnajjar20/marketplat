@@ -1,7 +1,7 @@
 'use client';
 
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { MapPin, Wallet, Clock } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import {
@@ -66,7 +66,7 @@ export function RequestCard({ request: r, context = 'public', showStatus = false
           </div>
         </div>
 
-        <Link
+        <IntentPrefetchLink
           href={detailHref}
           prefetch={false}
           className={cn('mt-2 block focus-visible:outline-none', CARD_FOCUS)}
@@ -82,7 +82,7 @@ export function RequestCard({ request: r, context = 'public', showStatus = false
               {r.description}
             </p>
           ) : null}
-        </Link>
+        </IntentPrefetchLink>
 
         <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           <span className="inline-flex items-center gap-1 font-extrabold tabular-nums text-foreground">
@@ -107,7 +107,7 @@ export function RequestCard({ request: r, context = 'public', showStatus = false
           <span className="text-xs text-muted-foreground">
             {typeof offers === 'number' ? formatOffersCount(offers) : '0 عروض'}
           </span>
-          <Link
+          <IntentPrefetchLink
             href={detailHref}
             prefetch={false}
             className={cn(
@@ -117,7 +117,7 @@ export function RequestCard({ request: r, context = 'public', showStatus = false
             )}
           >
             قدّم عرضك
-          </Link>
+          </IntentPrefetchLink>
         </div>
       </div>
     </article>

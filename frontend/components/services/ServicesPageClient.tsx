@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Users } from 'lucide-react';
 import { ListPageShell } from '@/components/shared/list/ListPageShell';
 import { ROUTES } from '@/lib/constants';
@@ -57,13 +57,13 @@ export function ServicesPageClient({ initialPage, initialPageUpdatedAt, searchPa
       description="تصفح الخدمات المحلية في سوق غزة"
       className="bg-[var(--legacy-page-surface)] dark:bg-background"
       headerEnd={
-        <Link
+        <IntentPrefetchLink
           href={ROUTES.serviceProviders}
           className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[var(--legacy-border)] bg-card px-3 text-xs font-bold text-[var(--legacy-primary-deep)] shadow-sm hover:border-primary/40 dark:border-border dark:bg-card dark:text-primary" prefetch={false}
         >
           <Users className="h-3.5 w-3.5" aria-hidden />
           مقدمو الخدمة
-        </Link>
+        </IntentPrefetchLink>
       }
       toolbar={
         <div className="flex w-full flex-col gap-3">

@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Star, ChevronLeft, BadgeCheck } from 'lucide-react';
 import { getAvatarUrl } from '@/lib/cloudinary';
@@ -94,7 +94,7 @@ export function PublicProfileHeader({ user }: Props) {
                     </>
                   );
                   return t.href ? (
-                    <Link key={t.label} href={t.href} className={`${tileCls} transition hover:bg-primary-soft`} prefetch={false}>{inner}</Link>
+                    <IntentPrefetchLink key={t.label} href={t.href} className={`${tileCls} transition hover:bg-primary-soft`} prefetch={false}>{inner}</IntentPrefetchLink>
                   ) : (
                     <div key={t.label} className={tileCls}>{inner}</div>
                   );
@@ -107,7 +107,7 @@ export function PublicProfileHeader({ user }: Props) {
               </div>
 
               {store && (
-                <Link
+                <IntentPrefetchLink
                   href={ROUTES.storeDetail(store.id)}
                   className="mt-4 flex items-center gap-3 rounded-[20px] border border-border bg-card p-3 text-start shadow-sm transition hover:border-primary/30" prefetch={false}
                 >
@@ -120,7 +120,7 @@ export function PublicProfileHeader({ user }: Props) {
                     <span className="block text-xs text-muted-foreground">{store._count.products} منتج · {store._count.followers} متابع</span>
                   </span>
                   <ChevronLeft className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
-                </Link>
+                </IntentPrefetchLink>
               )}
 
               <div className="mt-3 flex items-center justify-center gap-1 text-xs text-muted-foreground lg:justify-start">

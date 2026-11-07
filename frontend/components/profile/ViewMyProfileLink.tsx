@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ExternalLink } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { useAuthStore, selectUser } from '@/store/auth.store';
@@ -20,9 +20,9 @@ export function ViewMyProfileLink() {
 
   return (
     <Button variant="outline" size="sm" asChild className="gap-1.5 shrink-0">
-      <Link href={ROUTES.userProfile(user.id)} prefetch={false}>
+      <IntentPrefetchLink href={ROUTES.userProfile(user.id)} prefetch={false}>
         عرض ملفي كما يظهر للآخرين <ExternalLink className="h-3.5 w-3.5" />
-      </Link>
+      </IntentPrefetchLink>
     </Button>
   );
 }

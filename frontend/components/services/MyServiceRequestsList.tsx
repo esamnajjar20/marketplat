@@ -2,7 +2,7 @@
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AlertTriangle, MessageSquare, X, Star, CheckCheck, ShieldAlert } from 'lucide-react';
@@ -115,7 +115,7 @@ export function MyServiceRequestsList() {
           icon={<MessageSquare className="h-10 w-10" />}
           title="لا توجد طلبات"
           description="لم ترسل أي طلب خدمة بعد"
-          action={<Link href={ROUTES.services} prefetch={false}><Button>تصفّح الخدمات</Button></Link>}
+          action={<IntentPrefetchLink href={ROUTES.services} prefetch={false}><Button>تصفّح الخدمات</Button></IntentPrefetchLink>}
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -133,12 +133,12 @@ export function MyServiceRequestsList() {
                 </div>
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="flex min-w-0 flex-col items-start gap-2 sm:flex-row sm:justify-between">
-                    <Link
+                    <IntentPrefetchLink
                       href={ROUTES.serviceDetail(request.listing.id)}
                       className="min-w-0 break-words text-sm font-semibold leading-6 hover:underline sm:line-clamp-1" prefetch={false}
                     >
                       {request.listing.title}
-                    </Link>
+                    </IntentPrefetchLink>
                     <Badge variant={SERVICE_REQUEST_STATUS_VARIANT[request.status]} className="max-w-full shrink-0 text-xs">
                       {SERVICE_REQUEST_STATUS_LABELS[request.status]}
                     </Badge>
@@ -157,9 +157,9 @@ export function MyServiceRequestsList() {
                   {/* AUDIT-FIX (issue #6): details/attachedImages were
                       clipped here with no way to see the full request —
                       this links to the new detail page for both. */}
-                  <Link href={ROUTES.serviceRequestDetail(request.id)} className="inline-flex min-h-9 items-center text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" prefetch={false}>
+                  <IntentPrefetchLink href={ROUTES.serviceRequestDetail(request.id)} className="inline-flex min-h-9 items-center text-xs font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2" prefetch={false}>
                     عرض التفاصيل الكاملة
-                  </Link>
+                  </IntentPrefetchLink>
                   {request.status === 'COMPLETED' && !canReview && (
                     <p className="text-xs text-success flex items-center gap-1">
                       <Star className="h-3 w-3 fill-rating text-rating" />تم إرسال تقييمك

@@ -10,10 +10,11 @@
 - Correct the responsive `sizes` hints for the fixed-width product-list thumbnail, followed-store grid covers, compact store rows, store-detail cover and capped homepage carousel.
 - Avoid reading browser data-saver/network policy and scheduling an image state update for SafeImage instances that do not have a blur preview.
 - Preserve `prefetch={false}` on dense marketplace card links to avoid background route requests for every visible result card.
+- Route audited `prefetch={false}` links through `components/navigation/IntentPrefetchLink.tsx`: no viewport prefetch is sent on page load, but the default Next.js prefetch policy is enabled after pointer hover or keyboard focus. Links opening another browsing context and download/hash/scheme links remain non-prefetching.
 
 ## Next.js 15 compatibility
 
-This project is pinned to Next.js 15.5.x. The image code intentionally retains the Next.js 15 `priority` prop for true above-the-fold/LCP images. Do not switch to the Next.js 16 `preload` prop unless the framework is upgraded. Dynamic route prefetch remains disabled on dense card grids; Next.js Link prefetch should be used selectively where the user is likely to navigate.
+This project is pinned to Next.js 15.5.x. The image code intentionally retains the Next.js 15 `priority` prop for true above-the-fold/LCP images. Do not switch to the Next.js 16 `preload` prop unless the framework is upgraded. Dynamic route prefetch remains disabled on dense card grids until the user shows intent; the shared Link adapter enables default prefetch after hover or focus rather than on initial viewport entry.
 
 ## Verification
 

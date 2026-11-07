@@ -3,7 +3,7 @@
 // Design-aligned: matches the "طابور العمل" cards from the admin design HTML.
 // Number + icon on top row, label, hint, and outlined "عرض" button.
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Flag, Store, UserCheck, ShieldAlert } from 'lucide-react';
 import { useAdminOpsQueue } from '@/hooks/queries/useAdmin';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -98,7 +98,7 @@ export function AdminOpsQueue() {
               </div>
               <p className="mt-2 text-[13px] font-bold">{label}</p>
               <p className="mt-0.5 text-[12px] text-[var(--legacy-muted-text)]">{hint}</p>
-              <Link
+              <IntentPrefetchLink
                 href={href}
                 className={cn(
                   'mt-2 inline-flex h-[30px] w-fit items-center justify-center rounded-lg border border-[var(--legacy-primary-border)] bg-card px-2.5 text-[12px] font-bold text-[var(--legacy-primary-deep)]',
@@ -106,7 +106,7 @@ export function AdminOpsQueue() {
                 )} prefetch={false}
               >
                 عرض
-              </Link>
+              </IntentPrefetchLink>
             </div>
           );
         })}

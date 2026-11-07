@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Check, Circle, User, Store, PlusCircle, ArrowLeft, Package, Wrench } from 'lucide-react';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
@@ -126,13 +126,13 @@ export function OnboardingChecklist() {
           </ul>
           <div className="flex flex-wrap gap-2 pt-1">
             <Button size="sm" asChild>
-              <Link href={ROUTES.adCreate} prefetch={false}>إعلان سريع</Link>
+              <IntentPrefetchLink href={ROUTES.adCreate} prefetch={false}>إعلان سريع</IntentPrefetchLink>
             </Button>
             <Button size="sm" variant="outline" asChild>
-              <Link href={ROUTES.myStore} prefetch={false}>فتح متجر</Link>
+              <IntentPrefetchLink href={ROUTES.myStore} prefetch={false}>فتح متجر</IntentPrefetchLink>
             </Button>
             <Button size="sm" variant="outline" asChild>
-              <Link href={ROUTES.settings.serviceProvider} prefetch={false}>مزود خدمة</Link>
+              <IntentPrefetchLink href={ROUTES.settings.serviceProvider} prefetch={false}>مزود خدمة</IntentPrefetchLink>
             </Button>
           </div>
         </div>
@@ -147,7 +147,7 @@ export function OnboardingChecklist() {
                 <span className="line-through">{step.label}</span>
               </div>
             ) : (
-              <Link
+              <IntentPrefetchLink
                 href={step.href}
                 className={cn(
                   'flex min-h-[44px] items-center gap-2 rounded-md px-2 py-2.5 text-sm font-medium transition-colors',
@@ -158,7 +158,7 @@ export function OnboardingChecklist() {
                 <step.icon className="h-4 w-4 shrink-0 text-primary" aria-hidden />
                 <span className="flex-1 text-start">{step.label}</span>
                 {step === next && <ArrowLeft className="h-4 w-4 shrink-0 text-primary" aria-hidden />}
-              </Link>
+              </IntentPrefetchLink>
             )}
           </li>
         ))}
@@ -166,10 +166,10 @@ export function OnboardingChecklist() {
 
       <div className="flex justify-end pt-1">
         <Button asChild className="font-semibold" size="sm">
-          <Link href={next.href} prefetch={false}>
+          <IntentPrefetchLink href={next.href} prefetch={false}>
             {next.label}
             <ArrowLeft className="ms-1 h-4 w-4" aria-hidden />
-          </Link>
+          </IntentPrefetchLink>
         </Button>
       </div>
     </section>

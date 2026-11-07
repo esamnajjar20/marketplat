@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { ArrowRight, Check, Package, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
@@ -58,11 +58,11 @@ export function CollectionProductsManager({ collectionId }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 flex-wrap">
-        <Link href={ROUTES.myStoreCollections} prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.myStoreCollections} prefetch={false}>
           <Button variant="ghost" size="sm" className="gap-1.5">
             <ArrowRight className="h-4 w-4" />المجموعات
           </Button>
-        </Link>
+        </IntentPrefetchLink>
         <h1 className="text-xl font-extrabold">
           منتجات: {collection?.name ?? '…'}
         </h1>
@@ -86,9 +86,9 @@ export function CollectionProductsManager({ collectionId }: Props) {
           title="لا توجد منتجات نشطة"
           description="أضف منتجات نشطة إلى متجرك أولاً لتتمكن من إضافتها إلى هذه المجموعة"
           action={
-            <Link href={ROUTES.myStoreProductCreate} prefetch={false}>
+            <IntentPrefetchLink href={ROUTES.myStoreProductCreate} prefetch={false}>
               <Button>إضافة منتج</Button>
-            </Link>
+            </IntentPrefetchLink>
           }
         />
       ) : (

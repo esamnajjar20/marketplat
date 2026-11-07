@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useRouter } from 'next/navigation';
 import { memo, useState } from 'react';
 import { Heart, Clock3, MapPin, Package } from 'lucide-react';
@@ -150,7 +150,7 @@ export const AdCard = memo(function AdCard({
           className,
         )}
       >
-        <Link
+        <IntentPrefetchLink
           href={detailHref}
           prefetch={false}
           className={cn(
@@ -224,7 +224,7 @@ export const AdCard = memo(function AdCard({
               </span>
             )}
           </div>
-        </Link>
+        </IntentPrefetchLink>
         {showHeart && (
           <button
             type="button"
@@ -260,7 +260,7 @@ export const AdCard = memo(function AdCard({
         className,
       )}
     >
-      <Link
+      <IntentPrefetchLink
         href={detailHref}
         prefetch={false}
         className={cn(
@@ -347,7 +347,7 @@ export const AdCard = memo(function AdCard({
             )}
           </div>
         </div>
-      </Link>
+      </IntentPrefetchLink>
       {showHeart && (
         <button
           type="button"

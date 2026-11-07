@@ -2,7 +2,7 @@
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { AlertTriangle, Inbox, Check, X, Play, CheckCheck, CalendarPlus, WalletCards } from 'lucide-react';
@@ -241,12 +241,12 @@ export function IncomingServiceRequestsList() {
                 </div>
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-start justify-between gap-2">
-                    <Link
+                    <IntentPrefetchLink
                       href={ROUTES.serviceDetail(request.listing.id)}
                       className="font-medium text-sm hover:underline line-clamp-1" prefetch={false}
                     >
                       {request.listing.title}
-                    </Link>
+                    </IntentPrefetchLink>
                     <Badge variant={SERVICE_REQUEST_STATUS_VARIANT[request.status]} className="shrink-0 text-xs">
                       {SERVICE_REQUEST_STATUS_LABELS[request.status]}
                     </Badge>
@@ -257,9 +257,9 @@ export function IncomingServiceRequestsList() {
                   {/* AUDIT-FIX (issue #6): details/attachedImages were
                       clipped here with no way to see the full request —
                       this links to the new detail page for both. */}
-                  <Link href={ROUTES.serviceRequestDetail(request.id)} className="inline-block text-xs text-primary hover:underline" prefetch={false}>
+                  <IntentPrefetchLink href={ROUTES.serviceRequestDetail(request.id)} className="inline-block text-xs text-primary hover:underline" prefetch={false}>
                     عرض التفاصيل الكاملة
-                  </Link>
+                  </IntentPrefetchLink>
                 </div>
                 <div className="flex items-center sm:items-end">
                   <div className="flex flex-wrap items-end gap-1.5">

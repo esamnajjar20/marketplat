@@ -1,7 +1,7 @@
 import type { Metadata }       from 'next';
 import dynamic                 from 'next/dynamic';
 import { cache }               from 'react';
-import Link                    from 'next/link';
+import IntentPrefetchLink                    from '@/components/navigation/IntentPrefetchLink';
 import { UserX }  from 'lucide-react';
 import { PublicProfileHeader } from '@/components/profile/PublicProfileHeader';
 import { ProfileTabsSection }  from '@/components/profile/ProfileTabsSection';
@@ -95,9 +95,9 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
           title="المستخدم غير موجود"
           description="ربما تم حذف هذا الحساب أو أن الرابط غير صحيح"
           action={
-            <Link href={ROUTES.home} className="text-sm text-primary hover:underline" prefetch={false}>
+            <IntentPrefetchLink href={ROUTES.home} className="text-sm text-primary hover:underline" prefetch={false}>
               العودة للرئيسية
-            </Link>
+            </IntentPrefetchLink>
           }
         />
       </div>

@@ -5,7 +5,7 @@
  * UX-01 FIX: When Button uses asChild + Link, the disabled prop on Button
  *   only adds visual opacity — it does NOT prevent the Link from being
  *   focusable or navigated by keyboard/screen reader. Fix: render a <span>
- *   with aria-disabled when on the first/last page instead of a <Link prefetch={false}>.
+ *   with aria-disabled when on the first/last page instead of a disabled Link.
  *
  * Prev/Next + a bare "N / total" counter gave no way to jump
  *   more than one page at a time — costly on admin tables with dozens
@@ -17,7 +17,7 @@
  *   supplementary visual/mouse shortcut, not a replacement).
  */
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Button } from './Button';
 import { buildUrlWithParams } from '@/lib/urlWithParams';
 
@@ -108,9 +108,9 @@ export function Pagination({
         </Button>
       ) : (
         <Button asChild variant="outline" size="sm">
-          <Link href={buildPageUrl(currentPage - 1)} aria-label="الصفحة السابقة" prefetch={false}>
+          <IntentPrefetchLink href={buildPageUrl(currentPage - 1)} aria-label="الصفحة السابقة" prefetch={false}>
             السابق
-          </Link>
+          </IntentPrefetchLink>
         </Button>
       )}
 
@@ -134,9 +134,9 @@ export function Pagination({
             </span>
           ) : (
             <Button key={p} asChild variant="outline" size="sm" className="h-9 min-w-9 px-2">
-              <Link href={buildPageUrl(p)} aria-label={`الصفحة ${p}`} prefetch={false}>
+              <IntentPrefetchLink href={buildPageUrl(p)} aria-label={`الصفحة ${p}`} prefetch={false}>
                 {p}
-              </Link>
+              </IntentPrefetchLink>
             </Button>
           ),
         )}
@@ -162,9 +162,9 @@ export function Pagination({
         </Button>
       ) : (
         <Button asChild variant="outline" size="sm">
-          <Link href={buildPageUrl(currentPage + 1)} aria-label="الصفحة التالية" prefetch={false}>
+          <IntentPrefetchLink href={buildPageUrl(currentPage + 1)} aria-label="الصفحة التالية" prefetch={false}>
             التالي
-          </Link>
+          </IntentPrefetchLink>
         </Button>
       )}
     </nav>

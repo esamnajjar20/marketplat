@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ShoppingBag, Clock } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { ProductCard } from '@/components/stores/ProductCard';
@@ -94,13 +94,13 @@ export function RecentProductsSection() {
           action={
             isAuth ? (
               <Button asChild size="sm">
-                <Link href={ROUTES.myStoreProductCreate} prefetch={false}>إضافة منتج</Link>
+                <IntentPrefetchLink href={ROUTES.myStoreProductCreate} prefetch={false}>إضافة منتج</IntentPrefetchLink>
               </Button>
             ) : (
               <Button asChild size="sm" variant="outline">
-                <Link href={`${ROUTES.login}?from=${encodeURIComponent(ROUTES.myStoreProductCreate)}`} prefetch={false}>
+                <IntentPrefetchLink href={`${ROUTES.login}?from=${encodeURIComponent(ROUTES.myStoreProductCreate)}`} prefetch={false}>
                   تسجيل الدخول
-                </Link>
+                </IntentPrefetchLink>
               </Button>
             )
           }

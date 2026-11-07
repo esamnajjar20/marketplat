@@ -5,7 +5,7 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 // chain in the bell dropdown preview -- crashed the admin header when a
 // report's reporter record was missing.
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useState } from 'react';
 import { LogOut, Bell, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Button }      from '@/components/shared/ui/Button';
@@ -62,7 +62,7 @@ export function AdminHeader() {
   return (
     <header className="sticky top-0 z-30 flex min-h-[60px] shrink-0 items-center justify-between gap-3 border-b border-[var(--legacy-border)] bg-card px-4 shadow-xs sm:px-5">
       <div className="flex min-w-0 items-center gap-3">
-        <Link
+        <IntentPrefetchLink
           prefetch={false}
           href={ROUTES.admin.dashboard}
           className="flex shrink-0 items-center gap-2.5"
@@ -78,7 +78,7 @@ export function AdminHeader() {
               مركز المراجعة والتشغيل
             </span>
           </div>
-        </Link>
+        </IntentPrefetchLink>
       </div>
       <div className="flex items-center gap-2">
         {/*
@@ -95,10 +95,10 @@ export function AdminHeader() {
             so aria-label carries it there. The static title= added no new
             information and shadowed the visible text for screen readers. */}
         <Button asChild variant="ghost" size="sm" className="gap-1.5" aria-label="العودة للموقع">
-          <Link prefetch={false} href={ROUTES.home}>
+          <IntentPrefetchLink prefetch={false} href={ROUTES.home}>
             <ExternalLink className="h-3.5 w-3.5" aria-hidden />
             <span className="hidden sm:inline">العودة للموقع</span>
-          </Link>
+          </IntentPrefetchLink>
         </Button>
         {/*
          * FIX A11Y-01: icon-only buttons had no accessible name at
@@ -137,7 +137,7 @@ export function AdminHeader() {
             ) : (
               <div className="divide-y">
                 {recentReports.map((report) => (
-                  <Link prefetch={false}
+                  <IntentPrefetchLink prefetch={false}
                     key={report.id}
                     href={ROUTES.admin.reports}
                     className="flex items-start gap-2.5 p-3 text-start transition-colors hover:bg-muted/50"
@@ -164,14 +164,14 @@ export function AdminHeader() {
                       </p>
                       <p className="text-2xs text-muted-foreground">{<HydrationSafeRelativeTime date={report.createdAt} />}</p>
                     </div>
-                  </Link>
+                  </IntentPrefetchLink>
                 ))}
               </div>
             )}
             <DropdownMenuSeparator className="m-0" />
-            <Link prefetch={false} href={ROUTES.admin.reports} className="block p-3 text-center text-sm text-primary hover:underline">
+            <IntentPrefetchLink prefetch={false} href={ROUTES.admin.reports} className="block p-3 text-center text-sm text-primary hover:underline">
               عرض كل البلاغات
-            </Link>
+            </IntentPrefetchLink>
           </DropdownMenuContent>
         </DropdownMenu>
         <span className="text-sm text-muted-foreground hidden sm:block">{user?.name}</span>

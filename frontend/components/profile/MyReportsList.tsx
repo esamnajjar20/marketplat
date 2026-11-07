@@ -2,7 +2,7 @@
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Flag } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -54,12 +54,12 @@ function MyReportRow({ report }: { report: Report }) {
           {statusLabel}
         </span>
       </div>
-      <Link
+      <IntentPrefetchLink
         href={targetHref(report.targetType, report.targetId)}
         className="mt-2 block text-[15px] font-extrabold text-foreground hover:underline" prefetch={false}
       >
         {title}
-      </Link>
+      </IntentPrefetchLink>
       <p className="mt-1 text-[12px] text-[var(--legacy-muted-text)]">
         <HydrationSafeRelativeTime date={report.createdAt} />
       </p>

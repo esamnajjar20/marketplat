@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { MessageSquare, Search, X } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { useMyConversations } from '@/hooks/queries/useConversations';
@@ -151,10 +151,10 @@ export function ConversationList({ selectedId }: Props = {}) {
         </p>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
           <Button asChild size="sm" className="rounded-xl">
-            <Link prefetch={false} href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</Link>
+            <IntentPrefetchLink prefetch={false} href={`${ROUTES.search}?type=ads`}>تصفّح الإعلانات</IntentPrefetchLink>
           </Button>
           <Button asChild size="sm" variant="outline" className="rounded-xl">
-            <Link href={ROUTES.home} prefetch={false}>الرئيسية</Link>
+            <IntentPrefetchLink href={ROUTES.home} prefetch={false}>الرئيسية</IntentPrefetchLink>
           </Button>
         </div>
       </div>

@@ -9,7 +9,7 @@ import type { ApiResponse } from '@/types/api.types';
 import type { SellerRankingRow } from '@/types/seller-ranking.types';
 import { normalizeSellerRankingRows } from '@/lib/sellerRanking';
 import { queryKeys } from '@/lib/queryKeys';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ROUTES } from '@/lib/constants';
 import { ResponseTimeBadge } from '@/components/sellers/ResponseTimeBadge';
 import {
@@ -111,7 +111,7 @@ function Podium({ top3 }: { top3: RankRow[] }) {
         }
         const isFirst = place === 1;
         return (
-          <Link
+          <IntentPrefetchLink
             key={row.sellerProfileId}
             href={ROUTES.userProfile(row.userId)}
             className={cn(
@@ -140,7 +140,7 @@ function Podium({ top3 }: { top3: RankRow[] }) {
               </span>
             )}
             <p className="mt-1 text-[12px] font-bold text-muted-foreground">نقاط {row.score}</p>
-          </Link>
+          </IntentPrefetchLink>
         );
       })}
     </div>
@@ -251,7 +251,7 @@ export function SellersRankingList({
           <ol className="space-y-2" aria-label="ترتيب أفضل البائعين">
             {rest.map((r) => (
               <li key={r.sellerProfileId}>
-                <Link
+                <IntentPrefetchLink
                   href={ROUTES.userProfile(r.userId)}
                   className="flex items-center gap-3 rounded-[14px] border border-border bg-card px-3 py-3 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors hover:bg-muted/60" prefetch={false}
                 >
@@ -283,7 +283,7 @@ export function SellersRankingList({
                     <p className="text-[11px] text-muted-foreground">نقاط</p>
                     <p className="text-[15px] font-extrabold tabular-nums text-foreground">{r.score}</p>
                   </div>
-                </Link>
+                </IntentPrefetchLink>
               </li>
             ))}
           </ol>

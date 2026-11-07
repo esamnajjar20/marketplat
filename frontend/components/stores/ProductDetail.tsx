@@ -18,7 +18,7 @@ import {
 
 import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
 import { useMemo } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   MapPin, Eye, Package, Phone, Store as StoreIcon,
 } from 'lucide-react';
@@ -315,7 +315,7 @@ function StorePanel({ store, productId }: { store: ProductWithFullStore['store']
   return (
     <div className={cn(DETAIL_PRICE_PANEL, 'space-y-3')}>
       <p className="text-xs font-medium text-muted-foreground">المتجر</p>
-      <Link
+      <IntentPrefetchLink
         href={ROUTES.storeDetail(store.slug || store.id)}
         className="flex items-center gap-3 rounded-lg transition-colors hover:bg-muted/50" prefetch={false}
       >
@@ -332,7 +332,7 @@ function StorePanel({ store, productId }: { store: ProductWithFullStore['store']
             <p className="truncate text-xs text-muted-foreground">{store.city}</p>
           )}
         </div>
-      </Link>
+      </IntentPrefetchLink>
       <div className="flex flex-col gap-2">
         {store.phone && (
           <Button asChild variant="outline" className="w-full gap-2 font-semibold">

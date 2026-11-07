@@ -1,7 +1,7 @@
 'use client';
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 import { memo, Fragment } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
 import { ROUTES } from '@/lib/constants';
@@ -74,7 +74,7 @@ export const AdminFraudRow = memo(function AdminFraudRow({
     <Fragment>
       <tr className="border-b border-[var(--legacy-muted-surface)] transition-colors hover:bg-[var(--legacy-card-soft)] [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
         <td className="p-3 max-w-xs">
-          <Link
+          <IntentPrefetchLink
             prefetch={false}
             href={ROUTES.adDetail(ad.id)}
             target="_blank"
@@ -83,7 +83,7 @@ export const AdminFraudRow = memo(function AdminFraudRow({
           >
             <ExternalLink className="h-3 w-3 shrink-0 text-primary" />
             <span className="truncate">{ad.title}</span>
-          </Link>
+          </IntentPrefetchLink>
           <span className="text-[12px] text-[var(--legacy-muted-text)]">
             {ad.price == null ? '—' : formatPrice(Number(ad.price))}
           </span>

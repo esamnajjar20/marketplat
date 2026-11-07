@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { PackageSearch } from 'lucide-react';
 import { ProductCard } from '@/components/stores/ProductCard';
 import { ProductCardSkeleton } from '@/components/shared/skeletons/ProductCardSkeleton';
@@ -50,9 +50,9 @@ export function RecentProducts() {
         ))}
       </div>
       <div className="flex justify-center">
-        <Link href={ROUTES.products} prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.products} prefetch={false}>
           <Button variant="outline">عرض جميع المنتجات</Button>
-        </Link>
+        </IntentPrefetchLink>
       </div>
     </div>
   );

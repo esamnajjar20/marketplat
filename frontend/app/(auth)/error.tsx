@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Button } from '@/components/shared/ui/Button';
 import { Spinner } from '@/components/ui/spinner';
 import { reportClientError, handleChunkLoadError, isOfflineChunkLoadError } from '@/lib/errorReporter';
@@ -62,7 +62,7 @@ export default function AuthError({ error, reset }: AuthErrorProps) {
       <div className="flex flex-wrap items-center justify-center gap-2">
         <Button onClick={reset}>حاول مجدداً</Button>
         <Button variant="outline" asChild>
-          <Link href={ROUTES.login} prefetch={false}>صفحة تسجيل الدخول</Link>
+          <IntentPrefetchLink href={ROUTES.login} prefetch={false}>صفحة تسجيل الدخول</IntentPrefetchLink>
         </Button>
       </div>
     </div>

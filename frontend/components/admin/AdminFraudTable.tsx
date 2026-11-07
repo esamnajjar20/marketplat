@@ -28,7 +28,7 @@ import { adminPagination } from '@/lib/adminHubTabs';
 import { AdminFraudRow } from './AdminFraudRow';
 import { AdSignalsPanel } from './AdSignalsPanel';
 import { memo, useState, useMemo } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useSearchParams } from 'next/navigation';
 import { AlertTriangle } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
@@ -103,9 +103,9 @@ export const AdminFraudTable = memo(function AdminFraudTable() {
           {items.map((ad) => (
             <div key={ad.id} className="space-y-2 rounded-xl border border-border bg-card p-3 shadow-xs">
               <div className="min-w-0 space-y-1">
-                <Link prefetch={false} href={ROUTES.adDetail(ad.id)} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary hover:underline line-clamp-2">
+                <IntentPrefetchLink prefetch={false} href={ROUTES.adDetail(ad.id)} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-primary hover:underline line-clamp-2">
                   {ad.title}
-                </Link>
+                </IntentPrefetchLink>
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <span className="font-semibold text-primary">{formatPrice(ad.price)}</span>
                   <span>{ad.user?.name ?? '—'}</span>

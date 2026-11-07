@@ -92,6 +92,7 @@ describe('salesRepository.reportTotals', () => {
     const from = new Date('2026-10-01T00:00:00.000Z');
     const to = new Date('2026-10-31T23:59:59.999Z');
     (prisma.saleRecord.aggregate as jest.Mock).mockResolvedValue({
+      _count: { _all: 1200 },
       _sum: { totalPrice: 1000, refundedAmount: 100, paidAmount: 700, dueAmount: 200 },
     });
     (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ totalCost: 400.5 }]);
@@ -99,6 +100,7 @@ describe('salesRepository.reportTotals', () => {
     await expect(
       salesRepository.reportTotals('seller-1', { storeId: 'store-1', status: 'PAID' as any, from, to })
     ).resolves.toEqual({
+      count: 1200,
       revenue: 900,
       cost: 400.5,
       profit: 499.5,
@@ -115,6 +117,7 @@ describe('salesRepository.reportTotals', () => {
           paymentStatus: 'PAID',
           soldAt: { gte: from, lte: to },
         },
+        _count: { _all: true },
       })
     );
     const [queryTemplate, joined] = (prisma.$queryRaw as jest.Mock).mock.calls[0];
@@ -126,12 +129,13 @@ describe('salesRepository.reportTotals', () => {
 
   it('scopes to the seller only when no optional filter is given, and treats empty aggregates as zero', async () => {
     (prisma.saleRecord.aggregate as jest.Mock).mockResolvedValue({
+      _count: { _all: 0 },
       _sum: { totalPrice: null, refundedAmount: null, paidAmount: null, dueAmount: null },
     });
     (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
 
     await expect(salesRepository.reportTotals('seller-1', {})).resolves.toEqual({
-      revenue: 0, cost: 0, profit: 0, paid: 0, due: 0, refunded: 0,
+      count: 0, revenue: 0, cost: 0, profit: 0, paid: 0, due: 0, refunded: 0,
     });
     expect(prisma.saleRecord.aggregate).toHaveBeenCalledWith(
       expect.objectContaining({ where: { sellerId: 'seller-1' } })

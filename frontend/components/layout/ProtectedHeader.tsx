@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 
-import Link       from 'next/link';
+import IntentPrefetchLink       from '@/components/navigation/IntentPrefetchLink';
 import { Logo }   from './Logo';
 import { UserMenu } from './UserMenu';
 import { NotificationBell } from './NotificationBell';
@@ -45,9 +45,9 @@ export function ProtectedHeader() {
       {/* Drawer mounts always (portal); its own toggle is lg:hidden so
           BottomNav owns the menu entry on mobile. */}
       <ProtectedMobileNav />
-      <Link prefetch={false} href={ROUTES.home} className="shrink-0">
+      <IntentPrefetchLink prefetch={false} href={ROUTES.home} className="shrink-0">
         <Logo />
-      </Link>
+      </IntentPrefetchLink>
 
       {/* REORG-06: a signed-in user inside /dashboard or any other
           protected page had no direct path to public browse (stores/
@@ -61,16 +61,16 @@ export function ProtectedHeader() {
             lib/navigation.ts's BROWSE_LINKS comment for why ads gets a
             standing link here (and products deliberately doesn't). */}
         <Button asChild variant="ghost" size="sm" className={navItemClass(isAdsBrowseActive)}>
-          <Link prefetch={false} href={`${ROUTES.search}?type=ads`} aria-current={isAdsBrowseActive ? 'page' : undefined}>الإعلانات</Link>
+          <IntentPrefetchLink prefetch={false} href={`${ROUTES.search}?type=ads`} aria-current={isAdsBrowseActive ? 'page' : undefined}>الإعلانات</IntentPrefetchLink>
         </Button>
         <Button asChild variant="ghost" size="sm" className={navItemClass(pathname === ROUTES.stores || pathname.startsWith(`${ROUTES.stores}/`))}>
-          <Link prefetch={false} href={ROUTES.stores} aria-current={pathname === ROUTES.stores || pathname.startsWith(`${ROUTES.stores}/`) ? 'page' : undefined}>المتاجر</Link>
+          <IntentPrefetchLink prefetch={false} href={ROUTES.stores} aria-current={pathname === ROUTES.stores || pathname.startsWith(`${ROUTES.stores}/`) ? 'page' : undefined}>المتاجر</IntentPrefetchLink>
         </Button>
         <Button asChild variant="ghost" size="sm" className={navItemClass(pathname === ROUTES.services || pathname.startsWith(`${ROUTES.services}/`))}>
-          <Link prefetch={false} href={ROUTES.services} aria-current={pathname === ROUTES.services || pathname.startsWith(`${ROUTES.services}/`) ? 'page' : undefined}>الخدمات</Link>
+          <IntentPrefetchLink prefetch={false} href={ROUTES.services} aria-current={pathname === ROUTES.services || pathname.startsWith(`${ROUTES.services}/`) ? 'page' : undefined}>الخدمات</IntentPrefetchLink>
         </Button>
         <Button asChild variant="ghost" size="sm" className={navItemClass(pathname === ROUTES.serviceProviders || pathname.startsWith(`${ROUTES.serviceProviders}/`))}>
-          <Link prefetch={false} href={ROUTES.serviceProviders} aria-current={pathname === ROUTES.serviceProviders || pathname.startsWith(`${ROUTES.serviceProviders}/`) ? 'page' : undefined}>مقدمو الخدمة</Link>
+          <IntentPrefetchLink prefetch={false} href={ROUTES.serviceProviders} aria-current={pathname === ROUTES.serviceProviders || pathname.startsWith(`${ROUTES.serviceProviders}/`) ? 'page' : undefined}>مقدمو الخدمة</IntentPrefetchLink>
         </Button>
       </nav>
 

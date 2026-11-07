@@ -26,7 +26,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { LayoutDashboard, Heart, BellPlus, History, ListOrdered, Settings, Shield, LogOut, Store, User } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { useLogout }   from '@/hooks/mutations/useAuthMutations';
@@ -98,10 +98,10 @@ export function UserMenu() {
         <DropdownMenuSeparator />
 
         <DropdownMenuItem asChild>
-          <Link href={ROUTES.dashboard} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
+          <IntentPrefetchLink href={ROUTES.dashboard} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
             <LayoutDashboard className="h-4 w-4" />
             لوحة التحكم
-          </Link>
+          </IntentPrefetchLink>
         </DropdownMenuItem>
 
         {/* SELLER-GATE (myAds): ad creation requires a SellerProfile
@@ -109,10 +109,10 @@ export function UserMenu() {
             same signal already computed above for the "بائع" badge. */}
         {isSeller && (
           <DropdownMenuItem asChild>
-            <Link href={ROUTES.myAds} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
+            <IntentPrefetchLink href={ROUTES.myAds} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
               <ListOrdered className="h-4 w-4" />
               إعلاناتي
-            </Link>
+            </IntentPrefetchLink>
           </DropdownMenuItem>
         )}
 
@@ -121,54 +121,54 @@ export function UserMenu() {
             /settings/seller. Disappears once isSeller flips true. */}
         {sellerLoaded && !isSeller && (
           <DropdownMenuItem asChild>
-            <Link href={ROUTES.settings.seller} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
+            <IntentPrefetchLink href={ROUTES.settings.seller} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
               <Store className="h-4 w-4" />
               أنشئ حساب بائع
-            </Link>
+            </IntentPrefetchLink>
           </DropdownMenuItem>
         )}
 
         <DropdownMenuItem asChild>
-          <Link href={ROUTES.favorites} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
+          <IntentPrefetchLink href={ROUTES.favorites} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
             <Heart className="h-4 w-4" />
             المفضلة
-          </Link>
+          </IntentPrefetchLink>
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild>
-          <Link href={ROUTES.savedSearches} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
+          <IntentPrefetchLink href={ROUTES.savedSearches} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
             <BellPlus className="h-4 w-4" />
             عمليات البحث المحفوظة
-          </Link>
+          </IntentPrefetchLink>
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild>
-          <Link href={ROUTES.activity} prefetch={false} className="flex items-center gap-2 cursor-pointer">
+          <IntentPrefetchLink href={ROUTES.activity} prefetch={false} className="flex items-center gap-2 cursor-pointer">
             <History className="h-4 w-4" />
             نشاطي
-          </Link>
+          </IntentPrefetchLink>
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild>
-          <Link href={ROUTES.userProfile(user.id)} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
+          <IntentPrefetchLink href={ROUTES.userProfile(user.id)} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
             <User className="h-4 w-4" />
             عرض الملف الشخصي
-          </Link>
+          </IntentPrefetchLink>
         </DropdownMenuItem>
 
         <DropdownMenuItem asChild>
-          <Link href={ROUTES.settings.profile} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
+          <IntentPrefetchLink href={ROUTES.settings.profile} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
             <Settings className="h-4 w-4" />
             الإعدادات
-          </Link>
+          </IntentPrefetchLink>
         </DropdownMenuItem>
 
         {isAdmin && (
           <DropdownMenuItem asChild>
-            <Link href={ROUTES.admin.dashboard} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
+            <IntentPrefetchLink href={ROUTES.admin.dashboard} className="flex items-center gap-2 cursor-pointer" prefetch={false}>
               <Shield className="h-4 w-4" />
               لوحة الإدارة
-            </Link>
+            </IntentPrefetchLink>
           </DropdownMenuItem>
         )}
 

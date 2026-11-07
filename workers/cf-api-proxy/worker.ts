@@ -296,7 +296,9 @@ let gatewayRegistryCache: RegistryCacheEntry | null = null;
 let gatewayHealthSnapshotCache: HealthSnapshotCacheEntry | null = null;
 // Single-flight: concurrent cache misses in one isolate share one Durable Object read
 // instead of each issuing its own (the 12 same-second registry reads seen in tail logs).
-let gatewayRegistryInflight: { binding: string; promise: Promise<GatewayRegistryLoad> } | null = null;
+let gatewayRegistryBinding: string | null = null;
+let gatewayRegistryGeneration = 0;
+let gatewayRegistryInflight: { binding: string; generation: number; promise: Promise<GatewayRegistryLoad> } | null = null;
 let gatewayHealthInflight: { binding: unknown; promise: Promise<GatewayHealthSnapshot> } | null = null;
 
 function validateBackendOrigin(raw: unknown, env: Env, label = 'Backend'): string {
@@ -542,24 +544,47 @@ async function callRegistryCoordinator(env: Env, path: string, init?: RequestIni
 }
 
 async function loadGatewayRegistry(env: Env, force = false): Promise<GatewayRegistryLoad> {
-  const now = Date.now();
   const cacheBinding = `${Boolean(env && env.REFERENCE_KV)}:${Boolean(env && env.GATEWAY_HEALTH)}`;
-  if (!force && gatewayRegistryCache && gatewayRegistryCache.binding === cacheBinding && now < gatewayRegistryCache.expiresAt) {
+
+  // An isolate may be reused with a different set of bindings in tests or during
+  // deployment. A binding change invalidates both cached and pending reads.
+  if (gatewayRegistryBinding !== cacheBinding) {
+    gatewayRegistryBinding = cacheBinding;
+    gatewayRegistryGeneration += 1;
+    gatewayRegistryCache = null;
+    gatewayRegistryInflight = null;
+  }
+
+  if (force) {
+    // A forced read starts a new generation. Older requests may still finish,
+    // but they can no longer publish their result into the shared cache.
+    gatewayRegistryGeneration += 1;
+    gatewayRegistryCache = null;
+    gatewayRegistryInflight = null;
+  } else if (gatewayRegistryCache && gatewayRegistryCache.binding === cacheBinding && Date.now() < gatewayRegistryCache.expiresAt) {
     return gatewayRegistryCache.value;
   }
-  // Forced reads (admin save/refresh) must never reuse a load that started before a write.
-  if (force) return loadGatewayRegistryUncached(env, cacheBinding);
-  if (gatewayRegistryInflight && gatewayRegistryInflight.binding === cacheBinding) return gatewayRegistryInflight.promise;
-  const promise = loadGatewayRegistryUncached(env, cacheBinding);
-  const entry = { binding: cacheBinding, promise };
+
+  const generation = gatewayRegistryGeneration;
+  if (!force && gatewayRegistryInflight &&
+      gatewayRegistryInflight.binding === cacheBinding &&
+      gatewayRegistryInflight.generation === generation) {
+    return gatewayRegistryInflight.promise;
+  }
+
+  const promise = loadGatewayRegistryUncached(env, cacheBinding, generation);
+  const entry = { binding: cacheBinding, generation, promise };
   gatewayRegistryInflight = entry;
   const clear = () => { if (gatewayRegistryInflight === entry) gatewayRegistryInflight = null; };
   promise.then(clear, clear);
   return promise;
 }
 
-async function loadGatewayRegistryUncached(env: Env, cacheBinding: string): Promise<GatewayRegistryLoad> {
-  const now = Date.now();
+async function loadGatewayRegistryUncached(
+  env: Env,
+  cacheBinding: string,
+  generation: number,
+): Promise<GatewayRegistryLoad> {
 
   let value = null;
   let source: RegistrySource = 'env-fallback';
@@ -606,7 +631,10 @@ async function loadGatewayRegistryUncached(env: Env, cacheBinding: string): Prom
 
   if (!value) value = fallbackGatewayRegistry(env);
   const result = { registry: value, source };
-  gatewayRegistryCache = { binding: cacheBinding, expiresAt: now + GATEWAY_REGISTRY_CACHE_MS, value: result };
+  // Only the newest read for the active bindings may publish to the cache.
+  if (gatewayRegistryBinding === cacheBinding && gatewayRegistryGeneration === generation) {
+    gatewayRegistryCache = { binding: cacheBinding, expiresAt: Date.now() + GATEWAY_REGISTRY_CACHE_MS, value: result };
+  }
   return result;
 }
 
@@ -864,7 +892,7 @@ async function loadGatewayHealthSnapshotUncached(env: Env, binding: Env['GATEWAY
     const response = await stub.fetch('https://gateway-health.internal/snapshot', { method: 'GET' });
     if (!response.ok) throw new Error(`health coordinator returned ${response.status}`);
     const payload = await response.json();
-    const states = isRecord(payload) ? parseGatewayHealthStates(payload.states) : {};  
+    const states = isRecord(payload) ? parseGatewayHealthStates(payload.states) : {};
     const value = {
       states,
       scope: 'central-durable-object' as const,
@@ -1363,6 +1391,11 @@ async function handleGatewayAdmin(request: Request, env: Env): Promise<Response>
   gatewayFailures.clear();
   gatewayHealthSnapshotCache = null;
   const cacheBinding = `${Boolean(env && env.REFERENCE_KV)}:${Boolean(env && env.GATEWAY_HEALTH)}`;
+  // Publishing an admin save supersedes every registry read started before
+  // the commit, preventing a late stale read from replacing this new version.
+  gatewayRegistryBinding = cacheBinding;
+  gatewayRegistryGeneration += 1;
+  gatewayRegistryInflight = null;
   gatewayRegistryCache = { binding: cacheBinding, expiresAt: Date.now() + GATEWAY_REGISTRY_CACHE_MS, value: { registry: next, source: registrySource } };
   await reconcileGatewayHealth(env, [...next.backend.servers, ...next.frontend.servers, ...next.go.servers]);
   const propagation = registrySource === 'durable-object'

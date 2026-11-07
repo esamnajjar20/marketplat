@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   Bell,
   CheckCheck,
@@ -186,10 +186,10 @@ export function NotificationsPage() {
           )}
           <DeleteReadNotificationsAction />
           <Button asChild variant="ghost" size="sm" className="gap-1.5">
-            <Link href={ROUTES.settings.notifications} prefetch={false}>
+            <IntentPrefetchLink href={ROUTES.settings.notifications} prefetch={false}>
               <Settings className="h-3.5 w-3.5" />
               الإعدادات
-            </Link>
+            </IntentPrefetchLink>
           </Button>
         </div>
       </div>
@@ -268,9 +268,9 @@ export function NotificationsPage() {
             <p className="font-medium">إشعارات الجهاز متوقفة</p>
             <p className="text-xs opacity-90">
               المتصفح رفض الإذن. افتح إعدادات الموقع في المتصفح واسمح بالإشعارات، أو راجع{' '}
-              <Link href={ROUTES.settings.notifications} className="underline underline-offset-2" prefetch={false}>
+              <IntentPrefetchLink href={ROUTES.settings.notifications} className="underline underline-offset-2" prefetch={false}>
                 إعدادات الإشعارات
-              </Link>
+              </IntentPrefetchLink>
               .
             </p>
           </div>
@@ -323,17 +323,17 @@ export function NotificationsPage() {
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {(pushPerm === 'default' || pushPerm === 'denied') && (
                   <Button asChild size="sm">
-                    <Link href={ROUTES.settings.notifications} className="gap-1.5" prefetch={false}>
+                    <IntentPrefetchLink href={ROUTES.settings.notifications} className="gap-1.5" prefetch={false}>
                       <Smartphone className="h-4 w-4" />
                       إعدادات الإشعارات
-                    </Link>
+                    </IntentPrefetchLink>
                   </Button>
                 )}
                 <Button asChild size="sm" variant="outline">
-                  <Link href={ROUTES.messages} prefetch={false}>الرسائل</Link>
+                  <IntentPrefetchLink href={ROUTES.messages} prefetch={false}>الرسائل</IntentPrefetchLink>
                 </Button>
                 <Button asChild size="sm" variant="ghost">
-                  <Link href={ROUTES.home} prefetch={false}>الرئيسية</Link>
+                  <IntentPrefetchLink href={ROUTES.home} prefetch={false}>الرئيسية</IntentPrefetchLink>
                 </Button>
               </div>
             }
@@ -341,7 +341,7 @@ export function NotificationsPage() {
         ) : (
           <div>
             {pwaReg && (
-              <Link
+              <IntentPrefetchLink
                 href="/update"
                 className="flex w-full items-start gap-3 border-b bg-primary/[0.04] p-4 text-start transition-colors hover:bg-primary/10" prefetch={false}
               >
@@ -354,7 +354,7 @@ export function NotificationsPage() {
                     اضغط لعرض تفاصيل التحديث وتفعيله
                   </p>
                 </div>
-              </Link>
+              </IntentPrefetchLink>
             )}
 
             {groups.map((group) => (

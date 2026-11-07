@@ -18,7 +18,7 @@
  *  - Switching tabs drops per-tab query params (section, …).
  */
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import dynamic from 'next/dynamic';
 import {
   Bell,
@@ -122,13 +122,13 @@ function TabBody({ tab }: { tab: SettingsTab }) {
           <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
             <h1 className="text-xl font-extrabold tracking-tight">الملف الشخصي</h1>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <Link
+              <IntentPrefetchLink
                 href={ROUTES.offline.drafts}
                 className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline" prefetch={false}
               >
                 <FileEdit className="h-4 w-4" />
                 مركز المسودات
-              </Link>
+              </IntentPrefetchLink>
               <ViewMyProfileLink />
             </div>
           </div>

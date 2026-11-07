@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { AlertCircle, Clock } from 'lucide-react';
 import { RequireProfileGate } from '@/components/shared/gates/RequireProfileGate';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
@@ -43,7 +43,7 @@ export function CreateProductGate() {
         description="لا يمكنك نشر منتجات حتى يوافق الأدمن على متجرك. ستتمكن من الإضافة مباشرة بعد الموافقة."
         action={
           <Button asChild variant="outline">
-            <Link href={ROUTES.myStore} prefetch={false}>الذهاب إلى متجري</Link>
+            <IntentPrefetchLink href={ROUTES.myStore} prefetch={false}>الذهاب إلى متجري</IntentPrefetchLink>
           </Button>
         }
       />
@@ -58,7 +58,7 @@ export function CreateProductGate() {
         description="لا يمكنك نشر منتجات في الوقت الحالي. تواصل مع الدعم لمعرفة السبب."
         action={
           <Button asChild variant="outline">
-            <Link href={ROUTES.myStore} prefetch={false}>الذهاب إلى متجري</Link>
+            <IntentPrefetchLink href={ROUTES.myStore} prefetch={false}>الذهاب إلى متجري</IntentPrefetchLink>
           </Button>
         }
       />

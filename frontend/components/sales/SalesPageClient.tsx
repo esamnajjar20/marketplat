@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Plus, ReceiptText, ShoppingCart, WalletCards } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SalesSummary } from './SalesSummary';
@@ -46,7 +46,7 @@ export function SalesPageClient() {
         <div className="flex items-center justify-between gap-2">
           <div><h3 className="font-extrabold">أحدث المبيعات</h3><p className="text-sm text-muted-foreground">آخر العمليات المسجلة.</p></div>
           <Button variant="ghost" size="sm" asChild>
-            <Link href={salesHubTabHref('sales')} prefetch={false}>عرض الكل</Link>
+            <IntentPrefetchLink href={salesHubTabHref('sales')} prefetch={false}>عرض الكل</IntentPrefetchLink>
           </Button>
         </div>
         {isLoading ? (

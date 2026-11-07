@@ -5,7 +5,7 @@
  * Store/service KPIs live on their analytics pages; actionable items on SellerTodayTasks + hubs.
  */
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   Eye,
   Heart,
@@ -173,9 +173,9 @@ export function DashboardStats() {
               href && 'hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
             );
             return href ? (
-              <Link key={label} href={href} className={className} prefetch={false}>
+              <IntentPrefetchLink key={label} href={href} className={className} prefetch={false}>
                 {inner}
-              </Link>
+              </IntentPrefetchLink>
             ) : (
               <div key={label} className={className}>
                 {inner}
@@ -191,38 +191,38 @@ export function DashboardStats() {
           className="flex flex-wrap gap-2 text-sm"
         >
           {storeOk && myStore && (
-            <Link
+            <IntentPrefetchLink
               href={ROUTES.myStore}
               className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm shadow-xs transition-colors hover:bg-muted/50" prefetch={false}
             >
               <Store className="h-3.5 w-3.5" />
               لوحة المتجر
-            </Link>
+            </IntentPrefetchLink>
           )}
           {storeOk && myStore && (
-            <Link
+            <IntentPrefetchLink
               href={ROUTES.myStoreAnalytics}
               className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground shadow-xs transition-colors hover:bg-muted/50" prefetch={false}
             >
               إحصائيات المتجر
-            </Link>
+            </IntentPrefetchLink>
           )}
           {providerOk && myProvider && (
-            <Link
+            <IntentPrefetchLink
               href={ROUTES.myServices}
               className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm shadow-xs transition-colors hover:bg-muted/50" prefetch={false}
             >
               <Wrench className="h-3.5 w-3.5" />
               لوحة الخدمات
-            </Link>
+            </IntentPrefetchLink>
           )}
           {providerOk && myProvider && (
-            <Link
+            <IntentPrefetchLink
               href={ROUTES.myServiceProviderAnalytics}
               className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-sm text-muted-foreground shadow-xs transition-colors hover:bg-muted/50" prefetch={false}
             >
               إحصائيات الخدمات
-            </Link>
+            </IntentPrefetchLink>
           )}
         </section>
       ) : null}

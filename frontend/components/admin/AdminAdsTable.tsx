@@ -5,7 +5,7 @@
 // double-click could fire the same batch twice.
 
 import { memo, useState, useMemo, useEffect, useCallback } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Star, Trash2, Pin, Search } from 'lucide-react';
@@ -278,7 +278,7 @@ export const AdminAdsTable = memo(function AdminAdsTable() {
                     حذف
                   </Button>
                   <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-                    <Link prefetch={false} href={ROUTES.adDetail(ad.id)}>عرض</Link>
+                    <IntentPrefetchLink prefetch={false} href={ROUTES.adDetail(ad.id)}>عرض</IntentPrefetchLink>
                   </Button>
                 </div>
               </div>

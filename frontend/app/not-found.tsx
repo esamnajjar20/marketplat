@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import type { Metadata } from 'next';
 import { Button } from '@/components/shared/ui/Button';
 
@@ -27,10 +27,10 @@ export default function NotFound() {
       </p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Button asChild>
-          <Link href="/" prefetch={false}>العودة للرئيسية</Link>
+          <IntentPrefetchLink href="/" prefetch={false}>العودة للرئيسية</IntentPrefetchLink>
         </Button>
         <Button asChild variant="outline">
-          <Link href="/search" prefetch={false}>البحث في المنصة</Link>
+          <IntentPrefetchLink href="/search" prefetch={false}>البحث في المنصة</IntentPrefetchLink>
         </Button>
       </div>
     </main>

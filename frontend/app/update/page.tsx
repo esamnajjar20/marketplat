@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { CheckCircle2, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { onPwaUpdateAvailable, getPwaUpdateRegistration } from '@/components/pwa/UpdatePrompt';
@@ -116,7 +116,7 @@ export default function UpdatePage() {
         </Button>
       ) : (
         <Button asChild>
-          <Link href="/" prefetch={false}>العودة للرئيسية</Link>
+          <IntentPrefetchLink href="/" prefetch={false}>العودة للرئيسية</IntentPrefetchLink>
         </Button>
       )}
     </main>

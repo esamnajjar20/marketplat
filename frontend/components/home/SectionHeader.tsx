@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import type { ReactNode } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -63,10 +63,11 @@ export function SectionHeader({
         </div>
       </div>
       {cta && (
-        <Link
+        <IntentPrefetchLink
           href={cta.href}
-          // FIX RSC-PREFETCH-STORM-02: every home section renders this CTA,
-          // each prefetching its own /search?type=… page on load.
+          // FIX RSC-PREFETCH-STORM-02: every home section renders this CTA.
+          // IntentPrefetchLink waits for hover/focus instead of prefetching each
+          // /search?type=… destination as soon as the homepage becomes visible.
           prefetch={false}
           aria-label={`عرض كل ${title}`}
           className={cn(
@@ -82,7 +83,7 @@ export function SectionHeader({
         >
           {cta.label.replace(/\s*←\s*$/, '').replace(/^عرض الكل/, 'الكل') || cta.label}
           <ChevronLeft className="h-3.5 w-3.5 opacity-70" aria-hidden />
-        </Link>
+        </IntentPrefetchLink>
       )}
     </div>
   );

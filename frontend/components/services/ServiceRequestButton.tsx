@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useRouter } from 'next/navigation';
 import { MessageSquarePlus } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
@@ -146,13 +146,13 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
               />
             </div>
 
-            <Link
+            <IntentPrefetchLink
               href={ROUTES.myServiceRequests}
               className="inline-block text-[13px] font-bold text-primary hover:underline"
               onClick={() => setOpen(false)} prefetch={false}
             >
               عرض طلباتي السابقة
-            </Link>
+            </IntentPrefetchLink>
 
             <div className="flex gap-2 pt-1">
               <Button

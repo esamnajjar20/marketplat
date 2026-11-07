@@ -290,11 +290,11 @@ export const MAX_FILE_SIZE_MB = 5;
 /** Must match backend upload.middleware.ts: ALLOWED_MIME_TYPES exactly. */
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'] as const;
 
-/** How often the frontend pings PATCH /users/me/presence to refresh the
- * caller's own online marker. Must stay comfortably under the backend's
- * presence.ts PRESENCE_TTL_SECONDS (90s) so a slow tick or one missed
- * beat doesn't flip the caller to "offline" between heartbeats. */
-export const PRESENCE_HEARTBEAT_INTERVAL = 120_000; // 120 s (was 60s; backend PRESENCE_TTL_SECONDS raised to 200 to match, ~30 PATCH/30min per user -> ~15). // 60 s — raised from 45s: on Gaza's weak links the per-beat overhead (TLS + round-trip ~250-300ms) costs more than the accuracy the extra 15s buys. Presence dots tolerate minute-level lag; backend presence TTL has enough headroom (see backend presence.service).
+/** How often the frontend refreshes its own online marker. The backend
+ * presence key has a 200s TTL, leaving 80s beyond this 120s interval for
+ * scheduling and network delay. A fully missed interval may briefly show
+ * offline until the next tick; visibility/network resume sends an immediate beat. */
+export const PRESENCE_HEARTBEAT_INTERVAL = 120_000;
 
 /** Base URL for the backend API, consumed by api/client.ts */
 // SW-SSR-CLIENT-SPLIT-01: server-side (RSC, generateMetadata, server

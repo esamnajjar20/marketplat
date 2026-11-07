@@ -19,7 +19,7 @@
  */
 import { use } from 'react';
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { notFound } from 'next/navigation';
 import { ArrowRight } from 'lucide-react';
@@ -85,9 +85,9 @@ export default function ServiceRequestDetailPage({ params }: Props) {
 
   return (
     <div className="container mx-auto w-full max-w-5xl space-y-6 px-3 py-6 sm:px-4 lg:py-8">
-      <Link href={backHref} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" prefetch={false}>
+      <IntentPrefetchLink href={backHref} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground" prefetch={false}>
         <ArrowRight className="h-4 w-4" />رجوع
-      </Link>
+      </IntentPrefetchLink>
 
       <ServiceRequestTimeline request={request} />
 
@@ -104,9 +104,9 @@ export default function ServiceRequestDetailPage({ params }: Props) {
               />
             </div>
             <div>
-              <Link href={ROUTES.serviceDetail(request.listing.id)} className="font-semibold hover:underline" prefetch={false}>
+              <IntentPrefetchLink href={ROUTES.serviceDetail(request.listing.id)} className="font-semibold hover:underline" prefetch={false}>
                 {request.listing.title}
-              </Link>
+              </IntentPrefetchLink>
               <p className="text-sm text-muted-foreground">
                 {isProvider ? `من ${request.customer.name}` : `إلى ${request.listing.provider.businessName}`}
               </p>
@@ -177,7 +177,7 @@ export default function ServiceRequestDetailPage({ params }: Props) {
           detail view; duplicating those mutations here would mean two
           places doing the same status transition. */}
       <Button asChild variant="outline" size="sm">
-        <Link href={backHref} prefetch={false}>عرض كل الطلبات</Link>
+        <IntentPrefetchLink href={backHref} prefetch={false}>عرض كل الطلبات</IntentPrefetchLink>
       </Button>
     </div>
   );

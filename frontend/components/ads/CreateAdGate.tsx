@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { AlertTriangle, Store } from 'lucide-react';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -91,9 +91,9 @@ export function CreateAdGate() {
           // creation succeeds, instead of stranding the user on
           // /settings/seller.
           <Button asChild>
-            <Link href={`${ROUTES.settings.seller}&from=${encodeURIComponent(ROUTES.adCreate)}`} prefetch={false}>
+            <IntentPrefetchLink href={`${ROUTES.settings.seller}&from=${encodeURIComponent(ROUTES.adCreate)}`} prefetch={false}>
               إنشاء ملف البائع
-            </Link>
+            </IntentPrefetchLink>
           </Button>
         }
       />

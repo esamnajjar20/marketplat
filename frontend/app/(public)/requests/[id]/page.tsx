@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useParams } from 'next/navigation';
 import { ArrowRight, MapPin, CalendarClock, Clock, MessageSquare } from 'lucide-react';
 import { useRequestDetail } from '@/hooks/queries/useRequests';
@@ -84,7 +84,7 @@ export default function RequestDetailPage() {
                 </Button>
               )}
               <Button asChild variant={notFound ? 'default' : 'ghost'} className="min-h-11">
-                <Link href={ROUTES.requests} prefetch={false}>العودة لسوق الطلبات</Link>
+                <IntentPrefetchLink href={ROUTES.requests} prefetch={false}>العودة لسوق الطلبات</IntentPrefetchLink>
               </Button>
             </div>
           }
@@ -123,13 +123,13 @@ export default function RequestDetailPage() {
       )}
 
       <div>
-        <Link
+        <IntentPrefetchLink
           href={ROUTES.requests}
           className="inline-flex min-h-10 items-center gap-1 text-sm text-muted-foreground hover:text-foreground" prefetch={false}
         >
           <ArrowRight className="h-4 w-4" aria-hidden />
           سوق الطلبات
-        </Link>
+        </IntentPrefetchLink>
       </div>
 
       <header className="space-y-3">
@@ -229,7 +229,7 @@ export default function RequestDetailPage() {
             إلغاء الطلب
           </Button>
           <Button variant="ghost" className="min-h-11" asChild>
-            <Link href={ROUTES.myOpenRequests} prefetch={false}>طلباتي</Link>
+            <IntentPrefetchLink href={ROUTES.myOpenRequests} prefetch={false}>طلباتي</IntentPrefetchLink>
           </Button>
         </div>
       )}
@@ -244,7 +244,7 @@ export default function RequestDetailPage() {
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--legacy-primary-border)] bg-[var(--legacy-primary-soft)] p-3.5">
           <span className="text-[13px] font-bold text-[var(--legacy-primary-deep)]">سجّل الدخول لتقديم عرض على هذا الطلب</span>
           <Button asChild className="h-9 shrink-0 rounded-xl text-sm font-bold">
-            <Link href={loginHref} prefetch={false}>تسجيل الدخول</Link>
+            <IntentPrefetchLink href={loginHref} prefetch={false}>تسجيل الدخول</IntentPrefetchLink>
           </Button>
         </div>
       )}
@@ -284,7 +284,7 @@ export default function RequestDetailPage() {
               </Button>
             ) : (
               <Button asChild className="h-11 flex-[1.6] rounded-xl text-sm font-bold">
-                <Link href={loginHref} prefetch={false}>سجّل الدخول</Link>
+                <IntentPrefetchLink href={loginHref} prefetch={false}>سجّل الدخول</IntentPrefetchLink>
               </Button>
             )}
           </div>

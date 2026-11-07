@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useSearchParams } from 'next/navigation';
 import { useForgotPassword } from '@/hooks/mutations/useAuthMutations';
 import { Button }    from '@/components/shared/ui/Button';
@@ -75,7 +75,7 @@ export function ForgotPasswordForm() {
           <span className="font-bold text-[var(--legacy-ink)]">{email}</span>
         </p>
         <Button asChild variant="outline" className="h-11 w-full rounded-2xl border-[var(--legacy-border)] font-bold">
-          <Link href={loginHref} prefetch={false}>العودة لتسجيل الدخول</Link>
+          <IntentPrefetchLink href={loginHref} prefetch={false}>العودة لتسجيل الدخول</IntentPrefetchLink>
         </Button>
       </div>
     );
@@ -127,7 +127,7 @@ export function ForgotPasswordForm() {
       </Button>
 
       <p className="text-center text-[13px] font-bold text-[var(--legacy-primary-deep)]">
-        <Link href={loginHref} className="text-primary hover:underline" prefetch={false}>العودة لتسجيل الدخول</Link>
+        <IntentPrefetchLink href={loginHref} className="text-primary hover:underline" prefetch={false}>العودة لتسجيل الدخول</IntentPrefetchLink>
       </p>
     </form>
   );

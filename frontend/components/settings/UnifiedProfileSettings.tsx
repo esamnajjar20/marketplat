@@ -7,7 +7,7 @@
  * شغّالة عبر redirects → /settings?tab=profile&section=…
  */
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { User, Store, Wrench, ChevronLeft } from 'lucide-react';
@@ -104,7 +104,7 @@ export function UnifiedProfileSettings() {
                 <p className="mt-0.5 text-xs text-muted-foreground">إدارة التنبيهات وكلمة المرور من الإعدادات الفرعية.</p>
               </div>
               <div className="divide-y divide-border/60">
-                <Link
+                <IntentPrefetchLink
                   href={ROUTES.settings.notifications}
                   className="flex min-h-12 items-center justify-between gap-2 px-2 text-sm font-medium transition-colors hover:bg-muted/40" prefetch={false}
                 >
@@ -113,8 +113,8 @@ export function UnifiedProfileSettings() {
                     إعدادات الإشعارات
                   </span>
                   <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                </Link>
-                <Link
+                </IntentPrefetchLink>
+                <IntentPrefetchLink
                   href={ROUTES.settings.security}
                   className="flex min-h-12 items-center justify-between gap-2 px-2 text-sm font-medium transition-colors hover:bg-muted/40" prefetch={false}
                 >
@@ -123,8 +123,8 @@ export function UnifiedProfileSettings() {
                     الأمان
                   </span>
                   <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                </Link>
-                <Link
+                </IntentPrefetchLink>
+                <IntentPrefetchLink
                   href={ROUTES.offline.drafts}
                   className="flex min-h-12 items-center justify-between gap-2 px-2 text-sm font-medium transition-colors hover:bg-muted/40" prefetch={false}
                 >
@@ -133,7 +133,7 @@ export function UnifiedProfileSettings() {
                     مركز المسودات
                   </span>
                   <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-                </Link>
+                </IntentPrefetchLink>
               </div>
             </section>
           </div>

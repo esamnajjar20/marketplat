@@ -365,19 +365,34 @@ describe('salesService.report', () => {
         items: [{ title: 'Item', quantity: 1, returnedQuantity: 0, unitPrice: 100, lineTotal: 100, costPrice: 60 }],
       },
     ]);
-    (prisma.saleRecord.count as jest.Mock).mockResolvedValue(1200);
-    const fullSetTotals = { revenue: 120000, cost: 70000, profit: 50000, paid: 110000, due: 10000, refunded: 0 };
+    const fullSetTotals = {
+      count: 1200,
+      revenue: 120000,
+      cost: 70000,
+      profit: 50000,
+      paid: 110000,
+      due: 10000,
+      refunded: 0,
+    };
     (salesRepository.reportTotals as jest.Mock).mockResolvedValue(fullSetTotals);
 
     const result = await salesService.report('user-1', { limit: 500 } as any);
 
     expect(prisma.saleRecord.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 500 }));
+    expect(prisma.saleRecord.count).not.toHaveBeenCalled();
     expect(salesRepository.reportTotals).toHaveBeenCalledWith('user-1', expect.objectContaining({ limit: 500 }));
     expect(result.rows).toHaveLength(1);
     expect(result.count).toBe(1);
     expect(result.totalCount).toBe(1200);
     expect(result.hasMore).toBe(true);
     // Not the sum of the one returned row (100 / 60 / 40).
-    expect(result.totals).toEqual(fullSetTotals);
+    expect(result.totals).toEqual({
+      revenue: 120000,
+      cost: 70000,
+      profit: 50000,
+      paid: 110000,
+      due: 10000,
+      refunded: 0,
+    });
   });
 });

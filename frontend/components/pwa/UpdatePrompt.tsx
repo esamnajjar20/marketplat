@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { onServiceWorkerUpdate, activateWaitingServiceWorker } from '@/lib/pwa';
@@ -147,7 +147,7 @@ export function UpdatePrompt() {
       <RefreshCw className="h-5 w-5 shrink-0 text-primary" />
       <p className="flex-1 text-sm">يتوفر تحديث جديد للتطبيق</p>
       <Button size="sm" asChild>
-        <Link href="/update" prefetch={false}>تحديث الآن</Link>
+        <IntentPrefetchLink href="/update" prefetch={false}>تحديث الآن</IntentPrefetchLink>
       </Button>
       <button
         type="button"

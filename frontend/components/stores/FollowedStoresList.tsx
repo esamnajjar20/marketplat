@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useSearchParams } from 'next/navigation';
 import { Heart } from 'lucide-react';
 import { StoreCard } from './StoreCard';
@@ -46,7 +46,7 @@ export function FollowedStoresList() {
         icon={<Heart className="h-10 w-10" />}
         title="لا تتابع أي متجر بعد"
         description="تابع متاجرك المفضلة لتصلك آخر منتجاتها"
-        action={<Link href={ROUTES.stores} prefetch={false}><Button variant="outline">تصفح المتاجر</Button></Link>}
+        action={<IntentPrefetchLink href={ROUTES.stores} prefetch={false}><Button variant="outline">تصفح المتاجر</Button></IntentPrefetchLink>}
       />
     );
   }

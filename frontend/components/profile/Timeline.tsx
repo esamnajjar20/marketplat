@@ -2,7 +2,7 @@
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   Megaphone,
   ShoppingBag,
@@ -153,12 +153,12 @@ function ActivityRow({ activity }: { activity: GroupedActivity }) {
   if (!href) return content;
 
   return (
-    // prefetch={false}: timeline rows point at ads/stores/conversations that may
-    // since have been deleted or expired; viewport prefetch of those fired a burst
-    // of 404 _rsc requests as soon as the timeline rendered.
-    <Link href={href} prefetch={false} className="block transition-opacity hover:opacity-80">
+    // Keep timeline rows out of automatic viewport prefetch: ads/stores/conversations
+    // may have been deleted or expired. IntentPrefetchLink only warms a row after
+    // hover or keyboard focus, avoiding a burst of speculative 404 RSC requests.
+    <IntentPrefetchLink href={href} prefetch={false} className="block transition-opacity hover:opacity-80">
       {content}
-    </Link>
+    </IntentPrefetchLink>
   );
 }
 

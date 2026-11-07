@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useSearchParams } from 'next/navigation';
 import { ClipboardList } from 'lucide-react';
 import { useMyRequests } from '@/hooks/queries/useRequests';
@@ -59,7 +59,7 @@ export default function MyRequestsPage() {
           <p className="mt-1 text-sm leading-6 text-muted-foreground">الطلبات التي نشرتها في السوق، تابع حالتها وعدّل خياراتك بسهولة.</p>
         </div>
         <Button asChild size="sm" className="min-h-10 w-full sm:w-auto">
-          <Link href={ROUTES.requestNew} prefetch={false}>طلب جديد</Link>
+          <IntentPrefetchLink href={ROUTES.requestNew} prefetch={false}>طلب جديد</IntentPrefetchLink>
         </Button>
       </div>
 
@@ -67,7 +67,7 @@ export default function MyRequestsPage() {
         {STATUS_TABS.map((tab) => {
           const active = tab.value === status;
           return (
-            <Link
+            <IntentPrefetchLink
               key={tab.label}
               href={statusHref(tab.value)}
               role="tab"
@@ -81,7 +81,7 @@ export default function MyRequestsPage() {
               )} prefetch={false}
             >
               {tab.label}
-            </Link>
+            </IntentPrefetchLink>
           );
         })}
       </div>
@@ -113,7 +113,7 @@ export default function MyRequestsPage() {
           description="انشر احتياجك ليصل للبائعين ومقدّمي الخدمة."
           action={
             <Button asChild>
-              <Link href={ROUTES.requestNew} prefetch={false}>نشر طلب</Link>
+              <IntentPrefetchLink href={ROUTES.requestNew} prefetch={false}>نشر طلب</IntentPrefetchLink>
             </Button>
           }
         />

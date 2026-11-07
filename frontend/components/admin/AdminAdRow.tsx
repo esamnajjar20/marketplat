@@ -1,7 +1,7 @@
 'use client';
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 import { memo } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Star, Trash2, Pin } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Button } from '@/components/shared/ui/Button';
@@ -38,8 +38,8 @@ export const AdminAdRow = memo(function AdminAdRow({ ad, selected, pendingToggle
                           <SafeImage src={thumb} alt={ad.title} fill className="object-cover" sizes="48px" />
                         </div>
                         <div className="min-w-0">
-                          <Link prefetch={false} href={ROUTES.adDetail(ad.id)} className="font-medium hover:underline line-clamp-1"
-                            target="_blank" rel="noopener noreferrer">{ad.title}</Link>
+                          <IntentPrefetchLink prefetch={false} href={ROUTES.adDetail(ad.id)} className="font-medium hover:underline line-clamp-1"
+                            target="_blank" rel="noopener noreferrer">{ad.title}</IntentPrefetchLink>
                           {ad.isFeatured && <Badge variant="outline" className="text-xs border-warning text-warning">مميز</Badge>}
                           {ad.isPinned   && <Badge variant="outline" className="text-xs me-1">مثبّت</Badge>}
                         </div>

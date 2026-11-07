@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import type { Metadata } from 'next';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
@@ -23,10 +23,10 @@ export default function GroupNotFound() {
       <p className="max-w-sm text-muted-foreground">هذا المحتوى غير موجود، أو لا تملك صلاحية الوصول إليه.</p>
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Button asChild>
-          <Link href={ROUTES.dashboard} prefetch={false}>العودة للوحة التحكم</Link>
+          <IntentPrefetchLink href={ROUTES.dashboard} prefetch={false}>العودة للوحة التحكم</IntentPrefetchLink>
         </Button>
         <Button asChild variant="outline">
-          <Link href={ROUTES.search} prefetch={false}>البحث في المنصة</Link>
+          <IntentPrefetchLink href={ROUTES.search} prefetch={false}>البحث في المنصة</IntentPrefetchLink>
         </Button>
       </div>
     </div>

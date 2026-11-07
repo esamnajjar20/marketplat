@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useSearchParams } from 'next/navigation';
 import {
   Car,
@@ -88,7 +88,7 @@ export function EmptySearchSuggestions() {
           </p>
           <div className="flex flex-wrap gap-2">
             {recent.map((q) => (
-              <Link
+              <IntentPrefetchLink
                 prefetch={false}
                 key={q}
                 href={searchHref(q)}
@@ -98,7 +98,7 @@ export function EmptySearchSuggestions() {
                 )}
               >
                 {q}
-              </Link>
+              </IntentPrefetchLink>
             ))}
           </div>
         </div>
@@ -111,7 +111,7 @@ export function EmptySearchSuggestions() {
         </p>
         <div className="flex flex-wrap gap-2">
           {POPULAR_QUERIES.map(({ q, icon: Icon }) => (
-            <Link
+            <IntentPrefetchLink
               prefetch={false}
               key={q}
               href={searchHref(q)}
@@ -122,7 +122,7 @@ export function EmptySearchSuggestions() {
             >
               <Icon className="h-3.5 w-3.5 text-primary" aria-hidden />
               {q}
-            </Link>
+            </IntentPrefetchLink>
           ))}
         </div>
       </div>
@@ -136,7 +136,7 @@ export function EmptySearchSuggestions() {
           </p>
           <div className="grid grid-cols-2 gap-2.5">
             {viewed.slice(0, 4).map((ad) => (
-              <Link
+              <IntentPrefetchLink
                 prefetch={false}
                 key={ad.id}
                 href={ROUTES.adDetail(ad.id)}
@@ -162,7 +162,7 @@ export function EmptySearchSuggestions() {
                 <div className="px-2.5 py-2">
                   <span className="line-clamp-2 text-[12px] font-bold leading-snug text-foreground">{ad.title}</span>
                 </div>
-              </Link>
+              </IntentPrefetchLink>
             ))}
           </div>
         </div>
@@ -177,7 +177,7 @@ export function EmptySearchSuggestions() {
           {TYPE_SHORTCUTS.map(({ type, label, icon: Icon }) => {
             const active = currentType === type;
             return (
-              <Link
+              <IntentPrefetchLink
                 prefetch={false}
                 key={type}
                 href={typeHref(type)}
@@ -193,7 +193,7 @@ export function EmptySearchSuggestions() {
                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-primary">
                   <Icon className="h-4 w-4" aria-hidden />
                 </span>
-              </Link>
+              </IntentPrefetchLink>
             );
           })}
         </div>
@@ -213,14 +213,14 @@ export function EmptySearchSuggestions() {
         ) : top.length > 0 ? (
           <div className="flex flex-wrap justify-center gap-2">
             {top.map((cat) => (
-              <Link
+              <IntentPrefetchLink
                 prefetch={false}
                 key={cat.id}
                 href={ROUTES.category(cat.slug)}
                 className="inline-flex min-h-[36px] items-center rounded-full border bg-card px-3 py-1.5 text-xs font-medium hover:border-primary/40 hover:bg-primary/5"
               >
                 {cat.nameAr}
-              </Link>
+              </IntentPrefetchLink>
             ))}
           </div>
         ) : null}

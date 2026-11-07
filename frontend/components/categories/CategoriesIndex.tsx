@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useCategoryItems } from '@/hooks/queries/useCategoryItems';
 import { iconFor, TYPE_LABEL, type SourceType } from '@/lib/categoryItems';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
@@ -35,9 +35,9 @@ export function CategoriesIndex() {
     return (
       <p className="rounded-2xl border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
         تعذّر تحميل الفئات الآن. حاول مرة أخرى بعد قليل، أو{' '}
-        <Link href={ROUTES.search} className="font-semibold text-primary underline-offset-2 hover:underline" prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.search} className="font-semibold text-primary underline-offset-2 hover:underline" prefetch={false}>
           ابحث مباشرة
-        </Link>
+        </IntentPrefetchLink>
         .
       </p>
     );
@@ -58,7 +58,7 @@ export function CategoriesIndex() {
               const Icon = iconFor(item.slug, item.nameAr, item.type);
               return (
                 <li key={item.id}>
-                  <Link
+                  <IntentPrefetchLink
                     href={item.href}
                     aria-label={`${item.nameAr} — ${TYPE_LABEL[item.type]}`}
                     className="flex h-full min-h-[5.5rem] flex-col items-center justify-center gap-1.5 rounded-2xl border border-border bg-card px-2 py-3 active:scale-[0.98] sm:gap-2 sm:py-3.5 text-center shadow-xs transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:border-primary/40" prefetch={false}
@@ -68,7 +68,7 @@ export function CategoriesIndex() {
                     </span>
                     <span className="line-clamp-2 text-xs font-medium leading-tight">{item.nameAr}</span>
                     <CategoryFollowButton categoryId={item.id} categoryType={item.type === 'ad' ? 'AD' : item.type === 'product' ? 'PRODUCT' : 'SERVICE'} />
-                  </Link>
+                  </IntentPrefetchLink>
                 </li>
               );
             })}

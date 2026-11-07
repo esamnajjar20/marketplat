@@ -1,7 +1,7 @@
 'use client';
 import { useLongPress } from '@/hooks/ui/useLongPress';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { AdCard } from '@/components/ads/AdCard';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import { Pagination }    from '@/components/shared/ui/Pagination';
@@ -145,12 +145,12 @@ export function FavoritesList() {
         </p>
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
           <Button asChild size="sm" className="rounded-xl font-bold">
-            <Link prefetch={false} href={`${ROUTES.search}?type=ads`}>
+            <IntentPrefetchLink prefetch={false} href={`${ROUTES.search}?type=ads`}>
               تصفّح الإعلانات
-            </Link>
+            </IntentPrefetchLink>
           </Button>
           <Button asChild size="sm" variant="outline" className="rounded-xl font-bold">
-            <Link href={ROUTES.home} prefetch={false}>العودة للرئيسية</Link>
+            <IntentPrefetchLink href={ROUTES.home} prefetch={false}>العودة للرئيسية</IntentPrefetchLink>
           </Button>
         </div>
       </div>
@@ -294,7 +294,7 @@ export function FavoritesList() {
 
 /**
  * EPIC 1.4: non-navigable placeholder for a favorited ad whose owner
- * (or an admin) deleted it. Deliberately not a <Link prefetch={false}> — the ad detail
+ * (or an admin) deleted it. Deliberately not a navigable card — the ad detail
  * page for a DELETED ad genuinely 404s (see ads.service.ts), so a
  * clickable card here would just move the surprise from "silent 404
  * after a click" to "a click that looks live but goes nowhere useful."

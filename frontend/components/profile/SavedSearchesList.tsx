@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Trash2, AlertTriangle, Bookmark, RefreshCw } from 'lucide-react';
 import { useSavedSearches } from '@/hooks/queries/useSavedSearches';
 import { useDeleteSavedSearch } from '@/hooks/mutations/useSavedSearchMutations';
@@ -111,12 +111,12 @@ function SavedSearchRow({ search }: { search: SavedSearch }) {
           </p>
         </div>
       </div>
-      <Link
+      <IntentPrefetchLink
         href={searchUrlFor(search.filters)}
         className="mt-3 flex h-10 w-full items-center justify-center rounded-[10px] border border-[var(--legacy-primary-border)] bg-card text-[13px] font-bold text-[var(--legacy-primary-deep)] transition-colors hover:bg-primary-soft" prefetch={false}
       >
         عرض النتائج المطابقة
-      </Link>
+      </IntentPrefetchLink>
     </article>
   );
 }
@@ -184,25 +184,25 @@ export function SavedSearchesList() {
             احفظ بحثًا من صفحة النتائج وسنُعلمك عند نشر إعلان أو منتج أو خدمة مطابقة
           </p>
           <div className="mt-4 flex flex-col gap-2">
-            <Link
+            <IntentPrefetchLink
               prefetch={false}
               href={ROUTES.search}
               className="flex h-11 items-center justify-center rounded-[10px] border border-[var(--legacy-primary-border)] bg-card text-[13px] font-bold text-[var(--legacy-primary-deep)]"
             >
               تصفح الإعلانات
-            </Link>
-            <Link
+            </IntentPrefetchLink>
+            <IntentPrefetchLink
               href={ROUTES.products}
               className="flex h-11 items-center justify-center rounded-[10px] border border-[var(--legacy-primary-border)] bg-card text-[13px] font-bold text-[var(--legacy-primary-deep)]" prefetch={false}
             >
               تصفح المنتجات
-            </Link>
-            <Link
+            </IntentPrefetchLink>
+            <IntentPrefetchLink
               href={ROUTES.services}
               className="flex h-11 items-center justify-center rounded-[10px] border border-[var(--legacy-primary-border)] bg-card text-[13px] font-bold text-[var(--legacy-primary-deep)]" prefetch={false}
             >
               تصفح الخدمات
-            </Link>
+            </IntentPrefetchLink>
           </div>
         </div>
       )}

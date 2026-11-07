@@ -20,7 +20,7 @@ import dynamic from 'next/dynamic';
  * way it always did.
  */
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { AdDetail }       from '@/components/ads/AdDetail';
 import { AdBreadcrumb }   from '@/components/ads/AdBreadcrumb';
 import { LazySection } from '@/components/shared/LazySection';
@@ -108,13 +108,13 @@ export function AdDetailSection({ id }: { id: string }) {
           title="الإعلان غير موجود"
           description="ربما تم حذف هذا الإعلان أو أن الرابط غير صحيح"
           action={
-            <Link
+            <IntentPrefetchLink
               href={ROUTES.search}
               prefetch={false}
               className="text-sm text-primary hover:underline"
             >
               تصفح الإعلانات
-            </Link>
+            </IntentPrefetchLink>
           }
         />
       );

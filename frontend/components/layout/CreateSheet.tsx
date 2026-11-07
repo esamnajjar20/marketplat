@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   Megaphone,
   Package,
@@ -79,7 +79,7 @@ export function CreateSheet({
 
         <nav aria-label="إضافة محتوى" className="flex flex-col gap-2 px-3 pb-3">
           {links.map(({ label, description, href, icon: Icon }) => (
-            <Link
+            <IntentPrefetchLink
               key={href}
               href={href}
               prefetch={false}
@@ -94,13 +94,13 @@ export function CreateSheet({
                 <span className="block text-[12px] text-[var(--legacy-muted-text)]">{description}</span>
               </span>
               <ChevronLeft className="h-4 w-4 shrink-0 text-[var(--legacy-muted-text)]" aria-hidden />
-            </Link>
+            </IntentPrefetchLink>
           ))}
         </nav>
 
         {draftsCount > 0 && (
           <div className="border-t border-[var(--legacy-border)] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <Link
+            <IntentPrefetchLink
               href={ROUTES.offline.drafts}
               prefetch={false}
               onClick={() => onOpenChange(false)}
@@ -111,7 +111,7 @@ export function CreateSheet({
               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--legacy-warning-strong)] px-1.5 text-[11px] font-extrabold text-warning-foreground">
                 {draftsCount > 9 ? '9+' : draftsCount}
               </span>
-            </Link>
+            </IntentPrefetchLink>
           </div>
         )}
       </SheetContent>

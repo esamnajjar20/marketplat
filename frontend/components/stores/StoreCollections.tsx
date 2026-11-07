@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { usePublicCollections, useCollectionProducts } from '@/hooks/queries/useCollections';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -36,10 +36,10 @@ export function StoreCollectionCard({ storeId, collection }: { storeId: string; 
           {(products ?? []).map((product) => {
             const image = product.images[0] ? getThumbnailUrl(product.images[0], 240, 240) : PLACEHOLDER_SVG;
             return (
-              <Link key={product.id} href={`/stores/${storeId}?product=${product.id}`} className="group flex w-36 shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border/70 bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" prefetch={false}>
+              <IntentPrefetchLink key={product.id} href={`/stores/${storeId}?product=${product.id}`} className="group flex w-36 shrink-0 snap-start flex-col overflow-hidden rounded-xl border border-border/70 bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" prefetch={false}>
                 <div className="relative aspect-square overflow-hidden bg-muted"><SafeImage src={image} alt={product.name} fill className={cn('object-cover transition-transform duration-200 group-hover:scale-[1.02]', product.availability === 'OUT_OF_STOCK' && 'opacity-60')} sizes="144px" loading="lazy" />{product.availability === 'OUT_OF_STOCK' && <span className="absolute inset-0 flex items-center justify-center bg-foreground/30 text-xs font-bold text-background">غير متوفر</span>}</div>
                 <div className="flex min-h-20 flex-col gap-1 p-2"><h4 title={product.name} className="line-clamp-2 min-h-[2.4em] text-xs font-semibold leading-snug">{product.name}</h4><span dir="ltr" className="mt-auto font-mono text-xs font-bold tabular-nums text-primary">{formatPrice(product.price)}</span></div>
-              </Link>
+              </IntentPrefetchLink>
             );
           })}
         </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Receipt, RotateCcw } from 'lucide-react';
 import { useSalesCostSettings } from '@/hooks/queries/useSales';
 import { Badge } from '@/components/ui/badge';
@@ -81,10 +81,10 @@ export function SaleCard({ sale }: { sale: SaleRecord }) {
 
         <div className="mt-3 flex flex-wrap gap-2">
           <Button variant="outline" size="sm" asChild className="h-10 flex-1 rounded-xl font-bold gap-1.5">
-            <Link href={`/account/sales/${sale.id}/receipt`} prefetch={false}>
+            <IntentPrefetchLink href={`/account/sales/${sale.id}/receipt`} prefetch={false}>
               <Receipt className="h-3.5 w-3.5" />
               الإيصال
-            </Link>
+            </IntentPrefetchLink>
           </Button>
           {sale.entityType !== 'FREE' &&
           sale.quantity > 0 &&

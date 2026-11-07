@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useRouter } from 'next/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import {
@@ -230,9 +230,9 @@ export function MyProductsList() {
             ),
           )}
         </div>
-        <Link href={ROUTES.myStoreProductCreate} prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.myStoreProductCreate} prefetch={false}>
           <Button size="sm">إضافة منتج</Button>
-        </Link>
+        </IntentPrefetchLink>
       </div>
 
       <div className="flex gap-2 overflow-x-auto overscroll-x-contain pb-1" role="group" aria-label="تصفية حسب التوفر">
@@ -295,21 +295,21 @@ export function MyProductsList() {
           }
           action={
             <div className="flex flex-col sm:flex-row gap-2 items-center">
-              <Link href={ROUTES.myStoreProductCreate} prefetch={false}>
+              <IntentPrefetchLink href={ROUTES.myStoreProductCreate} prefetch={false}>
                 <Button>إضافة منتج</Button>
-              </Link>
+              </IntentPrefetchLink>
               {!searchQ && !availability && (
                 <>
-                  <Link href={ROUTES.myStoreCollections} prefetch={false}>
+                  <IntentPrefetchLink href={ROUTES.myStoreCollections} prefetch={false}>
                     <Button variant="outline" className="gap-1.5">
                       <Layers className="h-4 w-4" /> المجموعات
                     </Button>
-                  </Link>
-                  <Link href={ROUTES.myStorePromotions} prefetch={false}>
+                  </IntentPrefetchLink>
+                  <IntentPrefetchLink href={ROUTES.myStorePromotions} prefetch={false}>
                     <Button variant="outline" className="gap-1.5">
                       <Tag className="h-4 w-4" /> العروض
                     </Button>
-                  </Link>
+                  </IntentPrefetchLink>
                 </>
               )}
             </div>
@@ -385,17 +385,17 @@ export function MyProductsList() {
                       <Package className="h-3.5 w-3.5" />
                     </Button>
                   )}
-                  <Link href={ROUTES.myStoreProductEdit(product.id)} prefetch={false}>
+                  <IntentPrefetchLink href={ROUTES.myStoreProductEdit(product.id)} prefetch={false}>
                     <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`تعديل ${product.name}`}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
-                  </Link>
+                  </IntentPrefetchLink>
                   {product.status === 'ACTIVE' && (
-                    <Link href={myStoreTabHref('promotions', { productId: product.id })} prefetch={false}>
+                    <IntentPrefetchLink href={myStoreTabHref('promotions', { productId: product.id })} prefetch={false}>
                       <Button variant="ghost" size="icon" className="h-10 w-10" aria-label={`عرض لـ ${product.name}`} title="إنشاء عرض">
                         <Tag className="h-3.5 w-3.5" />
                       </Button>
-                    </Link>
+                    </IntentPrefetchLink>
                   )}
                   {product.status !== 'DELETED' && (
                     <Button

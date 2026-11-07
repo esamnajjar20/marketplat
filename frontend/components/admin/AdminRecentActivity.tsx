@@ -1,7 +1,7 @@
 'use client';
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useAdminAds } from '@/hooks/queries/useAdmin';
 import { ROUTES } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -37,12 +37,12 @@ export function AdminRecentActivity() {
     <section className="overflow-hidden rounded-[14px] border border-[var(--legacy-border)] bg-card shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
       <div className="flex items-center justify-between px-3.5 py-3">
         <h2 className="text-[15px] font-extrabold">أحدث الإعلانات</h2>
-        <Link
+        <IntentPrefetchLink
           href={adminTabHref('ads')}
           className="text-[12px] font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}
         >
           عرض الكل ←
-        </Link>
+        </IntentPrefetchLink>
       </div>
       <div className="grid grid-cols-[2fr_1.2fr_1fr_1fr] items-center gap-3 border-b border-[var(--legacy-border)] bg-[var(--legacy-surface)] px-3.5 text-[12px] font-bold text-[var(--legacy-foreground-warm)] h-10">
         <span>الإعلان</span>
@@ -58,7 +58,7 @@ export function AdminRecentActivity() {
           key={ad.id}
           className="grid grid-cols-[2fr_1.2fr_1fr_1fr] items-center gap-3 border-b border-[var(--legacy-muted-surface)] px-3.5 text-[13px] h-14 last:border-b-0"
         >
-          <Link
+          <IntentPrefetchLink
             prefetch={false}
             href={ROUTES.adDetail(ad.id)}
             target="_blank"
@@ -66,7 +66,7 @@ export function AdminRecentActivity() {
             className="truncate font-bold hover:underline"
           >
             {ad.title}
-          </Link>
+          </IntentPrefetchLink>
           <span className="truncate text-[var(--legacy-foreground-warm)]">{ad.user?.name ?? '—'}</span>
           <span>
             <span className="inline-flex h-[22px] items-center rounded-full bg-[var(--legacy-primary-soft)] px-2 text-[11px] font-bold text-[var(--legacy-primary-deep)]">

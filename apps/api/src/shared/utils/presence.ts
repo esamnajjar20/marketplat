@@ -6,7 +6,7 @@ import { presenceRedis as redis } from '../../config/redis';
  * There's no WebSocket in this codebase (chat is polling-only, see
  * useMessages's own doc comment), so presence can't be push-driven;
  * instead the frontend calls touch() on an interval while the app is
- * open (see useHeartbeat), and a key's mere existence means "online
+ * open (see PresenceHeartbeat), and a key's mere existence means "online
  * within the last PRESENCE_TTL_SECONDS" — no explicit offline write is
  * needed, the key just expires.
  */
@@ -15,12 +15,11 @@ const PRESENCE_PREFIX = 'presence:';
 const LAST_SEEN_PREFIX = 'presence:last-seen:';
 const LAST_SEEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 
-// Must be comfortably longer than the frontend's heartbeat interval
-// (useHeartbeat polls every 45s) so a single missed beat — a slow
-// request, a brief network blip — doesn't flip someone to "offline"
-// and back within seconds. 90s gives two full heartbeat cycles of
-// slack before the key actually expires.
-const PRESENCE_TTL_SECONDS = 200; // > 1.5x the 120s client heartbeat
+// The client normally refreshes this key every 120s. The 200s TTL leaves
+// 80s for scheduling and network delay beyond one normal interval. A fully
+// missed interval can still cause a brief offline state before the next tick;
+// the client sends an immediate beat when visibility or network state resumes.
+const PRESENCE_TTL_SECONDS = 200;
 
 export const presence = {
   /** Refreshes the caller's own online marker. Called by PATCH

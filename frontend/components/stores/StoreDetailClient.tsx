@@ -7,7 +7,7 @@
  * sees the store instead of the opaque React #441 crash page.
  */
 import { Suspense } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SearchX, AlertTriangle } from 'lucide-react';
 import { useStore } from '@/hooks/queries/useStores';
 import { StoreHeader } from '@/components/stores/StoreHeader';
@@ -41,7 +41,7 @@ export function StoreDetailClient({ id }: { id: string }) {
           title={notFound ? 'المتجر غير موجود' : 'تعذّر تحميل المتجر'}
           description={notFound ? 'ربما تم حذف هذا المتجر أو أن الرابط غير صحيح' : 'حدثت مشكلة في الاتصال، حاول مرة أخرى'}
           action={notFound
-            ? <Link href={ROUTES.stores} className="text-sm text-primary hover:underline" prefetch={false}>تصفح المتاجر</Link>
+            ? <IntentPrefetchLink href={ROUTES.stores} className="text-sm text-primary hover:underline" prefetch={false}>تصفح المتاجر</IntentPrefetchLink>
             : <Button type="button" variant="outline" onClick={() => refetch()}>إعادة المحاولة</Button>}
         />
       </div>

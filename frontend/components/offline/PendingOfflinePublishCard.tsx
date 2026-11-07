@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Clock3, PencilLine, UploadCloud } from 'lucide-react';
 import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
@@ -86,7 +86,7 @@ export function PendingOfflinePublishCard({ kind, className }: Props) {
                 </p>
               </div>
               <Button asChild variant="ghost" size="sm">
-                <Link href={resumeHrefForDraft(draft)} prefetch={false}>تعديل</Link>
+                <IntentPrefetchLink href={resumeHrefForDraft(draft)} prefetch={false}>تعديل</IntentPrefetchLink>
               </Button>
             </div>
           ))}

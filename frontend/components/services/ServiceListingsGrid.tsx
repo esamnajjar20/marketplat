@@ -10,7 +10,7 @@ import { Button } from '@/components/shared/ui/Button';
 import dynamic from 'next/dynamic';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ServiceListingCard } from './ServiceListingCard';
 import { ROUTES } from '@/lib/constants';
 import { ServiceListingCardSkeleton } from '@/components/shared/skeletons/ServiceListingCardSkeleton';
@@ -144,7 +144,7 @@ export function ServiceListingsGrid({ initialPage, initialPageUpdatedAt, searchP
           action={
             (search || serviceTypeId || categoryId || city || serviceLocation || minPrice !== undefined || maxPrice !== undefined || getBrowseParam(searchParams, 'attributeFilters')) ? (
               <Button variant="outline" size="sm" asChild>
-                <Link href={ROUTES.services} prefetch={false}>مسح الفلاتر وتجربة الكل</Link>
+                <IntentPrefetchLink href={ROUTES.services} prefetch={false}>مسح الفلاتر وتجربة الكل</IntentPrefetchLink>
               </Button>
             ) : undefined
           }

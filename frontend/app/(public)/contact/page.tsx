@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { LegalPageShell } from '@/components/shared/legal/LegalPageShell';
 import { buildMetadata } from '@/lib/seo';
 import { ROUTES } from '@/lib/constants';
@@ -42,13 +42,13 @@ export default function ContactPage() {
       <h2>روابط مفيدة</h2>
       <ul>
         <li>
-          <Link href={ROUTES.privacy} prefetch={false}>سياسة الخصوصية</Link>
+          <IntentPrefetchLink href={ROUTES.privacy} prefetch={false}>سياسة الخصوصية</IntentPrefetchLink>
         </li>
         <li>
-          <Link href={ROUTES.terms} prefetch={false}>شروط الاستخدام</Link>
+          <IntentPrefetchLink href={ROUTES.terms} prefetch={false}>شروط الاستخدام</IntentPrefetchLink>
         </li>
         <li>
-          <Link href={ROUTES.about} prefetch={false}>من نحن</Link>
+          <IntentPrefetchLink href={ROUTES.about} prefetch={false}>من نحن</IntentPrefetchLink>
         </li>
       </ul>
       </div>

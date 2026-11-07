@@ -2,7 +2,7 @@
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
 import { reportClientError } from '@/lib/errorReporter'; // ERR-BOUNDARY-REPORT-01
@@ -75,10 +75,10 @@ export class ErrorBoundary extends Component<Props, State> {
             إعادة المحاولة
           </Button>
           <Button type="button" variant="outline" className="gap-1.5 rounded-xl" asChild>
-            <Link href={ROUTES.home} prefetch={false}>
+            <IntentPrefetchLink href={ROUTES.home} prefetch={false}>
               <Home className="h-4 w-4" aria-hidden />
               الرئيسية
-            </Link>
+            </IntentPrefetchLink>
           </Button>
         </div>
       </div>

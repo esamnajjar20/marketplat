@@ -187,11 +187,13 @@ describe('fetchServerApi', () => {
       expect(line).toContain('bodyChars=0');
     });
 
-    it('includes a short preview for non-JSON text such as an HTML error page', async () => {
-      const html = '<html><body>error code: 1042</body></html>';
+    it('extracts a Cloudflare error code without logging arbitrary HTML content', async () => {
+      const html = '<html><body>error code: 1042<br>user@example.com</body></html>';
       const { line } = await failWith(new Response(html, { status: 200, headers: { 'content-type': 'text/html' } }));
       expect(line).toContain('kind=non-json-text');
-      expect(line).toContain('error code: 1042');
+      expect(line).toContain('upstreamErrorCode=1042');
+      expect(line).not.toContain('user@example.com');
+      expect(line).not.toContain('preview=');
     });
 
     it('never logs the content of a truncated JSON body (could hold private data)', async () => {

@@ -10,7 +10,7 @@
  *  - User trying to edit/delete another user's ad.
  */
 
-import Link        from 'next/link';
+import IntentPrefetchLink        from '@/components/navigation/IntentPrefetchLink';
 import { useRouter } from 'next/navigation';
 import { Button }  from '@/components/shared/ui/Button';
 import { ROUTES }  from '@/lib/constants';
@@ -47,11 +47,11 @@ export function Forbidden({
           </Button>
         ) : (
           <Button asChild variant="outline">
-            <Link href={ROUTES.dashboard} prefetch={false}>الذهاب إلى لوحة التحكم</Link>
+            <IntentPrefetchLink href={ROUTES.dashboard} prefetch={false}>الذهاب إلى لوحة التحكم</IntentPrefetchLink>
           </Button>
         )}
         <Button asChild>
-          <Link href={ROUTES.home} prefetch={false}>الرئيسية</Link>
+          <IntentPrefetchLink href={ROUTES.home} prefetch={false}>الرئيسية</IntentPrefetchLink>
         </Button>
       </div>
     </div>

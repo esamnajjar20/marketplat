@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Sparkles, AlertTriangle, ChevronLeft } from 'lucide-react';
 import { AdCard } from '@/components/ads/AdCard';
 import { ProductCard } from '@/components/stores/ProductCard';
@@ -69,7 +69,7 @@ export function ForYouMixedSection() {
           </HomeScrollRailItem>
         ))}
         <HomeScrollRailItem>
-          <Link
+          <IntentPrefetchLink
             href={ROUTES.forYou}
             prefetch={false}
             className="flex h-full min-h-[12rem] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-card/80 p-4 text-center text-sm font-semibold text-primary transition-colors hover:border-primary/40 hover:bg-card active:scale-[0.98]"
@@ -78,12 +78,12 @@ export function ForYouMixedSection() {
               <ChevronLeft className="h-5 w-5" aria-hidden />
             </span>
             عرض المزيد
-          </Link>
+          </IntentPrefetchLink>
         </HomeScrollRailItem>
       </HomeScrollRail>
       {!isAuth ? (
         <p className="text-center text-xs text-muted-foreground">
-          <Link href={ROUTES.login} prefetch={false} className="text-primary hover:underline">سجّل دخولك</Link>{' '}
+          <IntentPrefetchLink href={ROUTES.login} prefetch={false} className="text-primary hover:underline">سجّل دخولك</IntentPrefetchLink>{' '}
           لتخصيص الاقتراحات حسب اهتماماتك
         </p>
       ) : null}

@@ -1,6 +1,6 @@
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 import { memo } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Eye, Calendar, Store, Tag } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,7 @@ export const AdListItem = memo(function AdListItem({ ad, className }: Props) {
   const isSold = ad.status === 'SOLD';
 
   return (
-    <Link href={ROUTES.adDetail(ad.id)}
+    <IntentPrefetchLink href={ROUTES.adDetail(ad.id)}
       prefetch={false}
       className={cn('group flex min-w-0 gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-card transition-[box-shadow,border-color] hover:border-primary/30 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:gap-4 sm:p-3 [content-visibility:auto] [contain-intrinsic-size:auto_140px]', className)}>
       <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-muted sm:h-28 sm:w-36">
@@ -39,6 +39,6 @@ export const AdListItem = memo(function AdListItem({ ad, className }: Props) {
           <span className="inline-flex shrink-0 items-center gap-1"><Calendar className="h-3 w-3 shrink-0" aria-hidden /><HydrationSafeRelativeTime date={ad.createdAt} /></span>
         </div>
       </div>
-    </Link>
+    </IntentPrefetchLink>
   );
 });

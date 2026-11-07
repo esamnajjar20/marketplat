@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   Trash2, RefreshCw,
   Inbox, Upload, Eraser,
@@ -304,7 +304,7 @@ function DraftRow({
           className="h-10 min-w-0 flex-1 rounded-full bg-[var(--legacy-primary)] text-sm font-bold text-primary-foreground hover:bg-[var(--legacy-primary)]/90"
           disabled={busy}
         >
-          <Link href={resumeHref} prefetch={false}>{isFailed ? 'إعادة المحاولة' : 'متابعة التعديل'}</Link>
+          <IntentPrefetchLink href={resumeHref} prefetch={false}>{isFailed ? 'إعادة المحاولة' : 'متابعة التعديل'}</IntentPrefetchLink>
         </Button>
       </div>
     </li>

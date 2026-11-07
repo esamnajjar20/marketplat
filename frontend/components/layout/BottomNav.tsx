@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { usePathname } from 'next/navigation';
 import { Home, Compass, MessageCircle, Menu, Plus } from 'lucide-react';
 import { UserAvatar } from '@/components/shared/UserAvatar';
@@ -125,7 +125,7 @@ export function BottomNav() {
   }) {
     const isActive = href === ROUTES.home ? pathname === href : pathname.startsWith(href);
     return (
-      <Link
+      <IntentPrefetchLink
         key={href}
         href={href}
         prefetch={false}
@@ -139,7 +139,7 @@ export function BottomNav() {
           <Icon className="h-5 w-5" strokeWidth={isActive ? 2.2 : 1.8} aria-hidden={true} />
         </span>
         <span>{label}</span>
-      </Link>
+      </IntentPrefetchLink>
     );
   }
 
@@ -213,7 +213,7 @@ export function BottomNav() {
           الملف الشخصي/القائمة يبقيان على سلوكهما السابق. */}
       {isAuthenticated && user?.id ? (
         <div className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center">
-          <Link
+          <IntentPrefetchLink
             href={ROUTES.userProfile(user.id)}
             prefetch={false}
             aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) ? 'page' : undefined}
@@ -228,16 +228,16 @@ export function BottomNav() {
               <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size={22} className="text-2xs" />
             </span>
             حسابي
-          </Link>
+          </IntentPrefetchLink>
           {queuedCount > 0 && (
-            <Link
+            <IntentPrefetchLink
               href={ROUTES.offline.sync}
               prefetch={false}
               aria-label={`${queuedCount} طلب بالانتظار — مركز المزامنة`}
               className="absolute top-1 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-3xs font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
             >
               {queuedCount > 9 ? '9+' : queuedCount}
-            </Link>
+            </IntentPrefetchLink>
           )}
         </div>
       ) : (
@@ -259,14 +259,14 @@ export function BottomNav() {
             القائمة
           </button>
           {queuedCount > 0 && (
-            <Link
+            <IntentPrefetchLink
               href={ROUTES.offline.sync}
               prefetch={false}
               aria-label={`${queuedCount} طلب بالانتظار — مركز المزامنة`}
               className="absolute top-1 end-[calc(50%-18px)] z-10 flex h-3.5 min-w-[0.875rem] items-center justify-center rounded-full bg-warning px-[3px] text-3xs font-semibold leading-none text-warning-foreground shadow-sm hover:brightness-95"
             >
               {queuedCount > 9 ? '9+' : queuedCount}
-            </Link>
+            </IntentPrefetchLink>
           )}
         </div>
       )}

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { StorePaymentMethodsEditor } from '@/components/stores/StorePaymentMethodsEditor';
 import { normalizePaymentMethods, type StorePaymentMethod } from '@/lib/storePaymentMethods';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   BadgeCheck,
   Star,
@@ -251,14 +251,14 @@ export function MySellerProfileCard({ profile }: Props) {
 
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" asChild className="gap-1.5">
-          <Link href={ROUTES.userProfile(profile.userId)} prefetch={false}>
+          <IntentPrefetchLink href={ROUTES.userProfile(profile.userId)} prefetch={false}>
             عرض صفحتي العامة <ExternalLink className="h-3.5 w-3.5" />
-          </Link>
+          </IntentPrefetchLink>
         </Button>
         <Button size="sm" asChild className="gap-1.5">
-          <Link href={ROUTES.myStore} prefetch={false}>
+          <IntentPrefetchLink href={ROUTES.myStore} prefetch={false}>
             <ShoppingBag className="h-3.5 w-3.5" /> أنشئ متجرك الآن
-          </Link>
+          </IntentPrefetchLink>
         </Button>
       </div>
 

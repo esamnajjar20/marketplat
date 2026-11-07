@@ -1,6 +1,6 @@
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Star, BadgeCheck, Eye } from 'lucide-react';
@@ -53,7 +53,7 @@ export function UnifiedResultCard({ result, className, layout = 'grid' }: Props)
         'group/card relative isolate z-0 h-full min-w-0 hover:z-10',
       )}
     >
-      <Link
+      <IntentPrefetchLink
         href={result.url}
         prefetch={false}
         className={cn(
@@ -147,7 +147,7 @@ export function UnifiedResultCard({ result, className, layout = 'grid' }: Props)
             </div>
           </div>
         </div>
-      </Link>
+      </IntentPrefetchLink>
     </div>
   );
 }

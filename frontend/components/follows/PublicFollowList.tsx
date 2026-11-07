@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ChevronLeft, ChevronRight, FolderOpen, Store, UserRound } from 'lucide-react';
 import { FollowActionButton } from '@/components/follows/FollowActionButton';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
@@ -60,7 +60,7 @@ export function PublicFollowersList({
           key={user.id}
           className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-3 shadow-sm transition hover:border-primary/30 sm:p-4"
         >
-          <Link
+          <IntentPrefetchLink
             href={`/profile/${user.id}`}
             className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" prefetch={false}
           >
@@ -71,7 +71,7 @@ export function PublicFollowersList({
                 {user.city || 'مستخدم في Marketplat'}
               </span>
             </span>
-          </Link>
+          </IntentPrefetchLink>
           <FollowActionButton targetType="USER" targetId={user.id} userId={user.id} />
         </div>
       ))}
@@ -127,7 +127,7 @@ function PublicFollowingRow({
 
   return (
     <div className="group flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-3 shadow-sm transition hover:border-primary/30 hover:shadow-md sm:p-4">
-      <Link
+      <IntentPrefetchLink
         href={href}
         className="flex min-w-0 flex-1 items-center gap-3 rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" prefetch={false}
       >
@@ -136,7 +136,7 @@ function PublicFollowingRow({
           <span className="block truncate font-semibold text-foreground">{label}</span>
           <span className="mt-0.5 block truncate text-xs text-muted-foreground">{subtitle}</span>
         </span>
-      </Link>
+      </IntentPrefetchLink>
       <FollowActionButton targetType={type} targetId={targetId} />
     </div>
   );
@@ -188,12 +188,12 @@ export function PublicFollowPagination({
       className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-border/70 bg-card px-3 py-2"
     >
       {page > 1 ? (
-        <Link
+        <IntentPrefetchLink
           href={pageHref(page - 1)}
           className="inline-flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-medium transition hover:bg-muted" prefetch={false}
         >
           <ChevronRight className="h-4 w-4" /> السابق
-        </Link>
+        </IntentPrefetchLink>
       ) : (
         <span className="inline-flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm text-muted-foreground">
           <ChevronRight className="h-4 w-4" /> السابق
@@ -203,12 +203,12 @@ export function PublicFollowPagination({
         صفحة {page} من {meta.totalPages}
       </span>
       {meta.hasNextPage ? (
-        <Link
+        <IntentPrefetchLink
           href={pageHref(page + 1)}
           className="inline-flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm font-medium transition hover:bg-muted" prefetch={false}
         >
           التالي <ChevronLeft className="h-4 w-4" />
-        </Link>
+        </IntentPrefetchLink>
       ) : (
         <span className="inline-flex min-h-10 items-center gap-1 rounded-lg px-3 text-sm text-muted-foreground">
           التالي <ChevronLeft className="h-4 w-4" />

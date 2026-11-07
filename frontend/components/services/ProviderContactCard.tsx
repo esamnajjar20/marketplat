@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useRouter } from 'next/navigation';
 import { BadgeCheck, MessageSquare, Star, Phone } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
@@ -76,7 +76,7 @@ export function ProviderContactCard({ listing, showPhone = false }: Props) {
 
   return (
     <div className="space-y-3 rounded-2xl border border-border/80 bg-card p-4 shadow-xs">
-      <Link
+      <IntentPrefetchLink
         href={profileHref}
         className="flex items-center gap-3 transition-opacity hover:opacity-90" prefetch={false}
       >
@@ -113,7 +113,7 @@ export function ProviderContactCard({ listing, showPhone = false }: Props) {
           )}
           <p className="mt-0.5 text-2xs-tight text-primary">عرض الملف الشخصي</p>
         </div>
-      </Link>
+      </IntentPrefetchLink>
 
       {!isOwn && userId && (
         <Button

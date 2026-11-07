@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
 import { ROUTES } from '@/lib/constants';
@@ -27,7 +27,7 @@ export function ProfileStoreSummary({ store, sellerPaymentMethods }: Props) {
 
   return (
     <div className="space-y-4">
-      <Link
+      <IntentPrefetchLink
         href={ROUTES.storeDetail(store.id)}
         className="group block overflow-hidden rounded-[20px] border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" prefetch={false}
       >
@@ -54,7 +54,7 @@ export function ProfileStoreSummary({ store, sellerPaymentMethods }: Props) {
             </div>
           </div>
         </div>
-      </Link>
+      </IntentPrefetchLink>
 
       <StorePaymentMethods
         paymentMethods={sellerPaymentMethods}

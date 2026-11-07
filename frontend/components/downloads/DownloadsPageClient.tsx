@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Download, Trash2, Store, FileText, WifiOff, Eye, Search } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
@@ -66,7 +66,7 @@ export function DownloadsPageClient() {
         action={
           online ? (
             <Button asChild>
-              <Link href={ROUTES.stores} prefetch={false}>تصفح المتاجر</Link>
+              <IntentPrefetchLink href={ROUTES.stores} prefetch={false}>تصفح المتاجر</IntentPrefetchLink>
             </Button>
           ) : undefined
         }
@@ -152,10 +152,10 @@ export function DownloadsPageClient() {
               )}
               {online && (
                 <Button type="button" variant="outline" size="sm" className="gap-1.5" asChild>
-                  <Link href={ROUTES.storeDetail(item.storeId)} prefetch={false}>
+                  <IntentPrefetchLink href={ROUTES.storeDetail(item.storeId)} prefetch={false}>
                     <Store className="h-3.5 w-3.5" />
                     المتجر
-                  </Link>
+                  </IntentPrefetchLink>
                 </Button>
               )}
               <Button

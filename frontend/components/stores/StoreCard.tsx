@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { getDetailImageUrl, getAvatarUrl } from '@/lib/cloudinary';
 import { BadgeCheck, Star, Package, Users, Store as StoreIcon } from 'lucide-react';
@@ -154,9 +154,9 @@ export const StoreCard = memo(function StoreCard({
             size="sm"
             className="h-9 flex-1 rounded-xl border-primary/20 bg-background font-bold text-primary hover:bg-primary/5"
           >
-            <Link href={ROUTES.storeDetail(store.id)} prefetch={false}>
+            <IntentPrefetchLink href={ROUTES.storeDetail(store.id)} prefetch={false}>
               زيارة المتجر
-            </Link>
+            </IntentPrefetchLink>
           </Button>
           {showHeart && (
             <FavoriteButton

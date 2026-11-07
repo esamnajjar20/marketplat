@@ -5,7 +5,7 @@
  * GET /sellers/me/attention (server-side counts).
  */
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   ClipboardList,
   ImageOff,
@@ -109,7 +109,7 @@ export function SellerTodayTasks() {
       <ul className="space-y-2">
         {tasks.map((task) => (
           <li key={task.id}>
-            <Link
+            <IntentPrefetchLink
               href={task.href}
               className={cn(
                 'flex min-h-[48px] items-center gap-3 rounded-lg border bg-card px-3 py-2.5 transition-colors hover:bg-muted/50',
@@ -121,7 +121,7 @@ export function SellerTodayTasks() {
                 {task.count}
               </span>
               <ArrowLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-            </Link>
+            </IntentPrefetchLink>
           </li>
         ))}
       </ul>

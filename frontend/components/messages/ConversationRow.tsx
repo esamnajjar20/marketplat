@@ -1,7 +1,7 @@
 'use client';
 
 import { memo } from 'react';
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Pin, Archive, Trash2, MoreVertical, BellOff, Bell } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/shared/ui/DropdownMenu';
@@ -84,7 +84,7 @@ export const ConversationRow = memo(function ConversationRow({
         '[content-visibility:auto] [contain-intrinsic-size:auto_80px]',
       )}
     >
-      <Link
+      <IntentPrefetchLink
         href={ROUTES.conversationDetail(conversation.id)}
         aria-current={isSelected ? 'page' : undefined}
         className="flex min-w-0 flex-1 items-start gap-3 touch-manipulation" prefetch={false}
@@ -152,7 +152,7 @@ export const ConversationRow = memo(function ConversationRow({
             {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
           </span>
         )}
-      </Link>
+      </IntentPrefetchLink>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

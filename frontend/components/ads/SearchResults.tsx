@@ -7,7 +7,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { useInfiniteQuery } from '@tanstack/react-query';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useRouter, usePathname } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { AdCard }         from '@/components/ads/AdCard';
@@ -289,7 +289,7 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
                 </Button>
               )}
               <Button variant="default" size="sm" asChild>
-                <Link href={ROUTES.home} prefetch={false}>العودة للرئيسية</Link>
+                <IntentPrefetchLink href={ROUTES.home} prefetch={false}>العودة للرئيسية</IntentPrefetchLink>
               </Button>
             </div>
           }

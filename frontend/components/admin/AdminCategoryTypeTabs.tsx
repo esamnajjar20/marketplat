@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { FolderTree, Package, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
@@ -29,7 +29,7 @@ export function AdminCategoryTypeTabs({ active }: { active: CategoryTypeTab }) {
       {TABS.map((tab) => {
         const isActive = tab.id === active;
         return (
-          <Link
+          <IntentPrefetchLink
             key={tab.id}
             href={tab.href}
             role="tab"
@@ -43,7 +43,7 @@ export function AdminCategoryTypeTabs({ active }: { active: CategoryTypeTab }) {
           >
             <tab.icon className="h-4 w-4" aria-hidden="true" />
             {tab.label}
-          </Link>
+          </IntentPrefetchLink>
         );
       })}
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   ClipboardList,
   Plus,
@@ -121,25 +121,25 @@ export function RequestsPageClient({ params }: { params: OpenRequestsPageParams 
             تصفّح الطلبات المفتوحة للخدمات والمنتجات والإيجار، وقدّم عرضك مباشرة لصاحب الطلب.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link
+            <IntentPrefetchLink
               href={ROUTES.requestNew}
               className="inline-flex h-10 flex-[1.4] items-center justify-center gap-1.5 rounded-full bg-[var(--legacy-primary)] px-4 text-sm font-bold text-primary-foreground shadow-sm transition-opacity hover:opacity-95 sm:flex-none" prefetch={false}
             >
               <Plus className="h-4 w-4" aria-hidden />
               أضف طلبًا
-            </Link>
-            <Link
+            </IntentPrefetchLink>
+            <IntentPrefetchLink
               href={ROUTES.myOpenRequests}
               className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[var(--legacy-primary-border)] bg-card px-4 text-sm font-bold text-[var(--legacy-primary-deep)] dark:border-border dark:bg-card dark:text-primary sm:flex-none" prefetch={false}
             >
               طلباتي
-            </Link>
-            <Link
+            </IntentPrefetchLink>
+            <IntentPrefetchLink
               href={ROUTES.myOpenRequestOffers}
               className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[var(--legacy-primary-border)] bg-card px-4 text-sm font-bold text-[var(--legacy-primary-deep)] dark:border-border dark:bg-card dark:text-primary sm:flex-none" prefetch={false}
             >
               عروضي
-            </Link>
+            </IntentPrefetchLink>
           </div>
         </div>
 
@@ -152,7 +152,7 @@ export function RequestsPageClient({ params }: { params: OpenRequestsPageParams 
           {TYPE_CHIPS.map(({ value, label, icon: Icon }) => {
             const active = value === type || (value === undefined && !type);
             return (
-              <Link
+              <IntentPrefetchLink
                 key={label}
                 href={buildTypeHref(value, city, value === 'SERVICE' ? serviceTypeId : undefined, q, sort)}
                 role="tab"
@@ -166,7 +166,7 @@ export function RequestsPageClient({ params }: { params: OpenRequestsPageParams 
               >
                 <Icon className="h-3.5 w-3.5" aria-hidden />
                 {label}
-              </Link>
+              </IntentPrefetchLink>
             );
           })}
         </div>
@@ -219,14 +219,14 @@ export function RequestsPageClient({ params }: { params: OpenRequestsPageParams 
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   {hasActiveFilters ? (
                     <Button variant="outline" asChild>
-                      <Link href={ROUTES.requests} prefetch={false}>مسح الفلاتر</Link>
+                      <IntentPrefetchLink href={ROUTES.requests} prefetch={false}>مسح الفلاتر</IntentPrefetchLink>
                     </Button>
                   ) : null}
                   <Button asChild>
-                    <Link href={ROUTES.requestNew} prefetch={false}>
+                    <IntentPrefetchLink href={ROUTES.requestNew} prefetch={false}>
                       <Plus className="me-1.5 h-4 w-4" aria-hidden />
                       نشر طلب
-                    </Link>
+                    </IntentPrefetchLink>
                   </Button>
                 </div>
               }
