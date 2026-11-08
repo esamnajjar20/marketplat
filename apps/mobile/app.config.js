@@ -9,16 +9,30 @@ if (!plugins.some((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin) === '
 }
 const sentryOrg = process.env.SENTRY_ORG?.trim();
 const sentryProject = process.env.SENTRY_PROJECT?.trim();
-const sentryPluginConfigured = plugins.some((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin) === '@sentry/react-native/expo');
-// Runtime crash capture works with the SDK/DSN. Source-map and native-symbol
-// upload configuration is added only when real project identifiers exist.
-const sentryAuthToken = process.env.SENTRY_AUTH_TOKEN?.trim();
-if (!sentryPluginConfigured && sentryOrg && sentryProject && sentryAuthToken) {
-  plugins.push(['@sentry/react-native/expo', {
-    url: process.env.SENTRY_URL?.trim() || 'https://sentry.io/',
-    organization: sentryOrg,
-    project: sentryProject,
-  }]);
+const sentryUrl = process.env.SENTRY_URL?.trim();
+
+const sentryPluginIndex = plugins.findIndex((plugin) => {
+  const name = Array.isArray(plugin) ? plugin[0] : plugin;
+  return name === '@sentry/react-native' || name === '@sentry/react-native/expo';
+});
+
+const sentryPluginOptions = sentryPluginIndex >= 0 && Array.isArray(plugins[sentryPluginIndex])
+  ? { ...plugins[sentryPluginIndex][1] }
+  : {};
+
+if (sentryOrg) sentryPluginOptions.organization = sentryOrg;
+if (sentryProject) sentryPluginOptions.project = sentryProject;
+if (sentryUrl) sentryPluginOptions.url = sentryUrl;
+if (!sentryPluginOptions.url) sentryPluginOptions.url = 'https://sentry.io/';
+
+// Register the plugin for Debug and Release builds.
+// Authentication tokens must remain environment secrets, never config values.
+const sentryPlugin = ['@sentry/react-native', sentryPluginOptions];
+
+if (sentryPluginIndex >= 0) {
+  plugins[sentryPluginIndex] = sentryPlugin;
+} else {
+  plugins.push(sentryPlugin);
 }
 expo.plugins = plugins;
 
