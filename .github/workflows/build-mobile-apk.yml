@@ -82,13 +82,13 @@ jobs:
       - name: Install Android SDK packages
         shell: bash
         run: |
-          set -uo pipefail
+          set -euo pipefail
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)"
           test -n "$SDKMANAGER" && test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
           "$SDKMANAGER" --install \
             'platform-tools' \
-            'platforms;android-37.0' \
+            'platforms;android-37' \
             'build-tools;37.0.0'
           test -s "$ANDROID_HOME/platforms/android-37/android.jar"
           test -x "$ANDROID_HOME/build-tools/37.0.0/apksigner"
@@ -101,7 +101,7 @@ jobs:
           link-to-sdk: true
 
       - name: Install workspace dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Verify Expo SDK dependency compatibility
         run: pnpm --filter @marketplat/mobile exec expo install --check
@@ -258,13 +258,13 @@ jobs:
       - name: Install Android SDK packages
         shell: bash
         run: |
-          set -uo pipefail
+          set -euo pipefail
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)"
           test -n "$SDKMANAGER" && test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
           "$SDKMANAGER" --install \
             'platform-tools' \
-            'platforms;android-37.0' \
+            'platforms;android-37' \
             'build-tools;37.0.0'
           test -s "$ANDROID_HOME/platforms/android-37/android.jar"
           test -x "$ANDROID_HOME/build-tools/37.0.0/apksigner"
@@ -277,7 +277,7 @@ jobs:
           link-to-sdk: true
 
       - name: Install workspace dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Verify Expo SDK dependency compatibility
         run: pnpm --filter @marketplat/mobile exec expo install --check
