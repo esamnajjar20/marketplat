@@ -12,10 +12,10 @@ vi.mock('react-native', () => ({
 
 // 2. Polyfill globalThis.expo (required by expo-modules-core).
 // Keep the test-only global typed without weakening TypeScript strictness.
-type ExpoTestGlobal = typeof globalThis & {
+type ExpoTestGlobal = {
   expo?: Record<string, unknown>;
 };
-const expoTestGlobal = globalThis as ExpoTestGlobal;
+const expoTestGlobal = globalThis as unknown as ExpoTestGlobal;
 
 if (!expoTestGlobal.expo) {
   expoTestGlobal.expo = {
