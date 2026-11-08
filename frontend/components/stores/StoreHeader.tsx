@@ -2,6 +2,7 @@
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { safeBack } from '@/lib/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { Star, Phone, MapPin, Plus, UserMinus, ChevronRight, PackagePlus, Package, Settings2, BarChart3 } from 'lucide-react';
@@ -11,7 +12,10 @@ import { StoreBadges } from '@/components/stores/StoreBadges';
 import { getAvatarUrl, getDetailImageUrl } from '@/lib/cloudinary';
 import { useAuthStore, selectIsAuthenticated, selectUser } from '@/store/auth.store';
 import { useToggleStoreFollow } from '@/hooks/mutations/useStoreMutations';
-import { useIsFollowingStore } from '@/hooks/queries/useStores';
+import { useFollowStatus } from '@/hooks/queries/useFollows';
+import { queryKeys } from '@/lib/queryKeys';
+import { useStore } from '@/hooks/queries/useStores';
+import type { StoreBadge } from '@/types/badge.types';
 // PERF-BUNDLE-DETAIL-01: الأزرار الثانوية كسولة (LazyDetailActions).
 import {
   LazyReportStoreButton as ReportStoreButton,
@@ -43,15 +47,12 @@ const STORE_HOURS_DAYS: { key: StoreWeekday; label: string }[] = [
 interface Props {
   store: StoreWithSellerAndCounts;
   /**
-   * this used to be required-in-spirit-but-never-passed —
-   * the public store endpoint doesn't include per-viewer follow state,
-   * and no caller ever supplied it, so the button always rendered as
-   * if logged out of any follow relationship. Now optional: if omitted,
-   * this component derives it itself via useIsFollowingStore(). Still
-   * accepted as an override for tests/Storybook or a future caller that
-   * already has the answer some other way.
+   * Viewer state is provided by the combined store page-data request.
+   * Other consumers may omit it and use the single-target status query.
    */
   isFollowing?: boolean;
+  isFavorited?: boolean;
+  badges?: StoreBadge[];
 }
 
 /**
@@ -67,13 +68,48 @@ const CIRCLE_BTN =
 const OUTLINE_BTN =
   'flex h-[46px] items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-primary/25 bg-card text-[15px] font-bold text-primary-strong transition hover:bg-primary-soft active:scale-[0.98]';
 
-export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
+export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, badges }: Props) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const currentUser = useAuthStore(selectUser);
   const toggleFollow = useToggleStoreFollow();
-  const derivedIsFollowing = useIsFollowingStore(store.id);
-  const isFollowing = isFollowingProp ?? derivedIsFollowing;
+  // Normal Server Component page renders the public store directly. Fetch
+  // the grouped viewer/header data once here; StoreDetailClient passes the
+  // same query's result as props, so both paths share the same cache entry.
+  const pageQuery = useStore(store.id, {
+    enabled: isFollowingProp === undefined || isFavorited === undefined || badges === undefined,
+  });
+  const resolvedFollowing = isFollowingProp ?? pageQuery.data?.viewer?.isFollowing;
+  const resolvedFavorited = isFavorited ?? pageQuery.data?.viewer?.isFavorited;
+  const resolvedBadges = badges ?? (pageQuery.data?.badges ?? (pageQuery.isError ? undefined : []));
+  const followStatus = useFollowStatus('STORE', store.id, {
+    enabled: resolvedFollowing === undefined && pageQuery.isError,
+  });
+  const [pageFollowState, setPageFollowState] = useState<boolean | undefined>(resolvedFollowing);
+  useEffect(() => {
+    if (resolvedFollowing === undefined) return;
+    setPageFollowState(resolvedFollowing);
+    queryClient.setQueryData(
+      queryKeys.follows.status('STORE', store.id),
+      resolvedFollowing,
+    );
+  }, [resolvedFollowing, queryClient, store.id]);
+
+  useEffect(() => {
+    if (resolvedFavorited === undefined) return;
+    // Seed the shared entity Set so offline optimistic toggles and other
+    // store cards start from the aggregate endpoint's authoritative state.
+    queryClient.setQueryData<Set<string>>(queryKeys.favorites.entityIds('STORE'), (previous) => {
+      const next = new Set(previous ?? []);
+      if (resolvedFavorited) next.add(store.id);
+      else next.delete(store.id);
+      return next;
+    });
+  }, [resolvedFavorited, queryClient, store.id]);
+  const isFollowing = resolvedFollowing === undefined
+    ? (followStatus.data ?? false)
+    : (pageFollowState ?? resolvedFollowing);
   const isOwnStore = currentUser?.id === store.sellerProfile?.userId;
   const shareUrl = `${APP_URL}${ROUTES.storeDetail(store.id)}`;
   const waDigits = store.phone.replace(/\D/g, '');
@@ -124,7 +160,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
                 desc: store.description ?? '',
               }}
             />
-            <FavoriteButton entityType="STORE" entityId={store.id} warm className={`${CIRCLE_BTN} text-accent`} />
+            <FavoriteButton entityType="STORE" entityId={store.id} warm={resolvedFavorited === undefined && pageQuery.isError} initialIsFavorited={resolvedFavorited} className={`${CIRCLE_BTN} text-accent`} />
           </div>
         </div>
       </div>
@@ -174,7 +210,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             </span>
           )}
 
-          <StoreBadges storeId={store.id} className="mt-2 lg:justify-start" />
+          <StoreBadges storeId={store.id} badges={resolvedBadges} className="mt-2 lg:justify-start" />
 
           {store.description && (
             <p className="mx-1.5 mt-3 line-clamp-3 max-w-2xl text-sm leading-[1.8] text-foreground/75">{store.description}</p>
@@ -205,7 +241,11 @@ export function StoreHeader({ store, isFollowing: isFollowingProp }: Props) {
             <Button
               variant={isFollowing ? 'outline' : 'default'}
               disabled={toggleFollow.isPending}
-              onClick={() => toggleFollow.mutate(store.id)}
+              onClick={() => toggleFollow.mutate(store.id, {
+                onSuccess: (data) => {
+                  if (resolvedFollowing !== undefined) setPageFollowState(data.action === 'followed');
+                },
+              })}
               className="h-[46px] flex-[1.4] gap-2 rounded-[14px] text-[15px] font-bold"
             >
               {isFollowing ? <UserMinus className="h-5 w-5" /> : <Plus className="h-5 w-5" />}

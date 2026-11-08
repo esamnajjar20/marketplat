@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { AlertTriangle, FileText } from 'lucide-react';
 import { useDebts } from '@/hooks/queries/useDebts';
-import { useDebtSummary } from '@/hooks/queries/useSales';
 import { Button } from '@/components/ui/button';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,7 +14,9 @@ export function SalesDebtsSection() {
   const [page, setPage] = useState(1);
   const [openingReceiptId, setOpeningReceiptId] = useState<string | null>(null);
   const query = useDebts({ page, limit: 20 });
-  const summary = useDebtSummary();
+  const summary = query.data?.summary;
+  const debtPage = query.data?.debts ?? null;
+  const debtRows = debtPage?.rows ?? [];
 
   return (
     <div className="space-y-4 lg:space-y-5">
@@ -23,6 +24,10 @@ export function SalesDebtsSection() {
         <h2 className="text-xl font-extrabold">الديون</h2>
         <p className="text-sm text-muted-foreground">المبيعات التي ما زال عليها مبلغ مستحق.</p>
       </div>
+
+      {query.data?.failures.summary && (
+        <p role="status" className="text-xs text-muted-foreground">تعذر تحديث ملخص الديون حاليًا؛ قائمة الديون متاحة.</p>
+      )}
 
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
         <div className="rounded-2xl border border-border/70 bg-card p-3 shadow-sm">
@@ -33,7 +38,7 @@ export function SalesDebtsSection() {
             <span className="text-[11px] text-muted-foreground">إجمالي الدين</span>
           </div>
           <strong className="mt-1.5 block text-lg font-extrabold tabular-nums">
-            {Number(summary.data?.totalDue ?? 0).toFixed(2)} ₪
+            {Number(summary?.totalDue ?? 0).toFixed(2)} ₪
           </strong>
         </div>
         <div className="rounded-2xl border border-border/70 bg-card p-3 shadow-sm">
@@ -44,7 +49,7 @@ export function SalesDebtsSection() {
             <span className="text-[11px] text-muted-foreground">عدد المبيعات المستحقة</span>
           </div>
           <strong className="mt-1.5 block text-lg font-extrabold tabular-nums">
-            {Number(summary.data?.debtorCount ?? query.data?.totalCount ?? 0).toLocaleString('ar')}
+            {Number(summary?.debtorCount ?? query.data?.debts?.totalCount ?? 0).toLocaleString('ar')}
           </strong>
         </div>
       </div>
@@ -63,15 +68,15 @@ export function SalesDebtsSection() {
         >
           {null}
         </LoadingGate>
-      ) : query.isError ? (
+      ) : (query.isError || query.data?.failures.debts) ? (
         <div className="py-12 text-center text-destructive">تعذر تحميل الديون.</div>
-      ) : !query.data?.rows?.length ? (
+      ) : !debtRows.length ? (
         <div className="rounded-2xl border border-dashed p-10 text-center text-muted-foreground">
           لا توجد ديون مستحقة.
         </div>
       ) : (
         <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3 sm:gap-3">
-          {query.data.rows.map((sale) => {
+          {debtRows.map((sale) => {
             const text = `مرحبًا ${sale.buyerName}، تذكير بوجود مبلغ مستحق قدره ${Number(sale.dueAmount).toFixed(2)} ₪ على الفاتورة ${sale.invoiceNumber ?? ''}.`;
             const href = sale.buyerPhone
               ? `https://wa.me/${sale.buyerPhone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`
@@ -123,17 +128,17 @@ export function SalesDebtsSection() {
         </div>
       )}
 
-      {query.data && query.data.totalPages > 1 && (
+      {debtPage && debtPage.totalPages > 1 && (
         <nav className="flex items-center justify-between gap-3" aria-label="صفحات الديون">
           <span className="text-sm text-muted-foreground">
-            صفحة {query.data.page} من {query.data.totalPages} · {query.data.totalCount} ديون
+            صفحة {debtPage.page} من {debtPage.totalPages} · {debtPage.totalCount} ديون
           </span>
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
               className="rounded-xl font-bold"
-              disabled={!query.data.hasPrevPage || query.isFetching}
+              disabled={!debtPage.hasPrevPage || query.isFetching}
               onClick={() => setPage((current) => Math.max(1, current - 1))}
             >
               السابق
@@ -142,7 +147,7 @@ export function SalesDebtsSection() {
               variant="outline"
               size="sm"
               className="rounded-xl font-bold"
-              disabled={!query.data.hasNextPage || query.isFetching}
+              disabled={!debtPage.hasNextPage || query.isFetching}
               onClick={() => setPage((current) => current + 1)}
             >
               التالي

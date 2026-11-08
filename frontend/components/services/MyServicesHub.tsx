@@ -1,6 +1,7 @@
 'use client';
 
 import type { ComponentType } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 /**
  * Provider hub overview — layout aligned with design mockup «خدماتي — نظرة عامة».
@@ -19,15 +20,14 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import {
-  useMyServiceProvider,
-  useMyServiceProviderAnalytics,
-} from '@/hooks/queries/useServiceProviders';
+import { useMyServiceProvider, useMyServiceProviderDashboard } from '@/hooks/queries/useServiceProviders';
 import { BecomeServiceProviderCard } from './BecomeServiceProviderCard';
 import { ROUTES } from '@/lib/constants';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import type { ParsedError } from '@/lib/errorParser';
 import type { ServiceAvailability, ServiceProviderDetails } from '@/types/service.types';
+import type { ServiceProviderDashboardData } from '@/api/service-providers.api';
+import { myServicesWorkspaceParamsFromSearchParams } from '@/lib/myServicesWorkspace';
 import { cn } from '@/lib/utils';
 
 const AVAIL_LABELS: Record<ServiceAvailability, string> = {
@@ -49,7 +49,7 @@ function StatTile({
 }: {
   icon: ComponentType<{ className?: string }>;
   label: string;
-  value: number;
+  value: number | string;
 }) {
   return (
     <div className="flex flex-col gap-1.5 rounded-2xl border border-border/70 bg-card p-3 shadow-sm">
@@ -59,13 +59,18 @@ function StatTile({
         </span>
         <span className="text-[11px] font-medium leading-tight text-muted-foreground">{label}</span>
       </div>
-      <b className="text-lg font-extrabold tabular-nums leading-none">{value.toLocaleString('ar')}</b>
+      <b className="text-lg font-extrabold tabular-nums leading-none">{typeof value === 'number' ? value.toLocaleString('ar') : value}</b>
     </div>
   );
 }
 
-function HubBody({ provider }: { provider: ServiceProviderDetails }) {
-  const { data: analytics } = useMyServiceProviderAnalytics();
+function HubBody({
+  provider,
+  analytics,
+}: {
+  provider: ServiceProviderDetails;
+  analytics: ServiceProviderDashboardData['analytics'] | null;
+}) {
   const currentUser = useAuthStore(selectUser);
   const publicProfileHref = currentUser?.id ? ROUTES.userProfile(currentUser.id) : null;
   const pendingRequests = analytics?.pendingRequests ?? 0;
@@ -73,6 +78,7 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
   const activeListings = analytics?.activeListings ?? 0;
   const completedRequests = analytics?.completedRequests ?? 0;
   const needsAttention = pendingRequests + upcomingAppointments;
+  const hasAnalytics = analytics !== null;
   const initial = (provider.businessName?.trim()?.[0] || 'م').toUpperCase();
 
   return (
@@ -114,7 +120,7 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
         </div>
       </section>
 
-      {needsAttention > 0 && (
+      {hasAnalytics && needsAttention > 0 && (
         <div className="flex items-center gap-2 rounded-2xl border border-[var(--legacy-warning-soft-strong)] bg-[var(--legacy-warning-soft)] px-3.5 py-3 text-[13px] font-bold text-[var(--legacy-warning-text)]">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           لديك {needsAttention.toLocaleString('ar')} عناصر تحتاج إلى متابعة.
@@ -122,13 +128,13 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
       )}
 
       <section className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3" aria-label="ملخص أداء مقدم الخدمة">
-        <StatTile icon={Inbox} label="طلبات معلّقة" value={pendingRequests} />
-        <StatTile icon={CalendarClock} label="مواعيد قادمة" value={upcomingAppointments} />
-        <StatTile icon={ListChecks} label="خدمات نشطة" value={activeListings} />
-        <StatTile icon={CheckCircle2} label="طلبات مكتملة" value={completedRequests} />
+        <StatTile icon={Inbox} label="طلبات معلّقة" value={hasAnalytics ? pendingRequests : '—'} />
+        <StatTile icon={CalendarClock} label="مواعيد قادمة" value={hasAnalytics ? upcomingAppointments : '—'} />
+        <StatTile icon={ListChecks} label="خدمات نشطة" value={hasAnalytics ? activeListings : '—'} />
+        <StatTile icon={CheckCircle2} label="طلبات مكتملة" value={hasAnalytics ? completedRequests : '—'} />
       </section>
 
-      {pendingRequests > 0 && (
+      {hasAnalytics && pendingRequests > 0 && (
         <section className="space-y-2.5">
           <h2 className="text-sm font-extrabold">يحتاج إلى إجراء</h2>
           <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm">
@@ -153,7 +159,15 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
 }
 
 export function MyServicesHub() {
-  const { data: provider, isLoading, isError, error, refetch } = useMyServiceProvider();
+  const searchParams = useSearchParams();
+  const workspaceParams = myServicesWorkspaceParamsFromSearchParams(searchParams);
+  // Provider identity is already included in authenticated bootstrap and is
+  // shared with the list component via the same query key.
+  const providerQuery = useMyServiceProvider();
+  const provider = providerQuery.data;
+  const dashboardQuery = useMyServiceProviderDashboard(workspaceParams, { enabled: Boolean(provider) });
+  const { data: dashboard, isLoading: dashboardLoading, isError, error, refetch } = dashboardQuery;
+  const isLoading = providerQuery.isLoading || (Boolean(provider) && dashboardLoading);
 
   if (isLoading) {
     return (
@@ -163,22 +177,27 @@ export function MyServicesHub() {
     );
   }
 
+  const providerStatusCode = (providerQuery.error as ParsedError | null)?.statusCode;
   const statusCode = (error as ParsedError | null)?.statusCode;
 
-  if (isError && statusCode !== 404) {
+  if (providerQuery.isError && providerStatusCode === 404) {
+    return <BecomeServiceProviderCard />;
+  }
+
+  if (providerQuery.isError || (isError && statusCode !== 404)) {
     return (
       <div className="flex flex-col items-center gap-3 py-8 text-center text-muted-foreground">
         <p>تعذّر تحميل بيانات مقدم الخدمة. يرجى المحاولة مرة أخرى.</p>
-        <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
+        <button type="button" onClick={() => { void providerQuery.refetch(); void refetch(); }} className="text-sm text-primary hover:underline">
           إعادة المحاولة
         </button>
       </div>
     );
   }
 
-  if (isError || !provider) {
+  if (!provider) {
     return <BecomeServiceProviderCard />;
   }
 
-  return <HubBody provider={provider} />;
+  return <HubBody provider={provider} analytics={dashboard?.analytics ?? null} />;
 }

@@ -15,7 +15,8 @@ import { setupUser } from '@/test-support/user-event';
 import { StoreHeader } from '@/components/stores/StoreHeader';
 import { useAuthStore } from '@/store/auth.store';
 import { useToggleStoreFollow } from '@/hooks/mutations/useStoreMutations';
-import { useIsFollowingStore } from '@/hooks/queries/useStores';
+import { useFollowStatus } from '@/hooks/queries/useFollows';
+import { useStore } from '@/hooks/queries/useStores';
 import type { StoreWithSellerAndCounts } from '@/types/store.types';
 
 vi.mock('@/store/auth.store', () => ({
@@ -35,8 +36,12 @@ vi.mock('@/hooks/mutations/useStoreMutations', () => ({
   useToggleStoreFollow: vi.fn(),
 }));
 
+vi.mock('@/hooks/queries/useFollows', () => ({
+  useFollowStatus: vi.fn(),
+}));
+
 vi.mock('@/hooks/queries/useStores', () => ({
-  useIsFollowingStore: vi.fn(),
+  useStore: vi.fn(() => ({ data: undefined, isError: true, isFetching: false })),
 }));
 
 vi.mock('@/components/stores/ReportStoreButton', () => ({
@@ -57,7 +62,9 @@ vi.mock('@/hooks/mutations/useStartConversation', () => ({
 // FavoriteButton (STORE entity, warm=true — distinct from the follow
 // button above). Own behavior covered by FavoriteButton.test.tsx.
 vi.mock('@/components/shared/FavoriteButton', () => ({
-  FavoriteButton: () => <div data-testid="favorite-button" />,
+  FavoriteButton: (props: { initialIsFavorited?: boolean; warm?: boolean }) => (
+    <div data-testid="favorite-button" data-favorited={String(props.initialIsFavorited)} data-warm={String(props.warm)} />
+  ),
 }));
 
 const mockToggleMutate = vi.fn();
@@ -82,7 +89,9 @@ function mockAuth(state: { user: Record<string, unknown> | null; isAuthenticated
 }
 
 vi.mock('@/components/stores/StoreBadges', () => ({
-  StoreBadges: () => null,
+  StoreBadges: (props: { badges?: unknown[] }) => (
+    <div data-testid="store-badges" data-badge-count={String(props.badges?.length ?? 'fallback')} />
+  ),
 }));
 
 describe('StoreHeader', () => {
@@ -90,7 +99,8 @@ describe('StoreHeader', () => {
     vi.clearAllMocks();
     mockAuth({ user: { id: 'viewer-1' }, isAuthenticated: true });
     (useToggleStoreFollow as ReturnType<typeof vi.fn>).mockReturnValue({ mutate: mockToggleMutate, isPending: false });
-    (useIsFollowingStore as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (useFollowStatus as ReturnType<typeof vi.fn>).mockReturnValue({ data: false });
+    vi.mocked(useStore).mockReturnValue({ data: undefined, isError: true, isFetching: false } as never);
   });
 
   it('renders the store name and rating (totalRatings > 0)', () => {
@@ -127,15 +137,36 @@ describe('StoreHeader', () => {
     expect(callLink).toHaveAttribute('href', 'tel:0599111222');
   });
 
-  it('uses the derived follow state from useIsFollowingStore when no override prop is given (FIX BUG-03)', () => {
-    (useIsFollowingStore as ReturnType<typeof vi.fn>).mockReturnValue(true);
+  it('uses the single-target follow state when no aggregate override is given', () => {
+    (useFollowStatus as ReturnType<typeof vi.fn>).mockReturnValue({ data: true });
     render(<StoreHeader store={store} />);
 
     expect(screen.getByRole('button', { name: /إلغاء المتابعة/ })).toBeInTheDocument();
   });
 
+  it('uses the combined page response and suppresses the three individual header reads', () => {
+    vi.mocked(useStore).mockReturnValue({
+      data: {
+        store,
+        badges: [{ type: 'POPULAR', label: 'رائج', icon: 'star' }],
+        viewer: { isFollowing: true, isFavorited: true },
+      },
+      isError: false,
+      isFetching: false,
+    } as never);
+
+    render(<StoreHeader store={store} />);
+
+    expect(useStore).toHaveBeenCalledWith('store-1', { enabled: true });
+    expect(useFollowStatus).toHaveBeenCalledWith('STORE', 'store-1', { enabled: false });
+    expect(screen.getByRole('button', { name: /إلغاء المتابعة/ })).toBeInTheDocument();
+    expect(screen.getByTestId('favorite-button')).toHaveAttribute('data-favorited', 'true');
+    expect(screen.getByTestId('favorite-button')).toHaveAttribute('data-warm', 'false');
+    expect(screen.getByTestId('store-badges')).toHaveAttribute('data-badge-count', '1');
+  });
+
   it('lets the isFollowing prop override the derived value', () => {
-    (useIsFollowingStore as ReturnType<typeof vi.fn>).mockReturnValue(false);
+    (useFollowStatus as ReturnType<typeof vi.fn>).mockReturnValue({ data: false });
     render(<StoreHeader store={store} isFollowing={true} />);
 
     expect(screen.getByRole('button', { name: /إلغاء المتابعة/ })).toBeInTheDocument();
@@ -148,7 +179,7 @@ describe('StoreHeader', () => {
     const followBtn = screen.getByRole('button', { name: /متابعة/ });
     await user.click(followBtn);
 
-    expect(mockToggleMutate).toHaveBeenCalledWith('store-1');
+    expect(mockToggleMutate).toHaveBeenCalledWith('store-1', expect.objectContaining({ onSuccess: expect.any(Function) }));
   });
 
   it('hides the follow button on the user\'s own store', () => {

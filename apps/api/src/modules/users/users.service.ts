@@ -13,7 +13,7 @@ import { activityService, activityTemplates } from '../activity';
 import { adsService } from '../ads/ads.service'; // A-01: use service facade, not repository
 import { buildPaginationMeta } from '../../shared/utils/pagination';
 import { prisma } from '../../config/prisma';
-import { AdStatus } from '@prisma/client';
+import { AdStatus, FollowTargetType } from '@prisma/client';
 import { uploadAvatar } from '../../config/cloudinary';
 import {
   extractCloudinaryPublicId,
@@ -21,6 +21,7 @@ import {
   deleteCloudinaryAsset,
 } from '../../shared/utils/cloudinaryHelpers';
 import { presence } from '../../shared/utils/presence';
+import { followsService } from '../follows/follows.service';
 import { notificationsService } from '../notifications/notifications.service';
 import { conversationsService } from '../conversations/conversations.service';
 import { sellersService } from '../sellers/sellers.service';
@@ -43,6 +44,27 @@ export const usersService = {
     userIds: string[]
   ): Promise<Record<string, { online: boolean; lastSeenAt: string | null }>> =>
     presence.getPresence(userIds),
+
+  /**
+   * Viewer-specific state used together by the public-profile header. This
+   * intentionally combines only the two lightweight lookups that render in
+   * the same header; stories and profile content remain independently lazy.
+   */
+  getProfileInteractionState: async (viewerId: string, profileUserId: string) => {
+    if (viewerId === profileUserId) {
+      return { following: false, online: false, lastSeenAt: null as string | null };
+    }
+    const [following, presenceById] = await Promise.all([
+      followsService.status(viewerId, FollowTargetType.USER, profileUserId),
+      presence.getPresence([profileUserId]),
+    ]);
+    const profilePresence = presenceById[profileUserId];
+    return {
+      following,
+      online: profilePresence?.online ?? false,
+      lastSeenAt: profilePresence?.lastSeenAt ?? null,
+    };
+  },
 
   getMeWithCacheStatus: async (userId: string) =>
     getCachedUserProfileWithStatus(userId, async () => {

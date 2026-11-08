@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useUpcomingInstallments, useOverdueInstallments } from '@/hooks/queries/useInstallments';
+import { useInstallmentsOverview } from '@/hooks/queries/useInstallments';
 import { usePayInstallment } from '@/hooks/mutations/useInstallmentMutations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -92,17 +92,16 @@ function InstallmentRow({
 }
 
 export function SalesInstallmentsSection() {
-  const upcoming = useUpcomingInstallments();
-  const overdue = useOverdueInstallments();
+  const overview = useInstallmentsOverview();
   const pay = usePayInstallment();
   const onPay = async (id: string, amount: number) => {
     await pay.mutateAsync({ id, amount });
   };
 
-  if (upcoming.isLoading || overdue.isLoading) {
+  if (overview.isLoading) {
     return (
       <LoadingGate
-        loading={upcoming.isLoading || overdue.isLoading}
+        loading={overview.isLoading}
         label="جارٍ تحميل الأقساط"
         fallback={
           <div className="space-y-2.5" aria-hidden="true">
@@ -117,12 +116,12 @@ export function SalesInstallmentsSection() {
     );
   }
 
-  if (upcoming.isError || overdue.isError) {
+  if (overview.isError) {
     return <div className="py-12 text-center text-destructive">تعذر تحميل الأقساط.</div>;
   }
 
-  const overdueRows = (overdue.data ?? []) as Installment[];
-  const upcomingRows = (upcoming.data ?? []) as Installment[];
+  const overdueRows = (overview.data?.overdue ?? []) as Installment[];
+  const upcomingRows = (overview.data?.upcoming ?? []) as Installment[];
 
   return (
     <div className="space-y-5 lg:space-y-6">

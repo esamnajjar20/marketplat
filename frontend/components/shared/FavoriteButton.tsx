@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { Heart } from 'lucide-react';
@@ -29,6 +29,8 @@ interface Props {
    * whichever list/detail view the user visited.
    */
   warm?: boolean;
+  /** Initial state supplied by a page-level aggregate request. */
+  initialIsFavorited?: boolean;
   /** زر بنص مثل الإعلانات */
   showLabel?: boolean;
   /** نمط البطاقات (القاعدة 7): مفرّغ/ممتلئ بلون rating، 36px. */
@@ -59,13 +61,18 @@ export function getFavoriteReturnTo(returnTo: string | undefined, currentPath: s
     : currentPath;
 }
 
-export function FavoriteButton({ entityType, entityId, className, size = 'md', warm = false, showLabel = false, variant = 'default', returnTo }: Props) {
+export function FavoriteButton({ entityType, entityId, className, size = 'md', warm = false, initialIsFavorited, showLabel = false, variant = 'default', returnTo }: Props) {
   const isAuth = useAuthStore(selectIsAuthenticated);
   const router = useRouter();
   // Rules-of-hooks: always called, `warm` just gates the network
   // request internally (see useFavoriteEntityCheck's own doc comment).
   useFavoriteEntityCheck(entityType, entityId, warm);
-  const isFavorited = useIsEntityFavorited(entityType, entityId);
+  const cachedIsFavorited = useIsEntityFavorited(entityType, entityId);
+  const [pageFavoriteState, setPageFavoriteState] = useState<boolean | undefined>(initialIsFavorited);
+  useEffect(() => {
+    if (initialIsFavorited !== undefined) setPageFavoriteState(initialIsFavorited);
+  }, [initialIsFavorited]);
+  const isFavorited = pageFavoriteState ?? cachedIsFavorited;
   const toggleFavorite = useToggleFavoriteEntity(entityType);
   // Offline taps persist a desired-state intent locally and sync when online.
   const isCard = variant === 'card';
@@ -94,7 +101,12 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
     }
     if (toggleFavorite.isPending) return; // avoid duplicate taps while the mutation is running
     if (!isFavorited) setPopKey((k) => k + 1);
-    toggleFavorite.mutate(entityId);
+    if (initialIsFavorited !== undefined) setPageFavoriteState(!isFavorited);
+    toggleFavorite.mutate(entityId, {
+      onSuccess: (data) => {
+        if (initialIsFavorited !== undefined) setPageFavoriteState(data.action === 'added');
+      },
+    });
   }
 
 

@@ -99,6 +99,7 @@ export async function invalidateCustomerCaches(
     queryClient.invalidateQueries({ queryKey: queryKeys.customers.listRoot() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.customers.searchRoot() }),
     queryClient.invalidateQueries({ queryKey: queryKeys.customers.summary() }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.customers.overviewRoot() }),
   ];
   if (customerId) jobs.push(queryClient.invalidateQueries({ queryKey: queryKeys.customers.detail(customerId) }));
   await Promise.all(jobs);

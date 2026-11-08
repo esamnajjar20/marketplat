@@ -139,6 +139,38 @@ export const authenticate = async (
  * Soft auth for public reads. Sets req.user when a valid Bearer token is present;
  * otherwise continues anonymously (never 401).
  */
+/**
+ * Optional auth that fully resolves a presented Bearer token before a route
+ * uses viewer-specific data. Unlike optionalAuthenticate (which intentionally
+ * avoids a cold user lookup), this delegates to authenticate and converts an
+ * auth failure to an anonymous request. Use only on small, personalized public
+ * payloads where silently omitting the viewer would produce incorrect UI state.
+ */
+export const optionalAuthenticateWithUserLookup = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  if (!req.headers.authorization?.startsWith('Bearer ')) {
+    next();
+    return;
+  }
+
+  try {
+    await authenticate(req, res, (error?: unknown) => {
+      if (error) {
+        delete req.user;
+        next();
+        return;
+      }
+      next();
+    });
+  } catch {
+    delete req.user;
+    next();
+  }
+};
+
 export const optionalAuthenticate = async (
   req: Request,
   _res: Response,

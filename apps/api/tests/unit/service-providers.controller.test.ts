@@ -87,6 +87,44 @@ describe('serviceProvidersController', () => {
     });
   });
 
+  describe('getMyServiceProviderDashboard', () => {
+    it('returns the combined dashboard for the authenticated owner', async () => {
+      const req = mockRequest({ query: { period: '30d' } });
+      const res = mockResponse();
+      const next = mockNext();
+      const dashboard = { analytics: { pendingRequests: 2, period: '30d' }, listings: { items: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0, hasNextPage: false, hasPrevPage: false } } };
+      (serviceProvidersService.getMyServiceProviderDashboard as jest.Mock).mockResolvedValue(dashboard);
+
+      await serviceProvidersController.getMyServiceProviderDashboard(req, res, next);
+
+      expect(serviceProvidersService.getMyServiceProviderDashboard).toHaveBeenCalledWith('user-1', { period: '30d', page: 1, limit: 10 });
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: dashboard }));
+    });
+
+    it('rejects an invalid period before calling the service', async () => {
+      const req = mockRequest({ query: { period: 'forever' } });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await serviceProvidersController.getMyServiceProviderDashboard(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(serviceProvidersService.getMyServiceProviderDashboard).not.toHaveBeenCalled();
+    });
+
+    it('rejects unsupported listing statuses before querying the dashboard', async () => {
+      const req = mockRequest({ query: { status: 'UNKNOWN' } });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await serviceProvidersController.getMyServiceProviderDashboard(req, res, next);
+
+      expect(next).toHaveBeenCalled();
+      expect(serviceProvidersService.getMyServiceProviderDashboard).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getMyServiceProvider', () => {
     it('returns 200 with the profile on success', async () => {
       const req = mockRequest();

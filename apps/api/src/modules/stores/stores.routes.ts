@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { storesController } from './stores.controller';
-import { authenticate } from '../../middlewares/auth.middleware';
+import { authenticate, optionalAuthenticateWithUserLookup } from '../../middlewares/auth.middleware';
 import { requireVerifiedEmail } from '../../middlewares/requireVerifiedEmail.middleware';
 import { requireAdmin } from '../../middlewares/admin.middleware';
 import { CACHE } from '../../middlewares/cacheControl.middleware';
@@ -117,7 +117,11 @@ storesRouter.delete(
   storeMembersController.removeMember
 );
 
-// Public store page
+// Combined public store-page payload. Soft auth adds viewer-only flags
+// when a valid session is available; CACHE.NONE prevents cross-user cache leaks.
+storesRouter.get('/:id/page-data', optionalAuthenticateWithUserLookup, CACHE.NONE, storesController.getPublicStorePageData);
+
+// Public store page (legacy/detail consumers)
 storesRouter.get('/:id', CACHE.STATIC_DETAIL, storesController.getPublicStore);
 
 // Admin-only approval/blocking

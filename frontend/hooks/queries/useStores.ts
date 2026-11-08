@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
-import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { storesApi } from '@/api/stores.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
@@ -20,7 +20,7 @@ import {
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { isUnfilteredFirstPage } from '@/lib/offlineCachePolicy';
-import { useQueryIdSetMembership } from '@/hooks/queries/sharedIdSetStore';
+import { useFollowStatus } from '@/hooks/queries/useFollows';
 import { clearVisitedPublicStore, getVisitedPublicStore, saveVisitedPublicStore } from '@/lib/offlineVisitedPublicEntities';
 import type { StoresQuery, StoreDetails, StoreDirectoryItem } from '@/types/store.types';
 import {
@@ -119,15 +119,22 @@ export function useStores(
   });
 }
 
-export function useStore(id: string) {
+export function useStore(id: string, options: { enabled?: boolean; trackView?: boolean } = {}) {
+  // The aggregate payload includes private viewer flags. Scope the cache by
+  // identity so a logout/account switch can never reuse another user's flags.
+  const viewerId = useAuthStore((state) => state.user?.id ?? null);
+  const queryKey = [...queryKeys.stores.detail(id), 'viewer', viewerId ?? 'anonymous', 'trackView', Boolean(options.trackView)] as const;
   return useQuery({
-    queryKey: queryKeys.stores.detail(id),
+    queryKey,
     queryFn: async ({ signal }) => {
       try {
-        const store = await storesApi.getById(id, { signal }).then((r) => r.data.data);
-        if (store?.id && store.status === 'ACTIVE') saveVisitedPublicStore(id, store);
+        const pageData = await storesApi.getPageData(id, {
+          signal,
+          ...(options.trackView ? { params: { trackView: true } } : {}),
+        }).then((r) => r.data.data);
+        if (pageData?.store?.id && pageData.store.status === 'ACTIVE') saveVisitedPublicStore(id, pageData.store);
         else clearVisitedPublicStore(id);
-        return store;
+        return pageData;
       } catch (error) {
         if (signal.aborted) throw error;
         const status = typeof error === 'object' && error !== null
@@ -140,12 +147,15 @@ export function useStore(id: string) {
           throw error;
         }
         const cached = getVisitedPublicStore(id);
-        if (cached) return cached;
+        // The saved store is public data only. Do not invent user-specific
+        // follow/favorite flags while offline; supplementary badges may be
+        // omitted until the aggregate endpoint is reachable again.
+        if (cached) return { store: cached, badges: [], viewer: null };
         throw error;
       }
     },
     staleTime: CACHE_TTL.sellerProfile,
-    enabled: Boolean(id),
+    enabled: Boolean(id) && (options.enabled ?? true),
   });
 }
 
@@ -242,70 +252,26 @@ export function useMyFollowedStores(params?: Parameters<typeof storesApi.getMyFo
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
-  const queryClient = useQueryClient();
 
-  const query = useQuery({
+  return useQuery({
     queryKey: queryKeys.stores.followed(params),
     queryFn: ({ signal }) => storesApi.getMyFollowedStores(params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.favorites,
     enabled: isAuthenticated && (hasToken || !isOnline),
   });
-
-  // Only the canonical membership query (limit: 100, used by
-  // useIsFollowingStore) may write the shared membership Set. Paginated
-  // screens can contain just one slice; merging those slices forever meant
-  // an ID removed on the server could remain in the Set after a refetch.
-  // The canonical result is authoritative for the bounded membership cache,
-  // so replace rather than union it whenever that query refreshes.
-  useEffect(() => {
-    const data = query.data;
-    if (!data || params?.limit !== 100) return;
-
-    queryClient.setQueryData<Set<string>>(
-      queryKeys.stores.followedIds(),
-      new Set(data.items.map((row) => row.storeId)),
-    );
-  }, [query.data, queryClient, params?.limit]);
-
-  return query;
 }
 
 /**
- * Direct accessor for the followed-store IDs Set from cache.
- * Non-reactive — use useIsFollowingStore() for reactive per-store checks.
- */
-export function getFollowedStoreIdsSnapshot(
-  qc: ReturnType<typeof useQueryClient>,
-): Set<string> {
-  return qc.getQueryData<Set<string>>(queryKeys.stores.followedIds()) ?? new Set();
-}
-
-/**
- * FIX BUG-03: StoreHeader (components/stores/StoreHeader.tsx) always
- * accepted an `isFollowing` prop but no caller ever passed one — the
- * store detail page (app/(public)/stores/[id]/page.tsx) only rendered
- * `<StoreHeader store={store} />`, so the button showed "متابعة" for
- * every user regardless of their actual follow state, and clicking it
- * on a store they already followed silently unfollowed them without
- * the UI ever indicating that had happened.
- *
- * There is no single-store "am I following this" endpoint, so — same
- * reasoning and shape as useIsFavorited — this fetches the full
- * followed-stores list once (capped at the backend's max page size of
- * 100, matching the useFavorites({ limit: 100 }) convention already
- * used elsewhere) and checks membership reactively against the shared
- * cache Set, which useToggleStoreFollow keeps in sync on every
- * successful toggle.
+ * StoreHeader's viewer-specific follow state. Use the existing single-target
+ * status endpoint instead of fetching the complete followed-stores list just
+ * to answer one boolean question. The mutation writes the same query key so
+ * the button updates immediately after follow/unfollow succeeds.
  */
 export function useIsFollowingStore(storeId: string): boolean {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
-  const queryClient = useQueryClient();
-  useMyFollowedStores({ limit: 100 });
-
-  return useQueryIdSetMembership(
-    queryClient,
-    queryKeys.stores.followedIds(),
-    storeId,
-    isAuthenticated,
-  );
+  // A store detail page needs one membership bit, not the caller's entire
+  // followed-store collection. The generic status endpoint already supports
+  // targetType=STORE and performs a single-row lookup on the backend.
+  const { data: following = false } = useFollowStatus('STORE', storeId);
+  return isAuthenticated && following;
 }

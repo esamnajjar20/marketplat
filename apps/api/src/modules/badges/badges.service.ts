@@ -18,7 +18,16 @@ const toBadgeInput = (
   reviewCount: rating.count,
 });
 
+// Compute badges from an already-fetched public store row. Store page
+// aggregation uses this to avoid fetching the same store a second time.
+const getStoreBadgesForRecord = async (store: StoreWithSellerAndCounts): Promise<Badge[]> => {
+  const rating = await storeReviewsRepository.getRatingSummary(store.sellerProfileId);
+  return computeBadges(toBadgeInput(store, rating));
+};
+
 export const badgesService = {
+  getStoreBadgesForRecord,
+
   // Same id-then-slug fallback as collections.service.ts's
   // getPublicCollections — deliberately not routed through
   // storesService.getPublicStore to avoid its incrementViews
@@ -31,8 +40,7 @@ export const badgesService = {
     if (!store || store.status !== 'ACTIVE') {
       throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
     }
-    const rating = await storeReviewsRepository.getRatingSummary(store.sellerProfileId);
-    return computeBadges(toBadgeInput(store, rating));
+    return getStoreBadgesForRecord(store);
   },
 
   // Batch variant — one grouped rating query for the whole page

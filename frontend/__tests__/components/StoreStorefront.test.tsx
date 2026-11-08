@@ -1,8 +1,8 @@
 /**
  * __tests__/components/StoreStorefront.test.tsx
-import type { ReactElement } from 'react';
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { ReactElement } from 'react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderWithProviders as render } from '@/test-support/render';
 import { screen } from '@testing-library/react';
@@ -10,7 +10,6 @@ import { setupUser } from '@/test-support/user-event';
 
 import { StoreStorefront } from '@/components/stores/StoreStorefront';
 
-const push = vi.fn();
 
 function renderWithQueryClient(ui: ReactElement) {
   const queryClient = new QueryClient({
@@ -25,12 +24,10 @@ function renderWithQueryClient(ui: ReactElement) {
     </QueryClientProvider>,
   );
 }
-// The active tab is URL-driven (?tab=…) — StoreStorefront.setTab() only calls
-// router.push(), it never holds tab state itself. The mock therefore has to be
-// mutable so a test can model "the navigation happened".
+// The active tab is URL-driven (?tab=…). Tab-only changes use the native
+// History API so Next.js can sync useSearchParams without requesting a new RSC payload.
 let mockSearchParams = new URLSearchParams();
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push, replace: vi.fn() }),
   useSearchParams: () => mockSearchParams,
 }));
 
@@ -55,6 +52,9 @@ vi.mock('@/components/stores/StorePromotions', () => ({
 }));
 
 describe('StoreStorefront', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
   const base = {
     storeId: 's1',
     storeName: 'متجر الأمل',
@@ -62,8 +62,8 @@ describe('StoreStorefront', () => {
   };
 
   beforeEach(() => {
-    push.mockClear();
     mockSearchParams = new URLSearchParams();
+    window.history.replaceState({}, '', '/stores/s1');
   });
 
   it('renders product tab content by default and mounts reviews only when selected', async () => {
@@ -71,12 +71,14 @@ describe('StoreStorefront', () => {
     expect(screen.getByTestId('products-grid')).toBeInTheDocument();
     expect(screen.queryByTestId('reviews')).not.toBeInTheDocument();
 
-    // Clicking the tab navigates (URL is the source of truth for the active tab)…
+    // A tab-only update should modify the URL using native history, not router.push.
+    const pushState = vi.spyOn(window.history, 'pushState');
     const user = setupUser();
     await user.click(screen.getByRole('tab', { name: /التقييمات/ }));
-    expect(push).toHaveBeenCalledWith('/stores/s1?tab=reviews', { scroll: false });
+    expect(pushState).toHaveBeenCalledWith(window.history.state, '', '/stores/s1?tab=reviews');
+    expect(window.location.search).toBe('?tab=reviews');
 
-    // …and once the URL carries ?tab=reviews the reviews panel mounts.
+    // Once the URL carries ?tab=reviews, the URL-driven tab content mounts.
     first.unmount();
     mockSearchParams = new URLSearchParams('tab=reviews');
     renderWithQueryClient(<StoreStorefront {...base} />);

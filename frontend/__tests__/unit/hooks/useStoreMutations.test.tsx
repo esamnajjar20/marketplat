@@ -30,6 +30,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useCreateStore, useUpdateStore, useToggleStoreFollow, useUploadStoreLogo, useUploadStoreCover } from '@/hooks/mutations/useStoreMutations';
 import { storesApi } from '@/api/stores.api';
+import { queryKeys } from '@/lib/queryKeys';
 import { toast } from 'sonner';
 
 vi.mock('@/api/stores.api', () => ({
@@ -54,7 +55,7 @@ function createWrapper() {
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
   );
-  return { wrapper, invalidateSpy };
+  return { wrapper, invalidateSpy, queryClient };
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -176,6 +177,17 @@ describe('useToggleStoreFollow', () => {
     const invalidatedKeys = invalidateSpy.mock.calls.map((c) => JSON.stringify((c[0] as { queryKey: unknown }).queryKey));
     expect(invalidatedKeys.some((k) => k.includes('"detail"') && k.includes('store-1'))).toBe(true);
     expect(invalidatedKeys.some((k) => k.includes('"followed"'))).toBe(true);
+  });
+
+  it('writes the single-store follow-status cache as a boolean', async () => {
+    (storesApi.toggleFollow as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { action: 'followed' } } });
+    const { wrapper, queryClient } = createWrapper();
+
+    const { result } = renderHook(() => useToggleStoreFollow(), { wrapper });
+    act(() => { result.current.mutate('store-1'); });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(queryClient.getQueryData(queryKeys.follows.status('STORE', 'store-1'))).toBe(true);
   });
 
   it('shows "تمت متابعة المتجر" when the response action is "followed"', async () => {

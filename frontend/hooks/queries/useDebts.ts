@@ -13,8 +13,9 @@ export function useDebts(options?: { enabled?: boolean; page?: number; limit?: n
   const isAuthResolving = useAuthStore(selectIsAuthResolving);
 
   return useQuery({
-    queryKey: queryKeys.sales.debts(page, limit),
-    queryFn: ({ signal }) => salesApi.debts({ page, limit }, { signal }).then((r) => r.data.data),
+    queryKey: queryKeys.sales.debtOverview(page, limit),
+    queryFn: ({ signal }) => salesApi.debtOverview({ page, limit }, { signal }).then((r) => r.data.data),
     enabled: (options?.enabled ?? true) && isAuthenticated && hasAccessToken && !isAuthResolving,
+    staleTime: 30_000,
   });
 }

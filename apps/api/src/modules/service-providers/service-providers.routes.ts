@@ -63,6 +63,13 @@ serviceProvidersRouter.patch(
 // same reasoning as /me/logo below: must never be swallowed by the
 // public /:id route.
 serviceProvidersRouter.get(
+  '/me/dashboard',
+  authenticate,
+  CACHE.NONE,
+  serviceProvidersController.getMyServiceProviderDashboard
+);
+
+serviceProvidersRouter.get(
   '/me/analytics',
   authenticate,
   CACHE.NONE,

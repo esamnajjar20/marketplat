@@ -9,7 +9,7 @@
  *     endpoint with no equivalent in the original plan at all.
  */
 import { apiClient } from './client';
-import type { ApiResponse } from '@/types/api.types';
+import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type {
@@ -23,7 +23,23 @@ import type {
   NearbyServiceProvidersParams,
   NearbyServiceProviderRow,
   ServiceProviderServiceTypeProfile,
+  ServiceListing,
+  ServiceListingStatus,
 } from '@/types/service.types';
+
+/** Combined owner-only analytics + current own-listings page for /my-services. */
+export interface ServiceProviderDashboardParams {
+  period?: '7d' | '30d' | 'all';
+  page: number;
+  limit: number;
+  status?: ServiceListingStatus;
+  search?: string;
+}
+
+export interface ServiceProviderDashboardData {
+  analytics: ServiceProviderAnalytics;
+  listings: { items: ServiceListing[]; meta: PaginationMeta };
+}
 
 export const serviceProvidersApi = {
   /**
@@ -55,6 +71,16 @@ export const serviceProvidersApi = {
   /** PATCH /service-providers/me/service-types/:serviceTypeId — update provider attributes for one service type. */
   updateMyServiceTypeProfile: (serviceTypeId: string, payload: { attributes: Record<string, unknown>; isActive?: boolean }) =>
     apiClient.patch<ApiResponse<ServiceProviderServiceTypeProfile>>(`/service-providers/me/service-types/${serviceTypeId}`, payload),
+
+  /**
+   * GET /service-providers/me/dashboard — combines the owner analytics and
+   * visible own-listings page. Provider identity comes from auth bootstrap.
+   */
+  getMyDashboard: (params: ServiceProviderDashboardParams, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<ServiceProviderDashboardData>>('/service-providers/me/dashboard', {
+      ...config,
+      params,
+    }),
 
   /** GET /service-providers/me/analytics — owner-only dashboard. */
   getMyAnalytics: (period: '7d' | '30d' | 'all' = 'all', config?: AxiosRequestConfig) =>

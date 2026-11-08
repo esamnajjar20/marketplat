@@ -25,6 +25,7 @@ export function useCreateServiceProvider() {
       serviceProvidersApi.createMyProvider(payload).then((r) => r.data.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.me() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.workspaceDashboardRoot() });
       toast.success('تم إنشاء ملف مقدم الخدمة بنجاح');
     },
     onError: toastMutationError,
@@ -40,6 +41,7 @@ export function useUpdateServiceProvider() {
       serviceProvidersApi.updateMyProvider(payload).then((r) => r.data.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.me() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.workspaceDashboardRoot() });
       toast.success('تم حفظ التعديلات');
     },
     onError: toastMutationError,
@@ -65,6 +67,7 @@ export function useUploadServiceProviderLogo() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.me() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.workspaceDashboardRoot() });
     },
   });
 }

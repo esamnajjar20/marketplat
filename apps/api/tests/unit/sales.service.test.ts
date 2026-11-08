@@ -396,3 +396,31 @@ describe('salesService.report', () => {
     });
   });
 });
+
+
+describe('salesService.debtOverview', () => {
+  it('returns the debt list and summary together for the authenticated seller', async () => {
+    const debtRows = { rows: [{ id: 'sale-debt-1' }], totalCount: 1, page: 1, limit: 20, totalPages: 1, hasNextPage: false, hasPrevPage: false };
+    const summary = { totalDue: 125, overdueDue: 25, dueToday: 10, debtorCount: 1 };
+    const summarySpy = jest.spyOn(salesService, 'debtSummary').mockResolvedValue(summary);
+    (salesRepository.debts as jest.Mock).mockResolvedValue(debtRows);
+
+    await expect(salesService.debtOverview('seller-1', 1, 20)).resolves.toEqual({
+      summary, debts: debtRows, failures: { summary: false, debts: false },
+    });
+    expect(summarySpy).toHaveBeenCalledWith('seller-1');
+    expect(salesRepository.debts).toHaveBeenCalledWith('seller-1', 1, 20);
+    summarySpy.mockRestore();
+  });
+
+  it('keeps the debt list available when summary calculation fails', async () => {
+    const debtRows = { rows: [], totalCount: 0, page: 1, limit: 20, totalPages: 0, hasNextPage: false, hasPrevPage: false };
+    const summarySpy = jest.spyOn(salesService, 'debtSummary').mockRejectedValue(new Error('summary unavailable'));
+    (salesRepository.debts as jest.Mock).mockResolvedValue(debtRows);
+
+    await expect(salesService.debtOverview('seller-1', 1, 20)).resolves.toEqual({
+      summary: null, debts: debtRows, failures: { summary: true, debts: false },
+    });
+    summarySpy.mockRestore();
+  });
+});

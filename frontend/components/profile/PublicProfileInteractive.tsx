@@ -11,10 +11,9 @@ import { ShareAdButton } from '@/components/ads/ShareAdButton';
 import { EditProfileButtonGate } from '@/components/profile/EditProfileButtonGate';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { StoryViewer } from '@/components/stories/StoryViewer';
-import { useIsUserOnline } from '@/hooks/queries/usePresence';
+import { useProfileInteractionState } from '@/hooks/queries/useUsers';
 import { useUserStories } from '@/hooks/queries/useStories';
 import { useToggleFollow } from '@/hooks/mutations/useFollowMutations';
-import { useFollowStatus } from '@/hooks/queries/useFollows';
 import { useAuthStore } from '@/store/auth.store';
 import type { PublicUser } from '@/types/user.types';
 import type { StoryGroup } from '@/api/stories.api';
@@ -50,7 +49,8 @@ export function PublicProfileAvatar({ user }: { user: PublicUser }) {
   const isOwnProfile = currentUserId === user.id;
   // A self profile has no useful online dot. Do not spend a request asking
   // the backend whether the viewer is online on their own account.
-  const isOnline = useIsUserOnline(user.id, !isOwnProfile);
+  const { data: profileState } = useProfileInteractionState(user.id, !isOwnProfile);
+  const isOnline = Boolean(profileState?.online);
   // Stories are only requested after the user taps the avatar. The header
   // itself does not need story payloads just to paint a profile page.
   const [storiesRequested, setStoriesRequested] = useState(false);
@@ -114,9 +114,8 @@ export function PublicProfileAvatar({ user }: { user: PublicUser }) {
 
 export function PublicProfileFollowAction({ user }: { user: PublicUser }) {
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
-  const { data: isFollowing = false } = useFollowStatus('USER', user.id, {
-    enabled: currentUserId !== user.id,
-  });
+  const { data: profileState } = useProfileInteractionState(user.id, currentUserId !== user.id);
+  const isFollowing = profileState?.following ?? false;
   const toggleFollow = useToggleFollow();
 
   if (currentUserId === user.id) return null;

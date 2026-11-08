@@ -28,8 +28,8 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { AdListItemSkeleton } from '@/components/shared/skeletons/AdListItemSkeleton';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';
-import { useMyServiceListings } from '@/hooks/queries/useServiceListings';
-import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
+import { useMyServiceProvider, useMyServiceProviderDashboard } from '@/hooks/queries/useServiceProviders';
+import { normalizeMyServicesWorkspaceParams } from '@/lib/myServicesWorkspace';
 import {
   useDeleteServiceListing,
   useToggleServiceListingStatus,
@@ -51,7 +51,7 @@ import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePu
 import { Spinner } from '@/components/ui/spinner';
 export function MyServiceListingsList() {
   const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
-  const { data: provider, isSuccess: providerOk } = useMyServiceProvider();
+  const { data: provider } = useMyServiceProvider();
   const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ServiceListingStatus>(
     ROUTES.myServices,
   );
@@ -62,16 +62,13 @@ export function MyServiceListingsList() {
     setSearchInput(searchQ);
   }, [searchQ]);
 
-  const hasProvider = providerOk && Boolean(provider);
-  const { data, isLoading, isError, refetch } = useMyServiceListings(
-    {
-      page,
-      limit: 10,
-      status,
-      search: searchQ || undefined,
-    },
+  const hasProvider = Boolean(provider);
+  const workspaceParams = normalizeMyServicesWorkspaceParams({ page, status, search: searchQ });
+  const { data: dashboard, isLoading, isError, refetch } = useMyServiceProviderDashboard(
+    workspaceParams,
     { enabled: hasProvider },
   );
+  const data = dashboard?.listings;
 
   const deleteListing = useDeleteServiceListing();
   const toggleStatus = useToggleServiceListingStatus();

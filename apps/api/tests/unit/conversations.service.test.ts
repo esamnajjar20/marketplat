@@ -5,6 +5,7 @@ import { usersRepository } from '../../src/modules/users/users.repository';
 import { serviceRequestsRepository } from '../../src/modules/service-requests/service-requests.repository';
 import { notificationEvents } from '../../src/modules/notifications';
 import { blockedUsersService } from '../../src/modules/blocked-users';
+import { presence } from '../../src/shared/utils/presence';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
@@ -22,6 +23,12 @@ jest.mock('../../src/modules/blocked-users', () => ({
     isBlockedEitherDirection: jest.fn(),
     isBlockedBy: jest.fn(),
     getBlockedIdsByBlocker: jest.fn(),
+  },
+}));
+jest.mock('../../src/shared/utils/presence', () => ({
+  presence: {
+    getPresence: jest.fn().mockResolvedValue({}),
+    touch: jest.fn(),
   },
 }));
 jest.mock('../../src/shared/utils/logger', () => ({
@@ -63,6 +70,7 @@ describe('conversationsService', () => {
     (blockedUsersService.isBlockedEitherDirection as jest.Mock).mockResolvedValue(false);
     (blockedUsersService.isBlockedBy as jest.Mock).mockResolvedValue(false);
     (blockedUsersService.getBlockedIdsByBlocker as jest.Mock).mockResolvedValue([]);
+    (presence.getPresence as jest.Mock).mockResolvedValue({});
   });
 
   describe('startFromAd', () => {
@@ -314,7 +322,27 @@ describe('conversationsService', () => {
       const result = await conversationsService.getConversationById(buyerId, 'conv-1');
 
       expect(blockedUsersService.isBlockedBy).toHaveBeenCalledWith(buyerId, sellerId);
-      expect(result).toEqual({ ...mockConversation, mySettings: null, isBlockedByMe: false });
+      expect(presence.getPresence).toHaveBeenCalledWith([sellerId]);
+      expect(result).toEqual({
+        ...mockConversation,
+        mySettings: null,
+        isBlockedByMe: false,
+        otherPartyPresence: { online: false, lastSeenAt: null },
+      });
+    });
+
+    it('bundles the other participant presence into the conversation response', async () => {
+      (conversationsRepository.findByIdForUser as jest.Mock).mockResolvedValue({ ...mockConversation, mySettings: null });
+      (presence.getPresence as jest.Mock).mockResolvedValue({
+        [sellerId]: { online: true, lastSeenAt: '2026-11-08T10:00:00.000Z' },
+      });
+
+      const result = await conversationsService.getConversationById(buyerId, 'conv-1');
+
+      expect(result.otherPartyPresence).toEqual({
+        online: true,
+        lastSeenAt: '2026-11-08T10:00:00.000Z',
+      });
     });
 
     it('returns the conversation when the caller is the seller', async () => {
@@ -323,7 +351,13 @@ describe('conversationsService', () => {
       const result = await conversationsService.getConversationById(sellerId, 'conv-1');
 
       expect(blockedUsersService.isBlockedBy).toHaveBeenCalledWith(sellerId, buyerId);
-      expect(result).toEqual({ ...mockConversation, mySettings: null, isBlockedByMe: false });
+      expect(presence.getPresence).toHaveBeenCalledWith([buyerId]);
+      expect(result).toEqual({
+        ...mockConversation,
+        mySettings: null,
+        isBlockedByMe: false,
+        otherPartyPresence: { online: false, lastSeenAt: null },
+      });
     });
   });
 

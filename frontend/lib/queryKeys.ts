@@ -141,6 +141,7 @@ export const queryKeys = {
     chart: (period?: string) => period === undefined ? ['sales', 'chart'] as const : ['sales', 'chart', period] as const,
     debts: (page = 1, limit = 20) => ['sales', 'debts', { page, limit }] as const,
     debtSummary: () => ['sales', 'debts', 'summary'] as const,
+    debtOverview: (page = 1, limit = 20) => ['sales', 'debts', 'overview', { page, limit }] as const,
     compare: (period: string) => ['sales', 'compare', period] as const,
     costSettings: () => ['sales', 'cost-settings'] as const,
     costProducts: () => ['sales', 'cost-products'] as const,
@@ -156,11 +157,14 @@ export const queryKeys = {
     searchRoot: () => ['customers', 'search'] as const,
     detailRoot: () => ['customers', 'detail'] as const,
     summary: () => ['customers', 'summary'] as const,
+    overviewRoot: () => ['customers', 'overview'] as const,
+    overview: (params?: CustomerListQueryParams) => ['customers', 'overview', params ?? {}] as const,
     list: (params?: CustomerListQueryParams) => ['customers', 'list', params ?? {}] as const,
     detail: (id: string) => ['customers', 'detail', id] as const,
     search: (q: string) => ['customers', 'search', q] as const,
   },
   installments: {
+    overview: () => ['installments', 'overview'] as const,
     upcoming: () => ['installments', 'upcoming'] as const,
     overdue: () => ['installments', 'overdue'] as const,
   },
@@ -170,6 +174,9 @@ export const queryKeys = {
     detail: (id: string)           => ['users', id]              as const,
     ads:    (id: string, params?: AdSearchParams) =>
                                       ['users', id, 'ads', params ?? {}] as const,
+    profileStateRoot: (profileId: string) => ['users', profileId, 'profile-state'] as const,
+    profileState: (profileId: string, viewerId: string) =>
+      ['users', profileId, 'profile-state', viewerId] as const,
   },
 
   // ── Social follows ─────────────────────────────────────────────
@@ -216,7 +223,9 @@ export const queryKeys = {
     nearby: (params?: Parameters<typeof serviceProvidersApi.getNearby>[0]) => ['service-providers', 'nearby', params ?? {}] as const,
     // Mirrors stores.analytics() below.
     analytics: ()          => ['service-providers', 'me', 'analytics'] as const,
-    analyticsForPeriod: (period: string) => ['service-providers', 'me', 'analytics', period] as const,
+    analyticsForPeriod: (userId: string, period: string) => ['service-providers', 'me', 'analytics', userId, period] as const,
+    workspaceDashboardRoot: () => ['service-providers', 'me', 'workspace-dashboard'] as const,
+    workspaceDashboard: (userId: string, period: string, params: { page: number; limit: number; status?: string; search?: string }) => ['service-providers', 'me', 'workspace-dashboard', userId, period, params] as const,
     myServiceTypes: () => ['my-service-provider-service-types'] as const,
   },
 
@@ -235,10 +244,6 @@ export const queryKeys = {
     followed: (params?: Parameters<typeof storesApi.getMyFollowedStores>[0]) => ['stores', 'followed', params ?? {}] as const,
     infiniteRoot: ()           => ['stores', 'infinite'] as const,
     infinite: (params?: Omit<StoresQuery, 'page' | 'limit' | 'type'> & { pageSize?: number }) => ['stores', 'infinite', params ?? {}] as const,
-    // FIX BUG-03: mirrors queryKeys.favorites.ids() — a single cached
-    // Set<string> of followed store ids, populated by useMyFollowedStores
-    // and read reactively by useIsFollowingStore(). See hooks/queries/useStores.ts.
-    followedIds: ()              => ['stores', 'followed-ids'] as const,
     // STORE-ANALYTICS (Foundation v1)
     analytics: ()                => ['stores', 'me', 'analytics'] as const,
     members: (storeId: string, params?: Parameters<typeof storeMembersApi.list>[1]) => ['stores', 'members', storeId, params ?? {}] as const,
@@ -480,6 +485,7 @@ export const queryKeys = {
 
   // ── Activity ("نشاطي") ───────────────────────────────────────
   activity: {
+    dashboard: (userId: string | null) => ['activity', 'dashboard', userId] as const,
     /** The current user's own activity timeline, paginated + filterable
      * by group/type/q — see types/activity.types.ts's ActivityQuery. */
     mine: (params?: Parameters<typeof activityApi.getMine>[0]) => ['activity', 'me', params ?? {}] as const,

@@ -10,6 +10,7 @@ import { hashPassword } from '../../src/shared/utils/hash';
 import { uploadAvatar, deleteImage } from '../../src/config/cloudinary';
 import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../src/shared/utils/cloudinaryHelpers';
 import { presence } from '../../src/shared/utils/presence';
+import { followsService } from '../../src/modules/follows/follows.service';
 import jwt from 'jsonwebtoken';
 
 jest.mock('../../src/modules/users/users.repository');
@@ -25,6 +26,9 @@ jest.mock('../../src/shared/utils/cloudinaryHelpers', () => ({
 }));
 jest.mock('../../src/shared/utils/presence', () => ({
   presence: { touch: jest.fn().mockResolvedValue(undefined), getPresence: jest.fn() },
+}));
+jest.mock('../../src/modules/follows/follows.service', () => ({
+  followsService: { status: jest.fn() },
 }));
 
 const mockUser = {
@@ -44,6 +48,33 @@ describe('UsersService', () => {
   beforeEach(() => jest.clearAllMocks());
 
   afterEach(() => jest.restoreAllMocks());
+
+  describe('getProfileInteractionState', () => {
+    it('combines follow status and presence in parallel for another user', async () => {
+      (followsService.status as jest.Mock).mockResolvedValue(true);
+      (presence.getPresence as jest.Mock).mockResolvedValue({
+        'profile-2': { online: true, lastSeenAt: null },
+      });
+
+      await expect(usersService.getProfileInteractionState('viewer-1', 'profile-2')).resolves.toEqual({
+        following: true,
+        online: true,
+        lastSeenAt: null,
+      });
+      expect(followsService.status).toHaveBeenCalledWith('viewer-1', expect.anything(), 'profile-2');
+      expect(presence.getPresence).toHaveBeenCalledWith(['profile-2']);
+    });
+
+    it('avoids both lookups for the viewer own profile', async () => {
+      await expect(usersService.getProfileInteractionState('viewer-1', 'viewer-1')).resolves.toEqual({
+        following: false,
+        online: false,
+        lastSeenAt: null,
+      });
+      expect(followsService.status).not.toHaveBeenCalled();
+      expect(presence.getPresence).not.toHaveBeenCalled();
+    });
+  });
 
   describe('getMe', () => {
     it('returns user when found', async () => {

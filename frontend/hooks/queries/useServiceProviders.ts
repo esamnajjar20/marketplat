@@ -4,8 +4,9 @@ import { throwIfQueryCancelled } from '@/lib/queryCancellation';
 
 import { useEffect } from 'react';
 
-import { useQuery } from '@tanstack/react-query';
-import { serviceProvidersApi } from '@/api/service-providers.api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { serviceProvidersApi, type ServiceProviderDashboardData, type ServiceProviderDashboardParams } from '@/api/service-providers.api';
+import { serviceListingsApi } from '@/api/service-listings.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
 import {
@@ -16,6 +17,7 @@ import {
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { NearbyServiceProvidersParams, ServiceProvidersQuery, ServiceProviderDetails } from '@/types/service.types';
+import { normalizeMyServicesWorkspaceParams } from '@/lib/myServicesWorkspace';
 import {
   getOfflineJson,
   saveOfflineJson,
@@ -102,6 +104,80 @@ export function useMyServiceProvider() {
 }
 
 /**
+ * Combines the two independent /my-services overview reads (analytics + own
+ * listings) while reusing provider identity from /users/me/bootstrap.
+ * The query is user-scoped and receives canonical URL filters so the hub and
+ * list components deduplicate to the same in-flight request.
+ */
+export function useMyServiceProviderDashboard(
+  params: ServiceProviderDashboardParams,
+  options?: { enabled?: boolean },
+) {
+  const queryClient = useQueryClient();
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const isAuthResolving = useAuthStore(selectIsAuthResolving);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const isOnline = useOnlineStatus();
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+  const normalizedParams = normalizeMyServicesWorkspaceParams(params);
+  const period = params.period ?? 'all';
+
+  return useQuery<ServiceProviderDashboardData>({
+    queryKey: queryKeys.serviceProviders.workspaceDashboard(
+      userId ?? 'anonymous',
+      period,
+      normalizedParams,
+    ),
+    queryFn: async ({ signal }) => {
+      const analyticsKey = queryKeys.serviceProviders.analyticsForPeriod(userId ?? 'anonymous', period);
+      const analyticsState = queryClient.getQueryState(analyticsKey);
+      const cachedAnalytics = queryClient.getQueryData<ServiceProviderDashboardData['analytics']>(analyticsKey);
+      const analyticsIsFresh = Boolean(
+        cachedAnalytics
+        && analyticsState
+        && !analyticsState.isInvalidated
+        && Date.now() - analyticsState.dataUpdatedAt < CACHE_TTL.sellerProfile,
+      );
+
+      try {
+        // A URL-only list change should not recompute seven analytics reads.
+        // Reuse fresh user-scoped analytics and fetch only the changed page.
+        if (analyticsIsFresh && cachedAnalytics) {
+          const listings = await serviceListingsApi.getMine(normalizedParams, { signal });
+          return { analytics: cachedAnalytics, listings: listings.data.data! };
+        }
+
+        const data = await serviceProvidersApi.getMyDashboard(
+          { ...normalizedParams, period },
+          { signal },
+        ).then((r) => r.data.data);
+        queryClient.setQueryData(analyticsKey, data.analytics);
+        return data;
+      } catch (err) {
+        throwIfQueryCancelled(err, signal);
+        const isNetworkFailure = (err as { statusCode?: number })?.statusCode === 0;
+        if (isNetworkFailure) {
+          const cachedAnalytics = queryClient.getQueryData(analyticsKey);
+          const cachedListings = queryClient.getQueryData(
+            queryKeys.serviceListings.mine(normalizedParams),
+          );
+          if (cachedAnalytics && cachedListings) {
+            return {
+              analytics: cachedAnalytics as ServiceProviderDashboardData['analytics'],
+              listings: cachedListings as ServiceProviderDashboardData['listings'],
+            };
+          }
+        }
+        throw err;
+      }
+    },
+    staleTime: CACHE_TTL.sellerProfile,
+    enabled: isAuthenticated && (hasToken || !isOnline) && !isAuthResolving && (options?.enabled ?? true),
+    retry: false,
+  });
+}
+
+/**
  * Derived provider status. Same shape/rationale as useIsSeller
  * (see useSellers.ts) — returns both isProvider and isLoaded since
  * call sites need to distinguish "still loading" from "loaded, not
@@ -156,12 +232,13 @@ export function useNearbyServiceProviders(params: NearbyServiceProvidersParams |
  * treats that as its own empty state rather than retrying.
  */
 export function useMyServiceProviderAnalytics(period: '7d' | '30d' | 'all' = 'all') {
+  const userId = useAuthStore((s) => s.user?.id ?? null);
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
 
   return useQuery({
-    queryKey: queryKeys.serviceProviders.analyticsForPeriod(period),
+    queryKey: queryKeys.serviceProviders.analyticsForPeriod(userId ?? 'anonymous', period),
     queryFn: ({ signal }) => serviceProvidersApi.getMyAnalytics(period, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.sellerProfile,
     enabled: isAuthenticated && (hasToken || !isOnline),

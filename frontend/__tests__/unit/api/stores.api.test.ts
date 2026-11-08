@@ -78,6 +78,13 @@ describe('storesApi — endpoint/method correctness', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/stores/store-1');
   });
 
+  it('getPageData aggregates store page header data through one GET request', async () => {
+    (apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: {} } });
+    const config = { signal: new AbortController().signal };
+    await storesApi.getPageData('store-1', config);
+    expect(apiClient.get).toHaveBeenCalledWith('/stores/store-1/page-data', config);
+  });
+
   it('updateStatus calls PATCH /stores/:id/status with the status payload', async () => {
     (apiClient.patch as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: {} } });
     await storesApi.updateStatus('store-1', { status: 'BLOCKED' });

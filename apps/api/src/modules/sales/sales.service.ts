@@ -1118,4 +1118,18 @@ export const salesService = {
     };
   },
   debts: (userId: string, page = 1, limit = 20) => salesRepository.debts(userId, page, limit),
+  debtOverview: async (userId: string, page = 1, limit = 20) => {
+    const [summaryResult, debtsResult] = await Promise.allSettled([
+      salesService.debtSummary(userId),
+      salesRepository.debts(userId, page, limit),
+    ]);
+    return {
+      summary: summaryResult.status === 'fulfilled' ? summaryResult.value : null,
+      debts: debtsResult.status === 'fulfilled' ? debtsResult.value : null,
+      failures: {
+        summary: summaryResult.status === 'rejected',
+        debts: debtsResult.status === 'rejected',
+      },
+    };
+  },
 };

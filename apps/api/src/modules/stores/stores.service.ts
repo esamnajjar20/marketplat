@@ -1,6 +1,6 @@
 import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
 import { prisma } from '../../config/prisma';
-import { FollowTargetType } from '@prisma/client';
+import { FavoriteEntityType, FollowTargetType } from '@prisma/client';
 import { StoreDetails, Prisma } from '@prisma/client';
 import { uploadStoreLogo, uploadStoreCover } from '../../config/cloudinary';
 import {
@@ -46,6 +46,8 @@ import { isOpenAt } from '../../shared/utils/marketTime';
 import { isPrismaError } from '../../shared/utils/prismaErrors';
 import { storeTypesRepository } from '../store-types/store-types.repository';
 import { storeTypeFieldsService } from '../store-types/store-type-fields.service';
+import { badgesService } from '../badges/badges.service';
+import { favoritesRepository } from '../favorites/favorites.repository';
 
 /** Bump when the public store-list response projection changes.
  * A new key prevents Redis from serving an older, wider cached payload.
@@ -85,6 +87,23 @@ const generateUniqueSlug = async (name: string): Promise<string> => {
 
 export type StorePublicView = StoreWithSellerAndCounts & { isOpen: boolean | null };
 
+const findPublicStoreView = async (idOrSlug: string): Promise<StorePublicView> => {
+  const store =
+    (await storesRepository.findPublicById(idOrSlug)) ??
+    (await storesRepository.findPublicBySlug(idOrSlug));
+  if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+  if (store.status !== 'ACTIVE' || store.sellerProfile.suspended) {
+    throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
+  }
+  return { ...store, isOpen: computeIsOpen(store.workingHours) };
+};
+
+const recordPublicStoreView = (storeId: string): void => {
+  storesRepository.incrementViews(storeId).catch(error =>
+    reportBackgroundFailure('apps/api/src/modules/stores/stores.service.ts', error)
+  );
+};
+
 export interface StoreAnalytics {
   views: number;
   followers: number;
@@ -94,6 +113,27 @@ export interface StoreAnalytics {
   activePromotions: number;
   promotionUses: number;
   topProducts: { id: string; name: string; views: number; image: string | null }[];
+}
+
+/**
+ * Aggregated read for the public store page. Defined outside the service
+ * object to keep module dependencies straightforward while reusing the
+ * exact public-store visibility and view-count behavior.
+ */
+async function getPublicStorePageData(idOrSlug: string, viewerId?: string, trackView = false) {
+  const store = await findPublicStoreView(idOrSlug);
+  if (trackView) recordPublicStoreView(store.id);
+  const [badges, viewer] = await Promise.all([
+    badgesService.getStoreBadgesForRecord(store),
+    viewerId
+      ? Promise.all([
+          followsRepository.find(viewerId, FollowTargetType.STORE, store.id).then(Boolean),
+          favoritesRepository.findByUserAndEntity(viewerId, FavoriteEntityType.STORE, store.id).then(Boolean),
+        ]).then(([isFollowing, isFavorited]) => ({ isFollowing, isFavorited }))
+      : Promise.resolve(null),
+  ]);
+
+  return { store, badges, viewer };
 }
 
 // Same "extension on SellerProfile" entry point service-listings.service.ts's
@@ -290,42 +330,14 @@ export const storesService = {
   // friendlier slug. Same NotFoundError/status gate as before either
   // way.
   getPublicStore: async (idOrSlug: string): Promise<StorePublicView> => {
-    const store =
-      (await storesRepository.findPublicById(idOrSlug)) ??
-      (await storesRepository.findPublicBySlug(idOrSlug));
-    if (!store) throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
-    // SEC-FIX: same gap products.service.ts's getProductById already
-    // closed for suspended-seller/blocked-store products — findMany's
-    // directory query already hardcodes `status: 'ACTIVE'`, but this
-    // direct-by-id lookup ignored status entirely, so a PENDING store
-    // (not yet approved) or a BLOCKED one stayed fully viewable via its
-    // direct URL. Treated as 404, not a partial "hidden from the
-    // directory but still live" state — matches toggleFollow/createReview,
-    // which already gate on status === 'ACTIVE' for the same store.
-    if (store.status !== 'ACTIVE') {
-      throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
-    }
-    // SEC-FIX: same gap sellersService.getPublicSellerProfile closed
-    // () for ads/products/service-listings/
-    // users — this direct-by-id store lookup checked store.status above
-    // but never the seller's own suspended flag. setSuspension only
-    // touches SellerProfile.suspended, never StoreDetails.status, so a
-    // suspended seller's store stayed status:'ACTIVE' and fully viewable
-    // at its direct URL even though every sibling entity for the same
-    // seller already 404s. Treated as 404, same as those siblings.
-    if (store.sellerProfile.suspended) {
-      throw new NotFoundError('Store not found', 'STORE_NOT_FOUND');
-    }
-    // STORE-VIEWS: fire-and-forget, same "don't fail the read on a
-    // failed counter bump" convention as products.service.ts's
-    // getProductById.
-    storesRepository
-      .incrementViews(store.id)
-      .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/stores/stores.service.ts', error)
-      );
-    return { ...store, isOpen: computeIsOpen(store.workingHours) };
+    const store = await findPublicStoreView(idOrSlug);
+    // Public detail GET owns the visit counter. The header aggregate does not
+    // increment by default because the Server Component already fetched it.
+    recordPublicStoreView(store.id);
+    return store;
   },
+
+  getPublicStorePageData,
 
   getStores: async (
     query: GetStoresQuery

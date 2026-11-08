@@ -15,6 +15,9 @@ import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { storeTypesRepository } from '../../src/modules/store-types/store-types.repository';
 import { cachedPublicList } from '../../src/shared/utils/publicListCache';
+import { badgesService } from '../../src/modules/badges/badges.service';
+import { favoritesRepository } from '../../src/modules/favorites/favorites.repository';
+import { FavoriteEntityType, FollowTargetType } from '@prisma/client';
 
 // isPrismaError inside stores.service.ts does an `instanceof
 // Prisma.PrismaClientKnownRequestError` check, so a plain
@@ -41,6 +44,10 @@ jest.mock('../../src/shared/utils/storeLock');
 jest.mock('../../src/modules/promotions/promotions.repository');
 jest.mock('../../src/modules/products/products.repository');
 jest.mock('../../src/modules/store-types/store-types.repository');
+jest.mock('../../src/modules/badges/badges.service', () => ({
+  badgesService: { getStoreBadgesForRecord: jest.fn().mockResolvedValue([]) },
+}));
+jest.mock('../../src/modules/favorites/favorites.repository');
 jest.mock('../../src/modules/store-types/store-type-fields.service', () => ({
   storeTypeFieldsService: {
     validateAttributes: jest.fn().mockResolvedValue({}),
@@ -388,6 +395,61 @@ describe('storesService', () => {
       (storesRepository.findPublicById as jest.Mock).mockResolvedValue(suspendedSellerStore);
 
       await expect(storesService.getPublicStore(storeId)).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  describe('getPublicStorePageData', () => {
+    it('combines public store data and computed badges without a viewer lookup for guests', async () => {
+      const publicStore = { ...mockStore, _count: { followers: 2, products: 4 } };
+      const badges = [{ type: 'POPULAR', label: 'رائج', icon: 'star' }];
+      (storesRepository.findPublicById as jest.Mock).mockResolvedValue(publicStore);
+      (badgesService.getStoreBadgesForRecord as jest.Mock).mockResolvedValue(badges);
+
+      const result = await storesService.getPublicStorePageData(storeId);
+
+      expect(result).toEqual({
+        store: { ...publicStore, isOpen: null },
+        badges,
+        viewer: null,
+      });
+      expect(badgesService.getStoreBadgesForRecord).toHaveBeenCalledWith(
+        expect.objectContaining({ id: storeId }),
+      );
+      expect(followsRepository.find).not.toHaveBeenCalled();
+      expect(favoritesRepository.findByUserAndEntity).not.toHaveBeenCalled();
+      // The normal Server Component has already called GET /stores/:id,
+      // which owns the view counter. The aggregate header read must not
+      // count the same page visit a second time.
+      expect(storesRepository.incrementViews).not.toHaveBeenCalled();
+    });
+
+    it('records a view only when the client-side SSR fallback explicitly asks for it', async () => {
+      const publicStore = { ...mockStore, _count: { followers: 2, products: 4 } };
+      (storesRepository.findPublicById as jest.Mock).mockResolvedValue(publicStore);
+      (badgesService.getStoreBadgesForRecord as jest.Mock).mockResolvedValue([]);
+
+      await storesService.getPublicStorePageData(storeId, undefined, true);
+
+      expect(storesRepository.incrementViews).toHaveBeenCalledTimes(1);
+      expect(storesRepository.incrementViews).toHaveBeenCalledWith(storeId);
+    });
+
+    it('loads follow and favorite flags concurrently for the authenticated viewer', async () => {
+      const publicStore = { ...mockStore, _count: { followers: 2, products: 4 } };
+      (storesRepository.findPublicById as jest.Mock).mockResolvedValue(publicStore);
+      (badgesService.getStoreBadgesForRecord as jest.Mock).mockResolvedValue([]);
+      (followsRepository.find as jest.Mock).mockResolvedValue({ id: 'follow-1' });
+      (favoritesRepository.findByUserAndEntity as jest.Mock).mockResolvedValue(null);
+
+      const result = await storesService.getPublicStorePageData(storeId, userId);
+
+      expect(result.viewer).toEqual({ isFollowing: true, isFavorited: false });
+      expect(followsRepository.find).toHaveBeenCalledWith(userId, FollowTargetType.STORE, storeId);
+      expect(favoritesRepository.findByUserAndEntity).toHaveBeenCalledWith(
+        userId,
+        FavoriteEntityType.STORE,
+        storeId,
+      );
     });
   });
 

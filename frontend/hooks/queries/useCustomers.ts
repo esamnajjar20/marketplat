@@ -45,8 +45,16 @@ export function customerListQueryOptions(params?: CustomerListQueryParams) {
   });
 }
 
-export function useCustomers(params?: CustomerListQueryParams) {
-  return useQuery(customerListQueryOptions(params));
+export function useCustomers(params?: CustomerListQueryParams, enabled = true) {
+  return useQuery({ ...customerListQueryOptions(params), enabled });
+}
+
+export function useCustomerOverview(params?: CustomerListQueryParams) {
+  return useQuery({
+    queryKey: queryKeys.customers.overview(params),
+    queryFn: ({ signal }) => customersApi.overview(params, { signal }).then((r) => r.data.data),
+    staleTime: 30_000,
+  });
 }
 
 export function customerSearchQueryOptions(q: string) {

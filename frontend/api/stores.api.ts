@@ -1,4 +1,5 @@
 import type { ApiResponse } from '@/types/api.types';
+import type { StoreBadge } from '@/types/badge.types';
 /**
  * Stores API — maps to backend /api/v1/stores/* endpoints.
  * Verified against the stores backend module's stores.routes.ts /
@@ -18,8 +19,8 @@ import type { AxiosRequestConfig } from 'axios';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type {
   StoreDetails,
-  StoreDirectoryItem,
   StoreWithSellerAndCounts,
+  StoreDirectoryItem,
   StoreFollowerWithStore,
   StoreReview,
   CreateStorePayload,
@@ -86,6 +87,18 @@ export const storesApi = {
   /** GET /stores/:id — public store page, no auth required. */
   getById: (id: string, config?: AxiosRequestConfig) =>
     (config ? apiClient.get<ApiResponse<StoreWithSellerAndCounts>>(`/stores/${id}`, config) : apiClient.get<ApiResponse<StoreWithSellerAndCounts>>(`/stores/${id}`)),
+
+  /**
+   * GET /stores/:id/page-data — single-request payload for the store page
+   * header (store + badges + current viewer's follow/favorite state).
+   * Backend uses no-store because viewer fields are personalized.
+   */
+  getPageData: (id: string, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<{
+      store: StoreWithSellerAndCounts & { isOpen: boolean | null };
+      badges: StoreBadge[];
+      viewer: { isFollowing: boolean; isFavorited: boolean } | null;
+    }>>(`/stores/${id}/page-data`, config),
 
   /** PATCH /stores/:id/status — admin-only approve/block. */
   updateStatus: (id: string, payload: UpdateStoreStatusPayload) =>

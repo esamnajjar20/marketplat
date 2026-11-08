@@ -123,6 +123,21 @@ export type ServiceProviderAnalyticsQuery = z.infer<
   typeof serviceProviderAnalyticsQuerySchema
 >['query'];
 
+/** Owner workspace payload: analytics plus the currently visible page of own listings. */
+export const serviceProviderDashboardQuerySchema = z.object({
+  query: z.object({
+    period: z.enum(['7d', '30d', 'all']).default('all'),
+    page: z.coerce.number().int().min(1).max(1000).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(10),
+    status: z.enum(['ACTIVE', 'PAUSED', 'DELETED']).optional(),
+    search: z.string().trim().min(1).max(200).optional(),
+  }),
+});
+
+export type ServiceProviderDashboardQuery = z.infer<
+  typeof serviceProviderDashboardQuerySchema
+>['query'];
+
 export const serviceProviderServiceTypeIdSchema = z.object({
   params: z.object({ serviceTypeId: z.string().min(1, 'Service type ID is required') }),
 });

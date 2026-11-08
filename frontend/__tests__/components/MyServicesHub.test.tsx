@@ -5,14 +5,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderWithProviders as render } from '@/test-support/render';
 import { screen } from '@testing-library/react';
 import { MyServicesHub } from '@/components/services/MyServicesHub';
-import {
-  useMyServiceProvider,
-  useMyServiceProviderAnalytics,
-} from '@/hooks/queries/useServiceProviders';
+import { useMyServiceProvider, useMyServiceProviderDashboard } from '@/hooks/queries/useServiceProviders';
+
+vi.mock('next/navigation', () => ({
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => '/my-services',
+}));
+
+vi.mock('next/link', () => ({
+  default: ({ href, children }: { href: string; children: React.ReactNode }) => <a href={href}>{children}</a>,
+}));
 
 vi.mock('@/hooks/queries/useServiceProviders', () => ({
   useMyServiceProvider: vi.fn(),
-  useMyServiceProviderAnalytics: vi.fn(() => ({ data: null })),
+  useMyServiceProviderDashboard: vi.fn(),
 }));
 
 vi.mock('@/store/auth.store', () => ({
@@ -44,9 +51,9 @@ const provider = {
 // TODO(2026-10-16): un-skip after updating loading-state assertions to match unified loading system (1f2c898a)
 describe('MyServicesHub', () => {
   beforeEach(() => {
-    vi.mocked(useMyServiceProviderAnalytics).mockReturnValue({ data: null } as never);
-    vi.mocked(useMyServiceProvider).mockReturnValue({
-      data: provider,
+    vi.mocked(useMyServiceProvider).mockReturnValue({ data: provider, isLoading: false, isError: false, error: null, refetch: vi.fn() } as never);
+    vi.mocked(useMyServiceProviderDashboard).mockReturnValue({
+      data: { analytics: null, listings: { items: [], meta: {} } },
       isLoading: false,
       isError: false,
       error: null,
@@ -55,7 +62,7 @@ describe('MyServicesHub', () => {
   });
 
   it('shows loading spinner', () => {
-    vi.mocked(useMyServiceProvider).mockReturnValue({
+    vi.mocked(useMyServiceProviderDashboard).mockReturnValue({
       data: undefined,
       isLoading: true,
       isError: false,
@@ -75,11 +82,7 @@ describe('MyServicesHub', () => {
 
   it('shows become-provider card when no provider (404)', () => {
     vi.mocked(useMyServiceProvider).mockReturnValue({
-      data: null,
-      isLoading: false,
-      isError: true,
-      error: { statusCode: 404 },
-      refetch: vi.fn(),
+      data: undefined, isLoading: false, isError: true, error: { statusCode: 404 }, refetch: vi.fn(),
     } as never);
     render(<MyServicesHub />);
     expect(screen.getByTestId('become-provider')).toBeInTheDocument();
@@ -87,8 +90,8 @@ describe('MyServicesHub', () => {
 
   it('shows error with retry for non-404 errors', () => {
     const refetch = vi.fn();
-    vi.mocked(useMyServiceProvider).mockReturnValue({
-      data: null,
+    vi.mocked(useMyServiceProviderDashboard).mockReturnValue({
+      data: undefined,
       isLoading: false,
       isError: true,
       error: { statusCode: 500 },
@@ -104,9 +107,20 @@ describe('MyServicesHub', () => {
     expect(screen.queryByText('قائمة الخدمات')).not.toBeInTheDocument();
   });
 
+  it('does not present offline-missing analytics as confirmed zero counts', () => {
+    render(<MyServicesHub />);
+    expect(screen.getAllByText('—')).toHaveLength(4);
+    expect(screen.queryByText('يحتاج إلى إجراء')).not.toBeInTheDocument();
+  });
+
   it('shows pending requests banner from analytics', () => {
-    vi.mocked(useMyServiceProviderAnalytics).mockReturnValue({
-      data: { pendingRequests: 3, upcomingAppointments: 0 },
+    vi.mocked(useMyServiceProviderDashboard).mockReturnValue({
+      data: { analytics: {
+        totalViews: 0, activeListings: 0, pendingRequests: 3, completedRequests: 0,
+        fulfillmentRate: null, upcomingAppointments: 0, averageRating: null, reviewCount: 0,
+        revenue: 0, topListings: [], period: 'all',
+      }, listings: { items: [], meta: {} } },
+      isLoading: false, isError: false, error: null, refetch: vi.fn(),
     } as never);
     render(<MyServicesHub />);
     expect(screen.getByText('يحتاج إلى إجراء')).toBeInTheDocument();

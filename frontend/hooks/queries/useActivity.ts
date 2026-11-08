@@ -13,6 +13,8 @@ import {
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { ActivityQuery, UserActivity } from '@/types/activity.types';
+import type { SellerAttention } from '@/types/seller.types';
+import { getOfflineJson, saveOfflineJson, OFFLINE_JSON_KEYS } from '@/lib/offlineJsonCache';
 import { offlineMeta } from '@/lib/apiPagination';
 import {
   getOfflineList,
@@ -112,5 +114,60 @@ export function useMyActivity(params?: ActivityQuery) {
           initialDataUpdatedAt: new Date(cached.savedAt).getTime(),
         }
       : {}),
+  });
+}
+
+
+/**
+ * Dashboard overview combines the recent activity preview and seller
+ * attention counters because both panels mount together on /dashboard.
+ * The full activity timeline and MyStoreHub continue using their own
+ * dedicated queries and remain lazy.
+ */
+export function useDashboardOverview() {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const userId = useAuthStore((s) => s.user?.id ?? null);
+
+  return useQuery({
+    queryKey: queryKeys.activity.dashboard(userId),
+    queryFn: async ({ signal }) => {
+      try {
+        const response = await activityApi.getDashboardOverview({ signal });
+        const result = response.data.data;
+        if (!result?.failures) {
+          throw new Error('Dashboard overview response is incomplete');
+        }
+        if (result.attention) {
+          saveOfflineJson(OFFLINE_JSON_KEYS.dashboardAttention, result.attention, userId);
+        }
+        const cachedAttention = result.attention ? null : getOfflineJson<SellerAttention>(
+          OFFLINE_JSON_KEYS.dashboardAttention,
+          userId,
+        );
+        return {
+          activity: result.activity as { items: UserActivity[]; meta: unknown } | null,
+          attention: (result.attention as SellerAttention | null) ?? cachedAttention?.data ?? null,
+          activityError: result.failures.activity,
+          attentionError: result.failures.attention && !cachedAttention,
+        };
+      } catch (error) {
+        if (signal.aborted) throw error;
+        const cachedAttention = getOfflineJson<SellerAttention>(
+          OFFLINE_JSON_KEYS.dashboardAttention,
+          userId,
+        );
+        if (!cachedAttention) throw error;
+        return {
+          activity: null,
+          attention: cachedAttention.data,
+          activityError: true,
+          attentionError: false,
+        };
+      }
+    },
+    enabled: isAuthenticated && hasToken,
+    staleTime: CACHE_TTL.activity,
+    retry: false,
   });
 }

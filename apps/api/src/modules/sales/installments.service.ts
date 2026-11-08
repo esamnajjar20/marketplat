@@ -17,6 +17,14 @@ const refreshStatus = (
 };
 
 export const installmentsService = {
+  /** Fetch both financial lists for one screen while preserving each list's own limit and ordering. */
+  overview: async (sellerId: string) => {
+    const [upcoming, overdue] = await Promise.all([
+      installmentsService.upcoming(sellerId),
+      installmentsService.overdue(sellerId),
+    ]);
+    return { upcoming, overdue };
+  },
   upcoming: async (sellerId: string) => {
     const rows = await prisma.saleInstallment.findMany({
       where: {

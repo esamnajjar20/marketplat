@@ -7,6 +7,7 @@ import {
   nearbyServiceProvidersSchema,
   getServiceProvidersSchema,
   serviceProviderAnalyticsQuerySchema,
+  serviceProviderDashboardQuerySchema,
   updateServiceProviderServiceTypeSchema,
 } from './service-providers.validation';
 import { successResponse } from '../../shared/types/api-response.types';
@@ -98,6 +99,24 @@ export const serviceProvidersController = {
   },
 
   // ANALYTICS: owner-only, mirrors storesController.getMyStoreAnalytics.
+  getMyServiceProviderDashboard: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { query } = serviceProviderDashboardQuerySchema.parse({ query: req.query });
+      const dashboard = await serviceProvidersService.getMyServiceProviderDashboard(
+        user.userId,
+        query
+      );
+      res.status(200).json(successResponse('Service provider dashboard fetched', dashboard));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getMyServiceProviderAnalytics: async (
     req: Request,
     res: Response,

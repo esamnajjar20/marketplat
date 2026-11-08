@@ -25,7 +25,6 @@ import { retryQueuedMessage, cancelQueuedMessage, discardQueuedMessage } from '@
 import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
 import { useDeleteMessage } from '@/hooks/mutations/useConversationMutations';
-import { useUserPresence } from '@/hooks/queries/usePresence';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import dynamic from 'next/dynamic';
 import { ROUTES } from '@/lib/constants';
@@ -138,8 +137,7 @@ export function ChatWindow({ conversationId }: Props) {
     // predates the field; never fetch the full blocked-users list here.
     enabled: Boolean(party) && typeof conversation?.isBlockedByMe !== 'boolean',
   });
-  const partyPresence = useUserPresence(party?.id);
-  const isPartyOnline = partyPresence.online;
+  const isPartyOnline = Boolean(conversation?.otherPartyPresence?.online);
   const { mutate: toggleBlock, isPending: togglingBlock } = useToggleUserBlock();
   const { mutate: deleteMessage, isPending: deletingMessage } = useDeleteMessage(conversationId);
   const [confirmDeleteMessageId, setConfirmDeleteMessageId] = useState<string | null>(null);

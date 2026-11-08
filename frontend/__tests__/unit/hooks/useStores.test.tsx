@@ -1,22 +1,17 @@
 /**
  * __tests__/unit/hooks/useStores.test.tsx
  *
- * Previously uncovered (0%). Mirrors useFavorites.test.tsx's approach
- * for the shared-cache-Set side effect.
+ * Covers public store queries, authenticated owner data, and follow-status
+ * behavior without requiring a full followed-stores download for store detail.
  *
  *  useStores / useStore: public list/detail, detail gated on a
  *   non-empty id.
  *  useMyStore: auth-gated, no retry (404 = "no store yet").
- *  useMyFollowedStores:
- *   - auth-gated
- *   - merges each page's storeId into the shared followedIds() Set
- *     after the query settles (not just page 1 — )
- *  getFollowedStoreIdsSnapshot: reads the cached Set, defaults to empty.
+ *  useMyFollowedStores: auth-gated paginated list query.
  *  useIsFollowingStore:
- *   - returns false before any data has loaded
- *   - returns true once the shared Set contains the storeId
- *   - reacts to the shared cache being updated elsewhere
- *   - returns false for a logged-out user even with a stale Set
+ *   - checks one STORE target through GET /follows/status/STORE/:id
+ *   - never downloads the full followed-stores list for a detail page
+ *   - returns false for a logged-out user even if stale status is cached
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
@@ -27,10 +22,10 @@ import {
   useStore,
   useMyStore,
   useMyFollowedStores,
-  getFollowedStoreIdsSnapshot,
   useIsFollowingStore,
 } from '@/hooks/queries/useStores';
 import { storesApi } from '@/api/stores.api';
+import { followsApi } from '@/api/follows.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth.store';
 import { saveVisitedPublicStore } from '@/lib/offlineVisitedPublicEntities';
@@ -39,9 +34,14 @@ vi.mock('@/api/stores.api', () => ({
   storesApi: {
     getAll: vi.fn(),
     getById: vi.fn(),
+    getPageData: vi.fn(),
     getMyStore: vi.fn(),
     getMyFollowedStores: vi.fn(),
   },
+}));
+
+vi.mock('@/api/follows.api', () => ({
+  followsApi: { status: vi.fn() },
 }));
 
 vi.mock('@/lib/offlineVisitedPublicEntities', () => ({
@@ -92,35 +92,53 @@ describe('useStore', () => {
   it('does not fire with an empty id', async () => {
     renderHook(() => useStore(''), { wrapper: createWrapper() });
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(storesApi.getById).not.toHaveBeenCalled();
+    expect(storesApi.getPageData).not.toHaveBeenCalled();
   });
 
   it('fires once and persists an active browser-fetched store for offline revisits', async () => {
     const store = { id: 's1', name: 'Store A', status: 'ACTIVE' };
-    (storesApi.getById as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: store },
+    const pageData = { store, badges: [{ type: 'POPULAR' }], viewer: { isFollowing: true, isFavorited: false } };
+    (storesApi.getPageData as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: pageData },
     });
 
     const { result } = renderHook(() => useStore('s1'), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(storesApi.getById).toHaveBeenCalledWith(
+    expect(storesApi.getPageData).toHaveBeenCalledWith(
       's1',
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
-    expect(result.current.data).toEqual(store);
+    expect(result.current.data).toEqual(pageData);
     await waitFor(() => expect(saveVisitedPublicStore).toHaveBeenCalledWith('s1', store));
   });
 
   it('does not re-save a stale offline store snapshot after a failed network read', async () => {
     const snapshot = { id: 's2', name: 'Store B', status: 'ACTIVE' };
-    (storesApi.getById as ReturnType<typeof vi.fn>).mockRejectedValue({ statusCode: 0 });
+    (storesApi.getPageData as ReturnType<typeof vi.fn>).mockRejectedValue({ statusCode: 0 });
     const { getVisitedPublicStore } = await import('@/lib/offlineVisitedPublicEntities');
     vi.mocked(getVisitedPublicStore).mockReturnValue(snapshot as never);
 
     const { result } = renderHook(() => useStore('s2'), { wrapper: createWrapper() });
-    await waitFor(() => expect(result.current.data).toEqual(snapshot));
+    await waitFor(() => expect(result.current.data?.store).toEqual(snapshot));
     expect(saveVisitedPublicStore).not.toHaveBeenCalled();
+  });
+
+  it('scopes aggregate viewer flags to the signed-in account', async () => {
+    useAuthStore.getState().setAuth(mockUser, mockTokens);
+    (storesApi.getPageData as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { store: { id: 's3', status: 'ACTIVE' }, badges: [], viewer: { isFollowing: true, isFavorited: false } } },
+    });
+    const queryClient = makeSharedClient();
+
+    const { result, rerender } = renderHook(() => useStore('s3'), { wrapper: wrapperFor(queryClient) });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(queryClient.getQueryCache().findAll({ queryKey: queryKeys.stores.detail('s3') })).toHaveLength(1);
+
+    useAuthStore.getState().setAuth({ ...mockUser, id: 'user-2' }, mockTokens);
+    rerender();
+    await waitFor(() => expect(storesApi.getPageData).toHaveBeenCalledTimes(2));
+    expect(queryClient.getQueryCache().findAll({ queryKey: queryKeys.stores.detail('s3') })).toHaveLength(2);
   });
 });
 
@@ -144,93 +162,69 @@ describe('useMyStore', () => {
 
 describe('useMyFollowedStores', () => {
   it('does not fetch when not authenticated', () => {
-    const queryClient = makeSharedClient();
-    renderHook(() => useMyFollowedStores({ limit: 100 }), { wrapper: wrapperFor(queryClient) });
+    renderHook(() => useMyFollowedStores({ limit: 100 }), { wrapper: createWrapper() });
     expect(storesApi.getMyFollowedStores).not.toHaveBeenCalled();
   });
 
-  it('merges storeIds from the fetched page into the shared followedIds() Set', async () => {
+  it('fetches the requested followed-store page when authenticated', async () => {
     useAuthStore.getState().setAuth(mockUser, mockTokens);
     (storesApi.getMyFollowedStores as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { items: [{ storeId: 'store-1' }, { storeId: 'store-2' }], meta: {} } },
-    });
-    const queryClient = makeSharedClient();
-
-    renderHook(() => useMyFollowedStores({ limit: 100 }), { wrapper: wrapperFor(queryClient) });
-
-    await waitFor(() => {
-      const ids = queryClient.getQueryData(queryKeys.stores.followedIds());
-      expect(ids).toBeInstanceOf(Set);
+      data: { data: { items: [{ storeId: 'store-1' }], meta: { total: 1 } } },
     });
 
-    const ids = queryClient.getQueryData<Set<string>>(queryKeys.stores.followedIds());
-    expect(ids!.has('store-1')).toBe(true);
-    expect(ids!.has('store-2')).toBe(true);
-  });
-
-  it('does not let a paginated result overwrite the canonical followed-store Set', async () => {
-    useAuthStore.getState().setAuth(mockUser, mockTokens);
-    (storesApi.getMyFollowedStores as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { items: [{ storeId: 'store-99' }], meta: {} } },
+    const { result } = renderHook(() => useMyFollowedStores({ page: 1, limit: 20 }), {
+      wrapper: createWrapper(),
     });
-    const queryClient = makeSharedClient();
 
-    const { result } = renderHook(() => useMyFollowedStores({ page: 2 }), {
-      wrapper: wrapperFor(queryClient),
-    });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-
-    expect(queryClient.getQueryData<Set<string>>(queryKeys.stores.followedIds())).toBeUndefined();
+    expect(storesApi.getMyFollowedStores).toHaveBeenCalledWith(
+      { page: 1, limit: 20 },
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
+    expect(result.current.data?.items).toEqual([{ storeId: 'store-1' }]);
   });
 });
 
-describe('getFollowedStoreIdsSnapshot', () => {
-  it('returns an empty Set when nothing has been cached yet', () => {
-    const queryClient = makeSharedClient();
-    expect(getFollowedStoreIdsSnapshot(queryClient)).toEqual(new Set());
-  });
-
-  it('returns the cached Set when one exists', () => {
-    const queryClient = makeSharedClient();
-    queryClient.setQueryData(queryKeys.stores.followedIds(), new Set(['store-7']));
-    expect(getFollowedStoreIdsSnapshot(queryClient)).toEqual(new Set(['store-7']));
-  });
-});
 
 describe('useIsFollowingStore', () => {
-  beforeEach(() => {
-    // useIsFollowingStore internally calls useMyFollowedStores({ limit: 100 }),
-    // so a default resolved mock avoids unhandled promise noise in tests
-    // that don't care about that fetch.
-    (storesApi.getMyFollowedStores as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { items: [], meta: {} } },
-    });
-  });
-
-  it('returns false before any data has loaded', () => {
+  it('returns false before the authenticated status request resolves', async () => {
     const queryClient = makeSharedClient();
+    useAuthStore.getState().setAuth(mockUser, mockTokens);
+    (followsApi.status as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {}));
+
     const { result } = renderHook(() => useIsFollowingStore('store-1'), {
       wrapper: wrapperFor(queryClient),
     });
+
     expect(result.current).toBe(false);
+    await waitFor(() => expect(followsApi.status).toHaveBeenCalledWith(
+      'STORE',
+      'store-1',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    ));
+    expect(storesApi.getMyFollowedStores).not.toHaveBeenCalled();
   });
 
-  it('returns true once the shared Set contains the storeId', () => {
+  it('returns the single-store follow status returned by the API', async () => {
     const queryClient = makeSharedClient();
-    queryClient.setQueryData(queryKeys.stores.followedIds(), new Set(['store-1']));
     useAuthStore.getState().setAuth(mockUser, mockTokens);
+    (followsApi.status as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: { data: { following: true } },
+    });
 
     const { result } = renderHook(() => useIsFollowingStore('store-1'), {
       wrapper: wrapperFor(queryClient),
     });
 
-    expect(result.current).toBe(true);
+    await waitFor(() => expect(result.current).toBe(true));
+    expect(followsApi.status).toHaveBeenCalledTimes(1);
+    expect(storesApi.getMyFollowedStores).not.toHaveBeenCalled();
   });
 
-  it('reacts when the shared cache is updated elsewhere', async () => {
+  it('reacts to a status value written by the store-follow mutation', async () => {
     const queryClient = makeSharedClient();
-    queryClient.setQueryData(queryKeys.stores.followedIds(), new Set<string>());
     useAuthStore.getState().setAuth(mockUser, mockTokens);
+    queryClient.setQueryData(queryKeys.follows.status('STORE', 'store-5'), false);
 
     const { result } = renderHook(() => useIsFollowingStore('store-5'), {
       wrapper: wrapperFor(queryClient),
@@ -238,22 +232,21 @@ describe('useIsFollowingStore', () => {
     expect(result.current).toBe(false);
 
     act(() => {
-      queryClient.setQueryData<Set<string>>(queryKeys.stores.followedIds(), (old) =>
-        new Set([...(old ?? []), 'store-5']),
-      );
+      queryClient.setQueryData(queryKeys.follows.status('STORE', 'store-5'), true);
     });
 
     await waitFor(() => expect(result.current).toBe(true));
   });
 
-  it('returns false for a logged-out user even if a populated Set exists', () => {
+  it('returns false for a logged-out user even if a status is cached', () => {
     const queryClient = makeSharedClient();
-    queryClient.setQueryData(queryKeys.stores.followedIds(), new Set(['store-1']));
+    queryClient.setQueryData(queryKeys.follows.status('STORE', 'store-1'), true);
 
     const { result } = renderHook(() => useIsFollowingStore('store-1'), {
       wrapper: wrapperFor(queryClient),
     });
 
     expect(result.current).toBe(false);
+    expect(followsApi.status).not.toHaveBeenCalled();
   });
 });

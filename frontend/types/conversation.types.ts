@@ -64,6 +64,8 @@ export interface Conversation {
   mySettings?: ConversationUserSettings | null;
   /** Whether the authenticated viewer has blocked the other participant. */
   isBlockedByMe?: boolean;
+  /** Presence for the other participant, bundled with GET /conversations/:id. */
+  otherPartyPresence?: { online: boolean; lastSeenAt: string | null };
 }
 
 /**

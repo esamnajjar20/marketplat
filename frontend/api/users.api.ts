@@ -108,6 +108,12 @@ export const usersApi = {
   getById: (id: string, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<PublicUser>>(`/users/${id}`, config),
 
+  /** One private request for the public-profile header's follow + presence state. */
+  getProfileInteractionState: (id: string, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<{ following: boolean; online: boolean; lastSeenAt: string | null }>>(
+      `/users/${encodeURIComponent(id)}/profile-state`, config,
+    ),
+
   getUserAds: (id: string, params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) =>
     apiClient
       .get<ApiResponse<AdListItem[]>>(`/users/${id}/ads`, { ...config, params })

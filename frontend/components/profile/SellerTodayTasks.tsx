@@ -2,7 +2,7 @@
 
 /**
  * Actionable "what needs attention" strip — backed by
- * GET /sellers/me/attention (server-side counts).
+ * GET /activity/dashboard (shared dashboard aggregate; server-side counts).
  */
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
@@ -13,7 +13,8 @@ import {
   ArrowLeft,
   Wrench,
 } from 'lucide-react';
-import { useMyAttention, useIsSeller } from '@/hooks/queries/useSellers';
+import { useIsSeller } from '@/hooks/queries/useSellers';
+import { useDashboardOverview } from '@/hooks/queries/useActivity';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -30,7 +31,9 @@ type Task = {
 export function SellerTodayTasks() {
   const { isSeller, isLoaded: sellerLoaded } = useIsSeller();
   const { isProvider, isLoaded: providerLoaded } = useIsProvider();
-  const { data: attention, isLoading, isError, refetch } = useMyAttention();
+  const { data: overview, isLoading, isError, refetch } = useDashboardOverview();
+  const attention = overview?.attention;
+  const attentionError = isError || Boolean(overview?.attentionError);
 
   if (!sellerLoaded || !providerLoaded) {
     return <Skeleton className="h-20 rounded-xl" />;
@@ -42,7 +45,7 @@ export function SellerTodayTasks() {
     return <Skeleton className="h-20 rounded-xl" />;
   }
 
-  if (isError || !attention) {
+  if (attentionError || !attention) {
     return (
       <div className="rounded-xl border border-warning/25 bg-warning/5 p-4 text-center text-sm">
         <p className="text-muted-foreground">تعذّر تحميل المهام</p>

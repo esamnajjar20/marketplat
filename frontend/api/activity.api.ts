@@ -8,9 +8,19 @@ import { apiClient } from './client';
 import { unwrapPaginated } from '@/lib/apiPagination';
 import type { ApiResponse } from '@/types/api.types';
 import type { UserActivity, ActivityQuery } from '@/types/activity.types';
+import type { SellerAttention } from '@/types/seller.types';
 import type { ApiRequestConfig } from './requestConfig';
 
+export interface ActivityDashboardOverview {
+  activity: { items: UserActivity[]; meta: unknown } | null;
+  attention: SellerAttention | null;
+  failures: { activity: boolean; attention: boolean };
+}
+
 export const activityApi = {
+  /** GET /activity/dashboard — one request for the dashboard's two co-rendered panels. */
+  getDashboardOverview: (config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<ActivityDashboardOverview>>('/activity/dashboard', config),
   /** GET /activity */
   getMine: (params?: ActivityQuery, config?: ApiRequestConfig) =>
     apiClient

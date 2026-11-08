@@ -109,7 +109,7 @@ const sharedIdSetStore = read('hooks/queries/sharedIdSetStore.ts');
 const storesQuery = read('hooks/queries/useStores.ts');
 const blockedUsersQuery = read('hooks/queries/useBlockedUsers.ts');
 check(/useQueryIdSetMembership/.test(sharedIdSetStore), 'shared ID-set registry missing');
-check(/useQueryIdSetMembership/.test(storesQuery), 'useIsFollowingStore: shared registry not used');
+check(/useFollowStatus\('STORE', storeId\)/.test(storesQuery) && !/useMyFollowedStores\(\{\s*limit:\s*100\s*\}\)/.test(storesQuery), 'useIsFollowingStore: single-target status query must replace the full followed-stores request');
 check(/queryKeys\.blockedUsers\.status\(userId\)/.test(blockedUsersQuery), 'useIsUserBlocked: per-user status query missing');
 check(!/useMyBlockedUsers\(\{\s*limit:\s*100\s*\}\)/.test(blockedUsersQuery), 'useIsUserBlocked: full blocked-users list fetch returned');
 

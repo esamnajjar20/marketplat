@@ -14,6 +14,7 @@ import { serviceListingsRepository } from '../service-listings/service-listings.
 import { notificationEvents, notificationsService } from '../notifications';
 import { publishNotificationEvent } from '../../shared/utils/notificationStream';
 import { blockedUsersService } from '../blocked-users';
+import { presence } from '../../shared/utils/presence';
 import { activityService, activityTemplates } from '../activity';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
@@ -254,15 +255,25 @@ export const conversationsService = {
   getConversationById: async (
     userId: string,
     id: string
-  ): Promise<NonNullable<Awaited<ReturnType<typeof conversationsRepository.findByIdForUser>>> & { isBlockedByMe: boolean }> => {
+  ): Promise<NonNullable<Awaited<ReturnType<typeof conversationsRepository.findByIdForUser>>> & {
+    isBlockedByMe: boolean;
+    otherPartyPresence: { online: boolean; lastSeenAt: string | null };
+  }> => {
     const conversation = await conversationsRepository.findByIdForUser(id, userId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
     if (conversation.mySettings?.deletedAt)
       throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     const otherPartyId = conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId;
-    const isBlockedByMe = await blockedUsersService.isBlockedBy(userId, otherPartyId);
-    return { ...conversation, isBlockedByMe };
+    // The thread header needs both the viewer's block state and the other
+    // participant's presence. Resolve them together so ChatWindow does not
+    // issue a second /users/presence request after loading the conversation.
+    const [isBlockedByMe, presenceById] = await Promise.all([
+      blockedUsersService.isBlockedBy(userId, otherPartyId),
+      presence.getPresence([otherPartyId]),
+    ]);
+    const otherPartyPresence = presenceById[otherPartyId] ?? { online: false, lastSeenAt: null };
+    return { ...conversation, isBlockedByMe, otherPartyPresence };
   },
 
   getMyConversations: async (

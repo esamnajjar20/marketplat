@@ -32,6 +32,8 @@ export function useCreateAppointment() {
       appointmentsApi.create(payload).then((r) => r.data.data),
     onSuccess: (appointment) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.mineRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.workspaceDashboardRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.analytics() });
       if (appointment?.providerId) {
         queryClient.invalidateQueries({
           queryKey: queryKeys.appointments.availabilityRoot(),
@@ -85,6 +87,8 @@ export function useUpdateAppointmentStatus() {
     onSuccess: () => {
       // The root prefix covers every filtered/paginated appointment list.
       queryClient.invalidateQueries({ queryKey: queryKeys.appointments.mineRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.workspaceDashboardRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.analytics() });
       toast.success('تم تحديث حالة الموعد');
     },
     onError: toastMutationError,

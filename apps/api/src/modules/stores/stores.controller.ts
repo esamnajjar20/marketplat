@@ -84,6 +84,17 @@ export const storesController = {
     }
   },
 
+  getPublicStorePageData: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { params } = storeIdSchema.parse({ params: req.params });
+      const trackView = req.query.trackView === 'true';
+      const pageData = await storesService.getPublicStorePageData(params.id, req.user?.userId, trackView);
+      res.status(200).json(successResponse('Store page data fetched', pageData));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   getStores: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { query } = getStoresSchema.parse({ query: req.query });

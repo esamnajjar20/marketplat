@@ -21,6 +21,7 @@ import {
   UpdateServiceProviderInput,
   NearbyServiceProvidersQuery,
   GetServiceProvidersQuery,
+  ServiceProviderDashboardQuery,
 } from './service-providers.validation';
 import { ConflictError } from '../../shared/errors/ConflictError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
@@ -63,13 +64,64 @@ export interface ServiceProviderAnalytics {
   period: '7d' | '30d' | 'all';
 }
 
+async function getServiceProviderAnalyticsFor(
+  sellerProfileId: string,
+  providerId: string,
+  period: '7d' | '30d' | 'all' = 'all'
+): Promise<ServiceProviderAnalytics> {
+  const since =
+    period === '7d'
+      ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      : period === '30d'
+        ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+        : undefined;
+
+  const [
+    listingStats,
+    topListings,
+    pendingRequests,
+    terminalStats,
+    revenue,
+    upcomingAppointments,
+    rating,
+  ] = await Promise.all([
+    serviceListingsRepository.getStatsByProviderId(providerId),
+    serviceListingsRepository.findTopByProviderId(providerId, 5),
+    serviceRequestsRepository.countPendingByProviderId(providerId),
+    serviceRequestsRepository.countTerminalStatsByProviderId(providerId, since),
+    serviceRequestsRepository.sumRevenueByProviderId(providerId, since),
+    appointmentsRepository.countUpcomingByProviderId(providerId),
+    serviceReviewsRepository.getRatingSummary(sellerProfileId),
+  ]);
+
+  const totalTerminal = terminalStats.completed + terminalStats.cancelledOrRejected;
+
+  return {
+    totalViews: listingStats.totalViews,
+    activeListings: listingStats.activeCount,
+    pendingRequests,
+    completedRequests: terminalStats.completed,
+    fulfillmentRate:
+      totalTerminal > 0
+        ? Math.round((terminalStats.completed / totalTerminal) * 10000) / 100
+        : null,
+    upcomingAppointments,
+    averageRating: rating.avg,
+    reviewCount: rating.count,
+    revenue,
+    topListings: topListings.map((listing) => ({
+      id: listing.id,
+      title: listing.title,
+      views: listing.views,
+      image: listing.images[0] ?? null,
+    })),
+    period,
+  };
+}
+
 export const serviceProvidersService = {
-  // ANALYTICS: same requireOwnStore-style ownership resolution as
-  // stores.service.ts's getMyStoreAnalytics — userId -> sellerProfile
-  // -> provider, 404 at either hop if either doesn't exist yet (a user
-  // with no provider profile has no analytics to show, same "go
-  // create one first" gap MyStoreAnalytics.tsx's own 404 branch
-  // already handles for stores).
+  // ANALYTICS: owner-only. Resolve seller/provider once, then execute the
+  // independent analytics reads concurrently.
   getMyServiceProviderAnalytics: async (
     userId: string,
     period: '7d' | '30d' | 'all' = 'all'
@@ -81,53 +133,42 @@ export const serviceProvidersService = {
     if (!provider)
       throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
 
-    const since =
-      period === '7d'
-        ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-        : period === '30d'
-          ? new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-          : undefined;
+    return getServiceProviderAnalyticsFor(sellerProfile.id, provider.id, period);
+  },
 
-    const [
-      listingStats,
-      topListings,
-      pendingRequests,
-      terminalStats,
-      revenue,
-      upcomingAppointments,
-      rating,
-    ] = await Promise.all([
-      serviceListingsRepository.getStatsByProviderId(provider.id),
-      serviceListingsRepository.findTopByProviderId(provider.id, 5),
-      serviceRequestsRepository.countPendingByProviderId(provider.id),
-      serviceRequestsRepository.countTerminalStatsByProviderId(provider.id, since),
-      serviceRequestsRepository.sumRevenueByProviderId(provider.id, since),
-      appointmentsRepository.countUpcomingByProviderId(provider.id),
-      serviceReviewsRepository.getRatingSummary(sellerProfile.id),
+  // Workspace overview: aggregate the independent analytics and own-listing
+  // reads. Provider identity is already supplied by the authenticated bootstrap
+  // payload and is deliberately not duplicated here.
+  getMyServiceProviderDashboard: async (
+    userId: string,
+    query: ServiceProviderDashboardQuery
+  ): Promise<{
+    analytics: ServiceProviderAnalytics;
+    listings: PaginatedResult<ServiceListing>;
+  }> => {
+    const sellerProfile = await sellersRepository.findByUserId(userId);
+    if (!sellerProfile) throw new NotFoundError('Seller profile not found', 'SELLER_NOT_FOUND');
+
+    const provider = await serviceProvidersRepository.findBySellerProfileId(sellerProfile.id);
+    if (!provider)
+      throw new NotFoundError('Service provider profile not found', 'SERVICE_PROVIDER_NOT_FOUND');
+
+    const [analytics, listingResult] = await Promise.all([
+      getServiceProviderAnalyticsFor(sellerProfile.id, provider.id, query.period),
+      serviceListingsRepository.findManyByProviderId(provider.id, {
+        page: query.page,
+        limit: query.limit,
+        status: query.status,
+        search: query.search,
+      }),
     ]);
 
-    const totalTerminal = terminalStats.completed + terminalStats.cancelledOrRejected;
-
     return {
-      totalViews: listingStats.totalViews,
-      activeListings: listingStats.activeCount,
-      pendingRequests,
-      completedRequests: terminalStats.completed,
-      fulfillmentRate:
-        totalTerminal > 0
-          ? Math.round((terminalStats.completed / totalTerminal) * 10000) / 100
-          : null,
-      upcomingAppointments,
-      averageRating: rating.avg,
-      reviewCount: rating.count,
-      revenue,
-      topListings: topListings.map(listing => ({
-        id: listing.id,
-        title: listing.title,
-        views: listing.views,
-        image: listing.images[0] ?? null,
-      })),
-      period,
+      analytics,
+      listings: {
+        items: listingResult.listings,
+        meta: buildPaginationMeta(listingResult.total, query.page, query.limit),
+      },
     };
   },
 

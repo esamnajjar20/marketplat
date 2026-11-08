@@ -13,7 +13,7 @@ import {
   User,
   AlertTriangle,
 } from 'lucide-react';
-import { useMyActivity } from '@/hooks/queries/useActivity';
+import { useDashboardOverview } from '@/hooks/queries/useActivity';
 import { ROUTES } from '@/lib/constants';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import type { UserActivity } from '@/types/activity.types';
@@ -49,7 +49,9 @@ function linkFor(activity: UserActivity): string | null {
 
 /** Dashboard strip — real UserActivity rows, not "last 5 ads". */
 export function RecentActivityFeed() {
-  const { data, isLoading, isError, refetch } = useMyActivity({ limit: 8 });
+  const { data: overview, isLoading, isError, refetch } = useDashboardOverview();
+  const data = overview?.activity;
+  const activityError = isError || Boolean(overview?.activityError);
 
   if (isLoading) {
     return (
@@ -59,7 +61,7 @@ export function RecentActivityFeed() {
     );
   }
 
-  if (isError) {
+  if (activityError) {
     return (
       <div className="flex flex-col items-center gap-2 py-6 text-center text-sm">
         <AlertTriangle className="h-6 w-6 text-muted-foreground" />

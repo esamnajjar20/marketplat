@@ -7,9 +7,11 @@ import { toastMutationError } from '@/lib/mutationFeedback';
 import { toast } from 'sonner';
 import { runSerializedMutation } from '@/lib/serialMutationQueue';
 import { getSessionCleanupVersion } from '@/lib/authCleanup';
+import { useAuthStore } from '@/store/auth.store';
 
 export function useToggleFollow() {
   const queryClient = useQueryClient();
+  const viewerId = useAuthStore((state) => state.user?.id ?? null);
   return useMutation({
     mutationKey: ['follow-toggle'],
     mutationFn: ({ targetType, targetId }: { targetType: FollowTargetType; targetId: string }) =>
@@ -18,12 +20,19 @@ export function useToggleFollow() {
       ),
     onSuccess: (data, vars) => {
       if (!data) return;
-      queryClient.setQueryData(queryKeys.follows.status(vars.targetType, vars.targetId), { following: data.action === 'followed' });
+      queryClient.setQueryData<boolean>(queryKeys.follows.status(vars.targetType, vars.targetId), data.action === 'followed');
       // Keep target-specific detail caches fresh for every success, but defer
       // shared list/feed invalidation until the last follow toggle settles.
       if (vars.targetType === 'USER') {
         void queryClient.invalidateQueries({ queryKey: queryKeys.follows.followersRoot('USER', vars.targetId) });
         void queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(vars.targetId) });
+        if (viewerId) {
+          queryClient.setQueryData(
+            queryKeys.users.profileState(vars.targetId, viewerId),
+            (current: { following: boolean; online: boolean; lastSeenAt: string | null } | undefined) =>
+              current ? { ...current, following: data.action === 'followed' } : current,
+          );
+        }
       } else if (vars.targetType === 'STORE') {
         void queryClient.invalidateQueries({ queryKey: queryKeys.stores.detail(vars.targetId) });
       } else {

@@ -21,6 +21,17 @@ export const customersController = {
       next(e);
     }
   },
+  overview: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = requireUser(req);
+      const { query } = listCustomersSchema.parse({ query: req.query });
+      res.json(
+        successResponse('Customer overview fetched', await customersService.overview(user.userId, query))
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
   list: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = requireUser(req);

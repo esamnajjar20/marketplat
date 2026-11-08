@@ -4,13 +4,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { SellerTodayTasks } from '@/components/profile/SellerTodayTasks';
-import { useMyAttention, useIsSeller } from '@/hooks/queries/useSellers';
+import { useIsSeller } from '@/hooks/queries/useSellers';
+import { useDashboardOverview } from '@/hooks/queries/useActivity';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 
 vi.mock('@/hooks/queries/useSellers', () => ({
-  useMyAttention: vi.fn(),
   useIsSeller: vi.fn(() => ({ isSeller: true, isLoaded: true })),
 }));
+vi.mock('@/hooks/queries/useActivity', () => ({ useDashboardOverview: vi.fn() }));
 vi.mock('@/hooks/queries/useServiceProviders', () => ({
   useIsProvider: vi.fn(() => ({ isProvider: false, isLoaded: true })),
 }));
@@ -19,15 +20,15 @@ describe('SellerTodayTasks', () => {
   beforeEach(() => {
     vi.mocked(useIsSeller).mockReturnValue({ isSeller: true, isLoaded: true } as never);
     vi.mocked(useIsProvider).mockReturnValue({ isProvider: false, isLoaded: true } as never);
-    vi.mocked(useMyAttention).mockReturnValue({
-      data: {
+    vi.mocked(useDashboardOverview).mockReturnValue({
+      data: { activity: null, attention: {
         isProvider: false,
         hasStore: true,
         pendingServiceRequests: 0,
         adsMissingImages: 2,
         productsOutOfStock: 1,
         productsMissingImages: 0,
-      },
+      }, activityError: false, attentionError: false },
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
@@ -51,7 +52,7 @@ describe('SellerTodayTasks', () => {
   });
 
   it('shows loading pulse while loading', () => {
-    vi.mocked(useMyAttention).mockReturnValue({
+    vi.mocked(useDashboardOverview).mockReturnValue({
       data: undefined,
       isLoading: true,
       isError: false,

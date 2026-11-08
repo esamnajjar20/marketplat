@@ -6,6 +6,30 @@ jest.mock('../../src/modules/customers/customers.repository');
 
 describe('customersService', () => {
   beforeEach(() => jest.clearAllMocks());
+
+  it('builds the customer overview from summary and the first list page in parallel', async () => {
+    const summary = { totalCustomers: 4, vipCustomers: 1, debtors: 2, inactiveCustomers: 0, totalSpent: 120, averageCustomerSpend: 30 };
+    const customers = { items: [{ id: 'c1' }], meta: { total: 1, page: 1, limit: 50, totalPages: 1, hasNextPage: false, hasPrevPage: false } };
+    (customersRepository.summary as jest.Mock).mockResolvedValue(summary);
+    (customersRepository.list as jest.Mock).mockResolvedValue(customers);
+
+    await expect(customersService.overview('seller-1', { page: 1, limit: 50 })).resolves.toEqual({ summary, customers, failures: { summary: false, customers: false } });
+    expect(customersRepository.summary).toHaveBeenCalledWith('seller-1');
+    expect(customersRepository.list).toHaveBeenCalledWith('seller-1', { page: 1, limit: 50 });
+  });
+
+  it('keeps customer list available when the summary query fails', async () => {
+    const customers = { items: [{ id: 'c1' }], meta: { total: 1, page: 1, limit: 50, totalPages: 1, hasNextPage: false, hasPrevPage: false } };
+    (customersRepository.summary as jest.Mock).mockRejectedValue(new Error('summary unavailable'));
+    (customersRepository.list as jest.Mock).mockResolvedValue(customers);
+
+    await expect(customersService.overview('seller-1', { page: 1, limit: 50 })).resolves.toEqual({
+      summary: null,
+      customers,
+      failures: { summary: true, customers: false },
+    });
+  });
+
   it('normalizes Palestinian-style phone input before lookup/create', async () => {
     (customersRepository.findByPhone as jest.Mock).mockResolvedValue(null);
     (customersRepository.create as jest.Mock).mockResolvedValue({ id: 'c1' });

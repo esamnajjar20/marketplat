@@ -20,6 +20,7 @@ salesRouter.get('/reports.csv', salesController.reportCsv);
 salesRouter.get('/reports', salesController.report);
 salesRouter.get('/smart-insights', salesController.smartInsights);
 salesRouter.post('/automation/run', salesController.automationRun);
+salesRouter.get('/debts/overview', salesController.debtOverview);
 salesRouter.get('/debts/summary', salesController.debtSummary);
 salesRouter.get('/debts', salesController.debts);
 salesRouter.get('/:id/receipt', salesController.receipt);

@@ -1,4 +1,4 @@
-import { authenticate } from '../../src/middlewares/auth.middleware';
+import { authenticate, optionalAuthenticateWithUserLookup } from '../../src/middlewares/auth.middleware';
 import * as jwtUtils from '../../src/shared/utils/jwt';
 import { redis } from '../../src/config/redis';
 import { userCache } from '../../src/shared/utils/userCache';
@@ -37,6 +37,40 @@ describe('authenticate middleware', () => {
     const req = { headers: {} } as Request;
     await authenticate(req, res, next);
     expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+  });
+
+  describe('optionalAuthenticateWithUserLookup', () => {
+    it('continues anonymously when no bearer token is provided', async () => {
+      const req = { headers: {} } as Request;
+      await optionalAuthenticateWithUserLookup(req, res, next);
+      expect(req.user).toBeUndefined();
+      expect(next).toHaveBeenCalledWith();
+    });
+
+    it('resolves a valid bearer token so viewer-specific public data is reliable', async () => {
+      const req = { headers: { authorization: 'Bearer valid-token' } } as Request;
+      jest.spyOn(redis, 'pipeline').mockReturnValue({
+        get: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([
+          [null, null],
+          [null, JSON.stringify({ id: 'u1', role: 'USER', isActive: true })],
+        ]),
+      } as any);
+
+      await optionalAuthenticateWithUserLookup(req, res, next);
+      expect(req.user?.userId).toBe('u1');
+      expect(next).toHaveBeenCalledWith();
+    });
+
+    it('degrades invalid credentials to an anonymous public request', async () => {
+      const req = { headers: { authorization: 'Bearer bad-token' } } as Request;
+      jest.spyOn(jwtUtils, 'verifyAccessToken').mockImplementation(() => { throw new Error('bad token'); });
+
+      await optionalAuthenticateWithUserLookup(req, res, next);
+      expect(req.user).toBeUndefined();
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(next).toHaveBeenCalledWith();
+    });
   });
 
   it('rejects blacklisted token', async () => {

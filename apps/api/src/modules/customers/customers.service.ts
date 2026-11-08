@@ -16,6 +16,20 @@ export const customersService = {
     query: { page?: number; limit?: number; q?: string; dueOnly?: boolean }
   ) => customersRepository.list(sellerId, query),
   summary: (sellerId: string) => customersRepository.summary(sellerId),
+  overview: async (sellerId: string, query: { page?: number; limit?: number; q?: string; dueOnly?: boolean }) => {
+    const [summaryResult, customersResult] = await Promise.allSettled([
+      customersRepository.summary(sellerId),
+      customersRepository.list(sellerId, query),
+    ]);
+    return {
+      summary: summaryResult.status === 'fulfilled' ? summaryResult.value : null,
+      customers: customersResult.status === 'fulfilled' ? customersResult.value : null,
+      failures: {
+        summary: summaryResult.status === 'rejected',
+        customers: customersResult.status === 'rejected',
+      },
+    };
+  },
   search: (sellerId: string, q: string) => customersRepository.search(sellerId, q),
   getById: async (sellerId: string, id: string) => {
     const customer = await customersRepository.findBySellerAndId(sellerId, id);

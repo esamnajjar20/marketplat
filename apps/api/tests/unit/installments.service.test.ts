@@ -26,6 +26,22 @@ const installment = {
   amount: 50, paidAmount: 10, status: 'PARTIAL',
 };
 
+
+describe('installmentsService.overview', () => {
+  afterEach(() => jest.restoreAllMocks());
+
+  it('combines upcoming and overdue lists while preserving each service result', async () => {
+    const upcoming = [{ id: 'upcoming-1' }];
+    const overdue = [{ id: 'overdue-1' }];
+    const upcomingSpy = jest.spyOn(installmentsService, 'upcoming').mockResolvedValue(upcoming as never);
+    const overdueSpy = jest.spyOn(installmentsService, 'overdue').mockResolvedValue(overdue as never);
+
+    await expect(installmentsService.overview('seller-1')).resolves.toEqual({ upcoming, overdue });
+    expect(upcomingSpy).toHaveBeenCalledWith('seller-1');
+    expect(overdueSpy).toHaveBeenCalledWith('seller-1');
+  });
+});
+
 describe('installmentsService.pay', () => {
   beforeEach(() => {
     jest.clearAllMocks();

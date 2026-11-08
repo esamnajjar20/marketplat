@@ -46,6 +46,8 @@ export function useRespondToServiceRequest(id: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceRequests.detail(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceRequests.mineRoot() });
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceRequests.incomingRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.workspaceDashboardRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.analytics() });
       toast.success('تم تحديث حالة الطلب');
     },
     onError: toastMutationError,

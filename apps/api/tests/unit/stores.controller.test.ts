@@ -186,6 +186,48 @@ describe('storesController', () => {
     });
   });
 
+  describe('getPublicStorePageData', () => {
+    it('returns the aggregated payload and forwards an optional viewer id', async () => {
+      const pageData = { store: mockStore, badges: [], viewer: { isFollowing: true, isFavorited: false } };
+      const req = mockRequest({ params: { id: 'store-1' }, user: authUser } as any);
+      const res = mockResponse();
+      const next = mockNext();
+      (storesService.getPublicStorePageData as jest.Mock).mockResolvedValue(pageData);
+
+      await storesController.getPublicStorePageData(req, res, next);
+
+      expect(storesService.getPublicStorePageData).toHaveBeenCalledWith('store-1', 'user-1', false);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: pageData }));
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('supports an anonymous public request', async () => {
+      const req = mockRequest({ params: { id: 'store-1' } });
+      const res = mockResponse();
+      const next = mockNext();
+      (storesService.getPublicStorePageData as jest.Mock).mockResolvedValue({ store: mockStore, badges: [], viewer: null });
+
+      await storesController.getPublicStorePageData(req, res, next);
+
+      expect(storesService.getPublicStorePageData).toHaveBeenCalledWith('store-1', undefined, false);
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it('forwards the explicit trackView flag for the client-side SSR fallback', async () => {
+      const req = mockRequest({ params: { id: 'store-1' }, query: { trackView: 'true' } } as any);
+      const res = mockResponse();
+      const next = mockNext();
+      (storesService.getPublicStorePageData as jest.Mock).mockResolvedValue({ store: mockStore, badges: [], viewer: null });
+
+      await storesController.getPublicStorePageData(req, res, next);
+
+      expect(storesService.getPublicStorePageData).toHaveBeenCalledWith('store-1', undefined, true);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(next).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getStores', () => {
     it('returns 200 with the store list and pagination meta on success', async () => {
       const req = mockRequest({ query: {} });

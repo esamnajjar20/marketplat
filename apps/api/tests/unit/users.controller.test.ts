@@ -44,6 +44,35 @@ describe('usersController', () => {
     });
   });
 
+  describe('getProfileInteractionState', () => {
+    it('returns private viewer-specific follow and presence state', async () => {
+      const req = mockRequest({ params: { id: 'profile-2' } });
+      const res = mockResponse();
+      const next = mockNext();
+      const state = { following: true, online: true, lastSeenAt: null };
+      (usersService.getProfileInteractionState as jest.Mock).mockResolvedValue(state);
+
+      await usersController.getProfileInteractionState(req, res, next);
+
+      expect(usersService.getProfileInteractionState).toHaveBeenCalledWith('user-1', 'profile-2');
+      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'private, no-store');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: state }));
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('rejects an invalid profile id before calling the service', async () => {
+      const req = mockRequest({ params: { id: '' } });
+      const res = mockResponse();
+      const next = mockNext();
+
+      await usersController.getProfileInteractionState(req, res, next);
+
+      expect(usersService.getProfileInteractionState).not.toHaveBeenCalled();
+      expect(next).toHaveBeenCalled();
+    });
+  });
+
   describe('getUserById', () => {
     it('returns 200 with the public user on success', async () => {
       const req = mockRequest({ params: { id: 'user-1' } });

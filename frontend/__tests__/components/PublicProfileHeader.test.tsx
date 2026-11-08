@@ -31,8 +31,8 @@ vi.mock('@/hooks/mutations/useBlockedUsersMutations', () => ({
   useToggleUserBlock: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
-vi.mock('@/hooks/queries/useFollows', () => ({
-  useFollowStatus: vi.fn(() => ({ data: false })),
+vi.mock('@/hooks/queries/useUsers', () => ({
+  useProfileInteractionState: vi.fn(() => ({ data: { following: false, online: false, lastSeenAt: null } })),
 }));
 
 vi.mock('@/hooks/mutations/useFollowMutations', () => ({

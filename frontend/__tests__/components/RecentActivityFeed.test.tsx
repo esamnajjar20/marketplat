@@ -2,7 +2,7 @@
  * __tests__/components/RecentActivityFeed.test.tsx
  *
  * Rewritten against the current component: RecentActivityFeed now
- * renders real UserActivity rows via useMyActivity({ limit: 8 }), not
+ * renders real UserActivity rows via the shared dashboard overview query, not
  * "last 5 ads" via useMyAds — the previous version of this file mocked
  * the wrong hook entirely (useMyAds, which the component no longer
  * imports) and asserted on fields/behavior (status label, price, a
@@ -18,10 +18,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { RecentActivityFeed } from '@/components/profile/RecentActivityFeed';
-import { useMyActivity } from '@/hooks/queries/useActivity';
+import { useDashboardOverview } from '@/hooks/queries/useActivity';
 
 vi.mock('@/hooks/queries/useActivity', () => ({
-  useMyActivity: vi.fn(),
+  useDashboardOverview: vi.fn(),
 }));
 
 vi.mock('next/link', () => ({
@@ -44,8 +44,8 @@ const activity = {
 };
 
 function mockActivity(overrides: Record<string, unknown> = {}) {
-  (useMyActivity as ReturnType<typeof vi.fn>).mockReturnValue({
-    data: { items: [activity], meta: { total: 1 } },
+  (useDashboardOverview as ReturnType<typeof vi.fn>).mockReturnValue({
+    data: { activity: { items: [activity], meta: { total: 1 } }, attention: null, activityError: false, attentionError: false },
     isLoading: false,
     isError: false,
     refetch: mockRefetch,
@@ -67,7 +67,7 @@ describe('RecentActivityFeed', () => {
   });
 
   it('shows an error message with retry, not the "publish first ad" empty state, on failure', async () => {
-    mockActivity({ data: undefined, isError: true });
+    mockActivity({ data: { activity: null, attention: null, activityError: true, attentionError: false } });
     const user = setupUser();
     render(<RecentActivityFeed />);
 
@@ -79,7 +79,7 @@ describe('RecentActivityFeed', () => {
   });
 
   it('shows a "publish first ad" prompt when there is genuinely no activity yet', () => {
-    mockActivity({ data: { items: [], meta: { total: 0 } } });
+    mockActivity({ data: { activity: { items: [], meta: { total: 0 } }, attention: null, activityError: false, attentionError: false } });
     render(<RecentActivityFeed />);
 
     expect(screen.getByText('انشر أول إعلان')).toBeInTheDocument();
@@ -100,7 +100,7 @@ describe('RecentActivityFeed', () => {
 
   it('renders a row with no entityId as plain (non-link) content', () => {
     mockActivity({
-      data: { items: [{ ...activity, entityType: null, entityId: null }], meta: { total: 1 } },
+      data: { activity: { items: [{ ...activity, entityType: null, entityId: null }], meta: { total: 1 } }, attention: null, activityError: false, attentionError: false },
     });
     render(<RecentActivityFeed />);
 

@@ -9,35 +9,20 @@ export interface InstallmentQueryOptions {
   enabled?: boolean;
 }
 
-function usePrivateInstallmentQuery<T>(
-  queryKey: readonly unknown[],
-  queryFn: (ctx: { signal: AbortSignal }) => Promise<T>,
-  options?: InstallmentQueryOptions,
-) {
+/** One authenticated request supplies both lists; the API keeps their limits and ordering independent. */
+export function useInstallmentsOverview(options?: InstallmentQueryOptions) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasAccessToken = useAuthStore(selectHasAccessToken);
   const isAuthResolving = useAuthStore(selectIsAuthResolving);
 
   return useQuery({
-    queryKey,
-    queryFn,
+    queryKey: queryKeys.installments.overview(),
+    queryFn: ({ signal }) => installmentsApi.overview({ signal }).then((response) => {
+      const result = response.data.data;
+      if (!result) throw new Error('Installments overview response is empty');
+      return result;
+    }),
     enabled: (options?.enabled ?? true) && isAuthenticated && hasAccessToken && !isAuthResolving,
+    staleTime: 30_000,
   });
-}
-
-/** Private financial data only loads after auth is verified and while requested. */
-export function useUpcomingInstallments(options?: InstallmentQueryOptions) {
-  return usePrivateInstallmentQuery(
-    queryKeys.installments.upcoming(),
-    ({ signal }) => installmentsApi.upcoming({ signal }).then((r) => r.data.data ?? []),
-    options,
-  );
-}
-
-export function useOverdueInstallments(options?: InstallmentQueryOptions) {
-  return usePrivateInstallmentQuery(
-    queryKeys.installments.overdue(),
-    ({ signal }) => installmentsApi.overdue({ signal }).then((r) => r.data.data ?? []),
-    options,
-  );
 }

@@ -3,9 +3,27 @@ import { apiClient } from './client';
 import type { AxiosRequestConfig } from 'axios';
 import type { Customer } from '@/types/customer.types';
 
+type CustomerSummary = {
+  totalCustomers: number;
+  vipCustomers: number;
+  debtors: number;
+  inactiveCustomers: number;
+  totalSpent: number;
+  averageCustomerSpend: number;
+};
+
+type CustomerPage = {
+  items: Customer[];
+  meta: import('@/types/api.types').PaginationMeta;
+};
+
 export const customersApi = {
-  summary: (config?: AxiosRequestConfig) => apiClient.get<ApiResponse<{ totalCustomers:number; vipCustomers:number; debtors:number; inactiveCustomers:number; totalSpent:number; averageCustomerSpend:number }>>('/customers/summary', config),
-  // NOTE: backend returns { data: { items, meta } } directly (paginated),
+  overview: (params?: { page?: number; limit?: number; q?: string; dueOnly?: boolean }, config?: AxiosRequestConfig) =>
+    apiClient.get<ApiResponse<{ summary: CustomerSummary | null; customers: CustomerPage | null; failures: { summary: boolean; customers: boolean } }>>(
+      '/customers/overview',
+      { ...config, params },
+    ),
+  summary: (config?: AxiosRequestConfig) => apiClient.get<ApiResponse<{ totalCustomers:number; vipCustomers:number; debtors:number; inactiveCustomers:number; totalSpent:number; averageCustomerSpend:number }>>('/customers/summary', config),  // NOTE: backend returns { data: { items, meta } } directly (paginated),
   // so we don't wrap with unwrapPaginated — that helper expects the raw
   // list on data[] and would incorrectly nest { items, meta } inside items.
   list: (params?: { page?: number; limit?: number; q?: string; dueOnly?: boolean }, config?: AxiosRequestConfig) =>

@@ -4,7 +4,9 @@
  * FIX SSR-FALLBACK-01: client-side rendering of the store page, used when the
  * server-side fetch failed (transport/5xx). The browser reaches the API through
  * the same-origin /api/v1 proxy, which works even when SSR cannot, so the user
- * sees the store instead of the opaque React #441 crash page.
+ * sees the store instead of the opaque React #441 crash page. Keep this fallback
+ * visually and behaviorally aligned with the normal Server Component path:
+ * store header + storefront only, without starting a recommendations query.
  */
 import { Suspense } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
@@ -17,16 +19,10 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import { parseApiError } from '@/lib/errorParser';
 import { ROUTES } from '@/lib/constants';
-import dynamic from 'next/dynamic';
-
-// PERF-04: StoreRecommendations lazy-loaded — below-fold, not critical for initial render
-const StoreRecommendations = dynamic(
-  () => import('@/components/recommendations/StoreRecommendations').then((m) => m.StoreRecommendations),
-  { loading: () => <Suspense fallback={<div className="flex justify-center py-8"><LoadingSpinner /></div>} /> },
-);
 
 export function StoreDetailClient({ id }: { id: string }) {
-  const { data: store, isLoading, isError, error, refetch } = useStore(id);
+  const { data: pageData, isLoading, isError, error, refetch } = useStore(id, { trackView: true });
+  const store = pageData?.store;
 
   if (isLoading) {
     return <div className="flex justify-center py-16"><LoadingSpinner /></div>;
@@ -50,7 +46,12 @@ export function StoreDetailClient({ id }: { id: string }) {
 
   return (
     <div className="container mx-auto w-full max-w-7xl space-y-8 px-3 py-6 sm:px-4 lg:py-8">
-      <StoreHeader store={store} />
+      <StoreHeader
+        store={store}
+        isFollowing={pageData?.viewer?.isFollowing ?? false}
+        isFavorited={pageData?.viewer?.isFavorited ?? false}
+        badges={pageData?.badges}
+      />
       <Suspense fallback={<div className="flex justify-center py-8"><LoadingSpinner /></div>}>
         <StoreStorefront
           storeId={store.id}
@@ -59,7 +60,6 @@ export function StoreDetailClient({ id }: { id: string }) {
           store={store}
         />
       </Suspense>
-      <StoreRecommendations excludeStoreId={store.id} />
     </div>
   );
 }

@@ -1,6 +1,9 @@
 import { serviceProvidersService } from '../../src/modules/service-providers/service-providers.service';
 import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
 import { serviceListingsRepository } from '../../src/modules/service-listings/service-listings.repository';
+import { serviceRequestsRepository } from '../../src/modules/service-requests/service-requests.repository';
+import { appointmentsRepository } from '../../src/modules/appointments/appointments.repository';
+import { serviceReviewsRepository } from '../../src/modules/service-reviews/service-reviews.repository';
 import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
 import { prisma } from '../../src/config/prisma';
 import { withServiceProviderCreationLock } from '../../src/shared/utils/serviceProviderLock';
@@ -11,6 +14,9 @@ import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 
 jest.mock('../../src/modules/service-providers/service-providers.repository');
 jest.mock('../../src/modules/service-listings/service-listings.repository');
+jest.mock('../../src/modules/service-requests/service-requests.repository');
+jest.mock('../../src/modules/appointments/appointments.repository');
+jest.mock('../../src/modules/service-reviews/service-reviews.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/shared/utils/serviceProviderLock');
 jest.mock('../../src/config/prisma', () => ({
@@ -166,6 +172,65 @@ describe('serviceProvidersService', () => {
       (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(mockProvider);
       const result = await serviceProvidersService.getMyServiceProvider(userId);
       expect(result).toEqual(mockProvider);
+    });
+  });
+
+  describe('getMyServiceProviderDashboard', () => {
+    it('returns analytics and the requested listings page after resolving ownership once', async () => {
+      (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(mockSellerProfile);
+      (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(mockProvider);
+      (serviceListingsRepository.getStatsByProviderId as jest.Mock).mockResolvedValue({ totalViews: 120, activeCount: 4 });
+      (serviceListingsRepository.findTopByProviderId as jest.Mock).mockResolvedValue([
+        { id: 'listing-1', title: 'صيانة', views: 50, images: ['image-1'] },
+      ]);
+      (serviceRequestsRepository.countPendingByProviderId as jest.Mock).mockResolvedValue(3);
+      (serviceRequestsRepository.countTerminalStatsByProviderId as jest.Mock).mockResolvedValue({ completed: 8, cancelledOrRejected: 2 });
+      (serviceRequestsRepository.sumRevenueByProviderId as jest.Mock).mockResolvedValue(450);
+      (appointmentsRepository.countUpcomingByProviderId as jest.Mock).mockResolvedValue(2);
+      (serviceReviewsRepository.getRatingSummary as jest.Mock).mockResolvedValue({ avg: 4.8, count: 12 });
+
+      const ownListing = { id: 'owned-listing-1', title: 'صيانة منزلية', status: 'ACTIVE' } as any;
+      (serviceListingsRepository.findManyByProviderId as jest.Mock).mockResolvedValue({
+        listings: [ownListing],
+        total: 11,
+      });
+
+      const result = await serviceProvidersService.getMyServiceProviderDashboard(userId, {
+        period: 'all', page: 2, limit: 10, status: 'ACTIVE', search: 'صيانة',
+      });
+
+      expect(result.listings.items).toEqual([ownListing]);
+      expect(result.listings.meta).toEqual(expect.objectContaining({
+        total: 11, page: 2, limit: 10, totalPages: 2,
+      }));
+      expect(serviceListingsRepository.findManyByProviderId).toHaveBeenCalledWith('provider-1', {
+        page: 2, limit: 10, status: 'ACTIVE', search: 'صيانة',
+      });
+      expect(result.analytics).toEqual(expect.objectContaining({
+        totalViews: 120,
+        activeListings: 4,
+        pendingRequests: 3,
+        completedRequests: 8,
+        fulfillmentRate: 80,
+        upcomingAppointments: 2,
+        averageRating: 4.8,
+        reviewCount: 12,
+        revenue: 450,
+        period: 'all',
+      }));
+      expect(result.analytics.topListings).toEqual([
+        { id: 'listing-1', title: 'صيانة', views: 50, image: 'image-1' },
+      ]);
+      expect(sellersRepository.findByUserId).toHaveBeenCalledTimes(1);
+      expect(serviceProvidersRepository.findBySellerProfileId).toHaveBeenCalledTimes(1);
+    });
+
+    it('preserves the existing not-found behavior for users without provider profiles', async () => {
+      (sellersRepository.findByUserId as jest.Mock).mockResolvedValue(mockSellerProfile);
+      (serviceProvidersRepository.findBySellerProfileId as jest.Mock).mockResolvedValue(null);
+
+      await expect(serviceProvidersService.getMyServiceProviderDashboard(userId, { period: 'all', page: 1, limit: 10 })).rejects.toThrow(NotFoundError);
+      expect(serviceListingsRepository.getStatsByProviderId).not.toHaveBeenCalled();
     });
   });
 

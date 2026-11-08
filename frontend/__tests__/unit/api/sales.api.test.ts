@@ -54,3 +54,14 @@ describe('salesApi.dashboard and receipt', () => {
     expect(apiClient.get).toHaveBeenCalledWith('/sales/sale%2F1/receipt', { signal });
   });
 });
+
+
+describe('salesApi.debtOverview', () => {
+  it('requests the list and financial summary in one API call', async () => {
+    const signal = new AbortController().signal;
+    vi.mocked(apiClient.get).mockResolvedValue({ data: { success: true, data: { summary: {}, debts: {}, failures: {} } } });
+    await salesApi.debtOverview({ page: 2, limit: 20 }, { signal });
+    expect(apiClient.get).toHaveBeenCalledTimes(1);
+    expect(apiClient.get).toHaveBeenCalledWith('/sales/debts/overview', { signal, params: { page: 2, limit: 20 } });
+  });
+});

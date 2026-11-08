@@ -61,6 +61,8 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
       operationFingerprintRef.current = null;
       clearActiveOfflineDraftId();
       void invalidateServiceListingCaches(queryClient);
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.workspaceDashboardRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.analytics() });
       toast.success('تم نشر الخدمة بنجاح');
       signalNavigationStart(ROUTES.myServices);
       router.push(ROUTES.myServices);
@@ -156,6 +158,8 @@ export function useUpdateServiceListing(listingId: string) {
       // ['service-listings'] prefix, not just detail+mine, so public
       // browse/search queries don't keep showing stale data.
       void invalidateServiceListingCaches(queryClient, listingId);
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.workspaceDashboardRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.analytics() });
       toast.success('تم حفظ التعديلات');
       signalNavigationStart(ROUTES.myServices);
       router.push(ROUTES.myServices);
@@ -229,6 +233,8 @@ export function useAddServiceListingImages(onUploadProgress?: (percent: number) 
       serviceListingsApi.addImages(id, files, onUploadProgress).then((r) => r.data.data),
     onSuccess: (_data, variables) => {
       void invalidateServiceListingCaches(queryClient, variables.id);
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.workspaceDashboardRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.analytics() });
     },
     onError: toastMutationError,
   });
@@ -246,6 +252,8 @@ export function useRemoveServiceListingImage() {
       serviceListingsApi.removeImage(id, imageUrl).then((r) => r.data.data),
     onSuccess: (_data, variables) => {
       void invalidateServiceListingCaches(queryClient, variables.id);
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.workspaceDashboardRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.analytics() });
     },
     onError: toastMutationError,
   });
@@ -263,6 +271,8 @@ export function useReorderServiceListingImages() {
       serviceListingsApi.reorderImages(id, images).then((r) => r.data.data),
     onSuccess: (_data, variables) => {
       void invalidateServiceListingCaches(queryClient, variables.id);
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.workspaceDashboardRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.analytics() });
     },
     onError: toastMutationError,
   });
@@ -275,6 +285,8 @@ export function useDeleteServiceListing() {
     mutationFn: (id: string) => serviceListingsApi.delete(id),
     onSuccess: (_data, listingId) => {
       void invalidateServiceListingCaches(queryClient, listingId);
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.workspaceDashboardRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.analytics() });
       toast.success('تم حذف الخدمة');
     },
     onError: toastMutationError,
@@ -368,8 +380,11 @@ export function useToggleServiceListingStatus() {
         .find((value): value is 'ACTIVE' | 'PAUSED' => value !== undefined);
       return { previousStatus };
     },
-    onSuccess: (_data, { status }) =>
-      toast.success(status === 'PAUSED' ? 'تم إيقاف الخدمة مؤقتاً' : 'تمت إعادة تفعيل الخدمة'),
+    onSuccess: (_data, { status }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.workspaceDashboardRoot() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.serviceProviders.analytics() });
+      toast.success(status === 'PAUSED' ? 'تم إيقاف الخدمة مؤقتاً' : 'تمت إعادة تفعيل الخدمة');
+    },
     onError: (err, variables, context) => {
       const anotherToggleForSameListingIsPending = queryClient.isMutating({
         predicate: (mutation) =>

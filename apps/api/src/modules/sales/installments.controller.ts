@@ -4,6 +4,14 @@ import { installmentIdSchema, payInstallmentSchema } from './installments.valida
 import { requireUser } from '../../shared/utils/requireUser';
 import { successResponse } from '../../shared/types/api-response.types';
 export const installmentsController = {
+  overview: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const u = requireUser(req);
+      res.json(successResponse('Installments overview fetched', await installmentsService.overview(u.userId)));
+    } catch (e) {
+      next(e);
+    }
+  },
   upcoming: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const u = requireUser(req);

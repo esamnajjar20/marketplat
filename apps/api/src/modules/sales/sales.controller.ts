@@ -297,6 +297,20 @@ export const salesController = {
       next(e);
     }
   },
+  debtOverview: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = requireUser(req);
+      const query = paginationQuerySchema.parse(req.query);
+      res.json(
+        successResponse(
+          'Sales debt overview fetched',
+          await salesService.debtOverview(user.userId, query.page ?? 1, query.limit ?? 20)
+        )
+      );
+    } catch (e) {
+      next(e);
+    }
+  },
   debts: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = requireUser(req);

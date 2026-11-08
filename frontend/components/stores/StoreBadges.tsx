@@ -3,11 +3,13 @@
 import { useStoreBadges } from '@/hooks/queries/useBadges';
 import { Badge } from '@/components/shared/ui/Badge';
 import { cn } from '@/lib/utils';
-import type { StoreBadgeType } from '@/types/badge.types';
+import type { StoreBadge, StoreBadgeType } from '@/types/badge.types';
 
 interface Props {
   storeId: string;
   className?: string;
+  /** Supplied by the aggregated store page request when available. */
+  badges?: StoreBadge[];
 }
 
 // BADGES: maps each computed badge type to a Badge variant so
@@ -31,8 +33,9 @@ const BADGE_VARIANT: Record<StoreBadgeType, 'default' | 'secondary'> = {
  * content — StoreHeader's layout shouldn't visibly shift while this
  * resolves.
  */
-export function StoreBadges({ storeId, className }: Props) {
-  const { data: badges } = useStoreBadges(storeId);
+export function StoreBadges({ storeId, className, badges: suppliedBadges }: Props) {
+  const { data: fetchedBadges } = useStoreBadges(storeId, { enabled: suppliedBadges === undefined });
+  const badges = suppliedBadges ?? fetchedBadges;
 
   if (!badges || badges.length === 0) return null;
 

@@ -8,12 +8,12 @@ import { CACHE_TTL } from '@/lib/constants';
 /** GET /badges/store/:storeId — public, no auth. Same TTL as
  * sellerProfile since badges derive from the same rating/verification
  * data that updates about as often. */
-export function useStoreBadges(storeId: string) {
+export function useStoreBadges(storeId: string, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: queryKeys.badges.forStore(storeId),
     queryFn: ({ signal }) => badgesApi.getStoreBadges(storeId, { signal }).then((r) => r.data.data ?? []),
     staleTime: CACHE_TTL.sellerProfile,
-    enabled: Boolean(storeId),
+    enabled: Boolean(storeId) && (options.enabled ?? true),
   });
 }
 

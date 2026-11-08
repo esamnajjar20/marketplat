@@ -30,22 +30,19 @@ import { renderWithProviders as render } from '@/test-support/render';
 import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { MyServiceListingsList } from '@/components/services/MyServiceListingsList';
-import { useMyServiceListings } from '@/hooks/queries/useServiceListings';
+import { useMyServiceProviderDashboard } from '@/hooks/queries/useServiceProviders';
 import { useDeleteServiceListing, useToggleServiceListingStatus } from '@/hooks/mutations/useServiceListingMutations';
 import type { ServiceListingStatus, ServicePricingType } from '@/types/service.types';
 
-vi.mock('@/hooks/queries/useServiceListings', () => ({
-  useMyServiceListings: vi.fn(),
+vi.mock('@/hooks/queries/useServiceProviders', () => ({
+  useMyServiceProvider: vi.fn(() => ({ data: { id: 'provider-1' }, isSuccess: true })),
+  useMyServiceProviderDashboard: vi.fn(),
 }));
 
 // The component also reads useMyServiceProvider() to decide whether to
 // show the list vs. a "become a provider" prompt — default to "has a
 // provider" so the existing list/status/pause-resume/delete coverage
 // below exercises the list itself, not the gate.
-vi.mock('@/hooks/queries/useServiceProviders', () => ({
-  useMyServiceProvider: vi.fn(() => ({ data: { id: 'provider-1' }, isSuccess: true })),
-}));
-
 vi.mock('@/hooks/mutations/useServiceListingMutations', () => ({
   useDeleteServiceListing: vi.fn(),
   useToggleServiceListingStatus: vi.fn(),
@@ -83,13 +80,18 @@ function makeListing(overrides: Partial<{
 const mockDeleteMutate = vi.fn();
 const mockToggleMutate = vi.fn();
 
-function mockListingsState(overrides: Partial<ReturnType<typeof useMyServiceListings>>) {
-  vi.mocked(useMyServiceListings).mockReturnValue({
-    data: undefined,
+function mockListingsState(overrides: Record<string, unknown>) {
+  const { data: listingPage, ...queryOverrides } = overrides;
+  vi.mocked(useMyServiceProviderDashboard).mockReturnValue({
+    data: {
+      analytics: null,
+      listings: (listingPage as { items?: unknown[]; meta?: unknown } | undefined)
+        ?? { items: [], meta: { totalPages: 1 } },
+    },
     isLoading: false,
     isError: false,
     refetch: vi.fn(),
-    ...overrides,
+    ...queryOverrides,
   } as never);
 }
 

@@ -23,7 +23,6 @@ import { useConversation, useMessages } from '@/hooks/queries/useConversations';
 import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
 import { useDeleteMessage } from '@/hooks/mutations/useConversationMutations';
-import { useUserPresence } from '@/hooks/queries/usePresence';
 import { usePendingMessages } from '@/hooks/queries/usePendingMessages';
 import { useAuthStore } from '@/store/auth.store';
 
@@ -49,11 +48,6 @@ vi.mock('@/hooks/mutations/useConversationMutations', () => ({
   useSendMessage: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
-vi.mock('@/hooks/queries/usePresence', () => ({
-  useUserPresence: vi.fn(() => ({ online: false, lastSeenAt: null })),
-  usePresence: vi.fn(() => ({})),
-  useIsUserOnline: vi.fn(),
-}));
 
 // FEAT-OFFLINE-MSG: mocked to an empty array like every other query hook
 // here — its own IndexedDB/SW-message logic is exercised by
@@ -90,7 +84,6 @@ const mockUseMessages = vi.mocked(useMessages);
 const mockUseIsUserBlocked = vi.mocked(useIsUserBlocked);
 const mockUseToggleUserBlock = vi.mocked(useToggleUserBlock);
 const mockUseDeleteMessage = vi.mocked(useDeleteMessage);
-const mockUseUserPresence = vi.mocked(useUserPresence);
 const mockUsePendingMessages = vi.mocked(usePendingMessages);
 const mockUseAuthStore = vi.mocked(useAuthStore);
 
@@ -107,6 +100,7 @@ const conversation = {
   // reads all three; the previous mock only had `title`, which this
   // test suite's own real ConversationAdSummary type never allows.
   ad: { id: 'ad-1', title: 'دراجة للبيع', images: [], status: 'ACTIVE' as const },
+  otherPartyPresence: { online: false, lastSeenAt: null },
 };
 
 const mockToggleBlockMutate = vi.fn();
@@ -120,7 +114,6 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockAuthState(me);
   mockUseIsUserBlocked.mockReturnValue(false);
-  mockUseUserPresence.mockReturnValue({ online: false, lastSeenAt: null } as never);
   mockUsePendingMessages.mockReturnValue([] as never);
   mockUseToggleUserBlock.mockReturnValue({ mutate: mockToggleBlockMutate, isPending: false } as never);
   mockUseDeleteMessage.mockReturnValue({ mutate: mockDeleteMessageMutate, isPending: false } as never);
@@ -277,21 +270,25 @@ describe('ChatWindow', () => {
 
   describe('online presence', () => {
     it('does not show the online indicator when the other party is offline', () => {
-      mockUseUserPresence.mockReturnValue({ online: false, lastSeenAt: null } as never);
+      mockUseConversation.mockReturnValue({
+        data: { ...conversation, otherPartyPresence: { online: false, lastSeenAt: null } },
+        isLoading: false,
+        isError: false,
+      } as never);
       render(<ChatWindow conversationId="conv-1" />);
       expect(screen.queryByLabelText('متصل الآن')).not.toBeInTheDocument();
     });
 
-    it('shows the online indicator when the other party is online', () => {
-      mockUseUserPresence.mockReturnValue({ online: true, lastSeenAt: null } as never);
+    it('shows the online indicator using presence bundled with the conversation response', () => {
+      mockUseConversation.mockReturnValue({
+        data: { ...conversation, otherPartyPresence: { online: true, lastSeenAt: null } },
+        isLoading: false,
+        isError: false,
+      } as never);
       render(<ChatWindow conversationId="conv-1" />);
       expect(screen.getAllByLabelText('متصل الآن').length).toBeGreaterThan(0);
     });
 
-    it('queries presence for the resolved other party id, not the caller', () => {
-      render(<ChatWindow conversationId="conv-1" />);
-      expect(mockUseUserPresence).toHaveBeenCalledWith(seller.id);
-    });
   });
 
   describe('delete message', () => {

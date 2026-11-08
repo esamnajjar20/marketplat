@@ -51,7 +51,7 @@ const checks = [
   ['Store snapshot bridge saves only active public stores under their route key', /saveVisitedPublicStore\(lookupKey, store\)/.test(storeSnapshot) && /store\.status === 'ACTIVE'/.test(storeSnapshot)],
   ['Store product grid receives store-type labels instead of querying store detail again', /storeType\?: StoreType \| null/.test(storeProducts) && /getStoreTypeLabels\(storeType\)/.test(storeProducts) && !/useStore\(/.test(storeProducts)],
   ['Both product and offers tabs pass the server-provided store type', (storeShell.match(/storeType=\{store\?\.storeType\}/g) ?? []).length === 2],
-  ['Store hook persists successful client-fetched store detail to the offline snapshot', /saveVisitedPublicStore\(id, store\)/.test(storeHook)],
+  ['Store hook persists successful client-fetched store detail to the offline snapshot', /saveVisitedPublicStore\(id, pageData\.store\)/.test(storeHook)],
   ['Store offline snapshot is still used as a transient network fallback', /getVisitedPublicStore\(id\)/.test(storeHook)],
   ['Store fallback continues to render its browser-fetched storefront path', /StoreStorefront/.test(storeFallback)],
   ['Service details keep their existing server-fetched listing props', /<ServiceListingDetail[\s\S]*?listing=\{listing\}/.test(servicePage) && !/useServiceListing\(/.test(servicePage)],
