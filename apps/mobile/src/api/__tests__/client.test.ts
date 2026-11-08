@@ -76,8 +76,11 @@ describe('apiRequest reliability contracts', () => {
     try {
       const { apiRequest } = await loadClient();
       const pending = apiRequest('/api/v1/categories', { timeoutMs: 25 });
+      // Register the rejection assertion before advancing fake timers so the
+      // timeout rejection is observed immediately, not reported as unhandled.
+      const rejection = expect(pending).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT' });
       await vi.advanceTimersByTimeAsync(25);
-      await expect(pending).rejects.toMatchObject({ code: 'REQUEST_TIMEOUT' });
+      await rejection;
       expect(fetchMock).toHaveBeenCalledOnce();
     } finally {
       vi.useRealTimers();
@@ -154,6 +157,24 @@ describe('apiRequest reliability contracts', () => {
     expect(retriedHeaders.get('X-Offline-Op-Id')).toBe('operation-123');
     expect(fetchMock.mock.calls[1][1]?.headers).toBeInstanceOf(Headers);
     expect(updater).toHaveBeenCalledWith('fresh-access-token', 'fresh-csrf-token', 900);
+  });
+
+  it('does not refresh or replay a forbidden request (403 is authorization, not expiry)', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(403, { message: 'Forbidden', code: 'NOT_YOUR_RESOURCE' }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { apiRequest, setRefreshHandler } = await loadClient();
+    const refresh = vi.fn().mockResolvedValue({ accessToken: 'new-token', csrfToken: 'new-csrf' });
+    setRefreshHandler(refresh);
+
+    await expect(apiRequest('/api/v1/products/other-user-product', {
+      method: 'PATCH',
+      token: 'valid-token',
+      body: JSON.stringify({ title: 'Unauthorized edit' }),
+    })).rejects.toMatchObject({ status: 403, code: 'NOT_YOUR_RESOURCE' });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(refresh).not.toHaveBeenCalled();
   });
 
   it('does not mislabel every server message containing password as a password-input error', async () => {

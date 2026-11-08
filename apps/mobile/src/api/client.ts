@@ -353,6 +353,16 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
     controller.abort();
   }, timeoutMs);
   try {
+    // Normalize headers through the Headers API. Object-spreading a Headers
+    // instance drops its entries because they are not enumerable; this matters
+    // for the refreshed CSRF header passed by the transparent 401 retry.
+    const requestHeaders = new Headers({
+      Accept: 'application/json',
+      ...(init.body && !(typeof FormData !== 'undefined' && init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    });
+    new Headers(headers).forEach((value, name) => requestHeaders.set(name, value));
+
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
       signal: controller.signal,
@@ -363,12 +373,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
       // cleared automatically on logout (Set-Cookie with max-age=0). Do not rely on
       // document.cookie or manual cookie storage; the platform handles it.
       credentials: options.credentials ?? 'include',
-      headers: {
-        Accept: 'application/json',
-        ...(init.body && !(typeof FormData !== 'undefined' && init.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headers,
-      },
+      headers: requestHeaders,
     });
     const contentType = response.headers.get('content-type') ?? '';
     const payload: unknown = contentType.toLowerCase().includes('application/json')

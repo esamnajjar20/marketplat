@@ -41,6 +41,20 @@ describe('requireAdmin middleware', () => {
     requireAdmin(req, res, next);
     expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
   });
+
+  it.each(['admin', 'administrator', 'OWNER', 'toString', '__proto__', ''])('rejects unknown or case-mismatched role %s', (role) => {
+    const req = { user: { userId: 'u1', sessionId: 's1', role } } as Request;
+    requireAdmin(req, res, next);
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
+  });
+
+  it.each(['admin', 'administrator', 'OWNER', 'toString', '__proto__', ''])('rejects unknown or case-mismatched role %s', (role) => {
+    const req = { user: { userId: 'u1', sessionId: 's1', role } } as Request;
+    requireAdmin(req, res, next);
+    expect(next).toHaveBeenCalledTimes(1);
+    expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
+  });
 });
 
 // Gap #20 (admin permission tiers)
@@ -88,6 +102,20 @@ describe('requireMinRole middleware', () => {
     it('rejects a missing/unrecognized role', () => {
       const req = {} as Request;
       gate(req, res, next);
+      expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
+    });
+
+    it.each(['USER', 'MODERATOR', 'admin', 'OWNER', 'constructor'])('rejects role %s at the ADMIN gate', (role) => {
+      const req = { user: { userId: 'u1', sessionId: 's1', role } } as Request;
+      gate(req, res, next);
+      expect(next).toHaveBeenCalledTimes(1);
+      expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
+    });
+
+    it.each(['USER', 'MODERATOR', 'admin', 'OWNER', 'constructor'])('rejects role %s at the ADMIN gate', (role) => {
+      const req = { user: { userId: 'u1', sessionId: 's1', role } } as Request;
+      gate(req, res, next);
+      expect(next).toHaveBeenCalledTimes(1);
       expect(next).toHaveBeenCalledWith(expect.any(ForbiddenError));
     });
   });

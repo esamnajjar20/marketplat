@@ -212,4 +212,47 @@ describe('favorites-sync-lifecycle', () => {
       expect(r.reason).toBe('network down');
     }
   });
+
+  it('does not reconcile server favorites after a queued mutation is rejected', async () => {
+    const op = pending('ad-1', true);
+    store.findFavoriteState.mockResolvedValue(op);
+    store.listPendingFavoriteStates.mockResolvedValueOnce([op]);
+    api.setFavoriteAdState.mockRejectedValueOnce(new Error('forbidden'));
+
+    const r = await syncFavoritesIfReady(SNAP);
+    expect(r.status).toBe('deferred');
+    expect(api.fetchFavoriteAdIds).not.toHaveBeenCalled();
+    expect(store.acknowledgeFavoriteState).not.toHaveBeenCalled();
+    expect(store.writeFavoriteAdIds).not.toHaveBeenCalled();
+  });
+
+  it('defers a different account while another account sync is in flight', async () => {
+    let releaseFetch!: (ids: string[]) => void;
+    api.fetchFavoriteAdIds.mockImplementationOnce(() => new Promise<string[]>((resolve) => { releaseFetch = resolve; }));
+    store.listPendingFavoriteStates.mockResolvedValue([]);
+    store.writeFavoriteAdIds.mockResolvedValue(undefined);
+
+    const first = syncFavoritesIfReady(SNAP);
+    await vi.waitFor(() => expect(api.fetchFavoriteAdIds).toHaveBeenCalledTimes(1));
+    const second = await syncFavoritesIfReady({ ...SNAP, userId: 'user-2', token: 'token-2' });
+    expect(second.status).toBe('deferred');
+    if (second.status === 'deferred') expect(second.retryAfterActiveSync).toBe(true);
+    releaseFetch([]);
+    await first;
+  });
+
+  it('does not count an operation as acknowledged when its row disappeared', async () => {
+    const op = pending('ad-1', true);
+    store.findFavoriteState.mockResolvedValue(op);
+    store.listPendingFavoriteStates.mockResolvedValueOnce([op]).mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+    api.setFavoriteAdState.mockResolvedValue(undefined);
+    store.acknowledgeFavoriteState.mockResolvedValue(false);
+    api.fetchFavoriteAdIds.mockResolvedValue([]);
+    store.writeFavoriteAdIds.mockResolvedValue(undefined);
+
+    const r = await syncFavoritesIfReady(SNAP);
+    expect(r.status).toBe('synced');
+    if (r.status === 'synced') expect(r.pendingAcknowledged).toBe(0);
+  });
+
 });

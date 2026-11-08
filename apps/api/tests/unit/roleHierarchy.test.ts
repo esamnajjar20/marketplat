@@ -74,4 +74,28 @@ describe('canManageRole', () => {
       expect(canManageRole(R('SUPER_ADMIN'), R('SUPER_ADMIN'), R('SUPER_ADMIN'))).toBe(false);
     });
   });
+
+  describe('runtime-invalid role claims', () => {
+    it.each(['admin', 'OWNER', 'toString', '__proto__'])('fails closed for invalid actor role %s', (role) => {
+      expect(canManageRole(R(role), R('USER'), R('USER'))).toBe(false);
+    });
+
+    it.each(['admin', 'OWNER', 'toString', '__proto__'])('fails closed for invalid target role %s', (role) => {
+      expect(canManageRole(R('SUPER_ADMIN'), R(role), R('USER'))).toBe(false);
+      expect(canManageRole(R('SUPER_ADMIN'), R('USER'), R(role))).toBe(false);
+    });
+  });
+
+
+  describe('runtime-invalid role claims', () => {
+    it.each(['admin', 'OWNER', 'toString', '__proto__'])('fails closed for invalid actor role %s', (role) => {
+      expect(canManageRole(R(role), R('USER'), R('USER'))).toBe(false);
+    });
+
+    it.each(['admin', 'OWNER', 'toString', '__proto__'])('fails closed for invalid target role %s', (role) => {
+      expect(canManageRole(R('SUPER_ADMIN'), R(role), R('USER'))).toBe(false);
+      expect(canManageRole(R('SUPER_ADMIN'), R('USER'), R(role))).toBe(false);
+    });
+  });
+
 });
