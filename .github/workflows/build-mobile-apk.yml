@@ -92,10 +92,15 @@ jobs:
             'platform-tools' \
             'platforms;android-37.0' \
             'build-tools;37.0.0' \
-            'ndk;27.1.12297006'
           test -s "$ANDROID_HOME/platforms/android-37/android.jar"
           test -x "$ANDROID_HOME/build-tools/37.0.0/apksigner"
-          test -d "$ANDROID_HOME/ndk/27.1.12297006"
+
+      - name: Setup Android NDK (stable)
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27b
+          add-to-path: true
+          link-to-sdk: true
 
       - name: Install workspace dependencies
         # The checked-in lockfile is missing @vitest/coverage-v8 and has an old
@@ -265,10 +270,15 @@ jobs:
             'platform-tools' \
             'platforms;android-37.0' \
             'build-tools;37.0.0' \
-            'ndk;27.1.12297006'
           test -s "$ANDROID_HOME/platforms/android-37/android.jar"
           test -x "$ANDROID_HOME/build-tools/37.0.0/apksigner"
-          test -d "$ANDROID_HOME/ndk/27.1.12297006"
+
+      - name: Setup Android NDK (stable)
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27b
+          add-to-path: true
+          link-to-sdk: true
 
       - name: Install workspace dependencies
         # The checked-in lockfile is missing @vitest/coverage-v8 and has an old
