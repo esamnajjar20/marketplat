@@ -1,6 +1,7 @@
 'use client';
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
 import { safeBack } from '@/lib/navigation';
@@ -243,7 +244,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
               disabled={toggleFollow.isPending}
               onClick={() => toggleFollow.mutate(store.id, {
                 onSuccess: (data) => {
-                  if (resolvedFollowing !== undefined) setPageFollowState(data.action === 'followed');
+                  if (resolvedFollowing !== undefined) setPageFollowState(data?.action === 'followed');
                 },
               })}
               className="h-[46px] flex-[1.4] gap-2 rounded-[14px] text-[15px] font-bold"

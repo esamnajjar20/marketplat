@@ -10,7 +10,6 @@ import { useSearchParams } from 'next/navigation';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
   ExternalLink,
-  Plus,
   Inbox,
   CalendarClock,
   AlertTriangle,

@@ -8,6 +8,7 @@ type NextLinkProps = ComponentProps<typeof NextLink>;
 type LinkHref = NextLinkProps['href'];
 
 interface IntentPrefetchLinkProps extends NextLinkProps {
+  clientQueryNavigation?: boolean;
   /** Opt in only where a partial route prefetch is known to be useful. */
   prefetchOnIntent?: boolean;
 }

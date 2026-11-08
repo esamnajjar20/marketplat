@@ -155,7 +155,7 @@ export function RequestFilters({
             }}
           >
             <option value="">كل المجالات</option>
-            {shouldLoadServiceTypes && isLoadingServiceTypes && !serviceTypes?.length ? (
+            {shouldLoadServiceTypes && isLoadingServiceTypes && !(serviceTypes as any)?.length ? (
               <option value="__loading__" disabled>جارٍ تحميل المجالات…</option>
             ) : null}
             {(serviceTypes ?? [])

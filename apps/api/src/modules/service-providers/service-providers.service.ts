@@ -41,6 +41,7 @@ import {
 } from '../../shared/utils/publicListCache';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 import { validateServiceProviderAttributes } from '../service-types/service-types.service';
+import { PaginatedResult } from '../../shared/types/pagination.types';
 
 // ANALYTICS: mirrors stores.service.ts's StoreAnalytics shape (same
 // "views / pipeline counts / top items" structure) adapted to what a

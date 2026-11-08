@@ -62,7 +62,7 @@ export function useIsUserBlocked(
   const query = useQuery({
     queryKey,
     queryFn: ({ signal }) =>
-      blockedUsersApi.getStatus(userId, { signal }).then((result) => result.isBlockedByMe),
+      blockedUsersApi.getStatus(userId, { signal }).then((result) => result?.isBlockedByMe ?? false),
     staleTime: CACHE_TTL.favorites,
     enabled: isAuthenticated && Boolean(userId) && currentUserId !== userId &&
       (hasToken || !isOnline) && (options.enabled ?? true),

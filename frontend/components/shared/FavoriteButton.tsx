@@ -104,7 +104,7 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
     if (initialIsFavorited !== undefined) setPageFavoriteState(!isFavorited);
     toggleFavorite.mutate(entityId, {
       onSuccess: (data) => {
-        if (initialIsFavorited !== undefined) setPageFavoriteState(data.action === 'added');
+        if (initialIsFavorited !== undefined) setPageFavoriteState(data?.action === 'added');
       },
     });
   }

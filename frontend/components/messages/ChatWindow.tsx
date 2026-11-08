@@ -543,8 +543,8 @@ export function ChatWindow({ conversationId }: Props) {
                 condition it used to share an else-if with. */}
             {isPartyOnline ? (
               <p className="text-xs text-online line-clamp-1">متصل الآن</p>
-            ) : partyPresence.lastSeenAt ? (
-              <p className="text-xs text-muted-foreground line-clamp-1">آخر ظهور {<HydrationSafeRelativeTime date={partyPresence.lastSeenAt} />}</p>
+            ) : conversation?.otherPartyPresence?.lastSeenAt ? (
+              <p className="text-xs text-muted-foreground line-clamp-1">آخر ظهور {<HydrationSafeRelativeTime date={conversation?.otherPartyPresence?.lastSeenAt} />}</p>
             ) : null}
           </div>
         </IntentPrefetchLink>

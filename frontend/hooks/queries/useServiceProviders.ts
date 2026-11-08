@@ -151,6 +151,7 @@ export function useMyServiceProviderDashboard(
           { ...normalizedParams, period },
           { signal },
         ).then((r) => r.data.data);
+        if (!data) throw new Error('Dashboard data is empty');
         queryClient.setQueryData(analyticsKey, data.analytics);
         return data;
       } catch (err) {

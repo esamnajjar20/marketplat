@@ -347,7 +347,7 @@ export function MyServiceListingsList() {
         />
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {items.map((listing) => {
+          {items.map((listing: any) => {
             const thumb = listing.images[0]
               ? getThumbnailUrl(listing.images[0], 120, 90)
               : PLACEHOLDER_SVG;
@@ -383,7 +383,7 @@ export function MyServiceListingsList() {
                       }
                       className="shrink-0 text-xs"
                     >
-                      {STATUS_LABELS[listing.status]}
+                      {STATUS_LABELS[listing.status as keyof typeof STATUS_LABELS]}
                     </Badge>
                   </div>
                   <p className="text-primary font-bold text-sm">
