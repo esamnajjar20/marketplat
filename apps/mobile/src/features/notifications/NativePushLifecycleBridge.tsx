@@ -39,10 +39,11 @@ function safeNotificationPath(value: unknown): string {
 
 export function NativePushLifecycleBridge() {
   const { user, accessToken, csrfToken } = useAuth();
+  const userId = user?.id;
   const lastResponseId = useRef<string | null>(null);
   const syncInFlight = useRef(false);
   const synchronize = useCallback(() => {
-    if (Platform.OS !== 'android' || !user || !accessToken || syncInFlight.current) return;
+    if (Platform.OS !== 'android' || !userId || !accessToken || syncInFlight.current) return;
     syncInFlight.current = true;
     void syncGrantedAndroidPush(accessToken, csrfToken)
       .catch((error) => {
@@ -53,11 +54,11 @@ export function NativePushLifecycleBridge() {
         });
       })
       .finally(() => { syncInFlight.current = false; });
-  }, [user?.id, accessToken, csrfToken]);
+  }, [userId, accessToken, csrfToken]);
   useOnlineResync(synchronize);
 
   useEffect(() => {
-    if (Platform.OS !== 'android' || !user || !accessToken) return;
+    if (Platform.OS !== 'android' || !userId || !accessToken) return;
     let active = true;
 
     // Retry a previously opted-in device when connectivity returns or the app
@@ -103,7 +104,7 @@ export function NativePushLifecycleBridge() {
       tokenSubscription.remove();
       responseSubscription.remove();
     };
-  }, [user?.id, accessToken, csrfToken, synchronize]);
+  }, [userId, accessToken, csrfToken, synchronize]);
 
   return null;
 }

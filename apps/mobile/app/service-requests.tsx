@@ -105,8 +105,11 @@ export default function ServiceRequestsScreen() {
     }
   }, [accessToken, incoming, isRestoring, items.length, loading, page, totalPages, user]);
 
+  // Keep the latest loader without making pagination/loading state reset the effect.
+  const loadRef = useRef(load);
+  loadRef.current = load;
+
   // Reload only when the signed-in account or the selected request view changes.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isRestoring) return undefined;
     const nextAccountId = user?.id ?? null;
@@ -127,7 +130,7 @@ export default function ServiceRequestsScreen() {
       setError(null);
       setLoadMoreError(null);
     }
-    void load(true, accountChanged);
+    void loadRef.current(true, accountChanged);
     return () => {
       requestSequence.current += 1;
       activeRequestRef.current?.abort();

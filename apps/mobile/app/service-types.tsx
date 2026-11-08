@@ -20,6 +20,7 @@ function optionsOf(field: ProviderServiceTypeField): Array<{ value: string; labe
 
 export default function ServiceTypesScreen() {
   const { accessToken, getAccessToken, csrfToken, user } = useAuth();
+  const userId = user?.id;
   const [items, setItems] = useState<ProviderServiceTypeProfile[]>([]);
   const [attributes, setAttributes] = useState<AttributesByType>({});
   const [active, setActive] = useState<Record<string, boolean>>({});
@@ -31,7 +32,7 @@ export default function ServiceTypesScreen() {
 
   const load = useCallback(async () => {
     const token = getAccessToken();
-    if (!token) { setLoading(false); return; }
+    if (!userId || !token) { setLoading(false); return; }
     setLoading(true);
     setError('');
     try {
@@ -44,7 +45,7 @@ export default function ServiceTypesScreen() {
     } finally {
       setLoading(false);
     }
-  }, [getAccessToken, user?.id]);
+  }, [getAccessToken, userId]);
 
   useEffect(() => { void load(); }, [load]);
 

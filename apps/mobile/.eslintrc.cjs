@@ -6,10 +6,22 @@ module.exports = {
     sourceType: 'module',
     ecmaFeatures: { jsx: true },
   },
-  plugins: ['@typescript-eslint'],
-  env: { es2021: true, browser: true, node: true },
-  ignorePatterns: ['android/**', '.expo/**', 'assets/**', 'scripts/**', '**/*.d.ts'],
+  plugins: ['@typescript-eslint', 'react-hooks'],
+  env: {
+    es2021: true,
+    browser: true,
+    node: true,
+  },
+  ignorePatterns: [
+    'android/**',
+    '.expo/**',
+    'assets/**',
+    'scripts/**',
+    '**/*.d.ts',
+  ],
   rules: {
+    'react-hooks/rules-of-hooks': 'error',
+    'react-hooks/exhaustive-deps': 'error',
     '@typescript-eslint/no-explicit-any': 'error',
     'no-restricted-syntax': [
       'error',

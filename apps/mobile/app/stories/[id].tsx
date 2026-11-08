@@ -1,6 +1,6 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppImage } from '@/components/AppImage';
@@ -18,6 +18,8 @@ export default function StoryViewerScreen() {
   const [stories, setStories] = useState<Story[]>([]); const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const [paused, setPaused] = useState(false); const [progress, setProgress] = useState(0); const [imageFailed, setImageFailed] = useState(false);
+  const progressRef = useRef(progress);
+  progressRef.current = progress;
   const story = stories[index];
   const load = useCallback(async () => {
     if (!id) { setError('رابط القصة غير مكتمل.'); setLoading(false); return; }
@@ -41,8 +43,8 @@ export default function StoryViewerScreen() {
   }, [story?.id, story?.isOwner, story?.viewed, getAccessToken, csrfToken]);
   useEffect(() => { setProgress(0); setImageFailed(false); }, [story?.id]);
   useEffect(() => {
-    if (!story || paused || loading) return;
-    const startedAt = Date.now() - (progress / 100) * STORY_DURATION_MS;
+    if (!story?.id || paused || loading) return;
+    const startedAt = Date.now() - (progressRef.current / 100) * STORY_DURATION_MS;
     const timer = setInterval(() => {
       const elapsed = Math.max(0, Date.now() - startedAt);
       setProgress(Math.min(100, (elapsed / STORY_DURATION_MS) * 100));
@@ -50,7 +52,7 @@ export default function StoryViewerScreen() {
     return () => clearInterval(timer);
   }, [story?.id, paused, loading]);
   useEffect(() => {
-    if (!story || progress < 100) return;
+    if (!story?.id || progress < 100) return;
     if (index + 1 < stories.length) {
       setIndex(index + 1);
       setProgress(0);

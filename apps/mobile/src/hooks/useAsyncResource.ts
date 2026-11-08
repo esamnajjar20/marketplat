@@ -48,8 +48,12 @@ export function useAsyncResource<T>(
   const [error, setError] = useState<string | null>(null);
   const seq = useRef(0);
   const fetcherRef = useRef(fetcher);
+  const mapErrorRef = useRef(mapError);
+  const tagRef = useRef(tag);
   const controllerRef = useRef<AbortController | null>(null);
   fetcherRef.current = fetcher;
+  mapErrorRef.current = mapError;
+  tagRef.current = tag;
 
   const reload = useCallback(
     async (opts?: { soft?: boolean }) => {
@@ -67,9 +71,9 @@ export function useAsyncResource<T>(
         setData(result);
       } catch (e) {
         if (requestId !== seq.current || controller.signal.aborted || isAbortError(e)) return;
-        const message = mapError(e);
+        const message = mapErrorRef.current(e);
         setError(message);
-        logger.warn(tag, 'load failed', { message });
+        logger.warn(tagRef.current, 'load failed', { message });
       } finally {
         if (requestId === seq.current) {
           setLoading(false);
@@ -78,7 +82,7 @@ export function useAsyncResource<T>(
         }
       }
     },
-    [mapError, tag],
+    [],
   );
 
   useEffect(() => {
@@ -90,7 +94,7 @@ export function useAsyncResource<T>(
       controllerRef.current = null;
     };
     // key يُعيد التشغيل عند تغيّر الاعتماديات الخارجية
-  }, [key, manual]);
+  }, [key, manual, reload]);
 
   return { data, loading, refreshing, error, reload, setData };
 }

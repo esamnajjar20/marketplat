@@ -17,6 +17,7 @@ const money = (n: unknown, c = 'ILS') => formatMoney(n, c);
 
 export default function DebtsScreen() {
   const { accessToken, user, isRestoring } = useAuth();
+  const userId = user?.id;
   const [summary, setSummary] = useState<DebtSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState('');
@@ -39,15 +40,15 @@ export default function DebtsScreen() {
   });
 
   const loadSummary = useCallback(async () => {
-    if (!accessToken || !user || isRestoring) return;
+    if (!accessToken || !userId || isRestoring) return;
     summaryControllerRef.current?.abort();
     const controller = new AbortController();
     summaryControllerRef.current = controller;
     setSummaryLoading(true);
     setSummaryError('');
     try {
-      const next = await fetchDebtSummary(accessToken, controller.signal, user.id);
-      if (!controller.signal.aborted) { setSummary(next); setSummaryOwnerId(user.id); }
+      const next = await fetchDebtSummary(accessToken, controller.signal, userId);
+      if (!controller.signal.aborted) { setSummary(next); setSummaryOwnerId(userId); }
     } catch (error) {
       if (!controller.signal.aborted) setSummaryError(error instanceof Error ? error.message : 'تعذر تحميل ملخص الديون.');
     } finally {
@@ -56,7 +57,7 @@ export default function DebtsScreen() {
         if (summaryControllerRef.current === controller) summaryControllerRef.current = null;
       }
     }
-  }, [accessToken, isRestoring, user?.id]);
+  }, [accessToken, isRestoring, userId]);
 
   useEffect(() => {
     void loadSummary();

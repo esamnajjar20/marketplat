@@ -20,6 +20,7 @@ import { formatMoney } from '@/lib/formatters';
 
 export default function CustomersScreen() {
   const { getAccessToken, csrfToken, user, isRestoring } = useAuth();
+  const userId = user?.id;
   const [summary, setSummary] = useState<CustomerSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError] = useState('');
@@ -49,8 +50,10 @@ export default function CustomersScreen() {
     getItemKey: (customer) => customer.id,
   });
 
+  const refreshList = list.refresh;
+
   const loadSummary = useCallback(async () => {
-    if (!user || isRestoring) return;
+    if (!userId || isRestoring) return;
     const token = getAccessToken();
     if (!token) return;
     summaryControllerRef.current?.abort();
@@ -59,8 +62,8 @@ export default function CustomersScreen() {
     setSummaryLoading(true);
     setSummaryError('');
     try {
-      const next = await fetchCustomerSummary(token, controller.signal, user.id);
-      if (!controller.signal.aborted) { setSummary(next); setSummaryOwnerId(user.id); }
+      const next = await fetchCustomerSummary(token, controller.signal, userId);
+      if (!controller.signal.aborted) { setSummary(next); setSummaryOwnerId(userId); }
     } catch (cause) {
       if (!controller.signal.aborted) setSummaryError(cause instanceof Error ? cause.message : 'تعذر تحميل ملخص العملاء.');
     } finally {
@@ -69,7 +72,7 @@ export default function CustomersScreen() {
         if (summaryControllerRef.current === controller) summaryControllerRef.current = null;
       }
     }
-  }, [getAccessToken, isRestoring, user?.id]);
+  }, [getAccessToken, isRestoring, userId]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQ(q.trim()), 350);
@@ -85,8 +88,8 @@ export default function CustomersScreen() {
   }, [loadSummary]);
 
   const refreshAll = useCallback(async () => {
-    await Promise.all([list.refresh(), loadSummary()]);
-  }, [list.refresh, loadSummary]);
+    await Promise.all([refreshList(), loadSummary()]);
+  }, [refreshList, loadSummary]);
 
   const save = async () => {
     const token = getAccessToken();

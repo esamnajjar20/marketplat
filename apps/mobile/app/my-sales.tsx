@@ -24,6 +24,7 @@ const dateLabel = (value: string) => formatDate(value, 'date');
 
 export default function MySalesScreen() {
   const { accessToken, isRestoring, user } = useAuth();
+  const userId = user?.id;
   const [period, setPeriod] = useState<SalesPeriod>('month');
   const [status, setStatus] = useState<SalePaymentStatus | 'ALL'>('ALL');
   const [summary, setSummary] = useState<SalesSummary | null>(null);
@@ -47,15 +48,15 @@ export default function MySalesScreen() {
   });
 
   const loadSummary = useCallback(async (refresh = false) => {
-    if (!accessToken || !user || isRestoring) return;
+    if (!accessToken || !userId || isRestoring) return;
     summaryControllerRef.current?.abort();
     const controller = new AbortController();
     summaryControllerRef.current = controller;
     if (refresh) setRefreshingSummary(true); else setSummaryLoading(true);
     setSummaryError('');
     try {
-      const next = await fetchSalesSummary(period, accessToken, user.id, controller.signal);
-      if (!controller.signal.aborted) { setSummary(next); setSummaryOwnerId(user.id); }
+      const next = await fetchSalesSummary(period, accessToken, userId, controller.signal);
+      if (!controller.signal.aborted) { setSummary(next); setSummaryOwnerId(userId); }
     } catch (error) {
       if (!controller.signal.aborted) setSummaryError(error instanceof Error ? error.message : 'تعذر تحميل ملخص المبيعات.');
     } finally {
@@ -65,7 +66,7 @@ export default function MySalesScreen() {
         if (summaryControllerRef.current === controller) summaryControllerRef.current = null;
       }
     }
-  }, [accessToken, isRestoring, period, user?.id]);
+  }, [accessToken, isRestoring, period, userId]);
 
   useEffect(() => {
     void loadSummary();
@@ -75,9 +76,10 @@ export default function MySalesScreen() {
     };
   }, [loadSummary]);
 
+  const refreshList = list.refresh;
   const refreshAll = useCallback(async () => {
-    await Promise.all([list.refresh(), loadSummary(true)]);
-  }, [list.refresh, loadSummary]);
+    await Promise.all([refreshList(), loadSummary(true)]);
+  }, [refreshList, loadSummary]);
 
   if (!user) return <SafeAreaView style={s.safe} edges={['top']}><View style={s.state}><Text style={s.title}>مبيعاتي</Text><Text style={s.muted}>سجّل الدخول لعرض سجل مبيعاتك.</Text><Pressable onPress={() => router.push('/login')} style={s.primary}><Text style={s.primaryText}>تسجيل الدخول</Text></Pressable></View></SafeAreaView>;
 

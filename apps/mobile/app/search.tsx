@@ -143,6 +143,8 @@ export default function SearchScreen() {
       .catch(() => setCategories([]));
   }, []);
 
+  const refreshSearchList = searchList.refresh;
+
   const runSearch = useCallback(() => {
     const filters: SearchFilters = { query, type, sort, city, categoryId, minPrice, maxPrice, condition };
     const hasCriterion = Boolean(
@@ -167,11 +169,11 @@ export default function SearchScreen() {
     setValidationError('');
     setHasSearched(true);
     if (JSON.stringify(filters) === JSON.stringify(submittedFilters)) {
-      void searchList.refresh();
+      void refreshSearchList();
     } else {
       setSubmittedFilters(filters);
     }
-  }, [query, type, sort, city, categoryId, minPrice, maxPrice, condition, submittedFilters, searchList.refresh]);
+  }, [query, type, sort, city, categoryId, minPrice, maxPrice, condition, submittedFilters, refreshSearchList]);
 
   useEffect(() => {
     if (

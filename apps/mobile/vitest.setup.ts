@@ -10,9 +10,15 @@ vi.mock('react-native', () => ({
   Share: { share: vi.fn(async () => ({ action: 'sharedAction' })) },
 }));
 
-// 2. Polyfill globalThis.expo (required by expo-modules-core)
-if (!(globalThis as any).expo) {
-  (globalThis as any).expo = {
+// 2. Polyfill globalThis.expo (required by expo-modules-core).
+// Keep the test-only global typed without weakening TypeScript strictness.
+type ExpoTestGlobal = typeof globalThis & {
+  expo?: Record<string, unknown>;
+};
+const expoTestGlobal = globalThis as ExpoTestGlobal;
+
+if (!expoTestGlobal.expo) {
+  expoTestGlobal.expo = {
     EventEmitter: class {
       addListener() { return { remove: () => {} }; }
       removeAllListeners() {}
