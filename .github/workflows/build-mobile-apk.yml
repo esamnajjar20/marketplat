@@ -1,7 +1,13 @@
-name: Build Expo Mobile APK
+name: Build MarketPlat Android APKs
 
 on:
   workflow_dispatch:
+    inputs:
+      confirm_release:
+        description: 'Also build the production-signed Release APK (main branch only).'
+        required: true
+        type: boolean
+        default: false
   pull_request:
     paths:
       - 'apps/mobile/**'
@@ -20,18 +26,19 @@ permissions:
   contents: read
 
 concurrency:
-  group: build-mobile-apk-${{ github.ref }}
+  group: build-mobile-apks-${{ github.ref }}
   cancel-in-progress: false
 
+# Debug builds run automatically. A production-signed Release APK is a separate,
+# explicitly confirmed job protected by the GitHub "production" environment.
 jobs:
-  build:
-    name: Type-check, test and build Android APK
+  debug:
+    name: Validate and build Debug APK
     runs-on: ubuntu-latest
     timeout-minutes: 60
-
     env:
-      CI: "1"
-      EXPO_NO_TELEMETRY: "1"
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
       EXPO_PUBLIC_API_URL: https://marketplat-api.esamnajjar6.workers.dev
       EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
       SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
@@ -42,75 +49,94 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Validate production release branch selection
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.confirm_release == true }}
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" != 'refs/heads/main' ]]; then
+            echo 'Select the main branch to build a production-signed Release APK.'
+            exit 1
+          fi
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4
         with:
           version: 10.18.0
           run_install: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: "22"
+          node-version: '22'
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
-      - name: Setup Java 21
-        uses: actions/setup-java@v4
+      - name: Setup Java 17
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
-          java-version: "21"
+          java-version: '17'
           cache: gradle
           cache-dependency-path: apps/mobile/android/gradle/wrapper/gradle-wrapper.properties
 
       - name: Install Android SDK packages
-        env:
-          ANDROID_HOME: /usr/local/lib/android/sdk
-          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        shell: bash
         run: |
-          SDKMANAGER="$ANDROID_HOME/cmdline-tools/16.0/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER" ]; then
-            SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -n 1)"
-          fi
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)"
           test -n "$SDKMANAGER" && test -x "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" --install \
-            "platform-tools" \
-            "platforms;android-37.0" \
-            "build-tools;36.0.0" \
-            "ndk;27.1.12297006"
-      - name: Install workspace dependencies
-        run: pnpm install --frozen-lockfile
+            'platform-tools' \
+            'platforms;android-37' \
+            'build-tools;37.0.0' \
+            'ndk;27.1.12297006'
+          test -s "$ANDROID_HOME/platforms/android-37/android.jar"
+          test -x "$ANDROID_HOME/build-tools/37.0.0/apksigner"
+          test -d "$ANDROID_HOME/ndk/27.1.12297006"
 
-      - name: Configure Firebase Android services (optional for PR builds)
+      - name: Install workspace dependencies
+        # The checked-in lockfile is missing @vitest/coverage-v8 and has an old
+        # expo-build-properties importer; resolve these declared dependencies.
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Verify Expo SDK dependency compatibility
+        run: pnpm --filter @marketplat/mobile exec expo install --check
+
+      - name: Configure Firebase Android services (optional for Debug)
         env:
           FIREBASE_ANDROID_JSON_BASE64: ${{ secrets.MARKETPLAT_FIREBASE_ANDROID_JSON_BASE64 }}
           EXPECTED_FIREBASE_PROJECT_ID: ${{ secrets.MARKETPLAT_FIREBASE_PROJECT_ID }}
+        shell: bash
         run: |
           set -euo pipefail
-          if [ -z "$FIREBASE_ANDROID_JSON_BASE64" ]; then
-            echo 'Firebase Android file secret is not configured; this build will not register native FCM.'
+          if [[ -z "$FIREBASE_ANDROID_JSON_BASE64" ]]; then
+            echo 'Firebase Android secret is not configured; native FCM will not be registered in this build.'
             exit 0
           fi
-          test -n "$EXPECTED_FIREBASE_PROJECT_ID" || { echo 'Set MARKETPLAT_FIREBASE_PROJECT_ID whenever the Firebase JSON secret is configured.'; exit 1; }
+          test -n "$EXPECTED_FIREBASE_PROJECT_ID" || {
+            echo 'Set MARKETPLAT_FIREBASE_PROJECT_ID when the Firebase JSON secret is configured.'
+            exit 1
+          }
           printf '%s' "$FIREBASE_ANDROID_JSON_BASE64" | base64 --decode > apps/mobile/google-services.json
           node - <<'NODE'
           const fs = require('node:fs');
           const config = JSON.parse(fs.readFileSync('apps/mobile/google-services.json', 'utf8'));
-          const packageNames = (config.client || []).map((client) => client.client_info?.android_client_info?.package_name).filter(Boolean);
-          if (config.project_info?.project_id == null || !packageNames.includes('com.marketplat.mobile')) {
-            throw new Error('Firebase config must contain the MarketPlat Android package com.marketplat.mobile.');
+          const packageNames = (config.client || [])
+            .map((client) => client.client_info?.android_client_info?.package_name)
+            .filter(Boolean);
+          if (config.project_info?.project_id !== process.env.EXPECTED_FIREBASE_PROJECT_ID) {
+            throw new Error('Firebase project_id does not match MARKETPLAT_FIREBASE_PROJECT_ID.');
           }
-          const expected = process.env.EXPECTED_FIREBASE_PROJECT_ID;
-          if (expected && config.project_info.project_id !== expected) {
-            throw new Error('Firebase Android config project_id does not match MARKETPLAT_FIREBASE_PROJECT_ID.');
+          if (!packageNames.includes('com.marketplat.mobile')) {
+            throw new Error('Firebase config must contain Android package com.marketplat.mobile.');
           }
           NODE
           chmod 600 apps/mobile/google-services.json
 
-      - name: Apply Expo native config plugins (including SQLCipher and notifications)
+      - name: Generate Android project from Expo config
         run: pnpm --filter @marketplat/mobile exec expo prebuild --platform android --no-install
 
       - name: Check mobile TypeScript
@@ -119,10 +145,10 @@ jobs:
       - name: Run mobile lint
         run: pnpm --filter @marketplat/mobile run lint
 
-      - name: Run maintained mobile static contract tests
+      - name: Run mobile tests
         run: pnpm --filter @marketplat/mobile run test
 
-      - name: Run durable-storage/outbox tests
+      - name: Run durable-storage and outbox tests
         run: pnpm --filter @marketplat/mobile run test:storage
 
       - name: Run SQLite migration and API response tests
@@ -134,17 +160,26 @@ jobs:
 
       - name: Build Debug APK
         working-directory: apps/mobile/android
+        shell: bash
         run: |
+          set -euo pipefail
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace
 
-      - name: Locate and validate APK
-        id: apk
+      - name: Locate and validate universal Debug APK
+        id: debug_apk
+        shell: bash
         run: |
-          APK="apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk"
-          if [ ! -s "$APK" ]; then
-            echo "Expected APK not found: $APK"
-            find apps/mobile/android/app/build/outputs -type f 2>/dev/null || true
+          set -euo pipefail
+          APK=''
+          for candidate in \
+            apps/mobile/android/app/build/outputs/apk/debug/app-universal-debug.apk \
+            apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk; do
+            if [[ -s "$candidate" ]]; then APK="$candidate"; break; fi
+          done
+          if [[ -z "$APK" ]]; then
+            echo 'Universal Debug APK was not found. Available APK outputs:'
+            find apps/mobile/android/app/build/outputs/apk -type f -name '*.apk' -print 2>/dev/null || true
             exit 1
           fi
           echo "path=$APK" >> "$GITHUB_OUTPUT"
@@ -152,46 +187,183 @@ jobs:
           sha256sum "$APK"
 
       - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: marketplat-expo-debug-apk
-          path: ${{ steps.apk.outputs.path }}
+          name: marketplat-debug-apk
+          path: ${{ steps.debug_apk.outputs.path }}
           if-no-files-found: error
           retention-days: 14
 
-      - name: Build Debug AAB (test only)
-        working-directory: apps/mobile/android
-        run: ./gradlew bundleDebug --no-daemon --stacktrace
-
-      - name: Locate and validate Debug AAB
-        id: aab
+      - name: Debug build summary
+        if: always()
+        shell: bash
         run: |
-          AAB="apps/mobile/android/app/build/outputs/bundle/debug/app-debug.aab"
-          if [ ! -s "$AAB" ]; then
-            echo "Expected debug AAB not found: $AAB"
-            find apps/mobile/android/app/build/outputs -type f 2>/dev/null || true
+          {
+            echo '## MarketPlat Debug APK'
+            echo "- Branch: $GITHUB_REF_NAME"
+            echo "- Commit: $GITHUB_SHA"
+            echo "- APK size: ${{ steps.debug_apk.outputs.size }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove injected Firebase configuration
+        if: always()
+        run: rm -f apps/mobile/google-services.json apps/mobile/android/app/google-services.json
+
+  release:
+    name: Build production-signed Release APK
+    needs: debug
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.confirm_release == true && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: production
+    env:
+      CI: '1'
+      EXPO_NO_TELEMETRY: '1'
+      EXPO_PUBLIC_API_URL: https://marketplat-api.esamnajjar6.workers.dev
+      EXPO_PUBLIC_SENTRY_DSN: ${{ secrets.EXPO_PUBLIC_SENTRY_DSN }}
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      SENTRY_URL: ${{ secrets.SENTRY_URL }}
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4
+        with:
+          version: 10.18.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup Java 17
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+          cache-dependency-path: apps/mobile/android/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)"
+          test -n "$SDKMANAGER" && test -x "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install \
+            'platform-tools' \
+            'platforms;android-37' \
+            'build-tools;37.0.0' \
+            'ndk;27.1.12297006'
+          test -s "$ANDROID_HOME/platforms/android-37/android.jar"
+          test -x "$ANDROID_HOME/build-tools/37.0.0/apksigner"
+          test -d "$ANDROID_HOME/ndk/27.1.12297006"
+
+      - name: Install workspace dependencies
+        # The checked-in lockfile is missing @vitest/coverage-v8 and has an old
+        # expo-build-properties importer; resolve these declared dependencies.
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Verify Expo SDK dependency compatibility
+        run: pnpm --filter @marketplat/mobile exec expo install --check
+
+      - name: Configure required Firebase Android services
+        env:
+          FIREBASE_ANDROID_JSON_BASE64: ${{ secrets.MARKETPLAT_FIREBASE_ANDROID_JSON_BASE64 }}
+          EXPECTED_FIREBASE_PROJECT_ID: ${{ secrets.MARKETPLAT_FIREBASE_PROJECT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$FIREBASE_ANDROID_JSON_BASE64" || { echo 'Missing MARKETPLAT_FIREBASE_ANDROID_JSON_BASE64.'; exit 1; }
+          test -n "$EXPECTED_FIREBASE_PROJECT_ID" || { echo 'Missing MARKETPLAT_FIREBASE_PROJECT_ID.'; exit 1; }
+          printf '%s' "$FIREBASE_ANDROID_JSON_BASE64" | base64 --decode > apps/mobile/google-services.json
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const config = JSON.parse(fs.readFileSync('apps/mobile/google-services.json', 'utf8'));
+          const packageNames = (config.client || [])
+            .map((client) => client.client_info?.android_client_info?.package_name)
+            .filter(Boolean);
+          if (config.project_info?.project_id !== process.env.EXPECTED_FIREBASE_PROJECT_ID) {
+            throw new Error('Firebase project_id does not match MARKETPLAT_FIREBASE_PROJECT_ID.');
+          }
+          if (!packageNames.includes('com.marketplat.mobile')) {
+            throw new Error('Firebase config must contain Android package com.marketplat.mobile.');
+          }
+          NODE
+          chmod 600 apps/mobile/google-services.json
+
+      - name: Generate Android project from Expo config
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: pnpm --filter @marketplat/mobile exec expo prebuild --platform android --no-install
+
+      # Tests already passed in the required Debug job for this exact commit.
+      # The release job repeats prebuild in a clean runner before injecting signing material.
+      - name: Build and verify production-signed Release APK
+        working-directory: apps/mobile/android
+        env:
+          KEYSTORE_BASE64: ${{ secrets.MARKETPLAT_RELEASE_KEYSTORE_BASE64 }}
+          MARKETPLAT_RELEASE_STORE_FILE: ${{ runner.temp }}/marketplat-release.jks
+          MARKETPLAT_RELEASE_STORE_PASSWORD: ${{ secrets.MARKETPLAT_RELEASE_STORE_PASSWORD }}
+          MARKETPLAT_RELEASE_KEY_ALIAS: ${{ secrets.MARKETPLAT_RELEASE_KEY_ALIAS }}
+          MARKETPLAT_RELEASE_KEY_PASSWORD: ${{ secrets.MARKETPLAT_RELEASE_KEY_PASSWORD }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          trap 'rm -f "$MARKETPLAT_RELEASE_STORE_FILE"' EXIT
+          test -n "$KEYSTORE_BASE64" || { echo 'Missing MARKETPLAT_RELEASE_KEYSTORE_BASE64.'; exit 1; }
+          test -n "$MARKETPLAT_RELEASE_STORE_PASSWORD" || { echo 'Missing MARKETPLAT_RELEASE_STORE_PASSWORD.'; exit 1; }
+          test -n "$MARKETPLAT_RELEASE_KEY_ALIAS" || { echo 'Missing MARKETPLAT_RELEASE_KEY_ALIAS.'; exit 1; }
+          test -n "$MARKETPLAT_RELEASE_KEY_PASSWORD" || { echo 'Missing MARKETPLAT_RELEASE_KEY_PASSWORD.'; exit 1; }
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$MARKETPLAT_RELEASE_STORE_FILE"
+          chmod 600 "$MARKETPLAT_RELEASE_STORE_FILE"
+          test -s "$MARKETPLAT_RELEASE_STORE_FILE"
+          ./gradlew :app:verifyProductionSigning --no-daemon
+          ./gradlew :app:assembleRelease --no-daemon --stacktrace
+          APK=''
+          for candidate in \
+            app/build/outputs/apk/release/app-universal-release.apk \
+            app/build/outputs/apk/release/app-release.apk; do
+            if [[ -s "$candidate" ]]; then APK="$candidate"; break; fi
+          done
+          if [[ -z "$APK" ]]; then
+            echo 'Universal Release APK was not found. Available APK outputs:'
+            find app/build/outputs/apk -type f -name '*.apk' -print 2>/dev/null || true
             exit 1
           fi
-          echo "path=$AAB" >> "$GITHUB_OUTPUT"
-          echo "size=$(du -h "$AAB" | cut -f1)" >> "$GITHUB_OUTPUT"
-          sha256sum "$AAB"
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --verbose "$APK"
+          mkdir -p "$RUNNER_TEMP/marketplat-release-apk"
+          cp "$APK" "$RUNNER_TEMP/marketplat-release-apk/marketplat-release.apk"
+          sha256sum "$RUNNER_TEMP/marketplat-release-apk/marketplat-release.apk" | tee "$RUNNER_TEMP/marketplat-release-apk/sha256.txt"
 
-      - name: Upload Debug AAB (test only)
-        uses: actions/upload-artifact@v4
+      - name: Upload production Release APK
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: marketplat-expo-debug-aab-test
-          path: ${{ steps.aab.outputs.path }}
+          name: marketplat-release-apk
+          path: ${{ runner.temp }}/marketplat-release-apk/marketplat-release.apk
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
 
-      - name: Build summary
+      - name: Release build summary
         if: always()
         run: |
           {
-            echo "## Expo Android APK build"
-            echo "- Branch: $GITHUB_REF_NAME"
-            echo "- Commit: $GITHUB_SHA"
-            echo "- APK size: ${{ steps.apk.outputs.size }}"
+            echo '## MarketPlat production-signed Release APK'
+            echo '- Production signing was verified before assembleRelease.'
+            echo '- APK signature was verified with apksigner.'
+            echo '- Keystore file is removed when the signing step exits.'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Remove injected Firebase configuration
