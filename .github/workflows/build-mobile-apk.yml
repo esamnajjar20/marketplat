@@ -29,8 +29,6 @@ concurrency:
   group: build-mobile-apks-${{ github.ref }}
   cancel-in-progress: false
 
-# Debug builds run automatically. A production-signed Release APK is a separate,
-# explicitly confirmed job protected by the GitHub "production" environment.
 jobs:
   debug:
     name: Validate and build Debug APK
@@ -81,26 +79,21 @@ jobs:
           cache: gradle
           cache-dependency-path: apps/mobile/android/gradle/wrapper/gradle-wrapper.properties
 
-            - name: Install Android SDK packages
+      - name: Install Android SDK packages
         shell: bash
         run: |
           set -uo pipefail
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)"
           test -n "$SDKMANAGER" && test -x "$SDKMANAGER"
-          
-          # Accept licenses without causing SIGPIPE failures
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
-          
-          # Install required packages
           "$SDKMANAGER" --install \
             'platform-tools' \
             'platforms;android-37.0' \
             'build-tools;37.0.0'
-            
           test -s "$ANDROID_HOME/platforms/android-37/android.jar"
           test -x "$ANDROID_HOME/build-tools/37.0.0/apksigner"
 
-- name: Setup Android NDK (stable)
+      - name: Setup Android NDK (stable)
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r27b
@@ -108,8 +101,6 @@ jobs:
           link-to-sdk: true
 
       - name: Install workspace dependencies
-        # The checked-in lockfile is missing @vitest/coverage-v8 and has an old
-        # expo-build-properties importer; resolve these declared dependencies.
         run: pnpm install --no-frozen-lockfile
 
       - name: Verify Expo SDK dependency compatibility
@@ -267,10 +258,10 @@ jobs:
       - name: Install Android SDK packages
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)"
           test -n "$SDKMANAGER" && test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
           "$SDKMANAGER" --install \
             'platform-tools' \
             'platforms;android-37.0' \
@@ -286,8 +277,6 @@ jobs:
           link-to-sdk: true
 
       - name: Install workspace dependencies
-        # The checked-in lockfile is missing @vitest/coverage-v8 and has an old
-        # expo-build-properties importer; resolve these declared dependencies.
         run: pnpm install --no-frozen-lockfile
 
       - name: Verify Expo SDK dependency compatibility
@@ -323,8 +312,6 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: pnpm --filter @marketplat/mobile exec expo prebuild --platform android --no-install
 
-      # Tests already passed in the required Debug job for this exact commit.
-      # The release job repeats prebuild in a clean runner before injecting signing material.
       - name: Build and verify production-signed Release APK
         working-directory: apps/mobile/android
         env:
