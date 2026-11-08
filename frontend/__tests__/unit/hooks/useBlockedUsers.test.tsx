@@ -1,35 +1,21 @@
 /**
- * __tests__/unit/hooks/useBlockedUsers.test.tsx
- *
- * Previously uncovered (0%). Mirrors useFavorites.test.tsx /
- * useStores.test.tsx's approach for the shared-cache-Set side effect.
- *
- *  useMyBlockedUsers:
- *   - auth-gated
- *   - merges each page's blockedId into the shared ids() Set after the
- *     query settles
- *  getBlockedUserIdsSnapshot: reads the cached Set, defaults to empty.
- *  useIsUserBlocked:
- *   - returns false before any data has loaded
- *   - returns true once the shared Set contains the userId
- *   - reacts to the shared cache being updated elsewhere
- *   - returns false for a logged-out user even with a stale Set
+ * Blocked-user reads are split by intent:
+ * - the settings screen fetches the paginated list;
+ * - profile actions fetch one user's status;
+ * - chat uses the status embedded in the conversation payload and performs
+ *   no separate block-status request.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor, act } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import {
-  useMyBlockedUsers,
-  getBlockedUserIdsSnapshot,
-  useIsUserBlocked,
-} from '@/hooks/queries/useBlockedUsers';
+import { useMyBlockedUsers, useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
 import { blockedUsersApi } from '@/api/blocked-users.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { useAuthStore } from '@/store/auth.store';
 
 vi.mock('@/api/blocked-users.api', () => ({
-  blockedUsersApi: { getMine: vi.fn() },
+  blockedUsersApi: { getMine: vi.fn(), getStatus: vi.fn() },
 }));
 
 const mockUser = { id: 'user-1', name: 'Ahmed', email: 'ahmed@example.com', role: 'USER' as const };
@@ -53,102 +39,100 @@ beforeEach(() => {
 });
 
 describe('useMyBlockedUsers', () => {
-  it('does not fetch when not authenticated', () => {
+  it('does not fetch the management list when not authenticated', () => {
     const queryClient = makeSharedClient();
     renderHook(() => useMyBlockedUsers(), { wrapper: wrapperFor(queryClient) });
     expect(blockedUsersApi.getMine).not.toHaveBeenCalled();
   });
 
-  it('merges blockedIds from the fetched page into the shared ids() Set', async () => {
+  it('fetches the paginated list when the management view requests it', async () => {
     useAuthStore.getState().setAuth(mockUser, mockTokens);
     (blockedUsersApi.getMine as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { items: [{ blockedId: 'user-2' }, { blockedId: 'user-3' }], meta: {} } },
+      data: { data: { items: [{ blockedId: 'user-2' }], meta: {} } },
     });
     const queryClient = makeSharedClient();
 
-    renderHook(() => useMyBlockedUsers(), { wrapper: wrapperFor(queryClient) });
-
-    await waitFor(() => {
-      const ids = queryClient.getQueryData(queryKeys.blockedUsers.ids());
-      expect(ids).toBeInstanceOf(Set);
-    });
-
-    const ids = queryClient.getQueryData<Set<string>>(queryKeys.blockedUsers.ids());
-    expect(ids!.has('user-2')).toBe(true);
-    expect(ids!.has('user-3')).toBe(true);
-  });
-});
-
-describe('getBlockedUserIdsSnapshot', () => {
-  it('returns an empty Set when nothing has been cached yet', () => {
-    const queryClient = makeSharedClient();
-    expect(getBlockedUserIdsSnapshot(queryClient)).toEqual(new Set());
-  });
-
-  it('returns the cached Set when one exists', () => {
-    const queryClient = makeSharedClient();
-    queryClient.setQueryData(queryKeys.blockedUsers.ids(), new Set(['user-9']));
-    expect(getBlockedUserIdsSnapshot(queryClient)).toEqual(new Set(['user-9']));
+    const { result } = renderHook(() => useMyBlockedUsers(), { wrapper: wrapperFor(queryClient) });
+    await waitFor(() => expect(result.current.data?.items).toHaveLength(1));
+    expect(blockedUsersApi.getMine).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('useIsUserBlocked', () => {
-  beforeEach(() => {
-    // useIsUserBlocked internally calls useMyBlockedUsers({ limit: 100 }),
-    // so a default resolved mock avoids unhandled promise noise in tests
-    // that don't care about that fetch.
-    (blockedUsersApi.getMine as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { items: [], meta: {} } },
-    });
-  });
-
-  it('returns false before any data has loaded', () => {
+  it('does not make a request for a logged-out user', () => {
     const queryClient = makeSharedClient();
-    const { result } = renderHook(() => useIsUserBlocked('user-1'), {
+    const { result } = renderHook(() => useIsUserBlocked('user-2'), {
       wrapper: wrapperFor(queryClient),
     });
     expect(result.current).toBe(false);
+    expect(blockedUsersApi.getStatus).not.toHaveBeenCalled();
+    expect(blockedUsersApi.getMine).not.toHaveBeenCalled();
   });
 
-  it('returns true once the shared Set contains the userId', () => {
-    const queryClient = makeSharedClient();
-    queryClient.setQueryData(queryKeys.blockedUsers.ids(), new Set(['user-1']));
+  it('supports suppressing the status lookup when the target is the current user', () => {
     useAuthStore.getState().setAuth(mockUser, mockTokens);
+    const queryClient = makeSharedClient();
 
-    const { result } = renderHook(() => useIsUserBlocked('user-1'), {
+    renderHook(() => useIsUserBlocked('user-1', { enabled: false }), {
       wrapper: wrapperFor(queryClient),
     });
 
-    expect(result.current).toBe(true);
+    expect(blockedUsersApi.getStatus).not.toHaveBeenCalled();
+    expect(blockedUsersApi.getMine).not.toHaveBeenCalled();
   });
 
-  it('reacts when the shared cache is updated elsewhere', async () => {
-    const queryClient = makeSharedClient();
-    queryClient.setQueryData(queryKeys.blockedUsers.ids(), new Set<string>());
+  it('automatically skips the status lookup for the current user', async () => {
     useAuthStore.getState().setAuth(mockUser, mockTokens);
+    const queryClient = makeSharedClient();
+    renderHook(() => useIsUserBlocked('user-1'), { wrapper: wrapperFor(queryClient) });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(blockedUsersApi.getStatus).not.toHaveBeenCalled();
+  });
 
-    const { result } = renderHook(() => useIsUserBlocked('user-5'), {
-      wrapper: wrapperFor(queryClient),
+  it('fetches only the target user status for a profile action', async () => {
+    useAuthStore.getState().setAuth(mockUser, mockTokens);
+    (blockedUsersApi.getStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      isBlockedByMe: true,
     });
-    expect(result.current).toBe(false);
+    const queryClient = makeSharedClient();
 
-    act(() => {
-      queryClient.setQueryData<Set<string>>(queryKeys.blockedUsers.ids(), (old) =>
-        new Set([...(old ?? []), 'user-5']),
-      );
+    const { result } = renderHook(() => useIsUserBlocked('user-2'), {
+      wrapper: wrapperFor(queryClient),
     });
 
     await waitFor(() => expect(result.current).toBe(true));
+    expect(blockedUsersApi.getStatus).toHaveBeenCalledTimes(1);
+    expect(blockedUsersApi.getStatus).toHaveBeenCalledWith('user-2', expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(blockedUsersApi.getMine).not.toHaveBeenCalled();
   });
 
-  it('returns false for a logged-out user even if a populated Set exists', () => {
+  it('uses the status embedded in an existing conversation without another request', () => {
+    useAuthStore.getState().setAuth(mockUser, mockTokens);
     const queryClient = makeSharedClient();
-    queryClient.setQueryData(queryKeys.blockedUsers.ids(), new Set(['user-1']));
 
-    const { result } = renderHook(() => useIsUserBlocked('user-1'), {
+    const { result } = renderHook(
+      () => useIsUserBlocked('user-2', { initialStatus: true, initialStatusUpdatedAt: Date.now(), enabled: false }),
+      { wrapper: wrapperFor(queryClient) },
+    );
+
+    expect(result.current).toBe(true);
+    expect(blockedUsersApi.getStatus).not.toHaveBeenCalled();
+    expect(blockedUsersApi.getMine).not.toHaveBeenCalled();
+    expect(queryClient.getQueryData(queryKeys.blockedUsers.status('user-2'))).toBe(true);
+  });
+
+  it('returns false when the queried status is false', async () => {
+    useAuthStore.getState().setAuth(mockUser, mockTokens);
+    (blockedUsersApi.getStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      isBlockedByMe: false,
+    });
+    const queryClient = makeSharedClient();
+
+    const { result } = renderHook(() => useIsUserBlocked('user-3'), {
       wrapper: wrapperFor(queryClient),
     });
 
+    await waitFor(() => expect(queryClient.getQueryState(queryKeys.blockedUsers.status('user-3'))?.status).toBe('success'));
     expect(result.current).toBe(false);
   });
 });

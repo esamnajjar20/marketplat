@@ -18,7 +18,7 @@ const FILTER_KEYS = ['search', 'city', 'type'] as const;
  * unlike /search and the ads category page) — on mobile a user had to
  * scroll past the full filter panel before seeing a single store. This
  * wraps the exact same StoresFilters component (unmodified — already
- * URL-driven via useSearchParams/router.push, so it works identically
+ * URL-driven via useSearchParams and the native History API, so it works identically
  * inside a sheet) behind a "تصفية" trigger, shown only below `lg`,
  * mirroring 's identical /search and the ads category
  * page.

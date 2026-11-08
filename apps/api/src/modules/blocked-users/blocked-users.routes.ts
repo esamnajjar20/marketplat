@@ -9,6 +9,8 @@ export const blockedUsersRouter = Router();
 // All routes require auth — blocking is always caller-scoped, never
 // publicly listable (same posture as favorites/conversations).
 blockedUsersRouter.get('/', authenticate, CACHE.NONE, blockedUsersController.getMyBlockedUsers);
+// A profile action needs one user's status, not the caller's full block list.
+blockedUsersRouter.get('/:userId/status', authenticate, CACHE.NONE, blockedUsersController.getStatus);
 blockedUsersRouter.post(
   '/:userId',
   authenticate,

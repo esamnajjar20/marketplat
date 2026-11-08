@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useState, useMemo, useEffect, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { ShieldOff, ShieldCheck, ChevronDown, Crown, ShieldAlert, User as UserIcon, Search } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { Badge }        from '@/components/shared/ui/Badge';
@@ -31,6 +31,7 @@ import { USER_ACTIVE_STATUS_VARIANT, USER_ACTIVE_STATUS_LABELS, userActiveKey } 
 import type { AdminUser, AssignableRole } from '@/types/admin.types';
 import type { UserRole } from '@/types/auth.types';
 import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
+import { writeClientUrl } from '@/lib/urlWithParams';
 
 // Gap #20 (admin permission tiers): frontend mirror of the backend's
 // single source of truth (roleHierarchy.ts's canManageRole). This is
@@ -67,7 +68,6 @@ const ASSIGNABLE_ROLES: AssignableRole[] = ['USER', 'MODERATOR', 'ADMIN'];
 
 export const AdminUsersTable = memo(function AdminUsersTable() {
   const sp     = useSearchParams();
-  const router = useRouter();
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
   // gave NaN here, which was sent to the backend as
   // ?page=NaN — a guaranteed 400 for what looks like a
@@ -152,7 +152,7 @@ export const AdminUsersTable = memo(function AdminUsersTable() {
     // SW-FIX-ADMIN-NAV-REPLACE: filters/search are refinements of the
     // same view — using push made Back require N presses to leave the
     // page after typing N searches. Matches AdminFilterBar's own replace.
-    router.replace(adminListHref('users', params));
+    writeClientUrl(adminListHref('users', params), 'replace');
   }
 
   function roleChangeCopy(nextRole: AssignableRole) {

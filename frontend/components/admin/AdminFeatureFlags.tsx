@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { AdminPageShell } from '@/components/admin/AdminPageShell';
 import { Spinner } from '@/components/ui/spinner';
-import { PUBLIC_FEATURE_FLAGS_QUERY_KEY } from '@/lib/publicFeatureFlags';
+import { queryKeys } from '@/lib/queryKeys';
 
 type FeatureFlag = {
   name: string;
@@ -122,7 +122,7 @@ export function AdminFeatureFlags() {
         next.push(result.flag!);
         return next.sort((a, b) => a.name.localeCompare(b.name));
       });
-      await queryClient.invalidateQueries({ queryKey: PUBLIC_FEATURE_FLAGS_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.publicFeatureFlags.all() });
       setAudit((current) => result.audit ?? current);
       toast.success(enabled ? 'تم تفعيل الخاصية' : 'تم إيقاف الخاصية');
       return true;

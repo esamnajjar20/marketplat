@@ -69,7 +69,29 @@ export function useDebtSummary() {
 
 
 export function useSalesDashboard() {
-  return useQuery({ queryKey: queryKeys.sales.dashboard(), queryFn: ({ signal }) => salesApi.dashboard({ signal }).then(r => r.data.data), staleTime: 180_000 });
+  return useQuery({
+    queryKey: queryKeys.sales.dashboard(),
+    queryFn: ({ signal }) => salesApi.dashboard({ signal, skipServerErrorRetry: true }).then(r => r.data.data),
+    // A 500 is a deterministic application failure, not a cold-start signal.
+    // Avoid retrying this expensive aggregate automatically; the dashboard
+    // exposes a user-triggered retry after the backend issue is corrected.
+    retry: false,
+    retryOnMount: false,
+    staleTime: 180_000,
+  });
+}
+
+export function useSalesReceipt(id: string) {
+  return useQuery({
+    queryKey: queryKeys.sales.receipt(id),
+    queryFn: ({ signal }) => salesApi.receipt(id, { signal }).then((response) => {
+      const data = response.data.data;
+      if (!data?.sale) throw new Error('Receipt response is empty.');
+      return data;
+    }),
+    enabled: Boolean(id),
+    staleTime: 5 * 60 * 1000,
+  });
 }
 
 export function useSalesReport(params?: Parameters<typeof salesApi.report>[0]) {

@@ -3,7 +3,7 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 
 import { memo, useState, useMemo, useEffect, useCallback } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { CheckCircle, ExternalLink, Search } from 'lucide-react';
 import { Button }       from '@/components/shared/ui/Button';
 import { Badge }        from '@/components/shared/ui/Badge';
@@ -21,6 +21,7 @@ import { parseApiError } from '@/lib/errorParser';
 import type { ReportStatus, ReportTargetType } from '@/types/admin.types';
 import { AdminReportRow } from '@/components/admin/AdminReportRow';
 import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
+import { writeClientUrl } from '@/lib/urlWithParams';
 
 const REPORT_STATUSES = ['PENDING', 'RESOLVED', 'DISMISSED'] as const;
 
@@ -47,7 +48,6 @@ function targetHref(targetType: ReportTargetType, targetId: string): string {
 
 export const AdminReportsTable = memo(function AdminReportsTable() {
   const sp     = useSearchParams();
-  const router = useRouter();
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
   // gave NaN here, which was sent to the backend as
   // ?page=NaN — a guaranteed 400 for what looks like a
@@ -171,7 +171,7 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
           <button key={val} onClick={() => {
             const params = new URLSearchParams(sp.toString());
             params.set('status', val); params.delete('page');
-            router.push(adminListHref('reports', params));
+            writeClientUrl(adminListHref('reports', params), 'push');
           }}
             aria-pressed={status === val}
             className={`text-sm px-3 py-1 rounded-full transition-colors
@@ -190,7 +190,7 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
         <button onClick={() => {
           const params = new URLSearchParams(sp.toString());
           params.delete('targetType'); params.delete('page');
-          router.push(adminListHref('reports', params));
+          writeClientUrl(adminListHref('reports', params), 'push');
         }}
           aria-pressed={!targetType}
           className={`text-sm px-3 py-1 rounded-full transition-colors
@@ -201,7 +201,7 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
           <button key={val} onClick={() => {
             const params = new URLSearchParams(sp.toString());
             params.set('targetType', val); params.delete('page');
-            router.push(adminListHref('reports', params));
+            writeClientUrl(adminListHref('reports', params), 'push');
           }}
             aria-pressed={targetType === val}
             className={`text-sm px-3 py-1 rounded-full transition-colors

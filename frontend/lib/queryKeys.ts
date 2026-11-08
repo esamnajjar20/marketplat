@@ -72,6 +72,11 @@ export interface CustomerListQueryParams {
 }
 
 export const queryKeys = {
+  // ── Public feature flags ────────────────────────────────────────
+  publicFeatureFlags: {
+    all: () => ['public-feature-flags'] as const,
+  },
+
   // ── Ads ────────────────────────────────────────────────────────
   ads: {
     /** Prefix for all ad queries — use for broad invalidation only */
@@ -397,14 +402,7 @@ export const queryKeys = {
   // ── Blocked users ──────────────────────────────────────────────
   blockedUsers: {
     all:  (params?: Parameters<typeof blockedUsersApi.getMine>[0]) => ['blocked-users', 'list', params ?? {}] as const,
-    /**
-     * In-memory Set<string> of blocked user IDs — mirrors
-     * favorites.ids()/stores.followedIds(). Populated from the list
-     * query, read reactively by useIsUserBlocked() for O(1) lookup in
-     * ChatWindow without a per-user network call (there's no single
-     * GET /blocked-users/:userId/status endpoint).
-     */
-    ids:  ()                => ['blocked-users', 'ids']               as const,
+    status: (userId: string) => ['blocked-users', 'status', userId] as const,
   },
 
   // ── Auth / current user ────────────────────────────────────────

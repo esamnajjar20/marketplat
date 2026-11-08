@@ -7,7 +7,8 @@
  * Place at: frontend/components/search/CategoryAttributesFilter.tsx
  */
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { Input } from '@/components/shared/ui/Input';
 import {
   Select,
@@ -38,7 +39,6 @@ export function CategoryAttributesFilter({
   draftAttrs,
   onDraftChange,
 }: Props) {
-  const router = useRouter();
   const sp = useSearchParams();
   const schema = getAttributeSchema(categoryId);
 
@@ -62,7 +62,7 @@ export function CategoryAttributesFilter({
     params.delete('page');
     writeAttributesToParams(params, next);
     const q = params.toString();
-    router.replace(q ? `${ROUTES.search}?${q}` : ROUTES.search);
+    writeClientUrl(q ? `${ROUTES.search}?${q}` : ROUTES.search, 'replace');
   }
 
   return (

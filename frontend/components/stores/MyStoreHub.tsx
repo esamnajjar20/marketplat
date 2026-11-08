@@ -176,8 +176,9 @@ function HubBody({ store }: { store: StoreDetails }) {
               </p>
               <Button variant="outline" size="sm" asChild className="h-9 shrink-0 rounded-xl font-bold">
                 <IntentPrefetchLink
-                  prefetch={false}
                   href={myStoreTabHref('products', { availability: 'OUT_OF_STOCK' })}
+                  prefetch={false}
+                  clientQueryNavigation
                 >
                   مراجعة
                 </IntentPrefetchLink>

@@ -10,6 +10,7 @@ import {
   TrendingUp,
   Wallet,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useSalesDashboard } from '@/hooks/queries/useSales';
 import { cn } from '@/lib/utils';
 
@@ -46,7 +47,7 @@ function StatTile({
 }
 
 export function SalesDashboard() {
-  const { data, isLoading, isError } = useSalesDashboard();
+  const { data, isLoading, isError, refetch, isFetching } = useSalesDashboard();
 
   if (isLoading) {
     return (
@@ -62,6 +63,15 @@ export function SalesDashboard() {
     return (
       <div className="rounded-2xl border border-border/70 p-6 text-center text-sm text-destructive">
         تعذر تحميل لوحة المبيعات.
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => void refetch()}
+          disabled={isFetching}
+        >
+          {isFetching ? 'جارٍ إعادة المحاولة…' : 'إعادة المحاولة'}
+        </Button>
       </div>
     );
   }

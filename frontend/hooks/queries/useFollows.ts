@@ -7,15 +7,23 @@ import { CACHE_TTL } from '@/lib/constants';
 import { useAuthStore, selectIsAuthenticated, selectHasAccessToken } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
-export function useFollowStatus(targetType: FollowTargetType, targetId: string) {
+export function useFollowStatus(
+  targetType: FollowTargetType,
+  targetId: string,
+  options: { enabled?: boolean } = {},
+) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
   const isOnline = useOnlineStatus();
   return useQuery({
     queryKey: queryKeys.follows.status(targetType, targetId),
     queryFn: ({ signal }) => followsApi.status(targetType, targetId, { signal }).then((r) => r.data.data?.following ?? false),
     staleTime: CACHE_TTL.favorites,
-    enabled: isAuthenticated && Boolean(targetId) && (hasToken || !isOnline),
+    // Following yourself is not a meaningful state; guard it here so every
+    // consumer (not just the public profile button) avoids that request.
+    enabled: (options.enabled ?? true) && !(targetType === 'USER' && currentUserId === targetId) &&
+      isAuthenticated && Boolean(targetId) && (hasToken || !isOnline),
   });
 }
 

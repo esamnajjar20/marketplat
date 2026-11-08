@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { buildUrlWithParams } from '@/lib/urlWithParams';
+import { describe, it, expect, vi } from 'vitest';
+import { buildUrlWithParams, writeClientUrl } from '@/lib/urlWithParams';
 
 describe('buildUrlWithParams', () => {
   it('does not add a second "?" when the base already has a query (ROUTES.myAds)', () => {
@@ -38,5 +38,36 @@ describe('buildUrlWithParams', () => {
 
   it('preserves repeated keys from params', () => {
     expect(buildUrlWithParams('/x?a=1', 'a=2&a=3')).toBe('/x?a=2&a=3');
+  });
+});
+
+
+describe('writeClientUrl', () => {
+  it('updates same-origin query state with native history without using router navigation', () => {
+    window.history.replaceState({}, '', '/my-services?page=2');
+
+    writeClientUrl('/my-services?tab=requests&status=PENDING', 'push');
+
+    expect(window.location.pathname).toBe('/my-services');
+    expect(window.location.search).toBe('?tab=requests&status=PENDING');
+  });
+
+  it('uses replaceState for corrective URL changes', () => {
+    window.history.replaceState({}, '', '/my-services?page=9');
+
+    writeClientUrl('/my-services?tab=appointments&page=1', 'replace');
+
+    expect(window.location.search).toBe('?tab=appointments&page=1');
+  });
+
+  it('ignores external origins and unchanged URLs', () => {
+    window.history.replaceState({}, '', '/my-services');
+    const pushSpy = vi.spyOn(window.history, 'pushState');
+
+    writeClientUrl('https://example.com/steal', 'push');
+    writeClientUrl('/my-services', 'push');
+
+    expect(pushSpy).not.toHaveBeenCalled();
+    pushSpy.mockRestore();
   });
 });

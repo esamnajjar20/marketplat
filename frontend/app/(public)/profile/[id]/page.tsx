@@ -7,7 +7,6 @@ import { PublicProfileHeader } from '@/components/profile/PublicProfileHeader';
 import { ProfileTabsSection }  from '@/components/profile/ProfileTabsSection';
 import { EmptyState }          from '@/components/shared/feedback/EmptyState';
 import { buildMetadata }       from '@/lib/seo';
-import { usersApi }            from '@/api/users.api';
 import { ROUTES }              from '@/lib/constants';
 import type { PublicUser }     from '@/types/user.types';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
@@ -39,21 +38,24 @@ function positivePage(value: string | undefined): number {
 }
 
 /**
- * generateMetadata and the page component both called
- * usersApi.getById(id) independently — two real network requests per
- * page visit for the same data. React's cache() memoizes by argument
- * within a single render pass (request-scoped, not a global/shared
- * cache across users or requests), so the second call here resolves
- * from the first call's already-settled promise instead of firing
- * again. Same to ads/[id]/page.tsx's getCachedAd.
+ * Use the shared Server Component API reader for both metadata and page
+ * data. React's cache() memoizes this identity-sensitive read per request,
+ * while fetchServerApi routes through the Cloudflare API_WORKER binding in
+ * production and applies the same response-envelope validation as other
+ * server-rendered public pages.
  */
-const getCachedUser = cache((id: string) => usersApi.getById(id));
+const getCachedUser = cache(async (id: string): Promise<PublicUser | null> => {
+  const response = await fetchServerApi<PublicUser>(
+    `/users/${encodeURIComponent(id)}`,
+    { mode: 'no-store', timeoutMs: 3_000 },
+  );
+  return response.data ?? null;
+});
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   try {
-    const res = await getCachedUser(id);
-    const user = res.data.data;
+    const user = await getCachedUser(id);
     return buildMetadata({ title: `${user?.name ?? ''} — الملف الشخصي`, path: `/profile/${id}` });
   } catch {
     return { title: 'الملف الشخصي' };
@@ -68,8 +70,7 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
   let user: PublicUser | null = null;
   let loadFailed = false;
   try {
-    const res = await getCachedUser(id);
-    user = res.data.data ?? null;
+    user = await getCachedUser(id);
   } catch (err) {
     // FIX SSR-RESILIENCE-02: only a confirmed 404 means "user not found".
     // Any other failure (network, 5xx, timeout) used to be swallowed here

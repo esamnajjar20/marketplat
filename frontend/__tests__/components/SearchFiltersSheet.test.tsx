@@ -1,9 +1,8 @@
 /**
  * __tests__/components/SearchFiltersSheet.test.tsx
  *
- * Active-filter count badge + sheet open/close. SearchFilters is stubbed.
- * useAds / useSearchAds / useCategoryBySlug are mocked so the live result
- * count (UX ) does not require a real QueryClient or network.
+ * Active-filter count badge + sheet open/close. SearchFilters is stubbed;
+ * the sheet itself must not load result lists or category metadata.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -18,15 +17,6 @@ vi.mock('next/navigation', () => ({
 
 vi.mock('@/components/ads/SearchFilters', () => ({
   SearchFilters: () => <div data-testid="search-filters" />,
-}));
-
-vi.mock('@/hooks/queries/useCategories', () => ({
-  useCategoryBySlug: () => ({ data: undefined, isLoading: false }),
-}));
-
-vi.mock('@/hooks/queries/useAds', () => ({
-  useAds: () => ({ data: { meta: { total: 0 } }, isLoading: false }),
-  useSearchAds: () => ({ data: { meta: { total: 0 } }, isLoading: false }),
 }));
 
 const mockUseSearchParams = vi.mocked(useSearchParams);

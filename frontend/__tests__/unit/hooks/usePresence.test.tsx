@@ -78,6 +78,22 @@ describe('useIsUserOnline', () => {
     expect(usersApi.getPresence).not.toHaveBeenCalled();
   });
 
+  it('can suppress the lookup when the visible user is the current user', async () => {
+    login();
+    const { result } = renderHook(() => useIsUserOnline('u1', false), { wrapper: createWrapper() });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(result.current).toBe(false);
+    expect(usersApi.getPresence).not.toHaveBeenCalled();
+  });
+
+  it('automatically skips a self-presence lookup even without a caller flag', async () => {
+    login();
+    renderHook(() => useIsUserOnline('u1'), { wrapper: createWrapper() });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(usersApi.getPresence).not.toHaveBeenCalled();
+  });
+
   it('returns true when the map reports the id as online', async () => {
     login();
     (usersApi.getPresence as ReturnType<typeof vi.fn>).mockResolvedValue({

@@ -22,7 +22,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
  * but passing a genuinely different set of ids on every render would
  * still cause unnecessary refetches.
  */
-export function usePresence(userIds: string[]) {
+export function usePresence(userIds: string[], enabled = true) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
@@ -36,7 +36,7 @@ export function usePresence(userIds: string[]) {
     // page regained focus; reconnect/online changes still refresh normally.
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    enabled: isAuthenticated && userIds.length > 0 && (hasToken || !isOnline),
+    enabled: enabled && isAuthenticated && userIds.length > 0 && (hasToken || !isOnline),
   });
 }
 
@@ -45,8 +45,9 @@ export function usePresence(userIds: string[]) {
  * (the other party in the thread), so this avoids every call site
  * having to wrap a single id in an array and unwrap the result map.
  */
-export function useIsUserOnline(userId: string | undefined): boolean {
-  const { data } = usePresence(userId ? [userId] : []);
+export function useIsUserOnline(userId: string | undefined, enabled = true): boolean {
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
+  const { data } = usePresence(userId ? [userId] : [], enabled && userId !== currentUserId);
   return userId ? Boolean(data?.[userId]?.online) : false;
 }
 

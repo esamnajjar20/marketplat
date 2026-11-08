@@ -31,3 +31,26 @@ describe('salesApi.list', () => {
     expect(res.data.data?.meta).toEqual(meta);
   });
 });
+
+describe('salesApi.dashboard and receipt', () => {
+  it('passes the explicit no-retry-on-500 policy to the dashboard request', async () => {
+    const signal = new AbortController().signal;
+    vi.mocked(apiClient.get).mockResolvedValue({ data: { success: true, data: {} } });
+
+    await salesApi.dashboard({ signal, skipServerErrorRetry: true });
+
+    expect(apiClient.get).toHaveBeenCalledWith('/sales/dashboard', {
+      signal,
+      skipServerErrorRetry: true,
+    });
+  });
+
+  it('loads receipts from the configured API client and forwards cancellation', async () => {
+    const signal = new AbortController().signal;
+    vi.mocked(apiClient.get).mockResolvedValue({ data: { success: true, data: { sale: { id: 'sale/1' } } } });
+
+    await salesApi.receipt('sale/1', { signal });
+
+    expect(apiClient.get).toHaveBeenCalledWith('/sales/sale%2F1/receipt', { signal });
+  });
+});

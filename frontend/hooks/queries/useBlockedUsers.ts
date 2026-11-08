@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { blockedUsersApi } from '@/api/blocked-users.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -12,85 +12,81 @@ import {
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import type { BlockedUsersQuery } from '@/types/blocked-user.types';
-import { useQueryIdSetMembership } from '@/hooks/queries/sharedIdSetStore';
 
 /**
- * GET /blocked-users — the caller's blocked users, paginated.
- *
- * Also mirrors this page's rows into the shared blockedUsers.ids() Set
- * as a side effect after the query settles, same as
- * useMyFollowedStores does for queryKeys.stores.followedIds() — that
- * Set is what useIsUserBlocked() below reads reactively, since there's
- * no single GET /blocked-users/:userId/status endpoint.
+ * GET /blocked-users — the complete, paginated list is used only by the
+ * blocked-users management view. Per-user UI must use getStatus() or the
+ * status embedded in a conversation response instead of fetching this list.
  */
 export function useMyBlockedUsers(params?: BlockedUsersQuery) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
-  const queryClient = useQueryClient();
 
-  const query = useQuery({
+  return useQuery({
     queryKey: queryKeys.blockedUsers.all(params),
     queryFn: ({ signal }) => blockedUsersApi.getMine(params, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.favorites,
     enabled: isAuthenticated && (hasToken || !isOnline),
   });
+}
 
-  useEffect(() => {
-    const data = query.data;
-    if (!data) return;
-
-    // FIX BLOCKED-USERS-EFFECT-GUARD-01: same guard useFavorites already
-    // has (FAVORITES-EFFECT-RERENDER). Without the early-return, every
-    // background refetch that returns the same page of blocked users
-    // built a brand-new Set, which re-rendered every subscriber of
-    // useIsUserBlocked() -- one per chat header / profile action in the
-    // tree. Compare first, allocate only when there's actually a new id.
-    const newIds = data.items
-      .map((row) => row.blockedId)
-      .filter((id): id is string => typeof id === 'string');
-    if (newIds.length === 0) return;
-
-    const prev = queryClient.getQueryData<Set<string>>(queryKeys.blockedUsers.ids());
-    if (prev && newIds.every((id) => prev.has(id))) return;
-
-    queryClient.setQueryData<Set<string>>(queryKeys.blockedUsers.ids(), (existing) => {
-      const idSet = new Set(existing ?? []);
-      newIds.forEach((id) => idSet.add(id));
-      return idSet;
-    });
-  }, [query.data, queryClient]);
-
-  return query;
+export interface IsUserBlockedOptions {
+  /** Status already returned by the conversation/list response. */
+  initialStatus?: boolean;
+  /** Timestamp of the response that supplied initialStatus. */
+  initialStatusUpdatedAt?: number;
+  /** Set false when the caller already has an authoritative status. */
+  enabled?: boolean;
 }
 
 /**
- * Direct accessor for the blocked-user IDs Set from cache.
- * Non-reactive — use useIsUserBlocked() for reactive per-user checks.
+ * Reactive directional status for one target user.
+ *
+ * Chat uses isBlockedByMe embedded in its existing conversation payload,
+ * so opening a chat does not trigger a second HTTP request. A profile page
+ * has no conversation payload, therefore it requests only this user's
+ * status rather than downloading up to 100 unrelated blocked users.
  */
-export function getBlockedUserIdsSnapshot(
-  qc: ReturnType<typeof useQueryClient>,
-): Set<string> {
-  return qc.getQueryData<Set<string>>(queryKeys.blockedUsers.ids()) ?? new Set();
-}
-
-/**
- * Reactive "have I blocked this user" check for ChatWindow's header
- * action — same shape and reasoning as useIsFollowingStore: fetches the
- * full blocked-users list once (capped at 100, matching the
- * useMyFollowedStores({ limit: 100 }) convention) and checks membership
- * against the shared cache Set, which useToggleUserBlock keeps in sync
- * on every successful toggle.
- */
-export function useIsUserBlocked(userId: string): boolean {
+export function useIsUserBlocked(
+  userId: string,
+  options: IsUserBlockedOptions = {},
+): boolean {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
+  const isOnline = useOnlineStatus();
   const queryClient = useQueryClient();
-  useMyBlockedUsers({ limit: 100 });
+  const queryKey = useMemo(() => queryKeys.blockedUsers.status(userId), [userId]);
 
-  return useQueryIdSetMembership(
-    queryClient,
-    queryKeys.blockedUsers.ids(),
-    userId,
-    isAuthenticated,
-  );
+  const query = useQuery({
+    queryKey,
+    queryFn: ({ signal }) =>
+      blockedUsersApi.getStatus(userId, { signal }).then((result) => result.isBlockedByMe),
+    staleTime: CACHE_TTL.favorites,
+    enabled: isAuthenticated && Boolean(userId) && currentUserId !== userId &&
+      (hasToken || !isOnline) && (options.enabled ?? true),
+    initialData: options.initialStatus,
+    initialDataUpdatedAt: options.initialStatusUpdatedAt,
+  });
+
+  // An existing conversation response is the authoritative source for the
+  // status. Refresh an older per-profile cache entry from it without a
+  // network request; this also covers a profile screen opened shortly after
+  // a block/unblock action.
+  useEffect(() => {
+    if (!userId || typeof options.initialStatus !== 'boolean') return;
+    const cached = queryClient.getQueryData<boolean>(queryKey);
+    if (cached === options.initialStatus) return;
+    const suppliedAt = options.initialStatusUpdatedAt ?? Date.now();
+    const cachedAt = queryClient.getQueryState<boolean>(queryKey)?.dataUpdatedAt ?? 0;
+    // A newer explicit status read or a block/unblock mutation wins over
+    // an older conversation object that happened to be in the query cache.
+    if (cachedAt >= suppliedAt) return;
+    queryClient.setQueryData<boolean>(queryKey, options.initialStatus, {
+      updatedAt: suppliedAt,
+    });
+  }, [options.initialStatus, options.initialStatusUpdatedAt, queryClient, queryKey, userId]);
+
+  return isAuthenticated && query.data === true;
 }

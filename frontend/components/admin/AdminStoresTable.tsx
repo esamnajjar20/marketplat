@@ -26,7 +26,7 @@
  */
 
 import { memo, useState, useMemo, useEffect, useCallback } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, Ban, RotateCcw, Search, Star } from 'lucide-react';
 import { Button }        from '@/components/shared/ui/Button';
 import { Badge }         from '@/components/shared/ui/Badge';
@@ -47,6 +47,7 @@ import { cn } from '@/lib/utils';
 import { STORE_STATUS_LABELS, STORE_STATUS_VARIANT } from '@/lib/storeStatus';
 import type { AdminStoreStatus } from '@/types/admin.types';
 import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
+import { writeClientUrl } from '@/lib/urlWithParams';
 
 const STATUS_TABS: { value: AdminStoreStatus | 'ALL'; label: string }[] = [
   { value: 'PENDING', label: 'قيد المراجعة' },
@@ -73,7 +74,6 @@ function isAdminStoreStatus(value: string | null): value is AdminStoreStatus {
 
 export const AdminStoresTable = memo(function AdminStoresTable() {
   const sp     = useSearchParams();
-  const router = useRouter();
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
   // gave NaN here, which was sent to the backend as
   // ?page=NaN — a guaranteed 400 for what looks like a
@@ -156,7 +156,7 @@ export const AdminStoresTable = memo(function AdminStoresTable() {
       if (value) params.set(key, value); else params.delete(key);
     }
     params.delete('page');
-    router.replace(adminListHref('stores', params));
+    writeClientUrl(adminListHref('stores', params), 'replace');
   }
 
   const updateStatusForRow = useCallback((storeId: string, status: AdminStoreStatus) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight, Plus, UserMinus } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
@@ -46,28 +46,47 @@ export function PublicProfileHeaderTopActions({ user }: { user: PublicUser }) {
 }
 
 export function PublicProfileAvatar({ user }: { user: PublicUser }) {
-  const isOnline = useIsUserOnline(user.id);
-  const { data: profileStories = [] } = useUserStories(user.id);
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
+  const isOwnProfile = currentUserId === user.id;
+  // A self profile has no useful online dot. Do not spend a request asking
+  // the backend whether the viewer is online on their own account.
+  const isOnline = useIsUserOnline(user.id, !isOwnProfile);
+  // Stories are only requested after the user taps the avatar. The header
+  // itself does not need story payloads just to paint a profile page.
+  const [storiesRequested, setStoriesRequested] = useState(false);
+  const { data: profileStories = [], isFetched, isFetching, isStale } = useUserStories(user.id, storiesRequested);
   const [activeStoryGroup, setActiveStoryGroup] = useState<StoryGroup | null>(null);
   const avatar = getAvatarUrl(user.avatarUrl ?? '', 128);
+
+  const openStories = useCallback((stories: typeof profileStories) => {
+    if (stories.length === 0) return;
+    setActiveStoryGroup({
+      user: { id: user.id, name: user.name, avatarUrl: user.avatarUrl ?? null },
+      stories,
+      hasUnseen: stories.some((story) => !story.viewed),
+      latestCreatedAt: stories[stories.length - 1]?.createdAt ?? user.createdAt,
+    });
+  }, [user.avatarUrl, user.createdAt, user.id, user.name]);
+
+  useEffect(() => {
+    if (!storiesRequested || isFetching || !isFetched) return;
+    openStories(profileStories);
+    setStoriesRequested(false);
+  }, [storiesRequested, isFetching, isFetched, profileStories, openStories]);
 
   return (
     <>
       <div className="relative shrink-0 rounded-full bg-gradient-to-br from-rating via-accent to-primary p-[3px]">
         <button
           type="button"
-          disabled={profileStories.length === 0}
-          onClick={() =>
-            profileStories.length > 0 &&
-            setActiveStoryGroup({
-              user: { id: user.id, name: user.name, avatarUrl: user.avatarUrl ?? null },
-              stories: profileStories,
-              hasUnseen: profileStories.some((story) => !story.viewed),
-              latestCreatedAt: profileStories[profileStories.length - 1]?.createdAt ?? user.createdAt,
-            })
-          }
+          disabled={isFetching || (isFetched && profileStories.length === 0 && !isStale)}
+          onClick={() => {
+            if (profileStories.length > 0) openStories(profileStories);
+            else if (!isFetched || isStale) setStoriesRequested(true);
+          }}
           className="relative block h-[92px] w-[92px] overflow-hidden rounded-full border-4 border-background bg-primary-soft lg:h-28 lg:w-28"
-          aria-label={profileStories.length ? 'مشاهدة قصص المستخدم' : undefined}
+          aria-label="مشاهدة قصص المستخدم"
+          aria-busy={isFetching}
         >
           <SafeImage
             variant="avatar"
@@ -95,7 +114,9 @@ export function PublicProfileAvatar({ user }: { user: PublicUser }) {
 
 export function PublicProfileFollowAction({ user }: { user: PublicUser }) {
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
-  const { data: isFollowing = false } = useFollowStatus('USER', user.id);
+  const { data: isFollowing = false } = useFollowStatus('USER', user.id, {
+    enabled: currentUserId !== user.id,
+  });
   const toggleFollow = useToggleFollow();
 
   if (currentUserId === user.id) return null;

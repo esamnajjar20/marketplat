@@ -7,30 +7,40 @@ import type { ComponentProps } from 'react';
 type NextLinkProps = ComponentProps<typeof NextLink>;
 type LinkHref = NextLinkProps['href'];
 
+interface IntentPrefetchLinkProps extends NextLinkProps {
+  /** Opt in only where a partial route prefetch is known to be useful. */
+  prefetchOnIntent?: boolean;
+}
+
 /**
- * Preserve Next.js Link's normal behavior, but defer links explicitly opted out of automatic prefetching until the user shows intent (hover or keyboard focus).
+ * Preserve Next.js Link's normal behavior. An explicit `prefetch={false}` is
+ * honored strictly by default: hovering or focusing does not silently turn it
+ * back on. This matters for dynamic App Router routes, where an intent prefetch
+ * can fetch only the shared loading shell and the click then fetches the full
+ * route as a second RSC request.
  *
- * This avoids viewport-wide RSC requests from dense navigation and result
- * lists while still warming a destination before deliberate desktop/keyboard
- * navigation. Href identity is tracked so a recycled list row cannot inherit
- * intent for a different destination.
+ * `prefetchOnIntent` is a deliberate opt-in for a route where that partial
+ * prefetch has been measured to improve navigation. Href identity prevents a
+ * recycled list row from inheriting intent for another destination.
  */
-const IntentPrefetchLink = forwardRef<HTMLAnchorElement, NextLinkProps>(
+const IntentPrefetchLink = forwardRef<HTMLAnchorElement, IntentPrefetchLinkProps>(
   function IntentPrefetchLink(
     {
       href,
       prefetch,
+      prefetchOnIntent = false,
       target,
       download,
       onMouseEnter,
       onFocus,
       ...props
-    },
+    }: IntentPrefetchLinkProps,
     ref,
   ) {
     const [intentHref, setIntentHref] = useState<LinkHref | null>(null);
     const isOptedOut = prefetch === false;
     const canPrefetchOnIntent =
+      prefetchOnIntent &&
       isOptedOut &&
       (target == null || target === '_self') &&
       download === undefined &&

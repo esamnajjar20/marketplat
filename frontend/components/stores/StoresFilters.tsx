@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { SlidersHorizontal, Search } from 'lucide-react';
 import {
@@ -26,7 +27,10 @@ export function StoresFilters() {
   const router = useRouter();
   const sp = useSearchParams();
   const search = sp.get('search') ?? '';
-  const { data: storeTypes = [] } = useStoreTypes();
+  const [storeTypesRequested, setStoreTypesRequested] = useState(false);
+  const { data: storeTypes = [] } = useStoreTypes({
+    enabled: Boolean(sp.get('type')) || storeTypesRequested,
+  });
 
   function update(key: string, value: string) {
     const params = new URLSearchParams(sp.toString());
@@ -66,7 +70,11 @@ export function StoresFilters() {
 
       <div className="space-y-1.5">
         <label htmlFor="stores-filter-type" className="text-xs text-muted-foreground font-medium">نوع المتجر</label>
-        <Select value={sp.get('type') || 'ALL'} onValueChange={(v) => update('type', v === 'ALL' ? '' : v)}>
+        <Select
+          value={sp.get('type') || 'ALL'}
+          onOpenChange={(open) => { if (open) setStoreTypesRequested(true); }}
+          onValueChange={(v) => update('type', v === 'ALL' ? '' : v)}
+        >
           <SelectTrigger id="stores-filter-type" className="w-full"><SelectValue placeholder="كل الأنواع" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">كل الأنواع</SelectItem>

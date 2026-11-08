@@ -9,7 +9,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { UnifiedResultCard } from '@/components/search/UnifiedResultCard';
 import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
@@ -31,6 +31,7 @@ import { SearchViewToggle, type SearchViewMode } from '@/components/search/Searc
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import { queryKeys } from '@/lib/queryKeys';
 import { throwIfQueryCancelled } from '@/lib/queryCancellation';
+import { writeClientUrl } from '@/lib/urlWithParams';
 
 /**
  * Unified results grid — reads q/city/type/categoryId/sort/page
@@ -41,7 +42,6 @@ import { throwIfQueryCancelled } from '@/lib/queryCancellation';
  */
 export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
   const sp = useSearchParams();
-  const router = useRouter();
   const isOnline = useOnlineStatus();
 
   const q          = sp.get('q') ?? undefined;
@@ -60,8 +60,8 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
   const condition = type === 'ads' ? (sp.get('condition') as 'NEW' | 'USED' | 'REFURBISHED' | null) ?? undefined : undefined;
   const sort       = (sp.get('sort') as SearchSort) ?? 'relevance';
   // TRACK-NEARBY-SEARCH: lat/lng/radius live in the URL like every
-  // other filter on this page (SearchNearbyToggle writes them via
-  // router.push, the same "URL is the source of truth" convention
+  // other filter on this page (SearchNearbyToggle writes them through
+  // the native History API, the same "URL is the source of truth" convention
   // SearchFilters/SearchTabsWrapper already use) — unlike
   // NearbyServiceProviders.tsx's local useState, this page's filters/
   // sort/pagination are already URL-driven, so geo belongs there too
@@ -335,10 +335,11 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
                   variant="outline"
                   size="sm"
                   onClick={() =>
-                    router.push(
+                    writeClientUrl(
                       hasActiveFilters && q
                         ? `${ROUTES.search}?q=${encodeURIComponent(q)}`
                         : ROUTES.search,
+                      'push',
                     )
                   }
                 >

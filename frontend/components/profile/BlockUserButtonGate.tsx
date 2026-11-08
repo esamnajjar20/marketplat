@@ -28,7 +28,9 @@ interface Props {
 
 export function BlockUserButtonGate({ targetUserId, targetUserName }: Props) {
   const currentUser = useAuthStore(selectUser);
-  const isBlocked = useIsUserBlocked(targetUserId);
+  const isBlocked = useIsUserBlocked(targetUserId, {
+    enabled: Boolean(currentUser && currentUser.id !== targetUserId),
+  });
   const { mutate: toggleBlock, isPending } = useToggleUserBlock();
   const [confirmOpen, setConfirmOpen] = useState(false);
 

@@ -8,14 +8,16 @@ import { SalesSummary } from './SalesSummary';
 import { SaleCard } from './SaleCard';
 import { POSDialog } from './POSDialog';
 import { AddSaleDialog } from './AddSaleDialog';
-import { useSales, useSalesSummary } from '@/hooks/queries/useSales';
+import { useSales, useSalesDashboard } from '@/hooks/queries/useSales';
 import { salesHubTabHref } from '@/lib/salesHubTabs';
 
 export function SalesPageClient() {
   const [open, setOpen] = useState(false);
   const [posOpen, setPosOpen] = useState(false);
   const { data, isLoading, isError, refetch } = useSales({ page: 1, limit: 4 });
-  const { data: summary } = useSalesSummary('month');
+  // SalesDashboard consumes the exact same cache key. Sharing this result
+  // avoids a second /sales/summary?period=month request for identical KPIs.
+  const { data: dashboard } = useSalesDashboard();
   const items = data?.items ?? [];
 
   return (
@@ -40,7 +42,7 @@ export function SalesPageClient() {
         </div>
       </div>
 
-      <SalesSummary summary={summary} />
+      {dashboard ? <SalesSummary summary={dashboard.summary} /> : null}
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-2">

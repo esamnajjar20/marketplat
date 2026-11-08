@@ -15,7 +15,7 @@
  *  - Renders listing title, customer name, status badge, details,
  *    relative time, and a link to the request detail page
  *  - Status filter tabs: aria-pressed reflects ?status=, clicking
- *    pushes the new status and clears ?page=
+ *    updates client URL state and clears ?page= without a new RSC navigation
  *  - RequestActions per status:
  *      PENDING      -> رفض / قبول buttons, calling respond.mutate
  *                       with REJECTED / ACCEPTED
@@ -36,12 +36,9 @@ import { useIncomingServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
 import type { ServiceRequest, ServiceRequestStatus } from '@/types/service.types';
 
-const mockPush = vi.fn();
-const mockReplace = vi.fn();
 let mockSearchParams = new URLSearchParams();
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush, replace: mockReplace }),
   useSearchParams: () => mockSearchParams,
 }));
 
@@ -114,6 +111,7 @@ function mockIncomingState(overrides: Partial<ReturnType<typeof useIncomingServi
 
 beforeEach(() => {
   vi.clearAllMocks();
+  window.history.replaceState({}, '', '/my-services');
   mockSearchParams = new URLSearchParams();
   vi.mocked(useRespondToServiceRequest).mockReturnValue({
     mutate: mockRespondMutate,
@@ -185,7 +183,7 @@ describe('IncomingServiceRequestsList', () => {
       expect(screen.getByRole('button', { name: 'الكل' })).toHaveAttribute('aria-pressed', 'false');
     });
 
-    it('navigates with the new status and clears the page param when a tab is clicked', async () => {
+    it('updates filter URL state without a server navigation and clears the page param', async () => {
       mockSearchParams = new URLSearchParams('page=2');
       mockIncomingState({ data: { items: [], meta: { totalPages: 3 } } });
       const user = setupUser();
@@ -193,8 +191,10 @@ describe('IncomingServiceRequestsList', () => {
 
       await user.click(screen.getByRole('button', { name: 'مكتمل' }));
 
-      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('status=COMPLETED'));
-      expect(mockPush).toHaveBeenCalledWith(expect.not.stringContaining('page='));
+      expect(window.location.pathname).toBe('/my-services');
+      expect(window.location.search).toContain('status=COMPLETED');
+      expect(window.location.search).toContain('tab=requests');
+      expect(window.location.search).not.toContain('page=');
     });
   });
 

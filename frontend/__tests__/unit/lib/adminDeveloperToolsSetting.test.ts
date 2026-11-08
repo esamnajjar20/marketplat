@@ -20,7 +20,7 @@ beforeEach(() => {
 });
 
 describe('admin developer-tools setting cache', () => {
-  it('coalesces simultaneous readers and reuses the short-lived snapshot', async () => {
+  it('coalesces simultaneous readers and reuses the five-minute snapshot', async () => {
     const [first, second] = await Promise.all([
       loadAdminDeveloperToolsSetting(),
       loadAdminDeveloperToolsSetting(),
@@ -36,7 +36,7 @@ describe('admin developer-tools setting cache', () => {
   it('keeps the last known value if a later refresh fails', async () => {
     await loadAdminDeveloperToolsSetting();
     getSetting.mockRejectedValueOnce(new Error('temporary server error'));
-    vi.setSystemTime(Date.now() + 21_000);
+    vi.setSystemTime(Date.now() + 5 * 60_000 + 1);
     const refreshed = await loadAdminDeveloperToolsSetting();
 
     expect(refreshed.value.enabled).toBe(true);

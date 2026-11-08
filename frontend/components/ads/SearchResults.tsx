@@ -8,7 +8,7 @@ import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { useInfiniteQuery } from '@tanstack/react-query';
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { AdCard }         from '@/components/ads/AdCard';
 import { AdListItem }     from '@/components/ads/AdListItem';
@@ -18,12 +18,13 @@ import { EmptyState }     from '@/components/shared/feedback/EmptyState';
 import { Button }        from '@/components/shared/ui/Button';
 import { adsApi } from '@/api/ads.api';
 import { CACHE_TTL, ROUTES } from '@/lib/constants';
-import { getBrowseNumber, getBrowseParam, type BrowseSearchParams } from '@/lib/browseSearchParams';
+import { canonicalBrowseSearchParams, getBrowseNumber, getBrowseParam, parseBrowseSearchParams, type BrowseSearchParams } from '@/lib/browseSearchParams';
 import { useCategoryBySlug } from '@/hooks/queries/useCategories';
 import type { AdSortField } from '@/types/ad.types';
 import { LayoutGrid, LayoutList, Search } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTrigger';
 import { useNetworkPolicy } from '@/hooks/useNetworkPolicy';
@@ -67,9 +68,13 @@ interface Props {
   categorySlug?: string;
 }
 
-export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt, searchParams = {} }: Props = {}) {
+export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt, searchParams: initialSearchParams = {} }: Props = {}) {
   const isOnline = useOnlineStatus();
-  const router = useRouter();
+  const liveSearchParams = useSearchParams();
+  const liveQueryString = liveSearchParams.toString();
+  const searchParams = useMemo(() => parseBrowseSearchParams(liveQueryString), [liveQueryString]);
+  const seedMatchesUrl = canonicalBrowseSearchParams(initialSearchParams) === canonicalBrowseSearchParams(new URLSearchParams(liveQueryString));
+  const seededInitialPage = seedMatchesUrl ? initialPage : undefined;
   // FIX ADS-PAGE-01: mirrors BUG-06 below (SearchFilters.tsx/
   // SearchSortBarWrapper.tsx already do this) — every base-URL fallback
   // in this file used to hardcode ROUTES.search whenever categorySlug
@@ -130,8 +135,8 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
   const infiniteQuery = useInfiniteQuery({
     queryKey: queryKeys.ads.infinite(isSearch ? 'search' : 'browse', { q: isSearch ? q : undefined, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder, pageSize }),
     initialPageParam: 1,
-    initialData: initialPage ? { pages: [initialPage], pageParams: [1] } : undefined,
-    initialDataUpdatedAt: initialPageUpdatedAt,
+    initialData: seededInitialPage ? { pages: [seededInitialPage], pageParams: [1] } : undefined,
+    initialDataUpdatedAt: seededInitialPage ? initialPageUpdatedAt : undefined,
     staleTime: CACHE_TTL.adsList,
     queryFn: async ({ pageParam, signal }) => {
       try {
@@ -159,7 +164,7 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
   useEffect(() => {
-    if (!initialPage?.items.length) return;
+    if (!seededInitialPage?.items.length) return;
     saveOfflineBrowseSnapshot('ads', {
       mode: isSearch ? 'search' : 'browse',
       q: isSearch ? q : undefined,
@@ -170,11 +175,11 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
       maxPrice: maxPrice ?? undefined,
       sortBy,
       sortOrder,
-    }, initialPage.items);
+    }, seededInitialPage.items);
     if (isBaseOfflineBrowse) {
-      saveOfflineList(OFFLINE_LIST_KEYS.adsGridBrowse, initialPage.items, OFFLINE_LIST_LIMITS.adsGridBrowse);
+      saveOfflineList(OFFLINE_LIST_KEYS.adsGridBrowse, seededInitialPage.items, OFFLINE_LIST_LIMITS.adsGridBrowse);
     }
-  }, [initialPage, isSearch, q, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder, isBaseOfflineBrowse]);
+  }, [seededInitialPage, isSearch, q, categoryId, city, condition, minPrice, maxPrice, sortBy, sortOrder, isBaseOfflineBrowse]);
 
   const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = infiniteQuery;
   const items = data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [];
@@ -279,9 +284,9 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
                   size="sm"
                   onClick={() => {
                     if (hasActiveFilters && q) {
-                      router.push(`${pathname}?q=${encodeURIComponent(q)}`);
+                      writeClientUrl(`${pathname}?q=${encodeURIComponent(q)}`, 'push');
                     } else {
-                      router.push(pathname);
+                      writeClientUrl(pathname, 'push');
                     }
                   }}
                 >

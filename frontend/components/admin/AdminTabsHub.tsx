@@ -24,7 +24,7 @@
 
 import { Suspense, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import {
@@ -35,6 +35,7 @@ import {
   resolveAdminTab,
   type AdminTab,
 } from '@/lib/adminHubTabs';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { AdminPageShell } from '@/components/admin/AdminPageShell';
 import { PageLoadingState } from '@/components/shared/feedback/PageLoadingState';
 
@@ -281,7 +282,6 @@ function TabBody({ tab }: { tab: AdminTab }) {
 
 export function AdminTabsHub() {
   const sp = useSearchParams();
-  const router = useRouter();
   const role = useAuthStore(selectUser)?.role;
 
   const search = sp.toString() ? `?${sp.toString()}` : '';
@@ -295,8 +295,8 @@ export function AdminTabsHub() {
   useEffect(() => {
     if (!blocked) return;
     toast.error(role === 'ADMIN' ? 'إدارة مفاتيح الخصائص متاحة للمدير الأعلى فقط.' : 'هذا القسم غير متاح لصلاحيات حسابك.');
-    router.replace(adminTabHref(defaultAdminTabForRole(role)));
-  }, [blocked, role, router]);
+    writeClientUrl(adminTabHref(defaultAdminTabForRole(role)), 'replace');
+  }, [blocked, role]);
 
   if (blocked) return null;
 

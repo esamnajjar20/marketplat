@@ -6,7 +6,8 @@
  */
 
 import { useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -31,7 +32,6 @@ function isPresetActive(
 }
 
 export function QuickFiltersBar() {
-  const router = useRouter();
   const sp = useSearchParams();
   const current = parseSearchParams(new URLSearchParams(sp.toString()));
   const type = (current.type ?? 'all') as SearchType;
@@ -61,9 +61,9 @@ export function QuickFiltersBar() {
 
       void hapticQuickFilter();
       const q = params.toString();
-      router.replace(q ? `${ROUTES.search}?${q}` : ROUTES.search);
+      writeClientUrl(q ? `${ROUTES.search}?${q}` : ROUTES.search, 'replace');
     },
-    [sp, current, router],
+    [sp, current],
   );
 
   const visible = QUICK_FILTER_PRESETS.filter(

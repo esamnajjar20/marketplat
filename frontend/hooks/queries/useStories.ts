@@ -19,13 +19,15 @@ export function useStoryFeed() {
   });
 }
 
-export function useUserStories(userId: string) {
+export function useUserStories(userId: string, enabled = true) {
   const authenticated = useAuthStore(selectIsAuthenticated);
+  const hasToken = useAuthStore(selectHasAccessToken);
+  const online = useOnlineStatus();
   return useQuery({
     queryKey: queryKeys.stories.user(userId),
     queryFn: ({ signal }) => storiesApi.userStories(userId, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.userProfile,
-    enabled: authenticated && Boolean(userId),
+    enabled: enabled && authenticated && hasToken && online && Boolean(userId),
   });
 }
 

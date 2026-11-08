@@ -26,6 +26,15 @@ export const blockedUsersApi = {
       .get<ApiResponse<UserBlockWithBlockedUser[]>>('/blocked-users', { ...config, params })
       .then((r) => unwrapPaginated<UserBlockWithBlockedUser>(r)),
 
+  /** GET /blocked-users/:userId/status — one directional status, not the full list. */
+  getStatus: (userId: string, config?: ApiRequestConfig) =>
+    apiClient
+      .get<ApiResponse<{ isBlockedByMe: boolean }>>(
+        `/blocked-users/${encodeURIComponent(userId)}/status`,
+        config,
+      )
+      .then((r) => r.data.data),
+
   /** POST /blocked-users/:userId — toggles block/unblock. */
   toggleBlock: (userId: string) =>
     apiClient.post<ApiResponse<ToggleUserBlockResult>>(`/blocked-users/${userId}`),

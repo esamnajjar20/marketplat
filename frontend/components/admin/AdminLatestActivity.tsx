@@ -84,6 +84,7 @@ export function AdminLatestActivity() {
             return (
               <IntentPrefetchLink
                 key={item.id}
+                clientQueryNavigation
                 href={item.href}
                 className="flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-[13px] transition-colors hover:bg-[var(--legacy-surface)]" prefetch={false}
               >

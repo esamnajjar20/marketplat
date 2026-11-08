@@ -1,4 +1,5 @@
 import type { Metadata }    from 'next';
+import { DesktopOnly } from '@/components/shared/layout/DesktopOnly';
 import dynamic from 'next/dynamic';
 import { Suspense, cache } from 'react';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
@@ -139,7 +140,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <aside className="hidden lg:col-span-1 lg:block">
             <div className="sticky top-24">
-              <Suspense><SearchFilters categorySlug={slug} /></Suspense>
+              <DesktopOnly><Suspense><SearchFilters categorySlug={slug} /></Suspense></DesktopOnly>
             </div>
           </aside>
           <div className="lg:col-span-3">

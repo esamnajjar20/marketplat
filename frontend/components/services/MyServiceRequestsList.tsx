@@ -4,7 +4,7 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 import { useEffect, useState } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, MessageSquare, X, Star, CheckCheck, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -16,7 +16,7 @@ import { ReviewServiceRequestDialog } from '@/components/services/ReviewServiceR
 import { useMyServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
 import { ROUTES } from '@/lib/constants';
-import { buildUrlWithParams } from '@/lib/urlWithParams';
+import { buildUrlWithParams, writeClientUrl } from '@/lib/urlWithParams';
 import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import {
@@ -36,7 +36,6 @@ const FILTER_TABS: readonly (ServiceRequestStatus | '')[] = [
  */
 export function MyServiceRequestsList() {
   const sp = useSearchParams();
-  const router = useRouter();
   // clamp URL page param to positive integer.
   const rawPage = Number(sp.get('page') ?? 1);
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
@@ -65,15 +64,15 @@ export function MyServiceRequestsList() {
       const params = new URLSearchParams(sp.toString());
       if (totalPages > 1) params.set('page', String(totalPages));
       else params.delete('page');
-      router.replace(buildUrlWithParams(ROUTES.myServiceRequests, params));
+      writeClientUrl(buildUrlWithParams(ROUTES.myServiceRequests, params), 'replace');
     }
-  }, [data, page, totalPages, sp, router]);
+  }, [data, page, totalPages, sp]);
 
   function setStatus(s: string) {
     const params = new URLSearchParams(sp.toString());
     if (s) params.set('status', s); else params.delete('status');
     params.delete('page');
-    router.push(buildUrlWithParams(ROUTES.myServiceRequests, params));
+    writeClientUrl(buildUrlWithParams(ROUTES.myServiceRequests, params), 'push');
   }
 
   const isOutOfRange = !!data && page > totalPages && totalPages >= 1;

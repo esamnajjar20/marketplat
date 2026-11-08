@@ -80,7 +80,7 @@ describe('useToggleUserBlock', () => {
     expect(blockedUsersApi.toggleBlock).toHaveBeenCalledWith('user-1');
   });
 
-  it('adds the userId to the shared Set and shows a "blocked" toast when action is blocked', async () => {
+  it('updates the per-user status cache and shows a "blocked" toast when action is blocked', async () => {
     (blockedUsersApi.toggleBlock as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { data: { action: 'blocked' } },
     });
@@ -90,24 +90,22 @@ describe('useToggleUserBlock', () => {
     act(() => { result.current.mutate('user-1'); });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    const ids = queryClient.getQueryData<Set<string>>(queryKeys.blockedUsers.ids());
-    expect(ids!.has('user-1')).toBe(true);
+    expect(queryClient.getQueryData(queryKeys.blockedUsers.status('user-1'))).toBe(true);
     expect(toast.success).toHaveBeenCalledWith('تم حظر المستخدم');
   });
 
-  it('removes the userId from the shared Set and shows an "unblocked" toast when action is unblocked', async () => {
+  it('clears the per-user status cache and shows an "unblocked" toast when action is unblocked', async () => {
     (blockedUsersApi.toggleBlock as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { data: { action: 'unblocked' } },
     });
     const { wrapper, queryClient } = createWrapper();
-    queryClient.setQueryData(queryKeys.blockedUsers.ids(), new Set(['user-1']));
+    queryClient.setQueryData(queryKeys.blockedUsers.status('user-1'), true);
 
     const { result } = renderHook(() => useToggleUserBlock(), { wrapper });
     act(() => { result.current.mutate('user-1'); });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    const ids = queryClient.getQueryData<Set<string>>(queryKeys.blockedUsers.ids());
-    expect(ids!.has('user-1')).toBe(false);
+    expect(queryClient.getQueryData(queryKeys.blockedUsers.status('user-1'))).toBe(false);
     expect(toast.success).toHaveBeenCalledWith('تم إلغاء حظر المستخدم');
   });
 

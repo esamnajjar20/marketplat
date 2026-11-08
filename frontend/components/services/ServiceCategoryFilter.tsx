@@ -21,8 +21,12 @@ export function ServiceCategoryFilter() {
   const router = useRouter();
   const sp = useSearchParams();
   const { data: categories } = useServiceCategories();
-  const { data: serviceTypes } = useServiceTypes();
-  const selectedType = serviceTypes?.find((type) => type.id === sp.get('serviceTypeId'));
+  const [serviceTypesRequested, setServiceTypesRequested] = useState(false);
+  const serviceTypeId = sp.get('serviceTypeId');
+  const { data: serviceTypes } = useServiceTypes({
+    enabled: Boolean(serviceTypeId) || serviceTypesRequested,
+  });
+  const selectedType = serviceTypes?.find((type) => type.id === serviceTypeId);
   const availableLocations = Object.entries(LOCATION_LABELS).filter(([value]) => {
     const caps = selectedType?.capabilities;
     if (!caps) return true;
@@ -156,7 +160,11 @@ export function ServiceCategoryFilter() {
 
       <div className="space-y-1.5">
         <label htmlFor="svc-filter-type" className="text-xs text-muted-foreground font-medium">مجال الخدمة</label>
-        <Select value={sp.get('serviceTypeId') || 'ALL'} onValueChange={(v) => update('serviceTypeId', v === 'ALL' ? '' : v)}>
+        <Select
+          value={serviceTypeId || 'ALL'}
+          onOpenChange={(open) => { if (open) setServiceTypesRequested(true); }}
+          onValueChange={(v) => update('serviceTypeId', v === 'ALL' ? '' : v)}
+        >
           <SelectTrigger id="svc-filter-type" className="w-full"><SelectValue placeholder="كل المجالات" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">كل المجالات</SelectItem>

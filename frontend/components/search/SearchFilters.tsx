@@ -38,16 +38,21 @@ export function SearchFilters() {
   const hasCategory = Boolean(state.categoryId);
   const [advancedOpen, setAdvancedOpen] = useState(hasCategory);
 
-  const { data: adCategories } = useCategories();
-  const { data: productCategories } = useProductCategories();
-  const { data: serviceCategories } = useServiceCategories();
+  const showCategoryFilter =
+    type === 'ads' || type === 'products' || type === 'services' || type === 'all';
+  // The advanced category section is collapsed by default. Do not download
+  // three category trees while its controls are not even mounted in the UI.
+  // For a specific search type, load only the taxonomy that can be selected.
+  const shouldLoadAdCategories = advancedOpen && showCategoryFilter && (type === 'ads' || type === 'all');
+  const shouldLoadProductCategories = advancedOpen && showCategoryFilter && (type === 'products' || type === 'all');
+  const shouldLoadServiceCategories = advancedOpen && showCategoryFilter && (type === 'services' || type === 'all');
+  const { data: adCategories } = useCategories({ enabled: shouldLoadAdCategories });
+  const { data: productCategories } = useProductCategories({ enabled: shouldLoadProductCategories });
+  const { data: serviceCategories } = useServiceCategories({ enabled: shouldLoadServiceCategories });
 
   function apply(patch: Parameters<typeof buildSearchHref>[1]) {
     router.replace(buildSearchHref(new URLSearchParams(sp.toString()), patch));
   }
-
-  const showCategoryFilter =
-    type === 'ads' || type === 'products' || type === 'services' || type === 'all';
 
   return (
     <div className="space-y-4 rounded-2xl border border-[var(--legacy-border)] bg-card p-4 dark:border-border dark:bg-card">

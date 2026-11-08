@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 export function SalesDebtsSection() {
   const router = useRouter();
   const [page, setPage] = useState(1);
+  const [openingReceiptId, setOpeningReceiptId] = useState<string | null>(null);
   const query = useDebts({ page, limit: 20 });
   const summary = useDebtSummary();
 
@@ -105,10 +106,13 @@ export function SalesDebtsSection() {
                     variant="outline"
                     className="h-10 flex-1 rounded-xl font-bold"
                     onClick={() => {
+                      if (openingReceiptId) return;
                       const destination = `/account/sales/${sale.id}/receipt`;
+                      setOpeningReceiptId(sale.id);
                       signalNavigationStart(destination);
                       router.push(destination);
                     }}
+                    disabled={openingReceiptId !== null}
                   >
                     الإيصال
                   </Button>

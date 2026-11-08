@@ -49,3 +49,44 @@ export function serializeBrowseSearchParams(params: BrowseSearchParams): string 
   }
   return query.toString();
 }
+
+/** Convert a live URL query string into the serializable shape used by browse grids.
+ * Repeated keys are retained as arrays so URL state survives client-only changes.
+ */
+export function parseBrowseSearchParams(queryString: string): BrowseSearchParams {
+  const result: BrowseSearchParams = {};
+  const params = new URLSearchParams(queryString);
+  params.forEach((value, key) => {
+    const current = result[key];
+    if (current === undefined) result[key] = value;
+    else if (Array.isArray(current)) result[key] = [...current, value];
+    else result[key] = [current, value];
+  });
+  return result;
+}
+
+/** Stable comparison key for server-seeded params vs the live address bar.
+ * Key ordering is normalized; duplicate values retain their original order.
+ */
+export function canonicalBrowseSearchParams(
+  params: BrowseSearchParams | URLSearchParams,
+): string {
+  const entries: Array<[string, string, number]> = [];
+  if (params instanceof URLSearchParams) {
+    let index = 0;
+    params.forEach((value, key) => entries.push([key, value, index++]));
+  } else {
+    let index = 0;
+    for (const [key, raw] of Object.entries(params)) {
+      if (raw === undefined) continue;
+      const values = Array.isArray(raw) ? raw : [raw];
+      for (const value of values) entries.push([key, value, index++]);
+    }
+  }
+  entries.sort(([keyA, valueA, orderA], [keyB, valueB, orderB]) =>
+    keyA.localeCompare(keyB) || orderA - orderB || valueA.localeCompare(valueB),
+  );
+  const normalized = new URLSearchParams();
+  for (const [key, value] of entries) normalized.append(key, value);
+  return normalized.toString();
+}

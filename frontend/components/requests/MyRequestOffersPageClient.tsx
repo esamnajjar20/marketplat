@@ -10,6 +10,7 @@ import { Pagination } from '@/components/shared/ui/Pagination';
 import { useMyRequestOffers } from '@/hooks/queries/useRequests';
 import { useWithdrawRequestOffer } from '@/hooks/mutations/useRequestMutations';
 import { ROUTES } from '@/lib/constants';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { Button } from '@/components/shared/ui/Button';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { RequestListSkeleton } from '@/components/requests/RequestListSkeleton';
@@ -56,18 +57,19 @@ function MyRequestOffersContent() {
           if (tab.value) qs.set('status', tab.value);
           const href = qs.toString() ? `${ROUTES.myOpenRequestOffers}?${qs}` : ROUTES.myOpenRequestOffers;
           return (
-            <IntentPrefetchLink
+            <button
               key={tab.label}
-              href={href}
+              type="button"
+              onClick={() => writeClientUrl(href, 'push')}
               role="tab"
               aria-selected={active}
               className={cn(
                 'inline-flex min-h-10 items-center rounded-full px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground',
-              )} prefetch={false}
+              )}
             >
               {tab.label}
-            </IntentPrefetchLink>
+            </button>
           );
         })}
       </div>

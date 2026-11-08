@@ -7,7 +7,7 @@
 
 import { useMemo, useState } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Package, AlertTriangle, History, Boxes, TrendingDown, CircleAlert } from 'lucide-react';
 import { useMyProducts } from '@/hooks/queries/useProducts';
 import { useAdjustProductStock } from '@/hooks/mutations/useAdjustProductStock';
@@ -19,6 +19,7 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { Pagination } from '@/components/shared/ui/Pagination';
 import { ROUTES } from '@/lib/constants';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import type { ProductAvailability } from '@/types/product.types';
 import { cn } from '@/lib/utils';
 
@@ -176,7 +177,6 @@ function StockRow({
 }
 
 export function MyStoreInventory() {
-  const router = useRouter();
   const sp = useSearchParams();
   // SW-INVENTORY-a hand-edited URL like ?page=abc produced
   // NaN, which the products hook serialised onto the wire — same class
@@ -232,7 +232,7 @@ export function MyStoreInventory() {
     // refinements of the same view — pushing made Back require N presses
     // to actually leave the page after setting three filters, matching
     // the same reasoning already applied to SearchFilters.
-    router.replace(`${ROUTES.myStore}?${params.toString()}`);
+    writeClientUrl(`${ROUTES.myStore}?${params.toString()}`, 'replace');
   }
 
   function setFilter(next: StockFilter) {

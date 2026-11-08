@@ -75,6 +75,7 @@ export function AdminScriptConsole() {
   const role = useAuthStore((state) => state.user?.role ?? null);
   const authenticated = useAuthStore((state) => state.isAuthenticated);
   const hydrated = useAuthStore((state) => state.isHydrated);
+  const authResolving = useAuthStore((state) => state.isAuthResolving);
   const [enabled, setEnabled] = useState(false);
   const [settingLoaded, setSettingLoaded] = useState(false);
   const [open, setOpen] = useState(false);
@@ -95,7 +96,7 @@ export function AdminScriptConsole() {
   const outputRef = useRef<HTMLDivElement>(null);
   const nextId = useRef(1);
 
-  const isAdmin = hydrated && authenticated && (role === 'ADMIN' || role === 'SUPER_ADMIN');
+  const isAdmin = hydrated && !authResolving && authenticated && (role === 'ADMIN' || role === 'SUPER_ADMIN');
   const scriptExecutionAllowed = process.env.NODE_ENV === 'development';
   const latestOutput = useMemo(() => logs.at(-1)?.message ?? '', [logs]);
 

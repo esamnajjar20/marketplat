@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { useRouter } from 'next/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import {
   Pencil,
@@ -27,6 +26,7 @@ import { useDeleteProduct, useToggleProductStatus } from '@/hooks/mutations/useP
 import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES } from '@/lib/constants';
 import { myStoreTabHref } from '@/lib/myStoreHubTabs';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { formatPrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import type { ProductAvailability, ProductStatus } from '@/types/product.types';
@@ -47,7 +47,6 @@ import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePu
 import { AddSaleDialog, type SalePrefill } from '@/components/sales/AddSaleDialog';
 import { Spinner } from '@/components/ui/spinner';
 export function MyProductsList() {
-  const router = useRouter();
   const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
   const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ProductStatus>(ROUTES.myStore);
   const availability = (sp.get('availability') as ProductAvailability | null) || undefined;
@@ -90,7 +89,7 @@ export function MyProductsList() {
     const params = new URLSearchParams(sp.toString());
     mutator(params);
     params.delete('page');
-    router.push(`${ROUTES.myStore}?${params.toString()}`);
+    writeClientUrl(`${ROUTES.myStore}?${params.toString()}`, 'push');
   }
 
   function setAvailability(val: string) {

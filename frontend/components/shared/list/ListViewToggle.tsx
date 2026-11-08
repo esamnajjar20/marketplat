@@ -1,7 +1,8 @@
 'use client';
 
 import { LayoutGrid, LayoutList } from 'lucide-react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { cn } from '@/lib/utils';
 
 export type ListView = 'grid' | 'list';
@@ -15,7 +16,6 @@ interface Props {
 }
 
 function ListViewToggleWithParams({ value, onChange, className, searchParamsString }: Props & { searchParamsString: string }) {
-  const router = useRouter();
   const pathname = usePathname();
   const current = value ?? (new URLSearchParams(searchParamsString).get('view') === 'list' ? 'list' : 'grid');
 
@@ -27,7 +27,7 @@ function ListViewToggleWithParams({ value, onChange, className, searchParamsStri
     else params.set('view', next);
     params.delete('page');
     const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
+    writeClientUrl(query ? `${pathname}?${query}` : pathname, 'push');
   }
 
   return (

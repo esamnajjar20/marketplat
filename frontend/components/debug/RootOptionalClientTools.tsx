@@ -37,6 +37,7 @@ export function RootOptionalClientTools({
 }: RootOptionalClientToolsProps) {
   const isAdmin = useAuthStore((state) =>
     state.isHydrated &&
+    !state.isAuthResolving &&
     state.isAuthenticated &&
     (state.user?.role === 'ADMIN' || state.user?.role === 'SUPER_ADMIN'),
   );

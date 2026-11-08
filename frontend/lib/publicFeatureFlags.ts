@@ -1,5 +1,3 @@
-export const PUBLIC_FEATURE_FLAGS_QUERY_KEY = ['public-feature-flags'] as const;
-
 export type PublicFeatureFlag = {
   enabled: boolean;
   rolloutPercent: number;

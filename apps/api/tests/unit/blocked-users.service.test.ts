@@ -112,4 +112,37 @@ describe('blockedUsersService', () => {
       expect(result).toBe(true);
     });
   });
+
+  describe('isBlockedBy', () => {
+    it('checks only the caller-to-target block direction', async () => {
+      (blockedUsersRepository.findByBlockerAndBlocked as jest.Mock).mockResolvedValue({ id: 'b-1' });
+
+      await expect(blockedUsersService.isBlockedBy(blockerId, blockedId)).resolves.toBe(true);
+
+      expect(blockedUsersRepository.findByBlockerAndBlocked).toHaveBeenCalledWith(
+        blockerId,
+        blockedId
+      );
+    });
+
+    it('returns false for self without querying the repository', async () => {
+      await expect(blockedUsersService.isBlockedBy(blockerId, blockerId)).resolves.toBe(false);
+      expect(blockedUsersRepository.findByBlockerAndBlocked).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getBlockedIdsByBlocker', () => {
+    it('delegates a single bounded batch of conversation participant ids', async () => {
+      (blockedUsersRepository.findBlockedIdsByBlocker as jest.Mock).mockResolvedValue([blockedId]);
+
+      await expect(
+        blockedUsersService.getBlockedIdsByBlocker(blockerId, [blockedId, 'user-3'])
+      ).resolves.toEqual([blockedId]);
+
+      expect(blockedUsersRepository.findBlockedIdsByBlocker).toHaveBeenCalledWith(
+        blockerId,
+        [blockedId, 'user-3']
+      );
+    });
+  });
 });

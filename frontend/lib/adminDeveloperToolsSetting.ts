@@ -1,6 +1,10 @@
 import { adminApi, type DeveloperToolsSetting } from '@/api/admin.api';
 
-const CACHE_TTL_MS = 20_000;
+// This switch changes infrequently and successful admin writes publish the
+// new value into this shared snapshot immediately. A five-minute read TTL
+// avoids refetching the same global setting on every route focus/visibility
+// event while retaining periodic cross-tab reconciliation.
+const CACHE_TTL_MS = 5 * 60_000;
 
 type CachedSetting = { value: DeveloperToolsSetting; fetchedAt: number };
 type LoadedSetting = { value: DeveloperToolsSetting; stale: boolean };

@@ -99,6 +99,7 @@ export function AdminOpsQueue() {
               <p className="mt-2 text-[13px] font-bold">{label}</p>
               <p className="mt-0.5 text-[12px] text-[var(--legacy-muted-text)]">{hint}</p>
               <IntentPrefetchLink
+                clientQueryNavigation
                 href={href}
                 className={cn(
                   'mt-2 inline-flex h-[30px] w-fit items-center justify-center rounded-lg border border-[var(--legacy-primary-border)] bg-card px-2.5 text-[12px] font-bold text-[var(--legacy-primary-deep)]',

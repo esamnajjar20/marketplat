@@ -18,7 +18,7 @@ vi.mock('next/link', async () => {
 });
 
 describe('IntentPrefetchLink', () => {
-  it('does not prefetch a disabled link until pointer hover', () => {
+  it('honors explicit prefetch=false after pointer hover by default', () => {
     render(
       <IntentPrefetchLink href="/target" prefetch={NO_PREFETCH}>
         Target
@@ -29,10 +29,10 @@ describe('IntentPrefetchLink', () => {
     expect(link).toHaveAttribute('data-prefetch', 'false');
 
     fireEvent.mouseEnter(link);
-    expect(link).toHaveAttribute('data-prefetch', 'null');
+    expect(link).toHaveAttribute('data-prefetch', 'false');
   });
 
-  it('enables prefetch when a keyboard user focuses the link', () => {
+  it('honors explicit prefetch=false after keyboard focus by default', () => {
     render(
       <IntentPrefetchLink href="/target" prefetch={NO_PREFETCH}>
         Target
@@ -41,10 +41,23 @@ describe('IntentPrefetchLink', () => {
 
     const link = screen.getByRole('link', { name: 'Target' });
     fireEvent.focus(link);
+    expect(link).toHaveAttribute('data-prefetch', 'false');
+  });
+
+  it('allows opt-in intent prefetch only for explicitly reviewed links', () => {
+    render(
+      <IntentPrefetchLink href="/target" prefetch={NO_PREFETCH} prefetchOnIntent>
+        Target
+      </IntentPrefetchLink>,
+    );
+
+    const link = screen.getByRole('link', { name: 'Target' });
+    expect(link).toHaveAttribute('data-prefetch', 'false');
+    fireEvent.mouseEnter(link);
     expect(link).toHaveAttribute('data-prefetch', 'null');
   });
 
-  it('preserves consumer mouse-enter and focus callbacks', () => {
+  it('preserves consumer mouse-enter and focus callbacks without opting in', () => {
     const onMouseEnter = vi.fn();
     const onFocus = vi.fn();
     render(
@@ -64,12 +77,12 @@ describe('IntentPrefetchLink', () => {
 
     expect(onMouseEnter).toHaveBeenCalledOnce();
     expect(onFocus).toHaveBeenCalledOnce();
-    expect(link).toHaveAttribute('data-prefetch', 'null');
+    expect(link).toHaveAttribute('data-prefetch', 'false');
   });
 
-  it('does not prefetch links that open another browsing context', () => {
+  it('does not activate intent prefetch for another browsing context', () => {
     render(
-      <IntentPrefetchLink href="/target" target="_blank" prefetch={NO_PREFETCH}>
+      <IntentPrefetchLink href="/target" target="_blank" prefetch={NO_PREFETCH} prefetchOnIntent>
         External context
       </IntentPrefetchLink>,
     );
@@ -81,7 +94,7 @@ describe('IntentPrefetchLink', () => {
 
   it('does not activate intent prefetch for downloads or non-navigation schemes', () => {
     const { rerender } = render(
-      <IntentPrefetchLink href="/file" download prefetch={NO_PREFETCH}>
+      <IntentPrefetchLink href="/file" download prefetch={NO_PREFETCH} prefetchOnIntent>
         Download
       </IntentPrefetchLink>,
     );
@@ -90,7 +103,7 @@ describe('IntentPrefetchLink', () => {
     expect(link).toHaveAttribute('data-prefetch', 'false');
 
     rerender(
-      <IntentPrefetchLink href="mailto:help@example.com" prefetch={NO_PREFETCH}>
+      <IntentPrefetchLink href="mailto:help@example.com" prefetch={NO_PREFETCH} prefetchOnIntent>
         Email
       </IntentPrefetchLink>,
     );
@@ -99,7 +112,7 @@ describe('IntentPrefetchLink', () => {
     expect(link).toHaveAttribute('data-prefetch', 'false');
 
     rerender(
-      <IntentPrefetchLink href="#details" prefetch={NO_PREFETCH}>
+      <IntentPrefetchLink href="#details" prefetch={NO_PREFETCH} prefetchOnIntent>
         Details
       </IntentPrefetchLink>,
     );
@@ -110,7 +123,7 @@ describe('IntentPrefetchLink', () => {
 
   it('does not carry hover intent across a changed href', () => {
     const { rerender } = render(
-      <IntentPrefetchLink href="/first" prefetch={NO_PREFETCH}>
+      <IntentPrefetchLink href="/first" prefetch={NO_PREFETCH} prefetchOnIntent>
         Destination
       </IntentPrefetchLink>,
     );
@@ -120,7 +133,7 @@ describe('IntentPrefetchLink', () => {
     expect(link).toHaveAttribute('data-prefetch', 'null');
 
     rerender(
-      <IntentPrefetchLink href="/second" prefetch={NO_PREFETCH}>
+      <IntentPrefetchLink href="/second" prefetch={NO_PREFETCH} prefetchOnIntent>
         Destination
       </IntentPrefetchLink>,
     );

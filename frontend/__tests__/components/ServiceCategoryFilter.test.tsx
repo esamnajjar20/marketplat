@@ -66,6 +66,27 @@ describe('ServiceCategoryFilter', () => {
     mockServiceTypes([]);
   });
 
+
+  it('loads service types only when the domain selector is opened', async () => {
+    const user = setupUser();
+    mockServiceTypes([{ id: 'type-1', nameAr: 'صيانة' }]);
+    render(<ServiceCategoryFilter />);
+
+    expect(useServiceTypes).toHaveBeenLastCalledWith({ enabled: false });
+    const domainSelect = screen.getAllByRole('combobox')[0];
+    await user.click(domainSelect);
+    expect(useServiceTypes).toHaveBeenLastCalledWith({ enabled: true });
+    expect(await screen.findByRole('option', { name: 'صيانة' })).toBeInTheDocument();
+  });
+
+  it('loads service types when a selected domain needs its label and dynamic fields', () => {
+    mockSearchParams = new URLSearchParams({ serviceTypeId: 'type-1' });
+    mockServiceTypes([{ id: 'type-1', nameAr: 'صيانة' }]);
+    render(<ServiceCategoryFilter />);
+
+    expect(useServiceTypes).toHaveBeenLastCalledWith({ enabled: true });
+  });
+
   describe('search input', () => {
     it('pushes the search param when Enter is pressed', async () => {
       const user = setupUser();

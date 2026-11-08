@@ -175,7 +175,10 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
   useEffect(() => setPortalReady(true), []);
   const { isSeller, isLoaded: sellerLoaded, showRoleSkeleton } = useIsSeller();
   const { isProvider, showRoleSkeleton: showProviderSkeleton } = useIsProvider();
-  const { data: myStore } = useMyStore({ enabled: isSeller });
+  // The drawer is rendered off-canvas even when closed. Its store link is
+  // not visible until the user opens it, so do not load /stores/me on every
+  // protected page just to prepare a hidden navigation label.
+  const { data: myStore } = useMyStore({ enabled: isSeller && isOpen });
   const { recordNavigation, isUsed } = useNavigationUsage();
   const [showBrowse, setShowBrowse] = useState(true);
 

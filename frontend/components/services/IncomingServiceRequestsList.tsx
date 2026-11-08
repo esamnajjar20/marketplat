@@ -4,7 +4,7 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 import { useEffect, useState } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, Inbox, Check, X, Play, CheckCheck, CalendarPlus, WalletCards } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -17,6 +17,7 @@ import { useIncomingServiceRequests } from '@/hooks/queries/useServiceRequests';
 import { useRespondToServiceRequest } from '@/hooks/mutations/useServiceRequestMutations';
 import { ROUTES } from '@/lib/constants';
 import { MY_SERVICES_HUB_PATH } from '@/lib/myServicesHubTabs';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import {
   SERVICE_REQUEST_STATUS_LABELS,
@@ -139,7 +140,6 @@ function RequestActions({
  */
 export function IncomingServiceRequestsList() {
   const sp = useSearchParams();
-  const router = useRouter();
   // SW-FIX-PAGE-NAN: clamp URL page param to positive integer.
   const rawPage = Number(sp.get('page') ?? 1);
   const page = Number.isInteger(rawPage) && rawPage > 0 ? rawPage : 1;
@@ -170,16 +170,16 @@ export function IncomingServiceRequestsList() {
       if (totalPages > 1) params.set('page', String(totalPages));
       else params.delete('page');
       params.set('tab', 'requests'); // MY-SERVICES-HUB-01: tab lives in the query
-      router.replace(`${MY_SERVICES_HUB_PATH}?${params.toString()}`);
+      writeClientUrl(`${MY_SERVICES_HUB_PATH}?${params.toString()}`, 'replace');
     }
-  }, [data, page, totalPages, sp, router]);
+  }, [data, page, totalPages, sp]);
 
   function setStatus(s: string) {
     const params = new URLSearchParams(sp.toString());
     if (s) params.set('status', s); else params.delete('status');
     params.delete('page');
     params.set('tab', 'requests'); // MY-SERVICES-HUB-01
-    router.push(`${MY_SERVICES_HUB_PATH}?${params.toString()}`);
+    writeClientUrl(`${MY_SERVICES_HUB_PATH}?${params.toString()}`, 'push');
   }
 
   const isOutOfRange = !!data && page > totalPages && totalPages >= 1;
@@ -293,6 +293,7 @@ export function IncomingServiceRequestsList() {
           totalPages={totalPages}
           currentPage={page}
           baseUrl={MY_SERVICES_HUB_PATH}
+          clientSideNavigation
           searchParams={Object.fromEntries(sp.entries())}
         />
       )}

@@ -3,7 +3,6 @@ import { Conversation, Message } from '@prisma/client';
 import {
   conversationsRepository,
   messagesRepository,
-  ConversationWithRelations,
   ConversationListItem,
 } from './conversations.repository';
 import { parseTrustedCloudinaryMediaUrl } from './cloudinaryMediaUrl';
@@ -252,13 +251,18 @@ export const conversationsService = {
     });
   },
 
-  getConversationById: async (userId: string, id: string): Promise<ConversationWithRelations> => {
+  getConversationById: async (
+    userId: string,
+    id: string
+  ): Promise<NonNullable<Awaited<ReturnType<typeof conversationsRepository.findByIdForUser>>> & { isBlockedByMe: boolean }> => {
     const conversation = await conversationsRepository.findByIdForUser(id, userId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
     if (conversation.mySettings?.deletedAt)
       throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
-    return conversation;
+    const otherPartyId = conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId;
+    const isBlockedByMe = await blockedUsersService.isBlockedBy(userId, otherPartyId);
+    return { ...conversation, isBlockedByMe };
   },
 
   getMyConversations: async (
@@ -284,8 +288,20 @@ export const conversationsService = {
       archivedOnly: query.archivedOnly,
       role: query.role,
     });
+    const otherPartyIds = conversations.map((conversation) =>
+      conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId
+    );
+    const blockedIds = new Set(
+      await blockedUsersService.getBlockedIdsByBlocker(userId, otherPartyIds)
+    );
+
     return {
-      items: conversations,
+      items: conversations.map((conversation) => {
+        const otherPartyId = conversation.buyerId === userId
+          ? conversation.sellerId
+          : conversation.buyerId;
+        return { ...conversation, isBlockedByMe: blockedIds.has(otherPartyId) };
+      }),
       meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 20),
     };
   },

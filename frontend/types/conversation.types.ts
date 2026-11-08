@@ -62,6 +62,8 @@ export interface Conversation {
   buyer: ConversationParticipant;
   seller: ConversationParticipant;
   mySettings?: ConversationUserSettings | null;
+  /** Whether the authenticated viewer has blocked the other participant. */
+  isBlockedByMe?: boolean;
 }
 
 /**

@@ -1,8 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { ProfileTabs, type ProfileTabValue } from '@/components/profile/ProfileTabs';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { ErrorBoundary } from '@/components/shared/feedback/ErrorBoundary';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import type { PublicUser } from '@/types/user.types';
@@ -52,7 +53,6 @@ const TAB_LABEL: Record<ProfileTabValue, string> = {
  * straight to the ads tab instead of a redundant duplicate.
  */
 export function ProfileTabsSection({ user }: Props) {
-  const router = useRouter();
   const sp = useSearchParams();
   const currentUser = useAuthStore(selectUser);
   const isOwnProvider = currentUser?.id === user.id;
@@ -86,7 +86,7 @@ export function ProfileTabsSection({ user }: Props) {
     if (next === defaultTab) params.delete('tab');
     else params.set('tab', next);
     params.delete('page');
-    router.push(`/profile/${user.id}${params.toString() ? `?${params.toString()}` : ''}`);
+    writeClientUrl(`/profile/${user.id}${params.toString() ? `?${params.toString()}` : ''}`, 'push');
   }
 
   return (

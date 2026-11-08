@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { FolderOpen, Plus } from 'lucide-react';
 import { FavoriteListsSidebar } from '@/components/favorites/FavoriteListsSidebar';
 import { FavoritesTabs } from '@/components/profile/FavoritesTabs';
@@ -10,6 +10,7 @@ import { useCreateFavoriteList } from '@/hooks/mutations/useFavoriteListMutation
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { ROUTES } from '@/lib/constants';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { cn } from '@/lib/utils';
 import {
   Sheet,
@@ -21,7 +22,6 @@ import {
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 function ListChipsBar({ onOpenLists }: { onOpenLists: () => void }) {
-  const router = useRouter();
   const sp = useSearchParams();
   const activeListId = sp.get('list') ?? null;
   const { data: lists } = useFavoriteLists();
@@ -37,7 +37,7 @@ function ListChipsBar({ onOpenLists }: { onOpenLists: () => void }) {
     else params.delete('list');
     params.delete('page');
     const qs = params.toString();
-    router.replace(qs ? `${ROUTES.favorites}?${qs}` : ROUTES.favorites);
+    writeClientUrl(qs ? `${ROUTES.favorites}?${qs}` : ROUTES.favorites, 'replace');
   }
 
   function onCreate(e: React.FormEvent) {

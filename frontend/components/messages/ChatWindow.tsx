@@ -116,6 +116,7 @@ export function ChatWindow({ conversationId }: Props) {
     data: conversation,
     isLoading: conversationLoading,
     isError: conversationError,
+    dataUpdatedAt: conversationUpdatedAt,
   } = useConversation(conversationId);
   const {
     data: messagesPage,
@@ -127,7 +128,16 @@ export function ChatWindow({ conversationId }: Props) {
     limit: MESSAGES_PAGE_SIZE,
   });
   const party = conversation ? otherParty(conversation, user?.id) : null;
-  const isBlocked = useIsUserBlocked(party?.id ?? '');
+  const isBlocked = useIsUserBlocked(party?.id ?? '', {
+    initialStatus: typeof conversation?.isBlockedByMe === 'boolean'
+      ? conversation.isBlockedByMe
+      : undefined,
+    initialStatusUpdatedAt: conversationUpdatedAt,
+    // Normal list/detail responses include this status. Only fall back to
+    // the single-user endpoint for an old/offline cached conversation that
+    // predates the field; never fetch the full blocked-users list here.
+    enabled: Boolean(party) && typeof conversation?.isBlockedByMe !== 'boolean',
+  });
   const partyPresence = useUserPresence(party?.id);
   const isPartyOnline = partyPresence.online;
   const { mutate: toggleBlock, isPending: togglingBlock } = useToggleUserBlock();

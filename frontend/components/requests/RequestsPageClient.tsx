@@ -1,6 +1,8 @@
 'use client';
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
+import { useSearchParams } from 'next/navigation';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import {
   ClipboardList,
   Plus,
@@ -72,8 +74,18 @@ function emptyDescription(opts: {
   return `لا نتائج لـ ${parts.join(' · ')}. جرّب مسح الفلاتر أو نشر طلب جديد.`;
 }
 
-export function RequestsPageClient({ params }: { params: OpenRequestsPageParams }) {
-  const { page, type, city, serviceTypeId, q, sort } = params;
+export function RequestsPageClient({ params: initialParams }: { params: OpenRequestsPageParams }) {
+  const searchParams = useSearchParams();
+  const limit = initialParams.limit ?? 20;
+  const rawPage = Number(searchParams.get('page') ?? 1);
+  const page = Number.isSafeInteger(rawPage) && rawPage > 0 ? Math.min(rawPage, 10_000) : 1;
+  const rawType = searchParams.get('type');
+  const type: RequestType | undefined = rawType === 'SERVICE' || rawType === 'PRODUCT' || rawType === 'RENTAL' ? rawType : undefined;
+  const city = searchParams.get('city') || undefined;
+  const serviceTypeId = type === 'SERVICE' ? searchParams.get('serviceTypeId') || undefined : undefined;
+  const q = searchParams.get('q') || undefined;
+  const sort = (searchParams.get('sort') as RequestSort | null) ?? 'newest';
+  const params: OpenRequestsPageParams = { page, limit, type, city, serviceTypeId, q, sort };
 
   const { data, isLoading, isFetching, isError, refetch } = useOpenRequests(params);
 
@@ -152,9 +164,10 @@ export function RequestsPageClient({ params }: { params: OpenRequestsPageParams 
           {TYPE_CHIPS.map(({ value, label, icon: Icon }) => {
             const active = value === type || (value === undefined && !type);
             return (
-              <IntentPrefetchLink
+              <button
                 key={label}
-                href={buildTypeHref(value, city, value === 'SERVICE' ? serviceTypeId : undefined, q, sort)}
+                type="button"
+                onClick={() => writeClientUrl(buildTypeHref(value, city, value === 'SERVICE' ? serviceTypeId : undefined, q, sort), 'push')}
                 role="tab"
                 aria-selected={active}
                 className={cn(
@@ -162,11 +175,11 @@ export function RequestsPageClient({ params }: { params: OpenRequestsPageParams 
                   active
                     ? 'border-[var(--legacy-primary)] font-extrabold text-[var(--legacy-primary-deep)] dark:border-primary dark:text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground',
-                )} prefetch={false}
+                )}
               >
                 <Icon className="h-3.5 w-3.5" aria-hidden />
                 {label}
-              </IntentPrefetchLink>
+              </button>
             );
           })}
         </div>
@@ -218,8 +231,8 @@ export function RequestsPageClient({ params }: { params: OpenRequestsPageParams 
               action={
                 <div className="flex flex-wrap items-center justify-center gap-2">
                   {hasActiveFilters ? (
-                    <Button variant="outline" asChild>
-                      <IntentPrefetchLink href={ROUTES.requests} prefetch={false}>مسح الفلاتر</IntentPrefetchLink>
+                    <Button variant="outline" onClick={() => writeClientUrl(ROUTES.requests, 'push')}>
+                      مسح الفلاتر
                     </Button>
                   ) : null}
                   <Button asChild>

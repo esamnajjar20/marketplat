@@ -155,10 +155,10 @@ export function PublicHeader({ showSearch = true, showMenuTrigger: _showMenuTrig
               reachable from the services surface and the shared Explore
               drawer instead of consuming a top-level slot. */}
           <Button asChild variant="ghost" size="sm" className={navItemClass(onSearchPage)}>
-            <IntentPrefetchLink prefetch={false} href={ROUTES.search} aria-current={onSearchPage ? 'page' : undefined}>استكشاف</IntentPrefetchLink>
+            <IntentPrefetchLink prefetch={false} href={ROUTES.search} clientQueryNavigation aria-current={onSearchPage ? 'page' : undefined}>استكشاف</IntentPrefetchLink>
           </Button>
           <Button asChild variant="ghost" size="sm" className={navItemClass(isAdsBrowseActive)}>
-            <IntentPrefetchLink prefetch={false} href={`${ROUTES.search}?type=ads`} aria-current={isAdsBrowseActive ? 'page' : undefined}>الإعلانات</IntentPrefetchLink>
+            <IntentPrefetchLink prefetch={false} href={`${ROUTES.search}?type=ads`} clientQueryNavigation aria-current={isAdsBrowseActive ? 'page' : undefined}>الإعلانات</IntentPrefetchLink>
           </Button>
           <Button asChild variant="ghost" size="sm" className={navItemClass(isActive(ROUTES.products))}>
             <IntentPrefetchLink prefetch={false} href={ROUTES.products} aria-current={isActive(ROUTES.products) ? 'page' : undefined}>المنتجات</IntentPrefetchLink>

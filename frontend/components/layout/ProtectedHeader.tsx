@@ -61,7 +61,7 @@ export function ProtectedHeader() {
             lib/navigation.ts's BROWSE_LINKS comment for why ads gets a
             standing link here (and products deliberately doesn't). */}
         <Button asChild variant="ghost" size="sm" className={navItemClass(isAdsBrowseActive)}>
-          <IntentPrefetchLink prefetch={false} href={`${ROUTES.search}?type=ads`} aria-current={isAdsBrowseActive ? 'page' : undefined}>الإعلانات</IntentPrefetchLink>
+          <IntentPrefetchLink prefetch={false} href={`${ROUTES.search}?type=ads`} clientQueryNavigation aria-current={isAdsBrowseActive ? 'page' : undefined}>الإعلانات</IntentPrefetchLink>
         </Button>
         <Button asChild variant="ghost" size="sm" className={navItemClass(pathname === ROUTES.stores || pathname.startsWith(`${ROUTES.stores}/`))}>
           <IntentPrefetchLink prefetch={false} href={ROUTES.stores} aria-current={pathname === ROUTES.stores || pathname.startsWith(`${ROUTES.stores}/`) ? 'page' : undefined}>المتاجر</IntentPrefetchLink>

@@ -45,8 +45,8 @@
  * conditionally or nested inside another function.
  */
 import { useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { buildUrlWithParams } from '@/lib/urlWithParams';
+import { useSearchParams } from 'next/navigation';
+import { buildUrlWithParams, writeClientUrl } from '@/lib/urlWithParams';
 
 interface UseOwnedListPageResult<S extends string> {
   page: number;
@@ -63,7 +63,6 @@ interface UseOwnedListPageResult<S extends string> {
 /** Reads page/status from the URL and returns a setter for the status filter. */
 export function useOwnedListPage<S extends string>(baseUrl: string): UseOwnedListPageResult<S> {
   const sp     = useSearchParams();
-  const router = useRouter();
 
   // clamp URL page param to positive integer.
   const rawPage = Number(sp.get('page') ?? 1);
@@ -75,7 +74,7 @@ export function useOwnedListPage<S extends string>(baseUrl: string): UseOwnedLis
     if (s) params.set('status', s); else params.delete('status');
     params.delete('page');
     // baseUrl may already carry a query (ROUTES.myAds = '/activity?tab=ads').
-    router.push(buildUrlWithParams(baseUrl, params));
+    writeClientUrl(buildUrlWithParams(baseUrl, params), 'push');
   }
 
   return { page, status, setStatus, searchParams: sp };
@@ -111,7 +110,6 @@ export function useOutOfRangeRedirect({
   hasData,
   searchParams: sp,
 }: UseOutOfRangeRedirectOptions): boolean {
-  const router = useRouter();
 
   const resolvedTotalPages = totalPages ?? 1;
   const isOutOfRange = hasData && page > resolvedTotalPages && resolvedTotalPages >= 1;
@@ -122,10 +120,10 @@ export function useOutOfRangeRedirect({
       const params = new URLSearchParams(sp.toString());
       if (resolvedTotalPages > 1) params.set('page', String(resolvedTotalPages));
       else params.delete('page');
-      router.replace(buildUrlWithParams(baseUrl, params));
+      writeClientUrl(buildUrlWithParams(baseUrl, params), 'replace');
     }
      
-  }, [hasData, page, resolvedTotalPages, sp, router, baseUrl]);
+  }, [hasData, page, resolvedTotalPages, sp, baseUrl]);
 
   return isOutOfRange;
 }

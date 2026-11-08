@@ -5,11 +5,12 @@ import { storeTypesApi } from '@/api/store-types.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
 
-export function useStoreTypes() {
+export function useStoreTypes(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.storeTypes.all(),
     queryFn: ({ signal }) => storeTypesApi.getAll({ signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.storeTypes,
+    enabled: options?.enabled ?? true,
   });
 }
 

@@ -1,11 +1,10 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { CloudinaryImage } from '@/components/shared/CloudinaryImage';
 import { PaymentHistoryList } from '@/components/sales/payments/PaymentHistoryList';
 import { useEffect, useState } from 'react';
-import { queryKeys } from '@/lib/queryKeys';
+import { useSalesReceipt } from '@/hooks/queries/useSales';
 
 // PERF-BUNDLE-01: `qrcode` (~20 kB) is only needed for the optional receipt
 // QR and was previously a top-level import that pulled the whole library into
@@ -13,29 +12,11 @@ import { queryKeys } from '@/lib/queryKeys';
 // demand inside the effect below, keeping the sales-receipt route chunk lean.
 // ShareAdQrDialog already lazy-loads qrcode; this makes it fully deferred
 // across the app so it never enters the shared client graph.
-import type { ApiResponse } from '@/types/api.types';
-import type { SaleRecord } from '@/types/sale.types';
-
-interface ReceiptData {
-  invoiceNumber: string | null;
-  sale: SaleRecord;
-}
-
 export default function ReceiptPage({ id }: { id: string }) {
-  const q = useQuery({
-    queryKey: queryKeys.sales.receipt(id),
-    queryFn: async ({ signal }) => {
-      const response = await fetch(`/api/v1/sales/${encodeURIComponent(id)}/receipt`, {
-        signal,
-        credentials: 'include',
-        cache: 'no-store',
-      });
-      if (!response.ok) throw new Error(`Receipt request failed (${response.status})`);
-      const payload = await response.json() as ApiResponse<ReceiptData>;
-      if (!payload.data) throw new Error(payload.message || 'Receipt response is empty');
-      return payload.data;
-    },
-  });
+  // Use the shared API client so this request targets the configured API
+  // origin (marketplat-api), not the frontend origin (which has no matching
+  // /api/v1 proxy route and returned 404 in production).
+  const q = useSalesReceipt(id);
   const [qr, setQr] = useState('');
   useEffect(() => {
     if (!q.data) return;

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
+import { DesktopOnly } from '@/components/shared/layout/DesktopOnly';
 
 /**
  * Shared chrome for public browse pages (/ads, /products, /services, /stores, …).
@@ -84,7 +85,7 @@ export function ListPageShell({
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-4 lg:gap-7">
           {sidebar ? (
             <aside className="hidden lg:col-span-1 lg:block">
-              <div className="sticky top-24 space-y-4">{sidebar}</div>
+              <div className="sticky top-24 space-y-4"><DesktopOnly>{sidebar}</DesktopOnly></div>
             </aside>
           ) : null}
           <div className={cn(sidebar ? 'lg:col-span-3' : 'lg:col-span-4', 'min-w-0')}>

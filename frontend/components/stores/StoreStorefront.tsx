@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useRef, type KeyboardEvent } from 'react';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Star } from 'lucide-react';
 // PERF-04: StoreProducts lazy-loaded — default tab but heavy (grid, search, sort, pagination, recommendations)
 // Using dynamic with SuspenseFallback to avoid blocking initial render on /stores/[id]
@@ -14,6 +14,7 @@ const StoreProducts = dynamic(
 import { StoreReviewButton } from '@/components/stores/StoreReviewButton';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { getStoreTypePresentation, type StoreWithSellerAndCounts } from '@/types/store.types';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
@@ -56,7 +57,6 @@ interface Props {
 }
 
 export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Props) {
-  const router = useRouter();
   const sp = useSearchParams();
   const tab = (sp.get('tab') as Tab | null) ?? 'products';
   const presentation = getStoreTypePresentation(store?.storeType);
@@ -85,7 +85,7 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
     if (next === 'products') params.delete('tab');
     else params.set('tab', next);
     params.delete('productsPage');
-    router.push(`${ROUTES.storeDetail(storeId)}?${params.toString()}`, { scroll: false });
+    writeClientUrl(`${ROUTES.storeDetail(storeId)}?${params.toString()}`, 'push');
   }
 
   return (

@@ -36,6 +36,8 @@ export type ConversationWithRelations = Prisma.ConversationGetPayload<{
  * Soft-deleted messages stay (body redacted in the service layer).
  */
 export type ConversationListItem = ConversationWithRelations & {
+  /** Whether the current viewer has blocked the other participant. */
+  isBlockedByMe?: boolean;
   unreadCount: number;
   lastMessage: Message | null;
   mySettings: {

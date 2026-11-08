@@ -11,6 +11,7 @@ import { CITIES, CONDITION_LABELS, ROUTES } from '@/lib/constants';
 import { useCategories, useCategoryBySlug } from '@/hooks/queries/useCategories';
 import { SlidersHorizontal } from 'lucide-react';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+import { writeClientUrl } from '@/lib/urlWithParams';
 
 // FIX P2-5: price inputs used to fire a navigation on onBlur — tabbing
 // from "من" to "إلى" (a completely normal way to fill both fields)
@@ -76,7 +77,7 @@ export function SearchFilters({ categorySlug }: Props = {}) {
     if (value) params.set(key, value); else params.delete(key);
     params.delete('page');
     const query = params.toString();
-    router.push(query ? `${pathname}?${query}` : pathname);
+    writeClientUrl(query ? `${pathname}?${query}` : pathname, 'push');
   }
 
   function resetFilters() {
@@ -88,7 +89,7 @@ export function SearchFilters({ categorySlug }: Props = {}) {
     }
     setMinPrice('');
     setMaxPrice('');
-    router.push(pathname);
+    writeClientUrl(pathname, 'push');
   }
 
   // FIX BUG-06 (cont.): picking a category from this dropdown while on
@@ -102,7 +103,8 @@ export function SearchFilters({ categorySlug }: Props = {}) {
       // Clearing the category on a category detail page changes the page
       // destination; clearing it on search only updates the current route.
       if (categorySlug && pathname !== ROUTES.search) signalNavigationStart(ROUTES.search);
-      router.push(categorySlug ? ROUTES.search : pathname);
+      if (categorySlug) router.push(ROUTES.search);
+      else writeClientUrl(pathname, 'push');
       return;
     }
     const flat = (categories ?? []).flatMap((c) => [c, ...(c.children ?? [])]);

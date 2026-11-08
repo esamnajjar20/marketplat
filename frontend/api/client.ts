@@ -698,7 +698,12 @@ apiClient.interceptors.response.use(
     // Mutations are intentionally excluded: a client-side timeout does not
     // prove that the server failed to commit the mutation. Supported create
     // flows already carry X-Offline-Op-Id for server-side idempotency.
-    if (original && isSafeHttpMethod(original.method) && (isNetworkFailure(error) || isRetryableHttpStatus(error.response?.status))) {
+    const skipServerErrorRetry = Boolean(
+      (original as (typeof original & { skipServerErrorRetry?: boolean }) | undefined)?.skipServerErrorRetry,
+    );
+    const retryableStatus = isRetryableHttpStatus(error.response?.status) &&
+      !(skipServerErrorRetry && error.response?.status === 500);
+    if (original && isSafeHttpMethod(original.method) && (isNetworkFailure(error) || retryableStatus)) {
       const policy = getNetworkPolicy();
       const maxRetries = getMaxAutoRetries(policy.tier, error.response?.status);
       const attempt = Number(original[NETWORK_RETRY_MARKER] ?? 0);

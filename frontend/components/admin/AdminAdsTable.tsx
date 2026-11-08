@@ -7,7 +7,7 @@
 import { memo, useState, useMemo, useEffect, useCallback } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Star, Trash2, Pin, Search } from 'lucide-react';
 import { Button }     from '@/components/shared/ui/Button';
 import { Badge }      from '@/components/shared/ui/Badge';
@@ -34,10 +34,10 @@ import { formatPrice } from '@/lib/formatters';
 import { parseApiError } from '@/lib/errorParser';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
+import { writeClientUrl } from '@/lib/urlWithParams';
 
 export const AdminAdsTable = memo(function AdminAdsTable() {
   const sp     = useSearchParams();
-  const router = useRouter();
   // SW-ADMIN-PAGE-NAN-01: a hand-edited URL like ?page=abc
   // gave NaN here, which was sent to the backend as
   // ?page=NaN — a guaranteed 400 for what looks like a
@@ -125,7 +125,7 @@ export const AdminAdsTable = memo(function AdminAdsTable() {
     const params = new URLSearchParams(sp.toString());
     if (value) params.set('q', value); else params.delete('q');
     params.delete('page');
-    router.replace(adminListHref('ads', params));
+    writeClientUrl(adminListHref('ads', params), 'replace');
   }
 
   return (
@@ -150,7 +150,7 @@ export const AdminAdsTable = memo(function AdminAdsTable() {
             const params = new URLSearchParams(sp.toString());
             if (value !== 'ALL') params.set('status', value); else params.delete('status');
             params.delete('page');
-            router.replace(adminListHref('ads', params));
+            writeClientUrl(adminListHref('ads', params), 'replace');
           }}
         >
           <SelectTrigger className="w-auto min-w-[10rem]">

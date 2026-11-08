@@ -86,6 +86,31 @@ describe('blockedUsersRepository', () => {
     });
   });
 
+  describe('findBlockedIdsByBlocker', () => {
+    it('selects only target ids intersecting the supplied participants', async () => {
+      (prisma.userBlock.findMany as jest.Mock).mockResolvedValue([{ blockedId }]);
+
+      const result = await blockedUsersRepository.findBlockedIdsByBlocker(blockerId, [
+        blockerId,
+        blockedId,
+        blockedId,
+      ]);
+
+      expect(prisma.userBlock.findMany).toHaveBeenCalledWith({
+        where: { blockerId, blockedId: { in: [blockedId] } },
+        select: { blockedId: true },
+      });
+      expect(result).toEqual([blockedId]);
+    });
+
+    it('avoids a database query when there are no other participants', async () => {
+      await expect(
+        blockedUsersRepository.findBlockedIdsByBlocker(blockerId, [blockerId, blockerId])
+      ).resolves.toEqual([]);
+      expect(prisma.userBlock.findMany).not.toHaveBeenCalled();
+    });
+  });
+
   describe('existsEitherDirection', () => {
     it('queries both directions with an OR', async () => {
       (prisma.userBlock.count as jest.Mock).mockResolvedValue(0);

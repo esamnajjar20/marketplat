@@ -4,11 +4,12 @@
  * NativeFilterSheet — mobile filter sheet (GPS-free).
  *
  * Location = city select only. No geolocation, no "nearby", no sort=distance.
- * Draft state in Zustand; apply once via router.replace.
+ * Draft state in Zustand; apply once through the native History API (no RSC roundtrip).
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import {
@@ -52,7 +53,6 @@ const UI_SORT_OPTIONS = (
 ).filter((k) => k !== 'distance');
 
 export function NativeFilterSheet() {
-  const router = useRouter();
   const sp = useSearchParams();
   const isOpen = useFilterStore(selectIsSheetOpen);
   const draft = useFilterStore(selectDraft);
@@ -105,8 +105,8 @@ export function NativeFilterSheet() {
     void hapticFilterApply();
     closeSheet();
     const query = params.toString();
-    router.replace(query ? `${ROUTES.search}?${query}` : ROUTES.search);
-  }, [toSearchParams, closeSheet, router]);
+    writeClientUrl(query ? `${ROUTES.search}?${query}` : ROUTES.search, 'replace');
+  }, [toSearchParams, closeSheet]);
 
   const handleReset = useCallback(() => {
     const q = sp.get('q') ?? undefined;

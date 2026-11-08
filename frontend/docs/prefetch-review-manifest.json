@@ -3,16 +3,16 @@
   "title": "MarketPlat Prefetch False Audit and Remediation Manifest",
   "baseline_source": "marketplat-main.zip uploaded for the audit remediation task",
   "summary": {
-    "reported_regex_matches": 369,
-    "runtimeJsxLinkOccurrences": 365,
+    "reported_regex_matches": 366,
+    "runtimeJsxLinkOccurrences": 362,
     "commentOnlyFalsePositives": 4,
     "affectedRuntimeFiles": 173,
     "insideMapDepthCounts": {
-      "0": 304,
-      "1": 59,
+      "0": 302,
+      "1": 58,
       "2": 2
     },
-    "renderedInsideMap": 61,
+    "renderedInsideMap": 60,
     "targetBlankLinks": 6,
     "remediation": "Use an intent-prefetch adapter on the 365 runtime links; do not re-enable viewport prefetch en masse."
   },
@@ -5628,71 +5628,6 @@
       "imported_component": "@/components/navigation/IntentPrefetchLink",
       "special_handling": null,
       "line_after": 148
-    },
-    {
-      "index": 272,
-      "file": "frontend/components/services/MyServicesHub.tsx",
-      "line_before": 160,
-      "kind": "runtime JSX Link",
-      "original_tag": "<Link",
-      "href_expression": "{ROUTES.myServiceCreate}",
-      "inside_map_depth": 0,
-      "jsx_ancestors": [
-        "Link",
-        "Button",
-        "div",
-        "section",
-        "div",
-        "fn:HubBody"
-      ],
-      "original_opening_tag": "<Link href={ROUTES.myServiceCreate} prefetch={false}>",
-      "disposition": "Converted to IntentPrefetchLink; remains viewport-prefetch-disabled on first render, then restores Next.js default prefetch on hover or keyboard focus.",
-      "imported_component": "@/components/navigation/IntentPrefetchLink",
-      "special_handling": null,
-      "line_after": 160
-    },
-    {
-      "index": 273,
-      "file": "frontend/components/services/MyServicesHub.tsx",
-      "line_before": 171,
-      "kind": "runtime JSX Link",
-      "original_tag": "<Link",
-      "href_expression": "{ROUTES.myServiceCreate}",
-      "inside_map_depth": 0,
-      "jsx_ancestors": [
-        "Link",
-        "Button",
-        "div",
-        "div",
-        "section",
-        "div"
-      ],
-      "original_opening_tag": "<Link href={ROUTES.myServiceCreate} prefetch={false}>",
-      "disposition": "Converted to IntentPrefetchLink; remains viewport-prefetch-disabled on first render, then restores Next.js default prefetch on hover or keyboard focus.",
-      "imported_component": "@/components/navigation/IntentPrefetchLink",
-      "special_handling": null,
-      "line_after": 171
-    },
-    {
-      "index": 274,
-      "file": "frontend/components/services/MyServicesHub.tsx",
-      "line_before": 193,
-      "kind": "runtime JSX Link",
-      "original_tag": "<Link\n",
-      "href_expression": "{ROUTES.myServiceEdit(item.id)}",
-      "inside_map_depth": 1,
-      "jsx_ancestors": [
-        "Link",
-        "div",
-        "section",
-        "div",
-        "fn:HubBody"
-      ],
-      "original_opening_tag": "<Link\n                  key={item.id}\n                  href={ROUTES.myServiceEdit(item.id)}\n                  className=\"flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm transition-colors hover:bg-muted/30\" prefetch={false}\n                >",
-      "disposition": "Converted to IntentPrefetchLink; remains viewport-prefetch-disabled on first render, then restores Next.js default prefetch on hover or keyboard focus.",
-      "imported_component": "@/components/navigation/IntentPrefetchLink",
-      "special_handling": null,
-      "line_after": 193
     },
     {
       "index": 275,

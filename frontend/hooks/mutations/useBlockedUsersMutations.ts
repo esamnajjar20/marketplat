@@ -8,10 +8,8 @@ import { toast } from 'sonner';
 
 /**
  * POST /blocked-users/:userId — toggles block/unblock. Same shape as
- * useToggleStoreFollow: updates the shared blockedUsers.ids() Set
- * directly and synchronously (so ChatWindow's button flips immediately,
- * without waiting for the invalidated list query to refetch), then
- * invalidates the list query and the conversations list — a fresh
+ * Update the per-user status cache directly so profile/chat buttons flip
+ * immediately, then invalidate the management list and conversations — a fresh
  * block/unblock can change whether a thread is usable, so
  * conversations should refetch too.
  */
@@ -20,12 +18,10 @@ export function useToggleUserBlock() {
 
   return useMutation({
     mutationFn: (userId: string) => blockedUsersApi.toggleBlock(userId).then((r) => r.data.data),
-    onSuccess: (data, userId) => {
-      queryClient.setQueryData<Set<string>>(queryKeys.blockedUsers.ids(), (prev) => {
-        const idSet = new Set(prev ?? []);
-        if (data?.action === 'blocked') idSet.add(userId); else idSet.delete(userId);
-        return idSet;
-      });
+    onSuccess: async (data, userId) => {
+      const statusKey = queryKeys.blockedUsers.status(userId);
+      await queryClient.cancelQueries({ queryKey: statusKey });
+      queryClient.setQueryData(statusKey, data?.action === 'blocked');
       queryClient.invalidateQueries({ queryKey: queryKeys.blockedUsers.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
       toast.success(data?.action === 'blocked' ? 'تم حظر المستخدم' : 'تم إلغاء حظر المستخدم');

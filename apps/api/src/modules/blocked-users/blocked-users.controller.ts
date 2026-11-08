@@ -5,6 +5,17 @@ import { successResponse } from '../../shared/types/api-response.types';
 import { requireUser } from '../../shared/utils/requireUser';
 
 export const blockedUsersController = {
+  getStatus: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = blockedUserIdSchema.parse({ params: req.params });
+      const isBlockedByMe = await blockedUsersService.isBlockedBy(user.userId, params.userId);
+      res.status(200).json(successResponse('Block status fetched', { isBlockedByMe }));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   toggleBlock: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);

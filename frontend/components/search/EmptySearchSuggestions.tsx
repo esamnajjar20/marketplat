@@ -90,6 +90,7 @@ export function EmptySearchSuggestions() {
             {recent.map((q) => (
               <IntentPrefetchLink
                 prefetch={false}
+                clientQueryNavigation
                 key={q}
                 href={searchHref(q)}
                 className={cn(
@@ -113,6 +114,7 @@ export function EmptySearchSuggestions() {
           {POPULAR_QUERIES.map(({ q, icon: Icon }) => (
             <IntentPrefetchLink
               prefetch={false}
+              clientQueryNavigation
               key={q}
               href={searchHref(q)}
               className={cn(
@@ -179,6 +181,7 @@ export function EmptySearchSuggestions() {
             return (
               <IntentPrefetchLink
                 prefetch={false}
+                clientQueryNavigation
                 key={type}
                 href={typeHref(type)}
                 className={cn(

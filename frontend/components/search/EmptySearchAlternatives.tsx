@@ -27,7 +27,7 @@ export function EmptySearchAlternatives() {
         {/* SW-FIX-ESA-PREFETCH-MALFORM: historical malformed prefetch markup was
             corrected. This link now uses IntentPrefetchLink, so it warms only
             after user intent rather than on initial viewport entry. */}
-        <IntentPrefetchLink prefetch={false} href={`${ROUTES.search}?type=ads`} className="text-xs font-medium text-primary hover:underline">
+        <IntentPrefetchLink prefetch={false} href={`${ROUTES.search}?type=ads`} clientQueryNavigation className="text-xs font-medium text-primary hover:underline">
           عرض الكل
         </IntentPrefetchLink>
       </div>

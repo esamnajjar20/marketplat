@@ -4,6 +4,12 @@ import type { AxiosRequestConfig } from 'axios';
 import { OFFLINE_OP_ID_HEADER } from '@/lib/offlineOperationId';
 import type { CreateSalePayload, SaleRecord, SalesSummary, SalesDashboard, SalesReport, SalesSmartInsights, SalesListQueryParams, SalesReportQueryParams } from '@/types/sale.types';
 
+/** Endpoint-specific retry controls are kept on the Axios config and consumed
+ * by the shared response interceptor; they are never sent as query parameters. */
+export type SalesRequestConfig = AxiosRequestConfig & {
+  skipServerErrorRetry?: boolean;
+};
+
 export const salesApi = {
   // NOTE: GET /sales returns { data: { items, meta } } directly (see sales.controller list),
   // NOT a bare array + meta.pagination — so unwrapPaginated must NOT be used here
@@ -14,13 +20,13 @@ export const salesApi = {
   create: (payload: CreateSalePayload, operationId?: string) => apiClient.post<ApiResponse<SaleRecord>>('/sales', payload, { headers: operationId ? { [OFFLINE_OP_ID_HEADER]: operationId } : undefined }),
   summary: (period: 'day' | 'week' | 'month' | 'year' = 'month', config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<SalesSummary>>('/sales/summary', { ...config, params: { period } }),
-  dashboard: (config?: AxiosRequestConfig) => (config ? apiClient.get<ApiResponse<SalesDashboard>>('/sales/dashboard', config) : apiClient.get<ApiResponse<SalesDashboard>>('/sales/dashboard')),
+  dashboard: (config?: SalesRequestConfig) => (config ? apiClient.get<ApiResponse<SalesDashboard>>('/sales/dashboard', config) : apiClient.get<ApiResponse<SalesDashboard>>('/sales/dashboard')),
   report: (params?: SalesReportQueryParams, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<SalesReport>>('/sales/reports', { ...config, params }),
   exportReportCsv: (params?: SalesReportQueryParams, config?: AxiosRequestConfig) => apiClient.get<Blob>('/sales/reports.csv', { ...config, params, responseType: 'blob' }),
   debtSummary: (config?: AxiosRequestConfig) => (config ? apiClient.get<ApiResponse<{totalDue:number;overdueDue:number;dueToday:number;debtorCount:number}>>('/sales/debts/summary', config) : apiClient.get<ApiResponse<{totalDue:number;overdueDue:number;dueToday:number;debtorCount:number}>>('/sales/debts/summary')),
   debts: (params?: { page?: number; limit?: number }, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<{ rows: SaleRecord[]; totalCount: number; page: number; limit: number; totalPages: number; hasNextPage: boolean; hasPrevPage: boolean }>>('/sales/debts', { ...config, params }),
   addPayment: (id: string, payload: { amount: number; method: import('@/types/sale.types').SaleTransferMethod; transferRef?: string; note?: string }) => apiClient.post<ApiResponse<SaleRecord>>(`/sales/${id}/payments`, payload),
-  receipt: (id: string) => apiClient.get<ApiResponse<{ invoiceNumber: string | null; sale: SaleRecord }>>(`/sales/${id}/receipt`),
+  receipt: (id: string, config?: AxiosRequestConfig) => apiClient.get<ApiResponse<{ invoiceNumber: string | null; sale: SaleRecord }>>(`/sales/${encodeURIComponent(id)}/receipt`, config),
   chart: (params?: { from?: string; to?: string; period?: 'day' | 'week' | 'month' | 'year' }, config?: AxiosRequestConfig) =>
     apiClient.get<ApiResponse<Array<{ date: string; revenue: number; paid: number; due: number; count: number }>>>('/sales/chart', { ...config, params }),
   compare: (period: 'week'|'month'|'year' = 'month', config?: AxiosRequestConfig) => apiClient.get<ApiResponse<{period:string;current:SalesSummary;previous:SalesSummary;samePeriodLastYear:SalesSummary;revenueChangePercentage:number|null;lastYearRevenueChangePercentage:number|null}>>('/sales/compare', { ...config, params: { period }}),

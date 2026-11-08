@@ -16,7 +16,6 @@ import {
   ListChecks,
   CheckCircle2,
   Settings2,
-  Wrench,
 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -24,13 +23,11 @@ import {
   useMyServiceProvider,
   useMyServiceProviderAnalytics,
 } from '@/hooks/queries/useServiceProviders';
-import { useMyServiceListings } from '@/hooks/queries/useServiceListings';
 import { BecomeServiceProviderCard } from './BecomeServiceProviderCard';
 import { ROUTES } from '@/lib/constants';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import type { ParsedError } from '@/lib/errorParser';
 import type { ServiceAvailability, ServiceProviderDetails } from '@/types/service.types';
-import { formatPrice } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 
 const AVAIL_LABELS: Record<ServiceAvailability, string> = {
@@ -69,7 +66,6 @@ function StatTile({
 
 function HubBody({ provider }: { provider: ServiceProviderDetails }) {
   const { data: analytics } = useMyServiceProviderAnalytics();
-  const { data: listingsData } = useMyServiceListings({ page: 1, limit: 3, status: 'ACTIVE' });
   const currentUser = useAuthStore(selectUser);
   const publicProfileHref = currentUser?.id ? ROUTES.userProfile(currentUser.id) : null;
   const pendingRequests = analytics?.pendingRequests ?? 0;
@@ -78,7 +74,6 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
   const completedRequests = analytics?.completedRequests ?? 0;
   const needsAttention = pendingRequests + upcomingAppointments;
   const initial = (provider.businessName?.trim()?.[0] || 'م').toUpperCase();
-  const listingItems = listingsData?.items ?? [];
 
   return (
     <div className="space-y-4 sm:space-y-5 lg:space-y-6">
@@ -153,67 +148,6 @@ function HubBody({ provider }: { provider: ServiceProviderDetails }) {
         </section>
       )}
 
-      <section className="space-y-2.5">
-        <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-extrabold">قائمة الخدمات</h2>
-          <Button variant="outline" size="sm" asChild className="h-9 gap-1 rounded-xl font-bold">
-            <IntentPrefetchLink href={ROUTES.myServiceCreate} prefetch={false}>
-              <Plus className="h-3.5 w-3.5" /> خدمة جديدة
-            </IntentPrefetchLink>
-          </Button>
-        </div>
-
-        {listingItems.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border/80 bg-card/50 px-4 py-6 text-center text-sm text-muted-foreground">
-            لا توجد خدمات نشطة بعد.
-            <div className="mt-3">
-              <Button size="sm" asChild className="rounded-xl font-bold">
-                <IntentPrefetchLink href={ROUTES.myServiceCreate} prefetch={false}>إضافة خدمة</IntentPrefetchLink>
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-            {listingItems.map((item) => {
-              const priceLabel =
-                item.pricingType === 'STARTING_FROM' && item.price != null
-                  ? `يبدأ من ${formatPrice(item.price)}`
-                  : item.pricingType === 'FIXED' && item.price != null
-                    ? `سعر ثابت ${formatPrice(item.price)}`
-                    : 'حسب الاتفاق';
-              const loc =
-                item.serviceLocation === 'AT_CUSTOMER'
-                  ? 'لدى العميل'
-                  : item.serviceLocation === 'AT_PROVIDER'
-                    ? 'لدى مقدم الخدمة'
-                    : item.serviceLocation === 'REMOTE'
-                      ? 'عن بُعد'
-                      : null;
-              return (
-                <IntentPrefetchLink
-                  key={item.id}
-                  href={ROUTES.myServiceEdit(item.id)}
-                  className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm transition-colors hover:bg-muted/30" prefetch={false}
-                >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Wrench className="h-4 w-4" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-bold">{item.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {priceLabel}
-                      {loc ? ` · ${loc}` : ''}
-                    </p>
-                  </div>
-                  <span className="inline-flex h-6 shrink-0 items-center rounded-full bg-primary/10 px-2.5 text-[11px] font-bold text-primary">
-                    نشطة
-                  </span>
-                </IntentPrefetchLink>
-              );
-            })}
-          </div>
-        )}
-      </section>
     </div>
   );
 }

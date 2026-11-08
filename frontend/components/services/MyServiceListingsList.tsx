@@ -4,7 +4,6 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { useRouter } from 'next/navigation';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import {
   Pencil,
@@ -37,6 +36,7 @@ import {
 } from '@/hooks/mutations/useServiceListingMutations';
 import { useOwnedListPage, useOutOfRangeRedirect } from '@/hooks/useOwnedListPage';
 import { ROUTES } from '@/lib/constants';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { formatServicePrice } from '@/lib/formatters';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import type { ServiceListingStatus } from '@/types/service.types';
@@ -51,13 +51,16 @@ import { PendingOfflinePublishCard } from '@/components/offline/PendingOfflinePu
 import { Spinner } from '@/components/ui/spinner';
 export function MyServiceListingsList() {
   const [salePrefill, setSalePrefill] = useState<SalePrefill | null>(null);
-  const router = useRouter();
   const { data: provider, isSuccess: providerOk } = useMyServiceProvider();
   const { page, status, setStatus, searchParams: sp } = useOwnedListPage<ServiceListingStatus>(
     ROUTES.myServices,
   );
   const searchQ = sp.get('q') ?? '';
   const [searchInput, setSearchInput] = useState(searchQ);
+
+  useEffect(() => {
+    setSearchInput(searchQ);
+  }, [searchQ]);
 
   const hasProvider = providerOk && Boolean(provider);
   const { data, isLoading, isError, refetch } = useMyServiceListings(
@@ -121,7 +124,7 @@ export function MyServiceListingsList() {
     const params = new URLSearchParams(sp.toString());
     mutator(params);
     params.delete('page');
-    router.push(`${ROUTES.myServices}?${params.toString()}`);
+    writeClientUrl(`${ROUTES.myServices}?${params.toString()}`, 'push');
   }
 
   function submitSearch(e: React.FormEvent) {
@@ -470,6 +473,7 @@ export function MyServiceListingsList() {
           totalPages={totalPages}
           currentPage={page}
           baseUrl={ROUTES.myServices}
+          clientSideNavigation
           searchParams={Object.fromEntries(sp.entries())}
         />
       )}

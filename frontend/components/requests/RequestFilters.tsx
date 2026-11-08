@@ -72,7 +72,11 @@ export function RequestFilters({
 }: Props) {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState(q ?? '');
-  const { data: serviceTypes } = useServiceTypes();
+  const [serviceTypesRequested, setServiceTypesRequested] = useState(false);
+  const shouldLoadServiceTypes = type === 'SERVICE' && (Boolean(serviceTypeId) || serviceTypesRequested);
+  const { data: serviceTypes, isLoading: isLoadingServiceTypes } = useServiceTypes({
+    enabled: shouldLoadServiceTypes,
+  });
   const hasFilters = Boolean(type || city || serviceTypeId || q || (sort && sort !== 'newest'));
 
   useEffect(() => {
@@ -143,6 +147,7 @@ export function RequestFilters({
             id="req-service-type-filter"
             className={pill}
             value={serviceTypeId ?? ''}
+            onFocus={() => setServiceTypesRequested(true)}
             aria-label="المجال"
             onChange={(e) => {
               const next = e.target.value || undefined;
@@ -150,6 +155,9 @@ export function RequestFilters({
             }}
           >
             <option value="">كل المجالات</option>
+            {shouldLoadServiceTypes && isLoadingServiceTypes && !serviceTypes?.length ? (
+              <option value="__loading__" disabled>جارٍ تحميل المجالات…</option>
+            ) : null}
             {(serviceTypes ?? [])
               .filter((t) => t.isActive)
               .map((t) => (

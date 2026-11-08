@@ -1,6 +1,7 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { SearchTabs } from '@/components/search/SearchTabs';
 import { ROUTES } from '@/lib/constants';
 import type { SearchType } from '@/types/search.types';
@@ -13,7 +14,6 @@ import type { SearchType } from '@/types/search.types';
  * SearchFilters/SearchResults already use for their own URL params.
  */
 export function SearchTabsWrapper() {
-  const router = useRouter();
   const sp = useSearchParams();
   const type = (sp.get('type') as SearchType) ?? 'all';
 
@@ -26,7 +26,7 @@ export function SearchTabsWrapper() {
     // type change for the full rationale.
     params.delete('categoryId');
     params.delete('page');
-    router.push(`${ROUTES.search}?${params.toString()}`);
+    writeClientUrl(`${ROUTES.search}?${params.toString()}`, 'push');
   }
 
   return <SearchTabs value={type} onChange={handleChange} />;

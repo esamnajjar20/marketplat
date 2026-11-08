@@ -16,8 +16,10 @@ import { renderWithProviders as render } from '@/test-support/render';
 import { screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { StoresFilters } from '@/components/stores/StoresFilters';
+import { useStoreTypes } from '@/hooks/queries/useStoreTypes';
 
 const mockPush = vi.fn();
+vi.mock('@/hooks/queries/useStoreTypes', () => ({ useStoreTypes: vi.fn() }));
 let mockSearchParams = new URLSearchParams();
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: mockPush }),
@@ -28,6 +30,21 @@ describe('StoresFilters', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchParams = new URLSearchParams();
+    vi.mocked(useStoreTypes).mockReturnValue({
+      data: [{ id: 'market', slug: 'market', nameAr: 'سوق عام' }],
+    } as never);
+  });
+
+
+  it('loads store types only when the type selector is opened', async () => {
+    const user = setupUser();
+    render(<StoresFilters />);
+
+    expect(useStoreTypes).toHaveBeenLastCalledWith({ enabled: false });
+    const typeSelect = screen.getAllByRole('combobox')[0];
+    await user.click(typeSelect);
+    expect(useStoreTypes).toHaveBeenLastCalledWith({ enabled: true });
+    expect(await screen.findByRole('option', { name: 'سوق عام' })).toBeInTheDocument();
   });
 
   it('applies the search term on Enter and clears the page param', async () => {

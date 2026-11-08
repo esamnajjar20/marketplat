@@ -13,8 +13,8 @@
  *  - Tab switching uses history.replaceState, NOT router.push: no RSC request,
  *    so switching works with no network at all. Next.js syncs replaceState
  *    into useSearchParams(), which is our single source of truth for the
- *    active tab (so list components that router.push('/my-store?tab=…&page=2')
- *    keep the tab in sync too — no duplicated local state).
+ *    active tab (so list components that update the query with the native History
+ *    API keep the tab in sync too — no duplicated local state).
  *  - Links inside the panel that point at /my-store are handled in place
  *    (capture phase), so "المنتجات ← المجموعات" never hits the network.
  *  - Switching tabs drops per-tab query params (page/status/…): they belong to

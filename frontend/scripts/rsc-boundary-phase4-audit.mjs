@@ -41,7 +41,10 @@ check('Presence heartbeat is loaded only after verified authentication',
   appProviders.includes("import { AuthenticatedPresence } from '@/components/shared/AuthenticatedPresence'") &&
   !appProviders.includes("import { PresenceHeartbeat } from '@/components/shared/PresenceHeartbeat'") &&
   authenticatedPresence.includes("import('./PresenceHeartbeat')") &&
-  authenticatedPresence.includes('state.isHydrated && state.isAuthenticated && Boolean(state.accessToken)'));
+  authenticatedPresence.includes('state.isHydrated &&') &&
+  authenticatedPresence.includes('!state.isAuthResolving') &&
+  authenticatedPresence.includes('state.isAuthenticated &&') &&
+  authenticatedPresence.includes('Boolean(state.accessToken)'));
 check('Admin developer console is dynamically loaded',
   optionalTools.includes("import('./AdminScriptConsole')") && optionalTools.includes('isAdmin ? <AdminScriptConsole />'));
 check('Floating debug console is conditionally dynamically loaded',
@@ -50,6 +53,7 @@ check('Eruda is excluded from production module graph',
   optionalTools.includes("process.env.NODE_ENV === 'development'") && optionalTools.includes("import('./ErudaDebug')"));
 check('Admin console gate waits for auth hydration and role',
   optionalTools.includes('state.isHydrated') && optionalTools.includes('state.isAuthenticated') &&
+  optionalTools.includes('!state.isAuthResolving') &&
   optionalTools.includes("state.user?.role === 'ADMIN'") && optionalTools.includes("state.user?.role === 'SUPER_ADMIN'"));
 check('ProductCard is server-capable', !hasClientDirective(productCard) &&
   !/\buseNowAfterMount\s*\(/.test(productCard) && productCard.includes('<CardRelativeTime date={product.createdAt} />'));

@@ -236,7 +236,12 @@ export const salesRepository = {
     >`
       SELECT
         si."productId" AS "productId",
-        CASE WHEN si."productId" IS NOT NULL THEN MAX(si."title") ELSE si."title" END AS "title",
+        -- Keep the title aggregated as well. For linked products all rows are
+        -- grouped by productId; for historical/unlinked rows the title is part
+        -- of the grouping key below. Selecting the raw title from a CASE branch
+        -- here is not accepted by PostgreSQL's GROUP BY checker and caused the
+        -- entire /sales/dashboard endpoint to return 500.
+        MAX(si."title") AS "title",
         SUM(GREATEST(si."quantity" - si."returnedQuantity", 0))::bigint AS "quantity",
         SUM(
           CASE WHEN si."quantity" > 0

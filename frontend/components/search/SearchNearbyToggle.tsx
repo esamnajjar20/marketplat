@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { LocateFixed, X } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
@@ -25,7 +26,6 @@ const RADIUS_KM = DEFAULT_NEARBY_RADIUS_KM;
  * afterward via SearchFilters, same as changing any other filter.
  */
 export function SearchNearbyToggle() {
-  const router = useRouter();
   const sp = useSearchParams();
   const [status, setStatus] = useState<'idle' | 'locating' | 'denied' | 'unsupported'>('idle');
 
@@ -54,7 +54,7 @@ export function SearchNearbyToggle() {
         params.delete('page');
         // refinement within the same search view —
         // same reasoning as SearchFilters' SW-FILTERS-REPLACE-01.
-        router.replace(`${ROUTES.search}?${params.toString()}`);
+        writeClientUrl(`${ROUTES.search}?${params.toString()}`, 'replace');
       },
       () => setStatus('denied'),
       GEO_POSITION_OPTIONS
@@ -71,7 +71,7 @@ export function SearchNearbyToggle() {
     // leaving a dead sort value in the URL.
     if (params.get('sort') === 'distance') params.delete('sort');
     params.delete('page');
-    router.replace(`${ROUTES.search}?${params.toString()}`);
+    writeClientUrl(`${ROUTES.search}?${params.toString()}`, 'replace');
   }
 
   // FEATURE-FLAG-GPS: hide the toggle entirely when GPS is disabled.

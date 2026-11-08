@@ -135,6 +135,24 @@ describe('Pagination', () => {
     expect(href).toContain('page=3');
   });
 
+  it('updates URL state locally for client-side data lists without invoking navigation', () => {
+    window.history.replaceState({}, '', '/my-services?tab=appointments&page=1');
+    render(
+      <Pagination
+        totalPages={3}
+        currentPage={1}
+        baseUrl="/my-services"
+        searchParams={{ tab: 'appointments' }}
+        clientSideNavigation
+      />,
+    );
+
+    screen.getByLabelText('الصفحة التالية').click();
+
+    expect(window.location.pathname).toBe('/my-services');
+    expect(window.location.search).toBe('?tab=appointments&page=2');
+  });
+
   it('keeps the tab from baseUrl when searchParams does not repeat it', () => {
     render(<Pagination totalPages={3} currentPage={1} baseUrl="/activity?tab=requests" />);
     const href = screen.getByLabelText('الصفحة التالية').getAttribute('href') ?? '';

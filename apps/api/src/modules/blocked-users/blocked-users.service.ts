@@ -66,6 +66,18 @@ export const blockedUsersService = {
     return { items: blocks, meta: buildPaginationMeta(total, page, limit) };
   },
 
+  /** Directional status: has the caller blocked this specific user? */
+  isBlockedBy: async (blockerId: string, blockedId: string): Promise<boolean> => {
+    if (!blockedId || blockerId === blockedId) return false;
+    return Boolean(await blockedUsersRepository.findByBlockerAndBlocked(blockerId, blockedId));
+  },
+
+  /** Batch status for the other parties in one page of conversations. */
+  getBlockedIdsByBlocker: (
+    blockerId: string,
+    blockedIds: string[],
+  ): Promise<string[]> => blockedUsersRepository.findBlockedIdsByBlocker(blockerId, blockedIds),
+
   /** Shared by conversations.service to gate startFromAd/sendMessage —
    * true if either party has blocked the other. */
   isBlockedEitherDirection: (userIdA: string, userIdB: string): Promise<boolean> =>

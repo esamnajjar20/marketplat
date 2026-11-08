@@ -6,7 +6,8 @@
  */
 
 import { X } from 'lucide-react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
@@ -32,7 +33,6 @@ function labelFor(key: string, value: string): string {
 }
 
 export function SearchActiveFilters() {
-  const router = useRouter();
   const sp = useSearchParams();
   const state = parseSearchParams(new URLSearchParams(sp.toString()));
 
@@ -51,22 +51,24 @@ export function SearchActiveFilters() {
   if (!chips.length && !hasLocation) return null;
 
   function clear(key: string) {
-    router.replace(
+    writeClientUrl(
       buildSearchHref(new URLSearchParams(sp.toString()), {
         clearKeys: [key],
         [key]: undefined,
       }),
+      'replace',
     );
   }
 
   function clearLocation() {
-    router.replace(
+    writeClientUrl(
       buildSearchHref(new URLSearchParams(sp.toString()), {
         clearKeys: ['lat', 'lng', 'radius'],
         lat: undefined,
         lng: undefined,
         radius: undefined,
       }),
+      'replace',
     );
   }
 
@@ -76,8 +78,9 @@ export function SearchActiveFilters() {
     const type = sp.get('type');
     if (q) params.set('q', q);
     if (type && type !== 'all') params.set('type', type);
-    router.replace(
+    writeClientUrl(
       params.toString() ? `${ROUTES.search}?${params.toString()}` : ROUTES.search,
+      'replace',
     );
   }
 

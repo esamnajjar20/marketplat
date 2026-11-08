@@ -2,9 +2,10 @@
 
 import dynamic from 'next/dynamic';
 import { useRef, type KeyboardEvent } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/lib/constants';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 
 const FavoritesList = dynamic(
@@ -36,7 +37,6 @@ const TABS: { value: FavoritesTabValue; label: string }[] = [
  * URL, same default view, same FavoritesList component untouched.
  */
 export function FavoritesTabs() {
-  const router = useRouter();
   const sp = useSearchParams();
   const rawType = sp.get('type');
   const type: FavoritesTabValue = rawType === 'product' || rawType === 'store' || rawType === 'service' ? rawType : 'ad';
@@ -64,7 +64,7 @@ export function FavoritesTabs() {
     else params.set('type', next);
     params.delete('page');
     const qs = params.toString();
-    router.replace(qs ? `${ROUTES.favorites}?${qs}` : ROUTES.favorites);
+    writeClientUrl(qs ? `${ROUTES.favorites}?${qs}` : ROUTES.favorites, 'replace');
   }
 
   return (

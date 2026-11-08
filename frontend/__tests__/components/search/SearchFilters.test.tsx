@@ -2,8 +2,8 @@
  * __tests__/components/search/SearchFilters.test.tsx
  *
  * Covers components/search/SearchFilters.tsx:
- *   - the category filter is hidden for type=all/stores, shown for
- *     ads/products/services, with the right category source per type.
+ *   - advanced category filters load taxonomies only after the user opens them,
+ *     and type-specific searches load only the relevant taxonomy.
  *   - city/category selects replace the URL params and drop page.
  *   - reset preserves q but drops every other filter.
  *
@@ -61,15 +61,28 @@ describe('SearchFilters', () => {
   });
 
   describe('category filter visibility', () => {
-    it('is hidden when type is "all"', () => {
+    it('shows advanced filters for type=all without loading taxonomies until expanded', async () => {
+      const user = setupUser();
       render(<SearchFilters />);
-      expect(screen.queryByText('خيارات أكثر')).not.toBeInTheDocument();
+
+      expect(screen.getByText('خيارات أكثر')).toBeInTheDocument();
+      expect(useCategories).toHaveBeenLastCalledWith({ enabled: false });
+      expect(useProductCategories).toHaveBeenLastCalledWith({ enabled: false });
+      expect(useServiceCategories).toHaveBeenLastCalledWith({ enabled: false });
+
+      await user.click(screen.getByRole('button', { name: /خيارات أكثر/ }));
+      expect(useCategories).toHaveBeenLastCalledWith({ enabled: true });
+      expect(useProductCategories).toHaveBeenLastCalledWith({ enabled: true });
+      expect(useServiceCategories).toHaveBeenLastCalledWith({ enabled: true });
     });
 
-    it('is hidden when type is "stores"', () => {
+    it('is hidden for store searches and keeps all category queries disabled', () => {
       mockSearchParams = new URLSearchParams({ type: 'stores' });
       render(<SearchFilters />);
       expect(screen.queryByText('خيارات أكثر')).not.toBeInTheDocument();
+      expect(useCategories).toHaveBeenLastCalledWith({ enabled: false });
+      expect(useProductCategories).toHaveBeenLastCalledWith({ enabled: false });
+      expect(useServiceCategories).toHaveBeenLastCalledWith({ enabled: false });
     });
 
     it('is shown for type=ads and lists ad categories', async () => {
@@ -77,7 +90,13 @@ describe('SearchFilters', () => {
       const user = setupUser();
       render(<SearchFilters />);
 
+      expect(useCategories).toHaveBeenLastCalledWith({ enabled: false });
+      expect(useProductCategories).toHaveBeenLastCalledWith({ enabled: false });
+      expect(useServiceCategories).toHaveBeenLastCalledWith({ enabled: false });
       await user.click(screen.getByRole('button', { name: /خيارات أكثر/ }));
+      expect(useCategories).toHaveBeenLastCalledWith({ enabled: true });
+      expect(useProductCategories).toHaveBeenLastCalledWith({ enabled: false });
+      expect(useServiceCategories).toHaveBeenLastCalledWith({ enabled: false });
       expect(screen.getByText('الفئة')).toBeInTheDocument();
       const combos = screen.getAllByRole('combobox');
       await user.click(combos[1]); // city is first; category select appears second once expanded
@@ -89,7 +108,13 @@ describe('SearchFilters', () => {
       const user = setupUser();
       render(<SearchFilters />);
 
+      expect(useCategories).toHaveBeenLastCalledWith({ enabled: false });
+      expect(useProductCategories).toHaveBeenLastCalledWith({ enabled: false });
+      expect(useServiceCategories).toHaveBeenLastCalledWith({ enabled: false });
       await user.click(screen.getByRole('button', { name: /خيارات أكثر/ }));
+      expect(useCategories).toHaveBeenLastCalledWith({ enabled: false });
+      expect(useProductCategories).toHaveBeenLastCalledWith({ enabled: true });
+      expect(useServiceCategories).toHaveBeenLastCalledWith({ enabled: false });
       const combos = screen.getAllByRole('combobox');
       await user.click(combos[1]);
       expect(await screen.findByRole('option', { name: 'أثاث' })).toBeInTheDocument();
@@ -100,7 +125,13 @@ describe('SearchFilters', () => {
       const user = setupUser();
       render(<SearchFilters />);
 
+      expect(useCategories).toHaveBeenLastCalledWith({ enabled: false });
+      expect(useProductCategories).toHaveBeenLastCalledWith({ enabled: false });
+      expect(useServiceCategories).toHaveBeenLastCalledWith({ enabled: false });
       await user.click(screen.getByRole('button', { name: /خيارات أكثر/ }));
+      expect(useCategories).toHaveBeenLastCalledWith({ enabled: false });
+      expect(useProductCategories).toHaveBeenLastCalledWith({ enabled: false });
+      expect(useServiceCategories).toHaveBeenLastCalledWith({ enabled: true });
       const combos = screen.getAllByRole('combobox');
       await user.click(combos[1]);
       expect(await screen.findByRole('option', { name: 'صيانة' })).toBeInTheDocument();

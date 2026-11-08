@@ -99,6 +99,11 @@ describe('MyServicesHub', () => {
     expect(screen.getByText('إعادة المحاولة')).toBeInTheDocument();
   });
 
+  it('does not render a second compact service list above the management list', () => {
+    render(<MyServicesHub />);
+    expect(screen.queryByText('قائمة الخدمات')).not.toBeInTheDocument();
+  });
+
   it('shows pending requests banner from analytics', () => {
     vi.mocked(useMyServiceProviderAnalytics).mockReturnValue({
       data: { pendingRequests: 3, upcomingAppointments: 0 },

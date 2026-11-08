@@ -18,7 +18,11 @@ jest.mock('../../src/modules/notifications', () => ({
   notificationsService: { markConversationNotificationsRead: jest.fn().mockResolvedValue({ count: 0 }) },
 }));
 jest.mock('../../src/modules/blocked-users', () => ({
-  blockedUsersService: { isBlockedEitherDirection: jest.fn() },
+  blockedUsersService: {
+    isBlockedEitherDirection: jest.fn(),
+    isBlockedBy: jest.fn(),
+    getBlockedIdsByBlocker: jest.fn(),
+  },
 }));
 jest.mock('../../src/shared/utils/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
@@ -57,6 +61,8 @@ describe('conversationsService', () => {
     jest.clearAllMocks();
     (notificationEvents.onNewMessage as jest.Mock).mockResolvedValue(undefined);
     (blockedUsersService.isBlockedEitherDirection as jest.Mock).mockResolvedValue(false);
+    (blockedUsersService.isBlockedBy as jest.Mock).mockResolvedValue(false);
+    (blockedUsersService.getBlockedIdsByBlocker as jest.Mock).mockResolvedValue([]);
   });
 
   describe('startFromAd', () => {
@@ -307,7 +313,8 @@ describe('conversationsService', () => {
 
       const result = await conversationsService.getConversationById(buyerId, 'conv-1');
 
-      expect(result).toEqual({ ...mockConversation, mySettings: null });
+      expect(blockedUsersService.isBlockedBy).toHaveBeenCalledWith(buyerId, sellerId);
+      expect(result).toEqual({ ...mockConversation, mySettings: null, isBlockedByMe: false });
     });
 
     it('returns the conversation when the caller is the seller', async () => {
@@ -315,7 +322,8 @@ describe('conversationsService', () => {
 
       const result = await conversationsService.getConversationById(sellerId, 'conv-1');
 
-      expect(result).toEqual({ ...mockConversation, mySettings: null });
+      expect(blockedUsersService.isBlockedBy).toHaveBeenCalledWith(sellerId, buyerId);
+      expect(result).toEqual({ ...mockConversation, mySettings: null, isBlockedByMe: false });
     });
   });
 
@@ -335,11 +343,25 @@ describe('conversationsService', () => {
 
       const result = await conversationsService.getMyConversations(buyerId, {});
 
-      expect(result.items).toEqual([mockConversationListItem]);
+      expect(blockedUsersService.getBlockedIdsByBlocker).toHaveBeenCalledWith(buyerId, [sellerId]);
+      expect(result.items).toEqual([{ ...mockConversationListItem, isBlockedByMe: false }]);
       expect(result.items[0].unreadCount).toBe(2);
       expect(result.meta.page).toBe(1);
       expect(result.meta.limit).toBe(20);
       expect(result.meta.total).toBe(1);
+    });
+
+    it('decorates the current page from one batch of blocked ids', async () => {
+      (conversationsRepository.findManyForUser as jest.Mock).mockResolvedValue({
+        conversations: [mockConversationListItem],
+        total: 1,
+      });
+      (blockedUsersService.getBlockedIdsByBlocker as jest.Mock).mockResolvedValue([sellerId]);
+
+      const result = await conversationsService.getMyConversations(buyerId, {});
+
+      expect(result.items[0].isBlockedByMe).toBe(true);
+      expect(blockedUsersService.getBlockedIdsByBlocker).toHaveBeenCalledTimes(1);
     });
 
     it('passes explicit page/limit through to the repository and meta', async () => {

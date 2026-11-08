@@ -1,7 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useRouter, useSearchParams, usePathname } from 'next/navigation';
+import { useSearchParams, usePathname } from 'next/navigation';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { categoriesApi } from '@/api/categories.api';
 import { cn } from '@/lib/utils';
 import { queryKeys } from '@/lib/queryKeys';
@@ -11,7 +12,6 @@ import { queryKeys } from '@/lib/queryKeys';
  * Writes ?categoryId= to the URL; SearchResults already reads categoryId.
  */
 export function AdCategoryChips() {
-  const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
   const activeId = sp.get('categoryId') ?? '';
@@ -35,7 +35,7 @@ export function AdCategoryChips() {
     if (id) params.set('categoryId', id);
     else params.delete('categoryId');
     params.delete('page');
-    router.replace(`${pathname}?${params.toString()}`);
+    writeClientUrl(`${pathname}?${params.toString()}`, 'replace');
   }
 
   return (

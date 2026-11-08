@@ -27,8 +27,9 @@ import { getOfflineList, saveOfflineList, OFFLINE_LIST_KEYS, OFFLINE_LIST_LIMITS
 import { getOfflineBrowseSnapshot, saveOfflineBrowseSnapshot } from '@/lib/offlineBrowseSnapshots';
 import type { BrowsePage } from '@/types/browse.types';
 import { CACHE_TTL } from '@/lib/constants';
-import { getBrowseParam, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type BrowseSearchParams } from '@/lib/browseSearchParams';
-import { useEffect } from 'react';
+import { canonicalBrowseSearchParams, getBrowseParam, parseBrowseSearchParams, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type BrowseSearchParams } from '@/lib/browseSearchParams';
+import { useEffect, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 /**
  * GET /products directory grid — mirrors StoresGrid's layout/behavior
@@ -55,10 +56,17 @@ interface ProductsGridProps {
   searchParams?: BrowseSearchParams;
 }
 
-export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams = {} }: ProductsGridProps = {}) {
+export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams: initialSearchParams = {} }: ProductsGridProps = {}) {
   const isOnline = useOnlineStatus();
+  const liveSearchParams = useSearchParams();
+  const liveQueryString = liveSearchParams.toString();
+  const searchParams = useMemo(() => parseBrowseSearchParams(liveQueryString), [liveQueryString]);
+  // The server seed belongs only to the URL that produced it. Filter changes
+  // update useSearchParams through the native History API; never reuse the
+  // previous route's first page as initialData for a different query key.
+  const seedMatchesUrl = canonicalBrowseSearchParams(initialSearchParams) === canonicalBrowseSearchParams(new URLSearchParams(liveQueryString));
+  const seededInitialPage = seedMatchesUrl ? initialPage : undefined;
   const search = getBrowseParam(searchParams, 'search');
-  // Route params are read in the Server Page and passed in as serializable props.
   const city = getBrowseParam(searchParams, 'city');
   const categoryId = getBrowseParam(searchParams, 'categoryId');
   const sortBy = (getBrowseParam(searchParams, 'sortBy') as ProductSortField) ?? 'createdAt';
@@ -80,8 +88,8 @@ export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams =
   const query = useInfiniteQuery({
     queryKey: queryKeys.products.infinite({ search, city, categoryId, sortBy, sortOrder, hasPromotion, pageSize }),
     initialPageParam: 1,
-    initialData: initialPage ? { pages: [initialPage], pageParams: [1] } : undefined,
-    initialDataUpdatedAt: initialPageUpdatedAt,
+    initialData: seededInitialPage ? { pages: [seededInitialPage], pageParams: [1] } : undefined,
+    initialDataUpdatedAt: seededInitialPage ? initialPageUpdatedAt : undefined,
     staleTime: CACHE_TTL.adsList,
     queryFn: async ({ pageParam, signal }) => {
       try {
@@ -109,7 +117,7 @@ export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams =
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
   });
   useEffect(() => {
-    if (!initialPage?.items.length) return;
+    if (!seededInitialPage?.items.length) return;
     saveOfflineBrowseSnapshot('products', {
       search: search || undefined,
       city: city || undefined,
@@ -117,11 +125,11 @@ export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams =
       sortBy,
       sortOrder,
       hasPromotion: hasPromotion ?? undefined,
-    }, initialPage.items);
+    }, seededInitialPage.items);
     if (isBaseOfflineBrowse) {
-      saveOfflineList(OFFLINE_LIST_KEYS.productsGridBrowse, initialPage.items, OFFLINE_LIST_LIMITS.productsGridBrowse);
+      saveOfflineList(OFFLINE_LIST_KEYS.productsGridBrowse, seededInitialPage.items, OFFLINE_LIST_LIMITS.productsGridBrowse);
     }
-  }, [initialPage, search, city, categoryId, sortBy, sortOrder, hasPromotion, isBaseOfflineBrowse]);
+  }, [seededInitialPage, search, city, categoryId, sortBy, sortOrder, hasPromotion, isBaseOfflineBrowse]);
 
   const { data, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = query;
   const items = data?.pages.flatMap((pageData) => pageData?.items ?? []) ?? [];

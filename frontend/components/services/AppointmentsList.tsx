@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { AlertTriangle, CalendarClock, CalendarPlus, CheckCheck, X, UserX } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
@@ -13,6 +13,7 @@ import { useMyAppointments } from '@/hooks/queries/useAppointments';
 import { useUpdateAppointmentStatus } from '@/hooks/mutations/useAppointmentMutations';
 import { CreateAppointmentDialog } from './CreateAppointmentDialog';
 import { MY_SERVICES_HUB_PATH } from '@/lib/myServicesHubTabs';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { formatDateTime } from '@/lib/formatters';
 import {
   APPOINTMENT_STATUS_LABELS,
@@ -107,7 +108,6 @@ function AppointmentActions({ id, status }: { id: string; status: string }) {
  */
 export function AppointmentsList({ providerId }: Props) {
   const sp = useSearchParams();
-  const router = useRouter();
   // SW-APPOINTMENTS-PAGE-NAN-01: hand-edited ?page=abc produced NaN
   // here, which the hook serialised onto the wire as ?page=NaN — the
   // same class of bug already fixed in the seven admin tables and in
@@ -128,9 +128,9 @@ export function AppointmentsList({ providerId }: Props) {
       if (totalPages > 1) params.set('page', String(totalPages));
       else params.delete('page');
       params.set('tab', 'appointments'); // MY-SERVICES-HUB-01: tab lives in the query
-      router.replace(`${MY_SERVICES_HUB_PATH}?${params.toString()}`);
+      writeClientUrl(`${MY_SERVICES_HUB_PATH}?${params.toString()}`, 'replace');
     }
-  }, [data, page, totalPages, sp, router]);
+  }, [data, page, totalPages, sp]);
 
   const isOutOfRange = !!data && page > totalPages && totalPages >= 1;
 
@@ -198,6 +198,7 @@ export function AppointmentsList({ providerId }: Props) {
           totalPages={totalPages}
           currentPage={page}
           baseUrl={MY_SERVICES_HUB_PATH}
+          clientSideNavigation
           searchParams={Object.fromEntries(sp.entries())}
         />
       )}

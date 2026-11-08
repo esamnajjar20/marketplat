@@ -12,6 +12,23 @@ export const blockedUsersRepository = {
       where: { blockerId_blockedId: { blockerId, blockedId } },
     }),
 
+  /**
+   * Return only the ids from the caller's block list that intersect the
+   * supplied conversation participants. Used to decorate one inbox page
+   * in a single bounded query instead of fetching the caller's whole list
+   * or issuing one query per conversation.
+   */
+  findBlockedIdsByBlocker: async (blockerId: string, blockedIds: string[]): Promise<string[]> => {
+    const uniqueIds = [...new Set(blockedIds)].filter((id) => id !== blockerId);
+    if (uniqueIds.length === 0) return [];
+
+    const rows = await prisma.userBlock.findMany({
+      where: { blockerId, blockedId: { in: uniqueIds } },
+      select: { blockedId: true },
+    });
+    return rows.map((row) => row.blockedId);
+  },
+
   create: (blockerId: string, blockedId: string): Promise<UserBlock> =>
     prisma.userBlock.create({ data: { blockerId, blockedId } }),
 

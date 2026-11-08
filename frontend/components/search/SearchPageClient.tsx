@@ -1,6 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { DesktopOnly } from '@/components/shared/layout/DesktopOnly';
 import { Suspense } from 'react';
 
 const SearchBox = dynamic(
@@ -63,7 +64,7 @@ export function SearchPageClient({ query, pageSize = 10 }: { query: string; page
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-4 lg:gap-6">
           <aside className="hidden lg:col-span-1 lg:block">
             <div className="sticky top-24">
-              <SearchFilters />
+              <DesktopOnly><SearchFilters /></DesktopOnly>
             </div>
           </aside>
           <section

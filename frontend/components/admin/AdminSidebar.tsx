@@ -104,7 +104,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
         const badge =
           badgeKey && queue && typeof queue[badgeKey] === 'number' ? queue[badgeKey] : 0;
         return (
-          <IntentPrefetchLink prefetch={false}
+          <IntentPrefetchLink prefetch={false} clientQueryNavigation
             key={href}
             href={href}
             onClick={onNavigate}

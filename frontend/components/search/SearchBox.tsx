@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, type FormEvent, type KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { Search, Clock } from 'lucide-react';
 
 import { Input } from '@/components/shared/ui/Input';
@@ -28,7 +29,6 @@ interface Props {
  * field is focused with an empty / short query.
  */
 export function SearchBox({ defaultValue = '', inputClassName }: Props) {
-  const router = useRouter();
   const sp = useSearchParams();
   const urlQuery = sp.get('q');
   const [value, setValue] = useState(defaultValue);
@@ -121,7 +121,7 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
   // ?focus=1 when it navigates here from elsewhere in the app — this
   // is the one SearchBox instance that route actually renders
   // (app/(public)/search/page.tsx). Focus the field, then strip the
-  // param via router.replace so it doesn't linger in the URL bar or
+  // param through the native History API so it doesn't linger in the URL bar or
   // get re-triggered on a manual refresh/back-navigation.
   useEffect(() => {
     if (sp.get('focus') !== '1') return;
@@ -129,7 +129,7 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
     const params = new URLSearchParams(sp.toString());
     params.delete('focus');
     const query = params.toString();
-    router.replace(query ? `${ROUTES.search}?${query}` : ROUTES.search);
+    writeClientUrl(query ? `${ROUTES.search}?${query}` : ROUTES.search, 'replace');
     // Only ever meant to run once per navigation that carries the
     // param — deliberately not depending on `sp`/`router` themselves,
     // which would re-fire this on every param change this effect
@@ -168,7 +168,7 @@ export function SearchBox({ defaultValue = '', inputClassName }: Props) {
       params.delete('q');
     }
     params.delete('page');
-    router.push(`${ROUTES.search}?${params.toString()}`);
+    writeClientUrl(`${ROUTES.search}?${params.toString()}`, 'push');
   }
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {

@@ -1,6 +1,7 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { SlidersHorizontal, Search } from 'lucide-react';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -22,7 +23,6 @@ import { CITIES, ROUTES } from '@/lib/constants';
  * mutually exclusive options.
  */
 export function ProductsFilters() {
-  const router = useRouter();
   const sp = useSearchParams();
   const search = sp.get('search') ?? '';
 
@@ -30,7 +30,7 @@ export function ProductsFilters() {
     const params = new URLSearchParams(sp.toString());
     if (value) params.set(key, value); else params.delete(key);
     params.delete('page');
-    router.push(`${ROUTES.products}?${params.toString()}`);
+    writeClientUrl(`${ROUTES.products}?${params.toString()}`, 'push');
   }
 
   return (

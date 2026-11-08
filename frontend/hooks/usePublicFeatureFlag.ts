@@ -1,7 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { isPublicFeatureFlagEnabled, PUBLIC_FEATURE_FLAGS_QUERY_KEY, type PublicFeatureFlag } from '@/lib/publicFeatureFlags';
+import { isPublicFeatureFlagEnabled, type PublicFeatureFlag } from '@/lib/publicFeatureFlags';
+import { queryKeys } from '@/lib/queryKeys';
 
 type PublicFeatureFlagsResponse = {
   ok: boolean;
@@ -39,7 +40,7 @@ export function usePublicFeatureFlag(
   subject?: string | null,
 ): boolean {
   const query = useQuery({
-    queryKey: PUBLIC_FEATURE_FLAGS_QUERY_KEY,
+    queryKey: queryKeys.publicFeatureFlags.all(),
     queryFn: fetchPublicFeatureFlags,
     staleTime: 30_000,
     gcTime: 5 * 60_000,

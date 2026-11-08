@@ -19,7 +19,7 @@
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Button } from './Button';
-import { buildUrlWithParams } from '@/lib/urlWithParams';
+import { buildUrlWithParams, writeClientUrl } from '@/lib/urlWithParams';
 
 interface PaginationProps {
   totalPages:   number;
@@ -38,6 +38,12 @@ interface PaginationProps {
    * links untouched.
    */
   pageParam?: string;
+  /**
+   * For lists whose data is fetched entirely by client-side queries, update
+   * the URL through the native History API instead of requesting a new RSC
+   * payload that cannot contribute any data to the list.
+   */
+  clientSideNavigation?: boolean;
 }
 
 /**
@@ -74,7 +80,22 @@ export function Pagination({
   baseUrl,
   searchParams = {},
   pageParam = 'page',
+  clientSideNavigation = false,
 }: PaginationProps) {
+  function handlePageClick(href: string) {
+    return (event: React.MouseEvent<HTMLAnchorElement>) => {
+      if (!clientSideNavigation || event.defaultPrevented || event.button !== 0 ||
+          event.metaKey || event.ctrlKey || event.shiftKey || event.altKey ||
+          (event.currentTarget.target && event.currentTarget.target !== '_self') ||
+          event.currentTarget.hasAttribute('download')) {
+        return;
+      }
+
+      event.preventDefault();
+      writeClientUrl(href, 'push');
+    };
+  }
+
   function buildPageUrl(page: number): string {
     const params = new URLSearchParams(
       Object.entries({ ...searchParams, [pageParam]: String(page) })
@@ -108,7 +129,7 @@ export function Pagination({
         </Button>
       ) : (
         <Button asChild variant="outline" size="sm">
-          <IntentPrefetchLink href={buildPageUrl(currentPage - 1)} aria-label="الصفحة السابقة" prefetch={false}>
+          <IntentPrefetchLink href={buildPageUrl(currentPage - 1)} onClick={handlePageClick(buildPageUrl(currentPage - 1))} aria-label="الصفحة السابقة" prefetch={false}>
             السابق
           </IntentPrefetchLink>
         </Button>
@@ -134,7 +155,7 @@ export function Pagination({
             </span>
           ) : (
             <Button key={p} asChild variant="outline" size="sm" className="h-9 min-w-9 px-2">
-              <IntentPrefetchLink href={buildPageUrl(p)} aria-label={`الصفحة ${p}`} prefetch={false}>
+              <IntentPrefetchLink href={buildPageUrl(p)} onClick={handlePageClick(buildPageUrl(p))} aria-label={`الصفحة ${p}`} prefetch={false}>
                 {p}
               </IntentPrefetchLink>
             </Button>
@@ -162,7 +183,7 @@ export function Pagination({
         </Button>
       ) : (
         <Button asChild variant="outline" size="sm">
-          <IntentPrefetchLink href={buildPageUrl(currentPage + 1)} aria-label="الصفحة التالية" prefetch={false}>
+          <IntentPrefetchLink href={buildPageUrl(currentPage + 1)} onClick={handlePageClick(buildPageUrl(currentPage + 1))} aria-label="الصفحة التالية" prefetch={false}>
             التالي
           </IntentPrefetchLink>
         </Button>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Package, Search, X } from 'lucide-react';
 import { ProductCard } from './ProductCard';
 import { Pagination } from '@/components/shared/ui/Pagination';
@@ -12,6 +12,7 @@ import { ProductRecommendations } from '@/components/recommendations/ProductReco
 import { DownloadStoreCatalogButton } from '@/components/stores/DownloadStoreCatalogButton';
 import { useProducts } from '@/hooks/queries/useProducts';
 import { ROUTES } from '@/lib/constants';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { track } from '@/lib/analytics';
 import { cn } from '@/lib/utils';
 import type { ProductSortField } from '@/types/product.types';
@@ -34,7 +35,6 @@ const SORT_OPTIONS: { value: string; label: string; sortBy: ProductSortField; so
 ];
 
 export function StoreProducts({ storeId, storeName, offersOnly = false, storeType }: Props) {
-  const router = useRouter();
   const sp = useSearchParams();
   // clamp URL page param to positive integer.
   const rawPage = Number(sp.get('productsPage') ?? 1);
@@ -98,7 +98,7 @@ export function StoreProducts({ storeId, storeName, offersOnly = false, storeTyp
     if (value === 'newest') params.delete('sort');
     else params.set('sort', value);
     params.delete('productsPage');
-    router.push(`${ROUTES.storeDetail(storeId)}?${params.toString()}`, { scroll: false });
+    writeClientUrl(`${ROUTES.storeDetail(storeId)}?${params.toString()}`, 'push');
   }
 
   const applySearch = useCallback(
@@ -108,9 +108,9 @@ export function StoreProducts({ storeId, storeName, offersOnly = false, storeTyp
       if (trimmed) params.set('q', trimmed);
       else params.delete('q');
       params.delete('productsPage');
-      router.push(`${ROUTES.storeDetail(storeId)}?${params.toString()}`, { scroll: false });
+      writeClientUrl(`${ROUTES.storeDetail(storeId)}?${params.toString()}`, 'push');
     },
-    [router, sp, storeId],
+    [sp, storeId],
   );
 
   function onSearchChange(value: string) {

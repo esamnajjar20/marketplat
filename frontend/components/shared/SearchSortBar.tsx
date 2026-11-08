@@ -4,7 +4,8 @@ import { ArrowUpDown } from 'lucide-react';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/shared/ui/Select';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { writeClientUrl } from '@/lib/urlWithParams';
 
 /**
  * (audit item #8): sort used to live only inside each page's
@@ -53,14 +54,13 @@ interface Props {
 }
 
 export function SearchSortBar({ config, basePath, className }: Props) {
-  const router = useRouter();
   const sp = useSearchParams();
 
   function pushParams(mutate: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(sp.toString());
     mutate(params);
     params.delete('page');
-    router.replace(`${basePath}?${params.toString()}`);
+    writeClientUrl(`${basePath}?${params.toString()}`, 'replace');
   }
 
   if (config.mode === 'single') {

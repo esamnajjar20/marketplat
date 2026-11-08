@@ -1,7 +1,8 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import { productCategoriesApi } from '@/api/product-categories.api';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
@@ -13,7 +14,6 @@ import { queryKeys } from '@/lib/queryKeys';
  * ProductsGrid already supports categoryId via ProductsQuery.
  */
 export function ProductCategoryChips() {
-  const router = useRouter();
   const sp = useSearchParams();
   const activeId = sp.get('categoryId') ?? '';
 
@@ -33,7 +33,7 @@ export function ProductCategoryChips() {
     if (id) params.set('categoryId', id);
     else params.delete('categoryId');
     params.delete('page');
-    router.replace(`${ROUTES.products}?${params.toString()}`);
+    writeClientUrl(`${ROUTES.products}?${params.toString()}`, 'replace');
   }
 
   return (

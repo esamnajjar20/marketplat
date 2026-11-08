@@ -13,7 +13,10 @@ const PresenceHeartbeat = dynamic(
 
 export function AuthenticatedPresence() {
   const shouldRun = useAuthStore((state) =>
-    state.isHydrated && state.isAuthenticated && Boolean(state.accessToken),
+    state.isHydrated &&
+    !state.isAuthResolving &&
+    state.isAuthenticated &&
+    Boolean(state.accessToken),
   );
   return shouldRun ? <PresenceHeartbeat /> : null;
 }

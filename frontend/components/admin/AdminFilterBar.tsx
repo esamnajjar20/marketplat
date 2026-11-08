@@ -7,10 +7,11 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/shared/ui/Input';
 import { cn } from '@/lib/utils';
+import { writeClientUrl } from '@/lib/urlWithParams';
 
 export type AdminFilterTab = {
   value: string;
@@ -37,7 +38,6 @@ export function AdminFilterBar({
   defaultTab,
   className,
 }: Props) {
-  const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
 
@@ -64,9 +64,9 @@ export function AdminFilterBar({
       // clearer form.
       if (!('page' in patch)) next.delete('page');
       const qs = next.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+      writeClientUrl(qs ? `${pathname}?${qs}` : pathname, 'replace');
     },
-    [pathname, router, sp],
+    [pathname, sp],
   );
 
   // Debounce search → URL

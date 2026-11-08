@@ -27,7 +27,9 @@ import { queryKeys } from '@/lib/queryKeys';
 import type { BrowsePage } from '@/types/browse.types';
 import type { ServiceListingWithProvider } from '@/types/service.types';
 import { CACHE_TTL } from '@/lib/constants';
-import { getBrowseNumber, getBrowseParam, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type BrowseSearchParams } from '@/lib/browseSearchParams';
+import { canonicalBrowseSearchParams, getBrowseNumber, getBrowseParam, parseBrowseSearchParams, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type BrowseSearchParams } from '@/lib/browseSearchParams';
+import { useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 const SaveSearchButton = dynamic(
   () => import('@/components/ads/SaveSearchButton').then((module) => module.SaveSearchButton),
@@ -40,8 +42,13 @@ interface ServiceListingsGridProps {
   searchParams?: BrowseSearchParams;
 }
 
-export function ServiceListingsGrid({ initialPage, initialPageUpdatedAt, searchParams = {} }: ServiceListingsGridProps = {}) {
+export function ServiceListingsGrid({ initialPage, initialPageUpdatedAt, searchParams: initialSearchParams = {} }: ServiceListingsGridProps = {}) {
   const isOnline = useOnlineStatus();
+  const liveSearchParams = useSearchParams();
+  const liveQueryString = liveSearchParams.toString();
+  const searchParams = useMemo(() => parseBrowseSearchParams(liveQueryString), [liveQueryString]);
+  const seedMatchesUrl = canonicalBrowseSearchParams(initialSearchParams) === canonicalBrowseSearchParams(new URLSearchParams(liveQueryString));
+  const seededInitialPage = seedMatchesUrl ? initialPage : undefined;
   const search = getBrowseParam(searchParams, 'search');
   const categoryId = getBrowseParam(searchParams, 'categoryId');
   const serviceTypeId = getBrowseParam(searchParams, 'serviceTypeId');
@@ -60,8 +67,8 @@ export function ServiceListingsGrid({ initialPage, initialPageUpdatedAt, searchP
   const query = useInfiniteQuery({
     queryKey: queryKeys.serviceListings.infinite({ search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder, pageSize }),
     initialPageParam: 1,
-    initialData: initialPage ? { pages: [initialPage], pageParams: [1] } : undefined,
-    initialDataUpdatedAt: initialPageUpdatedAt,
+    initialData: seededInitialPage ? { pages: [seededInitialPage], pageParams: [1] } : undefined,
+    initialDataUpdatedAt: seededInitialPage ? initialPageUpdatedAt : undefined,
     staleTime: CACHE_TTL.adsList,
     queryFn: ({ pageParam, signal }) => serviceListingsApi.getAll({
       search, serviceTypeId, categoryId, providerId, city, serviceLocation, minPrice, maxPrice, sortBy, sortOrder,

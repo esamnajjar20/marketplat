@@ -32,6 +32,30 @@ describe('salesRepository.topCustomers', () => {
   });
 });
 
+describe('salesRepository.topProducts', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('aggregates product and historical title groups without selecting an ungrouped title', async () => {
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+      { productId: 'product-1', title: 'منتج', quantity: 4n, revenue: 120, profit: 40 },
+      { productId: null, title: 'منتج قديم', quantity: 2n, revenue: 30, profit: 10 },
+    ]);
+
+    await expect(salesRepository.topProducts('seller-1', 5)).resolves.toEqual([
+      { productId: 'product-1', title: 'منتج', quantity: 4, revenue: 120, profit: 40 },
+      { productId: null, title: 'منتج قديم', quantity: 2, revenue: 30, profit: 10 },
+    ]);
+
+    const [queryTemplate, sellerId, limit] = (prisma.$queryRaw as jest.Mock).mock.calls[0];
+    const sql = queryTemplate.join('');
+    expect(sql).toContain('MAX(si."title") AS "title"');
+    expect(sql).toContain('GROUP BY\n        si."productId",\n        CASE WHEN si."productId" IS NULL THEN si."title" ELSE NULL END');
+    expect(sql).not.toContain('ELSE si."title" END AS "title"');
+    expect(sellerId).toBe('seller-1');
+    expect(limit).toBe(5);
+  });
+});
+
 describe('salesRepository.summary', () => {
   beforeEach(() => jest.clearAllMocks());
 

@@ -110,7 +110,8 @@ const storesQuery = read('hooks/queries/useStores.ts');
 const blockedUsersQuery = read('hooks/queries/useBlockedUsers.ts');
 check(/useQueryIdSetMembership/.test(sharedIdSetStore), 'shared ID-set registry missing');
 check(/useQueryIdSetMembership/.test(storesQuery), 'useIsFollowingStore: shared registry not used');
-check(/useQueryIdSetMembership/.test(blockedUsersQuery), 'useIsUserBlocked: shared registry not used');
+check(/queryKeys\.blockedUsers\.status\(userId\)/.test(blockedUsersQuery), 'useIsUserBlocked: per-user status query missing');
+check(!/useMyBlockedUsers\(\{\s*limit:\s*100\s*\}\)/.test(blockedUsersQuery), 'useIsUserBlocked: full blocked-users list fetch returned');
 
 const notificationMutations = read('hooks/mutations/useNotificationMutations.ts');
 const conversationMutations = read('hooks/mutations/useConversationMutations.ts');

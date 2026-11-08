@@ -17,6 +17,38 @@ describe('blockedUsersController', () => {
     (requireUser as jest.Mock).mockReturnValue({ userId: 'user-1' });
   });
 
+  describe('getStatus', () => {
+    it('returns the authenticated caller status for one target user', async () => {
+      const req = mockRequest({ params: { userId: 'user-2' } });
+      const res = mockResponse();
+      const next = mockNext();
+      (blockedUsersService.isBlockedBy as jest.Mock).mockResolvedValue(true);
+
+      await blockedUsersController.getStatus(req, res, next);
+
+      expect(blockedUsersService.isBlockedBy).toHaveBeenCalledWith('user-1', 'user-2');
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ success: true, data: { isBlockedByMe: true } })
+      );
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('forwards authentication errors', async () => {
+      const req = mockRequest({ params: { userId: 'user-2' } });
+      const res = mockResponse();
+      const next = mockNext();
+      (requireUser as jest.Mock).mockImplementation(() => {
+        throw new UnauthorizedError();
+      });
+
+      await blockedUsersController.getStatus(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+      expect(blockedUsersService.isBlockedBy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('toggleBlock', () => {
     it('returns 200 with the toggle result on success', async () => {
       const req = mockRequest({ params: { userId: 'user-2' } });

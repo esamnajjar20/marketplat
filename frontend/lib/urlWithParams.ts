@@ -32,3 +32,29 @@ export function buildUrlWithParams(baseUrl: string, params: URLSearchParams | st
   const qs = merged.toString();
   return qs ? `${path}?${qs}` : path;
 }
+
+
+/**
+ * Update query-string state for client-filtered lists without starting a new
+ * App Router navigation/RSC request. Next.js 15 synchronizes native
+ * pushState/replaceState calls with useSearchParams and usePathname.
+ * Use only when the server route payload does not depend on the changed query.
+ */
+export function writeClientUrl(
+  url: string,
+  mode: 'push' | 'replace' = 'push',
+): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    const target = new URL(url, window.location.href);
+    if (target.origin !== window.location.origin) return;
+    const nextUrl = `${target.pathname}${target.search}${target.hash}`;
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    if (nextUrl === currentUrl) return;
+    const method = mode === 'push' ? 'pushState' : 'replaceState';
+    window.history[method](window.history.state, '', nextUrl);
+  } catch {
+    // Invalid URL state must not break list interactions.
+  }
+}

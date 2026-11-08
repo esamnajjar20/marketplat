@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { ClipboardList } from 'lucide-react';
 import { useMyRequests } from '@/hooks/queries/useRequests';
 import { ROUTES } from '@/lib/constants';
+import { writeClientUrl } from '@/lib/urlWithParams';
 import type { RequestStatus } from '@/types/request.types';
 import { Button } from '@/components/shared/ui/Button';
 import { Pagination } from '@/components/shared/ui/Pagination';
@@ -67,21 +68,21 @@ export default function MyRequestsPage() {
         {STATUS_TABS.map((tab) => {
           const active = tab.value === status;
           return (
-            <IntentPrefetchLink
+            <button
               key={tab.label}
-              href={statusHref(tab.value)}
+              type="button"
+              onClick={() => writeClientUrl(statusHref(tab.value), 'push')}
               role="tab"
               aria-selected={active}
-              aria-current={active ? 'page' : undefined}
               className={cn(
                 'inline-flex min-h-10 shrink-0 items-center rounded-full px-3 py-2 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 active
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted text-muted-foreground hover:text-foreground',
-              )} prefetch={false}
+              )}
             >
               {tab.label}
-            </IntentPrefetchLink>
+            </button>
           );
         })}
       </div>

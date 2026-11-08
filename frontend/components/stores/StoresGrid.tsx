@@ -22,7 +22,9 @@ import { getStablePageSize } from '@/lib/networkPolicy';
 import { queryKeys } from '@/lib/queryKeys';
 import type { BrowsePage } from '@/types/browse.types';
 import { CACHE_TTL } from '@/lib/constants';
-import { getBrowseParam, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type BrowseSearchParams } from '@/lib/browseSearchParams';
+import { useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { canonicalBrowseSearchParams, getBrowseParam, parseBrowseSearchParams, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type BrowseSearchParams } from '@/lib/browseSearchParams';
 
 /** GET /stores directory grid. Route filters arrive from the Server Page as props. */
 interface StoresGridProps {
@@ -31,8 +33,13 @@ interface StoresGridProps {
   searchParams?: BrowseSearchParams;
 }
 
-export function StoresGrid({ initialPage, initialPageUpdatedAt, searchParams = {} }: StoresGridProps = {}) {
+export function StoresGrid({ initialPage, initialPageUpdatedAt, searchParams: initialSearchParams = {} }: StoresGridProps = {}) {
   const isOnline = useOnlineStatus();
+  const liveSearchParams = useSearchParams();
+  const liveQueryString = liveSearchParams.toString();
+  const searchParams = useMemo(() => parseBrowseSearchParams(liveQueryString), [liveQueryString]);
+  const seedMatchesUrl = canonicalBrowseSearchParams(initialSearchParams) === canonicalBrowseSearchParams(new URLSearchParams(liveQueryString));
+  const seededInitialPage = seedMatchesUrl ? initialPage : undefined;
 
   const search = getBrowseParam(searchParams, 'search');
   const city = getBrowseParam(searchParams, 'city');
@@ -46,8 +53,8 @@ export function StoresGrid({ initialPage, initialPageUpdatedAt, searchParams = {
   const query = useInfiniteQuery({
     queryKey: queryKeys.stores.infinite({ search, city, sortBy, sortOrder, pageSize }),
     initialPageParam: 1,
-    initialData: initialPage ? { pages: [initialPage], pageParams: [1] } : undefined,
-    initialDataUpdatedAt: initialPageUpdatedAt,
+    initialData: seededInitialPage ? { pages: [seededInitialPage], pageParams: [1] } : undefined,
+    initialDataUpdatedAt: seededInitialPage ? initialPageUpdatedAt : undefined,
     staleTime: CACHE_TTL.adsList,
     queryFn: ({ pageParam, signal }) => storesApi.getAll({ search, city, sortBy, sortOrder, page: pageParam, limit: pageSize }, { signal }).then((r) => r.data.data),
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
