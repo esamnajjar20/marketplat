@@ -14,11 +14,13 @@ import { salesHubTabHref } from '@/lib/salesHubTabs';
 export function SalesPageClient() {
   const [open, setOpen] = useState(false);
   const [posOpen, setPosOpen] = useState(false);
-  const { data, isLoading, isError, refetch } = useSales({ page: 1, limit: 4 });
+  // Share the first-page cache with SalesListClient (page=1, limit=12).
+  // The overview only renders the first four records from that same response.
+  const { data, isLoading, isError, refetch } = useSales({ page: 1, limit: 12 });
   // SalesDashboard consumes the exact same cache key. Sharing this result
   // avoids a second /sales/summary?period=month request for identical KPIs.
   const { data: dashboard } = useSalesDashboard();
-  const items = data?.items ?? [];
+  const items = (data?.items ?? []).slice(0, 4);
 
   return (
     <div className="space-y-5">

@@ -64,7 +64,13 @@ const emptyValues: Values = {
  * "I want different terms", same reasoning as most coupon systems.
  */
 export function PromotionForm({ open, onOpenChange, initialProductId }: Props) {
-  const { data: productsPage } = useMyProducts({ status: 'ACTIVE', limit: 100 });
+  // This form is mounted with the promotions tab so its dialog can open
+  // without a remount. Fetch selectable products only while it is visible;
+  // otherwise it duplicates the promotions list's product lookup on tab entry.
+  const { data: productsPage } = useMyProducts(
+    { status: 'ACTIVE', limit: 100 },
+    { enabled: open },
+  );
   const products = productsPage?.items ?? [];
   const create = useCreatePromotion();
 

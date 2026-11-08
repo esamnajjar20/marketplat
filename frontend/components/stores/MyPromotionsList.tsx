@@ -56,7 +56,13 @@ export function MyPromotionsList() {
   // (no nested product — see promotions.controller.ts) and there is no
   // dedicated products-by-id-batch endpoint to avoid over-building for
   // what is, per row, a single lookup against an already-cached list.
-  const { data: productsPage } = useMyProducts({ limit: 100 });
+  // Do not fetch the product catalogue when the store has no promotions to
+  // resolve. The closed PromotionForm below also keeps its own product query
+  // disabled until the seller actually opens the form.
+  const { data: productsPage } = useMyProducts(
+    { limit: 100 },
+    { enabled: (promotions?.length ?? 0) > 0 },
+  );
   const products = productsPage?.items ?? [];
 
   const cancelPromotion = useCancelPromotion();

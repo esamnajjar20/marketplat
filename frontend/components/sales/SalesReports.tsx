@@ -10,9 +10,10 @@ import type { SalePaymentStatus } from '@/types/sale.types';
 
 const money = (value: number) => Number(value || 0).toFixed(2);
 
-// The on-screen table is a preview: the server caps JSON rows at 500 (totals above it
-// still cover every matching sale). The CSV export is streamed and may carry more.
-const REPORT_PREVIEW_LIMIT = 500;
+// The on-screen table is a preview, not a full export. Keep the JSON response
+// bounded; aggregate totals still cover all matching sales on the server.
+// CSV export remains independently sized and streamed.
+const REPORT_PREVIEW_LIMIT = 100;
 const REPORT_EXPORT_LIMIT = 5000;
 
 export function SalesReports() {
