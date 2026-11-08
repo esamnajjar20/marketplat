@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { AppState, Platform } from 'react-native';
-import NetInfo from '@react-native-community/netinfo';
+import { useOnlineResync } from '@/lib/useOnlineResync';
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -41,31 +41,28 @@ export function NativePushLifecycleBridge() {
   const { user, accessToken, csrfToken } = useAuth();
   const lastResponseId = useRef<string | null>(null);
   const syncInFlight = useRef(false);
+  const synchronize = useCallback(() => {
+    if (Platform.OS !== 'android' || !user || !accessToken || syncInFlight.current) return;
+    syncInFlight.current = true;
+    void syncGrantedAndroidPush(accessToken, csrfToken)
+      .catch((error) => {
+        // Permission is not requested here. This catches only already-granted
+        // token sync failures and leaves the in-app notification center usable.
+        logger.warn('native-push', 'Granted Android push token could not be synchronized', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      })
+      .finally(() => { syncInFlight.current = false; });
+  }, [user?.id, accessToken, csrfToken]);
+  useOnlineResync(synchronize);
 
   useEffect(() => {
     if (Platform.OS !== 'android' || !user || !accessToken) return;
     let active = true;
 
-    const synchronize = () => {
-      if (!active || syncInFlight.current) return;
-      syncInFlight.current = true;
-      void syncGrantedAndroidPush(accessToken, csrfToken)
-        .catch((error) => {
-          // Permission is not requested here. This catches only already-granted
-          // token sync failures and leaves the in-app notification center usable.
-          logger.warn('native-push', 'Granted Android push token could not be synchronized', {
-            error: error instanceof Error ? error.message : String(error),
-          });
-        })
-        .finally(() => { syncInFlight.current = false; });
-    };
-
     // Retry a previously opted-in device when connectivity returns or the app
     // becomes active again. Neither event can trigger an OS permission prompt.
     synchronize();
-    const networkSubscription = NetInfo.addEventListener((state) => {
-      if (state.isConnected && state.isInternetReachable !== false) synchronize();
-    });
     const appStateSubscription = AppState.addEventListener('change', (state) => {
       if (state === 'active') synchronize();
     });
@@ -102,12 +99,11 @@ export function NativePushLifecycleBridge() {
 
     return () => {
       active = false;
-      networkSubscription();
       appStateSubscription.remove();
       tokenSubscription.remove();
       responseSubscription.remove();
     };
-  }, [user?.id, accessToken, csrfToken]);
+  }, [user?.id, accessToken, csrfToken, synchronize]);
 
   return null;
 }

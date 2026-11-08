@@ -10,9 +10,16 @@ import { dirname, join } from 'node:path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const files = (await readdir(__dirname))
+const quarantinedManifest = JSON.parse(await readFile(join(__dirname, 'quarantined-active.json'), 'utf8'));
+const quarantinedFiles = new Set(
+  Array.isArray(quarantinedManifest.entries)
+    ? quarantinedManifest.entries.map((entry) => entry.file).filter((file) => typeof file === 'string')
+    : [],
+);
+const discoveredFiles = (await readdir(__dirname))
   .filter((f) => f.startsWith('verify-') && f.endsWith('.mjs'))
   .sort();
+const files = discoveredFiles.filter((file) => !quarantinedFiles.has(file));
 
 if (files.length === 0) {
   console.log('⚠️  No active verify-*.mjs scripts found.');
@@ -28,8 +35,9 @@ try {
 }
 
 console.log(`\nActive verification checks: ${files.length}`);
+console.log(`Quarantined active checks (not counted as passed): ${quarantinedFiles.size}`);
 console.log(`Quarantined historical checks (not counted as passed): ${legacyCount}`);
-console.log('The quarantined scripts are preserved in scripts/legacy-verifications/ with diagnosis metadata.\n');
+console.log('Quarantined active checks remain in scripts/ and must be reviewed and rewritten before reactivation.\n');
 
 let passed = 0;
 const failures = [];
@@ -58,7 +66,7 @@ for (const f of files) {
 
 const failed = failures.length;
 console.log(`\n${'═'.repeat(70)}`);
-console.log(`  Active: ${files.length}  |  ✅ ${passed}  |  ❌ ${failed}  |  Quarantined historical (not passed): ${legacyCount}`);
+console.log(`  Active: ${files.length}  |  ✅ ${passed}  |  ❌ ${failed}  |  Quarantined active (not passed): ${quarantinedFiles.size}  |  Quarantined historical (not passed): ${legacyCount}`);
 console.log(`${'═'.repeat(70)}\n`);
 
 if (failed > 0) {

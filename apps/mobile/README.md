@@ -23,7 +23,7 @@ pnpm dev:mobile   # or: pnpm --filter @marketplat/mobile dev
 | `dev` | Expo start |
 | `android` / `ios` | Native run |
 | `type-check` | `tsc --noEmit` |
-| `test` | Maintained static contract checks; historical failed checks are catalogued under `scripts/legacy-verifications/` |
+| `test` | Maintained active static contract checks; 92 failed legacy contracts are explicitly quarantined in `scripts/quarantined-active.json` pending triage |
 | `test:storage` | Node tests for durable-storage/outbox contracts |
 | `test:sqlite` | Vitest storage integration/unit tests |
 | `lint` | ESLint rules (raw hex colors and explicit `any`) plus supplemental source checks |
@@ -32,7 +32,7 @@ pnpm dev:mobile   # or: pnpm --filter @marketplat/mobile dev
 
 ## Known limitations (honest status)
 
-These are **not** production-ready claims until the matching checklist is signed off under `docs/mobile/checklists/`. The latest local static-verification run on 2026-10-30 had 60/60 active checks passing. An additional 86 historical checks remain quarantined and were not counted as passes; this does not mean the corresponding behavior has been proven correct. The blocking runner prints active and quarantined counts separately.
+These are **not** production-ready claims until the matching checklist is signed off under `docs/mobile/checklists/`. The latest source-archive verification after the mobile remediation pass has 70/70 active checks passing. A further 92 previously active checks are now explicitly quarantined pending review and rewrite because they fail against the current source contracts; they are not counted as passes and their behavior is not considered verified. Another 86 historical checks remain quarantined. The blocking runner reports all three groups separately; do not treat quarantine as proof of correctness.
 
 | Area | Status | Checklist |
 |------|--------|-----------|
@@ -57,7 +57,7 @@ These are **not** production-ready claims until the matching checklist is signed
 - `src/features/auth/google-oauth.native.ts` — native system-browser Google OAuth with PKCE
 - Inbox uses `FlatList` virtualization with a memoized accessible conversation row. Messaging/notification read endpoints validate high-value JSON contracts through Zod before returning data.
 
-Historical phase reports live in **`../../docs/mobile/archive/`**, not in this folder. The duplicate root copies were removed after matching their SHA-256 hashes to the archived originals. After the 2026-10-30 refactor iterations, the active static verifier suite is green (60/60); 86 historical checks remain quarantined and are explicitly not represented as passing tests. Node storage/outbox tests pass 30/30. Full TypeScript, ESLint, and Vitest execution still require installing workspace dependencies. Phase 3 adds `verify:phase3` static contracts; run it alongside the existing suite after dependency installation.
+Historical phase reports live in **`../../docs/mobile/archive/`**, not in this folder. The duplicate root copies were removed after matching their SHA-256 hashes to the archived originals. After the 2026-11-08 remediation pass, the active static verifier suite is green (70/70); 92 active legacy contracts and 86 historical checks are quarantined and explicitly not represented as passing tests. Node storage/outbox tests pass 40/40. The Vitest include now discovers feature-level tests (including ads pagination and appointment slots), but Vitest, ESLint, Expo type-check and native builds still require the workspace dependencies and native SDK. The 92 quarantined contracts must be reviewed and rewritten as current behavioral tests before reactivation.
 
 ## Production Android notes
 

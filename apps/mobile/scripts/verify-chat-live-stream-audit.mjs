@@ -12,6 +12,9 @@ assert.match(stream, /Last-Event-ID/, 'SSE reconnects must send the last replay 
 assert.match(stream, /response\.body[\s\S]*getReader/, 'SSE must consume the response stream instead of JSON parsing');
 assert.match(stream, /Math\.min\(30_000/, 'reconnect delay must be bounded');
 assert.match(stream, /response\.status === 404 \|\| response\.status === 405/, 'unsupported SSE endpoints must use fallback');
+assert.match(stream, /response\.status === 401[\s\S]*refreshAccessTokenForStream/, 'expired stream sessions must refresh and reconnect once');
+assert.match(stream, /response\.status === 403[\s\S]*authorization decision/, 'forbidden streams must not trigger token refresh');
+assert.match(client, /refreshInFlight: Promise<string> \| null/, 'REST and SSE token refresh must be single-flight');
 assert.match(stream, /signal:\s*controller\.signal/, 'SSE requests must be abortable');
 assert.match(client, /export function getApiBaseUrl/, 'stream transport must reuse the configured API origin');
 assert.match(screen, /useChatLiveStream\(/, 'conversation screen must delegate stream lifecycle to the shared hook');

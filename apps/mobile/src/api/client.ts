@@ -93,11 +93,34 @@ type TokenUpdater = (
 let refreshHandler: RefreshHandler | null = null;
 let tokenUpdater: TokenUpdater | null = null;
 let authFailureHandler: ((error: ApiError) => void) | null = null;
+let refreshInFlight: Promise<string> | null = null;
+// Latest CSRF value returned by the same refresh that rotated the cookie.
+// Used only to rebuild a mutation retry after a 401; never persisted here.
+let refreshedCsrfToken: string | undefined;
+
+/** Refresh the access token once across concurrent REST and streaming requests. */
+export async function refreshAccessTokenForStream(): Promise<string> {
+  if (!refreshHandler) throw new ApiError('تعذر تجديد جلسة تسجيل الدخول.', 401);
+  if (!refreshInFlight) {
+    refreshInFlight = refreshHandler()
+      .then((refreshed) => {
+        if (refreshed.csrfToken) refreshedCsrfToken = refreshed.csrfToken;
+        tokenUpdater?.(refreshed.accessToken, refreshed.csrfToken, refreshed.expiresIn);
+        return refreshed.accessToken;
+      })
+      .finally(() => { refreshInFlight = null; });
+  }
+  return refreshInFlight;
+}
 
 /** Register a handler that resolves a fresh access token when the current one expires (401).
  *  Passing null clears it (e.g. on logout). */
 export function setRefreshHandler(handler: RefreshHandler | null): void {
   refreshHandler = handler;
+  if (!handler) {
+    refreshInFlight = null;
+    refreshedCsrfToken = undefined;
+  }
 }
 
 /** Register a callback that updates caller-side session state after a successful refresh. */
@@ -368,11 +391,19 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
         && !path.startsWith('/api/v1/auth/')
       ) {
         try {
-          const refreshed = await refreshHandler();
-          tokenUpdater?.(refreshed.accessToken, refreshed.csrfToken, refreshed.expiresIn);
+          const refreshedToken = await refreshAccessTokenForStream();
+          // Refresh rotates the CSRF cookie on the server. Reuse of the original
+          // X-CSRF-Token would therefore make this otherwise-valid mutation fail
+          // with 403. Replace it only when the caller originally supplied the
+          // header, preserving all other request headers and auth semantics.
+          const retryHeaders = new Headers(headers);
+          if (refreshedCsrfToken && retryHeaders.has('X-CSRF-Token')) {
+            retryHeaders.set('X-CSRF-Token', refreshedCsrfToken);
+          }
           return apiRequest<T>(path, {
             ...options,
-            token: refreshed.accessToken,
+            headers: retryHeaders,
+            token: refreshedToken,
             _retried: true,
           });
         } catch (refreshError) {

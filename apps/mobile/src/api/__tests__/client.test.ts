@@ -126,6 +126,36 @@ describe('apiRequest reliability contracts', () => {
     });
   });
 
+  it('replaces a rotated CSRF header when retrying a mutation after 401', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse(401, { message: 'Unauthorized' }))
+      .mockResolvedValueOnce(jsonResponse(200, { success: true, data: { updated: true } }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { apiRequest, setRefreshHandler, setTokenUpdater } = await loadClient();
+    const updater = vi.fn();
+    setRefreshHandler(async () => ({
+      accessToken: 'fresh-access-token',
+      csrfToken: 'fresh-csrf-token',
+      expiresIn: 900,
+    }));
+    setTokenUpdater(updater);
+
+    await expect(apiRequest('/api/v1/products/product-1', {
+      method: 'PATCH',
+      token: 'expired-access-token',
+      headers: { 'X-CSRF-Token': 'old-csrf-token', 'X-Offline-Op-Id': 'operation-123' },
+      body: JSON.stringify({ title: 'Updated' }),
+    })).resolves.toMatchObject({ success: true });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const retriedHeaders = new Headers(fetchMock.mock.calls[1][1]?.headers);
+    expect(retriedHeaders.get('X-CSRF-Token')).toBe('fresh-csrf-token');
+    expect(retriedHeaders.get('X-Offline-Op-Id')).toBe('operation-123');
+    expect(fetchMock.mock.calls[1][1]?.headers).toBeInstanceOf(Headers);
+    expect(updater).toHaveBeenCalledWith('fresh-access-token', 'fresh-csrf-token', 900);
+  });
+
   it('does not mislabel every server message containing password as a password-input error', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
       jsonResponse(423, { message: 'Too many password attempts; account locked for 15 minutes' }),

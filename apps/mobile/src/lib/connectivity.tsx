@@ -10,14 +10,16 @@ import NetInfo from '@react-native-community/netinfo';
  * `null` (unknown) is treated as online (conservative).
  */
 type ConnectivityValue = { isOnline: boolean };
-const ConnectivityContext = createContext<ConnectivityValue>({ isOnline: false });
+const ConnectivityContext = createContext<ConnectivityValue>({ isOnline: true });
 
 function normalize(state: { isConnected: boolean | null; isInternetReachable: boolean | null }): boolean {
-  return state.isConnected === true && state.isInternetReachable !== false;
+  if (state.isConnected === false || state.isInternetReachable === false) return false;
+  // Unknown during startup is not proof of disconnection; avoid a false offline banner.
+  return true;
 }
 
 export function ConnectivityProvider({ children }: { children: ReactNode }) {
-  const [isOnline, setIsOnline] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
     let mounted = true;

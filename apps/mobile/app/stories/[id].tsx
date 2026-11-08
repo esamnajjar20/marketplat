@@ -42,10 +42,11 @@ export default function StoryViewerScreen() {
   useEffect(() => { setProgress(0); setImageFailed(false); }, [story?.id]);
   useEffect(() => {
     if (!story || paused || loading) return;
-    const tick = 100 / (STORY_DURATION_MS / 100);
+    const startedAt = Date.now() - (progress / 100) * STORY_DURATION_MS;
     const timer = setInterval(() => {
-      setProgress(current => current >= 100 ? 100 : Math.min(100, current + tick));
-    }, 100);
+      const elapsed = Math.max(0, Date.now() - startedAt);
+      setProgress(Math.min(100, (elapsed / STORY_DURATION_MS) * 100));
+    }, 250);
     return () => clearInterval(timer);
   }, [story?.id, paused, loading]);
   useEffect(() => {

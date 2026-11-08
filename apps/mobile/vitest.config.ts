@@ -9,6 +9,7 @@ export default defineConfig({
       'src/api/__tests__/**/*.test.ts',
       'src/lib/__tests__/**/*.test.ts',
       'src/features/auth/__tests__/**/*.test.ts',
+      'src/features/**/__tests__/**/*.test.ts',
     ],
     exclude: ['**/*.test.mjs', '**/node_modules/**'],
     environment: 'node',

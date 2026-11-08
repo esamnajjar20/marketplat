@@ -1,6 +1,7 @@
 import { formatMoney } from '@/lib/formatters';
 import { AppIcon } from '@/components/Icons';
 import { AppImage } from '@/components/AppImage';
+import { marketListPerf } from '@/lib/listPerformance';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { FlatList, RefreshControl, View } from 'react-native';
@@ -49,6 +50,7 @@ export default function FollowingFeedScreen() {
         <ErrorState title="تعذر تحميل الموجز" description={list.error} onAction={() => void list.refresh()} />
       ) : (
         <FlatList
+          {...marketListPerf}
           data={list.items}
           keyExtractor={itemKey}
           contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 48, flexGrow: 1 }}

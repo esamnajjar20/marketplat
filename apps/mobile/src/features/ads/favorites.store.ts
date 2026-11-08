@@ -14,20 +14,54 @@ function favoritesKey(userId?: string | null): string {
   return `${FAVORITES_KEY_PREFIX}-${scope}`;
 }
 
-/** Cache favorites separately for each signed-in account; guest data is never read as account data. */
+/** Stable namespace shared by favorites and their account-scoped outbox. */
+function favoritesOwnerId(userId?: string | null): string {
+  return userId?.trim() ? `user:${userId.trim()}` : 'guest';
+}
+
+/**
+ * Favorites live in the encrypted SQLite database so the collection is not
+ * constrained by the platform-specific SecureStore item-size limits.
+ * SecureStore is retained only as a one-time migration source.
+ */
 export async function readFavoriteAdIds(userId?: string | null): Promise<string[]> {
   try {
-    const key = favoritesKey(userId);
-    let raw = await SecureStore.getItemAsync(key);
-    // Migrate the old unscoped cache to guest-only storage; never expose it to an account.
-    if (!raw && !userId) {
-      const legacy = await SecureStore.getItemAsync(LEGACY_FAVORITES_KEY);
-      if (legacy) { raw = legacy; await SecureStore.setItemAsync(key, legacy); await SecureStore.deleteItemAsync(LEGACY_FAVORITES_KEY).catch(() => undefined); }
+    const db = await queueDatabase();
+    const ownerId = favoritesOwnerId(userId);
+    const rows = await db.getAllAsync<{ ad_id: string }>(
+      'SELECT ad_id FROM favorite_ad_ids WHERE owner_id = ? ORDER BY ad_id ASC', ownerId,
+    );
+    if (rows.length > 0) {
+      await SecureStore.deleteItemAsync(favoritesKey(userId)).catch(() => undefined);
+      if (!userId?.trim()) await SecureStore.deleteItemAsync(LEGACY_FAVORITES_KEY).catch(() => undefined);
+      return rows.map((row) => row.ad_id);
+    }
+
+    // Migrate existing account-scoped SecureStore data without ever exposing
+    // the legacy unscoped guest key to a signed-in account.
+    const currentKey = favoritesKey(userId);
+    let raw = await SecureStore.getItemAsync(currentKey);
+    let migratedLegacyGuestKey = false;
+    if (!raw && !userId?.trim()) {
+      raw = await SecureStore.getItemAsync(LEGACY_FAVORITES_KEY);
+      migratedLegacyGuestKey = Boolean(raw);
     }
     if (!raw) return [];
-    const value: unknown = JSON.parse(raw);
-    if (!Array.isArray(value)) return [];
-    return [...new Set(value.filter((item): item is string => typeof item === 'string' && item.length > 0))];
+    const parsed: unknown = JSON.parse(raw);
+    const ids = Array.isArray(parsed)
+      ? [...new Set(parsed.filter((item): item is string => typeof item === 'string' && item.length > 0))]
+      : [];
+    await db.withExclusiveTransactionAsync(async (txn) => {
+      for (const adId of ids) {
+        await txn.runAsync(
+          'INSERT OR IGNORE INTO favorite_ad_ids (owner_id, ad_id, updated_at) VALUES (?, ?, ?)',
+          ownerId, adId, Date.now(),
+        );
+      }
+    });
+    await SecureStore.deleteItemAsync(currentKey).catch(() => undefined);
+    if (migratedLegacyGuestKey) await SecureStore.deleteItemAsync(LEGACY_FAVORITES_KEY).catch(() => undefined);
+    return ids;
   } catch {
     return [];
   }
@@ -35,7 +69,17 @@ export async function readFavoriteAdIds(userId?: string | null): Promise<string[
 
 export async function writeFavoriteAdIds(ids: string[], userId?: string | null): Promise<void> {
   const normalized = [...new Set(ids.filter((id) => typeof id === 'string' && id.length > 0))];
-  await SecureStore.setItemAsync(favoritesKey(userId), JSON.stringify(normalized));
+  const db = await queueDatabase();
+  const ownerId = favoritesOwnerId(userId);
+  await db.withExclusiveTransactionAsync(async (txn) => {
+    await txn.runAsync('DELETE FROM favorite_ad_ids WHERE owner_id = ?', ownerId);
+    for (const adId of normalized) {
+      await txn.runAsync(
+        'INSERT INTO favorite_ad_ids (owner_id, ad_id, updated_at) VALUES (?, ?, ?)',
+        ownerId, adId, Date.now(),
+      );
+    }
+  });
 }
 
 // Serialize read-modify-write updates per account. This prevents a fast toggle
@@ -76,6 +120,14 @@ async function queueDatabase(): Promise<SQLite.SQLiteDatabase> {
         );
         CREATE INDEX IF NOT EXISTS favorite_state_outbox_updated_idx
           ON favorite_state_outbox(updated_at, ad_id);
+        CREATE TABLE IF NOT EXISTS favorite_ad_ids (
+          owner_id TEXT NOT NULL,
+          ad_id TEXT NOT NULL,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (owner_id, ad_id)
+        );
+        CREATE INDEX IF NOT EXISTS favorite_ad_ids_owner_updated_idx
+          ON favorite_ad_ids(owner_id, updated_at DESC);
       `);
       // Upgrade databases created before cancellation could restore the pre-queue state.
       // Legacy rows remain NULL so cancellation fails closed rather than guessing.
@@ -204,9 +256,9 @@ export async function mergeGuestFavoritesIntoAccount(userId: string): Promise<vo
   const toAdd = guestFavs.filter((id) => !userSet.has(id));
 
   // Merge only what we can also enqueue for server sync (queue capacity is 50).
-  // Writing more favorites to SecureStore than we enqueue would leave them
+  // Persisting more favorites locally than we enqueue would leave them
   // locally-visible but server-invisible — hearts inconsistent with the
-  // favorites screen, and lost on reinstall.
+  // favorites screen until the remaining guest items are merged later.
   const MAX_MERGE = 50;
   const enqueueable = toAdd.slice(0, MAX_MERGE);
   const leftover = toAdd.slice(MAX_MERGE);

@@ -14,7 +14,7 @@ import {
   type ReactNode,
 } from 'react';
 import { Alert, AppState } from 'react-native';
-import NetInfo from '@react-native-community/netinfo';
+import { useOnlineResync } from '@/lib/useOnlineResync';
 import { ApiError, setAuthFailureHandler, setRefreshHandler, setTokenUpdater } from '@/api/client';
 import {
   loginWithPassword,
@@ -415,11 +415,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  useEffect(() => NetInfo.addEventListener((state) => {
-    if (state.isConnected && state.isInternetReachable !== false) {
-      void retryPendingLogout();
-    }
-  }), [retryPendingLogout]);
+  useOnlineResync(() => { void retryPendingLogout(); });
 
   const ensureNoPendingLogout = useCallback(async () => {
     const pending = await readPendingLogout();

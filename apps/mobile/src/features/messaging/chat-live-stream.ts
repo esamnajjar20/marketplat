@@ -1,7 +1,7 @@
 import { fetch as expoFetch } from 'expo/fetch';
 import { z } from 'zod';
 import { chatMessageResponseSchema } from '@/api/response-schemas';
-import { getApiBaseUrl } from '@/api/client';
+import { getApiBaseUrl, refreshAccessTokenForStream } from '@/api/client';
 
 export type ChatLiveEvent = {
   type: 'message:new' | 'message:deleted' | 'notification' | 'resync' | 'connected' | string;
@@ -100,18 +100,19 @@ export function subscribeChatLiveStream(options: ChatLiveStreamOptions): () => v
 
   const run = async () => {
     let failures = 0;
+    let authRefreshAttempted = false;
     while (!stopped && !outer.signal.aborted) {
-      const baseUrl = getApiBaseUrl();
-      if (!baseUrl) {
-        // Configuration is missing; periodic fallback requests would only add noise.
-        stopped = true;
-        return;
-      }
       const controller = new AbortController();
       activeRequest = controller;
       const abortCurrent = () => controller.abort();
       outer.signal.addEventListener('abort', abortCurrent, { once: true });
       try {
+        let baseUrl: string;
+        try { baseUrl = getApiBaseUrl(); } catch {
+          // A missing build-time API origin is a terminal configuration error, not a retryable network failure.
+          stopped = true;
+          return;
+        }
         const lastEventId = options.getLastEventId();
         const currentToken = options.getToken ? options.getToken() : options.token;
         if (!currentToken) { stopped = true; return; }
@@ -130,8 +131,21 @@ export function subscribeChatLiveStream(options: ChatLiveStreamOptions): () => v
           options.onUnsupported();
           return;
         }
-        if (response.status === 401 || response.status === 403) {
-          // Do not spin or fall back to periodic authenticated queries on an expired session.
+        if (response.status === 401) {
+          // A stream can outlive its access token. Share the REST refresh single-flight,
+          // then reconnect once with the updated token and the last acknowledged event ID.
+          try { await response.body?.cancel(); } catch { /* best effort */ }
+          if (authRefreshAttempted) { stopped = true; return; }
+          authRefreshAttempted = true;
+          const refreshedToken = await refreshAccessTokenForStream();
+          if (outer.signal.aborted || stopped) return;
+          if (!refreshedToken) { stopped = true; return; }
+          failures = 0;
+          continue;
+        }
+        if (response.status === 403) {
+          // 403 is an authorization decision, not token expiry; refreshing cannot fix it.
+          try { await response.body?.cancel(); } catch { /* best effort */ }
           stopped = true;
           return;
         }

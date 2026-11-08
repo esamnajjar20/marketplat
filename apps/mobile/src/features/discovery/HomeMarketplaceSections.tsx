@@ -2,6 +2,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
+import { useOnlineResync } from '@/lib/useOnlineResync';
 import { ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
@@ -111,9 +112,10 @@ export default function HomeMarketplaceSections() {
     } finally { loadingRef.current = false; }
   }, []);
 
+  useOnlineResync(() => { void refreshStale(); });
+
   useEffect(() => {
     activeRef.current = true;
-    let previousOnline: boolean | null = null;
     void (async () => {
       const keys: SectionKey[] = ['products', 'services', 'requests'];
       await Promise.all(keys.map(async (key) => {
@@ -127,14 +129,7 @@ export default function HomeMarketplaceSections() {
       }));
       await refreshStale();
     })();
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      const online = state.isConnected === true && state.isInternetReachable !== false;
-      const wasOnline = previousOnline;
-      previousOnline = online;
-      // Reconnect only checks stale public snapshots; it never forces fresh queries.
-      if (wasOnline === false && online) void refreshStale();
-    });
-    return () => { activeRef.current = false; unsubscribe(); };
+    return () => { activeRef.current = false; };
   }, [refreshStale]);
 
   const hasProducts = data.products.length > 0;

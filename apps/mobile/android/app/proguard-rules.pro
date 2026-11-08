@@ -13,16 +13,13 @@
 
 # Add any project specific keep options here:
 
-# MarketPlat — protect from R8 (added after prebuild reset)
+# Keep only app-owned classes that may be reached by reflection. React Native,
+# Expo and native-module libraries publish their own consumer ProGuard rules.
 -keep class com.marketplat.** { *; }
--keep class expo.modules.** { *; }
--keep class com.facebook.react.** { *; }
--keep class com.facebook.hermes.** { *; }
--keep class com.swmansion.** { *; }
+
+# Preserve explicitly exported React Native bridge methods without retaining
+# every class in the React Native / Expo / Hermes dependency graph.
 -keepclassmembers class * {
-    @com.facebook.react.bridge.ReactMethod *;
     @com.facebook.react.bridge.ReactMethod <methods>;
 }
 -keepclassmembers @com.google.gson.annotations.SerializedName class * { *; }
--dontwarn com.facebook.react.**
--dontwarn expo.modules.**

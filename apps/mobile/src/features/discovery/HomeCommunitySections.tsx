@@ -1,7 +1,8 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
+import { useOnlineResync } from '@/lib/useOnlineResync';
 import { ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -54,6 +55,8 @@ export default function HomeCommunitySections() {
   const [stories, setStories] = useState<StoryGroup[]>([]);
   const [storiesOwnerId, setStoriesOwnerId] = useState<string | null>(null);
   const [failedStoryAvatars, setFailedStoryAvatars] = useState<string[]>([]);
+  const reconnectRefreshRef = useRef<() => void>(() => undefined);
+  useOnlineResync(() => reconnectRefreshRef.current());
   // Never render a private feed unless it belongs to the currently authenticated account.
   const visibleStories = accessToken && user?.id && storiesOwnerId === user.id ? stories : [];
 
@@ -62,7 +65,6 @@ export default function HomeCommunitySections() {
     let active = true;
     let requestInFlight = false;
     let refreshQueued = false;
-    let previousOnline: boolean | null = null;
     let lastStoresSuccessfulAt = 0;
     // Never keep a prior account's private story feed while a new session is loading.
     setStories([]);
@@ -134,14 +136,8 @@ export default function HomeCommunitySections() {
       await refresh();
     })();
 
-    const unsubscribe = NetInfo.addEventListener((state) => {
-      const online = state.isConnected === true && state.isInternetReachable !== false;
-      const wasOnline = previousOnline;
-      previousOnline = online;
-      if (wasOnline === false && online) void refresh(true);
-    });
-
-    return () => { active = false; unsubscribe(); };
+    reconnectRefreshRef.current = () => { void refresh(true); };
+    return () => { active = false; reconnectRefreshRef.current = () => undefined; };
   }, [accessToken, isRestoring, user?.id]);
 
   return (

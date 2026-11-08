@@ -497,9 +497,13 @@ export async function syncNextOfflineCreate(input: {
       return 'synced';
     } catch (error) {
       const status = error instanceof ApiError ? error.status : undefined;
-      const isLoginRequired = status === 401;
+      // Match the other mutation outboxes: 401/403 require the authenticated
+      // session to be restored (403 can be a stale CSRF-cookie/header pair after
+      // refresh). Never mark an offline create as permanently failed on these
+      // statuses; keep it pending for the next authenticated sync cycle.
+      const isLoginRequired = status === 401 || status === 403;
       const isPermanent = status !== undefined
-        ? status >= 400 && status < 500 && ![401, 408, 425, 429].includes(status)
+        ? status >= 400 && status < 500 && ![401, 403, 408, 425, 429].includes(status)
         : !(error instanceof ApiError);
       const attempts = isPermanent ? MAX_ATTEMPTS : isLoginRequired ? head.attempts : head.attempts + 1;
       const delay = isLoginRequired ? 0 : Math.min(60 * 60_000, 5_000 * 2 ** Math.min(Math.max(0, attempts - 1), 10));

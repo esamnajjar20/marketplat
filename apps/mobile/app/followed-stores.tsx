@@ -1,3 +1,4 @@
+import { marketListPerf } from '@/lib/listPerformance';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useState } from 'react';
@@ -71,6 +72,7 @@ export default function FollowedStoresScreen() {
         <ErrorState title="تعذر تحميل المتاجر" description={error} onAction={() => void refresh()} />
       ) : (
         <FlatList
+          {...marketListPerf}
           data={visible}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 48 }}
