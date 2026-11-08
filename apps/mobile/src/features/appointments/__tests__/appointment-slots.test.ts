@@ -46,3 +46,38 @@ describe('buildAppointmentSlots', () => {
     expect(buildAppointmentSlots([range], '2026-13-55', 0)).toHaveLength(0);
   });
 });
+
+
+describe('buildAppointmentSlots boundary conditions', () => {
+  it('does not create a slot that crosses the requested market-calendar day', () => {
+    const slots = buildAppointmentSlots([
+      { start: '2026-11-05T21:00:00.000Z', end: '2026-11-05T23:30:00.000Z' },
+    ], '2026-11-05', 0);
+    expect(slots.every((slot) => slot.end.startsWith('2026-11-05'))).toBe(true);
+    expect(slots).toEqual([]);
+  });
+
+  it('returns no slots for impossible calendar dates and invalid date shapes', () => {
+    const range = { start: marketTime(5, 9), end: marketTime(5, 12) };
+    expect(buildAppointmentSlots([range], '2026-02-30', 0)).toEqual([]);
+    expect(buildAppointmentSlots([range], '05-11-2026', 0)).toEqual([]);
+  });
+
+  it('deduplicates heavily overlapping free ranges and keeps results chronologically sorted', () => {
+    const slots = buildAppointmentSlots([
+      { start: marketTime(5, 12), end: marketTime(5, 16) },
+      { start: marketTime(5, 9), end: marketTime(5, 13) },
+      { start: marketTime(5, 10), end: marketTime(5, 14) },
+    ], '2026-11-05', 0);
+    const starts = slots.map((slot) => slot.start);
+    expect(new Set(starts).size).toBe(starts.length);
+    expect(starts).toEqual([...starts].sort());
+  });
+
+  it('does not return slots when the requested range is fully in the past', () => {
+    const slots = buildAppointmentSlots([
+      { start: marketTime(5, 9), end: marketTime(5, 12) },
+    ], '2026-11-05', new Date(marketTime(5, 12)).getTime());
+    expect(slots).toEqual([]);
+  });
+});

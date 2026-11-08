@@ -23,7 +23,7 @@ describe('normalizePickedImage', () => {
     vi.spyOn(Date, 'now').mockReturnValue(123);
     vi.spyOn(Math, 'random').mockReturnValue(0.5);
     expect(normalizePickedImage({ uri: 'file:///cache/unnamed' }, 'upload')).toEqual({
-      uri: 'file:///cache/unnamed', fileName: expect.stringMatching(/^upload-123-/), mimeType: 'image/jpeg',
+      uri: 'file:///cache/unnamed', fileName: 'unnamed-123-i.jpg', mimeType: 'image/jpeg',
     });
     vi.restoreAllMocks();
   });

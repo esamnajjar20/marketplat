@@ -1,5 +1,16 @@
 import { vi } from 'vitest';
 
+// React Native's package entrypoint contains Flow-only `import typeof` syntax.
+// Vitest/Rollup runs in Node and cannot parse that entrypoint. Keep this mock
+// deliberately small; individual tests can provide richer native-module mocks.
+vi.mock('react-native', () => ({
+  Platform: {
+    OS: 'android',
+    select: (values: Record<string, unknown>) => values.android ?? values.native ?? values.default,
+  },
+  Share: { share: vi.fn(async () => ({ action: 'sharedAction' })) },
+}));
+
 // expo@58.0.19's ImportMetaRegistry.js imports a missing getBundleUrl, so any
 // module that transitively imports `expo` fails to load. Mock the specific
 // expo modules used by the app; tests that need other behavior can override.
