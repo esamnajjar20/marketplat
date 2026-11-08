@@ -1,3 +1,4 @@
+import type { ServiceProviderAnalytics } from '@/types/service.types';
 'use client';
 
 import { throwIfQueryCancelled } from '@/lib/queryCancellation';
@@ -238,9 +239,12 @@ export function useMyServiceProviderAnalytics(period: '7d' | '30d' | 'all' = 'al
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
 
-  return useQuery<ServiceProviderAnalytics>({
+  return useQuery({
     queryKey: queryKeys.serviceProviders.analyticsForPeriod(userId ?? 'anonymous', period),
-    queryFn: ({ signal }) => serviceProvidersApi.getMyAnalytics(period, { signal }).then((r) => r.data.data),
+    queryFn: async ({ signal }) => {
+      const res = await serviceProvidersApi.getMyAnalytics(period, { signal });
+      return res.data.data as ServiceProviderAnalytics;
+    },
     // Keep the last selected period visible while the next period loads.
     // This avoids replacing the entire analytics panel with a spinner when
     // switching between 7d / 30d / all; the component labels the transition.

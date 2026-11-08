@@ -140,7 +140,7 @@ export function MyServiceProviderAnalytics() {
             <p className="text-sm text-muted-foreground">لا توجد بيانات مشاهدات بعد.</p>
           ) : (
             <ul className="divide-y divide-border/60">
-              {analytics.topListings.map((listing, index) => (
+              {analytics.topListings.map((listing: any, index: number) => (
                 <li key={listing.id} className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
                   <span
                     className={cn(
