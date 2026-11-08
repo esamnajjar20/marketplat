@@ -88,9 +88,9 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
           "$SDKMANAGER" --install \
             'platform-tools' \
-            'platforms;android-37' \
+            'platforms;android-37.0' \
             'build-tools;37.0.0'
-          test -s "$ANDROID_HOME/platforms/android-37/android.jar"
+          test -s "$ANDROID_HOME/platforms/android-37.0/android.jar"
           test -x "$ANDROID_HOME/build-tools/37.0.0/apksigner"
 
       - name: Setup Android NDK (stable)
@@ -264,9 +264,9 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
           "$SDKMANAGER" --install \
             'platform-tools' \
-            'platforms;android-37' \
+            'platforms;android-37.0' \
             'build-tools;37.0.0'
-          test -s "$ANDROID_HOME/platforms/android-37/android.jar"
+          test -s "$ANDROID_HOME/platforms/android-37.0/android.jar"
           test -x "$ANDROID_HOME/build-tools/37.0.0/apksigner"
 
       - name: Setup Android NDK (stable)
