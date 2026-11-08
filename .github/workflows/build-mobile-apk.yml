@@ -81,21 +81,26 @@ jobs:
           cache: gradle
           cache-dependency-path: apps/mobile/android/gradle/wrapper/gradle-wrapper.properties
 
-      - name: Install Android SDK packages
+            - name: Install Android SDK packages
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
           SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager 2>/dev/null | sort -V | tail -n 1)"
           test -n "$SDKMANAGER" && test -x "$SDKMANAGER"
-          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          
+          # Accept licenses without causing SIGPIPE failures
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          
+          # Install required packages
           "$SDKMANAGER" --install \
             'platform-tools' \
             'platforms;android-37.0' \
             'build-tools;37.0.0'
+            
           test -s "$ANDROID_HOME/platforms/android-37/android.jar"
           test -x "$ANDROID_HOME/build-tools/37.0.0/apksigner"
 
-      - name: Setup Android NDK (stable)
+- name: Setup Android NDK (stable)
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: r27b
