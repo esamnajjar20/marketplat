@@ -21,7 +21,8 @@
  *    the tab you left.
  */
 
-import { Suspense } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import {
@@ -197,7 +198,15 @@ function TabBody({ tab, storeLabels }: { tab: MyStoreTab; storeLabels: ReturnTyp
 }
 
 export function MyStoreTabsHub() {
-  const { data: store } = useMyStore();
+  const searchParams = useSearchParams();
+  const urlTab = resolveMyStoreTab(searchParams.toString()) ?? DEFAULT_MY_STORE_TAB;
+  const [activeTab, setActiveTab] = useState<MyStoreTab>(urlTab);
+  useEffect(() => setActiveTab(urlTab), [urlTab]);
+  const handleActiveChange = useCallback((tab: MyStoreTab) => setActiveTab(tab), []);
+  // Store identity is only needed for product/analytics labels. The overview
+  // panel loads it itself; other tabs must not trigger this request.
+  const needsStoreLabels = activeTab === 'products' || activeTab === 'analytics';
+  const { data: store } = useMyStore({ enabled: needsStoreLabels });
   const storeLabels = getStoreTypeLabels(store?.storeType);
 
   return (
@@ -212,6 +221,7 @@ export function MyStoreTabsHub() {
       resolveTab={resolveMyStoreTab}
       searchForTabSwitch={searchForTabSwitch}
       renderTab={(tab) => <TabBody tab={tab} storeLabels={storeLabels} />}
+      onActiveChange={handleActiveChange}
     />
   );
 }

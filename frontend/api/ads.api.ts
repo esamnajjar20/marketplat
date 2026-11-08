@@ -77,6 +77,7 @@ export const adsApi = {
     apiClient.get<ApiResponse<{
       activeAds: number;
       soldAds: number;
+      totalAds: number;
       totalViews: number;
       favoritesCount: number;
     }>>('/ads/me/stats', config),

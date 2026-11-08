@@ -52,10 +52,12 @@ export function SearchSuggestions({
   activeIndex = -1,
   onListChange,
 }: Props) {
-  const debouncedQuery = useDebouncedValue(query, 300);
-  const { data: suggestions, isFetching } = useSearchSuggestions(debouncedQuery);
-
+  // A slightly longer pause avoids issuing a request for each intermediate
+  // prefix when users type multi-character Arabic words.
+  const debouncedQuery = useDebouncedValue(query, 500);
   const trimmed = query.trim();
+  const isSettled = trimmed.replace(/\s+/g, ' ').toLocaleLowerCase() === debouncedQuery.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+  const { data: suggestions, isFetching } = useSearchSuggestions(isSettled ? debouncedQuery : '');
   const willRender = trimmed.length >= 2 && (isFetching || (suggestions && suggestions.length > 0));
 
   // SW-SUGGESTIONS-KBD-01: report list to parent whenever it changes.

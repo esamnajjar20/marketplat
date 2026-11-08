@@ -19,6 +19,10 @@ export function PresenceHeartbeat() {
     if (!isAuthenticated) return;
 
     let intervalId: ReturnType<typeof setInterval> | null = null;
+    // Visibility/network lifecycle events can arrive close together. Keep a
+    // single heartbeat in flight so a slow Redis/API response is never
+    // multiplied by a resume event or an interval tick.
+    let beatInFlight = false;
 
     const beat = () => {
       if (!canBackgroundPoll()) return;
@@ -32,10 +36,15 @@ export function PresenceHeartbeat() {
       // Skip this beat instead of sending a request doomed to 403; the
       // next interval tick (or 'online'/'visibilitychange') retries once
       // the refresh response has populated the token.
-      if (!getCsrfToken()) return;
-      usersApi.touchPresence().catch(() => {
-        // Best-effort
-      });
+      if (!getCsrfToken() || beatInFlight) return;
+      beatInFlight = true;
+      void usersApi.touchPresence()
+        .catch(() => {
+          // Best-effort
+        })
+        .finally(() => {
+          beatInFlight = false;
+        });
     };
 
     const start = () => {

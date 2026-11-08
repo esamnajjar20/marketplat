@@ -190,6 +190,15 @@ describe('useSearchSuggestions', () => {
     expect(result.current.data).toEqual([]);
   });
 
+  it('normalizes whitespace and case for a shared suggestion cache key/request', async () => {
+    (searchApi.suggest as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { suggestions: ['Market'] } } });
+
+    const { result } = renderHook(() => useSearchSuggestions('  Market   '), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(searchApi.suggest).toHaveBeenCalledWith({ q: 'market' }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+  });
+
   it('returns the suggestions array when present', async () => {
     (searchApi.suggest as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: { data: { suggestions: ['car', 'card'] } },

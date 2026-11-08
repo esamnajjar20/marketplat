@@ -363,7 +363,7 @@ export const adsRepository = {
   // Correct at any ad count, one request, no page-size ceiling.
   getStatsByUserId: async (
     userId: string
-  ): Promise<{ activeAds: number; soldAds: number; totalViews: number }> => {
+  ): Promise<{ activeAds: number; soldAds: number; totalAds: number; totalViews: number }> => {
     // The status counts and lifetime view total share the same user/status
     // predicate. A single filtered aggregate avoids two concurrent pool
     // requests every time the seller dashboard loads.
@@ -371,12 +371,14 @@ export const adsRepository = {
       Array<{
         activeAds: bigint;
         soldAds: bigint;
+        totalAds: bigint;
         totalViews: bigint | number | null;
       }>
     >`
       SELECT
         COUNT(*) FILTER (WHERE "status" = 'ACTIVE'::"AdStatus") AS "activeAds",
         COUNT(*) FILTER (WHERE "status" = 'SOLD'::"AdStatus") AS "soldAds",
+        COUNT(*) AS "totalAds",
         COALESCE(SUM("views"), 0) AS "totalViews"
       FROM "ads"
       WHERE "userId" = ${userId}
@@ -387,6 +389,7 @@ export const adsRepository = {
     return {
       activeAds: Number(row?.activeAds ?? 0n),
       soldAds: Number(row?.soldAds ?? 0n),
+      totalAds: Number(row?.totalAds ?? 0n),
       totalViews: Number(row?.totalViews ?? 0),
     };
   },

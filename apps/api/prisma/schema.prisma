@@ -735,6 +735,9 @@ model ServiceListing {
   @@index([categoryId, status])
   @@index([serviceTypeId, status])
   @@index([providerId, status])
+  // Owner dashboard filters by provider/status and sorts newest first.
+  // Keep filter and ordering columns together for /service-listings/me.
+  @@index([providerId, status, createdAt, id])
   @@index([status, createdAt])
   @@map("service_listings")
 }
@@ -772,6 +775,10 @@ model ServiceRequest {
 
   @@index([listingId, status])
   @@index([customerId])
+  // Customer activity lists filter by customerId, optionally by status,
+  // and sort newest-first.
+  @@index([customerId, createdAt(sort: Desc)])
+  @@index([customerId, status, createdAt(sort: Desc)])
   @@index([status, createdAt])
   @@map("service_requests")
 }

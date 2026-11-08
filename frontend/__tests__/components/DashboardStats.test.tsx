@@ -57,7 +57,7 @@ describe('DashboardStats', () => {
 
   it('renders ad stat cards from the API response', () => {
     mockUseMyAdStats.mockReturnValue({
-      data: { activeAds: 4, soldAds: 2, totalViews: 137, favoritesCount: 9 },
+      data: { activeAds: 4, soldAds: 2, totalAds: 8, totalViews: 137, favoritesCount: 9 },
       isLoading: false,
       isError: false,
       refetch: vi.fn(),
@@ -73,7 +73,7 @@ describe('DashboardStats', () => {
 
   it('shows store/service shortcut links without duplicating KPI grids', () => {
     mockUseMyAdStats.mockReturnValue({
-      data: { activeAds: 0, soldAds: 0, totalViews: 0, favoritesCount: 0 },
+      data: { activeAds: 0, soldAds: 0, totalAds: 0, totalViews: 0, favoritesCount: 0 },
       isLoading: false,
       isError: false,
       refetch: vi.fn(),

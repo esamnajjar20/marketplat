@@ -44,7 +44,7 @@ function StatTile({
 
 export function MyServiceProviderAnalytics() {
   const [period, setPeriod] = useState<'7d' | '30d' | 'all'>('all');
-  const { data: analytics, isLoading, isError, error, refetch } = useMyServiceProviderAnalytics(period);
+  const { data: analytics, isLoading, isFetching, isPlaceholderData, isError, error, refetch } = useMyServiceProviderAnalytics(period);
 
   if (isLoading) {
     return (
@@ -102,6 +102,11 @@ export function MyServiceProviderAnalytics() {
       <p className="text-xs leading-relaxed text-muted-foreground">
         النافذة الزمنية تؤثر على الطلبات المكتملة والإيرادات. المشاهدات والخدمات النشطة تبقى إجمالية.
       </p>
+      {isFetching && isPlaceholderData && (
+        <p className="text-xs text-muted-foreground" role="status" aria-live="polite">
+          جارٍ تحديث الإحصائيات للفترة المحددة…
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 sm:gap-3">
         <StatTile icon={Eye} label="مشاهدات الخدمات" value={analytics.totalViews.toLocaleString('ar')} />
         <StatTile icon={ListChecks} label="خدمات نشطة" value={analytics.activeListings.toLocaleString('ar')} />

@@ -64,7 +64,7 @@ beforeEach(() => {
   (adsApi.getRelated as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: [] } });
   (adsApi.getMyAds as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { items: [], meta: {} } } });
   (adsApi.getMyStats as ReturnType<typeof vi.fn>).mockResolvedValue({
-    data: { data: { activeAds: 0, soldAds: 0, totalViews: 0, favoritesCount: 0 } },
+    data: { data: { activeAds: 0, soldAds: 0, totalAds: 0, totalViews: 0, favoritesCount: 0 } },
   });
   (usersApi.getUserAds as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: { items: [], meta: {} } } });
 });
@@ -186,12 +186,12 @@ describe('useMyAdStats', () => {
       { accessToken: 'test-token' },
     );
     (adsApi.getMyStats as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { data: { activeAds: 4, soldAds: 2, totalViews: 137, favoritesCount: 9 } },
+      data: { data: { activeAds: 4, soldAds: 2, totalAds: 8, totalViews: 137, favoritesCount: 9 } },
     });
     const { result } = renderHook(() => useMyAdStats(), { wrapper: createWrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(adsApi.getMyStats).toHaveBeenCalled();
-    expect(result.current.data).toEqual({ activeAds: 4, soldAds: 2, totalViews: 137, favoritesCount: 9 });
+    expect(result.current.data).toEqual({ activeAds: 4, soldAds: 2, totalAds: 8, totalViews: 137, favoritesCount: 9 });
   });
 });
 

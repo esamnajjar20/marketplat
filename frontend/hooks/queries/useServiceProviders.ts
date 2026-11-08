@@ -4,7 +4,7 @@ import { throwIfQueryCancelled } from '@/lib/queryCancellation';
 
 import { useEffect } from 'react';
 
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { serviceProvidersApi, type ServiceProviderDashboardData, type ServiceProviderDashboardParams } from '@/api/service-providers.api';
 import { serviceListingsApi } from '@/api/service-listings.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -241,6 +241,10 @@ export function useMyServiceProviderAnalytics(period: '7d' | '30d' | 'all' = 'al
   return useQuery({
     queryKey: queryKeys.serviceProviders.analyticsForPeriod(userId ?? 'anonymous', period),
     queryFn: ({ signal }) => serviceProvidersApi.getMyAnalytics(period, { signal }).then((r) => r.data.data),
+    // Keep the last selected period visible while the next period loads.
+    // This avoids replacing the entire analytics panel with a spinner when
+    // switching between 7d / 30d / all; the component labels the transition.
+    placeholderData: keepPreviousData,
     staleTime: CACHE_TTL.sellerProfile,
     enabled: isAuthenticated && (hasToken || !isOnline),
     retry: false,

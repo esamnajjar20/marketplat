@@ -606,6 +606,7 @@ description: ad.description, // FIX: Removed to reduce list payload size
   ): Promise<{
     activeAds: number;
     soldAds: number;
+    totalAds: number;
     totalViews: number;
     favoritesCount: number;
   }> => {

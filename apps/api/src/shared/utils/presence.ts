@@ -29,10 +29,16 @@ export const presence = {
   touch: async (userId: string): Promise<void> => {
     try {
       const now = new Date().toISOString();
-      await Promise.all([
-        redis.setex(`${PRESENCE_PREFIX}${userId}`, PRESENCE_TTL_SECONDS, now),
-        redis.setex(`${LAST_SEEN_PREFIX}${userId}`, LAST_SEEN_TTL_SECONDS, now),
-      ]);
+      // Both keys are written to the same Redis service. Pipeline the two
+      // SETEX commands so a heartbeat costs one network round trip instead
+      // of two concurrent round trips, which matters on remote Redis plans.
+      const pipeline = redis.pipeline();
+      pipeline.setex(`${PRESENCE_PREFIX}${userId}`, PRESENCE_TTL_SECONDS, now);
+      pipeline.setex(`${LAST_SEEN_PREFIX}${userId}`, LAST_SEEN_TTL_SECONDS, now);
+      const results = await pipeline.exec();
+      if (results?.some(([error]) => error !== null)) {
+        throw new Error('Presence Redis pipeline failed');
+      }
     } catch {
       // Redis unavailable — presence is a nice-to-have, never worth
       // failing the request over (same posture as viewsBuffer.increment).

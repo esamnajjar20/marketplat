@@ -42,6 +42,8 @@ export interface TabsHubProps<T extends string> {
   resolveTab: (search: string) => T | null;
   searchForTabSwitch: (tab: T) => string;
   renderTab: (tab: T) => ReactNode;
+  /** Optional notification for hubs that gate ancillary queries by active tab. */
+  onActiveChange?: (tab: T) => void;
   /** When set, the panel body is wrapped in <Suspense fallback={…}>. */
   panelFallback?: ReactNode;
 }
@@ -57,6 +59,7 @@ export function TabsHub<T extends string>({
   resolveTab,
   searchForTabSwitch,
   renderTab,
+  onActiveChange,
   panelFallback,
 }: TabsHubProps<T>) {
   const sp = useSearchParams();
@@ -67,7 +70,8 @@ export function TabsHub<T extends string>({
 
   useEffect(() => {
     setActive(urlTab);
-  }, [urlTab]);
+    onActiveChange?.(urlTab);
+  }, [urlTab, onActiveChange]);
 
   const writeUrl = useCallback(
     (search: string) => {
@@ -84,9 +88,10 @@ export function TabsHub<T extends string>({
     (tab: T) => {
       writeUrl(searchForTabSwitch(tab));
       setActive(tab);
+      onActiveChange?.(tab);
       window.scrollTo({ top: 0 });
     },
-    [writeUrl, searchForTabSwitch],
+    [writeUrl, searchForTabSwitch, onActiveChange],
   );
 
   const onTabKeyDown = useCallback(
@@ -123,13 +128,15 @@ export function TabsHub<T extends string>({
         e.preventDefault();
         e.stopPropagation();
         writeUrl(url.search);
-        setActive(resolveTab(url.search) ?? defaultTab);
+        const nextTab = resolveTab(url.search) ?? defaultTab;
+        setActive(nextTab);
+        onActiveChange?.(nextTab);
         window.scrollTo({ top: 0 });
       } catch {
         /* unparsable link — let the browser handle it */
       }
     },
-    [writeUrl, hubPath, resolveTab, defaultTab],
+    [writeUrl, hubPath, resolveTab, defaultTab, onActiveChange],
   );
 
   const body = renderTab(active);

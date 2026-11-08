@@ -74,10 +74,13 @@ export function useSearch(params?: SearchQuery) {
  * keystroke.
  */
 export function useSearchSuggestions(q: string) {
+  // Suggestions are case-insensitive on the server. Normalize the key and
+  // request value so whitespace/case-only edits reuse the same cache entry.
+  const normalizedQuery = q.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
   return useQuery({
-    queryKey:  queryKeys.search.suggestions(q),
-    queryFn:   ({ signal }) => searchApi.suggest({ q }, { signal }).then((r) => r.data.data?.suggestions ?? []),
+    queryKey:  queryKeys.search.suggestions(normalizedQuery),
+    queryFn:   ({ signal }) => searchApi.suggest({ q: normalizedQuery }, { signal }).then((r) => r.data.data?.suggestions ?? []),
     staleTime: CACHE_TTL.searchSuggestions,
-    enabled:   q.trim().length >= 2,
+    enabled:   normalizedQuery.length >= 2,
   });
 }

@@ -39,7 +39,7 @@ describe('SearchSuggestions', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('debounces the query passed to useSearchSuggestions by 300ms', () => {
+  it('debounces the query passed to useSearchSuggestions by 500ms', () => {
     mockHook([], false);
     const { rerender } = render(<SearchSuggestions query="لا" onSelect={vi.fn()} />);
 
@@ -54,15 +54,15 @@ describe('SearchSuggestions', () => {
     act(() => {
       rerender(<SearchSuggestions query="لاب" onSelect={vi.fn()} />);
     });
-    // Right after the prop changes, the debounced value hasn't updated
-    // yet, so the hook is still called with the OLD value on this render.
-    expect(useSearchSuggestions).toHaveBeenLastCalledWith('لا');
+    // While the raw input differs from the debounced value, disable the
+    // previous prefix immediately instead of querying a stale suggestion.
+    expect(useSearchSuggestions).toHaveBeenLastCalledWith('');
     expect(useSearchSuggestions).not.toHaveBeenCalledWith('لاب');
 
     // Once the debounce window elapses, the internal state update
     // re-renders the component with the new debounced value.
     act(() => {
-      vi.advanceTimersByTime(300);
+      vi.advanceTimersByTime(500);
     });
     expect(useSearchSuggestions).toHaveBeenLastCalledWith('لاب');
   });

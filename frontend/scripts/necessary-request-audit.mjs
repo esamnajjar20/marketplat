@@ -25,7 +25,7 @@ check(!/useMyBlockedUsers\(\{\s*limit:\s*100\s*\}\)/.test(blockedHook), 'per-use
 check(/\/\$\{encodeURIComponent\(userId\)\}\/status/.test(blockApi), 'frontend per-user status URL is missing or does not encode the id');
 check(/blockedUsersRouter\.get\('\/:userId\/status'/.test(blockRoutes), 'authenticated single-user status route is missing');
 check(/getBlockedIdsByBlocker\(userId, otherPartyIds\)/.test(conversationsService), 'conversation list does not batch the viewer block statuses');
-check(/isBlockedByMe\s*\}/.test(conversationsService), 'conversation detail response does not include viewer block status');
+check(/return\s+\{\s*\.\.\.conversation,\s*isBlockedByMe,\s*otherPartyPresence\s*\}/s.test(conversationsService), 'conversation detail response does not include viewer block status and presence');
 check(/blockedId:\s*\{\s*in:\s*uniqueIds\s*\}/.test(blockRepository), 'conversation status batch query is not bounded to current page users');
 check(/initialStatus:\s*typeof conversation\?\.isBlockedByMe/.test(chat), 'chat does not seed block status from its existing conversation response');
 check(/enabled:\s*Boolean\(party\)\s*&&\s*typeof conversation\?\.isBlockedByMe !== 'boolean'/.test(chat), 'chat fallback status request is not limited to missing legacy/offline data');

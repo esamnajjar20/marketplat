@@ -1,7 +1,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Suspense } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { BarChart3, Brain, ClipboardList, LayoutDashboard, ReceiptText, Users, WalletCards, FileSpreadsheet } from 'lucide-react';
 import { TabsHub } from '@/components/shared/hub/TabsHub';
@@ -99,7 +100,15 @@ function TabBody({ tab }: { tab: SalesHubTab }) {
 }
 
 export function SalesTabsHub() {
-  const costSettings = useSalesCostSettings();
+  const searchParams = useSearchParams();
+  const urlTab = resolveSalesHubTab(searchParams.toString()) ?? DEFAULT_SALES_HUB_TAB;
+  const [activeTab, setActiveTab] = useState<SalesHubTab>(urlTab);
+  useEffect(() => setActiveTab(urlTab), [urlTab]);
+  const handleActiveChange = useCallback((tab: SalesHubTab) => setActiveTab(tab), []);
+  // Cost settings are consumed only by overview, sales cards, and the costs tab.
+  // Do not fetch them while the user is viewing customers/debts/installments/reports/analytics/smart.
+  const needsCostSettings = activeTab === 'overview' || activeTab === 'sales' || activeTab === 'costs';
+  const costSettings = useSalesCostSettings(needsCostSettings);
   const visibleTabs = costSettings.data?.enabled === false ? SALES_HUB_TABS.filter((tab) => tab !== 'costs') : SALES_HUB_TABS;
   const resolveTab = (value: string | null | undefined): SalesHubTab => {
     const tab = resolveSalesHubTab(value ?? '') ?? DEFAULT_SALES_HUB_TAB;
@@ -117,6 +126,7 @@ export function SalesTabsHub() {
       resolveTab={resolveTab}
       searchForTabSwitch={searchForSalesHubTabSwitch}
       renderTab={(tab) => <TabBody tab={tab} />}
+      onActiveChange={handleActiveChange}
     />
   );
 }

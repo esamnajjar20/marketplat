@@ -21,8 +21,8 @@ const adminConsole = read('components/debug/AdminScriptConsole.tsx');
 const adminSetting = read('lib/adminDeveloperToolsSetting.ts');
 const profilePage = read('app/(public)/profile/[id]/page.tsx');
 
-check(/useIsUserOnline\(user\.id,\s*!isOwnProfile\)/.test(profile), 'self profile still fetches its own presence status');
-check(/useFollowStatus\('USER',\s*user\.id,\s*\{\s*enabled:\s*currentUserId\s*!==\s*user\.id,?\s*\}\)/s.test(profile), 'self profile still queries follow status');
+check(/useProfileInteractionState\(user\.id,\s*!isOwnProfile\)/.test(profile), 'self profile avatar interaction query is not disabled');
+check(/useProfileInteractionState\(user\.id,\s*currentUserId\s*!==\s*user\.id\)/.test(profile), 'self profile follow/presence aggregate query is not disabled');
 check(/enabled:\s*enabled\s*&&\s*authenticated\s*&&\s*hasToken\s*&&\s*online\s*&&\s*Boolean\(userId\)/.test(stories), 'user stories are not gated by explicit user intent and a live session');
 check(/useUserStories\(user\.id,\s*storiesRequested\)/.test(profile), 'profile story query is not disabled until avatar interaction');
 check(/enabled:\s*Boolean\(currentUser\s*&&\s*currentUser\.id\s*!==\s*targetUserId\)/.test(blockGate), 'self profile still queries block status');

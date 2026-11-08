@@ -4,7 +4,7 @@ import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Check, Circle, User, Store, PlusCircle, ArrowLeft, Package, Wrench } from 'lucide-react';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useMySellerProfile } from '@/hooks/queries/useSellers';
-import { useMyAds } from '@/hooks/queries/useAds';
+import { useMyAdStats } from '@/hooks/queries/useAds';
 import { useMyStore } from '@/hooks/queries/useStores';
 import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
 import { ROUTES } from '@/lib/constants';
@@ -17,7 +17,8 @@ import { Button } from '@/components/shared/ui/Button';
 export function OnboardingChecklist() {
   const user = useAuthStore(selectUser);
   const { data: sellerProfile, isLoading: sellerLoading, isError: sellerError } = useMySellerProfile();
-  const { data: myAds, isLoading: adsLoading } = useMyAds({ limit: 1 });
+  // Reuse the dashboard aggregate instead of issuing a separate GET /ads/me?limit=1.
+  const { data: adStats, isLoading: adsLoading } = useMyAdStats();
   const { data: myStore, isSuccess: storeLoaded } = useMyStore();
   const { data: myProvider, isSuccess: providerLoaded } = useMyServiceProvider();
 
@@ -25,7 +26,7 @@ export function OnboardingChecklist() {
 
   const hasAvatar = Boolean(user?.avatarUrl);
   const hasSellerProfile = !sellerError && Boolean(sellerProfile);
-  const hasAd = Boolean(myAds?.items?.length);
+  const hasAd = (adStats?.totalAds ?? 0) > 0;
   const hasStore = storeLoaded && Boolean(myStore);
   const hasProvider = providerLoaded && Boolean(myProvider);
 

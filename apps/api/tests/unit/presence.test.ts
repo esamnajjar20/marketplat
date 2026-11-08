@@ -5,26 +5,35 @@ describe('presence', () => {
   afterEach(() => jest.restoreAllMocks());
 
   describe('touch', () => {
-    it('sets a TTL-bound presence key and a longer last-seen key with ISO timestamps', async () => {
-      const setexSpy = jest.spyOn(redis, 'setex').mockResolvedValue('OK');
+    it('pipelines a TTL-bound presence key and a longer last-seen key with ISO timestamps', async () => {
+      const pipeline = {
+        setex: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockResolvedValue([[null, 'OK'], [null, 'OK']]),
+      };
+      jest.spyOn(redis, 'pipeline').mockReturnValue(pipeline as never);
 
       await presence.touch('user-1');
 
-      expect(setexSpy).toHaveBeenCalledTimes(2);
-      expect(setexSpy).toHaveBeenCalledWith(
+      expect(pipeline.setex).toHaveBeenCalledTimes(2);
+      expect(pipeline.setex).toHaveBeenCalledWith(
         'presence:user-1',
         200,
-        expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/)
+        expect.stringMatching(/^\\d{4}-\\d{2}-\\d{2}T/)
       );
-      expect(setexSpy).toHaveBeenCalledWith(
+      expect(pipeline.setex).toHaveBeenCalledWith(
         'presence:last-seen:user-1',
         30 * 24 * 60 * 60,
-        expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/)
+        expect.stringMatching(/^\\d{4}-\\d{2}-\\d{2}T/)
       );
+      expect(pipeline.exec).toHaveBeenCalledTimes(1);
     });
 
     it('swallows redis errors rather than throwing', async () => {
-      jest.spyOn(redis, 'setex').mockRejectedValue(new Error('redis down'));
+      const pipeline = {
+        setex: jest.fn().mockReturnThis(),
+        exec: jest.fn().mockRejectedValue(new Error('redis down')),
+      };
+      jest.spyOn(redis, 'pipeline').mockReturnValue(pipeline as never);
 
       await expect(presence.touch('user-1')).resolves.toBeUndefined();
     });

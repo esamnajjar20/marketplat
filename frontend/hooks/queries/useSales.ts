@@ -60,8 +60,13 @@ export function useSalesCompare(period: 'week'|'month'|'year' = 'month') {
 }
 
 
-export function useSalesCostSettings() {
-  return useQuery({ queryKey: queryKeys.sales.costSettings(), queryFn: ({ signal }) => salesApi.costSettings({ signal }).then(r => r.data.data), staleTime: 5 * 60_000 });
+export function useSalesCostSettings(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.sales.costSettings(),
+    queryFn: ({ signal }) => salesApi.costSettings({ signal }).then(r => r.data.data),
+    staleTime: 5 * 60_000,
+    enabled,
+  });
 }
 
 export function useSalesCostProducts(enabled = true) {
