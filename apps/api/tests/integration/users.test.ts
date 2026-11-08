@@ -47,4 +47,31 @@ describe('Users Endpoints', () => {
         .set('Authorization', `Bearer ${user.accessToken}`).expect(404);
     });
   });
+
+  describe('GET /api/v1/users/:id/profile-state', () => {
+    it('includes directional block status so profile UI needs only one interaction-state request', async () => {
+      const target = await createTestUser();
+
+      const before = await request(app)
+        .get(`/api/v1/users/${target.id}/profile-state`)
+        .set('Authorization', `Bearer ${user.accessToken}`)
+        .expect(200);
+      expect(before.body.data).toEqual(expect.objectContaining({
+        following: expect.any(Boolean),
+        online: expect.any(Boolean),
+        isBlockedByMe: false,
+      }));
+
+      await request(app)
+        .post(`/api/v1/blocked-users/${target.id}`)
+        .set('Authorization', `Bearer ${user.accessToken}`)
+        .expect(200);
+
+      const after = await request(app)
+        .get(`/api/v1/users/${target.id}/profile-state`)
+        .set('Authorization', `Bearer ${user.accessToken}`)
+        .expect(200);
+      expect(after.body.data.isBlockedByMe).toBe(true);
+    });
+  });
 });

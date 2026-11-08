@@ -16,6 +16,7 @@ import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGat
 import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';
 import { ServiceTypeAttributesDisplay } from '@/components/services/ServiceTypeAttributesDisplay';
 import { ServiceListingMatches } from '@/components/services/ServiceListingMatches';
+import { LazySection } from '@/components/shared/LazySection';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { formatRelativeTime, formatServicePrice } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
@@ -140,7 +141,9 @@ export function ServiceListingDetail({ listing, action }: Props) {
           </header>
 
           <ServiceTypeAttributesDisplay listing={listing} />
-          <ServiceListingMatches listingId={listing.id} />
+          <LazySection minHeight={220} rootMargin="160px 0px" whenIdle>
+            <ServiceListingMatches listingId={listing.id} />
+          </LazySection>
 
           {/* Description */}
           {listing.description && (

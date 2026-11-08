@@ -238,7 +238,7 @@ export function useMyServiceProviderAnalytics(period: '7d' | '30d' | 'all' = 'al
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
 
-  return useQuery({
+  return useQuery<ServiceProviderAnalytics>({
     queryKey: queryKeys.serviceProviders.analyticsForPeriod(userId ?? 'anonymous', period),
     queryFn: ({ signal }) => serviceProvidersApi.getMyAnalytics(period, { signal }).then((r) => r.data.data),
     // Keep the last selected period visible while the next period loads.

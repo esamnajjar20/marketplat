@@ -28,6 +28,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGate';
 import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';
+import { LazySection } from '@/components/shared/LazySection';
 import { ProductCard } from '@/components/stores/ProductCard';
 import dynamic from 'next/dynamic';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
@@ -146,10 +147,12 @@ export function ProductDetail({ product, related = [] }: Props) {
           <DetailSafetyTips />
 
           {/* توصيات من متاجر أخرى فقط — حتى لا تتكرر مع قسم نفس المتجر */}
-          <ProductRecommendations
-            excludeProductId={product.id}
-            excludeStoreId={product.storeId}
-          />
+          <LazySection minHeight={240} rootMargin="96px 0px" whenIdle>
+            <ProductRecommendations
+              excludeProductId={product.id}
+              excludeStoreId={product.storeId}
+            />
+          </LazySection>
         </div>
 
         {/* Sidebar — سعر وإجراءات فقط (بدون sticky) */}

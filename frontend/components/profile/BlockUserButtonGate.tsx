@@ -17,7 +17,7 @@ import { useState } from 'react';
 import { UserX, UserCheck } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
-import { useIsUserBlocked } from '@/hooks/queries/useBlockedUsers';
+import { useProfileInteractionState } from '@/hooks/queries/useUsers';
 import { useToggleUserBlock } from '@/hooks/mutations/useBlockedUsersMutations';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 
@@ -28,9 +28,14 @@ interface Props {
 
 export function BlockUserButtonGate({ targetUserId, targetUserName }: Props) {
   const currentUser = useAuthStore(selectUser);
-  const isBlocked = useIsUserBlocked(targetUserId, {
-    enabled: Boolean(currentUser && currentUser.id !== targetUserId),
-  });
+  // The profile header already loads follow + presence in one request.
+  // Reuse that same viewer-scoped payload for block status instead of
+  // issuing a second GET /blocked-users/:id/status.
+  const { data: profileState } = useProfileInteractionState(
+    targetUserId,
+    Boolean(currentUser && currentUser.id !== targetUserId),
+  );
+  const isBlocked = profileState?.isBlockedByMe ?? false;
   const { mutate: toggleBlock, isPending } = useToggleUserBlock();
   const [confirmOpen, setConfirmOpen] = useState(false);
 

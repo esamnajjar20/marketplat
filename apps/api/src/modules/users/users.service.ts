@@ -22,6 +22,7 @@ import {
 } from '../../shared/utils/cloudinaryHelpers';
 import { presence } from '../../shared/utils/presence';
 import { followsService } from '../follows/follows.service';
+import { blockedUsersService } from '../blocked-users';
 import { notificationsService } from '../notifications/notifications.service';
 import { conversationsService } from '../conversations/conversations.service';
 import { sellersService } from '../sellers/sellers.service';
@@ -52,17 +53,19 @@ export const usersService = {
    */
   getProfileInteractionState: async (viewerId: string, profileUserId: string) => {
     if (viewerId === profileUserId) {
-      return { following: false, online: false, lastSeenAt: null as string | null };
+      return { following: false, online: false, lastSeenAt: null as string | null, isBlockedByMe: false };
     }
-    const [following, presenceById] = await Promise.all([
+    const [following, presenceById, isBlockedByMe] = await Promise.all([
       followsService.status(viewerId, FollowTargetType.USER, profileUserId),
       presence.getPresence([profileUserId]),
+      blockedUsersService.isBlockedBy(viewerId, profileUserId),
     ]);
     const profilePresence = presenceById[profileUserId];
     return {
       following,
       online: profilePresence?.online ?? false,
       lastSeenAt: profilePresence?.lastSeenAt ?? null,
+      isBlockedByMe,
     };
   },
 

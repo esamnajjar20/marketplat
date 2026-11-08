@@ -110,7 +110,7 @@ export const usersApi = {
 
   /** One private request for the public-profile header's follow + presence state. */
   getProfileInteractionState: (id: string, config?: AxiosRequestConfig) =>
-    apiClient.get<ApiResponse<{ following: boolean; online: boolean; lastSeenAt: string | null }>>(
+    apiClient.get<ApiResponse<{ following: boolean; online: boolean; lastSeenAt: string | null; isBlockedByMe: boolean }>>(
       `/users/${encodeURIComponent(id)}/profile-state`, config,
     ),
 

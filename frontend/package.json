@@ -124,7 +124,7 @@
     "network:batching-phase7-audit": "node scripts/api-batching-phase7-audit.mjs",
     "perf:sales-first-render-audit": "node scripts/sales-data-freshness-performance-audit.mjs",
     "perf:home-first-render-audit": "node scripts/home-first-render-performance-audit.mjs",
-    "network:lazy-query-audit": "node scripts/lazy-query-intent-audit.mjs"
+    "network:public-page-audit": "node scripts/public-page-request-optimization-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

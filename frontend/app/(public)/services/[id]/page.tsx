@@ -9,6 +9,7 @@ import { ServiceListingDetail } from '@/components/services/ServiceListingDetail
 import { ServiceRequestButton } from '@/components/services/ServiceRequestButton';
 import { ServiceViewTracker } from '@/components/services/ServiceViewTracker';
 import { RelatedServices } from '@/components/services/RelatedServices';
+import { LazySection } from '@/components/shared/LazySection';
 import { ServiceBreadcrumb } from '@/components/services/ServiceBreadcrumb';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { ROUTES } from '@/lib/constants';
@@ -125,12 +126,14 @@ export default async function ServiceListingPage({ params }: Props) {
         }
       />
       {/* خدمات مشابهة فقط — بدون توصيات إضافية لتخفيف الصفحة */}
-      <RelatedServices
-        serviceListingId={listing.id}
-        categoryId={listing.categoryId}
-        serviceTypeId={listing.serviceTypeId}
-        title="خدمات مشابهة"
-      />
+      <LazySection minHeight={240} rootMargin="96px 0px" whenIdle>
+        <RelatedServices
+          serviceListingId={listing.id}
+          categoryId={listing.categoryId}
+          serviceTypeId={listing.serviceTypeId}
+          title="خدمات مشابهة"
+        />
+      </LazySection>
     </div>
   );
 }
