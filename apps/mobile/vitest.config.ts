@@ -3,6 +3,12 @@ import path from 'node:path';
 
 export default defineConfig({
   define: { __DEV__: 'true' },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+      'expo-asset': path.resolve(__dirname, './src/test-mocks/expo-asset.ts'),
+    },
+  },
   test: {
     include: [
       'src/storage/__tests__/**/*.test.ts',
@@ -15,16 +21,23 @@ export default defineConfig({
     globals: false,
     testTimeout: 10_000,
     setupFiles: ['./vitest.setup.ts'],
-    // Tell Vitest not to try transforming Node built-in modules.
     server: {
       deps: {
-        external: [/^node:/] as (string | RegExp)[],
+        external: [/^node:/],
+        inline: [/expo-asset/, /expo-modules-core/, /expo-crypto/],
       },
     },
-  },
-resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html', 'json-summary'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.test.{ts,tsx}',
+        'src/**/__tests__/**',
+        'src/test-mocks/**',
+        'src/types/**',
+        'src/**/*.d.ts'
+      ],
     },
   },
 });
