@@ -60,6 +60,24 @@ describe('writeClientUrl', () => {
     expect(window.location.search).toBe('?tab=appointments&page=1');
   });
 
+  it('passes null state so Next.js can preserve its router marker and sync useSearchParams', () => {
+    // Next.js 15 marks App Router history entries with __NA and an internal
+    // router tree. Passing that object back to pushState triggers Next's
+    // internal-write guard and skips ACTION_RESTORE / useSearchParams updates.
+    window.history.replaceState(
+      { __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: { tree: 'current' } },
+      '',
+      '/my-services?page=1',
+    );
+    const pushSpy = vi.spyOn(window.history, 'pushState');
+
+    writeClientUrl('/my-services?page=2', 'push');
+
+    expect(pushSpy).toHaveBeenCalledWith(null, '', '/my-services?page=2');
+    expect(window.location.search).toBe('?page=2');
+    pushSpy.mockRestore();
+  });
+
   it('ignores external origins and unchanged URLs', () => {
     window.history.replaceState({}, '', '/my-services');
     const pushSpy = vi.spyOn(window.history, 'pushState');

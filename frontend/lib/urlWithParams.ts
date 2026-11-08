@@ -38,6 +38,14 @@ export function buildUrlWithParams(baseUrl: string, params: URLSearchParams | st
  * Update query-string state for client-filtered lists without starting a new
  * App Router navigation/RSC request. Next.js 15 synchronizes native
  * pushState/replaceState calls with useSearchParams and usePathname.
+ *
+ * IMPORTANT: pass `null` as the History state. Next.js patches these methods
+ * and deliberately skips router synchronization when the supplied state has
+ * its internal `__NA` / `_N` marker. Passing `window.history.state` here
+ * therefore changes the address bar but leaves useSearchParams stale across
+ * every caller of this shared helper. Next.js copies its own internal state
+ * onto the new entry when the supplied state is null.
+ *
  * Use only when the server route payload does not depend on the changed query.
  */
 export function writeClientUrl(
@@ -53,7 +61,10 @@ export function writeClientUrl(
     const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
     if (nextUrl === currentUrl) return;
     const method = mode === 'push' ? 'pushState' : 'replaceState';
-    window.history[method](window.history.state, '', nextUrl);
+    // Do not pass window.history.state: it contains Next.js' __NA marker,
+    // which makes Next's patched History API skip its useSearchParams sync.
+    // Passing null lets Next copy its internal router state to the new entry.
+    window.history[method](null, '', nextUrl);
   } catch {
     // Invalid URL state must not break list interactions.
   }

@@ -285,8 +285,8 @@ export async function prefetchHomepage(
   }
 }
 
-/** Max time the server waits for /home before rendering without it. */
-const HOME_PREFETCH_TIMEOUT_MS = 2500;
+/** Max time the server waits for the guest home feed before rendering the shell. */
+const HOME_PREFETCH_TIMEOUT_MS = 1200;
 
 
 /**

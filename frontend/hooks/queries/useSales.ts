@@ -3,6 +3,7 @@ import { queryOptions, useQuery, keepPreviousData } from '@tanstack/react-query'
 import { salesApi } from '@/api/sales.api';
 import { queryKeys, type SalesListQueryParams } from '@/lib/queryKeys';
 import type { SalesPage } from '@/types/sale.types';
+import { CACHE_TTL } from '@/lib/constants';
 
 /** Shared typed options keep the request parameters tied to the cache identity. */
 export function salesListQueryOptions(params?: SalesListQueryParams) {
@@ -26,6 +27,7 @@ export function salesListQueryOptions(params?: SalesListQueryParams) {
       return data as SalesPage;
     },
     placeholderData: keepPreviousData,
+    staleTime: CACHE_TTL.salesList,
   });
 }
 
@@ -37,6 +39,7 @@ export function useSalesSummary(period: 'day' | 'week' | 'month' | 'year' = 'mon
   return useQuery({
     queryKey: queryKeys.sales.summary(period),
     queryFn: ({ signal }) => salesApi.summary(period, { signal }).then((r) => r.data.data),
+    staleTime: CACHE_TTL.salesData,
   });
 }
 
@@ -44,6 +47,7 @@ export function useSalesChart(period: 'day' | 'week' | 'month' = 'day') {
   return useQuery({
     queryKey: queryKeys.sales.chart(period),
     queryFn: ({ signal }) => salesApi.chart({ period }, { signal }).then((r) => r.data.data ?? []),
+    staleTime: CACHE_TTL.salesData,
   });
 }
 
@@ -51,16 +55,17 @@ export function useSalesCompare(period: 'week'|'month'|'year' = 'month') {
   return useQuery({
     queryKey: queryKeys.sales.compare(period),
     queryFn: ({ signal }) => salesApi.compare(period, { signal }).then((r) => r.data.data),
+    staleTime: CACHE_TTL.salesData,
   });
 }
 
 
 export function useSalesCostSettings() {
-  return useQuery({ queryKey: queryKeys.sales.costSettings(), queryFn: ({ signal }) => salesApi.costSettings({ signal }).then(r => r.data.data) });
+  return useQuery({ queryKey: queryKeys.sales.costSettings(), queryFn: ({ signal }) => salesApi.costSettings({ signal }).then(r => r.data.data), staleTime: 5 * 60_000 });
 }
 
 export function useSalesCostProducts(enabled = true) {
-  return useQuery({ queryKey: queryKeys.sales.costProducts(), queryFn: ({ signal }) => salesApi.costProducts({ signal }).then(r => r.data.data ?? []), enabled });
+  return useQuery({ queryKey: queryKeys.sales.costProducts(), queryFn: ({ signal }) => salesApi.costProducts({ signal }).then(r => r.data.data ?? []), enabled, staleTime: 5 * 60_000 });
 }
 
 export function useDebtSummary() {

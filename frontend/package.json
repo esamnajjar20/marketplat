@@ -121,7 +121,9 @@
     "network:batching-phase2-audit": "node scripts/api-batching-phase2-audit.mjs",
     "public-pages:request-audit": "node scripts/public-page-request-reduction-audit.mjs && node scripts/prefetch-policy-audit.mjs",
     "profile:request-audit": "node scripts/profile-and-global-request-audit.mjs",
-    "network:batching-phase7-audit": "node scripts/api-batching-phase7-audit.mjs"
+    "network:batching-phase7-audit": "node scripts/api-batching-phase7-audit.mjs",
+    "perf:sales-first-render-audit": "node scripts/sales-data-freshness-performance-audit.mjs",
+    "perf:home-first-render-audit": "node scripts/home-first-render-performance-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

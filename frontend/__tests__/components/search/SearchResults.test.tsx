@@ -121,6 +121,22 @@ describe('SearchResults', () => {
     expect(queryKey[2]).toEqual(expect.objectContaining({ type: 'all', sort: 'relevance', lat: undefined, lng: undefined }));
   });
 
+  it('keeps previous results visible while a new filter query is fetching', () => {
+    mockSearchState({
+      data: { items: [baseResult], meta: { total: 1, totalPages: 4 } },
+      isFetching: true,
+      isPlaceholderData: true,
+      hasNextPage: true,
+    });
+    renderResults();
+
+    expect(screen.getByTestId('result-card')).toHaveTextContent('لابتوب ديل');
+    // Do not allow pagination from the previous filter set to run against the new key.
+    expect(screen.queryByTestId('infinite-scroll-trigger')).not.toBeInTheDocument();
+    const options = vi.mocked(useInfiniteQuery).mock.calls.at(-1)?.[0];
+    expect(options?.placeholderData).toBeTypeOf('function');
+  });
+
   it('shows a loading spinner while isLoading is true', () => {
     mockSearchState({ isLoading: true });
     renderResults();

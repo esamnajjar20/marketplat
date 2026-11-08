@@ -5,7 +5,7 @@ import { LIST_CARD_GRID_CLASS } from '@/components/shared/list/ListPageShell';
 import { BrowseCityHint } from '@/components/shared/BrowseCityHint';
 import { OfflineQueryFallback } from '@/components/shared/feedback/OfflineQueryFallback';
 import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useEffect, useMemo, useState } from 'react';
@@ -143,8 +143,12 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
       }
     },
     getNextPageParam: (lastPage) => lastPage?.meta?.hasNextPage ? lastPage.meta.page + 1 : undefined,
+    // Keep the previous result grid visible while a new filter/search key
+    // loads. This avoids replacing useful content with a full-page skeleton
+    // on every filter change; pagination stays paused until the new key wins.
+    placeholderData: keepPreviousData,
   });
-  const { data, isLoading: searchLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = infiniteQuery;
+  const { data, isLoading: searchLoading, isFetching, isError, isPlaceholderData, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isFetchNextPageError } = infiniteQuery;
   const isLoading = searchLoading || (Boolean(lat !== undefined && lng !== undefined) && !progressive.resolved);
 
 
@@ -273,7 +277,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
   return (
     <div className="space-y-4">
       <BrowseCityHint />
-      <ListDataStatus isFetching={isFetching} hasData={items.length > 0 || Boolean(data)} isPlaceholderData={false} />
+      <ListDataStatus isFetching={isFetching} hasData={items.length > 0 || Boolean(data)} isPlaceholderData={isPlaceholderData} />
       {lat !== undefined && lng !== undefined && effectiveRadius != null && (
         <div className="flex flex-wrap items-center gap-2">
           <LocationSourceBadge source="gps" radiusKm={effectiveRadius} />
@@ -363,7 +367,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
         </div>
       )}
 
-      {items.length > 0 && (
+      {items.length > 0 && !isPlaceholderData && (
         <InfiniteScrollTrigger
           hasNextPage={Boolean(hasNextPage)}
           isFetchingNextPage={isFetchingNextPage}

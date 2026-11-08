@@ -395,6 +395,10 @@ export const CACHE_TTL = {
   // inbox is. No UI element needs it "live" the way the notification
   // bell does, so this matches favorites' 60s over notifications' 15s.
   activity: 60_000,        // 60 s
+  // Sales aggregates are stable between explicit sale/payment mutations;
+  // mutations invalidate the sales query family so a short client cache is safe.
+  salesData: 60_000,       // 60 s
+  salesList: 15_000,       // 15 s — recent transactions should refresh quickly
   // A user's saved-search list changes only when they explicitly
   // create/delete one — no server-side process mutates it in the
   // background the way a conversation or notification does. Matches
