@@ -394,8 +394,8 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
             />
           )}
 
-          {/* Drawer — start-0 is logical, and in this RTL app (dir="rtl")
-              resolves to right:0 (drawer is anchored to the RIGHT edge —
+          {/* Drawer — inline-start is logical, and with dir="rtl"
+              resolves to the RIGHT edge —
               MDN: inset-inline-start maps to right when direction is
               rtl). transform is a PHYSICAL property and is NEVER
               mirrored by dir="rtl". A right-anchored (start-0) drawer
@@ -406,11 +406,12 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
               the side menu opens from the same edge on every page. */}
           <nav
             id={NAV_ID}
-            // FIX MOBILE-01: max-w-[85vw] — see identical fix in
-            // ProtectedMobileNav.tsx.
-            className={`fixed inset-y-0 right-0 z-[60] flex w-72 max-w-[85vw] flex-col border-e border-border bg-background text-foreground shadow-xl transition-transform duration-200 ease-out ${
+            // RTL/viewport guard: use logical inline-start and a viewport-
+            // bounded width so the panel cannot render partially off-screen.
+            className={`fixed inset-y-0 [inset-inline-start:0] [inset-inline-end:auto] z-[60] box-border flex w-[min(18rem,100vw)] max-w-[100vw] flex-col border-e border-border bg-background text-right text-foreground shadow-xl transition-transform duration-200 ease-out ${
               isMobileNavOpen ? 'translate-x-0' : 'translate-x-full'
             }`}
+            dir="rtl"
             aria-label="القائمة الرئيسية"
             // SW-FIX-DRAWER-INERT: same fix as ProtectedMobileNav.tsx —
             // React 19's native `inert` replaces the

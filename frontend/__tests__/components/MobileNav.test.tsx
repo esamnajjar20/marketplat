@@ -51,6 +51,18 @@ async function renderNav() {
 const mockLogout = vi.fn();
 
 describe('MobileNav', () => {
+  it('anchors the public drawer to the RTL inline-start edge and constrains it to the viewport', async () => {
+    useUIStore.setState({ isMobileNavOpen: true });
+    await renderNav();
+
+    const drawer = screen.getByRole('navigation', { name: 'القائمة الرئيسية' });
+    expect(drawer).toHaveAttribute('dir', 'rtl');
+    expect(drawer.className).toContain('[inset-inline-start:0]');
+    expect(drawer.className).toContain('[inset-inline-end:auto]');
+    expect(drawer.className).toContain('w-[min(18rem,100vw)]');
+    expect(drawer).toHaveClass('translate-x-0');
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     // Drawer content is deferred via requestIdleCallback / 1200ms timeout.

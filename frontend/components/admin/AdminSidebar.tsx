@@ -231,7 +231,7 @@ function MobileDrawer() {
               className="absolute inset-0 bg-foreground/50 backdrop-blur-[2px]"
               onClick={() => setOpen(false)}
             />
-            <div ref={panelRef} className="absolute inset-y-0 start-0 z-[101] h-full w-[min(300px,88vw)] overflow-y-auto border-e border-[var(--legacy-border)] bg-card shadow-xl">
+            <div ref={panelRef} className="absolute inset-y-0 [inset-inline-start:0] [inset-inline-end:auto] z-[101] box-border h-full w-[min(18rem,100vw)] max-w-[100vw] overflow-y-auto border-e border-[var(--legacy-border)] bg-card text-right shadow-xl" dir="rtl">
               <button
                 onClick={() => setOpen(false)}
                 className="absolute top-3 end-3 z-[102] flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"

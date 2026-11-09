@@ -280,10 +280,8 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
       <nav
         id={NAV_ID}
         className={cn(
-          // FIX MOBILE-01: max-w-[85vw] added — a fixed w-72 (288px)
-          // with no relative cap can exceed the viewport on narrow
-          // phones, forcing this drawer itself (not the page) into
-          // horizontal overflow.
+          // RTL/viewport guard: logical inline-start anchors the panel
+          // to the right in this RTL app; the width is capped at 100vw.
           //
           // BUG FIX: overflow-y-auto + overscroll-contain added. The
           // panel is fixed inset-y-0 (full viewport height) with no
@@ -302,7 +300,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
           // padding isn't enough to clear the OS status bar in standalone/
           // TWA mode, since there's no browser chrome to push fixed
           // inset-y-0 content below it.
-          'fixed inset-y-0 right-0 z-[100] w-72 max-w-[85vw] overflow-y-auto overscroll-contain border-e border-border bg-background p-5 pt-[max(1.25rem,env(safe-area-inset-top))] text-foreground shadow-xl transition-transform duration-200 ease-out lg:hidden',
+          'fixed inset-y-0 [inset-inline-start:0] [inset-inline-end:auto] z-[100] box-border w-[min(18rem,100vw)] max-w-[100vw] overflow-y-auto overscroll-contain border-e border-border bg-background p-5 pt-[max(1.25rem,env(safe-area-inset-top))] text-right text-foreground shadow-xl transition-transform duration-200 ease-out lg:hidden',
           // start-0 (inset-inline-start) in this RTL app (dir="rtl") maps
           // to right:0 — MDN: "with direction rtl, inset-inline-start
           // moves the element from the left side to the right side".
@@ -317,6 +315,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
           isOpen ? 'translate-x-0' : 'translate-x-full',
         )}
         ref={drawerRef}
+        dir="rtl"
         aria-label="القائمة الشخصية"
         // SW-FIX-DRAWER-INERT: was `aria-hidden={!isOpen}` on an
         // off-canvas <nav> kept in the DOM (translate-x-full) — links
