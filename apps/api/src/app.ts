@@ -103,6 +103,7 @@ app.use(
       'X-Request-Id',
       'X-CSRF-Token',
       'X-Offline-Op-Id',
+      'Idempotency-Key',
       'Last-Event-ID',
     ],
     exposedHeaders: ['X-Request-Id', 'X-Cache'],

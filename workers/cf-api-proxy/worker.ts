@@ -91,8 +91,9 @@ function parseGatewayHealthStates(value: unknown): Record<string, GatewayHealthS
  *       compatibility fallback: tagged rows, bounded query keys, and SWR refresh.
  * - #8  Cache-Tag header on every stored response + POST /__purge__ for native
  *       Workers Cache tag invalidation; empty-body POST keeps legacy KV flush support.
- * - #13 Native Workers Cache is enabled before fetch() on workers.dev; inner Cache API
- *       remains an additional per-colo tier, and cacheable responses vary by Host and Origin.
+ * - #13 Public caching is performed only after Worker authorization/cookie and
+ *       route-policy checks through the explicit Cache API tier; native outer caching
+ *       is disabled because it executes before fetch() and cannot enforce those checks.
  * - Fix: single-flight shared a Response whose body was already consumed.
  *
  * Keeps v4 cache behavior and adds independent Backend, Frontend, and Go service
@@ -163,7 +164,7 @@ const STALE_ON_ERROR = true;
 const STALE_ERROR_GRACE_SEC = 600;
 
 // Bumped v2 -> v3: key format changed (normalised query, pinned host, SWR metadata).
-const CACHE_KEY_VERSION = 'v3';
+const CACHE_KEY_VERSION = 'v4';
 
 // Negative caching (#9)
 const NEGATIVE_TTL_SEC = 60;
@@ -1674,16 +1675,14 @@ function isUpstreamCacheable(response: Pick<Response, 'status' | 'headers'> | nu
   if (response.headers.has('set-cookie')) return false;
 
 
-  // Vary: * can never be matched. Vary: Authorization / Cookie is allowed: the
-  // origin's public routes (CACHE.STATIC/SHORT/MEDIUM/LIVE) always declare it on
-  // anonymous responses, and this Worker only reaches this check for requests
-  // that carry NO Authorization header and NO Cookie (see the `hasAuth` gate in
-  // fetch()). Rejecting it made every
-  // cacheControl() route BYPASS-POLICY, so the edge only ever cached /home.
-  const vary = (response.headers.get('vary') || '').toLowerCase();
-  if (vary.split(',').some((token) => token.trim() === '*')) return false;
+  // A shared edge cache must not guess how arbitrary Vary dimensions map to
+  // request variants. Host/Origin are added by this Worker and Accept-Encoding
+  // is normalized by the platform; every other origin Vary dimension bypasses.
+  const vary = (response.headers.get('vary') || '').split(',').map((token) => token.trim().toLowerCase()).filter(Boolean);
+  if (vary.some((token) => token === '*' || !['origin', 'host', 'accept-encoding', 'authorization', 'cookie'].includes(token))) return false;
   const cc = (response.headers.get('cache-control') || '').toLowerCase();
   const directives = cc.split(',').map((part) => part.trim().split('=')[0]);
+  if (!directives.includes('public') && !/(?:^|,)\s*s-maxage=\d+/.test(cc)) return false;
   if (['private', 'no-store', 'no-cache'].some((directive) => directives.includes(directive))) return false;
 
   // FORCE CACHE for specific public routes regardless of Render's cache-control
@@ -1899,8 +1898,8 @@ function cleanUpstreamHeaders(request: Request | null, extra: Record<string, str
 
 function passthroughDesc(upstream: Response, body: ArrayBuffer, cacheStatus: string, ms: number): ResponseDescriptor {
   const h = new Headers(upstream.headers);
-  // Native Workers Cache sits before this Worker. Only successful responses that
-  // passed the explicit public-cache policy may leave a cacheable Cache-Control.
+  // Non-cacheable pass-through responses are explicitly private. The native outer
+  // cache is disabled in Wrangler; the inner Cache API stores only approved routes.
   h.set('cache-control', 'private, no-store');
   h.set('x-proxy-cache', cacheStatus);
   h.set('x-upstream-ms', String(ms || 0));
@@ -1912,6 +1911,14 @@ function isNegativeEligible(canon: CanonicalUrl, upstream: Response, body: Array
   if (upstream.status !== 404) return false;
   if (canon.rest.length < 1) return false; // only detail-like paths (/ads/:id)
   if (upstream.headers.has('set-cookie')) return false;
+  const cc = (upstream.headers.get('cache-control') || '').toLowerCase();
+  const directives = cc.split(',').map((part) => part.trim().split('=')[0]);
+  // Negative caching is opt-in only. Never override private/no-store/no-cache,
+  // and never turn an uncacheable application 404 into a public edge response.
+  if (!directives.includes('public') && !/(?:^|,)\s*s-maxage=\d+/.test(cc)) return false;
+  if (['private', 'no-store', 'no-cache'].some((directive) => directives.includes(directive))) return false;
+  const vary = (upstream.headers.get('vary') || '').split(',').map((token) => token.trim().toLowerCase()).filter(Boolean);
+  if (vary.some((token) => token === '*' || !['origin', 'host', 'accept-encoding', 'authorization', 'cookie'].includes(token))) return false;
   const ct = (upstream.headers.get('content-type') || '').toLowerCase();
   if (!ct.includes('json')) return false;
   return body.byteLength <= NEGATIVE_MAX_BODY;

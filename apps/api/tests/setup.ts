@@ -154,6 +154,40 @@ jest.mock('../src/config/redis', () => {
       const keys = args.slice(0, keyCount);
       const argv = args.slice(keyCount);
 
+      if (script.includes('ZREMRANGEBYSCORE') && script.includes('ZCARD')) {
+        const [key] = keys;
+        const [token, nowValue, leaseValue, capacityValue] = argv;
+        const now = Number(nowValue);
+        const leaseMs = Number(leaseValue);
+        const capacity = Number(capacityValue);
+        const zset = zsets.get(key) ?? new Map<string, number>();
+        for (const [member, expiry] of zset) {
+          if (expiry <= now) zset.delete(member);
+        }
+        if (zset.size >= capacity) {
+          zsets.set(key, zset);
+          return 0;
+        }
+        zset.set(token, now + leaseMs);
+        zsets.set(key, zset);
+        return 1;
+      }
+
+      if (script.includes('ZSCORE') && script.includes("'XX'")) {
+        const [key] = keys;
+        const [token, nowValue, leaseValue] = argv;
+        const zset = zsets.get(key);
+        if (!zset?.has(token)) return 0;
+        zset.set(token, Number(nowValue) + Number(leaseValue));
+        return 1;
+      }
+
+      if (script.includes("return redis.call('ZREM', KEYS[1], ARGV[1])")) {
+        const [key] = keys;
+        const [token] = argv;
+        return await zrem(key, token);
+      }
+
       if (script.includes('pendingKey = KEYS[#KEYS]')) {
         // Durable view-buffer staging: save the inflight JSON batch before
         // deleting any source counter so worker crashes remain recoverable.

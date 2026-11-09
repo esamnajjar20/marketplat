@@ -4,6 +4,7 @@ import { requireUser } from '../../src/shared/utils/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { TooManyRequestsError } from '../../src/shared/errors/TooManyRequestsError';
+import { ServiceUnavailableError } from '../../src/shared/errors/ServiceUnavailableError';
 import * as authCookies from '../../src/shared/utils/authCookies';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
@@ -147,6 +148,9 @@ describe('authController', () => {
 
       expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
       expect(authService.refresh).not.toHaveBeenCalled();
+      expect(authCookies.clearRefreshTokenCookie).toHaveBeenCalledWith(res);
+      expect(authCookies.clearCsrfCookie).toHaveBeenCalledWith(res);
+      expect(authCookies.clearSessionHintCookie).toHaveBeenCalledWith(res);
     });
 
     it('calls next(error) when the service throws (e.g. reuse detected)', async () => {
@@ -159,6 +163,42 @@ describe('authController', () => {
       await authController.refresh(req, res, next);
 
       expect(next).toHaveBeenCalledWith(expect.any(UnauthorizedError));
+      expect(authCookies.clearRefreshTokenCookie).toHaveBeenCalledWith(res);
+      expect(authCookies.clearCsrfCookie).toHaveBeenCalledWith(res);
+      expect(authCookies.clearSessionHintCookie).toHaveBeenCalledWith(res);
+    });
+
+    it('preserves session cookies when the refresh service is temporarily unavailable', async () => {
+      const req = mockRequest();
+      const res = mockResponse();
+      const next = mockNext();
+      (authCookies.getRefreshTokenFromCookie as jest.Mock).mockReturnValue('cookie-refresh-token');
+      (authService.refresh as jest.Mock).mockRejectedValue(
+        new ServiceUnavailableError('Redis is temporarily unavailable')
+      );
+
+      await authController.refresh(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(expect.any(ServiceUnavailableError));
+      expect(authCookies.clearRefreshTokenCookie).not.toHaveBeenCalled();
+      expect(authCookies.clearCsrfCookie).not.toHaveBeenCalled();
+      expect(authCookies.clearSessionHintCookie).not.toHaveBeenCalled();
+    });
+
+    it('preserves session cookies for unexpected infrastructure errors', async () => {
+      const req = mockRequest();
+      const res = mockResponse();
+      const next = mockNext();
+      const infrastructureError = new Error('Database connection lost');
+      (authCookies.getRefreshTokenFromCookie as jest.Mock).mockReturnValue('cookie-refresh-token');
+      (authService.refresh as jest.Mock).mockRejectedValue(infrastructureError);
+
+      await authController.refresh(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(infrastructureError);
+      expect(authCookies.clearRefreshTokenCookie).not.toHaveBeenCalled();
+      expect(authCookies.clearCsrfCookie).not.toHaveBeenCalled();
+      expect(authCookies.clearSessionHintCookie).not.toHaveBeenCalled();
     });
   });
 

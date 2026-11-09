@@ -194,74 +194,55 @@ export const rejectOversizedContentLength = (
 
 // Single image (avatar uploads etc.)
 export const uploadMiddleware = (req: Request, res: Response, next: NextFunction): void => {
-  rejectOversizedContentLength(req, res, (err?: unknown) => {
-    if (err) return next(err);
-    upload.single('image')(req, res, (uploadErr: unknown) => {
-      if (uploadErr instanceof multer.MulterError) {
-        if (uploadErr.code === 'LIMIT_FILE_SIZE')
-          return next(new BadRequestError('File size must be less than 5MB', 'FILE_TOO_LARGE'));
-        // was a bare BadRequestError with no code.
-        if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE')
-          return next(new BadRequestError('Unexpected file field', 'UNEXPECTED_FILE_FIELD'));
-        // mirror uploadMultipleMiddleware
-        // — the single-file variant has no file-count check (single always
-        // means one file), but a caller that sends >20 non-file fields in
-        // the same multipart request was previously rejected with the
-        // generic `uploadErr.message` string instead of a coded error.
-        if (uploadErr.code === 'LIMIT_FIELD_COUNT')
-          return next(new BadRequestError('Too many form fields', 'TOO_MANY_FORM_FIELDS'));
-        return next(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
-      }
-      // fileFilter's own BadRequestError (already coded) and any other
-      // Error land here — the `instanceof BadRequestError` check keeps
-      // its explicit code instead of double-wrapping it into a fresh,
-      // uncoded BadRequestError (which used to silently discard the
-      // code fileFilter had just set).
-      if (uploadErr instanceof BadRequestError) return next(uploadErr);
-      if (uploadErr instanceof Error)
-        return next(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
-      verifyFileContent(req, res, next);
+  rejectOversizedContentLength(req, res, (sizeError?: unknown) => {
+    if (sizeError) return next(sizeError);
+
+    // Image uploads use memoryStorage too. They must share the global lease
+    // with audio/document uploads, otherwise the most memory-intensive routes
+    // (ads/products/services) bypass the cluster-wide concurrency cap.
+    runWithDistributedMediaSlot(req, res, next, done => {
+      upload.single('image')(req, res, (uploadErr: unknown) => {
+        if (uploadErr instanceof multer.MulterError) {
+          if (uploadErr.code === 'LIMIT_FILE_SIZE')
+            return done(new BadRequestError('File size must be less than 5MB', 'FILE_TOO_LARGE'));
+          if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE')
+            return done(new BadRequestError('Unexpected file field', 'UNEXPECTED_FILE_FIELD'));
+          if (uploadErr.code === 'LIMIT_FIELD_COUNT')
+            return done(new BadRequestError('Too many form fields', 'TOO_MANY_FORM_FIELDS'));
+          return done(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
+        }
+        if (uploadErr instanceof BadRequestError) return done(uploadErr);
+        if (uploadErr instanceof Error)
+          return done(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
+        verifyFileContent(req, res, done);
+      });
     });
   });
 };
 
-// Multiple images (up to 10) for ads
+// Multiple images (up to 10) for ads/products/services.
 export const uploadMultipleMiddleware = (req: Request, res: Response, next: NextFunction): void => {
-  rejectOversizedContentLength(req, res, (err?: unknown) => {
-    if (err) return next(err);
-    upload.array('images', MAX_IMAGES_PER_ENTITY)(req, res, (uploadErr: unknown) => {
-      if (uploadErr instanceof multer.MulterError) {
-        if (uploadErr.code === 'LIMIT_FILE_SIZE')
-          return next(new BadRequestError('Each file must be less than 5MB', 'FILE_TOO_LARGE'));
-        // these three were bare BadRequestErrors with no
-        // code, all falling back to the generic VALIDATION_ERROR
-        // message despite each being a distinct, nameable failure.
-        // these two used to pass a bare
-        // string to next(), which Express routes to its own "skip to
-        // next handler" path — not the error middleware. The error
-        // middleware only handles Error instances, so a string fell
-        // through to the generic 500 INTERNAL_ERROR, hiding both the
-        // 400 status and the actual reason (too many images) from
-        // the client and generating a false "Unhandled error" Sentry
-        // alert on every over-limit upload attempt.
-        if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE')
-          return next(
-            new BadRequestError(`Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`, 'TOO_MANY_FILES')
-          );
-        if (uploadErr.code === 'LIMIT_FILE_COUNT')
-          return next(
-            new BadRequestError(`Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`, 'TOO_MANY_FILES')
-          );
-        if (uploadErr.code === 'LIMIT_FIELD_COUNT')
-          return next(new BadRequestError('Too many form fields', 'TOO_MANY_FORM_FIELDS'));
-        return next(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
-      }
-      // See uploadMiddleware above for why BadRequestError is passed
-      // through as-is rather than re-wrapped without its code.
-      if (uploadErr instanceof BadRequestError) return next(uploadErr);
-      if (uploadErr instanceof Error)
-        return next(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
-      verifyFileContent(req, res, next);
+  rejectOversizedContentLength(req, res, (sizeError?: unknown) => {
+    if (sizeError) return next(sizeError);
+
+    runWithDistributedMediaSlot(req, res, next, done => {
+      upload.array('images', MAX_IMAGES_PER_ENTITY)(req, res, (uploadErr: unknown) => {
+        if (uploadErr instanceof multer.MulterError) {
+          if (uploadErr.code === 'LIMIT_FILE_SIZE')
+            return done(new BadRequestError('Each file must be less than 5MB', 'FILE_TOO_LARGE'));
+          if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE' || uploadErr.code === 'LIMIT_FILE_COUNT')
+            return done(
+              new BadRequestError(`Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`, 'TOO_MANY_FILES')
+            );
+          if (uploadErr.code === 'LIMIT_FIELD_COUNT')
+            return done(new BadRequestError('Too many form fields', 'TOO_MANY_FORM_FIELDS'));
+          return done(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
+        }
+        if (uploadErr instanceof BadRequestError) return done(uploadErr);
+        if (uploadErr instanceof Error)
+          return done(new BadRequestError(uploadErr.message, 'INVALID_FILE_TYPE'));
+        verifyFileContent(req, res, done);
+      });
     });
   });
 };

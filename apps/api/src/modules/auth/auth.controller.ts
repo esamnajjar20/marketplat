@@ -137,20 +137,17 @@ export const authController = {
       const tokens = await authService.refresh(refreshToken);
       respondWithSession(res, 200, 'Token refreshed', { tokens });
     } catch (error) {
-      // on any refresh failure (expired,
-      // revoked, reused token, or a DB error), clear the three session
-      // cookies. Without this, a device whose refresh token had
-      // already become invalid kept sending it on every page load —
-      // AuthHydrationProvider fires /auth/refresh from the root
-      // layout — so every one of those requests hit the blacklist/
-      // Redis path and failed with 401, and the browser retained a
-      // session-hint cookie that made the edge proxy believe a session
-      // existed (redirecting /login → /dashboard → 401 → /login → …).
-      // Clearing here puts the client into a clean unauthenticated
-      // state and lets the login form render on the first try.
-      clearRefreshTokenCookie(res);
-      clearCsrfCookie(res);
-      clearSessionHintCookie(res);
+      // Clear the session only when the refresh credential is actually
+      // rejected. Infrastructure failures (for example Redis/DB outages)
+      // must not erase a still-valid browser session: doing so turns a
+      // transient 5xx into a forced logout and prevents a retry from
+      // recovering transparently. authService.refresh reports invalid,
+      // expired, revoked, and replayed credentials as AppError(401).
+      if (error instanceof AppError && error.statusCode === 401) {
+        clearRefreshTokenCookie(res);
+        clearCsrfCookie(res);
+        clearSessionHintCookie(res);
+      }
       next(error);
     }
   },

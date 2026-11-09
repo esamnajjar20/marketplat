@@ -1,7 +1,8 @@
 // FIX RATE-LIMIT-PER-USER-01: keyGenerator-based per-user keys +
 // raised caps for NAT-shared IPs (Gaza mobile carriers).
 import rateLimit, { MemoryStore } from 'express-rate-limit';
-import type { Request, Response } from 'express';
+import { isIP } from 'node:net';
+import type { NextFunction, Request, Response } from 'express';
 import { sendApiError } from '../shared/errors/errorResponse';
 import { ErrorCode } from '../shared/errors/errorCodes';
 
@@ -36,12 +37,45 @@ import { ErrorCode } from '../shared/errors/errorCodes';
 function normalizeIpForKey(ip: string): string {
   if (!ip.includes(':')) return ip;
 
-  const v4Mapped = ip.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
-  if (v4Mapped) return v4Mapped[1];
+  // `req.ip` may contain a compressed IPv6 address such as `2001:db8::1`.
+  // Splitting and filtering empty segments is not sufficient: it removes the
+  // zero hextets represented by `::`, causing different addresses in one /64
+  // to produce different buckets (or addresses from a short prefix to be
+  // keyed by their full address). Expand first, then take the network /64.
+  const address = ip.split('%', 1)[0].toLowerCase();
+  if (isIP(address) !== 6) return ip.toLowerCase();
 
-  const hextets = ip.split(':').filter(part => part !== '');
-  if (hextets.length < 4) return ip.toLowerCase();
-  return hextets.slice(0, 4).join(':').toLowerCase();
+  const dottedTail = /(?:^|:)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/.exec(address);
+  let expandedAddress = address;
+  if (dottedTail) {
+    const octets = dottedTail[1].split('.').map(Number);
+    const high = ((octets[0] << 8) | octets[1]).toString(16);
+    const low = ((octets[2] << 8) | octets[3]).toString(16);
+    expandedAddress = `${address.slice(0, -dottedTail[1].length)}${high}:${low}`;
+  }
+
+  const halves = expandedAddress.split('::');
+  const left = halves[0] ? halves[0].split(':') : [];
+  const right = halves.length === 2 && halves[1] ? halves[1].split(':') : [];
+  const missing = 8 - left.length - right.length;
+  const hextets = halves.length === 2
+    ? [...left, ...Array.from({ length: Math.max(0, missing) }, () => '0'), ...right]
+    : left;
+
+  if (hextets.length !== 8) return ip.toLowerCase();
+
+  // Keep IPv4-mapped addresses in the same bucket as their IPv4 spelling,
+  // including the fully-expanded IPv6 form.
+  if (hextets.slice(0, 5).every(part => Number.parseInt(part, 16) === 0)
+      && Number.parseInt(hextets[5], 16) === 0xffff) {
+    const high = Number.parseInt(hextets[6], 16);
+    const low = Number.parseInt(hextets[7], 16);
+    return `${high >>> 8}.${high & 0xff}.${low >>> 8}.${low & 0xff}`;
+  }
+
+  return hextets.slice(0, 4)
+    .map(part => Number.parseInt(part, 16).toString(16))
+    .join(':');
 }
 
 export function userOrIpKey(req: Request): string {
@@ -73,7 +107,7 @@ const ONE_HOUR_MS = 60 * 60 * 1000;
 
 const bypassRateLimit = env.rateLimit.disabled;
 
-const noRateLimit = () => (_req: any, _res: any, next: any) => next();
+const noRateLimit = () => (_req: Request, _res: Response, next: NextFunction): void => next();
 
 /**
  * UPSTASH-SAVE-01: افتراضيًا MemoryStore (ذاكرة العملية) بدل Redis.
@@ -105,7 +139,9 @@ export const makeSendCommand =
   (failOpen: boolean) =>
   async (...args: string[]): Promise<RedisReply> => {
     try {
-      return (await (redis as any).call(...args)) as RedisReply;
+      const [commandName, ...commandArgs] = args;
+      if (!commandName) throw new Error('Redis rate-limit command is missing');
+      return (await redis.call(commandName, ...commandArgs)) as RedisReply;
     } catch (error) {
       if (!failOpen) throw error;
       // Fail-open: if Redis is unavailable, allow the request through

@@ -1,0 +1,25 @@
+
+# Local OCR/Scan runtime files
+public/tesseract/
+public/tessdata/
+*.bak
+*.backup
+*.backup_*
+*.backup-*
+/coverage/
+/playwright-report/
+/test-results/
+/test-errors.log
+/main
+/hooks/{mutations}/
+
+# Cleanup 2026-09-23
+/.next/
+/android/app/build/
+/android/build/
+/android/.gradle/
+
+# W5: generated at build time by scripts/generate-warming-manifest.mjs
+public/warming-manifest.json
+
+public/build-id.json

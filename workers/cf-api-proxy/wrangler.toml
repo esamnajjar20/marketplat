@@ -2,11 +2,9 @@ name = "marketplat-api"
 main = "worker.ts"
 compatibility_date = "2026-11-04"
 
-# Native Workers Cache runs before fetch(), including on *.workers.dev.
-# Requires Wrangler CLI 4.69.0 or newer. The Worker Cache API remains an inner fallback.
-[cache]
-enabled = true
-
+# Keep native Workers Cache disabled: it runs before fetch() and cannot apply
+# this Worker's Authorization/Cookie bypass logic. Public caching is performed
+# only by the explicit Cache API policy inside worker.ts.
 [vars]
 FRONTEND_ORIGIN = "https://marketplat.esamnajjar6.workers.dev"
 RENDER_ORIGIN = "https://marketplat-nz19.onrender.com"

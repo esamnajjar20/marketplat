@@ -75,7 +75,7 @@ function harness({ upstream, kv, cacheFailure = false, nativeCacheUnavailable = 
       return upstream(String(url), headers, upstreamLog.length, init);
     },
   };
-  vm.runInNewContext(`${source}\nglobalThis.__internals = { isUpstreamCacheable, makeCacheKey, edgeTagsFor, canonicalize, kvEnabled, kvTtlPolicy, searchCacheAllowed, isValidIpAddress, getRenderOrigin, validateGatewayRegistry, validateBackendOrigin, validateGatewayPath, normalizeGatewayRequestTarget, weightedPriorityOrder, backendCandidates, goAdaptiveWeightMap, loadGatewayRegistry, recordBackendResult, fetchBackend, GatewayHealthCoordinator, exportGatewayHealthHistory, pruneGatewayHealthHistory, D1FeatureFlagStore };`, context);
+  vm.runInNewContext(`${source}\nglobalThis.__internals = { isUpstreamCacheable, isNegativeEligible, makeCacheKey, edgeTagsFor, canonicalize, kvEnabled, kvTtlPolicy, searchCacheAllowed, isValidIpAddress, getRenderOrigin, validateGatewayRegistry, validateBackendOrigin, validateGatewayPath, normalizeGatewayRequestTarget, weightedPriorityOrder, backendCandidates, goAdaptiveWeightMap, loadGatewayRegistry, recordBackendResult, fetchBackend, GatewayHealthCoordinator, exportGatewayHealthHistory, pruneGatewayHealthHistory, D1FeatureFlagStore };`, context);
   const pending = [];
   const ctx = {
     waitUntil: (p) => pending.push(Promise.resolve(p).catch(() => {})),
@@ -153,9 +153,10 @@ const PUBLIC_LIVE = {
   assert.equal(isUpstreamCacheable(r('public, max-age=60', { vary: 'Authorization' })), true);
   assert.equal(isUpstreamCacheable(r('public, max-age=60', { vary: 'Authorization, Cookie' })), true);
   assert.equal(isUpstreamCacheable(r('public, max-age=60', { vary: '*' })), false);
+  assert.equal(isUpstreamCacheable(r('public, max-age=60', { vary: 'Accept-Language' })), false);
   assert.equal(isUpstreamCacheable(r('public, max-age=60', { 'set-cookie': 'session=secret' })), false);
   assert.equal(isUpstreamCacheable(r('public, max-age=60', {}, 503)), false);
-  assert.equal(new URL(makeCacheKey(new URL('https://example.test/api/v1/ads?q=chair')).url).searchParams.get('__mp_cache_policy'), 'v3');
+  assert.equal(new URL(makeCacheKey(new URL('https://example.test/api/v1/ads?q=chair')).url).searchParams.get('__mp_cache_policy'), 'v4');
 
   for (const path of ['/api/v1/home/feed', '/api/v1/home/for-you']) {
     const response = await call(path);
@@ -335,12 +336,24 @@ const PUBLIC_LIVE = {
 
 /* ───────────── #9 negative caching ───────────── */
 {
+  let allowPublicNegative = false;
   const { call, upstreamLog, settle, ageEntry } = harness({
-    upstream: async (u) =>
-      u.includes('/ads/typo-slug')
-        ? json({ success: false, message: 'Ad not found' }, { 'cache-control': 'no-store' }, 404)
-        : json({ success: false }, {}, 404),
+    upstream: async (u) => {
+      if (!u.includes('/ads/typo-slug')) return json({ success: false }, {}, 404);
+      return json({ success: false, message: 'Ad not found' }, {
+        'cache-control': allowPublicNegative ? 'public, max-age=30, s-maxage=60' : 'no-store',
+      }, 404);
+    },
   });
+
+  // A no-store 404 must never be transformed into a public negative-cache entry.
+  const privateMiss = await call('/api/v1/ads/typo-slug'); await settle();
+  assert.equal(privateMiss.status, 404);
+  assert.equal(privateMiss.headers.get('x-proxy-cache'), 'BYPASS-NON200');
+  await call('/api/v1/ads/typo-slug'); await settle();
+  assert.equal(upstreamLog.length, 2);
+
+  allowPublicNegative = true;
   const first = await call('/api/v1/ads/typo-slug'); await settle();
   assert.equal(first.status, 404);
   assert.equal(first.headers.get('x-proxy-cache'), 'NEG-MISS');
@@ -348,18 +361,28 @@ const PUBLIC_LIVE = {
   assert.equal(second.status, 404);
   assert.equal(second.headers.get('x-proxy-cache'), 'HIT-NEGATIVE');
   assert.deepEqual(await second.json(), { success: false, message: 'Ad not found' });
-  assert.equal(upstreamLog.length, 1);
+  assert.equal(upstreamLog.length, 3);
 
   // Negative entries are short-lived and never served stale.
   await ageEntry(() => true, 61);
   assert.equal((await call('/api/v1/ads/typo-slug')).headers.get('x-proxy-cache'), 'NEG-MISS');
-  assert.equal(upstreamLog.length, 2);
+  assert.equal(upstreamLog.length, 4);
 
   // List-level 404s are NOT cached.
   const list = await call('/api/v1/ads'); await settle();
   assert.equal(list.headers.get('x-proxy-cache'), 'BYPASS-NON200');
   await call('/api/v1/ads'); await settle();
-  assert.equal(upstreamLog.length, 4);
+  assert.equal(upstreamLog.length, 6);
+}
+
+/* ───────────── unsupported Vary dimensions bypass shared cache ───────────── */
+{
+  const { internals } = harness();
+  const response = (vary) => ({ status: 200, headers: new Headers({ 'cache-control': 'public, s-maxage=60', vary }) });
+  assert.equal(internals.isUpstreamCacheable(response('Authorization, Cookie'), '/api/v1/ads'), true);
+  assert.equal(internals.isUpstreamCacheable(response('Origin, Accept-Encoding'), '/api/v1/ads'), true);
+  assert.equal(internals.isUpstreamCacheable(response('Accept-Language'), '/api/v1/ads'), false);
+  assert.equal(internals.isUpstreamCacheable(response('*'), '/api/v1/ads'), false);
 }
 
 /* ───────────── BYPASS-POLICY for private upstream is never stored ───────────── */

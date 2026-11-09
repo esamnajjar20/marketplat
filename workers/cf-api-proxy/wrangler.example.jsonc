@@ -3,9 +3,6 @@
   "name": "marketplat-api",
   "main": "worker.ts",
   "compatibility_date": "2026-11-04",
-  // Native Workers Cache (outer cache, before Worker execution); Wrangler >= 4.69.0.
-  "cache": { "enabled": true },
-
   // Required for browser clients: exact frontend origins, comma-separated.
   // Do not use a wildcard when credentials/cookies are enabled.
   "vars": {
@@ -21,8 +18,9 @@
     "REFERENCE_CACHE_PURGE_READY": "false"
   },
 
-  // Workers Cache is the outer cache and works on *.workers.dev. Cache API inside
-  // worker.ts remains an optional per-colo layer; Cache-Tag purges use /__purge__.
+  // Native Workers Cache is intentionally disabled because it runs before fetch()
+  // and cannot enforce the Worker's Authorization/Cookie bypass policy. Public
+  // responses are cached only by the explicit Cache API logic inside worker.ts.
 
   // #10 طبقة D1 المرجعية (الإنتاج) مع REFERENCE_KV كمسار توافق احتياطي:
   //   npx wrangler kv namespace create REFERENCE_KV

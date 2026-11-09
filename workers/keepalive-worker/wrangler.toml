@@ -8,3 +8,4 @@ crons = ["*/4 * * * *"]
 
 [vars]
 KEEPALIVE_URLS = "https://marketplat-nz19.onrender.com/ready,https://marketplat-mb9x.onrender.com/healthz,https://marketplat2.onrender.com/health,https://marketplat-df3h.onrender.com/health,https://marketplat-v4cj.onrender.com/health"
+KEEPALIVE_ALLOWED_HOSTS = "marketplat-nz19.onrender.com,marketplat-mb9x.onrender.com,marketplat2.onrender.com,marketplat-df3h.onrender.com,marketplat-v4cj.onrender.com"

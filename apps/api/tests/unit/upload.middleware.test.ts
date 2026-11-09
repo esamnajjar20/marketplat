@@ -1,4 +1,5 @@
-import express, { Express, Request, Response } from 'express';
+import express, { Express, Request, RequestHandler, Response } from 'express';
+import { redis } from '../../src/config/redis';
 import request from 'supertest';
 import {
   uploadMiddleware,
@@ -43,7 +44,59 @@ function buildMultiUploadApp(): Express {
   return app;
 }
 
+function buildSaturatedUploadApp(middleware: RequestHandler, field: 'image' | 'images') {
+  const app = express();
+  let release!: () => void;
+  let markThreeArrived!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const threeArrived = new Promise<void>(resolve => { markThreeArrived = resolve; });
+  let arrivals = 0;
+
+  app.post('/upload', middleware, async (_req: Request, res: Response) => {
+    arrivals += 1;
+    if (arrivals === 3) markThreeArrived();
+    await gate;
+    res.status(200).json({ success: true });
+  });
+  app.use(errorMiddleware);
+  return { app, threeArrived, release, field };
+}
+
 describe('upload.middleware', () => {
+  describe('distributed upload capacity', () => {
+    it.each([
+      ['single-image uploads', uploadMiddleware, 'image'],
+      ['multi-image uploads', uploadMultipleMiddleware, 'images'],
+    ] as const)('limits %s to the shared three-upload capacity', async (_label, middleware, field) => {
+      const { app, threeArrived, release } = buildSaturatedUploadApp(middleware, field);
+      const makeUpload = () => {
+        const uploadRequest = request(app).post('/upload');
+        if (field === 'image') {
+          return uploadRequest.attach('image', validJpegBuffer(), {
+            filename: 'photo.jpg', contentType: 'image/jpeg',
+          });
+        }
+        return uploadRequest.attach('images', validJpegBuffer(), {
+          filename: 'photo.jpg', contentType: 'image/jpeg',
+        });
+      };
+
+      const firstThree = [makeUpload(), makeUpload(), makeUpload()];
+      await threeArrived;
+      const overflow = await makeUpload();
+      expect(overflow.status).toBe(503);
+      expect(overflow.body.code).toBe('MEDIA_UPLOAD_CAPACITY');
+
+      release();
+      const completed = await Promise.all(firstThree);
+      expect(completed.map(response => response.status)).toEqual([200, 200, 200]);
+      // The request-finish cleanup must release all three leases so later uploads
+      // are not stuck behind a stale capacity reservation.
+      await new Promise(resolve => setImmediate(resolve));
+      expect(await redis.zcard('marketplat:media-upload-semaphore:v1')).toBe(0);
+    });
+  });
+
   describe('uploadMiddleware (single image)', () => {
     it('accepts a valid JPEG under the size limit', async () => {
       const app = buildSingleUploadApp();

@@ -1,5 +1,6 @@
 import { makeSendCommand, shouldUseRedisRateLimitStore, userOrIpKey } from '../../src/middlewares/rateLimit.middleware';
 import { redis } from '../../src/config/redis';
+import type { Request } from 'express';
 
 /**
  * rateLimit.middleware.ts had zero test coverage
@@ -113,18 +114,32 @@ describe('rateLimit.middleware — makeSendCommand fail-open/fail-closed', () =>
 
 describe('rateLimit.middleware — userOrIpKey', () => {
   it('uses a stable user-specific key for authenticated requests', () => {
-    const req = { user: { userId: 'user-28' }, ip: '203.0.113.4' } as any;
+    const req = { user: { userId: 'user-28' }, ip: '203.0.113.4' } as unknown as Request;
     expect(userOrIpKey(req)).toBe('u:user-28');
   });
 
   it('uses the IP for unauthenticated IPv4 requests', () => {
-    const req = { ip: '203.0.113.4' } as any;
+    const req = { ip: '203.0.113.4' } as unknown as Request;
     expect(userOrIpKey(req)).toBe('ip:203.0.113.4');
   });
 
-  it('normalizes IPv6 addresses to prevent privacy-address rotation bypasses', () => {
-    const first = { ip: '2001:db8:abcd:1200::1' } as any;
-    const second = { ip: '2001:db8:abcd:12ff::9' } as any;
-    expect(userOrIpKey(first)).toBe(userOrIpKey(second));
+  it('groups compressed and expanded IPv6 addresses in the same /64', () => {
+    const compressed = { ip: '2001:db8::1' } as unknown as Request;
+    const expanded = { ip: '2001:0db8:0000:0000:0000:0000:0000:0009' } as unknown as Request;
+    expect(userOrIpKey(compressed)).toBe(userOrIpKey(expanded));
+  });
+
+  it('keeps different IPv6 /64 networks in separate buckets', () => {
+    const firstNetwork = { ip: '2001:db8:abcd:1200::1' } as unknown as Request;
+    const secondNetwork = { ip: '2001:db8:abcd:12ff::9' } as unknown as Request;
+    expect(userOrIpKey(firstNetwork)).not.toBe(userOrIpKey(secondNetwork));
+  });
+
+  it('normalizes compressed and fully-expanded IPv4-mapped IPv6 to the IPv4 key', () => {
+    const compressed = { ip: '::ffff:192.0.2.10' } as unknown as Request;
+    const expanded = { ip: '0:0:0:0:0:ffff:c000:20a' } as unknown as Request;
+    const ipv4 = { ip: '192.0.2.10' } as unknown as Request;
+    expect(userOrIpKey(compressed)).toBe(userOrIpKey(ipv4));
+    expect(userOrIpKey(expanded)).toBe(userOrIpKey(ipv4));
   });
 });

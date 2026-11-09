@@ -413,6 +413,12 @@ model Report {
   @@index([status])
   @@index([status, createdAt], map: "reports_status_created_at_idx")
   @@index([targetType, targetId])
+  // Supports the reporter-facing list (userId + createdAt/id ordering)
+  // and the userId FK cascade without forcing a reports table scan.
+  @@index([userId, createdAt, id])
+  // The optional legacy Ad relation is ON DELETE CASCADE; keep referential
+  // cleanup bounded as reports grow.
+  @@index([adId])
   @@map("reports")
 }
 
