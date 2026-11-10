@@ -86,7 +86,7 @@ export default function DebtsScreen() {
         data={list.loading && list.items.length === 0 ? [] : list.items}
         keyExtractor={(sale) => sale.id}
         {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
@@ -94,7 +94,7 @@ export default function DebtsScreen() {
               هذه الديون تخص مبيعاتك المسجلة في النظام، وليست ديون طلبات المتجر أو طلبات الخدمات.
             </Notice>
             {visibleSummary ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
                 {(
                   [
                     ['إجمالي المستحق', money(visibleSummary.totalDue)],
@@ -104,7 +104,7 @@ export default function DebtsScreen() {
                   ] as const
                 ).map(([l, v]) => (
                   <SectionCard key={l}>
-                    <Text style={{ textAlign: 'right', fontSize: fontSizes[12], color: colors.muted }}>{l}</Text>
+                    <Text tone="muted" size={12}>{l}</Text>
                     <Text
                       style={{
                         textAlign: 'right',
@@ -125,9 +125,9 @@ export default function DebtsScreen() {
         }
         ListEmptyComponent={list.error ? <View style={{ gap: spacing.sm }}><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></View> : !list.loading ? <Notice tone="success">لا توجد مبالغ مستحقة حاليًا.</Notice> : undefined}
         renderItem={({ item: sale }) => (
-          <Pressable onPress={() => router.push({ pathname: '/sales/[id]', params: { id: sale.id } })}>
+          <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/sales/[id]', params: { id: sale.id } })}>
             <SectionCard>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm }}>
                 <Text style={{ flex: 1, textAlign: 'right', fontWeight: '700', fontSize: fontSizes[15], color: colors.ink }}>
                   {sale.entityTitle}
                 </Text>
@@ -135,14 +135,14 @@ export default function DebtsScreen() {
                   {money(sale.dueAmount, sale.currency)}
                 </Text>
               </View>
-              <Text style={{ textAlign: 'right', color: colors.muted }}>
+              <Text tone="muted">
                 العميل: {sale.buyerName} · الفاتورة: {sale.invoiceNumber || 'بدون رقم'}
               </Text>
-              <Text style={{ textAlign: 'right', color: colors.muted }}>
+              <Text tone="muted">
                 تاريخ الاستحقاق:{' '}
                 {sale.dueDate ? formatSafeDate(sale.dueDate, 'date') : 'غير محدد'}
               </Text>
-              <Text style={{ textAlign: 'right', fontWeight: '700', color: colors.brand }}>عرض تفاصيل البيع ←</Text>
+              <Text tone="brand" strong>عرض تفاصيل البيع ←</Text>
             </SectionCard>
           </Pressable>
         )}

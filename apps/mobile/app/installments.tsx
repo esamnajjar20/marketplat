@@ -142,7 +142,7 @@ export default function InstallmentsScreen() {
         data={loading && visibleItems.length === 0 ? [] : visibleItems}
         keyExtractor={(item) => item.id}
         {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <Notice tone="muted">
@@ -178,7 +178,7 @@ export default function InstallmentsScreen() {
           const remaining = Math.max(0, Number(item.amount) - Number(item.paidAmount));
           return (
             <SectionCard>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm }}>
                 <Text style={{ flex: 1, textAlign: 'right', fontSize: fontSizes[16], fontWeight: '700', color: colors.ink }}>
                   {item.sale?.entityTitle || `القسط ${item.installmentNo}`}
                 </Text>
@@ -191,13 +191,13 @@ export default function InstallmentsScreen() {
                   {money(remaining)}
                 </Text>
               </View>
-              <Text style={{ textAlign: 'right', color: colors.muted }}>
+              <Text tone="muted">
                 العميل: {item.sale?.customer?.name || item.sale?.buyerName || 'غير محدد'}
               </Text>
-              <Text style={{ textAlign: 'right', color: colors.muted }}>
+              <Text tone="muted">
                 القسط رقم {item.installmentNo} · الاستحقاق {formatSafeDate(item.dueDate, 'date')}
               </Text>
-              <Text style={{ textAlign: 'right', color: colors.muted }}>
+              <Text tone="muted">
                 قيمة القسط: {money(item.amount)} · المدفوع: {money(item.paidAmount)}
               </Text>
               <TextInput allowFontScaling maxFontSizeMultiplier={1.3}
@@ -222,8 +222,8 @@ export default function InstallmentsScreen() {
                 busy={busyId === item.id}
                 disabled={remaining <= 0}
               />
-              <Pressable onPress={() => router.push({ pathname: '/sales/[id]', params: { id: item.sale.id } })}>
-                <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700' }}>عرض البيع المرتبط ←</Text>
+              <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/sales/[id]', params: { id: item.sale.id } })}>
+                <Text tone="brand" strong>عرض البيع المرتبط ←</Text>
               </Pressable>
             </SectionCard>
           );

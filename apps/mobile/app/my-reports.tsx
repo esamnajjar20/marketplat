@@ -46,7 +46,7 @@ export default function MyReportsScreen() {
           data={list.items}
           keyExtractor={(item) => item.id}
           {...marketListPerf}
-          contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+          contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
           refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
           ListHeaderComponent={
             <View style={{ gap: spacing.md }}>
@@ -64,7 +64,7 @@ export default function MyReportsScreen() {
               <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[13], lineHeight: 20 }}>
                 الحالة: {labels[item.status || ''] || item.status || 'غير معروفة'}
               </Text>
-              {item.createdAt ? <Text style={{ textAlign: 'right', color: colors.muted }}>التاريخ: {formatSafeDate(item.createdAt, 'date')}</Text> : null}
+              {item.createdAt ? <Text tone="muted">التاريخ: {formatSafeDate(item.createdAt, 'date')}</Text> : null}
               {item.notes ? <Text style={{ textAlign: 'right', color: colors.ink, lineHeight: 22 }}>{item.notes}</Text> : null}
             </SectionCard>
           )}

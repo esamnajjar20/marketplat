@@ -9,7 +9,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyAppointments, updateAppointmentStatus, type AppointmentRow } from '@/features/appointments/appointments.api';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import { formatDate } from '@/lib/formatters';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { marketListPerf } from '@/lib/listPerformance';
@@ -76,13 +76,13 @@ export default function AppointmentsScreen() {
     const scheduled = item.status === 'SCHEDULED';
     return (
       <SectionCard>
-        <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '700', color: colors.ink }}>{item.request?.listing?.title || 'موعد خدمة'}</Text>
-        <Text style={{ textAlign: 'right', fontWeight: '700', color: colors.brand }}>{labels[item.status || ''] || item.status || 'مجدول'}</Text>
-        <Text style={{ textAlign: 'right', color: colors.ink }}>البداية: {formatted(item.scheduledStart)}</Text>
-        <Text style={{ textAlign: 'right', color: colors.ink }}>النهاية: {formatted(item.scheduledEnd)}</Text>
-        {item.notes ? <Text style={{ textAlign: 'right', color: colors.muted }}>{item.notes}</Text> : undefined}
+        <Text tone="ink" strong size={17}>{item.request?.listing?.title || 'موعد خدمة'}</Text>
+        <Text tone="brand" strong>{labels[item.status || ''] || item.status || 'مجدول'}</Text>
+        <Text tone="ink">البداية: {formatted(item.scheduledStart)}</Text>
+        <Text tone="ink">النهاية: {formatted(item.scheduledEnd)}</Text>
+        {item.notes ? <Text tone="muted">{item.notes}</Text> : undefined}
         {scheduled && (isCustomer || isProvider) ? (
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
             {isCustomer ? <View style={{ flex: 1, minWidth: 120 }}><PrimaryButton label="إلغاء الموعد" variant="danger" busy={busyId === item.id} disabled={Boolean(busyId)} onPress={() => update(item, 'CANCELLED')} /></View> : undefined}
             {isProvider && !isCustomer ? <>
               <View style={{ flex: 1, minWidth: 120 }}><PrimaryButton label="إتمام" variant="secondary" busy={busyId === item.id} disabled={Boolean(busyId)} onPress={() => update(item, 'COMPLETED')} /></View>

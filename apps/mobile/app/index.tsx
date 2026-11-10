@@ -631,7 +631,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingTop: 2,
+    paddingTop: spacing.xxs,
   },
   filterToggle: {
     paddingVertical: spacing.xs,

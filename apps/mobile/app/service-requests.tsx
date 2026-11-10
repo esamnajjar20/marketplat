@@ -257,7 +257,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   primary: { backgroundColor: colors.brand, borderRadius: radius.md, minHeight: 52, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
   primaryText: { color: colors.onBrand, fontSize: fontSizes[14], fontWeight: '700' },
   disabled: { opacity: 0.6 },
-  switchRow: { flexDirection: 'row', backgroundColor: colors.border, padding: 4, borderRadius: radius.md, gap: 4 },
+  switchRow: { flexDirection: 'row', backgroundColor: colors.border, padding: spacing.xs, borderRadius: radius.md, gap: spacing.xs },
   switchChip: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: 10 },
   switchChipActive: { backgroundColor: colors.surface },
   switchText: { color: colors.muted, fontSize: fontSizes[13], fontWeight: '700' },

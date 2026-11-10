@@ -69,7 +69,7 @@ export default function RequestsScreen() {
         data={loading || error ? [] : items}
         keyExtractor={(item) => item.id}
         {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <PrimaryButton label="+ إنشاء طلب جديد" onPress={() => router.push('/request-create')} />

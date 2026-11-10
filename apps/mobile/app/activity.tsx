@@ -121,7 +121,7 @@ export default function ActivityScreen() {
         data={loading && items.length === 0 ? [] : items}
         keyExtractor={(item) => item.id}
         {...denseListPerf}
-        contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             
@@ -129,9 +129,9 @@ export default function ActivityScreen() {
               هذا السجل خاص بحسابك ويعرض الإجراءات التي سجّلها الخادم، وليس سجلًا عامًا للآخرين.
             </Notice>
             <Field label="بحث في النشاط" value={q} onChangeText={setQ} placeholder="ابحث في العنوان أو التفاصيل" />
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {groups.map(([v, label]) => (
-                <Pressable
+                <Pressable accessibilityRole="button"
                   key={v}
                   onPress={() => setGroup(v)}
                   style={{
@@ -159,15 +159,15 @@ export default function ActivityScreen() {
         }
         renderItem={({ item }) => (
           <SectionCard>
-            <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '700', color: colors.ink }}>{item.title}</Text>
+            <Text tone="ink" strong size={16}>{item.title}</Text>
             {item.description ? (
               <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 22 }}>{item.description}</Text>
             ) : null}
-            <Text style={{ textAlign: 'right', fontSize: fontSizes[11], color: colors.muted }}>
+            <Text tone="muted" size={11}>
               {activityLabels[item.type] || 'نشاط مسجل'} · {dateLabel(item.createdAt)}
             </Text>
             {item.entityType && item.entityId ? (
-              <Text style={{ textAlign: 'right', color: colors.brand, fontSize: fontSizes[12] }}>
+              <Text tone="brand" size={12}>
                 النوع المرتبط: {entityLabels[item.entityType.toUpperCase()] || 'عنصر مرتبط'}
               </Text>
             ) : null}

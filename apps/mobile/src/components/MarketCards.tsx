@@ -236,7 +236,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     ...typography.bodyStrong,
     color: colors.brand,
     textAlign: 'right',
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
   meta: {
     ...typography.caption,
@@ -250,7 +250,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
   badgeText: {
     ...typography.overline,
@@ -300,7 +300,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    gap: 4,
+    gap: spacing.xs,
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
@@ -487,7 +487,7 @@ const createThemeHStyles = (colors: ColorPalette) => StyleSheet.create({
     fontSize: fontSizes[13],
     color: colors.brand,
     textAlign: 'right',
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
 });
 

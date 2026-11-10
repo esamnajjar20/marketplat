@@ -130,10 +130,10 @@ export default function SellerOrdersScreen() {
                   <Text numberOfLines={2} style={{ ...typography.subtitle, color: colors.ink, textAlign: 'right' }}>
                     {first?.productName || 'طلب منتجات'}
                   </Text>
-                  <Text style={{ fontSize: fontSizes[12], color: colors.muted, textAlign: 'right' }}>
+                  <Text tone="muted" size={12}>
                     المشتري: {order.buyer?.name || order.recipientName}
                   </Text>
-                  <Text style={{ fontSize: fontSizes[12], color: colors.muted, textAlign: 'right' }}>
+                  <Text tone="muted" size={12}>
                     الكمية: {totalQty} · {formatDate(order.createdAt, 'date')}
                   </Text>
                 </View>

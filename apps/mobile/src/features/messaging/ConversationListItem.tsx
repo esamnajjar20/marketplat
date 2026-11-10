@@ -175,7 +175,7 @@ function createStyles(colors: ColorPalette) {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 8,
+    gap: spacing.sm,
   },
   name: {
     flex: 1,
@@ -216,7 +216,7 @@ function createStyles(colors: ColorPalette) {
   actions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
     marginTop: 6,
   },
   action: {

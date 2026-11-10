@@ -9,7 +9,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyOffers, type RequestOffer } from '@/features/requests/requests.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { statusLabel } from '@/lib/status-labels';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 
@@ -38,7 +38,7 @@ export default function MyOffersScreen() {
         data={user ? list.items : []}
         keyExtractor={(item, index) => item.id || String(index)}
         {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
@@ -53,10 +53,10 @@ export default function MyOffersScreen() {
         renderItem={({ item }) => (
           <Pressable accessibilityRole="button" onPress={() => item.request?.id && router.push({ pathname: '/requests/[id]', params: { id: item.request.id } })}>
             <SectionCard>
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '700', color: colors.ink }}>{item.request?.title || 'عرض على طلب'}</Text>
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[20], fontWeight: '700', color: colors.brand }}>{formatMoney(item.price)}</Text>
-              <Text style={{ textAlign: 'right', color: colors.muted }}>{item.message || 'بدون رسالة'}</Text>
-              <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>الحالة: {statusLabel(item.status || 'PENDING')}</Text>
+              <Text tone="ink" strong size={17}>{item.request?.title || 'عرض على طلب'}</Text>
+              <Text tone="brand" strong size={20}>{formatMoney(item.price)}</Text>
+              <Text tone="muted">{item.message || 'بدون رسالة'}</Text>
+              <Text tone="muted" size={12}>الحالة: {statusLabel(item.status || 'PENDING')}</Text>
             </SectionCard>
           </Pressable>
         )}

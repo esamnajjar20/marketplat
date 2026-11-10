@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyActiveStoreMemberships, type StoreMembership } from '@/features/commerce/store-management.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import { roleLabel, statusLabel } from '@/lib/status-labels';
 
 export default function MyStoresScreen() {
@@ -33,7 +33,7 @@ export default function MyStoresScreen() {
     {items.map((item) => <SectionCard key={item.id}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
         {item.store.logoUrl ? <AppImage uri={item.store.logoUrl} style={{ width: 52, height: 52, borderRadius: 12, backgroundColor: colors.border }} /> : <View style={{ width: 52, height: 52, borderRadius: 12, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontWeight: '700' }}>م</Text></View>}
-        <View style={{ flex: 1, gap: 4 }}><Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '700', fontSize: fontSizes[16] }}>{item.store.name}</Text><Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>{roleLabel(item.role)} · {statusLabel(item.store.status)}</Text>{item.store.city ? <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>{item.store.city}</Text> : null}</View>
+        <View style={{ flex: 1, gap: spacing.xs }}><Text tone="ink" strong size={16}>{item.store.name}</Text><Text tone="muted" size={12}>{roleLabel(item.role)} · {statusLabel(item.store.status)}</Text>{item.store.city ? <Text tone="muted" size={12}>{item.store.city}</Text> : null}</View>
       </View>
       <PrimaryButton label="فتح صفحة المتجر" variant="secondary" onPress={() => router.push(`/stores/${encodeURIComponent(item.store.id)}`)} />
       {item.role === 'MANAGER' || item.role === 'EDITOR' ? <PrimaryButton label="إدارة المنتجات" onPress={() => router.push('/my-products')} /> : null}

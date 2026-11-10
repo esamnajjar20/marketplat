@@ -164,7 +164,7 @@ export default function StoresScreen() {
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48 },
+  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },
   subtitle: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   sectionRow: {
     flexDirection: 'row',

@@ -204,7 +204,7 @@ function createUIStyles(palette: ColorPalette) {
 
   badge: {
     paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 4,
+    paddingVertical: spacing.xs,
     borderRadius: radius.pill,
     backgroundColor: palette.brandSoft,
     alignSelf: 'flex-start',

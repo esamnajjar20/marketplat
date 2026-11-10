@@ -152,7 +152,7 @@ export default function FavoritesScreen() {
           {...marketListPerf}
           contentContainerStyle={styles.content}
           ListHeaderComponent={
-            <View style={{ gap: 8 }}>{error ? <Text style={{ color: colors.danger, textAlign: 'right' }}>{error}</Text> : null}<Text style={styles.count}>{items.length} إعلان محفوظ</Text></View>
+            <View style={{ gap: spacing.sm }}>{error ? <Text tone="danger">{error}</Text> : null}<Text style={styles.count}>{items.length} إعلان محفوظ</Text></View>
           }
           ListEmptyComponent={
             <EmptyState
@@ -196,6 +196,6 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   link: { color: colors.brand, ...typography.captionStrong },
   center: { flex: 1, justifyContent: 'center' },
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48 },
+  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },
   count: { ...typography.caption, color: colors.muted, textAlign: 'right' },
 });

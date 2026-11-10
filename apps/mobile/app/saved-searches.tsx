@@ -13,7 +13,7 @@ import {
   type SavedSearch,
 } from '@/features/account/saved-searches.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { marketListPerf } from '@/lib/listPerformance';
 
@@ -128,11 +128,11 @@ export default function SavedSearchesScreen() {
           data={loading && items.length === 0 ? [] : items}
           keyExtractor={(item) => item.id}
           {...marketListPerf}
-          contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+          contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
           ListHeaderComponent={
             <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
               <SectionCard>
-                <Text style={{ textAlign: 'right', fontWeight: '700', fontSize: fontSizes[18], color: colors.ink }}>
+                <Text tone="ink" strong size={18}>
                   حفظ بحث جديد
                 </Text>
                 <Field
@@ -150,7 +150,7 @@ export default function SavedSearchesScreen() {
                       ['services', 'الخدمات'],
                     ] as const
                   ).map(([v, l]) => (
-                    <Pressable
+                    <Pressable accessibilityRole="button"
                       key={v}
                       onPress={() => setType(v)}
                       style={{
@@ -178,7 +178,7 @@ export default function SavedSearchesScreen() {
                 </View>
                 <Field label="كلمة البحث" value={q} onChangeText={setQ} placeholder="اختياري" />
                 <Field label="المدينة" value={city} onChangeText={setCity} placeholder="للإعلانات فقط حاليًا" />
-                <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                   <View style={{ flex: 1 }}>
                     <Field label="أقل سعر" value={min} onChangeText={(v) => setMin(normalizeNumericInput(v))} keyboardType="numeric" />
                   </View>
@@ -188,7 +188,7 @@ export default function SavedSearchesScreen() {
                 </View>
                 <PrimaryButton label="حفظ البحث" onPress={() => void save()} busy={busy} />
               </SectionCard>
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[19], fontWeight: '700', color: colors.ink }}>
+              <Text tone="ink" strong size={19}>
                 عمليات البحث المحفوظة
               </Text>
               {loading ? <Notice tone="muted">جارٍ تحميل عمليات البحث…</Notice> : null}
@@ -199,15 +199,15 @@ export default function SavedSearchesScreen() {
           ListEmptyComponent={!loading ? <Notice tone="muted">لا توجد عمليات بحث محفوظة.</Notice> : undefined}
           renderItem={({ item: i }) => (
             <SectionCard>
-              <Text style={{ textAlign: 'right', fontWeight: '700', color: colors.ink }}>{i.label}</Text>
-              <Text style={{ textAlign: 'right', color: colors.muted }}>
+              <Text tone="ink" strong>{i.label}</Text>
+              <Text tone="muted">
                 {i.filters.type || 'ads'} · {i.filters.q || i.filters.city || 'فلاتر سعرية'}
               </Text>
               <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/search', params: { q: i.filters.q || '', categoryId: i.filters.categoryId || '', type: i.filters.type || 'ads', city: i.filters.city || '', minPrice: i.filters.minPrice == null ? '' : String(i.filters.minPrice), maxPrice: i.filters.maxPrice == null ? '' : String(i.filters.maxPrice) } })}>
-                <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700' }}>فتح نتائج البحث</Text>
+                <Text tone="brand" strong>فتح نتائج البحث</Text>
               </Pressable>
-              <Pressable onPress={() => remove(i.id)}>
-                <Text style={{ textAlign: 'right', color: colors.danger, fontWeight: '700' }}>حذف البحث</Text>
+              <Pressable accessibilityRole="button" onPress={() => remove(i.id)}>
+                <Text tone="danger" strong>حذف البحث</Text>
               </Pressable>
             </SectionCard>
           )}

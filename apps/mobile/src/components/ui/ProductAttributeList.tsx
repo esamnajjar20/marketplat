@@ -24,5 +24,5 @@ export function ProductAttributeList({ fields, attributes }: { fields?: Field[] 
   return <View style={styles.container}><Text style={styles.title}>مواصفات المنتج</Text><View style={styles.grid}>{rows.map((row) => <View key={row.key} style={styles.row}><Text style={styles.label}>{row.label}</Text><Text style={styles.value}>{row.value}</Text></View>)}</View></View>;
 }
 function createStyles(palette: ColorPalette) {
-  return StyleSheet.create({ container: { gap: spacing.md }, title: { ...typography.subtitle, color: palette.ink, textAlign: 'right' }, grid: { gap: spacing.sm }, row: { borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface, borderRadius: radius.card, padding: spacing.md, gap: 4 }, label: { ...typography.caption, color: palette.muted, textAlign: 'right' }, value: { ...typography.bodyStrong, color: palette.ink, textAlign: 'right' } });
+  return StyleSheet.create({ container: { gap: spacing.md }, title: { ...typography.subtitle, color: palette.ink, textAlign: 'right' }, grid: { gap: spacing.sm }, row: { borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs }, label: { ...typography.caption, color: palette.muted, textAlign: 'right' }, value: { ...typography.bodyStrong, color: palette.ink, textAlign: 'right' } });
 }

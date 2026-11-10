@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteAccountAfterReauthentication } from '@/features/account/delete-account.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
+import { radius, spacing, typography } from '@/theme/tokens';
 
 export default function DeleteAccountScreen() {
   const { colors } = useAppTheme();
@@ -53,7 +53,7 @@ export default function DeleteAccountScreen() {
   return <PageShell title="حذف الحساب">
     <Notice tone="warning">الحذف يعطّل حسابك ويخفي الإعلانات النشطة وفق سياسة الخادم. اقرأ سياسة الخصوصية قبل المتابعة.</Notice>
     <SectionCard>
-      <Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '700', fontSize: fontSizes[17] }}>إعادة توثيق الحساب</Text>
+      <Text tone="ink" strong size={17}>إعادة توثيق الحساب</Text>
       <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 22 }}>الحساب: {user?.email || 'مستخدم مسجل'}</Text>
       <Text style={{ textAlign: 'right', color: colors.ink, ...typography.label }}>كلمة المرور الحالية</Text>
       <TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="كلمة المرور الحالية لإعادة التوثيق" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} placeholder="أدخل كلمة المرور الحالية" placeholderTextColor={colors.muted} style={{ minHeight: 52, borderWidth: 1, borderColor: colors.border, borderRadius: radius.control, paddingHorizontal: spacing.md, color: colors.ink, textAlign: 'right' }} />

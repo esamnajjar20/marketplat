@@ -134,8 +134,8 @@ function createStyles(palette: ColorPalette) {
     justifyContent: 'center',
   },
   glyph: { color: palette.brandOnSoft, fontSize: fontSizes[28] },
-  rowBody: { flex: 1, alignItems: 'flex-end', gap: 4, justifyContent: 'center' },
-  gridBody: { alignItems: 'flex-end', gap: 4, paddingHorizontal: 2, paddingBottom: 2 },
+  rowBody: { flex: 1, alignItems: 'flex-end', gap: spacing.xs, justifyContent: 'center' },
+  gridBody: { alignItems: 'flex-end', gap: spacing.xs, paddingHorizontal: spacing.xxs, paddingBottom: spacing.xxs },
   name: {
     ...typography.bodyStrong,
     color: palette.ink,
@@ -152,7 +152,7 @@ function createStyles(palette: ColorPalette) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
   price: {
     ...typography.price,
@@ -162,7 +162,7 @@ function createStyles(palette: ColorPalette) {
   discountBadge: {
     backgroundColor: palette.accentSoft,
     borderRadius: radius.sm,
-    paddingHorizontal: 8,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 3,
   },
   discountText: {

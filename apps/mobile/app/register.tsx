@@ -230,7 +230,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
     minHeight: 44,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,

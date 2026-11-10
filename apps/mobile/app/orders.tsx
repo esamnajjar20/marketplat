@@ -135,10 +135,10 @@ export default function MyOrdersScreen() {
                   <Text numberOfLines={2} style={{ ...typography.subtitle, color: colors.ink, textAlign: 'right' }}>
                     {first?.productName || 'طلب منتجات'}
                   </Text>
-                  <Text style={{ fontSize: fontSizes[12], color: colors.muted, textAlign: 'right' }}>
+                  <Text tone="muted" size={12}>
                     {order.items.length > 1 ? `و ${order.items.length - 1} منتجات أخرى · ` : ''}الكمية: {totalQty}
                   </Text>
-                  <Text style={{ fontSize: fontSizes[12], color: colors.muted, textAlign: 'right' }}>
+                  <Text tone="muted" size={12}>
                     {order.store?.name || 'متجر'} · {formatDate(order.createdAt)}
                   </Text>
                 </View>

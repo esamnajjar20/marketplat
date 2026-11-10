@@ -78,7 +78,7 @@ export default function FollowedStoresScreen() {
           {...marketListPerf}
           data={visible}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 48 }}
+          contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l }}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.brand} />}
           ListHeaderComponent={(
@@ -101,8 +101,8 @@ export default function FollowedStoresScreen() {
               <Pressable accessibilityRole="button" onPress={() => router.push(`/stores/${encodeURIComponent(item.store.id)}`)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
                 <AppImage uri={item.store.logoUrl} style={{ width: 64, height: 64, borderRadius: radius.md }} />
                 <View style={{ flex: 1, alignItems: 'flex-end', gap: 5 }}>
-                  <Text style={{ color: colors.ink, fontWeight: '700', textAlign: 'right' }}>{item.store.name}</Text>
-                  <Text numberOfLines={2} style={{ color: colors.muted, textAlign: 'right' }}>{item.store.description || 'متجر محلي'}</Text>
+                  <Text tone="ink" strong>{item.store.name}</Text>
+                  <Text numberOfLines={2} tone="muted">{item.store.description || 'متجر محلي'}</Text>
                   <Text style={{ color: colors.brand, fontSize: fontSizes[12] }}>{item.store.city || 'الموقع غير محدد'}</Text>
                 </View>
               </Pressable>

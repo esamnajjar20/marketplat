@@ -699,7 +699,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  titleCol: { flex: 1, gap: 2 },
+  titleCol: { flex: 1, gap: spacing.xxs },
   title: {
     textAlign: 'right',
     ...typography.title,
@@ -891,7 +891,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   resultBody: {
     flex: 1,
     alignItems: 'flex-end',
-    gap: 4,
+    gap: spacing.xs,
   },
   resultTop: {
     flexDirection: 'row',
@@ -902,8 +902,8 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   typeBadge: {
     backgroundColor: colors.brandSoft,
     borderRadius: radius.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xxs,
   },
   typeBadgeText: {
     ...typography.overline,
@@ -929,7 +929,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    marginTop: 2,
+    marginTop: spacing.xxs,
     gap: spacing.sm,
   },
   resultPrice: {

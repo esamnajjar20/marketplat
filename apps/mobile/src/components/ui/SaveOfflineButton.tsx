@@ -3,7 +3,7 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useEffect, useState } from 'react';
 import {} from 'react-native';
 import { isSavedOfflineResource, saveOfflineResource, type SavedOfflineKind } from '@/storage/saved-offline';
-import { radius, sizes, typography } from '@/theme/tokens';
+import { radius, sizes, typography, spacing } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 export function SaveOfflineButton({ id, kind, title, payload }: { id: string; kind: SavedOfflineKind; title: string; payload: Record<string, unknown> }) {
@@ -23,5 +23,5 @@ export function SaveOfflineButton({ id, kind, title, payload }: { id: string; ki
       showToast('تعذر الحفظ دون اتصال', error instanceof Error ? error.message : 'تحقق من مساحة التخزين ثم حاول مجددًا.', 'error');
     } finally { setBusy(false); }
   };
-  return <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy, selected: saved }} disabled={busy || saved} onPress={() => void save()} style={{ minHeight: sizes.touchTarget, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: saved ? colors.brandSoft : colors.surface }}><Text style={{ color: saved ? colors.brandOnSoft : colors.ink, ...typography.captionStrong }}>{busy ? 'جارٍ الحفظ…' : saved ? '✓ محفوظ دون اتصال' : 'حفظ دون اتصال'}</Text></Pressable>;
+  return <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy, selected: saved }} disabled={busy || saved} onPress={() => void save()} style={{ minHeight: sizes.touchTarget, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: saved ? colors.brandSoft : colors.surface }}><Text style={{ color: saved ? colors.brandOnSoft : colors.ink, ...typography.captionStrong }}>{busy ? 'جارٍ الحفظ…' : saved ? '✓ محفوظ دون اتصال' : 'حفظ دون اتصال'}</Text></Pressable>;
 }

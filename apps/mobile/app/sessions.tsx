@@ -54,11 +54,11 @@ export default function SessionsScreen() {
     {sessions.map((session) => <SectionCard key={session.sessionId}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md }}>
         <View style={{ flex: 1, gap: spacing.sm }}>
-          <Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '700', fontSize: fontSizes[15] }}>{session.isCurrent ? 'هذا الجهاز · الجلسة الحالية' : 'جلسة نشطة أخرى'}</Text>
+          <Text tone="ink" strong size={15}>{session.isCurrent ? 'هذا الجهاز · الجلسة الحالية' : 'جلسة نشطة أخرى'}</Text>
           <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12], lineHeight: 19 }}>{session.userAgent || 'جهاز غير معروف'}</Text>
-          <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>عنوان IP: {session.ip || 'غير متوفر'}</Text>
-          <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>تسجيل الدخول: {dateLabel(session.createdAt)}</Text>
-          <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>آخر نشاط: {dateLabel(session.lastSeen)}</Text>
+          <Text tone="muted" size={12}>عنوان IP: {session.ip || 'غير متوفر'}</Text>
+          <Text tone="muted" size={12}>تسجيل الدخول: {dateLabel(session.createdAt)}</Text>
+          <Text tone="muted" size={12}>آخر نشاط: {dateLabel(session.lastSeen)}</Text>
         </View>
         <View style={{ borderRadius: radius.pill, backgroundColor: session.isCurrent ? colors.successSoft : colors.brandSoft, paddingHorizontal: 10, paddingVertical: 6 }}><Text style={{ color: colors.brand, fontSize: fontSizes[11], fontWeight: '700' }}>{session.isCurrent ? 'حالي' : 'نشط'}</Text></View>
       </View>

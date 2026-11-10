@@ -83,7 +83,7 @@ export default function BlockedUsersScreen() {
           data={items.filter((item) => item.blocked)}
           keyExtractor={(item) => item.id}
           {...marketListPerf}
-          contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+          contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
           ListHeaderComponent={
             <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
               {loading ? <Spinner color={colors.brand} /> : null}
@@ -97,7 +97,7 @@ export default function BlockedUsersScreen() {
             const person = item.blocked!;
             return (
               <SectionCard>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 56 }}>
                   {person.avatarUrl ? (
                     <AppImage
                       uri={person.avatarUrl}
@@ -121,7 +121,7 @@ export default function BlockedUsersScreen() {
                     </View>
                   )}
                   <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                    <Text style={{ textAlign: 'right', fontWeight: '700', color: colors.ink }}>
+                    <Text tone="ink" strong>
                       {person.name || 'مستخدم'}
                     </Text>
                   </View>

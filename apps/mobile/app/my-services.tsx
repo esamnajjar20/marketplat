@@ -82,15 +82,15 @@ export default function MyServicesScreen() {
         renderItem={({ item }) => (
           <SectionCard>
             <Press accessibilityRole="button" onPress={() => router.push({ pathname: '/services/[id]', params: { id: item.id } })}>
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '700', color: colors.ink }}>{item.title}</Text>
+              <Text tone="ink" strong size={16}>{item.title}</Text>
             </Press>
-            <Text style={{ textAlign: 'right', color: colors.muted }}>{item.category?.nameAr || item.category?.name || 'بدون تصنيف'}</Text>
-            <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700' }}>{item.pricingType === 'NEGOTIABLE' ? 'السعر قابل للتفاوض' : formatMoney(item.price)}</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Text tone="muted">{item.category?.nameAr || item.category?.name || 'بدون تصنيف'}</Text>
+            <Text tone="brand" strong>{item.pricingType === 'NEGOTIABLE' ? 'السعر قابل للتفاوض' : formatMoney(item.price)}</Text>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               <View style={{ flex: 1 }}><PrimaryButton label="تعديل" variant="secondary" onPress={() => router.push({ pathname: '/service-editor', params: { id: item.id } })} /></View>
               <View style={{ flex: 1 }}><PrimaryButton label="حذف" variant="danger" busy={deletingId === item.id} disabled={Boolean(deletingId)} onPress={() => remove(item.id)} /></View>
             </View>
-            <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>الحالة: {statusLabel(item.status || 'ACTIVE')}</Text>
+            <Text tone="muted" size={12}>الحالة: {statusLabel(item.status || 'ACTIVE')}</Text>
           </SectionCard>
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}

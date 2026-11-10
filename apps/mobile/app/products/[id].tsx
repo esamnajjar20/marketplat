@@ -126,7 +126,7 @@ export default function ProductDetailScreen() {
           {dateLabel(item.createdAt) ? <Text style={styles.meta}>تاريخ النشر: {dateLabel(item.createdAt)}</Text> : null}
         </View>
         {typeof item.store?.sellerProfile?.averageRating === 'number' ? <View style={styles.ratingLine}><RatingStars score={Number(item.store.sellerProfile.averageRating)} count={item.store.sellerProfile.totalRatings} />{item.store.sellerProfile.totalRatings ? <Text style={styles.meta}>({item.store.sellerProfile.totalRatings})</Text> : null}</View> : null}
-        {item.store?.name ? <Pressable accessibilityRole="button" onPress={() => { if (item.store?.id) router.push(`/stores/${encodeURIComponent(item.store.id)}`); }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Text style={styles.storeText}>عرض متجر {item.store.name}</Text><AppIcon name="forward" size={16} color={colors.brand} /></View></Pressable> : null}
+        {item.store?.name ? <Pressable accessibilityRole="button" onPress={() => { if (item.store?.id) router.push(`/stores/${encodeURIComponent(item.store.id)}`); }}><View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}><Text style={styles.storeText}>عرض متجر {item.store.name}</Text><AppIcon name="forward" size={16} color={colors.brand} /></View></Pressable> : null}
       </SectionCard>
 
       <ProductAttributeList fields={item.store?.storeType?.fields} attributes={item.attributes} />

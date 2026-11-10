@@ -379,7 +379,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   section: {
     gap: spacing.md,
   },
-  hScroll: { flexDirection: 'row', gap: spacing.md, paddingVertical: 2, paddingEnd: spacing.sm },
+  hScroll: { flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.xxs, paddingEnd: spacing.sm },
   emptyBox: {
     minHeight: 72,
     borderWidth: 1,

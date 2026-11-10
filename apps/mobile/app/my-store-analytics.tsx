@@ -87,7 +87,7 @@ export default function MyStoreAnalyticsScreen() {
             >
               <Text style={{ fontSize: fontSizes[20], color: colors.brand }}>{item.icon}</Text>
               <Text style={{ fontSize: fontSizes[25], fontWeight: '700', color: colors.ink }}>{fmt(item.value)}</Text>
-              <Text style={{ fontSize: fontSizes[12], color: colors.muted, textAlign: 'right' }}>{item.label}</Text>
+              <Text tone="muted" size={12}>{item.label}</Text>
             </SectionCard>
           ))}
         </View>
@@ -108,10 +108,10 @@ export default function MyStoreAnalyticsScreen() {
                 <View style={{ width: 64, height: 64, borderRadius: radius.md, backgroundColor: colors.brandSoft }} />
               )}
               <View style={{ flex: 1, gap: spacing.xs }}>
-                <Text numberOfLines={2} style={{ fontSize: fontSizes[14], fontWeight: '700', color: colors.ink, textAlign: 'right' }}>
+                <Text numberOfLines={2} tone="ink" strong size={14}>
                   {p.name}
                 </Text>
-                <Text style={{ fontSize: fontSizes[12], color: colors.muted, textAlign: 'right' }}>{fmt(p.views)} مشاهدة</Text>
+                <Text tone="muted" size={12}>{fmt(p.views)} مشاهدة</Text>
               </View>
               <Text style={{ fontSize: fontSizes[12], color: colors.brand, fontWeight: '700' }}>عرض</Text>
             </SectionCard>

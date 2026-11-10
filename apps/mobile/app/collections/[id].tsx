@@ -1,4 +1,4 @@
-import { useAppTheme } from '@/theme/ThemeProvider';
+
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -8,13 +8,12 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { fetchPublicCollectionProducts } from '@/features/commerce/store-management.api';
 import type { ProductSummary } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 
 
 export default function CollectionProductsScreen() {
-  const { colors } = useAppTheme();
 
   const p = useLocalSearchParams<{ id: string | string[] }>();
   const id = Array.isArray(p.id) ? p.id[0] : p.id;
@@ -45,7 +44,7 @@ export default function CollectionProductsScreen() {
         data={loading || error ? [] : items}
         keyExtractor={(item) => item.id}
         {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
         ListHeaderComponent={
           <View style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
             {loading ? <Notice tone="muted">جارٍ تحميل المنتجات…</Notice> : null}
@@ -56,16 +55,16 @@ export default function CollectionProductsScreen() {
           !loading && !error ? <Notice tone="muted">لا توجد منتجات متاحة في هذه المجموعة.</Notice> : undefined
         }
         renderItem={({ item }) => (
-          <Pressable onPress={() => router.push({ pathname: '/products/[id]', params: { id: item.id } })}>
+          <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/products/[id]', params: { id: item.id } })}>
             <SectionCard>
               {item.images?.[0] ? (
                 <AppImage uri={item.images[0]} style={{ width: '100%', height: 160, borderRadius: 12 }} resizeMode="cover" />
               ) : null}
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '700', color: colors.ink }}>{item.name}</Text>
-              <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700' }}>
+              <Text tone="ink" strong size={16}>{item.name}</Text>
+              <Text tone="brand" strong>
                 {(() => { const value = Number(item.effectivePrice?.price ?? item.discountPrice ?? item.price); return Number.isFinite(value) ? formatMoney(value) : 'السعر غير متاح'; })()}
               </Text>
-              <Text style={{ textAlign: 'right', color: colors.muted }}>
+              <Text tone="muted">
                 {item.availability === 'OUT_OF_STOCK' ? 'غير متوفر' : item.availability === 'LIMITED' ? 'كمية محدودة' : item.availability === 'IN_STOCK' ? 'متوفر' : 'حالة التوفر غير محددة'}
               </Text>
             </SectionCard>

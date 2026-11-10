@@ -7,7 +7,7 @@ import { Spinner } from '@/components/ui';
 import { router } from 'expo-router';
 import { fetchServiceProviders, type ProviderSummary } from '@/features/services/providers.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { RatingStars } from '@/components/ui/RatingStars';
 
@@ -79,7 +79,7 @@ export default function ServiceProvidersScreen() {
         keyExtractor={(item) => item.id}
         {...marketListPerf}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
-        contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <Field label="تصفية حسب المدينة" value={city} onChangeText={setCity} placeholder="اسم المدينة" />
@@ -92,7 +92,7 @@ export default function ServiceProvidersScreen() {
               </>
             ) : null}
             {!loading && items.length > 0 ? (
-              <Text style={{ textAlign: 'right', color: colors.muted }}>{items.length} مقدم خدمة معروض</Text>
+              <Text tone="muted">{items.length} مقدم خدمة معروض</Text>
             ) : null}
           </View>
         }
@@ -100,19 +100,19 @@ export default function ServiceProvidersScreen() {
           !loading && !error ? <Notice tone="muted">لا توجد ملفات مقدمي خدمات مطابقة.</Notice> : undefined
         }
         renderItem={({ item: p }) => (
-          <Pressable onPress={() => router.push({ pathname: '/service-providers/[id]', params: { id: p.id } })}>
+          <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/service-providers/[id]', params: { id: p.id } })}>
             <SectionCard>
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[18], fontWeight: '700', color: colors.ink }}>
+              <Text tone="ink" strong size={18}>
                 {p.businessName || p.sellerProfile?.displayName || 'مقدم خدمة'}
               </Text>
               <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 21 }} numberOfLines={3}>
                 {p.description || 'لا يوجد وصف.'}
               </Text>
               <RatingStars score={p.sellerProfile?.averageRating} count={p.sellerProfile?.totalRatings} />
-              <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[13] }}>
+              <Text tone="muted" size={13}>
                 مناطق الخدمة: {p.serviceAreaCities?.join('، ') || 'غير محددة'}
               </Text>
-              <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700' }}>عرض الملف والخدمات ←</Text>
+              <Text tone="brand" strong>عرض الملف والخدمات ←</Text>
             </SectionCard>
           </Pressable>
         )}

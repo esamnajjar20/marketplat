@@ -276,7 +276,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   hScroll: {
     flexDirection: 'row',
     gap: spacing.md,
-    paddingVertical: 2,
+    paddingVertical: spacing.xxs,
     paddingHorizontal: 1,
   },
   storyItem: {

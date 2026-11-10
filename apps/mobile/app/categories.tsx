@@ -22,7 +22,7 @@ export default function CategoriesScreen() {
           data={items}
           keyExtractor={(item) => item.id}
           {...marketListPerf}
-          contentContainerStyle={{ paddingBottom: 32 }}
+          contentContainerStyle={{ paddingBottom: spacing.xxl }}
           ListEmptyComponent={<EmptyState title="لا توجد تصنيفات نشطة" />}
           renderItem={({ item: category }) => (
             <ListRow

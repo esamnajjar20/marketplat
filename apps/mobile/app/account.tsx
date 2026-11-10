@@ -391,7 +391,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     ...typography.captionStrong,
     color: colors.brand,
     textAlign: 'right',
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
   quickSection: {
     gap: spacing.md,

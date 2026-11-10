@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createCustomer, fetchCustomerSummary, fetchCustomers, type CustomerRow, type CustomerSummary } from '@/features/sales/sales-extra.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { formatMoney } from '@/lib/formatters';
@@ -141,7 +141,7 @@ export default function CustomersScreen() {
         data={list.loading && list.items.length === 0 ? [] : list.items}
         keyExtractor={(item) => item.id}
         {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
         refreshControl={<RefreshControl refreshing={list.refreshing || summaryLoading} onRefresh={() => void refreshAll()} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
@@ -149,10 +149,10 @@ export default function CustomersScreen() {
               إدارة العملاء المسجلين في دفتر المبيعات، ومتابعة إجمالي مشترياتهم والمبالغ المستحقة.
             </Notice>
             {visibleSummary ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
                 <SectionCard>
-                  <Text style={{ textAlign: 'right', color: colors.muted }}>عدد العملاء</Text>
-                  <Text style={{ textAlign: 'right', fontWeight: '700', color: colors.ink }}>
+                  <Text tone="muted">عدد العملاء</Text>
+                  <Text tone="ink" strong>
                     {visibleSummary.totalCustomers ?? list.items.length}
                   </Text>
                 </SectionCard>
@@ -183,20 +183,20 @@ export default function CustomersScreen() {
         ListEmptyComponent={list.error ? <View style={{ gap: spacing.sm }}><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></View> : !list.loading ? <Notice tone="muted">لا يوجد عملاء بعد.</Notice> : undefined}
         renderItem={({ item }) => (
           <SectionCard>
-            <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '700', color: colors.ink }}>{item.name}</Text>
+            <Text tone="ink" strong size={16}>{item.name}</Text>
             {item.phone ? (
-              <Text style={{ textAlign: 'right', color: colors.muted }}>{item.phone}</Text>
+              <Text tone="muted">{item.phone}</Text>
             ) : null}
             {item.email ? (
-              <Text style={{ textAlign: 'right', color: colors.muted }}>{item.email}</Text>
+              <Text tone="muted">{item.email}</Text>
             ) : null}
             {item.totalSpent != null ? (
-              <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700' }}>
+              <Text tone="brand" strong>
                 إجمالي المشتريات: {formatMoney(item.totalSpent)}
               </Text>
             ) : null}
-            {item.totalDue != null ? <Text style={{ textAlign: 'right', color: colors.muted }}>المبلغ المستحق: {formatMoney(item.totalDue)}</Text> : null}
-            {item.purchaseCount != null ? <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>عدد المشتريات: {item.purchaseCount}</Text> : null}
+            {item.totalDue != null ? <Text tone="muted">المبلغ المستحق: {formatMoney(item.totalDue)}</Text> : null}
+            {item.purchaseCount != null ? <Text tone="muted" size={12}>عدد المشتريات: {item.purchaseCount}</Text> : null}
           </SectionCard>
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}

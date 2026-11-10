@@ -8,7 +8,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { statusLabel } from '@/lib/status-labels';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 
@@ -43,7 +43,7 @@ export default function MyRequestsScreen() {
           data={list.items}
           keyExtractor={(item) => item.id}
           {...marketListPerf}
-          contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+          contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
           refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
           ListHeaderComponent={
             <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
@@ -58,9 +58,9 @@ export default function MyRequestsScreen() {
           renderItem={({ item }) => (
             <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/requests/[id]', params: { id: item.id } })}>
               <SectionCard>
-                <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '700', color: colors.ink }}>{item.title}</Text>
-                <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700' }}>الحالة: {statusLabel(item.status || 'OPEN')}</Text>
-                <Text style={{ textAlign: 'right', color: colors.muted }}>{item._count?.offers ?? item.offers?.length ?? 0} عروض · {item.city || 'مدينة غير محددة'}</Text>
+                <Text tone="ink" strong size={17}>{item.title}</Text>
+                <Text tone="brand" strong>الحالة: {statusLabel(item.status || 'OPEN')}</Text>
+                <Text tone="muted">{item._count?.offers ?? item.offers?.length ?? 0} عروض · {item.city || 'مدينة غير محددة'}</Text>
               </SectionCard>
             </Pressable>
           )}

@@ -15,7 +15,7 @@ import { NotificationPreferencesSection } from '@/features/settings/Notification
 import { AccountLinksSection } from '@/features/settings/AccountLinksSection';
 import { HelpSection } from '@/features/settings/HelpSection';
 import { DEFAULT_PREFS, getDeviceTimeZone, validTime, type Preferences } from '@/features/settings/preferences';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import { isAndroidPushEnabled, requestAndRegisterAndroidPush, unregisterAndroidFcmToken } from '@/features/notifications/native-push';
 
 import { useAppTheme } from '@/theme/ThemeProvider';
@@ -175,8 +175,8 @@ export default function SettingsScreen() {
             >
               <AppIcon name={showNotificationSettings ? 'back' : 'forward'} size={18} color={colors.brand} />
               <View style={{ flex: 1, gap: 3 }}>
-                <Text style={{ color: colors.ink, fontWeight: '700', textAlign: 'right' }}>إدارة تفضيلات الإشعارات</Text>
-                <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>إعدادات اختيارية؛ افتحها عند الحاجة فقط</Text>
+                <Text tone="ink" strong>إدارة تفضيلات الإشعارات</Text>
+                <Text tone="muted" size={12}>إعدادات اختيارية؛ افتحها عند الحاجة فقط</Text>
               </View>
               <AppIcon name="notification" size={20} color={colors.brand} />
             </Pressable>

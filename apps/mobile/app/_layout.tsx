@@ -40,7 +40,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 24,
+        padding: spacing.xl,
         backgroundColor: colors.canvas,
       }}
     >

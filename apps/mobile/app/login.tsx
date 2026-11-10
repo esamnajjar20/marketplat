@@ -233,7 +233,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
     minHeight: 44,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
@@ -302,7 +302,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   divider: {
     flex: 1,
@@ -322,7 +322,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: spacing.md,
     paddingHorizontal: spacing.lg,
     ...elevation.xs,
   },

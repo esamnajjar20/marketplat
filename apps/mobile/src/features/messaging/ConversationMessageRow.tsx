@@ -185,7 +185,7 @@ function createStyles(colors: import('@/theme/tokens').ColorPalette) {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
   time: {
     fontSize: fontSizes[10],
@@ -210,7 +210,7 @@ function createStyles(colors: import('@/theme/tokens').ColorPalette) {
   mediaActionContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   mediaActionText: {
     ...typography.captionStrong,

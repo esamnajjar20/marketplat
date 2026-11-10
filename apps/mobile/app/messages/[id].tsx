@@ -416,7 +416,7 @@ export default function ConversationScreen() {
       </Pressable>
     </View>
     {searchOpen ? <View style={styles.searchBar}><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="البحث في الرسائل المحمّلة" value={messageSearch} onChangeText={setMessageSearch} placeholder="ابحث في الرسائل المحمّلة…" placeholderTextColor={colors.muted} style={styles.searchInput} textAlign="right"/><Text style={styles.searchCount}>{normalizedSearch ? `${visibleMessages.length} نتيجة` : 'بحث محلي دون طلبات إضافية'}</Text></View> : null}
-    {loading ? <View style={styles.center}><Spinner size="large" color={colors.brand}/><Text style={styles.muted}>جاري تحميل الرسائل…</Text></View> : error ? <View style={styles.center}><Text style={styles.title}>تعذر فتح المحادثة</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void load()}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View> : <>
+    {loading ? <View style={styles.center}><Spinner size="large" color={colors.brand}/><Text style={styles.muted}>جاري تحميل الرسائل…</Text></View> : error ? <View style={styles.center}><Text style={styles.title}>تعذر فتح المحادثة</Text><Text style={styles.muted}>{error}</Text><Pressable accessibilityRole="button" style={styles.primary} onPress={() => void load()}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View> : <>
       <FlatList {...denseListPerf} ref={listRef} data={visibleMessages} keyExtractor={(item) => item.id} contentContainerStyle={styles.messages} keyboardShouldPersistTaps="handled" maintainVisibleContentPosition={{ minIndexForVisible: 0 }} onContentSizeChange={() => { if (!initialScrollDone.current && messages.length > 0) requestAnimationFrame(() => requestAnimationFrame(() => { if (initialScrollDone.current || loadingOlder || userScrolledAway.current) return; listRef.current?.scrollToEnd({ animated: false }); initialScrollDone.current = true; })); }} onScroll={(event) => { const offset = event.nativeEvent.contentOffset.y; const distanceFromBottom = event.nativeEvent.contentSize.height - event.nativeEvent.layoutMeasurement.height - offset; userScrolledAway.current = distanceFromBottom > 120; if (offset <= 40) void loadOlder(); }} scrollEventThrottle={250} ListHeaderComponent={loadingOlder ? <Spinner size="small" color={colors.brand} /> : nextCursor ? <Text style={styles.olderHint}>اسحب إلى الأعلى لتحميل الرسائل الأقدم</Text> : undefined} ListEmptyComponent={<Text style={styles.muted}>لا توجد رسائل بعد. ابدأ المحادثة برسالة واضحة.</Text>} renderItem={({ item }) => (
         <ConversationMessageRow
           message={item}
@@ -458,7 +458,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     borderRadius: radius.sm,
     backgroundColor: colors.brandSoft,
   },
-  headerCenter: { flex: 1, alignItems: 'flex-end', gap: 2 },
+  headerCenter: { flex: 1, alignItems: 'flex-end', gap: spacing.xxs },
   heading: {
     ...typography.subtitle,
     color: colors.ink,
@@ -481,7 +481,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     backgroundColor: colors.surface,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
-    gap: 4,
+    gap: spacing.xs,
   },
   searchInput: {
     minHeight: 44,

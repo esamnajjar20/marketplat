@@ -119,7 +119,7 @@ export default function SaleCreateScreen() {
           <Field label="اسم الصنف" value={line.title} onChangeText={value => updateLine(line.id, { title: value })} maxLength={300} placeholder="اسم السلعة أو الخدمة" />
           <Field label="الكمية" value={line.quantity} onChangeText={value => updateLine(line.id, { quantity: value })} keyboardType="numeric" />
           <Field label="سعر الوحدة ((شيكل))" value={line.unitPrice} onChangeText={value => updateLine(line.id, { unitPrice: value })} keyboardType="numeric" placeholder="0.00" />
-          <Text style={{ textAlign: 'right', color: colors.muted, fontWeight: '700' }}>إجمالي الصنف: {money(Math.max(0, Number(line.quantity) || 0) * Math.max(0, Number(line.unitPrice) || 0))}</Text>
+          <Text tone="muted" strong>إجمالي الصنف: {money(Math.max(0, Number(line.quantity) || 0) * Math.max(0, Number(line.unitPrice) || 0))}</Text>
         </View>)}
       </View>
       <PrimaryButton label="+ إضافة صنف" variant="secondary" disabled={lines.length >= 200} onPress={() => setLines(current => [...current, makeLine()])} />
@@ -129,7 +129,7 @@ export default function SaleCreateScreen() {
     <Field label="هاتف المشتري (اختياري)" value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={40} placeholder="رقم الهاتف" />
     <Field label={`المبلغ المدفوع من إجمالي ${money(total)}`} value={paid} onChangeText={setPaid} keyboardType="numeric" placeholder="0.00" />
     <Field label="ملاحظات (اختياري)" value={note} onChangeText={setNote} maxLength={1000} multiline placeholder="ملاحظات البيع" />
-    {error ? <Text style={{ color: colors.danger, textAlign: 'right' }}>{error}</Text> : null}
+    {error ? <Text tone="danger">{error}</Text> : null}
     <PrimaryButton label={busy ? 'جارٍ الحفظ…' : mode === 'multiple' ? 'تسجيل الفاتورة المتعددة' : 'تسجيل البيع'} onPress={() => void submit()} busy={busy} />
   </PageShell>;
 }

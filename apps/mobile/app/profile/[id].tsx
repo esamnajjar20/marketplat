@@ -13,7 +13,7 @@ import { fetchBlockedUsers, fetchFollowStatus, fetchPublicUser, fetchPublicUserA
 import { startConversationWithUser } from '@/features/messaging/messaging.api';
 import { PageShell, Notice, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { AppImage } from '@/components/AppImage';
-import { fontSizes } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 
 function price(value: PublicAd['price']) { if (value === null || value === undefined || value === '') return 'السعر عند التواصل'; const n = Number(value); return Number.isFinite(n) ? formatMoney(n) : 'السعر غير متاح'; }
 export default function PublicProfileScreen() {
@@ -126,7 +126,7 @@ export default function PublicProfileScreen() {
     {error ? <Notice>{error}</Notice> : null}
     {profile ? <>
       <SectionCard>
-        <View style={{ alignItems: 'center', gap: 12, paddingVertical: 8 }}>
+        <View style={{ alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm }}>
           {profile.avatarUrl ? <AppImage uri={profile.avatarUrl} accessibilityLabel="صورة المستخدم" style={{ width: 104, height: 104, borderRadius: 52 }} /> : <View style={{ width: 104, height: 104, borderRadius: 52, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: fontSizes[32], color: colors.ink }}>{(profile.name || '?').slice(0, 1)}</Text></View>}
           <Text style={{ fontSize: fontSizes[23], fontWeight: '700', color: colors.ink, textAlign: 'center' }}>{profile.name || 'مستخدم'}</Text>
           {profile.city ? <Text style={{ color: colors.muted }}>{profile.city}</Text> : null}
@@ -146,9 +146,9 @@ export default function PublicProfileScreen() {
         {profile.sellerProfile?.storeDetails?.id ? <PrimaryButton label="عرض المتجر" variant="secondary" onPress={() => router.push({ pathname: '/stores/[id]', params: { id: profile.sellerProfile!.storeDetails!.id } })} /> : null}
         {profile.sellerProfile?.serviceProviderDetails?.id ? <PrimaryButton label="عرض ملف مقدم الخدمة" variant="secondary" onPress={() => router.push({ pathname: '/service-providers/[id]', params: { id: profile.sellerProfile!.serviceProviderDetails!.id } })} /> : null}
       </SectionCard>
-      <Text style={{ textAlign: 'right', fontWeight: '700', fontSize: fontSizes[18], color: colors.ink, marginTop: 16, marginBottom: 10 }}>إعلانات المستخدم</Text>
+      <Text style={{ textAlign: 'right', fontWeight: '700', fontSize: fontSizes[18], color: colors.ink, marginTop: spacing.lg, marginBottom: 10 }}>إعلانات المستخدم</Text>
       {adsError ? <Notice>{adsError}</Notice> : null}
-      {ads.length ? ads.map((ad) => <Pressable key={ad.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/ads/[id]', params: { id: ad.id } })}><SectionCard><Text style={{ textAlign: 'right', fontWeight: '700', color: colors.ink }}>{ad.title}</Text><Text style={{ textAlign: 'right', color: colors.brand }}>{price(ad.price)}</Text><Text style={{ textAlign: 'right', color: colors.muted }}>{ad.city || ''}</Text></SectionCard></Pressable>) : !adsLoading && !adsError ? <Notice tone="muted">لا توجد إعلانات نشطة لهذا المستخدم حاليًا.</Notice> : null}
+      {ads.length ? ads.map((ad) => <Pressable key={ad.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/ads/[id]', params: { id: ad.id } })}><SectionCard><Text tone="ink" strong>{ad.title}</Text><Text tone="brand">{price(ad.price)}</Text><Text tone="muted">{ad.city || ''}</Text></SectionCard></Pressable>) : !adsLoading && !adsError ? <Notice tone="muted">لا توجد إعلانات نشطة لهذا المستخدم حاليًا.</Notice> : null}
       {adsPage < adsPages ? <PrimaryButton label="تحميل إعلانات أقدم" variant="secondary" busy={adsLoading} onPress={() => void loadMoreAds()} /> : null}
       {adsError ? <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void loadMoreAds()} busy={adsLoading} /> : null}
       <PrimaryButton label="تحديث الصفحة" variant="secondary" onPress={() => void load()} />

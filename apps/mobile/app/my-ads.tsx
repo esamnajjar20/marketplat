@@ -218,7 +218,7 @@ export default function MyAdsScreen() {
           keyExtractor={(ad) => ad.id}
           {...marketListPerf}
           contentContainerStyle={styles.list}
-          ListHeaderComponent={error || queueReadError ? <View style={{ gap: spacing.sm }}>{error ? <ErrorState title="تعذر تحديث الإعلانات" description={error} onAction={() => void load()} /> : null}{queueReadError ? <Text style={{ color: colors.danger, textAlign: 'right' }}>{queueReadError}</Text> : null}</View> : undefined}
+          ListHeaderComponent={error || queueReadError ? <View style={{ gap: spacing.sm }}>{error ? <ErrorState title="تعذر تحديث الإعلانات" description={error} onAction={() => void load()} /> : null}{queueReadError ? <Text tone="danger">{queueReadError}</Text> : null}</View> : undefined}
           ListEmptyComponent={
             <EmptyState
               title="لم تنشر أي إعلان بعد"
@@ -265,7 +265,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   headerActions: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   link: { color: colors.brand, ...typography.captionStrong },
-  list: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48 },
+  list: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },
   adTitle: { ...typography.bodyStrong, color: colors.ink, textAlign: 'right' },
   meta: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   actions: { gap: spacing.sm },

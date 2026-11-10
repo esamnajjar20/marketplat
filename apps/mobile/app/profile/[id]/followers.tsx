@@ -6,7 +6,7 @@ import { Spinner } from '@/components/ui';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fetchUserFollowList, type FollowListItem } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -38,7 +38,7 @@ export default function FollowersScreen() {
         data={list.items}
         keyExtractor={itemKey}
         {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
@@ -62,8 +62,8 @@ export default function FollowersScreen() {
                     </View>
                   )}
                   <View style={{ flex: 1 }}>
-                    <Text style={{ textAlign: 'right', fontWeight: '700', fontSize: fontSizes[15], color: colors.ink }}>{person.name || 'مستخدم'}</Text>
-                    <Text style={{ textAlign: 'right', color: colors.muted }}>{person.city || ''}</Text>
+                    <Text tone="ink" strong size={15}>{person.name || 'مستخدم'}</Text>
+                    <Text tone="muted">{person.city || ''}</Text>
                   </View>
                   <Text style={{ color: colors.brand }}>عرض ←</Text>
                 </View>

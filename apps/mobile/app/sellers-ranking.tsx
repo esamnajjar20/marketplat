@@ -59,11 +59,11 @@ export default function SellersRankingScreen() {
             </View>
           )}
           <View style={{ flex: 1, gap: spacing.xs }}>
-            <Text style={{ color: colors.ink, fontWeight: '700', textAlign: 'right' }}>
+            <Text tone="ink" strong>
               {seller.displayName || 'بائع'}
               {seller.verified ? ' ✓' : ''}
             </Text>
-            <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>
+            <Text tone="muted" size={12}>
               {seller.city || 'الموقع غير محدد'} · {seller.activeAds} إعلان نشط
             </Text>
             <RatingStars score={seller.averageRating} count={seller.totalRatings} />

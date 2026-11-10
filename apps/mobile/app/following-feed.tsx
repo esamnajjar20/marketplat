@@ -56,7 +56,7 @@ export default function FollowingFeedScreen() {
           {...marketListPerf}
           data={list.items}
           keyExtractor={itemKey}
-          contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 48, flexGrow: 1 }}
+          contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l, flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
           ListEmptyComponent={<EmptyState title="لا يوجد نشاط بعد" description="ستظهر هنا الإعلانات والمنتجات والخدمات الجديدة من الحسابات والمتاجر التي تتابعها." />}
@@ -76,7 +76,7 @@ export default function FollowingFeedScreen() {
                 </View>
               )}
               <View style={{ flex: 1, gap: 5, alignItems: 'flex-end' }}>
-                <Text numberOfLines={2} style={{ color: colors.ink, fontWeight: '700', textAlign: 'right' }}>{item.title}</Text>
+                <Text numberOfLines={2} tone="ink" strong>{item.title}</Text>
                 <Text style={{ color: colors.brand, fontWeight: '700' }}>{price(item.price)}</Text>
                 <Text style={{ color: colors.muted, fontSize: fontSizes[12] }}>{item.type === 'AD' ? 'إعلان' : item.type === 'PRODUCT' ? 'منتج' : 'خدمة'}{item.city ? ` · ${item.city}` : ''}</Text>
               </View>

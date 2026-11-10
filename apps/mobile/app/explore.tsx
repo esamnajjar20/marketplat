@@ -41,7 +41,7 @@ export default function ExploreScreen() {
         data={groups}
         keyExtractor={(group) => group.title}
         {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: 48, gap: spacing.xl }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.xl }}
         ListHeaderComponent={
           <Text style={{ textAlign: 'right', ...typography.body, color: colors.muted, marginBottom: spacing.md }}>
             تصفح أقسام السوق الثمانية كما تظهر على الويب، مع واجهة ملائمة للهاتف.

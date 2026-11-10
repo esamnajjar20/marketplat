@@ -10,7 +10,7 @@ import { AppImage } from '@/components/AppImage';
 import { router } from 'expo-router';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 function price(p: ProductSummary): string {
@@ -48,10 +48,10 @@ export default function PromotedScreen() {
         data={list.items}
         keyExtractor={(item) => item.id}
         {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: 48, gap: 12 }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={
-          <View style={{ gap: 12, marginBottom: 8 }}>
+          <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 21 }}>
               منتجات مرتبطة بعروض ترويجية نشطة أو مجدولة حسب بيانات الخادم.
             </Text>
@@ -67,7 +67,7 @@ export default function PromotedScreen() {
         }
         ListEmptyComponent={!list.loading && !list.error ? <Notice tone="muted">لا توجد منتجات مروجة حاليًا.</Notice> : undefined}
         renderItem={({ item }) => (
-          <Pressable onPress={() => router.push(`/products/${encodeURIComponent(item.id)}`)}>
+          <Pressable accessibilityRole="button" onPress={() => router.push(`/products/${encodeURIComponent(item.id)}`)}>
             <SectionCard>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                 {item.images?.[0] ? (
@@ -78,8 +78,8 @@ export default function PromotedScreen() {
                   </View>
                 )}
                 <View style={{ flex: 1, alignItems: 'flex-end', gap: 7, paddingVertical: 3 }}>
-                  <Text style={{ color: colors.ink, fontWeight: '700', fontSize: fontSizes[15], textAlign: 'right' }} numberOfLines={2}>{item.name}</Text>
-                  <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>{item.store?.name || 'متجر'}</Text>
+                  <Text tone="ink" strong size={15} numberOfLines={2}>{item.name}</Text>
+                  <Text tone="muted" size={12}>{item.store?.name || 'متجر'}</Text>
                   <Text style={{ color: colors.brand, fontWeight: '700' }}>{price(item)}</Text>
                   {(item.effectivePrice?.originalPrice != null || (item.discountPrice != null && Number(item.discountPrice) < Number(item.price))) ? <Text style={{ color: colors.muted, fontSize: fontSizes[12], textDecorationLine: 'line-through' }}>{formatMoney(Number(item.effectivePrice?.originalPrice ?? item.price))}</Text> : null}
                   {item.discountPrice != null && Number.isFinite(Number(item.discountPrice)) && Number.isFinite(Number(item.price)) && Number(item.price) > 0 ? <Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: '700' }}>خصم {Math.round((1 - Number(item.discountPrice) / Number(item.price)) * 100)}%</Text> : null}
@@ -90,7 +90,7 @@ export default function PromotedScreen() {
           </Pressable>
         )}
         ListFooterComponent={
-          <View style={{ gap: 10, marginTop: 8 }}>
+          <View style={{ gap: 10, marginTop: spacing.sm }}>
             {list.loadMoreError ? <Notice>{list.loadMoreError}</Notice> : null}
             {list.hasNextPage ? (
               <PrimaryButton

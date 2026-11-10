@@ -1,4 +1,4 @@
-import { useAppTheme } from '@/theme/ThemeProvider';
+
 import { invalidateNavigationCapabilities } from '@/lib/navigation-policy';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useState } from 'react';
@@ -8,13 +8,12 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { acceptStoreInvite, fetchMyStoreInvites, removeStoreMember, type StoreMember } from '@/features/commerce/store-management.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { roleLabel } from '@/lib/status-labels';
 import { showToast } from '@/lib/toast';
 
 export default function StoreInvitesScreen() {
-  const { colors } = useAppTheme();
 
   const { accessToken, csrfToken } = useAuth();
   const [items, setItems] = useState<StoreMember[]>([]);
@@ -85,7 +84,7 @@ export default function StoreInvitesScreen() {
           data={loading ? [] : items}
           keyExtractor={(item) => item.id}
           {...marketListPerf}
-          contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
+          contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
           ListHeaderComponent={
             <View style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
               {loading ? <Notice tone="muted">جارٍ تحميل الدعوات…</Notice> : null}
@@ -95,10 +94,10 @@ export default function StoreInvitesScreen() {
           ListEmptyComponent={!loading ? <Notice tone="muted">لا توجد دعوات معلقة لحسابك.</Notice> : undefined}
           renderItem={({ item }) => (
             <SectionCard>
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '700', color: colors.ink }}>
+              <Text tone="ink" strong size={16}>
                 {item.store?.name || 'متجر'}
               </Text>
-              <Text style={{ textAlign: 'right', color: colors.muted }}>
+              <Text tone="muted">
                 الداعي: {item.invitedBy?.name || 'صاحب المتجر'} · الدور: {roleLabel(item.role)}
               </Text>
               <PrimaryButton label="قبول الدعوة" busy={busyId === item.id} onPress={() => void accept(item)} /><PrimaryButton label="رفض الدعوة" variant="secondary" disabled={!!busyId} onPress={() => decline(item)} />

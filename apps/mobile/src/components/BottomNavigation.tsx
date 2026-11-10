@@ -94,7 +94,7 @@ function createStyles(palette: ColorPalette) {
     minHeight: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
+    gap: spacing.xs,
     borderRadius: radius.md,
     marginHorizontal: 1,
     paddingVertical: spacing.xs,
