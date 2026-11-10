@@ -1,7 +1,8 @@
 import { AppText as Text } from '@/components/ui/AppText';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { router } from 'expo-router';
 import { toAppHref } from '@/lib/typed-navigation';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useEffect, useState } from 'react';
 import { fetchMyStore } from '@/features/commerce/commerce.api';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
@@ -15,29 +16,27 @@ import {
   SectionCard,
   SectionHeader,
 } from '@/components/MobileUI';
-import { fontSizes, colors, spacing, typography } from '@/theme/tokens';
+import { AppIcon } from '@/components/Icons';
+import { fontSizes, colors, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
 
 type Destination = { title: string; description: string; path: string };
 type DestinationGroup = { title: string; subtitle: string; items: Destination[] };
-const PRIORITY_PATHS = new Set(['/messages', '/notifications', '/my-ads', '/for-you', '/my-sales', '/orders']);
+
+/** اختصارات سريعة — شبكة أيقونات في أعلى الحساب */
+const QUICK_ACTIONS: { title: string; path: string; icon: string }[] = [
+  { title: 'الرسائل', path: '/messages', icon: 'messages' },
+  { title: 'الإشعارات', path: '/notifications', icon: 'notification' },
+  { title: 'إعلاناتي', path: '/my-ads', icon: 'ads' },
+  { title: 'مفضلتي', path: '/favorites', icon: 'favorite' },
+  { title: 'مبيعاتي', path: '/my-sales', icon: 'orders' },
+  { title: 'طلباتي', path: '/orders', icon: 'orders' },
+];
 
 const groups: DestinationGroup[] = [
-  {
-    title: 'المهم الآن',
-    subtitle: 'أقصر طريق إلى المحادثات والطلبات والبيع',
-    items: [
-      { title: 'الرسائل', description: 'تابع محادثات المشترين والبائعين', path: '/messages' },
-      { title: 'الإشعارات', description: 'راجع التحديثات والتنبيهات الجديدة', path: '/notifications' },
-      { title: 'إعلاناتي', description: 'إدارة الإعلانات المنشورة والمسودات', path: '/my-ads' },
-      { title: 'مخصّص لك', description: 'اكتشف محتوى مقترحًا وفق اهتماماتك', path: '/for-you' },
-    ],
-  },
   {
     title: 'المبيعات والعملاء',
     subtitle: 'البيع والتحصيل ومتابعة الطلبات',
     items: [
-      { title: 'مبيعاتي', description: 'تابع المبيعات وحالاتها والإجراءات المطلوبة', path: '/my-sales' },
-      { title: 'الطلبات والشراء', description: 'تابع طلباتك والعمليات الشرائية', path: '/orders' },
       { title: 'العملاء', description: 'إدارة بيانات العملاء وسجل تعاملاتهم', path: '/customers' },
       { title: 'الديون والمبالغ المستحقة', description: 'متابعة المبالغ المفتوحة والتحصيل', path: '/debts' },
       { title: 'الأقساط', description: 'متابعة جداول الأقساط والتحصيلات', path: '/installments' },
@@ -48,7 +47,7 @@ const groups: DestinationGroup[] = [
     subtitle: 'بياناتك والمحتوى الذي تتابعه',
     items: [
       { title: 'الملف الشخصي', description: 'تعديل بيانات الملف والصورة ورقم الهاتف', path: '/profile' },
-      { title: 'مفضلتي', description: 'الرجوع إلى الإعلانات التي حفظتها', path: '/favorites' },
+      { title: 'مخصّص لك', description: 'اكتشف محتوى مقترحًا وفق اهتماماتك', path: '/for-you' },
       { title: 'المحفوظات المحلية للدفع', description: 'جهات الدفع وبطاقات الإنترنت على هذا الجهاز', path: '/saved-payments' },
       { title: 'الأشخاص الذين أتابعهم', description: 'إدارة الحسابات التي تتابعها', path: '/following' },
       { title: 'عمليات البحث المحفوظة', description: 'الوصول إلى عمليات البحث التي احتفظت بها', path: '/saved-searches' },
@@ -90,93 +89,231 @@ export default function AccountHubScreen() {
   const [hasProvider, setHasProvider] = useState(false);
   const [profilesLoading, setProfilesLoading] = useState(false);
   const [showAllDestinations, setShowAllDestinations] = useState(false);
+
   useEffect(() => {
     let active = true;
-    if (!accessToken) { setHasStore(false); setHasProvider(false); return () => { active = false; }; }
+    if (!accessToken) {
+      setHasStore(false);
+      setHasProvider(false);
+      return () => {
+        active = false;
+      };
+    }
     setProfilesLoading(true);
-    void Promise.allSettled([fetchMyStore(accessToken), fetchMyServiceProvider(accessToken)]).then(([store, provider]) => {
-      if (!active) return;
-      setHasStore(store.status === 'fulfilled' && !!store.value);
-      setHasProvider(provider.status === 'fulfilled' && !!provider.value);
-    }).finally(() => { if (active) setProfilesLoading(false); });
-    return () => { active = false; };
+    void Promise.allSettled([fetchMyStore(accessToken), fetchMyServiceProvider(accessToken)])
+      .then(([store, provider]) => {
+        if (!active) return;
+        setHasStore(store.status === 'fulfilled' && !!store.value);
+        setHasProvider(provider.status === 'fulfilled' && !!provider.value);
+      })
+      .finally(() => {
+        if (active) setProfilesLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [accessToken]);
 
-  const open = (item: Destination) => {
-    if (getRouteAccess(item.path) === 'authenticated' && !user) {
-      router.push(toAppHref(`/login?redirect=${encodeURIComponent(item.path)}`));
+  const open = (path: string) => {
+    if (getRouteAccess(path) === 'authenticated' && !user) {
+      router.push(toAppHref(`/login?redirect=${encodeURIComponent(path)}`));
       return;
     }
-    router.push(toAppHref(item.path));
+    router.push(toAppHref(path));
   };
+
+  const displayName =
+    (user as any)?.displayName || (user as any)?.name || user?.email?.split('@')[0] || 'زائر';
 
   return (
     <PageShell title="حسابي">
-      <SectionCard>
-        <Text
-          style={{
-            textAlign: 'right',
-            ...typography.display,
-            fontSize: fontSizes[22],
-            lineHeight: 30,
-            color: colors.ink,
-          }}
-        >
-          {user ? `أهلًا ${user.name || 'بك'}` : 'مرحبًا بك في MarketPlat'}
-        </Text>
-        <Text style={{ textAlign: 'right', ...typography.body, color: colors.muted }}>
-          {user
-            ? 'ابدأ بالرسائل والطلبات والمبيعات، وستجد أدوات الإدارة والإعدادات في مجموعات واضحة أدناه.'
-            : 'يمكنك استكشاف السوق دون تسجيل الدخول. سجّل الدخول للوصول إلى صفحات الحساب الخاصة.'}
-        </Text>
+      {/* بطاقة الملف الشخصي */}
+      <SectionCard
+        onPress={user ? () => open('/profile') : undefined}
+        style={styles.profileCard}
+      >
+        <View style={styles.profileRow}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
+          </View>
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName} numberOfLines={1}>
+              {user ? displayName : 'مرحباً بك في سوق غزة'}
+            </Text>
+            <Text style={styles.profileSub} numberOfLines={1}>
+              {user
+                ? user.email || 'اضغط لتعديل ملفك الشخصي'
+                : 'سجّل الدخول للوصول إلى حسابك'}
+            </Text>
+          </View>
+        </View>
         {!user ? (
           <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
         ) : null}
-        {user?.needsProfileCompletion ? (
-          <PrimaryButton label="أكمل ملفك الشخصي" variant="secondary" onPress={() => router.push('/complete-profile')} />
+        {(user as any)?.needsProfileCompletion ? (
+          <PrimaryButton
+            label="أكمل ملفك الشخصي"
+            variant="secondary"
+            onPress={() => router.push('/complete-profile')}
+          />
         ) : null}
       </SectionCard>
 
-      <View style={{ gap: spacing.md }}>
-        <SectionHeader title="الوصول السريع" subtitle="أهم وجهات الحساب التي تحتاجها يوميًا" />
-        {groups.flatMap((group) => group.items).filter((item) => PRIORITY_PATHS.has(item.path)).map((item) => (
-          <ListRow key={item.path} title={item.title} description={item.description} onPress={() => open(item)} />
-        ))}
-      </View>
-
-      {showAllDestinations ? groups.map((group) => {
-        const remainingItems = group.items.filter((item) => {
-          if (PRIORITY_PATHS.has(item.path)) return false;
-          if (group.title !== 'إدارة المتجر والخدمات') return true;
-          if (!user) return false;
-          if (item.path === '/seller-profile') return !hasStore;
-          if (item.path === '/my-store' || item.path === '/my-products' || item.path === '/my-store-analytics' || item.path === '/seller-dashboard') return hasStore;
-          if (item.path === '/service-provider-profile') return true;
-          if (item.path === '/appointments') return hasProvider;
-          if (item.path === '/my-services') return hasProvider || hasStore;
-          return true;
-        });
-        if (!remainingItems.length) return null;
-        return (
-          <View key={group.title} style={{ gap: spacing.md }}>
-            <SectionHeader title={group.title} subtitle={group.subtitle} />
-            {remainingItems.map((item) => (
-              <ListRow key={item.path} title={item.title} description={item.description} onPress={() => open(item)} />
+      {/* شبكة الاختصارات السريعة */}
+      {user ? (
+        <View style={styles.quickSection}>
+          <SectionHeader title="الوصول السريع" />
+          <View style={styles.quickGrid}>
+            {QUICK_ACTIONS.map((action) => (
+              <Pressable
+                key={action.path}
+                accessibilityRole="button"
+                accessibilityLabel={action.title}
+                onPress={() => open(action.path)}
+                style={({ pressed }) => [styles.quickItem, pressed && styles.pressed]}
+              >
+                <View style={styles.quickIcon}>
+                  <AppIcon name={action.icon as any} size={22} color={colors.brandOnSoft} />
+                </View>
+                <Text style={styles.quickLabel} numberOfLines={1}>
+                  {action.title}
+                </Text>
+              </Pressable>
             ))}
           </View>
-        );
-      }) : null}
+        </View>
+      ) : null}
+
+      {/* المجموعات التفصيلية */}
+      {showAllDestinations
+        ? groups.map((group) => {
+            const remainingItems = group.items.filter((item) => {
+              if (group.title !== 'إدارة المتجر والخدمات') return true;
+              if (!user) return false;
+              if (item.path === '/seller-profile') return !hasStore;
+              if (
+                item.path === '/my-store' ||
+                item.path === '/my-products' ||
+                item.path === '/my-store-analytics' ||
+                item.path === '/seller-dashboard'
+              )
+                return hasStore;
+              if (item.path === '/service-provider-profile') return true;
+              if (item.path === '/appointments') return hasProvider;
+              if (item.path === '/my-services') return hasProvider || hasStore;
+              return true;
+            });
+            if (!remainingItems.length) return null;
+            return (
+              <View key={group.title} style={styles.group}>
+                <SectionHeader title={group.title} subtitle={group.subtitle} />
+                {remainingItems.map((item) => (
+                  <ListRow
+                    key={item.path}
+                    title={item.title}
+                    description={item.description}
+                    onPress={() => open(item.path)}
+                  />
+                ))}
+              </View>
+            );
+          })
+        : null}
 
       <PrimaryButton
-        label={showAllDestinations ? 'إخفاء بقية الوجهات' : 'عرض بقية وجهات الحساب'}
+        label={showAllDestinations ? 'إخفاء بقية الوجهات' : 'عرض كل وجهات الحساب'}
         variant="secondary"
         onPress={() => setShowAllDestinations((value) => !value)}
       />
 
-      {user && profilesLoading ? <Notice tone="muted">جارٍ التحقق من صلاحيات إدارة المتجر والخدمات…</Notice> : null}
+      {user && profilesLoading ? (
+        <Notice tone="muted">جارٍ التحقق من صلاحيات إدارة المتجر والخدمات…</Notice>
+      ) : null}
       {!user ? (
         <Notice tone="muted">الصفحات الخاصة بالحساب تطلب تسجيل الدخول قبل فتحها.</Notice>
       ) : null}
     </PageShell>
   );
 }
+
+const styles = StyleSheet.create({
+  profileCard: {
+    gap: spacing.md,
+  },
+  profileRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  avatar: {
+    width: sizes.avatarLg,
+    height: sizes.avatarLg,
+    borderRadius: sizes.avatarLg / 2,
+    backgroundColor: colors.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    ...typography.title,
+    color: colors.brandOnSoft,
+    fontSize: fontSizes[22],
+  },
+  profileInfo: {
+    flex: 1,
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  profileName: {
+    ...typography.subtitle,
+    color: colors.ink,
+    textAlign: 'right',
+    width: '100%',
+  },
+  profileSub: {
+    ...typography.caption,
+    color: colors.muted,
+    textAlign: 'right',
+    width: '100%',
+  },
+  quickSection: {
+    gap: spacing.md,
+  },
+  quickGrid: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  quickItem: {
+    width: '31%',
+    minWidth: 96,
+    flexGrow: 1,
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...elevation.sm,
+  },
+  quickIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: colors.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickLabel: {
+    ...typography.captionStrong,
+    color: colors.ink,
+    textAlign: 'center',
+  },
+  group: {
+    gap: spacing.md,
+  },
+  pressed: {
+    opacity: ux.pressedOpacity,
+  },
+});

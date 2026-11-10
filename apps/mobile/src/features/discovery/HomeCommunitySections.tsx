@@ -8,44 +8,36 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchStores, type StoreSummary } from '@/features/commerce/commerce.api';
 import { fetchStoryFeed, type StoryGroup } from '@/features/stories/stories.api';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, colors, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import { AppImage } from '@/components/AppImage';
+import { HorizontalMarketCard } from '@/components/MarketCards';
 
 const PUBLIC_STORES_CACHE_KEY = 'home:public-stores:v1';
 const PUBLIC_STORES_TTL_MS = 10 * 60 * 1000;
 
 function StoreCard({ store }: { store: StoreSummary }) {
-  const [imageFailed, setImageFailed] = useState(false);
-  const imageUri = !imageFailed ? (store.logoUrl || store.coverImageUrl || null) : null;
+  const imageUri = store.logoUrl || store.coverImageUrl || null;
   const rating = store.sellerProfile?.averageRating;
-  const ratingLabel = rating !== null && rating !== undefined && Number.isFinite(Number(rating))
-    ? `★ ${Number(rating).toFixed(1)}`
-    : null;
+  const ratingLabel =
+    rating !== null && rating !== undefined && Number.isFinite(Number(rating))
+      ? `★ ${Number(rating).toFixed(1)}`
+      : null;
+  const subtitle = [store.city || 'متجر محلي', ratingLabel].filter(Boolean).join(' · ');
+  const price =
+    store._count?.products != null && store._count.products > 0
+      ? `${store._count.products} منتجات`
+      : 'تصفّح المتجر';
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`فتح متجر ${store.name}`}
+    <HorizontalMarketCard
+      title={store.name}
+      subtitle={subtitle}
+      price={price}
+      imageUri={imageUri}
+      glyph="م"
       onPress={() => router.push({ pathname: '/stores/[id]', params: { id: store.id } })}
-      style={{ width: 174, minHeight: 204, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface, overflow: 'hidden' }}
-    >
-      {imageUri ? (
-        <AppImage uri={imageUri} resizeMode="cover" onError={() => setImageFailed(true)} style={{ height: 88, width: '100%', backgroundColor: colors.brandSoft }} />
-      ) : (
-        <View style={{ height: 88, width: '100%', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}>
-          <Text style={{ color: colors.brandOnSoft, fontSize: fontSizes[28], fontWeight: '900' }}>م</Text>
-        </View>
-      )}
-      <View style={{ flex: 1, padding: spacing.sm, gap: 5, alignItems: 'flex-end' }}>
-        <Text numberOfLines={1} style={{ width: '100%', color: colors.ink, fontWeight: '900', fontSize: fontSizes[13], textAlign: 'right' }}>{store.name}</Text>
-        <Text numberOfLines={1} style={{ width: '100%', color: colors.muted, fontSize: fontSizes[11], textAlign: 'right' }}>{store.city || 'متجر محلي'}</Text>
-        <View style={{ width: '100%', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ color: colors.brand, fontSize: fontSizes[10], fontWeight: '800' }}>{store._count?.products ? `${store._count.products} منتجات` : 'تصفّح المتجر'}</Text>
-          {ratingLabel ? <Text style={{ color: colors.ink, fontSize: fontSizes[10], fontWeight: '800' }}>{ratingLabel}</Text> : null}
-        </View>
-      </View>
-    </Pressable>
+    />
   );
 }
 
@@ -59,6 +51,8 @@ export default function HomeCommunitySections() {
   useOnlineResync(() => reconnectRefreshRef.current());
   // Never render a private feed unless it belongs to the currently authenticated account.
   const visibleStories = accessToken && user?.id && storiesOwnerId === user.id ? stories : [];
+  const [communityExpanded, setCommunityExpanded] = useState(false);
+  const visibleStores = communityExpanded ? stores : stores.slice(0, 4);
 
   useEffect(() => {
     if (isRestoring) return;
@@ -141,37 +135,38 @@ export default function HomeCommunitySections() {
   }, [accessToken, isRestoring, user?.id]);
 
   return (
-    <View style={{ gap: spacing.lg }}>
-      <View style={{ gap: spacing.sm }}>
+    <View style={{ gap: spacing.xl }}>
+      <View style={{ gap: spacing.md }}>
           <View style={{ minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1, gap: 2 }}>
-              <Text style={{ color: colors.ink, fontSize: fontSizes[18], fontWeight: '900', textAlign: 'right' }}>متاجر تستحق الاكتشاف</Text>
+              <Text style={{ color: colors.ink, fontSize: fontSizes[16], fontWeight: '700', textAlign: 'right' }}>متاجر تستحق الاكتشاف</Text>
               <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>تعرّف على المتاجر المحلية ومنتجاتها</Text>
             </View>
             <Pressable accessibilityRole="button" onPress={() => router.push('/stores')} hitSlop={8}>
-              <Text style={{ color: colors.brand, fontWeight: '800', fontSize: fontSizes[12] }}>عرض الكل</Text>
+              <Text style={{ color: colors.brand, fontWeight: '600', fontSize: fontSizes[12] }}>عرض الكل</Text>
             </Pressable>
           </View>
-          {stores.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: spacing.sm, paddingVertical: 2 }}>
-              {stores.map((store) => <StoreCard key={store.id} store={store} />)}
+          {visibleStores.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: spacing.md, paddingVertical: 2 }}>
+              {visibleStores.map((store) => <StoreCard key={store.id} store={store} />)}
             </ScrollView>
           ) : (
-            <View style={{ minHeight: 68, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.surface, padding: spacing.md, justifyContent: 'center' }}>
+            <View style={{ minHeight: 68, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, backgroundColor: colors.surface, padding: spacing.md, justifyContent: 'center' }}>
               <Text style={{ color: colors.muted, fontSize: fontSizes[12], lineHeight: 19, textAlign: 'right' }}>لا توجد متاجر متاحة للعرض حاليًا. سيظهر هنا أحدث المتاجر عند توفرها.</Text>
             </View>
           )}
         </View>
 
-      {visibleStories.length > 0 ? (
+      {/* القصص تظهر بعد توسيع قسم المجتمع لتقليل الكثافة على الشاشات الصغيرة */}
+      {communityExpanded && visibleStories.length > 0 ? (
         <View style={{ gap: spacing.sm }}>
           <View style={{ minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <View style={{ flex: 1, gap: 2 }}>
-              <Text style={{ color: colors.ink, fontSize: fontSizes[18], fontWeight: '900', textAlign: 'right' }}>قصص وتحديثات جديدة</Text>
+              <Text style={{ color: colors.ink, fontSize: fontSizes[18], fontWeight: '700', textAlign: 'right' }}>قصص وتحديثات جديدة</Text>
               <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>تابع آخر ما يشاركه الأشخاص الذين تتابعهم</Text>
             </View>
             <Pressable accessibilityRole="button" onPress={() => router.push('/stories')} hitSlop={8}>
-              <Text style={{ color: colors.brand, fontWeight: '800', fontSize: fontSizes[12] }}>عرض الكل</Text>
+              <Text style={{ color: colors.brand, fontWeight: '600', fontSize: fontSizes[12] }}>عرض الكل</Text>
             </Pressable>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: spacing.md, paddingVertical: 2 }}>
@@ -188,7 +183,7 @@ export default function HomeCommunitySections() {
                   style={{ width: 78, alignItems: 'center', gap: 6 }}
                 >
                   <View style={{ width: 68, height: 68, borderRadius: 34, padding: 3, borderWidth: 2, borderColor: group.hasUnseen ? colors.brand : colors.border, alignItems: 'center', justifyContent: 'center' }}>
-                    {avatar ? <AppImage uri={avatar} onError={() => setFailedStoryAvatars((current) => current.includes(group.user.id) ? current : [...current, group.user.id])} style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.brandSoft }} /> : <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brandOnSoft, fontWeight: '900', fontSize: fontSizes[20] }}>{group.user.name?.trim()?.charAt(0) || 'م'}</Text></View>}
+                    {avatar ? <AppImage uri={avatar} onError={() => setFailedStoryAvatars((current) => current.includes(group.user.id) ? current : [...current, group.user.id])} style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.brandSoft }} /> : <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brandOnSoft, fontWeight: '700', fontSize: fontSizes[20] }}>{group.user.name?.trim()?.charAt(0) || 'م'}</Text></View>}
                   </View>
                   <Text numberOfLines={1} style={{ width: '100%', color: colors.ink, fontSize: fontSizes[11], fontWeight: group.hasUnseen ? '800' : '500', textAlign: 'center' }}>{group.user.name}</Text>
                 </Pressable>
@@ -196,6 +191,19 @@ export default function HomeCommunitySections() {
             })}
           </ScrollView>
         </View>
+      ) : null}
+
+      {(stores.length > 4 || visibleStories.length > 0) ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: communityExpanded }}
+          onPress={() => setCommunityExpanded((v) => !v)}
+          style={{ alignSelf: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.pill, backgroundColor: colors.brandSoft }}
+        >
+          <Text style={{ color: colors.brandOnSoft, fontWeight: '600', fontSize: fontSizes[13] }}>
+            {communityExpanded ? 'عرض أقل من المجتمع' : 'المزيد من المجتمع'}
+          </Text>
+        </Pressable>
       ) : null}
     </View>
   );

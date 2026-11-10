@@ -1,10 +1,10 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { memo } from 'react';
+import { memo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppImage } from '@/components/AppImage';
 import { AppIcon } from '@/components/Icons';
-import { fontSizes, colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, colors, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
 
 type CatalogCardProps = {
   title: string;
@@ -67,7 +67,7 @@ function CatalogCardComponent({
           </View>
         ) : null}
       </View>
-      <AppIcon name="forward" size={20} color={colors.muted} />
+      <AppIcon name="forward" size={18} color={colors.muted} />
     </Pressable>
   );
 }
@@ -100,7 +100,7 @@ type AdCardProps = {
 
 /**
  * بطاقة إعلان أفقية (صورة + عنوان + سعر) — للرئيسية والقوائم.
- * مغلّفة بـ React.memo: لا تُعاد رسمها إلا عند تغيّر بيانات الإعلان أو حالة المفضلة.
+ * تحسين 2026-11: نسب أوضح، ظل أقوى قليلاً، تايبو أهدأ، شارة أنظف.
  */
 function AdCardComponent({
   title,
@@ -121,7 +121,7 @@ function AdCardComponent({
           accessibilityLabel={isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
           onPress={onToggleFavorite}
           hitSlop={10}
-          style={styles.favoriteBtn}
+          style={({ pressed }) => [styles.favoriteBtn, pressed && styles.pressed]}
         >
           <Text style={[styles.favoriteIcon, isFavorite && styles.favoriteActive]}>
             {isFavorite ? '♥' : '♡'}
@@ -132,7 +132,7 @@ function AdCardComponent({
         accessibilityRole="button"
         accessibilityLabel={`عرض الإعلان: ${title}`}
         onPress={onPress}
-        style={styles.adMain}
+        style={({ pressed }) => [styles.adMain, pressed && styles.pressed]}
       >
         {imageUri ? (
           <AppImage
@@ -190,27 +190,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     padding: spacing.md,
     ...elevation.sm,
   },
   pressed: { opacity: ux.pressedOpacity },
   image: {
-    width: 84,
-    height: 84,
-    borderRadius: radius.md,
+    width: sizes.cardImageRow,
+    height: sizes.cardImageRow,
+    borderRadius: radius.control,
     backgroundColor: colors.border,
   },
   imagePlaceholder: {
-    width: 84,
-    height: 84,
-    borderRadius: radius.md,
+    width: sizes.cardImageRow,
+    height: sizes.cardImageRow,
+    borderRadius: radius.control,
     backgroundColor: colors.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   glyph: { fontSize: fontSizes[28], color: colors.brandOnSoft },
-  body: { flex: 1, gap: 4, alignItems: 'flex-end' },
+  body: { flex: 1, gap: 3, alignItems: 'flex-end' },
   title: {
     ...typography.bodyStrong,
     color: colors.ink,
@@ -227,6 +227,7 @@ const styles = StyleSheet.create({
     ...typography.bodyStrong,
     color: colors.brand,
     textAlign: 'right',
+    marginTop: 2,
   },
   meta: {
     ...typography.caption,
@@ -240,55 +241,57 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
+    marginTop: 2,
   },
   badgeText: {
     ...typography.overline,
     color: colors.brandDark,
-  },
-  chevron: {
-    color: colors.muted,
-    fontSize: fontSizes[22],
-    fontWeight: '300',
-    paddingHorizontal: 2,
   },
 
   adCard: {
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     overflow: 'hidden',
     ...elevation.sm,
   },
   favoriteBtn: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: 8,
+    // في RTL يظهر في الزاوية البصرية المناسبة
+    right: 8,
     zIndex: 2,
     width: 36,
     height: 36,
-    borderRadius: 14,
+    borderRadius: 18,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    ...elevation.sm,
   },
-  favoriteIcon: { color: colors.muted, fontSize: fontSizes[18] },
+  favoriteIcon: { color: colors.muted, fontSize: fontSizes[16] },
   favoriteActive: { color: colors.danger },
-  adMain: { flexDirection: 'row', minHeight: 120 },
-  adImage: { width: 112, minHeight: 120, backgroundColor: colors.border },
+  adMain: { flexDirection: 'row', minHeight: 128 },
+  adImage: {
+    width: sizes.adImageWidth,
+    minHeight: 128,
+    backgroundColor: colors.border,
+  },
   adImagePlaceholder: {
-    width: 112,
-    minHeight: 120,
+    width: sizes.adImageWidth,
+    minHeight: 128,
     backgroundColor: colors.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
   adInfo: {
     flex: 1,
-    padding: spacing.md,
-    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    gap: 4,
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
@@ -299,3 +302,127 @@ const styles = StyleSheet.create({
     width: '100%',
   },
 });
+
+
+type HorizontalMarketCardProps = {
+  title: string;
+  subtitle?: string;
+  price?: string | null;
+  imageUri?: string | null;
+  glyph?: string;
+  onPress: () => void;
+  width?: number;
+};
+
+/**
+ * بطاقة أفقية موحّدة للرئيسية (منتجات / خدمات / طلبات / متاجر).
+ * نفس الأبعاد والظل والتايبو في كل الأقسام.
+ */
+function HorizontalMarketCardComponent({
+  title,
+  subtitle,
+  price,
+  imageUri,
+  glyph = '◇',
+  onPress,
+  width = 160,
+}: HorizontalMarketCardProps) {
+  const [imageFailed, setImageFailed] = useState(false);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={onPress}
+      style={({ pressed }) => [hStyles.card, { width }, pressed && hStyles.pressed]}
+    >
+      {imageUri && !imageFailed ? (
+        <AppImage
+          uri={imageUri}
+          onError={() => setImageFailed(true)}
+          resizeMode="cover"
+          style={hStyles.image}
+        />
+      ) : (
+        <View style={[hStyles.image, hStyles.placeholder]}>
+          <Text style={hStyles.glyph}>{glyph}</Text>
+        </View>
+      )}
+      <View style={hStyles.body}>
+        <Text numberOfLines={2} style={hStyles.title}>
+          {title}
+        </Text>
+        {subtitle ? (
+          <Text numberOfLines={1} style={hStyles.subtitle}>
+            {subtitle}
+          </Text>
+        ) : null}
+        {price ? (
+          <Text numberOfLines={1} style={hStyles.price}>
+            {price}
+          </Text>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
+export const HorizontalMarketCard = memo(HorizontalMarketCardComponent);
+HorizontalMarketCard.displayName = 'HorizontalMarketCard';
+
+const hStyles = StyleSheet.create({
+  card: {
+    minHeight: 200,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+    ...elevation.sm,
+  },
+  pressed: { opacity: ux.pressedOpacity },
+  image: {
+    width: '100%',
+    height: sizes.cardImageGrid - 20,
+    backgroundColor: colors.border,
+  },
+  placeholder: {
+    backgroundColor: colors.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glyph: {
+    color: colors.brandOnSoft,
+    fontSize: fontSizes[28],
+    fontWeight: '600',
+  },
+  body: {
+    flex: 1,
+    padding: spacing.sm,
+    gap: 4,
+    alignItems: 'flex-end',
+  },
+  title: {
+    width: '100%',
+    minHeight: 36,
+    ...typography.bodyStrong,
+    fontSize: fontSizes[13],
+    lineHeight: 18,
+    color: colors.ink,
+    textAlign: 'right',
+  },
+  subtitle: {
+    width: '100%',
+    ...typography.caption,
+    fontSize: fontSizes[11],
+    color: colors.muted,
+    textAlign: 'right',
+  },
+  price: {
+    ...typography.bodyStrong,
+    fontSize: fontSizes[13],
+    color: colors.brand,
+    textAlign: 'right',
+    marginTop: 2,
+  },
+});
+

@@ -1,8 +1,8 @@
 import { AppText as Text } from './AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { type ReactNode } from 'react';
-import { ActivityIndicator, View, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { type ReactNode, useEffect, useRef } from 'react';
+import { ActivityIndicator, Animated, View, type StyleProp, type ViewStyle } from 'react-native';
+import { colors, radius, spacing, ux } from '@/theme/tokens';
 import { PrimaryButton } from './Button';
 import { uiStyles as s } from './styles';
 
@@ -158,6 +158,7 @@ export function ErrorState({
   );
 }
 
+/** هيكل متحرك (pulse) بدل كتلة ثابتة — إحساس تحميل أكثر احترافية */
 export function SkeletonBlock({
   height = 16,
   width = '100%',
@@ -169,17 +170,46 @@ export function SkeletonBlock({
   radius?: number;
   style?: StyleProp<ViewStyle>;
 }) {
-  return <View style={[s.skeleton, { height, width: width as number | `${number}%`, borderRadius: r }, style]} />;
+  const opacity = useRef(new Animated.Value(0.45)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: ux.durationSlow + 80,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.4,
+          duration: ux.durationSlow + 80,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [opacity]);
+
+  return (
+    <Animated.View
+      style={[
+        s.skeleton,
+        { height, width: width as number | `${number}%`, borderRadius: r, opacity },
+        style,
+      ]}
+    />
+  );
 }
 
 export function SkeletonCard() {
   return (
     <View style={s.skeletonCard}>
-      <SkeletonBlock height={88} width={88} radius={radius.md} />
-      <View style={{ flex: 1, gap: spacing.sm }}>
-        <SkeletonBlock height={14} width="90%" />
-        <SkeletonBlock height={12} width="55%" />
-        <SkeletonBlock height={12} width="35%" />
+      <SkeletonBlock height={96} width={96} radius={radius.card} />
+      <View style={{ flex: 1, gap: spacing.sm, justifyContent: 'center' }}>
+        <SkeletonBlock height={14} width="92%" />
+        <SkeletonBlock height={12} width="60%" />
+        <SkeletonBlock height={12} width="38%" />
       </View>
     </View>
   );

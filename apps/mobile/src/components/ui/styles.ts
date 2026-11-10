@@ -39,12 +39,13 @@ export const uiStyles = StyleSheet.create({
 
   content: {
     padding: spacing.lg,
-    gap: spacing.lg,
-    paddingBottom: spacing.xxxl + sizes.bottomNavHeight / 2,
+    gap: spacing.xl,
+    paddingBottom: spacing.x4l + sizes.bottomNavHeight / 2,
   },
   detailContent: {
-    gap: spacing.md,
-    paddingBottom: spacing.xl,
+    gap: spacing.lg,
+    paddingBottom: spacing.xxl,
+    paddingTop: spacing.sm,
   },
   detailFooter: {
     paddingHorizontal: spacing.lg,
@@ -60,15 +61,16 @@ export const uiStyles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: spacing.md,
+    marginBottom: spacing.xs,
   },
-  sectionHeaderText: { flex: 1, gap: 3 },
+  sectionHeaderText: { flex: 1, gap: 2 },
   sectionTitle: { textAlign: 'right', ...typography.subtitle, color: colors.ink },
   sectionSubtitle: { textAlign: 'right', ...typography.caption, color: colors.muted },
   sectionAction: { ...typography.captionStrong, color: colors.brand, paddingVertical: spacing.xs },
 
   card: {
     padding: spacing.lg,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -82,15 +84,15 @@ export const uiStyles = StyleSheet.create({
     gap: spacing.md,
   },
   listRowGlyph: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: 12,
     backgroundColor: colors.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  listRowGlyphText: { color: colors.brandOnSoft, fontSize: fontSizes[19], fontWeight: '900' },
-  listRowText: { flex: 1, gap: 4 },
+  listRowGlyphText: { color: colors.brandOnSoft, fontSize: fontSizes[18], fontWeight: '700' },
+  listRowText: { flex: 1, gap: 3 },
   listRowTitle: { textAlign: 'right', ...typography.bodyStrong, color: colors.ink },
   listRowDescription: { textAlign: 'right', ...typography.caption, color: colors.muted },
 
@@ -222,7 +224,7 @@ export const uiStyles = StyleSheet.create({
   },
   offlineBannerText: {
     fontSize: fontSizes[12],
-    fontWeight: '800',
+    fontWeight: '600',
     lineHeight: 18,
     color: colors.warningText,
     textAlign: 'center',

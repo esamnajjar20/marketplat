@@ -32,24 +32,27 @@ export const MAIN_TABS: ReadonlyArray<{
 export const DRAWER_ITEMS: ReadonlyArray<{
   label: string; path: string; icon: GlyphName; section: DrawerSection;
 }> = [
+  // —— السوق: اكتشاف وتصفّح
   { label: 'الرئيسية', path: '/', icon: 'home', section: 'السوق' },
   { label: 'استكشف السوق', path: '/explore', icon: 'search', section: 'السوق' },
   { label: 'المتاجر', path: '/stores', icon: 'store', section: 'السوق' },
   { label: 'الخدمات', path: '/services', icon: 'service', section: 'السوق' },
   { label: 'إضافة إعلان أو منتج', path: '/add', icon: 'add', section: 'السوق' },
-  { label: 'المحادثات', path: '/messages', icon: 'messages', section: 'السوق' },
-  { label: 'المفضلة', path: '/favorites', icon: 'favorite', section: 'السوق' },
-  { label: 'الإشعارات', path: '/notifications', icon: 'notification', section: 'حسابك' },
+  { label: 'اقتراحات المنتجات', path: '/suggestions', icon: 'help', section: 'السوق' },
+  // —— حسابك: نشاط شخصي ثم أدوات البيع
   { label: 'حسابي', path: '/account', icon: 'account', section: 'حسابك' },
   { label: 'ملفي الشخصي', path: '/profile', icon: 'account', section: 'حسابك' },
+  { label: 'المحادثات', path: '/messages', icon: 'messages', section: 'حسابك' },
+  { label: 'الإشعارات', path: '/notifications', icon: 'notification', section: 'حسابك' },
+  { label: 'المفضلة', path: '/favorites', icon: 'favorite', section: 'حسابك' },
   { label: 'إعلاناتي', path: '/my-ads', icon: 'ads', section: 'حسابك' },
   { label: 'طلباتي', path: '/orders', icon: 'orders', section: 'حسابك' },
   { label: 'لوحة البائع', path: '/seller-dashboard', icon: 'store', section: 'حسابك' },
-  { label: 'المتاجر التي أعمل بها', path: '/my-stores', icon: 'store', section: 'حسابك' },
+  { label: 'متاجري', path: '/my-stores', icon: 'store', section: 'حسابك' },
   { label: 'طلبات الخدمات', path: '/service-requests', icon: 'service', section: 'حسابك' },
   { label: 'العمليات دون اتصال', path: '/offline-queue', icon: 'orders', section: 'حسابك' },
-  { label: 'الإعدادات', path: '/settings', icon: 'settings', section: 'حسابك' },
-  { label: 'اقتراحات المنتجات', path: '/suggestions', icon: 'help', section: 'السوق' },
+  // —— المساعدة
+  { label: 'الإعدادات', path: '/settings', icon: 'settings', section: 'المساعدة' },
 ];
 
 const AUTH_ONLY_EXACT = new Set([

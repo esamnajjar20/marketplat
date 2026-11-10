@@ -309,13 +309,13 @@ export default function AdDetailScreen() {
 
 const styles = StyleSheet.create({
   headerAction: { color: colors.brand, ...typography.captionStrong },
-  pad: { paddingHorizontal: spacing.md, gap: spacing.md },
-  price: { color: colors.brand, fontSize: fontSizes[22], fontWeight: '900', textAlign: 'right' },
+  pad: { paddingHorizontal: spacing.lg, gap: spacing.lg },
+  price: { color: colors.brand, fontSize: fontSizes[24], fontWeight: '700', textAlign: 'right', letterSpacing: 0.2 },
   title: {
     color: colors.ink,
-    fontSize: fontSizes[22],
-    lineHeight: 30,
-    fontWeight: '900',
+    fontSize: fontSizes[20],
+    lineHeight: 28,
+    fontWeight: '700',
     textAlign: 'right',
   },
   meta: { color: colors.muted, ...typography.caption, textAlign: 'right' },

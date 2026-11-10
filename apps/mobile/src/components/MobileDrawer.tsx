@@ -101,9 +101,15 @@ function MobileDrawerOverlay({
   // to the logical right edge and uses native row direction for its contents.
   const isRTL = true;
   const progress = useRef(new Animated.Value(0)).current;
+  // +24px عند الإغلاق حتى لا يظهر ظل أو حدّ أو بكسل من اللوحة على حافة الشاشة
+  const closedOffset = drawerWidth + 24;
   const translateX = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [isRTL ? drawerWidth : -drawerWidth, 0],
+    outputRange: [isRTL ? closedOffset : -closedOffset, 0],
+  });
+  const drawerOpacity = progress.interpolate({
+    inputRange: [0, 0.05, 1],
+    outputRange: [0, 1, 1],
   });
   const shadeOpacity = progress.interpolate({ inputRange: [0, 1], outputRange: [0, 0.46] });
 
@@ -223,8 +229,14 @@ function MobileDrawerOverlay({
           accessibilityViewIsModal={open}
           style={[
             styles.drawer,
-            { width: drawerWidth, transform: [{ translateX }] },
+            {
+              width: drawerWidth,
+              transform: [{ translateX }],
+              opacity: drawerOpacity,
+            },
             isRTL ? { right: 0 } : { left: 0 },
+            // عند الإغلاق: بدون ظل/حد حتى لا يظهر طرف مزعج على الحافة
+            !open && styles.drawerClosed,
           ]}
           {...drawerPanResponder.panHandlers}
         >
@@ -364,6 +376,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.18,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
+    // قص أي محتوى يخرج عن حدود اللوحة
+    overflow: 'hidden',
+  },
+  drawerClosed: {
+    borderWidth: 0,
+    elevation: 0,
+    shadowOpacity: 0,
+    shadowRadius: 0,
   },
   drawerSafeArea: { flex: 1, backgroundColor: colors.surface },
   drawerHeader: {
@@ -389,20 +409,21 @@ const styles = StyleSheet.create({
   identityEmail: { color: colors.muted, ...typography.caption },
   drawerDivider: { height: 1, backgroundColor: colors.border, marginHorizontal: spacing.lg },
   menuScroll: { flex: 1 },
-  menuContent: { paddingHorizontal: spacing.md, paddingTop: spacing.md, paddingBottom: spacing.lg, gap: spacing.lg },
-  menuSection: { gap: spacing.xs },
+  menuContent: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xl, gap: spacing.md },
+  menuSection: { gap: spacing.xs, marginBottom: spacing.sm },
   sectionLabel: {
     color: colors.muted,
     ...typography.overline,
     paddingHorizontal: spacing.sm,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.xs,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+    letterSpacing: 0.4,
   },
   menuItem: {
-    minHeight: 48,
+    minHeight: 50,
     borderRadius: radius.md,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     alignItems: 'center',
     gap: spacing.md,
     borderRightWidth: 0,
@@ -412,16 +433,16 @@ const styles = StyleSheet.create({
   menuItemActiveRTL: { backgroundColor: colors.brandSoft, borderStartWidth: 3 },
   menuItemActiveLTR: { backgroundColor: colors.brandSoft, borderEndWidth: 3 },
   menuIconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.canvas,
   },
   menuIconWrapActive: { backgroundColor: colors.brandSoftActive },
   menuItemLabel: { flex: 1, color: colors.ink, ...typography.bodyStrong },
-  menuItemLabelActive: { color: colors.brandDark, fontWeight: '900' },
+  menuItemLabelActive: { color: colors.brandDark, fontWeight: '700' },
   activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.brand },
   drawerFooter: {
     borderTopWidth: 1,

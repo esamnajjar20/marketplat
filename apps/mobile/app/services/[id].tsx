@@ -16,7 +16,7 @@ import {
   PrimaryButton,
   SectionCard,
 } from '@/components/MobileUI';
-import { fontSizes, colors, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { showToast } from '@/lib/toast';
@@ -171,20 +171,25 @@ export default function ServiceDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  pad: { paddingHorizontal: spacing.md, gap: spacing.md },
+  pad: { paddingHorizontal: spacing.lg, gap: spacing.lg },
   heroImage: {
-    height: 220,
-    borderRadius: 16,
+    height: 280,
+    borderRadius: radius.lg,
     backgroundColor: colors.border,
   },
   title: {
-    fontSize: fontSizes[22],
-    fontWeight: '900',
+    fontSize: fontSizes[20],
+    fontWeight: '700',
     color: colors.ink,
     textAlign: 'right',
-    lineHeight: 30,
+    lineHeight: 28,
   },
-  price: { fontSize: fontSizes[22], fontWeight: '900', color: colors.brand, textAlign: 'right' },
+  price: {
+    fontSize: fontSizes[24],
+    fontWeight: '700',
+    color: colors.brand,
+    textAlign: 'right',
+  },
   provider: { ...typography.bodyStrong, color: colors.ink, textAlign: 'right' },
   meta: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   sectionTitle: { ...typography.subtitle, color: colors.ink, textAlign: 'right' },

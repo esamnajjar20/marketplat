@@ -143,7 +143,7 @@ export default function HomeScreen() {
 
           if (item.type === 'header') {
             return (
-              <View style={{ gap: spacing.xl }}>
+              <View style={{ gap: spacing.xxl }}>
                 <View style={styles.header}>
                   <View style={styles.brandRow}>
                     <View style={styles.logo}><Text style={styles.logoText}>م</Text></View>
@@ -236,7 +236,7 @@ export default function HomeScreen() {
           }
 
           return (
-            <View style={{ gap: spacing.xl }}>
+            <View style={{ gap: spacing.xxl }}>
               <HomeCommunitySections />
               <HomeMarketplaceSections />
               <View style={styles.servicesSection}>
@@ -270,16 +270,16 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   pressed: { opacity: ux.pressedOpacity },
   safeArea: { flex: 1, backgroundColor: colors.canvas },
-  content: { paddingHorizontal: spacing.lg, paddingBottom: 44, gap: spacing.xl },
+  content: { paddingHorizontal: spacing.lg, paddingBottom: 56, gap: spacing.xxl },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: spacing.sm, minHeight: 58, gap: spacing.sm },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   logo: { width: 48, height: 48, borderRadius: 15, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  logoText: { color: colors.white, fontSize: fontSizes[25], fontWeight: '800' },
-  brandName: { color: colors.ink, fontSize: fontSizes[18], fontWeight: '800', textAlign: 'right' },
+  logoText: { color: colors.white, fontSize: fontSizes[25], fontWeight: '700' },
+  brandName: { color: colors.ink, fontSize: fontSizes[18], fontWeight: '700', textAlign: 'right' },
   brandSubtitle: { color: colors.muted, fontSize: fontSizes[12], marginTop: 2, textAlign: 'right' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   accountButton: { minHeight: 44, minWidth: 64, paddingHorizontal: spacing.md, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  accountButtonText: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '800' },
+  accountButtonText: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '700' },
   quickActions: { flexDirection: 'row', gap: spacing.sm },
   quickAction: { flex: 1, minWidth: 0, minHeight: 84, alignItems: 'center', justifyContent: 'center', gap: spacing.xs, paddingVertical: spacing.sm, paddingHorizontal: 2, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
   quickIcon: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
   quickTitle: { color: colors.ink, fontSize: fontSizes[11], fontWeight: '700', textAlign: 'center' },
   hero: { backgroundColor: colors.brand, borderRadius: radius.lg, padding: spacing.lg, overflow: 'hidden', gap: spacing.sm },
   eyebrow: { color: colors.brandSoft, fontSize: fontSizes[13], textAlign: 'right' },
-  heroTitle: { color: colors.white, fontSize: fontSizes[22], fontWeight: '800', textAlign: 'right', lineHeight: 30 },
+  heroTitle: { color: colors.white, fontSize: fontSizes[22], fontWeight: '700', textAlign: 'right', lineHeight: 30 },
   heroBody: { color: colors.brandSoft, fontSize: fontSizes[13], lineHeight: 20, textAlign: 'right' },
   searchBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: radius.md, paddingHorizontal: spacing.md, minHeight: ux.minTouch + 8, gap: spacing.sm },
   searchIcon: { fontSize: fontSizes[26], color: colors.brand, width: 25, textAlign: 'center' },
@@ -295,10 +295,10 @@ const styles = StyleSheet.create({
   clearSearch: { color: colors.muted, fontSize: fontSizes[24], paddingHorizontal: 4 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: -spacing.sm, minHeight: 38, gap: spacing.sm },
   sectionActions: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  sectionTitle: { color: colors.ink, fontSize: fontSizes[18], fontWeight: '800', textAlign: 'right' },
+  sectionTitle: { color: colors.ink, fontSize: fontSizes[18], fontWeight: '700', textAlign: 'right' },
   link: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '700' },
   advancedFilters: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm },
-  filterHeading: { color: colors.ink, fontSize: fontSizes[14], fontWeight: '800', textAlign: 'right' },
+  filterHeading: { color: colors.ink, fontSize: fontSizes[14], fontWeight: '700', textAlign: 'right' },
   filterInput: { minHeight: 48, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.canvas, borderRadius: radius.sm, paddingHorizontal: spacing.md, color: colors.ink, fontSize: fontSizes[13] },
   priceInputs: { flexDirection: 'row', gap: spacing.sm },
   priceInput: { flex: 1 },
@@ -307,24 +307,24 @@ const styles = StyleSheet.create({
   filterCaption: { color: colors.muted, fontSize: fontSizes[12], fontWeight: '700' },
   filterActions: { flexDirection: 'row', gap: spacing.sm },
   clearFiltersButton: { minHeight: 48, paddingHorizontal: spacing.lg, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
-  clearFiltersText: { color: colors.muted, fontSize: fontSizes[13], fontWeight: '800' },
+  clearFiltersText: { color: colors.muted, fontSize: fontSizes[13], fontWeight: '700' },
   applyFiltersButton: { flex: 1, minHeight: 48, borderRadius: radius.sm, backgroundColor: colors.brand, alignItems: 'center', justifyContent: 'center' },
-  applyFiltersText: { color: colors.white, fontSize: fontSizes[13], fontWeight: '800' },
-  servicesSection: { gap: spacing.md },
+  applyFiltersText: { color: colors.white, fontSize: fontSizes[13], fontWeight: '700' },
+  servicesSection: { gap: spacing.lg, marginTop: spacing.sm },
   serviceList: { gap: spacing.sm },
   serviceRequestsLink: { minHeight: 42, alignItems: 'flex-end', justifyContent: 'center', paddingHorizontal: spacing.sm },
-  serviceRequestsText: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '800' },
+  serviceRequestsText: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '700' },
   serviceCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.sm, minHeight: 96, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg },
   serviceImage: { width: 82, height: 82, borderRadius: radius.md, backgroundColor: colors.border },
   serviceImagePlaceholder: { width: 82, height: 82, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
   servicePlaceholderGlyph: { color: colors.brandOnSoft, fontSize: fontSizes[28] },
   serviceInfo: { flex: 1, alignItems: 'flex-end', gap: 4 },
-  serviceTitle: { color: colors.ink, fontSize: fontSizes[14], fontWeight: '800', textAlign: 'right', width: '100%' },
+  serviceTitle: { color: colors.ink, fontSize: fontSizes[14], fontWeight: '700', textAlign: 'right', width: '100%' },
   serviceProvider: { color: colors.muted, fontSize: fontSizes[11], textAlign: 'right', width: '100%' },
-  servicePrice: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '800', textAlign: 'right' },
+  servicePrice: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '700', textAlign: 'right' },
   serviceState: { minHeight: 60, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md },
   loadMoreButton: { minHeight: Math.max(ux.minTouch + 8, 48), borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', padding: spacing.md },
-  loadMoreText: { color: colors.brand, fontSize: fontSizes[14], fontWeight: '800' },
+  loadMoreText: { color: colors.brand, fontSize: fontSizes[14], fontWeight: '700' },
   busyButton: { opacity: 0.65 },
   adsList: { gap: spacing.md },
   filterRow: { flexDirection: 'row', gap: spacing.sm },
@@ -341,20 +341,20 @@ const styles = StyleSheet.create({
   adImagePlaceholder: { width: 120, minHeight: 132, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
   placeholderEmoji: { fontSize: fontSizes[32] },
   adInfo: { flex: 1, padding: spacing.md, gap: spacing.xs, alignItems: 'flex-end', justifyContent: 'center' },
-  adTitle: { color: colors.ink, fontSize: fontSizes[14], lineHeight: 20, fontWeight: '800', textAlign: 'right', width: '100%' },
-  adPrice: { color: colors.brand, fontSize: fontSizes[15], fontWeight: '800', textAlign: 'right' },
+  adTitle: { color: colors.ink, fontSize: fontSizes[14], lineHeight: 20, fontWeight: '700', textAlign: 'right', width: '100%' },
+  adPrice: { color: colors.brand, fontSize: fontSizes[15], fontWeight: '700', textAlign: 'right' },
   adMeta: { color: colors.muted, fontSize: fontSizes[12], textAlign: 'right', width: '100%' },
   negotiable: { color: colors.brandDark, backgroundColor: colors.brandSoft, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3, fontSize: fontSizes[10], overflow: 'hidden' },
   cacheStatus: { alignSelf: 'flex-end', backgroundColor: colors.successSoft, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
   cacheStatusText: { color: colors.brandDark, fontSize: fontSizes[11], fontWeight: '600', textAlign: 'right' },
   statusCard: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, alignItems: 'center', padding: spacing.xl, gap: spacing.md },
   statusEmoji: { fontSize: fontSizes[32] },
-  statusTitle: { color: colors.ink, fontSize: fontSizes[16], fontWeight: '800', textAlign: 'center' },
+  statusTitle: { color: colors.ink, fontSize: fontSizes[16], fontWeight: '700', textAlign: 'center' },
   statusText: { color: colors.muted, fontSize: fontSizes[13], lineHeight: 21, textAlign: 'center' },
   retryButton: { backgroundColor: colors.brand, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md },
-  retryText: { color: colors.white, fontWeight: '800' },
+  retryText: { color: colors.white, fontWeight: '700' },
   helperText: { color: colors.muted, fontSize: fontSizes[11], lineHeight: 17, textAlign: 'center' },
   notice: { backgroundColor: colors.warningSoft, borderColor: colors.warningBorder, borderWidth: 1, borderRadius: radius.md, padding: spacing.lg, gap: spacing.xs },
-  noticeTitle: { color: colors.warningText, fontSize: fontSizes[13], fontWeight: '800', textAlign: 'right' },
+  noticeTitle: { color: colors.warningText, fontSize: fontSizes[13], fontWeight: '700', textAlign: 'right' },
   noticeText: { color: colors.warningText, fontSize: fontSizes[12], lineHeight: 19, textAlign: 'right' },
 });

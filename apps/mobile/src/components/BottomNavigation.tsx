@@ -5,7 +5,7 @@ import { goTab } from '@/lib/navigation';
 import { MAIN_TABS, getActiveMainTab, shouldHideBottomNavigation } from '@/lib/navigation-policy';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fontSizes, colors, radius, sizes, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
 import { AppIcon } from '@/components/Icons';
 
 export function isBottomNavigationHidden(pathname: string): boolean {
@@ -37,8 +37,8 @@ export default function BottomNavigation() {
               <View style={[styles.glyphWrap, active && styles.activeGlyphWrap, tab.path === '/add' && styles.addWrap]}>
                 <AppIcon
                   name={tab.glyph}
-                  size={tab.path === '/add' ? 28 : 22}
-                  color={tab.path === '/add' ? colors.brandOnSoft : active ? colors.brandDark : colors.muted}
+                  size={tab.path === '/add' ? 24 : 22}
+                  color={tab.path === '/add' ? colors.white : active ? colors.brandDark : colors.muted}
                 />
               </View>
               <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={[styles.label, active && styles.activeLabel]}>
@@ -64,32 +64,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingHorizontal: spacing.xs,
-    paddingTop: spacing.xs,
+    paddingTop: spacing.sm,
   },
   tab: {
     minWidth: 0,
     flex: 1,
-    minHeight: 54,
+    minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 3,
     borderRadius: 14,
     marginHorizontal: 2,
   },
   activeTab: { backgroundColor: colors.brandSoft },
-  pressed: { opacity: 0.72 },
+  pressed: { opacity: ux.pressedOpacity },
   glyphWrap: {
-    minWidth: 30,
-    minHeight: 27,
+    minWidth: 32,
+    minHeight: 28,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 10,
+    borderRadius: 12,
   },
   activeGlyphWrap: { backgroundColor: colors.brandSoftActive },
-  addWrap: { backgroundColor: colors.brandSoft },
-  glyph: { color: colors.muted, fontSize: fontSizes[22], lineHeight: 26, fontWeight: '700' },
+  addWrap: {
+    backgroundColor: colors.brand,
+    minWidth: 44,
+    minHeight: 36,
+    borderRadius: 14,
+  },
+  glyph: { color: colors.muted, fontSize: fontSizes[22], lineHeight: 26, fontWeight: '600' },
   activeGlyph: { color: colors.brandDark },
-  addGlyph: { fontSize: fontSizes[30], lineHeight: 32, color: colors.brand, fontWeight: '500' },
-  label: { color: colors.muted, ...typography.overline, fontWeight: '800' },
-  activeLabel: { color: colors.brandDark, fontWeight: '900' },
+  addGlyph: { fontSize: fontSizes[28], lineHeight: 30, color: colors.white, fontWeight: '500' },
+  label: { color: colors.muted, ...typography.overline },
+  activeLabel: { color: colors.brandDark, fontWeight: '700' },
 });

@@ -2,6 +2,9 @@
  * MarketPlat Design Tokens
  * مصدر واحد للألوان، المسافات، الزوايا، الخطوط، والظلال.
  * لا تستخدم قيم hex أو أحجام خطوط مباشرة في الشاشات — مرّ من هنا.
+ *
+ * تحديث 2026-11: تخفيف أوزان الخط، تعزيز الظلال، مقياس تايبو أوضح
+ * لرفع الإحساس الاحترافي على الموبايل دون كسر الهوية البصرية.
  */
 
 export const colors = {
@@ -24,7 +27,7 @@ export const colors = {
   // حدود أكثر وضوحًا لعناصر التحكم التي تعتمد على المحيط البصري.
   controlBorder: '#7C8A80',
   focus: '#397F56',
-  // Overlays مصممة للمحتوى المتراكب فوق الصور/الفيديو، بدل rgba مبعثرة في الشاشات.
+  // Overlays مصممة للمحتوى المتراكب فوق الصور/الفيديو
   mediaControlOverlay: 'rgba(255, 255, 255, 0.91)',
   mediaCounterOverlay: 'rgba(0, 0, 0, 0.55)',
   mediaCloseOverlay: 'rgba(0, 0, 0, 0.55)',
@@ -45,8 +48,8 @@ export const colors = {
   info: '#1D4E89',
   infoSoft: '#EAF2FB',
   infoBorder: '#C6DAF1',
-  warning: '#BE5A32', // إبراز زخرفي/عناصر كبيرة
-  warningText: '#A34826', // نص تحذيري يحقق WCAG AA على الخلفيات الفاتحة
+  warning: '#BE5A32',
+  warningText: '#A34826',
   warningSoft: '#F8EBE5',
   warningBorder: '#E8C4B4',
   // ثابت
@@ -69,18 +72,17 @@ export const spacing = {
 export const radius = {
   sm: 10,
   md: 16,
-  lg: 22,
+  lg: 20,
   xl: 28,
   pill: 999,
   control: 12,
-  card: 14,
-  modal: 16,
+  card: 16,
+  modal: 20,
   shell: 20,
   hero: 24,
 } as const;
 
-/** أحجام وأوزان الخط — RTL-first (textAlign يُضبط في المكوّنات) */
-/** أحجام الخط الموحدة؛ تُستخدم بدل القيم الرقمية المبعثرة داخل الشاشات. */
+/** أحجام الخط الموحدة */
 export const fontSizes = {
   10: 10,
   11: 11,
@@ -106,20 +108,24 @@ export const fontSizes = {
   40: 40,
 } as const;
 
+/**
+ * مقياس تايبوغرافي أوضح وأكثر هدوءًا.
+ * الأوزان خُففت لتجنب الإحساس «الصاخب» على الموبايل.
+ */
 export const typography = {
   display: {
-    fontSize: 28,
-    fontWeight: '900' as const,
-    lineHeight: 36,
+    fontSize: 26,
+    fontWeight: '800' as const,
+    lineHeight: 34,
   },
   title: {
-    fontSize: 19,
-    fontWeight: '800' as const,
+    fontSize: 18,
+    fontWeight: '700' as const,
     lineHeight: 26,
   },
   subtitle: {
-    fontSize: 17,
-    fontWeight: '800' as const,
+    fontSize: 16,
+    fontWeight: '700' as const,
     lineHeight: 24,
   },
   body: {
@@ -129,37 +135,37 @@ export const typography = {
   },
   bodyStrong: {
     fontSize: 15,
-    fontWeight: '800' as const,
+    fontWeight: '600' as const,
     lineHeight: 22,
   },
   caption: {
     fontSize: 12,
-    fontWeight: '600' as const,
+    fontWeight: '500' as const,
     lineHeight: 18,
   },
   captionStrong: {
     fontSize: 12,
-    fontWeight: '800' as const,
+    fontWeight: '700' as const,
     lineHeight: 18,
   },
   button: {
     fontSize: 15,
-    fontWeight: '800' as const,
+    fontWeight: '700' as const,
     lineHeight: 20,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '800' as const,
-    lineHeight: 20,
+    fontSize: 13,
+    fontWeight: '600' as const,
+    lineHeight: 18,
   },
   overline: {
     fontSize: 11,
-    fontWeight: '700' as const,
+    fontWeight: '600' as const,
     lineHeight: 16,
   },
 } as const;
 
-/** ظلال خفيفة للبطاقات والعناصر المرتفعة */
+/** ظلال متدرجة — البطاقات sm، العناصر المرتفعة md، النوافذ lg */
 export const elevation = {
   none: {
     shadowColor: 'transparent',
@@ -171,44 +177,52 @@ export const elevation = {
   sm: {
     shadowColor: '#241E19',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowOpacity: 0.07,
+    shadowRadius: 4,
+    elevation: 2,
   },
   md: {
     shadowColor: '#241E19',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  lg: {
+    shadowColor: '#241E19',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
   },
 } as const;
 
 /** ارتفاعات تفاعلية موحّدة */
 export const sizes = {
   touchTarget: 44,
-  inputHeight: 54,
-  buttonHeight: 54,
+  inputHeight: 52,
+  buttonHeight: 52,
   headerHeight: 56,
-  bottomNavHeight: 64,
+  bottomNavHeight: 68,
   iconButton: 44,
   avatarSm: 36,
   avatarMd: 48,
   avatarLg: 64,
-  chipHeight: 44,
+  chipHeight: 40,
+  cardImageRow: 96,
+  cardImageGrid: 140,
+  adImageWidth: 120,
 } as const;
 
 export type ColorToken = keyof typeof colors;
 export type SpacingToken = keyof typeof spacing;
 export type RadiusToken = keyof typeof radius;
 
-/** ثوابت تجربة المستخدم — أهداف لمس، شفافية الضغط، مدد الحركة */
+/** ثوابت تجربة المستخدم */
 export const ux = {
-  /** الحد الأدنى الموصى به لمنطقة اللمس (إرشادات Apple/Material) */
   minTouch: 44,
-  pressedOpacity: 0.72,
+  pressedOpacity: 0.78,
   disabledOpacity: 0.45,
-  /** مدد تقريبية للتوثيق / Animated لاحقاً */
   durationFast: 120,
   durationNormal: 220,
   durationSlow: 320,
