@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppIcon } from '@/components/Icons';
 import { AppImage } from '@/components/AppImage';
@@ -10,7 +11,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchFollowingFeed, type FollowingFeedItem } from '@/features/account/social.api';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton } from '@/components/MobileUI';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { toAppHref } from '@/lib/typed-navigation';
 
@@ -28,6 +29,8 @@ function target(item: FollowingFeedItem): string {
 }
 
 export default function FollowingFeedScreen() {
+  const { colors } = useAppTheme();
+
   const { user, getAccessToken, isRestoring } = useAuth();
   const list = usePaginatedList<FollowingFeedItem>({
     key: `following-feed:${user?.id ?? 'guest'}`,

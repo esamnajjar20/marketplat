@@ -1,8 +1,10 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppIcon } from '@/components/Icons';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -10,13 +12,16 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
 import { Notice } from '@/components/MobileUI';
 import { createServiceRequest, fetchServiceRequests, type ServiceRequest } from '@/features/services/services.api';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
 import { marketListPerf } from '@/lib/listPerformance';
 
 const statusLabels: Record<string, string> = { PENDING: 'بانتظار الرد', ACCEPTED: 'مقبول', REJECTED: 'مرفوض', IN_PROGRESS: 'قيد التنفيذ', COMPLETED: 'مكتمل', CANCELLED: 'ملغي', EXPIRED: 'منتهي', DISPUTED: 'قيد المراجعة' };
 
 export default function ServiceRequestsScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const params = useLocalSearchParams<{ listingId?: string | string[]; listingTitle?: string | string[] }>();
   const listingId = Array.isArray(params.listingId) ? params.listingId[0] : params.listingId;
   const listingTitle = Array.isArray(params.listingTitle) ? params.listingTitle[0] : params.listingTitle;
@@ -250,7 +255,7 @@ export default function ServiceRequestsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   back: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
@@ -263,7 +268,7 @@ const styles = StyleSheet.create({
   textarea: { minHeight: 120, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, color: colors.ink, fontSize: fontSizes[14], lineHeight: 22, writingDirection: 'rtl' },
   hint: { color: colors.muted, fontSize: fontSizes[11], textAlign: 'right' },
   primary: { backgroundColor: colors.brand, borderRadius: radius.md, minHeight: 52, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
-  primaryText: { color: colors.white, fontSize: fontSizes[14], fontWeight: '800' },
+  primaryText: { color: colors.onBrand, fontSize: fontSizes[14], fontWeight: '800' },
   disabled: { opacity: 0.6 },
   switchRow: { flexDirection: 'row', backgroundColor: colors.border, padding: 4, borderRadius: radius.md, gap: 4 },
   switchChip: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: 10 },
@@ -271,7 +276,7 @@ const styles = StyleSheet.create({
   switchText: { color: colors.muted, fontSize: fontSizes[13], fontWeight: '700' },
   switchTextActive: { color: colors.brand },
   acceptButton: { backgroundColor: colors.brand, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.md, minHeight: 44, justifyContent: 'center' },
-  acceptText: { color: colors.white, fontSize: fontSizes[12], fontWeight: '800' },
+  acceptText: { color: colors.onBrand, fontSize: fontSizes[12], fontWeight: '800' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   sectionTitle: { color: colors.ink, fontSize: fontSizes[18], fontWeight: '800' },
   link: { color: colors.brand, fontWeight: '700' },

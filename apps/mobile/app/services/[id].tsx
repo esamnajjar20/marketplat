@@ -1,7 +1,9 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState , useMemo} from 'react';
 import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
@@ -16,7 +18,7 @@ import {
   PrimaryButton,
   SectionCard,
 } from '@/components/MobileUI';
-import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { showToast } from '@/lib/toast';
@@ -37,6 +39,9 @@ function locationLabel(value?: string | null): string | null {
 }
 
 export default function ServiceDetailScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { user } = useAuth();
@@ -170,7 +175,7 @@ export default function ServiceDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   pad: { paddingHorizontal: spacing.lg, gap: spacing.lg },
   heroImage: {
     height: 280,

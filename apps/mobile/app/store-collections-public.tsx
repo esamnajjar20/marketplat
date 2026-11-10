@@ -1,15 +1,18 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { FlatList, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fetchPublicCollections, type StoreCollection } from '@/features/commerce/store-management.api';
 import { ErrorState, Notice, PageShell, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 
 export default function PublicStoreCollectionsScreen() {
+  const { colors } = useAppTheme();
+
   const p = useLocalSearchParams<{ storeId?: string | string[] }>();
   const storeId = Array.isArray(p.storeId) ? p.storeId[0] : p.storeId;
   const { data, loading, error, reload } = useAsyncResource<StoreCollection[]>(

@@ -1,7 +1,9 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState , useMemo} from 'react';
 import { Alert, FlatList, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
@@ -20,9 +22,12 @@ import {
   SecondaryButton,
   SectionCard,
 } from '@/components/MobileUI';
-import { colors, spacing, typography } from '@/theme/tokens';
+import { spacing, typography } from '@/theme/tokens';
 
 export default function MyAdsScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { user, getAccessToken, csrfToken, isRestoring } = useAuth();
   const netInfo = useNetInfo();
   const online = netInfo.isConnected === true && netInfo.isInternetReachable !== false;
@@ -255,7 +260,7 @@ export default function MyAdsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   headerActions: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   link: { color: colors.brand, ...typography.captionStrong },

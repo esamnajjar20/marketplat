@@ -3,7 +3,7 @@ import { AppIcon } from '@/components/Icons';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { type ReactNode } from 'react';
 import { View, type StyleProp, type ViewStyle } from 'react-native';
-import { uiStyles as s } from './styles';
+import { useUIStyles } from './styles';
 
 export function SectionHeader({
   title,
@@ -16,6 +16,7 @@ export function SectionHeader({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  const s = useUIStyles();
   return (
     <View style={s.sectionHeader}>
       <View style={s.sectionHeaderText}>
@@ -40,6 +41,7 @@ export function SectionCard({
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
 }) {
+  const s = useUIStyles();
   if (onPress) {
     return (
       <Pressable
@@ -67,6 +69,7 @@ export function ListRow({
   glyph?: ReactNode;
   right?: ReactNode;
 }) {
+  const s = useUIStyles();
   const content = (
     <View style={s.listRowInner}>
       <View style={s.listRowGlyph}>

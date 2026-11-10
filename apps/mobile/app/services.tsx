@@ -1,6 +1,8 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useState } from 'react';
+import { useState , useMemo} from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,7 +18,7 @@ import {
   SearchBar,
 } from '@/components/MobileUI';
 import { CatalogCard } from '@/components/MarketCards';
-import { colors, spacing, typography } from '@/theme/tokens';
+import { spacing, typography } from '@/theme/tokens';
 
 function priceLabel(item: ServiceListing) {
   if (item.pricingType === 'NEGOTIABLE' || item.price == null) return 'السعر عند الاتفاق';
@@ -27,6 +29,9 @@ function priceLabel(item: ServiceListing) {
 }
 
 export default function ServicesScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const [query, setQuery] = useState('');
   const [submitted, setSubmitted] = useState('');
   const list = usePaginatedList<ServiceListing>({
@@ -111,7 +116,7 @@ export default function ServicesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48 },
   subtitle: { ...typography.caption, color: colors.muted, textAlign: 'right' },

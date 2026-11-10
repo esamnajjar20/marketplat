@@ -5,10 +5,11 @@ import {} from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { checkFavoriteEntity, toggleFavoriteEntity, type FavoriteEntityType } from '@/features/ads/favorites.api';
-import { colors, radius, sizes, typography } from '@/theme/tokens';
+import { radius, sizes, typography } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 export function FavoriteButton({ entityType, entityId, label = 'المفضلة' }: { entityType: FavoriteEntityType; entityId: string; label?: string }) {
-  const { accessToken, csrfToken } = useAuth(); const [favorite, setFavorite] = useState(false); const [loading, setLoading] = useState(false);
+  const { accessToken, csrfToken } = useAuth(); const { colors } = useAppTheme(); const [favorite, setFavorite] = useState(false); const [loading, setLoading] = useState(false);
   const refresh = useCallback(async () => { if (!accessToken || !entityId) { setFavorite(false); return; } try { setFavorite(await checkFavoriteEntity(entityType, entityId, accessToken)); } catch { /* Favorites status is optional; don't block the detail screen. */ } }, [accessToken, entityId, entityType]);
   useEffect(() => { void refresh(); }, [refresh]);
   const toggle = async () => { if (!accessToken) { router.push('/login'); return; } if (loading) return; setLoading(true); const previous = favorite; setFavorite(!previous); try { const action = await toggleFavoriteEntity(entityType, entityId, accessToken, csrfToken); setFavorite(action === 'added'); } catch (error) { setFavorite(previous); showToast('تعذر تحديث المفضلة', error instanceof Error ? error.message : 'حاول مرة أخرى.', 'error'); } finally { setLoading(false); } };

@@ -1,3 +1,5 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -17,11 +19,14 @@ import {
   SearchBar,
   SkeletonList,
 } from '@/components/MobileUI';
-import { colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
+import { elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 import ConversationListItem from '@/features/messaging/ConversationListItem';
 
 type Filter = 'all' | 'unread' | 'archived';
 export default function MessagesScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { user, accessToken, getAccessToken, csrfToken } = useAuth();
   const { counts } = useUnreadCounts();
   const [items, setItems] = useState<ConversationItem[]>([]);
@@ -227,10 +232,13 @@ export default function MessagesScreen() {
 }
 
 function ConversationSeparator() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   return <View style={styles.separator} />;
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   link: { color: colors.brand, ...typography.captionStrong },
   content: {

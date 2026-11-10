@@ -3,10 +3,11 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useEffect, useState } from 'react';
 import {} from 'react-native';
 import { isSavedOfflineResource, saveOfflineResource, type SavedOfflineKind } from '@/storage/saved-offline';
-import { colors, radius, sizes, typography } from '@/theme/tokens';
+import { radius, sizes, typography } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 export function SaveOfflineButton({ id, kind, title, payload }: { id: string; kind: SavedOfflineKind; title: string; payload: Record<string, unknown> }) {
-  const [saved, setSaved] = useState(false); const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false); const [busy, setBusy] = useState(false); const { colors } = useAppTheme();
   useEffect(() => { let active = true; void isSavedOfflineResource(kind, id).then((value) => { if (active) setSaved(value); }).catch(() => undefined); return () => { active = false; }; }, [id, kind]);
   const save = async () => {
     if (busy) return;

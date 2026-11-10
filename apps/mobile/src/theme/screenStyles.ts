@@ -1,11 +1,14 @@
 /**
  * أنماط شاشة مشتركة — لتقليل تكرار StyleSheet في الشاشات.
  */
+import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { radius, spacing, typography, type ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from './ThemeProvider';
 
-export const screenStyles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
+function createScreenStyles(palette: ColorPalette) {
+  return StyleSheet.create({
+  safe: { flex: 1, backgroundColor: palette.canvas },
   content: {
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xxxl,
@@ -17,21 +20,21 @@ export const screenStyles = StyleSheet.create({
     alignItems: 'center',
   },
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: palette.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: palette.border,
     padding: spacing.lg,
     gap: spacing.sm,
   },
   title: {
     ...typography.title,
-    color: colors.ink,
+    color: palette.ink,
     textAlign: 'right',
   },
   body: {
     ...typography.body,
-    color: colors.muted,
+    color: palette.muted,
     textAlign: 'right',
   },
   centered: {
@@ -40,3 +43,10 @@ export const screenStyles = StyleSheet.create({
     padding: spacing.xl,
   },
 });
+}
+
+
+export function useScreenStyles() {
+  const { colors: palette } = useAppTheme();
+  return useMemo(() => createScreenStyles(palette), [palette]);
+}

@@ -1,11 +1,13 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { useOnlineResync } from '@/lib/useOnlineResync';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { fontSizes, colors, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
 import { SectionHeader } from '@/components/MobileUI';
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
@@ -94,6 +96,9 @@ function MarketplaceSectionHeader({
 }
 
 function EmptySection({ label, offline }: { label: string; offline: boolean }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   return (
     <View style={styles.emptyBox}>
       <Text style={styles.emptyText}>
@@ -105,7 +110,10 @@ function EmptySection({ label, offline }: { label: string; offline: boolean }) {
   );
 }
 
-export default function HomeMarketplaceSections() {
+export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey?: number }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { user } = useAuth();
   const [data, setData] = useState<SectionData>(EMPTY);
   const [loaded, setLoaded] = useState<Record<SectionKey, boolean>>({
@@ -117,9 +125,13 @@ export default function HomeMarketplaceSections() {
   const savedAt = useRef<Partial<Record<SectionKey, number>>>({});
   const activeRef = useRef(true);
   const loadingRef = useRef(false);
+  const forceRefreshQueuedRef = useRef(false);
 
-  const refreshStale = useCallback(async () => {
-    if (loadingRef.current) return;
+  const refreshStale = useCallback(async (force = false) => {
+    if (loadingRef.current) {
+      if (force) forceRefreshQueuedRef.current = true;
+      return;
+    }
     loadingRef.current = true;
     try {
       let state: Awaited<ReturnType<typeof NetInfo.fetch>> | null = null;
@@ -135,61 +147,62 @@ export default function HomeMarketplaceSections() {
       }
       setOffline(false);
       const now = Date.now();
-      const tasks: Promise<void>[] = [];
-      if (!savedAt.current.products || now - savedAt.current.products >= PUBLIC_LIST_TTL_MS) {
-        tasks.push(
-          fetchProducts({ page: 1, limit: 8, sortBy: 'createdAt', sortOrder: 'desc' })
-            .then(async (result) => {
-              const items = result.items.slice(0, 4).map(publicProductSnapshot);
-              await writePublicCache(CACHE_KEYS.products, items);
-              if (activeRef.current) {
-                savedAt.current.products = Date.now();
-                setData((current) => ({ ...current, products: items }));
-                setLoaded((current) => ({ ...current, products: true }));
-              }
-            })
-            .catch(() => {
-              if (activeRef.current) setLoaded((current) => ({ ...current, products: true }));
-            }),
-        );
+      // Fetch these independent, secondary sections sequentially. This avoids
+      // a burst of requests on weak mobile connections while cached content is
+      // already visible. A manual pull-to-refresh can bypass the section TTL.
+      if (force || !savedAt.current.products || now - savedAt.current.products >= PUBLIC_LIST_TTL_MS) {
+        try {
+          const result = await fetchProducts({ page: 1, limit: 8, sortBy: 'createdAt', sortOrder: 'desc' });
+          if (!activeRef.current) return;
+          const items = result.items.slice(0, 4).map(publicProductSnapshot);
+          await writePublicCache(CACHE_KEYS.products, items);
+          if (activeRef.current) {
+            savedAt.current.products = Date.now();
+            setData((current) => ({ ...current, products: items }));
+            setLoaded((current) => ({ ...current, products: true }));
+          }
+        } catch {
+          if (activeRef.current) setLoaded((current) => ({ ...current, products: true }));
+        }
       }
-      if (!savedAt.current.services || now - savedAt.current.services >= PUBLIC_LIST_TTL_MS) {
-        tasks.push(
-          fetchServiceListings({ page: 1, limit: 8 })
-            .then(async (items) => {
-              const limited = items.slice(0, 4).map(publicServiceSnapshot);
-              await writePublicCache(CACHE_KEYS.services, limited);
-              if (activeRef.current) {
-                savedAt.current.services = Date.now();
-                setData((current) => ({ ...current, services: limited }));
-                setLoaded((current) => ({ ...current, services: true }));
-              }
-            })
-            .catch(() => {
-              if (activeRef.current) setLoaded((current) => ({ ...current, services: true }));
-            }),
-        );
+      if (!activeRef.current) return;
+      if (force || !savedAt.current.services || now - savedAt.current.services >= PUBLIC_LIST_TTL_MS) {
+        try {
+          const items = await fetchServiceListings({ page: 1, limit: 8 });
+          if (!activeRef.current) return;
+          const limited = items.slice(0, 4).map(publicServiceSnapshot);
+          await writePublicCache(CACHE_KEYS.services, limited);
+          if (activeRef.current) {
+            savedAt.current.services = Date.now();
+            setData((current) => ({ ...current, services: limited }));
+            setLoaded((current) => ({ ...current, services: true }));
+          }
+        } catch {
+          if (activeRef.current) setLoaded((current) => ({ ...current, services: true }));
+        }
       }
-      if (!savedAt.current.requests || now - savedAt.current.requests >= PUBLIC_LIST_TTL_MS) {
-        tasks.push(
-          fetchOpenRequests({ page: 1, limit: 8, sort: 'newest' })
-            .then(async (result) => {
-              const items = result.items.slice(0, 4).map(publicRequestSnapshot);
-              await writePublicCache(CACHE_KEYS.requests, items);
-              if (activeRef.current) {
-                savedAt.current.requests = Date.now();
-                setData((current) => ({ ...current, requests: items }));
-                setLoaded((current) => ({ ...current, requests: true }));
-              }
-            })
-            .catch(() => {
-              if (activeRef.current) setLoaded((current) => ({ ...current, requests: true }));
-            }),
-        );
+      if (!activeRef.current) return;
+      if (force || !savedAt.current.requests || now - savedAt.current.requests >= PUBLIC_LIST_TTL_MS) {
+        try {
+          const result = await fetchOpenRequests({ page: 1, limit: 8, sort: 'newest' });
+          if (!activeRef.current) return;
+          const items = result.items.slice(0, 4).map(publicRequestSnapshot);
+          await writePublicCache(CACHE_KEYS.requests, items);
+          if (activeRef.current) {
+            savedAt.current.requests = Date.now();
+            setData((current) => ({ ...current, requests: items }));
+            setLoaded((current) => ({ ...current, requests: true }));
+          }
+        } catch {
+          if (activeRef.current) setLoaded((current) => ({ ...current, requests: true }));
+        }
       }
-      await Promise.all(tasks);
     } finally {
       loadingRef.current = false;
+      if (forceRefreshQueuedRef.current && activeRef.current) {
+        forceRefreshQueuedRef.current = false;
+        void refreshStale(true);
+      }
     }
   }, []);
 
@@ -218,6 +231,10 @@ export default function HomeMarketplaceSections() {
       activeRef.current = false;
     };
   }, [refreshStale]);
+
+  useEffect(() => {
+    if (refreshKey > 0) void refreshStale(true);
+  }, [refreshKey, refreshStale]);
 
   const hasProducts = data.products.length > 0;
   const hasServices = data.services.length > 0;
@@ -355,7 +372,7 @@ export default function HomeMarketplaceSections() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   root: {
     gap: spacing.xxl,
   },
@@ -470,7 +487,7 @@ const styles = StyleSheet.create({
   },
   ctaPrimaryText: {
     ...typography.captionStrong,
-    color: colors.white,
+    color: colors.onBrand,
   },
   ctaSecondary: {
     flex: 1,

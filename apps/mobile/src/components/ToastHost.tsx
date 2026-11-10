@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { subscribeToToasts, type ToastMessage } from '@/lib/toast';
-import { colors, radius, spacing, fontSizes } from '@/theme/tokens';
+import { radius, spacing, fontSizes, type ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 
 export function ToastHost() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
   useEffect(() => subscribeToToasts(setToast), []);
@@ -40,10 +43,12 @@ export function ToastHost() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(palette: ColorPalette) {
+  return StyleSheet.create({
   host: { position: 'absolute', top: spacing.md, left: spacing.md, right: spacing.md, zIndex: 2000, elevation: 20 },
-  toast: { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRightWidth: 4, borderRadius: radius.md, padding: spacing.md, gap: 4, shadowColor: colors.black, shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
-  title: { fontSize: fontSizes[13], fontWeight: '900', color: colors.ink, textAlign: 'right' },
-  message: { fontSize: fontSizes[12], lineHeight: 19, color: colors.muted, textAlign: 'right' },
-  action: { marginTop: spacing.xs, fontSize: fontSizes[12], fontWeight: '900', color: colors.brand, textAlign: 'right' },
+  toast: { backgroundColor: palette.surface, borderColor: palette.border, borderWidth: 1, borderRightWidth: 4, borderRadius: radius.md, padding: spacing.md, gap: 4, shadowColor: palette.black, shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
+  title: { fontSize: fontSizes[13], fontWeight: '900', color: palette.ink, textAlign: 'right' },
+  message: { fontSize: fontSizes[12], lineHeight: 19, color: palette.muted, textAlign: 'right' },
+  action: { marginTop: spacing.xs, fontSize: fontSizes[12], fontWeight: '900', color: palette.brand, textAlign: 'right' },
 });
+}

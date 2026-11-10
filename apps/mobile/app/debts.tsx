@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -7,7 +8,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchDebtSummary, fetchDebts, type DebtSummary } from '@/features/sales/sales-extra.api';
 import type { SaleRecord } from '@/features/sales/sales.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { formatSafeDate } from '@/lib/date-format';
 import { formatMoney } from '@/lib/formatters';
@@ -16,6 +17,8 @@ import { usePaginatedList } from '@/hooks/usePaginatedList';
 const money = (n: unknown, c = 'ILS') => formatMoney(n, c);
 
 export default function DebtsScreen() {
+  const { colors } = useAppTheme();
+
   const { accessToken, user, isRestoring } = useAuth();
   const userId = user?.id;
   const [summary, setSummary] = useState<DebtSummary | null>(null);

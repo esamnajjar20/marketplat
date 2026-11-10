@@ -6,7 +6,7 @@
  */
 import { Image, type ImageProps } from 'expo-image';
 import { type StyleProp, type ImageStyle } from 'react-native';
-import { colors } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 
 type AppImageProps = {
   uri?: string | null;
@@ -31,16 +31,18 @@ export function AppImage({
   style,
   resizeMode = 'cover',
   onError,
-  placeholderColor = colors.border,
+  placeholderColor,
   accessibilityLabel,
   ...rest
 }: AppImageProps) {
+  const { colors } = useAppTheme();
+  const backgroundColor = placeholderColor ?? colors.border;
   if (!uri) return null;
 
   return (
     <Image
       source={{ uri }}
-      style={[{ backgroundColor: placeholderColor }, style]}
+      style={[{ backgroundColor }, style]}
       contentFit={contentFitMap[resizeMode] ?? 'cover'}
       cachePolicy="memory-disk"
       transition={120}

@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -7,7 +8,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyActivity, type ActivityRow } from '@/features/sales/sales-extra.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { denseListPerf } from '@/lib/listPerformance';
 
 const groups = [
@@ -46,6 +47,8 @@ const dateLabel = (s: string) => {
 };
 
 export default function ActivityScreen() {
+  const { colors } = useAppTheme();
+
   const { accessToken, user, isRestoring } = useAuth();
   const [group, setGroup] = useState('ALL');
   const [q, setQ] = useState('');

@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -7,12 +8,14 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { fetchPublicCollectionProducts } from '@/features/commerce/store-management.api';
 import type { ProductSummary } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 import { formatSafeDate } from '@/lib/date-format';
 
 export default function CollectionProductsScreen() {
+  const { colors } = useAppTheme();
+
   const p = useLocalSearchParams<{ id: string | string[] }>();
   const id = Array.isArray(p.id) ? p.id[0] : p.id;
   const [items, setItems] = useState<ProductSummary[]>([]);

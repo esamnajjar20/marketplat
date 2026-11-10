@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -6,12 +7,14 @@ import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-nativ
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { fetchSellerRanking, type RankedSeller } from '@/features/discovery/discovery.api';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { ErrorState } from '@/components/MobileUI';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 
 export default function SellersRankingScreen() {
+  const { colors } = useAppTheme();
+
   const { data, loading, refreshing, error, reload } = useAsyncResource<RankedSeller[]>(
     (signal) => fetchSellerRanking(30, signal),
     { key: 'seller-ranking:30', tag: 'seller-ranking' },

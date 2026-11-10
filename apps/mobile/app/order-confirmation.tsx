@@ -1,10 +1,16 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
+import { useMemo } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 import { AppText } from '@/components/ui/AppText';
 import { PageShell, PrimaryButton, SectionCard, Notice } from '@/components/MobileUI';
-import { fontSizes, colors, spacing, typography } from '@/theme/tokens';
+import { fontSizes, spacing, typography } from '@/theme/tokens';
 
 export default function OrderConfirmationScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const params = useLocalSearchParams<{ orderId?: string | string[]; status?: string | string[] }>();
   const orderId = Array.isArray(params.orderId) ? params.orderId[0] : params.orderId;
   const status = Array.isArray(params.status) ? params.status[0] : params.status;
@@ -40,10 +46,10 @@ export default function OrderConfirmationScreen() {
   );
 }
 
-const styles = {
+const createThemeStyles = (colors: ColorPalette) => ({
   mark: { width: 64, height: 64, borderRadius: 32, alignSelf: 'center' as const, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: colors.successSoft },
   check: { color: colors.success, fontSize: fontSizes[34], fontWeight: '800' as const },
   title: { color: colors.ink, ...typography.title, textAlign: 'center' as const },
   body: { color: colors.muted, ...typography.body, textAlign: 'center' as const, lineHeight: 24 },
   orderRef: { color: colors.brandOnSoft, ...typography.captionStrong, textAlign: 'center' as const, padding: spacing.sm, backgroundColor: colors.brandSoft, borderRadius: 10 },
-};
+});

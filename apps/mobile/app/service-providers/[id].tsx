@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -7,12 +8,14 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { fetchServiceProvider, fetchProviderServices, type ProviderSummary } from '@/features/services/providers.api';
 import type { ServiceListing } from '@/features/services/services.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { ShareButton } from '@/components/ui/ShareButton';
 
 function price(value: ServiceListing['price'], type?: string): string { if (type==='NEGOTIABLE'||value==null) return 'السعر عند التواصل'; const n=Number(value); return Number.isFinite(n)?formatMoney(n):'السعر غير متاح'; }
 export default function ServiceProviderDetailScreen(){
+  const { colors } = useAppTheme();
+
  const params=useLocalSearchParams<{id?:string|string[]}>(); const id=Array.isArray(params.id)?params.id[0]:params.id;
  const [provider,setProvider]=useState<ProviderSummary|null>(null); const [services,setServices]=useState<ServiceListing[]>([]); const [page,setPage]=useState(1); const [totalPages,setTotalPages]=useState(1); const [loading,setLoading]=useState(true); const [loadingMore,setLoadingMore]=useState(false); const [error,setError]=useState(''); const seq=useRef(0);
  const load=useCallback(async()=>{const current=++seq.current;if(!id){setLoading(false);setError('معرّف مقدم الخدمة غير صالح.');return;}setLoading(true);setError('');try{const[pR,sR]=await Promise.allSettled([fetchServiceProvider(id),fetchProviderServices(id,1,20)]);if(current!==seq.current)return;if(pR.status==='rejected')throw pR.reason;setProvider(pR.value);if(sR.status==='fulfilled'){setServices(sR.value.items);setPage(sR.value.page);setTotalPages(sR.value.totalPages);}else setError(sR.reason instanceof Error?sR.reason.message:'تعذر تحميل خدمات مقدم الخدمة.');}catch(e){if(current===seq.current)setError(e instanceof Error?e.message:'تعذر تحميل الملف.');}finally{if(current===seq.current)setLoading(false);}},[id]);

@@ -1,3 +1,5 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -12,7 +14,7 @@ import { MediaGallery } from '@/components/ui/MediaGallery';
 import { ServiceRequestTimeline } from '@/components/ui/ServiceRequestTimeline';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { statusLabel } from '@/lib/status-labels';
-import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
 
 const STATUS: Record<string, string> = { PENDING: 'بانتظار الرد', ACCEPTED: 'مقبول', REJECTED: 'مرفوض', IN_PROGRESS: 'قيد التنفيذ', COMPLETED: 'مكتمل', CANCELLED: 'ملغي', EXPIRED: 'منتهي', DISPUTED: 'قيد المراجعة' };
@@ -21,6 +23,9 @@ const dateTime = (v?: string | null) => { if (!v) return null; const d = new Dat
 type Action = 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'DISPUTED';
 
 export default function ServiceRequestDetailScreen() {
+  const { colors } = useAppTheme();
+  const s = useMemo(() => createThemeS(colors), [colors]);
+
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { user, accessToken, csrfToken } = useAuth();
@@ -110,12 +115,12 @@ export default function ServiceRequestDetailScreen() {
   </SafeAreaView></KeyboardAvoidingView>;
 }
 
-const s = StyleSheet.create({
+const createThemeS = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.control, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }, headerTitle: { color: colors.ink, fontWeight: '900', fontSize: fontSizes[17] }, refresh: { minWidth: 48, minHeight: 44, alignItems: 'center', justifyContent: 'center' }, refreshText: { color: colors.brand, fontWeight: '800' },
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48 }, card: { padding: spacing.lg, gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, backgroundColor: colors.surface },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, flexWrap: 'wrap' }, title: { flex: 1, color: colors.ink, fontSize: fontSizes[19], lineHeight: 27, fontWeight: '900', textAlign: 'right' }, status: { color: colors.brandOnSoft, backgroundColor: colors.brandSoft, borderRadius: radius.pill, overflow: 'hidden', paddingHorizontal: spacing.md, paddingVertical: 6, fontSize: fontSizes[12], fontWeight: '800' },
   sectionTitle: { ...typography.subtitle, color: colors.ink, textAlign: 'right' }, label: { ...typography.captionStrong, color: colors.muted, textAlign: 'right' }, body: { ...typography.body, color: colors.ink, textAlign: 'right', lineHeight: 25 }, metaGroup: { gap: spacing.xs, paddingTop: spacing.xs, borderTopWidth: 1, borderTopColor: colors.border }, meta: { ...typography.caption, color: colors.muted, textAlign: 'right' },
-  actions: { gap: spacing.sm }, action: { minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.md, borderRadius: radius.control, backgroundColor: colors.brand }, actionText: { color: colors.white, fontWeight: '900', textAlign: 'center' }, secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.brand }, secondaryText: { color: colors.brand, fontWeight: '900', textAlign: 'center' }, danger: { backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.dangerBorder }, dangerText: { color: colors.danger, fontWeight: '900', textAlign: 'center' }, disabled: { opacity: 0.55 }, input: { minHeight: 52, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.control, paddingHorizontal: spacing.md, color: colors.ink, textAlign: 'right', backgroundColor: colors.canvas }, multiline: { minHeight: 92, padding: spacing.md, textAlignVertical: 'top', writingDirection: 'rtl' }, dispute: { gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md }, state: { margin: spacing.lg, padding: spacing.xl, alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, backgroundColor: colors.surface }, muted: { color: colors.muted, textAlign: 'right', lineHeight: 22 }, error: { color: colors.danger, textAlign: 'right', lineHeight: 22 },
+  actions: { gap: spacing.sm }, action: { minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.md, borderRadius: radius.control, backgroundColor: colors.brand }, actionText: { color: colors.onBrand, fontWeight: '900', textAlign: 'center' }, secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.brand }, secondaryText: { color: colors.brand, fontWeight: '900', textAlign: 'center' }, danger: { backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.dangerBorder }, dangerText: { color: colors.danger, fontWeight: '900', textAlign: 'center' }, disabled: { opacity: 0.55 }, input: { minHeight: 52, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.control, paddingHorizontal: spacing.md, color: colors.ink, textAlign: 'right', backgroundColor: colors.canvas }, multiline: { minHeight: 92, padding: spacing.md, textAlignVertical: 'top', writingDirection: 'rtl' }, dispute: { gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md }, state: { margin: spacing.lg, padding: spacing.xl, alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, backgroundColor: colors.surface }, muted: { color: colors.muted, textAlign: 'right', lineHeight: 22 }, error: { color: colors.danger, textAlign: 'right', lineHeight: 22 },
 });

@@ -3,7 +3,7 @@ import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from './AppHeader';
 import { ErrorState, LoadingState } from './Feedback';
-import { uiStyles as s } from './styles';
+import { useUIStyles } from './styles';
 
 export function DetailScaffold({
   title,
@@ -25,6 +25,7 @@ export function DetailScaffold({
   footer?: ReactNode;
   children?: ReactNode;
 }) {
+  const s = useUIStyles();
   return (
     <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
       <AppHeader title={title} right={right} />

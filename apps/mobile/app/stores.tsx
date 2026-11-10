@@ -1,5 +1,7 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,9 +16,12 @@ import {
   SearchBar,
 } from '@/components/MobileUI';
 import { CatalogCard } from '@/components/MarketCards';
-import { colors, spacing, typography } from '@/theme/tokens';
+import { spacing, typography } from '@/theme/tokens';
 
 export default function StoresScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const [items, setItems] = useState<StoreSummary[]>([]);
   const [query, setQuery] = useState('');
   const [submitted, setSubmitted] = useState('');
@@ -157,7 +162,7 @@ export default function StoresScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48 },
   subtitle: { ...typography.caption, color: colors.muted, textAlign: 'right' },

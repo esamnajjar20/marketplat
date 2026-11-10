@@ -1,3 +1,5 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -7,10 +9,13 @@ import { AppImage } from '@/components/AppImage';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteStory, fetchStoryFeed, fetchUserStories, markStoryViewed, type Story } from '@/features/stories/stories.api';
 import { shareMarketPlatResource } from '@/features/sharing/deep-links';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 
 const STORY_DURATION_MS = 6500;
 export default function StoryViewerScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const params = useLocalSearchParams<{ id?: string | string[]; userId?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const userId = Array.isArray(params.userId) ? params.userId[0] : params.userId;
@@ -79,4 +84,4 @@ export default function StoryViewerScreen() {
     </View>:null}
   </View>;
 }
-const styles=StyleSheet.create({safe:{flex:1,backgroundColor:colors.ink,paddingTop:36,paddingBottom:16},top:{height:52,paddingHorizontal:spacing.md,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},action:{color:colors.brandSoft,fontWeight:'900',padding:spacing.sm},count:{color:colors.white,fontWeight:'800'},center:{flex:1,alignItems:'center',justifyContent:'center',padding:spacing.xl,gap:spacing.md},muted:{color:colors.borderStrong},error:{color:colors.dangerSoft,textAlign:'center',padding:spacing.md},button:{backgroundColor:colors.brand,padding:spacing.md,borderRadius:radius.md},buttonText:{color:colors.white,fontWeight:'800'},stage:{flex:1,marginHorizontal:spacing.sm,marginBottom:spacing.sm,borderRadius:radius.lg,padding:spacing.md,overflow:'hidden'},progressRow:{flexDirection:'row',gap:4},progressTrack:{height:3,flex:1,backgroundColor:colors.storyProgressTrack,borderRadius:2,overflow:'hidden'},progressFill:{height:3,backgroundColor:colors.white},author:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:spacing.md},authorName:{textAlign:'right',color:colors.white,fontWeight:'900',fontSize:fontSizes[16]},authorMeta:{textAlign:'right',color:colors.brandSoft,fontSize:fontSizes[12],marginTop:3},media:{flex:1,width:'100%',minHeight:180},textOnly:{flex:1,alignItems:'center',justifyContent:'center',padding:spacing.xl},storyText:{fontSize:fontSizes[28],fontWeight:'900',textAlign:'center',lineHeight:40,color:colors.white},caption:{color:colors.white,textAlign:'center',padding:spacing.md,fontSize:fontSizes[16],fontWeight:'700'},nav:{flexDirection:'row',justifyContent:'space-between',paddingTop:spacing.md},navButton:{minHeight:48,padding:spacing.md,backgroundColor:colors.storyNavigationOverlay,borderRadius:radius.md,minWidth:100,alignItems:'center'},navText:{color:colors.white,fontWeight:'800'},tapZones:{position:'absolute',left:0,right:0,top:70,bottom:75,flexDirection:'row'},tapZone:{flex:1},tapZonePause:{flex:1}});
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({safe:{flex:1,backgroundColor:colors.fullscreenBackdrop,paddingTop:36,paddingBottom:16},top:{height:52,paddingHorizontal:spacing.md,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},action:{color:colors.brandSoft,fontWeight:'900',padding:spacing.sm},count:{color:colors.white,fontWeight:'800'},center:{flex:1,alignItems:'center',justifyContent:'center',padding:spacing.xl,gap:spacing.md},muted:{color:colors.borderStrong},error:{color:colors.dangerSoft,textAlign:'center',padding:spacing.md},button:{backgroundColor:colors.brand,padding:spacing.md,borderRadius:radius.md},buttonText:{color:colors.onBrand,fontWeight:'800'},stage:{flex:1,marginHorizontal:spacing.sm,marginBottom:spacing.sm,borderRadius:radius.lg,padding:spacing.md,overflow:'hidden'},progressRow:{flexDirection:'row',gap:4},progressTrack:{height:3,flex:1,backgroundColor:colors.storyProgressTrack,borderRadius:2,overflow:'hidden'},progressFill:{height:3,backgroundColor:colors.white},author:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:spacing.md},authorName:{textAlign:'right',color:colors.white,fontWeight:'900',fontSize:fontSizes[16]},authorMeta:{textAlign:'right',color:colors.brandSoft,fontSize:fontSizes[12],marginTop:3},media:{flex:1,width:'100%',minHeight:180},textOnly:{flex:1,alignItems:'center',justifyContent:'center',padding:spacing.xl},storyText:{fontSize:fontSizes[28],fontWeight:'900',textAlign:'center',lineHeight:40,color:colors.white},caption:{color:colors.white,textAlign:'center',padding:spacing.md,fontSize:fontSizes[16],fontWeight:'700'},nav:{flexDirection:'row',justifyContent:'space-between',paddingTop:spacing.md},navButton:{minHeight:48,padding:spacing.md,backgroundColor:colors.storyNavigationOverlay,borderRadius:radius.md,minWidth:100,alignItems:'center'},navText:{color:colors.white,fontWeight:'800'},tapZones:{position:'absolute',left:0,right:0,top:70,bottom:75,flexDirection:'row'},tapZone:{flex:1},tapZonePause:{flex:1}});

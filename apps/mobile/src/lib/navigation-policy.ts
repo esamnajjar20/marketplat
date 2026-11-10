@@ -2,6 +2,40 @@ import type { GlyphName } from '@/components/Icons';
 
 export type MainTabId = 'home' | 'explore' | 'add' | 'messages' | 'account';
 export type DrawerSection = 'السوق' | 'حسابك' | 'المساعدة';
+export type DrawerCapability = 'sellerWorkspace' | 'storeMembership' | 'serviceProvider';
+export type NavigationCapabilities = Readonly<Record<DrawerCapability, boolean>>;
+
+/** One canonical mapping from account API facts to navigation capabilities. */
+export function resolveNavigationCapabilities(input: {
+  hasSellerProfile: boolean;
+  activeStoreMembershipCount: number;
+  hasServiceProviderProfile: boolean;
+}): NavigationCapabilities {
+  const hasMembership = input.activeStoreMembershipCount > 0;
+  return {
+    sellerWorkspace: input.hasSellerProfile || hasMembership,
+    storeMembership: hasMembership,
+    serviceProvider: input.hasServiceProviderProfile,
+  };
+}
+
+let navigationCapabilitiesRevision = 0;
+const navigationCapabilitiesListeners = new Set<() => void>();
+
+/** Notify open navigation surfaces that seller/provider capabilities changed. */
+export function invalidateNavigationCapabilities(): void {
+  navigationCapabilitiesRevision += 1;
+  navigationCapabilitiesListeners.forEach((listener) => listener());
+}
+
+export function getNavigationCapabilitiesRevision(): number {
+  return navigationCapabilitiesRevision;
+}
+
+export function subscribeNavigationCapabilities(listener: () => void): () => void {
+  navigationCapabilitiesListeners.add(listener);
+  return () => navigationCapabilitiesListeners.delete(listener);
+}
 
 export const MAIN_TABS: ReadonlyArray<{
   id: MainTabId;
@@ -30,7 +64,7 @@ export const MAIN_TABS: ReadonlyArray<{
 ];
 
 export const DRAWER_ITEMS: ReadonlyArray<{
-  label: string; path: string; icon: GlyphName; section: DrawerSection;
+  label: string; path: string; icon: GlyphName; section: DrawerSection; capability?: DrawerCapability;
 }> = [
   // —— السوق: اكتشاف وتصفّح
   { label: 'الرئيسية', path: '/', icon: 'home', section: 'السوق' },
@@ -47,9 +81,11 @@ export const DRAWER_ITEMS: ReadonlyArray<{
   { label: 'المفضلة', path: '/favorites', icon: 'favorite', section: 'حسابك' },
   { label: 'إعلاناتي', path: '/my-ads', icon: 'ads', section: 'حسابك' },
   { label: 'طلباتي', path: '/orders', icon: 'orders', section: 'حسابك' },
-  { label: 'لوحة البائع', path: '/seller-dashboard', icon: 'store', section: 'حسابك' },
-  { label: 'متاجري', path: '/my-stores', icon: 'store', section: 'حسابك' },
-  { label: 'طلبات الخدمات', path: '/service-requests', icon: 'service', section: 'حسابك' },
+  { label: 'ملف البائع', path: '/seller-profile', icon: 'account', section: 'حسابك' },
+  { label: 'لوحة البائع', path: '/seller-dashboard', icon: 'store', section: 'حسابك', capability: 'sellerWorkspace' },
+  { label: 'متاجري', path: '/my-stores', icon: 'store', section: 'حسابك', capability: 'storeMembership' },
+  { label: 'ملف مقدم الخدمة', path: '/service-provider-profile', icon: 'service', section: 'حسابك' },
+  { label: 'طلبات الخدمات', path: '/service-requests', icon: 'service', section: 'حسابك', capability: 'serviceProvider' },
   { label: 'العمليات دون اتصال', path: '/offline-queue', icon: 'orders', section: 'حسابك' },
   // —— المساعدة
   { label: 'الإعدادات', path: '/settings', icon: 'settings', section: 'المساعدة' },
@@ -118,4 +154,16 @@ export function requiresAuthenticatedUser(pathname: string): boolean {
 
 export function getRouteAccess(pathname: string): 'public' | 'authenticated' {
   return requiresAuthenticatedUser(pathname) ? 'authenticated' : 'public';
+}
+
+/** Guests only see destinations they can open without an authentication redirect. */
+export function getVisibleDrawerItems(
+  isAuthenticated: boolean,
+  capabilities?: NavigationCapabilities,
+) {
+  return DRAWER_ITEMS.filter((item) => {
+    if (!isAuthenticated && getRouteAccess(item.path) !== 'public') return false;
+    if (!isAuthenticated || !item.capability) return true;
+    return capabilities?.[item.capability] === true;
+  });
 }

@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -10,10 +11,12 @@ import { fetchBlockedUsers, fetchFollowStatus, fetchPublicUser, fetchPublicUserA
 import { startConversationWithUser } from '@/features/messaging/messaging.api';
 import { PageShell, Notice, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { AppImage } from '@/components/AppImage';
-import { fontSizes, colors } from '@/theme/tokens';
+import { fontSizes } from '@/theme/tokens';
 
 function price(value: PublicAd['price']) { if (value === null || value === undefined || value === '') return 'السعر عند التواصل'; const n = Number(value); return Number.isFinite(n) ? formatMoney(n) : 'السعر غير متاح'; }
 export default function PublicProfileScreen() {
+  const { colors } = useAppTheme();
+
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { getAccessToken, csrfToken, user, isRestoring } = useAuth();

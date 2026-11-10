@@ -1,3 +1,5 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -6,7 +8,7 @@ import { AppImage } from '@/components/AppImage';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import type { TextInputHandle } from '@/components/ui/Field';
 import { AppText } from '@/components/ui/AppText';
-import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ApiError } from '@/api/client';
 import { fetchProduct, type ProductSummary } from '@/features/commerce/commerce.api';
@@ -18,6 +20,9 @@ const money = (value: unknown) => formatMoney(value);
 function makeKey() { return `mob-order-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`; }
 
 export default function OrderCheckoutScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const params = useLocalSearchParams<{ productId?: string | string[] }>();
   const productId = Array.isArray(params.productId) ? params.productId[0] : params.productId;
   const { user, accessToken, csrfToken, isRestoring } = useAuth();
@@ -151,7 +156,7 @@ export default function OrderCheckoutScreen() {
   );
 }
 
-const styles = {
+const createThemeStyles = (colors: ColorPalette) => ({
   keyboard: { flex: 1 },
   loading: { flex: 1, alignItems: 'center' as const, justifyContent: 'center' as const, gap: spacing.md, padding: spacing.xl },
   muted: { color: colors.muted, ...typography.caption, textAlign: 'right' as const },
@@ -174,4 +179,4 @@ const styles = {
   total: { color: colors.brand, ...typography.subtitle },
   note: { color: colors.muted, ...typography.caption, textAlign: 'right' as const, lineHeight: 20 },
   disabled: { opacity: 0.45 },
-};
+});

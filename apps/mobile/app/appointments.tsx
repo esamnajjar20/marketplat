@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, RefreshControl, View } from 'react-native';
@@ -6,7 +7,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyAppointments, updateAppointmentStatus, type AppointmentRow } from '@/features/appointments/appointments.api';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { formatDate } from '@/lib/formatters';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { marketListPerf } from '@/lib/listPerformance';
@@ -14,6 +15,8 @@ import { marketListPerf } from '@/lib/listPerformance';
 const labels: Record<string, string> = { SCHEDULED: 'مجدول', COMPLETED: 'مكتمل', CANCELLED: 'ملغى', NO_SHOW: 'لم يحضر' };
 
 export default function AppointmentsScreen() {
+  const { colors } = useAppTheme();
+
   const { accessToken, getAccessToken, csrfToken, user, isRestoring } = useAuth();
   const [providerId, setProviderId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState('');

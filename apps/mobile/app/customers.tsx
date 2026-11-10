@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -12,13 +13,15 @@ import {
   type CustomerSummary,
 } from '@/features/sales/sales-extra.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { formatMoney } from '@/lib/formatters';
 
 
 export default function CustomersScreen() {
+  const { colors } = useAppTheme();
+
   const { getAccessToken, csrfToken, user, isRestoring } = useAuth();
   const userId = user?.id;
   const [summary, setSummary] = useState<CustomerSummary | null>(null);

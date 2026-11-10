@@ -1,13 +1,15 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { AppImage } from '@/components/AppImage';
 import { DrawerMenuButton } from '@/components/MobileDrawer';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fontSizes, colors, radius, spacing, ux } from '@/theme/tokens';
+import { fontSizes, radius, spacing, ux } from '@/theme/tokens';
 import { EmptyState, ErrorState, LoadingState, SectionHeader, SkeletonList } from '@/components/MobileUI';
 import { AdCard } from '@/components/MarketCards';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -18,7 +20,6 @@ import type { AdListItem } from '@/features/ads/ads.api';
 import { marketListPerf } from '@/lib/listPerformance';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { useHomeAds } from '@/features/discovery/useHomeAds';
-import { useHomeServices } from '@/features/discovery/useHomeServices';
 import { useHomeScreenState } from '@/features/discovery/useHomeScreenState';
 import { useOnlineResync } from '@/lib/useOnlineResync';
 
@@ -28,13 +29,20 @@ type HomeListRow =
   | { type: 'ad'; key: string; ad: AdListItem }
   | { type: 'footer' };
 
+const HOME_VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 1 } as const;
+
 /**
  * Home — orchestration only (Phase 2).
  * State: useHomeScreenState (search/filters/sort/favorites)
- * Data: useHomeAds + useHomeServices
+ * Data: useHomeAds, plus lazy-mounted marketplace/community sections
  */
 export default function HomeScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { user, isRestoring } = useAuth();
+  const [sectionsVisible, setSectionsVisible] = useState(false);
+  const [sectionsRefreshKey, setSectionsRefreshKey] = useState(0);
 
   const {
     query,
@@ -81,22 +89,26 @@ export default function HomeScreen() {
     filters,
     sort: { sortBy, sortOrder },
   });
-  const { loadServices } = useHomeServices();
-
   const loadAdsRef = useRef(loadAds);
-  const loadServicesRef = useRef(loadServices);
   useEffect(() => {
     loadAdsRef.current = loadAds;
   }, [loadAds]);
-  useEffect(() => {
-    loadServicesRef.current = loadServices;
-  }, [loadServices]);
 
   const resyncPublic = useCallback(() => {
     void loadAdsRef.current(true);
-    void loadServicesRef.current(true);
   }, []);
   useOnlineResync(resyncPublic);
+
+  // Do not mount secondary marketplace/community sections (and their network
+  // requests) until the user actually scrolls them into view.
+  const onViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: Array<{ item: HomeListRow }> }) => {
+      if (viewableItems.some((token) => (token.item as HomeListRow | undefined)?.type === 'sections')) {
+        setSectionsVisible(true);
+      }
+    },
+    [],
+  );
 
   const listRows = useMemo<HomeListRow[]>(() => [
     { type: 'header' },
@@ -110,11 +122,14 @@ export default function HomeScreen() {
       <SafeAreaView style={styles.safeArea} edges={['top']}>
       <FlatList
         data={listRows}
+        extraData={sectionsVisible}
         keyExtractor={(item) => item.type === 'ad' ? `ad:${item.key}` : item.type}
         {...marketListPerf}
+        viewabilityConfig={HOME_VIEWABILITY_CONFIG}
+        onViewableItemsChanged={onViewableItemsChanged}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { void Promise.all([loadAds(true), loadServices(true)]); }} tintColor={colors.brand} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { if (sectionsVisible) setSectionsRefreshKey((value) => value + 1); void loadAds(true); }} tintColor={colors.brand} />}
         ItemSeparatorComponent={({ leadingItem }) => {
           if (leadingItem && typeof leadingItem === 'object' && 'type' in leadingItem && leadingItem.type === 'ad') {
             return <View style={{ height: spacing.md }} />;
@@ -259,10 +274,13 @@ export default function HomeScreen() {
           }
 
           if (item.type === 'sections') {
+            if (!sectionsVisible) {
+              return <View style={styles.deferredSectionsPlaceholder} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />;
+            }
             return (
               <View style={styles.sectionsBlock}>
                 <HomeCommunitySections />
-                <HomeMarketplaceSections />
+                <HomeMarketplaceSections refreshKey={sectionsRefreshKey} />
               </View>
             );
           }
@@ -422,9 +440,10 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   pressed: { opacity: ux.pressedOpacity },
   safeArea: { flex: 1, backgroundColor: colors.canvas },
+  deferredSectionsPlaceholder: { minHeight: 1 },
   content: {
     paddingHorizontal: spacing.lg,
     paddingBottom: 88,
@@ -459,7 +478,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoText: {
-    color: colors.white,
+    color: colors.onBrand,
     fontSize: fontSizes[20],
     fontWeight: '700',
   },
@@ -514,7 +533,7 @@ const styles = StyleSheet.create({
     minHeight: 50,
     gap: spacing.sm,
     borderWidth: 1.5,
-    borderColor: colors.borderStrong ?? colors.border,
+    borderColor: colors.controlBorder,
   },
   searchIcon: {
     color: colors.muted,
@@ -542,7 +561,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   searchSubmitText: {
-    color: colors.white,
+    color: colors.onBrand,
     fontSize: fontSizes[13],
     fontWeight: '700',
   },
@@ -575,7 +594,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   quickChipGlyphPrimary: {
-    color: colors.white,
+    color: colors.onBrand,
   },
   quickChipTitle: {
     color: colors.ink,
@@ -583,7 +602,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   quickChipTitlePrimary: {
-    color: colors.white,
+    color: colors.onBrand,
   },
 
   // أقسام المجتمع والسوق
@@ -635,7 +654,7 @@ const styles = StyleSheet.create({
   filterInput: {
     minHeight: 44,
     borderWidth: 1,
-    borderColor: colors.borderStrong ?? colors.border,
+    borderColor: colors.controlBorder,
     borderRadius: 12,
     backgroundColor: colors.canvas,
     paddingHorizontal: spacing.md,
@@ -710,7 +729,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   applyFiltersText: {
-    color: colors.white,
+    color: colors.onBrand,
     fontWeight: '700',
     fontSize: fontSizes[13],
   },

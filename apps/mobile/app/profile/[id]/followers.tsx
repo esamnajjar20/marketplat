@@ -1,10 +1,11 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fetchUserFollowList, type FollowListItem } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -13,6 +14,8 @@ const PAGE_SIZE = 20;
 const itemKey = (item: FollowListItem) => item.id;
 
 export default function FollowersScreen() {
+  const { colors } = useAppTheme();
+
   const p = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(p.id) ? p.id[0] : p.id;
   const list = usePaginatedList<FollowListItem>({

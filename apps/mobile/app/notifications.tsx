@@ -1,7 +1,9 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppIcon } from '@/components/Icons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState , useMemo} from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { denseListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
@@ -20,7 +22,7 @@ import {
   ErrorState,
   LoadingState,
 } from '@/components/MobileUI';
-import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
 import { toAppHref } from '@/lib/typed-navigation';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -89,6 +91,9 @@ function destination(item: AppNotification): string | null {
 function notificationIsRead(item: AppNotification): boolean { return Boolean(item.readAt || item.isRead); }
 
 export default function NotificationsScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { user, getAccessToken, csrfToken, isRestoring } = useAuth();
   const { counts, refresh: refreshUnreadCounts } = useUnreadCounts();
   const token = getAccessToken();
@@ -240,7 +245,7 @@ export default function NotificationsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   link: { color: colors.brand, ...typography.captionStrong },
   disabled: { opacity: 0.45 },

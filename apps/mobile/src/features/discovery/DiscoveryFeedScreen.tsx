@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppIcon } from '@/components/Icons';
@@ -6,7 +7,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, View } from 'react-nativ
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMixedRecommendations, type RecommendationItem } from './discovery.api';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 import { AppImage } from '@/components/AppImage';
 import { toAppHref } from '@/lib/typed-navigation';
 import { formatMoney } from '@/lib/formatters';
@@ -18,6 +19,8 @@ function title(row: FeedRow) { return row.item.title || row.item.name || 'عنص
 function subtitle(row: FeedRow) { return row.kind === 'product' ? row.item.store?.name || 'منتج من متجر' : row.kind === 'service' ? row.item.provider?.displayName || row.item.provider?.user?.name || 'مقدم خدمة' : row.item.user?.name || row.item.city || 'إعلان'; }
 function price(row: FeedRow) { if (row.item.price === null || row.item.price === undefined || row.item.price === '') return ''; const n = Number(row.item.price); return Number.isFinite(n) ? formatMoney(n) : String(row.item.price); }
 export default function DiscoveryFeedScreen({ trending = false, forYou = false }: { trending?: boolean; forYou?: boolean }) {
+  const { colors } = useAppTheme();
+
   const { accessToken, user, isRestoring } = useAuth();
   const [rows, setRows] = useState<FeedRow[]>([]); const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState('');
   const seq = useRef(0);

@@ -1,8 +1,8 @@
 import { useState, type Ref, type ComponentRef } from 'react';
 import { TextInput, View, type TextInputProps } from 'react-native';
 import { AppText as Text } from './AppText';
-import { colors } from '@/theme/tokens';
-import { uiStyles as s } from './styles';
+import { useAppTheme } from '@/theme/ThemeProvider';
+import { useUIStyles } from './styles';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 
 /** Shared TextInput ref handle for cross-component input chaining. */
@@ -52,6 +52,8 @@ export function Field({
   inputRef?: Ref<TextInputHandle>;
 }) {
   const [focused, setFocused] = useState(false);
+  const s = useUIStyles();
+  const { colors } = useAppTheme();
   return (
     <View style={s.field}>
       <Text style={s.label}>{label}</Text>

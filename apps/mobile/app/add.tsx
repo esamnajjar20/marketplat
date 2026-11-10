@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useState } from 'react';
 import { router } from 'expo-router';
@@ -7,7 +8,7 @@ import { fetchMyStore } from '@/features/commerce/commerce.api';
 import { fetchMyActiveStoreMemberships } from '@/features/commerce/store-management.api';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
 import { ListRow, Notice, PageShell, SectionHeader } from '@/components/MobileUI';
-import { colors, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 
 const groups = [
   {
@@ -34,6 +35,8 @@ const groups = [
 type AddDestinationPath = (typeof groups)[number]['items'][number]['path'];
 
 export default function AddScreen() {
+  const { colors } = useAppTheme();
+
   const { user, accessToken } = useAuth();
   const [checkingPath, setCheckingPath] = useState('');
   const [error, setError] = useState('');

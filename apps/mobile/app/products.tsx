@@ -1,7 +1,9 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
-import { useEffect, useState } from 'react';
+import { useEffect, useState , useMemo} from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -18,10 +20,13 @@ import {
   SecondaryButton,
 } from '@/components/MobileUI';
 import { ProductCard } from '@/components/ui/ProductCard';
-import { colors, spacing, typography } from '@/theme/tokens';
+import { spacing, typography } from '@/theme/tokens';
 
 
 export default function ProductsScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { user, accessToken } = useAuth();
   const params = useLocalSearchParams<{ storeId?: string | string[]; categoryId?: string | string[] }>();
   const storeParam = Array.isArray(params.storeId) ? params.storeId[0] : params.storeId;
@@ -156,7 +161,7 @@ export default function ProductsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48 },
   subtitle: { ...typography.caption, color: colors.muted, textAlign: 'right' },

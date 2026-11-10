@@ -1,8 +1,10 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatDate, formatMoney, formatNumber } from '@/lib/formatters';
 import { AppIcon } from '@/components/Icons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState , useMemo} from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fetchProduct, fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
@@ -16,7 +18,7 @@ import { ProductAttributeList } from '@/components/ui/ProductAttributeList';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { ShareButton } from '@/components/ui/ShareButton';
 import { ProductCard } from '@/components/ui/ProductCard';
-import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
 
 function money(value: unknown): string {
@@ -53,6 +55,9 @@ function displayPayments(value: unknown): string[] {
 }
 
 export default function ProductDetailScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { user, accessToken, csrfToken } = useAuth();
@@ -149,7 +154,7 @@ export default function ProductDetailScreen() {
   </DetailScaffold>;
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   pad: { paddingHorizontal: spacing.lg, gap: spacing.lg },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   titleCopy: { flex: 1, gap: spacing.xs },

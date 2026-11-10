@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -7,12 +8,14 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStore } from '@/features/commerce/commerce.api';
 import { fetchMyActiveStoreMemberships, fetchStoreMembers, inviteStoreMember, removeStoreMember, updateStoreMemberRole, type StoreMember } from '@/features/commerce/store-management.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors } from '@/theme/tokens';
+import { fontSizes } from '@/theme/tokens';
 import { roleLabel } from '@/lib/status-labels';
 
 const roles = [['MANAGER', 'مدير'], ['EDITOR', 'محرر'], ['STAFF', 'موظف']] as const;
 
 export default function StoreTeamScreen() {
+  const { colors } = useAppTheme();
+
   const { accessToken, csrfToken, user } = useAuth();
   const routeParams = useLocalSearchParams<{ storeId?: string | string[] }>();
   const requestedStoreId = Array.isArray(routeParams.storeId) ? routeParams.storeId[0] : routeParams.storeId;

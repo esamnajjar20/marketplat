@@ -1,6 +1,9 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
+import { useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
-import { colors, radius, spacing, fontSizes } from '@/theme/tokens';
+import { radius, spacing, fontSizes } from '@/theme/tokens';
 
 export type ActionSheetOption = {
   key: string;
@@ -19,6 +22,9 @@ type Props = {
 
 /** Non-destructive choice sheet; keep native Alert for consequential confirmations. */
 export function ActionSheet({ visible, title, description, options, onClose }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <View style={styles.root} accessibilityViewIsModal>
@@ -49,7 +55,7 @@ export function ActionSheet({ visible, title, description, options, onClose }: P
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end', alignItems: 'center', backgroundColor: colors.modalBackdrop },
   backdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   sheet: { width: '100%', maxWidth: 560, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xl, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, backgroundColor: colors.surface, gap: spacing.sm },

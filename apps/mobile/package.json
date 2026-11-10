@@ -23,7 +23,8 @@
     "verify:phase3": "node ./scripts/verify-phase3-native-integrations.mjs",
     "verify:phase4": "node ./scripts/verify-phase4-offline-security.mjs",
     "verify:static": "node ./scripts/run-all-verifications.mjs",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "verify:theme": "node ./scripts/verify-theme-system.mjs"
   },
   "dependencies": {
     "@expo/dom-webview": "~58.0.2",

@@ -1,3 +1,5 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -7,8 +9,8 @@ import { fetchPublicCategories, flattenPublicCategories, type PublicCategory } f
 import { searchMarketplace, type SearchResult } from '@/features/discovery/discovery.api';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
-import { colors, elevation, fontSizes, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { elevation, fontSizes, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
+import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -96,6 +98,9 @@ function Chip({
   onPress: () => void;
   filled?: boolean;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -121,6 +126,9 @@ function Chip({
 }
 
 export default function SearchScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const params = useLocalSearchParams<{
     q?: string | string[];
     categoryId?: string | string[];
@@ -662,7 +670,7 @@ export default function SearchScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   flex: { flex: 1 },
   listContent: {
@@ -711,7 +719,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     gap: spacing.sm,
     borderWidth: 1.5,
-    borderColor: colors.borderStrong ?? colors.border,
+    borderColor: colors.controlBorder,
     ...elevation.xs,
   },
   searchIcon: {
@@ -735,12 +743,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
     borderRadius: 10,
     paddingHorizontal: spacing.md,
-    minHeight: 36,
+    minHeight: 44,
+    minWidth: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
   searchBtnText: {
-    color: colors.white,
+    color: colors.onBrand,
     fontSize: fontSizes[13],
     fontWeight: '700',
   },
@@ -751,11 +760,12 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   chip: {
-    minHeight: 36,
+    minHeight: 44,
+    minWidth: 44,
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     borderWidth: 1.5,
-    borderColor: colors.borderStrong ?? colors.border,
+    borderColor: colors.controlBorder,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
@@ -776,7 +786,7 @@ const styles = StyleSheet.create({
     color: colors.brandOnSoft,
   },
   chipTextFilled: {
-    color: colors.white,
+    color: colors.onBrand,
   },
 
   actionsRow: {
@@ -823,7 +833,7 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 48,
     borderWidth: 1.5,
-    borderColor: colors.borderStrong ?? colors.border,
+    borderColor: colors.controlBorder,
     borderRadius: radius.input ?? radius.md,
     backgroundColor: colors.canvas,
     paddingHorizontal: spacing.md,
@@ -841,7 +851,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   applyBtnText: {
-    color: colors.white,
+    color: colors.onBrand,
     ...typography.button,
   },
 
@@ -883,7 +893,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   resultTop: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     width: '100%',
@@ -915,7 +925,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   resultMeta: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
     marginTop: 2,

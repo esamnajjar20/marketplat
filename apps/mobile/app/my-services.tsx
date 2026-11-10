@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Press } from '@/components/AccessiblePressable';
@@ -8,12 +9,14 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { deleteMyServiceListing, fetchMyServiceListingsPage, type ServiceListing } from '@/features/services/services.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { statusLabel } from '@/lib/status-labels';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { marketListPerf } from '@/lib/listPerformance';
 import { showToast } from '@/lib/toast';
 
 export default function MyServicesScreen() {
+  const { colors } = useAppTheme();
+
   const { user, accessToken, csrfToken, isRestoring } = useAuth();
   const [deletingId, setDeletingId] = useState('');
   const fetchPage = useCallback(async (page: number, signal: AbortSignal) => {

@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -7,13 +8,15 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyOffers, type RequestOffer } from '@/features/requests/requests.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { statusLabel } from '@/lib/status-labels';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 const PAGE_SIZE = 30;
 
 export default function MyOffersScreen() {
+  const { colors } = useAppTheme();
+
   const { user, getAccessToken } = useAuth();
   const list = usePaginatedList<RequestOffer>({
     key: `my-offers:${user?.id ?? 'guest'}`,

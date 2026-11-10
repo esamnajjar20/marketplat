@@ -1,8 +1,10 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState , useMemo} from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
@@ -26,7 +28,7 @@ import {
   PrimaryButton,
 } from '@/components/MobileUI';
 import { AdCard } from '@/components/MarketCards';
-import { colors, spacing, typography } from '@/theme/tokens';
+import { spacing, typography } from '@/theme/tokens';
 
 function priceLabel(value: number | string | null | undefined): string {
   if (value == null || value === '') return 'السعر عند التواصل';
@@ -37,6 +39,9 @@ function priceLabel(value: number | string | null | undefined): string {
 }
 
 export default function FavoritesScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { user, getAccessToken, csrfToken } = useAuth();
   const net = useNetInfo();
   const online = net.isConnected === true && net.isInternetReachable !== false;
@@ -199,7 +204,7 @@ export default function FavoritesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   link: { color: colors.brand, ...typography.captionStrong },
   center: { flex: 1, justifyContent: 'center' },

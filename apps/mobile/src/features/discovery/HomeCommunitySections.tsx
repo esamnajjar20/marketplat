@@ -1,6 +1,8 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState , useMemo} from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { useOnlineResync } from '@/lib/useOnlineResync';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -8,7 +10,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchStores, type StoreSummary } from '@/features/commerce/commerce.api';
 import { fetchStoryFeed, type StoryGroup } from '@/features/stories/stories.api';
-import { fontSizes, colors, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import { AppImage } from '@/components/AppImage';
 import { HorizontalMarketCard } from '@/components/MarketCards';
@@ -43,6 +45,9 @@ function StoreCard({ store }: { store: StoreSummary }) {
 }
 
 export default function HomeCommunitySections() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { accessToken, isRestoring, user } = useAuth();
   const [stores, setStores] = useState<StoreSummary[]>([]);
   const [stories, setStories] = useState<StoryGroup[]>([]);
@@ -258,7 +263,7 @@ export default function HomeCommunitySections() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   root: {
     gap: spacing.xl,
   },

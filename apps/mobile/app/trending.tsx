@@ -1,4 +1,7 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import DiscoveryFeedScreen from '@/features/discovery/DiscoveryFeedScreen';
-import { colors } from '@/theme/tokens';
-export default function TrendingScreen() { return <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.canvas }}><DiscoveryFeedScreen trending /></SafeAreaView>; }
+
+export default function TrendingScreen() {
+  const { colors } = useAppTheme();
+ return <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: colors.canvas }}><DiscoveryFeedScreen trending /></SafeAreaView>; }

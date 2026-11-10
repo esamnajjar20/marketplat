@@ -1,7 +1,9 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatDate as formatSharedDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useState } from 'react';
+import { useCallback, useState , useMemo} from 'react';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { PageShell, Notice, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -12,7 +14,7 @@ import { clearPrivateCleanupFlag } from '@/features/auth/private-data-cleanup';
 import { getAdDraftStorageSummary, type AdDraftStorageSummary } from '@/storage/ad-draft-store';
 import { countUnownedOutboxMutations, listAllOutboxMutations } from '@/storage/outbox-manager';
 import { listPendingFavoriteStates } from '@/features/ads/favorites.store';
-import { fontSizes, colors } from '@/theme/tokens';
+import { fontSizes } from '@/theme/tokens';
 
 type QueueStats = { pending: number; blockedLegacy: number; pendingFavorites: number };
 function formatBytes(bytesValue: number): string {
@@ -27,9 +29,15 @@ function formatDate(value: number | null): string {
   catch { return 'غير متاح'; }
 }
 function StatRow({ label, value, detail }: { label: string; value: string; detail?: string }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   return <View style={styles.statRow}><View style={styles.statCopy}><Text style={styles.statLabel}>{label}</Text>{detail ? <Text style={styles.detail}>{detail}</Text> : null}</View><Text style={styles.statValue}>{value}</Text></View>;
 }
 export default function StorageScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { user } = useAuth();
   const [cache, setCache] = useState<PublicCacheStats>({ entries: 0, sizeBytes: 0, newestSavedAt: null });
   const [drafts, setDrafts] = useState<AdDraftStorageSummary>({ drafts: 0, editDrafts: 0, sizeBytes: 0, newestUpdatedAt: null });
@@ -135,4 +143,4 @@ export default function StorageScreen() {
     <Pressable accessibilityRole="button" onPress={() => void refresh()} style={styles.refresh}><Text style={styles.refreshText}>تحديث معلومات التخزين</Text></Pressable>
   </PageShell>;
 }
-const styles = StyleSheet.create({ intro: { textAlign: 'right', color: colors.muted, fontSize: fontSizes[14], lineHeight: 23 }, sectionTitle: { color: colors.ink, textAlign: 'right', fontWeight: '900', fontSize: fontSizes[16] }, statRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }, statCopy: { flex: 1, gap: 3 }, statLabel: { textAlign: 'right', color: colors.ink, fontSize: fontSizes[14], fontWeight: '700' }, statValue: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '900', maxWidth: '48%', textAlign: 'left' }, detail: { textAlign: 'right', color: colors.muted, fontSize: fontSizes[12], lineHeight: 19 }, loading: { textAlign: 'center', color: colors.muted }, refresh: { padding: 15, alignItems: 'center' }, refreshText: { color: colors.brand, fontWeight: '800' } });
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({ intro: { textAlign: 'right', color: colors.muted, fontSize: fontSizes[14], lineHeight: 23 }, sectionTitle: { color: colors.ink, textAlign: 'right', fontWeight: '900', fontSize: fontSizes[16] }, statRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }, statCopy: { flex: 1, gap: 3 }, statLabel: { textAlign: 'right', color: colors.ink, fontSize: fontSizes[14], fontWeight: '700' }, statValue: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '900', maxWidth: '48%', textAlign: 'left' }, detail: { textAlign: 'right', color: colors.muted, fontSize: fontSizes[12], lineHeight: 19 }, loading: { textAlign: 'center', color: colors.muted }, refresh: { padding: 15, alignItems: 'center' }, refreshText: { color: colors.brand, fontWeight: '800' } });

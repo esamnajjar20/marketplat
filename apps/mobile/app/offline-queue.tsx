@@ -1,3 +1,5 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -8,7 +10,7 @@ import { goBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
 import { formatSafeDate } from '@/lib/date-format';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 import { OUTBOX_MAX_ATTEMPTS } from '@/storage/outbox';
 import {
   countUnownedOutboxMutations,
@@ -68,6 +70,9 @@ function titleFromPayload(item: OutboxItem): string | null {
 }
 
 export default function OfflineQueueScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { accessToken, csrfToken, user } = useAuth();
   const netInfo = useNetInfo();
   const [items, setItems] = useState<OutboxItem[]>([]);
@@ -267,4 +272,4 @@ export default function OfflineQueueScreen() {
       </ScrollView>}
   </SafeAreaView>;
 }
-const styles = StyleSheet.create({safe:{flex:1,backgroundColor:colors.canvas},header:{minHeight:60,paddingHorizontal:spacing.lg,flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:colors.surface,borderBottomWidth:1,borderBottomColor:colors.border},heading:{fontSize:fontSizes[17],fontWeight:'900',color:colors.ink},link:{color:colors.brand,fontWeight:'800',padding:spacing.sm},notice:{padding:spacing.md,backgroundColor:colors.warningSoft,borderBottomWidth:1,borderBottomColor:colors.warningBorder},noticeText:{color:colors.warningText,fontSize:fontSizes[12],lineHeight:19,textAlign:'right'},center:{flex:1,alignItems:'center',justifyContent:'center',padding:spacing.xl,gap:spacing.md},list:{padding:spacing.lg,gap:spacing.lg,paddingBottom:40},summary:{fontSize:fontSizes[13],fontWeight:'800',color:colors.ink,textAlign:'right'},empty:{padding:spacing.xl,alignItems:'center',gap:spacing.sm,backgroundColor:colors.surface,borderRadius:radius.md},card:{padding:spacing.lg,backgroundColor:colors.surface,borderRadius:radius.md,borderWidth:1,borderColor:colors.border,gap:spacing.sm},adTitle:{fontSize:fontSizes[16],fontWeight:'900',color:colors.ink,textAlign:'right'},status:{fontSize:fontSizes[13],fontWeight:'800',color:colors.brand,textAlign:'right'},muted:{fontSize:fontSizes[12],color:colors.muted,textAlign:'right',lineHeight:19},errorText:{fontSize:fontSizes[12],color:colors.danger,textAlign:'right',lineHeight:19},warning:{fontSize:fontSizes[12],color:colors.warningText,backgroundColor:colors.warningSoft,padding:spacing.sm,borderRadius:radius.sm,textAlign:'right',lineHeight:19},error:{fontSize:fontSizes[13],color:colors.danger,backgroundColor:colors.dangerSoft,padding:spacing.md,borderRadius:radius.sm,textAlign:'right'},primary:{backgroundColor:colors.brand,borderRadius:radius.md,padding:spacing.md},primaryText:{color:colors.white,fontWeight:'800'},actions:{flexDirection:'row',gap:spacing.sm,marginTop:spacing.xs},secondary:{borderWidth:1,borderColor:colors.brand,borderRadius:radius.sm,paddingHorizontal:spacing.lg,paddingVertical:spacing.md},secondaryText:{color:colors.brand,fontWeight:'800'},delete:{backgroundColor:colors.dangerSoft,borderRadius:radius.sm,paddingHorizontal:spacing.lg,paddingVertical:spacing.md},deleteText:{color:colors.danger,fontWeight:'800'},disabled:{opacity:.45},title:{fontSize:fontSizes[16],fontWeight:'800',color:colors.ink}});
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({safe:{flex:1,backgroundColor:colors.canvas},header:{minHeight:60,paddingHorizontal:spacing.lg,flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:colors.surface,borderBottomWidth:1,borderBottomColor:colors.border},heading:{fontSize:fontSizes[17],fontWeight:'900',color:colors.ink},link:{color:colors.brand,fontWeight:'800',padding:spacing.sm},notice:{padding:spacing.md,backgroundColor:colors.warningSoft,borderBottomWidth:1,borderBottomColor:colors.warningBorder},noticeText:{color:colors.warningText,fontSize:fontSizes[12],lineHeight:19,textAlign:'right'},center:{flex:1,alignItems:'center',justifyContent:'center',padding:spacing.xl,gap:spacing.md},list:{padding:spacing.lg,gap:spacing.lg,paddingBottom:40},summary:{fontSize:fontSizes[13],fontWeight:'800',color:colors.ink,textAlign:'right'},empty:{padding:spacing.xl,alignItems:'center',gap:spacing.sm,backgroundColor:colors.surface,borderRadius:radius.md},card:{padding:spacing.lg,backgroundColor:colors.surface,borderRadius:radius.md,borderWidth:1,borderColor:colors.border,gap:spacing.sm},adTitle:{fontSize:fontSizes[16],fontWeight:'900',color:colors.ink,textAlign:'right'},status:{fontSize:fontSizes[13],fontWeight:'800',color:colors.brand,textAlign:'right'},muted:{fontSize:fontSizes[12],color:colors.muted,textAlign:'right',lineHeight:19},errorText:{fontSize:fontSizes[12],color:colors.danger,textAlign:'right',lineHeight:19},warning:{fontSize:fontSizes[12],color:colors.warningText,backgroundColor:colors.warningSoft,padding:spacing.sm,borderRadius:radius.sm,textAlign:'right',lineHeight:19},error:{fontSize:fontSizes[13],color:colors.danger,backgroundColor:colors.dangerSoft,padding:spacing.md,borderRadius:radius.sm,textAlign:'right'},primary:{backgroundColor:colors.brand,borderRadius:radius.md,padding:spacing.md},primaryText:{color:colors.onBrand,fontWeight:'800'},actions:{flexDirection:'row',gap:spacing.sm,marginTop:spacing.xs},secondary:{borderWidth:1,borderColor:colors.brand,borderRadius:radius.sm,paddingHorizontal:spacing.lg,paddingVertical:spacing.md},secondaryText:{color:colors.brand,fontWeight:'800'},delete:{backgroundColor:colors.dangerSoft,borderRadius:radius.sm,paddingHorizontal:spacing.lg,paddingVertical:spacing.md},deleteText:{color:colors.danger,fontWeight:'800'},disabled:{opacity:.45},title:{fontSize:fontSizes[16],fontWeight:'800',color:colors.ink}});

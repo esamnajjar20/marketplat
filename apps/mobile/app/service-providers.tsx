@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -5,11 +6,13 @@ import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native'
 import { router } from 'expo-router';
 import { fetchServiceProviders, type ProviderSummary } from '@/features/services/providers.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { RatingStars } from '@/components/ui/RatingStars';
 
 export default function ServiceProvidersScreen() {
+  const { colors } = useAppTheme();
+
   const [items, setItems] = useState<ProviderSummary[]>([]);
   const [city, setCity] = useState('');
   const [appliedCity, setAppliedCity] = useState('');

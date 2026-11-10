@@ -1,5 +1,7 @@
+import type { ColorPalette } from '@/theme/tokens';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppIcon } from '@/components/Icons';
+import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, Platform, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
@@ -14,7 +16,7 @@ import {
   SectionCard,
   SectionHeader,
 } from '@/components/MobileUI';
-import { fontSizes, colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 import { AccountSecuritySection } from '@/components/ui/AccountSecuritySection';
 import {
   isAndroidPushEnabled,
@@ -22,6 +24,7 @@ import {
   unregisterAndroidFcmToken,
 } from '@/features/notifications/native-push';
 import { showToast } from '@/lib/toast';
+import { useAppTheme, type ThemeMode } from '@/theme/ThemeProvider';
 
 type PreferenceValue = boolean | string;
 type Preferences = Record<string, PreferenceValue>;
@@ -100,7 +103,11 @@ function openWeb(path: string) {
 }
 
 export default function SettingsScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { accessToken, getAccessToken, csrfToken, logout, isBusy, user } = useAuth();
+  const { mode: themeMode, scheme, colors: palette, setMode: setThemeMode } = useAppTheme();
   const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFS);
   const [loadingPreferences, setLoadingPreferences] = useState(true);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
@@ -232,6 +239,44 @@ export default function SettingsScreen() {
 
   return (
     <PageShell title="الإعدادات">
+      <View style={{ gap: spacing.md }}>
+        <SectionHeader title="مظهر التطبيق" subtitle="اختر المظهر الذي يناسبك، أو اتبع إعدادات جهازك تلقائيًا" />
+        <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
+          {([
+            { value: 'system', label: 'حسب الجهاز', description: 'يتغير مع إعدادات الجهاز' },
+            { value: 'light', label: 'فاتح', description: 'خلفية فاتحة' },
+            { value: 'dark', label: 'داكن', description: 'مناسب للإضاءة المنخفضة' },
+          ] as const).map((option: { value: ThemeMode; label: string; description: string }) => {
+            const selected = themeMode === option.value;
+            return (
+              <Pressable
+                key={option.value}
+                accessibilityRole="radio"
+                accessibilityLabel={`مظهر ${option.label}`}
+                accessibilityState={{ selected }}
+                onPress={() => {
+                  void setThemeMode(option.value).then((saved) => {
+                    if (!saved) showToast('تم تغيير المظهر مؤقتًا', 'تعذر حفظ تفضيل المظهر على هذا الجهاز.', 'warning');
+                  });
+                }}
+                style={({ pressed }) => ({
+                  flexGrow: 1, flexBasis: 100, minHeight: 64, padding: spacing.md, gap: 4,
+                  borderRadius: radius.md, borderWidth: selected ? 2 : 1,
+                  borderColor: selected ? palette.brand : palette.border,
+                  backgroundColor: selected ? palette.brandSoft : palette.surface,
+                  opacity: pressed ? 0.78 : 1,
+                })}
+              >
+                <Text style={{ color: selected ? palette.brandOnSoft : palette.ink, fontWeight: '800', textAlign: 'right' }}>{option.label}</Text>
+                <Text style={{ color: selected ? palette.brandOnSoft : palette.muted, fontSize: fontSizes[12], textAlign: 'right' }}>{option.description}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={{ color: palette.muted, fontSize: fontSizes[12], textAlign: 'right' }}>
+          المظهر الحالي: {scheme === 'dark' ? 'داكن' : 'فاتح'}
+        </Text>
+      </View>
       {!accessToken ? (
         <>
           <Notice>سجّل الدخول لإدارة إعدادات الحساب.</Notice>
@@ -483,7 +528,7 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   section: {
     gap: spacing.md,
   },
@@ -556,7 +601,7 @@ const styles = StyleSheet.create({
   timeInput: {
     minHeight: 44,
     borderWidth: 1.5,
-    borderColor: colors.borderStrong ?? colors.border,
+    borderColor: colors.controlBorder,
     borderRadius: radius.md,
     backgroundColor: colors.canvas,
     color: colors.ink,

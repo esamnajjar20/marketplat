@@ -1,7 +1,9 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppIcon } from '@/components/Icons';
-import { useRef, useState } from 'react';
+import { useRef, useState , useMemo} from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -10,13 +12,16 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { ApiError } from '@/api/client';
 import { Field, Notice, PrimaryButton } from '@/components/MobileUI';
 import type { TextInputHandle } from '@/components/ui/Field';
-import { fontSizes, colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 import { registerSchema, validate } from '@/lib/validation';
 import { getSafeAuthRedirect } from '@/lib/safe-auth-redirect';
 import { toAppHref } from '@/lib/typed-navigation';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 
 export default function RegisterScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { register, isBusy } = useAuth();
   const { redirect } = useLocalSearchParams<{ redirect?: string | string[] }>();
   const [name, setName] = useState('');
@@ -210,7 +215,7 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   keyboard: { flex: 1 },
   content: {
@@ -247,7 +252,7 @@ const styles = StyleSheet.create({
     ...elevation.md,
   },
   logoText: {
-    color: colors.white,
+    color: colors.onBrand,
     fontSize: fontSizes[28],
     fontWeight: '700',
   },

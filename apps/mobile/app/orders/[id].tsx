@@ -1,5 +1,7 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
@@ -15,7 +17,7 @@ import {
   PrimaryButton,
   SectionCard,
 } from '@/components/MobileUI';
-import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
 import { AppImage } from '@/components/AppImage';
 import { formatMoney , formatDate} from '@/lib/formatters';
 
@@ -38,6 +40,9 @@ const nextStatus: Partial<Record<MarketplaceOrderStatus, MarketplaceOrderStatus>
 };
 
 export default function OrderDetailScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { user, accessToken, csrfToken, isRestoring } = useAuth();
@@ -194,7 +199,7 @@ export default function OrderDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   pad: { paddingHorizontal: spacing.md, gap: spacing.md },
   statusRow: {
     flexDirection: 'row',

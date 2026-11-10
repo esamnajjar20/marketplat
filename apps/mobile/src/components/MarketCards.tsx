@@ -1,10 +1,12 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { memo, useState } from 'react';
+import { memo, useState , useMemo} from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppImage } from '@/components/AppImage';
 import { AppIcon } from '@/components/Icons';
-import { fontSizes, colors, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
 
 type CatalogCardProps = {
   title: string;
@@ -32,6 +34,9 @@ function CatalogCardComponent({
   onPress,
   badge,
 }: CatalogCardProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   return (
     <Pressable
       accessibilityRole="button"
@@ -113,6 +118,9 @@ function AdCardComponent({
   onToggleFavorite,
   onImageError,
 }: AdCardProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   return (
     <View style={styles.adCard}>
       {onToggleFavorite ? (
@@ -182,7 +190,7 @@ export const AdCard = memo(AdCardComponent, (prev, next) => {
 });
 AdCard.displayName = 'AdCard';
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -327,6 +335,9 @@ function HorizontalMarketCardComponent({
   onPress,
   width = 160,
 }: HorizontalMarketCardProps) {
+  const { colors } = useAppTheme();
+  const hStyles = useMemo(() => createThemeHStyles(colors), [colors]);
+
   const [imageFailed, setImageFailed] = useState(false);
   return (
     <Pressable
@@ -369,7 +380,7 @@ function HorizontalMarketCardComponent({
 export const HorizontalMarketCard = memo(HorizontalMarketCardComponent);
 HorizontalMarketCard.displayName = 'HorizontalMarketCard';
 
-const hStyles = StyleSheet.create({
+const createThemeHStyles = (colors: ColorPalette) => StyleSheet.create({
   card: {
     minHeight: 200,
     borderWidth: 1,

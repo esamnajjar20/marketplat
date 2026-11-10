@@ -1,10 +1,11 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyReports, type MyReport } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
 import { marketListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -17,6 +18,8 @@ const labels: Record<string, string> = {
 };
 
 export default function MyReportsScreen() {
+  const { colors } = useAppTheme();
+
   const { user, getAccessToken } = useAuth();
   const list = usePaginatedList<MyReport>({
     key: `my-reports:${user?.id ?? 'guest'}`,

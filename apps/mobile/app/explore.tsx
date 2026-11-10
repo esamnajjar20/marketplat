@@ -1,9 +1,10 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { FlatList, View } from 'react-native';
 import { router } from 'expo-router';
 import { toAppHref } from '@/lib/typed-navigation';
 import { ListRow, PageShell, SectionHeader } from '@/components/MobileUI';
-import { colors, spacing, typography } from '@/theme/tokens';
+import { spacing, typography } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 
 type Destination = { title: string; description: string; path: string };
@@ -53,6 +54,8 @@ const groups: DestinationGroup[] = [
 ];
 
 export default function ExploreScreen() {
+  const { colors } = useAppTheme();
+
   return (
     <PageShell title="استكشف السوق" scroll={false}>
       <FlatList

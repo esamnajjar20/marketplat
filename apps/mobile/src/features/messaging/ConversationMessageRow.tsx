@@ -1,12 +1,13 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { memo } from 'react';
+import { memo, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppImage } from '@/components/AppImage';
 import { AppIcon } from '@/components/Icons';
 import type { ChatMessage } from '@/features/messaging/messaging.api';
 import { CHAT_OUTBOX_MAX_ATTEMPTS } from '@/storage/outbox-manager';
-import { fontSizes, colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, elevation, spacing, typography } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { isAllowedMediaUrl } from '@/lib/safe-media-url';
 import { formatDate } from '@/lib/formatters';
 import { showToast } from '@/lib/toast';
@@ -46,6 +47,8 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
   playingAudioUrl,
   audioBuffering = false,
 }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const pending = message.id.startsWith('pending-');
   const permanentlyFailed = pending
     && message.outboxAttempts !== undefined
@@ -67,6 +70,7 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`رسالة من ${isMine ? 'أنت' : 'الطرف الآخر'}: ${body}`}
+      accessibilityHint="اضغط مطولًا لعرض خيارات الرسالة"
       onLongPress={() => onLongPress(message)}
       delayLongPress={350}
       style={[styles.bubble, isMine ? styles.mine : styles.theirs]}
@@ -114,17 +118,27 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
       <Text style={[styles.messageText, isMine && styles.mineText]}>{body}</Text>
       <View style={styles.metadataRow}>
         <Text style={[styles.time, isMine && styles.mineTime]}>{formatMessageTime(message.createdAt)}</Text>
-        {message.isPinned ? <AppIcon name="pin" size={12} color={isMine ? colors.white : colors.muted} /> : null}
-        {message.isStarredByMe ? <AppIcon name="star" size={12} color={isMine ? colors.white : colors.muted} /> : null}
+        {message.isPinned ? <AppIcon name="pin" size={12} color={isMine ? colors.onBrand : colors.muted} /> : null}
+        {message.isStarredByMe ? <AppIcon name="star" size={12} color={isMine ? colors.onBrand : colors.muted} /> : null}
         {pending ? <Text style={[styles.time, isMine && styles.mineTime]}>{permanentlyFailed ? 'تعذّر الإرسال' : 'بانتظار المزامنة'}</Text> : null}
       </View>
 
       {permanentlyFailed ? (
         <View style={styles.failedActions}>
-          <Pressable accessibilityRole="button" onPress={() => onRetry(message)}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="إعادة محاولة إرسال الرسالة"
+            style={styles.failedActionButton}
+            onPress={() => onRetry(message)}
+          >
             <Text style={styles.failedAction}>إعادة المحاولة</Text>
           </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => onDiscard(message)}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="حذف الرسالة الفاشلة من قائمة الإرسال"
+            style={styles.failedActionButton}
+            onPress={() => onDiscard(message)}
+          >
             <Text style={styles.failedDelete}>حذف</Text>
           </Pressable>
         </View>
@@ -135,7 +149,8 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
 
 export default ConversationMessageRow;
 
-const styles = StyleSheet.create({
+function createStyles(colors: import('@/theme/tokens').ColorPalette) {
+  return StyleSheet.create({
   bubble: {
     maxWidth: '82%',
     paddingHorizontal: spacing.md,
@@ -164,10 +179,10 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   mineText: {
-    color: colors.white,
+    color: colors.onBrand,
   },
   metadataRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     marginTop: 2,
@@ -177,7 +192,7 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   mineTime: {
-    color: 'rgba(255,255,255,0.78)',
+    color: colors.onBrand,
   },
   messageImage: {
     width: 200,
@@ -186,14 +201,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.borderSubtle ?? colors.border,
   },
   mediaAction: {
-    minHeight: 40,
+    minHeight: 44,
     borderRadius: 12,
     backgroundColor: colors.brandSoft,
     paddingHorizontal: spacing.sm,
     justifyContent: 'center',
   },
   mediaActionContent: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
@@ -208,14 +223,22 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginTop: spacing.xs,
   },
+  failedActionButton: {
+    minWidth: 44,
+    minHeight: 44,
+    paddingHorizontal: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   failedAction: {
     fontSize: fontSizes[12],
     fontWeight: '700',
-    color: colors.brandSoft,
+    color: colors.onBrand,
   },
   failedDelete: {
     fontSize: fontSizes[12],
     fontWeight: '700',
-    color: colors.dangerSoft ?? colors.danger,
+    color: colors.onBrand,
   },
-});
+  });
+}

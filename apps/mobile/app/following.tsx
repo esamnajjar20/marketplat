@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppIcon } from '@/components/Icons';
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -8,10 +9,12 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchUserFollowList, type FollowListItem } from '@/features/account/social.api';
 import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 export default function FollowingScreen() {
+  const { colors } = useAppTheme();
+
   const { user } = useAuth();
   const fetchPage = useCallback(async (page: number, signal: AbortSignal) => {
     if (!user?.id) return { items: [], meta: { page: 1, totalPages: 1 } };

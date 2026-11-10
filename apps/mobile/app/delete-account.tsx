@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useState } from 'react';
@@ -6,9 +7,11 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteAccountAfterReauthentication } from '@/features/account/delete-account.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
 
 export default function DeleteAccountScreen() {
+  const { colors } = useAppTheme();
+
   const { user, accessToken, csrfToken, forceLocalSignOut } = useAuth();
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');

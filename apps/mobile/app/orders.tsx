@@ -1,3 +1,6 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
+import { useMemo } from 'react';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppIcon } from '@/components/Icons';
@@ -6,7 +9,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppImage } from '@/components/AppImage';
 import { formatDate, formatMoney } from '@/lib/formatters';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 import { fetchMyOrders, type MarketplaceOrder } from '@/features/commerce/orders.api';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -18,6 +21,9 @@ const labels: Record<string, string> = {
 };
 
 export default function MyOrdersScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { accessToken, user, isRestoring } = useAuth();
   const list = usePaginatedList<MarketplaceOrder>({
     key: `my-orders:${user?.id ?? 'guest'}`,
@@ -78,7 +84,7 @@ export default function MyOrdersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas }, content: { padding: spacing.lg, paddingBottom: 52 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
   back: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
@@ -91,7 +97,7 @@ title: { fontSize: fontSizes[24], fontWeight: '900', color: colors.ink, letterSp
   itemInfo: { flex: 1, alignItems: 'flex-end', gap: 5, justifyContent: 'center' }, productName: { fontSize: fontSizes[15], fontWeight: '800', color: colors.ink, textAlign: 'right' },
   muted: { fontSize: fontSizes[12], color: colors.muted, textAlign: 'right', lineHeight: 19 }, cardBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm },
   link: { fontSize: fontSizes[13], fontWeight: '800', color: colors.brand }, state: { alignItems: 'center', gap: spacing.md, padding: spacing.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, marginTop: spacing.md },
-  emptyTitle: { fontSize: fontSizes[17], fontWeight: '800', color: colors.ink }, primary: { backgroundColor: colors.brand, borderRadius: radius.md, padding: spacing.md }, primaryText: { color: colors.white, fontWeight: '800' },
+  emptyTitle: { fontSize: fontSizes[17], fontWeight: '800', color: colors.ink }, primary: { backgroundColor: colors.brand, borderRadius: radius.md, padding: spacing.md }, primaryText: { color: colors.onBrand, fontWeight: '800' },
   secondary: { minHeight: 48, borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, padding: spacing.md, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, backgroundColor: colors.surface }, secondaryText: { color: colors.brand, fontWeight: '800' },
   error: { color: colors.danger, textAlign: 'right' }, footerLoading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.lg },
 });

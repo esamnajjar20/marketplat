@@ -1,13 +1,17 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { router } from 'expo-router';
 import { toAppHref } from '@/lib/typed-navigation';
 import { StyleSheet, View } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useSyncExternalStore } from 'react';
 import { fetchMyStore } from '@/features/commerce/commerce.api';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
+import { fetchMySellerProfile } from '@/features/account/seller.api';
+import { fetchMyActiveStoreMemberships } from '@/features/commerce/store-management.api';
 import { useAuth } from '@/features/auth/AuthContext';
-import { getRouteAccess } from '@/lib/navigation-policy';
+import { getRouteAccess, resolveNavigationCapabilities, getNavigationCapabilitiesRevision, subscribeNavigationCapabilities, type NavigationCapabilities } from '@/lib/navigation-policy';
 import {
   ListRow,
   Notice,
@@ -17,7 +21,7 @@ import {
   SectionHeader,
 } from '@/components/MobileUI';
 import { AppIcon } from '@/components/Icons';
-import { fontSizes, colors, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
 
 type Destination = { title: string; description: string; path: string };
 type DestinationGroup = { title: string; subtitle: string; items: Destination[] };
@@ -64,8 +68,10 @@ const groups: DestinationGroup[] = [
     title: 'إدارة المتجر والخدمات',
     subtitle: 'الأدوات التجارية عند البيع',
     items: [
-      { title: 'ملف البائع', description: 'إعداد ملفك كبائع — شرط لإنشاء متجر أو خدمة', path: '/seller-profile' },
-      { title: 'متجري', description: 'إدارة بيانات المتجر والهوية التجارية', path: '/my-store' },
+      { title: 'ملف البائع', description: 'إنشاء ملف البائع أو تحديث بياناته', path: '/seller-profile' },
+      { title: 'لوحة البائع', description: 'ملخص حالة نشاط البيع والمهام', path: '/seller-dashboard' },
+      { title: 'متاجري', description: 'المتاجر التي تملكها أو تعمل ضمن فريقها', path: '/my-stores' },
+      { title: 'متجري', description: 'إدارة بيانات المتجر المملوك لك', path: '/my-store' },
       { title: 'منتجاتي', description: 'إدارة المنتجات والأسعار والمخزون', path: '/my-products' },
       { title: 'خدماتي', description: 'إدارة الخدمات التي تعرضها', path: '/my-services' },
       { title: 'الطلبات التي نشرتها', description: 'متابعة طلباتك والعروض الواردة', path: '/my-requests' },
@@ -73,7 +79,6 @@ const groups: DestinationGroup[] = [
       { title: 'المواعيد', description: 'مواعيد الخدمات والحجوزات', path: '/appointments' },
       { title: 'ملف مقدم الخدمة', description: 'إدارة بيانات نشاط الخدمات', path: '/service-provider-profile' },
       { title: 'إحصاءات المتجر', description: 'الزيارات والمتابعون وأداء المنتجات', path: '/my-store-analytics' },
-      { title: 'لوحة البائع', description: 'ملخص حالة المتجر والمهام', path: '/seller-dashboard' },
     ],
   },
   {
@@ -90,58 +95,97 @@ const groups: DestinationGroup[] = [
 function canShowStoreItem(
   item: Destination,
   user: unknown,
-  hasStore: boolean,
-  hasProvider: boolean,
-  groupTitle: string,
+  capabilities: NavigationCapabilities,
+  hasOwnedStore: boolean,
+  canManageProducts: boolean,
 ): boolean {
-  if (groupTitle !== 'إدارة المتجر والخدمات') return true;
   if (!user) return false;
-  if (item.path === '/seller-profile') return !hasStore;
-  if (
-    item.path === '/my-store' ||
-    item.path === '/my-products' ||
-    item.path === '/my-store-analytics' ||
-    item.path === '/seller-dashboard'
-  ) {
-    return hasStore;
+  switch (item.path) {
+    case '/seller-profile':
+    case '/service-provider-profile':
+      // Setup/edit routes remain available to authenticated users.
+      return true;
+    case '/seller-dashboard':
+      return capabilities.sellerWorkspace;
+    case '/my-stores':
+      return capabilities.storeMembership;
+    case '/my-store':
+    case '/my-store-analytics':
+      return hasOwnedStore;
+    case '/my-products':
+      return canManageProducts;
+    case '/appointments':
+    case '/my-services':
+      return capabilities.serviceProvider;
+    default:
+      return true;
   }
-  if (item.path === '/service-provider-profile') return true;
-  if (item.path === '/appointments') return hasProvider;
-  if (item.path === '/my-services') return hasProvider || hasStore;
-  return true;
 }
 
 export default function AccountScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { user, accessToken } = useAuth();
-  const [hasStore, setHasStore] = useState(false);
-  const [hasProvider, setHasProvider] = useState(false);
+  const userId = user?.id ?? null;
+  const capabilityRevision = useSyncExternalStore(
+    subscribeNavigationCapabilities,
+    getNavigationCapabilitiesRevision,
+    getNavigationCapabilitiesRevision,
+  );
+  const [hasOwnedStore, setHasOwnedStore] = useState(false);
+  const [canManageProducts, setCanManageProducts] = useState(false);
+  const [capabilities, setCapabilities] = useState<NavigationCapabilities>({
+    sellerWorkspace: false,
+    storeMembership: false,
+    serviceProvider: false,
+  });
   const [profilesLoading, setProfilesLoading] = useState(false);
+  const [profilesVerificationFailed, setProfilesVerificationFailed] = useState(false);
+  const [verificationRetry, setVerificationRetry] = useState(0);
   const [showAllDestinations, setShowAllDestinations] = useState(false);
 
   useEffect(() => {
     let active = true;
-    if (!accessToken) {
-      setHasStore(false);
-      setHasProvider(false);
+    if (!accessToken || !userId || !showAllDestinations) {
+      if (!accessToken || !userId) {
+        setHasOwnedStore(false);
+        setCanManageProducts(false);
+        setCapabilities({ sellerWorkspace: false, storeMembership: false, serviceProvider: false });
+      }
       setProfilesLoading(false);
-      return () => {
-        active = false;
-      };
+      if (!accessToken || !userId) setProfilesVerificationFailed(false);
+      return () => { active = false; };
     }
+
     setProfilesLoading(true);
-    void Promise.allSettled([fetchMyStore(accessToken), fetchMyServiceProvider(accessToken)])
-      .then(([store, provider]) => {
-        if (!active) return;
-        setHasStore(store.status === 'fulfilled' && !!store.value);
-        setHasProvider(provider.status === 'fulfilled' && !!provider.value);
-      })
-      .finally(() => {
-        if (active) setProfilesLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [accessToken]);
+    setProfilesVerificationFailed(false);
+    void Promise.allSettled([
+      fetchMyStore(accessToken),
+      fetchMySellerProfile(accessToken, userId),
+      fetchMyActiveStoreMemberships(accessToken),
+      fetchMyServiceProvider(accessToken),
+    ]).then(([storeResult, sellerResult, membershipsResult, providerResult]) => {
+      if (!active) return;
+      const ownedStore = storeResult.status === 'fulfilled' ? storeResult.value : null;
+      const sellerProfile = sellerResult.status === 'fulfilled' ? sellerResult.value : null;
+      const memberships = membershipsResult.status === 'fulfilled' ? membershipsResult.value : [];
+      const providerProfile = providerResult.status === 'fulfilled' ? providerResult.value : null;
+      setProfilesVerificationFailed([storeResult, sellerResult, membershipsResult, providerResult].some((result) => result.status === 'rejected'));
+      setHasOwnedStore(Boolean(ownedStore));
+      setCanManageProducts(Boolean(ownedStore) || memberships.some((membership) =>
+        membership.role === 'MANAGER' || membership.role === 'EDITOR',
+      ));
+      setCapabilities(resolveNavigationCapabilities({
+        hasSellerProfile: Boolean(sellerProfile),
+        activeStoreMembershipCount: memberships.length,
+        hasServiceProviderProfile: Boolean(providerProfile),
+      }));
+    }).finally(() => {
+      if (active) setProfilesLoading(false);
+    });
+    return () => { active = false; };
+  }, [accessToken, capabilityRevision, showAllDestinations, userId, verificationRetry]);
 
   const open = (path: string) => {
     if (getRouteAccess(path) === 'authenticated' && !user) {
@@ -245,7 +289,7 @@ export default function AccountScreen() {
       {showAllDestinations
         ? groups.map((group) => {
             const remainingItems = group.items.filter((item) =>
-              canShowStoreItem(item, user, hasStore, hasProvider, group.title),
+              canShowStoreItem(item, user, capabilities, hasOwnedStore, canManageProducts),
             );
             if (!remainingItems.length) return null;
             return (
@@ -277,7 +321,13 @@ export default function AccountScreen() {
       />
 
       {user && profilesLoading ? (
-        <Notice tone="muted">جارٍ التحقق من صلاحيات إدارة المتجر والخدمات…</Notice>
+        <Notice tone="muted">جارٍ التحقق من صلاحيات البائع ومقدم الخدمة…</Notice>
+      ) : null}
+      {user && showAllDestinations && profilesVerificationFailed && !profilesLoading ? (
+        <View style={styles.group}>
+          <Notice tone="warning">تعذر التحقق من بعض صلاحيات المتجر أو الخدمات. أُخفيت الوجهات غير المؤكدة لحماية الحساب.</Notice>
+          <PrimaryButton label="إعادة التحقق من الصلاحيات" variant="secondary" onPress={() => setVerificationRetry((value) => value + 1)} />
+        </View>
       ) : null}
       {!user ? (
         <Notice tone="muted">الصفحات الخاصة بالحساب تطلب تسجيل الدخول قبل فتحها.</Notice>
@@ -286,7 +336,7 @@ export default function AccountScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   profileCard: {
     gap: spacing.md,
     overflow: 'hidden',
@@ -301,7 +351,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
   },
   profileRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
@@ -347,7 +397,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   quickGrid: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
   },

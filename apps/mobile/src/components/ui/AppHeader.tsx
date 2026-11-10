@@ -3,8 +3,8 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { type ReactNode } from 'react';
 import { View } from 'react-native';
 import { goBack } from '@/lib/navigation';
-import { uiStyles as s } from './styles';
-import { colors } from '@/theme/tokens';
+import { useUIStyles } from './styles';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { DrawerMenuButton } from '@/components/MobileDrawer';
 import { AppIcon } from '@/components/Icons';
 
@@ -19,6 +19,8 @@ export function AppHeader({
   onBack?: () => void;
   showBack?: boolean;
 }) {
+  const s = useUIStyles();
+  const { colors } = useAppTheme();
   const handleBack = () => {
     if (onBack) {
       onBack();

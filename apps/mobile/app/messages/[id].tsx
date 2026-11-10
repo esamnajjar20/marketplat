@@ -1,7 +1,9 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { denseListPerf } from '@/lib/listPerformance';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
 import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -18,7 +20,7 @@ import type { ChatLiveEvent } from '@/features/messaging/chat-live-stream';
 import { useChatLiveStream } from '@/features/messaging/useChatLiveStream';
 import { useChatMediaOutboxLifecycle } from '@/features/messaging/useChatMediaOutboxLifecycle';
 import { markCachedChatMessageDeleted, readCachedChatMessages, saveCachedChatMessages } from '@/storage/chat-message-cache';
-import { fontSizes, colors, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
 import ConversationMessageRow, { type ConversationScreenMessage } from '@/features/messaging/ConversationMessageRow';
 import { isAllowedMediaUrl } from '@/lib/safe-media-url';
 import { showToast } from '@/lib/toast';
@@ -43,6 +45,9 @@ function replaceOptimisticMessage(current: ScreenMessage[], tempId: string, sent
 }
 
 export default function ConversationScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const params = useLocalSearchParams<{ id: string }>(); const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { user, accessToken, csrfToken } = useAuth();
   const isOnline = useIsOnline();
@@ -426,7 +431,7 @@ export default function ConversationScreen() {
     </>}
   </KeyboardAvoidingView></SafeAreaView>;
 }
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   flex: { flex: 1 },
   pressed: { opacity: ux.pressedOpacity },
@@ -479,7 +484,7 @@ const styles = StyleSheet.create({
   searchInput: {
     minHeight: 44,
     borderWidth: 1.5,
-    borderColor: colors.borderStrong ?? colors.border,
+    borderColor: colors.controlBorder,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     color: colors.ink,
@@ -512,7 +517,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  primaryText: { color: colors.white, ...typography.button },
+  primaryText: { color: colors.onBrand, ...typography.button },
   messages: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
@@ -570,7 +575,7 @@ const styles = StyleSheet.create({
     maxHeight: 120,
     minHeight: 44,
     borderWidth: 1.5,
-    borderColor: colors.borderStrong ?? colors.border,
+    borderColor: colors.controlBorder,
     borderRadius: 22,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
@@ -588,7 +593,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand,
   },
   sendText: {
-    color: colors.white,
+    color: colors.onBrand,
     fontWeight: '700',
     fontSize: fontSizes[14],
   },

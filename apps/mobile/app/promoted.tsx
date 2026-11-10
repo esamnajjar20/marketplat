@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -8,7 +9,7 @@ import { AppImage } from '@/components/AppImage';
 import { router } from 'expo-router';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors } from '@/theme/tokens';
+import { fontSizes } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 function price(p: ProductSummary): string {
@@ -19,6 +20,8 @@ function price(p: ProductSummary): string {
 }
 
 export default function PromotedScreen() {
+  const { colors } = useAppTheme();
+
   const fetchPage = useCallback(async (page: number, signal: AbortSignal) => {
     const result = await fetchProducts({
       page,

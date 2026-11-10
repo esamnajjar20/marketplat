@@ -12,11 +12,16 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from 'react';
 import { AppIcon } from '@/components/Icons';
 import { useAuth } from '@/features/auth/AuthContext';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
-import { DRAWER_ITEMS, getRouteAccess, type DrawerSection } from '@/lib/navigation-policy';
+import { fetchMySellerProfile } from '@/features/account/seller.api';
+import { fetchMyActiveStoreMemberships } from '@/features/commerce/store-management.api';
+import { fetchMyServiceProvider } from '@/features/services/providers.api';
+import { radius, spacing, typography, type ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
+import { DRAWER_ITEMS, getVisibleDrawerItems, getRouteAccess, getNavigationCapabilitiesRevision, subscribeNavigationCapabilities, resolveNavigationCapabilities, type DrawerSection, type NavigationCapabilities } from '@/lib/navigation-policy';
 import { toAppHref } from '@/lib/typed-navigation';
 
 type MobileDrawerContextValue = {
@@ -44,7 +49,7 @@ export function MobileDrawerProvider({ children }: { children: ReactNode }) {
 
   return (
     <MobileDrawerContext.Provider value={value}>
-      <View style={styles.providerRoot}>
+      <View style={{ flex: 1 }}>
         {children}
         <MobileDrawerOverlay open={isDrawerOpen} onClose={closeDrawer} openDrawer={openDrawer} />
       </View>
@@ -63,6 +68,8 @@ export function useMobileDrawer(): MobileDrawerContextValue {
 /** زر موحّد بحجم لمس لا يقل عن 44×44 نقطـة. */
 export function DrawerMenuButton() {
   const { toggleDrawer, isDrawerOpen } = useMobileDrawer();
+  const { colors: palette } = useAppTheme();
+  const styles = useMemo(() => createStyles(palette), [palette]);
   return (
     <Pressable
       accessibilityRole="button"
@@ -72,7 +79,7 @@ export function DrawerMenuButton() {
       hitSlop={4}
       style={({ pressed }) => [styles.menuButton, pressed && styles.pressed]}
     >
-      <AppIcon name={isDrawerOpen ? 'close' : 'menu'} size={22} color={colors.brandDark} />
+      <AppIcon name={isDrawerOpen ? 'close' : 'menu'} size={22} color={palette.brandDark} />
     </Pressable>
   );
 }
@@ -93,9 +100,101 @@ function MobileDrawerOverlay({
   onClose: () => void;
   openDrawer: () => void;
 }) {
-  const { user, logout, isBusy, isRestoring } = useAuth();
+  const { user, accessToken, logout, isBusy, isRestoring } = useAuth();
+  const { colors: palette } = useAppTheme();
+  const styles = useMemo(() => createStyles(palette), [palette]);
   const pathname = usePathname();
   const { width: screenWidth } = useWindowDimensions();
+  const [capabilityState, setCapabilityState] = useState<{
+    userId: string | null;
+    status: 'idle' | 'loading' | 'ready' | 'partial' | 'unavailable';
+    capabilities: NavigationCapabilities;
+    fetchedAt: number;
+  }>({
+    userId: null,
+    status: 'idle',
+    capabilities: { sellerWorkspace: false, storeMembership: false, serviceProvider: false },
+    fetchedAt: 0,
+  });
+  const [capabilityReloadKey, setCapabilityReloadKey] = useState(0);
+  const capabilityRevision = useSyncExternalStore(
+    subscribeNavigationCapabilities,
+    getNavigationCapabilitiesRevision,
+    getNavigationCapabilitiesRevision,
+  );
+  const lastCapabilityRevisionRef = useRef(capabilityRevision);
+  const capabilityCacheRef = useRef<typeof capabilityState | null>(null);
+  const lastReloadKeyRef = useRef(0);
+
+  useEffect(() => {
+    if (!user) {
+      capabilityCacheRef.current = null;
+      setCapabilityState({
+        userId: null,
+        status: 'idle',
+        capabilities: { sellerWorkspace: false, storeMembership: false, serviceProvider: false },
+        fetchedAt: 0,
+      });
+      return;
+    }
+    if (!open || isRestoring || !accessToken) return;
+
+    const revisionChanged = capabilityRevision !== lastCapabilityRevisionRef.current;
+    if (revisionChanged) {
+      lastCapabilityRevisionRef.current = capabilityRevision;
+      capabilityCacheRef.current = null;
+    }
+    const force = revisionChanged || capabilityReloadKey !== lastReloadKeyRef.current;
+    const cached = capabilityCacheRef.current;
+    if (!force && cached?.userId === user.id && Date.now() - cached.fetchedAt < 60_000) {
+      setCapabilityState(cached);
+      return;
+    }
+    lastReloadKeyRef.current = capabilityReloadKey;
+    let active = true;
+    setCapabilityState((current) => ({
+      userId: user.id,
+      status: 'loading',
+      capabilities: current.userId === user.id ? current.capabilities : { sellerWorkspace: false, storeMembership: false, serviceProvider: false },
+      fetchedAt: current.fetchedAt,
+    }));
+
+    void Promise.allSettled([
+      fetchMySellerProfile(accessToken, user.id),
+      fetchMyActiveStoreMemberships(accessToken),
+      fetchMyServiceProvider(accessToken),
+    ]).then(([sellerResult, membershipsResult, providerResult]) => {
+      if (!active) return;
+      const sellerProfile = sellerResult.status === 'fulfilled' ? sellerResult.value : null;
+      const memberships = membershipsResult.status === 'fulfilled' ? membershipsResult.value : [];
+      const providerProfile = providerResult.status === 'fulfilled' ? providerResult.value : null;
+      const failedCount = [sellerResult, membershipsResult, providerResult].filter((result) => result.status === 'rejected').length;
+      const nextState = {
+        userId: user.id,
+        status: failedCount === 3 ? 'unavailable' as const : failedCount > 0 ? 'partial' as const : 'ready' as const,
+        capabilities: resolveNavigationCapabilities({
+          hasSellerProfile: Boolean(sellerProfile),
+          activeStoreMembershipCount: memberships.length,
+          hasServiceProviderProfile: Boolean(providerProfile),
+        }),
+        fetchedAt: Date.now(),
+      };
+      capabilityCacheRef.current = nextState;
+      setCapabilityState(nextState);
+    }).catch(() => {
+      if (!active) return;
+      const nextState = {
+        userId: user.id,
+        status: 'unavailable' as const,
+        capabilities: { sellerWorkspace: false, storeMembership: false, serviceProvider: false },
+        fetchedAt: Date.now(),
+      };
+      capabilityCacheRef.current = nextState;
+      setCapabilityState(nextState);
+    });
+
+    return () => { active = false; };
+  }, [accessToken, capabilityReloadKey, capabilityRevision, isRestoring, open, user]);
   const drawerWidth = Math.min(screenWidth * 0.86, 360);
   // Native RTL is enabled for the app; the drawer remains explicitly anchored
   // to the logical right edge and uses native row direction for its contents.
@@ -268,8 +367,31 @@ function MobileDrawerOverlay({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
+              {capabilityState.status === 'loading' ? (
+                <Text style={[styles.capabilityHint, { textAlign: 'right' }]}>جارٍ التحقق من أدوات الحساب…</Text>
+              ) : null}
+              {(capabilityState.status === 'partial' || capabilityState.status === 'unavailable') ? (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setCapabilityReloadKey((value) => value + 1)}
+                  style={[styles.capabilityRetry, isRTL ? styles.rowRTL : styles.rowLTR]}
+                >
+                  <AppIcon name="refresh" size={16} color={palette.brand} />
+                  <Text style={styles.capabilityHint}>تعذر التحقق من بعض الصلاحيات — إعادة المحاولة</Text>
+                </Pressable>
+              ) : null}
               {sections.map((section) => {
-                const items = DRAWER_ITEMS.filter((item) => item.section === section);
+                const activeCapabilities = capabilityState.status === 'ready' || capabilityState.status === 'partial'
+                  ? capabilityState.capabilities
+                  : undefined;
+                const items = getVisibleDrawerItems(Boolean(user), activeCapabilities)
+                  .filter((item) => item.section === section)
+                  .map((item) => item.path === '/seller-profile' && !activeCapabilities?.sellerWorkspace
+                    ? { ...item, label: 'ابدأ البيع' }
+                    : item)
+                  .map((item) => item.path === '/service-provider-profile' && !activeCapabilities?.serviceProvider
+                    ? { ...item, label: 'تفعيل ملف مقدم الخدمة' }
+                    : item);
                 if (!items.length) return null;
                 return (
                   <View key={section} style={styles.menuSection}>
@@ -293,7 +415,7 @@ function MobileDrawerOverlay({
                           ]}
                         >
                           <View style={[styles.menuIconWrap, active && styles.menuIconWrapActive]}>
-                            <AppIcon name={item.icon} size={19} color={active ? colors.brandDark : colors.muted} />
+                            <AppIcon name={item.icon} size={19} color={active ? palette.brandDark : palette.muted} />
                           </View>
                           <Text
                             numberOfLines={1}
@@ -328,7 +450,7 @@ function MobileDrawerOverlay({
                   isRTL ? styles.rowRTL : styles.rowLTR,
                 ]}
               >
-                <AppIcon name={user ? 'logout' : 'login'} size={20} color={user ? colors.danger : colors.white} />
+                <AppIcon name={user ? 'logout' : 'login'} size={20} color={user ? palette.danger : palette.onBrand} />
                 <Text style={[styles.authButtonLabel, user && styles.logoutLabel]}>
                   {isRestoring ? 'جارٍ استعادة الجلسة…' : isBusy ? 'جارٍ التنفيذ…' : user ? 'تسجيل الخروج' : 'تسجيل الدخول'}
                 </Text>
@@ -342,7 +464,8 @@ function MobileDrawerOverlay({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(palette: ColorPalette) {
+  return StyleSheet.create({
   providerRoot: { flex: 1 },
   menuButton: {
     minWidth: 44,
@@ -350,7 +473,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.md,
-    backgroundColor: colors.brandSoft,
+    backgroundColor: palette.brandSoft,
   },
   edgeGesture: {
     position: 'absolute',
@@ -362,17 +485,17 @@ const styles = StyleSheet.create({
   edgeGestureDisabled: { display: 'none' },
   scrim: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: colors.black,
+    backgroundColor: palette.black,
   },
   drawer: {
     position: 'absolute',
     top: 0,
     bottom: 0,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
+    backgroundColor: palette.surface,
+    borderColor: palette.border,
     borderWidth: StyleSheet.hairlineWidth,
     elevation: 28,
-    shadowColor: colors.black,
+    shadowColor: palette.black,
     shadowOpacity: 0.18,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 8 },
@@ -385,7 +508,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0,
     shadowRadius: 0,
   },
-  drawerSafeArea: { flex: 1, backgroundColor: colors.surface },
+  drawerSafeArea: { flex: 1, backgroundColor: palette.surface },
   drawerHeader: {
     alignItems: 'center',
     gap: spacing.md,
@@ -399,20 +522,20 @@ const styles = StyleSheet.create({
     width: 58,
     height: 58,
     borderRadius: 17,
-    backgroundColor: colors.canvas,
+    backgroundColor: palette.canvas,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: palette.border,
   },
   identityText: { flex: 1, minWidth: 0, gap: 3 },
-  brandTitle: { color: colors.ink, ...typography.subtitle },
-  identityName: { color: colors.brandDark, ...typography.bodyStrong },
-  identityEmail: { color: colors.muted, ...typography.caption },
-  drawerDivider: { height: 1, backgroundColor: colors.border, marginHorizontal: spacing.lg },
+  brandTitle: { color: palette.ink, ...typography.subtitle },
+  identityName: { color: palette.brandDark, ...typography.bodyStrong },
+  identityEmail: { color: palette.muted, ...typography.caption },
+  drawerDivider: { height: 1, backgroundColor: palette.border, marginHorizontal: spacing.lg },
   menuScroll: { flex: 1 },
   menuContent: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xl, gap: spacing.md },
   menuSection: { gap: spacing.xs, marginBottom: spacing.sm },
   sectionLabel: {
-    color: colors.muted,
+    color: palette.muted,
     ...typography.overline,
     paddingHorizontal: spacing.sm,
     paddingTop: spacing.sm,
@@ -428,30 +551,30 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     borderRightWidth: 0,
     borderLeftWidth: 0,
-    borderColor: colors.brand,
+    borderColor: palette.brand,
   },
-  menuItemActiveRTL: { backgroundColor: colors.brandSoft, borderStartWidth: 3 },
-  menuItemActiveLTR: { backgroundColor: colors.brandSoft, borderEndWidth: 3 },
+  menuItemActiveRTL: { backgroundColor: palette.brandSoft, borderStartWidth: 3 },
+  menuItemActiveLTR: { backgroundColor: palette.brandSoft, borderEndWidth: 3 },
   menuIconWrap: {
     width: 36,
     height: 36,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.canvas,
+    backgroundColor: palette.canvas,
   },
-  menuIconWrapActive: { backgroundColor: colors.brandSoftActive },
-  menuItemLabel: { flex: 1, color: colors.ink, ...typography.bodyStrong },
-  menuItemLabelActive: { color: colors.brandDark, fontWeight: '700' },
-  activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.brand },
+  menuIconWrapActive: { backgroundColor: palette.brandSoftActive },
+  menuItemLabel: { flex: 1, color: palette.ink, ...typography.bodyStrong },
+  menuItemLabelActive: { color: palette.brandDark, fontWeight: '700' },
+  activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: palette.brand },
   drawerFooter: {
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: palette.border,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
     gap: spacing.sm,
-    backgroundColor: colors.surface,
+    backgroundColor: palette.surface,
   },
   authButton: {
     minHeight: 50,
@@ -461,11 +584,14 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
   },
-  loginButton: { backgroundColor: colors.brand },
-  logoutButton: { backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.dangerBorder },
-  authButtonLabel: { color: colors.white, ...typography.bodyStrong },
-  logoutLabel: { color: colors.danger },
-  versionLabel: { color: colors.muted, ...typography.overline, textAlign: 'center' },
+  loginButton: { backgroundColor: palette.brand },
+  logoutButton: { backgroundColor: palette.dangerSoft, borderWidth: 1, borderColor: palette.dangerBorder },
+  authButtonLabel: { color: palette.onBrand, ...typography.bodyStrong },
+  logoutLabel: { color: palette.danger },
+  capabilityHint: { flexShrink: 1, color: palette.muted, fontSize: 11, lineHeight: 17, textAlign: 'right' },
+  capabilityRetry: { minHeight: 40, alignItems: 'center', justifyContent: 'flex-start', gap: spacing.xs, paddingHorizontal: spacing.md },
+  versionLabel: { color: palette.muted, ...typography.overline, textAlign: 'center' },
   pressed: { opacity: 0.72 },
   disabled: { opacity: 0.5 },
 });
+}

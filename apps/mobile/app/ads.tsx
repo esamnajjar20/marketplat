@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -8,7 +9,7 @@ import { router } from 'expo-router';
 import { fetchPublicAds, type AdListItem } from '@/features/ads/ads.api';
 import { FilterChip } from '@/components/ui/FilterChip';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 type Condition = 'NEW' | 'USED' | 'REFURBISHED';
@@ -28,6 +29,8 @@ function adPrice(value: AdListItem['price']) {
 }
 
 export default function AllAdsScreen() {
+  const { colors } = useAppTheme();
+
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [condition, setCondition] = useState<Condition | ''>('');

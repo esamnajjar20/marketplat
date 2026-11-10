@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import {
   getOfflineCacheStatusSnapshot,
   subscribeOfflineCacheStatus,
 } from '@/api/offline-cache-status';
-import { colors, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 
 function formatAge(ageMs: number): string {
   const minutes = Math.floor(Math.max(0, ageMs) / 60_000);
@@ -19,6 +20,7 @@ function formatAge(ageMs: number): string {
 /** Global, non-identifying notice whenever one or more screens use cached responses. */
 export function OfflineCacheNotice() {
   const [status, setStatus] = useState(getOfflineCacheStatusSnapshot);
+  const { colors } = useAppTheme();
 
   useEffect(() => subscribeOfflineCacheStatus(() => {
     setStatus(getOfflineCacheStatusSnapshot());

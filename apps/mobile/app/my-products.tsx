@@ -1,9 +1,11 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 import { formatMoney } from '@/lib/formatters';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useState } from 'react';
+import { useState , useMemo} from 'react';
 import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,11 +14,14 @@ import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { fetchMyProducts, deleteProduct, type ProductSummary } from '@/features/commerce/commerce.api';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton } from '@/components/MobileUI';
 import { AppImage } from '@/components/AppImage';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { radius, spacing, typography } from '@/theme/tokens';
 
 const statusLabel: Record<string, string> = { ACTIVE: 'نشط', DRAFT: 'مسودة', PENDING: 'قيد المراجعة', REJECTED: 'مرفوض', SUSPENDED: 'موقوف', IN_STOCK: 'متوفر', LIMITED: 'كمية محدودة', OUT_OF_STOCK: 'نفد المخزون' };
 function money(value: ProductSummary['price']): string { const n = Number(value); return Number.isFinite(n) ? formatMoney(n) : 'السعر غير متاح'; }
 export default function MyProductsScreen() {
+  const { colors } = useAppTheme();
+  const s = useMemo(() => createThemeS(colors), [colors]);
+
   const { user, getAccessToken, csrfToken, isRestoring } = useAuth();
   const [busyId, setBusyId] = useState<string | null>(null);
   const {
@@ -50,4 +55,4 @@ export default function MyProductsScreen() {
     </View>} ListFooterComponent={items.length ? <View style={{gap:spacing.sm}}>{error ? <ErrorState title="تعذر تحديث المنتجات" description={error} onAction={() => void refresh()} /> : null}{loadMoreError ? <ErrorState title="تعذر تحميل المزيد" description={loadMoreError} onAction={() => void loadMore()} /> : null}{hasNextPage ? <PrimaryButton label={loadingMore?'جارٍ التحميل…':loadMoreError?'إعادة المحاولة':'تحميل المزيد'} variant="secondary" busy={loadingMore} onPress={() => void loadMore()} /> : null}</View> : undefined} />}
   </SafeAreaView>;
 }
-const s=StyleSheet.create({safe:{flex:1,backgroundColor:colors.canvas},content:{padding:spacing.lg,gap:spacing.md,paddingBottom:48},card:{flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.md,backgroundColor:colors.surface,borderRadius:radius.lg,borderWidth:1,borderColor:colors.border},image:{width:88,height:92,borderRadius:radius.md,backgroundColor:colors.border},body:{flex:1,alignItems:'flex-end',gap:spacing.xs},name:{...typography.bodyStrong,color:colors.ink,textAlign:'right'},price:{...typography.bodyStrong,color:colors.brand},muted:{...typography.caption,color:colors.muted,textAlign:'right'},actions:{flexDirection:'row',gap:spacing.sm},link:{color:colors.brand,...typography.captionStrong}});
+const createThemeS = (colors: ColorPalette) => StyleSheet.create({safe:{flex:1,backgroundColor:colors.canvas},content:{padding:spacing.lg,gap:spacing.md,paddingBottom:48},card:{flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.md,backgroundColor:colors.surface,borderRadius:radius.lg,borderWidth:1,borderColor:colors.border},image:{width:88,height:92,borderRadius:radius.md,backgroundColor:colors.border},body:{flex:1,alignItems:'flex-end',gap:spacing.xs},name:{...typography.bodyStrong,color:colors.ink,textAlign:'right'},price:{...typography.bodyStrong,color:colors.brand},muted:{...typography.caption,color:colors.muted,textAlign:'right'},actions:{flexDirection:'row',gap:spacing.sm},link:{color:colors.brand,...typography.captionStrong}});

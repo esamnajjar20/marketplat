@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -12,11 +13,13 @@ import {
   type SavedSearch,
 } from '@/features/account/saved-searches.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { marketListPerf } from '@/lib/listPerformance';
 
 export default function SavedSearchesScreen() {
+  const { colors } = useAppTheme();
+
   const params = useLocalSearchParams<{ label?: string | string[]; type?: string | string[]; q?: string | string[]; city?: string | string[]; minPrice?: string | string[]; maxPrice?: string | string[]; categoryId?: string | string[] }>();
   const first = (value?: string | string[]) => Array.isArray(value) ? value[0] : value;
   const { accessToken, csrfToken } = useAuth();

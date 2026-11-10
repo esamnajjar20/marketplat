@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -10,8 +11,10 @@ import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { fetchMyFollowedStores, toggleStoreFollow, type FollowedStoreRow } from '@/features/commerce/commerce.api';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton, SearchBar } from '@/components/MobileUI';
 import { AppImage } from '@/components/AppImage';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 export default function FollowedStoresScreen() {
+  const { colors } = useAppTheme();
+
   const { getAccessToken, user, csrfToken, isRestoring } = useAuth();
   const [query, setQuery] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);

@@ -1,6 +1,6 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { type TextStyle, type StyleProp } from 'react-native';
-import { colors } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 
 /**
  * مجموعة رموز نصية موحّدة للتطبيق (بدون تبعية مكتبة أيقونات).
@@ -27,6 +27,7 @@ export const glyphs = {
   menu: '☰',
   settings: '⚙',
   help: '؟',
+  refresh: '↻',
   privacy: '◈',
   info: 'ⓘ',
   image: '▧',
@@ -48,7 +49,7 @@ export type GlyphName = keyof typeof glyphs;
 export function AppIcon({
   name,
   size = 20,
-  color = colors.ink,
+  color: colorOverride,
   style,
 }: {
   name: GlyphName;
@@ -56,6 +57,8 @@ export function AppIcon({
   color?: string;
   style?: StyleProp<TextStyle>;
 }) {
+  const { colors } = useAppTheme();
+  const color = colorOverride ?? colors.ink;
   return (
     <Text maxFontSizeMultiplier={1.3} style={[{ fontSize: size, color, fontWeight: '700', lineHeight: size + 4 }, style]}>
       {glyphs[name]}

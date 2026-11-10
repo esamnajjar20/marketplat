@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, View } from 'react-native';
@@ -15,7 +16,7 @@ import {
   PrimaryButton,
   SectionCard,
 } from '@/components/MobileUI';
-import { colors, spacing, typography } from '@/theme/tokens';
+import { spacing, typography } from '@/theme/tokens';
 
 
 const typeLabel: Record<string, string> = {
@@ -25,6 +26,8 @@ const typeLabel: Record<string, string> = {
 };
 
 export default function RequestsScreen() {
+  const { colors } = useAppTheme();
+
   const [items, setItems] = useState<MarketplaceRequest[]>([]);
   const [q, setQ] = useState('');
   const [city, setCity] = useState('');

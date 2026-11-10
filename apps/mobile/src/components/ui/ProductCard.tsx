@@ -1,8 +1,10 @@
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
+import { useMemo } from 'react';
 import { StyleSheet, View, type ViewStyle } from 'react-native';
-import { fontSizes, colors, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, elevation, radius, sizes, spacing, typography, ux, type ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 
 export type ProductCardData = {
@@ -33,6 +35,8 @@ export function ProductCard({
   onPress: () => void;
   style?: ViewStyle;
 }) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const image = Array.isArray(product.images)
     ? product.images.find((url) => typeof url === 'string' && /^https?:/i.test(url))
     : undefined;
@@ -87,16 +91,17 @@ export function ProductCard({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(palette: ColorPalette) {
+  return StyleSheet.create({
   rowCard: {
     width: '100%',
     flexDirection: 'row',
     gap: spacing.md,
     padding: spacing.md,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    borderColor: palette.border,
     borderRadius: radius.card,
-    backgroundColor: colors.surface,
+    backgroundColor: palette.surface,
     ...elevation.sm,
   },
   gridCard: {
@@ -105,9 +110,9 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.sm,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
+    borderColor: palette.border,
     borderRadius: radius.card,
-    backgroundColor: colors.surface,
+    backgroundColor: palette.surface,
     ...elevation.sm,
   },
   pressed: { opacity: ux.pressedOpacity, transform: [{ scale: 0.985 }] },
@@ -115,53 +120,54 @@ const styles = StyleSheet.create({
     width: sizes.cardImageRow,
     height: sizes.cardImageRow,
     borderRadius: radius.control,
-    backgroundColor: colors.borderSubtle,
+    backgroundColor: palette.borderSubtle,
   },
   gridImage: {
     width: '100%',
     height: sizes.cardImageGrid,
     borderRadius: radius.control,
-    backgroundColor: colors.borderSubtle,
+    backgroundColor: palette.borderSubtle,
   },
   placeholder: {
-    backgroundColor: colors.brandSoft,
+    backgroundColor: palette.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  glyph: { color: colors.brandOnSoft, fontSize: fontSizes[28] },
+  glyph: { color: palette.brandOnSoft, fontSize: fontSizes[28] },
   rowBody: { flex: 1, alignItems: 'flex-end', gap: 4, justifyContent: 'center' },
   gridBody: { alignItems: 'flex-end', gap: 4, paddingHorizontal: 2, paddingBottom: 2 },
   name: {
     ...typography.bodyStrong,
-    color: colors.ink,
+    color: palette.ink,
     textAlign: 'right',
     width: '100%',
   },
   category: {
     ...typography.caption,
-    color: colors.muted,
+    color: palette.muted,
     textAlign: 'right',
     width: '100%',
   },
   priceRow: {
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
     marginTop: 2,
   },
   price: {
     ...typography.price,
-    color: colors.brand,
+    color: palette.brand,
     textAlign: 'right',
   },
   discountBadge: {
-    backgroundColor: colors.accentSoft,
+    backgroundColor: palette.accentSoft,
     borderRadius: radius.sm,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
   discountText: {
     ...typography.overline,
-    color: colors.accent,
+    color: palette.accent,
   },
 });
+}

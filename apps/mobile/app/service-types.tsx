@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
@@ -6,7 +7,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceTypeProfiles, updateMyServiceTypeProfile, type ProviderServiceTypeField, type ProviderServiceTypeProfile } from '@/features/services/providers.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors } from '@/theme/tokens';
+import { fontSizes } from '@/theme/tokens';
 
 type AttributesByType = Record<string, Record<string, unknown>>;
 type FieldErrors = Record<string, string>;
@@ -19,6 +20,8 @@ function optionsOf(field: ProviderServiceTypeField): Array<{ value: string; labe
 }
 
 export default function ServiceTypesScreen() {
+  const { colors } = useAppTheme();
+
   const { accessToken, getAccessToken, csrfToken, user } = useAuth();
   const userId = user?.id;
   const [items, setItems] = useState<ProviderServiceTypeProfile[]>([]);

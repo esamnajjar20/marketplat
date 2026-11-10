@@ -1,14 +1,17 @@
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { FlatList, Modal, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing, type ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 
 
 /** Compact RTL gallery with an accessible image counter and native fullscreen viewer. */
 export function MediaGallery({ images, title }: { images?: string[] | null; title: string }) {
   const { width: WINDOW_WIDTH } = useWindowDimensions();
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const validImages = (images ?? []).filter((uri): uri is string => typeof uri === 'string' && uri.trim().length > 0);
   const [index, setIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
@@ -34,4 +37,6 @@ export function MediaGallery({ images, title }: { images?: string[] | null; titl
   </View>;
 }
 
-const styles = StyleSheet.create({ container: { gap: spacing.sm }, hero: { width: '100%', height: 300, borderRadius: radius.lg, backgroundColor: colors.border }, counter: { position: 'absolute', top: spacing.sm, left: spacing.sm, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: colors.mediaCounterOverlay }, counterText: { color: colors.white, fontSize: fontSizes[12], fontWeight: '600' }, thumbs: { flexDirection: 'row', gap: spacing.sm }, thumbWrap: { borderWidth: 2, borderColor: 'transparent', borderRadius: radius.control, padding: 2 }, thumbActive: { borderColor: colors.brand }, thumb: { width: 62, height: 62, borderRadius: radius.control, backgroundColor: colors.border }, empty: { height: 240, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center', gap: spacing.sm }, emptyMark: { fontSize: fontSizes[40], color: colors.brandOnSoft }, emptyText: { color: colors.muted, fontSize: fontSizes[13] }, modal: { flex: 1, backgroundColor: colors.fullscreenBackdrop, justifyContent: 'space-between' }, modalHeader: { paddingTop: 48, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md }, modalTitle: { flex: 1, color: colors.white, textAlign: 'right', fontSize: fontSizes[15], fontWeight: '700' }, close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.mediaCloseOverlay }, closeText: { color: colors.white, fontSize: fontSizes[30], lineHeight: 34 }, fullSlide: { justifyContent: 'center', alignItems: 'center' }, fullImage: { width: '100%', height: '85%' }, fullCounter: { color: colors.white, textAlign: 'center', paddingBottom: 34, fontWeight: '600' } });
+function createStyles(palette: ColorPalette) {
+  return StyleSheet.create({ container: { gap: spacing.sm }, hero: { width: '100%', height: 300, borderRadius: radius.lg, backgroundColor: palette.border }, counter: { position: 'absolute', top: spacing.sm, left: spacing.sm, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: palette.mediaCounterOverlay }, counterText: { color: palette.white, fontSize: fontSizes[12], fontWeight: '600' }, thumbs: { flexDirection: 'row', gap: spacing.sm }, thumbWrap: { borderWidth: 2, borderColor: 'transparent', borderRadius: radius.control, padding: 2 }, thumbActive: { borderColor: palette.brand }, thumb: { width: 62, height: 62, borderRadius: radius.control, backgroundColor: palette.border }, empty: { height: 240, borderRadius: radius.lg, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.brandSoft, alignItems: 'center', justifyContent: 'center', gap: spacing.sm }, emptyMark: { fontSize: fontSizes[40], color: palette.brandOnSoft }, emptyText: { color: palette.muted, fontSize: fontSizes[13] }, modal: { flex: 1, backgroundColor: palette.fullscreenBackdrop, justifyContent: 'space-between' }, modalHeader: { paddingTop: 48, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md }, modalTitle: { flex: 1, color: palette.white, textAlign: 'right', fontSize: fontSizes[15], fontWeight: '700' }, close: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: palette.mediaCloseOverlay }, closeText: { color: palette.white, fontSize: fontSizes[30], lineHeight: 34 }, fullSlide: { justifyContent: 'center', alignItems: 'center' }, fullImage: { width: '100%', height: '85%' }, fullCounter: { color: palette.white, textAlign: 'center', paddingBottom: 34, fontWeight: '600' } });
+}

@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
@@ -6,11 +7,13 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchBlockedUsers, unblockUser, type BlockedUserItem } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors, spacing } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 
 export default function BlockedUsersScreen() {
+  const { colors } = useAppTheme();
+
   const { accessToken, csrfToken } = useAuth();
   const [items, setItems] = useState<BlockedUserItem[]>([]);
   const [loading, setLoading] = useState(true);

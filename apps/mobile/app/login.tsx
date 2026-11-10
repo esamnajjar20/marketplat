@@ -1,7 +1,9 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppIcon } from '@/components/Icons';
-import { useRef, useState } from 'react';
+import { useRef, useState , useMemo} from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -10,12 +12,15 @@ import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Field, Notice, PrimaryButton } from '@/components/MobileUI';
 import type { TextInputHandle } from '@/components/ui/Field';
-import { fontSizes, colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 import { loginSchema, validate } from '@/lib/validation';
 import { getSafeAuthRedirect } from '@/lib/safe-auth-redirect';
 import { toAppHref } from '@/lib/typed-navigation';
 
 export default function LoginScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { login, loginWithGoogle, isBusy } = useAuth();
   const { redirect } = useLocalSearchParams<{ redirect?: string | string[] }>();
   const [email, setEmail] = useState('');
@@ -211,7 +216,7 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   keyboard: { flex: 1 },
   content: {
@@ -251,7 +256,7 @@ const styles = StyleSheet.create({
     ...elevation.md,
   },
   logoText: {
-    color: colors.white,
+    color: colors.onBrand,
     fontSize: fontSizes[32],
     fontWeight: '700',
   },
@@ -312,7 +317,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     borderRadius: radius.md,
     borderWidth: 1.5,
-    borderColor: colors.borderStrong ?? colors.border,
+    borderColor: colors.controlBorder,
     backgroundColor: colors.surface,
     flexDirection: 'row',
     alignItems: 'center',

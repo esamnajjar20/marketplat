@@ -1,8 +1,8 @@
 import { AppText as Text } from './AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { ActivityIndicator, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
-import { colors } from '@/theme/tokens';
-import { uiStyles as s } from './styles';
+import { useAppTheme } from '@/theme/ThemeProvider';
+import { useUIStyles } from './styles';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
 type ButtonSize = 'md' | 'sm';
@@ -26,11 +26,14 @@ export function PrimaryButton({
   textStyle?: StyleProp<TextStyle>;
   style?: StyleProp<ViewStyle>;
 }) {
+  const s = useUIStyles();
+  const { colors } = useAppTheme();
   const isFilled = variant === 'primary' || variant === 'danger';
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ disabled: !!disabled || !!busy }}
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled || !!busy, busy: !!busy }}
       disabled={disabled || busy}
       onPress={onPress}
       style={({ pressed }) => [
@@ -45,7 +48,7 @@ export function PrimaryButton({
       ]}
     >
       {busy ? (
-        <ActivityIndicator color={isFilled ? colors.white : colors.brand} />
+        <ActivityIndicator color={variant === 'danger' ? colors.onDanger : isFilled ? colors.onBrand : colors.brand} />
       ) : (
         <Text
           maxFontSizeMultiplier={1.3}

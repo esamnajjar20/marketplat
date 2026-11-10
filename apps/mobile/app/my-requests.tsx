@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
@@ -6,13 +7,15 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { statusLabel } from '@/lib/status-labels';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 const PAGE_SIZE = 30;
 
 export default function MyRequestsScreen() {
+  const { colors } = useAppTheme();
+
   const { user, getAccessToken } = useAuth();
   const list = usePaginatedList<MarketplaceRequest>({
     key: `my-requests:${user?.id ?? 'guest'}`,

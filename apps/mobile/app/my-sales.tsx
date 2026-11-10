@@ -1,12 +1,14 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppIcon } from '@/components/Icons';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
 import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSales, fetchSalesSummary, type SalePaymentStatus, type SaleRecord, type SalesPeriod, type SalesSummary } from '@/features/sales/sales.api';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -23,6 +25,9 @@ const money = (value: unknown, currency = 'ILS') => formatMoney(value, currency)
 const dateLabel = (value: string) => formatDate(value, 'date');
 
 export default function MySalesScreen() {
+  const { colors } = useAppTheme();
+  const s = useMemo(() => createThemeS(colors), [colors]);
+
   const { accessToken, isRestoring, user } = useAuth();
   const userId = user?.id;
   const [period, setPeriod] = useState<SalesPeriod>('month');
@@ -126,12 +131,12 @@ ListFooterComponent={<>
 /></SafeAreaView>;
 }
 
-const s = StyleSheet.create({
+const createThemeS = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas }, content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: 52 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md }, back: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' }, headerText: { flex: 1, alignItems: 'flex-end', gap: 4 }, title: { fontSize: fontSizes[24], fontWeight: '900', color: colors.ink, letterSpacing: -0.4 }, subtitle: { fontSize: fontSizes[12], color: colors.muted, textAlign: 'right', lineHeight: 19 }, sectionTitle: { fontSize: fontSizes[16], fontWeight: '900', color: colors.ink, textAlign: 'right' },
-  segmentRow: { flexDirection: 'row', gap: 8, padding: 4, borderRadius: radius.lg, backgroundColor: colors.brandSoft }, segment: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.controlBorder, backgroundColor: colors.surface }, segmentActive: { backgroundColor: colors.brand, borderColor: colors.brand }, segmentText: { color: colors.muted, fontSize: fontSizes[12], fontWeight: '800' }, segmentTextActive: { color: colors.white },
+  segmentRow: { flexDirection: 'row', gap: 8, padding: 4, borderRadius: radius.lg, backgroundColor: colors.brandSoft }, segment: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.controlBorder, backgroundColor: colors.surface }, segmentActive: { backgroundColor: colors.brand, borderColor: colors.brand }, segmentText: { color: colors.muted, fontSize: fontSizes[12], fontWeight: '800' }, segmentTextActive: { color: colors.onBrand },
   metrics: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }, metric: { width: '48%', flexGrow: 1, minHeight: 104, justifyContent: 'center', gap: 10, padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, metricLabel: { fontSize: fontSizes[12], color: colors.muted, textAlign: 'right' }, metricValue: { fontSize: fontSizes[17], fontWeight: '900', color: colors.ink, textAlign: 'right' }, dueValue: { color: colors.danger },
   listHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm }, count: { fontSize: fontSizes[12], color: colors.muted }, filterRow: { flexDirection: 'row', gap: 7, paddingVertical: 2 }, filter: { minHeight: 44, minWidth: 44, justifyContent: 'center', borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.pill, backgroundColor: colors.surface, paddingHorizontal: 13, paddingVertical: 9 }, filterActive: { backgroundColor: colors.brandSoft, borderColor: colors.brand }, filterText: { color: colors.muted, fontSize: fontSizes[12], fontWeight: '700' }, filterTextActive: { color: colors.brandOnSoft },
   saleCard: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md }, saleTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }, saleTotal: { color: colors.brand, fontSize: fontSizes[17], fontWeight: '900' }, status: { overflow: 'hidden', borderRadius: radius.pill, backgroundColor: colors.warningSoft, color: colors.warningText, paddingHorizontal: 10, paddingVertical: 5, fontSize: fontSizes[11], fontWeight: '800' }, statusPaid: { backgroundColor: colors.successSoft, color: colors.brandOnSoft }, statusDanger: { backgroundColor: colors.dangerSoft, color: colors.danger }, saleName: { color: colors.ink, fontSize: fontSizes[15], fontWeight: '900', textAlign: 'right' }, saleMeta: { color: colors.muted, fontSize: fontSizes[12], textAlign: 'right', lineHeight: 18 }, amountRow: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, marginTop: 2 }, amountLabel: { color: colors.muted, fontSize: fontSizes[12], fontWeight: '700' },
-  state: { alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg }, emptyTitle: { fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }, muted: { fontSize: fontSizes[13], color: colors.muted, textAlign: 'center', lineHeight: 20 }, error: { color: colors.danger, textAlign: 'right', fontSize: fontSizes[13] }, primary: { backgroundColor: colors.brand, borderRadius: radius.md, padding: spacing.md }, primaryText: { color: colors.white, fontWeight: '800' }, moreButton: { alignItems: 'center', padding: spacing.md, borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md }, moreText: { color: colors.brand, fontWeight: '900' }, disabled: { opacity: .6 }, footnote: { fontSize: fontSizes[11], color: colors.muted, textAlign: 'right', lineHeight: 18 },
+  state: { alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg }, emptyTitle: { fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }, muted: { fontSize: fontSizes[13], color: colors.muted, textAlign: 'center', lineHeight: 20 }, error: { color: colors.danger, textAlign: 'right', fontSize: fontSizes[13] }, primary: { backgroundColor: colors.brand, borderRadius: radius.md, padding: spacing.md }, primaryText: { color: colors.onBrand, fontWeight: '800' }, moreButton: { alignItems: 'center', padding: spacing.md, borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md }, moreText: { color: colors.brand, fontWeight: '900' }, disabled: { opacity: .6 }, footnote: { fontSize: fontSizes[11], color: colors.muted, textAlign: 'right', lineHeight: 18 },
 });

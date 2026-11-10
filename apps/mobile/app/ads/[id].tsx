@@ -1,7 +1,9 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney, formatNumber, formatDate as formatSharedDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -26,7 +28,7 @@ import {
   PrimaryButton,
   SectionCard,
 } from '@/components/MobileUI';
-import { fontSizes, colors, elevation, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, elevation, radius, spacing, typography } from '@/theme/tokens';
 
 function formatPrice(price: AdDetail['price']): string {
   if (price === null || price === undefined || price === '') return 'السعر عند التواصل';
@@ -44,6 +46,9 @@ function formatDate(value?: string): string | null {
 }
 
 export default function AdDetailScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { user, accessToken, csrfToken } = useAuth();
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -307,7 +312,7 @@ export default function AdDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   headerAction: { color: colors.brand, ...typography.captionStrong },
   pad: { paddingHorizontal: spacing.lg, gap: spacing.lg },
   price: { color: colors.brand, fontSize: fontSizes[24], fontWeight: '700', textAlign: 'right', letterSpacing: 0.2 },

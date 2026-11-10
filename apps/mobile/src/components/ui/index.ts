@@ -21,5 +21,5 @@ export {
 } from './Feedback';
 export { SearchBar } from './SearchBar';
 export { DetailScaffold } from './DetailScaffold';
-export { uiStyles } from './styles';
+export { useUIStyles } from './styles';
 export { ProductCard } from './ProductCard';

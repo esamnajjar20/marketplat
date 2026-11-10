@@ -1,10 +1,11 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { router } from 'expo-router';
 import { Alert, View } from 'react-native';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors, radius, spacing, typography } from '@/theme/tokens';
+import { radius, spacing, typography } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteSavedNetCard, deleteSavedPayee, listSavedNetCards, listSavedPayees, saveNetCard, savePayee, updateSavedNetCard, updateSavedPayee, type SavedNetCard, type SavedPayee } from '@/storage/saved-payments.store';
 
@@ -18,6 +19,8 @@ function maskIdentifier(value: string): string {
 }
 const methods = [{ value: 'jawwal', label: 'جوال' }, { value: 'palpay', label: 'PalPay' }, { value: 'bank', label: 'حساب بنكي' }] as const;
 export default function SavedPaymentsScreen() {
+  const { colors } = useAppTheme();
+
   const { user } = useAuth();
   const ownerId = user?.id ?? ''; 
   const [tab, setTab] = useState<Tab>('payees');

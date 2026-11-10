@@ -13,33 +13,34 @@
 
 export const colors = {
   // نص — هوية سوق غزة الدافئة
-  ink: '#1C1917',
-  inkSecondary: '#292524',
-  muted: '#78716C',
-  mutedSoft: '#A8A29E',
+  ink: '#241E19',
+  inkSecondary: '#4A433A',
+  muted: '#6B6459',
+  mutedSoft: '#A39E94',
 
   // علامة تجارية: زيتوني غني
-  brand: '#2F6B4A',
-  brandDark: '#1E4A33',
-  brandLight: '#3D8B5E',
+  brand: '#397F56',
+  brandDark: '#1F4D33',
+  brandLight: '#5E9C73',
   // نص عالي التباين على brandSoft (WCAG AA)
-  brandOnSoft: '#1E4A33',
-  brandSoft: '#E6F2EB',
-  brandSoftActive: '#D0E6D9',
-  brandMuted: '#5A9B72',
+  brandOnSoft: '#1F4D33',
+  brandSoft: '#E8F1EC',
+  brandSoftActive: '#CFE0D5',
+  brandMuted: '#5E9C73',
 
   // خلفيات: كريمي دافئ نظيف
-  canvas: '#FAF9F7',
-  canvasElevated: '#F5F3F0',
+  canvas: '#FDFCF9',
+  canvasElevated: '#FBF9F4',
   surface: '#FFFFFF',
-  surfaceSecondary: '#F9F8F6',
+  surfaceSecondary: '#F6F1E7',
 
   // حدود
   border: '#E7E2DA',
   borderStrong: '#D4CFC6',
   borderSubtle: '#F0EBE3',
   // حدود أوضح لعناصر التحكم
-  controlBorder: '#8B9A90',
+  // 3:1 contrast against white/canvas surfaces for non-text controls.
+  controlBorder: '#7E8C82',
   focus: '#2F6B4A',
   focusRing: 'rgba(47, 107, 74, 0.28)',
 
@@ -53,9 +54,9 @@ export const colors = {
   storyNavigationOverlay: 'rgba(0, 0, 0, 0.28)',
 
   // تمييز: تيراكوتا دافئة
-  accent: '#C45C28',
-  accentSoft: '#FBF0EA',
-  accentBorder: '#EDD0C0',
+  accent: '#AD531F',
+  accentSoft: '#FBEEE6',
+  accentBorder: '#F1D3C0',
 
   // حالات دلالية
   danger: '#C53030',
@@ -63,10 +64,10 @@ export const colors = {
   dangerBorder: '#FECACA',
   dangerText: '#9B2C2C',
 
-  success: '#2F6B4A',
-  successSoft: '#E6F2EB',
+  success: '#397F56',
+  successSoft: '#E8F1EC',
   successBorder: '#B8D9C4',
-  successText: '#1E4A33',
+  successText: '#1F4D33',
 
   info: '#1E4A7A',
   infoSoft: '#EBF3FB',
@@ -78,11 +79,93 @@ export const colors = {
   warningSoft: '#FFFAF0',
   warningBorder: '#FBD38D',
 
+  // Semantic aliases used by new themed components.
+  primary: '#397F56',
+  secondary: '#AD531F',
+  background: '#FDFCF9',
+  elevatedSurface: '#FBF9F4',
+  textPrimary: '#241E19',
+  textSecondary: '#6B6459',
+  error: '#C53030',
+  information: '#1E4A7A',
+  disabled: '#E7E2DA',
+  disabledText: '#A39E94',
+  onBrand: '#FFFFFF',
+  onDanger: '#FFFFFF',
+
   // ثابت
   white: '#FFFFFF',
   black: '#000000',
   transparent: 'transparent',
 } as const;
+
+/** لوحة ألوان داكنة متوافقة مع مفاتيح الألوان الفاتحة. */
+export const darkColors: ColorPalette = {
+  ink: '#F3F0EA',
+  inkSecondary: '#E4DED4',
+  muted: '#B8B0A5',
+  mutedSoft: '#91897F',
+  brand: '#79BD92',
+  brandDark: '#B2DFC0',
+  brandLight: '#91CFA6',
+  brandOnSoft: '#C6E9D2',
+  brandSoft: '#203A2B',
+  brandSoftActive: '#2B4B37',
+  brandMuted: '#78B78E',
+  canvas: '#101512',
+  canvasElevated: '#171F1A',
+  surface: '#1B241E',
+  surfaceSecondary: '#222D26',
+  border: '#39463D',
+  borderStrong: '#536257',
+  borderSubtle: '#2B372F',
+  controlBorder: '#829B89',
+  focus: '#8ACAA0',
+  focusRing: 'rgba(138, 202, 160, 0.30)',
+  mediaControlOverlay: 'rgba(25, 31, 27, 0.94)',
+  mediaCounterOverlay: 'rgba(0, 0, 0, 0.68)',
+  mediaCloseOverlay: 'rgba(0, 0, 0, 0.62)',
+  fullscreenBackdrop: 'rgba(0, 0, 0, 0.98)',
+  modalBackdrop: 'rgba(0, 0, 0, 0.68)',
+  storyProgressTrack: 'rgba(255, 255, 255, 0.32)',
+  storyNavigationOverlay: 'rgba(0, 0, 0, 0.36)',
+  accent: '#F0A47A',
+  accentSoft: '#3B291F',
+  accentBorder: '#714B35',
+  danger: '#F27676',
+  dangerSoft: '#3A2223',
+  dangerBorder: '#744143',
+  dangerText: '#FFC0C0',
+  success: '#86C99A',
+  successSoft: '#203A2B',
+  successBorder: '#426B4F',
+  successText: '#C1E8CC',
+  info: '#8CB9E8',
+  infoSoft: '#1E3042',
+  infoBorder: '#3B5C7A',
+  infoText: '#C0DDF8',
+  warning: '#F0B36B',
+  warningText: '#FFD19A',
+  warningSoft: '#3C2D1C',
+  warningBorder: '#76572E',
+  primary: '#79BD92',
+  secondary: '#F0A47A',
+  background: '#101512',
+  elevatedSurface: '#171F1A',
+  textPrimary: '#F3F0EA',
+  textSecondary: '#B8B0A5',
+  error: '#F27676',
+  information: '#8CB9E8',
+  disabled: '#354239',
+  disabledText: '#91897F',
+  onBrand: '#173323',
+  onDanger: '#2A1212',
+  white: '#FFFFFF',
+  black: '#000000',
+  transparent: 'transparent',
+};
+
+export type ColorPalette = { readonly [K in keyof typeof colors]: string };
 
 export const spacing = {
   xxs: 2,
@@ -205,6 +288,33 @@ export const typography = {
     fontWeight: '700' as const,
     lineHeight: 24,
   },
+  // Product language aliases for screens that want explicit hierarchy names.
+  screenTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    lineHeight: 28,
+    letterSpacing: -0.2,
+  },
+  sectionTitle: {
+    fontSize: 17,
+    fontWeight: '600' as const,
+    lineHeight: 24,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    lineHeight: 23,
+  },
+  supporting: {
+    fontSize: 13,
+    fontWeight: '400' as const,
+    lineHeight: 18,
+  },
+  buttonLabel: {
+    fontSize: 16,
+    fontWeight: '600' as const,
+    lineHeight: 22,
+  },
 } as const;
 
 /** ظلال متدرجة ناعمة — بطاقات sm، عناصر مرتفعة md، نوافذ lg */
@@ -268,8 +378,9 @@ export const sizes = {
   avatarMd: 48,
   avatarLg: 64,
   avatarXl: 88,
-  chipHeight: 36,
-  chipHeightLg: 40,
+  // Interactive chips must meet the same 44dp minimum as other controls.
+  chipHeight: 44,
+  chipHeightLg: 48,
   cardImageRow: 100,
   cardImageGrid: 148,
   adImageWidth: 120,

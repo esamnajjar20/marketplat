@@ -25,8 +25,8 @@ assert.match(drawer, /importantForAccessibility=\{open \? 'yes' : 'no-hide-desce
 assert.match(drawer, /accessibilityRole=\"link\"[\s\S]*?accessibilityState=\{\{ selected: active \}\}/, 'drawer destinations must be exposed as selected navigation links');
 assert.match(drawer, /accessibilityRole=\"header\"/, 'drawer section labels must be announced as headings');
 assert.match(drawer, /accessibilityHint=\{getRouteAccess\(item\.path\) === 'authenticated' && !user/, 'authentication-only destinations must explain the sign-in redirect using the shared route policy');
-assert.match(drawer, /minHeight: 48/, 'drawer rows must meet minimum touch target height');
-assert.match(drawer, /onClose\(\);\s*const requiresAuth = getRouteAccess\(item\.path\) === 'authenticated';[\s\S]*?const target = requiresAuth && !user[\s\S]*?pathname: ['\"]\/login['\"],[\s\S]*?params: \{ redirect: item\.path \}[\s\S]*?toAppHref\(item\.path\)[\s\S]*?router\.navigate\(target\)/, 'drawer navigation must close before selecting a destination and preserve its redirect using a typed local route');
+assert.match(drawer, /menuItem:\s*\{[\s\S]*?minHeight: 50/, 'drawer rows must meet minimum touch target height (50dp)');
+assert.match(drawer, /onClose\(\);\s*const requiresAuth = getRouteAccess\(item\.path\) === 'authenticated';[\s\S]*?const target = requiresAuth && !user[\s\S]*?toAppHref\(`\/login\?redirect=\$\{encodeURIComponent\(item\.path\)\}`\)[\s\S]*?toAppHref\(item\.path\)[\s\S]*?router\.navigate\(target\)/, 'drawer navigation must close before selecting a destination and preserve its redirect through the typed local href helper');
 assert.match(drawer, /const isRTL = true/, 'Arabic drawer must stay right-anchored in the native RTL layout');
 assert.match(nativeApplication, /I18nUtil\.getInstance\(\)\.allowRTL\(applicationContext, true\)/);
 assert.match(nativeApplication, /I18nUtil\.getInstance\(\)\.forceRTL\(applicationContext, true\)/, 'native RTL must be applied before the first React surface is created');

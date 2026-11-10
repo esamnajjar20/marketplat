@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppIcon } from '@/components/Icons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -6,9 +7,11 @@ import { ActivityIndicator, View } from 'react-native';
 import { router } from 'expo-router';
 import { fetchProductCategories, type ProductCategory } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors } from '@/theme/tokens';
+import { fontSizes } from '@/theme/tokens';
 
 export default function ProductCategoriesScreen() {
+  const { colors } = useAppTheme();
+
   const [items, setItems] = useState<ProductCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

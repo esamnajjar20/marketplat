@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { showToast } from '@/lib/toast';
 import { AppImage } from '@/components/AppImage';
@@ -8,12 +9,14 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import { listSavedOfflineResources, removeSavedOfflineResource, type SavedOfflineItem } from '@/storage/saved-offline';
 import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
 
 const kindName = (kind: SavedOfflineItem['kind']) => kind === 'ad' ? 'إعلان' : kind === 'product' ? 'منتج' : 'متجر';
 const dateLabel = (value: number) => formatSafeDate(value, 'dateTime');
 export default function SavedOfflineScreen() {
+  const { colors } = useAppTheme();
+
   const [items, setItems] = useState<SavedOfflineItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

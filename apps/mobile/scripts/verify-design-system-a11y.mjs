@@ -62,14 +62,14 @@ check('touch and chip targets are at least 44 points', () => {
   assert.ok(Number(chip) >= 44, `chipHeight is ${chip}`);
 });
 check('shared TextInput/SearchBar/Chip use control borders and brand-selected state', () => {
-  assert.match(uiStyles, /input:\s*\{[\s\S]*?borderColor:\s*colors\.controlBorder/);
-  assert.match(uiStyles, /searchBar:\s*\{[\s\S]*?borderColor:\s*colors\.controlBorder/);
-  assert.match(uiStyles, /chip:\s*\{[\s\S]*?borderColor:\s*colors\.controlBorder/);
-  assert.match(uiStyles, /chipSelected:\s*\{[\s\S]*?borderColor:\s*colors\.brand/);
+  assert.match(uiStyles, /input:\s*\{[\s\S]*?borderColor:\s*palette\.controlBorder/);
+  assert.match(uiStyles, /searchBar:\s*\{[\s\S]*?borderColor:\s*palette\.controlBorder/);
+  assert.match(uiStyles, /chip:\s*\{[\s\S]*?borderColor:\s*palette\.controlBorder/);
+  assert.match(uiStyles, /chipSelected:\s*\{[\s\S]*?borderColor:\s*palette\.brand/);
 });
 check('warning notices and offline banner use accessible warning text color', () => {
   assert.match(feedback, /tone === 'warning' && \{ color: colors\.warningText \}/);
-  assert.match(uiStyles, /offlineBannerText:\s*\{[\s\S]*?color:\s*colors\.warningText/);
+  assert.match(uiStyles, /offlineBannerText:\s*\{[\s\S]*?color:\s*palette\.warningText/);
 });
 check('Field focus and inline errors are accessible', () => {
   assert.match(field, /focused && s\.inputFocused/);
@@ -81,8 +81,12 @@ check('bottom navigation typography comes from a token, not 10px hardcoding', ()
   assert.doesNotMatch(bottomNav, /label:\s*\{[^}]*fontSize:\s*10/);
 });
 check('search filters announce selected state and meet touch-size target', () => {
-  assert.ok((search.match(/accessibilityState=\{\{ selected:/g) ?? []).length >= 4);
-  assert.ok((search.match(/minHeight: 44/g) ?? []).length >= 4);
+  // Search chips share one accessible component; validate the abstraction and
+  // its use sites instead of requiring duplicated accessibility props.
+  assert.match(search, /function Chip\([\s\S]*?selected: boolean[\s\S]*?accessibilityState=\{\{ selected \}\}/);
+  assert.ok((search.match(/<Chip\b/g) ?? []).length >= 4);
+  assert.ok((search.match(/selected=\{/g) ?? []).length >= 4);
+  assert.match(search, /chip:\s*\{[\s\S]*?minHeight:\s*44[\s\S]*?minWidth:\s*44/);
   assert.match(search, /<ErrorState/);
   assert.match(search, /<EmptyState/);
 });

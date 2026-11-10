@@ -1,3 +1,6 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
+import { useMemo } from 'react';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 /**
@@ -8,7 +11,7 @@ import { AdCard } from '@/components/MarketCards';
 import { adListProps } from '@/lib/listPerformance';
 import { openScreen } from '@/lib/navigation';
 import { routes } from '@/lib/routes';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { radius, spacing } from '@/theme/tokens';
 import type { AdListItem } from '@/features/ads/ads.api';
 import { formatPrice } from '@/features/discovery/homeFormatters';
 
@@ -35,6 +38,9 @@ export function HomeAdsList({
   onLoadMore,
   onImageError,
 }: Props) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   return (
     <View style={styles.wrap}>
       <FlatList
@@ -78,7 +84,7 @@ export function HomeAdsList({
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   wrap: { gap: spacing.md },
   loadMore: {
     marginTop: spacing.md,

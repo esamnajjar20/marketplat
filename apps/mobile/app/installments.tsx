@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -7,7 +8,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchInstallments, payInstallment, type InstallmentRow } from '@/features/sales/sales-extra.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { ApiError } from '@/api/client';
 import { createMobileOperationId } from '@/lib/operation-id';
@@ -18,6 +19,8 @@ const money = (n: unknown) =>
   formatMoney(Number(n) || 0);
 
 export default function InstallmentsScreen() {
+  const { colors } = useAppTheme();
+
   const { accessToken, csrfToken, user, isRestoring } = useAuth();
   const [kind, setKind] = useState<'upcoming' | 'overdue'>('upcoming');
   const [items, setItems] = useState<InstallmentRow[]>([]);

@@ -8,7 +8,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '@/components/BottomNavigation';
 import { MobileDrawerProvider } from '@/components/MobileDrawer';
 import { StatusBar } from 'expo-status-bar';
-import { fontSizes, colors, spacing, typography } from '@/theme/tokens';
+import { fontSizes, spacing, typography } from '@/theme/tokens';
+import { AppThemeProvider, useAppTheme, useAppThemeColors } from '@/theme/ThemeProvider';
 import { AuthProvider, useAuth } from '@/features/auth/AuthContext';
 import { ConnectivityProvider, useIsOnline } from '@/lib/connectivity';
 import { requiresAuthenticatedUser } from '@/lib/navigation-policy';
@@ -25,6 +26,7 @@ import { captureException, initErrorReporting } from '@/lib/error-reporting';
 initErrorReporting({ dsn: process.env.EXPO_PUBLIC_SENTRY_DSN });
 
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  const colors = useAppThemeColors();
   if (__DEV__) console.error('[ErrorBoundary]', error);
   useEffect(() => {
     captureException(error, { boundary: 'root' });
@@ -66,7 +68,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
           justifyContent: 'center',
         }}
       >
-        <Text style={{ color: colors.white, fontWeight: '800', fontSize: fontSizes[15] }}>إعادة المحاولة</Text>
+        <Text style={{ color: colors.onBrand, fontWeight: '800', fontSize: fontSizes[15] }}>إعادة المحاولة</Text>
       </Pressable>
     </View>
   );
@@ -75,6 +77,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
 function RootChrome({ children }: { children: ReactNode }) {
   // BottomNavigation self-manages visibility via isBottomNavigationHidden.
   const isOnline = useIsOnline();
+  const { colors } = useAppTheme();
   const { user, isRestoring } = useAuth();
   const pathname = usePathname();
   const isPrivateRoute = requiresAuthenticatedUser(pathname);
@@ -115,7 +118,8 @@ function RootChrome({ children }: { children: ReactNode }) {
   );
 }
 
-export default function RootLayout() {
+function RootLayoutContent() {
+  const { colors: palette, isDark } = useAppTheme();
   // Native RTL is the source of truth. Horizontal row layouts in app/src were
   // migrated from manual reversed rows to normal rows so Yoga mirrors them exactly once.
   // React Native persists this setting; a native restart is required to apply it.
@@ -133,12 +137,12 @@ export default function RootLayout() {
         <FavoritesSyncLifecycleBridge />
         <ChatMessageOutboxLifecycleBridge />
         <NativePushLifecycleBridge />
-        <StatusBar style="dark" />
+        <StatusBar style={isDark ? "light" : "dark"} />
         <RootChrome>
           <Stack
             screenOptions={{
               headerShown: false,
-              contentStyle: { backgroundColor: colors.canvas },
+              contentStyle: { backgroundColor: palette.canvas },
               // Native RTL mirrors the navigation transition; push screens enter from the right.
               animation: 'slide_from_right',
               animationDuration: 260,
@@ -164,5 +168,13 @@ export default function RootLayout() {
         </RootChrome>
       </AuthProvider>
     </ConnectivityProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AppThemeProvider>
+      <RootLayoutContent />
+    </AppThemeProvider>
   );
 }

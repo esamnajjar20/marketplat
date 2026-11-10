@@ -1,3 +1,5 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
+import { invalidateNavigationCapabilities } from '@/lib/navigation-policy';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, FlatList, View } from 'react-native';
@@ -5,12 +7,14 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { acceptStoreInvite, fetchMyStoreInvites, removeStoreMember, type StoreMember } from '@/features/commerce/store-management.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, spacing } from '@/theme/tokens';
+import { fontSizes, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { roleLabel } from '@/lib/status-labels';
 import { showToast } from '@/lib/toast';
 
 export default function StoreInvitesScreen() {
+  const { colors } = useAppTheme();
+
   const { accessToken, csrfToken } = useAuth();
   const [items, setItems] = useState<StoreMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +47,7 @@ export default function StoreInvitesScreen() {
     setError('');
     try {
       await acceptStoreInvite(item.id, accessToken, csrfToken);
+      invalidateNavigationCapabilities();
       await load();
       showToast('تم قبول الدعوة', 'أصبحت عضوًا في المتجر.', 'success');
     } catch (e) {

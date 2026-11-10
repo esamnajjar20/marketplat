@@ -1,3 +1,6 @@
+import type { ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
+import { useMemo } from 'react';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppIcon } from '@/components/Icons';
@@ -5,7 +8,7 @@ import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { AppImage } from '@/components/AppImage';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 import { fetchSellerOrders, type MarketplaceOrder } from '@/features/commerce/orders.api';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -16,6 +19,9 @@ const labels: Record<string, string> = { PENDING: 'بانتظار التأكيد
 const money = (value: unknown) => formatMoney(value);
 
 export default function SellerOrdersScreen() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+
   const { accessToken, isRestoring, user } = useAuth();
   const list = usePaginatedList<MarketplaceOrder>({
     key: `seller-orders:${user?.id ?? 'guest'}`,
@@ -69,7 +75,7 @@ export default function SellerOrdersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas }, content: { padding: spacing.lg, paddingBottom: 52 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md },
   back: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
@@ -79,6 +85,6 @@ title: { fontSize: fontSizes[24], fontWeight: '900', color: colors.ink, letterSp
   itemLine: { flexDirection: 'row', gap: spacing.md }, image: { width: 76, height: 76, borderRadius: radius.md, backgroundColor: colors.border }, imagePlaceholder: { width: 76, height: 76, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' },
   itemInfo: { flex: 1, alignItems: 'flex-end', gap: 5, justifyContent: 'center' }, productName: { fontSize: fontSizes[15], fontWeight: '800', color: colors.ink, textAlign: 'right' }, muted: { fontSize: fontSizes[12], color: colors.muted, textAlign: 'right', lineHeight: 19 },
   link: { fontSize: fontSizes[13], fontWeight: '800', color: colors.brand, textAlign: 'right' }, state: { alignItems: 'center', gap: spacing.md, padding: spacing.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, marginTop: spacing.md },
-  emptyTitle: { fontSize: fontSizes[17], fontWeight: '800', color: colors.ink }, primary: { minHeight: 48, backgroundColor: colors.brand, borderRadius: radius.md, padding: spacing.md, alignItems: 'center', justifyContent: 'center' }, primaryText: { color: colors.white, fontWeight: '800' },
+  emptyTitle: { fontSize: fontSizes[17], fontWeight: '800', color: colors.ink }, primary: { minHeight: 48, backgroundColor: colors.brand, borderRadius: radius.md, padding: spacing.md, alignItems: 'center', justifyContent: 'center' }, primaryText: { color: colors.onBrand, fontWeight: '800' },
   secondary: { minHeight: 48, borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, padding: spacing.md, alignItems: 'center', justifyContent: 'center', marginTop: spacing.sm, backgroundColor: colors.surface }, secondaryText: { color: colors.brand, fontWeight: '800' }, error: { color: colors.danger, textAlign: 'right' }, footerLoading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.lg },
 });

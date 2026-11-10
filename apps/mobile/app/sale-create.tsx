@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useMemo, useRef, useState } from 'react';
@@ -10,7 +11,7 @@ import { ApiError } from '@/api/client';
 import { createMobileOperationId } from '@/lib/operation-id';
 import { enqueueOfflineCreate } from '@/storage/outbox-manager';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 import { formatMoney } from '@/lib/formatters';
 import { showToast } from '@/lib/toast';
 
@@ -19,6 +20,8 @@ const makeLine = (): SaleLine => ({ id: `line-${Date.now()}-${Math.random().toSt
 const money = (n: number) => formatMoney(n);
 
 export default function SaleCreateScreen() {
+  const { colors } = useAppTheme();
+
   const { accessToken, csrfToken, user } = useAuth();
   const [mode, setMode] = useState<'single' | 'multiple'>('single');
   const [title, setTitle] = useState('');

@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useState } from 'react';
@@ -6,10 +7,12 @@ import { TextInput, View } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import { submitReport, type ReportReason } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors } from '@/theme/tokens';
+import { fontSizes } from '@/theme/tokens';
 const reasons: { value: ReportReason; label: string }[] = [{ value: 'SCAM', label: 'احتيال أو محاولة نصب' }, { value: 'FAKE', label: 'معلومات أو محتوى مزيف' }, { value: 'OFFENSIVE', label: 'محتوى مسيء' }, { value: 'SPAM', label: 'رسائل أو محتوى مزعج' }];
 const targetLabels: Record<string, string> = { ads: 'الإعلان', users: 'المستخدم', stores: 'المتجر', products: 'المنتج', services: 'الخدمة' };
 export default function ReportTargetScreen() {
+  const { colors } = useAppTheme();
+
   const p = useLocalSearchParams<{ targetType?: string | string[]; targetId?: string | string[] }>(); const targetType = Array.isArray(p.targetType) ? p.targetType[0] : p.targetType; const targetId = Array.isArray(p.targetId) ? p.targetId[0] : p.targetId;
   const { accessToken, csrfToken } = useAuth(); const [reason, setReason] = useState<ReportReason | null>(null); const [notes, setNotes] = useState(''); const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [success, setSuccess] = useState(false);
   const validTarget = Boolean(targetId && targetType && ['ads', 'users', 'stores', 'products', 'services'].includes(targetType));

@@ -3,9 +3,11 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { usePathname } from 'expo-router';
 import { goTab } from '@/lib/navigation';
 import { MAIN_TABS, getActiveMainTab, shouldHideBottomNavigation } from '@/lib/navigation-policy';
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fontSizes, colors, radius, sizes, spacing, typography, ux, elevation } from '@/theme/tokens';
+import { fontSizes, radius, sizes, spacing, typography, ux, elevation, type ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppIcon } from '@/components/Icons';
 
 export function isBottomNavigationHidden(pathname: string): boolean {
@@ -13,6 +15,8 @@ export function isBottomNavigationHidden(pathname: string): boolean {
 }
 
 export default function BottomNavigation() {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const pathname = usePathname();
   if (isBottomNavigationHidden(pathname)) return null;
 
@@ -49,7 +53,7 @@ export default function BottomNavigation() {
                 <AppIcon
                   name={tab.glyph}
                   size={isAdd ? 26 : 22}
-                  color={isAdd ? colors.white : active ? colors.brand : colors.muted}
+                  color={isAdd ? colors.onBrand : active ? colors.brand : colors.muted}
                 />
               </View>
               <Text
@@ -67,11 +71,12 @@ export default function BottomNavigation() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(palette: ColorPalette) {
+  return StyleSheet.create({
   safeArea: {
-    backgroundColor: colors.surface,
+    backgroundColor: palette.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
+    borderTopColor: palette.border,
     ...elevation.sm,
   },
   bar: {
@@ -95,7 +100,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   activeTab: {
-    backgroundColor: colors.brandSoft,
+    backgroundColor: palette.brandSoft,
   },
   pressed: { opacity: ux.pressedOpacity },
   glyphWrap: {
@@ -106,25 +111,26 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
   },
   activeGlyphWrap: {
-    backgroundColor: colors.brandSoftActive,
+    backgroundColor: palette.brandSoftActive,
   },
   addWrap: {
-    backgroundColor: colors.brand,
+    backgroundColor: palette.brand,
     minWidth: 48,
     minHeight: 40,
     borderRadius: radius.md,
     ...elevation.sm,
   },
   label: {
-    color: colors.muted,
+    color: palette.muted,
     ...typography.overline,
   },
   activeLabel: {
-    color: colors.brandDark,
+    color: palette.brandDark,
     fontWeight: '700',
   },
   addLabel: {
-    color: colors.brand,
+    color: palette.brand,
     fontWeight: '600',
   },
 });
+}

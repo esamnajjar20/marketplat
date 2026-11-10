@@ -1,8 +1,8 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { TextInput, View } from 'react-native';
-import { colors } from '@/theme/tokens';
-import { uiStyles as s } from './styles';
+import { useAppTheme } from '@/theme/ThemeProvider';
+import { useUIStyles } from './styles';
 
 export function SearchBar({
   value,
@@ -19,6 +19,8 @@ export function SearchBar({
   placeholder?: string;
   accessibilityLabel?: string;
 }) {
+  const s = useUIStyles();
+  const { colors } = useAppTheme();
   return (
     <View style={s.searchBar}>
       <Text style={s.searchIcon}>⌕</Text>

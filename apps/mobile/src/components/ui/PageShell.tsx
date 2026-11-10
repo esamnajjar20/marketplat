@@ -4,7 +4,7 @@ import { usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isBottomNavigationHidden } from '@/components/BottomNavigation';
 import { AppHeader } from './AppHeader';
-import { uiStyles as s } from './styles';
+import { useUIStyles } from './styles';
 
 function ShellBody({
   hidden,
@@ -19,6 +19,7 @@ function ShellBody({
   children: ReactNode;
   scroll?: boolean;
 }) {
+  const s = useUIStyles();
   const edges: ('top' | 'bottom')[] = hidden ? ['top', 'bottom'] : ['top'];
   const body = scroll ? (
     <ScrollView

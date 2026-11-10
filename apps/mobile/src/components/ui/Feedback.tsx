@@ -2,9 +2,10 @@ import { AppText as Text } from './AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { type ReactNode, useEffect, useRef } from 'react';
 import { ActivityIndicator, Animated, View, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, radius, spacing, ux } from '@/theme/tokens';
+import { radius, spacing, ux } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { PrimaryButton } from './Button';
-import { uiStyles as s } from './styles';
+import { useUIStyles } from './styles';
 
 export function Notice({
   children,
@@ -13,6 +14,8 @@ export function Notice({
   children: ReactNode;
   tone?: 'error' | 'success' | 'muted' | 'info' | 'warning';
 }) {
+  const s = useUIStyles();
+  const { colors } = useAppTheme();
   return (
     <View
       accessibilityRole={tone === 'error' || tone === 'warning' ? 'alert' : 'text'}
@@ -47,6 +50,8 @@ export function Badge({
   label: string;
   tone?: 'brand' | 'danger' | 'success' | 'muted' | 'accent';
 }) {
+  const s = useUIStyles();
+  const { colors } = useAppTheme();
   return (
     <View
       style={[
@@ -81,6 +86,7 @@ export function Chip({
   selected?: boolean;
   onPress?: () => void;
 }) {
+  const s = useUIStyles();
   return (
     <Pressable
       accessibilityRole="button"
@@ -96,6 +102,8 @@ export function Chip({
 }
 
 export function LoadingState({ message = 'جاري التحميل…' }: { message?: string }) {
+  const s = useUIStyles();
+  const { colors } = useAppTheme();
   return (
     <View accessibilityRole="progressbar" accessibilityLabel={message} accessibilityLiveRegion="polite" style={s.stateBox}>
       <ActivityIndicator size="large" color={colors.brand} />
@@ -115,6 +123,7 @@ export function EmptyState({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  const s = useUIStyles();
   return (
     <View accessibilityLiveRegion="polite" style={s.stateBox}>
       <View style={s.stateIconWrap}>
@@ -142,6 +151,8 @@ export function ErrorState({
   actionLabel?: string;
   onAction?: () => void;
 }) {
+  const s = useUIStyles();
+  const { colors } = useAppTheme();
   return (
     <View accessibilityRole="alert" accessibilityLiveRegion="polite" style={s.stateBox}>
       <View style={[s.stateIconWrap, s.stateIconError]}>
@@ -170,6 +181,7 @@ export function SkeletonBlock({
   radius?: number;
   style?: StyleProp<ViewStyle>;
 }) {
+  const s = useUIStyles();
   const opacity = useRef(new Animated.Value(0.45)).current;
 
   useEffect(() => {
@@ -203,6 +215,7 @@ export function SkeletonBlock({
 }
 
 export function SkeletonCard() {
+  const s = useUIStyles();
   return (
     <View style={s.skeletonCard}>
       <SkeletonBlock height={96} width={96} radius={radius.card} />
@@ -232,6 +245,7 @@ export function OfflineBanner({
   visible: boolean;
   message?: string;
 }) {
+  const s = useUIStyles();
   if (!visible) return null;
   return (
     <View accessibilityLiveRegion="polite" accessibilityRole="alert" style={s.offlineBanner}>

@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -8,7 +9,7 @@ import { createAppointment, fetchProviderAvailability, type ProviderAvailability
 import { buildAppointmentSlots, type AppointmentSlot } from '@/features/appointments/appointment-slots';
 import { fetchServiceRequest } from '@/features/services/services.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { colors, fontSizes, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 
 const MARKET_TIME_ZONE = 'Asia/Gaza';
 const marketDateParts = new Intl.DateTimeFormat('en-GB', {
@@ -30,6 +31,8 @@ function makeDateOptions(page: number) {
 }
 
 export default function AppointmentCreateScreen() {
+  const { colors } = useAppTheme();
+
   const params = useLocalSearchParams<{ requestId?: string | string[] }>();
   const requestId = Array.isArray(params.requestId) ? params.requestId[0] : params.requestId;
   const { getAccessToken, csrfToken, user, isRestoring } = useAuth();

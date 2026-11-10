@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
@@ -6,10 +7,14 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStore, fetchMyStoreAnalytics, type StoreAnalytics, type StoreSummary } from '@/features/commerce/commerce.api';
 import { fetchMySellerProfile, type SellerProfile } from '@/features/account/seller.api';
 import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
 
-function Metric({ label, value }: { label: string; value: string | number }) { return <View style={{ flex: 1, minWidth: 120, padding: spacing.md, borderRadius: radius.card, backgroundColor: colors.brandSoft, gap: spacing.xs }}><Text style={{ color: colors.muted, textAlign: 'right', fontSize: fontSizes[12] }}>{label}</Text><Text style={{ color: colors.brandOnSoft, textAlign: 'right', fontSize: fontSizes[21], fontWeight: '900' }}>{value}</Text></View>; }
+function Metric({ label, value }: { label: string; value: string | number }) {
+  const { colors } = useAppTheme();
+ return <View style={{ flex: 1, minWidth: 120, padding: spacing.md, borderRadius: radius.card, backgroundColor: colors.brandSoft, gap: spacing.xs }}><Text style={{ color: colors.muted, textAlign: 'right', fontSize: fontSizes[12] }}>{label}</Text><Text style={{ color: colors.brandOnSoft, textAlign: 'right', fontSize: fontSizes[21], fontWeight: '900' }}>{value}</Text></View>; }
 export default function SellerDashboardScreen() {
+  const { colors } = useAppTheme();
+
   const { accessToken, user } = useAuth();
   const [store, setStore] = useState<StoreSummary | null>(null);
   const [profile, setProfile] = useState<SellerProfile | null>(null);

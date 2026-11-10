@@ -1,11 +1,12 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { ConversationItem } from '@/features/messaging/messaging.api';
 import { AppImage } from '@/components/AppImage';
 import { isAllowedMediaUrl } from '@/lib/safe-media-url';
-import { fontSizes, colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, elevation, radius, spacing, typography, ux, type ColorPalette } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 
 type ConversationListItemProps = {
   item: ConversationItem;
@@ -43,6 +44,8 @@ function ConversationListItemView({
   const [avatarFailed, setAvatarFailed] = useState(false);
   useEffect(() => setAvatarFailed(false), [avatarUrl]);
   const pinned = Boolean(item.mySettings?.pinnedAt);
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   return (
     <Pressable
@@ -125,7 +128,8 @@ function ConversationListItemView({
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(colors: ColorPalette) {
+  return StyleSheet.create({
   card: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -205,7 +209,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeText: {
-    color: colors.white,
+    color: colors.onBrand,
     fontSize: fontSizes[11],
     fontWeight: '700',
   },
@@ -216,12 +220,14 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   action: {
-    minHeight: 32,
+    minHeight: 44,
+    minWidth: 44,
+    alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.borderStrong ?? colors.border,
+    borderColor: colors.controlBorder,
     backgroundColor: colors.surface,
   },
   actionText: {
@@ -229,6 +235,7 @@ const styles = StyleSheet.create({
     fontSize: fontSizes[12],
     fontWeight: '600',
   },
-});
+  });
+}
 
 export default memo(ConversationListItemView);

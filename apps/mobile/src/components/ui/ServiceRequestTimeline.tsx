@@ -1,11 +1,13 @@
 import { formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { View } from 'react-native';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
+import { useAppTheme } from '@/theme/ThemeProvider';
 const LABELS: Record<string, string> = { PENDING: 'تم إرسال الطلب', ACCEPTED: 'قُبل الطلب', REJECTED: 'رُفض الطلب', IN_PROGRESS: 'بدأ التنفيذ', COMPLETED: 'اكتمل الطلب', CANCELLED: 'أُلغي الطلب', EXPIRED: 'انتهت صلاحية الطلب', DISPUTED: 'الطلب قيد المراجعة' };
 const ORDER = ['PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED'];
 type TimelineEvent = { key: string; date?: string | null; label: string };
 export function ServiceRequestTimeline({ status, createdAt, respondedAt }: { status?: string; createdAt?: string; respondedAt?: string | null }) {
+  const { colors } = useAppTheme();
   const current = ORDER.indexOf(status || 'PENDING'); const terminal = ['REJECTED', 'CANCELLED', 'EXPIRED', 'DISPUTED'].includes(status || '');
   const events: TimelineEvent[] = [
     { key: 'PENDING', date: createdAt, label: LABELS.PENDING },
