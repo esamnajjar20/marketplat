@@ -36,16 +36,19 @@ export function SectionCard({
   children,
   style,
   onPress,
+  accessibilityLabel,
 }: {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
+  accessibilityLabel?: string;
 }) {
   const s = useUIStyles();
   if (onPress) {
     return (
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
         onPress={onPress}
         style={({ pressed }) => [s.card, style, pressed && s.pressed]}
       >

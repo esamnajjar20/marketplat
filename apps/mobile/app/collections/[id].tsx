@@ -11,7 +11,7 @@ import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
 import { fontSizes, spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
-import { formatSafeDate } from '@/lib/date-format';
+
 
 export default function CollectionProductsScreen() {
   const { colors } = useAppTheme();
@@ -61,8 +61,8 @@ export default function CollectionProductsScreen() {
               {item.images?.[0] ? (
                 <AppImage uri={item.images[0]} style={{ width: '100%', height: 160, borderRadius: 12 }} resizeMode="cover" />
               ) : null}
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }}>{item.name}</Text>
-              <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '900' }}>
+              <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '700', color: colors.ink }}>{item.name}</Text>
+              <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700' }}>
                 {(() => { const value = Number(item.effectivePrice?.price ?? item.discountPrice ?? item.price); return Number.isFinite(value) ? formatMoney(value) : 'السعر غير متاح'; })()}
               </Text>
               <Text style={{ textAlign: 'right', color: colors.muted }}>

@@ -3,16 +3,11 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney, formatNumber, formatDate as formatSharedDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useLocalSearchParams, router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
-import {
-  enqueueFavoriteState,
-  listPendingFavoriteStates,
-  readFavoriteAdIds,
-  updateFavoriteAdId,
-} from '@/features/ads/favorites.store';
+import { enqueueFavoriteState, listPendingFavoriteStates, readFavoriteAdIds, updateFavoriteAdId } from '@/features/ads/favorites.store';
 import { setFavoriteAdState } from '@/features/ads/favorites.api';
 import { ApiError } from '@/api/client';
 import { fetchAdDetail, getCachedAdDetail, type AdDetail } from '@/features/ads/ads.api';
@@ -21,14 +16,8 @@ import { ShareButton } from '@/components/ui/ShareButton';
 import { AppIcon } from '@/components/Icons';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { SaveOfflineButton } from '@/components/ui/SaveOfflineButton';
-import {
-  Badge,
-  DetailScaffold,
-  Notice,
-  PrimaryButton,
-  SectionCard,
-} from '@/components/MobileUI';
-import { fontSizes, elevation, radius, spacing, typography } from '@/theme/tokens';
+import { Badge, DetailScaffold, Notice, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { fontSizes, spacing, typography } from '@/theme/tokens';
 
 function formatPrice(price: AdDetail['price']): string {
   if (price === null || price === undefined || price === '') return 'السعر عند التواصل';
@@ -312,9 +301,7 @@ export default function AdDetailScreen() {
   );
 }
 
-const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  headerAction: { color: colors.brand, ...typography.captionStrong },
-  pad: { paddingHorizontal: spacing.lg, gap: spacing.lg },
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({  pad: { paddingHorizontal: spacing.lg, gap: spacing.lg },
   price: { color: colors.brand, fontSize: fontSizes[24], fontWeight: '700', textAlign: 'right', letterSpacing: 0.2 },
   title: {
     color: colors.ink,

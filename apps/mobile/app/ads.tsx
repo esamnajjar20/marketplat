@@ -4,7 +4,8 @@ import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
+import { Spinner } from '@/components/ui';
 import { router } from 'expo-router';
 import { fetchPublicAds, type AdListItem } from '@/features/ads/ads.api';
 import { FilterChip } from '@/components/ui/FilterChip';
@@ -82,16 +83,16 @@ export default function AllAdsScreen() {
       />
       <PrimaryButton label="بحث" onPress={applySearch} />
     </View>
-    <Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '800' }}>حالة الإعلان</Text>
+    <Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '700' }}>حالة الإعلان</Text>
     <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
       {CONDITIONS.map((option) => <FilterChip key={option.value || 'all'} label={option.label} selected={condition === option.value} onPress={() => applyCondition(option.value)} />)}
     </View>
-    {list.loading ? <SectionCard><ActivityIndicator color={colors.brand} /><Text style={{ textAlign: 'center', color: colors.muted, marginTop: spacing.sm }}>جارٍ تحميل الإعلانات…</Text></SectionCard> : null}
+    {list.loading ? <SectionCard><Spinner color={colors.brand} /><Text style={{ textAlign: 'center', color: colors.muted, marginTop: spacing.sm }}>جارٍ تحميل الإعلانات…</Text></SectionCard> : null}
     {list.error ? <SectionCard><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void list.retry()} /></SectionCard> : null}
-    {!list.loading && !list.error && list.items.length === 0 ? <SectionCard><Text style={{ textAlign: 'center', color: colors.ink, fontWeight: '800' }}>لا توجد إعلانات مطابقة</Text><Text style={{ textAlign: 'center', color: colors.muted }}>غيّر عبارة البحث أو حالة الإعلان.</Text></SectionCard> : null}
+    {!list.loading && !list.error && list.items.length === 0 ? <SectionCard><Text style={{ textAlign: 'center', color: colors.ink, fontWeight: '700' }}>لا توجد إعلانات مطابقة</Text><Text style={{ textAlign: 'center', color: colors.muted }}>غيّر عبارة البحث أو حالة الإعلان.</Text></SectionCard> : null}
     {list.items.map((ad) => <Pressable key={ad.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/ads/[id]', params: { id: ad.id } })} style={{ flexDirection: 'row', gap: spacing.md, padding: spacing.md, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, minHeight: 112 }}>
-      {ad.images?.[0] ? <AppImage uri={ad.images[0]} style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.border }} /> : <View style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: '800' }}>بدون صورة</Text></View>}
-      <View style={{ flex: 1, gap: spacing.xs, justifyContent: 'center' }}><Text numberOfLines={2} style={{ textAlign: 'right', color: colors.ink, fontWeight: '900', fontSize: fontSizes[15] }}>{ad.title}</Text><Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '900', fontSize: fontSizes[14] }}>{adPrice(ad.price)}</Text><Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>{ad.city || ad.user?.city || 'الموقع غير محدد'}</Text><Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[11] }}>{ad.condition === 'NEW' ? 'جديد' : ad.condition === 'USED' ? 'مستعمل' : ad.condition === 'REFURBISHED' ? 'مجدد' : 'حالة غير محددة'}</Text></View>
+      {ad.images?.[0] ? <AppImage uri={ad.images[0]} style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.border }} /> : <View style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: '700' }}>بدون صورة</Text></View>}
+      <View style={{ flex: 1, gap: spacing.xs, justifyContent: 'center' }}><Text numberOfLines={2} style={{ textAlign: 'right', color: colors.ink, fontWeight: '700', fontSize: fontSizes[15] }}>{ad.title}</Text><Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700', fontSize: fontSizes[14] }}>{adPrice(ad.price)}</Text><Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>{ad.city || ad.user?.city || 'الموقع غير محدد'}</Text><Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[11] }}>{ad.condition === 'NEW' ? 'جديد' : ad.condition === 'USED' ? 'مستعمل' : ad.condition === 'REFURBISHED' ? 'مجدد' : 'حالة غير محددة'}</Text></View>
     </Pressable>)}
     {!list.loading && !list.error && list.items.length > 0 ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
       <PrimaryButton label="السابق" variant="secondary" disabled={list.page <= 1 || list.loading} onPress={() => void list.goToPage(list.page - 1)} />

@@ -127,5 +127,4 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   sectionTitle: { ...typography.subtitle, color: colors.ink },
   count: { ...typography.caption, color: colors.muted },
-  list: { gap: spacing.md },
 });

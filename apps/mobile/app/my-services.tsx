@@ -3,7 +3,9 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Press } from '@/components/AccessiblePressable';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, RefreshControl, View } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
+import { Spinner } from '@/components/ui';
+import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteMyServiceListing, fetchMyServiceListingsPage, type ServiceListing } from '@/features/services/services.api';
@@ -33,7 +35,7 @@ export default function MyServicesScreen() {
     mapError: () => 'تعذر تحميل خدماتك. حاول مجددًا.',
   });
 
-  const remove = (id: string) => Alert.alert('حذف الخدمة', 'هل تريد حذف هذه الخدمة؟', [
+  const remove = (id: string) => confirmAlert('حذف الخدمة', 'هل تريد حذف هذه الخدمة؟', [
     { text: 'إلغاء', style: 'cancel' },
     {
       text: 'حذف',
@@ -71,7 +73,7 @@ export default function MyServicesScreen() {
             <Text style={{ textAlign: 'right', fontSize: fontSizes[12], lineHeight: 20, color: colors.muted }}>نظّم خدماتك وتابع أسعارها وحالتها من مكان واحد.</Text>
             {needsLogin ? <><Notice>سجّل الدخول لإدارة خدماتك.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /></> : undefined}
             {!needsLogin && accessToken ? <PrimaryButton label="+ إضافة خدمة" onPress={() => router.push('/service-editor')} /> : undefined}
-            {initialLoading ? <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}><ActivityIndicator color={colors.brand} /></View> : undefined}
+            {initialLoading ? <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}><Spinner color={colors.brand} /></View> : undefined}
             {list.error && list.items.length === 0 && !needsLogin ? <><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></> : undefined}
             {list.error && list.items.length > 0 ? <Notice>{list.error}</Notice> : undefined}
           </View>
@@ -80,10 +82,10 @@ export default function MyServicesScreen() {
         renderItem={({ item }) => (
           <SectionCard>
             <Press accessibilityRole="button" onPress={() => router.push({ pathname: '/services/[id]', params: { id: item.id } })}>
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '800', color: colors.ink }}>{item.title}</Text>
+              <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '700', color: colors.ink }}>{item.title}</Text>
             </Press>
             <Text style={{ textAlign: 'right', color: colors.muted }}>{item.category?.nameAr || item.category?.name || 'بدون تصنيف'}</Text>
-            <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '800' }}>{item.pricingType === 'NEGOTIABLE' ? 'السعر قابل للتفاوض' : formatMoney(item.price)}</Text>
+            <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700' }}>{item.pricingType === 'NEGOTIABLE' ? 'السعر قابل للتفاوض' : formatMoney(item.price)}</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <View style={{ flex: 1 }}><PrimaryButton label="تعديل" variant="secondary" onPress={() => router.push({ pathname: '/service-editor', params: { id: item.id } })} /></View>
               <View style={{ flex: 1 }}><PrimaryButton label="حذف" variant="danger" busy={deletingId === item.id} disabled={Boolean(deletingId)} onPress={() => remove(item.id)} /></View>

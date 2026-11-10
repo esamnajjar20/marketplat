@@ -12,6 +12,7 @@ export {
   Badge,
   Chip,
   LoadingState,
+  Spinner,
   EmptyState,
   ErrorState,
   SkeletonBlock,

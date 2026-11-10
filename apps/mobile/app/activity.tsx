@@ -3,7 +3,8 @@ import { formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, View } from 'react-native';
+import { FlatList, View } from 'react-native';
+import { Spinner } from '@/components/ui';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyActivity, type ActivityRow } from '@/features/sales/sales-extra.api';
@@ -142,7 +143,7 @@ export default function ActivityScreen() {
                     borderColor: group === v ? colors.brand : colors.border,
                   }}
                 >
-                  <Text style={{ color: group === v ? colors.white : colors.ink, fontSize: fontSizes[13], fontWeight: '800' }}>
+                  <Text style={{ color: group === v ? colors.white : colors.ink, fontSize: fontSizes[13], fontWeight: '700' }}>
                     {label}
                   </Text>
                 </Pressable>
@@ -150,7 +151,7 @@ export default function ActivityScreen() {
             </View>
             <PrimaryButton label="تطبيق البحث" onPress={() => void load()} variant="secondary" />
             {error ? <Notice>{error}</Notice> : null}
-            {loading ? <ActivityIndicator color={colors.brand} /> : null}
+            {loading ? <Spinner color={colors.brand} /> : null}
           </View>
         }
         ListEmptyComponent={
@@ -158,7 +159,7 @@ export default function ActivityScreen() {
         }
         renderItem={({ item }) => (
           <SectionCard>
-            <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }}>{item.title}</Text>
+            <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '700', color: colors.ink }}>{item.title}</Text>
             {item.description ? (
               <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 22 }}>{item.description}</Text>
             ) : null}

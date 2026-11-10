@@ -1,7 +1,9 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, RefreshControl, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { FlatList, RefreshControl, View } from 'react-native';
+import { Spinner } from '@/components/ui';
+import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyAppointments, updateAppointmentStatus, type AppointmentRow } from '@/features/appointments/appointments.api';
@@ -49,7 +51,7 @@ export default function AppointmentsScreen() {
   const update = (item: AppointmentRow, status: 'COMPLETED' | 'CANCELLED' | 'NO_SHOW') => {
     const token = getAccessToken();
     if (!token) { router.push('/login'); return; }
-    Alert.alert('تحديث الموعد', `هل تريد تغيير الحالة إلى «${labels[status]}»؟`, [
+    confirmAlert('تحديث الموعد', `هل تريد تغيير الحالة إلى «${labels[status]}»؟`, [
       { text: 'تراجع', style: 'cancel' },
       { text: 'تأكيد', onPress: () => {
         const currentToken = getAccessToken();
@@ -74,8 +76,8 @@ export default function AppointmentsScreen() {
     const scheduled = item.status === 'SCHEDULED';
     return (
       <SectionCard>
-        <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '900', color: colors.ink }}>{item.request?.listing?.title || 'موعد خدمة'}</Text>
-        <Text style={{ textAlign: 'right', fontWeight: '900', color: colors.brand }}>{labels[item.status || ''] || item.status || 'مجدول'}</Text>
+        <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '700', color: colors.ink }}>{item.request?.listing?.title || 'موعد خدمة'}</Text>
+        <Text style={{ textAlign: 'right', fontWeight: '700', color: colors.brand }}>{labels[item.status || ''] || item.status || 'مجدول'}</Text>
         <Text style={{ textAlign: 'right', color: colors.ink }}>البداية: {formatted(item.scheduledStart)}</Text>
         <Text style={{ textAlign: 'right', color: colors.ink }}>النهاية: {formatted(item.scheduledEnd)}</Text>
         {item.notes ? <Text style={{ textAlign: 'right', color: colors.muted }}>{item.notes}</Text> : undefined}
@@ -103,7 +105,7 @@ export default function AppointmentsScreen() {
         ListHeaderComponent={(
           <View style={{ gap: spacing.md }}>
             <Notice tone="muted">تظهر هنا المواعيد المرتبطة بطلبات الخدمات. يمكن للعميل الإلغاء، ولمقدم الخدمة الإتمام أو تسجيل عدم الحضور.</Notice>
-            {isRestoring || list.loading ? <View style={{ paddingVertical: spacing.md, alignItems: 'center' }}><ActivityIndicator color={colors.brand} /></View> : undefined}
+            {isRestoring || list.loading ? <View style={{ paddingVertical: spacing.md, alignItems: 'center' }}><Spinner color={colors.brand} /></View> : undefined}
             {needsLogin ? <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /> : undefined}
             {!isRestoring && list.error && list.items.length === 0 ? <><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></> : undefined}
             {list.error && list.items.length > 0 ? <Notice>{list.error}</Notice> : undefined}
@@ -115,7 +117,7 @@ export default function AppointmentsScreen() {
         onEndReached={() => void list.loadMore()}
         onEndReachedThreshold={0.4}
         ListFooterComponent={list.loadingMore
-          ? <View style={{ padding: spacing.md, alignItems: 'center' }}><ActivityIndicator color={colors.brand} /></View>
+          ? <View style={{ padding: spacing.md, alignItems: 'center' }}><Spinner color={colors.brand} /></View>
           : list.loadMoreError
             ? <View style={{ gap: spacing.sm }}><Notice>{list.loadMoreError}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></View>
             : list.hasNextPage

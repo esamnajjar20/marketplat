@@ -132,7 +132,7 @@ export default function SavedSearchesScreen() {
           ListHeaderComponent={
             <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
               <SectionCard>
-                <Text style={{ textAlign: 'right', fontWeight: '900', fontSize: fontSizes[18], color: colors.ink }}>
+                <Text style={{ textAlign: 'right', fontWeight: '700', fontSize: fontSizes[18], color: colors.ink }}>
                   حفظ بحث جديد
                 </Text>
                 <Field
@@ -188,7 +188,7 @@ export default function SavedSearchesScreen() {
                 </View>
                 <PrimaryButton label="حفظ البحث" onPress={() => void save()} busy={busy} />
               </SectionCard>
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[19], fontWeight: '900', color: colors.ink }}>
+              <Text style={{ textAlign: 'right', fontSize: fontSizes[19], fontWeight: '700', color: colors.ink }}>
                 عمليات البحث المحفوظة
               </Text>
               {loading ? <Notice tone="muted">جارٍ تحميل عمليات البحث…</Notice> : null}
@@ -199,15 +199,15 @@ export default function SavedSearchesScreen() {
           ListEmptyComponent={!loading ? <Notice tone="muted">لا توجد عمليات بحث محفوظة.</Notice> : undefined}
           renderItem={({ item: i }) => (
             <SectionCard>
-              <Text style={{ textAlign: 'right', fontWeight: '800', color: colors.ink }}>{i.label}</Text>
+              <Text style={{ textAlign: 'right', fontWeight: '700', color: colors.ink }}>{i.label}</Text>
               <Text style={{ textAlign: 'right', color: colors.muted }}>
                 {i.filters.type || 'ads'} · {i.filters.q || i.filters.city || 'فلاتر سعرية'}
               </Text>
               <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/search', params: { q: i.filters.q || '', categoryId: i.filters.categoryId || '', type: i.filters.type || 'ads', city: i.filters.city || '', minPrice: i.filters.minPrice == null ? '' : String(i.filters.minPrice), maxPrice: i.filters.maxPrice == null ? '' : String(i.filters.maxPrice) } })}>
-                <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '800' }}>فتح نتائج البحث</Text>
+                <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700' }}>فتح نتائج البحث</Text>
               </Pressable>
               <Pressable onPress={() => remove(i.id)}>
-                <Text style={{ textAlign: 'right', color: colors.danger, fontWeight: '800' }}>حذف البحث</Text>
+                <Text style={{ textAlign: 'right', color: colors.danger, fontWeight: '700' }}>حذف البحث</Text>
               </Pressable>
             </SectionCard>
           )}

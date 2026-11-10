@@ -173,6 +173,4 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   paymentPill: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.border },
   paymentText: { ...typography.captionStrong, color: colors.brandOnSoft },
   recommendationList: { flexDirection: 'row', gap: spacing.md, paddingVertical: spacing.xs },
-  imageFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft },
-  glyph: { fontSize: fontSizes[30], color: colors.brandOnSoft },
 });

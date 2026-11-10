@@ -4,7 +4,7 @@ import { showToast } from '@/lib/toast';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useRef, useState , useMemo} from 'react';
+import { useCallback, useRef, useState, useMemo } from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
@@ -13,20 +13,8 @@ import { useNetInfo } from '@react-native-community/netinfo';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchFavoriteAds, setFavoriteAdState, type FavoriteRecord } from '@/features/ads/favorites.api';
-import {
-  enqueueFavoriteState,
-  listPendingFavoriteStates,
-  readFavoriteAdIds,
-  writeFavoriteAdIds,
-} from '@/features/ads/favorites.store';
-import {
-  AppHeader,
-  EmptyState,
-  ErrorState,
-  LoadingState,
-  SkeletonList,
-  PrimaryButton,
-} from '@/components/MobileUI';
+import { enqueueFavoriteState, listPendingFavoriteStates, readFavoriteAdIds, writeFavoriteAdIds } from '@/features/ads/favorites.store';
+import { AppHeader, EmptyState, ErrorState, SkeletonList } from '@/components/MobileUI';
 import { AdCard } from '@/components/MarketCards';
 import { spacing, typography } from '@/theme/tokens';
 
@@ -210,5 +198,4 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   center: { flex: 1, justifyContent: 'center' },
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48 },
   count: { ...typography.caption, color: colors.muted, textAlign: 'right' },
-  list: { gap: spacing.md },
 });

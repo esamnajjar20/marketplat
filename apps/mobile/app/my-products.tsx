@@ -6,7 +6,8 @@ import { marketListPerf } from '@/lib/listPerformance';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useState , useMemo} from 'react';
-import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -49,7 +50,7 @@ export default function MyProductsScreen() {
     },
     getItemKey: (item) => item.id,
   });
-  const remove = (item: ProductSummary) => { if (busyId) return; Alert.alert('حذف المنتج', `هل تريد حذف «${item.name}»؟ لا يمكن التراجع عن هذا الإجراء.`, [{ text: 'إلغاء', style: 'cancel' }, { text: 'حذف', style: 'destructive', onPress: () => { void (async () => { const token = getAccessToken(); if (!token || busyId) return; setBusyId(item.id); try { await deleteProduct(item.id, token, csrfToken); updateItems((old) => old.filter((x) => x.id !== item.id)); } catch (e) { showToast('تعذر الحذف', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'); } finally { setBusyId(null); } })(); } }]); };
+  const remove = (item: ProductSummary) => { if (busyId) return; confirmAlert('حذف المنتج', `هل تريد حذف «${item.name}»؟ لا يمكن التراجع عن هذا الإجراء.`, [{ text: 'إلغاء', style: 'cancel' }, { text: 'حذف', style: 'destructive', onPress: () => { void (async () => { const token = getAccessToken(); if (!token || busyId) return; setBusyId(item.id); try { await deleteProduct(item.id, token, csrfToken); updateItems((old) => old.filter((x) => x.id !== item.id)); } catch (e) { showToast('تعذر الحذف', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'); } finally { setBusyId(null); } })(); } }]); };
   const visibleItems = inventoryMode
     ? items.filter((item) => typeof item.stockQuantity === 'number' || ['IN_STOCK', 'LIMITED', 'OUT_OF_STOCK'].includes(String(item.availability || '')))
     : items;

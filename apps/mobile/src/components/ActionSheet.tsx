@@ -20,7 +20,7 @@ type Props = {
   onClose: () => void;
 };
 
-/** Non-destructive choice sheet; keep native Alert for consequential confirmations. */
+/** Non-destructive choice sheet; use confirmAlert (src/lib/confirm.ts) for consequential confirmations. */
 export function ActionSheet({ visible, title, description, options, onClose }: Props) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
@@ -60,12 +60,12 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   backdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   sheet: { width: '100%', maxWidth: 560, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xl, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, backgroundColor: colors.surface, gap: spacing.sm },
   handle: { width: 42, height: 4, borderRadius: 4, alignSelf: 'center', backgroundColor: colors.controlBorder, marginBottom: spacing.xs },
-  title: { color: colors.ink, fontSize: fontSizes[17], fontWeight: '900', textAlign: 'right' },
+  title: { color: colors.ink, fontSize: fontSizes[17], fontWeight: '700', textAlign: 'right' },
   description: { color: colors.muted, fontSize: fontSizes[13], lineHeight: 20, textAlign: 'right' },
   option: { minHeight: 48, justifyContent: 'center', alignItems: 'flex-end', paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.canvas },
   pressed: { opacity: 0.72 },
-  optionText: { color: colors.ink, fontSize: fontSizes[14], fontWeight: '800' },
+  optionText: { color: colors.ink, fontSize: fontSizes[14], fontWeight: '700' },
   dangerText: { color: colors.danger },
   cancel: { backgroundColor: colors.brandSoft, marginTop: spacing.xs },
-  cancelText: { color: colors.brand, fontSize: fontSizes[14], fontWeight: '900' },
+  cancelText: { color: colors.brand, fontSize: fontSizes[14], fontWeight: '700' },
 });

@@ -336,7 +336,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   googleGlyph: {
     color: colors.brand,
-    fontWeight: '800',
+    fontWeight: '700',
     fontSize: fontSizes[16],
   },
   googleText: {

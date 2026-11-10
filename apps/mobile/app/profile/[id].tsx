@@ -4,7 +4,9 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, View } from 'react-native';
+import { View } from 'react-native';
+import { Spinner } from '@/components/ui';
+import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchBlockedUsers, fetchFollowStatus, fetchPublicUser, fetchPublicUserAds, toggleBlockUser, toggleUserFollow, unblockUser, type PublicAd, type PublicUser } from '@/features/account/social.api';
@@ -107,7 +109,7 @@ export default function PublicProfileScreen() {
     const token = getAccessToken(); if (!token) { router.push('/login'); return; }
     if (!profile || busy || blocked === null) return;
     const action = blocked ? 'إلغاء حظر' : 'حظر';
-    Alert.alert(`${action} المستخدم`, `هل تريد ${action} ${profile.name || 'هذا المستخدم'}؟`, [
+    confirmAlert(`${action} المستخدم`, `هل تريد ${action} ${profile.name || 'هذا المستخدم'}؟`, [
       { text: 'إلغاء', style: 'cancel' },
       { text: action, style: 'destructive', onPress: () => { void (async () => {
         setBusy(true);
@@ -119,20 +121,20 @@ export default function PublicProfileScreen() {
   };
 
   return <PageShell title="الملف العام">
-    {isRestoring ? <ActivityIndicator color={colors.brand} /> : null}
-    {loading ? <ActivityIndicator color={colors.brand} /> : null}
+    {isRestoring ? <Spinner color={colors.brand} /> : null}
+    {loading ? <Spinner color={colors.brand} /> : null}
     {error ? <Notice>{error}</Notice> : null}
     {profile ? <>
       <SectionCard>
         <View style={{ alignItems: 'center', gap: 12, paddingVertical: 8 }}>
           {profile.avatarUrl ? <AppImage uri={profile.avatarUrl} accessibilityLabel="صورة المستخدم" style={{ width: 104, height: 104, borderRadius: 52 }} /> : <View style={{ width: 104, height: 104, borderRadius: 52, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: fontSizes[32], color: colors.ink }}>{(profile.name || '?').slice(0, 1)}</Text></View>}
-          <Text style={{ fontSize: fontSizes[23], fontWeight: '900', color: colors.ink, textAlign: 'center' }}>{profile.name || 'مستخدم'}</Text>
+          <Text style={{ fontSize: fontSizes[23], fontWeight: '700', color: colors.ink, textAlign: 'center' }}>{profile.name || 'مستخدم'}</Text>
           {profile.city ? <Text style={{ color: colors.muted }}>{profile.city}</Text> : null}
           {profile.bio ? <Text style={{ color: colors.ink, textAlign: 'center', lineHeight: 22 }}>{profile.bio}</Text> : null}
           <Text style={{ color: colors.muted }}>الإعلانات النشطة: {profile._count?.ads ?? ads.length}</Text>
           <View style={{ flexDirection: 'row', gap: 28, paddingVertical: 6 }}>
-            <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/profile/[id]/followers', params: { id: profile.id } })}><Text style={{ color: colors.brand, fontWeight: '800' }}>المتابعون {profile.followStats?.followers ?? '—'}</Text></Pressable>
-            <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/profile/[id]/following', params: { id: profile.id } })}><Text style={{ color: colors.brand, fontWeight: '800' }}>يتابع {profile.followStats?.following ?? '—'}</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/profile/[id]/followers', params: { id: profile.id } })}><Text style={{ color: colors.brand, fontWeight: '700' }}>المتابعون {profile.followStats?.followers ?? '—'}</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/profile/[id]/following', params: { id: profile.id } })}><Text style={{ color: colors.brand, fontWeight: '700' }}>يتابع {profile.followStats?.following ?? '—'}</Text></Pressable>
           </View>
         </View>
         {!ownProfile ? <>
@@ -144,9 +146,9 @@ export default function PublicProfileScreen() {
         {profile.sellerProfile?.storeDetails?.id ? <PrimaryButton label="عرض المتجر" variant="secondary" onPress={() => router.push({ pathname: '/stores/[id]', params: { id: profile.sellerProfile!.storeDetails!.id } })} /> : null}
         {profile.sellerProfile?.serviceProviderDetails?.id ? <PrimaryButton label="عرض ملف مقدم الخدمة" variant="secondary" onPress={() => router.push({ pathname: '/service-providers/[id]', params: { id: profile.sellerProfile!.serviceProviderDetails!.id } })} /> : null}
       </SectionCard>
-      <Text style={{ textAlign: 'right', fontWeight: '900', fontSize: fontSizes[18], color: colors.ink, marginTop: 16, marginBottom: 10 }}>إعلانات المستخدم</Text>
+      <Text style={{ textAlign: 'right', fontWeight: '700', fontSize: fontSizes[18], color: colors.ink, marginTop: 16, marginBottom: 10 }}>إعلانات المستخدم</Text>
       {adsError ? <Notice>{adsError}</Notice> : null}
-      {ads.length ? ads.map((ad) => <Pressable key={ad.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/ads/[id]', params: { id: ad.id } })}><SectionCard><Text style={{ textAlign: 'right', fontWeight: '800', color: colors.ink }}>{ad.title}</Text><Text style={{ textAlign: 'right', color: colors.brand }}>{price(ad.price)}</Text><Text style={{ textAlign: 'right', color: colors.muted }}>{ad.city || ''}</Text></SectionCard></Pressable>) : !adsLoading && !adsError ? <Notice tone="muted">لا توجد إعلانات نشطة لهذا المستخدم حاليًا.</Notice> : null}
+      {ads.length ? ads.map((ad) => <Pressable key={ad.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/ads/[id]', params: { id: ad.id } })}><SectionCard><Text style={{ textAlign: 'right', fontWeight: '700', color: colors.ink }}>{ad.title}</Text><Text style={{ textAlign: 'right', color: colors.brand }}>{price(ad.price)}</Text><Text style={{ textAlign: 'right', color: colors.muted }}>{ad.city || ''}</Text></SectionCard></Pressable>) : !adsLoading && !adsError ? <Notice tone="muted">لا توجد إعلانات نشطة لهذا المستخدم حاليًا.</Notice> : null}
       {adsPage < adsPages ? <PrimaryButton label="تحميل إعلانات أقدم" variant="secondary" busy={adsLoading} onPress={() => void loadMoreAds()} /> : null}
       {adsError ? <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void loadMoreAds()} busy={adsLoading} /> : null}
       <PrimaryButton label="تحديث الصفحة" variant="secondary" onPress={() => void load()} />

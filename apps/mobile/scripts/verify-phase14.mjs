@@ -16,7 +16,7 @@ assert.match(api, /X-CSRF-Token/);
 assert.match(api, /method:\s*'PATCH'/);
 assert.match(api, /method:\s*'DELETE'/);
 assert.match(client, /instanceof FormData/);
-assert.match(list, /Alert\.alert\('حذف الإعلان'/);
+assert.match(list, /confirmAlert\('حذف الإعلان'/);
 assert.match(editor, /price.*positive|السعر يجب أن يكون رقمًا موجبًا/s);
 assert.match(editor, /description\.trim\(\)\.length < 10/);
 console.log('Phase 14 checks passed (static API contract/UI checks only; no live API or native build was run).');

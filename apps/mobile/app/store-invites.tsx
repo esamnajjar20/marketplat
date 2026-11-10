@@ -2,7 +2,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { invalidateNavigationCapabilities } from '@/lib/navigation-policy';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, View } from 'react-native';
+import { FlatList, View } from 'react-native';
+import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { acceptStoreInvite, fetchMyStoreInvites, removeStoreMember, type StoreMember } from '@/features/commerce/store-management.api';
@@ -59,7 +60,7 @@ export default function StoreInvitesScreen() {
 
   const decline = async (item: StoreMember) => {
     if (!accessToken || !item.store?.id) return;
-    Alert.alert('رفض دعوة المتجر', `لن تنضم إلى «${item.store.name}». هل تريد رفض الدعوة؟`, [
+    confirmAlert('رفض دعوة المتجر', `لن تنضم إلى «${item.store.name}». هل تريد رفض الدعوة؟`, [
       { text: 'رجوع', style: 'cancel' },
       { text: 'رفض الدعوة', style: 'destructive', onPress: () => {
         setBusyId(item.id);
@@ -94,7 +95,7 @@ export default function StoreInvitesScreen() {
           ListEmptyComponent={!loading ? <Notice tone="muted">لا توجد دعوات معلقة لحسابك.</Notice> : undefined}
           renderItem={({ item }) => (
             <SectionCard>
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }}>
+              <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '700', color: colors.ink }}>
                 {item.store?.name || 'متجر'}
               </Text>
               <Text style={{ textAlign: 'right', color: colors.muted }}>

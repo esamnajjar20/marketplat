@@ -2,7 +2,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useState } from 'react';
-import { Alert, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
+import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteAccountAfterReauthentication } from '@/features/account/delete-account.api';
@@ -21,7 +22,7 @@ export default function DeleteAccountScreen() {
     if (!accessToken) { router.replace('/login'); return; }
     if (confirmation.trim() !== 'حذف') { setError('اكتب كلمة «حذف» كما تظهر لتأكيد رغبتك.'); return; }
     if (!password) { setError('أدخل كلمة المرور لإعادة توثيق الحساب قبل الحذف.'); return; }
-    Alert.alert('تأكيد نهائي لحذف الحساب', 'سيتم تعطيل الحساب وإخفاء الإعلانات النشطة. لا يمكن التراجع عن هذا الإجراء من التطبيق.', [
+    confirmAlert('تأكيد نهائي لحذف الحساب', 'سيتم تعطيل الحساب وإخفاء الإعلانات النشطة. لا يمكن التراجع عن هذا الإجراء من التطبيق.', [
       { text: 'إلغاء', style: 'cancel' },
       { text: 'حذف الحساب', style: 'destructive', onPress: () => {
         if (busy) return;
@@ -52,7 +53,7 @@ export default function DeleteAccountScreen() {
   return <PageShell title="حذف الحساب">
     <Notice tone="warning">الحذف يعطّل حسابك ويخفي الإعلانات النشطة وفق سياسة الخادم. اقرأ سياسة الخصوصية قبل المتابعة.</Notice>
     <SectionCard>
-      <Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '900', fontSize: fontSizes[17] }}>إعادة توثيق الحساب</Text>
+      <Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '700', fontSize: fontSizes[17] }}>إعادة توثيق الحساب</Text>
       <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 22 }}>الحساب: {user?.email || 'مستخدم مسجل'}</Text>
       <Text style={{ textAlign: 'right', color: colors.ink, ...typography.label }}>كلمة المرور الحالية</Text>
       <TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="كلمة المرور الحالية لإعادة التوثيق" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} placeholder="أدخل كلمة المرور الحالية" placeholderTextColor={colors.muted} style={{ minHeight: 52, borderWidth: 1, borderColor: colors.border, borderRadius: radius.control, paddingHorizontal: spacing.md, color: colors.ink, textAlign: 'right' }} />

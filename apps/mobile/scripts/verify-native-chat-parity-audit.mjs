@@ -15,7 +15,7 @@ const checks = [
   ['thread search is local and does not fetch per keystroke', /const visibleMessages = normalizedSearch/.test(thread)],
   ['image attachments use image picker and the existing server route', /launchImageLibraryAsync/.test(thread) && /queueAndTryMedia\('image'/.test(thread) && /sendChatImage\(/.test(mediaSync) && /field === 'image' \? 'image'/.test(api)],
   ['message pin and star use existing server endpoints', /setMessageMark/.test(thread) && /messages\/\$\{encodeURIComponent\(messageId\)\}\/\$\{suffix\}/.test(api)],
-  ['message deletion is confirmed before mutation', /Alert\.alert\('حذف الرسالة؟'/.test(thread) && /deleteChatMessage\(/.test(thread)],
+  ['message deletion is confirmed before mutation', /confirmAlert\('حذف الرسالة؟'/.test(thread) && /deleteChatMessage\(/.test(thread)],
   ['typing indicator and API calls are removed', !/signalChatTyping|partyTyping|typingTimer/.test(thread) && !/signalChatTyping/.test(api)],
   ['offline text outbox and SQLite message cache remain integrated', /enqueueChatMessage/.test(thread) && /readCachedChatMessages/.test(thread) && /saveCachedChatMessages/.test(thread)],
   ['SSE remains primary with fallback polling only when unsupported', /useChatLiveStream\(/.test(thread) && /subscribeChatLiveStream/.test(streamLifecycle) && /30_000/.test(streamLifecycle) && /onUnsupported: startFallback/.test(streamLifecycle)],

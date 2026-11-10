@@ -3,11 +3,13 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney, formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { AppIcon } from '@/components/Icons';
+import { AppHeader, ErrorState, LoadingState } from '@/components/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { confirmAlert } from '@/lib/confirm';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchServiceRequest, respondToServiceRequest, type ServiceRequest } from '@/features/services/services.api';
 import { MediaGallery } from '@/components/ui/MediaGallery';
@@ -81,11 +83,14 @@ export default function ServiceRequestDetailScreen() {
     finally { setBusy(''); }
   };
 
-  const actionButton = (label: string, action: Action, tone: 'primary' | 'secondary' | 'danger' = 'primary', confirmation?: string) => <Pressable key={action} accessibilityRole="button" disabled={!!busy} onPress={() => Alert.alert(label, confirmation || `هل تريد تنفيذ «${label}»؟`, [{ text: 'إلغاء', style: 'cancel' }, { text: 'متابعة', style: tone === 'danger' ? 'destructive' : 'default', onPress: () => void runAction(action) }])} style={[s.action, tone === 'secondary' && s.secondary, tone === 'danger' && s.danger, busy && s.disabled]}><Text style={[s.actionText, tone === 'secondary' && s.secondaryText, tone === 'danger' && s.dangerText]}>{busy === action ? 'جارٍ التحديث…' : label}</Text></Pressable>;
+  const actionButton = (label: string, action: Action, tone: 'primary' | 'secondary' | 'danger' = 'primary', confirmation?: string) => <Pressable key={action} accessibilityRole="button" disabled={!!busy} onPress={() => confirmAlert(label, confirmation || `هل تريد تنفيذ «${label}»؟`, [{ text: 'إلغاء', style: 'cancel' }, { text: 'متابعة', style: tone === 'danger' ? 'destructive' : 'default', onPress: () => void runAction(action) }])} style={[s.action, tone === 'secondary' && s.secondary, tone === 'danger' && s.danger, busy && s.disabled]}><Text style={[s.actionText, tone === 'secondary' && s.secondaryText, tone === 'danger' && s.dangerText]}>{busy === action ? 'جارٍ التحديث…' : label}</Text></Pressable>;
 
   return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><SafeAreaView style={s.safe} edges={['top'] as const}>
-    <View style={s.header}><Pressable accessibilityRole="button" accessibilityLabel="رجوع" onPress={() => router.back()} style={s.back}><AppIcon name="back" size={24} color={colors.brand} /></Pressable><Text style={s.headerTitle}>تفاصيل طلب الخدمة</Text><Pressable accessibilityRole="button" onPress={() => void load(true)} style={s.refresh}><Text style={s.refreshText}>{refreshing ? '…' : 'تحديث'}</Text></Pressable></View>
-    {loading ? <View style={s.state}><Text style={s.muted}>جارٍ تحميل تفاصيل الطلب…</Text></View> : error ? <View style={s.state}><Text style={s.error}>{error}</Text><Pressable style={s.action} onPress={() => !accessToken ? router.push('/login') : void load()}><Text style={s.actionText}>{accessToken ? 'إعادة المحاولة' : 'تسجيل الدخول'}</Text></Pressable></View> : request ? <ScrollView contentContainerStyle={s.content}>
+    <AppHeader
+      title="تفاصيل طلب الخدمة"
+      right={<Pressable accessibilityRole="button" accessibilityLabel="تحديث" onPress={() => void load(true)} style={s.refresh}><Text style={s.refreshText}>{refreshing ? '…' : 'تحديث'}</Text></Pressable>}
+    />
+    {loading ? <LoadingState message="جارٍ تحميل تفاصيل الطلب…" /> : error ? <ErrorState description={error} actionLabel={accessToken ? 'إعادة المحاولة' : 'تسجيل الدخول'} onAction={() => !accessToken ? router.push('/login') : void load()} /> : request ? <ScrollView contentContainerStyle={s.content}>
       <View style={s.card}>
         <View style={s.titleRow}><Text style={s.title}>{request.listing?.title || 'طلب خدمة'}</Text><Text style={s.status}>{STATUS[status] || status}</Text></View>
         <Text style={s.label}>تفاصيل الطلب كاملة</Text><Text style={s.body}>{request.details?.trim() || 'لم تُسجل تفاصيل إضافية لهذا الطلب.'}</Text>
@@ -116,11 +121,9 @@ export default function ServiceRequestDetailScreen() {
 }
 
 const createThemeS = (colors: ColorPalette) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
-  back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.control, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }, headerTitle: { color: colors.ink, fontWeight: '900', fontSize: fontSizes[17] }, refresh: { minWidth: 48, minHeight: 44, alignItems: 'center', justifyContent: 'center' }, refreshText: { color: colors.brand, fontWeight: '800' },
+  safe: { flex: 1, backgroundColor: colors.canvas }, refresh: { minWidth: 48, minHeight: 44, alignItems: 'center', justifyContent: 'center' }, refreshText: { color: colors.brand, fontWeight: '700' },
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: 48 }, card: { padding: spacing.lg, gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, backgroundColor: colors.surface },
-  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, flexWrap: 'wrap' }, title: { flex: 1, color: colors.ink, fontSize: fontSizes[19], lineHeight: 27, fontWeight: '900', textAlign: 'right' }, status: { color: colors.brandOnSoft, backgroundColor: colors.brandSoft, borderRadius: radius.pill, overflow: 'hidden', paddingHorizontal: spacing.md, paddingVertical: 6, fontSize: fontSizes[12], fontWeight: '800' },
+  titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, flexWrap: 'wrap' }, title: { flex: 1, color: colors.ink, fontSize: fontSizes[19], lineHeight: 27, fontWeight: '700', textAlign: 'right' }, status: { color: colors.brandOnSoft, backgroundColor: colors.brandSoft, borderRadius: radius.pill, overflow: 'hidden', paddingHorizontal: spacing.md, paddingVertical: 6, fontSize: fontSizes[12], fontWeight: '700' },
   sectionTitle: { ...typography.subtitle, color: colors.ink, textAlign: 'right' }, label: { ...typography.captionStrong, color: colors.muted, textAlign: 'right' }, body: { ...typography.body, color: colors.ink, textAlign: 'right', lineHeight: 25 }, metaGroup: { gap: spacing.xs, paddingTop: spacing.xs, borderTopWidth: 1, borderTopColor: colors.border }, meta: { ...typography.caption, color: colors.muted, textAlign: 'right' },
-  actions: { gap: spacing.sm }, action: { minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.md, borderRadius: radius.control, backgroundColor: colors.brand }, actionText: { color: colors.onBrand, fontWeight: '900', textAlign: 'center' }, secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.brand }, secondaryText: { color: colors.brand, fontWeight: '900', textAlign: 'center' }, danger: { backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.dangerBorder }, dangerText: { color: colors.danger, fontWeight: '900', textAlign: 'center' }, disabled: { opacity: 0.55 }, input: { minHeight: 52, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.control, paddingHorizontal: spacing.md, color: colors.ink, textAlign: 'right', backgroundColor: colors.canvas }, multiline: { minHeight: 92, padding: spacing.md, textAlignVertical: 'top', writingDirection: 'rtl' }, dispute: { gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md }, state: { margin: spacing.lg, padding: spacing.xl, alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, backgroundColor: colors.surface }, muted: { color: colors.muted, textAlign: 'right', lineHeight: 22 }, error: { color: colors.danger, textAlign: 'right', lineHeight: 22 },
+  actions: { gap: spacing.sm }, action: { minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.md, borderRadius: radius.control, backgroundColor: colors.brand }, actionText: { color: colors.onBrand, fontWeight: '700', textAlign: 'center' }, secondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.brand }, secondaryText: { color: colors.brand, fontWeight: '700', textAlign: 'center' }, danger: { backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.dangerBorder }, dangerText: { color: colors.danger, fontWeight: '700', textAlign: 'center' }, disabled: { opacity: 0.55 }, input: { minHeight: 52, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.control, paddingHorizontal: spacing.md, color: colors.ink, textAlign: 'right', backgroundColor: colors.canvas }, multiline: { minHeight: 92, padding: spacing.md, textAlignVertical: 'top', writingDirection: 'rtl' }, dispute: { gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md }, muted: { color: colors.muted, textAlign: 'right', lineHeight: 22 },
 });

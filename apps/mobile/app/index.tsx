@@ -5,18 +5,19 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { router } from 'expo-router';
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
-import { AppImage } from '@/components/AppImage';
+import { FlatList, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import { Spinner } from '@/components/ui';
+
 import { DrawerMenuButton } from '@/components/MobileDrawer';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fontSizes, radius, spacing, ux } from '@/theme/tokens';
-import { EmptyState, ErrorState, LoadingState, SectionHeader, SkeletonList } from '@/components/MobileUI';
+import { EmptyState, ErrorState, SectionHeader, SkeletonList } from '@/components/MobileUI';
 import { HorizontalAdCard } from '@/components/MarketCards';
 import { useAuth } from '@/features/auth/AuthContext';
 import HomeCommunitySections from '@/features/discovery/HomeCommunitySections';
 import HomeMarketplaceSections from '@/features/discovery/HomeMarketplaceSections';
-import { formatPrice, formatServicePrice } from '@/features/discovery/homeFormatters';
-import type { AdListItem } from '@/features/ads/ads.api';
+import { formatPrice } from '@/features/discovery/homeFormatters';
+
 import { marketListPerf } from '@/lib/listPerformance';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { useHomeAds } from '@/features/discovery/useHomeAds';
@@ -427,7 +428,7 @@ export default function HomeScreen() {
 
               {loadingMore ? (
                 <View style={styles.loadMoreRow}>
-                  <ActivityIndicator color={colors.brand} />
+                  <Spinner color={colors.brand} />
                   <Text style={styles.link}>تحميل المزيد…</Text>
                 </View>
               ) : null}

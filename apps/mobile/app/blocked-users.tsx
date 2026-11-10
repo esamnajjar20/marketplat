@@ -1,8 +1,10 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
+
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, View } from 'react-native';
+import { FlatList, View } from 'react-native';
+import { Spinner } from '@/components/ui';
+import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchBlockedUsers, unblockUser, type BlockedUserItem } from '@/features/account/social.api';
@@ -43,7 +45,7 @@ export default function BlockedUsersScreen() {
   const unblock = (item: BlockedUserItem) => {
     const person = item.blocked;
     if (!person) return;
-    Alert.alert('إلغاء الحظر', `هل تريد إلغاء حظر ${person.name || 'هذا المستخدم'}؟`, [
+    confirmAlert('إلغاء الحظر', `هل تريد إلغاء حظر ${person.name || 'هذا المستخدم'}؟`, [
       { text: 'إلغاء', style: 'cancel' },
       {
         text: 'إلغاء الحظر',
@@ -84,7 +86,7 @@ export default function BlockedUsersScreen() {
           contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
           ListHeaderComponent={
             <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
-              {loading ? <ActivityIndicator color={colors.brand} /> : null}
+              {loading ? <Spinner color={colors.brand} /> : null}
               {error ? <Notice>{error}</Notice> : null}
             </View>
           }
@@ -113,13 +115,13 @@ export default function BlockedUsersScreen() {
                         justifyContent: 'center',
                       }}
                     >
-                      <Text style={{ color: colors.brand, fontWeight: '900' }}>
+                      <Text style={{ color: colors.brand, fontWeight: '700' }}>
                         {(person.name || '?').slice(0, 1)}
                       </Text>
                     </View>
                   )}
                   <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                    <Text style={{ textAlign: 'right', fontWeight: '800', color: colors.ink }}>
+                    <Text style={{ textAlign: 'right', fontWeight: '700', color: colors.ink }}>
                       {person.name || 'مستخدم'}
                     </Text>
                   </View>

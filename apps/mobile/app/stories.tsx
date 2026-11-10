@@ -8,12 +8,12 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useRef, useState , useMemo} from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { ActivityIndicator, FlatList, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { EmptyState, ErrorState, LoadingState, PageShell } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createStory, fetchStoryFeed, type StoryGroup } from '@/features/stories/stories.api';
-import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 
 export default function StoriesScreen() {
   const { colors } = useAppTheme();
@@ -65,7 +65,15 @@ export default function StoriesScreen() {
     setShowAddStorySheet(true);
   };
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <PageShell
+      title="القصص"
+      scroll={false}
+      right={(
+        <Pressable accessibilityRole="button" accessibilityLabel="إضافة قصة" disabled={busy} onPress={() => void addStory()}>
+          <Text style={styles.link}>{busy ? 'جارٍ النشر…' : '+ قصة'}</Text>
+        </Pressable>
+      )}
+    >
       <ActionSheet
         visible={showAddStorySheet}
         title="إضافة قصة"
@@ -77,29 +85,17 @@ export default function StoriesScreen() {
           { key: 'public', label: 'صورة عامة', onPress: () => void publishImageStory('PUBLIC') },
         ]}
       />
-      <View style={styles.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel="العودة" onPress={() => router.back()}>
-          <Text style={styles.link}>رجوع</Text>
-        </Pressable>
-        <Text style={styles.heading}>القصص</Text>
-        <Pressable accessibilityRole="button" accessibilityLabel="إضافة قصة" disabled={busy} onPress={() => void addStory()}>
-          <Text style={styles.link}>{busy ? 'جارٍ النشر…' : '+ قصة'}</Text>
-        </Pressable>
-      </View>
-
       {!getAccessToken() ? (
-        <View style={styles.center}>
-          <Text style={styles.title}>سجّل الدخول لمشاهدة القصص</Text>
-          <Text style={styles.muted}>يمكنك فتح القصص العامة عبر رابط مشاركة مباشر.</Text>
-          <Pressable accessibilityRole="button" style={styles.primary} onPress={() => router.push('/login')}>
-            <Text style={styles.primaryText}>تسجيل الدخول</Text>
-          </Pressable>
-        </View>
+        <EmptyState
+          title="سجّل الدخول لمشاهدة القصص"
+          description="يمكنك فتح القصص العامة عبر رابط مشاركة مباشر."
+          actionLabel="تسجيل الدخول"
+          onAction={() => router.push('/login')}
+        />
       ) : loading && groups.length === 0 ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.brand} />
-          <Text style={styles.muted}>جارٍ تحميل القصص…</Text>
-        </View>
+        <LoadingState message="جارٍ تحميل القصص…" />
+      ) : error && groups.length === 0 ? (
+        <ErrorState description={error} onAction={() => void load()} />
       ) : (
         <FlatList
           data={groups}
@@ -129,7 +125,7 @@ export default function StoriesScreen() {
             </View>
           )}
           ListEmptyComponent={!error ? (
-            <Text style={styles.muted}>لا توجد قصص نشطة حاليًا. تابع المستخدمين لرؤية قصصهم هنا.</Text>
+            <EmptyState title="لا توجد قصص نشطة حاليًا" description="تابع المستخدمين لرؤية قصصهم هنا." />
           ) : undefined}
           renderItem={({ item: group }) => (
             <View style={styles.group}>
@@ -178,7 +174,7 @@ export default function StoriesScreen() {
           )}
         />
       )}
-    </SafeAreaView>
+    </PageShell>
   );
 }
-const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({ safe:{flex:1,backgroundColor:colors.canvas},header:{minHeight:60,paddingHorizontal:spacing.md,flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:colors.surface,borderBottomWidth:1,borderBottomColor:colors.border},heading:{fontSize:fontSizes[18],fontWeight:'900',color:colors.ink},link:{color:colors.brand,fontWeight:'800',padding:spacing.sm},content:{padding:spacing.md,gap:spacing.lg,paddingBottom:spacing.xl},center:{flex:1,alignItems:'center',justifyContent:'center',padding:spacing.xl,gap:spacing.md},title:{fontSize:fontSizes[17],fontWeight:'900',color:colors.ink},muted:{fontSize:fontSizes[13],color:colors.muted,textAlign:'right',lineHeight:20},primary:{backgroundColor:colors.brand,borderRadius:radius.md,padding:spacing.md},primaryText:{color:colors.onBrand,fontWeight:'800'},addCard:{minHeight:84,backgroundColor:colors.surface,borderColor:colors.border,borderWidth:1,borderRadius:radius.lg,padding:spacing.md,flexDirection:'row',alignItems:'center',gap:spacing.md},addCircle:{width:56,height:56,borderRadius:28,backgroundColor:colors.brandSoft,alignItems:'center',justifyContent:'center'},plus:{fontSize:fontSizes[30],color:colors.brandOnSoft,fontWeight:'800'},group:{backgroundColor:colors.surface,borderColor:colors.border,borderWidth:1,borderRadius:radius.lg,padding:spacing.md,gap:spacing.md},person:{flexDirection:'row',alignItems:'center',gap:spacing.sm},avatarRing:{width:52,height:52,borderRadius:26,padding:3,borderWidth:2,borderColor:colors.border},unseen:{borderColor:colors.brand},avatar:{width:'100%',height:'100%',borderRadius:22},avatarFallback:{flex:1,borderRadius:22,backgroundColor:colors.brandSoft,alignItems:'center',justifyContent:'center'},initial:{fontSize:fontSizes[20],fontWeight:'900',color:colors.brandOnSoft},cardTitle:{fontSize:fontSizes[15],fontWeight:'900',color:colors.ink,textAlign:'right'},storyStrip:{gap:spacing.sm,paddingVertical:spacing.xs},storyTile:{width:108,gap:6},tileImage:{width:108,height:152,borderRadius:radius.md,backgroundColor:colors.border},textTile:{alignItems:'center',justifyContent:'center',padding:spacing.sm},tileText:{color:colors.white,fontWeight:'800',textAlign:'center'},tileCaption:{fontSize:fontSizes[11],color:colors.muted,textAlign:'right'},error:{padding:spacing.md,borderRadius:radius.md,backgroundColor:colors.dangerSoft,gap:spacing.xs},errorText:{color:colors.danger,textAlign:'right'}});
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({ link:{color:colors.brand,fontWeight:'700',padding:spacing.sm},content:{gap:spacing.lg,paddingBottom:spacing.xl},muted:{fontSize:fontSizes[13],color:colors.muted,textAlign:'right',lineHeight:20},addCard:{minHeight:84,backgroundColor:colors.surface,borderColor:colors.border,borderWidth:1,borderRadius:radius.lg,padding:spacing.md,flexDirection:'row',alignItems:'center',gap:spacing.md},addCircle:{width:56,height:56,borderRadius:28,backgroundColor:colors.brandSoft,alignItems:'center',justifyContent:'center'},plus:{fontSize:fontSizes[30],color:colors.brandOnSoft,fontWeight:'700'},group:{backgroundColor:colors.surface,borderColor:colors.border,borderWidth:1,borderRadius:radius.lg,padding:spacing.md,gap:spacing.md},person:{flexDirection:'row',alignItems:'center',gap:spacing.sm},avatarRing:{width:52,height:52,borderRadius:26,padding:3,borderWidth:2,borderColor:colors.border},unseen:{borderColor:colors.brand},avatar:{width:'100%',height:'100%',borderRadius:22},avatarFallback:{flex:1,borderRadius:22,backgroundColor:colors.brandSoft,alignItems:'center',justifyContent:'center'},initial:{fontSize:fontSizes[20],fontWeight:'700',color:colors.brandOnSoft},cardTitle:{fontSize:fontSizes[15],fontWeight:'700',color:colors.ink,textAlign:'right'},storyStrip:{gap:spacing.sm,paddingVertical:spacing.xs},storyTile:{width:108,gap:6},tileImage:{width:108,height:152,borderRadius:radius.md,backgroundColor:colors.border},textTile:{alignItems:'center',justifyContent:'center',padding:spacing.sm},tileText:{color:colors.white,fontWeight:'700',textAlign:'center'},tileCaption:{fontSize:fontSizes[11],color:colors.muted,textAlign:'right'},error:{padding:spacing.md,borderRadius:radius.md,backgroundColor:colors.dangerSoft,gap:spacing.xs},errorText:{color:colors.danger,textAlign:'right'}});

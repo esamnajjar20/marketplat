@@ -9,17 +9,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchConversationsPage, setConversationFlags, type ConversationItem } from '@/features/messaging/messaging.api';
 import { useUnreadCounts } from '@/features/messaging/useUnreadCounts';
-import {
-  AppHeader,
-  Chip,
-  EmptyState,
-  ErrorState,
-  LoadingState,
-  PrimaryButton,
-  SearchBar,
-  SkeletonList,
-} from '@/components/MobileUI';
-import { elevation, radius, spacing, typography, ux } from '@/theme/tokens';
+import { AppHeader, Chip, EmptyState, ErrorState, PrimaryButton, SearchBar, SkeletonList } from '@/components/MobileUI';
+import { spacing, typography } from '@/theme/tokens';
 import ConversationListItem from '@/features/messaging/ConversationListItem';
 
 type Filter = 'all' | 'unread' | 'archived';

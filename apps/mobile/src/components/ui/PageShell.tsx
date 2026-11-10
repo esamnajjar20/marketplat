@@ -1,5 +1,6 @@
+import type React from 'react';
 import { type ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View, type RefreshControlProps } from 'react-native';
 import { usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { isBottomNavigationHidden } from '@/components/BottomNavigation';
@@ -12,12 +13,14 @@ function ShellBody({
   right,
   children,
   scroll = true,
+  refreshControl,
 }: {
   hidden: boolean;
   title: string;
   right?: ReactNode;
   children: ReactNode;
   scroll?: boolean;
+  refreshControl?: React.ReactElement<RefreshControlProps>;
 }) {
   const s = useUIStyles();
   const edges: ('top' | 'bottom')[] = hidden ? ['top', 'bottom'] : ['top'];
@@ -26,6 +29,7 @@ function ShellBody({
       contentContainerStyle={s.content}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
+      refreshControl={refreshControl}
     >
       {children}
     </ScrollView>
@@ -51,17 +55,20 @@ export function PageShell({
   children,
   right,
   scroll = true,
+  refreshControl,
 }: {
   title: string;
   children: ReactNode;
   right?: ReactNode;
+  /** سحب للتحديث (يعمل فقط مع scroll=true) */
+  refreshControl?: React.ReactElement<RefreshControlProps>;
   /** عند false يُعرض المحتوى بدون ScrollView (قوائم افتراضية مثلاً) */
   scroll?: boolean;
 }) {
   const pathname = usePathname();
   const hidden = isBottomNavigationHidden(pathname);
   return (
-    <ShellBody hidden={hidden} title={title} right={right} scroll={scroll}>
+    <ShellBody hidden={hidden} title={title} right={right} scroll={scroll} refreshControl={refreshControl}>
       {children}
     </ShellBody>
   );

@@ -39,9 +39,9 @@ export default function PublicStoreCollectionsScreen() {
           <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/collections/[id]', params: { id: item.id } })}>
             <SectionCard>
               {item.imageUrl ? <AppImage uri={item.imageUrl} style={{ width: '100%', height: 140, borderRadius: 12 }} resizeMode="cover" /> : null}
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '900', color: colors.ink }}>{item.name}</Text>
+              <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '700', color: colors.ink }}>{item.name}</Text>
               <Text style={{ textAlign: 'right', color: colors.muted }}>{item.description || 'مجموعة منتجات'} · {item._count?.products ?? 0} منتج</Text>
-              <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '800' }}>عرض المنتجات ←</Text>
+              <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700' }}>عرض المنتجات ←</Text>
             </SectionCard>
           </Pressable>
         )}

@@ -3,22 +3,13 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useState , useMemo} from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import {
-  fetchServiceListing,
-  getCachedServiceListing,
-  type ServiceListing,
-} from '@/features/services/services.api';
+import { fetchServiceListing, getCachedServiceListing, type ServiceListing } from '@/features/services/services.api';
 import { useAuth } from '@/features/auth/AuthContext';
-import {
-  Badge,
-  DetailScaffold,
-  PrimaryButton,
-  SectionCard,
-} from '@/components/MobileUI';
-import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
+import { Badge, DetailScaffold, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { fontSizes, spacing, typography } from '@/theme/tokens';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { showToast } from '@/lib/toast';
@@ -177,11 +168,6 @@ export default function ServiceDetailScreen() {
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   pad: { paddingHorizontal: spacing.lg, gap: spacing.lg },
-  heroImage: {
-    height: 280,
-    borderRadius: radius.lg,
-    backgroundColor: colors.border,
-  },
   title: {
     fontSize: fontSizes[20],
     fontWeight: '700',

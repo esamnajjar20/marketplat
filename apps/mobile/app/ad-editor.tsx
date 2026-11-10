@@ -4,26 +4,27 @@ import { AppImage } from '@/components/AppImage';
 import { AppIcon } from '@/components/Icons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useEffect, useRef, useState , useMemo} from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState, useMemo } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import NetInfo from '@react-native-community/netinfo';
 import { router, useLocalSearchParams } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
 import { fetchAdDetail } from '@/features/ads/ads.api';
 import { createAd, updateAd, removeAdImage, reorderAdImages, PartialAdUpdateError, type AdDraft, type SelectedAdImage } from '@/features/ads/manage-ads.api';
-import type { PublicCategory } from '@/features/categories/categories.api';
+
 import { useAdEditorCategories } from '@/features/ads/useAdEditorCategories';
 import { useAuth } from '@/features/auth/AuthContext';
 import { cleanupStaleUnreferencedAdImages, persistSelectedAdImage, removePersistedAdImageIfUnused } from '@/storage/persist-ad-image';
 import { clearAdDraft, loadAdDraft, saveAdDraft, clearAdEditDraft, loadAdEditDraft, saveAdEditDraft } from '@/storage/ad-draft-store';
 import { enqueueMutation } from '@/storage/outbox-manager';
-import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing } from '@/theme/tokens';
 import { adEditorSchema, validate } from '@/lib/validation';
 import { createMobileOperationId } from '@/lib/operation-id';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
-import { AppHeader, Field, Notice, PrimaryButton, LoadingState, SectionCard } from '@/components/MobileUI';
+import { AppHeader, Notice, PrimaryButton, LoadingState } from '@/components/MobileUI';
 import { showToast } from '@/lib/toast';
 
 const emptyDraft: AdDraft = { title: '', description: '', price: '', city: '', categoryId: '', isNegotiable: false, images: [] };
@@ -278,7 +279,7 @@ export default function AdEditorScreen() {
 
   if (!user) return <SafeAreaView style={styles.safe} edges={['top']}><AppHeader title="محرر الإعلان" /><View style={styles.center}><Text style={styles.title}>سجّل الدخول لإدارة إعلاناتك</Text><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /></View></SafeAreaView>;
   if (loading) return <SafeAreaView style={styles.safe} edges={['top']}><AppHeader title="محرر الإعلان" /><LoadingState message="جاري تحميل الإعلان…" /></SafeAreaView>;
-  return <SafeAreaView style={styles.safe} edges={['top']}><AppHeader title={id ? 'تعديل الإعلان' : 'إضافة إعلان'} onBack={() => router.back()} />
+  return <SafeAreaView style={styles.safe} edges={['top']}><AppHeader title={id ? 'تعديل الإعلان' : 'إضافة إعلان'} onBack={() => goBack()} />
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
       {!id && draftOwnerReady === String(user.id) && draftSaveStatus !== 'idle' ? (
         <Text
@@ -314,5 +315,5 @@ export default function AdEditorScreen() {
   </SafeAreaView>;
 }
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  sectionLabel:{fontSize:fontSizes[16],fontWeight:'800',color:colors.ink,textAlign:'right',marginTop:spacing.sm},
-  sectionHint:{fontSize:fontSizes[12],color:colors.muted,textAlign:'right',marginBottom:spacing.xs,lineHeight:18},safe:{flex:1,backgroundColor:colors.canvas},flex:{flex:1},header:{minHeight:56,paddingHorizontal:spacing.lg,flexDirection:'row',alignItems:'center',justifyContent:'space-between',backgroundColor:colors.surface,borderBottomWidth:1,borderBottomColor:colors.border},heading:{fontSize:fontSizes[17],fontWeight:'900',color:colors.ink},link:{color:colors.brand,fontWeight:'800',padding:spacing.sm,minWidth:44,minHeight:44,justifyContent:'center',textAlign:'center'},form:{padding:spacing.lg,gap:spacing.md,paddingBottom:56},label:{fontSize:fontSizes[14],fontWeight:'800',color:colors.ink,textAlign:'right',marginTop:spacing.sm},input:{backgroundColor:colors.surface,borderWidth:1,borderColor:colors.controlBorder,borderRadius:radius.md,paddingHorizontal:spacing.md,paddingVertical:spacing.md,color:colors.ink,fontSize:fontSizes[15],minHeight:54},multiline:{minHeight:130},switchRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:spacing.sm},error:{color:colors.danger,backgroundColor:colors.dangerSoft,padding:spacing.md,borderRadius:radius.sm,textAlign:'right',lineHeight:21},note:{color:colors.muted,fontSize:fontSizes[12],lineHeight:19,textAlign:'right'},imageControls:{position:'absolute',bottom:3,left:3,right:3,flexDirection:'row',justifyContent:'space-between',alignItems:'center'},imageControl:{width:44,height:44,borderRadius:22,backgroundColor:colors.mediaControlOverlay,alignItems:'center',justifyContent:'center'},imageControlText:{color:colors.ink,fontSize:fontSizes[20],fontWeight:'900',lineHeight:22},primary:{minHeight:52,alignItems:'center',justifyContent:'center',backgroundColor:colors.brand,borderRadius:radius.md,paddingHorizontal:spacing.lg,paddingVertical:spacing.md,marginTop:spacing.md},primaryText:{color:colors.onBrand,fontWeight:'900'},disabled:{opacity:.6},center:{flex:1,alignItems:'center',justifyContent:'center',padding:spacing.xl,gap:spacing.md},categoryWrap:{flexDirection:'row',flexWrap:'wrap',gap:8},categoryChip:{minHeight:44,justifyContent:'center',paddingHorizontal:14,paddingVertical:10,borderWidth:1,borderColor:colors.controlBorder,borderRadius:20,backgroundColor:colors.surface},categoryChipSelected:{backgroundColor:colors.brand,borderColor:colors.brand},categoryText:{color:colors.ink,fontSize:fontSizes[12],fontWeight:'700'},categoryTextSelected:{color:colors.onBrand},secondary:{alignItems:'center',borderWidth:1,borderColor:colors.brand,borderRadius:radius.md,padding:spacing.md,marginTop:spacing.sm},secondaryText:{color:colors.brand,fontWeight:'900'},imageGrid:{flexDirection:'row',flexWrap:'wrap',gap:10,marginTop:spacing.sm},imageTile:{width:148,height:148,position:'relative'},previewImage:{width:148,height:148,borderRadius:radius.md,backgroundColor:colors.border},removeImage:{position:'absolute',top:3,start:3,width:44,height:44,borderRadius:22,backgroundColor:colors.danger,alignItems:'center',justifyContent:'center'},removeImageText:{color:colors.onDanger,fontSize:fontSizes[22],fontWeight:'900',lineHeight:25},title:{color:colors.ink,fontWeight:'800',fontSize:fontSizes[17]},muted:{color:colors.muted,fontSize:fontSizes[13],textAlign:'center'}});
+  sectionLabel:{fontSize:fontSizes[16],fontWeight:'700',color:colors.ink,textAlign:'right',marginTop:spacing.sm},
+  sectionHint:{fontSize:fontSizes[12],color:colors.muted,textAlign:'right',marginBottom:spacing.xs,lineHeight:18},safe:{flex:1,backgroundColor:colors.canvas},flex:{flex:1},form:{padding:spacing.lg,gap:spacing.md,paddingBottom:56},label:{fontSize:fontSizes[14],fontWeight:'700',color:colors.ink,textAlign:'right',marginTop:spacing.sm},input:{backgroundColor:colors.surface,borderWidth:1,borderColor:colors.controlBorder,borderRadius:radius.md,paddingHorizontal:spacing.md,paddingVertical:spacing.md,color:colors.ink,fontSize:fontSizes[15],minHeight:54},multiline:{minHeight:130},switchRow:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',paddingVertical:spacing.sm},error:{color:colors.danger,backgroundColor:colors.dangerSoft,padding:spacing.md,borderRadius:radius.sm,textAlign:'right',lineHeight:21},note:{color:colors.muted,fontSize:fontSizes[12],lineHeight:19,textAlign:'right'},imageControls:{position:'absolute',bottom:3,left:3,right:3,flexDirection:'row',justifyContent:'space-between',alignItems:'center'},imageControl:{width:44,height:44,borderRadius:22,backgroundColor:colors.mediaControlOverlay,alignItems:'center',justifyContent:'center'},disabled:{opacity:.6},center:{flex:1,alignItems:'center',justifyContent:'center',padding:spacing.xl,gap:spacing.md},categoryWrap:{flexDirection:'row',flexWrap:'wrap',gap:8},categoryChip:{minHeight:44,justifyContent:'center',paddingHorizontal:14,paddingVertical:10,borderWidth:1,borderColor:colors.controlBorder,borderRadius:20,backgroundColor:colors.surface},categoryChipSelected:{backgroundColor:colors.brand,borderColor:colors.brand},categoryText:{color:colors.ink,fontSize:fontSizes[12],fontWeight:'700'},categoryTextSelected:{color:colors.onBrand},secondary:{alignItems:'center',borderWidth:1,borderColor:colors.brand,borderRadius:radius.md,padding:spacing.md,marginTop:spacing.sm},secondaryText:{color:colors.brand,fontWeight:'700'},imageGrid:{flexDirection:'row',flexWrap:'wrap',gap:10,marginTop:spacing.sm},imageTile:{width:148,height:148,position:'relative'},previewImage:{width:148,height:148,borderRadius:radius.md,backgroundColor:colors.border},removeImage:{position:'absolute',top:3,start:3,width:44,height:44,borderRadius:22,backgroundColor:colors.danger,alignItems:'center',justifyContent:'center'},removeImageText:{color:colors.onDanger,fontSize:fontSizes[22],fontWeight:'700',lineHeight:25},title:{color:colors.ink,fontWeight:'700',fontSize:fontSizes[17]},muted:{color:colors.muted,fontSize:fontSizes[13],textAlign:'center'}});

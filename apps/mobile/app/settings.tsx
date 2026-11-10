@@ -1,112 +1,30 @@
-import type { ColorPalette } from '@/theme/tokens';
+
 import { AppText as Text } from '@/components/ui/AppText';
 import { AppIcon } from '@/components/Icons';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Linking, Platform, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
-import { getConfiguredWebUrl } from '@/lib/web-links';
+
 import { fetchMyProfile, updateNotificationPreferences } from '@/features/account/account.api';
-import {
-  ListRow,
-  Notice,
-  PageShell,
-  PrimaryButton,
-  SectionCard,
-  SectionHeader,
-} from '@/components/MobileUI';
-import { fontSizes, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
-import {
-  isAndroidPushEnabled,
-  requestAndRegisterAndroidPush,
-  unregisterAndroidFcmToken,
-} from '@/features/notifications/native-push';
-import { showToast } from '@/lib/toast';
-import { useAppTheme, type ThemeMode } from '@/theme/ThemeProvider';
+import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
+import { createSettingsStyles } from '@/features/settings/settings.styles';
+import { ThemeSection } from '@/features/settings/ThemeSection';
+import { NotificationPreferencesSection } from '@/features/settings/NotificationPreferencesSection';
+import { AccountLinksSection } from '@/features/settings/AccountLinksSection';
+import { HelpSection } from '@/features/settings/HelpSection';
+import { DEFAULT_PREFS, getDeviceTimeZone, validTime, type Preferences } from '@/features/settings/preferences';
+import { fontSizes, spacing } from '@/theme/tokens';
+import { isAndroidPushEnabled, requestAndRegisterAndroidPush, unregisterAndroidFcmToken } from '@/features/notifications/native-push';
 
-type PreferenceValue = boolean | string;
-type Preferences = Record<string, PreferenceValue>;
-
-const DEFAULT_PREFS: Preferences = {
-  newMessage: true,
-  adViews: false,
-  favAdUpdated: true,
-  promotions: false,
-  myPromotions: true,
-  savedSearch: true,
-  storeUpdates: true,
-  followUpdates: true,
-  serviceQuotes: true,
-  salesAlerts: true,
-  lowStockAlerts: true,
-  installmentAlerts: true,
-  debtAlerts: true,
-  weeklySalesReport: true,
-  emailFallback: false,
-  quietHoursEnabled: false,
-  quietHoursStart: '22:00',
-  quietHoursEnd: '08:00',
-  quietHoursAllowUrgent: true,
-  quietHoursTimeZone: 'Asia/Gaza',
-};
-
-const preferenceGroups: { title: string; rows: [string, string][] }[] = [
-  { title: 'التواصل', rows: [['newMessage', 'الرسائل الجديدة']] },
-  {
-    title: 'المفضلة والبحث',
-    rows: [
-      ['favAdUpdated', 'تحديثات الإعلانات المفضلة'],
-      ['savedSearch', 'تنبيهات عمليات البحث المحفوظة'],
-    ],
-  },
-  {
-    title: 'المتاجر والعروض',
-    rows: [
-      ['storeUpdates', 'تحديثات المتاجر التي أتابعها'],
-      ['followUpdates', 'تحديثات الحسابات التي أتابعها'],
-      ['myPromotions', 'عروضي الترويجية'],
-      ['promotions', 'عروض وتخفيضات المنصة'],
-    ],
-  },
-  { title: 'الخدمات', rows: [['serviceQuotes', 'عروض وطلبات الخدمات']] },
-  {
-    title: 'المبيعات والمخزون',
-    rows: [
-      ['salesAlerts', 'تذكير المبيعات'],
-      ['lowStockAlerts', 'تنبيهات انخفاض المخزون'],
-      ['installmentAlerts', 'تنبيهات الأقساط المتأخرة'],
-      ['debtAlerts', 'تنبيهات الديون'],
-      ['weeklySalesReport', 'تقرير المبيعات الأسبوعي'],
-      ['adViews', 'تقرير مشاهدات إعلاناتي'],
-    ],
-  },
-];
-
-function getDeviceTimeZone(): string | null {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
-  } catch {
-    return null;
-  }
-}
-
-function validTime(value: string): boolean {
-  return /^([01]?\d|2[0-3]):[0-5]\d$/.test(value);
-}
-
-function openWeb(path: string) {
-  void Linking.openURL(getConfiguredWebUrl(path)).catch(() =>
-    showToast('تعذر فتح الرابط', 'افتح الموقع الرسمي من المتصفح.', 'error'),
-  );
-}
+import { useAppTheme } from '@/theme/ThemeProvider';
 
 export default function SettingsScreen() {
   const { colors } = useAppTheme();
-  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+  const styles = useMemo(() => createSettingsStyles(colors), [colors]);
 
   const { accessToken, getAccessToken, csrfToken, logout, isBusy, user } = useAuth();
-  const { mode: themeMode, scheme, colors: palette, setMode: setThemeMode } = useAppTheme();
   const [prefs, setPrefs] = useState<Preferences>(DEFAULT_PREFS);
   const [loadingPreferences, setLoadingPreferences] = useState(true);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
@@ -240,45 +158,7 @@ export default function SettingsScreen() {
 
   return (
     <PageShell title="الإعدادات">
-      <View style={{ gap: spacing.md }}>
-        
-        <SectionHeader title="مظهر التطبيق" subtitle="اختر المظهر الذي يناسبك، أو اتبع إعدادات جهازك تلقائيًا" />
-        <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
-          {([
-            { value: 'system', label: 'حسب الجهاز', description: 'يتغير مع إعدادات الجهاز' },
-            { value: 'light', label: 'فاتح', description: 'خلفية فاتحة' },
-            { value: 'dark', label: 'داكن', description: 'مناسب للإضاءة المنخفضة' },
-          ] as const).map((option: { value: ThemeMode; label: string; description: string }) => {
-            const selected = themeMode === option.value;
-            return (
-              <Pressable
-                key={option.value}
-                accessibilityRole="radio"
-                accessibilityLabel={`مظهر ${option.label}`}
-                accessibilityState={{ selected }}
-                onPress={() => {
-                  void setThemeMode(option.value).then((saved) => {
-                    if (!saved) showToast('تم تغيير المظهر مؤقتًا', 'تعذر حفظ تفضيل المظهر على هذا الجهاز.', 'warning');
-                  });
-                }}
-                style={({ pressed }) => ({
-                  flexGrow: 1, flexBasis: 100, minHeight: 64, padding: spacing.md, gap: 4,
-                  borderRadius: radius.md, borderWidth: selected ? 2 : 1,
-                  borderColor: selected ? palette.brand : palette.border,
-                  backgroundColor: selected ? palette.brandSoft : palette.surface,
-                  opacity: pressed ? 0.78 : 1,
-                })}
-              >
-                <Text style={{ color: selected ? palette.brandOnSoft : palette.ink, fontWeight: '800', textAlign: 'right' }}>{option.label}</Text>
-                <Text style={{ color: selected ? palette.brandOnSoft : palette.muted, fontSize: fontSizes[12], textAlign: 'right' }}>{option.description}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <Text style={{ color: palette.muted, fontSize: fontSizes[12], textAlign: 'right' }}>
-          المظهر الحالي: {scheme === 'dark' ? 'داكن' : 'فاتح'}
-        </Text>
-      </View>
+      <ThemeSection />
       {!accessToken ? (
         <>
           <Notice>سجّل الدخول لإدارة إعدادات الحساب.</Notice>
@@ -295,242 +175,32 @@ export default function SettingsScreen() {
             >
               <AppIcon name={showNotificationSettings ? 'back' : 'forward'} size={18} color={colors.brand} />
               <View style={{ flex: 1, gap: 3 }}>
-                <Text style={{ color: colors.ink, fontWeight: '800', textAlign: 'right' }}>إدارة تفضيلات الإشعارات</Text>
+                <Text style={{ color: colors.ink, fontWeight: '700', textAlign: 'right' }}>إدارة تفضيلات الإشعارات</Text>
                 <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>إعدادات اختيارية؛ افتحها عند الحاجة فقط</Text>
               </View>
               <AppIcon name="notification" size={20} color={colors.brand} />
             </Pressable>
           </SectionCard>
           {showNotificationSettings ? <>
-          {loadingPreferences ? (
-            <SectionCard>
-              <Text style={styles.loadingText}>جارٍ تحميل تفضيلات الإشعارات…</Text>
-            </SectionCard>
-          ) : null}
-
-          {/* إشعارات الجهاز */}
-          <View style={styles.section}>
-            <SectionHeader
-              title="إشعارات الجهاز"
-              subtitle="تنبيهات فورية حتى عندما يكون التطبيق مغلقاً"
-            />
-            <SectionCard style={styles.cardPad}>
-              <Text style={styles.bodyText}>
-                فعّل إشعارات Android لتلقي تنبيهات MarketPlat. سيطلب التطبيق الإذن بعد ضغطك على الزر فقط.
-              </Text>
-              {Platform.OS === 'android' ? (
-                pushEnabled ? (
-                  <PrimaryButton
-                    label="إيقاف إشعارات الجهاز"
-                    variant="secondary"
-                    busy={pushBusy}
-                    onPress={() => void disableDevicePush()}
-                  />
-                ) : (
-                  <PrimaryButton
-                    label="تفعيل إشعارات الجهاز"
-                    busy={pushBusy}
-                    onPress={() => void enableDevicePush()}
-                  />
-                )
-              ) : (
-                <Notice tone="muted">إشعارات الجهاز الفورية متاحة حالياً على Android.</Notice>
-              )}
-            </SectionCard>
-          </View>
-
-          {/* تفضيلات الإشعارات */}
-          <View style={styles.section}>
-            <SectionHeader title="تفضيلات الإشعارات" subtitle="اختر ما تريد تلقيه" />
-            {preferenceGroups.map((group) => (
-              <View key={group.title} style={styles.prefGroup}>
-                <Text style={styles.prefGroupTitle}>{group.title}</Text>
-                <View style={styles.prefCard}>
-                  {group.rows.map(([key, label], index) => (
-                    <View key={key}>
-                      <View style={styles.prefRow}>
-                        <Switch
-                          value={Boolean(prefs[key])}
-                          onValueChange={(value) => toggle(key, value)}
-                          trackColor={{ false: colors.border, true: colors.brandSoftActive ?? colors.brandSoft }}
-                          thumbColor={Boolean(prefs[key]) ? colors.brand : colors.muted}
-                          accessibilityLabel={label}
-                        />
-                        <Text style={styles.prefLabel}>{label}</Text>
-                      </View>
-                      {index < group.rows.length - 1 ? <View style={styles.divider} /> : null}
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ))}
-          </View>
-
-          {/* ساعات الهدوء + بريد */}
-          <View style={styles.section}>
-            <SectionHeader title="ساعات الهدوء والبريد" />
-            <View style={styles.prefCard}>
-              <View style={styles.prefRow}>
-                <Switch
-                  value={Boolean(prefs.quietHoursEnabled)}
-                  onValueChange={(value) => toggle('quietHoursEnabled', value)}
-                  trackColor={{ false: colors.border, true: colors.brandSoftActive ?? colors.brandSoft }}
-                  thumbColor={Boolean(prefs.quietHoursEnabled) ? colors.brand : colors.muted}
-                  accessibilityLabel="تفعيل ساعات الهدوء"
-                />
-                <Text style={styles.prefLabel}>تفعيل ساعات الهدوء</Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.timeRow}>
-                <View style={styles.timeField}>
-                  <Text style={styles.timeLabel}>من</Text>
-                  <TextInput
-                    allowFontScaling
-                    maxFontSizeMultiplier={1.3}
-                    accessibilityLabel="بداية ساعات الهدوء"
-                    value={String(prefs.quietHoursStart)}
-                    onChangeText={(value) => setPrefs((p) => ({ ...p, quietHoursStart: value }))}
-                    placeholder="22:00"
-                    placeholderTextColor={colors.muted}
-                    style={styles.timeInput}
-                    textAlign="center"
-                  />
-                </View>
-                <View style={styles.timeField}>
-                  <Text style={styles.timeLabel}>إلى</Text>
-                  <TextInput
-                    allowFontScaling
-                    maxFontSizeMultiplier={1.3}
-                    accessibilityLabel="نهاية ساعات الهدوء"
-                    value={String(prefs.quietHoursEnd)}
-                    onChangeText={(value) => setPrefs((p) => ({ ...p, quietHoursEnd: value }))}
-                    placeholder="08:00"
-                    placeholderTextColor={colors.muted}
-                    style={styles.timeInput}
-                    textAlign="center"
-                  />
-                </View>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.prefRow}>
-                <Switch
-                  value={Boolean(prefs.quietHoursAllowUrgent)}
-                  onValueChange={(value) => toggle('quietHoursAllowUrgent', value)}
-                  trackColor={{ false: colors.border, true: colors.brandSoftActive ?? colors.brandSoft }}
-                  thumbColor={Boolean(prefs.quietHoursAllowUrgent) ? colors.brand : colors.muted}
-                  accessibilityLabel="السماح بالتنبيهات العاجلة"
-                />
-                <Text style={styles.prefLabel}>السماح بالتنبيهات العاجلة أثناء الهدوء</Text>
-              </View>
-              <View style={styles.divider} />
-              <View style={styles.prefRow}>
-                <Switch
-                  value={Boolean(prefs.emailFallback)}
-                  onValueChange={(value) => toggle('emailFallback', value)}
-                  trackColor={{ false: colors.border, true: colors.brandSoftActive ?? colors.brandSoft }}
-                  thumbColor={Boolean(prefs.emailFallback) ? colors.brand : colors.muted}
-                  accessibilityLabel="إشعارات البريد البديلة"
-                />
-                <Text style={styles.prefLabel}>إشعارات البريد كبديل عند الحاجة</Text>
-              </View>
-              {deviceTimeZone ? (
-                <Text style={styles.tzHint}>المنطقة الزمنية للجهاز: {deviceTimeZone}</Text>
-              ) : null}
-            </View>
-            <PrimaryButton
-              label="حفظ تفضيلات الإشعارات"
-              busy={busy}
-              disabled={!preferencesLoaded || loadingPreferences}
-              onPress={() => void save()}
-            />
-          </View>
-
+          <NotificationPreferencesSection
+            prefs={prefs}
+            setPrefs={setPrefs}
+            toggle={toggle}
+            loadingPreferences={loadingPreferences}
+            preferencesLoaded={preferencesLoaded}
+            busy={busy}
+            pushEnabled={pushEnabled}
+            pushBusy={pushBusy}
+            deviceTimeZone={deviceTimeZone}
+            enableDevicePush={enableDevicePush}
+            disableDevicePush={disableDevicePush}
+            save={save}
+          />
           </> : null}
 
-          {/* روابط الحساب */}
-          <View style={styles.section}>
-            <SectionHeader title="الحساب والجهاز" />
-            <View style={styles.prefCard}>
-              <ListRow
-                title="الجلسات النشطة"
-                description="إدارة الأجهزة المتصلة بحسابك"
-                glyph="◎"
-                onPress={() => router.push('/sessions')}
-              />
-              <View style={styles.divider} />
-              <ListRow
-                title="المحفوظات بلا اتصال"
-                description="العناصر المحفوظة للرجوع إليها دون إنترنت"
-                glyph="◇"
-                onPress={() => router.push('/saved-offline')}
-              />
-              <View style={styles.divider} />
-              <ListRow
-                title="إدارة متجري"
-                description="معلومات المتجر والمنتجات"
-                glyph="▦"
-                onPress={() => router.push('/my-store')}
-              />
-              <View style={styles.divider} />
-              <ListRow
-                title="المستخدمون المحظورون"
-                description="قائمة الحظر"
-                glyph="⊘"
-                onPress={() => router.push('/blocked-users')}
-              />
-              <View style={styles.divider} />
-              <ListRow
-                title="بلاغاتي"
-                description="حالة البلاغات التي أرسلتها"
-                glyph="⚑"
-                onPress={() => router.push('/my-reports')}
-              />
-              <View style={styles.divider} />
-              <ListRow
-                title="التخزين والبيانات المحلية"
-                description="المساحة والبيانات المشفرة"
-                glyph="▣"
-                onPress={() => router.push('/storage')}
-              />
-              <View style={styles.divider} />
-              <ListRow
-                title="العمليات بانتظار المزامنة"
-                description="طلبات ورسائل تنتظر الاتصال"
-                glyph="↻"
-                onPress={() => router.push('/offline-queue')}
-              />
-            </View>
-          </View>
+          <AccountLinksSection />
 
-          {/* مساعدة */}
-          <View style={styles.section}>
-            <SectionHeader title="المساعدة والمعلومات" />
-            <View style={styles.prefCard}>
-              <ListRow
-                title="سياسة الخصوصية"
-                glyph={<AppIcon name="privacy" size={20} color={colors.brand} />}
-                onPress={() => openWeb('/privacy')}
-              />
-              <View style={styles.divider} />
-              <ListRow
-                title="الشروط والأحكام"
-                glyph={<AppIcon name="file" size={20} color={colors.brand} />}
-                onPress={() => openWeb('/terms')}
-              />
-              <View style={styles.divider} />
-              <ListRow
-                title="اتصل بنا"
-                glyph={<AppIcon name="messages" size={20} color={colors.brand} />}
-                onPress={() => openWeb('/contact')}
-              />
-              <View style={styles.divider} />
-              <ListRow
-                title="من نحن"
-                glyph={<AppIcon name="info" size={20} color={colors.brand} />}
-                onPress={() => openWeb('/about')}
-              />
-            </View>
-          </View>
+          <HelpSection />
 
           <PrimaryButton
             label="تسجيل الخروج"
@@ -546,92 +216,3 @@ export default function SettingsScreen() {
     </PageShell>
   );
 }
-
-const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  section: {
-    gap: spacing.md,
-  },
-  cardPad: {
-    gap: spacing.md,
-  },
-  loadingText: {
-    textAlign: 'center',
-    color: colors.muted,
-    ...typography.body,
-  },
-  bodyText: {
-    textAlign: 'right',
-    color: colors.muted,
-    ...typography.body,
-    lineHeight: 22,
-  },
-  prefGroup: {
-    gap: spacing.sm,
-  },
-  prefGroupTitle: {
-    ...typography.label,
-    color: colors.muted,
-    textAlign: 'right',
-    paddingHorizontal: spacing.xs,
-  },
-  prefCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.card ?? radius.lg,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: colors.border,
-    overflow: 'hidden',
-    ...elevation.sm,
-  },
-  prefRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    minHeight: 52,
-  },
-  prefLabel: {
-    flex: 1,
-    ...typography.body,
-    color: colors.ink,
-    textAlign: 'right',
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.md,
-  },
-  timeRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  timeField: {
-    flex: 1,
-    gap: 4,
-  },
-  timeLabel: {
-    ...typography.caption,
-    color: colors.muted,
-    textAlign: 'center',
-  },
-  timeInput: {
-    minHeight: 44,
-    borderWidth: 1.5,
-    borderColor: colors.controlBorder,
-    borderRadius: radius.md,
-    backgroundColor: colors.canvas,
-    color: colors.ink,
-    fontSize: fontSizes[15],
-    paddingHorizontal: spacing.sm,
-  },
-  tzHint: {
-    ...typography.caption,
-    color: colors.muted,
-    textAlign: 'right',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
-  },
-});

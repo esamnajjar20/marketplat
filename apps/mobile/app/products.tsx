@@ -3,22 +3,13 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
-import { useEffect, useState , useMemo} from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { fetchProducts, fetchMyStore, type ProductSummary } from '@/features/commerce/commerce.api';
-import {
-  AppHeader,
-  EmptyState,
-  ErrorState,
-  LoadingState,
-  SkeletonList,
-  PrimaryButton,
-  SearchBar,
-  SecondaryButton,
-} from '@/components/MobileUI';
+import { AppHeader, EmptyState, ErrorState, SkeletonList, PrimaryButton, SearchBar, SecondaryButton } from '@/components/MobileUI';
 import { ProductCard } from '@/components/ui/ProductCard';
 import { spacing, typography } from '@/theme/tokens';
 
@@ -173,5 +164,4 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   sectionTitle: { ...typography.subtitle, color: colors.ink },
   count: { ...typography.caption, color: colors.muted },
-  list: { gap: spacing.md },
 });

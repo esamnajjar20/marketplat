@@ -3,7 +3,8 @@ import { AppIcon } from '@/components/Icons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
+import { Spinner } from '@/components/ui';
 import { router } from 'expo-router';
 import { fetchProductCategories, type ProductCategory } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
@@ -19,7 +20,7 @@ export default function ProductCategoriesScreen() {
   useEffect(() => { void load(); }, [load]);
   return <PageShell title="تصنيفات المنتجات">
     <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 21 }}>اختر تصنيفًا لعرض المنتجات المرتبطة به.</Text>
-    <Pressable accessibilityRole="button" accessibilityLabel="عرض جميع المنتجات" onPress={() => router.push('/products')}><SectionCard><Text style={{ textAlign: 'right', fontWeight: '900', color: colors.brand, minHeight: 44, textAlignVertical: 'center' }}>جميع المنتجات ←</Text></SectionCard></Pressable>
-    {loading ? <ActivityIndicator color={colors.brand} /> : error ? <><Notice>{error}</Notice><Pressable onPress={() => void load()}><Text style={{ textAlign: 'center', color: colors.brand, fontWeight: '800' }}>إعادة المحاولة</Text></Pressable></> : items.length === 0 ? <Notice tone="muted">لا توجد تصنيفات نشطة حاليًا.</Notice> : <View style={{ gap: 14 }}>{items.map(category => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={`عرض منتجات تصنيف ${category.nameAr || category.name}`} onPress={() => router.push({ pathname: '/products', params: { categoryId: category.id } })}><SectionCard><View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}><View style={{ flex: 1, gap: 4 }}><Text style={{ textAlign: 'right', color: colors.ink, fontSize: fontSizes[17], fontWeight: '900' }}>{category.nameAr || category.name}</Text><Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>{category.nameAr && category.name !== category.nameAr ? category.name : 'تصفح منتجات هذا التصنيف'}</Text></View><AppIcon name="forward" size={20} color={colors.brand} /></View></SectionCard></Pressable>)}</View>}
+    <Pressable accessibilityRole="button" accessibilityLabel="عرض جميع المنتجات" onPress={() => router.push('/products')}><SectionCard><Text style={{ textAlign: 'right', fontWeight: '700', color: colors.brand, minHeight: 44, textAlignVertical: 'center' }}>جميع المنتجات ←</Text></SectionCard></Pressable>
+    {loading ? <Spinner color={colors.brand} /> : error ? <><Notice>{error}</Notice><Pressable onPress={() => void load()}><Text style={{ textAlign: 'center', color: colors.brand, fontWeight: '700' }}>إعادة المحاولة</Text></Pressable></> : items.length === 0 ? <Notice tone="muted">لا توجد تصنيفات نشطة حاليًا.</Notice> : <View style={{ gap: 14 }}>{items.map(category => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={`عرض منتجات تصنيف ${category.nameAr || category.name}`} onPress={() => router.push({ pathname: '/products', params: { categoryId: category.id } })}><SectionCard><View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}><View style={{ flex: 1, gap: 4 }}><Text style={{ textAlign: 'right', color: colors.ink, fontSize: fontSizes[17], fontWeight: '700' }}>{category.nameAr || category.name}</Text><Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>{category.nameAr && category.name !== category.nameAr ? category.name : 'تصفح منتجات هذا التصنيف'}</Text></View><AppIcon name="forward" size={20} color={colors.brand} /></View></SectionCard></Pressable>)}</View>}
   </PageShell>;
 }

@@ -159,10 +159,10 @@ export default function ServiceTypesScreen() {
         const values = attributes[item.serviceTypeId] ?? {};
         return (
           <SectionCard key={item.serviceTypeId}>
-            <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }}>{item.serviceType.nameAr || item.serviceType.name}</Text>
+            <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '700', color: colors.ink }}>{item.serviceType.nameAr || item.serviceType.name}</Text>
             <Text style={{ textAlign: 'right', color: colors.muted }}>أدخل تفاصيل ملفك وفق الحقول التي يحددها هذا النوع.</Text>
             <Pressable accessibilityRole="switch" accessibilityState={{ checked: active[item.serviceTypeId] ?? item.isActive }} onPress={() => setActive((current) => ({ ...current, [item.serviceTypeId]: !(current[item.serviceTypeId] ?? item.isActive) }))} style={{ alignSelf: 'flex-end', padding: 9, borderRadius: 9, backgroundColor: (active[item.serviceTypeId] ?? item.isActive) ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: colors.border }}>
-              <Text style={{ color: colors.brand, fontWeight: '800' }}>{(active[item.serviceTypeId] ?? item.isActive) ? 'مفعّل — اضغط للتعطيل' : 'معطّل — اضغط للتفعيل'}</Text>
+              <Text style={{ color: colors.brand, fontWeight: '700' }}>{(active[item.serviceTypeId] ?? item.isActive) ? 'مفعّل — اضغط للتعطيل' : 'معطّل — اضغط للتفعيل'}</Text>
             </Pressable>
             {fields.length === 0 ? <Notice tone="muted">لا توجد خصائص إضافية قابلة للتحرير لهذا النوع حاليًا.</Notice> : fields.map((field) => {
               const label = field.labelAr || field.label || field.key;
@@ -171,7 +171,7 @@ export default function ServiceTypesScreen() {
               const fieldError = fieldErrors[`${item.serviceTypeId}:${field.key}`];
               if (type === 'BOOLEAN') {
                 const checked = typeof value === 'boolean' ? value : false;
-                return <Pressable key={field.key} accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={() => setAttribute(item.serviceTypeId, field.key, !checked)} style={{ padding: 12, borderRadius: 10, borderWidth: 1, borderColor: checked ? colors.brand : colors.border, backgroundColor: checked ? colors.brandSoft : colors.surface, gap: 5 }}><Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '800' }}>{label}</Text><Text style={{ textAlign: 'right', color: colors.brand }}>{checked ? 'نعم' : 'لا'}</Text>{fieldError ? <Text style={{ textAlign: 'right', color: colors.danger }}>{fieldError}</Text> : null}</Pressable>;
+                return <Pressable key={field.key} accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={() => setAttribute(item.serviceTypeId, field.key, !checked)} style={{ padding: 12, borderRadius: 10, borderWidth: 1, borderColor: checked ? colors.brand : colors.border, backgroundColor: checked ? colors.brandSoft : colors.surface, gap: 5 }}><Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '700' }}>{label}</Text><Text style={{ textAlign: 'right', color: colors.brand }}>{checked ? 'نعم' : 'لا'}</Text>{fieldError ? <Text style={{ textAlign: 'right', color: colors.danger }}>{fieldError}</Text> : null}</Pressable>;
               }
               if (type === 'SELECT' || type === 'MULTI_SELECT') {
                 const options = optionsOf(field);

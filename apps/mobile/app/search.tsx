@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 
 const types = [
   { label: 'الكل', value: 'all' },
@@ -331,7 +332,7 @@ export default function SearchScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="رجوع"
-          onPress={() => router.back()}
+          onPress={() => goBack()}
           style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
         >
           <AppIcon name="back" size={22} color={colors.brandOnSoft} />

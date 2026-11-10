@@ -2,7 +2,8 @@ import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   fetchMarketplaceOrder,
@@ -87,7 +88,7 @@ export default function OrderDetailScreen() {
   };
 
   const confirmChange = (status: MarketplaceOrderStatus, title: string, message: string, sellerNote?: string) =>
-    Alert.alert(title, message, [
+    confirmAlert(title, message, [
       { text: 'رجوع', style: 'cancel' },
       { text: 'تأكيد', style: status === 'CANCELLED' ? 'destructive' : 'default', onPress: () => void changeStatus(status, sellerNote) },
     ]);
@@ -232,7 +233,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   value: { ...typography.captionStrong, color: colors.ink, textAlign: 'right', flexShrink: 1 },
   totalLabel: { ...typography.bodyStrong, color: colors.ink },
-  total: { fontSize: fontSizes[19], fontWeight: '900', color: colors.brand },
+  total: { fontSize: fontSizes[19], fontWeight: '700', color: colors.brand },
   sectionTitle: { ...typography.subtitle, color: colors.ink, textAlign: 'right' },
   errorInline: { ...typography.caption, color: colors.danger, textAlign: 'right' },
 });

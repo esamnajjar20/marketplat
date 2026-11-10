@@ -2,7 +2,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
+import { Spinner } from '@/components/ui';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchDebtSummary, fetchDebts, type DebtSummary } from '@/features/sales/sales-extra.api';
@@ -108,7 +109,7 @@ export default function DebtsScreen() {
                       style={{
                         textAlign: 'right',
                         fontSize: fontSizes[20],
-                        fontWeight: '900',
+                        fontWeight: '700',
                         color: l === 'متأخر' ? colors.danger : colors.ink,
                       }}
                     >
@@ -118,7 +119,7 @@ export default function DebtsScreen() {
                 ))}
               </View>
             ) : null}
-            {list.loading || summaryLoading ? <ActivityIndicator color={colors.brand} /> : null}
+            {list.loading || summaryLoading ? <Spinner color={colors.brand} /> : null}
             {summaryError ? <View style={{ gap: spacing.xs }}><Notice>{summaryError}</Notice><PrimaryButton label="إعادة تحميل الملخص" variant="secondary" onPress={() => void loadSummary()} /></View> : null}{list.error ? <Notice>{list.error}</Notice> : null}
           </View>
         }
@@ -127,10 +128,10 @@ export default function DebtsScreen() {
           <Pressable onPress={() => router.push({ pathname: '/sales/[id]', params: { id: sale.id } })}>
             <SectionCard>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}>
-                <Text style={{ flex: 1, textAlign: 'right', fontWeight: '900', fontSize: fontSizes[15], color: colors.ink }}>
+                <Text style={{ flex: 1, textAlign: 'right', fontWeight: '700', fontSize: fontSizes[15], color: colors.ink }}>
                   {sale.entityTitle}
                 </Text>
-                <Text style={{ fontWeight: '900', color: colors.danger }}>
+                <Text style={{ fontWeight: '700', color: colors.danger }}>
                   {money(sale.dueAmount, sale.currency)}
                 </Text>
               </View>
@@ -141,7 +142,7 @@ export default function DebtsScreen() {
                 تاريخ الاستحقاق:{' '}
                 {sale.dueDate ? formatSafeDate(sale.dueDate, 'date') : 'غير محدد'}
               </Text>
-              <Text style={{ textAlign: 'right', fontWeight: '800', color: colors.brand }}>عرض تفاصيل البيع ←</Text>
+              <Text style={{ textAlign: 'right', fontWeight: '700', color: colors.brand }}>عرض تفاصيل البيع ←</Text>
             </SectionCard>
           </Pressable>
         )}

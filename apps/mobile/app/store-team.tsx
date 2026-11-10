@@ -2,7 +2,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
+import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStore } from '@/features/commerce/commerce.api';
@@ -96,23 +97,23 @@ export default function StoreTeamScreen() {
     {accessToken && !loading && !storeId ? <SectionCard><Notice tone="muted">لا يوجد متجر تملكه أو عضوية متجر نشطة مرتبطة بحسابك.</Notice><PrimaryButton label="المتاجر التي أعمل بها" variant="secondary" onPress={() => router.push('/my-stores')} /><PrimaryButton label="إنشاء متجر" onPress={() => router.push('/my-store')} /></SectionCard> : null}
     {accessToken && !loading && storeId ? <>
       <SectionCard>
-        <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '900', color: colors.ink }}>{storeName || 'فريق المتجر'}</Text>
+        <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '700', color: colors.ink }}>{storeName || 'فريق المتجر'}</Text>
         <Text style={{ textAlign: 'right', color: colors.muted }}>صلاحيتك: {myRole === 'OWNER' ? 'مالك المتجر' : roleLabel(myRole)}</Text>
         {canManage ? <>
-          <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '900', color: colors.ink }}>دعوة عضو جديد</Text>
+          <Text style={{ textAlign: 'right', fontSize: fontSizes[16], fontWeight: '700', color: colors.ink }}>دعوة عضو جديد</Text>
           <Field label="البريد الإلكتروني" value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="person@example.com" />
-          <Text style={{ textAlign: 'right', fontWeight: '800', color: colors.ink }}>الصلاحية</Text>
+          <Text style={{ textAlign: 'right', fontWeight: '700', color: colors.ink }}>الصلاحية</Text>
           <View style={{ flexDirection: 'row', gap: 8 }}>{roles.filter(([value]) => myRole === 'OWNER' || value !== 'MANAGER').map(([value, label]) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: role === value }} onPress={() => setRole(value)} style={{ flex: 1, padding: 9, borderRadius: 10, backgroundColor: role === value ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: role === value ? colors.brand : colors.border }}><Text style={{ textAlign: 'center', color: colors.ink, fontSize: fontSizes[12], fontWeight: '700' }}>{label}</Text></Pressable>)}</View>
           <PrimaryButton label="إرسال الدعوة" onPress={() => void invite()} busy={busy} />
           <PrimaryButton label="الدعوات الواردة إليّ" variant="secondary" onPress={() => router.push('/store-invites')} />
         </> : <Notice tone="muted">يمكنك الاطلاع على أعضاء الفريق. تعديل الصلاحيات أو دعوة أعضاء متاح لمالك المتجر والمدير فقط.</Notice>}
       </SectionCard>
       {items.length === 0 ? <Notice tone="muted">لا يوجد أعضاء آخرون في الفريق حاليًا.</Notice> : items.map((member) => <SectionCard key={member.id}>
-        <Text style={{ textAlign: 'right', fontSize: fontSizes[15], fontWeight: '900', color: colors.ink }}>{member.user?.name || member.user?.email || 'عضو فريق'}</Text>
+        <Text style={{ textAlign: 'right', fontSize: fontSizes[15], fontWeight: '700', color: colors.ink }}>{member.user?.name || member.user?.email || 'عضو فريق'}</Text>
         <Text style={{ textAlign: 'right', color: colors.muted }}>{member.user?.email || '—'} · {member.status === 'ACTIVE' ? 'نشط' : member.status === 'PENDING' ? 'بانتظار القبول' : 'مزال'} · {roleLabel(member.role)}</Text>
         {canManage && member.status !== 'REMOVED' && member.user?.id !== user?.id ? <>
           <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>{roles.filter(([value]) => myRole === 'OWNER' || value !== 'MANAGER').map(([value, label]) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: member.role === value }} onPress={() => member.role !== value && void act(() => updateStoreMemberRole(storeId, member.id, value, accessToken, csrfToken))} style={{ padding: 8, borderRadius: 8, borderWidth: 1, borderColor: member.role === value ? colors.brand : colors.border, backgroundColor: member.role === value ? colors.brandSoft : colors.surface }}><Text style={{ color: colors.ink, fontSize: fontSizes[12] }}>{label}</Text></Pressable>)}</View>
-          {myRole === 'OWNER' || member.role !== 'MANAGER' ? <PrimaryButton label="إزالة من الفريق" variant="danger" onPress={() => Alert.alert('إزالة العضو', 'سيُلغى وصول هذا العضو إلى المتجر. هل تريد المتابعة؟', [{ text: 'إلغاء', style: 'cancel' }, { text: 'إزالة', style: 'destructive', onPress: () => void act(() => removeStoreMember(storeId, member.id, accessToken, csrfToken)) }]) } /> : null}
+          {myRole === 'OWNER' || member.role !== 'MANAGER' ? <PrimaryButton label="إزالة من الفريق" variant="danger" onPress={() => confirmAlert('إزالة العضو', 'سيُلغى وصول هذا العضو إلى المتجر. هل تريد المتابعة؟', [{ text: 'إلغاء', style: 'cancel' }, { text: 'إزالة', style: 'destructive', onPress: () => void act(() => removeStoreMember(storeId, member.id, accessToken, csrfToken)) }]) } /> : null}
         </> : null}
       </SectionCard>)}
     </> : null}

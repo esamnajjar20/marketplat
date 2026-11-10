@@ -1,7 +1,8 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
+import { Spinner } from '@/components/ui';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
@@ -48,7 +49,7 @@ export default function MyRequestsScreen() {
             <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
               
               <PrimaryButton label="+ طلب جديد" onPress={() => router.push('/request-create')} />
-              {list.loading ? <ActivityIndicator color={colors.brand} /> : null}
+              {list.loading ? <Spinner color={colors.brand} /> : null}
               {list.error ? <Notice>{list.error}</Notice> : null}
               {list.error && list.items.length === 0 ? <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.refresh()} /> : null}
             </View>
@@ -57,14 +58,14 @@ export default function MyRequestsScreen() {
           renderItem={({ item }) => (
             <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/requests/[id]', params: { id: item.id } })}>
               <SectionCard>
-                <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '900', color: colors.ink }}>{item.title}</Text>
-                <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '800' }}>الحالة: {statusLabel(item.status || 'OPEN')}</Text>
+                <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '700', color: colors.ink }}>{item.title}</Text>
+                <Text style={{ textAlign: 'right', color: colors.brand, fontWeight: '700' }}>الحالة: {statusLabel(item.status || 'OPEN')}</Text>
                 <Text style={{ textAlign: 'right', color: colors.muted }}>{item._count?.offers ?? item.offers?.length ?? 0} عروض · {item.city || 'مدينة غير محددة'}</Text>
               </SectionCard>
             </Pressable>
           )}
           ListFooterComponent={
-            list.loadingMore ? <ActivityIndicator color={colors.brand} /> : list.loadMoreError ? (
+            list.loadingMore ? <Spinner color={colors.brand} /> : list.loadMoreError ? (
               <View style={{ gap: spacing.sm }}>
                 <Notice>{list.loadMoreError}</Notice>
                 <PrimaryButton label="إعادة محاولة تحميل المزيد" variant="secondary" onPress={() => void list.loadMore()} />

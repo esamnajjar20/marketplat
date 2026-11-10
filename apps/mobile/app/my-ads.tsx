@@ -4,7 +4,8 @@ import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useRef, useState , useMemo} from 'react';
-import { Alert, FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
+import { confirmAlert } from '@/lib/confirm';
 import { marketListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -133,7 +134,7 @@ export default function MyAdsScreen() {
   };
 
   const remove = (ad: ManagedAd) => {
-    Alert.alert(
+    confirmAlert(
       'حذف الإعلان',
       online
         ? `هل تريد حذف «${ad.title}»؟`

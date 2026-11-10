@@ -3,14 +3,12 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { AppIcon } from '@/components/Icons';
 import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
-import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { FlatList, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
-import { Notice } from '@/components/MobileUI';
+import { EmptyState, ErrorState, LoadingState, Notice, PageShell } from '@/components/ui';
 import { createServiceRequest, fetchServiceRequests, type ServiceRequest } from '@/features/services/services.api';
 import { fontSizes, radius, spacing } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
@@ -198,13 +196,7 @@ export default function ServiceRequestsScreen() {
   const initialLoading = isRestoring || accountMismatch || (loading && visibleItems.length === 0);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <View style={styles.top}>
-          <Pressable accessibilityRole="button" accessibilityLabel="رجوع" onPress={() => router.back()} style={styles.back}><AppIcon name="back" size={24} color={colors.brand} /></Pressable>
-          <Text style={styles.topTitle}>طلبات الخدمات</Text>
-          <View style={styles.back} />
-        </View>
+    <PageShell title="طلبات الخدمات" scroll={false}>
         <FlatList
           data={initialLoading || needsLogin || (visibleError && visibleItems.length === 0) ? [] : visibleItems}
           keyExtractor={(item) => item.id}
@@ -222,8 +214,8 @@ export default function ServiceRequestsScreen() {
                 <Text style={styles.hint}>{details.trim().length}/1000 · الحد الأدنى 10 أحرف</Text>
                 {accessToken ? <Pressable accessibilityRole="button" disabled={saving || details.trim().length < 10} onPress={() => void submit()} style={[styles.primary, (saving || details.trim().length < 10) && styles.disabled]}><Text style={styles.primaryText}>{saving ? 'جارٍ الإرسال…' : 'إرسال الطلب'}</Text></Pressable> : <><Notice>سجّل الدخول لإرسال طلب الخدمة وحفظه في حسابك.</Notice><Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/login', params: { redirect: `/service-requests?listingId=${encodeURIComponent(listingId)}&listingTitle=${encodeURIComponent(listingTitle || '')}` } })} style={styles.primary}><Text style={styles.primaryText}>تسجيل الدخول</Text></Pressable></>}
               </View> : undefined}
-              {needsLogin && !listingId ? <View style={styles.state}><Text style={styles.emptyTitle}>سجّل الدخول لمتابعة طلبات الخدمات</Text><Text style={styles.muted}>يمكنك إرسال طلباتك ومتابعة ردود مقدمي الخدمات بعد تسجيل الدخول.</Text><Pressable accessibilityRole="button" onPress={() => router.push('/login')} style={styles.primary}><Text style={styles.primaryText}>تسجيل الدخول</Text></Pressable></View> : undefined}
-              {isRestoring || loading ? <View style={styles.state}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جاري تحميل الطلبات…</Text></View> : undefined}
+              {needsLogin && !listingId ? <EmptyState title="سجّل الدخول لمتابعة طلبات الخدمات" description="يمكنك إرسال طلباتك ومتابعة ردود مقدمي الخدمات بعد تسجيل الدخول." actionLabel="تسجيل الدخول" onAction={() => router.push('/login')} /> : undefined}
+              {isRestoring || loading ? <LoadingState message="جاري تحميل الطلبات…" /> : undefined}
               {user && (canReceiveIncoming || checkingProvider) ? <View style={styles.switchRow}>
                 <Pressable accessibilityRole="button" accessibilityState={{ selected: !incoming }} onPress={() => changeIncoming(false)} style={[styles.switchChip, !incoming && styles.switchChipActive]}><Text style={[styles.switchText, !incoming && styles.switchTextActive]}>طلباتي</Text></Pressable>
                 {canReceiveIncoming ? <Pressable accessibilityRole="button" accessibilityState={{ selected: incoming }} onPress={() => changeIncoming(true)} style={[styles.switchChip, incoming && styles.switchChipActive]}><Text style={[styles.switchText, incoming && styles.switchTextActive]}>الطلبات الواردة</Text></Pressable> : checkingProvider ? <Text style={styles.hint}>جارٍ التحقق من صلاحية استقبال الطلبات…</Text> : undefined}
@@ -233,10 +225,10 @@ export default function ServiceRequestsScreen() {
                 {accessToken ? <Pressable accessibilityRole="button" accessibilityLabel="تحديث طلبات الخدمات" onPress={() => void load(true)} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={styles.link}>تحديث</Text></Pressable> : undefined}
               </View>
               {visibleError && visibleItems.length > 0 ? <Notice>{visibleError}</Notice> : undefined}
-              {visibleError && visibleItems.length === 0 && !needsLogin ? <View style={styles.state}><Text style={styles.muted}>{visibleError}</Text><Pressable onPress={() => void load(true)} style={styles.primary}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View> : undefined}
+              {visibleError && visibleItems.length === 0 && !needsLogin ? <ErrorState description={visibleError} onAction={() => void load(true)} /> : undefined}
             </View>
           )}
-          ListEmptyComponent={!initialLoading && !needsLogin && !visibleError ? <View style={styles.state}><Text style={styles.emptyIcon}>▤</Text><Text style={styles.emptyTitle}>لا توجد طلبات بعد</Text><Text style={styles.muted}>عندما تطلب خدمة، ستظهر حالة الطلب ورد مقدم الخدمة هنا.</Text></View> : undefined}
+          ListEmptyComponent={!initialLoading && !needsLogin && !visibleError ? <EmptyState title="لا توجد طلبات بعد" description="عندما تطلب خدمة، ستظهر حالة الطلب ورد مقدم الخدمة هنا." /> : undefined}
           renderItem={({ item }) => <View style={styles.requestCard}>
             <View style={styles.requestHeader}>
               <Pressable accessibilityRole="button" accessibilityLabel={`عرض تفاصيل طلب ${item.listing?.title || 'خدمة'}`} onPress={() => router.push({ pathname: '/service-requests/[id]', params: { id: item.id } })} style={{ flex: 1 }}><Text style={styles.requestTitle} numberOfLines={2}>{item.listing?.title || 'طلب خدمة'}</Text></Pressable>
@@ -250,25 +242,20 @@ export default function ServiceRequestsScreen() {
           ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
           ListFooterComponent={initialLoading ? undefined : visibleLoadMoreError ? <View style={{ gap: spacing.sm }}><Notice>{visibleLoadMoreError}</Notice><Pressable accessibilityRole="button" disabled={loadingMore} onPress={() => void load(false)} style={[styles.primary, loadingMore && styles.disabled]}><Text style={styles.primaryText}>{loadingMore ? 'جارٍ التحميل…' : 'إعادة محاولة تحميل المزيد'}</Text></Pressable></View> : page < totalPages ? <Pressable accessibilityRole="button" disabled={loadingMore} onPress={() => void load(false)} style={[styles.primary, loadingMore && styles.disabled]}><Text style={styles.primaryText}>{loadingMore ? 'جارٍ تحميل المزيد…' : 'تحميل المزيد من الطلبات'}</Text></Pressable> : undefined}
         />
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+    </PageShell>
   );
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
-  back: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
-  topTitle: { color: colors.ink, fontWeight: '800', fontSize: fontSizes[17] },
-  content: { padding: spacing.lg, gap: spacing.lg, paddingBottom: 44 },
+  content: { gap: spacing.lg, paddingBottom: spacing.xl },
   form: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.md },
-  formTitle: { color: colors.ink, fontSize: fontSizes[18], fontWeight: '800', textAlign: 'right' },
+  formTitle: { color: colors.ink, fontSize: fontSizes[18], fontWeight: '700', textAlign: 'right' },
   formSubtitle: { color: colors.brand, fontSize: fontSizes[13], textAlign: 'right' },
   label: { color: colors.ink, fontSize: fontSizes[14], fontWeight: '700', textAlign: 'right' },
   textarea: { minHeight: 120, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, color: colors.ink, fontSize: fontSizes[14], lineHeight: 22, writingDirection: 'rtl' },
   hint: { color: colors.muted, fontSize: fontSizes[11], textAlign: 'right' },
   primary: { backgroundColor: colors.brand, borderRadius: radius.md, minHeight: 52, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
-  primaryText: { color: colors.onBrand, fontSize: fontSizes[14], fontWeight: '800' },
+  primaryText: { color: colors.onBrand, fontSize: fontSizes[14], fontWeight: '700' },
   disabled: { opacity: 0.6 },
   switchRow: { flexDirection: 'row', backgroundColor: colors.border, padding: 4, borderRadius: radius.md, gap: 4 },
   switchChip: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: 10 },
@@ -276,18 +263,14 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   switchText: { color: colors.muted, fontSize: fontSizes[13], fontWeight: '700' },
   switchTextActive: { color: colors.brand },
   acceptButton: { backgroundColor: colors.brand, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.md, minHeight: 44, justifyContent: 'center' },
-  acceptText: { color: colors.onBrand, fontSize: fontSizes[12], fontWeight: '800' },
+  acceptText: { color: colors.onBrand, fontSize: fontSizes[12], fontWeight: '700' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: colors.ink, fontSize: fontSizes[18], fontWeight: '800' },
+  sectionTitle: { color: colors.ink, fontSize: fontSizes[18], fontWeight: '700' },
   link: { color: colors.brand, fontWeight: '700' },
-  state: { alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border },
-  emptyIcon: { color: colors.brand, fontSize: fontSizes[34] },
-  emptyTitle: { color: colors.ink, fontSize: fontSizes[16], fontWeight: '800' },
-  muted: { color: colors.muted, textAlign: 'center', lineHeight: 21 },
   requestCard: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.sm },
   requestHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
-  requestTitle: { flex: 1, color: colors.ink, fontSize: fontSizes[16], fontWeight: '900', textAlign: 'right' },
-  status: { color: colors.brandOnSoft, backgroundColor: colors.brandSoft, overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 5, fontSize: fontSizes[11], fontWeight: '800' },
+  requestTitle: { flex: 1, color: colors.ink, fontSize: fontSizes[16], fontWeight: '700', textAlign: 'right' },
+  status: { color: colors.brandOnSoft, backgroundColor: colors.brandSoft, overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 5, fontSize: fontSizes[11], fontWeight: '700' },
   statusSuccess: { color: colors.brandOnSoft, backgroundColor: colors.successSoft },
   details: { color: colors.ink, fontSize: fontSizes[13], lineHeight: 21, textAlign: 'right' },
   meta: { color: colors.muted, fontSize: fontSizes[11], textAlign: 'right' },

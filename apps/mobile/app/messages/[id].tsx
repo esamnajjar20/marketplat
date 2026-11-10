@@ -4,11 +4,13 @@ import { denseListPerf } from '@/lib/listPerformance';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
-import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { Spinner } from '@/components/ui';
+import { confirmAlert } from '@/lib/confirm';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';import { goBack } from '@/lib/navigation';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useIsOnline } from '@/lib/connectivity';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -272,7 +274,7 @@ export default function ConversationScreen() {
   const confirmDiscardFailedMessage = useCallback((message: ScreenMessage) => {
     if (!user?.id || !message.id.startsWith('pending-')) return;
     const operationId = message.id.slice('pending-'.length);
-    Alert.alert('حذف الرسالة غير المرسلة؟', 'سيُحذف النص المحفوظ محليًا ولن يُرسل.', [
+    confirmAlert('حذف الرسالة غير المرسلة؟', 'سيُحذف النص المحفوظ محليًا ولن يُرسل.', [
       { text: 'إلغاء', style: 'cancel' },
       { text: 'حذف', style: 'destructive', onPress: () => {
         void discardFailedChatMessage(operationId, user.id).then((removed) => {
@@ -358,7 +360,7 @@ export default function ConversationScreen() {
   }, [accessToken, csrfToken, id]);
   const confirmDeleteOwnMessage = useCallback((message: ScreenMessage) => {
     if (!accessToken || !id || message.senderId !== user?.id) return;
-    Alert.alert('حذف الرسالة؟', 'سيتم حذف محتوى الرسالة من المحادثة.', [
+    confirmAlert('حذف الرسالة؟', 'سيتم حذف محتوى الرسالة من المحادثة.', [
       { text: 'إلغاء', style: 'cancel' },
       { text: 'حذف', style: 'destructive', onPress: () => {
         void deleteChatMessage(id, message.id, accessToken, csrfToken).then(() => {
@@ -392,7 +394,7 @@ export default function ConversationScreen() {
     />
     <View style={styles.header}>
       <Pressable
-        onPress={() => router.back()}
+        onPress={() => goBack()}
         accessibilityRole="button"
         accessibilityLabel="رجوع"
         style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
@@ -414,8 +416,8 @@ export default function ConversationScreen() {
       </Pressable>
     </View>
     {searchOpen ? <View style={styles.searchBar}><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="البحث في الرسائل المحمّلة" value={messageSearch} onChangeText={setMessageSearch} placeholder="ابحث في الرسائل المحمّلة…" placeholderTextColor={colors.muted} style={styles.searchInput} textAlign="right"/><Text style={styles.searchCount}>{normalizedSearch ? `${visibleMessages.length} نتيجة` : 'بحث محلي دون طلبات إضافية'}</Text></View> : null}
-    {loading ? <View style={styles.center}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جاري تحميل الرسائل…</Text></View> : error ? <View style={styles.center}><Text style={styles.title}>تعذر فتح المحادثة</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void load()}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View> : <>
-      <FlatList {...denseListPerf} ref={listRef} data={visibleMessages} keyExtractor={(item) => item.id} contentContainerStyle={styles.messages} keyboardShouldPersistTaps="handled" maintainVisibleContentPosition={{ minIndexForVisible: 0 }} onContentSizeChange={() => { if (!initialScrollDone.current && messages.length > 0) requestAnimationFrame(() => requestAnimationFrame(() => { if (initialScrollDone.current || loadingOlder || userScrolledAway.current) return; listRef.current?.scrollToEnd({ animated: false }); initialScrollDone.current = true; })); }} onScroll={(event) => { const offset = event.nativeEvent.contentOffset.y; const distanceFromBottom = event.nativeEvent.contentSize.height - event.nativeEvent.layoutMeasurement.height - offset; userScrolledAway.current = distanceFromBottom > 120; if (offset <= 40) void loadOlder(); }} scrollEventThrottle={250} ListHeaderComponent={loadingOlder ? <ActivityIndicator size="small" color={colors.brand} /> : nextCursor ? <Text style={styles.olderHint}>اسحب إلى الأعلى لتحميل الرسائل الأقدم</Text> : undefined} ListEmptyComponent={<Text style={styles.muted}>لا توجد رسائل بعد. ابدأ المحادثة برسالة واضحة.</Text>} renderItem={({ item }) => (
+    {loading ? <View style={styles.center}><Spinner size="large" color={colors.brand}/><Text style={styles.muted}>جاري تحميل الرسائل…</Text></View> : error ? <View style={styles.center}><Text style={styles.title}>تعذر فتح المحادثة</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void load()}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View> : <>
+      <FlatList {...denseListPerf} ref={listRef} data={visibleMessages} keyExtractor={(item) => item.id} contentContainerStyle={styles.messages} keyboardShouldPersistTaps="handled" maintainVisibleContentPosition={{ minIndexForVisible: 0 }} onContentSizeChange={() => { if (!initialScrollDone.current && messages.length > 0) requestAnimationFrame(() => requestAnimationFrame(() => { if (initialScrollDone.current || loadingOlder || userScrolledAway.current) return; listRef.current?.scrollToEnd({ animated: false }); initialScrollDone.current = true; })); }} onScroll={(event) => { const offset = event.nativeEvent.contentOffset.y; const distanceFromBottom = event.nativeEvent.contentSize.height - event.nativeEvent.layoutMeasurement.height - offset; userScrolledAway.current = distanceFromBottom > 120; if (offset <= 40) void loadOlder(); }} scrollEventThrottle={250} ListHeaderComponent={loadingOlder ? <Spinner size="small" color={colors.brand} /> : nextCursor ? <Text style={styles.olderHint}>اسحب إلى الأعلى لتحميل الرسائل الأقدم</Text> : undefined} ListEmptyComponent={<Text style={styles.muted}>لا توجد رسائل بعد. ابدأ المحادثة برسالة واضحة.</Text>} renderItem={({ item }) => (
         <ConversationMessageRow
           message={item}
           isMine={item.senderId === user?.id}

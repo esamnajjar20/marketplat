@@ -72,12 +72,12 @@ export default function FollowingFeedScreen() {
                 <AppImage uri={item.images[0]} style={{ width: 76, height: 76, borderRadius: radius.md, backgroundColor: colors.border }} />
               ) : (
                 <View style={{ width: 76, height: 76, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}>
-                  <Text style={{ color: colors.brandOnSoft, fontWeight: '900' }}>{item.type === 'AD' ? 'إعلان' : item.type === 'PRODUCT' ? 'منتج' : 'خدمة'}</Text>
+                  <Text style={{ color: colors.brandOnSoft, fontWeight: '700' }}>{item.type === 'AD' ? 'إعلان' : item.type === 'PRODUCT' ? 'منتج' : 'خدمة'}</Text>
                 </View>
               )}
               <View style={{ flex: 1, gap: 5, alignItems: 'flex-end' }}>
-                <Text numberOfLines={2} style={{ color: colors.ink, fontWeight: '900', textAlign: 'right' }}>{item.title}</Text>
-                <Text style={{ color: colors.brand, fontWeight: '800' }}>{price(item.price)}</Text>
+                <Text numberOfLines={2} style={{ color: colors.ink, fontWeight: '700', textAlign: 'right' }}>{item.title}</Text>
+                <Text style={{ color: colors.brand, fontWeight: '700' }}>{price(item.price)}</Text>
                 <Text style={{ color: colors.muted, fontSize: fontSizes[12] }}>{item.type === 'AD' ? 'إعلان' : item.type === 'PRODUCT' ? 'منتج' : 'خدمة'}{item.city ? ` · ${item.city}` : ''}</Text>
               </View>
               <AppIcon name="forward" size={20} color={colors.brand} />

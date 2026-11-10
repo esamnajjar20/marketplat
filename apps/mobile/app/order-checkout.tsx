@@ -1,7 +1,8 @@
 import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, View } from 'react-native';
+import { Spinner } from '@/components/ui';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { router, useLocalSearchParams } from 'expo-router';
 import { AppImage } from '@/components/AppImage';
@@ -104,12 +105,12 @@ export default function OrderCheckoutScreen() {
     } finally { setSubmitting(false); }
   };
 
-  if (isRestoring) return <View style={styles.loading}><ActivityIndicator color={colors.brand}/><AppText style={styles.muted}>جارٍ التحقق من الجلسة…</AppText></View>;
+  if (isRestoring) return <View style={styles.loading}><Spinner color={colors.brand}/><AppText style={styles.muted}>جارٍ التحقق من الجلسة…</AppText></View>;
 
   return (
     <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
       <PageShell title="إتمام الطلب">
-        {loading ? <View style={styles.loading}><ActivityIndicator size="large" color={colors.brand}/><AppText style={styles.muted}>جارٍ تحميل المنتج…</AppText></View> : error && !product ? <>
+        {loading ? <View style={styles.loading}><Spinner size="large" color={colors.brand}/><AppText style={styles.muted}>جارٍ تحميل المنتج…</AppText></View> : error && !product ? <>
           <Notice>{error}</Notice>
           <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void load()} />
         </> : product ? <>
@@ -169,7 +170,7 @@ const createThemeStyles = (colors: ColorPalette) => ({
   price: { color: colors.brand, ...typography.subtitle },
   qty: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: spacing.md },
   qtyButton:{width:44,height:44,minWidth:44,minHeight:44, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center' as const, justifyContent: 'center' as const },
-  qtyText: { fontSize: fontSizes[20], fontWeight: '800' as const, color: colors.brandOnSoft },
+  qtyText: { fontSize: fontSizes[20], fontWeight: '700' as const, color: colors.brandOnSoft },
   qtyNumber: { ...typography.bodyStrong, color: colors.ink },
   sectionTitle: { color: colors.ink, ...typography.subtitle, textAlign: 'right' as const },
   summaryRow: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, gap: spacing.md },

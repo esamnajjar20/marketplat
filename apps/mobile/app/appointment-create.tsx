@@ -181,14 +181,14 @@ export default function AppointmentCreateScreen() {
       {providerError ? <Notice tone="error">{providerError}</Notice> : null}
       {providerId ? (
         <SectionCard>
-          <Text style={{ color: colors.ink, fontSize: fontSizes[16], fontWeight: '900', textAlign: 'right' }}>اختر تاريخ الموعد</Text>
+          <Text style={{ color: colors.ink, fontSize: fontSizes[16], fontWeight: '700', textAlign: 'right' }}>اختر تاريخ الموعد</Text>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Pressable accessibilityRole="button" accessibilityLabel="التواريخ السابقة" accessibilityState={{ disabled: datePage === 0 }} disabled={datePage === 0} onPress={() => setDatePageAndDate(datePage - 1)} style={{ minHeight: 44, minWidth: 64, justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ color: datePage === 0 ? colors.muted : colors.brand, fontWeight: '800' }}>السابق</Text>
+              <Text style={{ color: datePage === 0 ? colors.muted : colors.brand, fontWeight: '700' }}>السابق</Text>
             </Pressable>
             <Text style={{ color: colors.muted, fontSize: fontSizes[12] }}>عرض 14 يومًا</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="التواريخ التالية" onPress={() => setDatePageAndDate(datePage + 1)} style={{ minHeight: 44, minWidth: 64, justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ color: colors.brand, fontWeight: '800' }}>التالي</Text>
+              <Text style={{ color: colors.brand, fontWeight: '700' }}>التالي</Text>
             </Pressable>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: spacing.sm, paddingVertical: 4 }}>
@@ -204,7 +204,7 @@ export default function AppointmentCreateScreen() {
                   style={{ minWidth: 76, minHeight: 64, paddingHorizontal: 8, paddingVertical: 9, borderRadius: radius.md, borderWidth: 1, borderColor: selected ? colors.brand : colors.border, backgroundColor: selected ? colors.brandSoft : colors.surface, justifyContent: 'center', alignItems: 'center', gap: 3 }}
                 >
                   <Text style={{ color: selected ? colors.brand : colors.muted, fontSize: fontSizes[12], fontWeight: '700' }}>{option.weekday}</Text>
-                  <Text style={{ color: selected ? colors.brand : colors.ink, fontWeight: '900' }}>{option.day}</Text>
+                  <Text style={{ color: selected ? colors.brand : colors.ink, fontWeight: '700' }}>{option.day}</Text>
                 </Pressable>
               );
             })}
@@ -214,7 +214,7 @@ export default function AppointmentCreateScreen() {
 
       {providerId ? (
         <SectionCard>
-          <Text style={{ color: colors.ink, fontSize: fontSizes[16], fontWeight: '900', textAlign: 'right' }}>الفترات المتاحة</Text>
+          <Text style={{ color: colors.ink, fontSize: fontSizes[16], fontWeight: '700', textAlign: 'right' }}>الفترات المتاحة</Text>
           {loadingAvailability ? <Notice tone="muted">جارٍ تحميل الأوقات المتاحة…</Notice> : null}
           {!loadingAvailability && !availabilityError && slots.length === 0 ? (
             <Notice tone="muted">لا توجد فترة مدتها ساعة متاحة في هذا اليوم. اختر تاريخًا آخر.</Notice>
@@ -232,7 +232,7 @@ export default function AppointmentCreateScreen() {
                     onPress={() => setSelectedSlot(slot)}
                     style={{ minHeight: 44, minWidth: 112, paddingHorizontal: spacing.md, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: selected ? colors.brand : colors.border, borderRadius: radius.md, backgroundColor: selected ? colors.brandSoft : colors.surface }}
                   >
-                    <Text style={{ color: selected ? colors.brand : colors.ink, fontWeight: '800' }}>{slot.label}</Text>
+                    <Text style={{ color: selected ? colors.brand : colors.ink, fontWeight: '700' }}>{slot.label}</Text>
                   </Pressable>
                 );
               })}
@@ -243,7 +243,7 @@ export default function AppointmentCreateScreen() {
       ) : null}
       {selectedSlot ? <Notice tone="success">الفترة المختارة: {selectedSlot.label} · مدة الموعد ساعة واحدة.</Notice> : null}
       <SectionCard>
-        <Text style={{ color: colors.ink, fontWeight: '900', textAlign: 'right' }}>ملاحظات (اختياري)</Text>
+        <Text style={{ color: colors.ink, fontWeight: '700', textAlign: 'right' }}>ملاحظات (اختياري)</Text>
         <Field label="تفاصيل إضافية للموعد" value={notes} onChangeText={setNotes} multiline maxLength={500} placeholder="أضف ما يحتاج مقدم الخدمة إلى معرفته" />
       </SectionCard>
       {availabilityError ? <Notice tone="error">{availabilityError}</Notice> : null}

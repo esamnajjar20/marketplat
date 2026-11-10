@@ -425,7 +425,7 @@ export function HorizontalAdCard({
         hitSlop={8}
         style={({ pressed }) => [hStyles.favoriteButton, pressed && hStyles.pressed]}
       >
-        <Text style={{ color: isFavorite ? colors.danger : colors.muted, fontSize: fontSizes[17], fontWeight: '800' }}>
+        <Text style={{ color: isFavorite ? colors.danger : colors.muted, fontSize: fontSizes[17], fontWeight: '700' }}>
           {isFavorite ? '♥' : '♡'}
         </Text>
       </Pressable>

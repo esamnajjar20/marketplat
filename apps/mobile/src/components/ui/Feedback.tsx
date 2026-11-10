@@ -101,12 +101,26 @@ export function Chip({
   );
 }
 
+/** مؤشر تحميل مشترك — يُستخدم بدل ActivityIndicator المباشر في الشاشات. */
+export function Spinner({
+  size = 'small',
+  color,
+  style,
+}: {
+  size?: 'small' | 'large';
+  color?: string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { colors } = useAppTheme();
+  return <ActivityIndicator size={size} color={color ?? colors.brand} style={style} />;
+}
+
 export function LoadingState({ message = 'جاري التحميل…' }: { message?: string }) {
   const s = useUIStyles();
   const { colors } = useAppTheme();
   return (
     <View accessibilityRole="progressbar" accessibilityLabel={message} accessibilityLiveRegion="polite" style={s.stateBox}>
-      <ActivityIndicator size="large" color={colors.brand} />
+      <Spinner size="large" color={colors.brand} />
       <Text style={s.stateMessage}>{message}</Text>
     </View>
   );

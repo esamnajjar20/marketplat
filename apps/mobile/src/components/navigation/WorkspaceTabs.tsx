@@ -90,7 +90,7 @@ export function WorkspaceTabs({ workspace }: { workspace: Workspace }) {
                 backgroundColor: active ? colors.brandSoft : colors.surface,
               }}
             >
-              <Text style={{ color: active ? colors.brand : colors.muted, fontSize: fontSizes[12], fontWeight: '800' }}>
+              <Text style={{ color: active ? colors.brand : colors.muted, fontSize: fontSizes[12], fontWeight: '700' }}>
                 {tab.label}
               </Text>
             </Pressable>

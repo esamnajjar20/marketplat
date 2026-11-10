@@ -3,7 +3,8 @@ import { formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
+import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchActiveSessions, revokeActiveSession, type ActiveSession } from '@/features/auth/sessions.api';
@@ -33,7 +34,7 @@ export default function SessionsScreen() {
   useEffect(() => { void load(); }, [load]);
   const revoke = (session: ActiveSession) => {
     if (session.isCurrent) { showToast('الجلسة الحالية', 'لا يمكن إنهاء الجلسة الحالية من هذه الشاشة. استخدم تسجيل الخروج.', 'error'); return; }
-    Alert.alert('إنهاء الجلسة', 'سيتم إلغاء صلاحية هذا الجهاز في التجديد التالي للجلسة.', [
+    confirmAlert('إنهاء الجلسة', 'سيتم إلغاء صلاحية هذا الجهاز في التجديد التالي للجلسة.', [
       { text: 'إلغاء', style: 'cancel' },
       { text: 'إنهاء الجلسة', style: 'destructive', onPress: () => {
         if (!accessToken || busyId) return;
@@ -53,13 +54,13 @@ export default function SessionsScreen() {
     {sessions.map((session) => <SectionCard key={session.sessionId}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md }}>
         <View style={{ flex: 1, gap: spacing.sm }}>
-          <Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '800', fontSize: fontSizes[15] }}>{session.isCurrent ? 'هذا الجهاز · الجلسة الحالية' : 'جلسة نشطة أخرى'}</Text>
+          <Text style={{ textAlign: 'right', color: colors.ink, fontWeight: '700', fontSize: fontSizes[15] }}>{session.isCurrent ? 'هذا الجهاز · الجلسة الحالية' : 'جلسة نشطة أخرى'}</Text>
           <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12], lineHeight: 19 }}>{session.userAgent || 'جهاز غير معروف'}</Text>
           <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>عنوان IP: {session.ip || 'غير متوفر'}</Text>
           <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>تسجيل الدخول: {dateLabel(session.createdAt)}</Text>
           <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>آخر نشاط: {dateLabel(session.lastSeen)}</Text>
         </View>
-        <View style={{ borderRadius: radius.pill, backgroundColor: session.isCurrent ? colors.successSoft : colors.brandSoft, paddingHorizontal: 10, paddingVertical: 6 }}><Text style={{ color: colors.brand, fontSize: fontSizes[11], fontWeight: '800' }}>{session.isCurrent ? 'حالي' : 'نشط'}</Text></View>
+        <View style={{ borderRadius: radius.pill, backgroundColor: session.isCurrent ? colors.successSoft : colors.brandSoft, paddingHorizontal: 10, paddingVertical: 6 }}><Text style={{ color: colors.brand, fontSize: fontSizes[11], fontWeight: '700' }}>{session.isCurrent ? 'حالي' : 'نشط'}</Text></View>
       </View>
       {!session.isCurrent ? <PrimaryButton label={busyId === session.sessionId ? 'جارٍ الإنهاء…' : 'إنهاء هذه الجلسة'} variant="danger" busy={busyId === session.sessionId} disabled={!!busyId} onPress={() => revoke(session)} /> : null}
     </SectionCard>)}

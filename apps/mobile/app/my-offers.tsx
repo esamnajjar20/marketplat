@@ -2,7 +2,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { ActivityIndicator, FlatList, RefreshControl, View } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
+import { Spinner } from '@/components/ui';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyOffers, type RequestOffer } from '@/features/requests/requests.api';
@@ -43,7 +44,7 @@ export default function MyOffersScreen() {
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <PrimaryButton label="استعراض الطلبات المفتوحة" onPress={() => router.push('/requests')} />
             {!user ? <Notice>سجّل الدخول لعرض عروضك.</Notice> : null}
-            {list.loading ? <ActivityIndicator color={colors.brand} /> : null}
+            {list.loading ? <Spinner color={colors.brand} /> : null}
             {list.error ? <Notice>{list.error}</Notice> : null}
             {list.error && list.items.length === 0 ? <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.refresh()} /> : null}
           </View>
@@ -52,8 +53,8 @@ export default function MyOffersScreen() {
         renderItem={({ item }) => (
           <Pressable accessibilityRole="button" onPress={() => item.request?.id && router.push({ pathname: '/requests/[id]', params: { id: item.request.id } })}>
             <SectionCard>
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '900', color: colors.ink }}>{item.request?.title || 'عرض على طلب'}</Text>
-              <Text style={{ textAlign: 'right', fontSize: fontSizes[20], fontWeight: '900', color: colors.brand }}>{formatMoney(item.price)}</Text>
+              <Text style={{ textAlign: 'right', fontSize: fontSizes[17], fontWeight: '700', color: colors.ink }}>{item.request?.title || 'عرض على طلب'}</Text>
+              <Text style={{ textAlign: 'right', fontSize: fontSizes[20], fontWeight: '700', color: colors.brand }}>{formatMoney(item.price)}</Text>
               <Text style={{ textAlign: 'right', color: colors.muted }}>{item.message || 'بدون رسالة'}</Text>
               <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12] }}>الحالة: {statusLabel(item.status || 'PENDING')}</Text>
             </SectionCard>
@@ -61,7 +62,7 @@ export default function MyOffersScreen() {
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListFooterComponent={
-          list.loadingMore ? <ActivityIndicator color={colors.brand} /> : list.loadMoreError ? (
+          list.loadingMore ? <Spinner color={colors.brand} /> : list.loadMoreError ? (
             <View style={{ gap: spacing.sm }}>
               <Notice>{list.loadMoreError}</Notice>
               <PrimaryButton label="إعادة محاولة تحميل المزيد" variant="secondary" onPress={() => void list.loadMore()} />

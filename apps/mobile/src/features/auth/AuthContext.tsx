@@ -13,7 +13,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { Alert, AppState } from 'react-native';
+import { AppState } from 'react-native';
+import { confirmAlert } from '@/lib/confirm';
 import { useOnlineResync } from '@/lib/useOnlineResync';
 import { ApiError, setAuthFailureHandler, setRefreshHandler, setTokenUpdater } from '@/api/client';
 import {
@@ -510,7 +511,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ? `لديك ${pendingOperations} عملية بانتظار المزامنة.`
         : 'لم يُعثر على عمليات معلقة في الطابور الذي تم فحصه.';
     const logoutChoice = await new Promise<'keep' | 'delete' | 'cancel'>((resolve) => {
-      Alert.alert(
+      confirmAlert(
         'تسجيل الخروج',
         `${queueDescription} الخيار الافتراضي يحتفظ بالمسودات والعمليات والرسائل والبيانات المشفرة لهذا الحساب على الجهاز؛ ويمكن استعادتها عند دخول الحساب نفسه. خيار الحذف يمسح بيانات هذا الحساب المحلية نهائيًا ولا يمكن استعادة العمليات غير المتزامنة.`,
         [

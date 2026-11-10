@@ -6,7 +6,8 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 /**
  * قائمة إعلانات الرئيسية — مستخرجة لتقليل حجم app/index.tsx.
  */
-import { ActivityIndicator, FlatList, View, StyleSheet } from 'react-native';
+import { FlatList, View, StyleSheet } from 'react-native';
+import { Spinner } from '@/components/ui';
 import { AdCard } from '@/components/MarketCards';
 import { adListProps } from '@/lib/listPerformance';
 import { openScreen } from '@/lib/navigation';
@@ -76,7 +77,7 @@ export function HomeAdsList({
               <Text style={styles.loadMoreText}>تحميل المزيد من الإعلانات</Text>
             </Pressable>
           ) : loadingMore ? (
-            <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.lg }} />
+            <Spinner color={colors.brand} style={{ marginVertical: spacing.lg }} />
           ) : undefined
              }
       />
@@ -93,5 +94,5 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     paddingVertical: spacing.md,
     alignItems: 'center',
   },
-  loadMoreText: { color: colors.brandOnSoft, fontWeight: '800' },
+  loadMoreText: { color: colors.brandOnSoft, fontWeight: '700' },
 });

@@ -6,7 +6,7 @@ const outbox = readFileSync(new URL('../src/storage/mutation-outbox.ts', import.
 assert.match(screen, /listAllOutboxMutations/);
 assert.match(screen, /discardOutboxMutation/);
 assert.match(screen, /retryExhaustedMutation/);
-assert.match(screen, /Alert\.alert\('إلغاء العملية المحفوظة'/);
+assert.match(screen, /confirmAlert\('إلغاء العملية المحفوظة'/);
 assert.match(screen, /blocked.*غير مدعومة|غير مدعومة بالمزامنة/s);
 assert.match(screen, /item\.state !== 'processing'/);
 assert.match(myAds, /router\.push\('\/offline-queue'\)/);

@@ -2,19 +2,19 @@ import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { useOnlineResync } from '@/lib/useOnlineResync';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
-import { fontSizes, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
+import { elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 import { SectionHeader } from '@/components/MobileUI';
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { fetchServiceListings, type ServiceListing } from '@/features/services/services.api';
 import { fetchOpenRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
 import { useAuth } from '@/features/auth/AuthContext';
-import { AppImage } from '@/components/AppImage';
+
 import { HorizontalMarketCard } from '@/components/MarketCards';
 import { formatMoney } from '@/lib/formatters';
 
@@ -394,60 +394,6 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     color: colors.muted,
     textAlign: 'right',
     lineHeight: 19,
-  },
-  miniCard: {
-    width: 160,
-    minHeight: 200,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.card,
-    backgroundColor: colors.surface,
-    overflow: 'hidden',
-    ...elevation.sm,
-  },
-  miniImage: {
-    width: '100%',
-    height: sizes.cardImageGrid - 20,
-    backgroundColor: colors.border,
-  },
-  miniPlaceholder: {
-    backgroundColor: colors.brandSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  miniGlyph: {
-    color: colors.brandOnSoft,
-    fontSize: fontSizes[28],
-    fontWeight: '600',
-  },
-  miniBody: {
-    flex: 1,
-    padding: spacing.sm,
-    gap: 4,
-    alignItems: 'flex-end',
-  },
-  miniTitle: {
-    width: '100%',
-    minHeight: 36,
-    ...typography.bodyStrong,
-    fontSize: fontSizes[13],
-    lineHeight: 18,
-    color: colors.ink,
-    textAlign: 'right',
-  },
-  miniSubtitle: {
-    width: '100%',
-    ...typography.caption,
-    fontSize: fontSizes[11],
-    color: colors.muted,
-    textAlign: 'right',
-  },
-  miniPrice: {
-    ...typography.bodyStrong,
-    fontSize: fontSizes[13],
-    color: colors.brand,
-    textAlign: 'right',
-    marginTop: 2,
   },
   pressed: { opacity: ux.pressedOpacity },
   ctaCard: {

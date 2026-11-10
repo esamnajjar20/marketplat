@@ -4,7 +4,9 @@ import { formatDate as formatSharedDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useState , useMemo} from 'react';
-import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Spinner } from '@/components/ui';
+import { confirmAlert } from '@/lib/confirm';
 import { router, useFocusEffect } from 'expo-router';
 import { PageShell, Notice, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -69,7 +71,7 @@ export default function StorageScreen() {
     finally { setLoading(false); }
   }, [user?.id]);
   useFocusEffect(useCallback(() => { void refresh(); }, [refresh]));
-  const confirmResetLocalStorage = () => Alert.alert(
+  const confirmResetLocalStorage = () => confirmAlert(
     'إعادة ضبط التخزين المحلي المشفر؟',
     'مفتاح تشفير قاعدة البيانات مفقود أو غير صالح. لا يمكن قراءة البيانات الموجودة فيها أو استعادتها دون المفتاح الصحيح. المتابعة ستحذف قاعدة البيانات المشفرة الحالية نهائيًا، بما فيها الطوابير والمسودات والمحتوى المحفوظ محليًا. لن نحذف أي نسخة ترحيل قديمة منفصلة إن وجدت.',
     [
@@ -93,7 +95,7 @@ export default function StorageScreen() {
       },
     ],
   );
-  const clearCache = () => Alert.alert('مسح ذاكرة التخزين المؤقت', 'سيتم حذف البيانات العامة المؤقتة فقط. لن تُحذف المسودات أو العمليات غير المتصلة أو بيانات تسجيل الدخول.', [
+  const clearCache = () => confirmAlert('مسح ذاكرة التخزين المؤقت', 'سيتم حذف البيانات العامة المؤقتة فقط. لن تُحذف المسودات أو العمليات غير المتصلة أو بيانات تسجيل الدخول.', [
     { text: 'إلغاء', style: 'cancel' },
     { text: 'مسح الذاكرة المؤقتة', style: 'destructive', onPress: () => {
       setClearing(true);
@@ -111,7 +113,7 @@ export default function StorageScreen() {
     <Text style={styles.intro}>إدارة البيانات المحلية في هذا الجهاز. الحجم هو عدد بايتات UTF-8 لنصوص JSON المخزنة، ويستثني فهارس SQLite ومساحة قاعدة البيانات الإضافية؛ لذلك هو تقدير لحجم المحتوى لا لحجم الملفات على القرص.</Text>
     <Notice tone="muted">قاعدة البيانات المحلية مشفرة باستخدام SQLCipher. أما الصور والوسائط المحفوظة كملفات داخل مساحة التطبيق الخاصة فلا تُشفّر بواسطة SQLCipher نفسه.</Notice>
     {error ? <Notice>{error}</Notice> : null}{message ? <Notice tone="success">{message}</Notice> : null}
-    {loading ? <SectionCard><ActivityIndicator color={colors.brand}/><Text style={styles.loading}>جارٍ قراءة التخزين…</Text></SectionCard> : error ? <SectionCard><Text style={styles.loading}>تعذر قراءة الإحصاءات؛ لم نعرض أرقامًا افتراضية حتى لا تبدو كأن التخزين فارغ.</Text><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void refresh()} />{resetAvailable ? <><Notice tone="warning">تأكدنا من وجود قاعدة مشفرة دون مفتاحها. لا تستخدم إعادة الضبط إلا بعد فهم أن البيانات المشفرة الحالية لن تكون قابلة للاسترجاع.</Notice><PrimaryButton label="إعادة ضبط التخزين المحلي المشفر" variant="danger" busy={resetting} onPress={confirmResetLocalStorage} /></> : null}</SectionCard> : <>
+    {loading ? <SectionCard><Spinner color={colors.brand}/><Text style={styles.loading}>جارٍ قراءة التخزين…</Text></SectionCard> : error ? <SectionCard><Text style={styles.loading}>تعذر قراءة الإحصاءات؛ لم نعرض أرقامًا افتراضية حتى لا تبدو كأن التخزين فارغ.</Text><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void refresh()} />{resetAvailable ? <><Notice tone="warning">تأكدنا من وجود قاعدة مشفرة دون مفتاحها. لا تستخدم إعادة الضبط إلا بعد فهم أن البيانات المشفرة الحالية لن تكون قابلة للاسترجاع.</Notice><PrimaryButton label="إعادة ضبط التخزين المحلي المشفر" variant="danger" busy={resetting} onPress={confirmResetLocalStorage} /></> : null}</SectionCard> : <>
       <SectionCard>
         <Text style={styles.sectionTitle}>الذاكرة المؤقتة العامة</Text>
         <StatRow label="عناصر مخزنة" value={String(cache.entries)} />
@@ -143,4 +145,4 @@ export default function StorageScreen() {
     <Pressable accessibilityRole="button" onPress={() => void refresh()} style={styles.refresh}><Text style={styles.refreshText}>تحديث معلومات التخزين</Text></Pressable>
   </PageShell>;
 }
-const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({ intro: { textAlign: 'right', color: colors.muted, fontSize: fontSizes[14], lineHeight: 23 }, sectionTitle: { color: colors.ink, textAlign: 'right', fontWeight: '900', fontSize: fontSizes[16] }, statRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }, statCopy: { flex: 1, gap: 3 }, statLabel: { textAlign: 'right', color: colors.ink, fontSize: fontSizes[14], fontWeight: '700' }, statValue: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '900', maxWidth: '48%', textAlign: 'left' }, detail: { textAlign: 'right', color: colors.muted, fontSize: fontSizes[12], lineHeight: 19 }, loading: { textAlign: 'center', color: colors.muted }, refresh: { padding: 15, alignItems: 'center' }, refreshText: { color: colors.brand, fontWeight: '800' } });
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({ intro: { textAlign: 'right', color: colors.muted, fontSize: fontSizes[14], lineHeight: 23 }, sectionTitle: { color: colors.ink, textAlign: 'right', fontWeight: '700', fontSize: fontSizes[16] }, statRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }, statCopy: { flex: 1, gap: 3 }, statLabel: { textAlign: 'right', color: colors.ink, fontSize: fontSizes[14], fontWeight: '700' }, statValue: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '700', maxWidth: '48%', textAlign: 'left' }, detail: { textAlign: 'right', color: colors.muted, fontSize: fontSizes[12], lineHeight: 19 }, loading: { textAlign: 'center', color: colors.muted }, refresh: { padding: 15, alignItems: 'center' }, refreshText: { color: colors.brand, fontWeight: '700' } });

@@ -12,7 +12,7 @@ type ToastListener = (toast: ToastMessage) => void;
 const listeners = new Set<ToastListener>();
 let sequence = 0;
 
-/** Lightweight app-wide transient feedback. Use native Alert only for decisions/confirmations. */
+/** Lightweight app-wide transient feedback. Use confirmAlert (src/lib/confirm.ts) for decisions/confirmations. */
 export function showToast(title: string, message: string, tone: ToastTone = 'info', action?: ToastAction): void {
   const toast: ToastMessage = {
     id: ++sequence,
