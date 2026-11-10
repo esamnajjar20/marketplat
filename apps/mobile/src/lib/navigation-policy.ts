@@ -58,8 +58,8 @@ export const MAIN_TABS: ReadonlyArray<{
     '/storage', '/seller-orders', '/customers', '/debts', '/installments', '/appointments',
     '/service-requests', '/service-provider-profile', '/service-provider-analytics',
     '/service-provider-hours', '/service-reviews', '/store-collections',
-    '/store-hours', '/store-invites', '/store-promotions', '/store-team', '/store/', '/my-reports',
-    '/my-offers', '/my-sales', '/my-products', '/my-services', '/my-requests', '/my-stores',
+    '/store-hours', '/store-invites', '/store-promotions', '/store-team', '/store/', '/my-reports', '/sales-costs',
+    '/my-offers', '/my-sales', '/sales-insights', '/my-products', '/my-services', '/my-requests', '/my-stores',
   ] },
 ];
 
@@ -94,7 +94,7 @@ export const DRAWER_ITEMS: ReadonlyArray<{
 const AUTH_ONLY_EXACT = new Set([
   '/add', '/messages', '/notifications', '/profile', '/following', '/following-feed', '/favorites',
   '/complete-profile', '/my-ads', '/my-products', '/my-services', '/my-stores',
-  '/my-requests', '/my-offers', '/my-sales', '/my-reports', '/orders', '/seller-orders',
+  '/my-requests', '/my-offers', '/my-sales', '/my-reports', '/sales-insights', '/sales-costs', '/orders', '/seller-orders',
   '/appointments', '/blocked-users', '/customers', '/debts', '/installments',
   '/saved-searches', '/security', '/sessions', '/seller-dashboard', '/seller-profile',
   '/my-store-analytics', '/service-requests', '/offline-queue', '/saved-payments',

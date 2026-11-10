@@ -24,7 +24,8 @@
     "verify:phase4": "node ./scripts/verify-phase4-offline-security.mjs",
     "verify:static": "node ./scripts/run-all-verifications.mjs",
     "test:coverage": "vitest run --coverage",
-    "verify:theme": "node ./scripts/verify-theme-system.mjs"
+    "verify:theme": "node ./scripts/verify-theme-system.mjs",
+    "verify:workspace-unification": "node ./scripts/verify-workspace-unification.mjs"
   },
   "dependencies": {
     "@expo/dom-webview": "~58.0.2",

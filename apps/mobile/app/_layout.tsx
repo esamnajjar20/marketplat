@@ -93,7 +93,7 @@ function RootChrome({ children }: { children: ReactNode }) {
           ? 'settings'
           : ['/my-store', '/seller-dashboard', '/my-products', '/product-editor', '/store-collections', '/collections', '/store-promotions', '/store-team', '/store-invites', '/store-hours', '/my-store-analytics'].some(isWithin)
             ? 'store'
-            : ['/my-sales', '/customers', '/debts', '/installments', '/sale-create', '/sales'].some(isWithin)
+            : ['/my-sales', '/customers', '/debts', '/installments', '/sales-costs', '/sales-insights', '/sale-create', '/sales'].some(isWithin)
               ? 'sales'
               : null;
 

@@ -7,7 +7,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useState , useMemo} from 'react';
 import { Alert, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/features/auth/AuthContext';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -19,6 +19,8 @@ import { radius, spacing, typography } from '@/theme/tokens';
 const statusLabel: Record<string, string> = { ACTIVE: 'نشط', DRAFT: 'مسودة', PENDING: 'قيد المراجعة', REJECTED: 'مرفوض', SUSPENDED: 'موقوف', IN_STOCK: 'متوفر', LIMITED: 'كمية محدودة', OUT_OF_STOCK: 'نفد المخزون' };
 function money(value: ProductSummary['price']): string { const n = Number(value); return Number.isFinite(n) ? formatMoney(n) : 'السعر غير متاح'; }
 export default function MyProductsScreen() {
+  const { view } = useLocalSearchParams<{ view?: string }>();
+  const inventoryMode = view === 'inventory';
   const { colors } = useAppTheme();
   const s = useMemo(() => createThemeS(colors), [colors]);
 
@@ -48,8 +50,13 @@ export default function MyProductsScreen() {
     getItemKey: (item) => item.id,
   });
   const remove = (item: ProductSummary) => { if (busyId) return; Alert.alert('حذف المنتج', `هل تريد حذف «${item.name}»؟ لا يمكن التراجع عن هذا الإجراء.`, [{ text: 'إلغاء', style: 'cancel' }, { text: 'حذف', style: 'destructive', onPress: () => { void (async () => { const token = getAccessToken(); if (!token || busyId) return; setBusyId(item.id); try { await deleteProduct(item.id, token, csrfToken); updateItems((old) => old.filter((x) => x.id !== item.id)); } catch (e) { showToast('تعذر الحذف', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'); } finally { setBusyId(null); } })(); } }]); };
-  return <SafeAreaView style={s.safe} edges={['top']}><AppHeader title="منتجاتي" right={<Pressable accessibilityRole="button" onPress={() => router.push('/product-editor')}><Text style={s.link}>＋ إضافة</Text></Pressable>} />
-    {isRestoring ? <LoadingState message="جارٍ استعادة الجلسة…" /> : !user ? <EmptyState title="سجّل الدخول لإدارة منتجاتك" actionLabel="تسجيل الدخول" onAction={() => router.push('/login')} /> : loading ? <LoadingState message="جاري تحميل منتجاتك…" /> : error && !items.length ? <ErrorState title="تعذر تحميل المنتجات" description={error} onAction={() => void refresh()} /> : <FlatList {...marketListPerf} data={items} keyExtractor={x => x.id} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.brand} />} ListEmptyComponent={<EmptyState title="لم تضف منتجات بعد" description="أضف أول منتج إلى متجرك." actionLabel="إضافة منتج" onAction={() => router.push('/product-editor')} />} renderItem={({item}) => <View style={s.card}>
+  const visibleItems = inventoryMode
+    ? items.filter((item) => typeof item.stockQuantity === 'number' || ['IN_STOCK', 'LIMITED', 'OUT_OF_STOCK'].includes(String(item.availability || '')))
+    : items;
+
+  return <SafeAreaView style={s.safe} edges={['top']}><AppHeader title={inventoryMode ? 'مخزون المتجر' : 'منتجاتي'} right={<Pressable accessibilityRole="button" onPress={() => router.push('/product-editor')}><Text style={s.link}>＋ إضافة</Text></Pressable>} />
+    {inventoryMode ? <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm }}><Text style={s.muted}>عرض المنتجات التي لديها بيانات مخزون أو حالة توفر مسجلة. لتعديل الكمية أو حالة المنتج افتح تعديل المنتج.</Text></View> : null}
+    {isRestoring ? <LoadingState message="جارٍ استعادة الجلسة…" /> : !user ? <EmptyState title="سجّل الدخول لإدارة منتجاتك" actionLabel="تسجيل الدخول" onAction={() => router.push('/login')} /> : loading ? <LoadingState message="جاري تحميل منتجاتك…" /> : error && !items.length ? <ErrorState title="تعذر تحميل المنتجات" description={error} onAction={() => void refresh()} /> : <FlatList {...marketListPerf} data={visibleItems} keyExtractor={x => x.id} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.brand} />} ListEmptyComponent={<EmptyState title={inventoryMode ? 'لا توجد بيانات مخزون بعد' : 'لم تضف منتجات بعد'} description={inventoryMode ? 'ستظهر هنا المنتجات التي لديها كمية أو حالة توفر مسجلة.' : 'أضف أول منتج إلى متجرك.'} actionLabel={inventoryMode ? 'عرض المنتجات' : 'إضافة منتج'} onAction={() => router.replace(inventoryMode ? '/my-products' : '/product-editor')} />} renderItem={({item}) => <View style={s.card}>
       <AppImage uri={item.images?.[0]} style={s.image} />
       <View style={s.body}><Text style={s.name}>{item.name}</Text><Text style={s.price}>{money(item.effectivePrice?.price ?? item.discountPrice ?? item.price)}</Text><Text style={s.muted}>{statusLabel[item.status || ''] || item.status || 'الحالة غير متاحة'} · {statusLabel[item.availability || ''] || item.availability || 'التوفر غير محدد'}</Text><Text style={s.muted}>المخزون: {typeof item.stockQuantity === 'number' ? item.stockQuantity : 'غير محدد'}</Text><View style={s.actions}><PrimaryButton label="تعديل" variant="secondary" onPress={() => router.push({pathname:'/product-editor',params:{id:item.id}})} /><PrimaryButton label={busyId===item.id?'جارٍ الحذف…':'حذف'} variant="danger" busy={busyId===item.id} disabled={Boolean(busyId)} onPress={() => remove(item)} /></View></View>
     </View>} ListFooterComponent={items.length ? <View style={{gap:spacing.sm}}>{error ? <ErrorState title="تعذر تحديث المنتجات" description={error} onAction={() => void refresh()} /> : null}{loadMoreError ? <ErrorState title="تعذر تحميل المزيد" description={loadMoreError} onAction={() => void loadMore()} /> : null}{hasNextPage ? <PrimaryButton label={loadingMore?'جارٍ التحميل…':loadMoreError?'إعادة المحاولة':'تحميل المزيد'} variant="secondary" busy={loadingMore} onPress={() => void loadMore()} /> : null}</View> : undefined} />}

@@ -1,0 +1,23 @@
+import fs from 'node:fs';
+import path from 'node:path';
+const root = path.resolve(import.meta.dirname, '..');
+const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
+const checks = [];
+const check = (name, ok) => checks.push({ name, ok: Boolean(ok) });
+const api = read('src/features/sales/sales-extra.api.ts');
+const screen = read('app/sales-costs.tsx');
+const tabs = read('src/components/navigation/WorkspaceTabs.tsx');
+const layout = read('app/_layout.tsx');
+check('mobile API reads authenticated cost settings', /fetchSalesCostSettings[\s\S]*cost-settings/.test(api));
+check('mobile API updates cost settings with PATCH', /updateSalesCostSettings[\s\S]*cost-settings[\s\S]*method: 'PATCH'/.test(api));
+check('mobile API reads cost products', /fetchSalesCostProducts[\s\S]*cost-products/.test(api));
+check('mobile API updates individual product cost', /updateSalesProductCost[\s\S]*cost-products\//.test(api));
+check('screen validates non-negative finite cost values', /Number\.isFinite\(value\) \|\| value < 0/.test(screen));
+check('screen supports disabling and enabling cost feature', /updateSalesCostSettings\(next/.test(screen) && /toggle\(!enabled\)/.test(screen));
+check('sales workspace exposes real cost screen', /التكلفة الحقيقية', path: '\/sales-costs'/.test(tabs));
+check('root chrome classifies cost screen as sales workspace', /'\/sales-costs'/.test(layout));
+check('screen has refresh, loading, error and empty states', /RefreshControl/.test(screen) && /LoadingState/.test(screen) && /ErrorState/.test(screen) && /EmptyState/.test(screen));
+let failed = 0;
+for (const item of checks) { console.log(`${item.ok ? 'PASS' : 'FAIL'} ${item.name}`); if (!item.ok) failed++; }
+console.log(`\n${checks.length - failed}/${checks.length} checks passed`);
+if (failed) process.exitCode = 1;
