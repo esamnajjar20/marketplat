@@ -17,7 +17,6 @@ import {
   SectionHeader,
 } from '@/components/MobileUI';
 import { fontSizes, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
-import { AccountSecuritySection } from '@/components/ui/AccountSecuritySection';
 import {
   isAndroidPushEnabled,
   requestAndRegisterAndroidPush,
@@ -240,6 +239,7 @@ export default function SettingsScreen() {
   return (
     <PageShell title="الإعدادات">
       <View style={{ gap: spacing.md }}>
+        
         <SectionHeader title="مظهر التطبيق" subtitle="اختر المظهر الذي يناسبك، أو اتبع إعدادات جهازك تلقائيًا" />
         <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
           {([
@@ -518,7 +518,6 @@ export default function SettingsScreen() {
             busy={isBusy}
             onPress={() => void handleLogout()}
           />
-          <AccountSecuritySection />
           <Notice tone="muted">الحساب الحالي: {user?.email ?? 'مستخدم مسجل'}</Notice>
         </>
       )}

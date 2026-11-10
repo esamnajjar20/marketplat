@@ -95,6 +95,7 @@ keyExtractor={(sale)=>sale.id}
 contentContainerStyle={s.content}
 refreshControl={<RefreshControl refreshing={list.refreshing || refreshingSummary} onRefresh={() => void refreshAll()} />}
 ListHeaderComponent={<>
+    
     <View style={s.header}><Pressable accessibilityRole="button" onPress={() => router.back()} style={s.back}><AppIcon name="back" size={24} color={colors.brand} /></Pressable><View style={s.headerText}><Text style={s.title}>مبيعاتي</Text><Text style={s.subtitle}>سجل عمليات البيع والمدفوعات والمبالغ المستحقة.</Text></View></View>
     <Text style={s.sectionTitle}>ملخص المبيعات</Text>
     <View style={s.segmentRow}>{periodOptions.map(option => <Pressable key={option.value} accessibilityRole="button" accessibilityState={{ selected: period === option.value }} onPress={() => setPeriod(option.value)} style={[s.segment, period === option.value && s.segmentActive]}><Text style={[s.segmentText, period === option.value && s.segmentTextActive]}>{option.label}</Text></Pressable>)}</View>

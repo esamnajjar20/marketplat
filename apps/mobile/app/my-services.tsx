@@ -67,6 +67,7 @@ export default function MyServicesScreen() {
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={(
           <View style={{ gap: spacing.md, marginBottom: spacing.md }}>
+            
             <Text style={{ textAlign: 'right', fontSize: fontSizes[12], lineHeight: 20, color: colors.muted }}>نظّم خدماتك وتابع أسعارها وحالتها من مكان واحد.</Text>
             {needsLogin ? <><Notice>سجّل الدخول لإدارة خدماتك.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /></> : undefined}
             {!needsLogin && accessToken ? <PrimaryButton label="+ إضافة خدمة" onPress={() => router.push('/service-editor')} /> : undefined}

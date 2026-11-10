@@ -53,7 +53,7 @@ export const MAIN_TABS: ReadonlyArray<{
   { id: 'add', label: 'إضافة', path: '/add', glyph: 'add', matches: ['/add'] },
   { id: 'messages', label: 'الرسائل', path: '/messages', glyph: 'messages', matches: ['/messages'] },
   { id: 'account', label: 'حسابي', path: '/account', glyph: 'account', matches: [
-    '/account', '/profile', '/my-', '/seller-dashboard', '/seller-profile', '/following', '/favorites', '/orders', '/settings', '/notifications', '/complete-profile', '/sessions', '/delete-account', '/saved-payments',
+    '/account', '/profile', '/my-', '/seller-dashboard', '/seller-profile', '/following', '/favorites', '/orders', '/settings', '/security', '/notifications', '/complete-profile', '/sessions', '/delete-account', '/saved-payments',
     '/activity', '/saved-searches', '/followed-stores', '/offline-queue', '/blocked-users',
     '/storage', '/seller-orders', '/customers', '/debts', '/installments', '/appointments',
     '/service-requests', '/service-provider-profile', '/service-provider-analytics',
@@ -96,7 +96,7 @@ const AUTH_ONLY_EXACT = new Set([
   '/complete-profile', '/my-ads', '/my-products', '/my-services', '/my-stores',
   '/my-requests', '/my-offers', '/my-sales', '/my-reports', '/orders', '/seller-orders',
   '/appointments', '/blocked-users', '/customers', '/debts', '/installments',
-  '/saved-searches', '/sessions', '/seller-dashboard', '/seller-profile',
+  '/saved-searches', '/security', '/sessions', '/seller-dashboard', '/seller-profile',
   '/my-store-analytics', '/service-requests', '/offline-queue', '/saved-payments',
   '/followed-stores', '/storage', '/settings', '/activity', '/delete-account',
   '/service-provider-profile', '/service-provider-analytics', '/service-provider-hours',

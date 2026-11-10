@@ -19,6 +19,7 @@ import { ChatMessageOutboxLifecycleBridge } from '@/storage/ChatMessageOutboxLif
 import { NativePushLifecycleBridge } from '@/features/notifications/NativePushLifecycleBridge';
 import { OfflineBanner } from '@/components/MobileUI';
 import { OfflineCacheNotice } from '@/components/OfflineCacheNotice';
+import { WorkspaceTabs } from '@/components/navigation/WorkspaceTabs';
 import { ToastHost } from '@/components/ToastHost';
 import { captureException, initErrorReporting } from '@/lib/error-reporting';
 
@@ -81,6 +82,20 @@ function RootChrome({ children }: { children: ReactNode }) {
   const { user, isRestoring } = useAuth();
   const pathname = usePathname();
   const isPrivateRoute = requiresAuthenticatedUser(pathname);
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+  const isWithin = (base: string) => normalizedPath === base || normalizedPath.startsWith(`${base}/`);
+  const workspace: 'services' | 'activity' | 'settings' | 'store' | 'sales' | null =
+    ['/my-services', '/service-requests', '/appointments', '/service-provider-analytics', '/service-editor', '/appointment-create'].some(isWithin)
+      ? 'services'
+      : ['/activity', '/my-ads', '/my-requests', '/my-reports'].some(isWithin)
+        ? 'activity'
+        : ['/settings', '/security', '/sessions', '/notifications', '/blocked-users'].some(isWithin)
+          ? 'settings'
+          : ['/my-store', '/seller-dashboard', '/my-products', '/product-editor', '/store-collections', '/collections', '/store-promotions', '/store-team', '/store-invites', '/store-hours', '/my-store-analytics'].some(isWithin)
+            ? 'store'
+            : ['/my-sales', '/customers', '/debts', '/installments', '/sale-create', '/sales'].some(isWithin)
+              ? 'sales'
+              : null;
 
   useEffect(() => {
     if (!isPrivateRoute || isRestoring || user) return;
@@ -100,6 +115,7 @@ function RootChrome({ children }: { children: ReactNode }) {
           </SafeAreaView>
         ) : null}
         <OfflineCacheNotice />
+        {workspace ? <View style={{ backgroundColor: colors.canvas, paddingHorizontal: spacing.md, paddingTop: spacing.xs, zIndex: 2 }}><WorkspaceTabs workspace={workspace} /></View> : null}
         {children}
         <BottomNavigation />
         <ToastHost />

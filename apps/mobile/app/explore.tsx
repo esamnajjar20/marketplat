@@ -10,45 +10,24 @@ import { marketListPerf } from '@/lib/listPerformance';
 type Destination = { title: string; description: string; path: string };
 type DestinationGroup = { title: string; subtitle: string; items: Destination[] };
 
+/**
+ * Keep mobile discovery aligned with frontend/lib/navigation.ts BROWSE_LINKS.
+ * The web's home destination is intentionally excluded because it has its own
+ * bottom-tab destination. Do not add account/workspace destinations here.
+ */
 const groups: DestinationGroup[] = [
   {
-    title: 'الإعلانات والطلبات',
-    subtitle: 'ابدأ من هنا للتصفح أو البحث',
+    title: 'استكشف السوق',
+    subtitle: 'الوجهات الثماني نفسها الموجودة في قائمة تصفح الويب',
     items: [
-      { title: 'كل الإعلانات', description: 'تصفح أحدث الإعلانات المنشورة في السوق', path: '/' },
-      { title: 'البحث المتقدم', description: 'ابحث بالاسم والسعر والمدينة والتصنيف', path: '/search' },
-      { title: 'موجز المتابعة', description: 'شاهد أحدث الإعلانات والمنتجات والخدمات ممن تتابعهم', path: '/following-feed' },
-      { title: 'مقترح لك', description: 'اكتشف محتوى مخصصًا لك', path: '/for-you' },
-      { title: 'تصنيفات السوق', description: 'انتقل مباشرة إلى نوع الإعلان المناسب', path: '/categories' },
-      { title: 'طلبات السوق', description: 'اعرف ما يبحث عنه الآخرون وقدّم عرضًا مناسبًا', path: '/requests' },
-    ],
-  },
-  {
-    title: 'المنتجات والمتاجر',
-    subtitle: 'تسوّق من المتاجر المحلية',
-    items: [
-      { title: 'المنتجات', description: 'تصفح المنتجات وأسعارها', path: '/products' },
-      { title: 'تصنيفات المنتجات', description: 'اعثر على المنتجات حسب نوعها', path: '/product-categories' },
+      { title: 'البحث', description: 'ابحث في الإعلانات والمنتجات والخدمات والمتاجر', path: '/search' },
+      { title: 'الإعلانات', description: 'تصفح الإعلانات المنشورة في السوق', path: '/ads' },
+      { title: 'المنتجات', description: 'تصفح المنتجات المعروضة للبيع', path: '/products' },
+      { title: 'الخدمات', description: 'اكتشف الخدمات المتاحة', path: '/services' },
+      { title: 'سوق الطلبات', description: 'اعرف ما يبحث عنه الآخرون وقدّم عرضك', path: '/requests' },
       { title: 'المتاجر', description: 'اكتشف المتاجر المحلية وتابعها', path: '/stores' },
-      { title: 'العروض المروجة', description: 'شاهد المنتجات والعروض المميزة', path: '/promoted' },
-    ],
-  },
-  {
-    title: 'الخدمات',
-    subtitle: 'اعثر على خدمة أو مقدم خدمة',
-    items: [
-      { title: 'الخدمات المتاحة', description: 'تصفح الخدمات حسب احتياجك', path: '/services' },
-      { title: 'مقدمو الخدمات', description: 'ابحث عن مقدم خدمة حسب المدينة', path: '/service-providers' },
-    ],
-  },
-  {
-    title: 'المجتمع والاكتشاف',
-    subtitle: 'تابع النشاط والمحتوى الجديد',
-    items: [
-      { title: 'القصص', description: 'شاهد القصص النشطة من المستخدمين والمتاجر', path: '/stories' },
-      { title: 'الرائج الآن', description: 'اكتشف المحتوى المتداول في السوق', path: '/trending' },
-      { title: 'أفضل البائعين', description: 'تعرّف على البائعين الأعلى ترتيبًا', path: '/sellers-ranking' },
-      { title: 'مقترحات لك', description: 'محتوى مقترح حسب الاهتمامات عند توفرها', path: '/suggestions' },
+      { title: 'مقدمو الخدمة', description: 'اعثر على مقدم الخدمة المناسب', path: '/service-providers' },
+      { title: 'أفضل البائعين', description: 'تعرّف على البائعين الأعلى ترتيباً', path: '/sellers-ranking' },
     ],
   },
 ];
@@ -65,7 +44,7 @@ export default function ExploreScreen() {
         contentContainerStyle={{ paddingBottom: 48, gap: spacing.xl }}
         ListHeaderComponent={
           <Text style={{ textAlign: 'right', ...typography.body, color: colors.muted, marginBottom: spacing.md }}>
-            رتّبنا الصفحات حسب ما تريد فعله حتى تصل إلى القسم المطلوب بخطوات أقل.
+            تصفح أقسام السوق الثمانية كما تظهر على الويب، مع واجهة ملائمة للهاتف.
           </Text>
         }
         renderItem={({ item: group }) => (

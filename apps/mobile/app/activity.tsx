@@ -123,6 +123,7 @@ export default function ActivityScreen() {
         contentContainerStyle={{ paddingBottom: 48, gap: spacing.md }}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
+            
             <Notice tone="muted">
               هذا السجل خاص بحسابك ويعرض الإجراءات التي سجّلها الخادم، وليس سجلًا عامًا للآخرين.
             </Notice>
