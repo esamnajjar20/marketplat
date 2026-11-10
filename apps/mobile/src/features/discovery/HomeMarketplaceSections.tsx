@@ -336,7 +336,7 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
       </View>
 
       {user ? (
-        <View style={styles.ctaCard}>
+        <View style={[styles.ctaCard, styles.ctaCompact]}>
           <Text style={styles.ctaTitle}>تابع طلباتك ومشترياتك</Text>
           <Text style={styles.ctaBody}>
             وصل سريع للطلبات التي أنشأتها، وطلبات الشراء ومتابعة حالتها دون استعلامات إضافية من الرئيسية.
@@ -455,9 +455,12 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    padding: spacing.lg,
-    gap: spacing.sm,
+    padding: spacing.md,
+    gap: spacing.xs,
     ...elevation.sm,
+  },
+  ctaCompact: {
+    marginTop: spacing.xs,
   },
   ctaTitle: {
     ...typography.subtitle,

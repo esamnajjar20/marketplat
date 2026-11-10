@@ -22,10 +22,12 @@ const PUBLIC_STORES_TTL_MS = 10 * 60 * 1000;
 function StoreCard({ store }: { store: StoreSummary }) {
   const imageUri = store.logoUrl || store.coverImageUrl || null;
   const rating = store.sellerProfile?.averageRating;
-  const ratingLabel =
-    rating !== null && rating !== undefined && Number.isFinite(Number(rating))
-      ? `★ ${Number(rating).toFixed(1)}`
-      : null;
+  const totalRatings = store.sellerProfile?.totalRatings;
+  const parsedRating = rating === null || rating === undefined ? Number.NaN : Number(rating);
+  const hasRatings = Number.isFinite(parsedRating) && (totalRatings != null ? totalRatings > 0 : parsedRating > 0);
+  const ratingLabel = hasRatings
+    ? `★ ${parsedRating.toFixed(1)}${totalRatings ? ` (${totalRatings})` : ''}`
+    : 'متجر جديد';
   const subtitle = [store.city || 'متجر محلي', ratingLabel].filter(Boolean).join(' · ');
   const price =
     store._count?.products != null && store._count.products > 0
@@ -38,6 +40,7 @@ function StoreCard({ store }: { store: StoreSummary }) {
       subtitle={subtitle}
       price={price}
       imageUri={imageUri}
+      imageResizeMode={store.logoUrl ? 'contain' : 'cover'}
       glyph="م"
       onPress={() => router.push({ pathname: '/stores/[id]', params: { id: store.id } })}
     />

@@ -25,6 +25,7 @@ import { useOnlineResync } from '@/lib/useOnlineResync';
 
 type HomeListRow =
   | { type: 'header' }
+  | { type: 'adsHeader' }
   | { type: 'sections' }
   | { type: 'ad'; key: string; ad: AdListItem }
   | { type: 'footer' };
@@ -112,9 +113,10 @@ export default function HomeScreen() {
 
   const listRows = useMemo<HomeListRow[]>(() => [
     { type: 'header' },
-    { type: 'sections' },
+    { type: 'adsHeader' },
     ...ads.map((ad) => ({ type: 'ad' as const, key: ad.id, ad })),
     { type: 'footer' },
+    { type: 'sections' },
   ], [ads]);
 
   return (
@@ -234,8 +236,8 @@ export default function HomeScreen() {
                 <View style={styles.quickActions}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="استكشف السوق"
-                    onPress={() => router.push('/explore')}
+                    accessibilityLabel="تصفح المتاجر"
+                    onPress={() => router.push('/stores')}
                     style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}
                   >
                     <Text style={styles.quickChipGlyph}>⌕</Text>
@@ -273,27 +275,15 @@ export default function HomeScreen() {
             );
           }
 
-          if (item.type === 'sections') {
-            if (!sectionsVisible) {
-              return <View style={styles.deferredSectionsPlaceholder} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />;
-            }
+          if (item.type === 'adsHeader') {
             return (
-              <View style={styles.sectionsBlock}>
-                <HomeCommunitySections />
-                <HomeMarketplaceSections refreshKey={sectionsRefreshKey} />
-              </View>
-            );
-          }
-
-          // footer: عنوان الإعلانات + فلاتر + حالات التحميل + تحميل المزيد
-          return (
-            <View style={styles.adsBlock}>
-              <View style={styles.adsHeaderRow}>
-                <View style={styles.adsHeaderText}>
-                  <SectionHeader title="أحدث الإعلانات" subtitle="من السوق المحلي" />
-                </View>
-                <View style={styles.sectionActions}>
-                  <Pressable
+              <View style={styles.adsHeaderBlock}>
+                <View style={styles.adsHeaderRow}>
+                  <View style={styles.adsHeaderText}>
+                    <SectionHeader title="أحدث الإعلانات" subtitle="من السوق المحلي" />
+                  </View>
+                  <View style={styles.sectionActions}>
+                    <Pressable
                     accessibilityRole="button"
                     accessibilityState={{ expanded: showFilters }}
                     onPress={() => setShowFilters((value) => !value)}
@@ -301,16 +291,15 @@ export default function HomeScreen() {
                   >
                     <Text style={styles.link}>{showFilters ? 'إخفاء الفلاتر' : 'فلاتر'}</Text>
                   </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => router.push('/ads')}
-                    style={({ pressed }) => [styles.filterToggle, pressed && styles.pressed]}
-                  >
-                    <Text style={styles.link}>الكل</Text>
-                  </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => router.push('/ads')}
+                      style={({ pressed }) => [styles.filterToggle, pressed && styles.pressed]}
+                    >
+                      <Text style={styles.link}>عرض الكل</Text>
+                    </Pressable>
+                  </View>
                 </View>
-              </View>
-
               {showFilters ? (
                 <View style={styles.filtersPanel}>
                   <TextInput
@@ -394,7 +383,25 @@ export default function HomeScreen() {
                   </View>
                 </View>
               ) : null}
+              </View>
+            );
+          }
 
+          if (item.type === 'sections') {
+            if (!sectionsVisible) {
+              return <View style={styles.deferredSectionsPlaceholder} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />;
+            }
+            return (
+              <View style={styles.sectionsBlock}>
+                <HomeCommunitySections />
+                <HomeMarketplaceSections refreshKey={sectionsRefreshKey} />
+              </View>
+            );
+          }
+
+          // Footer: cache status, loading/error states, and pagination controls.
+          return (
+            <View style={styles.adsBlock}>
               {adsSavedAt !== null && !loading ? (
                 <View style={styles.cacheStatus} accessibilityLiveRegion="polite">
                   <Text style={styles.cacheStatusText}>
@@ -446,7 +453,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   deferredSectionsPlaceholder: { minHeight: 1 },
   content: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: 88,
+    paddingBottom: 120,
     gap: spacing.lg,
     paddingTop: spacing.sm,
   },
@@ -607,18 +614,19 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
 
   // أقسام المجتمع والسوق
   sectionsBlock: {
-    gap: spacing.xxl,
+    gap: spacing.xl,
+    paddingTop: spacing.lg,
     paddingBottom: spacing.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.border,
   },
 
   // كتلة الإعلانات
   adsBlock: {
     gap: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    marginTop: spacing.sm,
+    paddingBottom: spacing.sm,
   },
+  adsHeaderBlock: { gap: spacing.sm },
   adsHeaderRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',

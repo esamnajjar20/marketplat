@@ -127,8 +127,9 @@ function AdCardComponent({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
+          accessibilityState={{ selected: Boolean(isFavorite) }}
           onPress={onToggleFavorite}
-          hitSlop={10}
+          hitSlop={8}
           style={({ pressed }) => [styles.favoriteBtn, pressed && styles.pressed]}
         >
           <Text style={[styles.favoriteIcon, isFavorite && styles.favoriteActive]}>
@@ -267,8 +268,8 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   favoriteBtn: {
     position: 'absolute',
     top: 8,
-    // في RTL يظهر في الزاوية البصرية المناسبة
-    right: 8,
+    // In the app's native RTL layout, this edge maps to the image column.
+    left: 8,
     zIndex: 2,
     width: 36,
     height: 36,
@@ -308,6 +309,8 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     color: colors.ink,
     textAlign: 'right',
     width: '100%',
+    flexShrink: 1,
+    lineHeight: Math.max(21, fontSizes[14] * 1.55),
   },
 });
 
@@ -317,6 +320,7 @@ type HorizontalMarketCardProps = {
   subtitle?: string;
   price?: string | null;
   imageUri?: string | null;
+  imageResizeMode?: 'cover' | 'contain';
   glyph?: string;
   onPress: () => void;
   width?: number;
@@ -331,6 +335,7 @@ function HorizontalMarketCardComponent({
   subtitle,
   price,
   imageUri,
+  imageResizeMode = 'cover',
   glyph = '◇',
   onPress,
   width = 160,
@@ -350,7 +355,7 @@ function HorizontalMarketCardComponent({
         <AppImage
           uri={imageUri}
           onError={() => setImageFailed(true)}
-          resizeMode="cover"
+          resizeMode={imageResizeMode}
           style={hStyles.image}
         />
       ) : (
@@ -382,7 +387,7 @@ HorizontalMarketCard.displayName = 'HorizontalMarketCard';
 
 const createThemeHStyles = (colors: ColorPalette) => StyleSheet.create({
   card: {
-    minHeight: 200,
+    minHeight: 196,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.card,
@@ -393,7 +398,7 @@ const createThemeHStyles = (colors: ColorPalette) => StyleSheet.create({
   pressed: { opacity: ux.pressedOpacity },
   image: {
     width: '100%',
-    height: sizes.cardImageGrid - 20,
+    height: 132,
     backgroundColor: colors.border,
   },
   placeholder: {
@@ -408,8 +413,8 @@ const createThemeHStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   body: {
     flex: 1,
-    padding: spacing.sm,
-    gap: 4,
+    padding: spacing.md,
+    gap: 5,
     alignItems: 'flex-end',
   },
   title: {

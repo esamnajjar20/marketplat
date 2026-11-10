@@ -1,1 +1,3 @@
-<resources/>
+<resources>
+  <color name="navigation_bar_background">#101712</color>
+</resources>
