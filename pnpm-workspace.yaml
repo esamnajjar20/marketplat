@@ -2,3 +2,34 @@ packages:
   - 'apps/*'
   - 'packages/*'
   - 'workers/*'
+allowBuilds:
+  '@firebase/util': false
+  '@prisma/client': false
+  '@prisma/engines': false
+  '@scarf/scarf': false
+  '@sentry/cli': false
+  bcrypt: false
+  esbuild: false
+  msgpackr-extract: false
+  prisma: false
+  protobufjs: false
+minimumReleaseAgeExclude:
+  - electron-to-chromium@1.5.479
+  - lilconfig@3.1.5
+
+onlyBuiltDependencies:
+  - '@firebase/util'
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@scarf/scarf'
+  - '@sentry/cli'
+  - 'bcrypt'
+  - 'esbuild'
+  - 'msgpackr-extract'
+  - 'prisma'
+  - 'protobufjs'
+  - 'expo-sqlite'
+
+overrides:
+  'zod': '3.22.0'
+minimumReleaseAge: 0

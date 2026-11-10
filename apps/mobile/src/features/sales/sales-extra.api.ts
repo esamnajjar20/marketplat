@@ -1,3 +1,4 @@
+import type { SalePaymentStatus } from './sales.api';
 import { apiRequest } from '@/api/client';
 import type { SaleRecord } from './sales.api';
 
