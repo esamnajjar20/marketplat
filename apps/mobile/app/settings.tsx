@@ -115,6 +115,7 @@ export default function SettingsScreen() {
   const [message, setMessage] = useState('');
   const [pushBusy, setPushBusy] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [showNotificationSettings, setShowNotificationSettings] = useState(false);
   const deviceTimeZone = useMemo(() => getDeviceTimeZone(), []);
 
   const load = useCallback(async () => {
@@ -147,10 +148,11 @@ export default function SettingsScreen() {
   }, [getAccessToken, user?.id]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (showNotificationSettings) void load();
+  }, [load, showNotificationSettings]);
 
   useEffect(() => {
+    if (!showNotificationSettings) return undefined;
     let active = true;
     void isAndroidPushEnabled().then((enabled) => {
       if (active) setPushEnabled(enabled);
@@ -158,7 +160,7 @@ export default function SettingsScreen() {
     return () => {
       active = false;
     };
-  }, [user?.id]);
+  }, [showNotificationSettings, user?.id]);
 
   const toggle = (key: string, value: boolean) => setPrefs((p) => ({ ...p, [key]: value }));
 
@@ -284,6 +286,22 @@ export default function SettingsScreen() {
         </>
       ) : (
         <>
+          <SectionCard style={styles.cardPad}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: showNotificationSettings }}
+              onPress={() => setShowNotificationSettings((value) => !value)}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, gap: spacing.md }}
+            >
+              <AppIcon name={showNotificationSettings ? 'back' : 'forward'} size={18} color={colors.brand} />
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={{ color: colors.ink, fontWeight: '800', textAlign: 'right' }}>إدارة تفضيلات الإشعارات</Text>
+                <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>إعدادات اختيارية؛ افتحها عند الحاجة فقط</Text>
+              </View>
+              <AppIcon name="notification" size={20} color={colors.brand} />
+            </Pressable>
+          </SectionCard>
+          {showNotificationSettings ? <>
           {loadingPreferences ? (
             <SectionCard>
               <Text style={styles.loadingText}>جارٍ تحميل تفضيلات الإشعارات…</Text>
@@ -426,6 +444,8 @@ export default function SettingsScreen() {
               onPress={() => void save()}
             />
           </View>
+
+          </> : null}
 
           {/* روابط الحساب */}
           <View style={styles.section}>

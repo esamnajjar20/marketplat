@@ -11,7 +11,7 @@ import { DrawerMenuButton } from '@/components/MobileDrawer';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fontSizes, radius, spacing, ux } from '@/theme/tokens';
 import { EmptyState, ErrorState, LoadingState, SectionHeader, SkeletonList } from '@/components/MobileUI';
-import { AdCard } from '@/components/MarketCards';
+import { HorizontalAdCard } from '@/components/MarketCards';
 import { useAuth } from '@/features/auth/AuthContext';
 import HomeCommunitySections from '@/features/discovery/HomeCommunitySections';
 import HomeMarketplaceSections from '@/features/discovery/HomeMarketplaceSections';
@@ -26,8 +26,8 @@ import { useOnlineResync } from '@/lib/useOnlineResync';
 type HomeListRow =
   | { type: 'header' }
   | { type: 'adsHeader' }
+  | { type: 'adsCarousel' }
   | { type: 'sections' }
-  | { type: 'ad'; key: string; ad: AdListItem }
   | { type: 'footer' };
 
 const HOME_VIEWABILITY_CONFIG = { itemVisiblePercentThreshold: 1 } as const;
@@ -114,18 +114,18 @@ export default function HomeScreen() {
   const listRows = useMemo<HomeListRow[]>(() => [
     { type: 'header' },
     { type: 'adsHeader' },
-    ...ads.map((ad) => ({ type: 'ad' as const, key: ad.id, ad })),
+    { type: 'adsCarousel' },
     { type: 'footer' },
     { type: 'sections' },
-  ], [ads]);
+  ], []);
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
       <FlatList
         data={listRows}
-        extraData={sectionsVisible}
-        keyExtractor={(item) => item.type === 'ad' ? `ad:${item.key}` : item.type}
+        extraData={{ sectionsVisible, ads, favoriteIds, failedImageIds, loading, refreshing, loadingMore, errorMessage, adsSavedAt, adsFromCache, page, totalPages }}
+        keyExtractor={(item) => item.type}
         {...marketListPerf}
         viewabilityConfig={HOME_VIEWABILITY_CONFIG}
         onViewableItemsChanged={onViewableItemsChanged}
@@ -133,34 +133,45 @@ export default function HomeScreen() {
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { if (sectionsVisible) setSectionsRefreshKey((value) => value + 1); void loadAds(true); }} tintColor={colors.brand} />}
         ItemSeparatorComponent={({ leadingItem }) => {
-          if (leadingItem && typeof leadingItem === 'object' && 'type' in leadingItem && leadingItem.type === 'ad') {
+          if (leadingItem && typeof leadingItem === 'object' && 'type' in leadingItem && leadingItem.type === 'adsCarousel') {
             return <View style={{ height: spacing.md }} />;
           }
           return <View style={{ height: spacing.lg }} />;
         }}
-        onEndReached={() => {
-          if (!loading && !refreshing && !loadingMore && !errorMessage && ads.length > 0 && page < totalPages) {
-            void loadMoreAds();
-          }
-        }}
-        onEndReachedThreshold={0.35}
         renderItem={({ item }) => {
-          if (item.type === 'ad') {
-            const ad = item.ad;
-            const imageUri = !failedImageIds.includes(ad.id) && Array.isArray(ad.images)
-              ? ad.images.find((url) => typeof url === 'string' && /^(https?:|file:|content:)/i.test(url))
-              : undefined;
+          if (item.type === 'adsCarousel') {
             return (
-              <AdCard
-                title={ad.title}
-                price={formatPrice(ad.price)}
-                meta={[ad.city, ad.category?.nameAr || ad.category?.name].filter(Boolean).join(' · ') || 'إعلان محلي'}
-                imageUri={imageUri}
-                isFavorite={favoriteIds.includes(ad.id)}
-                isNegotiable={Boolean(ad.isNegotiable)}
-                onPress={() => router.push(`/ads/${encodeURIComponent(ad.id)}`)}
-                onToggleFavorite={() => { void toggleFavorite(ad.id); }}
-                onImageError={() => markImageFailed(ad.id)}
+              <FlatList
+                horizontal
+                nestedScrollEnabled
+                data={ads}
+                keyExtractor={(ad) => ad.id}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: spacing.md, paddingHorizontal: spacing.xs, paddingVertical: spacing.xs }}
+                onEndReached={() => {
+                  if (!loading && !refreshing && !loadingMore && !errorMessage && ads.length > 0 && page < totalPages) {
+                    void loadMoreAds();
+                  }
+                }}
+                onEndReachedThreshold={0.5}
+                renderItem={({ item: ad }) => {
+                  const imageUri = !failedImageIds.includes(ad.id) && Array.isArray(ad.images)
+                    ? ad.images.find((url) => typeof url === 'string' && /^(https?:|file:|content:)/i.test(url))
+                    : undefined;
+                  return (
+                    <HorizontalAdCard
+                      title={ad.title}
+                      price={formatPrice(ad.price)}
+                      meta={[ad.city, ad.category?.nameAr || ad.category?.name].filter(Boolean).join(' · ') || 'إعلان محلي'}
+                      imageUri={imageUri}
+                      isFavorite={favoriteIds.includes(ad.id)}
+                      isNegotiable={Boolean(ad.isNegotiable)}
+                      onPress={() => router.push(`/ads/${encodeURIComponent(ad.id)}`)}
+                      onToggleFavorite={() => { void toggleFavorite(ad.id); }}
+                      onImageError={() => markImageFailed(ad.id)}
+                    />
+                  );
+                }}
               />
             );
           }
@@ -236,8 +247,8 @@ export default function HomeScreen() {
                 <View style={styles.quickActions}>
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel="تصفح المتاجر"
-                    onPress={() => router.push('/stores')}
+                    accessibilityLabel="استكشف جميع أقسام السوق"
+                    onPress={() => router.push('/explore')}
                     style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}
                   >
                     <Text style={styles.quickChipGlyph}>⌕</Text>
@@ -252,16 +263,7 @@ export default function HomeScreen() {
                     <Text style={styles.quickChipGlyph}>⚙</Text>
                     <Text maxFontSizeMultiplier={1.25} style={styles.quickChipTitle}>فلاتر</Text>
                   </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="إضافة إعلان أو منتج أو خدمة"
-                    onPress={() => router.push(user ? '/add' : '/login')}
-                    style={({ pressed }) => [styles.quickChip, styles.quickChipPrimary, pressed && styles.pressed]}
-                  >
-                    <Text style={[styles.quickChipGlyph, styles.quickChipGlyphPrimary]}>＋</Text>
-                    <Text maxFontSizeMultiplier={1.25} style={[styles.quickChipTitle, styles.quickChipTitlePrimary]}>إضافة</Text>
-                  </Pressable>
-                  <Pressable
+                      <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="محتوى مخصص لك"
                     onPress={() => router.push('/for-you')}
@@ -591,25 +593,15 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  quickChipPrimary: {
-    backgroundColor: colors.brand,
-    borderColor: colors.brand,
-  },
   quickChipGlyph: {
     color: colors.brand,
     fontSize: fontSizes[15],
     fontWeight: '700',
   },
-  quickChipGlyphPrimary: {
-    color: colors.onBrand,
-  },
   quickChipTitle: {
     color: colors.ink,
     fontSize: fontSizes[12],
     fontWeight: '600',
-  },
-  quickChipTitlePrimary: {
-    color: colors.onBrand,
   },
 
   // أقسام المجتمع والسوق

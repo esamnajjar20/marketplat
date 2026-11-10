@@ -1,7 +1,7 @@
 import type { GlyphName } from '@/components/Icons';
 
 export type MainTabId = 'home' | 'explore' | 'add' | 'messages' | 'account';
-export type DrawerSection = 'السوق' | 'حسابك' | 'المساعدة';
+export type DrawerSection = 'السوق' | 'حسابك' | 'المبيعات' | 'متجري' | 'خدماتي' | 'نشاطي' | 'الإعدادات' | 'المساعدة';
 export type DrawerCapability = 'sellerWorkspace' | 'storeMembership' | 'serviceProvider';
 export type NavigationCapabilities = Readonly<Record<DrawerCapability, boolean>>;
 
@@ -58,43 +58,73 @@ export const MAIN_TABS: ReadonlyArray<{
     '/storage', '/seller-orders', '/customers', '/debts', '/installments', '/appointments',
     '/service-requests', '/service-provider-profile', '/service-provider-analytics',
     '/service-provider-hours', '/service-reviews', '/store-collections',
-    '/store-hours', '/store-invites', '/store-promotions', '/store-team', '/store/', '/my-reports', '/sales-costs',
-    '/my-offers', '/my-sales', '/sales-insights', '/my-products', '/my-services', '/my-requests', '/my-stores',
+    '/store-hours', '/store-invites', '/store-promotions', '/store-team', '/store/', '/my-reports',
+    '/my-offers', '/my-sales', '/my-products', '/my-services', '/my-requests', '/my-stores',
   ] },
 ];
 
 export const DRAWER_ITEMS: ReadonlyArray<{
   label: string; path: string; icon: GlyphName; section: DrawerSection; capability?: DrawerCapability;
 }> = [
-  // —— السوق: اكتشاف وتصفّح
+  // السوق: وجهات التصفح الفعلية. الاستكشاف يبقى صفحة/تبويبًا مستقلًا ولا يتكرر هنا.
   { label: 'الرئيسية', path: '/', icon: 'home', section: 'السوق' },
-  { label: 'استكشف السوق', path: '/explore', icon: 'search', section: 'السوق' },
-  { label: 'المتاجر', path: '/stores', icon: 'store', section: 'السوق' },
+  { label: 'البحث', path: '/search', icon: 'search', section: 'السوق' },
+  { label: 'الإعلانات', path: '/ads', icon: 'ads', section: 'السوق' },
+  { label: 'المنتجات', path: '/products', icon: 'product', section: 'السوق' },
   { label: 'الخدمات', path: '/services', icon: 'service', section: 'السوق' },
-  { label: 'إضافة إعلان أو منتج', path: '/add', icon: 'add', section: 'السوق' },
+  { label: 'سوق الطلبات', path: '/requests', icon: 'orders', section: 'السوق' },
+  { label: 'المتاجر', path: '/stores', icon: 'store', section: 'السوق' },
+  { label: 'مقدمو الخدمة', path: '/service-providers', icon: 'service', section: 'السوق' },
+  { label: 'أفضل البائعين', path: '/sellers-ranking', icon: 'account', section: 'السوق' },
   { label: 'اقتراحات المنتجات', path: '/suggestions', icon: 'help', section: 'السوق' },
-  // —— حسابك: نشاط شخصي ثم أدوات البيع
+
+  // الحساب والاتصال.
   { label: 'حسابي', path: '/account', icon: 'account', section: 'حسابك' },
   { label: 'ملفي الشخصي', path: '/profile', icon: 'account', section: 'حسابك' },
   { label: 'المحادثات', path: '/messages', icon: 'messages', section: 'حسابك' },
   { label: 'الإشعارات', path: '/notifications', icon: 'notification', section: 'حسابك' },
   { label: 'المفضلة', path: '/favorites', icon: 'favorite', section: 'حسابك' },
-  { label: 'إعلاناتي', path: '/my-ads', icon: 'ads', section: 'حسابك' },
-  { label: 'طلباتي', path: '/orders', icon: 'orders', section: 'حسابك' },
-  { label: 'ملف البائع', path: '/seller-profile', icon: 'account', section: 'حسابك' },
-  { label: 'لوحة البائع', path: '/seller-dashboard', icon: 'store', section: 'حسابك', capability: 'sellerWorkspace' },
-  { label: 'متاجري', path: '/my-stores', icon: 'store', section: 'حسابك', capability: 'storeMembership' },
-  { label: 'ملف مقدم الخدمة', path: '/service-provider-profile', icon: 'service', section: 'حسابك' },
-  { label: 'طلبات الخدمات', path: '/service-requests', icon: 'service', section: 'حسابك', capability: 'serviceProvider' },
-  { label: 'العمليات دون اتصال', path: '/offline-queue', icon: 'orders', section: 'حسابك' },
-  // —— المساعدة
-  { label: 'الإعدادات', path: '/settings', icon: 'settings', section: 'المساعدة' },
+  { label: 'طلباتي الشرائية', path: '/orders', icon: 'orders', section: 'حسابك' },
+  { label: 'المتابعة', path: '/following', icon: 'account', section: 'حسابك' },
+
+  // مساحات العمل، ظاهرة فقط بعد تأكيد صلاحيات الحساب.
+  { label: 'نظرة عامة', path: '/my-sales', icon: 'orders', section: 'المبيعات', capability: 'sellerWorkspace' },
+  { label: 'العملاء', path: '/customers', icon: 'account', section: 'المبيعات', capability: 'sellerWorkspace' },
+  { label: 'الديون', path: '/debts', icon: 'orders', section: 'المبيعات', capability: 'sellerWorkspace' },
+  { label: 'الأقساط', path: '/installments', icon: 'orders', section: 'المبيعات', capability: 'sellerWorkspace' },
+
+  { label: 'ملف البائع', path: '/seller-profile', icon: 'account', section: 'متجري' },
+  { label: 'لوحة المتجر', path: '/seller-dashboard', icon: 'store', section: 'متجري', capability: 'sellerWorkspace' },
+  { label: 'منتجاتي', path: '/my-products', icon: 'product', section: 'متجري', capability: 'sellerWorkspace' },
+  { label: 'مجموعات المتجر', path: '/store-collections', icon: 'store', section: 'متجري', capability: 'sellerWorkspace' },
+  { label: 'العروض الترويجية', path: '/store-promotions', icon: 'ads', section: 'متجري', capability: 'sellerWorkspace' },
+  { label: 'فريق المتجر', path: '/store-team', icon: 'account', section: 'متجري', capability: 'sellerWorkspace' },
+  { label: 'إحصائيات المتجر', path: '/my-store-analytics', icon: 'orders', section: 'متجري', capability: 'sellerWorkspace' },
+  { label: 'بيانات متجري', path: '/my-store', icon: 'store', section: 'متجري', capability: 'sellerWorkspace' },
+  { label: 'المتاجر التي أديرها', path: '/my-stores', icon: 'store', section: 'متجري', capability: 'storeMembership' },
+
+  { label: 'ملف مقدم الخدمة', path: '/service-provider-profile', icon: 'account', section: 'خدماتي' },
+  { label: 'نظرة عامة', path: '/my-services', icon: 'service', section: 'خدماتي', capability: 'serviceProvider' },
+  { label: 'الطلبات الواردة', path: '/service-requests', icon: 'orders', section: 'خدماتي', capability: 'serviceProvider' },
+  { label: 'المواعيد', path: '/appointments', icon: 'orders', section: 'خدماتي', capability: 'serviceProvider' },
+  { label: 'إحصائيات الخدمات', path: '/service-provider-analytics', icon: 'orders', section: 'خدماتي', capability: 'serviceProvider' },
+
+  { label: 'النشاط', path: '/activity', icon: 'orders', section: 'نشاطي' },
+  { label: 'إعلاناتي', path: '/my-ads', icon: 'ads', section: 'نشاطي' },
+  { label: 'طلباتي', path: '/my-requests', icon: 'orders', section: 'نشاطي' },
+  { label: 'بلاغاتي', path: '/my-reports', icon: 'help', section: 'نشاطي' },
+
+  { label: 'الإعدادات', path: '/settings', icon: 'settings', section: 'الإعدادات' },
+  { label: 'الأمان', path: '/security', icon: 'settings', section: 'الإعدادات' },
+  { label: 'الجلسات', path: '/sessions', icon: 'account', section: 'الإعدادات' },
+  { label: 'المستخدمون المحظورون', path: '/blocked-users', icon: 'account', section: 'الإعدادات' },
+  { label: 'العمليات دون اتصال', path: '/offline-queue', icon: 'orders', section: 'المساعدة' },
 ];
 
 const AUTH_ONLY_EXACT = new Set([
   '/add', '/messages', '/notifications', '/profile', '/following', '/following-feed', '/favorites',
   '/complete-profile', '/my-ads', '/my-products', '/my-services', '/my-stores',
-  '/my-requests', '/my-offers', '/my-sales', '/my-reports', '/sales-insights', '/sales-costs', '/orders', '/seller-orders',
+  '/my-requests', '/my-offers', '/my-sales', '/my-reports', '/orders', '/seller-orders',
   '/appointments', '/blocked-users', '/customers', '/debts', '/installments',
   '/saved-searches', '/security', '/sessions', '/seller-dashboard', '/seller-profile',
   '/my-store-analytics', '/service-requests', '/offline-queue', '/saved-payments',

@@ -1,12 +1,12 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useLocalSearchParams, usePathname, router } from 'expo-router';
+import { usePathname, router } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 import { spacing, fontSizes, radius } from '@/theme/tokens';
 
 type Workspace = 'services' | 'activity' | 'settings' | 'store' | 'sales';
-type Tab = { label: string; path: string; match?: string[]; query?: Readonly<Record<string, string>>; excludeQuery?: Readonly<Record<string, string>> };
+type Tab = { label: string; path: string; match?: string[] };
 
 /**
  * Mobile workspace navigation follows the same tab order and intent as the
@@ -35,35 +35,25 @@ const TABS: Record<Workspace, Tab[]> = {
   ],
   store: [
     { label: 'نظرة عامة', path: '/seller-dashboard' },
-    { label: 'المنتجات', path: '/my-products', excludeQuery: { view: 'inventory' } },
+    { label: 'المنتجات', path: '/my-products' },
     { label: 'المجموعات', path: '/store-collections' },
-    { label: 'المخزون', path: '/my-products', query: { view: 'inventory' } },
     { label: 'العروض', path: '/store-promotions' },
     { label: 'الفريق', path: '/store-team' },
     { label: 'الإحصائيات', path: '/my-store-analytics' },
     { label: 'بيانات المتجر', path: '/my-store' },
   ],
   sales: [
-    { label: 'نظرة عامة', path: '/sales-insights', query: { view: 'overview' } },
     { label: 'المبيعات', path: '/my-sales' },
     { label: 'العملاء', path: '/customers' },
     { label: 'الديون', path: '/debts' },
     { label: 'الأقساط', path: '/installments' },
-    { label: 'الإحصائيات', path: '/sales-insights', query: { view: 'analytics' } },
-    { label: 'التقارير', path: '/sales-insights', query: { view: 'reports' } },
-    { label: 'التكلفة الحقيقية', path: '/sales-costs' },
-    { label: 'التحليلات الذكية', path: '/sales-insights', query: { view: 'smart' } },
   ],
 };
 
-function isTabActive(pathname: string, tab: Tab, params: Readonly<Record<string, string | string[] | undefined>>): boolean {
+function isTabActive(pathname: string, tab: Tab): boolean {
   const current = pathname.replace(/\/+$/, '') || '/';
   const target = tab.path.replace(/\/+$/, '') || '/';
-  if (current === target || current.startsWith(`${target}/`)) {
-    if (tab.excludeQuery && Object.entries(tab.excludeQuery).some(([key, value]) => params[key] === value)) return false;
-    if (!tab.query) return true;
-    return Object.entries(tab.query).every(([key, value]) => params[key] === value);
-  }
+  if (current === target || current.startsWith(`${target}/`)) return true;
   return tab.match?.some((path) => {
     const normalized = path.replace(/\/+$/, '') || '/';
     return current === normalized || current.startsWith(`${normalized}/`);
@@ -73,28 +63,23 @@ function isTabActive(pathname: string, tab: Tab, params: Readonly<Record<string,
 export function WorkspaceTabs({ workspace }: { workspace: Workspace }) {
   const { colors } = useAppTheme();
   const pathname = usePathname();
-  const params = useLocalSearchParams<Record<string, string | string[] | undefined>>();
   const tabs = TABS[workspace];
 
   return (
-    <View style={{ marginBottom: spacing.md }}>
+    <View style={{ marginTop: spacing.xs, marginBottom: 0 }}>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ flexDirection: 'row-reverse', gap: spacing.xs, paddingVertical: 3 }}
+        contentContainerStyle={{ gap: spacing.xs, paddingVertical: spacing.sm, paddingHorizontal: spacing.xs }}
       >
         {tabs.map((tab) => {
-          const active = isTabActive(pathname, tab, params);
+          const active = isTabActive(pathname, tab);
           return (
             <Pressable
-              key={`${workspace}:${tab.path}:${JSON.stringify(tab.query ?? {})}`}
+              key={`${workspace}:${tab.path}`}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
-              onPress={() => {
-                if (active) return;
-                if (tab.query) router.push({ pathname: tab.path as never, params: tab.query });
-                else router.push(tab.path as never);
-              }}
+              onPress={() => { if (!active) router.push(tab.path as never); }}
               style={{
                 minHeight: 40,
                 justifyContent: 'center',

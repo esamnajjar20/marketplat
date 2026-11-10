@@ -6,6 +6,16 @@ describe('central navigation policy', () => {
     expect(new Set(MAIN_TABS.map((item) => item.path)).size).toBe(MAIN_TABS.length);
     expect(new Set(DRAWER_ITEMS.map((item) => item.path)).size).toBe(DRAWER_ITEMS.length);
   });
+  it('keeps explore and add out of the drawer while exposing web-like workspaces', () => {
+    expect(DRAWER_ITEMS.some((item) => item.path === '/explore')).toBe(false);
+    expect(DRAWER_ITEMS.some((item) => item.path === '/add')).toBe(false);
+    for (const section of ['المبيعات', 'متجري', 'خدماتي', 'نشاطي', 'الإعدادات']) {
+      expect(DRAWER_ITEMS.some((item) => item.section === section)).toBe(true);
+    }
+    for (const path of ['/search', '/ads', '/products', '/services', '/requests', '/stores', '/service-providers', '/sellers-ranking']) {
+      expect(DRAWER_ITEMS.some((item) => item.path === path)).toBe(true);
+    }
+  });
   it('classifies nested public market routes consistently', () => {
     expect(getActiveMainTab('/products/abc')).toBe('explore');
     expect(getActiveMainTab('/stores/abc')).toBe('explore');

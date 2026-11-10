@@ -268,8 +268,8 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   favoriteBtn: {
     position: 'absolute',
     top: 8,
-    // In the app's native RTL layout, this edge maps to the image column.
-    left: 8,
+    // Logical start keeps the favorite control on the leading edge in RTL/LTR.
+    start: 8,
     zIndex: 2,
     width: 36,
     height: 36,
@@ -323,6 +323,7 @@ type HorizontalMarketCardProps = {
   imageResizeMode?: 'cover' | 'contain';
   glyph?: string;
   onPress: () => void;
+  onImageError?: () => void;
   width?: number;
 };
 
@@ -338,6 +339,7 @@ function HorizontalMarketCardComponent({
   imageResizeMode = 'cover',
   glyph = '◇',
   onPress,
+  onImageError,
   width = 160,
 }: HorizontalMarketCardProps) {
   const { colors } = useAppTheme();
@@ -354,7 +356,7 @@ function HorizontalMarketCardComponent({
       {imageUri && !imageFailed ? (
         <AppImage
           uri={imageUri}
-          onError={() => setImageFailed(true)}
+          onError={() => { setImageFailed(true); onImageError?.(); }}
           resizeMode={imageResizeMode}
           style={hStyles.image}
         />
@@ -385,6 +387,52 @@ function HorizontalMarketCardComponent({
 export const HorizontalMarketCard = memo(HorizontalMarketCardComponent);
 HorizontalMarketCard.displayName = 'HorizontalMarketCard';
 
+type HorizontalAdCardProps = {
+  title: string;
+  price: string;
+  meta?: string;
+  imageUri?: string | null;
+  isFavorite: boolean;
+  isNegotiable?: boolean;
+  onPress: () => void;
+  onToggleFavorite: () => void;
+  onImageError?: () => void;
+};
+
+/** Ad tile uses the same vertical dimensions as the other home-section cards. */
+export function HorizontalAdCard({
+  title, price, meta, imageUri, isFavorite, isNegotiable, onPress, onToggleFavorite, onImageError,
+}: HorizontalAdCardProps) {
+  const { colors } = useAppTheme();
+  const hStyles = useMemo(() => createThemeHStyles(colors), [colors]);
+  const subtitle = [meta, isNegotiable ? 'قابل للتفاوض' : null].filter(Boolean).join(' · ');
+  return (
+    <View style={{ width: 160, position: 'relative' }}>
+      <HorizontalMarketCard
+        title={title}
+        subtitle={subtitle || undefined}
+        price={price}
+        imageUri={imageUri}
+        onImageError={onImageError}
+        onPress={onPress}
+        width={160}
+      />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
+        accessibilityState={{ selected: isFavorite }}
+        onPress={onToggleFavorite}
+        hitSlop={8}
+        style={({ pressed }) => [hStyles.favoriteButton, pressed && hStyles.pressed]}
+      >
+        <Text style={{ color: isFavorite ? colors.danger : colors.muted, fontSize: fontSizes[17], fontWeight: '800' }}>
+          {isFavorite ? '♥' : '♡'}
+        </Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const createThemeHStyles = (colors: ColorPalette) => StyleSheet.create({
   card: {
     minHeight: 196,
@@ -396,6 +444,7 @@ const createThemeHStyles = (colors: ColorPalette) => StyleSheet.create({
     ...elevation.sm,
   },
   pressed: { opacity: ux.pressedOpacity },
+  favoriteButton: { position: 'absolute', top: spacing.sm, start: spacing.sm, zIndex: 3, width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', ...elevation.sm },
   image: {
     width: '100%',
     height: 132,

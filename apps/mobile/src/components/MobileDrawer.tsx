@@ -196,8 +196,7 @@ function MobileDrawerOverlay({
     return () => { active = false; };
   }, [accessToken, capabilityReloadKey, capabilityRevision, isRestoring, open, user]);
   const drawerWidth = Math.min(screenWidth * 0.86, 360);
-  // Native RTL is enabled for the app; the drawer remains explicitly anchored
-  // to the logical right edge and uses native row direction for its contents.
+  // Anchor to the logical start edge: right in RTL, left in LTR.
   const isRTL = true;
   const progress = useRef(new Animated.Value(0)).current;
   // +24px عند الإغلاق حتى لا يظهر ظل أو حدّ أو بكسل من اللوحة على حافة الشاشة
@@ -297,7 +296,7 @@ function MobileDrawerOverlay({
     router.navigate('/login');
   }, [logout, onClose, user]);
 
-  const sections: DrawerSection[] = ['السوق', 'حسابك', 'المساعدة'];
+  const sections: DrawerSection[] = ['السوق', 'حسابك', 'المبيعات', 'متجري', 'خدماتي', 'نشاطي', 'الإعدادات', 'المساعدة'];
 
   return (
     <>
@@ -305,7 +304,7 @@ function MobileDrawerOverlay({
         pointerEvents={open ? 'none' : 'auto'}
         style={[
           styles.edgeGesture,
-          isRTL ? { right: 0 } : { left: 0 },
+          isRTL ? { start: 0 } : { end: 0 },
           open && styles.edgeGestureDisabled,
         ]}
         {...edgePanResponder.panHandlers}
@@ -333,7 +332,7 @@ function MobileDrawerOverlay({
               transform: [{ translateX }],
               opacity: drawerOpacity,
             },
-            isRTL ? { right: 0 } : { left: 0 },
+            isRTL ? { start: 0 } : { end: 0 },
             // عند الإغلاق: بدون ظل/حد حتى لا يظهر طرف مزعج على الحافة
             !open && styles.drawerClosed,
           ]}

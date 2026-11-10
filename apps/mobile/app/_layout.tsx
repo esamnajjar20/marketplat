@@ -93,7 +93,7 @@ function RootChrome({ children }: { children: ReactNode }) {
           ? 'settings'
           : ['/my-store', '/seller-dashboard', '/my-products', '/product-editor', '/store-collections', '/collections', '/store-promotions', '/store-team', '/store-invites', '/store-hours', '/my-store-analytics'].some(isWithin)
             ? 'store'
-            : ['/my-sales', '/customers', '/debts', '/installments', '/sales-costs', '/sales-insights', '/sale-create', '/sales'].some(isWithin)
+            : ['/my-sales', '/customers', '/debts', '/installments', '/sale-create', '/sales'].some(isWithin)
               ? 'sales'
               : null;
 
@@ -115,8 +115,8 @@ function RootChrome({ children }: { children: ReactNode }) {
           </SafeAreaView>
         ) : null}
         <OfflineCacheNotice />
-        {workspace ? <View style={{ backgroundColor: colors.canvas, paddingHorizontal: spacing.md, paddingTop: spacing.xs, zIndex: 2 }}><WorkspaceTabs workspace={workspace} /></View> : null}
-        {children}
+        <View style={{ flex: 1 }}>{children}</View>
+        {workspace ? <View style={{ backgroundColor: colors.canvas, paddingHorizontal: spacing.md, paddingTop: spacing.xs, paddingBottom: spacing.xs, zIndex: 2 }}><WorkspaceTabs workspace={workspace} /></View> : null}
         <BottomNavigation />
         <ToastHost />
         {blockPrivateScreen ? (
