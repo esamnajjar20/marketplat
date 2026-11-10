@@ -1,12 +1,16 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useState } from 'react';
-
+import { AppIcon } from '@/components/Icons';
+import { useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
+import { goBack } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ApiError } from '@/api/client';
-import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
-import { colors, typography } from '@/theme/tokens';
+import { Field, Notice, PrimaryButton } from '@/components/MobileUI';
+import type { TextInputHandle } from '@/components/ui/Field';
+import { fontSizes, colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 import { registerSchema, validate } from '@/lib/validation';
 import { getSafeAuthRedirect } from '@/lib/safe-auth-redirect';
 import { toAppHref } from '@/lib/typed-navigation';
@@ -21,9 +25,26 @@ export default function RegisterScreen() {
   const [phone, setPhone] = useState('');
   const [city, setCity] = useState('');
   const [error, setError] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
+
+  const nameRef = useRef<TextInputHandle>(null);
+  const emailRef = useRef<TextInputHandle>(null);
+  const passwordRef = useRef<TextInputHandle>(null);
+  const phoneRef = useRef<TextInputHandle>(null);
+  const cityRef = useRef<TextInputHandle>(null);
+
+  const redirectParam = redirect
+    ? { redirect: Array.isArray(redirect) ? redirect[0] : redirect }
+    : undefined;
 
   const submit = async () => {
-    const checked = validate(registerSchema, { name, email, password, phone: normalizeNumericInput(phone), city });
+    const checked = validate(registerSchema, {
+      name,
+      email,
+      password,
+      phone: normalizeNumericInput(phone),
+      city,
+    });
     if (!checked.ok) {
       setError(checked.message);
       return;
@@ -54,52 +75,222 @@ export default function RegisterScreen() {
   };
 
   return (
-    <PageShell title="إنشاء حساب">
-      <Field label="الاسم الكامل" value={name} onChangeText={setName} placeholder="اسمك" />
-      <Field
-        label="البريد الإلكتروني"
-        value={email}
-        onChangeText={setEmail}
-        placeholder="name@example.com"
-        keyboardType="email-address"
-        autoComplete="email"
-      />
-      <Field
-        label="كلمة المرور"
-        value={password}
-        onChangeText={setPassword}
-        placeholder="8 أحرف على الأقل"
-        secureTextEntry
-        autoComplete="new-password"
-      />
-      <Field
-        label="رقم الهاتف (اختياري)"
-        value={phone}
-        onChangeText={setPhone}
-        placeholder="+970…"
-        keyboardType="phone-pad"
-      />
-      <Field label="المدينة (اختياري)" value={city} onChangeText={setCity} placeholder="المدينة" />
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView
+        style={styles.keyboard}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="رجوع"
+            onPress={() => goBack('/login')}
+            style={({ pressed }) => [styles.back, pressed && styles.pressed]}
+          >
+            <AppIcon name="back" size={18} color={colors.brandOnSoft} />
+            <Text style={styles.backText}>رجوع</Text>
+          </Pressable>
 
-      {error ? <Notice>{error}</Notice> : null}
+          <View style={styles.hero}>
+            <View style={styles.logo}>
+              <Text style={styles.logoText}>م</Text>
+            </View>
+            <Text style={styles.title}>إنشاء حساب</Text>
+            <Text style={styles.subtitle}>انضم إلى سوقك المحلي خلال دقيقة</Text>
+          </View>
 
-      <PrimaryButton
-        label="إنشاء الحساب"
-        onPress={() => {
-          void submit();
-        }}
-        busy={isBusy}
-      />
+          <View style={styles.formCard}>
+            <Field
+              label="الاسم الكامل"
+              value={name}
+              inputRef={nameRef}
+              onChangeText={setName}
+              placeholder="اسمك"
+              autoComplete="name"
+              editable={!isBusy}
+              returnKeyType="next"
+              onSubmitEditing={() => emailRef.current?.focus()}
+            />
+            <Field
+              label="البريد الإلكتروني"
+              value={email}
+              inputRef={emailRef}
+              onChangeText={setEmail}
+              placeholder="name@example.com"
+              keyboardType="email-address"
+              autoComplete="email"
+              editable={!isBusy}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+            />
+            <Field
+              label="كلمة المرور"
+              value={password}
+              inputRef={passwordRef}
+              onChangeText={setPassword}
+              placeholder="8 أحرف على الأقل"
+              secureTextEntry={!passwordVisible}
+              autoComplete="new-password"
+              editable={!isBusy}
+              returnKeyType="next"
+              onSubmitEditing={() => phoneRef.current?.focus()}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={passwordVisible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+              accessibilityState={{ selected: passwordVisible }}
+              onPress={() => setPasswordVisible((v) => !v)}
+              style={styles.passwordToggle}
+            >
+              <Text style={styles.linkMuted}>
+                {passwordVisible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+              </Text>
+            </Pressable>
+            <Field
+              label="رقم الهاتف (اختياري)"
+              value={phone}
+              inputRef={phoneRef}
+              onChangeText={setPhone}
+              placeholder="+970…"
+              keyboardType="phone-pad"
+              editable={!isBusy}
+              returnKeyType="next"
+              onSubmitEditing={() => cityRef.current?.focus()}
+            />
+            <Field
+              label="المدينة (اختياري)"
+              value={city}
+              inputRef={cityRef}
+              onChangeText={setCity}
+              placeholder="المدينة"
+              editable={!isBusy}
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                void submit();
+              }}
+            />
 
-      <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/login', params: redirect ? { redirect: Array.isArray(redirect) ? redirect[0] : redirect } : undefined })}>
-        <Text style={{ textAlign: 'center', color: colors.brand, ...typography.bodyStrong, padding: 8 }}>
-          لديك حساب؟ تسجيل الدخول
-        </Text>
-      </Pressable>
+            {error ? <Notice tone="error">{error}</Notice> : null}
 
-      <Notice tone="muted">
-        قد تحتاج إلى تأكيد بريدك الإلكتروني قبل استخدام بعض ميزات السوق.
-      </Notice>
-    </PageShell>
+            <PrimaryButton
+              label="إنشاء الحساب"
+              onPress={() => {
+                void submit();
+              }}
+              busy={isBusy}
+            />
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              router.push({
+                pathname: '/login',
+                params: redirectParam,
+              })
+            }
+            style={styles.footerLink}
+          >
+            <Text style={styles.footerText}>
+              لديك حساب؟ <Text style={styles.footerTextStrong}>تسجيل الدخول</Text>
+            </Text>
+          </Pressable>
+
+          <Notice tone="muted">
+            قد تحتاج إلى تأكيد بريدك الإلكتروني قبل استخدام بعض ميزات السوق.
+          </Notice>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  keyboard: { flex: 1 },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xxl,
+    gap: spacing.lg,
+  },
+  pressed: { opacity: ux.pressedOpacity },
+  back: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: colors.brandSoft,
+  },
+  backText: { color: colors.brandOnSoft, ...typography.captionStrong },
+  hero: {
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  logo: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...elevation.md,
+  },
+  logoText: {
+    color: colors.white,
+    fontSize: fontSizes[28],
+    fontWeight: '700',
+  },
+  title: {
+    color: colors.ink,
+    ...typography.display,
+    textAlign: 'center',
+  },
+  subtitle: {
+    color: colors.muted,
+    ...typography.body,
+    textAlign: 'center',
+  },
+  formCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.card ?? radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    gap: spacing.md,
+    ...elevation.sm,
+  },
+  passwordToggle: {
+    minHeight: 40,
+    alignSelf: 'flex-end',
+    justifyContent: 'center',
+  },
+  linkMuted: {
+    color: colors.muted,
+    ...typography.captionStrong,
+  },
+  footerLink: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerText: {
+    color: colors.muted,
+    ...typography.body,
+    textAlign: 'center',
+  },
+  footerTextStrong: {
+    color: colors.brand,
+    fontWeight: '700',
+  },
+});

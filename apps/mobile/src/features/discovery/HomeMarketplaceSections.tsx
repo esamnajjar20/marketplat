@@ -356,8 +356,12 @@ export default function HomeMarketplaceSections() {
 }
 
 const styles = StyleSheet.create({
-  root: { gap: spacing.xxl },
-  section: { gap: spacing.md },
+  root: {
+    gap: spacing.xxl,
+  },
+  section: {
+    gap: spacing.md,
+  },
   hScroll: { flexDirection: 'row', gap: spacing.md, paddingVertical: 2, paddingEnd: spacing.sm },
   emptyBox: {
     minHeight: 72,

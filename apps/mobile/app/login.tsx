@@ -2,7 +2,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppIcon } from '@/components/Icons';
 import { useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBack } from '@/lib/navigation';
@@ -10,7 +10,7 @@ import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Field, Notice, PrimaryButton } from '@/components/MobileUI';
 import type { TextInputHandle } from '@/components/ui/Field';
-import { fontSizes, colors, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 import { loginSchema, validate } from '@/lib/validation';
 import { getSafeAuthRedirect } from '@/lib/safe-auth-redirect';
 import { toAppHref } from '@/lib/typed-navigation';
@@ -25,6 +25,10 @@ export default function LoginScreen() {
   const [googleBusy, setGoogleBusy] = useState(false);
   const emailInputRef = useRef<TextInputHandle>(null);
   const passwordInputRef = useRef<TextInputHandle>(null);
+
+  const redirectParam = redirect
+    ? { redirect: Array.isArray(redirect) ? redirect[0] : redirect }
+    : undefined;
 
   const submit = async () => {
     const checked = validate(loginSchema, { email, password });
@@ -63,7 +67,9 @@ export default function LoginScreen() {
       if (target) router.replace(toAppHref(target));
       else router.replace('/');
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'تعذر تسجيل الدخول باستخدام Google.');
+      setErrorMessage(
+        error instanceof Error ? error.message : 'تعذر تسجيل الدخول باستخدام Google.',
+      );
     } finally {
       setGoogleBusy(false);
     }
@@ -71,76 +77,135 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView style={styles.keyboard} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Pressable accessibilityRole="button" onPress={() => goBack('/')} style={styles.back}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><AppIcon name="back" size={18} color={colors.brand} /><Text style={styles.backText}>رجوع</Text></View>
-        </Pressable>
-
-        <View style={styles.logo}>
-          <Text style={styles.logoText}>م</Text>
-        </View>
-        <Text style={styles.title}>أهلًا بعودتك</Text>
-        <Text style={styles.subtitle}>سجّل دخولك إلى حساب MarketPlat</Text>
-
-        <Field
-          label="البريد الإلكتروني"
-          value={email}
-          inputRef={emailInputRef}
-          onChangeText={setEmail}
-          placeholder="name@example.com"
-          keyboardType="email-address"
-          autoComplete="email"
-          editable={!isBusy}
-          returnKeyType="next"
-          onSubmitEditing={() => passwordInputRef.current?.focus()}
-        />
-        <Field
-          label="كلمة المرور"
-          value={password}
-          inputRef={passwordInputRef}
-          onChangeText={setPassword}
-          placeholder="أدخل كلمة المرور"
-          secureTextEntry={!passwordVisible}
-          autoComplete="current-password"
-          editable={!isBusy}
-          returnKeyType="done"
-          onSubmitEditing={() => { void submit(); }}
-        />
-        <Pressable accessibilityRole="button" accessibilityLabel={passwordVisible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'} accessibilityState={{ selected: passwordVisible }} onPress={() => setPasswordVisible((visible) => !visible)} style={styles.passwordToggle}>
-          <Text style={styles.link}>{passwordVisible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}</Text>
-        </Pressable>
-
-        {errorMessage ? <Notice tone="error">{errorMessage}</Notice> : null}
-
-        <PrimaryButton
-          label="تسجيل الدخول"
-          onPress={() => {
-            void submit();
-          }}
-          busy={isBusy}
-        />
-
-        <View style={styles.dividerRow}><View style={styles.divider} /><Text style={styles.dividerText}>أو</Text><View style={styles.divider} /></View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="المتابعة باستخدام Google"
-          accessibilityState={{ disabled: isBusy || googleBusy }}
-          disabled={isBusy || googleBusy}
-          onPress={() => { void submitGoogle(); }}
-          style={({ pressed }) => [styles.googleButton, pressed && { opacity: 0.78 }, (isBusy || googleBusy) && { opacity: 0.6 }]}
+      <KeyboardAvoidingView
+        style={styles.keyboard}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+      >
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.googleGlyph}>G</Text>
-          <Text style={styles.googleText}>{googleBusy ? 'جارٍ الاتصال بـ Google…' : 'المتابعة باستخدام Google'}</Text>
-        </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="رجوع"
+            onPress={() => goBack('/')}
+            style={({ pressed }) => [styles.back, pressed && styles.pressed]}
+          >
+            <AppIcon name="back" size={18} color={colors.brandOnSoft} />
+            <Text style={styles.backText}>رجوع</Text>
+          </Pressable>
 
-        <Pressable accessibilityRole="button" onPress={() => router.push('/forgot-password')} style={styles.linkBtn}>
-          <Text style={styles.link}>نسيت كلمة المرور؟</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/register', params: redirect ? { redirect: Array.isArray(redirect) ? redirect[0] : redirect } : undefined })} style={styles.linkBtn}>
-          <Text style={styles.link}>إنشاء حساب جديد</Text>
-        </Pressable>
-      </ScrollView>
+          <View style={styles.hero}>
+            <View style={styles.logo}>
+              <Text style={styles.logoText}>م</Text>
+            </View>
+            <Text style={styles.title}>أهلًا بعودتك</Text>
+            <Text style={styles.subtitle}>سجّل دخولك إلى حساب MarketPlat</Text>
+          </View>
+
+          <View style={styles.formCard}>
+            <Field
+              label="البريد الإلكتروني"
+              value={email}
+              inputRef={emailInputRef}
+              onChangeText={setEmail}
+              placeholder="name@example.com"
+              keyboardType="email-address"
+              autoComplete="email"
+              editable={!isBusy}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordInputRef.current?.focus()}
+            />
+            <Field
+              label="كلمة المرور"
+              value={password}
+              inputRef={passwordInputRef}
+              onChangeText={setPassword}
+              placeholder="أدخل كلمة المرور"
+              secureTextEntry={!passwordVisible}
+              autoComplete="current-password"
+              editable={!isBusy}
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                void submit();
+              }}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={passwordVisible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+              accessibilityState={{ selected: passwordVisible }}
+              onPress={() => setPasswordVisible((visible) => !visible)}
+              style={styles.passwordToggle}
+            >
+              <Text style={styles.linkMuted}>
+                {passwordVisible ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+              </Text>
+            </Pressable>
+
+            {errorMessage ? <Notice tone="error">{errorMessage}</Notice> : null}
+
+            <PrimaryButton
+              label="تسجيل الدخول"
+              onPress={() => {
+                void submit();
+              }}
+              busy={isBusy}
+            />
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/forgot-password')}
+              style={styles.linkBtn}
+            >
+              <Text style={styles.link}>نسيت كلمة المرور؟</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.dividerRow}>
+            <View style={styles.divider} />
+            <Text style={styles.dividerText}>أو</Text>
+            <View style={styles.divider} />
+          </View>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="المتابعة باستخدام Google"
+            accessibilityState={{ disabled: isBusy || googleBusy }}
+            disabled={isBusy || googleBusy}
+            onPress={() => {
+              void submitGoogle();
+            }}
+            style={({ pressed }) => [
+              styles.googleButton,
+              pressed && styles.pressed,
+              (isBusy || googleBusy) && styles.disabled,
+            ]}
+          >
+            <View style={styles.googleGlyphWrap}>
+              <Text style={styles.googleGlyph}>G</Text>
+            </View>
+            <Text style={styles.googleText}>
+              {googleBusy ? 'جارٍ الاتصال بـ Google…' : 'المتابعة باستخدام Google'}
+            </Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              router.push({
+                pathname: '/register',
+                params: redirectParam,
+              })
+            }
+            style={styles.footerLink}
+          >
+            <Text style={styles.footerText}>
+              ليس لديك حساب؟ <Text style={styles.footerTextStrong}>إنشاء حساب</Text>
+            </Text>
+          </Pressable>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -151,33 +216,140 @@ const styles = StyleSheet.create({
   keyboard: { flex: 1 },
   content: {
     flexGrow: 1,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xxl,
     gap: spacing.lg,
     justifyContent: 'center',
   },
-  back: { alignSelf: 'flex-start', paddingVertical: spacing.sm },
-  backText: { color: colors.brand, ...typography.bodyStrong },
+  pressed: { opacity: ux.pressedOpacity },
+  disabled: { opacity: 0.55 },
+  back: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minHeight: 44,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: colors.brandSoft,
+  },
+  backText: { color: colors.brandOnSoft, ...typography.captionStrong },
+  hero: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
   logo: {
     width: 72,
     height: 72,
-    borderRadius: 24,
+    borderRadius: 22,
     backgroundColor: colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
-    alignSelf: 'center',
+    ...elevation.md,
   },
-  logoText: { color: colors.white, fontSize: fontSizes[32], fontWeight: '800' },
-  title: { color: colors.ink, ...typography.display, textAlign: 'center', fontSize: fontSizes[26], lineHeight: 34 },
-  subtitle: { color: colors.muted, ...typography.body, textAlign: 'center', marginBottom: spacing.sm },
-  linkBtn: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  passwordToggle: { minHeight: 44, alignSelf: 'flex-end', justifyContent: 'center', paddingHorizontal: spacing.sm },
-  link: { color: colors.brand, ...typography.bodyStrong, textAlign: 'center' },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  divider: { flex: 1, height: 1, backgroundColor: colors.border },
-  dividerText: { color: colors.muted, ...typography.caption },
-  googleButton: { minHeight: 52, borderRadius: 14, borderWidth: 1, borderColor: colors.controlBorder, backgroundColor: colors.surface, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 16 },
-  googleGlyph: { color: colors.brand, fontWeight: '900', fontSize: fontSizes[19] },
-  googleText: { color: colors.ink, ...typography.bodyStrong },
+  logoText: {
+    color: colors.white,
+    fontSize: fontSizes[32],
+    fontWeight: '700',
+  },
+  title: {
+    color: colors.ink,
+    ...typography.display,
+    textAlign: 'center',
+  },
+  subtitle: {
+    color: colors.muted,
+    ...typography.body,
+    textAlign: 'center',
+  },
+  formCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.card ?? radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    gap: spacing.md,
+    ...elevation.sm,
+  },
+  passwordToggle: {
+    minHeight: 40,
+    alignSelf: 'flex-end',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
+  },
+  link: {
+    color: colors.brand,
+    ...typography.captionStrong,
+    textAlign: 'center',
+  },
+  linkMuted: {
+    color: colors.muted,
+    ...typography.captionStrong,
+  },
+  linkBtn: {
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  divider: {
+    flex: 1,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    color: colors.muted,
+    ...typography.caption,
+  },
+  googleButton: {
+    minHeight: 52,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong ?? colors.border,
+    backgroundColor: colors.surface,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: spacing.lg,
+    ...elevation.xs,
+  },
+  googleGlyphWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: colors.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleGlyph: {
+    color: colors.brand,
+    fontWeight: '800',
+    fontSize: fontSizes[16],
+  },
+  googleText: {
+    color: colors.ink,
+    ...typography.bodyStrong,
+  },
+  footerLink: {
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerText: {
+    color: colors.muted,
+    ...typography.body,
+    textAlign: 'center',
+  },
+  footerTextStrong: {
+    color: colors.brand,
+    fontWeight: '700',
+  },
 });

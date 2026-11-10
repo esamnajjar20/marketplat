@@ -22,7 +22,7 @@ import { fontSizes, colors, elevation, radius, sizes, spacing, typography, ux } 
 type Destination = { title: string; description: string; path: string };
 type DestinationGroup = { title: string; subtitle: string; items: Destination[] };
 
-/** اختصارات سريعة — شبكة أيقونات في أعلى الحساب */
+/** اختصارات سريعة — شبكة في أعلى الحساب */
 const QUICK_ACTIONS: { title: string; path: string; icon: string }[] = [
   { title: 'الرسائل', path: '/messages', icon: 'messages' },
   { title: 'الإشعارات', path: '/notifications', icon: 'notification' },
@@ -30,6 +30,14 @@ const QUICK_ACTIONS: { title: string; path: string; icon: string }[] = [
   { title: 'مفضلتي', path: '/favorites', icon: 'favorite' },
   { title: 'مبيعاتي', path: '/my-sales', icon: 'orders' },
   { title: 'طلباتي', path: '/orders', icon: 'orders' },
+];
+
+/** وجهات أساسية تظهر دائماً دون طي */
+const ESSENTIALS: Destination[] = [
+  { title: 'الملف الشخصي', description: 'بياناتك وصورتك ورقم الهاتف', path: '/profile' },
+  { title: 'الإعدادات', description: 'التفضيلات والإشعارات والأمان', path: '/settings' },
+  { title: 'النشاط', description: 'مراجعة نشاط حسابك', path: '/activity' },
+  { title: 'المتابَعون', description: 'الحسابات والمتاجر التي تتابعها', path: '/following' },
 ];
 
 const groups: DestinationGroup[] = [
@@ -46,44 +54,64 @@ const groups: DestinationGroup[] = [
     title: 'ملفي ونشاطي',
     subtitle: 'بياناتك والمحتوى الذي تتابعه',
     items: [
-      { title: 'الملف الشخصي', description: 'تعديل بيانات الملف والصورة ورقم الهاتف', path: '/profile' },
       { title: 'مخصّص لك', description: 'اكتشف محتوى مقترحًا وفق اهتماماتك', path: '/for-you' },
-      { title: 'المحفوظات المحلية للدفع', description: 'جهات الدفع وبطاقات الإنترنت على هذا الجهاز', path: '/saved-payments' },
-      { title: 'الأشخاص الذين أتابعهم', description: 'إدارة الحسابات التي تتابعها', path: '/following' },
-      { title: 'عمليات البحث المحفوظة', description: 'الوصول إلى عمليات البحث التي احتفظت بها', path: '/saved-searches' },
-      { title: 'المتاجر التي أتابعها', description: 'اكتشف آخر تحديثات المتاجر التي تتابعها', path: '/followed-stores' },
-      { title: 'النشاط', description: 'مراجعة نشاط الحساب', path: '/activity' },
+      { title: 'المحفوظات المحلية للدفع', description: 'جهات الدفع على هذا الجهاز', path: '/saved-payments' },
+      { title: 'عمليات البحث المحفوظة', description: 'عمليات البحث التي احتفظت بها', path: '/saved-searches' },
+      { title: 'المتاجر التي أتابعها', description: 'آخر تحديثات المتاجر المتابَعة', path: '/followed-stores' },
     ],
   },
   {
     title: 'إدارة المتجر والخدمات',
-    subtitle: 'الأدوات التجارية التي تحتاجها عند البيع',
+    subtitle: 'الأدوات التجارية عند البيع',
     items: [
-      { title: 'ملف البائع', description: 'إعداد ملفك كبائع — شرط أساسي لإنشاء متجر أو خدمة', path: '/seller-profile' },
+      { title: 'ملف البائع', description: 'إعداد ملفك كبائع — شرط لإنشاء متجر أو خدمة', path: '/seller-profile' },
       { title: 'متجري', description: 'إدارة بيانات المتجر والهوية التجارية', path: '/my-store' },
       { title: 'منتجاتي', description: 'إدارة المنتجات والأسعار والمخزون', path: '/my-products' },
       { title: 'خدماتي', description: 'إدارة الخدمات التي تعرضها', path: '/my-services' },
-      { title: 'الطلبات التي نشرتها', description: 'متابعة طلباتك وعدد العروض الواردة عليها', path: '/my-requests' },
+      { title: 'الطلبات التي نشرتها', description: 'متابعة طلباتك والعروض الواردة', path: '/my-requests' },
       { title: 'العروض التي قدمتها', description: 'متابعة عروضك على طلبات الآخرين', path: '/my-offers' },
-      { title: 'المواعيد', description: 'متابعة مواعيد الخدمات والحجوزات', path: '/appointments' },
+      { title: 'المواعيد', description: 'مواعيد الخدمات والحجوزات', path: '/appointments' },
       { title: 'ملف مقدم الخدمة', description: 'إدارة بيانات نشاط الخدمات', path: '/service-provider-profile' },
-      { title: 'إحصاءات المتجر', description: 'مراجعة الزيارات والمتابعين وأداء المنتجات', path: '/my-store-analytics' },
-      { title: 'لوحة البائع', description: 'ملخص حالة المتجر والمهام والإحصاءات', path: '/seller-dashboard' },
+      { title: 'إحصاءات المتجر', description: 'الزيارات والمتابعون وأداء المنتجات', path: '/my-store-analytics' },
+      { title: 'لوحة البائع', description: 'ملخص حالة المتجر والمهام', path: '/seller-dashboard' },
     ],
   },
   {
-    title: 'الإعدادات والخصوصية',
-    subtitle: 'إدارة الجهاز والأمان والتفضيلات',
+    title: 'الخصوصية والأمان',
+    subtitle: 'إدارة الجهاز والحظر والبلاغات',
     items: [
-      { title: 'الإعدادات', description: 'إدارة تفضيلات الحساب والإشعارات', path: '/settings' },
       { title: 'المستخدمون المحظورون', description: 'مراجعة قائمة الحظر', path: '/blocked-users' },
       { title: 'بلاغاتي', description: 'متابعة البلاغات التي أرسلتها', path: '/my-reports' },
-      { title: 'التخزين والبيانات المحلية', description: 'إدارة المساحة والملفات المحفوظة على الجهاز', path: '/storage' },
+      { title: 'التخزين والبيانات المحلية', description: 'المساحة والملفات المحفوظة على الجهاز', path: '/storage' },
     ],
   },
 ];
 
-export default function AccountHubScreen() {
+function canShowStoreItem(
+  item: Destination,
+  user: unknown,
+  hasStore: boolean,
+  hasProvider: boolean,
+  groupTitle: string,
+): boolean {
+  if (groupTitle !== 'إدارة المتجر والخدمات') return true;
+  if (!user) return false;
+  if (item.path === '/seller-profile') return !hasStore;
+  if (
+    item.path === '/my-store' ||
+    item.path === '/my-products' ||
+    item.path === '/my-store-analytics' ||
+    item.path === '/seller-dashboard'
+  ) {
+    return hasStore;
+  }
+  if (item.path === '/service-provider-profile') return true;
+  if (item.path === '/appointments') return hasProvider;
+  if (item.path === '/my-services') return hasProvider || hasStore;
+  return true;
+}
+
+export default function AccountScreen() {
   const { user, accessToken } = useAuth();
   const [hasStore, setHasStore] = useState(false);
   const [hasProvider, setHasProvider] = useState(false);
@@ -95,6 +123,7 @@ export default function AccountHubScreen() {
     if (!accessToken) {
       setHasStore(false);
       setHasProvider(false);
+      setProfilesLoading(false);
       return () => {
         active = false;
       };
@@ -123,15 +152,21 @@ export default function AccountHubScreen() {
   };
 
   const displayName =
-    (user as any)?.displayName || (user as any)?.name || user?.email?.split('@')[0] || 'زائر';
+    (user as { displayName?: string; name?: string } | null)?.displayName ||
+    (user as { name?: string } | null)?.name ||
+    user?.email?.split('@')[0] ||
+    'زائر';
+
+  const needsProfile = Boolean((user as { needsProfileCompletion?: boolean } | null)?.needsProfileCompletion);
 
   return (
     <PageShell title="حسابي">
-      {/* بطاقة الملف الشخصي */}
+      {/* بطاقة الملف */}
       <SectionCard
         onPress={user ? () => open('/profile') : undefined}
         style={styles.profileCard}
       >
+        <View style={styles.profileAccent} />
         <View style={styles.profileRow}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{displayName.charAt(0).toUpperCase()}</Text>
@@ -145,12 +180,15 @@ export default function AccountHubScreen() {
                 ? user.email || 'اضغط لتعديل ملفك الشخصي'
                 : 'سجّل الدخول للوصول إلى حسابك'}
             </Text>
+            {user ? (
+              <Text style={styles.profileHint}>عرض الملف ←</Text>
+            ) : null}
           </View>
         </View>
         {!user ? (
           <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
         ) : null}
-        {(user as any)?.needsProfileCompletion ? (
+        {needsProfile ? (
           <PrimaryButton
             label="أكمل ملفك الشخصي"
             variant="secondary"
@@ -159,7 +197,7 @@ export default function AccountHubScreen() {
         ) : null}
       </SectionCard>
 
-      {/* شبكة الاختصارات السريعة */}
+      {/* اختصارات سريعة */}
       {user ? (
         <View style={styles.quickSection}>
           <SectionHeader title="الوصول السريع" />
@@ -173,7 +211,7 @@ export default function AccountHubScreen() {
                 style={({ pressed }) => [styles.quickItem, pressed && styles.pressed]}
               >
                 <View style={styles.quickIcon}>
-                  <AppIcon name={action.icon as any} size={22} color={colors.brandOnSoft} />
+                  <AppIcon name={action.icon as never} size={22} color={colors.brandOnSoft} />
                 </View>
                 <Text style={styles.quickLabel} numberOfLines={1}>
                   {action.title}
@@ -184,37 +222,49 @@ export default function AccountHubScreen() {
         </View>
       ) : null}
 
-      {/* المجموعات التفصيلية */}
+      {/* أساسيات دائماً ظاهرة */}
+      {user ? (
+        <View style={styles.group}>
+          <SectionHeader title="الأساسيات" subtitle="ملفك وإعداداتك" />
+          <View style={styles.listCard}>
+            {ESSENTIALS.map((item, index) => (
+              <View key={item.path}>
+                <ListRow
+                  title={item.title}
+                  description={item.description}
+                  onPress={() => open(item.path)}
+                />
+                {index < ESSENTIALS.length - 1 ? <View style={styles.rowDivider} /> : null}
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
+      {/* بقية الوجهات — مطوية */}
       {showAllDestinations
         ? groups.map((group) => {
-            const remainingItems = group.items.filter((item) => {
-              if (group.title !== 'إدارة المتجر والخدمات') return true;
-              if (!user) return false;
-              if (item.path === '/seller-profile') return !hasStore;
-              if (
-                item.path === '/my-store' ||
-                item.path === '/my-products' ||
-                item.path === '/my-store-analytics' ||
-                item.path === '/seller-dashboard'
-              )
-                return hasStore;
-              if (item.path === '/service-provider-profile') return true;
-              if (item.path === '/appointments') return hasProvider;
-              if (item.path === '/my-services') return hasProvider || hasStore;
-              return true;
-            });
+            const remainingItems = group.items.filter((item) =>
+              canShowStoreItem(item, user, hasStore, hasProvider, group.title),
+            );
             if (!remainingItems.length) return null;
             return (
               <View key={group.title} style={styles.group}>
                 <SectionHeader title={group.title} subtitle={group.subtitle} />
-                {remainingItems.map((item) => (
-                  <ListRow
-                    key={item.path}
-                    title={item.title}
-                    description={item.description}
-                    onPress={() => open(item.path)}
-                  />
-                ))}
+                <View style={styles.listCard}>
+                  {remainingItems.map((item, index) => (
+                    <View key={item.path}>
+                      <ListRow
+                        title={item.title}
+                        description={item.description}
+                        onPress={() => open(item.path)}
+                      />
+                      {index < remainingItems.length - 1 ? (
+                        <View style={styles.rowDivider} />
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
               </View>
             );
           })
@@ -239,6 +289,16 @@ export default function AccountHubScreen() {
 const styles = StyleSheet.create({
   profileCard: {
     gap: spacing.md,
+    overflow: 'hidden',
+    paddingTop: spacing.lg + 4,
+  },
+  profileAccent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 6,
+    backgroundColor: colors.brand,
   },
   profileRow: {
     flexDirection: 'row-reverse',
@@ -246,22 +306,24 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   avatar: {
-    width: sizes.avatarLg,
-    height: sizes.avatarLg,
-    borderRadius: sizes.avatarLg / 2,
+    width: sizes.avatarLg ?? 64,
+    height: sizes.avatarLg ?? 64,
+    borderRadius: (sizes.avatarLg ?? 64) / 2,
     backgroundColor: colors.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.brandSoftActive ?? colors.border,
   },
   avatarText: {
     ...typography.title,
     color: colors.brandOnSoft,
-    fontSize: fontSizes[22],
+    fontSize: fontSizes[24],
   },
   profileInfo: {
     flex: 1,
     alignItems: 'flex-end',
-    gap: 2,
+    gap: 3,
   },
   profileName: {
     ...typography.subtitle,
@@ -275,6 +337,12 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     width: '100%',
   },
+  profileHint: {
+    ...typography.captionStrong,
+    color: colors.brand,
+    textAlign: 'right',
+    marginTop: 2,
+  },
   quickSection: {
     gap: spacing.md,
   },
@@ -285,21 +353,21 @@ const styles = StyleSheet.create({
   },
   quickItem: {
     width: '31%',
-    minWidth: 96,
+    minWidth: 100,
     flexGrow: 1,
     alignItems: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.sm,
     backgroundColor: colors.surface,
-    borderRadius: radius.card,
-    borderWidth: 1,
+    borderRadius: radius.card ?? radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     ...elevation.sm,
   },
   quickIcon: {
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
     borderRadius: 14,
     backgroundColor: colors.brandSoft,
     alignItems: 'center',
@@ -312,6 +380,19 @@ const styles = StyleSheet.create({
   },
   group: {
     gap: spacing.md,
+  },
+  listCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.card ?? radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    overflow: 'hidden',
+    ...elevation.sm,
+  },
+  rowDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.md,
   },
   pressed: {
     opacity: ux.pressedOpacity,

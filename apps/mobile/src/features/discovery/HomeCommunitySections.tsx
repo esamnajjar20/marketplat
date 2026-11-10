@@ -3,7 +3,7 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useEffect, useRef, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { useOnlineResync } from '@/lib/useOnlineResync';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchStores, type StoreSummary } from '@/features/commerce/commerce.api';
@@ -12,6 +12,7 @@ import { fontSizes, colors, elevation, radius, sizes, spacing, typography, ux } 
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import { AppImage } from '@/components/AppImage';
 import { HorizontalMarketCard } from '@/components/MarketCards';
+import { SectionHeader } from '@/components/MobileUI';
 
 const PUBLIC_STORES_CACHE_KEY = 'home:public-stores:v1';
 const PUBLIC_STORES_TTL_MS = 10 * 60 * 1000;
@@ -49,7 +50,6 @@ export default function HomeCommunitySections() {
   const [failedStoryAvatars, setFailedStoryAvatars] = useState<string[]>([]);
   const reconnectRefreshRef = useRef<() => void>(() => undefined);
   useOnlineResync(() => reconnectRefreshRef.current());
-  // Never render a private feed unless it belongs to the currently authenticated account.
   const visibleStories = accessToken && user?.id && storiesOwnerId === user.id ? stories : [];
   const [communityExpanded, setCommunityExpanded] = useState(false);
   const visibleStores = communityExpanded ? stores : stores.slice(0, 4);
@@ -60,7 +60,6 @@ export default function HomeCommunitySections() {
     let requestInFlight = false;
     let refreshQueued = false;
     let lastStoresSuccessfulAt = 0;
-    // Never keep a prior account's private story feed while a new session is loading.
     setStories([]);
     setStoriesOwnerId(null);
 
@@ -73,45 +72,56 @@ export default function HomeCommunitySections() {
       requestInFlight = true;
       try {
         let networkState: Awaited<ReturnType<typeof NetInfo.fetch>> | null = null;
-        try { networkState = await NetInfo.fetch(); } catch { /* Unknown connectivity: attempt best-effort requests. */ }
-        if (!active || networkState !== null && networkState.isConnected === false) {
+        try {
+          networkState = await NetInfo.fetch();
+        } catch {
+          /* Unknown connectivity */
+        }
+        if (!active || (networkState !== null && networkState.isConnected === false)) {
           if (active && !accessToken) setStories([]);
           return;
         }
 
         const tasks: Promise<void>[] = [];
-        const storesCacheIsFresh = lastStoresSuccessfulAt > 0 && Date.now() - lastStoresSuccessfulAt < PUBLIC_STORES_TTL_MS;
+        const storesCacheIsFresh =
+          lastStoresSuccessfulAt > 0 && Date.now() - lastStoresSuccessfulAt < PUBLIC_STORES_TTL_MS;
         if (force || !storesCacheIsFresh) {
-          tasks.push(fetchStores({ page: 1, limit: 10 })
-            .then(async (result) => {
-              const nextStores = result.items.slice(0, 6);
-              if (!active) return;
-              lastStoresSuccessfulAt = Date.now();
-              await writePublicCache(PUBLIC_STORES_CACHE_KEY, nextStores);
-              if (active) setStores(nextStores);
-            })
-            .catch(() => { /* Preserve the last successful public snapshot. */ }));
+          tasks.push(
+            fetchStores({ page: 1, limit: 10 })
+              .then(async (result) => {
+                const nextStores = result.items.slice(0, 6);
+                if (!active) return;
+                lastStoresSuccessfulAt = Date.now();
+                await writePublicCache(PUBLIC_STORES_CACHE_KEY, nextStores);
+                if (active) setStores(nextStores);
+              })
+              .catch(() => {
+                /* Preserve last snapshot */
+              }),
+          );
         }
 
         if (accessToken) {
-          // Story feeds are private and do not persist them in the public cache; keep them memory-only.
-          tasks.push(fetchStoryFeed(accessToken)
-            .then((result) => {
-              if (active && user?.id) {
-                setStories(result.slice(0, 8));
-                setStoriesOwnerId(user.id);
-              }
-            })
-            .catch(() => { /* Preserve the current session's last successful story feed. */ }));
+          tasks.push(
+            fetchStoryFeed(accessToken)
+              .then((result) => {
+                if (active && user?.id) {
+                  setStories(result.slice(0, 8));
+                  setStoriesOwnerId(user.id);
+                }
+              })
+              .catch(() => {
+                /* Preserve session stories */
+              }),
+          );
         } else {
           setStories([]);
         }
         await Promise.all(tasks);
       } catch {
-        // Unknown connectivity still permits a best-effort refresh; keep cached content on failure.
+        /* keep cached */
       } finally {
         requestInFlight = false;
-        // Preserve a reconnect-triggered refresh that arrived during an in-flight request.
         if (active && refreshQueued) {
           refreshQueued = false;
           void refresh(true);
@@ -120,7 +130,6 @@ export default function HomeCommunitySections() {
     };
 
     void (async () => {
-      // Restore public stores immediately; authenticated story data is never persisted.
       const cachedStores = await readPublicCacheEntry<StoreSummary[]>(PUBLIC_STORES_CACHE_KEY);
       if (active && cachedStores && Array.isArray(cachedStores.value)) {
         setStores(cachedStores.value.slice(0, 6));
@@ -130,62 +139,75 @@ export default function HomeCommunitySections() {
       await refresh();
     })();
 
-    reconnectRefreshRef.current = () => { void refresh(true); };
-    return () => { active = false; reconnectRefreshRef.current = () => undefined; };
+    reconnectRefreshRef.current = () => {
+      void refresh(true);
+    };
+    return () => {
+      active = false;
+      reconnectRefreshRef.current = () => undefined;
+    };
   }, [accessToken, isRestoring, user?.id]);
 
   return (
-    <View style={{ gap: spacing.xl }}>
-      <View style={{ gap: spacing.md }}>
-          <View style={{ minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={{ color: colors.ink, fontSize: fontSizes[16], fontWeight: '700', textAlign: 'right' }}>متاجر تستحق الاكتشاف</Text>
-              <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>تعرّف على المتاجر المحلية ومنتجاتها</Text>
-            </View>
-            <Pressable accessibilityRole="button" onPress={() => router.push('/stores')} hitSlop={8}>
-              <Text style={{ color: colors.brand, fontWeight: '600', fontSize: fontSizes[12] }}>عرض الكل</Text>
-            </Pressable>
-          </View>
-          {visibleStores.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: spacing.md, paddingVertical: 2 }}>
-              {visibleStores.map((store) => <StoreCard key={store.id} store={store} />)}
-            </ScrollView>
-          ) : (
-            <View style={{ minHeight: 68, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, backgroundColor: colors.surface, padding: spacing.md, justifyContent: 'center' }}>
-              <Text style={{ color: colors.muted, fontSize: fontSizes[12], lineHeight: 19, textAlign: 'right' }}>لا توجد متاجر متاحة للعرض حاليًا. سيظهر هنا أحدث المتاجر عند توفرها.</Text>
-            </View>
-          )}
-        </View>
-
-      {/* القصص تظهر بعد توسيع قسم المجتمع لتقليل الكثافة على الشاشات الصغيرة */}
-      {communityExpanded && visibleStories.length > 0 ? (
-        <View style={{ gap: spacing.sm }}>
-          <View style={{ minHeight: 36, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={{ color: colors.ink, fontSize: fontSizes[18], fontWeight: '700', textAlign: 'right' }}>قصص وتحديثات جديدة</Text>
-              <Text style={{ color: colors.muted, fontSize: fontSizes[12], textAlign: 'right' }}>تابع آخر ما يشاركه الأشخاص الذين تتابعهم</Text>
-            </View>
-            <Pressable accessibilityRole="button" onPress={() => router.push('/stories')} hitSlop={8}>
-              <Text style={{ color: colors.brand, fontWeight: '600', fontSize: fontSizes[12] }}>عرض الكل</Text>
-            </Pressable>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: spacing.md, paddingVertical: 2 }}>
+    <View style={styles.root}>
+      {/* القصص أولاً إن وُجدت — عنصر اجتماعي خفيف */}
+      {visibleStories.length > 0 ? (
+        <View style={styles.section}>
+          <SectionHeader title="قصص المجتمع" subtitle="ماذا ينشر الجيران الآن" />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.hScroll}
+          >
             {visibleStories.map((group) => {
               const latest = group.stories[0];
               if (!latest) return null;
-              const avatar = failedStoryAvatars.includes(group.user.id) ? null : (group.user.avatarUrl || latest.mediaUrl || null);
+              const avatar = failedStoryAvatars.includes(group.user.id)
+                ? null
+                : group.user.avatarUrl || latest.mediaUrl || null;
               return (
                 <Pressable
                   key={group.user.id}
                   accessibilityRole="button"
                   accessibilityLabel={`عرض قصص ${group.user.name}`}
-                  onPress={() => router.push({ pathname: '/stories/[id]', params: { id: latest.id, userId: latest.userId } })}
-                  style={{ width: 78, alignItems: 'center', gap: 6 }}
+                  onPress={() =>
+                    router.push({
+                      pathname: '/stories/[id]',
+                      params: { id: latest.id, userId: latest.userId },
+                    })
+                  }
+                  style={({ pressed }) => [styles.storyItem, pressed && styles.pressed]}
                 >
-                  <View style={{ width: 68, height: 68, borderRadius: 34, padding: 3, borderWidth: 2, borderColor: group.hasUnseen ? colors.brand : colors.border, alignItems: 'center', justifyContent: 'center' }}>
-                    {avatar ? <AppImage uri={avatar} onError={() => setFailedStoryAvatars((current) => current.includes(group.user.id) ? current : [...current, group.user.id])} style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.brandSoft }} /> : <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brandOnSoft, fontWeight: '700', fontSize: fontSizes[20] }}>{group.user.name?.trim()?.charAt(0) || 'م'}</Text></View>}
+                  <View
+                    style={[
+                      styles.storyRing,
+                      { borderColor: group.hasUnseen ? colors.brand : colors.border },
+                    ]}
+                  >
+                    {avatar ? (
+                      <AppImage
+                        uri={avatar}
+                        onError={() =>
+                          setFailedStoryAvatars((current) =>
+                            current.includes(group.user.id) ? current : [...current, group.user.id],
+                          )
+                        }
+                        style={styles.storyAvatar}
+                      />
+                    ) : (
+                      <View style={styles.storyPlaceholder}>
+                        <Text style={styles.storyInitial}>
+                          {group.user.name?.trim()?.charAt(0) || 'م'}
+                        </Text>
+                      </View>
+                    )}
                   </View>
-                  <Text numberOfLines={1} style={{ width: '100%', color: colors.ink, fontSize: fontSizes[11], fontWeight: group.hasUnseen ? '800' : '500', textAlign: 'center' }}>{group.user.name}</Text>
+                  <Text
+                    numberOfLines={1}
+                    style={[styles.storyName, group.hasUnseen && styles.storyNameUnseen]}
+                  >
+                    {group.user.name}
+                  </Text>
                 </Pressable>
               );
             })}
@@ -193,18 +215,131 @@ export default function HomeCommunitySections() {
         </View>
       ) : null}
 
-      {(stores.length > 4 || visibleStories.length > 0) ? (
+      {/* المتاجر */}
+      <View style={styles.section}>
+        <SectionHeader
+          title="متاجر تستحق الاكتشاف"
+          subtitle="تعرّف على المتاجر المحلية"
+          actionLabel="عرض الكل"
+          onAction={() => router.push('/stores')}
+        />
+        {visibleStores.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.hScroll}
+          >
+            {visibleStores.map((store) => (
+              <StoreCard key={store.id} store={store} />
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyText}>
+              لا توجد متاجر متاحة للعرض حاليًا. سيظهر هنا أحدث المتاجر عند توفرها.
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {stores.length > 4 || visibleStories.length > 0 ? (
         <Pressable
           accessibilityRole="button"
           accessibilityState={{ expanded: communityExpanded }}
           onPress={() => setCommunityExpanded((v) => !v)}
-          style={{ alignSelf: 'center', paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.pill, backgroundColor: colors.brandSoft }}
+          style={({ pressed }) => [styles.expandBtn, pressed && styles.pressed]}
         >
-          <Text style={{ color: colors.brandOnSoft, fontWeight: '600', fontSize: fontSizes[13] }}>
-            {communityExpanded ? 'عرض أقل من المجتمع' : 'المزيد من المجتمع'}
+          <Text style={styles.expandText}>
+            {communityExpanded ? 'عرض أقل' : 'المزيد من المجتمع'}
           </Text>
         </Pressable>
       ) : null}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    gap: spacing.xl,
+  },
+  section: {
+    gap: spacing.md,
+  },
+  hScroll: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingVertical: 2,
+    paddingHorizontal: 1,
+  },
+  storyItem: {
+    width: 76,
+    alignItems: 'center',
+    gap: 6,
+  },
+  storyRing: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    padding: 3,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storyAvatar: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: colors.brandSoft,
+  },
+  storyPlaceholder: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: colors.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storyInitial: {
+    color: colors.brandOnSoft,
+    fontWeight: '700',
+    fontSize: fontSizes[18],
+  },
+  storyName: {
+    width: '100%',
+    color: colors.ink,
+    fontSize: fontSizes[11],
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  storyNameUnseen: {
+    fontWeight: '700',
+  },
+  emptyBox: {
+    minHeight: 64,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    justifyContent: 'center',
+  },
+  emptyText: {
+    color: colors.muted,
+    fontSize: fontSizes[12],
+    lineHeight: 19,
+    textAlign: 'right',
+  },
+  expandBtn: {
+    alignSelf: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xl,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brandSoft,
+  },
+  expandText: {
+    color: colors.brandOnSoft,
+    fontWeight: '600',
+    fontSize: fontSizes[13],
+  },
+  pressed: { opacity: ux.pressedOpacity },
+});

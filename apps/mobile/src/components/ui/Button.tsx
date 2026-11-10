@@ -1,10 +1,11 @@
 import { AppText as Text } from './AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { ActivityIndicator, type StyleProp, type TextStyle } from 'react-native';
+import { ActivityIndicator, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { colors } from '@/theme/tokens';
 import { uiStyles as s } from './styles';
 
 type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
+type ButtonSize = 'md' | 'sm';
 
 export function PrimaryButton({
   label,
@@ -12,14 +13,18 @@ export function PrimaryButton({
   busy,
   disabled,
   variant = 'primary',
+  size = 'md',
   textStyle,
+  style,
 }: {
   label: string;
   onPress: () => void;
   busy?: boolean;
   disabled?: boolean;
   variant?: ButtonVariant;
+  size?: ButtonSize;
   textStyle?: StyleProp<TextStyle>;
+  style?: StyleProp<ViewStyle>;
 }) {
   const isFilled = variant === 'primary' || variant === 'danger';
   return (
@@ -33,8 +38,10 @@ export function PrimaryButton({
         variant === 'secondary' && s.secondary,
         variant === 'danger' && s.danger,
         variant === 'ghost' && s.ghost,
+        size === 'sm' && s.buttonSm,
         (disabled || busy) && s.buttonDisabled,
         pressed && !disabled && !busy && s.pressed,
+        style,
       ]}
     >
       {busy ? (
@@ -60,4 +67,14 @@ export function PrimaryButton({
 /** اختصار واضح للزر الثانوي */
 export function SecondaryButton(props: Omit<Parameters<typeof PrimaryButton>[0], 'variant'>) {
   return <PrimaryButton {...props} variant="secondary" />;
+}
+
+/** اختصار لزر الخطر */
+export function DangerButton(props: Omit<Parameters<typeof PrimaryButton>[0], 'variant'>) {
+  return <PrimaryButton {...props} variant="danger" />;
+}
+
+/** اختصار لزر شفاف */
+export function GhostButton(props: Omit<Parameters<typeof PrimaryButton>[0], 'variant'>) {
+  return <PrimaryButton {...props} variant="ghost" />;
 }

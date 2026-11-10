@@ -7,9 +7,17 @@ import { fetchPublicCategories, flattenPublicCategories, type PublicCategory } f
 import { searchMarketplace, type SearchResult } from '@/features/discovery/discovery.api';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
-import { colors, fontSizes, radius, spacing, typography } from '@/theme/tokens';
+import { colors, elevation, fontSizes, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, TextInput, View } from 'react-native';
+import {
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  TextInput,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 
 const types = [
@@ -53,6 +61,19 @@ function routeFor(item: SearchResult): Href {
   }
 }
 
+function typeLabel(t: SearchResult['type']): string {
+  switch (t) {
+    case 'ad':
+      return 'إعلان';
+    case 'product':
+      return 'منتج';
+    case 'store':
+      return 'متجر';
+    case 'service':
+      return 'خدمة';
+  }
+}
+
 type SearchFilters = {
   query: string;
   type: (typeof types)[number]['value'];
@@ -63,6 +84,41 @@ type SearchFilters = {
   maxPrice: string;
   condition: (typeof conditions)[number]['value'];
 };
+
+function Chip({
+  label,
+  selected,
+  onPress,
+  filled,
+}: {
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  filled?: boolean;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.chip,
+        selected && (filled ? styles.chipFilled : styles.chipSelected),
+        pressed && styles.pressed,
+      ]}
+    >
+      <Text
+        style={[
+          styles.chipText,
+          selected && (filled ? styles.chipTextFilled : styles.chipTextSelected),
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
 
 export default function SearchScreen() {
   const params = useLocalSearchParams<{
@@ -84,6 +140,7 @@ export default function SearchScreen() {
 
   const [query, setQuery] = useState(initialQ || '');
   const [hasSearched, setHasSearched] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [type, setType] = useState<(typeof types)[number]['value']>(
     types.some((entry) => entry.value === initialTypeParam)
       ? (initialTypeParam as (typeof types)[number]['value'])
@@ -103,14 +160,19 @@ export default function SearchScreen() {
   const [submittedFilters, setSubmittedFilters] = useState<SearchFilters | null>(null);
   const [validationError, setValidationError] = useState('');
   const initialSearchTriggered = useRef(false);
+
   const searchList = usePaginatedList<SearchResult>({
     key: submittedFilters ? JSON.stringify(submittedFilters) : 'marketplace-search:idle',
     pageSize: 20,
     enabled: Boolean(submittedFilters),
     fetchPage: async (page, signal) => {
       if (!submittedFilters) return { items: [], meta: { page: 1, totalPages: 1, total: 0 } };
-      const min = submittedFilters.minPrice.trim() ? Number(normalizeNumericInput(submittedFilters.minPrice)) : undefined;
-      const max = submittedFilters.maxPrice.trim() ? Number(normalizeNumericInput(submittedFilters.maxPrice)) : undefined;
+      const min = submittedFilters.minPrice.trim()
+        ? Number(normalizeNumericInput(submittedFilters.minPrice))
+        : undefined;
+      const max = submittedFilters.maxPrice.trim()
+        ? Number(normalizeNumericInput(submittedFilters.maxPrice))
+        : undefined;
       const result = await searchMarketplace({
         q: submittedFilters.query,
         type: submittedFilters.type,
@@ -119,15 +181,22 @@ export default function SearchScreen() {
         categoryId: submittedFilters.categoryId || undefined,
         minPrice: min,
         maxPrice: max,
-        condition: submittedFilters.type === 'ads' ? (submittedFilters.condition || undefined) : undefined,
+        condition:
+          submittedFilters.type === 'ads'
+            ? submittedFilters.condition || undefined
+            : undefined,
         page,
         limit: 20,
         signal,
       });
-      return { items: result.items, meta: { page: result.page, totalPages: result.totalPages, total: result.total } };
+      return {
+        items: result.items,
+        meta: { page: result.page, totalPages: result.totalPages, total: result.total },
+      };
     },
     getItemKey: (item) => `${item.type}:${item.id}`,
   });
+
   const items = searchList.items;
   const page = searchList.page;
   const totalPages = searchList.totalPages;
@@ -135,7 +204,6 @@ export default function SearchScreen() {
   const loading = searchList.loading || searchList.refreshing;
   const more = searchList.loadingMore;
   const error = validationError || searchList.error || searchList.loadMoreError || '';
-
 
   useEffect(() => {
     void fetchPublicCategories()
@@ -146,22 +214,39 @@ export default function SearchScreen() {
   const refreshSearchList = searchList.refresh;
 
   const runSearch = useCallback(() => {
-    const filters: SearchFilters = { query, type, sort, city, categoryId, minPrice, maxPrice, condition };
+    const filters: SearchFilters = {
+      query,
+      type,
+      sort,
+      city,
+      categoryId,
+      minPrice,
+      maxPrice,
+      condition,
+    };
     const hasCriterion = Boolean(
-      filters.query.trim() || filters.categoryId || filters.city.trim() || filters.minPrice.trim()
-      || filters.maxPrice.trim() || (filters.type === 'ads' && filters.condition),
+      filters.query.trim() ||
+        filters.categoryId ||
+        filters.city.trim() ||
+        filters.minPrice.trim() ||
+        filters.maxPrice.trim() ||
+        (filters.type === 'ads' && filters.condition),
     );
     if (!hasCriterion) {
       setValidationError('أدخل كلمة للبحث أو اختر تصنيفًا أو فلترًا أولًا.');
       setSubmittedFilters(null);
       return;
     }
-    const min = filters.minPrice.trim() ? Number(normalizeNumericInput(filters.minPrice)) : undefined;
-    const max = filters.maxPrice.trim() ? Number(normalizeNumericInput(filters.maxPrice)) : undefined;
+    const min = filters.minPrice.trim()
+      ? Number(normalizeNumericInput(filters.minPrice))
+      : undefined;
+    const max = filters.maxPrice.trim()
+      ? Number(normalizeNumericInput(filters.maxPrice))
+      : undefined;
     if (
-      (min !== undefined && (!Number.isFinite(min) || min < 0))
-      || (max !== undefined && (!Number.isFinite(max) || max < 0))
-      || (min !== undefined && max !== undefined && min > max)
+      (min !== undefined && (!Number.isFinite(min) || min < 0)) ||
+      (max !== undefined && (!Number.isFinite(max) || max < 0)) ||
+      (min !== undefined && max !== undefined && min > max)
     ) {
       setValidationError('تحقق من نطاق السعر؛ يجب أن يكون السعر الأدنى أقل من الأعلى.');
       return;
@@ -173,17 +258,41 @@ export default function SearchScreen() {
     } else {
       setSubmittedFilters(filters);
     }
-  }, [query, type, sort, city, categoryId, minPrice, maxPrice, condition, submittedFilters, refreshSearchList]);
+  }, [
+    query,
+    type,
+    sort,
+    city,
+    categoryId,
+    minPrice,
+    maxPrice,
+    condition,
+    submittedFilters,
+    refreshSearchList,
+  ]);
 
   useEffect(() => {
     if (
-      !initialSearchTriggered.current
-      && (initialQ?.trim() || initialCategoryId || initialCity?.trim() || initialMinPrice?.trim() || initialMaxPrice?.trim() || initialCondition)
+      !initialSearchTriggered.current &&
+      (initialQ?.trim() ||
+        initialCategoryId ||
+        initialCity?.trim() ||
+        initialMinPrice?.trim() ||
+        initialMaxPrice?.trim() ||
+        initialCondition)
     ) {
       initialSearchTriggered.current = true;
       runSearch();
     }
-  }, [runSearch, initialQ, initialCategoryId, initialCity, initialMinPrice, initialMaxPrice, initialCondition]);
+  }, [
+    runSearch,
+    initialQ,
+    initialCategoryId,
+    initialCity,
+    initialMinPrice,
+    initialMaxPrice,
+    initialCondition,
+  ]);
 
   const clearFilters = useCallback(() => {
     setType('all');
@@ -198,274 +307,645 @@ export default function SearchScreen() {
     setValidationError('');
   }, []);
 
+  const activeFilterCount = [
+    type !== 'all',
+    Boolean(city.trim()),
+    Boolean(minPrice.trim() || maxPrice.trim()),
+    Boolean(condition),
+    Boolean(categoryId),
+    sort !== 'relevance',
+  ].filter(Boolean).length;
+
   const listHeader = (
-    <View style={{ gap: spacing.lg }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+    <View style={styles.headerBlock}>
+      {/* رأس الصفحة */}
+      <View style={styles.topBar}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="رجوع"
           onPress={() => router.back()}
-          style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 12 }}
+          style={({ pressed }) => [styles.backBtn, pressed && styles.pressed]}
         >
-          <AppIcon name="back" size={22} color={colors.brand} />
+          <AppIcon name="back" size={22} color={colors.brandOnSoft} />
         </Pressable>
-        <View style={{ flex: 1 }}>
-          <Text accessibilityRole="header" style={{ textAlign: 'right', ...typography.display, color: colors.ink }}>
-            البحث المتقدم
+        <View style={styles.titleCol}>
+          <Text accessibilityRole="header" style={styles.title}>
+            البحث
           </Text>
-          <Text style={{ textAlign: 'right', ...typography.body, color: colors.muted }}>
-            ابحث في الإعلانات والمنتجات والمتاجر والخدمات.
-          </Text>
+          <Text style={styles.subtitle}>إعلانات · منتجات · متاجر · خدمات</Text>
         </View>
       </View>
 
-      <TextInput
-        allowFontScaling
-        maxFontSizeMultiplier={1.3}
-        accessibilityLabel="البحث في السوق"
-        value={query}
-        onChangeText={setQuery}
-        onSubmitEditing={() => void runSearch()}
-        placeholder="ماذا تبحث عنه؟"
-        placeholderTextColor={colors.muted}
-        returnKeyType="search"
-        style={{ minHeight: 54, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.md, paddingHorizontal: 12, color: colors.ink, textAlign: 'right', backgroundColor: colors.surface }}
-      />
-
-      <Text accessibilityRole="header" style={{ color: colors.ink, textAlign: 'right', fontWeight: '800' }}>نوع النتائج</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {types.map((entry) => (
+      {/* شريط البحث */}
+      <View style={styles.searchBox}>
+        <Text style={styles.searchIcon}>⌕</Text>
+        <TextInput
+          allowFontScaling
+          maxFontSizeMultiplier={1.3}
+          accessibilityLabel="البحث في السوق"
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={() => void runSearch()}
+          placeholder="ماذا تبحث عنه؟"
+          placeholderTextColor={colors.muted}
+          returnKeyType="search"
+          style={styles.searchInput}
+          textAlign="right"
+        />
+        {query.length > 0 ? (
           <Pressable
-            key={entry.value}
             accessibilityRole="button"
-            accessibilityLabel={`نوع النتائج: ${entry.label}`}
-            accessibilityState={{ selected: type === entry.value }}
-            onPress={() => setType(entry.value)}
-            style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 20, backgroundColor: type === entry.value ? colors.brand : colors.surface, borderWidth: 1, borderColor: type === entry.value ? colors.brand : colors.controlBorder }}
+            accessibilityLabel="مسح البحث"
+            onPress={() => setQuery('')}
+            hitSlop={8}
           >
-            <Text style={{ color: type === entry.value ? colors.white : colors.ink, fontWeight: '700' }}>{entry.label}</Text>
+            <Text style={styles.clearIcon}>×</Text>
           </Pressable>
-        ))}
-      </View>
-
-      {type === 'ads' ? (
-        <>
-          <Text accessibilityRole="header" style={{ color: colors.ink, textAlign: 'right', fontWeight: '800' }}>حالة الإعلان</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {conditions.map((entry) => (
-              <Pressable
-                key={entry.value || 'all'}
-                accessibilityRole="button"
-                accessibilityLabel={`حالة الإعلان: ${entry.label}`}
-                accessibilityState={{ selected: condition === entry.value }}
-                onPress={() => setCondition(entry.value)}
-                style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 14, borderRadius: 18, backgroundColor: condition === entry.value ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: condition === entry.value ? colors.brand : colors.controlBorder }}
-              >
-                <Text style={{ color: colors.ink }}>{entry.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </>
-      ) : null}
-
-      <Text accessibilityRole="header" style={{ color: colors.ink, textAlign: 'right', fontWeight: '800' }}>ترتيب النتائج</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {sorts.map((entry) => (
-          <Pressable
-            key={entry.value}
-            accessibilityRole="button"
-            accessibilityLabel={`ترتيب النتائج: ${entry.label}`}
-            accessibilityState={{ selected: sort === entry.value }}
-            onPress={() => setSort(entry.value)}
-            style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 18, backgroundColor: sort === entry.value ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: sort === entry.value ? colors.brand : colors.controlBorder }}
-          >
-            <Text style={{ color: colors.ink }}>{entry.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <TextInput
-        allowFontScaling
-        maxFontSizeMultiplier={1.3}
-        accessibilityLabel="المدينة للبحث"
-        value={city}
-        onChangeText={setCity}
-        placeholder="المدينة (اختياري)"
-        placeholderTextColor={colors.muted}
-        style={{ minHeight: 52, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.md, paddingHorizontal: 12, color: colors.ink, textAlign: 'right', backgroundColor: colors.surface }}
-      />
-
-      <Text accessibilityRole="header" style={{ textAlign: 'right', color: colors.ink, fontWeight: '800' }}>تصنيف (اختياري)</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        ) : null}
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="كل التصنيفات"
-          accessibilityState={{ selected: !categoryId }}
-          onPress={() => setCategoryId('')}
-          style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', padding: 10, borderRadius: 12, backgroundColor: !categoryId ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: !categoryId ? colors.brand : colors.controlBorder }}
+          accessibilityLabel="تنفيذ البحث"
+          onPress={() => void runSearch()}
+          style={({ pressed }) => [styles.searchBtn, pressed && styles.pressed]}
         >
-          <Text style={{ color: colors.ink }}>كل التصنيفات</Text>
+          <Text style={styles.searchBtnText}>بحث</Text>
         </Pressable>
-        {categories.slice(0, 20).map((category) => (
-          <Pressable
-            key={category.id}
-            accessibilityRole="button"
-            accessibilityLabel={`تصنيف ${category.nameAr || category.name}`}
-            accessibilityState={{ selected: categoryId === category.id }}
-            onPress={() => setCategoryId(category.id)}
-            style={{ minHeight: 44, minWidth: 44, justifyContent: 'center', padding: 10, borderRadius: 12, backgroundColor: categoryId === category.id ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: categoryId === category.id ? colors.brand : colors.controlBorder }}
-          >
-            <Text style={{ color: colors.ink }}>{category.nameAr || category.name}</Text>
-          </Pressable>
+      </View>
+
+      {/* نوع النتائج — دائماً ظاهر */}
+      <View style={styles.chipRow}>
+        {types.map((entry) => (
+          <Chip
+            key={entry.value}
+            label={entry.label}
+            selected={type === entry.value}
+            filled
+            onPress={() => setType(entry.value)}
+          />
         ))}
       </View>
 
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <TextInput
-          allowFontScaling
-          maxFontSizeMultiplier={1.3}
-          accessibilityLabel="أقل سعر للبحث"
-          value={minPrice}
-          onChangeText={(value) => setMinPrice(normalizeNumericInput(value))}
-          keyboardType="decimal-pad"
-          placeholder="السعر من"
-          placeholderTextColor={colors.muted}
-          style={{ flex: 1, minHeight: 52, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.md, paddingHorizontal: 10, color: colors.ink, textAlign: 'right', backgroundColor: colors.surface }}
-        />
-        <TextInput
-          allowFontScaling
-          maxFontSizeMultiplier={1.3}
-          accessibilityLabel="أعلى سعر للبحث"
-          value={maxPrice}
-          onChangeText={(value) => setMaxPrice(normalizeNumericInput(value))}
-          keyboardType="decimal-pad"
-          placeholder="السعر إلى"
-          placeholderTextColor={colors.muted}
-          style={{ flex: 1, minHeight: 52, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.md, paddingHorizontal: 10, color: colors.ink, textAlign: 'right', backgroundColor: colors.surface }}
-        />
+      {/* زر الفلاتر المتقدمة */}
+      <View style={styles.actionsRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ expanded: showAdvanced }}
+          onPress={() => setShowAdvanced((v) => !v)}
+          style={({ pressed }) => [styles.advancedToggle, pressed && styles.pressed]}
+        >
+          <Text style={styles.advancedToggleText}>
+            {showAdvanced ? 'إخفاء الفلاتر' : 'فلاتر متقدمة'}
+            {activeFilterCount > 0 && !showAdvanced ? ` (${activeFilterCount})` : ''}
+          </Text>
+        </Pressable>
+        {hasSearched || activeFilterCount > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={clearFilters}
+            style={({ pressed }) => [styles.clearLink, pressed && styles.pressed]}
+          >
+            <Text style={styles.clearLinkText}>مسح الكل</Text>
+          </Pressable>
+        ) : null}
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="تنفيذ البحث"
-        accessibilityState={{ disabled: loading }}
-        disabled={loading}
-        onPress={() => void runSearch()}
-        style={({ pressed }) => [
-          { minHeight: 52, justifyContent: 'center', alignItems: 'center', borderRadius: radius.md, backgroundColor: colors.brand, opacity: pressed && !loading ? 0.78 : 1 },
-          loading && { opacity: 0.65 },
-        ]}
-      >
-        <Text style={{ color: colors.white, fontWeight: '900' }}>{loading ? 'جارٍ البحث…' : 'بحث'}</Text>
-      </Pressable>
+      {showAdvanced ? (
+        <View style={styles.advancedPanel}>
+          {type === 'ads' ? (
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>حالة الإعلان</Text>
+              <View style={styles.chipRow}>
+                {conditions.map((entry) => (
+                  <Chip
+                    key={entry.value || 'all'}
+                    label={entry.label}
+                    selected={condition === entry.value}
+                    onPress={() => setCondition(entry.value)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>ترتيب النتائج</Text>
+            <View style={styles.chipRow}>
+              {sorts.map((entry) => (
+                <Chip
+                  key={entry.value}
+                  label={entry.label}
+                  selected={sort === entry.value}
+                  onPress={() => setSort(entry.value)}
+                />
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>المدينة</Text>
+            <TextInput
+              allowFontScaling
+              maxFontSizeMultiplier={1.3}
+              accessibilityLabel="المدينة للبحث"
+              value={city}
+              onChangeText={setCity}
+              placeholder="المدينة (اختياري)"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+              textAlign="right"
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.fieldLabel}>نطاق السعر</Text>
+            <View style={styles.priceRow}>
+              <TextInput
+                allowFontScaling
+                maxFontSizeMultiplier={1.3}
+                accessibilityLabel="أقل سعر"
+                value={minPrice}
+                onChangeText={(v) => setMinPrice(normalizeNumericInput(v))}
+                keyboardType="decimal-pad"
+                placeholder="من"
+                placeholderTextColor={colors.muted}
+                style={[styles.input, styles.priceInput]}
+                textAlign="right"
+              />
+              <TextInput
+                allowFontScaling
+                maxFontSizeMultiplier={1.3}
+                accessibilityLabel="أعلى سعر"
+                value={maxPrice}
+                onChangeText={(v) => setMaxPrice(normalizeNumericInput(v))}
+                keyboardType="decimal-pad"
+                placeholder="إلى"
+                placeholderTextColor={colors.muted}
+                style={[styles.input, styles.priceInput]}
+                textAlign="right"
+              />
+            </View>
+          </View>
+
+          {categories.length > 0 ? (
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>التصنيف</Text>
+              <View style={styles.chipRow}>
+                <Chip
+                  label="الكل"
+                  selected={!categoryId}
+                  onPress={() => setCategoryId('')}
+                />
+                {categories.slice(0, 12).map((cat) => (
+                  <Chip
+                    key={cat.id}
+                    label={cat.nameAr || cat.name}
+                    selected={categoryId === cat.id}
+                    onPress={() => setCategoryId(cat.id)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => void runSearch()}
+            style={({ pressed }) => [styles.applyBtn, pressed && styles.pressed]}
+          >
+            <Text style={styles.applyBtnText}>تطبيق والبحث</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {hasSearched && (type === 'ads' || type === 'products' || type === 'services') ? (
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push({
-            pathname: '/saved-searches',
-            params: {
-              type,
-              q: query,
-              city,
-              minPrice,
-              maxPrice,
-              condition: type === 'ads' ? condition : '',
-              categoryId,
-              label: query.trim() ? `بحث عن ${query.trim()}` : 'بحث محفوظ',
-            },
-          })}
-          style={{ minHeight: 46, justifyContent: 'center', alignItems: 'center', borderRadius: radius.md, borderWidth: 1, borderColor: colors.brand }}
+          onPress={() =>
+            router.push({
+              pathname: '/saved-searches',
+              params: {
+                type,
+                q: query,
+                city,
+                minPrice,
+                maxPrice,
+                condition: type === 'ads' ? condition : '',
+                categoryId,
+                label: query.trim() ? `بحث عن ${query.trim()}` : 'بحث محفوظ',
+              },
+            })
+          }
+          style={({ pressed }) => [styles.saveSearchBtn, pressed && styles.pressed]}
         >
-          <Text style={{ color: colors.brand, fontWeight: '800' }}>حفظ هذا البحث</Text>
+          <Text style={styles.saveSearchText}>حفظ هذا البحث</Text>
         </Pressable>
       ) : null}
 
       {loading ? <LoadingState message="جارٍ البحث عن النتائج…" /> : null}
-      {error ? <ErrorState title="تعذر إكمال البحث" description={error} actionLabel="تعديل البيانات" onAction={() => { setValidationError(''); void searchList.retry(); }} /> : null}
+      {error ? (
+        <ErrorState
+          title="تعذر إكمال البحث"
+          description={error}
+          actionLabel="تعديل البيانات"
+          onAction={() => {
+            setValidationError('');
+            void searchList.retry();
+          }}
+        />
+      ) : null}
       {items.length > 0 ? (
-        <Text style={{ color: colors.muted, textAlign: 'right', ...typography.caption }}>
+        <Text style={styles.resultsMeta}>
           {total} نتيجة · الصفحة {page} من {totalPages}
         </Text>
       ) : null}
     </View>
   );
 
-  const listEmpty = !loading && !error && hasSearched
-    ? (
+  const listEmpty =
+    !loading && !error && hasSearched ? (
       <EmptyState
         title="لا توجد نتائج مطابقة"
         description="جرّب تغيير عبارة البحث أو إزالة بعض الفلاتر للحصول على نتائج أكثر."
         actionLabel="مسح الفلاتر والنتائج"
         onAction={clearFilters}
       />
-    )
-    : !loading && !error && !hasSearched
-      ? (
-        <EmptyState
-          title="ابدأ البحث في السوق"
-          description="أدخل كلمة أو اختر تصنيفًا، ثم اضغط «بحث» لعرض الإعلانات والمنتجات والمتاجر والخدمات."
-        />
-      )
-      : null;
+    ) : !loading && !error && !hasSearched ? (
+      <EmptyState
+        title="ابدأ البحث في السوق"
+        description="أدخل كلمة أو اختر نوع النتيجة، ثم اضغط «بحث»."
+      />
+    ) : null;
 
-  const listFooter = !loading && searchList.hasNextPage && items.length > 0 ? (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="تحميل المزيد من نتائج البحث"
-      accessibilityState={{ disabled: more }}
-      disabled={more}
-      onPress={() => void searchList.loadMore()}
-      style={{ padding: 14, borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, alignItems: 'center' }}
-    >
-      <Text style={{ color: colors.brand, fontWeight: '800' }}>{more ? 'جارٍ تحميل المزيد…' : searchList.loadMoreError ? 'تعذر التحميل — أعد المحاولة' : 'تحميل المزيد'}</Text>
-    </Pressable>
-  ) : null;
+  const listFooter =
+    !loading && searchList.hasNextPage && items.length > 0 ? (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="تحميل المزيد من نتائج البحث"
+        accessibilityState={{ disabled: more }}
+        disabled={more}
+        onPress={() => void searchList.loadMore()}
+        style={({ pressed }) => [styles.loadMoreBtn, pressed && styles.pressed]}
+      >
+        <Text style={styles.loadMoreText}>
+          {more
+            ? 'جارٍ تحميل المزيد…'
+            : searchList.loadMoreError
+              ? 'تعذر التحميل — أعد المحاولة'
+              : 'تحميل المزيد'}
+        </Text>
+      </Pressable>
+    ) : null;
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <FlatList
-        data={items}
-        keyExtractor={(item) => `${item.type}-${item.id}`}
-        renderItem={({ item }) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`فتح ${item.title}`}
-            accessibilityHint="عرض تفاصيل النتيجة"
-            onPress={() => router.push(routeFor(item))}
-            style={({ pressed }) => [
-              { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 15, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.lg, backgroundColor: colors.surface, marginBottom: spacing.md },
-              pressed && { opacity: 0.78 },
-            ]}
-          >
-            <View style={{ flex: 1, alignItems: 'flex-end', gap: 4 }}>
-              <Text style={{ color: colors.ink, ...typography.bodyStrong, textAlign: 'right' }}>{item.title}</Text>
-              <Text numberOfLines={2} style={{ color: colors.muted, textAlign: 'right', ...typography.caption }}>
-                {item.description || item.city || ''}
-              </Text>
-              <Text style={{ color: colors.brand, fontWeight: '800' }}>
-                {item.price ? formatMoney(item.price) : item.rating > 0 ? `★ ${item.rating.toFixed(1)}` : item.type}
-              </Text>
-              <Text style={{ color: colors.muted, ...typography.caption }}>
-                {item.city || 'الموقع غير محدد'}{item.seller?.verified ? ' · بائع موثّق' : ''}
-              </Text>
-            </View>
-            <AppIcon name="forward" size={22} color={colors.brand} />
-          </Pressable>
-        )}
-        ListHeaderComponent={listHeader ?? undefined}
-        ListEmptyComponent={listEmpty ?? undefined}
-        ListFooterComponent={listFooter ?? undefined}
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 44, flexGrow: 1 }}
-        ItemSeparatorComponent={() => null}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        showsVerticalScrollIndicator={false}
-        initialNumToRender={8}
-        maxToRenderPerBatch={8}
-        windowSize={7}
-        removeClippedSubviews={Platform.OS === 'android'}
-      />
-    </KeyboardAvoidingView>
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <FlatList
+          data={items}
+          keyExtractor={(item) => `${item.type}-${item.id}`}
+          renderItem={({ item }) => (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`فتح ${item.title}`}
+              accessibilityHint="عرض تفاصيل النتيجة"
+              onPress={() => router.push(routeFor(item))}
+              style={({ pressed }) => [styles.resultCard, pressed && styles.pressed]}
+            >
+              <View style={styles.resultBody}>
+                <View style={styles.resultTop}>
+                  <View style={styles.typeBadge}>
+                    <Text style={styles.typeBadgeText}>{typeLabel(item.type)}</Text>
+                  </View>
+                  {item.seller?.verified ? (
+                    <Text style={styles.verified}>بائع موثّق</Text>
+                  ) : null}
+                </View>
+                <Text style={styles.resultTitle} numberOfLines={2}>
+                  {item.title}
+                </Text>
+                {item.description || item.city ? (
+                  <Text numberOfLines={2} style={styles.resultDesc}>
+                    {item.description || item.city || ''}
+                  </Text>
+                ) : null}
+                <View style={styles.resultMeta}>
+                  <Text style={styles.resultPrice}>
+                    {item.price
+                      ? formatMoney(item.price)
+                      : item.rating > 0
+                        ? `★ ${item.rating.toFixed(1)}`
+                        : '—'}
+                  </Text>
+                  <Text style={styles.resultCity}>{item.city || 'الموقع غير محدد'}</Text>
+                </View>
+              </View>
+              <AppIcon name="forward" size={20} color={colors.muted} />
+            </Pressable>
+          )}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty ?? undefined}
+          ListFooterComponent={listFooter ?? undefined}
+          contentContainerStyle={styles.listContent}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
+          removeClippedSubviews={Platform.OS === 'android'}
+        />
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.canvas },
+  flex: { flex: 1 },
+  listContent: {
+    padding: spacing.lg,
+    paddingBottom: 96,
+    flexGrow: 1,
+    gap: spacing.md,
+  },
+  pressed: { opacity: ux.pressedOpacity },
+
+  headerBlock: {
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  backBtn: {
+    width: sizes.iconButton,
+    height: sizes.iconButton,
+    borderRadius: radius.md,
+    backgroundColor: colors.brandSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleCol: { flex: 1, gap: 2 },
+  title: {
+    textAlign: 'right',
+    ...typography.title,
+    color: colors.ink,
+  },
+  subtitle: {
+    textAlign: 'right',
+    ...typography.caption,
+    color: colors.muted,
+  },
+
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    minHeight: 52,
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong ?? colors.border,
+    ...elevation.xs,
+  },
+  searchIcon: {
+    color: colors.muted,
+    fontSize: fontSizes[18],
+    fontWeight: '600',
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: fontSizes[15],
+    paddingVertical: spacing.sm,
+  },
+  clearIcon: {
+    color: colors.muted,
+    fontSize: fontSizes[22],
+    lineHeight: 26,
+    paddingHorizontal: spacing.xs,
+  },
+  searchBtn: {
+    backgroundColor: colors.brand,
+    borderRadius: 10,
+    paddingHorizontal: spacing.md,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchBtnText: {
+    color: colors.white,
+    fontSize: fontSizes[13],
+    fontWeight: '700',
+  },
+
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  chip: {
+    minHeight: 36,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong ?? colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipSelected: {
+    backgroundColor: colors.brandSoft,
+    borderColor: colors.brand,
+  },
+  chipFilled: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
+  chipText: {
+    ...typography.captionStrong,
+    color: colors.muted,
+  },
+  chipTextSelected: {
+    color: colors.brandOnSoft,
+  },
+  chipTextFilled: {
+    color: colors.white,
+  },
+
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  advancedToggle: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.brandSoft,
+  },
+  advancedToggleText: {
+    color: colors.brandOnSoft,
+    fontSize: fontSizes[13],
+    fontWeight: '600',
+  },
+  clearLink: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  clearLinkText: {
+    color: colors.muted,
+    fontSize: fontSizes[13],
+    fontWeight: '600',
+  },
+
+  advancedPanel: {
+    gap: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    ...elevation.sm,
+  },
+  fieldGroup: { gap: spacing.sm },
+  fieldLabel: {
+    ...typography.label,
+    color: colors.ink,
+    textAlign: 'right',
+  },
+  input: {
+    minHeight: 48,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong ?? colors.border,
+    borderRadius: radius.input ?? radius.md,
+    backgroundColor: colors.canvas,
+    paddingHorizontal: spacing.md,
+    color: colors.ink,
+    fontSize: fontSizes[14],
+  },
+  priceRow: { flexDirection: 'row', gap: spacing.sm },
+  priceInput: { flex: 1 },
+
+  applyBtn: {
+    minHeight: 48,
+    borderRadius: radius.button ?? radius.md,
+    backgroundColor: colors.brand,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  applyBtnText: {
+    color: colors.white,
+    ...typography.button,
+  },
+
+  saveSearchBtn: {
+    minHeight: 44,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.brand,
+    backgroundColor: colors.surface,
+  },
+  saveSearchText: {
+    color: colors.brand,
+    fontWeight: '700',
+    fontSize: fontSizes[13],
+  },
+
+  resultsMeta: {
+    color: colors.muted,
+    textAlign: 'right',
+    ...typography.caption,
+  },
+
+  resultCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    borderRadius: radius.card,
+    backgroundColor: colors.surface,
+    ...elevation.sm,
+  },
+  resultBody: {
+    flex: 1,
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  resultTop: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: spacing.sm,
+    width: '100%',
+  },
+  typeBadge: {
+    backgroundColor: colors.brandSoft,
+    borderRadius: radius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  typeBadgeText: {
+    ...typography.overline,
+    color: colors.brandOnSoft,
+  },
+  verified: {
+    ...typography.overline,
+    color: colors.success ?? colors.brand,
+  },
+  resultTitle: {
+    color: colors.ink,
+    ...typography.bodyStrong,
+    textAlign: 'right',
+    width: '100%',
+  },
+  resultDesc: {
+    color: colors.muted,
+    textAlign: 'right',
+    ...typography.caption,
+    width: '100%',
+  },
+  resultMeta: {
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 2,
+    gap: spacing.sm,
+  },
+  resultPrice: {
+    color: colors.brand,
+    fontWeight: '700',
+    fontSize: fontSizes[15],
+  },
+  resultCity: {
+    color: colors.muted,
+    ...typography.caption,
+  },
+
+  separator: { height: spacing.sm },
+
+  loadMoreBtn: {
+    marginTop: spacing.md,
+    minHeight: 48,
+    borderRadius: radius.md,
+    backgroundColor: colors.brandSoft,
+    borderWidth: 1,
+    borderColor: colors.brandSoftActive ?? colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadMoreText: {
+    color: colors.brandOnSoft,
+    fontWeight: '700',
+    fontSize: fontSizes[14],
+  },
+});

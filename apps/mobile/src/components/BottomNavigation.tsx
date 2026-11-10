@@ -5,7 +5,7 @@ import { goTab } from '@/lib/navigation';
 import { MAIN_TABS, getActiveMainTab, shouldHideBottomNavigation } from '@/lib/navigation-policy';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fontSizes, colors, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, colors, radius, sizes, spacing, typography, ux, elevation } from '@/theme/tokens';
 import { AppIcon } from '@/components/Icons';
 
 export function isBottomNavigationHidden(pathname: string): boolean {
@@ -21,6 +21,7 @@ export default function BottomNavigation() {
       <View accessibilityRole="tablist" accessibilityLabel="التنقل الرئيسي" style={styles.bar}>
         {MAIN_TABS.map((tab) => {
           const active = getActiveMainTab(pathname) === tab.id;
+          const isAdd = tab.path === '/add';
           return (
             <Pressable
               key={tab.id}
@@ -31,17 +32,31 @@ export default function BottomNavigation() {
                 if (active) return;
                 goTab(tab.path);
               }}
-              hitSlop={4}
-              style={({ pressed }) => [styles.tab, active && styles.activeTab, pressed && styles.pressed]}
+              hitSlop={6}
+              style={({ pressed }) => [
+                styles.tab,
+                active && !isAdd && styles.activeTab,
+                pressed && styles.pressed,
+              ]}
             >
-              <View style={[styles.glyphWrap, active && styles.activeGlyphWrap, tab.path === '/add' && styles.addWrap]}>
+              <View
+                style={[
+                  styles.glyphWrap,
+                  active && !isAdd && styles.activeGlyphWrap,
+                  isAdd && styles.addWrap,
+                ]}
+              >
                 <AppIcon
                   name={tab.glyph}
-                  size={tab.path === '/add' ? 24 : 22}
-                  color={tab.path === '/add' ? colors.white : active ? colors.brandDark : colors.muted}
+                  size={isAdd ? 26 : 22}
+                  color={isAdd ? colors.white : active ? colors.brand : colors.muted}
                 />
               </View>
-              <Text numberOfLines={1} maxFontSizeMultiplier={1.3} style={[styles.label, active && styles.activeLabel]}>
+              <Text
+                numberOfLines={1}
+                maxFontSizeMultiplier={1.25}
+                style={[styles.label, active && styles.activeLabel, isAdd && styles.addLabel]}
+              >
                 {tab.label}
               </Text>
             </Pressable>
@@ -55,8 +70,9 @@ export default function BottomNavigation() {
 const styles = StyleSheet.create({
   safeArea: {
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+    ...elevation.sm,
   },
   bar: {
     minHeight: sizes.bottomNavHeight,
@@ -65,36 +81,50 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingHorizontal: spacing.xs,
     paddingTop: spacing.sm,
+    paddingBottom: spacing.xs,
   },
   tab: {
     minWidth: 0,
     flex: 1,
-    minHeight: 52,
+    minHeight: 56,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
-    borderRadius: 14,
-    marginHorizontal: 2,
+    gap: 4,
+    borderRadius: radius.md,
+    marginHorizontal: 1,
+    paddingVertical: spacing.xs,
   },
-  activeTab: { backgroundColor: colors.brandSoft },
+  activeTab: {
+    backgroundColor: colors.brandSoft,
+  },
   pressed: { opacity: ux.pressedOpacity },
   glyphWrap: {
-    minWidth: 32,
-    minHeight: 28,
+    minWidth: 36,
+    minHeight: 30,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: radius.sm,
   },
-  activeGlyphWrap: { backgroundColor: colors.brandSoftActive },
+  activeGlyphWrap: {
+    backgroundColor: colors.brandSoftActive,
+  },
   addWrap: {
     backgroundColor: colors.brand,
-    minWidth: 44,
-    minHeight: 36,
-    borderRadius: 14,
+    minWidth: 48,
+    minHeight: 40,
+    borderRadius: radius.md,
+    ...elevation.sm,
   },
-  glyph: { color: colors.muted, fontSize: fontSizes[22], lineHeight: 26, fontWeight: '600' },
-  activeGlyph: { color: colors.brandDark },
-  addGlyph: { fontSize: fontSizes[28], lineHeight: 30, color: colors.white, fontWeight: '500' },
-  label: { color: colors.muted, ...typography.overline },
-  activeLabel: { color: colors.brandDark, fontWeight: '700' },
+  label: {
+    color: colors.muted,
+    ...typography.overline,
+  },
+  activeLabel: {
+    color: colors.brandDark,
+    fontWeight: '700',
+  },
+  addLabel: {
+    color: colors.brand,
+    fontWeight: '600',
+  },
 });

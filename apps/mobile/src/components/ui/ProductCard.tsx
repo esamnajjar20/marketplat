@@ -21,7 +21,7 @@ function priceLabel(value: unknown): string {
   return Number.isFinite(amount) ? formatMoney(amount) : 'السعر عند التواصل';
 }
 
-/** بطاقة منتج قابلة لإعادة الاستخدام — row أو grid */
+/** بطاقة منتج قابلة لإعادة الاستخدام — row أو grid — مُحسَّنة بصرياً */
 export function ProductCard({
   product,
   layout = 'row',
@@ -93,35 +93,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     padding: spacing.md,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     borderRadius: radius.card,
     backgroundColor: colors.surface,
     ...elevation.sm,
   },
   gridCard: {
-    width: 160,
+    width: 168,
     flexDirection: 'column',
     gap: spacing.sm,
     padding: spacing.sm,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     borderRadius: radius.card,
     backgroundColor: colors.surface,
     ...elevation.sm,
   },
-  pressed: { opacity: ux.pressedOpacity },
+  pressed: { opacity: ux.pressedOpacity, transform: [{ scale: 0.985 }] },
   rowImage: {
     width: sizes.cardImageRow,
     height: sizes.cardImageRow,
     borderRadius: radius.control,
-    backgroundColor: colors.border,
+    backgroundColor: colors.borderSubtle,
   },
   gridImage: {
     width: '100%',
     height: sizes.cardImageGrid,
     borderRadius: radius.control,
-    backgroundColor: colors.border,
+    backgroundColor: colors.borderSubtle,
   },
   placeholder: {
     backgroundColor: colors.brandSoft,
@@ -129,8 +129,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   glyph: { color: colors.brandOnSoft, fontSize: fontSizes[28] },
-  rowBody: { flex: 1, alignItems: 'flex-end', gap: 3, justifyContent: 'center' },
-  gridBody: { alignItems: 'flex-end', gap: 3, paddingHorizontal: 2 },
+  rowBody: { flex: 1, alignItems: 'flex-end', gap: 4, justifyContent: 'center' },
+  gridBody: { alignItems: 'flex-end', gap: 4, paddingHorizontal: 2, paddingBottom: 2 },
   name: {
     ...typography.bodyStrong,
     color: colors.ink,
@@ -150,15 +150,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   price: {
-    ...typography.bodyStrong,
+    ...typography.price,
     color: colors.brand,
     textAlign: 'right',
   },
   discountBadge: {
     backgroundColor: colors.accentSoft,
     borderRadius: radius.sm,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
   discountText: {
     ...typography.overline,

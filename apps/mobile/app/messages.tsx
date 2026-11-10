@@ -17,7 +17,7 @@ import {
   SearchBar,
   SkeletonList,
 } from '@/components/MobileUI';
-import { colors, spacing, typography } from '@/theme/tokens';
+import { colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 import ConversationListItem from '@/features/messaging/ConversationListItem';
 
 type Filter = 'all' | 'unread' | 'archived';
@@ -233,11 +233,35 @@ function ConversationSeparator() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   link: { color: colors.brand, ...typography.captionStrong },
-  content: { flexGrow: 1, padding: spacing.lg, paddingBottom: 48 },
-  headerContent: { gap: spacing.md, paddingBottom: spacing.md },
-  filters: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  content: {
+    flexGrow: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: 88,
+  },
+  headerContent: {
+    gap: spacing.md,
+    paddingBottom: spacing.md,
+  },
+  filters: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
   separator: { height: spacing.sm },
-  footer: { gap: spacing.sm, paddingTop: spacing.md },
-  footerStatus: { ...typography.caption, color: colors.muted, textAlign: 'center' },
-  moreError: { ...typography.caption, color: colors.danger, textAlign: 'right' },
+  footer: {
+    gap: spacing.sm,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  footerStatus: {
+    ...typography.caption,
+    color: colors.muted,
+    textAlign: 'center',
+  },
+  moreError: {
+    ...typography.caption,
+    color: colors.danger,
+    textAlign: 'right',
+  },
 });

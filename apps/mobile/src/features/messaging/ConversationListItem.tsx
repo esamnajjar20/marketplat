@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import type { ConversationItem } from '@/features/messaging/messaging.api';
 import { AppImage } from '@/components/AppImage';
 import { isAllowedMediaUrl } from '@/lib/safe-media-url';
-import { fontSizes, colors, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 
 type ConversationListItemProps = {
   item: ConversationItem;
@@ -27,7 +27,14 @@ function getConversationPreview(conversation: ConversationItem): string {
   return 'رسالة جديدة';
 }
 
-function ConversationListItemView({ item, currentUserId, onPress, onTogglePin, onToggleArchive, busy = false }: ConversationListItemProps) {
+function ConversationListItemView({
+  item,
+  currentUserId,
+  onPress,
+  onTogglePin,
+  onToggleArchive,
+  busy = false,
+}: ConversationListItemProps) {
   const other = item.buyerId === currentUserId ? item.seller : item.buyer;
   const unread = item.unreadCount ?? 0;
   const name = other?.name || 'مستخدم';
@@ -35,6 +42,7 @@ function ConversationListItemView({ item, currentUserId, onPress, onTogglePin, o
   const avatarUrl = isAllowedMediaUrl(other?.avatarUrl) ? other.avatarUrl : null;
   const [avatarFailed, setAvatarFailed] = useState(false);
   useEffect(() => setAvatarFailed(false), [avatarUrl]);
+  const pinned = Boolean(item.mySettings?.pinnedAt);
 
   return (
     <Pressable
@@ -42,17 +50,31 @@ function ConversationListItemView({ item, currentUserId, onPress, onTogglePin, o
       accessibilityLabel={accessibleName}
       accessibilityHint="فتح المحادثة"
       onPress={() => onPress(item.id)}
-      style={[styles.card, unread > 0 && styles.unread]}
+      style={({ pressed }) => [
+        styles.card,
+        unread > 0 && styles.unread,
+        pressed && styles.pressed,
+      ]}
     >
       <View style={styles.avatar}>
         {avatarUrl && !avatarFailed ? (
-          <AppImage uri={avatarUrl} style={styles.avatarImage} accessibilityLabel={`صورة ${name}`} onError={() => setAvatarFailed(true)} />
-        ) : <Text style={styles.avatarText}>{(other?.name || '?').slice(0, 1)}</Text>}
+          <AppImage
+            uri={avatarUrl}
+            style={styles.avatarImage}
+            accessibilityLabel={`صورة ${name}`}
+            onError={() => setAvatarFailed(true)}
+          />
+        ) : (
+          <Text style={styles.avatarText}>{(other?.name || '?').slice(0, 1)}</Text>
+        )}
+        {unread > 0 ? <View style={styles.avatarDot} /> : null}
       </View>
+
       <View style={styles.cardBody}>
         <View style={styles.cardTop}>
-          <Text style={styles.name} numberOfLines={1}>
-            {name}{item.mySettings?.pinnedAt ? ' · مثبتة' : ''}
+          <Text style={[styles.name, unread > 0 && styles.nameUnread]} numberOfLines={1}>
+            {name}
+            {pinned ? ' · مثبتة' : ''}
           </Text>
           {unread > 0 ? (
             <View style={styles.badge} accessibilityLabel={`${unread} رسائل غير مقروءة`}>
@@ -60,13 +82,42 @@ function ConversationListItemView({ item, currentUserId, onPress, onTogglePin, o
             </View>
           ) : null}
         </View>
-        <Text style={styles.preview} numberOfLines={2}>
+        <Text style={[styles.preview, unread > 0 && styles.previewUnread]} numberOfLines={2}>
           {getConversationPreview(item)}
         </Text>
-        {(onTogglePin || onToggleArchive) ? (
+        {item.ad?.title ? (
+          <Text style={styles.adHint} numberOfLines={1}>
+            {item.ad.title}
+          </Text>
+        ) : null}
+        {onTogglePin || onToggleArchive ? (
           <View style={styles.actions}>
-            {onTogglePin ? <Pressable accessibilityRole="button" accessibilityLabel={item.mySettings?.pinnedAt ? 'إلغاء تثبيت المحادثة' : 'تثبيت المحادثة'} disabled={busy} onPress={() => onTogglePin(item)} style={styles.action}><Text style={styles.actionText}>{item.mySettings?.pinnedAt ? 'إلغاء التثبيت' : 'تثبيت'}</Text></Pressable> : null}
-            {onToggleArchive ? <Pressable accessibilityRole="button" accessibilityLabel={item.mySettings?.archivedAt ? 'إلغاء أرشفة المحادثة' : 'أرشفة المحادثة'} disabled={busy} onPress={() => onToggleArchive(item)} style={styles.action}><Text style={styles.actionText}>{item.mySettings?.archivedAt ? 'إلغاء الأرشفة' : 'أرشفة'}</Text></Pressable> : null}
+            {onTogglePin ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={pinned ? 'إلغاء تثبيت المحادثة' : 'تثبيت المحادثة'}
+                disabled={busy}
+                onPress={() => onTogglePin(item)}
+                style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+              >
+                <Text style={styles.actionText}>{pinned ? 'إلغاء التثبيت' : 'تثبيت'}</Text>
+              </Pressable>
+            ) : null}
+            {onToggleArchive ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={
+                  item.mySettings?.archivedAt ? 'إلغاء أرشفة المحادثة' : 'أرشفة المحادثة'
+                }
+                disabled={busy}
+                onPress={() => onToggleArchive(item)}
+                style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+              >
+                <Text style={styles.actionText}>
+                  {item.mySettings?.archivedAt ? 'إلغاء الأرشفة' : 'أرشفة'}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
       </View>
@@ -80,28 +131,70 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.md,
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+    borderRadius: radius.card ?? radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
+    ...elevation.sm,
   },
-  unread: { borderColor: colors.borderStrong, backgroundColor: colors.brandSoft },
+  unread: {
+    borderColor: colors.brandSoftActive ?? colors.borderStrong,
+    backgroundColor: colors.brandSoft,
+  },
+  pressed: { opacity: ux.pressedOpacity },
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: colors.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: colors.brandOnSoft, fontWeight: '900', fontSize: fontSizes[16] },
-  avatarImage: { width: 44, height: 44, borderRadius: 22 },
-  cardBody: { flex: 1, gap: 4 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
-  action: { minHeight: 34, justifyContent: 'center', paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.controlBorder },
-  actionText: { color: colors.brand, fontSize: fontSizes[12], fontWeight: '800' },
-  cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  name: { ...typography.bodyStrong, color: colors.ink, flex: 1, textAlign: 'right' },
-  preview: { ...typography.caption, color: colors.muted, textAlign: 'right', lineHeight: 18 },
+  avatarText: {
+    color: colors.brandOnSoft,
+    fontWeight: '700',
+    fontSize: fontSizes[18],
+  },
+  avatarImage: { width: 52, height: 52, borderRadius: 26 },
+  avatarDot: {
+    position: 'absolute',
+    top: 2,
+    start: 2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.brand,
+    borderWidth: 2,
+    borderColor: colors.surface,
+  },
+  cardBody: { flex: 1, gap: 3, justifyContent: 'center' },
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  name: {
+    flex: 1,
+    ...typography.bodyStrong,
+    color: colors.ink,
+    textAlign: 'right',
+  },
+  nameUnread: { fontWeight: '700' },
+  preview: {
+    ...typography.caption,
+    color: colors.muted,
+    textAlign: 'right',
+    lineHeight: 18,
+  },
+  previewUnread: {
+    color: colors.inkSecondary ?? colors.ink,
+    fontWeight: '500',
+  },
+  adHint: {
+    ...typography.overline,
+    color: colors.brand,
+    textAlign: 'right',
+  },
   badge: {
     minWidth: 22,
     height: 22,
@@ -111,7 +204,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  badgeText: { color: colors.white, fontSize: fontSizes[11], fontWeight: '900' },
+  badgeText: {
+    color: colors.white,
+    fontSize: fontSizes[11],
+    fontWeight: '700',
+  },
+  actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 6,
+  },
+  action: {
+    minHeight: 32,
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.borderStrong ?? colors.border,
+    backgroundColor: colors.surface,
+  },
+  actionText: {
+    color: colors.brand,
+    fontSize: fontSizes[12],
+    fontWeight: '600',
+  },
 });
 
 export default memo(ConversationListItemView);

@@ -6,7 +6,7 @@ import { AppImage } from '@/components/AppImage';
 import { AppIcon } from '@/components/Icons';
 import type { ChatMessage } from '@/features/messaging/messaging.api';
 import { CHAT_OUTBOX_MAX_ATTEMPTS } from '@/storage/outbox-manager';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, colors, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 import { isAllowedMediaUrl } from '@/lib/safe-media-url';
 import { formatDate } from '@/lib/formatters';
 import { showToast } from '@/lib/toast';
@@ -137,56 +137,85 @@ export default ConversationMessageRow;
 
 const styles = StyleSheet.create({
   bubble: {
-    maxWidth: '84%',
+    maxWidth: '82%',
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.md,
-    gap: 4,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: 18,
+    gap: 6,
+    marginVertical: 3,
   },
   mine: {
     alignSelf: 'flex-end',
     backgroundColor: colors.brand,
-    borderBottomRightRadius: 4,
+    borderBottomEndRadius: 6,
   },
   theirs: {
     alignSelf: 'flex-start',
     backgroundColor: colors.surface,
-    borderWidth: 1,
+    borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    borderBottomLeftRadius: 4,
+    borderBottomStartRadius: 6,
+    ...elevation.xs,
   },
   messageText: {
-    fontSize: fontSizes[15],
-    lineHeight: 22,
+    ...typography.body,
     color: colors.ink,
     textAlign: 'right',
+    lineHeight: 22,
   },
-  mineText: { color: colors.white },
+  mineText: {
+    color: colors.white,
+  },
+  metadataRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  time: {
+    fontSize: fontSizes[10],
+    color: colors.muted,
+  },
+  mineTime: {
+    color: 'rgba(255,255,255,0.78)',
+  },
   messageImage: {
-    width: 220,
-    height: 180,
-    borderRadius: radius.sm,
-    marginBottom: 4,
-    backgroundColor: colors.canvas,
+    width: 200,
+    height: 160,
+    borderRadius: 12,
+    backgroundColor: colors.borderSubtle ?? colors.border,
   },
   mediaAction: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderRadius: radius.sm,
+    minHeight: 40,
+    borderRadius: 12,
     backgroundColor: colors.brandSoft,
-    alignSelf: 'flex-start',
+    paddingHorizontal: spacing.sm,
+    justifyContent: 'center',
   },
-  mediaActionContent: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  mediaActionText: { fontSize: fontSizes[12], fontWeight: '800', color: colors.brandOnSoft },
-  metadataRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  time: { fontSize: fontSizes[10], color: colors.muted, textAlign: 'left' },
-  mineTime: { color: colors.brandSoft },
+  mediaActionContent: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  mediaActionText: {
+    ...typography.captionStrong,
+    color: colors.brandOnSoft,
+    textAlign: 'right',
+  },
   failedActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: spacing.md,
     marginTop: spacing.xs,
   },
-  failedAction: { fontSize: fontSizes[11], fontWeight: '900', color: colors.brand },
-  failedDelete: { fontSize: fontSizes[11], fontWeight: '900', color: colors.danger },
+  failedAction: {
+    fontSize: fontSizes[12],
+    fontWeight: '700',
+    color: colors.brandSoft,
+  },
+  failedDelete: {
+    fontSize: fontSizes[12],
+    fontWeight: '700',
+    color: colors.dangerSoft ?? colors.danger,
+  },
 });

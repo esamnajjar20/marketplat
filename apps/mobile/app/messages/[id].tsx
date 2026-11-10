@@ -18,7 +18,7 @@ import type { ChatLiveEvent } from '@/features/messaging/chat-live-stream';
 import { useChatLiveStream } from '@/features/messaging/useChatLiveStream';
 import { useChatMediaOutboxLifecycle } from '@/features/messaging/useChatMediaOutboxLifecycle';
 import { markCachedChatMessageDeleted, readCachedChatMessages, saveCachedChatMessages } from '@/storage/chat-message-cache';
-import { fontSizes, colors, radius, spacing } from '@/theme/tokens';
+import { fontSizes, colors, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
 import ConversationMessageRow, { type ConversationScreenMessage } from '@/features/messaging/ConversationMessageRow';
 import { isAllowedMediaUrl } from '@/lib/safe-media-url';
 import { showToast } from '@/lib/toast';
@@ -385,7 +385,29 @@ export default function ConversationScreen() {
         ...(actionMessage.senderId === user?.id ? [{ key: 'delete', label: 'حذف الرسالة', tone: 'danger' as const, onPress: () => confirmDeleteOwnMessage(actionMessage) }] : []),
       ] : []}
     />
-    <View style={styles.header}><Pressable onPress={() => router.back()} accessibilityRole="button"><Text style={styles.link}>رجوع</Text></Pressable><View style={styles.headerCenter}><Text numberOfLines={1} style={styles.heading}>{other?.name || 'المحادثة'}</Text>{conversation?.ad?.title ? <Text numberOfLines={1} style={styles.context}>{conversation.ad.title}</Text> : null}</View><Pressable onPress={() => setSearchOpen(value => !value)} accessibilityRole="button"><Text style={styles.link}>{searchOpen ? 'إغلاق البحث' : 'بحث'}</Text></Pressable></View>
+    <View style={styles.header}>
+      <Pressable
+        onPress={() => router.back()}
+        accessibilityRole="button"
+        accessibilityLabel="رجوع"
+        style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
+      >
+        <Text style={styles.link}>رجوع</Text>
+      </Pressable>
+      <View style={styles.headerCenter}>
+        <Text numberOfLines={1} style={styles.heading}>{other?.name || 'المحادثة'}</Text>
+        {conversation?.ad?.title ? (
+          <Text numberOfLines={1} style={styles.context}>{conversation.ad.title}</Text>
+        ) : null}
+      </View>
+      <Pressable
+        onPress={() => setSearchOpen(value => !value)}
+        accessibilityRole="button"
+        style={({ pressed }) => [styles.headerBtn, pressed && styles.pressed]}
+      >
+        <Text style={styles.link}>{searchOpen ? 'إغلاق' : 'بحث'}</Text>
+      </Pressable>
+    </View>
     {searchOpen ? <View style={styles.searchBar}><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="البحث في الرسائل المحمّلة" value={messageSearch} onChangeText={setMessageSearch} placeholder="ابحث في الرسائل المحمّلة…" placeholderTextColor={colors.muted} style={styles.searchInput} textAlign="right"/><Text style={styles.searchCount}>{normalizedSearch ? `${visibleMessages.length} نتيجة` : 'بحث محلي دون طلبات إضافية'}</Text></View> : null}
     {loading ? <View style={styles.center}><ActivityIndicator size="large" color={colors.brand}/><Text style={styles.muted}>جاري تحميل الرسائل…</Text></View> : error ? <View style={styles.center}><Text style={styles.title}>تعذر فتح المحادثة</Text><Text style={styles.muted}>{error}</Text><Pressable style={styles.primary} onPress={() => void load()}><Text style={styles.primaryText}>إعادة المحاولة</Text></Pressable></View> : <>
       <FlatList {...denseListPerf} ref={listRef} data={visibleMessages} keyExtractor={(item) => item.id} contentContainerStyle={styles.messages} keyboardShouldPersistTaps="handled" maintainVisibleContentPosition={{ minIndexForVisible: 0 }} onContentSizeChange={() => { if (!initialScrollDone.current && messages.length > 0) requestAnimationFrame(() => requestAnimationFrame(() => { if (initialScrollDone.current || loadingOlder || userScrolledAway.current) return; listRef.current?.scrollToEnd({ animated: false }); initialScrollDone.current = true; })); }} onScroll={(event) => { const offset = event.nativeEvent.contentOffset.y; const distanceFromBottom = event.nativeEvent.contentSize.height - event.nativeEvent.layoutMeasurement.height - offset; userScrolledAway.current = distanceFromBottom > 120; if (offset <= 40) void loadOlder(); }} scrollEventThrottle={250} ListHeaderComponent={loadingOlder ? <ActivityIndicator size="small" color={colors.brand} /> : nextCursor ? <Text style={styles.olderHint}>اسحب إلى الأعلى لتحميل الرسائل الأقدم</Text> : undefined} ListEmptyComponent={<Text style={styles.muted}>لا توجد رسائل بعد. ابدأ المحادثة برسالة واضحة.</Text>} renderItem={({ item }) => (
@@ -407,95 +429,168 @@ export default function ConversationScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.canvas },
   flex: { flex: 1 },
+  pressed: { opacity: ux.pressedOpacity },
   header: {
-    minHeight: 60,
-    paddingHorizontal: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    minHeight: sizes.headerHeight ?? 56,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     backgroundColor: colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
     gap: spacing.sm,
+    ...elevation.xs,
   },
-  headerCenter: { flex: 1, alignItems: 'center' },
+  headerBtn: {
+    minWidth: 52,
+    minHeight: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.sm,
+    backgroundColor: colors.brandSoft,
+  },
+  headerCenter: { flex: 1, alignItems: 'flex-end', gap: 2 },
+  heading: {
+    ...typography.subtitle,
+    color: colors.ink,
+    textAlign: 'right',
+    width: '100%',
+  },
+  context: {
+    ...typography.caption,
+    color: colors.muted,
+    textAlign: 'right',
+    width: '100%',
+  },
+  link: {
+    color: colors.brandOnSoft,
+    ...typography.captionStrong,
+  },
   searchBar: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     backgroundColor: colors.surface,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.border,
     gap: 4,
   },
   searchInput: {
-    minHeight: 40,
-    borderWidth: 1,
-    borderColor: colors.border,
+    minHeight: 44,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong ?? colors.border,
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     color: colors.ink,
     backgroundColor: colors.canvas,
   },
-  searchCount: { fontSize: fontSizes[10], color: colors.muted, textAlign: 'right' },
-  heading: { fontSize: fontSizes[16], fontWeight: '900', color: colors.ink },
-  context: { fontSize: fontSizes[11], color: colors.muted, marginTop: 2 },
-  link: { color: colors.brand, fontWeight: '800', padding: spacing.sm },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md },
-  title: { fontSize: fontSizes[17], fontWeight: '900', color: colors.ink },
-  muted: { fontSize: fontSizes[13], color: colors.muted, textAlign: 'center', lineHeight: 21 },
-  primary: { backgroundColor: colors.brand, borderRadius: radius.md, padding: spacing.md },
-  primaryText: { color: colors.white, fontWeight: '800' },
-  messages: { padding: spacing.md, gap: spacing.sm, flexGrow: 1, justifyContent: 'flex-end' },
-  olderHint: { fontSize: fontSizes[11], color: colors.muted, textAlign: 'center', paddingVertical: spacing.sm },
+  searchCount: {
+    fontSize: fontSizes[10],
+    color: colors.muted,
+    textAlign: 'right',
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xl,
+    gap: spacing.md,
+  },
+  title: { ...typography.subtitle, color: colors.ink },
+  muted: {
+    ...typography.body,
+    color: colors.muted,
+    textAlign: 'center',
+  },
+  primary: {
+    backgroundColor: colors.brand,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryText: { color: colors.white, ...typography.button },
+  messages: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    gap: spacing.xs,
+    flexGrow: 1,
+    justifyContent: 'flex-end',
+  },
+  olderHint: {
+    fontSize: fontSizes[11],
+    color: colors.muted,
+    textAlign: 'center',
+    paddingVertical: spacing.sm,
+  },
   attach: {
     minHeight: 44,
+    minWidth: 44,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
-    borderRadius: radius.lg,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.canvas,
   },
-  attachText: { fontSize: fontSizes[12], fontWeight: '800', color: colors.brand },
+  attachText: {
+    fontSize: fontSizes[12],
+    fontWeight: '700',
+    color: colors.brand,
+  },
   pendingMedia: {
     fontSize: fontSizes[11],
     color: colors.brand,
     textAlign: 'right',
     paddingHorizontal: spacing.md,
-    paddingVertical: 4,
-    backgroundColor: colors.surface,
+    paddingVertical: 6,
+    backgroundColor: colors.brandSoft,
   },
-  recording: { backgroundColor: colors.danger, borderColor: colors.danger },
+  recording: {
+    backgroundColor: colors.danger,
+    borderColor: colors.danger,
+  },
   composer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: spacing.sm,
-    padding: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     backgroundColor: colors.surface,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
+    ...elevation.sm,
   },
   input: {
     flex: 1,
-    maxHeight: 110,
+    maxHeight: 120,
     minHeight: 44,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md,
+    borderWidth: 1.5,
+    borderColor: colors.borderStrong ?? colors.border,
+    borderRadius: 22,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     color: colors.ink,
     backgroundColor: colors.canvas,
+    fontSize: fontSizes[15],
   },
   send: {
     height: 44,
+    minWidth: 64,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-    borderRadius: radius.lg,
+    borderRadius: 22,
     backgroundColor: colors.brand,
   },
-  sendText: { color: colors.white, fontWeight: '900' },
-  disabled: { opacity: 0.45 },
+  sendText: {
+    color: colors.white,
+    fontWeight: '700',
+    fontSize: fontSizes[14],
+  },
+  disabled: { opacity: 0.42 },
 });
