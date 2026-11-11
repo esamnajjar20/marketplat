@@ -1,0 +1,1453 @@
+{
+  "applied": false,
+  "deletes": {
+    ".github/workflows/build-mobile-apk.yml.bak": {
+      "category": "junk",
+      "reason": "ملف مخلّفات/ملف مؤقت"
+    },
+    "apps/api/scripts/installment-payment-idempotency-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "apps/api/scripts/offline-idempotency-side-effects-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "apps/api/scripts/sales-payment-return-idempotency-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "apps/api/scripts/transactional-outbox-batch-32-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "apps/api/scripts/transactional-outbox-follow-notification-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "apps/api/scripts/transactional-outbox-readiness-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "apps/api/scripts/transactional-outbox-saved-search-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "apps/api/src/modules/sales/payments.service.ts": {
+      "category": "dead-code",
+      "reason": "ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)"
+    },
+    "apps/api/src/modules/sales/returns.service.ts": {
+      "category": "dead-code",
+      "reason": "ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)"
+    },
+    "apps/api/src/modules/sales/stats.service.ts": {
+      "category": "dead-code",
+      "reason": "ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)"
+    },
+    "apps/api/src/modules/search/search.facets.service.ts": {
+      "category": "dead-code",
+      "reason": "ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)"
+    },
+    "apps/api/src/shared/cache/cacheRegistry.ts": {
+      "category": "dead-code",
+      "reason": "ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)"
+    },
+    "apps/mobile/scripts/legacy-verifications/README.md": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/manifest.json": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-chat-dead-letter-recovery-audit.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-chat-persistent-outbox-audit.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-discovery-add-pages.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-feature-phase1.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-feature-phase4.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-feature-phase5.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-feature-phase6.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-feature-phase7.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-feature-remaining-account-pages.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-community-sections.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-marketplace-sections.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-mixed-removal-navigation.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-multi-section.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase10.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase11.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase12.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase13.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase14.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase3.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase4.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase5.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase6.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase7.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase8.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase9.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-mutation-csrf-audit.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-native-chat-parity-audit.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-navigation-information-hierarchy.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-offline-first-all-creations.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-offline-first-deep-audit-fixes.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-order-cancellation-stage-audit.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase10.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase11.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase12.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase13.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase14.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase15.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase17.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase19.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase20.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase21.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase22.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase23.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase24.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase25.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase26.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase29.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase30.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase31.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase32.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase33.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase34.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase35.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase36.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase37.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase38.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase39.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase41.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase42.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase43.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase44.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase45.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase46.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase47.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase48.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase49.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase50.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase51.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase52.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase53.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase54.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase55.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase56.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase57.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase58.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase60.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase61.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase7.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase70.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase71.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase74.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase76.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase79.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-phase9.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-product-contact-flow.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/legacy-verifications/verify-scaffold.mjs": {
+      "category": "scripts",
+      "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
+    },
+    "apps/mobile/scripts/verify-app-journey-audit.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-chat-dead-letter-recovery-audit.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-chat-persistent-outbox-audit.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-conversation-virtualization.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-discovery-add-pages.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-feature-phase1.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-feature-phase4.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-feature-phase5.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-feature-phase6.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-feature-phase7.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-feature-store-pages.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-followup-remaining-pages.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-community-sections.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-marketplace-sections.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-mixed-removal-navigation.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-multi-section.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-ux-phase10.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-ux-phase11.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-ux-phase12.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-ux-phase13.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-ux-phase14.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-ux-phase3.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-ux-phase4.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-ux-phase5.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-ux-phase6.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-ux-phase7.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-ux-phase8.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-homepage-ux-phase9.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-mobile-audit-repairs.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-mobile-critical-contracts.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-navigation-drawer.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-offline-first-private-feature-cache.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-offline-first-public-cache.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-order-cancellation-stage-audit.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase10.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase11.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase12.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase13.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase14.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase15.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase17.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase19.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase20.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase21.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase22.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase23.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase24.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase25.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase26.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase29.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase3-native-integrations.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase30.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase31.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase32.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase33.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase34.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase35.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase36.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase37.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase38.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase39.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase40.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase41.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase42.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase43.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase44.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase45.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase46.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase47.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase48.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase49.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase50.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase51.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase52.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase53.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase54.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase55.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase56.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase57.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase58.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase60.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase61.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase68.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase7.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase70.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase71.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase74.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase76.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase8.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-phase9.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-remaining-pages-audit.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/scripts/verify-scaffold.mjs": {
+      "category": "scripts",
+      "reason": "تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل"
+    },
+    "apps/mobile/src/components/ui/StorefrontTabs.tsx": {
+      "category": "dead-code",
+      "reason": "ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)"
+    },
+    "audit_marketplat.py": {
+      "category": "junk",
+      "reason": "سكربت فحص لمرة واحدة ينتج marketplat-audit.json"
+    },
+    "frontend.gitignore": {
+      "category": "junk",
+      "reason": ".gitignore شاردة بالجذر؛ الأصلي frontend/.gitignore"
+    },
+    "frontend/__tests__/components/WovenTexture.test.tsx": {
+      "category": "dead-code",
+      "reason": "اختبار لا يغطي إلا ملفات ميتة"
+    },
+    "frontend/__tests__/unit/lib/imageRegionDetect.test.ts": {
+      "category": "dead-code",
+      "reason": "اختبار لا يغطي إلا ملفات ميتة"
+    },
+    "frontend/__tests__/unit/lib/serviceQuoteStatus.test.ts": {
+      "category": "dead-code",
+      "reason": "اختبار لا يغطي إلا ملفات ميتة"
+    },
+    "frontend/__tests__/unit/lib/swUpdateSafety.test.ts": {
+      "category": "dead-code",
+      "reason": "اختبار لا يغطي إلا ملفات ميتة"
+    },
+    "frontend/components/search/NativeFilterSheet.tsx": {
+      "category": "dead-code",
+      "reason": "ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)"
+    },
+    "frontend/components/shared/ui/WovenTexture.tsx": {
+      "category": "dead-code",
+      "reason": "ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)"
+    },
+    "frontend/frontend-tail.log": {
+      "category": "junk",
+      "reason": "ملف مخلّفات/ملف مؤقت"
+    },
+    "frontend/lib/imageRegionDetect.ts": {
+      "category": "dead-code",
+      "reason": "ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)"
+    },
+    "frontend/lib/runtime/push.ts": {
+      "category": "dead-code",
+      "reason": "ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)"
+    },
+    "frontend/lib/serviceQuoteStatus.ts": {
+      "category": "dead-code",
+      "reason": "ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)"
+    },
+    "frontend/lib/swUpdateSafety.ts": {
+      "category": "dead-code",
+      "reason": "ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)"
+    },
+    "frontend/scripts/activity-service-requests-index-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/api-batching-phase1-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/api-batching-phase2-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/api-batching-phase7-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/dashboard-first-render-requests-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/favorite-optimistic-race-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/favorite-session-cache-consistency-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/followed-store-cache-consistency-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/homepage-entity-cache-consistency-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/lazy-query-intent-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/mutation-rollback-concurrency-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/my-services-performance-phase-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/necessary-request-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/offline-all-operations-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/offline-idempotency-contract-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/offline-queue-resilience-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/periodic-network-lifecycle-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/prefetch-policy-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/product-status-cache-consistency-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/profile-and-global-request-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/promotion-invalidation-scope-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/public-page-request-optimization-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/public-page-request-reduction-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/query-abort-signal-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/query-abort-signal-phase12-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/query-abort-signal-phase13-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/query-invalidation-semantic-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/requests-hydration-safety-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/sales-data-freshness-performance-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/sales-tab-request-optimization-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/search-messaging-network-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/service-listing-status-cache-consistency-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/session-queue-lifecycle-fence-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/session-queue-owner-isolation-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/settings-presence-performance-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/store-dashboard-requests-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/store-profile-cache-consistency-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/sw-storage-pressure-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/sw-update-safety-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/toggle-ordering-lifecycle-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/warming-final-audit-report.md": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/scripts/warming-scheduler-lifecycle-audit.mjs": {
+      "category": "scripts",
+      "reason": "سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات"
+    },
+    "frontend/store/filter.store.ts": {
+      "category": "dead-code",
+      "reason": "ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)"
+    },
+    "frontend/wrangler.jsonc.bak": {
+      "category": "junk",
+      "reason": "ملف مخلّفات/ملف مؤقت"
+    },
+    "marketplat-audit.json": {
+      "category": "junk",
+      "reason": "مخرجات فحص لمرة واحدة (193KB) — يُولَّد من audit_marketplat.py"
+    },
+    "package-lock.json": {
+      "category": "junk",
+      "reason": "lock قديم بالجذر؛ المشروع pnpm والجذر بلا dependencies"
+    },
+    "test-results/.last-run.json": {
+      "category": "junk",
+      "reason": "مخرجات Playwright/اختبارات مولّدة"
+    },
+    "workers/cf-api-proxy.gitignore": {
+      "category": "junk",
+      "reason": ".gitignore شاردة؛ الأصلي workers/cf-api-proxy/.gitignore"
+    }
+  },
+  "moves": {
+    "APPWRITE-DEPLOYMENT-AR.md": {
+      "to": "docs/operations/APPWRITE-DEPLOYMENT-AR.md",
+      "category": "docs"
+    },
+    "CACHE-ANALYTICS-OPERATIONS-AR.md": {
+      "to": "docs/operations/CACHE-ANALYTICS-OPERATIONS-AR.md",
+      "category": "docs"
+    },
+    "GO_WORKER_FAILOVER_PHASE5_AR.md": {
+      "to": "docs/backend/GO_WORKER_FAILOVER_PHASE5_AR.md",
+      "category": "docs"
+    },
+    "GO_WORKER_FAILOVER_PHASE6_AR.md": {
+      "to": "docs/backend/GO_WORKER_FAILOVER_PHASE6_AR.md",
+      "category": "docs"
+    },
+    "MONOREPO_MIGRATION_PLAN_AR.md": {
+      "to": "docs/architecture/MONOREPO_MIGRATION_PLAN_AR.md",
+      "category": "docs"
+    },
+    "README_AR.md": {
+      "to": "docs/README_AR.md",
+      "category": "docs"
+    },
+    "README_MONOREPO_AR.md": {
+      "to": "docs/architecture/README_MONOREPO_AR.md",
+      "category": "docs"
+    },
+    "REDIS-MULTISERVICE-IMPLEMENTATION-AR.md": {
+      "to": "docs/operations/REDIS-MULTISERVICE-IMPLEMENTATION-AR.md",
+      "category": "docs"
+    },
+    "TECH_DEBT.md": {
+      "to": "docs/TECH_DEBT.md",
+      "category": "docs"
+    },
+    "apps/api/DEEP-BACKEND-AUDIT-2026-11-09-AR.md": {
+      "to": "docs/archive/api/DEEP-BACKEND-AUDIT-2026-11-09-AR.md",
+      "category": "archive"
+    },
+    "apps/api/PROD-FIXES-CHANGELOG.md": {
+      "to": "docs/archive/api/PROD-FIXES-CHANGELOG.md",
+      "category": "archive"
+    },
+    "apps/api/docs/BACKEND_AUDIT_PHASE_01_ENDPOINT_MATRIX.csv": {
+      "to": "docs/archive/api/docs/BACKEND_AUDIT_PHASE_01_ENDPOINT_MATRIX.csv",
+      "category": "archive"
+    },
+    "apps/mobile/DESIGN-SYSTEM-AR.md": {
+      "to": "apps/mobile/docs/DESIGN-SYSTEM-AR.md",
+      "category": "docs"
+    },
+    "apps/mobile/PHASE-A-REPORT-AR.md": {
+      "to": "docs/archive/mobile/docs/PHASE-A-REPORT-AR.md",
+      "category": "docs"
+    },
+    "apps/mobile/docs/CRITICAL-AUDIT-ROUND7-REPAIR-AR.md": {
+      "to": "docs/archive/mobile/docs/CRITICAL-AUDIT-ROUND7-REPAIR-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/LINKING-IOS-STATUS-ROUND2-AR.md": {
+      "to": "docs/archive/mobile/docs/LINKING-IOS-STATUS-ROUND2-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/MOBILE-CLEANUP-ROUND-2026-11-11-AR.md": {
+      "to": "docs/archive/mobile/docs/MOBILE-CLEANUP-ROUND-2026-11-11-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/MOBILE-CONSISTENCY-ROUND-2026-11-11-AR.md": {
+      "to": "docs/archive/mobile/docs/MOBILE-CONSISTENCY-ROUND-2026-11-11-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/MOBILE-DESIGN-SYSTEM-PHASE2-2026-11-10-AR.md": {
+      "to": "docs/archive/mobile/docs/MOBILE-DESIGN-SYSTEM-PHASE2-2026-11-10-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/MOBILE-REORGANIZATION-2026-11-11-AR.md": {
+      "to": "docs/archive/mobile/docs/MOBILE-REORGANIZATION-2026-11-11-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/MOBILE-UI-UX-AUDIT-2026-11-10-AR.md": {
+      "to": "docs/archive/mobile/docs/MOBILE-UI-UX-AUDIT-2026-11-10-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/MOBILE-UNIFICATION-ROUND3-AR.md": {
+      "to": "docs/archive/mobile/docs/MOBILE-UNIFICATION-ROUND3-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/PHASE1-APPLY-AR.md": {
+      "to": "docs/archive/mobile/docs/PHASE1-APPLY-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/PHASE2-APPLY-AR.md": {
+      "to": "docs/archive/mobile/docs/PHASE2-APPLY-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/PHASE3-APPLY-AR.md": {
+      "to": "docs/archive/mobile/docs/PHASE3-APPLY-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/PHASE4-APPLY-AR.md": {
+      "to": "docs/archive/mobile/docs/PHASE4-APPLY-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/PHASE5-APPLY-AR.md": {
+      "to": "docs/archive/mobile/docs/PHASE5-APPLY-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/PHASE6-APPLY-AR.md": {
+      "to": "docs/archive/mobile/docs/PHASE6-APPLY-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/REMAINING-AFTER-PHASE6-AR.md": {
+      "to": "docs/archive/mobile/docs/REMAINING-AFTER-PHASE6-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/UIUX-NAVIGATION-DATA-RTL-ROUND8-REPORT-AR.md": {
+      "to": "docs/archive/mobile/docs/UIUX-NAVIGATION-DATA-RTL-ROUND8-REPORT-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/UIUX-ROUND6-REPAIR-REPORT-AR.md": {
+      "to": "docs/archive/mobile/docs/UIUX-ROUND6-REPAIR-REPORT-AR.md",
+      "category": "archive"
+    },
+    "apps/mobile/docs/history/DESIGN-SYSTEM-AR.md": {
+      "to": "docs/archive/mobile/history/DESIGN-SYSTEM-AR.md",
+      "category": "archive"
+    },
+    "docs/CACHE_LAYERS_ARCHITECTURE.md": {
+      "to": "docs/architecture/CACHE_LAYERS_ARCHITECTURE.md",
+      "category": "docs"
+    },
+    "docs/CLOUDFLARE-CACHE-SETUP-AR.md": {
+      "to": "docs/operations/CLOUDFLARE-CACHE-SETUP-AR.md",
+      "category": "docs"
+    },
+    "docs/PHASE1_APP_SHELL_AR.md": {
+      "to": "docs/archive/root/PHASE1_APP_SHELL_AR.md",
+      "category": "archive"
+    },
+    "docs/PHASE2_APP_FLOWS_AR.md": {
+      "to": "docs/archive/root/PHASE2_APP_FLOWS_AR.md",
+      "category": "archive"
+    },
+    "docs/PHASE3_PUBLISH_REFRESH_AR.md": {
+      "to": "docs/archive/root/PHASE3_PUBLISH_REFRESH_AR.md",
+      "category": "archive"
+    },
+    "docs/PHASE4_CHAT_SHORTCUTS_AR.md": {
+      "to": "docs/archive/root/PHASE4_CHAT_SHORTCUTS_AR.md",
+      "category": "archive"
+    },
+    "docs/PHASE5_CHAT_POLISH_AR.md": {
+      "to": "docs/archive/root/PHASE5_CHAT_POLISH_AR.md",
+      "category": "archive"
+    },
+    "docs/PHASE6_CI_TRANSITION_AR.md": {
+      "to": "docs/archive/root/PHASE6_CI_TRANSITION_AR.md",
+      "category": "archive"
+    },
+    "docs/PHASE6_REMAINING_AR.md": {
+      "to": "docs/archive/root/PHASE6_REMAINING_AR.md",
+      "category": "archive"
+    },
+    "docs/PHASE7_SOURCE_OF_TRUTH_AR.md": {
+      "to": "docs/archive/root/PHASE7_SOURCE_OF_TRUTH_AR.md",
+      "category": "archive"
+    },
+    "docs/PHASE8_WORKSPACE_PACKAGES_AR.md": {
+      "to": "docs/archive/root/PHASE8_WORKSPACE_PACKAGES_AR.md",
+      "category": "archive"
+    },
+    "docs/PHASE9_PRISMA_MIGRATION_AR.md": {
+      "to": "docs/archive/root/PHASE9_PRISMA_MIGRATION_AR.md",
+      "category": "archive"
+    },
+    "docs/TEST_REPAIR_FIVE_PHASE_PLAN.md": {
+      "to": "docs/archive/root/TEST_REPAIR_FIVE_PHASE_PLAN.md",
+      "category": "archive"
+    },
+    "docs/TEST_REPAIR_PHASE4_REPORT.md": {
+      "to": "docs/archive/root/TEST_REPAIR_PHASE4_REPORT.md",
+      "category": "archive"
+    },
+    "docs/mobile/archive/ARCHITECTURE.md": {
+      "to": "docs/archive/mobile/archive/ARCHITECTURE.md",
+      "category": "archive"
+    },
+    "docs/mobile/archive/BUNDLE-CODE-SPLITTING-AR.md": {
+      "to": "docs/archive/mobile/archive/BUNDLE-CODE-SPLITTING-AR.md",
+      "category": "archive"
+    },
+    "docs/mobile/archive/DESIGN-SYSTEM-AR.md": {
+      "to": "docs/archive/mobile/archive/DESIGN-SYSTEM-AR.md",
+      "category": "archive"
+    },
+    "docs/mobile/archive/MJS-TO-TS-AR.md": {
+      "to": "docs/archive/mobile/archive/MJS-TO-TS-AR.md",
+      "category": "archive"
+    },
+    "docs/mobile/archive/PHASE1-APPLY-AR.md": {
+      "to": "docs/archive/mobile/archive/PHASE1-APPLY-AR.md",
+      "category": "archive"
+    },
+    "docs/mobile/archive/PHASE2-APPLY-AR.md": {
+      "to": "docs/archive/mobile/archive/PHASE2-APPLY-AR.md",
+      "category": "archive"
+    },
+    "docs/mobile/archive/PHASE3-APPLY-AR.md": {
+      "to": "docs/archive/mobile/archive/PHASE3-APPLY-AR.md",
+      "category": "archive"
+    },
+    "docs/mobile/archive/PHASE4-APPLY-AR.md": {
+      "to": "docs/archive/mobile/archive/PHASE4-APPLY-AR.md",
+      "category": "archive"
+    },
+    "docs/mobile/archive/PHASE5-APPLY-AR.md": {
+      "to": "docs/archive/mobile/archive/PHASE5-APPLY-AR.md",
+      "category": "archive"
+    },
+    "docs/mobile/archive/PHASE6-APPLY-AR.md": {
+      "to": "docs/archive/mobile/archive/PHASE6-APPLY-AR.md",
+      "category": "archive"
+    },
+    "docs/mobile/archive/REMAINING-AFTER-PHASE6-AR.md": {
+      "to": "docs/archive/mobile/archive/REMAINING-AFTER-PHASE6-AR.md",
+      "category": "archive"
+    },
+    "docs/mobile/archive/SCREEN-ORGANIZATION-AR.md": {
+      "to": "docs/archive/mobile/archive/SCREEN-ORGANIZATION-AR.md",
+      "category": "archive"
+    },
+    "docs/performance/RENDER-PHASE-1-2-CHANGELOG.md": {
+      "to": "docs/archive/web/performance/RENDER-PHASE-1-2-CHANGELOG.md",
+      "category": "archive"
+    },
+    "docs/performance/RENDER-PHASE-1-BASELINE.md": {
+      "to": "docs/archive/web/performance/RENDER-PHASE-1-BASELINE.md",
+      "category": "archive"
+    },
+    "docs/performance/RENDER-PHASE-3-4-ANALYSIS.md": {
+      "to": "docs/archive/web/performance/RENDER-PHASE-3-4-ANALYSIS.md",
+      "category": "archive"
+    },
+    "docs/performance/RENDER-PHASE-3-4-CHANGELOG.md": {
+      "to": "docs/archive/web/performance/RENDER-PHASE-3-4-CHANGELOG.md",
+      "category": "archive"
+    },
+    "docs/performance/RENDER-PHASE-5-6-ANALYSIS.md": {
+      "to": "docs/archive/web/performance/RENDER-PHASE-5-6-ANALYSIS.md",
+      "category": "archive"
+    },
+    "docs/performance/RENDER-PHASE-5-6-CHANGELOG.md": {
+      "to": "docs/archive/web/performance/RENDER-PHASE-5-6-CHANGELOG.md",
+      "category": "archive"
+    },
+    "docs/social-follow-system.md": {
+      "to": "docs/features/social-follow-system.md",
+      "category": "docs"
+    },
+    "docs/stories-system.md": {
+      "to": "docs/features/stories-system.md",
+      "category": "docs"
+    },
+    "frontend/CLOUDFLARE-KV-CACHE-MIGRATION.md": {
+      "to": "frontend/docs/CLOUDFLARE-KV-CACHE-MIGRATION.md",
+      "category": "docs"
+    },
+    "frontend/docs/API_BATCHING_PHASE7_AR.md": {
+      "to": "docs/archive/web/docs/API_BATCHING_PHASE7_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/DASHBOARD_REQUEST_OPTIMIZATION_AR.md": {
+      "to": "docs/archive/web/docs/DASHBOARD_REQUEST_OPTIMIZATION_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/FILTER_NAVIGATION_REQUEST_REDUCTION_AR.md": {
+      "to": "docs/archive/web/docs/FILTER_NAVIGATION_REQUEST_REDUCTION_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/FILTER_NAVIGATION_ROOT_CAUSE_FIX_AR.md": {
+      "to": "docs/archive/web/docs/FILTER_NAVIGATION_ROOT_CAUSE_FIX_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/HTTP_REQUEST_OPTIMIZATION_PHASE6_AR.md": {
+      "to": "docs/archive/web/docs/HTTP_REQUEST_OPTIMIZATION_PHASE6_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/LOADING_SYSTEM_PHASE14.md": {
+      "to": "docs/archive/web/docs/LOADING_SYSTEM_PHASE14.md",
+      "category": "archive"
+    },
+    "frontend/docs/MY_SERVICES_PERFORMANCE_PHASE_AR.md": {
+      "to": "docs/archive/web/docs/MY_SERVICES_PERFORMANCE_PHASE_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/MY_SERVICES_REQUEST_AUDIT_AR.md": {
+      "to": "docs/archive/web/docs/MY_SERVICES_REQUEST_AUDIT_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/OFFLINE_CENTER_AUDIT_2026-10-04.md": {
+      "to": "docs/archive/web/docs/OFFLINE_CENTER_AUDIT_2026-10-04.md",
+      "category": "archive"
+    },
+    "frontend/docs/OFFLINE_PAYMENTS_HUB_UIUX_2026-10-04.md": {
+      "to": "docs/archive/web/docs/OFFLINE_PAYMENTS_HUB_UIUX_2026-10-04.md",
+      "category": "archive"
+    },
+    "frontend/docs/OFFLINE_PHASES_1_2_AUDIT.md": {
+      "to": "docs/archive/web/docs/OFFLINE_PHASES_1_2_AUDIT.md",
+      "category": "archive"
+    },
+    "frontend/docs/OFFLINE_UIUX_AUDIT_2026-10-04.md": {
+      "to": "docs/archive/web/docs/OFFLINE_UIUX_AUDIT_2026-10-04.md",
+      "category": "archive"
+    },
+    "frontend/docs/PHASE1_APP_SHELL_AR.md": {
+      "to": "docs/archive/web/docs/PHASE1_APP_SHELL_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/PHASE2_APP_FLOWS_AR.md": {
+      "to": "docs/archive/web/docs/PHASE2_APP_FLOWS_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/PHASE3_PUBLISH_REFRESH_AR.md": {
+      "to": "docs/archive/web/docs/PHASE3_PUBLISH_REFRESH_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/PHASE4_CHAT_SHORTCUTS_AR.md": {
+      "to": "docs/archive/web/docs/PHASE4_CHAT_SHORTCUTS_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/PHASE5_CHAT_POLISH_AR.md": {
+      "to": "docs/archive/web/docs/PHASE5_CHAT_POLISH_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/PHASE6_REMAINING_AR.md": {
+      "to": "docs/archive/web/docs/PHASE6_REMAINING_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/PROJECT_REQUEST_REDUCTION_AUDIT_AR.md": {
+      "to": "docs/archive/web/docs/PROJECT_REQUEST_REDUCTION_AUDIT_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/PUBLIC_PAGES_REQUEST_AUDIT_AR.md": {
+      "to": "docs/archive/web/docs/PUBLIC_PAGES_REQUEST_AUDIT_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/PUBLIC_PAGE_REQUEST_OPTIMIZATION_AR.md": {
+      "to": "docs/archive/web/docs/PUBLIC_PAGE_REQUEST_OPTIMIZATION_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/SALES_DATA_FIRST_RENDER_OPTIMIZATION_AR.md": {
+      "to": "docs/archive/web/docs/SALES_DATA_FIRST_RENDER_OPTIMIZATION_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/SALES_PAGES_REQUEST_AUDIT_AR.md": {
+      "to": "docs/archive/web/docs/SALES_PAGES_REQUEST_AUDIT_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/SALES_TAB_REQUEST_OPTIMIZATION_AR.md": {
+      "to": "docs/archive/web/docs/SALES_TAB_REQUEST_OPTIMIZATION_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/SEARCH-MESSAGING-NETWORK-AUDIT-AR.md": {
+      "to": "docs/archive/web/docs/SEARCH-MESSAGING-NETWORK-AUDIT-AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/SETTINGS_PRESENCE_PERFORMANCE_PHASE_AR.md": {
+      "to": "docs/archive/web/docs/SETTINGS_PRESENCE_PERFORMANCE_PHASE_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/STORE_DASHBOARD_REQUEST_OPTIMIZATION_AR.md": {
+      "to": "docs/archive/web/docs/STORE_DASHBOARD_REQUEST_OPTIMIZATION_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/STORE_PAGE_REQUEST_AUDIT_AR.md": {
+      "to": "docs/archive/web/docs/STORE_PAGE_REQUEST_AUDIT_AR.md",
+      "category": "archive"
+    },
+    "frontend/docs/detail-query-dedup-phase3.md": {
+      "to": "docs/archive/web/docs/detail-query-dedup-phase3.md",
+      "category": "archive"
+    },
+    "frontend/docs/performance-phase5.md": {
+      "to": "docs/archive/web/docs/performance-phase5.md",
+      "category": "archive"
+    },
+    "frontend/docs/server-data-cache-phase2.md": {
+      "to": "docs/archive/web/docs/server-data-cache-phase2.md",
+      "category": "archive"
+    },
+    "tools/dev-all.mjs": {
+      "to": "tools/dev-all.mjs",
+      "category": "tools"
+    },
+    "tools/verify-prisma-layout.mjs": {
+      "to": "tools/verify-prisma-layout.mjs",
+      "category": "tools"
+    },
+    "tools/verify-workspace.mjs": {
+      "to": "tools/verify-workspace.mjs",
+      "category": "tools"
+    }
+  },
+  "pkg_removed": {
+    "apps/mobile": [
+      "verify:phase3"
+    ],
+    "frontend": [
+      "network:batching-phase1-audit",
+      "network:batching-phase2-audit",
+      "network:batching-phase7-audit",
+      "network:necessary-request-audit",
+      "network:public-page-audit",
+      "perf:sales-first-render-audit",
+      "prefetch:policy-audit",
+      "profile:request-audit",
+      "public-pages:request-audit"
+    ]
+  },
+  "stats": {
+    "candidates": 1552,
+    "prod_unreachable": 43,
+    "deleted_sources": 13,
+    "deleted_tests": 4
+  }
+}

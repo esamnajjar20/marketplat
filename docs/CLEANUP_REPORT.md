@@ -1,0 +1,627 @@
+# تقرير إعادة التنظيم والتنظيف
+
+- الوضع: **تم التنفيذ**
+- التاريخ: 2026-11-12T00:53:36
+
+## الملخص
+
+| الفئة | عدد المحذوف | الحجم |
+|---|---:|---:|
+| junk | 9 | 219.7KB |
+| scripts | 229 | 490.0KB |
+| dead-code | 17 | 34.3KB |
+| **المجموع** | **255** | **744.1KB** |
+
+- ملفات منقولة: **101**
+  - docs: 16
+  - archive: 82
+  - tools: 3
+
+## تحليل الكود اليتيم
+
+- ملفات مرشحة للفحص: 1552
+- غير قابلة للوصول إنتاجيًا: 43
+- حُذف منها: 13 ملف مصدر + 4 اختبار
+- محمية لأنها تُستعمل من اختبارات حية (test-only): 17
+- محمية بإشارة نصية في ملف حي: 13
+
+## سكربتات npm المزالة (كانت تشير لملفات محذوفة)
+
+- `apps/mobile/package.json`: 1 سكربت
+- `frontend/package.json`: 9 سكربت
+
+## إجراءات إضافية
+
+- إعادة كتابة مراجع مسارات (tooling→tools …): 5 ملف
+- package.json (إزالة سكربتات): apps/mobile/package.json: 1, frontend/package.json: 9
+- run-all-verifications.mjs: run-all-verifications.mjs: أُزيل الاعتماد على legacy-verifications/manifest.json
+- quarantined-active.json: quarantined-active.json: متبقٍ 0 إدخال
+- روابط md المُصلَحة: 4
+- مجلدات فارغة محذوفة: 3
+
+## ملاحظات
+
+- لم يُنقل OFFLINE_SYSTEM_PHASE1_INVENTORY.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل README-BANDWIDTH-PROBE-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل marketplat_bandwidth_probe.py لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/api/docs/OFFLINE_IDEMPOTENCY_AUDIT.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/BOTTOM-NAVIGATION-ORGANIZATION-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/CHAT-LIVE-STREAM-PHASE2-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/CHAT-LOW-BANDWIDTH-PHASE1-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/CHAT-MEDIA-OUTBOX-PHASE4-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/CHAT-NATIVE-PARITY-PHASE3-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/CONFIRMED-FIXES-2026-10-29-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-1-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-10-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-11-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-12-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-13-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-14-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-15-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-16-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-17-QUALITY-AUDIT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-18-QUALITY-AUDIT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-2-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-3-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-4-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-5-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-6-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-7-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-8-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/GROUP-9-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-MIXED-SECTION-REMOVAL-NAVIGATION-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-PAGE-COMMUNITY-SECTIONS-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-PAGE-IMPROVEMENT-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-PAGE-UX-PHASE10-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-PAGE-UX-PHASE11-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-PAGE-UX-PHASE12-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-PAGE-UX-PHASE13-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-PAGE-UX-PHASE14-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-PAGE-UX-PHASE3-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-PAGE-UX-PHASE4-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-PAGE-UX-PHASE5-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-PAGE-UX-PHASE6-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-PAGE-UX-PHASE7-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-PAGE-UX-PHASE8-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOME-PAGE-UX-PHASE9-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/HOMEPAGE-MARKETPLACE-SECTIONS-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/LIGHTWEIGHT-PERF-PASS-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MERGED-ALL-PASSES-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE-DEEP-AUDIT-2026-11-09-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE-NATIVE-BUILD-SETUP-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE-PATCH-MANIFEST-2026-11-09-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE-UNIFICATION-ROUND1-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_ACCOUNT_STORAGE_STORE_FIXES_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_ACCOUNT_STORAGE_STORE_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_DISCOVERY_ADD_COMPLETION_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_FEATURE_ORDERS_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_FEATURE_PHASE2_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_FEATURE_PHASE3_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_FEATURE_PHASE4_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_FEATURE_PHASE5_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_FEATURE_PHASE6_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_FEATURE_PHASE7_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_MY_SALES_FEATURE_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_REMAINING_PAGES_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_STORE_PAGES_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_STORE_SERVICES_COMPLETION_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/MOBILE_STORE_SERVICES_INTEGRATION_AUDIT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/NAVIGATION-AND-INFORMATION-HIERARCHY-PHASE19-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/PHASE1-DESIGN-SYSTEM-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/PHASE2-DETAIL-HOME-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/PHASE2-HOME-UX-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/PHASE3-LISTS-ADD-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/PHASE4-GOVERNANCE-POLISH-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/PHASE5-CONSISTENCY-GAP-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/PHASE6-REMAINING-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/PHASE7-ZERO-HEX-COMPLETE-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/PHASE8-POLISH-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/README.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/REPAIR-AUDIT-2026-11-01-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/SECURITY-HARDENING-PHASE20-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/UI-UX-RESTRUCTURE-2026-11-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/UX-IMPROVEMENTS-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل apps/mobile/docs/history/UX-NAV-SMOOTH-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/BOTTOM-NAVIGATION-ORGANIZATION-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/CHAT-LIVE-STREAM-PHASE2-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/CHAT-LOW-BANDWIDTH-PHASE1-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/CHAT-MEDIA-OUTBOX-PHASE4-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/CHAT-NATIVE-PARITY-PHASE3-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/CONFIRMED-FIXES-2026-10-29-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-1-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-10-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-11-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-12-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-13-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-14-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-15-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-16-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-17-QUALITY-AUDIT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-18-QUALITY-AUDIT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-2-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-3-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-4-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-5-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-6-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-7-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-8-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/GROUP-9-DESIGN-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-MIXED-SECTION-REMOVAL-NAVIGATION-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-PAGE-COMMUNITY-SECTIONS-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-PAGE-IMPROVEMENT-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-PAGE-UX-PHASE10-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-PAGE-UX-PHASE11-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-PAGE-UX-PHASE12-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-PAGE-UX-PHASE13-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-PAGE-UX-PHASE14-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-PAGE-UX-PHASE3-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-PAGE-UX-PHASE4-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-PAGE-UX-PHASE5-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-PAGE-UX-PHASE6-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-PAGE-UX-PHASE7-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-PAGE-UX-PHASE8-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOME-PAGE-UX-PHASE9-REPORT-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/HOMEPAGE-MARKETPLACE-SECTIONS-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/LIGHTWEIGHT-PERF-PASS-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MERGED-ALL-PASSES-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_ACCOUNT_STORAGE_STORE_FIXES_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_ACCOUNT_STORAGE_STORE_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_DISCOVERY_ADD_COMPLETION_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_FEATURE_ORDERS_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_FEATURE_PHASE2_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_FEATURE_PHASE3_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_FEATURE_PHASE4_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_FEATURE_PHASE5_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_FEATURE_PHASE6_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_FEATURE_PHASE7_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_MY_SALES_FEATURE_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_REMAINING_PAGES_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_STORE_PAGES_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_STORE_SERVICES_COMPLETION_REPORT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/MOBILE_STORE_SERVICES_INTEGRATION_AUDIT_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/NAVIGATION-AND-INFORMATION-HIERARCHY-PHASE19-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/PHASE1-DESIGN-SYSTEM-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/PHASE2-DETAIL-HOME-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/PHASE3-LISTS-ADD-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/PHASE4-GOVERNANCE-POLISH-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/PHASE5-CONSISTENCY-GAP-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/PHASE6-REMAINING-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/PHASE7-ZERO-HEX-COMPLETE-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/PHASE8-POLISH-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/SECURITY-HARDENING-PHASE20-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/UX-IMPROVEMENTS-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/UX-NAV-SMOOTH-AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل docs/mobile/archive/_layout.QUERY-SNIPPET.tsx لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل frontend/docs/API_BATCHING_PHASE1_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل frontend/docs/API_BATCHING_PHASE2_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل frontend/docs/API_BATCHING_PHASE3_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل frontend/docs/API_BATCHING_PHASE4_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل frontend/docs/API_BATCHING_PHASE5_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل frontend/docs/API_BATCHING_PHASE6_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل frontend/docs/API_BATCHING_PHASE8_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل frontend/docs/HOME_FIRST_RENDER_OPTIMIZATION_PHASE3_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل frontend/docs/HTTP_REQUEST_CALLSITE_INVENTORY.csv لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل frontend/docs/HTTP_REQUEST_OPTIMIZATION_AUDIT.md لأن ملفًا حيًا يشير إليه بالاسم
+- لم يُنقل frontend/docs/SEARCH_FIRST_RENDER_OPTIMIZATION_PHASE2_AR.md لأن ملفًا حيًا يشير إليه بالاسم
+
+## ما لم يُفعل عمدًا
+
+- نقل `frontend/` إلى `apps/web`: إعدادات النشر خارج المستودع (Cloudflare Pages/Docker/CI) تشير إلى `frontend`.
+- إعادة ترتيب مجلدات الكود الداخلية: تحتاج `tsc`/اختبارات للتحقق بعد كل نقل.
+- لم تُحذف ملفات الاختبار الحية ولا أي ملف تستعمله اختبارات حية.
+
+## قائمة المحذوف
+
+
+### junk (9)
+
+- `.github/workflows/build-mobile-apk.yml.bak` — ملف مخلّفات/ملف مؤقت
+- `audit_marketplat.py` — سكربت فحص لمرة واحدة ينتج marketplat-audit.json
+- `frontend.gitignore` — .gitignore شاردة بالجذر؛ الأصلي frontend/.gitignore
+- `frontend/frontend-tail.log` — ملف مخلّفات/ملف مؤقت
+- `frontend/wrangler.jsonc.bak` — ملف مخلّفات/ملف مؤقت
+- `marketplat-audit.json` — مخرجات فحص لمرة واحدة (193KB) — يُولَّد من audit_marketplat.py
+- `package-lock.json` — lock قديم بالجذر؛ المشروع pnpm والجذر بلا dependencies
+- `test-results/.last-run.json` — مخرجات Playwright/اختبارات مولّدة
+- `workers/cf-api-proxy.gitignore` — .gitignore شاردة؛ الأصلي workers/cf-api-proxy/.gitignore
+
+### scripts (229)
+
+- `apps/api/scripts/installment-payment-idempotency-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `apps/api/scripts/offline-idempotency-side-effects-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `apps/api/scripts/sales-payment-return-idempotency-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `apps/api/scripts/transactional-outbox-batch-32-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `apps/api/scripts/transactional-outbox-follow-notification-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `apps/api/scripts/transactional-outbox-readiness-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `apps/api/scripts/transactional-outbox-saved-search-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `apps/mobile/scripts/legacy-verifications/README.md` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/manifest.json` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-chat-dead-letter-recovery-audit.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-chat-persistent-outbox-audit.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-discovery-add-pages.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-feature-phase1.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-feature-phase4.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-feature-phase5.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-feature-phase6.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-feature-phase7.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-feature-remaining-account-pages.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-community-sections.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-marketplace-sections.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-mixed-removal-navigation.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-multi-section.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase10.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase11.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase12.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase13.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase14.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase3.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase4.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase5.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase6.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase7.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase8.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase9.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-mutation-csrf-audit.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-native-chat-parity-audit.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-navigation-information-hierarchy.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-offline-first-all-creations.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-offline-first-deep-audit-fixes.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-order-cancellation-stage-audit.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase10.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase11.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase12.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase13.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase14.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase15.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase17.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase19.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase20.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase21.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase22.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase23.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase24.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase25.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase26.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase29.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase30.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase31.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase32.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase33.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase34.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase35.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase36.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase37.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase38.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase39.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase41.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase42.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase43.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase44.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase45.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase46.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase47.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase48.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase49.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase50.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase51.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase52.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase53.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase54.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase55.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase56.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase57.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase58.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase60.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase61.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase7.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase70.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase71.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase74.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase76.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase79.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase9.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-product-contact-flow.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-scaffold.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/verify-app-journey-audit.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-chat-dead-letter-recovery-audit.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-chat-persistent-outbox-audit.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-conversation-virtualization.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-discovery-add-pages.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-feature-phase1.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-feature-phase4.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-feature-phase5.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-feature-phase6.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-feature-phase7.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-feature-store-pages.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-followup-remaining-pages.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-community-sections.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-marketplace-sections.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-mixed-removal-navigation.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-multi-section.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-ux-phase10.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-ux-phase11.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-ux-phase12.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-ux-phase13.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-ux-phase14.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-ux-phase3.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-ux-phase4.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-ux-phase5.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-ux-phase6.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-ux-phase7.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-ux-phase8.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-homepage-ux-phase9.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-mobile-audit-repairs.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-mobile-critical-contracts.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-navigation-drawer.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-offline-first-private-feature-cache.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-offline-first-public-cache.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-order-cancellation-stage-audit.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase10.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase11.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase12.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase13.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase14.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase15.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase17.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase19.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase20.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase21.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase22.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase23.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase24.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase25.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase26.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase29.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase3-native-integrations.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase30.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase31.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase32.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase33.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase34.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase35.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase36.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase37.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase38.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase39.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase40.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase41.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase42.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase43.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase44.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase45.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase46.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase47.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase48.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase49.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase50.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase51.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase52.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase53.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase54.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase55.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase56.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase57.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase58.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase60.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase61.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase68.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase7.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase70.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase71.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase74.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase76.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase8.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-phase9.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-remaining-pages-audit.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `apps/mobile/scripts/verify-scaffold.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
+- `frontend/scripts/activity-service-requests-index-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/api-batching-phase1-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/api-batching-phase2-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/api-batching-phase7-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/dashboard-first-render-requests-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/favorite-optimistic-race-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/favorite-session-cache-consistency-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/followed-store-cache-consistency-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/homepage-entity-cache-consistency-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/lazy-query-intent-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/mutation-rollback-concurrency-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/my-services-performance-phase-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/necessary-request-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/offline-all-operations-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/offline-idempotency-contract-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/offline-queue-resilience-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/periodic-network-lifecycle-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/prefetch-policy-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/product-status-cache-consistency-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/profile-and-global-request-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/promotion-invalidation-scope-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/public-page-request-optimization-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/public-page-request-reduction-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/query-abort-signal-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/query-abort-signal-phase12-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/query-abort-signal-phase13-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/query-invalidation-semantic-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/requests-hydration-safety-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/sales-data-freshness-performance-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/sales-tab-request-optimization-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/search-messaging-network-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/service-listing-status-cache-consistency-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/session-queue-lifecycle-fence-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/session-queue-owner-isolation-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/settings-presence-performance-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/store-dashboard-requests-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/store-profile-cache-consistency-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/sw-storage-pressure-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/sw-update-safety-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/toggle-ordering-lifecycle-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/warming-final-audit-report.md` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+- `frontend/scripts/warming-scheduler-lifecycle-audit.mjs` — سكربت تدقيق لمرة واحدة غير مستعمل في CI/Docker/الاختبارات
+
+### dead-code (17)
+
+- `apps/api/src/modules/sales/payments.service.ts` — ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)
+- `apps/api/src/modules/sales/returns.service.ts` — ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)
+- `apps/api/src/modules/sales/stats.service.ts` — ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)
+- `apps/api/src/modules/search/search.facets.service.ts` — ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)
+- `apps/api/src/shared/cache/cacheRegistry.ts` — ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)
+- `apps/mobile/src/components/ui/StorefrontTabs.tsx` — ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)
+- `frontend/__tests__/components/WovenTexture.test.tsx` — اختبار لا يغطي إلا ملفات ميتة
+- `frontend/__tests__/unit/lib/imageRegionDetect.test.ts` — اختبار لا يغطي إلا ملفات ميتة
+- `frontend/__tests__/unit/lib/serviceQuoteStatus.test.ts` — اختبار لا يغطي إلا ملفات ميتة
+- `frontend/__tests__/unit/lib/swUpdateSafety.test.ts` — اختبار لا يغطي إلا ملفات ميتة
+- `frontend/components/search/NativeFilterSheet.tsx` — ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)
+- `frontend/components/shared/ui/WovenTexture.tsx` — ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)
+- `frontend/lib/imageRegionDetect.ts` — ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)
+- `frontend/lib/runtime/push.ts` — ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)
+- `frontend/lib/serviceQuoteStatus.ts` — ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)
+- `frontend/lib/swUpdateSafety.ts` — ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)
+- `frontend/store/filter.store.ts` — ملف غير قابل للوصول من أي نقطة دخول (لا استيراد ولا إشارة)
+
+## قائمة المنقول
+
+
+### docs (16)
+
+- `APPWRITE-DEPLOYMENT-AR.md` → `docs/operations/APPWRITE-DEPLOYMENT-AR.md`
+- `CACHE-ANALYTICS-OPERATIONS-AR.md` → `docs/operations/CACHE-ANALYTICS-OPERATIONS-AR.md`
+- `GO_WORKER_FAILOVER_PHASE5_AR.md` → `docs/backend/GO_WORKER_FAILOVER_PHASE5_AR.md`
+- `GO_WORKER_FAILOVER_PHASE6_AR.md` → `docs/backend/GO_WORKER_FAILOVER_PHASE6_AR.md`
+- `MONOREPO_MIGRATION_PLAN_AR.md` → `docs/architecture/MONOREPO_MIGRATION_PLAN_AR.md`
+- `README_AR.md` → `docs/README_AR.md`
+- `README_MONOREPO_AR.md` → `docs/architecture/README_MONOREPO_AR.md`
+- `REDIS-MULTISERVICE-IMPLEMENTATION-AR.md` → `docs/operations/REDIS-MULTISERVICE-IMPLEMENTATION-AR.md`
+- `TECH_DEBT.md` → `docs/TECH_DEBT.md`
+- `apps/mobile/DESIGN-SYSTEM-AR.md` → `apps/mobile/docs/DESIGN-SYSTEM-AR.md`
+- `apps/mobile/PHASE-A-REPORT-AR.md` → `docs/archive/mobile/docs/PHASE-A-REPORT-AR.md`
+- `docs/CACHE_LAYERS_ARCHITECTURE.md` → `docs/architecture/CACHE_LAYERS_ARCHITECTURE.md`
+- `docs/CLOUDFLARE-CACHE-SETUP-AR.md` → `docs/operations/CLOUDFLARE-CACHE-SETUP-AR.md`
+- `docs/social-follow-system.md` → `docs/features/social-follow-system.md`
+- `docs/stories-system.md` → `docs/features/stories-system.md`
+- `frontend/CLOUDFLARE-KV-CACHE-MIGRATION.md` → `frontend/docs/CLOUDFLARE-KV-CACHE-MIGRATION.md`
+
+### archive (82)
+
+- `apps/api/DEEP-BACKEND-AUDIT-2026-11-09-AR.md` → `docs/archive/api/DEEP-BACKEND-AUDIT-2026-11-09-AR.md`
+- `apps/api/PROD-FIXES-CHANGELOG.md` → `docs/archive/api/PROD-FIXES-CHANGELOG.md`
+- `apps/api/docs/BACKEND_AUDIT_PHASE_01_ENDPOINT_MATRIX.csv` → `docs/archive/api/docs/BACKEND_AUDIT_PHASE_01_ENDPOINT_MATRIX.csv`
+- `apps/mobile/docs/CRITICAL-AUDIT-ROUND7-REPAIR-AR.md` → `docs/archive/mobile/docs/CRITICAL-AUDIT-ROUND7-REPAIR-AR.md`
+- `apps/mobile/docs/LINKING-IOS-STATUS-ROUND2-AR.md` → `docs/archive/mobile/docs/LINKING-IOS-STATUS-ROUND2-AR.md`
+- `apps/mobile/docs/MOBILE-CLEANUP-ROUND-2026-11-11-AR.md` → `docs/archive/mobile/docs/MOBILE-CLEANUP-ROUND-2026-11-11-AR.md`
+- `apps/mobile/docs/MOBILE-CONSISTENCY-ROUND-2026-11-11-AR.md` → `docs/archive/mobile/docs/MOBILE-CONSISTENCY-ROUND-2026-11-11-AR.md`
+- `apps/mobile/docs/MOBILE-DESIGN-SYSTEM-PHASE2-2026-11-10-AR.md` → `docs/archive/mobile/docs/MOBILE-DESIGN-SYSTEM-PHASE2-2026-11-10-AR.md`
+- `apps/mobile/docs/MOBILE-REORGANIZATION-2026-11-11-AR.md` → `docs/archive/mobile/docs/MOBILE-REORGANIZATION-2026-11-11-AR.md`
+- `apps/mobile/docs/MOBILE-UI-UX-AUDIT-2026-11-10-AR.md` → `docs/archive/mobile/docs/MOBILE-UI-UX-AUDIT-2026-11-10-AR.md`
+- `apps/mobile/docs/MOBILE-UNIFICATION-ROUND3-AR.md` → `docs/archive/mobile/docs/MOBILE-UNIFICATION-ROUND3-AR.md`
+- `apps/mobile/docs/PHASE1-APPLY-AR.md` → `docs/archive/mobile/docs/PHASE1-APPLY-AR.md`
+- `apps/mobile/docs/PHASE2-APPLY-AR.md` → `docs/archive/mobile/docs/PHASE2-APPLY-AR.md`
+- `apps/mobile/docs/PHASE3-APPLY-AR.md` → `docs/archive/mobile/docs/PHASE3-APPLY-AR.md`
+- `apps/mobile/docs/PHASE4-APPLY-AR.md` → `docs/archive/mobile/docs/PHASE4-APPLY-AR.md`
+- `apps/mobile/docs/PHASE5-APPLY-AR.md` → `docs/archive/mobile/docs/PHASE5-APPLY-AR.md`
+- `apps/mobile/docs/PHASE6-APPLY-AR.md` → `docs/archive/mobile/docs/PHASE6-APPLY-AR.md`
+- `apps/mobile/docs/REMAINING-AFTER-PHASE6-AR.md` → `docs/archive/mobile/docs/REMAINING-AFTER-PHASE6-AR.md`
+- `apps/mobile/docs/UIUX-NAVIGATION-DATA-RTL-ROUND8-REPORT-AR.md` → `docs/archive/mobile/docs/UIUX-NAVIGATION-DATA-RTL-ROUND8-REPORT-AR.md`
+- `apps/mobile/docs/UIUX-ROUND6-REPAIR-REPORT-AR.md` → `docs/archive/mobile/docs/UIUX-ROUND6-REPAIR-REPORT-AR.md`
+- `apps/mobile/docs/history/DESIGN-SYSTEM-AR.md` → `docs/archive/mobile/history/DESIGN-SYSTEM-AR.md`
+- `docs/PHASE1_APP_SHELL_AR.md` → `docs/archive/root/PHASE1_APP_SHELL_AR.md`
+- `docs/PHASE2_APP_FLOWS_AR.md` → `docs/archive/root/PHASE2_APP_FLOWS_AR.md`
+- `docs/PHASE3_PUBLISH_REFRESH_AR.md` → `docs/archive/root/PHASE3_PUBLISH_REFRESH_AR.md`
+- `docs/PHASE4_CHAT_SHORTCUTS_AR.md` → `docs/archive/root/PHASE4_CHAT_SHORTCUTS_AR.md`
+- `docs/PHASE5_CHAT_POLISH_AR.md` → `docs/archive/root/PHASE5_CHAT_POLISH_AR.md`
+- `docs/PHASE6_CI_TRANSITION_AR.md` → `docs/archive/root/PHASE6_CI_TRANSITION_AR.md`
+- `docs/PHASE6_REMAINING_AR.md` → `docs/archive/root/PHASE6_REMAINING_AR.md`
+- `docs/PHASE7_SOURCE_OF_TRUTH_AR.md` → `docs/archive/root/PHASE7_SOURCE_OF_TRUTH_AR.md`
+- `docs/PHASE8_WORKSPACE_PACKAGES_AR.md` → `docs/archive/root/PHASE8_WORKSPACE_PACKAGES_AR.md`
+- `docs/PHASE9_PRISMA_MIGRATION_AR.md` → `docs/archive/root/PHASE9_PRISMA_MIGRATION_AR.md`
+- `docs/TEST_REPAIR_FIVE_PHASE_PLAN.md` → `docs/archive/root/TEST_REPAIR_FIVE_PHASE_PLAN.md`
+- `docs/TEST_REPAIR_PHASE4_REPORT.md` → `docs/archive/root/TEST_REPAIR_PHASE4_REPORT.md`
+- `docs/mobile/archive/ARCHITECTURE.md` → `docs/archive/mobile/archive/ARCHITECTURE.md`
+- `docs/mobile/archive/BUNDLE-CODE-SPLITTING-AR.md` → `docs/archive/mobile/archive/BUNDLE-CODE-SPLITTING-AR.md`
+- `docs/mobile/archive/DESIGN-SYSTEM-AR.md` → `docs/archive/mobile/archive/DESIGN-SYSTEM-AR.md`
+- `docs/mobile/archive/MJS-TO-TS-AR.md` → `docs/archive/mobile/archive/MJS-TO-TS-AR.md`
+- `docs/mobile/archive/PHASE1-APPLY-AR.md` → `docs/archive/mobile/archive/PHASE1-APPLY-AR.md`
+- `docs/mobile/archive/PHASE2-APPLY-AR.md` → `docs/archive/mobile/archive/PHASE2-APPLY-AR.md`
+- `docs/mobile/archive/PHASE3-APPLY-AR.md` → `docs/archive/mobile/archive/PHASE3-APPLY-AR.md`
+- `docs/mobile/archive/PHASE4-APPLY-AR.md` → `docs/archive/mobile/archive/PHASE4-APPLY-AR.md`
+- `docs/mobile/archive/PHASE5-APPLY-AR.md` → `docs/archive/mobile/archive/PHASE5-APPLY-AR.md`
+- `docs/mobile/archive/PHASE6-APPLY-AR.md` → `docs/archive/mobile/archive/PHASE6-APPLY-AR.md`
+- `docs/mobile/archive/REMAINING-AFTER-PHASE6-AR.md` → `docs/archive/mobile/archive/REMAINING-AFTER-PHASE6-AR.md`
+- `docs/mobile/archive/SCREEN-ORGANIZATION-AR.md` → `docs/archive/mobile/archive/SCREEN-ORGANIZATION-AR.md`
+- `docs/performance/RENDER-PHASE-1-2-CHANGELOG.md` → `docs/archive/web/performance/RENDER-PHASE-1-2-CHANGELOG.md`
+- `docs/performance/RENDER-PHASE-1-BASELINE.md` → `docs/archive/web/performance/RENDER-PHASE-1-BASELINE.md`
+- `docs/performance/RENDER-PHASE-3-4-ANALYSIS.md` → `docs/archive/web/performance/RENDER-PHASE-3-4-ANALYSIS.md`
+- `docs/performance/RENDER-PHASE-3-4-CHANGELOG.md` → `docs/archive/web/performance/RENDER-PHASE-3-4-CHANGELOG.md`
+- `docs/performance/RENDER-PHASE-5-6-ANALYSIS.md` → `docs/archive/web/performance/RENDER-PHASE-5-6-ANALYSIS.md`
+- `docs/performance/RENDER-PHASE-5-6-CHANGELOG.md` → `docs/archive/web/performance/RENDER-PHASE-5-6-CHANGELOG.md`
+- `frontend/docs/API_BATCHING_PHASE7_AR.md` → `docs/archive/web/docs/API_BATCHING_PHASE7_AR.md`
+- `frontend/docs/DASHBOARD_REQUEST_OPTIMIZATION_AR.md` → `docs/archive/web/docs/DASHBOARD_REQUEST_OPTIMIZATION_AR.md`
+- `frontend/docs/FILTER_NAVIGATION_REQUEST_REDUCTION_AR.md` → `docs/archive/web/docs/FILTER_NAVIGATION_REQUEST_REDUCTION_AR.md`
+- `frontend/docs/FILTER_NAVIGATION_ROOT_CAUSE_FIX_AR.md` → `docs/archive/web/docs/FILTER_NAVIGATION_ROOT_CAUSE_FIX_AR.md`
+- `frontend/docs/HTTP_REQUEST_OPTIMIZATION_PHASE6_AR.md` → `docs/archive/web/docs/HTTP_REQUEST_OPTIMIZATION_PHASE6_AR.md`
+- `frontend/docs/LOADING_SYSTEM_PHASE14.md` → `docs/archive/web/docs/LOADING_SYSTEM_PHASE14.md`
+- `frontend/docs/MY_SERVICES_PERFORMANCE_PHASE_AR.md` → `docs/archive/web/docs/MY_SERVICES_PERFORMANCE_PHASE_AR.md`
+- `frontend/docs/MY_SERVICES_REQUEST_AUDIT_AR.md` → `docs/archive/web/docs/MY_SERVICES_REQUEST_AUDIT_AR.md`
+- `frontend/docs/OFFLINE_CENTER_AUDIT_2026-10-04.md` → `docs/archive/web/docs/OFFLINE_CENTER_AUDIT_2026-10-04.md`
+- `frontend/docs/OFFLINE_PAYMENTS_HUB_UIUX_2026-10-04.md` → `docs/archive/web/docs/OFFLINE_PAYMENTS_HUB_UIUX_2026-10-04.md`
+- `frontend/docs/OFFLINE_PHASES_1_2_AUDIT.md` → `docs/archive/web/docs/OFFLINE_PHASES_1_2_AUDIT.md`
+- `frontend/docs/OFFLINE_UIUX_AUDIT_2026-10-04.md` → `docs/archive/web/docs/OFFLINE_UIUX_AUDIT_2026-10-04.md`
+- `frontend/docs/PHASE1_APP_SHELL_AR.md` → `docs/archive/web/docs/PHASE1_APP_SHELL_AR.md`
+- `frontend/docs/PHASE2_APP_FLOWS_AR.md` → `docs/archive/web/docs/PHASE2_APP_FLOWS_AR.md`
+- `frontend/docs/PHASE3_PUBLISH_REFRESH_AR.md` → `docs/archive/web/docs/PHASE3_PUBLISH_REFRESH_AR.md`
+- `frontend/docs/PHASE4_CHAT_SHORTCUTS_AR.md` → `docs/archive/web/docs/PHASE4_CHAT_SHORTCUTS_AR.md`
+- `frontend/docs/PHASE5_CHAT_POLISH_AR.md` → `docs/archive/web/docs/PHASE5_CHAT_POLISH_AR.md`
+- `frontend/docs/PHASE6_REMAINING_AR.md` → `docs/archive/web/docs/PHASE6_REMAINING_AR.md`
+- `frontend/docs/PROJECT_REQUEST_REDUCTION_AUDIT_AR.md` → `docs/archive/web/docs/PROJECT_REQUEST_REDUCTION_AUDIT_AR.md`
+- `frontend/docs/PUBLIC_PAGES_REQUEST_AUDIT_AR.md` → `docs/archive/web/docs/PUBLIC_PAGES_REQUEST_AUDIT_AR.md`
+- `frontend/docs/PUBLIC_PAGE_REQUEST_OPTIMIZATION_AR.md` → `docs/archive/web/docs/PUBLIC_PAGE_REQUEST_OPTIMIZATION_AR.md`
+- `frontend/docs/SALES_DATA_FIRST_RENDER_OPTIMIZATION_AR.md` → `docs/archive/web/docs/SALES_DATA_FIRST_RENDER_OPTIMIZATION_AR.md`
+- `frontend/docs/SALES_PAGES_REQUEST_AUDIT_AR.md` → `docs/archive/web/docs/SALES_PAGES_REQUEST_AUDIT_AR.md`
+- `frontend/docs/SALES_TAB_REQUEST_OPTIMIZATION_AR.md` → `docs/archive/web/docs/SALES_TAB_REQUEST_OPTIMIZATION_AR.md`
+- `frontend/docs/SEARCH-MESSAGING-NETWORK-AUDIT-AR.md` → `docs/archive/web/docs/SEARCH-MESSAGING-NETWORK-AUDIT-AR.md`
+- `frontend/docs/SETTINGS_PRESENCE_PERFORMANCE_PHASE_AR.md` → `docs/archive/web/docs/SETTINGS_PRESENCE_PERFORMANCE_PHASE_AR.md`
+- `frontend/docs/STORE_DASHBOARD_REQUEST_OPTIMIZATION_AR.md` → `docs/archive/web/docs/STORE_DASHBOARD_REQUEST_OPTIMIZATION_AR.md`
+- `frontend/docs/STORE_PAGE_REQUEST_AUDIT_AR.md` → `docs/archive/web/docs/STORE_PAGE_REQUEST_AUDIT_AR.md`
+- `frontend/docs/detail-query-dedup-phase3.md` → `docs/archive/web/docs/detail-query-dedup-phase3.md`
+- `frontend/docs/performance-phase5.md` → `docs/archive/web/docs/performance-phase5.md`
+- `frontend/docs/server-data-cache-phase2.md` → `docs/archive/web/docs/server-data-cache-phase2.md`
+
+### tools (3)
+
+- `tooling/dev-all.mjs` → `tools/dev-all.mjs`
+- `tooling/verify-prisma-layout.mjs` → `tools/verify-prisma-layout.mjs`
+- `tooling/verify-workspace.mjs` → `tools/verify-workspace.mjs`
+
+## ملفات يتيمة بالرسم لكن محميّة بإشارة نصية (راجعها يدويًا)
+
+- `apps/api/src/shared/constants/status.ts` ← مذكور في: `.github/workflows/cache-integrity.yml`, `.github/workflows/load-test-50k.yml`, `.github/workflows/load-test-5k.yml`, `.github/workflows/load-test-dynamic.yml`, `.github/workflows/load-test-pages.yml`
+- `apps/mobile/src/features/discovery/useHomeServices.ts` ← مذكور في: `apps/mobile/scripts/verify-navigation-information-hierarchy.mjs`
+- `apps/mobile/src/storage/draft-operation-queue.ts` ← مذكور في: `apps/mobile/src/storage/ad-draft-store.ts`
+- `frontend/components/messages/ConversationTypingIndicator.tsx` ← مذكور في: `frontend/scripts/render-regression-audit.mjs`
+- `frontend/components/shared/feedback/Toaster.tsx` ← مذكور في: `frontend/app/(protected)/layout.tsx`
+- `frontend/components/shared/ui/Avatar.tsx` ← مذكور في: `apps/mobile/app/blocked-users.tsx`, `apps/mobile/app/profile.tsx`, `apps/mobile/app/profile/[id].tsx`, `apps/mobile/app/profile/[id]/followers.tsx`, `apps/mobile/app/profile/[id]/following.tsx`
+- `frontend/components/shared/ui/Separator.tsx` ← مذكور في: `frontend/components/ui/dropdown-menu.tsx`, `frontend/components/ui/select.tsx`
+- `frontend/components/ui/avatar.tsx` ← مذكور في: `apps/api/src/config/cloudinary.ts`, `apps/api/src/modules/users/users.routes.ts`, `apps/mobile/app/account.tsx`, `apps/mobile/app/profile.tsx`, `apps/mobile/scripts/verify-account-storage-store.mjs`
+- `frontend/components/ui/empty-state.tsx` ← مذكور في: `frontend/scripts/feedback-motion-audit.mjs`
+- `frontend/components/ui/separator.tsx` ← مذكور في: `apps/mobile/app/messages.tsx`, `apps/mobile/app/search.tsx`, `apps/mobile/src/features/messaging/chat-live-stream.ts`, `frontend/scripts/hydration-regression-audit.mjs`, `frontend/scripts/render-regression-audit.mjs`
+- `frontend/hooks/usePublicFeatureFlag.ts` ← مذكور في: `frontend/components/admin/AdminFeatureFlags.tsx`
+- `frontend/lib/lastKnownLocation.ts` ← مذكور في: `frontend/lib/offlineJsonCache.ts`
+- `frontend/lib/publicFeatureFlags.ts` ← مذكور في: `frontend/components/admin/AdminFeatureFlags.tsx`, `frontend/lib/queryKeys.ts`
+
+## ملفات تستعملها الاختبارات فقط (لم تُحذف)
+
+- `apps/api/src/modules/search/search.facets.repository.ts`
+- `apps/api/src/modules/search/search.facets.types.ts`
+- `apps/api/src/modules/search/search.facets.validation.ts`
+- `frontend/components/home/ProductsSection.tsx`
+- `frontend/components/home/RecommendedAds.tsx`
+- `frontend/components/home/StoresSection.tsx`
+- `frontend/components/recommendations/StoreRecommendations.tsx`
+- `frontend/components/search/SearchNearbyToggle.tsx`
+- `frontend/components/shared/skeletons/ProfileSkeleton.tsx`
+- `frontend/hooks/queries/useAdsForHome.ts`
+- `frontend/hooks/queries/useHomepage.ts`
+- `frontend/hooks/queries/useNearbyProvidersForHome.ts`
+- `frontend/hooks/useSilentCoordinates.ts`
+- `frontend/lib/cardDensity.ts`
+- `frontend/lib/conflictResolver.ts`
+- `frontend/lib/i18n/ar/index.ts`
+- `frontend/lib/typingStore.ts`

@@ -26,17 +26,9 @@ if (files.length === 0) {
   process.exit(1);
 }
 
-let legacyCount = 0;
-try {
-  const legacyManifest = JSON.parse(await readFile(join(__dirname, 'legacy-verifications', 'manifest.json'), 'utf8'));
-  legacyCount = Array.isArray(legacyManifest.entries) ? legacyManifest.entries.length : 0;
-} catch {
-  console.warn('⚠️  Legacy verification manifest missing; quarantine status cannot be summarized.');
-}
 
 console.log(`\nActive verification checks: ${files.length}`);
 console.log(`Quarantined active checks (not counted as passed): ${quarantinedFiles.size}`);
-console.log(`Quarantined historical checks (not counted as passed): ${legacyCount}`);
 console.log('Quarantined active checks remain in scripts/ and must be reviewed and rewritten before reactivation.\n');
 
 let passed = 0;
@@ -66,7 +58,7 @@ for (const f of files) {
 
 const failed = failures.length;
 console.log(`\n${'═'.repeat(70)}`);
-console.log(`  Active: ${files.length}  |  ✅ ${passed}  |  ❌ ${failed}  |  Quarantined active (not passed): ${quarantinedFiles.size}  |  Quarantined historical (not passed): ${legacyCount}`);
+console.log(`  Active: ${files.length}  |  ✅ ${passed}  |  ❌ ${failed}  |  Quarantined active (not passed): ${quarantinedFiles.size}`);
 console.log(`${'═'.repeat(70)}\n`);
 
 if (failed > 0) {

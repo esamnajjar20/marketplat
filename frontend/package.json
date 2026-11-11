@@ -115,16 +115,7 @@
     "network:query-abort-audit": "node scripts/query-abort-signal-phase2-audit.cjs",
     "network:phase3-audit": "node scripts/http-request-phase3-audit.mjs && node scripts/network-request-monitor-audit.mjs",
     "network:phase6-audit": "node scripts/http-request-phase6-audit.mjs && node scripts/fetch-client-csrf-audit.mjs && node scripts/http-request-phase3-audit.mjs && node scripts/network-request-monitor-audit.mjs && node scripts/request-dedup-concurrency-audit.mjs && node scripts/query-abort-signal-phase2-audit.cjs && node scripts/export-http-request-inventory.cjs",
-    "prefetch:policy-audit": "node scripts/prefetch-policy-audit.mjs",
-    "network:necessary-request-audit": "node scripts/necessary-request-audit.mjs",
-    "network:batching-phase1-audit": "node scripts/api-batching-phase1-audit.mjs",
-    "network:batching-phase2-audit": "node scripts/api-batching-phase2-audit.mjs",
-    "public-pages:request-audit": "node scripts/public-page-request-reduction-audit.mjs && node scripts/prefetch-policy-audit.mjs",
-    "profile:request-audit": "node scripts/profile-and-global-request-audit.mjs",
-    "network:batching-phase7-audit": "node scripts/api-batching-phase7-audit.mjs",
-    "perf:sales-first-render-audit": "node scripts/sales-data-freshness-performance-audit.mjs",
-    "perf:home-first-render-audit": "node scripts/home-first-render-performance-audit.mjs",
-    "network:public-page-audit": "node scripts/public-page-request-optimization-audit.mjs"
+    "perf:home-first-render-audit": "node scripts/home-first-render-performance-audit.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

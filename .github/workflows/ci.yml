@@ -70,7 +70,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Verify monorepo and Docker build contexts
-        run: node tooling/verify-workspace.mjs
+        run: node tools/verify-workspace.mjs
       - name: API Worker cache tests
         run: node workers/cf-api-proxy/cache-policy.test.mjs
       - name: Policy copies are in sync with shared/cache-policy.json

@@ -90,7 +90,7 @@ This table maps the declarative read-query layer to its owning source file. The 
 | `hooks/queries/useStories.ts` | 3 | 3 | 0 |
 | `hooks/queries/useUsers.ts` | 1 | 1 | 0 |
 
-The companion [HTTP request callsite inventory](./HTTP_REQUEST_CALLSITE_INVENTORY.csv) lists API-client calls, server API reads, native fetch callsites, and TanStack query/mutation declarations with their file and line number. It is a static source map, not a count of requests sent on one page.
+The companion [HTTP request callsite inventory](HTTP_REQUEST_CALLSITE_INVENTORY.csv) lists API-client calls, server API reads, native fetch callsites, and TanStack query/mutation declarations with their file and line number. It is a static source map, not a count of requests sent on one page.
 
 ### Query sources requiring AbortSignal review
 

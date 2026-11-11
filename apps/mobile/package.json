@@ -20,7 +20,6 @@
     "verify:production-signing": "cd android && ./gradlew :app:verifyProductionSigning",
     "verify:a11y": "node ./scripts/verify-design-system-a11y.mjs",
     "verify:navigation-policy": "node ./scripts/verify-navigation-policy.mjs",
-    "verify:phase3": "node ./scripts/verify-phase3-native-integrations.mjs",
     "verify:phase4": "node ./scripts/verify-phase4-offline-security.mjs",
     "verify:static": "node ./scripts/run-all-verifications.mjs",
     "test:coverage": "vitest run --coverage",

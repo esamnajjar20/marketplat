@@ -44,7 +44,7 @@ These are **not** production-ready claims until the matching checklist is signed
 | SQLCipher | Plugin + keyed opener; requires **native rebuild**, migration tested on real legacy DB | [SQLCIPHER-MIGRATION.md](../../docs/mobile/checklists/SQLCIPHER-MIGRATION.md) |
 | Logout + outbox | Read failures now fail closed; unified façade is used by queue screens. Device scenarios still need sign-off | Session checklist §5 |
 | Push | Android native FCM opt-in, token rotation, notification taps and deferred unregister are wired; requires matching Firebase config/service-account credentials and a dev/release build. iOS APNs is intentionally not wired to the FCM-only sender yet | [PUSH-NATIVE-SETUP.md](../../docs/mobile/checklists/PUSH-NATIVE-SETUP.md) |
-| Links / iOS scope | HTTPS App Links and Universal Links configuration; iOS is Expo-managed, while native push remains Android-only pending APNs integration | [LINKING-IOS-STATUS-ROUND2-AR.md](docs/LINKING-IOS-STATUS-ROUND2-AR.md) |
+| Links / iOS scope | HTTPS App Links and Universal Links configuration; iOS is Expo-managed, while native push remains Android-only pending APNs integration | [LINKING-IOS-STATUS-ROUND2-AR.md](../../docs/archive/mobile/docs/LINKING-IOS-STATUS-ROUND2-AR.md) |
 | Native Google OAuth | Browser-based Google flow with one-time PKCE ticket exchange; callback/Google credentials and physical-device test remain required | [GOOGLE-NATIVE-OAUTH.md](../../docs/mobile/checklists/GOOGLE-NATIVE-OAUTH.md) |
 | Dark mode | مدعوم: `ThemeProvider` (نظام / فاتح / داكن) + `userInterfaceStyle: automatic`؛ يلزم تحقق بصري على جهاز لكل الشاشات | `src/theme/ThemeProvider.tsx` |
 
