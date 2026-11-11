@@ -3,15 +3,14 @@ import { AppText as Text } from '@/components/ui/AppText';
 
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
+import { Avatar, Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchBlockedUsers, unblockUser, type BlockedUserItem } from '@/features/account/social.api';
-import { spacing, fontWeights } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
-import { AppImage } from '@/components/AppImage';
 
 export default function BlockedUsersScreen() {
   const { colors } = useAppTheme();
@@ -98,28 +97,7 @@ export default function BlockedUsersScreen() {
             return (
               <SectionCard>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, minHeight: 56 }}>
-                  {person.avatarUrl ? (
-                    <AppImage
-                      uri={person.avatarUrl}
-                      style={{ width: 52, height: 52, borderRadius: 26 }}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View
-                      style={{
-                        width: 44,
-                        height: 44,
-                        borderRadius: 22,
-                        backgroundColor: colors.border,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Text style={{ color: colors.brand, fontWeight: fontWeights.bold }}>
-                        {(person.name || '?').slice(0, 1)}
-                      </Text>
-                    </View>
-                  )}
+                  <Avatar uri={person.avatarUrl} name={person.name} size="md" />
                   <View style={{ flex: 1, alignItems: 'flex-start' }}>
                     <Text tone="ink" strong>
                       {person.name || 'مستخدم'}

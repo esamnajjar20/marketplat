@@ -102,7 +102,7 @@ export function WorkspaceTabs({ workspace }: { workspace: Workspace }) {
   }, [activeKey]);
 
   return (
-    <View style={{ marginTop: spacing.xs, marginBottom: 0 }}>
+    <View style={{ marginTop: spacing.xs }}>
       <ScrollView
         ref={scrollRef}
         horizontal

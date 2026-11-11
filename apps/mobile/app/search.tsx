@@ -9,12 +9,13 @@ import { fetchPublicCategories, flattenPublicCategories, type PublicCategory } f
 import { searchMarketplace, type SearchResult } from '@/features/discovery/discovery.api';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
-import { elevation, fontSizes, radius, sizes, spacing, typography, ux, fontWeights } from '@/theme/tokens';
+import { elevation, fontSizes, radius, sizes, spacing, typography, ux, fontWeights, insets } from '@/theme/tokens';
 import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View, RefreshControl } from 'react-native';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useLocalSearchParams, type Href } from 'expo-router';
 import { goBack, pushOnce } from '@/lib/navigation';
+import { COPY } from '@/lib/copy';
 
 const types = [
   { label: 'الكل', value: 'all' },
@@ -592,7 +593,7 @@ export default function SearchScreen() {
           {more
             ? 'جارٍ تحميل المزيد…'
             : searchList.loadMoreError
-              ? 'تعذر التحميل — أعد المحاولة'
+              ? COPY.retryAction
               : 'تحميل المزيد'}
         </Text>
       </Pressable>
@@ -669,7 +670,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   flex: { flex: 1 },
   listContent: {
     padding: spacing.lg,
-    paddingBottom: 96,
+    paddingBottom: insets.listBottom,
     flexGrow: 1,
     gap: spacing.md,
   },

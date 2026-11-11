@@ -19,7 +19,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { cleanupStaleUnreferencedAdImages, persistSelectedAdImage, removePersistedAdImageIfUnused } from '@/storage/persist-ad-image';
 import { clearAdDraft, loadAdDraft, saveAdDraft, clearAdEditDraft, loadAdEditDraft, saveAdEditDraft } from '@/storage/ad-draft-store';
 import { enqueueMutation } from '@/storage/outbox-manager';
-import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights, insets, sizes } from '@/theme/tokens';
 import { adEditorSchema, validate } from '@/lib/validation';
 import { createMobileOperationId } from '@/lib/operation-id';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
@@ -463,7 +463,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     sectionHint: {
         fontSize: fontSizes[12], color: colors.muted, textAlign: 'right', marginBottom: spacing.xs, lineHeight: 18
     }, flex: { flex: 1 }, form: {
-        padding: spacing.lg, gap: spacing.md, paddingBottom: 56
+        padding: spacing.lg, gap: spacing.md, paddingBottom: insets.formBottom
     }, label: {
         fontSize: fontSizes[14], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'right', marginTop: spacing.sm
     }, input: {
@@ -477,7 +477,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, imageControls: {
         position: 'absolute', bottom: 3, left: 3, right: 3, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'
     }, imageControl: {
-        width: 44, height: 44, borderRadius: 22, backgroundColor: colors.mediaControlOverlay, alignItems: 'center', justifyContent: 'center'
+        width: sizes.touchTarget, height: sizes.touchTarget, borderRadius: radius.pill, backgroundColor: colors.mediaControlOverlay, alignItems: 'center', justifyContent: 'center'
     }, disabled: { opacity: .6 }, center: {
         flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md
     }, categoryWrap: {
@@ -499,7 +499,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, previewImage: {
         width: 148, height: 148, borderRadius: radius.md, backgroundColor: colors.border
     }, removeImage: {
-        position: 'absolute', top: 3, start: 3, width: 44, height: 44, borderRadius: 22, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center'
+        position: 'absolute', top: 3, start: 3, width: sizes.touchTarget, height: sizes.touchTarget, borderRadius: radius.pill, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center'
     }, removeImageText: {
         color: colors.onDanger, fontSize: fontSizes[22], fontWeight: fontWeights.bold, lineHeight: 25
     }, title: {

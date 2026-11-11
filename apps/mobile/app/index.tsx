@@ -499,7 +499,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     fontSize: fontSizes[20],
     fontWeight: fontWeights.bold,
   },
-  brandTextCol: { gap: 1 },
+  brandTextCol: { gap: spacing.xxs },
   brandName: {
     color: colors.ink,
     fontSize: fontSizes[17],

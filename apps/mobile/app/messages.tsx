@@ -11,7 +11,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchConversationsPage, setConversationFlags, type ConversationItem } from '@/features/messaging/messaging.api';
 import { useUnreadCounts } from '@/features/messaging/useUnreadCounts';
 import { AppHeader, Chip, EmptyState, ErrorState, PrimaryButton, SearchBar, SkeletonList } from '@/components/ui';
-import { spacing, typography } from '@/theme/tokens';
+import { spacing, typography, insets } from '@/theme/tokens';
 import ConversationListItem from '@/features/messaging/ConversationListItem';
 
 type Filter = 'all' | 'unread' | 'archived';
@@ -236,7 +236,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
-    paddingBottom: 88,
+    paddingBottom: insets.listBottom,
   },
   headerContent: {
     gap: spacing.md,

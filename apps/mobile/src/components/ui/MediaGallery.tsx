@@ -76,7 +76,7 @@ function createStyles(palette: ColorPalette) {
         }, fullImage: {
             width: '100%', height: '85%'
         }, fullCounter: {
-            color: palette.white, textAlign: 'center', paddingBottom: 34, fontWeight: fontWeights.semibold
+            color: palette.white, textAlign: 'center', paddingBottom: spacing.xxl, fontWeight: fontWeights.semibold
         }
     });
 }

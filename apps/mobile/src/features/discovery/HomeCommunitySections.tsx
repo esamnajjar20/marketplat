@@ -13,9 +13,8 @@ import { fetchStores, type StoreSummary } from '@/features/commerce/commerce.api
 import { fetchStoryFeed, type StoryGroup } from '@/features/stories/stories.api';
 import { fontSizes, radius, spacing, ux, fontWeights } from '@/theme/tokens';
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
-import { AppImage } from '@/components/AppImage';
 import { HorizontalMarketCard } from '@/components/MarketCards';
-import { SectionHeader } from '@/components/ui';
+import { SectionHeader, StoryAvatar } from '@/components/ui';
 
 const PUBLIC_STORES_CACHE_KEY = 'home:public-stores:v1';
 const PUBLIC_STORES_TTL_MS = 10 * 60 * 1000;
@@ -56,7 +55,6 @@ export default function HomeCommunitySections() {
   const [stores, setStores] = useState<StoreSummary[]>([]);
   const [stories, setStories] = useState<StoryGroup[]>([]);
   const [storiesOwnerId, setStoriesOwnerId] = useState<string | null>(null);
-  const [failedStoryAvatars, setFailedStoryAvatars] = useState<string[]>([]);
   const reconnectRefreshRef = useRef<() => void>(() => undefined);
   useOnlineResync(() => reconnectRefreshRef.current());
   const visibleStories = accessToken && user?.id && storiesOwnerId === user.id ? stories : [];
@@ -171,9 +169,7 @@ export default function HomeCommunitySections() {
             {visibleStories.map((group) => {
               const latest = group.stories[0];
               if (!latest) return null;
-              const avatar = failedStoryAvatars.includes(group.user.id)
-                ? null
-                : group.user.avatarUrl || latest.mediaUrl || null;
+              const avatar = group.user.avatarUrl || latest.mediaUrl || null;
               return (
                 <Pressable
                   key={group.user.id}
@@ -187,30 +183,7 @@ export default function HomeCommunitySections() {
                   }
                   style={({ pressed }) => [styles.storyItem, pressed && styles.pressed]}
                 >
-                  <View
-                    style={[
-                      styles.storyRing,
-                      { borderColor: group.hasUnseen ? colors.brand : colors.border },
-                    ]}
-                  >
-                    {avatar ? (
-                      <AppImage
-                        uri={avatar}
-                        onError={() =>
-                          setFailedStoryAvatars((current) =>
-                            current.includes(group.user.id) ? current : [...current, group.user.id],
-                          )
-                        }
-                        style={styles.storyAvatar}
-                      />
-                    ) : (
-                      <View style={styles.storyPlaceholder}>
-                        <Text style={styles.storyInitial}>
-                          {group.user.name?.trim()?.charAt(0) || 'م'}
-                        </Text>
-                      </View>
-                    )}
-                  </View>
+                  <StoryAvatar uri={avatar} name={group.user.name} unseen={group.hasUnseen} />
                   <Text
                     numberOfLines={1}
                     style={[styles.storyName, group.hasUnseen && styles.storyNameUnseen]}
@@ -278,45 +251,17 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     paddingVertical: spacing.xxs,
-    paddingHorizontal: 1,
+    paddingHorizontal: spacing.xxs,
   },
   storyItem: {
     width: 76,
     alignItems: 'center',
     gap: spacing.sm,
   },
-  storyRing: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.xxl,
-    padding: spacing.xs,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  storyAvatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: colors.brandSoft,
-  },
-  storyPlaceholder: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: colors.brandSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  storyInitial: {
-    color: colors.brandOnSoft,
-    fontWeight: fontWeights.bold,
-    fontSize: fontSizes[18],
-  },
   storyName: {
     width: '100%',
     color: colors.ink,
-    fontSize: fontSizes[11],
+    fontSize: fontSizes[12],
     fontWeight: fontWeights.medium,
     textAlign: 'center',
   },

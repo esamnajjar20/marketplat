@@ -1,6 +1,6 @@
 import { AppText as Text } from './AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { type ReactNode, useEffect, useRef } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Animated, View, type StyleProp, type ViewStyle } from 'react-native';
 import { radius, spacing, ux } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
@@ -189,6 +189,46 @@ export function ErrorState({
   );
 }
 
+/**
+ * نبض مشترك لكل الهياكل الظاهرة: قيمة متحركة واحدة وحلقة واحدة بدل حلقة لكل كتلة.
+ * (كانت كل بطاقة تحميل تشغّل 5 حلقات منفصلة غير متزامنة وتستعلم عن «تقليل الحركة» مرارًا.)
+ */
+const sharedPulse = new Animated.Value(0.45);
+let pulseUsers = 0;
+let pulseGeneration = 0;
+let pulseAnimation: Animated.CompositeAnimation | null = null;
+
+function startSharedPulse() {
+  pulseUsers += 1;
+  if (pulseUsers > 1) return;
+  const generation = ++pulseGeneration;
+  void AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
+    // أُزيلت كل الهياكل أو بدأت دورة أحدث أثناء انتظار الإعداد.
+    if (generation !== pulseGeneration || pulseUsers === 0) return;
+    // احترام إعداد «تقليل الحركة»: كتلة ثابتة بدل نبض متكرر.
+    if (reduceMotion) {
+      sharedPulse.setValue(0.7);
+      return;
+    }
+    pulseAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(sharedPulse, { toValue: 1, duration: ux.durationSlow + 80, useNativeDriver: true }),
+        Animated.timing(sharedPulse, { toValue: 0.4, duration: ux.durationSlow + 80, useNativeDriver: true }),
+      ]),
+    );
+    pulseAnimation.start();
+  });
+}
+
+function stopSharedPulse() {
+  pulseUsers = Math.max(0, pulseUsers - 1);
+  if (pulseUsers > 0) return;
+  pulseGeneration += 1;
+  pulseAnimation?.stop();
+  pulseAnimation = null;
+  sharedPulse.setValue(0.45);
+}
+
 /** هيكل متحرك (pulse) بدل كتلة ثابتة — إحساس تحميل أكثر احترافية */
 export function SkeletonBlock({
   height = 16,
@@ -202,37 +242,17 @@ export function SkeletonBlock({
   style?: StyleProp<ViewStyle>;
 }) {
   const s = useUIStyles();
-  const opacity = useRef(new Animated.Value(0.45)).current;
 
   useEffect(() => {
-    // احترام إعداد «تقليل الحركة» في النظام: كتلة ثابتة بدل نبض متكرر.
-    let cancelled = false;
-    let anim: Animated.CompositeAnimation | null = null;
-    void AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
-      if (cancelled) return;
-      if (reduceMotion) {
-        opacity.setValue(0.7);
-        return;
-      }
-      anim = Animated.loop(
-        Animated.sequence([
-          Animated.timing(opacity, { toValue: 1, duration: ux.durationSlow + 80, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0.4, duration: ux.durationSlow + 80, useNativeDriver: true }),
-        ]),
-      );
-      anim.start();
-    });
-    return () => {
-      cancelled = true;
-      anim?.stop();
-    };
-  }, [opacity]);
+    startSharedPulse();
+    return stopSharedPulse;
+  }, []);
 
   return (
     <Animated.View
       style={[
         s.skeleton,
-        { height, width: width as number | `${number}%`, borderRadius: r, opacity },
+        { height, width: width as number | `${number}%`, borderRadius: r, opacity: sharedPulse },
         style,
       ]}
     />

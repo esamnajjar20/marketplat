@@ -271,8 +271,8 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     // Logical start keeps the favorite control on the leading edge in RTL/LTR.
     start: 8,
     zIndex: 2,
-    width: 36,
-    height: 36,
+    width: sizes.iconButtonSm,
+    height: sizes.iconButtonSm,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -468,7 +468,7 @@ const createThemeHStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   title: {
     width: '100%',
-    minHeight: 36,
+    minHeight: sizes.iconButtonSm,
     ...typography.bodyStrong,
     fontSize: fontSizes[13],
     lineHeight: 18,

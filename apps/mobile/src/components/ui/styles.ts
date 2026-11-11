@@ -70,7 +70,7 @@ function createUIStyles(palette: ColorPalette) {
     gap: spacing.md,
     marginBottom: spacing.xs,
   },
-  sectionHeaderText: { flex: 1, gap: 3 },
+  sectionHeaderText: { flex: 1, gap: spacing.xs },
   sectionTitle: { textAlign: 'right', ...typography.subtitle, color: palette.ink },
   sectionSubtitle: { textAlign: 'right', ...typography.caption, color: palette.muted },
   sectionAction: {
@@ -120,7 +120,7 @@ function createUIStyles(palette: ColorPalette) {
     justifyContent: 'center',
   },
   listRowGlyphText: { color: palette.brandOnSoft, fontSize: fontSizes[18], fontWeight: fontWeights.semibold },
-  listRowText: { flex: 1, gap: 3 },
+  listRowText: { flex: 1, gap: spacing.xs },
   listRowTitle: { textAlign: 'right', ...typography.bodyStrong, color: palette.ink },
   listRowDescription: { textAlign: 'right', ...typography.caption, color: palette.muted },
   listRowChevron: { color: palette.mutedSoft, fontSize: fontSizes[16] },

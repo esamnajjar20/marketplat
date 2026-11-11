@@ -3,6 +3,7 @@ import type { ZodType } from 'zod';
 import { parseApiResponse } from '@/api/response-validation';
 import { API_BASE_URL_ERROR, getConfiguredApiBaseUrl } from '@/lib/api-base-url';
 import { markFreshApiResponse, markOfflineCacheResponse } from '@/api/offline-cache-status';
+import { logger } from '@/lib/logger';
 /** Minimal API transport. Set EXPO_PUBLIC_API_URL in apps/mobile/.env before connecting real screens. */
 export type ApiFieldErrors = Record<string, string[]>;
 export type ApiErrorMeta = Record<string, unknown>;
@@ -229,7 +230,7 @@ async function invalidateMutationCaches(path: string, ownerId?: string): Promise
   if (ownerId?.trim()) {
     for (const prefix of rule.privatePrefixes) await clearPrivateCacheForPrefix(prefix, ownerId);
   } else if (rule.privatePrefixes.length && __DEV__) {
-    console.warn('[api/client] skipped private cache invalidation because cacheOwnerId is missing:', pathname);
+    logger.warn('api/client', 'skipped private cache invalidation because cacheOwnerId is missing', { pathname });
   }
   for (const prefix of rule.publicPrefixes) await deletePublicCacheEntriesByPrefix(prefix);
 }

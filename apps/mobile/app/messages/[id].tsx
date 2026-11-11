@@ -577,7 +577,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     minHeight: 44,
     borderWidth: 1.5,
     borderColor: colors.controlBorder,
-    borderRadius: 22,
+    borderRadius: radius.xl,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     color: colors.ink,
@@ -590,7 +590,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.lg,
-    borderRadius: 22,
+    borderRadius: radius.pill,
     backgroundColor: colors.brand,
   },
   sendText: {

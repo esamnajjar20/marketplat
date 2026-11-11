@@ -18,7 +18,7 @@ import { AppIcon } from '@/components/Icons';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { SaveOfflineButton } from '@/components/ui/SaveOfflineButton';
 import { Badge, DetailScaffold, Notice, PrimaryButton, SectionCard } from '@/components/ui';
-import { fontSizes, spacing, typography, fontWeights } from '@/theme/tokens';
+import { fontSizes, spacing, typography, fontWeights, radius } from '@/theme/tokens';
 
 function formatPrice(price: AdDetail['price']): string {
   if (price === null || price === undefined || price === '') return 'السعر عند التواصل';
@@ -206,7 +206,7 @@ export default function AdDetailScreen() {
             accessibilityState={{ selected: isFavorite, disabled: favoriteBusy }}
             disabled={favoriteBusy}
             onPress={() => { if (!accessToken) pushOnce('/login'); else void onToggleFavorite(); }}
-            style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: colors.brandSoft }}
+            style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: colors.brandSoft }}
           >
             <AppIcon name={isFavorite ? 'favoriteActive' : 'favorite'} size={22} color={colors.brandOnSoft} />
           </Pressable>

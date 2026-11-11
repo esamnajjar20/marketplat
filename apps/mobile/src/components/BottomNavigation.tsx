@@ -96,7 +96,7 @@ function createStyles(palette: ColorPalette) {
     justifyContent: 'center',
     gap: spacing.xs,
     borderRadius: radius.md,
-    marginHorizontal: 1,
+    marginHorizontal: spacing.xxs,
     paddingVertical: spacing.xs,
   },
   activeTab: {

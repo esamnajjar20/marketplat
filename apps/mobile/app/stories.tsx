@@ -12,7 +12,7 @@ import { useFocusEffect } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { EmptyState, ErrorState, LoadingState, PageShell } from '@/components/ui';
+import { EmptyState, ErrorState, LoadingState, PageShell, StoryAvatar } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createStory, fetchStoryFeed, type StoryGroup } from '@/features/stories/stories.api';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
@@ -140,11 +140,7 @@ export default function StoriesScreen() {
                     id: group.stories[0]?.id || 'missing', userId: group.user.id
                 }
             })} style={styles.person}>
-                <View style={[styles.avatarRing, group.hasUnseen && styles.unseen]}>
-                  {group.user.avatarUrl ? (<AppImage uri={group.user.avatarUrl} style={styles.avatar}/>) : (<View style={styles.avatarFallback}>
-                      <Text style={styles.initial}>{group.user.name?.trim()?.[0] || '؟'}</Text>
-                    </View>)}
-                </View>
+                <StoryAvatar uri={group.user.avatarUrl} name={group.user.name} unseen={group.hasUnseen} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.cardTitle}>{group.user.name || 'مستخدم MarketPlat'}</Text>
                   <Text style={styles.muted}>{group.stories.length} قصة · {group.hasUnseen ? 'قصص جديدة' : 'تمت المشاهدة'}</Text>
@@ -185,14 +181,6 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
         backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.md
     }, person: {
         flexDirection: 'row', alignItems: 'center', gap: spacing.sm
-    }, avatarRing: {
-        width: 52, height: 52, borderRadius: 26, padding: spacing.xs, borderWidth: 2, borderColor: colors.border
-    }, unseen: { borderColor: colors.brand }, avatar: {
-        width: '100%', height: '100%', borderRadius: 22
-    }, avatarFallback: {
-        flex: 1, borderRadius: 22, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center'
-    }, initial: {
-        fontSize: fontSizes[20], fontWeight: fontWeights.bold, color: colors.brandOnSoft
     }, cardTitle: {
         fontSize: fontSizes[15], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'right'
     }, storyStrip: {

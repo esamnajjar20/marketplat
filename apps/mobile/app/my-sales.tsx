@@ -9,7 +9,7 @@ import { marketListPerf } from '@/lib/listPerformance';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 
 import { pushOnce } from '@/lib/navigation';
-import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights, insets } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSales, fetchSalesSummary, type SalePaymentStatus, type SaleRecord, type SalesPeriod, type SalesSummary } from '@/features/sales/sales.api';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -167,7 +167,7 @@ ListFooterComponent={<>
         {([
                 ['/debts', 'الديون والمستحقات'], ['/installments', 'الأقساط'], ['/customers', 'عملائي'], ['/activity', 'سجل النشاط']
             ] as const).map(([path, label]) => <Pressable key={path} accessibilityRole="button" accessibilityLabel={label} onPress={() => pushOnce(path)} style={{
-                flexGrow: 1, minWidth: '46%', minHeight: 44, justifyContent: 'center', padding: 13, borderRadius: radius.md, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.controlBorder
+                flexGrow: 1, minWidth: '46%', minHeight: 44, justifyContent: 'center', padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.controlBorder
             }}><Text style={{
                 textAlign: 'center', color: colors.brand, fontWeight: fontWeights.bold
             }}>{label}</Text></Pressable>)}
@@ -177,7 +177,7 @@ ListFooterComponent={<>
   </>}/></ScreenFrame>;
 }
 const createThemeS = (colors: ColorPalette) => StyleSheet.create({ content: {
-        padding: spacing.lg, gap: spacing.lg, paddingBottom: 52
+        padding: spacing.lg, gap: spacing.lg, paddingBottom: insets.pageBottom
     }, subtitle: {
         fontSize: fontSizes[12], color: colors.muted, textAlign: 'right', lineHeight: 19
     }, sectionTitle: {

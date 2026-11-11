@@ -28,3 +28,6 @@ export { ProductCard } from './ProductCard';
 export { AppText } from './AppText';
 export { ScreenFrame } from './ScreenFrame';
 export { FilterChip } from './FilterChip';
+export { Avatar, avatarInitial, type AvatarSize } from './Avatar';
+export { IconButton } from './IconButton';
+export { StoryAvatar } from './StoryAvatar';

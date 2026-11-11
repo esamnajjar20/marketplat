@@ -9,7 +9,7 @@ import { Spinner, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyActivity, type ActivityRow } from '@/features/sales/sales-extra.api';
-import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { denseListPerf } from '@/lib/listPerformance';
 
 const groups = [
@@ -137,7 +137,7 @@ export default function ActivityScreen() {
                   style={{
                     paddingHorizontal: spacing.lg,
                     paddingVertical: spacing.md,
-                    borderRadius: 22,
+                    borderRadius: radius.pill,
                     backgroundColor: group === v ? colors.brand : colors.surface,
                     borderWidth: 1,
                     borderColor: group === v ? colors.brand : colors.border,

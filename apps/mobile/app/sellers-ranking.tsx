@@ -1,9 +1,8 @@
 import { RefreshControl, View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
-import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
-import { EmptyState, ErrorState, LoadingState, PageShell, SectionCard, SectionHeader } from '@/components/ui';
+import { Avatar, EmptyState, ErrorState, LoadingState, PageShell, SectionCard, SectionHeader } from '@/components/ui';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
@@ -50,15 +49,7 @@ export default function SellersRankingScreen() {
               {seller.rank <= 3 ? MEDALS[seller.rank - 1] : `#${seller.rank}`}
             </Text>
           </View>
-          {seller.avatarUrl ? (
-            <AppImage uri={seller.avatarUrl} style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.border }} />
-          ) : (
-            <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: colors.brandOnSoft, fontWeight: fontWeights.bold, fontSize: fontSizes[20] }}>
-                {seller.displayName?.slice(0, 1) || 'ب'}
-              </Text>
-            </View>
-          )}
+          <Avatar uri={seller.avatarUrl} name={seller.displayName} size="lg" fallbackInitial="ب" />
           <View style={{ flex: 1, gap: spacing.xs }}>
             <Text tone="ink" strong>
               {seller.displayName || 'بائع'}

@@ -5,14 +5,13 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { Spinner, PageShell, Notice, PrimaryButton, SectionCard } from '@/components/ui';
+import { Avatar, Spinner, PageShell, Notice, PrimaryButton, SectionCard } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchBlockedUsers, fetchFollowStatus, fetchPublicUser, fetchPublicUserAds, toggleBlockUser, toggleUserFollow, unblockUser, type PublicAd, type PublicUser } from '@/features/account/social.api';
 import { startConversationWithUser } from '@/features/messaging/messaging.api';
-import { AppImage } from '@/components/AppImage';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 
 function price(value: PublicAd['price']) { if (value === null || value === undefined || value === '') return 'السعر عند التواصل'; const n = Number(value); return Number.isFinite(n) ? formatMoney(n) : 'السعر غير متاح'; }
@@ -127,12 +126,12 @@ export default function PublicProfileScreen() {
     {profile ? <>
       <SectionCard>
         <View style={{ alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm }}>
-          {profile.avatarUrl ? <AppImage uri={profile.avatarUrl} accessibilityLabel="صورة المستخدم" style={{ width: 104, height: 104, borderRadius: 52 }} /> : <View style={{ width: 104, height: 104, borderRadius: 52, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' }}><Text style={{ fontSize: fontSizes[32], color: colors.ink }}>{(profile.name || '?').slice(0, 1)}</Text></View>}
+          <Avatar uri={profile.avatarUrl} name={profile.name} size="hero" />
           <Text style={{ fontSize: fontSizes[22], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'center' }}>{profile.name || 'مستخدم'}</Text>
           {profile.city ? <Text style={{ color: colors.muted }}>{profile.city}</Text> : null}
           {profile.bio ? <Text style={{ color: colors.ink, textAlign: 'center', lineHeight: 22 }}>{profile.bio}</Text> : null}
           <Text style={{ color: colors.muted }}>الإعلانات النشطة: {profile._count?.ads ?? ads.length}</Text>
-          <View style={{ flexDirection: 'row', gap: 28, paddingVertical: spacing.sm }}>
+          <View style={{ flexDirection: 'row', gap: spacing.xl, paddingVertical: spacing.sm }}>
             <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/profile/[id]/followers', params: { id: profile.id } })}><Text style={{ color: colors.brand, fontWeight: fontWeights.bold }}>المتابعون {profile.followStats?.followers ?? '—'}</Text></Pressable>
             <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/profile/[id]/following', params: { id: profile.id } })}><Text style={{ color: colors.brand, fontWeight: fontWeights.bold }}>يتابع {profile.followStats?.following ?? '—'}</Text></Pressable>
           </View>

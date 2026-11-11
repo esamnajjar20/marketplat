@@ -171,7 +171,7 @@ export default function StoryViewerScreen() {
 }
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     safe: {
-        flex: 1, backgroundColor: colors.fullscreenBackdrop, paddingTop: 36, paddingBottom: spacing.lg
+        flex: 1, backgroundColor: colors.fullscreenBackdrop, paddingTop: spacing.xxxl, paddingBottom: spacing.lg
     }, top: {
         height: 52, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'
     }, action: {
@@ -191,7 +191,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, progressRow: {
         flexDirection: 'row', gap: spacing.xs
     }, progressTrack: {
-        height: 3, flex: 1, backgroundColor: colors.storyProgressTrack, borderRadius: 2, overflow: 'hidden'
+        height: 3, flex: 1, backgroundColor: colors.storyProgressTrack, borderRadius: radius.xs, overflow: 'hidden'
     }, progressFill: {
         height: 3, backgroundColor: colors.white
     }, author: {

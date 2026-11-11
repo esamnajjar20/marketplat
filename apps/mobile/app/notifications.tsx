@@ -269,7 +269,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   iconWrap: {
     width: 46,
     height: 46,
-    borderRadius: 23,
+    borderRadius: radius.pill,
     backgroundColor: colors.canvas,
     alignItems: 'center',
     justifyContent: 'center',
@@ -279,11 +279,11 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   bodyWrap: { flex: 1, gap: spacing.xs },
   itemTitle: { ...typography.bodyStrong, color: colors.ink, textAlign: 'right' },
   body: { ...typography.caption, color: colors.muted, textAlign: 'right', lineHeight: 20 },
-  time: { fontSize: fontSizes[10], color: colors.muted, textAlign: 'right', marginTop: spacing.xxs },
+  time: { fontSize: fontSizes[12], color: colors.muted, textAlign: 'right', marginTop: spacing.xxs },
   dot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: radius.pill,
     backgroundColor: colors.brand,
     marginTop: spacing.xs,
   },

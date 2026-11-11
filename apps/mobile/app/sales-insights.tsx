@@ -11,7 +11,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSalesDashboard, fetchSalesReport, fetchSalesSmartInsights, type SalesDashboardData, type SalesReportData, type SalesSmartInsightsData } from '@/features/sales/sales-extra.api';
 import type { SalePaymentStatus } from '@/features/sales/sales.api';
 import { formatMoney, formatNumber, formatDate } from '@/lib/formatters';
-import { fontSizes, radius, spacing, fontWeights, sizes } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights, sizes, insets } from '@/theme/tokens';
 const money = (value: unknown) => formatMoney(Number(value ?? 0));
 const STATUS: Array<{
   value: SalePaymentStatus | '';
@@ -138,7 +138,7 @@ export default function SalesInsightsScreen() {
 }
 const createStyles = (c: ReturnType<typeof useAppTheme>['colors']) => StyleSheet.create({
   content: {
-    padding: spacing.lg, gap: spacing.md, paddingBottom: 56
+    padding: spacing.lg, gap: spacing.md, paddingBottom: insets.formBottom
   }, heading: {
     color: c.ink, fontSize: fontSizes[16], fontWeight: fontWeights.bold, textAlign: 'right', marginBottom: spacing.sm
   }, metrics: {

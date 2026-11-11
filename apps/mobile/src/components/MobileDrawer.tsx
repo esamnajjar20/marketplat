@@ -19,7 +19,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMySellerProfile } from '@/features/account/seller.api';
 import { fetchMyActiveStoreMemberships } from '@/features/commerce/store-management.api';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
-import { radius, spacing, typography, type ColorPalette, fontWeights, sizes } from '@/theme/tokens';
+import { radius, spacing, typography, type ColorPalette, fontWeights, sizes, fontSizes } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { DRAWER_ITEMS, getVisibleDrawerItems, getRouteAccess, getNavigationCapabilitiesRevision, subscribeNavigationCapabilities, resolveNavigationCapabilities, type DrawerSection, type NavigationCapabilities } from '@/lib/navigation-policy';
 import { toAppHref } from '@/lib/typed-navigation';
@@ -565,7 +565,7 @@ function createStyles(palette: ColorPalette) {
   menuIconWrapActive: { backgroundColor: palette.brandSoftActive },
   menuItemLabel: { flex: 1, color: palette.ink, ...typography.bodyStrong },
   menuItemLabelActive: { color: palette.brandDark, fontWeight: fontWeights.bold },
-  activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: palette.brand },
+  activeDot: { width: 6, height: 6, borderRadius: radius.pill, backgroundColor: palette.brand },
   drawerFooter: {
     borderTopWidth: 1,
     borderTopColor: palette.border,
@@ -587,7 +587,7 @@ function createStyles(palette: ColorPalette) {
   logoutButton: { backgroundColor: palette.dangerSoft, borderWidth: 1, borderColor: palette.dangerBorder },
   authButtonLabel: { color: palette.onBrand, ...typography.bodyStrong },
   logoutLabel: { color: palette.danger },
-  capabilityHint: { flexShrink: 1, color: palette.muted, fontSize: 11, lineHeight: 17, textAlign: 'right' },
+  capabilityHint: { flexShrink: 1, color: palette.muted, fontSize: fontSizes[12], lineHeight: 18, textAlign: 'right' },
   capabilityRetry: { minHeight: sizes.touchTarget, alignItems: 'center', justifyContent: 'flex-start', gap: spacing.xs, paddingHorizontal: spacing.md },
   versionLabel: { color: palette.muted, ...typography.overline, textAlign: 'center' },
   pressed: { opacity: 0.72 },

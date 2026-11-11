@@ -358,10 +358,12 @@ export const sizes = {
   bottomNavHeight: 72,
   iconButton: 44,
   iconButtonSm: 36,
+  avatarXs: 28,
   avatarSm: 36,
   avatarMd: 48,
   avatarLg: 64,
   avatarXl: 88,
+  avatarHero: 104,
   // Interactive chips must meet the same 44dp minimum as other controls.
   chipHeight: 44,
   chipHeightLg: 48,
@@ -369,6 +371,16 @@ export const sizes = {
   cardImageGrid: 148,
   adImageWidth: 120,
   tabBarIcon: 24,
+} as const;
+
+/** مسافات سفلية موحّدة لمحتوى القوائم والنماذج (فوق شريط التنقل/لوحة الإجراءات). */
+export const insets = {
+  /** قوائم عادية تحت شريط التنقل السفلي. */
+  listBottom: 96,
+  /** نماذج ومحررات طويلة. */
+  formBottom: 56,
+  /** صفحات ملخّصة قصيرة. */
+  pageBottom: 52,
 } as const;
 
 export type ColorToken = keyof typeof colors;

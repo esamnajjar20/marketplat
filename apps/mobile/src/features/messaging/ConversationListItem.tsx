@@ -1,11 +1,11 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { ConversationItem } from '@/features/messaging/messaging.api';
-import { AppImage } from '@/components/AppImage';
+import { Avatar } from '@/components/ui/Avatar';
 import { isAllowedMediaUrl } from '@/lib/safe-media-url';
-import { fontSizes, elevation, radius, spacing, typography, ux, type ColorPalette, fontWeights } from '@/theme/tokens';
+import { fontSizes, elevation, radius, sizes, spacing, typography, ux, type ColorPalette, fontWeights } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 
 type ConversationListItemProps = {
@@ -41,8 +41,6 @@ function ConversationListItemView({
   const name = other?.name || 'مستخدم';
   const accessibleName = `${name}${unread > 0 ? `، ${unread} رسالة غير مقروءة` : ''}`;
   const avatarUrl = isAllowedMediaUrl(other?.avatarUrl) ? other.avatarUrl : null;
-  const [avatarFailed, setAvatarFailed] = useState(false);
-  useEffect(() => setAvatarFailed(false), [avatarUrl]);
   const pinned = Boolean(item.mySettings?.pinnedAt);
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
@@ -59,17 +57,8 @@ function ConversationListItemView({
         pressed && styles.pressed,
       ]}
     >
-      <View style={styles.avatar}>
-        {avatarUrl && !avatarFailed ? (
-          <AppImage
-            uri={avatarUrl}
-            style={styles.avatarImage}
-            accessibilityLabel={`صورة ${name}`}
-            onError={() => setAvatarFailed(true)}
-          />
-        ) : (
-          <Text style={styles.avatarText}>{(other?.name || '?').slice(0, 1)}</Text>
-        )}
+      <View style={styles.avatarWrap}>
+        <Avatar uri={avatarUrl} name={other?.name} size="md" fallbackInitial="?" />
         {unread > 0 ? <View style={styles.avatarDot} /> : null}
       </View>
 
@@ -145,27 +134,14 @@ function createStyles(colors: ColorPalette) {
     backgroundColor: colors.brandSoft,
   },
   pressed: { opacity: ux.pressedOpacity },
-  avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: colors.brandSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    color: colors.brandOnSoft,
-    fontWeight: fontWeights.bold,
-    fontSize: fontSizes[18],
-  },
-  avatarImage: { width: 52, height: 52, borderRadius: 26 },
+  avatarWrap: { width: sizes.avatarMd, height: sizes.avatarMd },
   avatarDot: {
     position: 'absolute',
     top: 2,
     start: 2,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: spacing.md - 2,
+    height: spacing.md - 2,
+    borderRadius: radius.pill,
     backgroundColor: colors.brand,
     borderWidth: 2,
     borderColor: colors.surface,

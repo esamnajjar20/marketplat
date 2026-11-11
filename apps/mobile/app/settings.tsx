@@ -16,7 +16,7 @@ import { NotificationPreferencesSection } from '@/features/settings/Notification
 import { AccountLinksSection } from '@/features/settings/AccountLinksSection';
 import { HelpSection } from '@/features/settings/HelpSection';
 import { DEFAULT_PREFS, getDeviceTimeZone, validTime, type Preferences } from '@/features/settings/preferences';
-import { spacing } from '@/theme/tokens';
+import { sizes, spacing } from '@/theme/tokens';
 import { isAndroidPushEnabled, requestAndRegisterAndroidPush, unregisterAndroidFcmToken } from '@/features/notifications/native-push';
 
 import { useAppTheme } from '@/theme/ThemeProvider';
@@ -159,6 +159,9 @@ export default function SettingsScreen() {
 
   return (
     <PageShell title="الإعدادات">
+      {/* التغذية الراجعة أعلى الصفحة: كانت تظهر أسفل زر الخروج خارج الشاشة. */}
+      {message ? <Notice tone="success">{message}</Notice> : null}
+      {error ? <Notice>{error}</Notice> : null}
       <ThemeSection />
       {!accessToken ? (
         <>
@@ -172,7 +175,7 @@ export default function SettingsScreen() {
               accessibilityRole="button"
               accessibilityState={{ expanded: showNotificationSettings }}
               onPress={() => setShowNotificationSettings((value) => !value)}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, gap: spacing.md }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: sizes.touchTargetLg, gap: spacing.md }}
             >
               <AppIcon name={showNotificationSettings ? 'back' : 'forward'} size={18} color={colors.brand} />
               <View style={{ flex: 1, gap: spacing.xs }}>
@@ -212,8 +215,6 @@ export default function SettingsScreen() {
           <Notice tone="muted">الحساب الحالي: {user?.email ?? 'مستخدم مسجل'}</Notice>
         </>
       )}
-      {message ? <Notice tone="success">{message}</Notice> : null}
-      {error ? <Notice>{error}</Notice> : null}
     </PageShell>
   );
 }

@@ -248,7 +248,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   logo: {
     width: 72,
     height: 72,
-    borderRadius: 22,
+    borderRadius: radius.hero,
     backgroundColor: colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
