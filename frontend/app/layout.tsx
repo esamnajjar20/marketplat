@@ -9,14 +9,12 @@ import '@/app/icon.svg';
  * FIX SEO-03: openGraph locale set to ar_PS.
  *
  * Fonts:
- *   Cairo         — headings + UI chrome
- *   IBM Plex Sans Arabic — body text
- *   IBM Plex Mono — prices (monospace for consistent digit widths)
+ *   Cairo         — all Arabic text (variable font, every weight)
+ *   IBM Plex Mono — numeric labels (monospace for consistent digit widths)
  *
  * Fonts are loaded via next/font/google (self-hosted at build time,
- * served from /_next/static). Cairo, IBM Plex Sans Arabic, and IBM Plex
- * Mono are subset to Arabic where applicable. Zero runtime network calls
- * after the build; works in offline/air-gapped environments.
+ * served from /_next/static). Zero runtime network calls after the build;
+ * works in offline/air-gapped environments.
  */
 import type { Metadata, Viewport }    from 'next';
 import { Cairo, IBM_Plex_Mono } from 'next/font/google';
@@ -36,18 +34,19 @@ import {
 import '@/app/globals.css';
 
 // ── Fonts ─────────────────────────────────────────────────────────
-// PERF-03: Cairo handles Arabic headings + UI chrome.
-//          IBM_Plex_Sans_Arabic handles Arabic body text.
-//          IBM_Plex_Mono handles prices for consistent digit widths.
+// PERF-03: Cairo handles all Arabic text (headings, UI chrome and body).
+//          IBM_Plex_Mono handles numeric labels, loaded on demand.
 //
 // GLOBAL-OPTIMIZATION-2A: replaced @fontsource with next/font/google so
 // font files become self-hosted build assets served from /_next/static.
-// Cairo 400/600 and IBM Plex Sans Arabic / Mono 400 load on the critical
-// path via <body> variable classes. Heavier weights were previously loaded
-// lazily by DeferredFonts and are no longer preloaded here.
+// Cairo is a variable font: omitting `weight` makes next/font self-host ONE
+// variable file per subset covering every weight (200-1000). The UI uses
+// font-medium / semibold / bold / extrabold; with the old static 400+600 pair
+// the browser rendered bold and extrabold as 600, flattening the hierarchy.
+// `latin` is included so digits/Latin brand names share Cairo's metrics instead
+// of falling back to a system font (the main cause of mismatched numerals).
 const cairo = Cairo({
-  subsets: ['arabic'],
-  weight: ['400', '600'],
+  subsets: ['arabic', 'latin'],
   variable: '--font-cairo',
   display: 'swap',
 });

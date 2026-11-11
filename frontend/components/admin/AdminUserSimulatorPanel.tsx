@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity, AlertTriangle, Bot, CheckCircle2, Clock3, Download,
-  Loader2, Play, Plus, RefreshCw, Save, Settings2, ShieldCheck, Square,
+  Play, Plus, RefreshCw, Save, Settings2, ShieldCheck, Square,
   Terminal, XCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Spinner } from '@/components/ui/spinner';
 import {
   adminApi,
   type UserSimulatorConfig,
@@ -300,7 +301,7 @@ export function AdminUserSimulatorPanel() {
   }
 
   if (loading) {
-    return <div className="flex items-center gap-2 rounded-xl border bg-card p-5 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> جارٍ الاتصال بمحرك المتصفح وقراءة الإعدادات…</div>;
+    return <div className="flex items-center gap-2 rounded-xl border bg-card p-5 text-sm text-muted-foreground"><Spinner size="sm" /> جارٍ الاتصال بمحرك المتصفح وقراءة الإعدادات…</div>;
   }
 
   return (

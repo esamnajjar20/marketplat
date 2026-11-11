@@ -8,13 +8,15 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ROUTES } from '@/lib/constants';
+import { formatPrice } from '@/lib/formatters';
 
 export function FollowingFeedSection() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const { data, isLoading } = useFollowingFeed({ limit: 12 });
   if (!isAuthenticated) return null;
   return (
-    <section className="rounded-2xl border border-border/60 bg-card/50 p-4 shadow-sm">
+    <section className="container mx-auto max-w-7xl px-3 sm:px-4">
+     <div className="rounded-2xl border border-border/60 bg-card/50 p-3 shadow-xs sm:p-4">
       <div className="mb-3 flex items-center justify-between">
         <div><h2 className="font-bold">أتابع</h2><p className="text-xs text-muted-foreground">أحدث المحتوى من الأشخاص والمتاجر والفئات التي تتابعها</p></div>
         <Bell className="h-5 w-5 text-muted-foreground" />
@@ -27,9 +29,10 @@ export function FollowingFeedSection() {
             : ROUTES.serviceDetail(item.id);
         return <IntentPrefetchLink key={`${item.type}-${item.id}`} href={href} className="flex gap-3 rounded-xl border border-border p-3 transition hover:bg-muted" prefetch={false}>
           {item.images?.[0] ? <SafeImage src={item.images[0]} alt="" width={72} height={72} className="h-18 w-18 rounded-lg object-cover" /> : <div className="flex h-18 w-18 items-center justify-center rounded-lg bg-muted"><ImageIcon className="h-5 w-5" /></div>}
-          <div className="min-w-0"><div className="text-xs text-muted-foreground">{item.type === 'AD' ? 'إعلان' : item.type === 'PRODUCT' ? 'منتج' : 'خدمة'}</div><h3 className="truncate font-medium">{item.title}</h3>{item.price != null && <p className="mt-1 text-sm font-semibold">{String(item.price)}</p>}</div>
+          <div className="min-w-0"><div className="text-xs text-muted-foreground">{item.type === 'AD' ? 'إعلان' : item.type === 'PRODUCT' ? 'منتج' : 'خدمة'}</div><h3 className="truncate font-medium">{item.title}</h3>{item.price != null && <p className="mt-1 text-sm font-semibold">{formatPrice(item.price)}</p>}</div>
         </IntentPrefetchLink>;
       })}</div>}</></LoadingGate>}
+     </div>
     </section>
   );
 }

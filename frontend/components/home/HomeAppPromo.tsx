@@ -29,7 +29,7 @@ export function HomeAppPromo() {
   if (!url || !show) return null;
 
   return (
-    <section className="container mx-auto max-w-7xl px-4" aria-label="تطبيق الأندرويد">
+    <section aria-label="تطبيق الأندرويد">
       <a
         href={url}
         rel="noopener"

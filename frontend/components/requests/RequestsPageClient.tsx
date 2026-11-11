@@ -81,9 +81,9 @@ export function RequestsPageClient({ params: initialParams }: { params: OpenRequ
   const page = Number.isSafeInteger(rawPage) && rawPage > 0 ? Math.min(rawPage, 10_000) : 1;
   const rawType = searchParams.get('type');
   const type: RequestType | undefined = rawType === 'SERVICE' || rawType === 'PRODUCT' || rawType === 'RENTAL' ? rawType : undefined;
-  const city = searchParams.get('city') || undefined;
-  const serviceTypeId = type === 'SERVICE' ? searchParams.get('serviceTypeId') || undefined : undefined;
-  const q = searchParams.get('q') || undefined;
+  const city = searchParams.get('city')?.trim() || undefined;
+  const serviceTypeId = type === 'SERVICE' ? searchParams.get('serviceTypeId')?.trim() || undefined : undefined;
+  const q = searchParams.get('q')?.trim() || undefined;
   // Same whitelist as the server page (app/(public)/requests/page.tsx) so an
   // unknown ?sort= value falls back to 'newest' and the client query key
   // matches the server-hydrated one instead of hitting the API with garbage.

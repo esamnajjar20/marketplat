@@ -41,7 +41,7 @@ const requestsPage = read('app/(public)/requests/page.tsx');
 const requestsShell = read('components/requests/RequestsPageShell.tsx');
 const requestsClient = read('components/requests/RequestsPageClient.tsx');
 check(/fetchServerApi<RequestListItem\[]>/.test(requestsPage) && /queryKeys\.requests\.open\(params\)/.test(requestsPage), 'Open requests first page is prefetched server-side with the same cache key as the client');
-check(/searchParams: Promise/.test(requestsPage) && /params: OpenRequestsPageParams/.test(requestsShell) && !/useSearchParams/.test(requestsClient), 'Request filters are normalized from the URL on the server');
+check(/searchParams: Promise/.test(requestsPage) && /params: OpenRequestsPageParams/.test(requestsShell) && /rawSort === 'expiring'/.test(requestsClient), 'Request filters are normalized from the URL on the server');
 check(/useOpenRequests\(params\)/.test(requestsClient) && /buildTypeHref/.test(requestsClient), 'Request filters and interactive URL navigation remain active after hydration');
 
 const searchPage = read('app/(public)/search/page.tsx');

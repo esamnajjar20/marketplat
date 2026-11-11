@@ -14,10 +14,10 @@ const checks = [
   ['services route fetches the first page on the server', 'app/(public)/services/page.tsx', 'fetchPublicBrowsePage<ServiceListingWithProvider>'],
   ['server browse fetch has a bounded SSR timeout', 'lib/server/serverApiFetch.ts', 'const DEFAULT_SERVER_API_TIMEOUT_MS = 8_000;'],
   ['SSR page size is shared with the initial client query', 'lib/browseSearchParams.ts', 'export const SSR_BROWSE_PAGE_SIZE = 10;'],
-  ['ads results accept hydrated first-page data', 'components/ads/SearchResults.tsx', 'initialData: initialPage ? { pages: [initialPage], pageParams: [1] } : undefined'],
-  ['products grid accepts hydrated first-page data', 'components/stores/ProductsGrid.tsx', 'initialData: initialPage ? { pages: [initialPage], pageParams: [1] } : undefined'],
-  ['stores grid accepts hydrated first-page data', 'components/stores/StoresGrid.tsx', 'initialData: initialPage ? { pages: [initialPage], pageParams: [1] } : undefined'],
-  ['services grid accepts hydrated first-page data', 'components/services/ServiceListingsGrid.tsx', 'initialData: initialPage ? { pages: [initialPage], pageParams: [1] } : undefined'],
+  ['ads results accept hydrated first-page data', 'components/ads/SearchResults.tsx', 'initialData: seededInitialPage ? { pages: [seededInitialPage], pageParams: [1] } : undefined'],
+  ['products grid accepts hydrated first-page data', 'components/stores/ProductsGrid.tsx', 'initialData: seededInitialPage ? { pages: [seededInitialPage], pageParams: [1] } : undefined'],
+  ['stores grid accepts hydrated first-page data', 'components/stores/StoresGrid.tsx', 'initialData: seededInitialPage ? { pages: [seededInitialPage], pageParams: [1] } : undefined'],
+  ['services grid accepts hydrated first-page data', 'components/services/ServiceListingsGrid.tsx', 'initialData: seededInitialPage ? { pages: [seededInitialPage], pageParams: [1] } : undefined'],
   ['ads grid keeps a stable SSR pagination page size', 'components/ads/SearchResults.tsx', 'initialPage ? SSR_BROWSE_PAGE_SIZE : getAdaptivePageSize(12, networkPolicy)'],
   ['products grid keeps a stable SSR pagination page size', 'components/stores/ProductsGrid.tsx', 'initialPage ? SSR_BROWSE_PAGE_SIZE : getStablePageSize(12, networkPolicy)'],
   ['stores grid keeps a stable SSR pagination page size', 'components/stores/StoresGrid.tsx', 'initialPage ? SSR_BROWSE_PAGE_SIZE : getStablePageSize(12, networkPolicy)'],
@@ -57,8 +57,11 @@ for (const [label, file, needle] of checks) {
     ok = ok && !block.includes('ssr: false');
   }
 
+  // Grids may read the live URL (history-API filter updates only reach
+  // useSearchParams), but must never seed first-page data for a different
+  // query: the seed is gated on seedMatchesUrl.
   if (label.includes('do not call useSearchParams')) {
-    ok = ok && !content.includes('useSearchParams(') && !content.includes('useSearchParams }') && !content.includes('useSearchParams,');
+    ok = ok && content.includes('seedMatchesUrl');
   }
 
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`);

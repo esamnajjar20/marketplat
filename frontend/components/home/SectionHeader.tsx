@@ -20,6 +20,13 @@ interface Props {
   className?: string;
 }
 
+const ACCENT_BAR: Record<NonNullable<Props['tone']>, string> = {
+  default: 'border-border',
+  featured: 'border-accent',
+  personal: 'border-primary',
+  nearby: 'border-brand-nearby',
+};
+
 const EYEBROW: Record<NonNullable<Props['tone']>, string> = {
   default: 'text-muted-foreground',
   featured: 'text-accent',
@@ -40,7 +47,7 @@ export function SectionHeader({
 
   return (
     <div className={cn('flex items-end justify-between gap-3', className)}>
-      <div className="min-w-0 space-y-1">
+      <div className={cn('min-w-0 space-y-1 border-s-[3px] ps-2.5', ACCENT_BAR[tone])}>
         <p
           className={cn(
             'flex items-center gap-1.5 text-2xs font-semibold',

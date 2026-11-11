@@ -61,7 +61,7 @@ export function RecentProductsSection() {
 
   if (showLoading) {
     return (
-      <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">
+      <section className="container mx-auto max-w-7xl space-y-4 px-3 py-2 sm:px-4 sm:py-3">
         {header}
         <HomeScrollRail>
           {Array.from({ length: 8 }).map((_, i) => (
@@ -76,7 +76,7 @@ export function RecentProductsSection() {
 
   if (showError) {
     return (
-      <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">
+      <section className="container mx-auto max-w-7xl space-y-4 px-3 py-2 sm:px-4 sm:py-3">
         {header}
         <ApiError error={feed.error} onRetry={() => void feed.refetch()} variant="inline" />
       </section>
@@ -85,7 +85,7 @@ export function RecentProductsSection() {
 
   if (items.length === 0) {
     return (
-      <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">
+      <section className="container mx-auto max-w-7xl space-y-4 px-3 py-2 sm:px-4 sm:py-3">
         {header}
         <EmptyState
           icon={<ShoppingBag className="h-8 w-8" />}
@@ -110,7 +110,7 @@ export function RecentProductsSection() {
   }
 
   return (
-    <section className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3">
+    <section className="container mx-auto max-w-7xl space-y-4 px-3 py-2 sm:px-4 sm:py-3">
       {header}
       <HomeScrollRail>
         {items.map((product) => (

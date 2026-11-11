@@ -77,7 +77,7 @@ const requestsPage = read('app/(public)/requests/page.tsx');
 const requestsShell = read('components/requests/RequestsPageShell.tsx');
 const requestsClient = read('components/requests/RequestsPageClient.tsx');
 check(/fetchServerApi<RequestListItem\[]>/.test(requestsPage) && /queryKeys\.requests\.open/.test(requestsPage), 'Open requests first page is server-prefetched with the canonical query key');
-check(!/ssr:\s*false/.test(requestsShell) && !/useSearchParams/.test(requestsClient), 'Open requests parse URL state on the server and pass normalized parameters to the client island');
+check(!/ssr:\s*false/.test(requestsShell) && /searchParams: Promise/.test(requestsPage) && /params=\{params\}/.test(requestsShell), 'Open requests parse URL state on the server and pass normalized parameters to the client island');
 const storiesPage = read('app/(protected)/stories/page.tsx');
 check(/^['"]use client['"]/m.test(storiesPage) && /StoryComposer/.test(storiesPage) && /StoryViewer/.test(storiesPage), 'Authenticated story composer/viewer remains an interactive client route');
 

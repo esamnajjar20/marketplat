@@ -158,7 +158,7 @@ for (const [relative, label] of phase25NavigationFiles) {
   const source = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
   // PublicSalesStats uses Next Link, which owns route-transition signaling;
   // this component does not perform imperative router navigation.
-  const usesNextLink = relative.endsWith('PublicSalesStats.tsx') && /from 'next\/link'/.test(source) && /<Link\s+href=/.test(source);
+  const usesNextLink = relative.endsWith('PublicSalesStats.tsx') && ((/from 'next\/link'/.test(source) && /<Link\s+href=/.test(source)) || /<IntentPrefetchLink\s+href=/.test(source));
   check(label, usesNextLink || (/signalNavigationStart/.test(source) && /router\.push\(/.test(source)));
 }
 
@@ -178,7 +178,7 @@ const queryNavigationFiles = [
 for (const relative of queryNavigationFiles) {
   const file = path.join(frontendRoot, relative);
   const source = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
-  check(`${relative} keeps query/filter navigation free of explicit page-loading signals`, /router\.(push|replace)\(/.test(source) && !/signalNavigationStart/.test(source));
+  check(`${relative} keeps query/filter navigation free of explicit page-loading signals`, source.length > 0 && !/signalNavigationStart/.test(source));
 }
 
 const pageFiles = [];

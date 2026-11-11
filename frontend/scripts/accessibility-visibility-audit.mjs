@@ -36,7 +36,7 @@ const checks = [
   ['protected disclosure groups expose expanded state and their controlled panel', /aria-expanded=\{isOpen\}/.test(protectedSidebar) && /aria-controls=\{panelId\}/.test(protectedSidebar) && /id=\{panelId\} hidden=\{!isOpen\}/.test(protectedSidebar)],
   ['admin navigation is discoverable and touch-sized', /min-h-11/.test(adminSidebar) && /aria-label="بحث في قائمة الإدارة"/.test(adminSidebar) && /aria-controls="admin-navigation-dialog"/.test(adminSidebar)],
   ['mobile bottom navigation has a named landmark and meaningful active states', /aria-label="التنقل الرئيسي"/.test(bottomNav) && /aria-current=\{isActive \? 'page' : undefined\}/.test(bottomNav)],
-  ['ad detail status, condition and category filters are semantic, touch-sized links', (adDetailMetadata.match(/<Link\b/g) ?? []).length >= 3 && (adDetailMetadata.match(/min-h-11 items-center/g) ?? []).length >= 3 && !/<Badge[\s\S]{0,300}?onClick=/.test(adDetailMetadata)],
+  ['ad detail status, condition and category filters are semantic, touch-sized links', (adDetailMetadata.match(/<(?:Intent(?:Prefetch)?)?Link\b/g) ?? []).length >= 3 && (adDetailMetadata.match(/min-h-11 items-center/g) ?? []).length >= 3 && !/<Badge[\s\S]{0,300}?onClick=/.test(adDetailMetadata)],
   ['mobile accessibility regression script is callable', mobilePackage.scripts?.['verify:a11y'] === 'node ./scripts/verify-design-system-a11y.mjs'],
   ['web accessibility audit is registered in package scripts', packageJson.scripts?.['a11y:visibility-audit'] === 'node scripts/accessibility-visibility-audit.mjs'],
 ];
