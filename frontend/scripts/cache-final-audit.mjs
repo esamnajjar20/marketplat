@@ -20,8 +20,8 @@ for (const p of [
   'frontend/public/sw.js',
   'frontend/lib/offlineStoragePressure.ts',
   'frontend/lib/cache/queryCacheInvalidation.ts',
-  'apps/api/src/shared/utils/swrCache.ts',
-  'apps/api/src/shared/utils/cacheMetrics.ts',
+  'apps/api/src/shared/cache/swrCache.ts',
+  'apps/api/src/shared/cache/cacheMetrics.ts',
   'frontend/scripts/cache-contract-audit.mjs',
   'frontend/scripts/cache-performance-audit.mjs',
 ]) if (!exists(p)) fail(`required file missing: ${p}`);
@@ -48,13 +48,13 @@ const pressure = read('frontend/lib/offlineStoragePressure.ts');
 if (!pressure.includes("postMessage({ type: 'TRIM_DISPOSABLE_CACHES' })")) fail('browser pressure guard bypasses SW lifecycle coordinator');
 else pass('storage pressure delegates disposable cleanup to SW');
 
-const metrics = read('apps/api/src/shared/utils/cacheMetrics.ts');
-const swr = read('apps/api/src/shared/utils/swrCache.ts');
+const metrics = read('apps/api/src/shared/cache/cacheMetrics.ts');
+const swr = read('apps/api/src/shared/cache/swrCache.ts');
 if (!metrics.includes('app_cache_operation_duration_seconds') || !swr.includes('cacheMetrics.observeDuration')) fail('W10 cache latency instrumentation incomplete');
 else pass('W10 cache latency telemetry is wired to SWR outcomes');
 
-const warmupMetrics = read('apps/api/src/shared/utils/metrics.ts');
-const warmup = read('apps/api/src/shared/utils/cacheWarmup.ts');
+const warmupMetrics = read('apps/api/src/shared/observability/metrics.ts');
+const warmup = read('apps/api/src/shared/cache/cacheWarmup.ts');
 if (!warmupMetrics.includes('cache_warmup_tasks_total') || !warmupMetrics.includes('cache_warmup_task_duration_seconds')) fail('cache warmup telemetry definitions missing');
 else if (!warmup.includes('cacheWarmupTasksTotal.inc') || !warmup.includes('cacheWarmupTaskDurationSeconds.observe')) fail('cache warmup telemetry is not wired to task outcomes');
 else pass('cache warmup telemetry is defined and wired');

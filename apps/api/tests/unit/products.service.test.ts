@@ -8,7 +8,7 @@ import { notificationEvents } from '../../src/modules/notifications/notification
 import { promotionsService } from '../../src/modules/promotions/promotions.service';
 import { prisma } from '../../src/config/prisma';
 import { uploadImage, deleteImage } from '../../src/config/cloudinary';
-import { cleanupUploadedImages, extractCloudinaryPublicId } from '../../src/shared/utils/cloudinaryHelpers';
+import { cleanupUploadedImages, extractCloudinaryPublicId } from '../../src/shared/media/cloudinaryHelpers';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
@@ -28,13 +28,13 @@ jest.mock('../../src/modules/notifications/notifications.service');
 // promotions.service.test.ts).
 jest.mock('../../src/modules/promotions/promotions.service');
 jest.mock('../../src/config/cloudinary');
-jest.mock('../../src/shared/utils/cloudinaryHelpers');
+jest.mock('../../src/shared/media/cloudinaryHelpers');
 jest.mock('../../src/modules/store-types/store-type-fields.service', () => ({
   storeTypeFieldsService: {
     validateAttributes: jest.fn().mockResolvedValue({}),
   },
 }));
-jest.mock('../../src/shared/utils/publicListCache', () => ({
+jest.mock('../../src/shared/cache/publicListCache', () => ({
   cachedPublicList: jest.fn((_ns: string, _query: unknown, fetcher: () => Promise<unknown>) =>
     fetcher()
   ),

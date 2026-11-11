@@ -1,4 +1,4 @@
-import { buildPaginationMeta, getPaginationParams } from '../../src/shared/utils/pagination';
+import { buildPaginationMeta, getPaginationParams } from '../../src/shared/http/pagination';
 
 describe('Pagination Utils', () => {
   it('should return defaults', () => {

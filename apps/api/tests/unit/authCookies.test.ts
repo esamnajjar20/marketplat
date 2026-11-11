@@ -108,7 +108,7 @@ describe('authCookies', () => {
     it('sets an httpOnly, sameSite=none, secure cookie scoped to /api/v1/auth with a 7-day maxAge', async () => {
       process.env.NODE_ENV = 'test';
       jest.resetModules();
-      const { setRefreshTokenCookie } = await import('../../src/shared/utils/authCookies');
+      const { setRefreshTokenCookie } = await import('../../src/shared/auth/authCookies');
 
       const res = mockRes();
       setRefreshTokenCookie(res as Response, 'a-real-refresh-token');
@@ -125,7 +125,7 @@ describe('authCookies', () => {
     it('keeps secure:true regardless of NODE_ENV (DEPLOY-FIX-01 — no longer conditional)', async () => {
       process.env.NODE_ENV = 'development';
       jest.resetModules();
-      const { setRefreshTokenCookie } = await import('../../src/shared/utils/authCookies');
+      const { setRefreshTokenCookie } = await import('../../src/shared/auth/authCookies');
 
       const res = mockRes();
       setRefreshTokenCookie(res as Response, 'a-real-refresh-token');
@@ -142,7 +142,7 @@ describe('authCookies', () => {
     it('clears the cookie with the EXACT same attributes used to set it', async () => {
       withProductionEnv();
       jest.resetModules();
-      const { clearRefreshTokenCookie } = await import('../../src/shared/utils/authCookies');
+      const { clearRefreshTokenCookie } = await import('../../src/shared/auth/authCookies');
 
       const res = mockRes();
       clearRefreshTokenCookie(res as Response);
@@ -162,21 +162,21 @@ describe('authCookies', () => {
 
   describe('getRefreshTokenFromCookie', () => {
     it('reads the refreshToken value from req.cookies', async () => {
-      const { getRefreshTokenFromCookie } = await import('../../src/shared/utils/authCookies');
+      const { getRefreshTokenFromCookie } = await import('../../src/shared/auth/authCookies');
 
       const req = { cookies: { refreshToken: 'the-token-value' } } as unknown as Request;
       expect(getRefreshTokenFromCookie(req)).toBe('the-token-value');
     });
 
     it('returns undefined when there is no refreshToken cookie', async () => {
-      const { getRefreshTokenFromCookie } = await import('../../src/shared/utils/authCookies');
+      const { getRefreshTokenFromCookie } = await import('../../src/shared/auth/authCookies');
 
       const req = { cookies: {} } as unknown as Request;
       expect(getRefreshTokenFromCookie(req)).toBeUndefined();
     });
 
     it('returns undefined when req.cookies itself is undefined (cookie-parser not registered)', async () => {
-      const { getRefreshTokenFromCookie } = await import('../../src/shared/utils/authCookies');
+      const { getRefreshTokenFromCookie } = await import('../../src/shared/auth/authCookies');
 
       const req = {} as unknown as Request;
       expect(getRefreshTokenFromCookie(req)).toBeUndefined();
@@ -185,7 +185,7 @@ describe('authCookies', () => {
 
   describe('setCsrfCookie', () => {
     it('sets a NON-httpOnly cookie (must be readable by frontend JS)', async () => {
-      const { setCsrfCookie } = await import('../../src/shared/utils/authCookies');
+      const { setCsrfCookie } = await import('../../src/shared/auth/authCookies');
 
       const res = mockRes();
       setCsrfCookie(res as Response);
@@ -198,7 +198,7 @@ describe('authCookies', () => {
     });
 
     it('returns the same random value it sets as the cookie', async () => {
-      const { setCsrfCookie } = await import('../../src/shared/utils/authCookies');
+      const { setCsrfCookie } = await import('../../src/shared/auth/authCookies');
 
       const res = mockRes();
       const returnedToken = setCsrfCookie(res as Response);
@@ -208,7 +208,7 @@ describe('authCookies', () => {
     });
 
     it('generates a different token on every call (not a fixed/predictable value)', async () => {
-      const { setCsrfCookie } = await import('../../src/shared/utils/authCookies');
+      const { setCsrfCookie } = await import('../../src/shared/auth/authCookies');
 
       const res1 = mockRes();
       const res2 = mockRes();
@@ -225,7 +225,7 @@ describe('authCookies', () => {
     it('clears the csrfToken cookie with matching non-httpOnly attributes', async () => {
       withProductionEnv();
       jest.resetModules();
-      const { clearCsrfCookie } = await import('../../src/shared/utils/authCookies');
+      const { clearCsrfCookie } = await import('../../src/shared/auth/authCookies');
 
       const res = mockRes();
       clearCsrfCookie(res as Response);
@@ -241,7 +241,7 @@ describe('authCookies', () => {
 
   describe('getCsrfCookieName', () => {
     it('returns "csrfToken"', async () => {
-      const { getCsrfCookieName } = await import('../../src/shared/utils/authCookies');
+      const { getCsrfCookieName } = await import('../../src/shared/auth/authCookies');
       expect(getCsrfCookieName()).toBe('csrfToken');
     });
   });
@@ -251,7 +251,7 @@ describe('authCookies', () => {
     it('sets a NON-httpOnly, sameSite=none, secure cookie scoped to "/" with a 7-day maxAge matching refreshToken', async () => {
       process.env.NODE_ENV = 'test';
       jest.resetModules();
-      const { setSessionHintCookie } = await import('../../src/shared/utils/authCookies');
+      const { setSessionHintCookie } = await import('../../src/shared/auth/authCookies');
 
       const res = mockRes();
       setSessionHintCookie(res as Response);
@@ -268,7 +268,7 @@ describe('authCookies', () => {
     it('keeps secure:true regardless of NODE_ENV (DEPLOY-FIX-01 — no longer conditional)', async () => {
       process.env.NODE_ENV = 'development';
       jest.resetModules();
-      const { setSessionHintCookie } = await import('../../src/shared/utils/authCookies');
+      const { setSessionHintCookie } = await import('../../src/shared/auth/authCookies');
 
       const res = mockRes();
       setSessionHintCookie(res as Response);
@@ -285,7 +285,7 @@ describe('authCookies', () => {
     it('clears the app_has_session cookie with the EXACT same attributes used to set it', async () => {
       withProductionEnv();
       jest.resetModules();
-      const { clearSessionHintCookie } = await import('../../src/shared/utils/authCookies');
+      const { clearSessionHintCookie } = await import('../../src/shared/auth/authCookies');
 
       const res = mockRes();
       clearSessionHintCookie(res as Response);
@@ -301,7 +301,7 @@ describe('authCookies', () => {
 
   describe('getSessionHintCookieName', () => {
     it('returns "app_has_session"', async () => {
-      const { getSessionHintCookieName } = await import('../../src/shared/utils/authCookies');
+      const { getSessionHintCookieName } = await import('../../src/shared/auth/authCookies');
       expect(getSessionHintCookieName()).toBe('app_has_session');
     });
   });

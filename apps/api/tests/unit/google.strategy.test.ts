@@ -111,7 +111,7 @@ describe('google.strategy', () => {
 
       const { configureGoogleStrategy, passport } = await import('../../src/modules/auth/google.strategy');
       const useSpy = jest.spyOn(passport, 'use');
-      const { logger } = await import('../../src/shared/utils/logger');
+      const { logger } = await import('../../src/shared/observability/logger');
       const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
 
       configureGoogleStrategy();

@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { logger } from '../shared/utils/logger';
+import { logger } from '../shared/observability/logger';
 import { executeTransactionalJobWithGoFallback } from '../shared/go-worker/transactionalJobFallback';
 import { runInventoryMonitorExpressFallback } from '../shared/go-worker/scheduledJobFallbacks';
 import { publishDurableNotifications } from '../shared/go-worker/publishDurableNotifications';

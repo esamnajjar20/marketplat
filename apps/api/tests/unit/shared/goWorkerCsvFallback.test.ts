@@ -3,7 +3,7 @@ import { ReadableStream } from 'node:stream/web';
 import type { Response as ExpressResponse } from 'express';
 import { streamCsvWithGoFallback } from '../../../src/shared/go-worker/streamCsvWithFallback';
 
-jest.mock('../../../src/shared/utils/logger', () => ({
+jest.mock('../../../src/shared/observability/logger', () => ({
   logger: {
     info: jest.fn(),
     warn: jest.fn(),

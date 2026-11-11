@@ -21,7 +21,7 @@ jest.mock('../../src/modules/products/products.service');
 jest.mock('../../src/modules/service-providers/service-providers.service');
 jest.mock('../../src/modules/recommendations/recommendations.service');
 jest.mock('../../src/config/prisma', () => ({ prisma: { ad: { count: jest.fn() } } }));
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
 

@@ -5,7 +5,7 @@ import {
   peekBlacklistL1,
   rememberBlacklistL1,
   getBlacklistKey,
-} from '../../src/shared/utils/tokenStore';
+} from '../../src/shared/auth/tokenStore';
 import { redis } from '../../src/config/redis';
 
 describe('tokenStore utilities', () => {

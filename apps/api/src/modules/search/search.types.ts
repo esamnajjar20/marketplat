@@ -8,7 +8,7 @@
  * below is the normalized shape every entity gets mapped into so the
  * frontend never needs to branch on `type` to know which field to read.
  */
-import { PaginationMeta } from '../../shared/utils/pagination';
+import { PaginationMeta } from '../../shared/http/pagination';
 
 export const SEARCH_TYPES = ['all', 'ads', 'products', 'stores', 'services'] as const;
 export type SearchType = (typeof SEARCH_TYPES)[number];
@@ -87,7 +87,7 @@ export interface SearchResult {
 
 export interface UnifiedSearchResponse {
   results: SearchResult[];
-  // Reuses shared/utils/pagination.ts's PaginationMeta (same shape
+  // Reuses shared/http/pagination.ts's PaginationMeta (same shape
   // every other module's buildPaginationMeta() produces) rather than a
   // module-local type — the frontend's unwrapPaginated() /
   // PaginationMeta type assumes this exact shape (including

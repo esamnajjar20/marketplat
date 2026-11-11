@@ -3,7 +3,7 @@ import { adsRepository } from '../../src/modules/ads/ads.repository';
 
 jest.mock('../../src/modules/ads/ads.repository');
 jest.mock('../../src/config/cloudinary', () => ({ uploadImage: jest.fn(), deleteImage: jest.fn() }));
-jest.mock('../../src/shared/utils/viewsBuffer', () => ({ viewsBuffer: { increment: jest.fn() } }));
+jest.mock('../../src/shared/buffers/viewsBuffer', () => ({ viewsBuffer: { increment: jest.fn() } }));
 
 describe('adsService pagination', () => {
   beforeEach(() => jest.clearAllMocks());

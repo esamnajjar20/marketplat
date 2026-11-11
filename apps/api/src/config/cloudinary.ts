@@ -1,7 +1,7 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { env } from './env';
-import { logger } from '../shared/utils/logger';
-import { CircuitBreaker, CircuitBreakerOpenError } from '../shared/utils/circuitBreaker';
+import { logger } from '../shared/observability/logger';
+import { CircuitBreaker, CircuitBreakerOpenError } from '../shared/resilience/circuitBreaker';
 import { ServiceUnavailableError } from '../shared/errors/ServiceUnavailableError';
 
 cloudinary.config({

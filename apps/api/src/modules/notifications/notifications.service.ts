@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/jobs/backgroundTask';
 import { Notification, NotificationType, Prisma } from '@prisma/client';
 import {
   notificationsRepository,
@@ -6,18 +6,18 @@ import {
   RegisterFcmTokenInput,
 } from './notifications.repository';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
-import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { buildPaginationMeta } from '../../shared/http/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
-import { pushService } from '../../shared/utils/pushService';
+import { pushService } from '../../shared/notifications/pushService';
 import { prisma } from '../../config/prisma';
 import { TooManyRequestsError } from '../../shared/errors/TooManyRequestsError';
-import { pushSubscriptionsRepository } from '../../shared/utils/pushSubscriptionsRepository';
-import { fcmDeviceTokensRepository } from '../../shared/utils/fcmDeviceTokensRepository';
+import { pushSubscriptionsRepository } from '../../shared/notifications/pushSubscriptionsRepository';
+import { fcmDeviceTokensRepository } from '../../shared/notifications/fcmDeviceTokensRepository';
 import {
   deviceFingerprint,
   labelForNativePlatform,
   labelFromUserAgent,
-} from '../../shared/utils/deviceLabel';
+} from '../../shared/auth/deviceLabel';
 import { NOTIFICATION_CATEGORY_TYPES, NotificationCategory } from './notifications.validation';
 
 export type DeviceKind = 'web' | 'native';

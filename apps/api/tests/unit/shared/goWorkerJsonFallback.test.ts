@@ -1,6 +1,6 @@
 import { requestJsonWithGoFallback } from '../../../src/shared/go-worker/requestJsonWithFallback';
 
-jest.mock('../../../src/shared/utils/logger', () => ({
+jest.mock('../../../src/shared/observability/logger', () => ({
   logger: {
     info: jest.fn(),
     warn: jest.fn(),

@@ -3,7 +3,7 @@ import { activityService } from './activity.service';
 import { sellersService } from '../sellers/sellers.service';
 import { getMyActivitySchema } from './activity.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../shared/utils/requireUser';
+import { requireUser } from '../../shared/auth/requireUser';
 
 export const activityController = {
   /**

@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../utils/backgroundTask';
+import { reportBackgroundFailure } from '../jobs/backgroundTask';
 /**
  * Job handlers for the `notifications` queue.
  *
@@ -14,22 +14,22 @@ import type { NotificationType } from '@prisma/client';
 import { env } from '../../config/env';
 import { prisma } from '../../config/prisma';
 import { queueRedis as redis } from '../../config/redis';
-import { logger } from '../utils/logger';
-import { pushService } from '../utils/pushService';
-import { fcmPushService } from '../utils/fcmPushService';
+import { logger } from '../observability/logger';
+import { pushService } from '../notifications/pushService';
+import { fcmPushService } from '../notifications/fcmPushService';
 import { isGoWorkerFcmPushEnabled, sendFcmTargetViaGo } from '../go-worker/fcmPush';
-import { pushSubscriptionsRepository } from '../utils/pushSubscriptionsRepository';
-import { fcmDeviceTokensRepository } from '../utils/fcmDeviceTokensRepository';
-import { emailService } from '../utils/emailService';
-import { presence } from '../utils/presence';
-import { evaluateQuietHours } from '../utils/quietHours';
+import { pushSubscriptionsRepository } from '../notifications/pushSubscriptionsRepository';
+import { fcmDeviceTokensRepository } from '../notifications/fcmDeviceTokensRepository';
+import { emailService } from '../email/emailService';
+import { presence } from '../realtime/presence';
+import { evaluateQuietHours } from '../notifications/quietHours';
 import {
   DIGEST_MAX_ITEMS,
   EMAIL_FALLBACK_TYPES,
   emailFallbackGapKey,
   summarizeDigest,
   userWantsEmailFallback,
-} from '../utils/notificationEmailFallback';
+} from '../email/notificationEmailFallback';
 import type {
   EmailFallbackJobData,
   FanoutJobData,

@@ -1,11 +1,11 @@
 import { authController } from '../../src/modules/auth/auth.controller';
 import { authService } from '../../src/modules/auth/auth.service';
-import * as authCookies from '../../src/shared/utils/authCookies';
+import * as authCookies from '../../src/shared/auth/authCookies';
 import { mockRequest, mockResponse } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/auth/auth.service');
-jest.mock('../../src/shared/utils/authCookies');
-jest.mock('../../src/shared/utils/getClientIp', () => ({
+jest.mock('../../src/shared/auth/authCookies');
+jest.mock('../../src/shared/http/getClientIp', () => ({
   getClientIp: jest.fn().mockReturnValue('1.2.3.4'),
 }));
 jest.mock('../../src/config/env', () => ({

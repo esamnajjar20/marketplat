@@ -1,4 +1,4 @@
-import { withProviderScheduleLock } from '../../src/shared/utils/providerScheduleLock';
+import { withProviderScheduleLock } from '../../src/shared/locks/providerScheduleLock';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 
 describe('providerScheduleLock / withProviderScheduleLock', () => {

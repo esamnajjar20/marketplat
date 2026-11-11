@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/jobs/backgroundTask';
 /**
  * TRACK-REPUBLISH ()
  *
@@ -21,14 +21,14 @@ import { sellersService } from '../sellers/sellers.service';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
-import { withUserAdCreationLock } from '../../shared/utils/adLock';
+import { withUserAdCreationLock } from '../../shared/locks/adLock';
 import { env } from '../../config/env';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../shared/observability/logger';
 import { bumpAdsCacheVersion } from './ads.service';
 import { savedSearchEvents } from '../saved-searches';
 import { activityService, activityTemplates } from '../activity';
 import { fraudService } from '../fraud';
-import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
+import { recordFailedTask } from '../../shared/jobs/failedBackgroundTasks';
 
 // previous block had conflicting "soft cap"
 // comments and an unexplained +3. Kept to a single named value for

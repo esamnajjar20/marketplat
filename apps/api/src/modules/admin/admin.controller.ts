@@ -1,11 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../../config/prisma';
-import { auditLog } from '../../shared/utils/auditLog';
+import { auditLog } from '../../shared/audit/auditLog';
 import { adminService } from './admin.service';
 import { streamCsvWithGoFallback } from '../../shared/go-worker/streamCsvWithFallback';
 import { notificationsService } from '../notifications';
 import { successResponse } from '../../shared/types/api-response.types';
-import { runBulk } from '../../shared/utils/bulkRunner';
+import { runBulk } from '../../shared/jobs/bulkRunner';
 import {
   adminGetAdsSchema,
   adminGetUsersSchema,
@@ -27,15 +27,15 @@ import {
   adminResolveServiceRequestDisputeSchema,
 } from './admin.validation';
 import { broadcastNotificationSchema } from '../notifications/notifications.validation';
-import { requireUser } from '../../shared/utils/requireUser';
-import { getClientIp } from '../../shared/utils/getClientIp';
+import { requireUser } from '../../shared/auth/requireUser';
+import { getClientIp } from '../../shared/http/getClientIp';
 import { Role } from '../../shared/constants/roles';
 import {
   acknowledgeMonitoringAlert,
   getMonitoringAlerts,
   getMonitoringEvents,
   getMonitoringHistory,
-} from '../../shared/utils/monitoringState';
+} from '../../shared/observability/monitoringState';
 
 /** Same convention as auth.controller.ts's own local getUserAgent —
  * kept inline here too rather than shared, since it's a one-line

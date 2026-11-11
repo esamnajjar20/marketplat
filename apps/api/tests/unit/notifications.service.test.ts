@@ -1,16 +1,16 @@
 import { notificationsService, notificationEvents } from '../../src/modules/notifications/notifications.service';
 import { notificationsRepository } from '../../src/modules/notifications/notifications.repository';
-import { pushService } from '../../src/shared/utils/pushService';
+import { pushService } from '../../src/shared/notifications/pushService';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { prisma } from '../../src/config/prisma';
 
-import { pushSubscriptionsRepository } from '../../src/shared/utils/pushSubscriptionsRepository';
-import { fcmDeviceTokensRepository } from '../../src/shared/utils/fcmDeviceTokensRepository';
+import { pushSubscriptionsRepository } from '../../src/shared/notifications/pushSubscriptionsRepository';
+import { fcmDeviceTokensRepository } from '../../src/shared/notifications/fcmDeviceTokensRepository';
 
 jest.mock('../../src/modules/notifications/notifications.repository');
-jest.mock('../../src/shared/utils/pushSubscriptionsRepository');
-jest.mock('../../src/shared/utils/fcmDeviceTokensRepository');
-jest.mock('../../src/shared/utils/pushService', () => ({
+jest.mock('../../src/shared/notifications/pushSubscriptionsRepository');
+jest.mock('../../src/shared/notifications/fcmDeviceTokensRepository');
+jest.mock('../../src/shared/notifications/pushService', () => ({
   pushService: {
     notifyUser: jest.fn().mockResolvedValue(undefined),
     notifyUsers: jest.fn().mockResolvedValue(undefined),
@@ -24,7 +24,7 @@ jest.mock('../../src/config/prisma', () => ({
     $queryRaw: jest.fn().mockResolvedValue([]),
   },
 }));
-jest.mock('../../src/shared/utils/notificationStream', () => ({
+jest.mock('../../src/shared/realtime/notificationStream', () => ({
   publishNotificationEvent: jest.fn().mockResolvedValue(undefined),
   publishNotificationEventToMany: jest.fn().mockResolvedValue(undefined),
   addNotificationStreamClient: jest.fn(),

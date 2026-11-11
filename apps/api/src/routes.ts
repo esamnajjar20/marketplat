@@ -42,7 +42,7 @@ import { homeRouter } from './modules/home';
 import { followsRouter } from './modules/follows';
 import { storiesRouter } from './modules/stories';
 import { csrfProtection } from './middlewares/csrf.middleware';
-import { createReadBatchHandler } from './shared/utils/readBatchRouter';
+import { createReadBatchHandler } from './shared/http/readBatchRouter';
 import { CACHE, privateApiCacheDefault } from './middlewares/cacheControl.middleware';
 
 export const router = Router();

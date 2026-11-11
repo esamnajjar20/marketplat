@@ -1,5 +1,5 @@
 import type { redis as RedisModule } from '../../src/config/redis';
-import type { logger as LoggerModule } from '../../src/shared/utils/logger';
+import type { logger as LoggerModule } from '../../src/shared/observability/logger';
 
 /**
  * coverage: redisMemoryMonitor.ts is the piece that turns
@@ -38,7 +38,7 @@ describe('redisMemoryMonitor', () => {
 
   async function freshMocks() {
     const { redis } = await import('../../src/config/redis');
-    const { logger } = await import('../../src/shared/utils/logger');
+    const { logger } = await import('../../src/shared/observability/logger');
     jest.spyOn(logger, 'warn').mockImplementation(() => logger as unknown as ReturnType<typeof logger.warn>);
     jest.spyOn(logger, 'info').mockImplementation(() => logger as unknown as ReturnType<typeof logger.info>);
     jest.spyOn(logger, 'error').mockImplementation(() => logger as unknown as ReturnType<typeof logger.error>);
@@ -54,7 +54,7 @@ describe('redisMemoryMonitor', () => {
     mockInfo(redis, 500_000_000, 1_000_000_000);
 
     const { redisMemoryMonitor, redisMemoryUsedBytes, redisMemoryMaxBytes } = await import(
-      '../../src/shared/utils/redisMemoryMonitor'
+      '../../src/shared/observability/redisMemoryMonitor'
     );
 
     redisMemoryMonitor.start();
@@ -74,7 +74,7 @@ describe('redisMemoryMonitor', () => {
     const { redis, logger } = await freshMocks();
     mockInfo(redis, 700_000_000, 1_000_000_000); // 70%
 
-    const { redisMemoryMonitor } = await import('../../src/shared/utils/redisMemoryMonitor');
+    const { redisMemoryMonitor } = await import('../../src/shared/observability/redisMemoryMonitor');
     redisMemoryMonitor.start();
     await Promise.resolve();
     await Promise.resolve();
@@ -87,7 +87,7 @@ describe('redisMemoryMonitor', () => {
     const { redis, logger } = await freshMocks();
     mockInfo(redis, 850_000_000, 1_000_000_000); // 85%
 
-    const { redisMemoryMonitor } = await import('../../src/shared/utils/redisMemoryMonitor');
+    const { redisMemoryMonitor } = await import('../../src/shared/observability/redisMemoryMonitor');
     redisMemoryMonitor.start();
     await Promise.resolve();
     await Promise.resolve();
@@ -104,7 +104,7 @@ describe('redisMemoryMonitor', () => {
     const { redis, logger } = await freshMocks();
     mockInfo(redis, 900_000_000, 1_000_000_000); // 90%, well over threshold on every poll
 
-    const { redisMemoryMonitor } = await import('../../src/shared/utils/redisMemoryMonitor');
+    const { redisMemoryMonitor } = await import('../../src/shared/observability/redisMemoryMonitor');
     redisMemoryMonitor.start();
     await jest.advanceTimersByTimeAsync(0); // flush the immediate poll
 
@@ -123,7 +123,7 @@ describe('redisMemoryMonitor', () => {
     const { redis, logger } = await freshMocks();
     mockInfo(redis, 900_000_000, 1_000_000_000);
 
-    const { redisMemoryMonitor } = await import('../../src/shared/utils/redisMemoryMonitor');
+    const { redisMemoryMonitor } = await import('../../src/shared/observability/redisMemoryMonitor');
     redisMemoryMonitor.start();
     await jest.advanceTimersByTimeAsync(0);
     expect(logger.warn).toHaveBeenCalledTimes(1);
@@ -140,7 +140,7 @@ describe('redisMemoryMonitor', () => {
     const { redis, logger } = await freshMocks();
     mockInfo(redis, 5_000_000_000, 0);
 
-    const { redisMemoryMonitor } = await import('../../src/shared/utils/redisMemoryMonitor');
+    const { redisMemoryMonitor } = await import('../../src/shared/observability/redisMemoryMonitor');
     redisMemoryMonitor.start();
     await Promise.resolve();
     await Promise.resolve();
@@ -154,7 +154,7 @@ describe('redisMemoryMonitor', () => {
     jest.spyOn(redis, 'info').mockResolvedValue('used_memory:850000000\r\n');
 
     const { redisMemoryMonitor, redisMemoryUsedBytes, redisMemoryMaxBytes } = await import(
-      '../../src/shared/utils/redisMemoryMonitor'
+      '../../src/shared/observability/redisMemoryMonitor'
     );
 
     // Seed the gauges with known values, then verify a malformed response
@@ -182,7 +182,7 @@ describe('redisMemoryMonitor', () => {
     jest.spyOn(redis, 'info').mockResolvedValue(infoText);
 
     const { redisMemoryMonitor, redisMemoryUsedBytes, redisMemoryMaxBytes } = await import(
-      '../../src/shared/utils/redisMemoryMonitor'
+      '../../src/shared/observability/redisMemoryMonitor'
     );
     redisMemoryUsedBytes.set(700_000_000);
     redisMemoryMaxBytes.set(1_000_000_000);
@@ -201,7 +201,7 @@ describe('redisMemoryMonitor', () => {
     const { redis, logger } = await freshMocks();
     jest.spyOn(redis, 'info').mockRejectedValue(new Error('connection reset'));
 
-    const { redisMemoryMonitor } = await import('../../src/shared/utils/redisMemoryMonitor');
+    const { redisMemoryMonitor } = await import('../../src/shared/observability/redisMemoryMonitor');
     expect(() => redisMemoryMonitor.start()).not.toThrow();
     await Promise.resolve();
     await Promise.resolve();
@@ -216,7 +216,7 @@ describe('redisMemoryMonitor', () => {
     mockInfo(redis, 100, 1_000_000_000);
     const infoMock = jest.spyOn(redis, 'info');
 
-    const { redisMemoryMonitor } = await import('../../src/shared/utils/redisMemoryMonitor');
+    const { redisMemoryMonitor } = await import('../../src/shared/observability/redisMemoryMonitor');
     redisMemoryMonitor.start();
     redisMemoryMonitor.start(); // second call should be a no-op
 

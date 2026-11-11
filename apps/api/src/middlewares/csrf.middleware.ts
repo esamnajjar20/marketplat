@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import { getCsrfCookieName } from '../shared/utils/authCookies';
+import { getCsrfCookieName } from '../shared/auth/authCookies';
 import { ForbiddenError } from '../shared/errors/ForbiddenError';
 
 // (defense-in-depth alongside metrics.ts): plain
@@ -17,7 +17,7 @@ function safeTokenEquals(a: string, b: string): boolean {
 
 /**
  * CSRF protection, made necessary by moving refreshToken
- * into an httpOnly cookie (see shared/utils/authCookies.ts's header
+ * into an httpOnly cookie (see shared/auth/authCookies.ts's header
  * comment for the full reasoning — a cookie the browser sends
  * automatically closes an XSS-token-theft gap but opens a CSRF gap
  * that a bearer-token-only scheme never had).

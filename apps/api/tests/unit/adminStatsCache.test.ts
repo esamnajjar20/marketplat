@@ -1,6 +1,6 @@
-import { adminStatsCache, AdminStats } from '../../src/shared/utils/adminStatsCache';
+import { adminStatsCache, AdminStats } from '../../src/shared/cache/adminStatsCache';
 import { redis } from '../../src/config/redis';
-import { logger } from '../../src/shared/utils/logger';
+import { logger } from '../../src/shared/observability/logger';
 
 /**
  * (test coverage gap identified in the audit): this

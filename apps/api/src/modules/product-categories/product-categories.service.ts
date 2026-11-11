@@ -10,10 +10,10 @@ import {
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { cacheRedis as redis } from '../../config/redis';
-import { logger } from '../../shared/utils/logger';
-import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { logger } from '../../shared/observability/logger';
+import { isPrismaError } from '../../shared/db/prismaErrors';
 import { storeTypesRepository } from '../store-types/store-types.repository';
-import { bumpPublicListCache } from '../../shared/utils/publicListCache';
+import { bumpPublicListCache } from '../../shared/cache/publicListCache';
 import { invalidateHomeCache } from '../home/home.cache.keys';
 import { purgeReferenceKv } from '../../shared/cache/edgePurge';
 

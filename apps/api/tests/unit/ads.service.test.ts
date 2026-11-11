@@ -2,12 +2,12 @@ import { adsService } from '../../src/modules/ads/ads.service';
 import { adsRepository } from '../../src/modules/ads/ads.repository';
 import { favoritesRepository } from '../../src/modules/favorites/favorites.repository';
 import { uploadImage, deleteImage } from '../../src/config/cloudinary';
-import { viewsBuffer } from '../../src/shared/utils/viewsBuffer';
+import { viewsBuffer } from '../../src/shared/buffers/viewsBuffer';
 import { redis } from '../../src/config/redis';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
-import { AdCreationLockedError } from '../../src/shared/utils/adLock';
+import { AdCreationLockedError } from '../../src/shared/locks/adLock';
 import { ROLES } from '../../src/shared/constants/roles';
 import { createTestUser } from '../helpers/auth.helper';
 import { createTestSellerProfile } from '../helpers/sellerProfile.helper';
@@ -52,7 +52,7 @@ jest.mock('../../src/config/cloudinary', () => ({
   uploadImage: jest.fn(),
   deleteImage: jest.fn(),
 }));
-jest.mock('../../src/shared/utils/viewsBuffer', () => ({
+jest.mock('../../src/shared/buffers/viewsBuffer', () => ({
   viewsBuffer: { increment: jest.fn().mockResolvedValue(undefined) },
 }));
 

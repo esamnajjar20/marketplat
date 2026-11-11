@@ -1,10 +1,10 @@
 import { promotionsController } from '../../src/modules/promotions/promotions.controller';
 import { promotionsService } from '../../src/modules/promotions/promotions.service';
-import { requireUser } from '../../src/shared/utils/requireUser';
+import { requireUser } from '../../src/shared/auth/requireUser';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/promotions/promotions.service');
-jest.mock('../../src/shared/utils/requireUser');
+jest.mock('../../src/shared/auth/requireUser');
 
 const userId = 'user-1';
 

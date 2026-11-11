@@ -2,8 +2,8 @@
 
 ## الطبقات
 1. **المتصفح/SW**: ترويسات `Cache-Control` من `cacheControl.middleware.ts` (`LIVE` = 30+30، `SHORT` = 90+60، `LONG` = 3600+600). الفرونت لا يقرأ قيم `stale-while-revalidate` أصلاً؛ الـ Service Worker له استراتيجياته الخاصة، فتغيير الترويسات لا يؤثر على منطق التسخين هناك.
-2. **Redis SWR** (`shared/utils/swrCache.ts`): محرك واحد لكل الكاشات العامة: الرئيسية، قوائم الإعلانات، قوائم stores/products/service-listings/service-providers.
-3. **التسخين** (`shared/utils/cacheWarmup.ts`): عند الإقلاع ثم كل 4 دقائق.
+2. **Redis SWR** (`shared/cache/swrCache.ts`): محرك واحد لكل الكاشات العامة: الرئيسية، قوائم الإعلانات، قوائم stores/products/service-listings/service-providers.
+3. **التسخين** (`shared/cache/cacheWarmup.ts`): عند الإقلاع ثم كل 4 دقائق.
 4. **الإبطال**: أجيال (generation tokens) وليس حذف مفاتيح.
 
 ## الإبطال بالأجيال

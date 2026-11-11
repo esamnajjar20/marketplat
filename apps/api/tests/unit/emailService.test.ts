@@ -31,7 +31,7 @@ jest.mock('nodemailer', () => ({
   createTransport: mockCreateTransport,
 }));
 
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
 }));
 
@@ -52,7 +52,7 @@ describe('emailService', () => {
     });
 
     it('sendPasswordResetEmail does not throw and does not call nodemailer', async () => {
-      const { emailService } = require('../../src/shared/utils/emailService');
+      const { emailService } = require('../../src/shared/email/emailService');
       await expect(
         emailService.sendPasswordResetEmail('user@example.com', 'reset-token-abc'),
       ).resolves.toBeUndefined();
@@ -62,8 +62,8 @@ describe('emailService', () => {
     });
 
     it('sendPasswordResetEmail logs a clearly-labeled fallback warning', async () => {
-      const { emailService } = require('../../src/shared/utils/emailService');
-      const { logger } = require('../../src/shared/utils/logger');
+      const { emailService } = require('../../src/shared/email/emailService');
+      const { logger } = require('../../src/shared/observability/logger');
 
       await emailService.sendPasswordResetEmail('user@example.com', 'reset-token-abc');
 
@@ -74,7 +74,7 @@ describe('emailService', () => {
     });
 
     it('sendSecurityAlertEmail also falls back to logging without throwing', async () => {
-      const { emailService } = require('../../src/shared/utils/emailService');
+      const { emailService } = require('../../src/shared/email/emailService');
       await expect(
         emailService.sendSecurityAlertEmail('user@example.com', 'ACCOUNT_LOCKED', { ip: '1.2.3.4' }),
       ).resolves.toBeUndefined();
@@ -104,7 +104,7 @@ describe('emailService', () => {
     });
 
     it('sendPasswordResetEmail calls nodemailer.createTransport with the configured SMTP settings', async () => {
-      const { emailService } = require('../../src/shared/utils/emailService');
+      const { emailService } = require('../../src/shared/email/emailService');
       await emailService.sendPasswordResetEmail('user@example.com', 'reset-token-abc');
 
       expect(mockCreateTransport).toHaveBeenCalledWith({
@@ -122,7 +122,7 @@ describe('emailService', () => {
     });
 
     it('sendPasswordResetEmail sends to the correct address with a reset URL matching the frontend route', async () => {
-      const { emailService } = require('../../src/shared/utils/emailService');
+      const { emailService } = require('../../src/shared/email/emailService');
       await emailService.sendPasswordResetEmail('user@example.com', 'reset-token-abc');
 
       expect(mockSendMail).toHaveBeenCalledTimes(1);
@@ -136,7 +136,7 @@ describe('emailService', () => {
     });
 
     it('URL-encodes the token in the reset link', async () => {
-      const { emailService } = require('../../src/shared/utils/emailService');
+      const { emailService } = require('../../src/shared/email/emailService');
       await emailService.sendPasswordResetEmail('user@example.com', 'token with spaces & symbols');
 
       const call = mockSendMail.mock.calls[0][0];
@@ -144,7 +144,7 @@ describe('emailService', () => {
     });
 
     it('sendSecurityAlertEmail sends with a subject distinct from the password-reset email', async () => {
-      const { emailService } = require('../../src/shared/utils/emailService');
+      const { emailService } = require('../../src/shared/email/emailService');
       await emailService.sendSecurityAlertEmail('user@example.com', 'TOKEN_REUSE', { ip: '9.9.9.9' });
 
       const call = mockSendMail.mock.calls[0][0];
@@ -153,7 +153,7 @@ describe('emailService', () => {
     });
 
     it('reuses the same transporter across multiple calls instead of recreating it each time', async () => {
-      const { emailService } = require('../../src/shared/utils/emailService');
+      const { emailService } = require('../../src/shared/email/emailService');
       await emailService.sendPasswordResetEmail('a@example.com', 'token-1');
       await emailService.sendPasswordResetEmail('b@example.com', 'token-2');
 
@@ -164,7 +164,7 @@ describe('emailService', () => {
     it('does not throw when sendMail rejects on every attempt — fails soft so the calling request is not 500\'d', async () => {
       jest.useFakeTimers();
       mockSendMail.mockRejectedValue(new Error('SMTP connection refused'));
-      const { emailService } = require('../../src/shared/utils/emailService');
+      const { emailService } = require('../../src/shared/email/emailService');
 
       const promise = emailService.sendPasswordResetEmail('user@example.com', 'reset-token-abc');
       // sendEmail retries twice (500ms, then 1500ms
@@ -182,8 +182,8 @@ describe('emailService', () => {
     it('logs the error once, after all retries are exhausted, when sendMail rejects every time', async () => {
       jest.useFakeTimers();
       mockSendMail.mockRejectedValue(new Error('SMTP connection refused'));
-      const { emailService } = require('../../src/shared/utils/emailService');
-      const { logger } = require('../../src/shared/utils/logger');
+      const { emailService } = require('../../src/shared/email/emailService');
+      const { logger } = require('../../src/shared/observability/logger');
 
       const promise = emailService.sendPasswordResetEmail('user@example.com', 'reset-token-abc');
       await jest.advanceTimersByTimeAsync(500);
@@ -202,8 +202,8 @@ describe('emailService', () => {
       mockSendMail
         .mockRejectedValueOnce(new Error('temporary SMTP hiccup'))
         .mockResolvedValueOnce({ messageId: 'mock-id-after-retry' });
-      const { emailService } = require('../../src/shared/utils/emailService');
-      const { logger } = require('../../src/shared/utils/logger');
+      const { emailService } = require('../../src/shared/email/emailService');
+      const { logger } = require('../../src/shared/observability/logger');
 
       const promise = emailService.sendPasswordResetEmail('user@example.com', 'reset-token-abc');
       await jest.advanceTimersByTimeAsync(500);

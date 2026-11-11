@@ -14,9 +14,9 @@ import {
   updateStoreTypeSchema,
 } from './stores.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../shared/utils/requireUser';
-import { paginationQuerySchema } from '../../shared/utils/pagination';
-import { runBulk } from '../../shared/utils/bulkRunner';
+import { requireUser } from '../../shared/auth/requireUser';
+import { paginationQuerySchema } from '../../shared/http/pagination';
+import { runBulk } from '../../shared/jobs/bulkRunner';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 
 export const storesController = {

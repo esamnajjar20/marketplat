@@ -1,6 +1,6 @@
 import { prisma } from '../../config/prisma';
-import { logger } from '../../shared/utils/logger';
-import { homeFeedShortRailTotal } from '../../shared/utils/metrics';
+import { logger } from '../../shared/observability/logger';
+import { homeFeedShortRailTotal } from '../../shared/observability/metrics';
 import {
   resolveOptionalUserId,
   recommendationsService,

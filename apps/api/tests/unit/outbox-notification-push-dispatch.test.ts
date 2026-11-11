@@ -5,7 +5,7 @@ describe('durable notification push dispatch handoff', () => {
   const source = readFileSync(join(__dirname, '../../src/shared/outbox/outbox.worker.ts'), 'utf8');
   const schema = readFileSync(join(__dirname, '../../prisma/schema.prisma'), 'utf8');
   const migration = readFileSync(join(__dirname, '../../prisma/migrations/20261011150000_notification_push_dispatch_outbox/migration.sql'), 'utf8');
-  const pushService = readFileSync(join(__dirname, '../../src/shared/utils/pushService.ts'), 'utf8');
+  const pushService = readFileSync(join(__dirname, '../../src/shared/notifications/pushService.ts'), 'utf8');
   const targetMigration = readFileSync(join(__dirname, '../../prisma/migrations/20261011160000_notification_push_delivery_targets/migration.sql'), 'utf8');
   const targetLeaseMigration = readFileSync(join(__dirname, '../../prisma/migrations/20261011170000_notification_push_target_leases/migration.sql'), 'utf8');
 

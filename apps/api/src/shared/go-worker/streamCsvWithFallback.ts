@@ -2,7 +2,7 @@ import type { Response as ExpressResponse } from 'express';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
-import { logger } from '../utils/logger';
+import { logger } from '../observability/logger';
 
 type StreamCsvWithFallbackOptions = {
   jobName: 'admin-users-csv' | 'admin-reports-csv' | 'seller-sales-csv';

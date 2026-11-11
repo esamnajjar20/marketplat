@@ -6,7 +6,7 @@ import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { followsService } from '../follows/follows.service';
-import { deleteCloudinaryAsset } from '../../shared/utils/cloudinaryHelpers';
+import { deleteCloudinaryAsset } from '../../shared/media/cloudinaryHelpers';
 
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_ACTIVE_STORIES = 20;

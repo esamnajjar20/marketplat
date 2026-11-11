@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * Shared pagination query contract.
- * Mirrors apps/api/src/shared/utils/pagination.ts exactly:
+ * Mirrors apps/api/src/shared/http/pagination.ts exactly:
  * page is bounded to 1..1000 and limit to 1..100.
  */
 const numericQuery = (max: number) => z

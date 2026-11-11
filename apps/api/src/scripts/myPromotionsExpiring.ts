@@ -5,10 +5,10 @@
  */
 import { prisma } from '../config/prisma';
 import { redis, closeRedisServiceClients } from '../config/redis';
-import { logger } from '../shared/utils/logger';
+import { logger } from '../shared/observability/logger';
 import { executeWithGoFallback, runAdvisoryLockedBatch } from '../shared/go-worker/executeWithFallback';
 import { publishDurableNotifications } from '../shared/go-worker/publishDurableNotifications';
-import { shutdownNotificationStream } from '../shared/utils/notificationStream';
+import { shutdownNotificationStream } from '../shared/realtime/notificationStream';
 
 const BATCH_SIZE = 100;
 const MAX_BATCHES = 50;

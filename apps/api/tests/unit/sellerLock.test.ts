@@ -1,4 +1,4 @@
-import { withSellerProfileCreationLock } from '../../src/shared/utils/sellerLock';
+import { withSellerProfileCreationLock } from '../../src/shared/locks/sellerLock';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 
 describe('sellerLock / withSellerProfileCreationLock', () => {

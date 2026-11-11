@@ -12,7 +12,7 @@ jest.mock('../../src/config/prisma', () => ({ prisma: {} }));
 jest.mock('../../src/modules/notifications/notifications.service', () => ({
   notificationEvents: {},
 }));
-jest.mock('../../src/shared/utils/auditLog', () => ({
+jest.mock('../../src/shared/audit/auditLog', () => ({
   auditLog: jest.fn(),
   AuditEvent: {},
 }));

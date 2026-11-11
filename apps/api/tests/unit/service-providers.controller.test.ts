@@ -1,13 +1,13 @@
 import { serviceProvidersController } from '../../src/modules/service-providers/service-providers.controller';
 import { serviceProvidersService } from '../../src/modules/service-providers/service-providers.service';
-import { requireUser } from '../../src/shared/utils/requireUser';
+import { requireUser } from '../../src/shared/auth/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/service-providers/service-providers.service');
-jest.mock('../../src/shared/utils/requireUser');
+jest.mock('../../src/shared/auth/requireUser');
 
 const mockProvider = { id: 'provider-1', businessName: 'Acme Repairs' } as any;
 

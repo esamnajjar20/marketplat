@@ -1,4 +1,4 @@
-import { presence } from '../../src/shared/utils/presence';
+import { presence } from '../../src/shared/realtime/presence';
 import { redis } from '../../src/config/redis';
 
 describe('presence', () => {

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { MarketplaceOrderStatus } from '@prisma/client';
-import { paginationQuerySchema } from '../../shared/utils/pagination';
+import { paginationQuerySchema } from '../../shared/http/pagination';
 
 export const createMarketplaceOrderSchema = z.object({
   body: z.object({

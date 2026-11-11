@@ -8,7 +8,7 @@ import {
 import { adsService } from '../../src/modules/ads/ads.service';
 import { productsService } from '../../src/modules/products/products.service';
 import { serviceListingsService } from '../../src/modules/service-listings/service-listings.service';
-import * as jwtUtils from '../../src/shared/utils/jwt';
+import * as jwtUtils from '../../src/shared/auth/jwt';
 
 jest.mock('../../src/modules/recommendations/recommendations.repository');
 jest.mock('../../src/modules/ads/ads.service');

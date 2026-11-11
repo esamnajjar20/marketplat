@@ -1,6 +1,6 @@
-import { recordFailedTask } from '../../src/shared/utils/failedBackgroundTasks';
+import { recordFailedTask } from '../../src/shared/jobs/failedBackgroundTasks';
 import { prisma } from '../../src/config/prisma';
-import { logger } from '../../src/shared/utils/logger';
+import { logger } from '../../src/shared/observability/logger';
 
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
@@ -10,7 +10,7 @@ jest.mock('../../src/config/prisma', () => ({
   },
 }));
 
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn() },
 }));
 

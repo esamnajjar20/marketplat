@@ -1,8 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
-import { maybeScheduleEmailFallback } from '../utils/emailFallbackScheduler';
-import { publishNotificationEventsToMany } from '../utils/notificationStream';
-import { unreadNotificationsCache } from '../utils/unreadNotificationsCache';
-import { logger } from '../utils/logger';
+import { maybeScheduleEmailFallback } from '../email/emailFallbackScheduler';
+import { publishNotificationEventsToMany } from '../realtime/notificationStream';
+import { unreadNotificationsCache } from '../cache/unreadNotificationsCache';
+import { logger } from '../observability/logger';
 
 interface PublishedNotification {
   id: string;

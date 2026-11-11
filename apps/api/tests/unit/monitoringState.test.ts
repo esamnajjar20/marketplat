@@ -5,7 +5,7 @@ import {
   getMonitoringEvents,
   getMonitoringHistory,
   recordRequestObservation,
-} from '../../src/shared/utils/monitoringState';
+} from '../../src/shared/observability/monitoringState';
 
 describe('monitoringState', () => {
   beforeEach(() => {

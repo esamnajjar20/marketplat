@@ -1,6 +1,6 @@
 import { serviceRequestsController } from '../../src/modules/service-requests/service-requests.controller';
 import { serviceRequestsService } from '../../src/modules/service-requests/service-requests.service';
-import { requireUser } from '../../src/shared/utils/requireUser';
+import { requireUser } from '../../src/shared/auth/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
@@ -8,7 +8,7 @@ import { ConflictError } from '../../src/shared/errors/ConflictError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/service-requests/service-requests.service');
-jest.mock('../../src/shared/utils/requireUser');
+jest.mock('../../src/shared/auth/requireUser');
 
 const mockServiceRequest = { id: 'request-1', status: 'PENDING' } as any;
 

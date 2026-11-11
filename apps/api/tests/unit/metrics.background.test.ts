@@ -1,4 +1,4 @@
-import { register, backgroundTaskFailuresTotal, backgroundTaskFailurePersistenceTotal } from '../../src/shared/utils/metrics';
+import { register, backgroundTaskFailuresTotal, backgroundTaskFailurePersistenceTotal } from '../../src/shared/observability/metrics';
 
 describe('background observability metrics', () => {
   beforeEach(() => register.resetMetrics());

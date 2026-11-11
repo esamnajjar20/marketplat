@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/jobs/backgroundTask';
 import { prisma } from '../../config/prisma';
 import { FavoriteEntityType, FollowTargetType } from '@prisma/client';
 import { StoreDetails, Prisma } from '@prisma/client';
@@ -7,7 +7,7 @@ import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
   deleteCloudinaryAsset,
-} from '../../shared/utils/cloudinaryHelpers';
+} from '../../shared/media/cloudinaryHelpers';
 import { storesRepository, StoreWithSeller, StoreWithSellerAndCounts, StoreDirectoryRow } from './stores.repository';
 import { storeFollowersRepository, StoreFollowerWithStore } from './store-followers.repository';
 import { followsRepository } from '../follows/follows.repository';
@@ -32,18 +32,18 @@ import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { sellersRepository } from '../sellers/sellers.repository';
 import { blockedUsersService } from '../blocked-users';
-import { withStoreCreationLock } from '../../shared/utils/storeLock';
-import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
+import { withStoreCreationLock } from '../../shared/locks/storeLock';
+import { auditLog, AuditEvent } from '../../shared/audit/auditLog';
 import { activityService, activityTemplates } from '../activity';
-import { PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginationMeta, buildPaginationMeta } from '../../shared/http/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import {
   cachedPublicList,
   bumpPublicListCache,
   hidePublicEntities,
-} from '../../shared/utils/publicListCache';
+} from '../../shared/cache/publicListCache';
 import { isOpenAt } from '../../shared/utils/marketTime';
-import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { isPrismaError } from '../../shared/db/prismaErrors';
 import { storeTypesRepository } from '../store-types/store-types.repository';
 import { storeTypeFieldsService } from '../store-types/store-type-fields.service';
 import { badgesService } from '../badges/badges.service';
@@ -427,7 +427,7 @@ export const storesService = {
     // was dead code — auditLog() itself never rejects (it logs via
     // logger.info unconditionally first, then attempts the DB write with
     // its own internal .catch() that logs any DB failure via
-    // logger.error; see shared/utils/auditLog.ts). It read as if it were
+    // logger.error; see shared/audit/auditLog.ts). It read as if it were
     // the thing protecting against a failed audit write, which was
     // misleading. Removed; if auditLog()'s own contract ever changes to
     // reject, this call site should be revisited deliberately rather

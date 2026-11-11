@@ -1,11 +1,11 @@
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../shared/observability/logger';
 import {
   swrGet,
   swrEnsureFresh,
   swrGetWithStatus,
   type SwrOptions,
   type SwrStatus,
-} from '../../shared/utils/swrCache'; // HOME-STATUS-HEADER-01
+} from '../../shared/cache/swrCache'; // HOME-STATUS-HEADER-01
 import { homeService, isHomepageDegraded, type HomepageResult } from './home.service';
 import { HOME_CITIES, type GetHomepageQuery } from './home.validation';
 import { homeCacheKeyForCity, HOME_GEN_KEY, onHomeInvalidated } from './home.cache.keys';
@@ -18,7 +18,7 @@ import { cachePolicy } from '../../shared/cache/cachePolicy';
  * the allow-listed `city` (≤ 11 distinct keys). The mechanics (envelope with a
  * soft expiry, cross-process refresh lock, per-process singleflight,
  * generation-token invalidation, circuit-broken Redis) live in
- * shared/utils/swrCache.ts and are shared with the other public caches.
+ * shared/cache/swrCache.ts and are shared with the other public caches.
  *
  * - Only complete (non-degraded) payloads are cached, so a partial failure
  *   heals on the next request instead of being pinned.

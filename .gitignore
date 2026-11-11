@@ -103,3 +103,4 @@ Modelfile.fast
 
 # نسخ احتياطية ينشئها cleanup_dead_files.py
 cleanup-backup-*.zip
+_reorg/

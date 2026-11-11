@@ -1,4 +1,4 @@
-import { evaluateQuietHours, resolveQuietTimeZone } from '../../src/shared/utils/quietHours';
+import { evaluateQuietHours, resolveQuietTimeZone } from '../../src/shared/notifications/quietHours';
 
 const P = {
   quietHoursEnabled: true,

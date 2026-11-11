@@ -2,7 +2,7 @@ import { AppError } from './AppError';
 
 /**
  * used when a circuit breaker (see
- * shared/utils/circuitBreaker.ts) rejects a call because an external
+ * shared/resilience/circuitBreaker.ts) rejects a call because an external
  * dependency (Cloudinary, in the current usage) is currently OPEN —
  * i.e. failing repeatedly and being given a cooldown window rather
  * than being hammered further. 503 (not 500) is the correct status

@@ -9,7 +9,7 @@ jest.mock('../../src/config/cloudinary', () => ({
 jest.mock('../../src/config/prisma', () => ({
   prisma: { $executeRaw: jest.fn().mockResolvedValue(1) },
 }));
-jest.mock('../../src/shared/utils/backgroundTask', () => ({
+jest.mock('../../src/shared/jobs/backgroundTask', () => ({
   reportBackgroundFailure: jest.fn(),
 }));
 
@@ -18,7 +18,7 @@ import {
   cleanupUploadedImages,
   deleteCloudinaryAsset,
   queueCloudinaryAssetCleanup,
-} from '../../src/shared/utils/cloudinaryHelpers';
+} from '../../src/shared/media/cloudinaryHelpers';
 import { deleteMedia } from '../../src/config/cloudinary';
 import { prisma } from '../../src/config/prisma';
 

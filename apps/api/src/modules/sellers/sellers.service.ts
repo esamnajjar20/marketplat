@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/jobs/backgroundTask';
 import { prisma } from '../../config/prisma';
 import {
   sellersRepository,
@@ -15,14 +15,14 @@ import { ConflictError } from '../../shared/errors/ConflictError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
-import { withSellerProfileCreationLock } from '../../shared/utils/sellerLock';
+import { withSellerProfileCreationLock } from '../../shared/locks/sellerLock';
 import { usersRepository } from '../users/users.repository';
 import { SellerProfile } from '@prisma/client';
-import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { buildPaginationMeta } from '../../shared/http/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
-import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
+import { auditLog, AuditEvent } from '../../shared/audit/auditLog';
 import { blockedUsersService } from '../blocked-users';
-import { hidePublicEntities, ALL_PUBLIC_LIST_NAMESPACES } from '../../shared/utils/publicListCache';
+import { hidePublicEntities, ALL_PUBLIC_LIST_NAMESPACES } from '../../shared/cache/publicListCache';
 import { bumpAdsCacheHard } from '../ads/ads.cache.keys';
 
 export const sellersService = {

@@ -6,13 +6,13 @@
  */
 import { prisma as sharedPrisma } from '../config/prisma';
 import { SERVICE_REQUEST_PENDING_TTL_DAYS } from '../modules/service-requests/service-requests.service';
-import { logger } from '../shared/utils/logger';
+import { logger } from '../shared/observability/logger';
 import {
   executeWithGoFallback,
   runAdvisoryLockedBatch,
 } from '../shared/go-worker/executeWithFallback';
 import { redis, closeRedisServiceClients } from '../config/redis';
-import { shutdownNotificationStream } from '../shared/utils/notificationStream';
+import { shutdownNotificationStream } from '../shared/realtime/notificationStream';
 import { publishDurableNotifications } from '../shared/go-worker/publishDurableNotifications';
 
 const prisma = sharedPrisma;

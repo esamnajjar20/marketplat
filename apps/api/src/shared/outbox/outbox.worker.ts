@@ -8,16 +8,16 @@ import {
   UserActivityType,
 } from '@prisma/client';
 import { prisma } from '../../config/prisma';
-import { logger } from '../utils/logger';
-import { unreadNotificationsCache } from '../utils/unreadNotificationsCache';
-import { publishNotificationEventsToMany } from '../utils/notificationStream';
-import { pushService, type PushPayload } from '../utils/pushService';
-import { pushSubscriptionsRepository } from '../utils/pushSubscriptionsRepository';
-import { fcmDeviceTokensRepository } from '../utils/fcmDeviceTokensRepository';
-import { fcmPushService } from '../utils/fcmPushService';
+import { logger } from '../observability/logger';
+import { unreadNotificationsCache } from '../cache/unreadNotificationsCache';
+import { publishNotificationEventsToMany } from '../realtime/notificationStream';
+import { pushService, type PushPayload } from '../notifications/pushService';
+import { pushSubscriptionsRepository } from '../notifications/pushSubscriptionsRepository';
+import { fcmDeviceTokensRepository } from '../notifications/fcmDeviceTokensRepository';
+import { fcmPushService } from '../notifications/fcmPushService';
 import { isGoWorkerFcmPushEnabled, sendFcmTargetViaGo } from '../go-worker/fcmPush';
 import { env } from '../../config/env';
-import { bumpGeneration } from '../utils/swrCache';
+import { bumpGeneration } from '../cache/swrCache';
 import { deliverEdgePurgeTags } from '../cache/edgePurge';
 
 // Claim one event at a time: leasing a batch and then processing it serially lets

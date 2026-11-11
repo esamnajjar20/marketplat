@@ -11,8 +11,8 @@ const check = (name, condition, detail = '') => checks.push({ name, passed: Bool
 
 const prismaConfig = read('apps/api/src/config/prisma.ts');
 const app = read('apps/api/src/app.ts');
-const metrics = read('apps/api/src/shared/utils/metrics.ts');
-const telemetry = read('apps/api/src/shared/utils/dbQueryTelemetry.ts');
+const metrics = read('apps/api/src/shared/observability/metrics.ts');
+const telemetry = read('apps/api/src/shared/observability/dbQueryTelemetry.ts');
 const tests = read('apps/api/tests/unit/dbQueryTelemetry.test.ts');
 const apiPackage = JSON.parse(read('apps/api/package.json'));
 const rootPackage = JSON.parse(read('package.json'));

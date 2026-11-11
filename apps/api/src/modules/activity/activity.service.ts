@@ -1,8 +1,8 @@
 import { UserActivity, UserActivityType } from '@prisma/client';
 import { activityRepository, CreateActivityInput } from './activity.repository';
-import { activityBuffer } from '../../shared/utils/activityBuffer';
-import { logger } from '../../shared/utils/logger';
-import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { activityBuffer } from '../../shared/buffers/activityBuffer';
+import { logger } from '../../shared/observability/logger';
+import { buildPaginationMeta } from '../../shared/http/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { ActivityGroup, GetMyActivityQuery } from './activity.validation';
 
@@ -52,7 +52,7 @@ export const activityService = {
   /**
    * The single write path every other module's service calls through
    * to log an activity — mirrors auditLog()'s own contract exactly
-   * (shared/utils/auditLog.ts): fire-and-forget, no `await`/`.catch`
+   * (shared/audit/auditLog.ts): fire-and-forget, no `await`/`.catch`
    * required at any of the 36 call sites across every module.
    *
    * previously wrote straight to Postgres on every call

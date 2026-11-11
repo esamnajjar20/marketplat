@@ -1,17 +1,17 @@
 import { authController } from '../../src/modules/auth/auth.controller';
 import { authService } from '../../src/modules/auth/auth.service';
-import { requireUser } from '../../src/shared/utils/requireUser';
+import { requireUser } from '../../src/shared/auth/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { TooManyRequestsError } from '../../src/shared/errors/TooManyRequestsError';
 import { ServiceUnavailableError } from '../../src/shared/errors/ServiceUnavailableError';
-import * as authCookies from '../../src/shared/utils/authCookies';
+import * as authCookies from '../../src/shared/auth/authCookies';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/auth/auth.service');
-jest.mock('../../src/shared/utils/requireUser');
-jest.mock('../../src/shared/utils/authCookies');
-jest.mock('../../src/shared/utils/getClientIp', () => ({
+jest.mock('../../src/shared/auth/requireUser');
+jest.mock('../../src/shared/auth/authCookies');
+jest.mock('../../src/shared/http/getClientIp', () => ({
   getClientIp: jest.fn().mockReturnValue('1.2.3.4'),
 }));
 

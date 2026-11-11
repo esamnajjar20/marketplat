@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/jobs/backgroundTask';
 import { Conversation, Message } from '@prisma/client';
 import {
   conversationsRepository,
@@ -12,22 +12,22 @@ import { serviceRequestsRepository } from '../service-requests/service-requests.
 import { productsRepository } from '../products/products.repository';
 import { serviceListingsRepository } from '../service-listings/service-listings.repository';
 import { notificationEvents, notificationsService } from '../notifications';
-import { publishNotificationEvent } from '../../shared/utils/notificationStream';
+import { publishNotificationEvent } from '../../shared/realtime/notificationStream';
 import { blockedUsersService } from '../blocked-users';
-import { presence } from '../../shared/utils/presence';
+import { presence } from '../../shared/realtime/presence';
 import { activityService, activityTemplates } from '../activity';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { ServiceUnavailableError } from '../../shared/errors/ServiceUnavailableError';
 import { ConflictError } from '../../shared/errors/ConflictError';
-import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { buildPaginationMeta } from '../../shared/http/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../shared/observability/logger';
 import { cacheRedis } from '../../config/redis';
 import { sellerResponseTimeService } from '../sellers/seller-response-time.service';
 import { env } from '../../config/env';
-import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { isPrismaError } from '../../shared/db/prismaErrors';
 
 const assertParty = (conversation: Conversation, userId: string): void => {
   if (conversation.buyerId !== userId && conversation.sellerId !== userId) {

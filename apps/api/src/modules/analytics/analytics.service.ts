@@ -1,7 +1,7 @@
 import { analyticsRepository } from './analytics.repository';
 import { TrackEventsInput, GetAnalyticsSummaryQuery } from './analytics.validation';
-import { verifyAccessToken } from '../../shared/utils/jwt';
-import { logger } from '../../shared/utils/logger';
+import { verifyAccessToken } from '../../shared/auth/jwt';
+import { logger } from '../../shared/observability/logger';
 import { prisma } from '../../config/prisma';
 import { AnalyticsEventType } from '@prisma/client';
 import jwt from 'jsonwebtoken';

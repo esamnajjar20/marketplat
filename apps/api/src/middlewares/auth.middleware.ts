@@ -1,17 +1,17 @@
-import { reportBackgroundFailure } from '../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../shared/jobs/backgroundTask';
 import { Request, Response, NextFunction } from 'express';
-import { verifyAccessToken } from '../shared/utils/jwt';
+import { verifyAccessToken } from '../shared/auth/jwt';
 import {
   tokenStore,
   getBlacklistKey,
   peekBlacklistL1,
   rememberBlacklistL1,
-} from '../shared/utils/tokenStore';
-import { userCache, getUserCacheKey } from '../shared/utils/userCache';
+} from '../shared/auth/tokenStore';
+import { userCache, getUserCacheKey } from '../shared/cache/userCache';
 import { UnauthorizedError } from '../shared/errors/UnauthorizedError';
 import { env } from '../config/env';
 import { sessionRedis as redis } from '../config/redis';
-import { logger } from '../shared/utils/logger';
+import { logger } from '../shared/observability/logger';
 
 export const authenticate = async (
   req: Request,
@@ -55,7 +55,7 @@ export const authenticate = async (
       const pipeline = redis.pipeline();
       // BUGFIX (found during a post-implementation code audit):
       // previously built this key inline as `BLACKLIST_PREFIX +
-      // hashToken(token)`, duplicating shared/utils/tokenStore.ts's
+      // hashToken(token)`, duplicating shared/auth/tokenStore.ts's
       // own (unused) isBlacklisted() key logic — two independent,
       // silently-divergable copies of the same construction. Now
       // derives it from tokenStore's single exported

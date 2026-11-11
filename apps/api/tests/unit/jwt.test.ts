@@ -3,7 +3,7 @@ import {
   verifyAccessToken, verifyRefreshToken,
   signTokenPair, rotateTokenPair,
   getTokenRemainingTTL,
-} from '../../src/shared/utils/jwt';
+} from '../../src/shared/auth/jwt';
 import { env } from '../../src/config/env';
 
 const userId    = 'user-123';

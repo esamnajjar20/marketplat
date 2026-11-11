@@ -1,7 +1,7 @@
-import { hashPassword } from '../../src/shared/utils/hash';
-import { signTokenPair } from '../../src/shared/utils/jwt';
+import { hashPassword } from '../../src/shared/auth/hash';
+import { signTokenPair } from '../../src/shared/auth/jwt';
 import { prisma } from '../../src/config/prisma';
-import { userCache } from '../../src/shared/utils/userCache';
+import { userCache } from '../../src/shared/cache/userCache';
 
 export interface TestUser {
   id: string;

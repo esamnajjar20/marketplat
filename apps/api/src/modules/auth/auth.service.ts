@@ -1,30 +1,30 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/jobs/backgroundTask';
 import { authRepository } from './auth.repository';
 import { prisma } from '../../config/prisma';
 import crypto from 'crypto';
-import { hashPassword, comparePassword, comparePasswordOrDummy } from '../../shared/utils/hash';
+import { hashPassword, comparePassword, comparePasswordOrDummy } from '../../shared/auth/hash';
 import {
   signTokenPair,
   rotateTokenPair,
   verifyRefreshToken,
   getTokenRemainingTTL,
   TokenPair,
-} from '../../shared/utils/jwt';
-import { tokenStore } from '../../shared/utils/tokenStore';
-import { atomicRefreshRotate, RotateResult, hashToken } from '../../shared/utils/refreshLock';
+} from '../../shared/auth/jwt';
+import { tokenStore } from '../../shared/auth/tokenStore';
+import { atomicRefreshRotate, RotateResult, hashToken } from '../../shared/locks/refreshLock';
 import { sessionRedis as redis } from '../../config/redis';
-import { userCache } from '../../shared/utils/userCache';
-import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
-import { emailService } from '../../shared/utils/emailService';
-import { sendSecurityAlert } from '../../shared/utils/securityAlert';
-import { withOAuthAccountResolutionLock } from '../../shared/utils/oauthLock';
+import { userCache } from '../../shared/cache/userCache';
+import { auditLog, AuditEvent } from '../../shared/audit/auditLog';
+import { emailService } from '../../shared/email/emailService';
+import { sendSecurityAlert } from '../../shared/auth/securityAlert';
+import { withOAuthAccountResolutionLock } from '../../shared/locks/oauthLock';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { UnauthorizedError } from '../../shared/errors/UnauthorizedError';
 import { TooManyRequestsError } from '../../shared/errors/TooManyRequestsError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { AppError } from '../../shared/errors/AppError';
 import { RegisterInput, LoginInput } from './auth.validation';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../shared/observability/logger';
 import { GoogleProfileData } from './google.strategy';
 
 const MAX_EMAIL_ATTEMPTS = 5;

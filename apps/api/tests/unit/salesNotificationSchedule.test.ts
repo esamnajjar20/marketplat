@@ -1,4 +1,4 @@
-import { getSalesNotificationJobs, getSalesNotificationScheduleTime } from '../../src/shared/utils/salesNotificationSchedule';
+import { getSalesNotificationJobs, getSalesNotificationScheduleTime } from '../../src/shared/notifications/salesNotificationSchedule';
 
 describe('sales notification schedule in Asia/Gaza', () => {
   it('selects the overdue-installment job at the Gaza local 08:00 hour', () => {

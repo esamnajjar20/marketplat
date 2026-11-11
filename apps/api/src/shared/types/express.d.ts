@@ -1,4 +1,4 @@
-import { JwtPayload } from '../utils/jwt';
+import { JwtPayload } from '../auth/jwt';
 import { GoogleProfileData } from '../../modules/auth/google.strategy';
 
 declare global {

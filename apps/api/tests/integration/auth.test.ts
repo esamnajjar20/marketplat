@@ -31,7 +31,7 @@ describe('POST /api/v1/auth/register', () => {
     expect(res.body.data.tokens.accessToken).toBeDefined();
     // refreshToken must NEVER appear in the JSON body —
     // it's set exclusively as an httpOnly cookie now (see
-    // shared/utils/authCookies.ts / auth.controller.ts's
+    // shared/auth/authCookies.ts / auth.controller.ts's
     // respondWithSession). This is a security-relevant assertion, not
     // just a shape check: if this ever starts passing again, the
     // secret is leaking back into JS-readable response data.

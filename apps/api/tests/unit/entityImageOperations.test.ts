@@ -1,16 +1,16 @@
-import { createEntityImageOperations } from '../../src/shared/utils/entityImageOperations';
+import { createEntityImageOperations } from '../../src/shared/media/entityImageOperations';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { uploadImage } from '../../src/config/cloudinary';
-import { cleanupUploadedImages } from '../../src/shared/utils/cloudinaryHelpers';
+import { cleanupUploadedImages } from '../../src/shared/media/cloudinaryHelpers';
 
 jest.mock('../../src/config/cloudinary', () => ({
   uploadImage: jest.fn().mockResolvedValue({ url: 'https://cdn/x.jpg', publicId: 'x' }),
   deleteImage: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('../../src/shared/utils/cloudinaryHelpers', () => ({
+jest.mock('../../src/shared/media/cloudinaryHelpers', () => ({
   extractCloudinaryPublicId: jest.fn().mockReturnValue('pub-1'),
   cleanupUploadedImages: jest.fn().mockResolvedValue(undefined),
   deleteCloudinaryAsset: jest.fn().mockResolvedValue(undefined),

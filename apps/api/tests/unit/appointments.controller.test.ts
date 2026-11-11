@@ -1,12 +1,12 @@
 import { appointmentsController } from '../../src/modules/appointments/appointments.controller';
 import { appointmentsService } from '../../src/modules/appointments/appointments.service';
-import { requireUser } from '../../src/shared/utils/requireUser';
+import { requireUser } from '../../src/shared/auth/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/appointments/appointments.service');
-jest.mock('../../src/shared/utils/requireUser');
+jest.mock('../../src/shared/auth/requireUser');
 
 const mockAppointment = {
   id: 'appt-1',

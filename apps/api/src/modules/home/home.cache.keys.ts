@@ -1,5 +1,5 @@
-import { logger } from '../../shared/utils/logger';
-import { bumpGeneration } from '../../shared/utils/swrCache';
+import { logger } from '../../shared/observability/logger';
+import { bumpGeneration } from '../../shared/cache/swrCache';
 import { HOME_CITIES } from './home.validation';
 
 /**

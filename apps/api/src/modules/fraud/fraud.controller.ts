@@ -8,7 +8,7 @@ import {
   manualFlagSchema,
 } from './fraud.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../shared/utils/requireUser';
+import { requireUser } from '../../shared/auth/requireUser';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { fraudMonitorService } from './fraud-monitor.service';
 

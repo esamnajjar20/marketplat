@@ -6,16 +6,16 @@ import {
   PushSubscription,
   FcmDeviceToken,
 } from '@prisma/client';
-import { getPaginationParams } from '../../shared/utils/pagination';
-import { unreadNotificationsCache } from '../../shared/utils/unreadNotificationsCache';
+import { getPaginationParams } from '../../shared/http/pagination';
+import { unreadNotificationsCache } from '../../shared/cache/unreadNotificationsCache';
 import {
   publishNotificationEvent,
   publishNotificationEventsToMany,
-} from '../../shared/utils/notificationStream';
-import { pushSubscriptionsRepository } from '../../shared/utils/pushSubscriptionsRepository';
+} from '../../shared/realtime/notificationStream';
+import { pushSubscriptionsRepository } from '../../shared/notifications/pushSubscriptionsRepository';
 // NEW — native (Capacitor/FCM) counterpart to pushSubscriptionsRepository above.
-import { fcmDeviceTokensRepository } from '../../shared/utils/fcmDeviceTokensRepository';
-import { maybeScheduleEmailFallback } from '../../shared/utils/emailFallbackScheduler';
+import { fcmDeviceTokensRepository } from '../../shared/notifications/fcmDeviceTokensRepository';
+import { maybeScheduleEmailFallback } from '../../shared/email/emailFallbackScheduler';
 
 export interface CreateNotificationInput {
   userId: string;
@@ -174,7 +174,7 @@ export const notificationsRepository = {
   },
 
   // mirror userCache's inflightMap
-  // pattern (see shared/utils/userCache.ts) to collapse concurrent
+  // pattern (see shared/cache/userCache.ts) to collapse concurrent
   // misses on the same user into one count() query. Without this, a
   // page with multiple useUnreadCount() consumers mounting at the
   // same tick (bell in header, dashboard, notification toast,
@@ -369,7 +369,7 @@ export const notificationsRepository = {
   // directly, duplicating the exact same upsert logic pushService.ts
   // (shared/utils) also needed and had independently implemented —
   // two call sites writing the same table with no shared source of
-  // truth. Now both go through shared/utils/pushSubscriptionsRepository.ts;
+  // truth. Now both go through shared/notifications/pushSubscriptionsRepository.ts;
   // this method stays as the module-facing entry point (keeping the
   // PushSubscriptionInput `{ endpoint, keys: { p256dh, auth } }` shape
   // controllers/services in this module already use) and just adapts

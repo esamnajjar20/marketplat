@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/jobs/backgroundTask';
 import { prisma } from '../../config/prisma';
 import { ServiceProviderDetails, ServiceListing } from '@prisma/client';
 import { uploadServiceProviderLogo } from '../../config/cloudinary';
@@ -6,7 +6,7 @@ import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
   deleteCloudinaryAsset,
-} from '../../shared/utils/cloudinaryHelpers';
+} from '../../shared/media/cloudinaryHelpers';
 import {
   serviceProvidersRepository,
   NearbyServiceProviderRow,
@@ -28,17 +28,17 @@ import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { sellersRepository } from '../sellers/sellers.repository';
-import { withServiceProviderCreationLock } from '../../shared/utils/serviceProviderLock';
+import { withServiceProviderCreationLock } from '../../shared/locks/serviceProviderLock';
 import {
   getPaginationParams,
   PaginationMeta,
   buildPaginationMeta,
-} from '../../shared/utils/pagination';
+} from '../../shared/http/pagination';
 import {
   cachedPublicList,
   bumpPublicListCache,
   hidePublicEntities,
-} from '../../shared/utils/publicListCache';
+} from '../../shared/cache/publicListCache';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 import { validateServiceProviderAttributes } from '../service-types/service-types.service';
 import { PaginatedResult } from '../../shared/types/pagination.types';

@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { logger } from '../utils/logger';
+import { logger } from '../observability/logger';
 
 export type GoWorkerOutcome = 'go' | 'express' | 'busy';
 

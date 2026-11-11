@@ -1,4 +1,4 @@
-import { hashPassword, comparePassword } from '../../src/shared/utils/hash';
+import { hashPassword, comparePassword } from '../../src/shared/auth/hash';
 
 describe('Hash Utils', () => {
   it('should hash a password', async () => {

@@ -4,10 +4,10 @@ import {
   guardedCache,
   resetCacheGuard,
   withCacheTimeout,
-} from '../../src/shared/utils/cacheGuard';
-import { CircuitBreakerOpenError } from '../../src/shared/utils/circuitBreaker';
+} from '../../src/shared/resilience/cacheGuard';
+import { CircuitBreakerOpenError } from '../../src/shared/resilience/circuitBreaker';
 
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
 

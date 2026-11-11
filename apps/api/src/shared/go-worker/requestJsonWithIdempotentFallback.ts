@@ -1,4 +1,4 @@
-import { logger } from '../utils/logger';
+import { logger } from '../observability/logger';
 
 type RequestJsonWithIdempotentFallbackOptions<TResult> = {
   jobName: string;

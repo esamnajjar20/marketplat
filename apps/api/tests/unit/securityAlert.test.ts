@@ -1,14 +1,14 @@
-jest.mock('../../src/shared/utils/emailService', () => ({
+jest.mock('../../src/shared/email/emailService', () => ({
   emailService: { sendSecurityAlertEmail: jest.fn().mockResolvedValue(undefined) },
 }));
 
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
 }));
 
-import { sendSecurityAlert } from '../../src/shared/utils/securityAlert';
-import { emailService } from '../../src/shared/utils/emailService';
-import { logger } from '../../src/shared/utils/logger';
+import { sendSecurityAlert } from '../../src/shared/auth/securityAlert';
+import { emailService } from '../../src/shared/email/emailService';
+import { logger } from '../../src/shared/observability/logger';
 import { createTestUser } from '../helpers/auth.helper';
 
 /**
@@ -110,7 +110,7 @@ describe('sendSecurityAlert', () => {
       const mockFetch = jest.fn();
       global.fetch = mockFetch as any;
 
-      const { sendSecurityAlert: sendAlertFresh } = require('../../src/shared/utils/securityAlert');
+      const { sendSecurityAlert: sendAlertFresh } = require('../../src/shared/auth/securityAlert');
       const user = await createTestUser({ email: `secalert-${Date.now()}@example.com` });
       await sendAlertFresh({ userId: user.id, event: 'ACCOUNT_LOCKED' });
 
@@ -125,7 +125,7 @@ describe('sendSecurityAlert', () => {
       const mockFetch = jest.fn().mockResolvedValue({ ok: true });
       global.fetch = mockFetch as any;
 
-      const { sendSecurityAlert: sendAlertFresh } = require('../../src/shared/utils/securityAlert');
+      const { sendSecurityAlert: sendAlertFresh } = require('../../src/shared/auth/securityAlert');
       const user = await createTestUser({ email: `secalert-${Date.now()}@example.com` });
       await sendAlertFresh({ userId: user.id, event: 'ACCOUNT_LOCKED', ip: '1.2.3.4' });
 
@@ -146,7 +146,7 @@ describe('sendSecurityAlert', () => {
       const mockFetch = jest.fn().mockRejectedValue(new Error('webhook unreachable'));
       global.fetch = mockFetch as any;
 
-      const { sendSecurityAlert: sendAlertFresh } = require('../../src/shared/utils/securityAlert');
+      const { sendSecurityAlert: sendAlertFresh } = require('../../src/shared/auth/securityAlert');
       const user = await createTestUser({ email: `secalert-${Date.now()}@example.com` });
 
       await expect(
@@ -171,7 +171,7 @@ describe('sendSecurityAlert', () => {
       const mockFetch = jest.fn().mockResolvedValue({ ok: true });
       global.fetch = mockFetch as any;
 
-      const { sendSecurityAlert: sendAlertFresh } = require('../../src/shared/utils/securityAlert');
+      const { sendSecurityAlert: sendAlertFresh } = require('../../src/shared/auth/securityAlert');
       const user = await createTestUser({ email: `secalert-${Date.now()}@example.com` });
       await sendAlertFresh({ userId: user.id, event: 'ACCOUNT_LOCKED' });
 

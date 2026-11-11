@@ -1,4 +1,4 @@
-import { canManageRole } from '../../src/shared/utils/roleHierarchy';
+import { canManageRole } from '../../src/shared/auth/roleHierarchy';
 import { Role } from '../../src/shared/constants/roles';
 
 // Gap #20 (admin permission tiers): canManageRole is the single rule

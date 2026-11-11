@@ -1,21 +1,21 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/jobs/backgroundTask';
 import { prisma } from '../../config/prisma';
 import { FollowTargetType } from '@prisma/client';
 import { Product } from '@prisma/client';
-import { getPaginationParams } from '../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/http/pagination';
 import { productsRepository, ProductWithStore, StockSummary } from './products.repository';
 import { CreateProductInput, UpdateProductInput, GetProductsQuery } from './products.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
-import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { buildPaginationMeta } from '../../shared/http/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { uploadImage } from '../../config/cloudinary';
 import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
   deleteCloudinaryAsset,
-} from '../../shared/utils/cloudinaryHelpers';
+} from '../../shared/media/cloudinaryHelpers';
 import { storesRepository } from '../stores/stores.repository';
 import { storeTypeFieldsService } from '../store-types/store-type-fields.service';
 import { requireStoreAccessForProducts } from '../stores/store-members.service';
@@ -24,9 +24,9 @@ import { storeFollowersRepository } from '../stores/store-followers.repository';
 import { notificationEvents } from '../notifications/notifications.service';
 import { savedSearchEvents } from '../saved-searches';
 import { activityService, activityTemplates } from '../activity';
-import { logger } from '../../shared/utils/logger';
-import { withProductImagesLock, withStoreProductCreationLock } from '../../shared/utils/adLock';
-import { createEntityImageOperations } from '../../shared/utils/entityImageOperations';
+import { logger } from '../../shared/observability/logger';
+import { withProductImagesLock, withStoreProductCreationLock } from '../../shared/locks/adLock';
+import { createEntityImageOperations } from '../../shared/media/entityImageOperations';
 import { promotionsService, EffectivePrice } from '../promotions/promotions.service';
 import { fraudService } from '../fraud';
 import { followsService } from '../follows/follows.service';
@@ -35,7 +35,7 @@ import {
   cachedPublicList,
   bumpPublicListCache,
   hidePublicEntities,
-} from '../../shared/utils/publicListCache';
+} from '../../shared/cache/publicListCache';
 import { requestJsonWithGoFallback } from '../../shared/go-worker/requestJsonWithFallback';
 
 const MAX_PRODUCT_IMAGES = MAX_IMAGES_PER_ENTITY; // same cap as ads.images / service-listings.images — see config/limits.ts

@@ -1,5 +1,5 @@
 import { prisma } from '../../config/prisma';
-import { userCache } from '../../shared/utils/userCache';
+import { userCache } from '../../shared/cache/userCache';
 import { Prisma, SalePaymentStatus } from '@prisma/client';
 import { salesRepository } from './sales.repository';
 import { invoicesService } from './invoices.service';

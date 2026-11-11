@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/jobs/backgroundTask';
 import { FollowTargetType, NotificationType, Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
 import { followsRepository } from './follows.repository';
@@ -7,8 +7,8 @@ import { MAX_FEED_PAGE, ToggleFollowInput } from './follows.validation';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
-import { isPrismaError } from '../../shared/utils/prismaErrors';
-import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { isPrismaError } from '../../shared/db/prismaErrors';
+import { buildPaginationMeta } from '../../shared/http/pagination';
 import { notificationEvents } from '../notifications';
 
 const parseCategoryTarget = (

@@ -3,7 +3,7 @@ import {
   executeWithGoFallback,
   runAdvisoryLockedBatch,
 } from './executeWithFallback';
-import { logger } from '../utils/logger';
+import { logger } from '../observability/logger';
 
 interface TransactionalJobOptions<TResult> {
   jobName: string;

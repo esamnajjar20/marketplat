@@ -9,7 +9,7 @@ import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 
 jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/modules/users/users.repository');
-jest.mock('../../src/shared/utils/sellerLock', () => ({
+jest.mock('../../src/shared/locks/sellerLock', () => ({
   withSellerProfileCreationLock: (_userId: string, fn: () => Promise<any>) => fn(),
 }));
 

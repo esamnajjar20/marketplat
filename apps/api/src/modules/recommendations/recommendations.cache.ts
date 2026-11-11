@@ -1,5 +1,5 @@
 import { createHash } from 'crypto';
-import { swrGetWithStatus, bumpGeneration, type SwrStatus } from '../../shared/utils/swrCache';
+import { swrGetWithStatus, bumpGeneration, type SwrStatus } from '../../shared/cache/swrCache';
 import { onHomeInvalidated } from '../home/home.cache.keys';
 import type { GetRecommendationsQuery } from './recommendations.validation';
 
@@ -10,7 +10,7 @@ import type { GetRecommendationsQuery } from './recommendations.validation';
  * (up to ~6 queries) against Postgres — measured as the slowest public
  * endpoint (~0.48s). The mechanics (soft/hard TTL, singleflight,
  * cross-process refresh lock, circuit-broken Redis) come from
- * shared/utils/swrCache.ts, same as /home and the public lists.
+ * shared/cache/swrCache.ts, same as /home and the public lists.
  *
  * Correctness model:
  *  - Guests share one entry per distinct query ("g" scope). A signed-in

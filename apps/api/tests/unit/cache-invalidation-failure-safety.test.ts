@@ -7,7 +7,7 @@ describe('cache invalidation failure safety', () => {
     'utf8',
   );
   const publicListSource = readFileSync(
-    join(__dirname, '../../src/shared/utils/publicListCache.ts'),
+    join(__dirname, '../../src/shared/cache/publicListCache.ts'),
     'utf8',
   );
 

@@ -1,6 +1,6 @@
-import { auditLog, AuditEvent } from '../../src/shared/utils/auditLog';
+import { auditLog, AuditEvent } from '../../src/shared/audit/auditLog';
 import { prisma } from '../../src/config/prisma';
-import { logger } from '../../src/shared/utils/logger';
+import { logger } from '../../src/shared/observability/logger';
 
 /**
  * Coverage for auditLog.ts. Two behaviors worth pinning down:

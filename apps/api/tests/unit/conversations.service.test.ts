@@ -5,7 +5,7 @@ import { usersRepository } from '../../src/modules/users/users.repository';
 import { serviceRequestsRepository } from '../../src/modules/service-requests/service-requests.repository';
 import { notificationEvents } from '../../src/modules/notifications';
 import { blockedUsersService } from '../../src/modules/blocked-users';
-import { presence } from '../../src/shared/utils/presence';
+import { presence } from '../../src/shared/realtime/presence';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
@@ -25,13 +25,13 @@ jest.mock('../../src/modules/blocked-users', () => ({
     getBlockedIdsByBlocker: jest.fn(),
   },
 }));
-jest.mock('../../src/shared/utils/presence', () => ({
+jest.mock('../../src/shared/realtime/presence', () => ({
   presence: {
     getPresence: jest.fn().mockResolvedValue({}),
     touch: jest.fn(),
   },
 }));
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 jest.mock('../../src/modules/activity', () => ({
@@ -58,7 +58,7 @@ const mockConversation = {
 } as any;
 
 
-jest.mock('../../src/shared/utils/notificationStream', () => ({
+jest.mock('../../src/shared/realtime/notificationStream', () => ({
   publishNotificationEvent: jest.fn().mockResolvedValue(undefined),
   publishNotificationEventToMany: jest.fn().mockResolvedValue(undefined),
 }));
@@ -474,7 +474,7 @@ describe('conversationsService', () => {
       expect(conversationsRepository.touchUpdatedAt).toHaveBeenCalledWith('conv-1');
       expect(result).toEqual(mockMessage);
 
-      const { publishNotificationEvent } = require('../../src/shared/utils/notificationStream');
+      const { publishNotificationEvent } = require('../../src/shared/realtime/notificationStream');
       expect(publishNotificationEvent).toHaveBeenCalledWith(
         sellerId,
         expect.objectContaining({ type: 'message:new', conversationId: 'conv-1' }),

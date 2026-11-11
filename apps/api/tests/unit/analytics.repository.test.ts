@@ -1,6 +1,6 @@
 import { analyticsRepository } from '../../src/modules/analytics/analytics.repository';
 import { prisma } from '../../src/config/prisma';
-import { runWithQueryTimeout } from '../../src/shared/utils/queryTimeout';
+import { runWithQueryTimeout } from '../../src/shared/db/queryTimeout';
 import { AnalyticsEventType } from '@prisma/client';
 
 jest.mock('../../src/config/prisma', () => ({
@@ -13,7 +13,7 @@ jest.mock('../../src/config/prisma', () => ({
   },
 }));
 
-jest.mock('../../src/shared/utils/queryTimeout', () => ({
+jest.mock('../../src/shared/db/queryTimeout', () => ({
   runWithQueryTimeout: jest.fn(),
 }));
 

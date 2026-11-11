@@ -1,15 +1,15 @@
 import { authenticate, optionalAuthenticateWithUserLookup } from '../../src/middlewares/auth.middleware';
-import * as jwtUtils from '../../src/shared/utils/jwt';
+import * as jwtUtils from '../../src/shared/auth/jwt';
 import { redis } from '../../src/config/redis';
-import { userCache } from '../../src/shared/utils/userCache';
-import * as tokenStoreModule from '../../src/shared/utils/tokenStore';
+import { userCache } from '../../src/shared/cache/userCache';
+import * as tokenStoreModule from '../../src/shared/auth/tokenStore';
 import { env } from '../../src/config/env';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { Request, Response, NextFunction } from 'express';
 
 const { tokenStore } = tokenStoreModule;
 
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
 

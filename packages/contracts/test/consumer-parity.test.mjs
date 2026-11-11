@@ -10,7 +10,7 @@ const read = (path) => readFile(resolve(repoRoot, path), 'utf8');
 test('shared pagination bounds match the Express API', async () => {
   const [shared, api] = await Promise.all([
     read('packages/contracts/src/pagination.ts'),
-    read('apps/api/src/shared/utils/pagination.ts'),
+    read('apps/api/src/shared/http/pagination.ts'),
   ]);
   assert.match(shared, /numericQuery\(1000\)/);
   assert.match(shared, /numericQuery\(100\)/);

@@ -5,7 +5,7 @@ import {
   parseEventId,
   readReplayEvents,
   type ReplayRedis,
-} from '../../src/shared/utils/replayBuffer';
+} from '../../src/shared/realtime/replayBuffer';
 
 /** Minimal in-memory stand-in for the three Redis stream commands the buffer uses. */
 function fakeRedis(): ReplayRedis & { rows: Array<[string, string[]]> } {
