@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { buildMetadata } from '@/lib/seo';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 import { AuthBrand } from '@/components/auth/AuthBrand';
+import { APP_NAME } from '@/lib/constants';
 
 const LoginForm = dynamic(
   () => import('@/components/auth/LoginForm').then((module) => module.LoginForm),
@@ -19,7 +20,7 @@ export default function LoginPage() {
         <h1 className="text-[28px] font-extrabold tracking-tight text-[var(--legacy-primary-deep)] sm:text-[32px]">
           تسجيل الدخول
         </h1>
-        <p className="mt-2 text-sm text-[var(--legacy-muted-text)]">مرحبًا بك مجددًا في سوق غزة</p>
+        <p className="mt-2 text-sm text-[var(--legacy-muted-text)]">مرحبًا بك مجددًا في {APP_NAME}</p>
       </div>
       <div className="rounded-2xl border border-[var(--legacy-border)] bg-card p-5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] sm:p-7">
         <Suspense fallback={<SuspenseFallback />}>

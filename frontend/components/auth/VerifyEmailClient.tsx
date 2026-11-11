@@ -23,7 +23,7 @@ import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, Mail, XCircle } from 'lucide-react';
 import { authApi } from '@/api/auth.api';
-import { ROUTES } from '@/lib/constants';
+import { ROUTES, APP_NAME } from '@/lib/constants';
 import { parseApiError } from '@/lib/errorParser';
 import { Button } from '@/components/shared/ui/Button';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
@@ -109,7 +109,7 @@ function VerifyEmailInner() {
             <CheckCircle2 className="h-7 w-7" aria-hidden />
           </div>
           <p className="text-[18px] font-extrabold text-[var(--legacy-ink)]">تم تأكيد بريدك الإلكتروني بنجاح</p>
-          <p className="text-sm-tight text-[var(--legacy-muted-text)]">يمكنك الآن استخدام جميع ميزات سوق غزة.</p>
+          <p className="text-sm-tight text-[var(--legacy-muted-text)]">يمكنك الآن استخدام جميع ميزات {APP_NAME}.</p>
           <Button asChild className="h-12 w-full rounded-2xl text-card-title font-bold">
             <IntentPrefetchLink href={ROUTES.home} prefetch={false}>الذهاب إلى الصفحة الرئيسية</IntentPrefetchLink>
           </Button>

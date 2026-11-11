@@ -6,6 +6,7 @@ import { AdCardSkeleton } from '@/components/shared/skeletons/AdCardSkeleton';
 import type { BrowsePage } from '@/types/browse.types';
 import type { AdListItem } from '@/types/ad.types';
 import type { BrowseSearchParams } from '@/lib/browseSearchParams';
+import { APP_NAME } from '@/lib/constants';
 
 const SearchFilters = dynamic(
   () => import('@/components/ads/SearchFilters').then((module) => module.SearchFilters),
@@ -53,7 +54,7 @@ export function AdsPageClient({ initialPage, initialPageUpdatedAt, searchParams 
   return (
     <ListPageShell
       title="الإعلانات"
-      description="تصفح كل الإعلانات المنشورة في سوق غزة"
+      description={`تصفح كل الإعلانات المنشورة في ${APP_NAME}`}
       className="bg-[var(--legacy-page-surface)] dark:bg-background"
       toolbar={
         <div className="flex w-full flex-col gap-3">

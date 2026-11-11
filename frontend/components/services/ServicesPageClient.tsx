@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Users } from 'lucide-react';
 import { ListPageShell } from '@/components/shared/list/ListPageShell';
-import { ROUTES } from '@/lib/constants';
+import { ROUTES, APP_NAME } from '@/lib/constants';
 import type { BrowsePage } from '@/types/browse.types';
 import type { ServiceListingWithProvider } from '@/types/service.types';
 import type { BrowseSearchParams } from '@/lib/browseSearchParams';
@@ -54,7 +54,7 @@ export function ServicesPageClient({ initialPage, initialPageUpdatedAt, searchPa
   return (
     <ListPageShell
       title="الخدمات"
-      description="تصفح الخدمات المحلية في سوق غزة"
+      description={`تصفح الخدمات المحلية في ${APP_NAME}`}
       className="bg-[var(--legacy-page-surface)] dark:bg-background"
       headerEnd={
         <IntentPrefetchLink

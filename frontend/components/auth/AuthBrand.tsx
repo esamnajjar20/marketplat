@@ -1,5 +1,5 @@
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { ROUTES } from '@/lib/constants';
+import { ROUTES, APP_NAME } from '@/lib/constants';
 
 /** شعار سوق غزة أعلى شاشات المصادقة — مطابق للتصميم. */
 export function AuthBrand() {
@@ -11,7 +11,7 @@ export function AuthBrand() {
       <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--legacy-primary)] text-card-title font-extrabold text-primary-foreground">
         س
       </span>
-      <span className="text-[18px] font-extrabold text-[var(--legacy-primary-deep)]">سوق غزة</span>
+      <span className="text-[18px] font-extrabold text-[var(--legacy-primary-deep)]">{APP_NAME}</span>
     </IntentPrefetchLink>
   );
 }

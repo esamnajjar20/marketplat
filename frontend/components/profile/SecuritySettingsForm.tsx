@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { useChangePassword } from '@/hooks/mutations/useAuthMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
-import { API_BASE_URL } from '@/lib/constants';
+import { API_BASE_URL, APP_NAME } from '@/lib/constants';
 
 interface Errors { current?: string; newPass?: string; confirm?: string; }
 
@@ -29,7 +29,7 @@ function GoogleLinkSection() {
     if (code === 'GOOGLE_LINK_EMAIL_MISMATCH') {
       toast.error('يجب أن يكون بريد Google هو نفس البريد المرتبط بحسابك.');
     } else if (code === 'GOOGLE_ALREADY_LINKED_ELSEWHERE') {
-      toast.error('حساب Google هذا مرتبط بحساب سوق غزة آخر بالفعل.');
+      toast.error(`حساب Google هذا مرتبط بحساب ${APP_NAME} آخر بالفعل.`);
     } else if (error === 'session_expired') {
       toast.error('انتهت جلستك. سجّل الدخول ثم حاول مرة أخرى.');
     } else if (error === 'google_auth_failed') {

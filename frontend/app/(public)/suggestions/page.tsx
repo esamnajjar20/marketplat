@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import dynamic from 'next/dynamic';
 import { buildMetadata } from '@/lib/seo';
+import { APP_NAME } from '@/lib/constants';
 
 const SuggestionsPageClient = dynamic(
   () =>
@@ -11,9 +12,9 @@ const SuggestionsPageClient = dynamic(
 );
 
 export const metadata: Metadata = buildMetadata({
-  title: 'اقتراحات لك — سوق غزة',
+  title: 'اقتراحات لك',
   description:
-    'اقتراحات مخصّصة من إعلانات ومنتجات وخدمات تناسب اهتماماتك في سوق غزة.',
+    `اقتراحات مخصّصة من إعلانات ومنتجات وخدمات تناسب اهتماماتك في ${APP_NAME}.`,
   path: '/suggestions',
 });
 

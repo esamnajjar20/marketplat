@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { ROUTES } from '@/lib/constants';
+import { ROUTES, APP_NAME } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -25,7 +25,7 @@ export function LegalPageShell({ title, description, children, className }: Prop
   return (
     <div className={cn('container mx-auto max-w-3xl space-y-8 px-4 py-10 sm:py-14', className)}>
       <header className="space-y-3 border-b border-border/70 pb-6">
-        <p className="text-xs font-medium text-primary-muted">سوق غزة</p>
+        <p className="text-xs font-medium text-primary-muted">{APP_NAME}</p>
         <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">{title}</h1>
         {description && (
           <p className="max-w-2xl text-base leading-relaxed text-muted-foreground">{description}</p>

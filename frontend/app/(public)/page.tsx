@@ -5,11 +5,12 @@ import { getQueryClient } from '@/lib/queryClient';
 import { prefetchHomeFeed } from '@/lib/prefetch';
 import { buildMetadata } from '@/lib/seo';
 import { buildHomePageJsonLd, safeJsonLd } from '@/lib/structuredData';
+import { APP_NAME } from '@/lib/constants';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'سوق غزة — إعلانات ومنتجات وخدمات',
+  title: 'إعلانات ومنتجات وخدمات',
   description:
-    'منصة سوق غزة المحلي: إعلانات مبوبة، منتجات، خدمات، ومتاجر قريبة منك. ابحث، اشترِ، أو اعرض مجاناً — تواصل مباشر بلا وسطاء.',
+    `منصة ${APP_NAME} المحلي: إعلانات مبوبة، منتجات، خدمات، ومتاجر قريبة منك. ابحث، اشترِ، أو اعرض مجاناً — تواصل مباشر بلا وسطاء.`,
   path: '/',
 });
 

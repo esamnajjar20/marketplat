@@ -523,7 +523,7 @@ export function buildHomePageJsonLd() {
         '@type': 'WebPage',
         '@id': `${homeUrl}#webpage`,
         url: homeUrl,
-        name: `${APP_NAME} — سوق غزة المحلي`,
+        name: `${APP_NAME} — السوق المحلي`,
         description:
           'منصة إعلانات ومنتجات وخدمات ومتاجر في قطاع غزة — ابحث، اشترِ، أو اعرض مجاناً.',
         inLanguage: 'ar',

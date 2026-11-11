@@ -485,7 +485,7 @@ export function SyncCenterClient() {
         {appointmentDrafts.length === 0 ? <p role={loading ? 'status' : undefined} className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">{loading ? 'جارٍ تحميل طلبات المواعيد…' : loadWarning ? 'تعذّر التأكد من طلبات المواعيد المحفوظة. حدّث القائمة للمحاولة مجددًا.' : 'لا توجد طلبات مواعيد محفوظة محليًا.'}</p> : (
           <ul className="divide-y rounded-xl border">
             {appointmentDrafts.map((draft) => <li key={draft.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
-              <div className="min-w-0 text-sm"><p className="font-medium">{new Date(draft.payload.scheduledStart).toLocaleString('ar')}</p><p className="text-xs text-warning-strong">طلب محفوظ محليًا — الحجز غير مؤكد حتى يوافق الخادم.</p>{draft.lastError ? <p className="text-xs text-destructive">{draft.lastError}</p> : null}</div>
+              <div className="min-w-0 text-sm"><p className="font-medium">{new Date(draft.payload.scheduledStart).toLocaleString('ar-PS', { timeZone: 'Asia/Gaza' })}</p><p className="text-xs text-warning-strong">طلب محفوظ محليًا — الحجز غير مؤكد حتى يوافق الخادم.</p>{draft.lastError ? <p className="text-xs text-destructive">{draft.lastError}</p> : null}</div>
               <div className="flex gap-2"><Button size="sm" onClick={() => void runAction(`appointment:retry:${draft.id}`, () => handleRetryAppointmentDraft(draft))} disabled={!isOnline || busyActions.has(`appointment:retry:${draft.id}`)}>إعادة التحقق والإرسال</Button><Button variant="ghost" size="sm" onClick={() => void runAction(`appointment:delete:${draft.id}`, () => handleDeleteAppointmentDraft(draft.id))} disabled={busyActions.has(`appointment:delete:${draft.id}`)}>حذف</Button></div>
             </li>)}
           </ul>
@@ -775,7 +775,7 @@ function statusLabel(s: AdDraft['status']): string {
 // SW-FIX-SCC-DEAD-CATCH: toLocaleString never throws on an invalid date
 // (returns "Invalid Date" string instead). Removed the dead try/catch.
 function formatWhen(iso: string): string {
-  return new Date(iso).toLocaleString('ar', { timeZone: 'Asia/Gaza' });
+  return new Date(iso).toLocaleString('ar-PS', { timeZone: 'Asia/Gaza' });
 }
 
 function shortUrl(url: string): string {

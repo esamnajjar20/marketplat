@@ -95,7 +95,7 @@ export function SalesReports() {
             <Printer className="ms-2 h-4 w-4" /> PDF / طباعة
           </Button>
           <Button onClick={download} disabled={!data || isExporting}>
-            <Download className="ms-2 h-4 w-4" />
+            <Download className="h-4 w-4" />
             {isExporting ? 'جارٍ التصدير...' : 'CSV'}
           </Button>
         </div>

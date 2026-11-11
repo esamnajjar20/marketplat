@@ -7,7 +7,7 @@ import { fetchServerApi } from '@/lib/server/serverApiFetch';
 import { getQueryClient } from '@/lib/queryClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
-import { ROUTES } from '@/lib/constants';
+import { ROUTES, APP_NAME } from '@/lib/constants';
 import type { ProductWithStore } from '@/types/product.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { buildMetadata } from '@/lib/seo';
@@ -15,9 +15,9 @@ import { buildMetadata } from '@/lib/seo';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'الأكثر ترويجًا — سوق غزة',
+  title: 'الأكثر ترويجًا',
   description:
-    'منتجات وعروض مروَّجة من متاجر سوق غزة — لا تفوّت الخصومات والعروض النشطة.',
+    `منتجات وعروض مروَّجة من متاجر ${APP_NAME} — لا تفوّت الخصومات والعروض النشطة.`,
   path: '/promoted',
 });
 

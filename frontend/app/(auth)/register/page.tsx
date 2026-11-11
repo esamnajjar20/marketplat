@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import { buildMetadata } from '@/lib/seo';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 import { AuthBrand } from '@/components/auth/AuthBrand';
+import { APP_NAME } from '@/lib/constants';
 
 const RegisterForm = dynamic(
   () => import('@/components/auth/RegisterForm').then((module) => module.RegisterForm),
@@ -20,7 +21,7 @@ export default function RegisterPage() {
           إنشاء حساب جديد
         </h1>
         <p className="mt-2 max-w-sm text-sm leading-relaxed text-[var(--legacy-muted-text)]">
-          انضم إلى مجتمع سوق غزة وابدأ في البيع والشراء بكل سهولة
+          انضم إلى مجتمع {APP_NAME} وابدأ في البيع والشراء بكل سهولة
         </p>
       </div>
       <div className="rounded-2xl border border-[var(--legacy-border)] bg-card p-5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] sm:p-7">

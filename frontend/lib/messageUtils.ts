@@ -13,7 +13,7 @@ export function messageDayLabel(iso: string, now: Date): string {
   const diff = dayParts(now) - dayParts(d);
   if (diff === 0) return 'اليوم';
   if (diff === 1) return 'أمس';
-  return d.toLocaleDateString('ar-EG', {
+  return d.toLocaleDateString('ar-PS', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',

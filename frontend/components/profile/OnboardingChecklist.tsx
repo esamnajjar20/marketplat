@@ -7,7 +7,7 @@ import { useMySellerProfile } from '@/hooks/queries/useSellers';
 import { useMyAdStats } from '@/hooks/queries/useAds';
 import { useMyStore } from '@/hooks/queries/useStores';
 import { useMyServiceProvider } from '@/hooks/queries/useServiceProviders';
-import { ROUTES } from '@/lib/constants';
+import { ROUTES, APP_NAME } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/shared/ui/Button';
 
@@ -85,7 +85,7 @@ export function OnboardingChecklist() {
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-0.5">
           <h2 id="onboarding-heading" className="text-sm font-semibold">
-            ابدأ على سوق غزة
+            ابدأ على {APP_NAME}
           </h2>
           <p className="text-xs text-muted-foreground">
             {doneCount} من {steps.length} خطوات

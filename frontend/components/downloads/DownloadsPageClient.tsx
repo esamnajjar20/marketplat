@@ -23,7 +23,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 // date produces the string "Invalid Date", not an exception. The old
 // try/catch was dead code; the `iso` fallback never ran.
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('ar-EG', {
+  return new Date(iso).toLocaleString('ar-PS', {
     dateStyle: 'medium',
     timeStyle: 'short',
    timeZone: 'Asia/Gaza'});

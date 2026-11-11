@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react';
 import { X, Share, PlusSquare, Download } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
+import { APP_NAME } from '@/lib/constants';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -125,7 +126,7 @@ export function InstallPrompt() {
       </span>
 
       <div className="flex-1 text-sm">
-        <p className="font-medium">ثبّت تطبيق سوق غزة</p>
+        <p className="font-medium">ثبّت تطبيق {APP_NAME}</p>
         {deferredPrompt ? (
           <p className="text-muted-foreground">وصول أسرع، ويعمل حتى بدون إنترنت.</p>
         ) : (

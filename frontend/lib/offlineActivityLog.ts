@@ -80,7 +80,7 @@ export function clearOfflineActivity(): void {
 
 export function formatActivityTime(at: number): string {
   try {
-    return new Date(at).toLocaleString('ar', {
+    return new Date(at).toLocaleString('ar-PS', {
       hour: '2-digit',
       minute: '2-digit',
       day: 'numeric',

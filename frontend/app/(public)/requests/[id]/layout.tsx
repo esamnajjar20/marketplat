@@ -58,7 +58,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       path: `/requests/${id}`,
     });
     return buildMetadata({
-      title: `${request.title} — طلب على سوق غزة`,
+      title: `${request.title} — طلب مفتوح`,
       description: request.description?.slice(0, 160) || undefined,
       path: `/requests/${id}`,
     });

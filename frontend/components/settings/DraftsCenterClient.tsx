@@ -35,7 +35,7 @@ const TABS: { key: TabKey; label: string }[] = [
 
 function formatDate(iso: string): string {
   try {
-    return new Date(iso).toLocaleString('ar-EG', {
+    return new Date(iso).toLocaleString('ar-PS', {
       year: 'numeric', month: 'short', day: 'numeric',
       hour: '2-digit', minute: '2-digit',
       timeZone: 'Asia/Gaza',

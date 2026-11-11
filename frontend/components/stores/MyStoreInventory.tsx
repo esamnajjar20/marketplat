@@ -434,7 +434,7 @@ export function MyStoreInventory() {
                   <p className="text-xs text-muted-foreground">
                     {stockMovementReasonLabel(movement.reason)}
                     {' · '}
-                    {new Date(movement.createdAt).toLocaleString('ar', { timeZone: 'Asia/Gaza' })}
+                    {new Date(movement.createdAt).toLocaleString('ar-PS', { timeZone: 'Asia/Gaza' })}
                   </p>
                 </div>
                 <div className="text-end tabular-nums">

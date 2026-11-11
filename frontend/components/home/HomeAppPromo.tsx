@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Smartphone } from 'lucide-react';
 import { getRawAndroidAppUrl } from '@/lib/env';
 import { isNativePlatform } from '@/lib/capacitor/platform';
+import { APP_NAME } from '@/lib/constants';
 
 /**
  * Android app promo. Renders nothing unless NEXT_PUBLIC_ANDROID_APP_URL is
@@ -38,7 +39,7 @@ export function HomeAppPromo() {
           <Smartphone className="h-5 w-5" aria-hidden />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold">حمّل تطبيق سوق غزة</span>
+          <span className="block text-sm font-bold">حمّل تطبيق {APP_NAME}</span>
           <span className="block text-xs text-muted-foreground">أسرع وأخف، مع إشعارات فورية للأندرويد.</span>
         </span>
         <span className="shrink-0 text-sm font-semibold text-primary">تحميل ←</span>

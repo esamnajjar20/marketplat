@@ -44,7 +44,7 @@ export function BulkActionBar({
           className="h-8 min-h-8 text-[var(--legacy-primary-deep)] hover:bg-muted"
           onClick={onClear}
         >
-          <X className="h-3.5 w-3.5 me-1" aria-hidden />
+          <X className="h-3.5 w-3.5" aria-hidden />
           إلغاء التحديد
         </Button>
       </div>

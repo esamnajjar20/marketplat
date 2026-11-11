@@ -5,6 +5,7 @@ import { ListPageShell } from '@/components/shared/list/ListPageShell';
 import type { BrowsePage } from '@/types/browse.types';
 import type { StoreDirectoryItem } from '@/types/store.types';
 import type { BrowseSearchParams } from '@/lib/browseSearchParams';
+import { APP_NAME } from '@/lib/constants';
 
 const StoresGrid = dynamic(
   () => import('@/components/stores/StoresGrid').then((module) => module.StoresGrid),
@@ -42,7 +43,7 @@ export function StoresPageClient({ initialPage, initialPageUpdatedAt, searchPara
   return (
     <ListPageShell
       title="المتاجر"
-      description="تصفح المتاجر المحلية في سوق غزة"
+      description={`تصفح المتاجر المحلية في ${APP_NAME}`}
       toolbar={
         <>
           <StoresFiltersSheet />

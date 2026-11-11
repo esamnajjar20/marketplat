@@ -199,7 +199,7 @@ export function NotificationsPage() {
           <WifiOff className="h-3.5 w-3.5 shrink-0" />
           أنت دون اتصال — تُعرض آخر الإشعارات المحفوظة على جهازك
           {dataUpdatedAt
-            ? ` (آخر تحديث: ${new Date(dataUpdatedAt).toLocaleString('ar-EG', {
+            ? ` (آخر تحديث: ${new Date(dataUpdatedAt).toLocaleString('ar-PS', {
                 dateStyle: 'medium',
                 timeStyle: 'short',
                timeZone: 'Asia/Gaza'})})`

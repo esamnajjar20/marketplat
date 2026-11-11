@@ -6,6 +6,7 @@ import { getQueryClient } from '@/lib/queryClient';
 import { queryKeys } from '@/lib/queryKeys';
 import { fetchServerApi } from '@/lib/server/serverApiFetch';
 import type { MixedRecommendations } from '@/api/recommendations.api';
+import { APP_NAME } from '@/lib/constants';
 
 const SuggestionsPageClient = dynamic(
   () =>
@@ -16,8 +17,8 @@ const SuggestionsPageClient = dynamic(
 );
 
 export const metadata: Metadata = buildMetadata({
-  title: 'الرائج — سوق غزة',
-  description: 'اكتشف الإعلانات والمنتجات والخدمات الأكثر رواجًا في سوق غزة.',
+  title: 'الرائج',
+  description: `اكتشف الإعلانات والمنتجات والخدمات الأكثر رواجًا في ${APP_NAME}.`,
   path: '/trending',
 });
 

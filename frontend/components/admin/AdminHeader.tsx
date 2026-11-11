@@ -18,7 +18,7 @@ import {
 } from '@/components/shared/ui/DropdownMenu';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { useLogout }   from '@/hooks/mutations/useAuthMutations';
-import { ROUTES, REPORT_REASON_LABELS } from '@/lib/constants';
+import { ROUTES, REPORT_REASON_LABELS, APP_NAME } from '@/lib/constants';
 import { useAdminOpsQueue, useAdminReports } from '@/hooks/queries/useAdmin';
 
 export function AdminHeader() {
@@ -72,7 +72,7 @@ export function AdminHeader() {
           </span>
           <div className="min-w-0 leading-tight">
             <span className="block truncate text-card-title font-extrabold text-foreground">
-              سوق غزة — إدارة
+              {APP_NAME} — إدارة
             </span>
             <span className="block truncate text-xs text-muted-foreground">
               مركز المراجعة والتشغيل

@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import type { BrowsePage } from '@/types/browse.types';
 import type { ProductWithStore } from '@/types/product.types';
 import type { BrowseSearchParams } from '@/lib/browseSearchParams';
+import { APP_NAME } from '@/lib/constants';
 
 const ProductsGrid = dynamic(
   () => import('@/components/stores/ProductsGrid').then((module) => module.ProductsGrid),
@@ -54,7 +55,7 @@ export function ProductsPageClient({ initialPage, initialPageUpdatedAt, searchPa
   return (
     <ListPageShell
       title="المنتجات"
-      description="تصفح منتجات المتاجر في سوق غزة"
+      description={`تصفح منتجات المتاجر في ${APP_NAME}`}
       className="bg-[var(--legacy-page-surface)] dark:bg-background"
       toolbar={
         <div className="flex w-full flex-col gap-3">

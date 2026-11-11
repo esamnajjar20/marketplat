@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { CompleteProfileForm } from '@/components/auth/CompleteProfileForm';
 import { AuthBrand } from '@/components/auth/AuthBrand';
 import { buildMetadata } from '@/lib/seo';
+import { APP_NAME } from '@/lib/constants';
 
 export const metadata: Metadata = buildMetadata({ title: 'أكمل ملفك الشخصي', noIndex: true });
 
@@ -17,7 +18,7 @@ export default function CompleteProfilePage() {
           أكمل ملفك الشخصي
         </h1>
         <p className="mt-2 text-sm text-[var(--legacy-muted-text)]">
-          خطوة أخيرة قبل أن تبدأ في استخدام سوق غزة.
+          خطوة أخيرة قبل أن تبدأ في استخدام {APP_NAME}.
         </p>
       </div>
       <div className="rounded-2xl border border-[var(--legacy-border)] bg-card p-5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] sm:p-7">

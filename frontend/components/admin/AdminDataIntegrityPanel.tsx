@@ -110,7 +110,7 @@ export function AdminDataIntegrityPanel() {
             </div>
           )}
           <div className="rounded-xl border border-dashed p-3 text-xs leading-5 text-muted-foreground">
-            <AlertTriangle className="ml-1 inline h-3.5 w-3.5" /> النتائج إشارات تدقيق وليست أوامر إصلاح. راجع السجل الأصلي وسياق المعاملة قبل أي تعديل يدوي. إذا تعذر أحد الاستعلامات فلن يعتمد Go تقريرًا جزئيًا على أنه فحص مكتمل.
+            <AlertTriangle className="me-1 inline h-3.5 w-3.5" /> النتائج إشارات تدقيق وليست أوامر إصلاح. راجع السجل الأصلي وسياق المعاملة قبل أي تعديل يدوي. إذا تعذر أحد الاستعلامات فلن يعتمد Go تقريرًا جزئيًا على أنه فحص مكتمل.
           </div>
         </>
       )}

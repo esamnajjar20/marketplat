@@ -2,7 +2,7 @@
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useEffect, useState } from 'react';
-import { ROUTES } from '@/lib/constants';
+import { ROUTES, APP_NAME } from '@/lib/constants';
 import { getAnalyticsConsent, setAnalyticsConsent, type AnalyticsConsent } from '@/lib/analyticsConsent';
 
 /**
@@ -38,7 +38,7 @@ export function AnalyticsConsentBanner() {
     >
       <div className="space-y-3">
         <div>
-          <h2 className="text-sm font-semibold">تحسين سوق غزة</h2>
+          <h2 className="text-sm font-semibold">تحسين {APP_NAME}</h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
             نستخدم تحليلات أساسية مثل مشاهدات الصفحات والبحث لفهم استخدام المنصة وتحسينها.
             يمكنك السماح بها أو رفضها دون التأثير على استخدام الموقع.{' '}
