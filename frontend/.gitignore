@@ -3,6 +3,9 @@
 public/tesseract/
 public/tessdata/
 *.bak
+*.bak-*
+*.disabled
+*.SNIPPET
 *.backup
 *.backup_*
 *.backup-*

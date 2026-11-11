@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { cache } from 'react';
-import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { SearchX } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import type { ServiceListingWithProvider } from '@/types/service.types';
 import { fetchServerApi, ServerApiHttpError } from '@/lib/server/serverApiFetch';
@@ -11,8 +10,6 @@ import { ServiceViewTracker } from '@/components/services/ServiceViewTracker';
 import { RelatedServices } from '@/components/services/RelatedServices';
 import { LazySection } from '@/components/shared/LazySection';
 import { ServiceBreadcrumb } from '@/components/services/ServiceBreadcrumb';
-import { EmptyState } from '@/components/shared/feedback/EmptyState';
-import { ROUTES } from '@/lib/constants';
 import { headers } from 'next/headers';
 import { buildServiceJsonLd, safeJsonLd } from '@/lib/structuredData';
 
@@ -61,22 +58,7 @@ export default async function ServiceListingPage({ params }: Props) {
     }
   }
 
-  if (!listing) {
-    return (
-      <div className="container mx-auto px-4 py-6">
-        <EmptyState
-          icon={<SearchX className="h-10 w-10" />}
-          title="الخدمة غير موجودة"
-          description="ربما تم حذف هذه الخدمة أو أن الرابط غير صحيح"
-          action={
-            <IntentPrefetchLink href={ROUTES.services} className="text-sm text-primary hover:underline" prefetch={false}>
-              تصفح الخدمات
-            </IntentPrefetchLink>
-          }
-        />
-      </div>
-    );
-  }
+  if (!listing) notFound();
 
   const providerUserId = listing.provider.sellerProfile?.userId;
   const nonce = (await headers()).get('x-nonce') ?? undefined;

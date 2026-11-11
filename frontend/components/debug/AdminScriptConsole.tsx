@@ -56,7 +56,11 @@ function serialize(value: unknown): string {
     }, 2);
     return (result ?? String(value)).slice(0, 12_000);
   } catch {
-    try { return String(value).slice(0, 12_000); } catch { return '[Unserializable value]'; }
+    try {
+      return String(value).slice(0, 12_000);
+    } catch {
+      return '[Unserializable value]';
+    }
   }
 }
 
@@ -139,7 +143,9 @@ export function AdminScriptConsole() {
       setEnabled(next);
       if (!next) setOpen(false);
     };
-    const onVisible = () => { if (document.visibilityState === 'visible') refreshSetting(); };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshSetting();
+    };
     refreshSetting();
     window.addEventListener('focus', refreshSetting);
     document.addEventListener('visibilitychange', onVisible);
@@ -275,8 +281,14 @@ export function AdminScriptConsole() {
   }, [armed, enabled, isAdmin, recordLog, running, scriptExecutionAllowed, source]);
 
   const copyOutput = useCallback(async () => {
-    try { await navigator.clipboard.writeText(latestOutput); setCopied(true); window.setTimeout(() => setCopied(false), 1200); }
-    catch { setCopied(false); }
+    try {
+      await navigator.clipboard.writeText(latestOutput);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1200);
+    }
+    catch {
+      setCopied(false);
+    }
   }, [latestOutput]);
 
   const refreshStorage = useCallback(() => {
@@ -302,7 +314,9 @@ export function AdminScriptConsole() {
         const attrs = Array.from(element.attributes).slice(0, 15).map((attribute) => `${attribute.name}="${attribute.value.slice(0, 120)}"`).join(' ');
         return `${index + 1}. <${element.tagName.toLowerCase()}${element.id ? ` id="${element.id}"` : ''}${element.className && typeof element.className === 'string' ? ` class="${element.className.slice(0, 180)}"` : ''}>\n   ${attrs}\n   text: ${(element.innerText || '').trim().slice(0, 250)}`;
       }).join('\n\n') : 'لا توجد عناصر مطابقة للمحدد.');
-    } catch (error) { setInspected(`محدد CSS غير صالح: ${serialize(error)}`); }
+    } catch (error) {
+      setInspected(`محدد CSS غير صالح: ${serialize(error)}`);
+    }
   }, [selector]);
 
   const refreshInfo = useCallback(() => {
@@ -335,25 +349,202 @@ export function AdminScriptConsole() {
       {open && (
         <section aria-label="أدوات المطوّر" className={`fixed bottom-[calc(var(--bottom-nav-offset)+1rem)] left-3 z-[9999] flex max-h-[calc(100dvh-var(--bottom-nav-offset)-2.5rem)] flex-col overflow-hidden rounded-xl border border-amber-400/50 bg-slate-950 text-slate-100 shadow-2xl md:bottom-3 md:max-h-[92dvh] ${expanded ? 'h-full w-[min(1240px,calc(100vw-24px))] md:h-[92dvh]' : 'h-[min(700px,100%)] w-[min(900px,calc(100vw-24px))] md:h-[min(700px,86dvh)]'}`} dir="ltr">
           <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-700 bg-slate-900 px-3 py-2">
-            <div className="flex min-w-0 items-center gap-2"><Code2 className="h-4 w-4 text-amber-300" /><strong className="text-sm">MarketPlat Developer Tools</strong><span className="rounded bg-emerald-300/10 px-2 py-0.5 text-2xs text-emerald-200">ADMIN ONLY</span></div>
-            <div className="flex items-center gap-1"><button type="button" className="rounded p-1.5 hover:bg-slate-700" onClick={() => setExpanded((value) => !value)} aria-label={expanded ? 'تصغير' : 'تكبير'}>{expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}</button><button type="button" className="rounded p-1.5 hover:bg-slate-700" onClick={() => setOpen(false)} aria-label="إغلاق"><X className="h-4 w-4" /></button></div>
+            <div className="flex min-w-0 items-center gap-2">
+              <Code2 className="h-4 w-4 text-amber-300" />
+              <strong className="text-sm">MarketPlat Developer Tools</strong>
+              <span className="rounded bg-emerald-300/10 px-2 py-0.5 text-2xs text-emerald-200">ADMIN ONLY</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button type="button" className="rounded p-1.5 hover:bg-slate-700" onClick={() => setExpanded((value) => !value)} aria-label={expanded ? 'تصغير' : 'تكبير'}>
+                {expanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+              </button>
+              <button type="button" className="rounded p-1.5 hover:bg-slate-700" onClick={() => setOpen(false)} aria-label="إغلاق">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           </header>
           <div className="shrink-0 border-b border-amber-500/30 bg-amber-950/40 px-3 py-2 text-xs leading-5 text-amber-100" dir="rtl">هذه أدوات تشخيص قوية تعمل على الصفحة الحالية. لا تسجّل أجسام الطلبات أو ترويساتها، وتُخفِي قيم مفاتيح التخزين الحساسة. تنفيذ JavaScript الحر متاح في بيئة التطوير فقط؛ لن يتم تعطيل CSP في الإنتاج.</div>
-          <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-800 p-2">{TABS.map((item) => { const Icon = item.icon; return <button key={item.id} type="button" onClick={() => setTab(item.id)} className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-2 text-xs ${tab === item.id ? 'bg-amber-300 font-bold text-slate-950' : 'text-slate-300 hover:bg-slate-800'}`}><Icon className="h-3.5 w-3.5" />{item.label}{item.id === 'network' && requests.length > 0 ? ` (${requests.length})` : ''}{item.id === 'console' && logs.length > 0 ? ` (${logs.length})` : ''}{item.id === 'errors' && errors.length > 0 ? ` (${errors.length})` : ''}</button>; })}</nav>
+          <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-slate-800 p-2">
+            {TABS.map((item) => {
+              const Icon = item.icon;
+              return <button key={item.id} type="button" onClick={() => setTab(item.id)} className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-3 py-2 text-xs ${tab === item.id ? 'bg-amber-300 font-bold text-slate-950' : 'text-slate-300 hover:bg-slate-800'}`}>
+                <Icon className="h-3.5 w-3.5" />
+                {item.label}
+                {item.id === 'network' && requests.length > 0 ? ` (${requests.length})` : ''}
+                {item.id === 'console' && logs.length > 0 ? ` (${logs.length})` : ''}
+                {item.id === 'errors' && errors.length > 0 ? ` (${errors.length})` : ''}
+              </button>;
+            })}
+          </nav>
           <div ref={outputRef} className="min-h-0 flex-1 overflow-auto bg-black/30 p-3 text-xs">
             {tab === 'console' && <div className="space-y-3">
-              {scriptExecutionAllowed ? <><div className="text-slate-500">اكتب تعبيرًا أو سكربت JavaScript. Ctrl+Enter للتنفيذ.</div><textarea value={source} onChange={(event) => setSource(event.target.value)} onKeyDown={(event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); void runScript(); } }} spellCheck={false} className="min-h-28 w-full resize-y rounded-lg border border-slate-700 bg-slate-900 p-3 font-mono text-sm text-slate-100 outline-none focus:border-amber-400" placeholder={'document.querySelectorAll("button").length'} /><div className="flex flex-wrap items-center gap-2"><label className="flex min-w-0 flex-1 items-start gap-2 text-xs leading-5 text-slate-300" dir="rtl"><input type="checkbox" checked={armed} onChange={(event) => setArmed(event.target.checked)} className="mt-1 accent-amber-400" />أفهم أن الكود سيعمل داخل الصفحة الحالية بصلاحيات حسابي</label><button type="button" disabled={!armed || running || !source.trim()} onClick={() => void runScript()} className="inline-flex h-9 items-center gap-2 rounded-lg bg-amber-300 px-3 text-xs font-bold text-slate-950 disabled:opacity-40"><Play className="h-3.5 w-3.5" />{running ? 'Running…' : 'Run'}</button></div></> : <div className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-amber-100" dir="rtl">تنفيذ السكربتات الحرة معطّل في الإنتاج لحماية سياسة أمان المحتوى (CSP). يمكنك استخدام باقي أدوات التشخيص هنا، أو تشغيل الموقع في بيئة التطوير لتنفيذ السكربتات.</div>}
-              <div className="flex items-center justify-between"><strong className="text-slate-300">Console output</strong><div className="flex gap-2"><button type="button" onClick={() => setLogs([])} className="inline-flex items-center gap-1 rounded border border-slate-700 px-2 py-1 text-slate-300"><RotateCcw className="h-3 w-3" />Clear</button><button type="button" disabled={!latestOutput} onClick={() => void copyOutput()} className="inline-flex items-center gap-1 rounded border border-slate-700 px-2 py-1 text-slate-300 disabled:opacity-40"><Copy className="h-3 w-3" />{copied ? 'Copied' : 'Copy latest'}</button></div></div>
-              {logs.length === 0 ? <p className="text-slate-600">ستظهر هنا نتائج السكربتات وconsole.log/warn/error بعد تفعيل الأدوات.</p> : logs.map((entry) => <article key={entry.id} className="border-b border-slate-800 py-2"><div className={`mb-1 flex justify-between gap-2 ${entry.level === 'error' ? 'text-red-300' : entry.level === 'warn' ? 'text-amber-200' : 'text-emerald-200'}`}><span>{entry.level.toUpperCase()} {entry.source ? `· ${entry.source}` : ''}</span><span className="text-2xs text-slate-600">{new Date(entry.at).toLocaleTimeString()}</span></div><pre className="whitespace-pre-wrap break-words font-mono text-slate-200">{entry.message}</pre></article>)}
+              {scriptExecutionAllowed ? <><div className="text-slate-500">اكتب تعبيرًا أو سكربت JavaScript. Ctrl+Enter للتنفيذ.</div><textarea value={source} onChange={(event) => setSource(event.target.value)} onKeyDown={(event) => {
+                if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                  event.preventDefault();
+                  void runScript();
+                }
+              }} spellCheck={false} className="min-h-28 w-full resize-y rounded-lg border border-slate-700 bg-slate-900 p-3 font-mono text-sm text-slate-100 outline-none focus:border-amber-400" placeholder={'document.querySelectorAll("button").length'} /><div className="flex flex-wrap items-center gap-2">
+                  <label className="flex min-w-0 flex-1 items-start gap-2 text-xs leading-5 text-slate-300" dir="rtl"><input type="checkbox" checked={armed} onChange={(event) => setArmed(event.target.checked)} className="mt-1 accent-amber-400" />أفهم أن الكود سيعمل داخل الصفحة الحالية بصلاحيات حسابي</label>
+                  <button type="button" disabled={!armed || running || !source.trim()} onClick={() => void runScript()} className="inline-flex h-9 items-center gap-2 rounded-lg bg-amber-300 px-3 text-xs font-bold text-slate-950 disabled:opacity-40">
+                    <Play className="h-3.5 w-3.5" />
+                    {running ? 'Running…' : 'Run'}
+                  </button>
+                </div></> : <div className="rounded-lg border border-amber-500/30 bg-amber-950/20 p-3 text-amber-100" dir="rtl">تنفيذ السكربتات الحرة معطّل في الإنتاج لحماية سياسة أمان المحتوى (CSP). يمكنك استخدام باقي أدوات التشخيص هنا، أو تشغيل الموقع في بيئة التطوير لتنفيذ السكربتات.</div>}
+              <div className="flex items-center justify-between">
+                <strong className="text-slate-300">Console output</strong>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setLogs([])} className="inline-flex items-center gap-1 rounded border border-slate-700 px-2 py-1 text-slate-300"><RotateCcw className="h-3 w-3" />Clear</button>
+                  <button type="button" disabled={!latestOutput} onClick={() => void copyOutput()} className="inline-flex items-center gap-1 rounded border border-slate-700 px-2 py-1 text-slate-300 disabled:opacity-40">
+                    <Copy className="h-3 w-3" />
+                    {copied ? 'Copied' : 'Copy latest'}
+                  </button>
+                </div>
+              </div>
+              {logs.length === 0 ? <p className="text-slate-600">ستظهر هنا نتائج السكربتات وconsole.log/warn/error بعد تفعيل الأدوات.</p> : logs.map((entry) => <article key={entry.id} className="border-b border-slate-800 py-2">
+                <div className={`mb-1 flex justify-between gap-2 ${entry.level === 'error' ? 'text-red-300' : entry.level === 'warn' ? 'text-amber-200' : 'text-emerald-200'}`}>
+                  <span>
+                    {entry.level.toUpperCase()}
+                    {entry.source ? `· ${entry.source}` : ''}
+                  </span>
+                  <span className="text-2xs text-slate-600">
+                    {new Date(entry.at).toLocaleTimeString()}
+                  </span>
+                </div>
+                <pre className="whitespace-pre-wrap break-words font-mono text-slate-200">
+                  {entry.message}
+                </pre>
+              </article>)}
             </div>}
-            {tab === 'network' && <div className="space-y-2"><div className="flex items-center justify-between"><div className="text-slate-400">طلبات fetch وXHR من لحظة تفعيل الأدوات؛ لا تُعرض أجسام الطلبات أو الترويسات.</div><button type="button" onClick={() => setRequests([])} className="rounded border border-slate-700 px-2 py-1">Clear</button></div>{requests.length === 0 ? <p className="py-8 text-center text-slate-600">لم يتم رصد طلبات بعد. أعد تحميل الصفحة بعد فتح الأدوات لالتقاط طلبات البداية.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left"><thead className="text-slate-500"><tr><th className="p-2">Method</th><th className="p-2">URL</th><th className="p-2">Status</th><th className="p-2">Time</th><th className="p-2">Time stamp</th></tr></thead><tbody>{[...requests].reverse().map((request) => <tr key={request.id} className="border-t border-slate-800"><td className="p-2 font-mono">{request.method}</td><td className="max-w-[420px] break-all p-2 font-mono">{request.url}</td><td className={`p-2 ${request.failed ? 'text-red-300' : 'text-emerald-300'}`}>{request.status}</td><td className="p-2">{request.durationMs} ms</td><td className="p-2 text-slate-500">{new Date(request.at).toLocaleTimeString()}</td></tr>)}</tbody></table></div>}</div>}
-            {tab === 'elements' && <div className="space-y-3"><p className="text-slate-400">فحص DOM للصفحة الحالية عبر محدد CSS. الفحص للقراءة فقط ولا يعرض HTML الكامل أو قيم الحقول الحساسة.</p><div className="flex gap-2"><input value={selector} onChange={(event) => setSelector(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') inspectElements(); }} className="min-w-0 flex-1 rounded border border-slate-700 bg-slate-900 px-3 py-2 font-mono" placeholder="main, button, #app"/><button type="button" onClick={inspectElements} className="rounded bg-amber-300 px-3 font-bold text-slate-950">Inspect</button></div><pre className="whitespace-pre-wrap break-words rounded-lg border border-slate-800 bg-slate-900 p-3 font-mono">{inspected || 'اكتب محدد CSS واضغط Inspect.'}</pre></div>}
-            {tab === 'storage' && <div className="space-y-3"><div className="flex items-center justify-between"><p className="text-slate-400">أسماء وقيم التخزين المحلي والجلسة؛ القيم ذات المفاتيح الحساسة مخفية.</p><button type="button" onClick={refreshStorage} className="rounded border border-slate-700 px-2 py-1">Refresh</button></div>{storageSnapshot && (['local' as const, 'session' as const]).map((kind) => <section key={kind}><h3 className="mb-2 font-semibold">{kind === 'local' ? 'localStorage' : 'sessionStorage'}</h3>{storageSnapshot[kind].length ? storageSnapshot[kind].map((item) => <div key={item.key} className="grid grid-cols-[minmax(120px,0.7fr)_minmax(0,1.3fr)] gap-2 border-t border-slate-800 py-2"><code className="break-all text-amber-200">{item.key}</code><code className="break-all text-slate-300">{item.value}</code></div>) : <p className="text-slate-600">فارغ</p>}</section>)}</div>}
-            {tab === 'performance' && <div className="space-y-2"><div className="flex items-center justify-between"><p className="text-slate-400">موارد الصفحة من Performance API، مع الحجم المنقول حين يتيحه المتصفح.</p><button type="button" onClick={refreshPerformance} className="rounded border border-slate-700 px-2 py-1">Refresh</button></div>{perfSnapshot.length === 0 ? <p className="py-8 text-center text-slate-600">لا توجد موارد مسجلة.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[600px] text-left"><thead className="text-slate-500"><tr><th className="p-2">Resource</th><th className="p-2">Type</th><th className="p-2">Duration</th><th className="p-2">Transfer</th></tr></thead><tbody>{perfSnapshot.map((entry, index) => <tr key={`${entry.name}-${index}`} className="border-t border-slate-800"><td className="max-w-[400px] break-all p-2 font-mono">{entry.name}</td><td className="p-2">{entry.type}</td><td className="p-2">{entry.duration} ms</td><td className="p-2">{entry.size ? `${Math.round(entry.size / 1024)} KB` : '—'}</td></tr>)}</tbody></table></div>}</div>}
-            {tab === 'errors' && <div className="space-y-2"><div className="flex items-center justify-between"><p className="text-slate-400">أخطاء JavaScript ووعود Promise غير المعالجة منذ تفعيل الأدوات.</p><button type="button" onClick={() => setErrors([])} className="rounded border border-slate-700 px-2 py-1">Clear</button></div>{errors.length === 0 ? <p className="py-8 text-center text-slate-600">لا توجد أخطاء مسجلة.</p> : [...errors].reverse().map((error) => <div key={error.id} className="border-t border-slate-800 py-2"><p className="whitespace-pre-wrap break-words text-red-300">{error.message}</p><p className="mt-1 text-slate-600">{error.source ?? ''} · {new Date(error.at).toLocaleTimeString()}</p></div>)}</div>}
-            {tab === 'info' && <div className="space-y-2"><div className="flex items-center justify-between"><p className="text-slate-400">معلومات البيئة والمتصفح على الصفحة الحالية.</p><button type="button" onClick={refreshInfo} className="rounded border border-slate-700 px-2 py-1">Refresh</button></div>{Object.entries(pageInfo).map(([key, value]) => <div key={key} className="grid grid-cols-[140px_minmax(0,1fr)] gap-3 border-b border-slate-800 py-2"><span className="text-slate-500">{key}</span><span className="break-all text-slate-200">{value}</span></div>)}</div>}
+            {tab === 'network' && <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="text-slate-400">طلبات fetch وXHR من لحظة تفعيل الأدوات؛ لا تُعرض أجسام الطلبات أو الترويسات.</div>
+                <button type="button" onClick={() => setRequests([])} className="rounded border border-slate-700 px-2 py-1">Clear</button>
+              </div>
+              {requests.length === 0 ? <p className="py-8 text-center text-slate-600">لم يتم رصد طلبات بعد. أعد تحميل الصفحة بعد فتح الأدوات لالتقاط طلبات البداية.</p> : <div className="overflow-x-auto">
+                <table className="w-full min-w-[650px] text-left">
+                  <thead className="text-slate-500">
+                    <tr>
+                      <th className="p-2">Method</th>
+                      <th className="p-2">URL</th>
+                      <th className="p-2">Status</th>
+                      <th className="p-2">Time</th>
+                      <th className="p-2">Time stamp</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...requests].reverse().map((request) => <tr key={request.id} className="border-t border-slate-800">
+                      <td className="p-2 font-mono">
+                        {request.method}
+                      </td>
+                      <td className="max-w-[420px] break-all p-2 font-mono">
+                        {request.url}
+                      </td>
+                      <td className={`p-2 ${request.failed ? 'text-red-300' : 'text-emerald-300'}`}>
+                        {request.status}
+                      </td>
+                      <td className="p-2">{request.durationMs} ms</td>
+                      <td className="p-2 text-slate-500">
+                        {new Date(request.at).toLocaleTimeString()}
+                      </td>
+                    </tr>)}
+                  </tbody>
+                </table>
+              </div>}
+            </div>}
+            {tab === 'elements' && <div className="space-y-3">
+              <p className="text-slate-400">فحص DOM للصفحة الحالية عبر محدد CSS. الفحص للقراءة فقط ولا يعرض HTML الكامل أو قيم الحقول الحساسة.</p>
+              <div className="flex gap-2">
+                <input value={selector} onChange={(event) => setSelector(event.target.value)} onKeyDown={(event) => {
+                  if (event.key === 'Enter') inspectElements();
+                }} className="min-w-0 flex-1 rounded border border-slate-700 bg-slate-900 px-3 py-2 font-mono" placeholder="main, button, #app" />
+                <button type="button" onClick={inspectElements} className="rounded bg-amber-300 px-3 font-bold text-slate-950">Inspect</button>
+              </div>
+              <pre className="whitespace-pre-wrap break-words rounded-lg border border-slate-800 bg-slate-900 p-3 font-mono">
+                {inspected || 'اكتب محدد CSS واضغط Inspect.'}
+              </pre>
+            </div>}
+            {tab === 'storage' && <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-slate-400">أسماء وقيم التخزين المحلي والجلسة؛ القيم ذات المفاتيح الحساسة مخفية.</p>
+                <button type="button" onClick={refreshStorage} className="rounded border border-slate-700 px-2 py-1">Refresh</button>
+              </div>
+              {storageSnapshot && (['local' as const, 'session' as const]).map((kind) => <section key={kind}>
+                <h3 className="mb-2 font-semibold">
+                  {kind === 'local' ? 'localStorage' : 'sessionStorage'}
+                </h3>
+                {storageSnapshot[kind].length ? storageSnapshot[kind].map((item) => <div key={item.key} className="grid grid-cols-[minmax(120px,0.7fr)_minmax(0,1.3fr)] gap-2 border-t border-slate-800 py-2">
+                  <code className="break-all text-amber-200">
+                    {item.key}
+                  </code>
+                  <code className="break-all text-slate-300">
+                    {item.value}
+                  </code>
+                </div>) : <p className="text-slate-600">فارغ</p>}
+              </section>)}
+            </div>}
+            {tab === 'performance' && <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-slate-400">موارد الصفحة من Performance API، مع الحجم المنقول حين يتيحه المتصفح.</p>
+                <button type="button" onClick={refreshPerformance} className="rounded border border-slate-700 px-2 py-1">Refresh</button>
+              </div>
+              {perfSnapshot.length === 0 ? <p className="py-8 text-center text-slate-600">لا توجد موارد مسجلة.</p> : <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px] text-left">
+                  <thead className="text-slate-500">
+                    <tr>
+                      <th className="p-2">Resource</th>
+                      <th className="p-2">Type</th>
+                      <th className="p-2">Duration</th>
+                      <th className="p-2">Transfer</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {perfSnapshot.map((entry, index) => <tr key={`${entry.name}-${index}`} className="border-t border-slate-800">
+                      <td className="max-w-[400px] break-all p-2 font-mono">
+                        {entry.name}
+                      </td>
+                      <td className="p-2">
+                        {entry.type}
+                      </td>
+                      <td className="p-2">{entry.duration} ms</td>
+                      <td className="p-2">
+                        {entry.size ? `${Math.round(entry.size / 1024)} KB` : '—'}
+                      </td>
+                    </tr>)}
+                  </tbody>
+                </table>
+              </div>}
+            </div>}
+            {tab === 'errors' && <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-slate-400">أخطاء JavaScript ووعود Promise غير المعالجة منذ تفعيل الأدوات.</p>
+                <button type="button" onClick={() => setErrors([])} className="rounded border border-slate-700 px-2 py-1">Clear</button>
+              </div>
+              {errors.length === 0 ? <p className="py-8 text-center text-slate-600">لا توجد أخطاء مسجلة.</p> : [...errors].reverse().map((error) => <div key={error.id} className="border-t border-slate-800 py-2">
+                <p className="whitespace-pre-wrap break-words text-red-300">
+                  {error.message}
+                </p>
+                <p className="mt-1 text-slate-600">{error.source ?? ''} · {new Date(error.at).toLocaleTimeString()}</p>
+              </div>)}
+            </div>}
+            {tab === 'info' && <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-slate-400">معلومات البيئة والمتصفح على الصفحة الحالية.</p>
+                <button type="button" onClick={refreshInfo} className="rounded border border-slate-700 px-2 py-1">Refresh</button>
+              </div>
+              {Object.entries(pageInfo).map(([key, value]) => <div key={key} className="grid grid-cols-[140px_minmax(0,1fr)] gap-3 border-b border-slate-800 py-2">
+                <span className="text-slate-500">
+                  {key}
+                </span>
+                <span className="break-all text-slate-200">
+                  {value}
+                </span>
+              </div>)}
+            </div>}
           </div>
-          <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-700 px-3 py-2 text-2xs text-slate-500"><span>MarketPlat · Admin-only · current page: {typeof window !== 'undefined' ? window.location.pathname : ''}</span><span>Ctrl+Shift+K · Esc</span></footer>
+          <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-slate-700 px-3 py-2 text-2xs text-slate-500">
+            <span>MarketPlat · Admin-only · current page: {typeof window !== 'undefined' ? window.location.pathname : ''}</span>
+            <span>Ctrl+Shift+K · Esc</span>
+          </footer>
         </section>
       )}
     </>

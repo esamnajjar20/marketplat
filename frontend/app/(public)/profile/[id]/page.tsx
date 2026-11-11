@@ -1,13 +1,10 @@
 import type { Metadata }       from 'next';
 import dynamic                 from 'next/dynamic';
+import { notFound }            from 'next/navigation';
 import { cache }               from 'react';
-import IntentPrefetchLink                    from '@/components/navigation/IntentPrefetchLink';
-import { UserX }  from 'lucide-react';
 import { PublicProfileHeader } from '@/components/profile/PublicProfileHeader';
 import { ProfileTabsSection }  from '@/components/profile/ProfileTabsSection';
-import { EmptyState }          from '@/components/shared/feedback/EmptyState';
 import { buildMetadata }       from '@/lib/seo';
-import { ROUTES }              from '@/lib/constants';
 import type { PublicUser }     from '@/types/user.types';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { getQueryClient } from '@/lib/queryClient';
@@ -84,26 +81,8 @@ export default async function PublicProfilePage({ params, searchParams }: Props)
   // FIX SSR-FALLBACK-02: SSR fetch failed (not a 404) -> let the browser fetch it.
   if (!user && loadFailed) return <PublicProfileClient id={id} />;
 
-  // UX-FIX (audit P2-06): was bare centered text with no icon and, more
-  // importantly, no way back into the app — every other not-found state
-  // in the app (AdDetailSection, CategoryHero, SearchResults) uses
-  // EmptyState with a recovery action; this was the one dead end.
-  if (!user) {
-    return (
-      <div className="container mx-auto px-4 py-6">
-        <EmptyState
-          icon={<UserX className="h-10 w-10" />}
-          title="المستخدم غير موجود"
-          description="ربما تم حذف هذا الحساب أو أن الرابط غير صحيح"
-          action={
-            <IntentPrefetchLink href={ROUTES.home} className="text-sm text-primary hover:underline" prefetch={false}>
-              العودة للرئيسية
-            </IntentPrefetchLink>
-          }
-        />
-      </div>
-    );
-  }
+  // Confirmed 404 only: render the (public) group 404 with noindex instead of a 200 soft 404.
+  if (!user) notFound();
 
   const seller = user.sellerProfile;
   const hasStore = Boolean(seller?.storeDetails);

@@ -1,15 +1,12 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { cache, Suspense } from 'react';
-import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
-import { SearchX } from 'lucide-react';
 import { buildMetadata } from '@/lib/seo';
 import { storesApi } from '@/api/stores.api';
 import { StoreHeader } from '@/components/stores/StoreHeader';
 import { StoreDetailClient } from '@/components/stores/StoreDetailClient';
 import { StoreStorefront } from '@/components/stores/StoreStorefront';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
-import { EmptyState } from '@/components/shared/feedback/EmptyState';
-import { ROUTES } from '@/lib/constants';
 import { headers } from 'next/headers';
 import { buildStoreJsonLd, safeJsonLd } from '@/lib/structuredData';
 import { StoreVisitSnapshot } from '@/components/stores/StoreVisitSnapshot';
@@ -69,22 +66,10 @@ export default async function StorePage({ params }: Props) {
     if (statusCode !== 404) return <StoreDetailClient id={id} />;
   }
 
-  if (!store) {
-    return (
-      <div className="container mx-auto max-w-7xl px-3 py-6 sm:px-4 lg:py-8">
-        <EmptyState
-          icon={<SearchX className="h-10 w-10" />}
-          title="المتجر غير موجود"
-          description="ربما تم حذف هذا المتجر أو أن الرابط غير صحيح"
-          action={
-            <IntentPrefetchLink href={ROUTES.stores} className="text-sm text-primary hover:underline" prefetch={false}>
-              تصفح المتاجر
-            </IntentPrefetchLink>
-          }
-        />
-      </div>
-    );
-  }
+  // Confirmed 404 only (other failures returned the client fallback above):
+  // notFound() renders the (public) group 404 and emits noindex, instead of a
+  // 200 "soft 404" that search engines keep indexed.
+  if (!store) notFound();
 
   const nonce = (await headers()).get('x-nonce') ?? undefined;
   return (

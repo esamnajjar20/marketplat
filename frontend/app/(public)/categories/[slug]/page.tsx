@@ -1,6 +1,7 @@
 import type { Metadata }    from 'next';
 import { DesktopOnly } from '@/components/shared/layout/DesktopOnly';
 import dynamic from 'next/dynamic';
+import { notFound } from 'next/navigation';
 import { Suspense, cache } from 'react';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { getQueryClient }   from '@/lib/queryClient';
@@ -79,13 +80,19 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   await prefetchCategories(qc);
 
   let category: Category | null = null;
+  let categoryResolved = false;
   try {
     const response = await getCachedCategory(slug);
     category = response.data.data ?? null;
+    categoryResolved = true;
     if (category) qc.setQueryData(queryKeys.categories.slug(slug), category);
   } catch {
     // CategoryHero and SearchResults retain their client retry/offline paths.
   }
+
+  // The API answered successfully but has no such category: render the (public)
+  // group 404 (noindex) instead of an empty 200 page. Failures stay soft above.
+  if (categoryResolved && !category) notFound();
 
   const routeCategoryId = getBrowseParam(routeSearchParams, 'categoryId') ?? category?.id;
   const query = getBrowseParam(routeSearchParams, 'q')?.trim() ?? '';

@@ -48,7 +48,7 @@ check(/useNowAfterMount\(true, dateStr\)/.test(relativeTime) && /now === null/.t
 check(/setInterval\(notifyNow,\s*60_000\)/.test(clock) && /visibilitychange/.test(clock), 'Shared relative-time clock uses a single visibility-aware minute scheduler');
 check(/useNowAfterMount\(true, message\.createdAt\)/.test(chatRow), 'Chat day separator avoids implicit server/client current-time calculations');
 check(/messageDayLabel\(iso: string, now: Date\)/.test(messageUtils), 'Message day formatter requires an explicit reference clock');
-check(/useState<number\|null>\(null\)/.test(installmentForm) && /useEffect\(\(\)\s*=>\s*\{\s*setBaseTime\(Date\.now\(\)\);\s*\},\s*\[\]\)/.test(installmentForm), 'Installment dates are not generated during initial SSR/hydration render');
+check(/useState<number\s*\|\s*null>\(null\)/.test(installmentForm) && /useEffect\(\(\)\s*=>\s*\{\s*setBaseTime\(Date\.now\(\)\);\s*\},\s*\[\]\)/.test(installmentForm), 'Installment dates are not generated during initial SSR/hydration render');
 check(/messageDayLabel/.test(renderAudit) && /ChatMessageRow/.test(renderAudit), 'Render regression audit covers the message date boundary');
 
 console.log(`\nHydration regression audit: ${passed}/${passed + failures.length} checks passed`);

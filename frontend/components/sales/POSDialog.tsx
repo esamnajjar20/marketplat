@@ -34,8 +34,17 @@ export function POSDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
 
   useEffect(() => {
     if (!open) return;
-    setQuery(''); setCart([]); setCustomerQuery(''); setCustomerId(''); setBuyerName(''); setBuyerPhone('');
-    setPaymentMode('full'); setMethod('CASH'); setPayments([{ amount: '', method: 'CASH' }]); setInstallments([]); setNote('');
+    setQuery('');
+    setCart([]);
+    setCustomerQuery('');
+    setCustomerId('');
+    setBuyerName('');
+    setBuyerPhone('');
+    setPaymentMode('full');
+    setMethod('CASH');
+    setPayments([{ amount: '', method: 'CASH' }]);
+    setInstallments([]);
+    setNote('');
   }, [open]);
 
   // useMyProducts is typed as Product[] but the /products/me endpoint
@@ -104,50 +113,138 @@ export function POSDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
     }
   };
 
-  return <Dialog open={open} onOpenChange={(v) => { if (!create.isPending) onOpenChange(v); }}>
+  return <Dialog open={open} onOpenChange={(v) => {
+    if (!create.isPending) onOpenChange(v);
+  }}>
     <DialogContent className="max-h-[94dvh] overflow-y-auto sm:max-w-5xl" dir="rtl">
-      <DialogHeader><DialogTitle className="flex items-center gap-2"><ShoppingCart className="h-5 w-5" /> نقطة البيع</DialogTitle><DialogDescription>أضف عدة منتجات إلى فاتورة واحدة، ثم اختر العميل وطريقة الدفع.</DialogDescription></DialogHeader>
+      <DialogHeader>
+        <DialogTitle className="flex items-center gap-2"><ShoppingCart className="h-5 w-5" /> نقطة البيع</DialogTitle>
+        <DialogDescription>أضف عدة منتجات إلى فاتورة واحدة، ثم اختر العميل وطريقة الدفع.</DialogDescription>
+      </DialogHeader>
       <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
         <section className="space-y-3">
-          <div className="relative"><Search className="pointer-events-none absolute start-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="ps-9" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث عن منتج…" /></div>
+          <div className="relative">
+            <Search className="pointer-events-none absolute start-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input className="ps-9" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="ابحث عن منتج…" />
+          </div>
           <div className="grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2">
             {available.map((product) => <button key={product.id} type="button" onClick={() => addProduct(product)} disabled={product.stockQuantity != null && product.stockQuantity <= 0} className="rounded-2xl border border-border/70 p-3 text-start transition hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50">
-              <div className="flex items-start justify-between gap-2"><strong className="line-clamp-2">{product.name}</strong><span className="shrink-0 text-sm">{n(product.effectivePrice?.price ?? product.price).toFixed(2)} ₪</span></div>
-              <p className="mt-1 text-xs text-muted-foreground">المخزون: {product.stockQuantity ?? 'غير محدد'}</p>{product.stockQuantity != null && product.stockQuantity <= 0 ? <span className="mt-2 inline-block text-xs text-destructive">نفد المخزون</span> : null}
+              <div className="flex items-start justify-between gap-2">
+                <strong className="line-clamp-2">
+                  {product.name}
+                </strong>
+                <span className="shrink-0 text-sm">{n(product.effectivePrice?.price ?? product.price).toFixed(2)} ₪</span>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">المخزون: {product.stockQuantity ?? 'غير محدد'}</p>
+              {product.stockQuantity != null && product.stockQuantity <= 0 ? <span className="mt-2 inline-block text-xs text-destructive">نفد المخزون</span> : null}
             </button>)}
             {products.isLoading ? <div className="col-span-full rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">جارٍ تحميل المنتجات…</div> : null}
-            {products.isError ? <div className="col-span-full rounded-2xl border border-dashed p-5 text-center text-sm"><p className="text-destructive">تعذر تحميل المنتجات.</p><Button className="mt-2" variant="outline" size="sm" onClick={() => void products.refetch()}>إعادة المحاولة</Button></div> : null}
-            {noProducts ? <div className="col-span-full rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">{query.trim()?'لا توجد منتجات تطابق بحثك. جرّب اسمًا آخر.':'لا توجد منتجات نشطة متاحة للبيع.'}</div> : null}
+            {products.isError ? <div className="col-span-full rounded-2xl border border-dashed p-5 text-center text-sm">
+              <p className="text-destructive">تعذر تحميل المنتجات.</p>
+              <Button className="mt-2" variant="outline" size="sm" onClick={() => void products.refetch()}>إعادة المحاولة</Button>
+            </div> : null}
+            {noProducts ? <div className="col-span-full rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+              {query.trim() ? 'لا توجد منتجات تطابق بحثك. جرّب اسمًا آخر.' : 'لا توجد منتجات نشطة متاحة للبيع.'}
+            </div> : null}
           </div>
           {stockIssues.length ? <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">توجد كمية تتجاوز المخزون المتاح. عدّل الكمية قبل إتمام البيع.</p> : null}
           <div className="rounded-2xl border border-border/70 p-3">
-            <div className="mb-2 flex items-center justify-between"><strong>السلة ({cart.length})</strong><span className="text-sm text-muted-foreground">{quantity} قطعة</span></div>
+            <div className="mb-2 flex items-center justify-between">
+              <strong>السلة ({cart.length})</strong>
+              <span className="text-sm text-muted-foreground">{quantity} قطعة</span>
+            </div>
             <div className="space-y-2">
               {cart.map((line) => <div key={line.product.id} className="grid gap-2 rounded-lg bg-muted/30 p-2 sm:grid-cols-[1fr_90px_100px_100px_90px_32px] sm:items-center">
-                <div className="min-w-0"><strong className="line-clamp-1 text-sm">{line.product.name}</strong><span className="text-xs text-muted-foreground">متاح: {line.product.stockQuantity ?? 'غير محدود'}</span></div>
+                <div className="min-w-0">
+                  <strong className="line-clamp-1 text-sm">
+                    {line.product.name}
+                  </strong>
+                  <span className="text-xs text-muted-foreground">متاح: {line.product.stockQuantity ?? 'غير محدود'}</span>
+                </div>
                 <Input type="number" min="1" value={line.quantity} onChange={(e) => changeQty(line.product.id, n(e.target.value))} aria-label="الكمية" />
                 <Input type="number" min="0" step="0.01" value={line.unitPrice} onChange={(e) => changePrice(line.product.id, n(e.target.value))} aria-label="السعر" />
                 <Input type="number" min="0" step="0.01" value={line.discount} onChange={(e) => changeDiscount(line.product.id, n(e.target.value))} aria-label="الخصم" />
                 <strong className="text-sm">{(Math.max(0, line.unitPrice - line.discount) * line.quantity).toFixed(2)} ₪</strong>
-                <Button variant="ghost" size="icon" onClick={() => remove(line.product.id)} aria-label="حذف"><Trash2 className="h-4 w-4" /></Button>
+                <Button variant="ghost" size="icon" onClick={() => remove(line.product.id)} aria-label="حذف">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>)}
               {!cart.length ? <p className="py-8 text-center text-sm text-muted-foreground">أضف المنتجات إلى السلة.</p> : null}
             </div>
           </div>
         </section>
         <section className="space-y-3">
-          <div className="rounded-2xl border border-border/70 p-4"><strong>العميل</strong><div className="mt-3 grid gap-2 sm:grid-cols-2"><div className="relative sm:col-span-2"><Input value={buyerName} onChange={(e) => { setBuyerName(e.target.value); setCustomerId(''); setCustomerQuery(e.target.value); }} placeholder="اسم العميل" />{customers.data?.length ? <div className="absolute top-full z-30 mt-1 w-full rounded-lg border bg-popover p-1 shadow">{customers.data.map((c) => <button key={c.id} type="button" className="block w-full rounded p-2 text-start text-sm hover:bg-muted" onClick={() => { setCustomerId(c.id); setBuyerName(c.name); setBuyerPhone(c.phone ?? ''); setCustomerQuery(''); }}>{c.name}{c.phone ? ` · ${c.phone}` : ''}</button>)}</div> : null}</div><Input dir="ltr" value={buyerPhone} onChange={(e) => { setBuyerPhone(e.target.value); setCustomerId(''); setCustomerQuery(e.target.value); }} placeholder="رقم الجوال" /></div></div>
-          <div className="rounded-2xl border border-border/70 p-4"><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{([['full','كامل'],['partial','متعدد'],['due','آجل'],['installments','تقسيط']] as const).map(([v,l]) => <Button key={v} type="button" variant={paymentMode === v ? 'default' : 'outline'} onClick={() => setPaymentMode(v)}>{l}</Button>)}</div>
-            {paymentMode === 'full' ? <div className="mt-3 grid grid-cols-2 gap-2"><select value={method} onChange={(e) => setMethod(e.target.value as SaleTransferMethod)} className="h-10 rounded-md border bg-background px-3"><option value="CASH">نقدي</option><option value="JAWWAL_PAY">جوال باي</option><option value="BANK_PALESTINE">بنك فلسطين</option><option value="PALPAY">PalPay</option><option value="CARD">بطاقة</option><option value="OTHER">أخرى</option></select><div className="rounded-lg bg-muted/40 p-2 text-sm">المدفوع: <strong>{total.toFixed(2)} ₪</strong></div></div> : null}
-            {paymentMode === 'partial' ? <div className="mt-3"><MixedPaymentForm payments={payments} onChange={setPayments} total={total} /></div> : null}
-            {paymentMode === 'installments' ? <div className="mt-3"><InstallmentForm due={total} onChange={setInstallments} /><p className="mt-2 text-xs text-muted-foreground">مجموع الأقساط: {installmentTotal.toFixed(2)} ₪</p></div> : null}
-            <div className="mt-4 flex justify-between border-t pt-3"><span>المتبقي</span><strong>{due.toFixed(2)} ₪</strong></div>
+          <div className="rounded-2xl border border-border/70 p-4">
+            <strong>العميل</strong>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div className="relative sm:col-span-2">
+                <Input value={buyerName} onChange={(e) => {
+                  setBuyerName(e.target.value);
+                  setCustomerId('');
+                  setCustomerQuery(e.target.value);
+                }} placeholder="اسم العميل" />
+                {customers.data?.length ? <div className="absolute top-full z-30 mt-1 w-full rounded-lg border bg-popover p-1 shadow">
+                  {customers.data.map((c) => <button key={c.id} type="button" className="block w-full rounded p-2 text-start text-sm hover:bg-muted" onClick={() => {
+                    setCustomerId(c.id);
+                    setBuyerName(c.name);
+                    setBuyerPhone(c.phone ?? '');
+                    setCustomerQuery('');
+                  }}>
+                    {c.name}
+                    {c.phone ? ` · ${c.phone}` : ''}
+                  </button>)}
+                </div> : null}
+              </div>
+              <Input dir="ltr" value={buyerPhone} onChange={(e) => {
+                setBuyerPhone(e.target.value);
+                setCustomerId('');
+                setCustomerQuery(e.target.value);
+              }} placeholder="رقم الجوال" />
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border/70 p-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {([['full', 'كامل'], ['partial', 'متعدد'], ['due', 'آجل'], ['installments', 'تقسيط']] as const).map(([v, l]) => <Button key={v} type="button" variant={paymentMode === v ? 'default' : 'outline'} onClick={() => setPaymentMode(v)}>
+                {l}
+              </Button>)}
+            </div>
+            {paymentMode === 'full' ? <div className="mt-3 grid grid-cols-2 gap-2">
+              <select value={method} onChange={(e) => setMethod(e.target.value as SaleTransferMethod)} className="h-10 rounded-md border bg-background px-3">
+                <option value="CASH">نقدي</option>
+                <option value="JAWWAL_PAY">جوال باي</option>
+                <option value="BANK_PALESTINE">بنك فلسطين</option>
+                <option value="PALPAY">PalPay</option>
+                <option value="CARD">بطاقة</option>
+                <option value="OTHER">أخرى</option>
+              </select>
+              <div className="rounded-lg bg-muted/40 p-2 text-sm">المدفوع: <strong>{total.toFixed(2)} ₪</strong></div>
+            </div> : null}
+            {paymentMode === 'partial' ? <div className="mt-3">
+              <MixedPaymentForm payments={payments} onChange={setPayments} total={total} />
+            </div> : null}
+            {paymentMode === 'installments' ? <div className="mt-3">
+              <InstallmentForm due={total} onChange={setInstallments} />
+              <p className="mt-2 text-xs text-muted-foreground">مجموع الأقساط: {installmentTotal.toFixed(2)} ₪</p>
+            </div> : null}
+            <div className="mt-4 flex justify-between border-t pt-3">
+              <span>المتبقي</span>
+              <strong>{due.toFixed(2)} ₪</strong>
+            </div>
           </div>
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ملاحظة على الفاتورة" />
-          <div className="rounded-xl border bg-muted/30 p-4"><div className="flex justify-between text-sm"><span>الإجمالي</span><strong className="text-xl">{total.toFixed(2)} ₪</strong></div><p className="mt-1 text-xs text-muted-foreground">الخصومات محسوبة على مستوى كل منتج.</p></div>
+          <div className="rounded-xl border bg-muted/30 p-4">
+            <div className="flex justify-between text-sm">
+              <span>الإجمالي</span>
+              <strong className="text-xl">{total.toFixed(2)} ₪</strong>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">الخصومات محسوبة على مستوى كل منتج.</p>
+          </div>
         </section>
       </div>
-      <DialogFooter><Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button><Button loading={create.isPending} loadingText="جارٍ التسجيل…" disabled={!cart.length || total <= 0 || stockIssues.length > 0 || (paymentMode === 'partial' && (mixedTotal <= 0 || mixedTotal > total)) || (paymentMode === 'installments' && (!installments.length || Math.abs(installmentTotal - total) > 0.009))} onClick={() => void submit()}>إتمام البيع</Button></DialogFooter>
+      <DialogFooter>
+        <Button variant="outline" onClick={() => onOpenChange(false)}>إلغاء</Button>
+        <Button loading={create.isPending} loadingText="جارٍ التسجيل…" disabled={!cart.length || total <= 0 || stockIssues.length > 0 || (paymentMode === 'partial' && (mixedTotal <= 0 || mixedTotal > total)) || (paymentMode === 'installments' && (!installments.length || Math.abs(installmentTotal - total) > 0.009))} onClick={() => void submit()}>إتمام البيع</Button>
+      </DialogFooter>
     </DialogContent>
   </Dialog>;
 }
