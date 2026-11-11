@@ -9,7 +9,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStore, type StoreSummary } from '@/features/commerce/commerce.api';
 import { saveStoreHours } from '@/features/commerce/store-management.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 type Day = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
 type Schedule = {
   open: string;
@@ -123,7 +123,7 @@ export default function StoreHoursScreen() {
       open: '09:00', close: '17:00'
     }
   }))} style={{
-    minWidth: 76, minHeight: 42, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 10, backgroundColor: hours[day.key] ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: hours[day.key] ? colors.brand : colors.border
+    minWidth: 76, minHeight: 42, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.sm, backgroundColor: hours[day.key] ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: hours[day.key] ? colors.brand : colors.border
   }}><Text style={{
     color: colors.brand, fontWeight: fontWeights.bold
   }}>{hours[day.key] ? 'مفتوح' : 'مغلق'}</Text></Pressable></View>{hours[day.key] ? <View style={{

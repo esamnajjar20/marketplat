@@ -6,7 +6,7 @@ import { AppImage } from '@/components/AppImage';
 import { AppIcon } from '@/components/Icons';
 import type { ChatMessage } from '@/features/messaging/messaging.api';
 import { CHAT_OUTBOX_MAX_ATTEMPTS } from '@/storage/outbox-manager';
-import { fontSizes, elevation, spacing, typography, fontWeights } from '@/theme/tokens';
+import { fontSizes, elevation, spacing, typography, fontWeights, radius } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { isAllowedMediaUrl } from '@/lib/safe-media-url';
 import { formatDate } from '@/lib/formatters';
@@ -162,14 +162,14 @@ function createStyles(colors: import('@/theme/tokens').ColorPalette) {
   mine: {
     alignSelf: 'flex-end',
     backgroundColor: colors.brand,
-    borderBottomEndRadius: 6,
+    borderBottomEndRadius: radius.xs,
   },
   theirs: {
     alignSelf: 'flex-start',
     backgroundColor: colors.surface,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
-    borderBottomStartRadius: 6,
+    borderBottomStartRadius: radius.xs,
     ...elevation.xs,
   },
   messageText: {
@@ -197,12 +197,12 @@ function createStyles(colors: import('@/theme/tokens').ColorPalette) {
   messageImage: {
     width: 200,
     height: 160,
-    borderRadius: 12,
+    borderRadius: radius.control,
     backgroundColor: colors.borderSubtle ?? colors.border,
   },
   mediaAction: {
     minHeight: 44,
-    borderRadius: 12,
+    borderRadius: radius.control,
     backgroundColor: colors.brandSoft,
     paddingHorizontal: spacing.sm,
     justifyContent: 'center',

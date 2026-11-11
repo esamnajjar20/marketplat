@@ -8,7 +8,7 @@ import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider, updateMyServiceProviderWorkingHours } from '@/features/services/providers.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, fontWeights } from '@/theme/tokens';
+import { fontSizes, fontWeights, radius } from '@/theme/tokens';
 type Day = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
 type Schedule = {
   open: string;
@@ -122,7 +122,7 @@ export default function ServiceProviderHoursScreen() {
       open: '09:00', close: '17:00'
     }
   }))} style={{
-    minHeight: 44, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 10, backgroundColor: hours[day.key] ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: colors.controlBorder, minWidth: 82, alignItems: 'center', justifyContent: 'center'
+    minHeight: 44, paddingVertical: 11, paddingHorizontal: 14, borderRadius: radius.sm, backgroundColor: hours[day.key] ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: colors.controlBorder, minWidth: 82, alignItems: 'center', justifyContent: 'center'
   }}><Text style={{
     color: colors.brandOnSoft, fontWeight: fontWeights.bold
   }}>{hours[day.key] ? 'مفتوح' : 'مغلق'}</Text></Pressable></View>{hours[day.key] ? <View style={{

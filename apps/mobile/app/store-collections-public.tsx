@@ -7,7 +7,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { fetchPublicCollections, type StoreCollection } from '@/features/commerce/store-management.api';
 import { ErrorState, Notice, PageShell, SectionCard } from '@/components/MobileUI';
-import { spacing } from '@/theme/tokens';
+import { spacing, radius } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
@@ -40,7 +40,7 @@ export default function PublicStoreCollectionsScreen() {
         renderItem={({ item }) => (
           <Pressable accessibilityRole="button" onPress={() => pushOnce({ pathname: '/collections/[id]', params: { id: item.id } })}>
             <SectionCard>
-              {item.imageUrl ? <AppImage uri={item.imageUrl} style={{ width: '100%', height: 140, borderRadius: 12 }} resizeMode="cover" /> : null}
+              {item.imageUrl ? <AppImage uri={item.imageUrl} style={{ width: '100%', height: 140, borderRadius: radius.control }} resizeMode="cover" /> : null}
               <Text tone="ink" strong size={17}>{item.name}</Text>
               <Text tone="muted">{item.description || 'مجموعة منتجات'} · {item._count?.products ?? 0} منتج</Text>
               <Text tone="brand" strong>عرض المنتجات ←</Text>

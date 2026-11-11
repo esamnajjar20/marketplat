@@ -11,7 +11,7 @@ import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchInstallments, payInstallment, type InstallmentRow } from '@/features/sales/sales-extra.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { ApiError } from '@/api/client';
 import { createMobileOperationId } from '@/lib/operation-id';
@@ -211,7 +211,7 @@ export default function InstallmentsScreen() {
                 style={{
                   borderWidth: 1,
                   borderColor: colors.border,
-                  borderRadius: 12,
+                  borderRadius: radius.control,
                   padding: 14,
                   minHeight: 52,
                   color: colors.ink,

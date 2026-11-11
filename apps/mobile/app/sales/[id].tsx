@@ -10,7 +10,7 @@ import { fetchSaleDetail, fetchSaleReceipt } from '@/features/sales/sales-extra.
 import type { SaleRecord } from '@/features/sales/sales.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { formatDate, formatMoney } from '@/lib/formatters';
-import { fontWeights } from '@/theme/tokens';
+import { fontWeights, spacing } from '@/theme/tokens';
 const paymentMethodLabel = (method: string) => ({
     CASH: 'نقدًا', CASH_ON_DELIVERY: 'نقدًا عند الاستلام', CARD: 'بطاقة', BANK_TRANSFER: 'تحويل بنكي', WALLET: 'محفظة إلكترونية', OTHER: 'أخرى'
 } as Record<string, string>)[method] || 'وسيلة دفع أخرى';
@@ -103,11 +103,11 @@ export default function SaleDetailScreen() {
     }[sale.paymentStatus] || 'غير محددة'}</Text><Text tone="muted">العميل: {sale.buyerName}{sale.buyerPhone ? ` · ${sale.buyerPhone}` : ''}</Text>{sale.store ? <Text tone="muted">المتجر: {sale.store.name}</Text> : null}{sale.note ? <Text tone="muted">ملاحظات: {sale.note}</Text> : null}</SectionCard><SectionCard><Text tone="ink" strong size={17}>ملخص المبالغ</Text>{[
         ['الإجمالي', formatMoney(sale.totalPrice, sale.currency)], ['المحصّل', formatMoney(sale.paidAmount, sale.currency)], ['المتبقي', formatMoney(sale.dueAmount, sale.currency)], ['المسترد', formatMoney(sale.refundedAmount, sale.currency)], ['الاستحقاق', sale.dueDate ? formatDate(sale.dueDate, 'date') : 'غير محدد']
     ].map(([label, value]) => <View key={String(label)} style={{
-        flexDirection: 'row', justifyContent: 'space-between', gap: 8
+        flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm
     }}><Text style={{ color: colors.muted }}>{label}</Text><Text style={{
         color: label === 'المتبقي' && Number(sale.dueAmount) > 0 ? colors.danger : colors.ink, fontWeight: fontWeights.bold
     }}>{value}</Text></View>)}</SectionCard>{sale.items?.length ? <SectionCard><Text tone="ink" strong size={16}>عناصر البيع</Text>{sale.items.map(item => <View key={item.id} style={{
-        paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 4
+        paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, gap: spacing.xs
     }}><Text tone="ink" strong>{item.title}</Text><Text tone="muted">الكمية: {item.quantity} · سعر الوحدة: {formatMoney(item.unitPrice, sale.currency)}</Text><Text tone="brand" strong>الإجمالي: {formatMoney(item.lineTotal, sale.currency)}{item.returnedQuantity ? ` · مرتجع ${item.returnedQuantity}` : ''}</Text></View>)}</SectionCard> : null}{sale.payments?.length ? <SectionCard><Text tone="ink" strong size={16}>الدفعات المسجلة</Text>{sale.payments.map(payment => <View key={payment.id} style={{
         paddingVertical: 7, gap: 3
     }}><Text tone="ink" strong>{formatMoney(payment.amount, sale.currency)}</Text><Text tone="muted">{formatDate(payment.paidAt)}{payment.method ? ` · ${paymentMethodLabel(payment.method)}` : ''}{payment.note ? ` · ${payment.note}` : ''}</Text></View>)}</SectionCard> : null}{sale.installments?.length ? <SectionCard><Text tone="ink" strong size={16}>جدول الأقساط</Text>{sale.installments.map(inst => <View key={inst.id} style={{

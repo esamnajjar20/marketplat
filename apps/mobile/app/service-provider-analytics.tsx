@@ -9,7 +9,7 @@ import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchServiceProviderAnalytics } from '@/features/services/service-management.api';
 import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
-import { fontWeights } from '@/theme/tokens';
+import { fontWeights, spacing, radius } from '@/theme/tokens';
 const metrics: [
   string,
   string
@@ -57,11 +57,11 @@ export default function ServiceProviderAnalyticsScreen() {
   }}>تسجيل الدخول</Text></Pressable></> : <><View style={{
     flexDirection: 'row', gap: 10
   }}>{([['7d', '7 أيام'], ['30d', '30 يومًا'], ['all', 'كل الفترة']] as const).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setPeriod(v)} style={{
-    flex: 1, padding: 12, borderRadius: 12, backgroundColor: period === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: period === v ? colors.brand : colors.border
+    flex: 1, padding: spacing.md, borderRadius: radius.control, backgroundColor: period === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: period === v ? colors.brand : colors.border
   }}><Text style={{
     textAlign: 'center', color: colors.ink, fontWeight: fontWeights.bold
   }}>{l}</Text></Pressable>)}</View>{loading ? <Notice tone="muted">جارٍ تحميل الإحصاءات…</Notice> : error ? <Notice>{error}</Notice> : data ? <><View style={{
-    flexDirection: 'row', flexWrap: 'wrap', gap: 12
+    flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md
   }}>{metrics.map(([key, label]) => <View key={key} style={{
     width: '47%', flexGrow: 1
   }}><SectionCard><Text tone="muted" size={12}>{label}</Text><Text tone="ink" strong size={24}>{data[key] === null ? '—' : typeof data[key] === 'number' ? (key === 'revenue' ? formatMoney(data[key]) : formatNumber(data[key], 2)) : String(data[key] ?? '—')}</Text></SectionCard></View>)}</View><Text tone="ink" strong size={17}>الخدمات الأكثر مشاهدة</Text>{Array.isArray(data.topListings) && data.topListings.length ? data.topListings.map((row, index) => {

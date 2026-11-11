@@ -11,6 +11,7 @@ import { fetchServiceListing, type ServiceListing } from '@/features/services/se
 import { removeServiceImage, reorderServiceImages, uploadServiceImages } from '@/features/services/service-management.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { normalizePickedImage } from '@/lib/normalize-image-asset';
+import { spacing, radius } from '@/theme/tokens';
 export default function ServiceImagesScreen() {
     const p = useLocalSearchParams<{
         id: string | string[];
@@ -113,9 +114,9 @@ export default function ServiceImagesScreen() {
         }
     };
     return <PageShell title="صور الخدمة">{!accessToken ? <><Notice>سجّل الدخول لإدارة صور الخدمة.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل الخدمة…</Notice> : error && !item ? <Notice>{error}</Notice> : item ? <><Text tone="ink" strong size={18}>{item.title}</Text><Notice tone="muted">يمكنك إضافة حتى 10 صور. استخدم الأسهم لتغيير ترتيب العرض؛ الصورة الأولى هي الغلاف.</Notice>{item.images?.length ? item.images.map((url, index) => <SectionCard key={`${url}-${index}`}><AppImage uri={url} style={{
-        width: '100%', height: 190, borderRadius: 12
+        width: '100%', height: 190, borderRadius: radius.control
     }}/><Text tone="muted">{index === 0 ? 'الصورة الرئيسية' : `الصورة ${index + 1}`}</Text><View style={{
-        flexDirection: 'row', gap: 8
+        flexDirection: 'row', gap: spacing.sm
     }}><PrimaryButton label="↑ للأعلى" variant="secondary" disabled={index === 0 || busy} onPress={() => void move(index, -1)}/><PrimaryButton label="↓ للأسفل" variant="secondary" disabled={index === item.images!.length - 1 || busy} onPress={() => void move(index, 1)}/><PrimaryButton label="حذف" variant="danger" disabled={busy} onPress={() => confirmAlert('حذف الصورة', 'هل تريد حذف هذه الصورة؟', [{
             text: 'إلغاء', style: 'cancel'
         }, {

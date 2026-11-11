@@ -14,7 +14,7 @@ import { createMarketplaceRequest, fetchRequestCategories } from '@/features/req
 import { enqueueMarketplaceRequest } from '@/storage/outbox-manager';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
 import { showToast } from '@/lib/toast';
-import { fontWeights } from '@/theme/tokens';
+import { fontWeights, spacing, radius } from '@/theme/tokens';
 type Kind = 'SERVICE' | 'PRODUCT' | 'RENTAL';
 export default function RequestCreateScreen() {
   const { colors } = useAppTheme();
@@ -122,18 +122,18 @@ export default function RequestCreateScreen() {
     }
   };
   return <PageShell title="إنشاء طلب"><View style={{
-    flexDirection: 'row', gap: 8
+    flexDirection: 'row', gap: spacing.sm
   }}>{([['SERVICE', 'خدمة'], ['PRODUCT', 'منتج'], ['RENTAL', 'تأجير']] as [
     Kind,
     string
   ][]).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setType(v)} style={{
-    flex: 1, minHeight: 48, justifyContent: 'center', padding: 12, borderRadius: 14, backgroundColor: type === v ? colors.brand : colors.surface, borderWidth: 1, borderColor: type === v ? colors.brand : colors.border
+    flex: 1, minHeight: 48, justifyContent: 'center', padding: spacing.md, borderRadius: 14, backgroundColor: type === v ? colors.brand : colors.surface, borderWidth: 1, borderColor: type === v ? colors.brand : colors.border
   }}><Text style={{
     textAlign: 'center', color: type === v ? colors.white : colors.ink, fontWeight: fontWeights.bold
   }}>{l}</Text></Pressable>)}</View><Text tone="ink" strong>التصنيف</Text><View style={{
-    flexDirection: 'row', flexWrap: 'wrap', gap: 8
+    flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm
   }}>{categories.map(c => <Pressable accessibilityRole="button" key={c.id} onPress={() => setCategoryId(c.id)} style={{
-    minHeight: 42, justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, backgroundColor: categoryId === c.id ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: categoryId === c.id ? colors.brand : colors.border
+    minHeight: 42, justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.control, backgroundColor: categoryId === c.id ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: categoryId === c.id ? colors.brand : colors.border
   }}><Text style={{ color: colors.ink }}>{c.name}</Text></Pressable>)}</View>{!catLoading && categories.length === 0 ? <Notice tone="muted">لا توجد تصنيفات متاحة لهذا النوع أو تعذر تحميلها.</Notice> : null}<Field label="عنوان الطلب" value={title} onChangeText={setTitle} placeholder="مثال: أحتاج إلى إصلاح مكيف" maxLength={150}/><Field label="وصف الطلب" value={description} onChangeText={setDescription} multiline maxLength={1000} placeholder="اشرح المطلوب والمواصفات والموعد المتوقع…"/><Field label="المدينة (اختياري)" value={city} onChangeText={setCity} placeholder="المدينة"/><View style={{
     flexDirection: 'row', gap: 10
   }}><View style={{ flex: 1 }}><Field label="أقل ميزانية (شيكل)" value={min} onChangeText={(v) => setMin(normalizeNumericInput(v))} keyboardType="numeric" placeholder="اختياري"/></View><View style={{ flex: 1 }}><Field label="أعلى ميزانية (شيكل)" value={max} onChangeText={(v) => setMax(normalizeNumericInput(v))} keyboardType="numeric" placeholder="اختياري"/></View></View>{error ? <Notice>{error}</Notice> : null}<PrimaryButton label="نشر الطلب" onPress={() => void submit()} busy={busy}/></PageShell>;

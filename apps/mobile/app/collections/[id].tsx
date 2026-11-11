@@ -11,7 +11,7 @@ import { pushOnce } from '@/lib/navigation';
 import { fetchPublicCollectionProducts } from '@/features/commerce/store-management.api';
 import type { ProductSummary } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
-import { spacing } from '@/theme/tokens';
+import { spacing, radius } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 
@@ -63,7 +63,7 @@ export default function CollectionProductsScreen() {
           <Pressable accessibilityRole="button" onPress={() => pushOnce({ pathname: '/products/[id]', params: { id: item.id } })}>
             <SectionCard>
               {item.images?.[0] ? (
-                <AppImage uri={item.images[0]} style={{ width: '100%', height: 160, borderRadius: 12 }} resizeMode="cover" />
+                <AppImage uri={item.images[0]} style={{ width: '100%', height: 160, borderRadius: radius.control }} resizeMode="cover" />
               ) : null}
               <Text tone="ink" strong size={16}>{item.name}</Text>
               <Text tone="brand" strong>

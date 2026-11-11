@@ -8,7 +8,7 @@ import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceTypeProfiles, updateMyServiceTypeProfile, type ProviderServiceTypeField, type ProviderServiceTypeProfile } from '@/features/services/providers.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 
 type AttributesByType = Record<string, Record<string, unknown>>;
 type FieldErrors = Record<string, string>;
@@ -172,7 +172,7 @@ export default function ServiceTypesScreen() {
               const fieldError = fieldErrors[`${item.serviceTypeId}:${field.key}`];
               if (type === 'BOOLEAN') {
                 const checked = typeof value === 'boolean' ? value : false;
-                return <Pressable key={field.key} accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={() => setAttribute(item.serviceTypeId, field.key, !checked)} style={{ padding: spacing.md, borderRadius: 10, borderWidth: 1, borderColor: checked ? colors.brand : colors.border, backgroundColor: checked ? colors.brandSoft : colors.surface, gap: 5 }}><Text tone="ink" strong>{label}</Text><Text tone="brand">{checked ? 'نعم' : 'لا'}</Text>{fieldError ? <Text tone="danger">{fieldError}</Text> : null}</Pressable>;
+                return <Pressable key={field.key} accessibilityRole="checkbox" accessibilityState={{ checked }} onPress={() => setAttribute(item.serviceTypeId, field.key, !checked)} style={{ padding: spacing.md, borderRadius: radius.sm, borderWidth: 1, borderColor: checked ? colors.brand : colors.border, backgroundColor: checked ? colors.brandSoft : colors.surface, gap: 5 }}><Text tone="ink" strong>{label}</Text><Text tone="brand">{checked ? 'نعم' : 'لا'}</Text>{fieldError ? <Text tone="danger">{fieldError}</Text> : null}</Pressable>;
               }
               if (type === 'SELECT' || type === 'MULTI_SELECT') {
                 const options = optionsOf(field);

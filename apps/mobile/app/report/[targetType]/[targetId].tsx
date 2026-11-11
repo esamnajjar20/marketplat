@@ -8,6 +8,7 @@ import { TextInput } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import { submitReport, type ReportReason } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { spacing } from '@/theme/tokens';
 const reasons: {
   value: ReportReason;
   label: string;
@@ -84,7 +85,7 @@ export default function ReportTargetScreen() {
   }}><Text style={{
     textAlign: 'right', color: colors.ink, fontWeight: reason === item.value ? '700' : '400'
   }}>{reason === item.value ? '● ' : '○ '}{item.label}</Text></Pressable>)}<Text style={{
-    textAlign: 'right', color: colors.ink, marginTop: 16, marginBottom: 6
+    textAlign: 'right', color: colors.ink, marginTop: spacing.lg, marginBottom: 6
   }}>تفاصيل إضافية (اختياري)</Text><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="تفاصيل البلاغ" multiline value={notes} onChangeText={setNotes} maxLength={500} placeholder="اشرح المشكلة بإيجاز (500 حرف كحد أقصى)" placeholderTextColor={colors.muted} textAlignVertical="top" style={{
     minHeight: 124, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 14, textAlign: 'right', color: colors.ink
   }}/><Text tone="muted" size={12}>{notes.length}/500</Text><PrimaryButton label="إرسال البلاغ" onPress={() => void send()} busy={busy}/></SectionCard></>}{error ? <Notice>{error}</Notice> : null}</PageShell>;

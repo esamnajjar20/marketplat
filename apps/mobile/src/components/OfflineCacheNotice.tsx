@@ -6,7 +6,7 @@ import {
   getOfflineCacheStatusSnapshot,
   subscribeOfflineCacheStatus,
 } from '@/api/offline-cache-status';
-import { spacing, fontWeights } from '@/theme/tokens';
+import { spacing, fontWeights, radius } from '@/theme/tokens';
 
 function formatAge(ageMs: number): string {
   const minutes = Math.floor(Math.max(0, ageMs) / 60_000);
@@ -42,7 +42,7 @@ export function OfflineCacheNotice() {
         paddingVertical: spacing.sm,
         borderWidth: 1,
         borderColor: colors.warningBorder,
-        borderRadius: 12,
+        borderRadius: radius.control,
         backgroundColor: colors.warningSoft,
       }}
     >

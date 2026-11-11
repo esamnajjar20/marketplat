@@ -12,7 +12,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider, saveMyServiceProvider, type ServiceProviderProfile } from '@/features/services/providers.api';
 import { uploadServiceProviderLogo } from '@/features/services/service-management.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { normalizePickedImage } from '@/lib/normalize-image-asset';
 const hours = {
   sun: null, mon: null, tue: null, wed: null, thu: null, fri: null, sat: null
@@ -132,13 +132,13 @@ export default function ServiceProviderProfileScreen() {
   }}/> : null}<PrimaryButton label={logoBusy ? 'جارٍ رفع الشعار…' : 'رفع/تغيير شعار مقدم الخدمة'} variant="secondary" onPress={() => void chooseLogo()} busy={logoBusy}/></View> : null}<Text tone="ink" strong size={18}>{profile ? 'تعديل بيانات النشاط' : 'إنشاء ملف مقدم خدمة'}</Text><Field label="اسم النشاط" value={name} onChangeText={setName} maxLength={100} placeholder="اسم النشاط أو مقدم الخدمة"/><Field label="وصف النشاط" value={description} onChangeText={setDescription} multiline maxLength={1000} placeholder="اشرح خدماتك وخبرتك"/><Field label="رقم التواصل" value={phone} onChangeText={setPhone} placeholder="رقم هاتف متاح للعملاء" keyboardType="phone-pad"/><Field label="مدن/مناطق الخدمة (افصل بينها بفاصلة)" value={cities} onChangeText={setCities} placeholder="غزة، النصيرات، دير البلح"/><Text tone="ink" strong>نوع النشاط</Text><View style={{
     flexDirection: 'row', gap: spacing.sm
   }}>{([['INDIVIDUAL', 'فردي'], ['SMALL_BUSINESS', 'مشروع صغير']] as const).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setBusinessType(v)} style={{
-    flex: 1, padding: 11, borderRadius: 10, backgroundColor: businessType === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: colors.border
+    flex: 1, padding: 11, borderRadius: radius.sm, backgroundColor: businessType === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: colors.border
   }}><Text style={{
     textAlign: 'center', color: colors.ink, fontWeight: fontWeights.bold
   }}>{l}</Text></Pressable>)}</View><Text tone="ink" strong>حالة التوفر</Text><View style={{
     flexDirection: 'row', gap: spacing.sm
   }}>{([['AVAILABLE', 'متاح'], ['BUSY', 'مشغول'], ['UNAVAILABLE', 'غير متاح']] as const).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setAvailability(v)} style={{
-    flex: 1, padding: 9, borderRadius: 10, backgroundColor: availability === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: colors.border
+    flex: 1, padding: 9, borderRadius: radius.sm, backgroundColor: availability === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: colors.border
   }}><Text style={{
     textAlign: 'center', fontSize: fontSizes[12], color: colors.ink
   }}>{l}</Text></Pressable>)}</View><PrimaryButton label={profile ? 'حفظ التعديلات' : 'إنشاء ملف مقدم الخدمة'} onPress={() => void save()} busy={busy}/><PrimaryButton label="إدارة خدماتي" variant="secondary" onPress={() => router.push('/my-services')}/><PrimaryButton label="إحصاءات مقدم الخدمة" variant="secondary" onPress={() => router.push('/service-provider-analytics')}/><PrimaryButton label="أنواع الخدمات وخصائصها" variant="secondary" onPress={() => router.push('/service-types')}/><PrimaryButton label="ساعات عمل مقدم الخدمة" variant="secondary" onPress={() => router.push('/service-provider-hours')}/></SectionCard>}{error ? <Notice>{error}</Notice> : null}{message ? <Notice tone="success">{message}</Notice> : null}</PageShell>;

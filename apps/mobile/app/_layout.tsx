@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '@/components/BottomNavigation';
 import { MobileDrawerProvider } from '@/components/MobileDrawer';
 import { StatusBar } from 'expo-status-bar';
-import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { AppThemeProvider, useAppTheme, useAppThemeColors } from '@/theme/ThemeProvider';
 import { AuthProvider, useAuth } from '@/features/auth/AuthContext';
 import { ConnectivityProvider, useIsOnline } from '@/lib/connectivity';
@@ -66,7 +66,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
           backgroundColor: colors.brand,
           paddingHorizontal: 28,
           paddingVertical: 14,
-          borderRadius: 16,
+          borderRadius: radius.md,
           minHeight: 48,
           justifyContent: 'center',
         }}

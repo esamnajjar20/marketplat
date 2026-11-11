@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 import { AppText } from '@/components/ui/AppText';
 import { PageShell, PrimaryButton, SectionCard, Notice } from '@/components/MobileUI';
-import { fontSizes, spacing, typography, fontWeights } from '@/theme/tokens';
+import { fontSizes, spacing, typography, fontWeights, radius } from '@/theme/tokens';
 
 export default function OrderConfirmationScreen() {
   const { colors } = useAppTheme();
@@ -47,9 +47,9 @@ export default function OrderConfirmationScreen() {
 }
 
 const createThemeStyles = (colors: ColorPalette) => ({
-  mark: { width: 64, height: 64, borderRadius: 32, alignSelf: 'center' as const, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: colors.successSoft },
+  mark: { width: 64, height: 64, borderRadius: radius.xxl, alignSelf: 'center' as const, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: colors.successSoft },
   check: { color: colors.success, fontSize: fontSizes[34], fontWeight: fontWeights.bold },
   title: { color: colors.ink, ...typography.title, textAlign: 'center' as const },
   body: { color: colors.muted, ...typography.body, textAlign: 'center' as const, lineHeight: 24 },
-  orderRef: { color: colors.brandOnSoft, ...typography.captionStrong, textAlign: 'center' as const, padding: spacing.sm, backgroundColor: colors.brandSoft, borderRadius: 10 },
+  orderRef: { color: colors.brandOnSoft, ...typography.captionStrong, textAlign: 'center' as const, padding: spacing.sm, backgroundColor: colors.brandSoft, borderRadius: radius.sm },
 });

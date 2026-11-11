@@ -557,7 +557,7 @@ function createStyles(palette: ColorPalette) {
   menuIconWrap: {
     width: 36,
     height: 36,
-    borderRadius: 12,
+    borderRadius: radius.control,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: palette.canvas,

@@ -8,7 +8,7 @@ import { Spinner } from '@/components/ui';
 import { router } from 'expo-router';
 import { fetchProductCategories, type ProductCategory } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
-import { fontWeights } from '@/theme/tokens';
+import { fontWeights, spacing } from '@/theme/tokens';
 export default function ProductCategoriesScreen() {
   const { colors } = useAppTheme();
   const [items, setItems] = useState<ProductCategory[]>([]);
@@ -44,7 +44,7 @@ export default function ProductCategoriesScreen() {
   })}><SectionCard><View style={{
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10
   }}><View style={{
-    flex: 1, gap: 4
+    flex: 1, gap: spacing.xs
   }}><Text tone="ink" strong size={17}>{category.nameAr || category.name}</Text><Text tone="muted" size={12}>{category.nameAr && category.name !== category.nameAr ? category.name : 'تصفح منتجات هذا التصنيف'}</Text></View><AppIcon name="forward" size={20} color={colors.brand}/></View></SectionCard></Pressable>)}</View>}
  </PageShell>;
 }

@@ -14,7 +14,7 @@ import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/componen
 import { statusLabel } from '@/lib/status-labels';
 import { formatSafeDate } from '@/lib/date-format';
 import { showToast } from '@/lib/toast';
-import { fontWeights } from '@/theme/tokens';
+import { fontWeights, radius, spacing } from '@/theme/tokens';
 const futureDate = (days: number) => new Date(Date.now() + days * 86400000).toISOString();
 const datePresets = [{
     days: 7, label: '7 أيام'
@@ -143,27 +143,27 @@ export default function StorePromotionsScreen() {
     }
   };
   return <PageShell title="العروض الترويجية">{isRestoring ? <Notice tone="muted">جارٍ استعادة الجلسة…</Notice> : !getAccessToken() ? <><Notice>سجّل الدخول لإدارة عروض متجرك.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل العروض والمنتجات…</Notice> : <><SectionCard><Text tone="ink" strong size={17}>إنشاء عرض</Text><Text tone="ink" strong>اختر المنتج</Text><View style={{ gap: 6 }}>{products.map(p => <Pressable accessibilityRole="button" key={p.id} onPress={() => setProductId(p.id)} style={{
-    padding: 10, borderRadius: 10, borderWidth: 1, borderColor: productId === p.id ? colors.brand : colors.border, backgroundColor: productId === p.id ? colors.brandSoft : colors.surface
+    padding: 10, borderRadius: radius.sm, borderWidth: 1, borderColor: productId === p.id ? colors.brand : colors.border, backgroundColor: productId === p.id ? colors.brandSoft : colors.surface
   }}><Text tone="ink">{p.name} · {formatMoney(p.price)}</Text></Pressable>)}</View>{productsPage < productsTotalPages ? <PrimaryButton label={loadingMoreProducts ? 'جارٍ تحميل المنتجات…' : 'تحميل المزيد من المنتجات'} variant="secondary" busy={loadingMoreProducts} onPress={() => void loadMoreProducts()}/> : null}<Field label="عنوان العرض" value={title} onChangeText={setTitle} maxLength={200} placeholder="عنوان العرض"/><Field label="الوصف (اختياري)" value={description} onChangeText={setDescription} maxLength={500} multiline placeholder="تفاصيل العرض"/><View style={{
-    flexDirection: 'row', gap: 8
+    flexDirection: 'row', gap: spacing.sm
   }}>{([['PERCENTAGE', 'خصم نسبة %'], ['FIXED_AMOUNT', 'خصم مبلغ (شيكل)']] as const).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setType(v)} style={{
-    flex: 1, padding: 10, borderRadius: 10, backgroundColor: type === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: type === v ? colors.brand : colors.border
+    flex: 1, padding: 10, borderRadius: radius.sm, backgroundColor: type === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: type === v ? colors.brand : colors.border
   }}><Text style={{
     textAlign: 'center', color: colors.ink, fontWeight: fontWeights.bold
   }}>{l}</Text></Pressable>)}</View><Field label="قيمة الخصم" value={value} onChangeText={setValue} keyboardType="numeric" placeholder="10"/><Text tone="ink" strong>بداية العرض: {formatSafeDate(startsAt, 'dateTime')}</Text><View style={{
-    flexDirection: 'row', gap: 8
+    flexDirection: 'row', gap: spacing.sm
   }}>{[{
       hours: 0, label: 'بعد دقيقة', minutes: 1
     }, {
       hours: 1, label: 'بعد ساعة', minutes: 0
     }].map(p => <Pressable key={p.label} accessibilityRole="button" onPress={() => setStartsAt(new Date(Date.now() + (p.hours * 3600000) + (p.minutes * 60000)).toISOString())} style={{
-    flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.surface
+    flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, backgroundColor: colors.surface
   }}><Text style={{
     color: colors.brand, fontWeight: fontWeights.bold
   }}>ابدأ {p.label}</Text></Pressable>)}</View><Text tone="ink" strong>نهاية العرض: {formatSafeDate(endsAt, 'dateTime')}</Text><View style={{
-    flexDirection: 'row', gap: 8
+    flexDirection: 'row', gap: spacing.sm
   }}>{datePresets.map(p => <Pressable key={p.days} accessibilityRole="button" onPress={() => setEndsAt(futureDate(p.days))} style={{
-    flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.surface
+    flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, backgroundColor: colors.surface
   }}><Text style={{
     color: colors.brand, fontWeight: fontWeights.bold
   }}>بعد {p.label}</Text></Pressable>)}</View><Field label="حد الاستخدام (اختياري)" value={maxUses} onChangeText={setMaxUses} keyboardType="numeric" placeholder="اتركه فارغًا دون حد"/><PrimaryButton label="إنشاء العرض" onPress={() => void submit()} busy={busy}/></SectionCard>{items.map(item => <SectionCard key={item.id}><Text tone="ink" strong size={15}>{item.title}</Text><Text tone="muted">{item.discountType === 'PERCENTAGE' ? `${item.discountValue}% خصم` : `${formatMoney(item.discountValue)} خصم`} · {statusLabel(item.status)} · الاستخدامات {item.usageCount}</Text><Text tone="muted">من {formatSafeDate(item.startsAt, 'dateTime')} إلى {formatSafeDate(item.endsAt, 'dateTime')}</Text>{!['CANCELLED', 'EXPIRED'].includes(item.status) ? <PrimaryButton label="إلغاء العرض" variant="danger" onPress={() => confirmAlert('إلغاء العرض', 'هل تريد إلغاء هذا العرض؟', [{

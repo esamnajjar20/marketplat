@@ -14,7 +14,7 @@ import {
   type SavedSearch,
 } from '@/features/account/saved-searches.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { spacing, fontWeights } from '@/theme/tokens';
+import { spacing, fontWeights, radius } from '@/theme/tokens';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { marketListPerf } from '@/lib/listPerformance';
 
@@ -159,7 +159,7 @@ export default function SavedSearchesScreen() {
                         minHeight: 44,
                         justifyContent: 'center',
                         padding: 10,
-                        borderRadius: 12,
+                        borderRadius: radius.control,
                         backgroundColor: type === v ? colors.brand : colors.surface,
                         borderWidth: 1,
                         borderColor: colors.border,
