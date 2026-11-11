@@ -3,12 +3,11 @@ import { AppText as Text } from '@/components/ui/AppText';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { Spinner, ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
+import { Spinner, ListEmpty, ListStaleError, PaginatedFooter, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createCustomer, fetchCustomerSummary, fetchCustomers, type CustomerRow, type CustomerSummary } from '@/features/sales/sales-extra.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';

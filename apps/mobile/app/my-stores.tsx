@@ -6,7 +6,7 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyActiveStoreMemberships, type StoreMembership } from '@/features/commerce/store-management.api';
-import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { spacing, fontWeights, radius } from '@/theme/tokens';
 import { roleLabel, statusLabel } from '@/lib/status-labels';
 

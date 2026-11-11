@@ -1,0 +1,11 @@
+android/
+ios/
+.expo/
+node_modules/
+assets/
+docs/
+scripts/
+coverage/
+*.md
+*.d.mts
+*.mjs

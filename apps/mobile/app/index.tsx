@@ -7,12 +7,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { pushOnce } from '@/lib/navigation';
 import { FlatList, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { Spinner, EmptyState, ErrorState, SectionHeader, SkeletonList } from '@/components/ui';
 
 import { DrawerMenuButton } from '@/components/MobileDrawer';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { fontSizes, radius, spacing, ux, fontWeights } from '@/theme/tokens';
-import { EmptyState, ErrorState, SectionHeader, SkeletonList } from '@/components/MobileUI';
 import { HorizontalAdCard } from '@/components/MarketCards';
 import { useAuth } from '@/features/auth/AuthContext';
 import HomeCommunitySections from '@/features/discovery/HomeCommunitySections';

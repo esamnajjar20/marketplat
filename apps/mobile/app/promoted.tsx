@@ -4,13 +4,12 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
+import { ListEmpty, ListStaleError, PaginatedFooter, PageShell, SectionCard } from '@/components/ui';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 
 import { pushOnce } from '@/lib/navigation';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
-import { PageShell, SectionCard } from '@/components/MobileUI';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 

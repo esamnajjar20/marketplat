@@ -4,7 +4,7 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppIcon } from '@/components/Icons';
-import { EmptyState, ErrorState, LoadingState } from '@/components/MobileUI';
+import { EmptyState, ErrorState, LoadingState } from '@/components/ui';
 import { fetchPublicCategories, flattenPublicCategories, type PublicCategory } from '@/features/categories/categories.api';
 import { searchMarketplace, type SearchResult } from '@/features/discovery/discovery.api';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';

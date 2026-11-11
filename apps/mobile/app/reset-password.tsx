@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton } from '@/components/ui';
 import { resetPassword } from '@/features/account/account.api';
 export default function ResetPasswordScreen() {
   const params = useLocalSearchParams<{

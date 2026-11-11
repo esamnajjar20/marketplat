@@ -5,10 +5,9 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useState , useMemo} from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { Spinner, PageShell, Notice, PrimaryButton, SectionCard } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useFocusEffect } from 'expo-router';
-import { PageShell, Notice, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { useAuth } from '@/features/auth/AuthContext';
 import { clearPublicCache, getPublicCacheStats, type PublicCacheStats } from '@/storage/public-cache';
 import { hasMissingEncryptedDatabaseKey, resetEncryptedDatabaseAfterMissingKey } from '@/storage/encrypted-database';
@@ -86,7 +85,7 @@ export default function StorageScreen() {
               await clearPrivateCleanupFlag();
               setResetAvailable(false);
               const refreshed = await refresh();
-              if (!refreshed) throw new Error('أُعيد إنشاء قاعدة البيانات، لكن تعذرت قراءة التخزين بعدها. أعد المحاولة.');
+              if (!refreshed) throw new Error('أُعيد إنشاء قاعدة البيانات، لكن تعذرت قراءة التخزين بعدها. حاول مرة أخرى.');
               setMessage('تمت إعادة إنشاء التخزين المحلي المشفر. قد تستعيد عملية التهيئة بيانات من نسخة ترحيل قديمة إن كانت موجودة.');
             })
             .catch((e) => setError(e instanceof Error ? e.message : 'تعذرت إعادة ضبط التخزين المحلي.'))
@@ -104,7 +103,7 @@ export default function StorageScreen() {
         if (!refreshed) throw new Error('تم تنفيذ طلب المسح لكن تعذر التحقق من النتيجة. أعد تحديث معلومات التخزين.');
         const verifiedStats = await getPublicCacheStats();
         setCache(verifiedStats);
-        if (verifiedStats.entries !== 0) throw new Error('لم تصبح الذاكرة المؤقتة فارغة بعد المسح. أعد المحاولة.');
+        if (verifiedStats.entries !== 0) throw new Error('لم تصبح الذاكرة المؤقتة فارغة بعد المسح. حاول مرة أخرى.');
         setMessage('تم مسح الذاكرة المؤقتة بنجاح.');
       }).catch((e) => setError(e instanceof Error ? e.message : 'تعذر مسح الذاكرة المؤقتة.')).finally(() => setClearing(false));
     } },

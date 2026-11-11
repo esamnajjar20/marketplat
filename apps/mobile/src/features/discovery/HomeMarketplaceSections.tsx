@@ -9,7 +9,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
 import { elevation, radius, spacing, typography, ux } from '@/theme/tokens';
-import { SectionHeader } from '@/components/MobileUI';
+import { SectionHeader } from '@/components/ui';
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { fetchServiceListings, type ServiceListing } from '@/features/services/services.api';

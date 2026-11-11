@@ -9,7 +9,7 @@ import { View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
 import { listSavedOfflineResources, removeSavedOfflineResource, type SavedOfflineItem } from '@/storage/saved-offline';
-import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
 

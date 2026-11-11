@@ -2,13 +2,12 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useState } from 'react';
 import { Share, View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSaleReceipt } from '@/features/sales/sales-extra.api';
 import type { SaleRecord } from '@/features/sales/sales.api';
-import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { formatDate, formatMoney } from '@/lib/formatters';
 type ReceiptSale = SaleRecord & {

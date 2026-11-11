@@ -11,7 +11,7 @@ import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider, saveMyServiceProvider, type ServiceProviderProfile } from '@/features/services/providers.api';
 import { uploadServiceProviderLogo } from '@/features/services/service-management.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { normalizePickedImage } from '@/lib/normalize-image-asset';
 const hours = {

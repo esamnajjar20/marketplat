@@ -23,7 +23,7 @@ import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { adEditorSchema, validate } from '@/lib/validation';
 import { createMobileOperationId } from '@/lib/operation-id';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
-import { AppHeader, Notice, PrimaryButton, LoadingState } from '@/components/MobileUI';
+import { AppHeader, Notice, PrimaryButton, LoadingState } from '@/components/ui';
 import { showToast } from '@/lib/toast';
 const emptyDraft: AdDraft = {
     title: '', description: '', price: '', city: '', categoryId: '', isNegotiable: false, images: []

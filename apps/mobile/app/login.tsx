@@ -10,7 +10,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { goBack, pushOnce } from '@/lib/navigation';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
-import { Field, Notice, PrimaryButton } from '@/components/MobileUI';
+import { Field, Notice, PrimaryButton } from '@/components/ui';
 import type { TextInputHandle } from '@/components/ui/Field';
 import { fontSizes, elevation, radius, spacing, typography, ux, fontWeights } from '@/theme/tokens';
 import { loginSchema, validate } from '@/lib/validation';

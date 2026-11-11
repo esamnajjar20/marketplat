@@ -10,7 +10,7 @@ import { FlatList, RefreshControl, View } from 'react-native';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchFollowingFeed, type FollowingFeedItem } from '@/features/account/social.api';
-import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton } from '@/components/MobileUI';
+import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton } from '@/components/ui';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';

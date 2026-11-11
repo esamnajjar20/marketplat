@@ -18,7 +18,7 @@ import {
   DetailScaffold,
   PrimaryButton,
   SectionCard,
-} from '@/components/MobileUI';
+} from '@/components/ui';
 import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { AppImage } from '@/components/AppImage';
 import { formatMoney , formatDate} from '@/lib/formatters';

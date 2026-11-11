@@ -16,7 +16,7 @@ import {
   PageShell,
   PrimaryButton,
   SectionCard,
-} from '@/components/MobileUI';
+} from '@/components/ui';
 import { spacing, typography } from '@/theme/tokens';
 
 

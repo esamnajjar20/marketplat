@@ -7,7 +7,7 @@ import { View } from 'react-native';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider, updateMyServiceProviderWorkingHours } from '@/features/services/providers.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, fontWeights, radius } from '@/theme/tokens';
 type Day = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
 type Schedule = {

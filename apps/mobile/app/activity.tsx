@@ -4,12 +4,11 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { Spinner, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyActivity, type ActivityRow } from '@/features/sales/sales-extra.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { denseListPerf } from '@/lib/listPerformance';
 

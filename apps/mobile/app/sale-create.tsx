@@ -11,7 +11,7 @@ import { createSale } from '@/features/sales/sales.api';
 import { ApiError } from '@/api/client';
 import { createMobileOperationId } from '@/lib/operation-id';
 import { enqueueOfflineCreate } from '@/storage/outbox-manager';
-import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton } from '@/components/ui';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { formatMoney } from '@/lib/formatters';
 import { showToast } from '@/lib/toast';

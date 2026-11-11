@@ -10,7 +10,7 @@ import { confirmAlert } from '@/lib/confirm';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { acceptStoreInvite, fetchMyStoreInvites, removeStoreMember, type StoreMember } from '@/features/commerce/store-management.api';
-import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { roleLabel } from '@/lib/status-labels';

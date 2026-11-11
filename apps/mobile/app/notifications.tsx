@@ -22,12 +22,13 @@ import {
   EmptyState,
   ErrorState,
   LoadingState,
-} from '@/components/MobileUI';
+} from '@/components/ui';
 import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
 import { toAppHref } from '@/lib/typed-navigation';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { showToast } from '@/lib/toast';
+import { COPY } from '@/lib/copy';
 
 function destination(item: AppNotification): string | null {
   const data = item.data && typeof item.data === 'object' ? item.data as Record<string, unknown> : {};
@@ -134,7 +135,7 @@ export default function NotificationsScreen() {
       list.updateItems((current) => current.map((item) => ({ ...item, isRead: true, readAt: item.readAt || new Date().toISOString() })));
       void refreshUnreadCounts();
     } catch (e) {
-      showToast('تعذر تحديث الإشعارات', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error');
+      showToast('تعذر تحديث الإشعارات', e instanceof Error ? e.message : COPY.tryAgain, 'error');
     } finally {
       setBusy(false);
     }

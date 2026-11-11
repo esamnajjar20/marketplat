@@ -9,7 +9,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { fetchServiceListing, getCachedServiceListing, type ServiceListing } from '@/features/services/services.api';
 import { useAuth } from '@/features/auth/AuthContext';
-import { Badge, DetailScaffold, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Badge, DetailScaffold, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, typography, fontWeights } from '@/theme/tokens';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { RatingStars } from '@/components/ui/RatingStars';

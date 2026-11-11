@@ -42,7 +42,8 @@
           }
         }
       ],
-      "./plugins/with-secure-storage-backup"
+      "./plugins/with-secure-storage-backup",
+      "./plugins/with-forced-rtl"
     ],
     "experiments": {
       "typedRoutes": true

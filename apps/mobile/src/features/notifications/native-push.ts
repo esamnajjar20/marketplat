@@ -138,7 +138,7 @@ export async function requestAndRegisterAndroidPush(
     // persist the user's explicit opt-in state.
     await deleteFcmToken(accessToken, csrfToken, token).catch(() => undefined);
     await saveAndroidPushState(false).catch(() => undefined);
-    throw new Error('تم تسجيل الجهاز لكن تعذر حفظ اختيار الإشعارات محليًا. أعد المحاولة.');
+    throw new Error('تم تسجيل الجهاز لكن تعذر حفظ اختيار الإشعارات محليًا. حاول مرة أخرى.');
   }
 }
 

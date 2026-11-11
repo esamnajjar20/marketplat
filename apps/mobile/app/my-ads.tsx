@@ -24,8 +24,9 @@ import {
   PrimaryButton,
   SecondaryButton,
   SectionCard,
-} from '@/components/MobileUI';
+} from '@/components/ui';
 import { spacing, typography } from '@/theme/tokens';
+import { COPY } from '@/lib/copy';
 
 export default function MyAdsScreen() {
   const { colors } = useAppTheme();
@@ -178,7 +179,7 @@ export default function MyAdsScreen() {
               : enqueueOfflineDelete();
             void work
               .catch((e) =>
-                showToast('تعذر حفظ طلب الحذف', e instanceof ApiError || e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'),
+                showToast('تعذر حفظ طلب الحذف', e instanceof ApiError || e instanceof Error ? e.message : COPY.tryAgain, 'error'),
               )
               .finally(() => setBusyId(null));
           },

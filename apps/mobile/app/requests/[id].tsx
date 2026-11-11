@@ -1,5 +1,5 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
-import { Spinner } from '@/components/ui';
+import { Spinner, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -8,7 +8,6 @@ import { useLocalSearchParams, router } from 'expo-router';
 import NetInfo from '@react-native-community/netinfo';
 import { useAuth } from '@/features/auth/AuthContext';
 import { acceptRequestOffer, cancelMarketplaceRequest, fetchMarketplaceRequest, submitRequestOffer, type MarketplaceRequest } from '@/features/requests/requests.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { enqueueRequestOffer } from '@/storage/outbox-manager';
 import { createMobileOperationId } from '@/lib/operation-id';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';

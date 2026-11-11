@@ -10,7 +10,7 @@ import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchConversationsPage, setConversationFlags, type ConversationItem } from '@/features/messaging/messaging.api';
 import { useUnreadCounts } from '@/features/messaging/useUnreadCounts';
-import { AppHeader, Chip, EmptyState, ErrorState, PrimaryButton, SearchBar, SkeletonList } from '@/components/MobileUI';
+import { AppHeader, Chip, EmptyState, ErrorState, PrimaryButton, SearchBar, SkeletonList } from '@/components/ui';
 import { spacing, typography } from '@/theme/tokens';
 import ConversationListItem from '@/features/messaging/ConversationListItem';
 

@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { pushOnce } from '@/lib/navigation';
 import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteSavedNetCard, deleteSavedPayee, listSavedNetCards, listSavedPayees, saveNetCard, savePayee, updateSavedNetCard, updateSavedPayee, type SavedNetCard, type SavedPayee } from '@/storage/saved-payments.store';

@@ -9,7 +9,7 @@ import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStore } from '@/features/commerce/commerce.api';
 import { fetchMyActiveStoreMemberships, fetchStoreMembers, inviteStoreMember, removeStoreMember, updateStoreMemberRole, type StoreMember } from '@/features/commerce/store-management.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { roleLabel } from '@/lib/status-labels';
 

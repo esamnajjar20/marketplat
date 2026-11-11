@@ -14,6 +14,7 @@ import { formatDate, formatMoney } from '@/lib/formatters';
 import { ErrorState, LoadingState, Notice, PageShell, Spinner } from '@/components/ui';
 import { createStoreReview, fetchProducts, fetchStore, fetchStoreFollowStatus, fetchStoreReviews, toggleStoreFollow, type ProductSummary, type StoreReview, type StoreSummary } from '@/features/commerce/commerce.api';
 import { showToast } from '@/lib/toast';
+import { COPY } from '@/lib/copy';
 type Tab = 'products' | 'reviews' | 'about';
 function price(value: ProductSummary['price']) {
   return formatMoney(value);
@@ -120,7 +121,7 @@ export default function StoreDetailScreen() {
     }
     catch (e) {
       if (current === reviewsSequence.current)
-        showToast('تعذر تحميل التقييمات', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error');
+        showToast('تعذر تحميل التقييمات', e instanceof Error ? e.message : COPY.tryAgain, 'error');
     }
     finally {
       if (current === reviewsSequence.current)
@@ -161,7 +162,7 @@ export default function StoreDetailScreen() {
     }
     catch (e) {
       setFollowing(old);
-      showToast('تعذر تحديث المتابعة', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error');
+      showToast('تعذر تحديث المتابعة', e instanceof Error ? e.message : COPY.tryAgain, 'error');
     }
     finally {
       setFollowLoading(false);

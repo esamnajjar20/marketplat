@@ -53,7 +53,7 @@ export async function beginNativeGoogleOAuth(): Promise<NativeGoogleOAuthHandoff
     throw new Error('تم رفض رابط عودة غير متوقع من Google.');
   }
   const callbackError = callback.searchParams.get('error');
-  if (callbackError) throw new Error('تعذر التحقق من حساب Google. أعد المحاولة أو استخدم تسجيل الدخول بالبريد.');
+  if (callbackError) throw new Error('تعذر التحقق من حساب Google. حاول مرة أخرى أو استخدم تسجيل الدخول بالبريد.');
 
   const ticket = callback.searchParams.get('ticket') ?? '';
   if (!/^[A-Za-z0-9_-]{43}$/.test(ticket)) {

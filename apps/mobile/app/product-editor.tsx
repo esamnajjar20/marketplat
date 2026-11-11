@@ -3,10 +3,10 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { ErrorState, LoadingState, PageShell } from '@/components/ui';
+import { ErrorState, Field, LoadingState, PageShell } from '@/components/ui';
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import NetInfo from '@react-native-community/netinfo';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -20,6 +20,7 @@ import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { createMobileOperationId } from '@/lib/operation-id';
 import { ApiError } from '@/api/client';
 import { showToast } from '@/lib/toast';
+import { COPY } from '@/lib/copy';
 export default function ProductEditorScreen() {
     const { colors } = useAppTheme();
     const s = useMemo(() => createThemeS(colors), [colors]);
@@ -160,21 +161,21 @@ export default function ProductEditorScreen() {
         catch (e) {
             if (!id && e instanceof ApiError && e.status != null)
                 operationIdRef.current = createMobileOperationId('mobile-product');
-            showToast('تعذر حفظ المنتج', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error');
+            showToast('تعذر حفظ المنتج', e instanceof Error ? e.message : COPY.tryAgain, 'error');
         }
         finally {
             setSaving(false);
         }
     };
     return <PageShell title={id ? 'تعديل المنتج' : 'إضافة منتج'}><View style={s.content}>{loading ? <LoadingState message="جاري تحميل البيانات…"/> : error ? <ErrorState description={error} onAction={() => void load()}/> : <>
-        <Text style={s.label}>اسم المنتج</Text><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="اسم المنتج" value={name} onChangeText={setName} maxLength={200} placeholder="مثال: هاتف مستعمل" placeholderTextColor={colors.muted} style={s.input} textAlign="right"/>
-        <Text style={s.label}>الوصف</Text><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="وصف المنتج" value={description} onChangeText={setDescription} maxLength={2000} multiline numberOfLines={5} placeholder="اكتب تفاصيل المنتج وحالته…" placeholderTextColor={colors.muted} style={[s.input, s.multiline]} textAlign="right" textAlignVertical="top"/>
+        <Field label="اسم المنتج" value={name} onChangeText={setName} maxLength={200} placeholder="مثال: هاتف مستعمل"/>
+        <Field label="الوصف" value={description} onChangeText={setDescription} maxLength={2000} multiline placeholder="اكتب تفاصيل المنتج وحالته…"/>
         <Text style={s.label}>التصنيف</Text><View style={s.chips}>{categories.map(c => <Pressable key={c.id} accessibilityRole="button" accessibilityLabel={`تصنيف ${c.nameAr || c.name}`} accessibilityState={{ selected: categoryId === c.id }} onPress={() => setCategoryId(c.id)} style={[s.chip, categoryId === c.id && s.chipSelected]}><Text style={[s.chipText, categoryId === c.id && s.chipTextSelected]}>{c.nameAr || c.name}</Text></Pressable>)}</View>
-        <Text style={s.label}>السعر ((شيكل))</Text><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="سعر المنتج" value={price} onChangeText={(value) => setPrice(normalizeNumericInput(value))} keyboardType="decimal-pad" placeholder="0.00" placeholderTextColor={colors.muted} style={s.input} textAlign="right"/>
-        <Text style={s.label}>الكمية المتوفرة (اختياري)</Text><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="كمية المخزون" value={stock} onChangeText={(value) => {
+        <Field label="السعر (شيكل)" value={price} onChangeText={setPrice} keyboardType="decimal-pad" placeholder="0.00"/>
+        <Field label="الكمية المتوفرة (اختياري)" value={stock} onChangeText={(value) => {
             setStockDirty(true);
-            setStock(normalizeNumericInput(value));
-        }} keyboardType="number-pad" placeholder="اتركه فارغًا إذا لم تستخدم المخزون" placeholderTextColor={colors.muted} style={s.input} textAlign="right"/>
+            setStock(value);
+        }} keyboardType="number-pad" placeholder="اتركه فارغًا إذا لم تستخدم المخزون"/>
         <Text style={s.label}>حالة التوفر</Text><View style={s.chips}>{([['IN_STOCK', 'متوفر'], ['LIMITED', 'كمية محدودة'], ['OUT_OF_STOCK', 'غير متوفر']] as const).map(([v, l]) => <Pressable key={v} accessibilityRole="button" accessibilityState={{ selected: availability === v }} onPress={() => setAvailability(v)} style={[s.chip, availability === v && s.chipSelected]}><Text style={[s.chipText, availability === v && s.chipTextSelected]}>{l}</Text></Pressable>)}</View>
         <Text style={s.label}>صور المنتج (حتى 10 صور)</Text>{existingImages.map((uri, index) => <View key={`${uri}-${index}`} style={{ gap: 6 }}><AppImage uri={uri} style={{
             width: '100%', height: 170, borderRadius: 12

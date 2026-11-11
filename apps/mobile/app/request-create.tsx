@@ -12,7 +12,7 @@ import { createMobileOperationId } from '@/lib/operation-id';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { createMarketplaceRequest, fetchRequestCategories } from '@/features/requests/requests.api';
 import { enqueueMarketplaceRequest } from '@/storage/outbox-manager';
-import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton } from '@/components/ui';
 import { showToast } from '@/lib/toast';
 import { fontWeights, spacing, radius } from '@/theme/tokens';
 type Kind = 'SERVICE' | 'PRODUCT' | 'RENTAL';

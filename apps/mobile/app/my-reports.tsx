@@ -1,12 +1,11 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
+import { ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyReports, type MyReport } from '@/features/account/social.api';
-import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
 import { marketListPerf } from '@/lib/listPerformance';

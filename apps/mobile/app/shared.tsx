@@ -3,9 +3,8 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useEffect, useState } from 'react';
 import { Linking } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { Spinner, PageShell, Notice, SectionCard, PrimaryButton } from '@/components/ui';
 import { router } from 'expo-router';
-import { PageShell, Notice, SectionCard, PrimaryButton } from '@/components/MobileUI';
 import { decodeSharedPayload, sharedPayloadFromUrl, type SharedPayload } from '@/features/sharing/shared-payload';
 import { spacing, typography } from '@/theme/tokens';
 type State = {

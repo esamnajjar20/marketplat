@@ -9,7 +9,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchServiceListing, type ServiceListing } from '@/features/services/services.api';
 import { removeServiceImage, reorderServiceImages, uploadServiceImages } from '@/features/services/service-management.api';
-import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { normalizePickedImage } from '@/lib/normalize-image-asset';
 import { spacing, radius } from '@/theme/tokens';
 export default function ServiceImagesScreen() {

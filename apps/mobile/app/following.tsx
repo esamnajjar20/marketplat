@@ -8,7 +8,7 @@ import { View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchUserFollowList, type FollowListItem } from '@/features/account/social.api';
-import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 

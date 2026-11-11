@@ -6,7 +6,7 @@ import { AppImage } from '@/components/AppImage';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSalesCostProducts, fetchSalesCostSettings, updateSalesCostSettings, updateSalesProductCost, type SalesCostProduct } from '@/features/sales/sales-extra.api';
 import { formatMoney } from '@/lib/formatters';
-import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton, SectionCard } from '@/components/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';

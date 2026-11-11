@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { apiRequest } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
 import { resendVerification } from '@/features/account/account.api';
-import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton } from '@/components/ui';
 export default function VerifyEmailScreen() {
   const params = useLocalSearchParams<{
     token?: string;

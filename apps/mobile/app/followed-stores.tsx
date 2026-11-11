@@ -10,7 +10,7 @@ import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { fetchMyFollowedStores, toggleStoreFollow, type FollowedStoreRow } from '@/features/commerce/commerce.api';
-import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton, SearchBar } from '@/components/MobileUI';
+import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton, SearchBar } from '@/components/ui';
 import { AppImage } from '@/components/AppImage';
 import { fontSizes, radius, spacing } from '@/theme/tokens';
 export default function FollowedStoresScreen() {

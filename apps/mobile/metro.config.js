@@ -1,21 +1,16 @@
+// apps/mobile/metro.config.js
+// يقلل عدد الملفات التي يراقبها Metro لتجنب ENOSPC على Termux/Android.
 const { getDefaultConfig } = require('expo/metro-config');
-const { withSentryConfig } = require('@sentry/react-native/metro');
-const path = require('path');
+const exclusionList = require('metro-config/src/defaults/exclusionList');
 
-const projectRoot = __dirname;
-const workspaceRoot = path.resolve(projectRoot, '../..');
+const config = getDefaultConfig(__dirname);
 
-const config = getDefaultConfig(projectRoot);
+config.resolver.blockList = exclusionList([
+  /node_modules\/.*\/node_modules\/.*/,
+  /.*\/node_modules\/.*\.(md|map|txt)$/,
+  /.*\/\.expo\/.*/,
+]);
 
-// 1. Watch all files within the monorepo
-config.watchFolders = [workspaceRoot];
+config.watchFolders = [__dirname];
 
-// 2. Let Metro know where to resolve packages and in what order
-config.resolver.nodeModulesPaths = [
-  path.resolve(projectRoot, 'node_modules'),
-  path.resolve(workspaceRoot, 'node_modules'),
-];
-
-// ملاحظة: تم إزالة disableHierarchicalLookup لأنه كان يمنع Metro من العثور على بعض الحزم
-
-module.exports = withSentryConfig(config);
+module.exports = config;

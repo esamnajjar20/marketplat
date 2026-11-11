@@ -4,7 +4,7 @@ import { FlatList, View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
 import { toAppHref } from '@/lib/typed-navigation';
-import { ListRow, PageShell, SectionHeader } from '@/components/MobileUI';
+import { ListRow, PageShell, SectionHeader } from '@/components/ui';
 import { spacing, typography } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 

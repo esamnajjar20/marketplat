@@ -9,7 +9,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { createAppointment, fetchProviderAvailability, type ProviderAvailability } from '@/features/appointments/appointments.api';
 import { buildAppointmentSlots, type AppointmentSlot } from '@/features/appointments/appointment-slots';
 import { fetchServiceRequest } from '@/features/services/services.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 
 const MARKET_TIME_ZONE = 'Asia/Gaza';

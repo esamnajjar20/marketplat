@@ -3,7 +3,7 @@ import { FlatList, RefreshControl, View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
 import { fetchPublicCategories, type PublicCategory } from '@/features/categories/categories.api';
-import { EmptyState, ErrorState, ListRow, LoadingState, PageShell } from '@/components/MobileUI';
+import { EmptyState, ErrorState, ListRow, LoadingState, PageShell } from '@/components/ui';
 import { marketListPerf } from '@/lib/listPerformance';
 import { spacing } from '@/theme/tokens';
 import { useAsyncResource } from '@/hooks/useAsyncResource';

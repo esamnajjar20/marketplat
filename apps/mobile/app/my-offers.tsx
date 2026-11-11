@@ -3,12 +3,11 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
+import { ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyOffers, type RequestOffer } from '@/features/requests/requests.api';
-import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { statusLabel } from '@/lib/status-labels';
 import { spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';

@@ -8,7 +8,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStore } from '@/features/commerce/commerce.api';
 import { fetchMyActiveStoreMemberships } from '@/features/commerce/store-management.api';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
-import { ListRow, Notice, PageShell, SectionHeader } from '@/components/MobileUI';
+import { ListRow, Notice, PageShell, SectionHeader } from '@/components/ui';
 import { spacing, fontWeights } from '@/theme/tokens';
 
 const groups = [

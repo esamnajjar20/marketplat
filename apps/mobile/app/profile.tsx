@@ -8,7 +8,7 @@ import { View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyProfile, updateMyProfile, changeMyPassword, resendVerification, uploadMyAvatar, type AccountProfile } from '@/features/account/account.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { normalizePickedImage } from '@/lib/normalize-image-asset';
 export default function ProfileScreen() {

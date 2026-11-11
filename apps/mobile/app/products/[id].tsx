@@ -12,7 +12,7 @@ import { fetchProduct, fetchProducts, type ProductSummary } from '@/features/com
 import { startConversationWithUser } from '@/features/messaging/messaging.api';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMixedRecommendations, type RecommendationItem } from '@/features/discovery/discovery.api';
-import { Badge, DetailScaffold, PrimaryButton, SecondaryButton, SectionCard } from '@/components/MobileUI';
+import { Badge, DetailScaffold, PrimaryButton, SecondaryButton, SectionCard } from '@/components/ui';
 import { FavoriteButton } from '@/components/ui/FavoriteButton';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { ProductAttributeList } from '@/components/ui/ProductAttributeList';
@@ -21,6 +21,7 @@ import { ShareButton } from '@/components/ui/ShareButton';
 import { ProductCard } from '@/components/ui/ProductCard';
 import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
+import { COPY } from '@/lib/copy';
 
 function money(value: unknown): string {
   const n = Number(value);
@@ -144,7 +145,7 @@ export default function ProductDetailScreen() {
         setContacting(true);
         void startConversationWithUser(sellerUserId, accessToken, { type: 'product', id: item.id }, csrfToken)
           .then((conversation) => router.push({ pathname: '/messages/[id]', params: { id: conversation.id } }))
-          .catch((err) => showToast('تعذر بدء المحادثة', err instanceof Error ? err.message : 'حاول مرة أخرى.', 'error'))
+          .catch((err) => showToast('تعذر بدء المحادثة', err instanceof Error ? err.message : COPY.tryAgain, 'error'))
           .finally(() => setContacting(false));
       }} /> : null}
       <PrimaryButton label="الإبلاغ عن المنتج" variant="ghost" onPress={() => router.push({ pathname: '/report/[targetType]/[targetId]', params: { targetType: 'products', targetId: item.id } })} />

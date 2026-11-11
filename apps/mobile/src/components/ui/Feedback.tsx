@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useRef } from 'react';
 import { AccessibilityInfo, ActivityIndicator, Animated, View, type StyleProp, type ViewStyle } from 'react-native';
 import { radius, spacing, ux } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
+import { COPY } from '@/lib/copy';
 import { PrimaryButton } from './Button';
 import { useUIStyles } from './styles';
 
@@ -157,7 +158,7 @@ export function EmptyState({
 export function ErrorState({
   title = 'حدث خطأ',
   description,
-  actionLabel = 'إعادة المحاولة',
+  actionLabel = COPY.retryAction,
   onAction,
 }: {
   title?: string;

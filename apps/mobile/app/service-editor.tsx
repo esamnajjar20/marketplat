@@ -10,7 +10,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createMyServiceListing, fetchServiceCategoryOptions, fetchServiceListing, updateMyServiceListing, type ServiceCategoryOption, type ServiceListing } from '@/features/services/services.api';
-import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton } from '@/components/ui';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { enqueueOfflineCreate } from '@/storage/outbox-manager';
 import { persistSelectedAdImage } from '@/storage/persist-ad-image';

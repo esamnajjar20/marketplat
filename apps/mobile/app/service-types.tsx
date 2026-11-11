@@ -7,7 +7,7 @@ import { View } from 'react-native';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceTypeProfiles, updateMyServiceTypeProfile, type ProviderServiceTypeField, type ProviderServiceTypeProfile } from '@/features/services/providers.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 
 type AttributesByType = Record<string, Record<string, unknown>>;

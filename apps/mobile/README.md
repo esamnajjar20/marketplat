@@ -26,6 +26,8 @@ pnpm dev:mobile   # or: pnpm --filter @marketplat/mobile dev
 | `test` | Maintained active static contract checks; 92 failed legacy contracts are explicitly quarantined in `scripts/quarantined-active.json` pending triage |
 | `test:storage` | Node tests for durable-storage/outbox contracts |
 | `test:sqlite` | Vitest storage integration/unit tests |
+| `format` / `format:check` | Prettier على `app/` و`src/` (المرجع: `.prettierrc.json`) |
+| `report:tokens` | تقرير غير حاجب: أرقام مباشرة للمسافات/الزوايا و`TextInput` الخام |
 | `lint` | ESLint rules (raw hex colors and explicit `any`) plus supplemental source checks |
 | `build:apk:test` | Internal test APK (may be debug-signed) |
 | `verify:apk:test` | Static release-config checks |
@@ -44,7 +46,7 @@ These are **not** production-ready claims until the matching checklist is signed
 | Push | Android native FCM opt-in, token rotation, notification taps and deferred unregister are wired; requires matching Firebase config/service-account credentials and a dev/release build. iOS APNs is intentionally not wired to the FCM-only sender yet | [PUSH-NATIVE-SETUP.md](../../docs/mobile/checklists/PUSH-NATIVE-SETUP.md) |
 | Links / iOS scope | HTTPS App Links and Universal Links configuration; iOS is Expo-managed, while native push remains Android-only pending APNs integration | [LINKING-IOS-STATUS-ROUND2-AR.md](docs/LINKING-IOS-STATUS-ROUND2-AR.md) |
 | Native Google OAuth | Browser-based Google flow with one-time PKCE ticket exchange; callback/Google credentials and physical-device test remain required | [GOOGLE-NATIVE-OAUTH.md](../../docs/mobile/checklists/GOOGLE-NATIVE-OAUTH.md) |
-| Dark mode | Light UI only (`userInterfaceStyle: light`) | — |
+| Dark mode | مدعوم: `ThemeProvider` (نظام / فاتح / داكن) + `userInterfaceStyle: automatic`؛ يلزم تحقق بصري على جهاز لكل الشاشات | `src/theme/ThemeProvider.tsx` |
 
 ## Architecture (short)
 
@@ -53,11 +55,14 @@ These are **not** production-ready claims until the matching checklist is signed
 - `src/storage/` — encrypted DB, public/private cache, outboxes  
 - `src/api/client.ts` — fetch, timeout, 401 refresh, allow-listed offline cache  
 - `src/theme/tokens.ts` — design tokens (no raw hex in screens)
+- `src/components/ui` — المدخل الوحيد للمكوّنات المشتركة (`MobileUI` مهمل)
+- `src/lib/copy.ts` — نصوص واجهة مشتركة (إعادة المحاولة، إلخ)
+- `plugins/with-forced-rtl.js` — يحافظ على فرض RTL الأصلي في Android حتى بعد `expo prebuild`
 - `src/features/notifications/native-push.ts` — Android FCM lifecycle and explicit device opt-in
 - `src/features/auth/google-oauth.native.ts` — native system-browser Google OAuth with PKCE
 - Inbox uses `FlatList` virtualization with a memoized accessible conversation row. Messaging/notification read endpoints validate high-value JSON contracts through Zod before returning data.
 
-Historical phase reports live in **`../../docs/mobile/archive/`**, not in this folder. The duplicate root copies were removed after matching their SHA-256 hashes to the archived originals. After the 2026-11-08 remediation pass, the active static verifier suite is green (70/70); 92 active legacy contracts and 86 historical checks are quarantined and explicitly not represented as passing tests. Node storage/outbox tests pass 40/40. The Vitest include now discovers feature-level tests (including ads pagination and appointment slots), but Vitest, ESLint, Expo type-check and native builds still require the workspace dependencies and native SDK. The 92 quarantined contracts must be reviewed and rewritten as current behavioral tests before reactivation.
+Historical phase reports live in **`docs/history/`** (the living design guide is `DESIGN-SYSTEM-AR.md`). Duplicate root copies were removed after matching their SHA-256 hashes to the copies in `docs/history/`. After the 2026-11-08 remediation pass, the active static verifier suite is green (70/70); 92 active legacy contracts and 86 historical checks are quarantined and explicitly not represented as passing tests. Node storage/outbox tests pass 40/40. The Vitest include now discovers feature-level tests (including ads pagination and appointment slots), but Vitest, ESLint, Expo type-check and native builds still require the workspace dependencies and native SDK. The 92 quarantined contracts must be reviewed and rewritten as current behavioral tests before reactivation.
 
 ## Production Android notes
 

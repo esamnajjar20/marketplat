@@ -20,6 +20,17 @@ module.exports = {
     '**/*.d.ts',
   ],
   rules: {
+    'no-restricted-imports': [
+      'error',
+      {
+        paths: [
+          {
+            name: '@/components/MobileUI',
+            message: "MobileUI is a deprecated compat shim. Import from '@/components/ui' instead.",
+          },
+        ],
+      },
+    ],
     'react-hooks/rules-of-hooks': 'error',
     'react-hooks/exhaustive-deps': 'error',
     '@typescript-eslint/no-explicit-any': 'error',

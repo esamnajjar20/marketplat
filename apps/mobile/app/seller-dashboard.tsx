@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStore, fetchMyStoreAnalytics, type StoreAnalytics, type StoreSummary } from '@/features/commerce/commerce.api';
 import { fetchMySellerProfile, type SellerProfile } from '@/features/account/seller.api';
-import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 function Metric({ label, value }: {
   label: string;

@@ -19,7 +19,7 @@ import {
   PrimaryButton,
   SectionCard,
   SectionHeader,
-} from '@/components/MobileUI';
+} from '@/components/ui';
 import { AppIcon } from '@/components/Icons';
 import { fontSizes, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
 

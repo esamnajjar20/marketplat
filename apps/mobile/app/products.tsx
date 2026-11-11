@@ -10,7 +10,7 @@ import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { fetchProducts, fetchMyStore, type ProductSummary } from '@/features/commerce/commerce.api';
-import { AppHeader, EmptyState, ErrorState, SkeletonList, PrimaryButton, SearchBar, SecondaryButton } from '@/components/MobileUI';
+import { AppHeader, EmptyState, ErrorState, SkeletonList, PrimaryButton, SearchBar, SecondaryButton } from '@/components/ui';
 import { ProductCard } from '@/components/ui/ProductCard';
 import { spacing, typography } from '@/theme/tokens';
 

@@ -1,65 +1,50 @@
 # نظام التصميم — MarketPlat Mobile
 
+> المرجع الحي. أرشيف المراحل السابقة في `docs/history/`. قرارات RTL في `docs/RTL-ARCHITECTURE-AR.md`.
+
 ## المبدأ
-كل لون وحجم خط ومسافة وظل يأتي من `src/theme/tokens.ts`.  
-الشاشات تستخدم مكوّنات `src/components/MobileUI.tsx` ولا تعرّف ألوان hex مباشرة.
+كل لون وحجم خط ومسافة وزاوية وظل يأتي من `src/theme/tokens.ts`.
+الشاشات تبني واجهاتها من `@/components/ui` ولا تعرّف ألوان hex.
+
+```ts
+import { colors, spacing, radius, typography } from '@/theme/tokens'; // للثوابت
+import { useAppTheme } from '@/theme/ThemeProvider';                    // للألوان المتغيّرة (فاتح/داكن)
+import { PageShell, Field, PrimaryButton } from '@/components/ui';      // المكوّنات
+import { COPY } from '@/lib/copy';                                      // النصوص المشتركة
+```
+
+> `@/components/MobileUI` **مهمل** (compat shim فقط) وقاعدة ESLint تمنع الاستيراد منه.
 
 ## Tokens
+| المجموعة | أمثلة |
+|----------|--------|
+| `colors` / `darkColors` | `ink`, `brand`, `canvas`, `danger`, `successSoft` |
+| `spacing` | `xs` 4 → `xxxl` 40 |
+| `radius` | `sm` 10 → `pill` |
+| `typography` / `fontSizes` / `fontWeights` | `title`, `body`, `caption`, `button` |
+| `elevation` | `sm`, `md` |
+| `sizes` | `buttonHeight`, `headerHeight`, `touchTarget` |
 
-| المجموعة | الملف | أمثلة |
-|----------|--------|--------|
-| ألوان | `colors` | `ink`, `brand`, `canvas`, `danger`, `successSoft` |
-| مسافات | `spacing` | `xs` 4 → `xxxl` 40 |
-| زوايا | `radius` | `sm` 10 → `pill` |
-| خطوط | `typography` | `display`, `title`, `body`, `caption`, `button` |
-| ظلال | `elevation` | `sm`, `md` |
-| أحجام | `sizes` | `buttonHeight`, `headerHeight`, `touchTarget` |
+## المكوّنات (`@/components/ui`)
+`PageShell`, `AppHeader`, `SectionHeader`, `SectionCard`, `ListRow`, `Field`, `PrimaryButton`,
+`SecondaryButton`, `Notice`, `Badge`, `Chip`, `SearchBar`, `DetailScaffold`, `ProductCard`،
+وحالات القوائم: `LoadingState`, `Spinner`, `Skeleton*`, `EmptyState`, `ErrorState`,
+`ListEmpty`, `ListStaleError`, `PaginatedFooter`, `OfflineBanner`.
 
-الاستيراد المفضّل:
-```ts
-import { colors, spacing, typography } from '@/theme/tokens';
-// أو
-import { colors, spacing } from '@/theme';
-```
+## القواعد
+1. **لا hex** خام في `app/` و`src/` (يفرضها ESLint و`lint-mobile.mjs`).
+2. **حقول الإدخال عبر `Field`** عند وجود تسمية ظاهرة. `TextInput` الخام فقط لحقول البحث/الدردشة/الفلاتر الخاصة.
+3. **لا `row-reverse`**: RTL أصلي (`forceRTL`) فالصفوف العادية تنعكس تلقائيًا. (النسخة السابقة من هذا الملف قالت العكس وكانت خاطئة.)
+4. **نصوص الأخطاء/إعادة المحاولة من `COPY`**: زر = «إعادة المحاولة» (`COPY.retryAction`)، رسالة = «حاول مرة أخرى.» (`COPY.tryAgain`).
+5. المسافات والزوايا من `spacing` و`radius` وليس أرقامًا مباشرة (تتبّع التقدّم: `pnpm report:tokens`).
+6. حالات التحميل/الفراغ/الخطأ عبر مكوّنات `ui` ولا تبنِ حالات محلية.
+7. الشريط السفلي يُخفى تلقائيًا في التفاصيل والمحررات (`navigation-policy.ts`).
 
-## المكوّنات المشتركة (`MobileUI`)
-
-| المكوّن | الاستخدام |
-|---------|-----------|
-| `PageShell` | غلاف شاشة مع رأس ورجوع وـ SafeArea |
-| `AppHeader` | رأس مستقل (عنوان + رجوع + actions) |
-| `SectionHeader` | عنوان قسم + اختياري «عرض الكل» |
-| `SectionCard` | بطاقة محتوى (قابلة للضغط) |
-| `ListRow` | صف قائمة موحّد (عنوان + وصف + سهم) |
-| `Field` | حقل إدخال مع تسمية وخطأ اختياري |
-| `PrimaryButton` | primary / secondary / danger / ghost |
-| `SecondaryButton` | اختصار للثانوي |
-| `Notice` | تنبيه error / success / info / warning / muted |
-| `Badge` | شارة صغيرة |
-| `Chip` | فلتر/اختيار |
-| `LoadingState` | حالة تحميل |
-| `EmptyState` | لا توجد بيانات + إجراء اختياري |
-| `ErrorState` | خطأ + إعادة محاولة |
-
-## قواعد سريعة
-1. **لا** تضع `#176B5B` أو أي hex في ملفات `app/` — استخدم `colors.*`.
-2. عناوين الأقسام عبر `SectionHeader` وليس `Text` بحجم يدوي.
-3. روابط القوائم عبر `ListRow` وليس بطاقة مكررة يدوياً.
-4. حالات فارغة/خطأ/تحميل عبر المكوّنات المخصّصة.
-5. الـ Bottom Nav يُخفى تلقائياً في مسارات التفاصيل والمحررات (انظر `isBottomNavigationHidden`).
-6. RTL: النصوص `textAlign: 'right'` والصفوف `flexDirection: 'row-reverse'`.
-
-## الترحيل التدريجي
-الشاشات القديمة التي ما زالت تستخدم `StyleSheet` محلي تُرحَّل عند لمسها.  
-الأولوية: الرئيسية → التفاصيل → القوائم → المحررات.
-
-
-## حوكمة (المرحلة 4)
-شغّل من حزمة الموبايل:
+## التنسيق
+Prettier هو المرجع (`.prettierrc.json`):
 
 ```bash
-node scripts/verify-design-tokens-no-raw-hex.mjs
+pnpm install        # لتثبيت prettier
+pnpm format         # يعيد تنسيق app/ و src/
+pnpm format:check   # للتحقق
 ```
-
-أو ضمن `npm test` (كل `verify-*.mjs`).
-يفشل البناء المنطقي إذا وُجد hex خام في الملفات المرحَّلة.

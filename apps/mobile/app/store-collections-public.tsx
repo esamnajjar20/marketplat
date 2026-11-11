@@ -6,7 +6,7 @@ import { FlatList, RefreshControl, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { fetchPublicCollections, type StoreCollection } from '@/features/commerce/store-management.api';
-import { ErrorState, Notice, PageShell, SectionCard } from '@/components/MobileUI';
+import { ErrorState, Notice, PageShell, SectionCard } from '@/components/ui';
 import { spacing, radius } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';

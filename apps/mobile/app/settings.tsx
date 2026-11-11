@@ -60,7 +60,7 @@ export default function SettingsScreen() {
       setPrefs(merged);
       setPreferencesLoaded(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل الإعدادات. أعد المحاولة قبل الحفظ.');
+      setError(e instanceof Error ? e.message : 'تعذر تحميل الإعدادات. حاول مرة أخرى قبل الحفظ.');
     } finally {
       setLoadingPreferences(false);
     }

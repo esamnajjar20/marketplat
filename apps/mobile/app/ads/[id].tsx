@@ -17,7 +17,7 @@ import { ShareButton } from '@/components/ui/ShareButton';
 import { AppIcon } from '@/components/Icons';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { SaveOfflineButton } from '@/components/ui/SaveOfflineButton';
-import { Badge, DetailScaffold, Notice, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Badge, DetailScaffold, Notice, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, typography, fontWeights } from '@/theme/tokens';
 
 function formatPrice(price: AdDetail['price']): string {

@@ -15,7 +15,7 @@ import { fontSizes, radius, spacing, ux, fontWeights } from '@/theme/tokens';
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import { AppImage } from '@/components/AppImage';
 import { HorizontalMarketCard } from '@/components/MarketCards';
-import { SectionHeader } from '@/components/MobileUI';
+import { SectionHeader } from '@/components/ui';
 
 const PUBLIC_STORES_CACHE_KEY = 'home:public-stores:v1';
 const PUBLIC_STORES_TTL_MS = 10 * 60 * 1000;

@@ -3,13 +3,12 @@ import { AppText as Text } from '@/components/ui/AppText';
 
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchBlockedUsers, unblockUser, type BlockedUserItem } from '@/features/account/social.api';
-import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { spacing, fontWeights } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';

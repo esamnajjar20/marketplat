@@ -13,9 +13,10 @@ import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useAuth } from '@/features/auth/AuthContext';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { fetchMyProducts, deleteProduct, type ProductSummary } from '@/features/commerce/commerce.api';
-import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton } from '@/components/MobileUI';
+import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton } from '@/components/ui';
 import { AppImage } from '@/components/AppImage';
 import { radius, spacing, typography } from '@/theme/tokens';
+import { COPY } from '@/lib/copy';
 const statusLabel: Record<string, string> = {
   ACTIVE: 'نشط', DRAFT: 'مسودة', PENDING: 'قيد المراجعة', REJECTED: 'مرفوض', SUSPENDED: 'موقوف', IN_STOCK: 'متوفر', LIMITED: 'كمية محدودة', OUT_OF_STOCK: 'نفد المخزون'
 };
@@ -68,7 +69,7 @@ export default function MyProductsScreen() {
               updateItems((old) => old.filter((x) => x.id !== item.id));
             }
             catch (e) {
-              showToast('تعذر الحذف', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error');
+              showToast('تعذر الحذف', e instanceof Error ? e.message : COPY.tryAgain, 'error');
             }
             finally {
               setBusyId(null);

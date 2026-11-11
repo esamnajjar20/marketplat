@@ -5,7 +5,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { AppHeader, EmptyState, ErrorState, LoadingState, SectionCard } from '@/components/MobileUI';
+import { AppHeader, EmptyState, ErrorState, LoadingState, SectionCard } from '@/components/ui';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSalesDashboard, fetchSalesReport, fetchSalesSmartInsights, type SalesDashboardData, type SalesReportData, type SalesSmartInsightsData } from '@/features/sales/sales-extra.api';

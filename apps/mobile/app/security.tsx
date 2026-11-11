@@ -1,7 +1,7 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccountSecuritySection } from '@/components/ui/AccountSecuritySection';
-import { PageShell } from '@/components/MobileUI';
+import { PageShell } from '@/components/ui';
 import { fontSizes, spacing } from '@/theme/tokens';
 import { View } from 'react-native';
 

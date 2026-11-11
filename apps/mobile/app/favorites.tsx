@@ -16,9 +16,10 @@ import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchFavoriteAds, setFavoriteAdState, type FavoriteRecord } from '@/features/ads/favorites.api';
 import { enqueueFavoriteState, listPendingFavoriteStates, readFavoriteAdIds, writeFavoriteAdIds } from '@/features/ads/favorites.store';
-import { AppHeader, EmptyState, ErrorState, SkeletonList } from '@/components/MobileUI';
+import { AppHeader, EmptyState, ErrorState, SkeletonList } from '@/components/ui';
 import { AdCard } from '@/components/MarketCards';
 import { spacing, typography } from '@/theme/tokens';
+import { COPY } from '@/lib/copy';
 
 function priceLabel(value: number | string | null | undefined): string {
   if (value == null || value === '') return 'السعر عند التواصل';
@@ -112,7 +113,7 @@ export default function FavoritesScreen() {
         setItems((current) => current.filter((item) => item.adId !== record.adId));
         showToast(queued ? 'حُفظت الإزالة للمزامنة' : 'تمت الإزالة من المفضلة', queued ? 'سيُزامن التغيير عند توفر الاتصال والجلسة.' : 'أزيل الإعلان من قائمتك.', queued ? 'info' : 'success');
       })
-      .catch((e) => showToast('تعذر إزالة الإعلان', e instanceof ApiError || e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'))
+      .catch((e) => showToast('تعذر إزالة الإعلان', e instanceof ApiError || e instanceof Error ? e.message : COPY.tryAgain, 'error'))
       .finally(() => setBusyId(null));
   };
 

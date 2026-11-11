@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 import { AppText } from '@/components/ui/AppText';
-import { PageShell, PrimaryButton, SectionCard, Notice } from '@/components/MobileUI';
+import { PageShell, PrimaryButton, SectionCard, Notice } from '@/components/ui';
 import { fontSizes, spacing, typography, fontWeights, radius } from '@/theme/tokens';
 
 export default function OrderConfirmationScreen() {

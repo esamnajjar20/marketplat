@@ -7,7 +7,7 @@ import { Switch, View } from 'react-native';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createSellerProfile, fetchMySellerProfile, updateSellerProfile, type SellerProfile } from '@/features/account/seller.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 export default function SellerProfileScreen() {
   const { colors } = useAppTheme();

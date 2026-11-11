@@ -7,7 +7,7 @@ import { goBack, pushOnce } from '@/lib/navigation';
 import { TextInput } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import { submitReport, type ReportReason } from '@/features/account/social.api';
-import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
 const reasons: {
   value: ReportReason;

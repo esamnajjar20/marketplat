@@ -1,7 +1,8 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { router } from 'expo-router';
 import { View } from 'react-native';
-import { PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { PrimaryButton } from './Button';
+import { SectionCard } from './Section';
 import { spacing } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 export function AccountSecuritySection() {

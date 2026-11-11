@@ -6,7 +6,7 @@ import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createServiceReview, fetchServiceReviews, type ServiceReview } from '@/features/services/service-management.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
 export default function ServiceReviewsScreen() {

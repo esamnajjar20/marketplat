@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteAccountAfterReauthentication } from '@/features/account/delete-account.api';
-import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { radius, spacing, typography } from '@/theme/tokens';
 
 export default function DeleteAccountScreen() {

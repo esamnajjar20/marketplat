@@ -15,7 +15,7 @@ import {
   LoadingState,
   PrimaryButton,
   SearchBar,
-} from '@/components/MobileUI';
+} from '@/components/ui';
 import { CatalogCard } from '@/components/MarketCards';
 import { spacing, typography } from '@/theme/tokens';
 

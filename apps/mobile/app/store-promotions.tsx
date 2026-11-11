@@ -10,7 +10,7 @@ import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { cancelPromotion, createPromotion, fetchMyPromotions, type StorePromotion } from '@/features/commerce/store-management.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { statusLabel } from '@/lib/status-labels';
 import { formatSafeDate } from '@/lib/date-format';
 import { showToast } from '@/lib/toast';

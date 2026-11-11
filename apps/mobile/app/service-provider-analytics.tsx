@@ -8,7 +8,7 @@ import { View } from 'react-native';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchServiceProviderAnalytics } from '@/features/services/service-management.api';
-import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
+import { Notice, PageShell, SectionCard } from '@/components/ui';
 import { fontWeights, spacing, radius } from '@/theme/tokens';
 const metrics: [
   string,

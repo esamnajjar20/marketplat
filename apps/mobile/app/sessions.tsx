@@ -9,7 +9,7 @@ import { confirmAlert } from '@/lib/confirm';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchActiveSessions, revokeActiveSession, type ActiveSession } from '@/features/auth/sessions.api';
-import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
 

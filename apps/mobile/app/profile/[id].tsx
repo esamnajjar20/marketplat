@@ -5,14 +5,13 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { Spinner, PageShell, Notice, PrimaryButton, SectionCard } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchBlockedUsers, fetchFollowStatus, fetchPublicUser, fetchPublicUserAds, toggleBlockUser, toggleUserFollow, unblockUser, type PublicAd, type PublicUser } from '@/features/account/social.api';
 import { startConversationWithUser } from '@/features/messaging/messaging.api';
-import { PageShell, Notice, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { AppImage } from '@/components/AppImage';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 

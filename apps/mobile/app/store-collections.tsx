@@ -8,7 +8,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyProducts, fetchMyStore, type ProductSummary } from '@/features/commerce/commerce.api';
 import { addProductToCollection, createCollection, deleteCollection, fetchMyCollections, fetchPublicCollectionProducts, removeProductFromCollection, updateCollection, type StoreCollection } from '@/features/commerce/store-management.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 export default function StoreCollectionsScreen() {
   const { colors } = useAppTheme();

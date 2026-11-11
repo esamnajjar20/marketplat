@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyProfile, updateMyProfile } from '@/features/account/account.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 export default function CompleteProfileScreen() {
   const { user, accessToken, csrfToken, updateUser } = useAuth();
   const [name, setName] = useState(user?.name || '');

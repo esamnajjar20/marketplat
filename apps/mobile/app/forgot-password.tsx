@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { router } from 'expo-router';
 import { requestPasswordReset } from '@/features/account/account.api';
-import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton } from '@/components/ui';
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);

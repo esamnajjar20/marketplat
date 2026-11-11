@@ -8,6 +8,7 @@ import { checkFavoriteEntity, toggleFavoriteEntity, type FavoriteEntityType } fr
 import { radius, sizes, typography, spacing } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
+import { COPY } from '@/lib/copy';
 export function FavoriteButton({ entityType, entityId, label = 'المفضلة' }: {
   entityType: FavoriteEntityType;
   entityId: string;
@@ -46,7 +47,7 @@ export function FavoriteButton({ entityType, entityId, label = 'المفضلة' 
     }
     catch (error) {
       setFavorite(previous);
-      showToast('تعذر تحديث المفضلة', error instanceof Error ? error.message : 'حاول مرة أخرى.', 'error');
+      showToast('تعذر تحديث المفضلة', error instanceof Error ? error.message : COPY.tryAgain, 'error');
     }
     finally {
       setLoading(false);

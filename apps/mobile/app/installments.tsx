@@ -4,13 +4,12 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, TextInput, View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchInstallments, payInstallment, type InstallmentRow } from '@/features/sales/sales-extra.api';
-import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { ApiError } from '@/api/client';

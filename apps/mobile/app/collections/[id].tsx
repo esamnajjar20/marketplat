@@ -10,7 +10,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { fetchPublicCollectionProducts } from '@/features/commerce/store-management.api';
 import type { ProductSummary } from '@/features/commerce/commerce.api';
-import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
+import { Notice, PageShell, SectionCard } from '@/components/ui';
 import { spacing, radius } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';

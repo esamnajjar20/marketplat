@@ -13,7 +13,7 @@ import {
   fetchSavedSearches,
   type SavedSearch,
 } from '@/features/account/saved-searches.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { spacing, fontWeights, radius } from '@/theme/tokens';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { marketListPerf } from '@/lib/listPerformance';

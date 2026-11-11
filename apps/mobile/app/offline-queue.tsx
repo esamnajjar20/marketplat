@@ -193,7 +193,7 @@ export default function OfflineQueueScreen() {
                 showToast('لم تُنفّذ المزامنة', 'المزامنة غير جاهزة الآن (قد تكون هناك عملية أخرى قيد التنفيذ). حدّث القائمة وحاول مجددًا.', 'info');
             }
             else {
-                showToast('لم تكتمل المزامنة', 'لم ينجح إرسال العملية. راجع التفاصيل في القائمة ثم أعد المحاولة.', 'error');
+                showToast('لم تكتمل المزامنة', 'لم ينجح إرسال العملية. راجع التفاصيل في القائمة ثم حاول مرة أخرى.', 'error');
             }
         }
         catch (e) {
@@ -449,7 +449,7 @@ export default function OfflineQueueScreen() {
                                 }
                             })() ? <Text style={styles.warning}>يتضمن هذا التعديل صورًا محفوظة محليًا وسيُعاد رفعها عند المزامنة، إذا فشل رفع الصور فستُعاد محاولة هذا العنصر قبل العمليات الأحدث؛ لا تحذف المسودة حتى تتأكد من نجاح المزامنة.</Text> : null}
             {exhausted && !isHead ? <Text style={styles.warning}>لا يمكن إعادة هذه العملية الآن لأن هناك عملية أقدم تسبقها في الطابور.</Text> : null}
-            {exhausted && isHead && item.operation === 'update-ad' ? <Text style={styles.warning}>تعذرت المزامنة بعد عدة محاولات. تحقق من بيانات التعديل والاتصال ثم أعد المحاولة.</Text> : null}
+            {exhausted && isHead && item.operation === 'update-ad' ? <Text style={styles.warning}>تعذرت المزامنة بعد عدة محاولات. تحقق من بيانات التعديل والاتصال ثم حاول مرة أخرى.</Text> : null}
             <View style={styles.actions}>
               {canRetry ? <Pressable accessibilityRole="button" disabled={busyId !== null} style={styles.secondary} onPress={() => void retry(item)}><Text style={styles.secondaryText}>{busyId === item.id ? 'جارٍ…' : 'إعادة المحاولة'}</Text></Pressable> : null}
               <Pressable accessibilityRole="button" disabled={!canDiscard || busyId !== null} style={[styles.delete, (!canDiscard || busyId !== null) && styles.disabled]} onPress={() => discard(item)}><Text style={styles.deleteText}>{busyId === item.id ? 'جارٍ…' : canDiscard ? 'إلغاء العملية' : 'قيد المعالجة'}</Text></Pressable>
