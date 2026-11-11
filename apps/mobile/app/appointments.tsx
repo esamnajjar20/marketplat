@@ -2,13 +2,13 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useEffect, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyAppointments, updateAppointmentStatus, type AppointmentRow } from '@/features/appointments/appointments.api';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
-import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { LoadingState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { spacing } from '@/theme/tokens';
 import { formatDate } from '@/lib/formatters';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -101,28 +101,20 @@ export default function AppointmentsScreen() {
         keyExtractor={(item) => item.id}
         {...marketListPerf}
         contentContainerStyle={{ paddingBottom: spacing.xl, gap: spacing.md }}
-        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} />}
+        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={(
           <View style={{ gap: spacing.md }}>
             <Notice tone="muted">تظهر هنا المواعيد المرتبطة بطلبات الخدمات. يمكن للعميل الإلغاء، ولمقدم الخدمة الإتمام أو تسجيل عدم الحضور.</Notice>
-            {isRestoring || list.loading ? <View style={{ paddingVertical: spacing.md, alignItems: 'center' }}><Spinner color={colors.brand} /></View> : undefined}
             {needsLogin ? <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /> : undefined}
-            {!isRestoring && list.error && list.items.length === 0 ? <><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></> : undefined}
-            {list.error && list.items.length > 0 ? <Notice>{list.error}</Notice> : undefined}
+            <ListStaleError list={list} />
             {actionError ? <Notice>{actionError}</Notice> : undefined}
           </View>
         )}
-        ListEmptyComponent={!showInitialState && !list.error ? <Notice tone="muted">لا توجد مواعيد حاليًا. بعد قبول طلب خدمة، يمكنك ترتيب موعد من تفاصيل الطلب.</Notice> : undefined}
+        ListEmptyComponent={isRestoring ? <LoadingState message="جارٍ استعادة الجلسة…" /> : needsLogin ? undefined : <ListEmpty list={list} loadingMessage="جاري تحميل المواعيد…" errorTitle="تعذر تحميل المواعيد" emptyTitle="لا توجد مواعيد حاليًا" emptyDescription="بعد قبول طلب خدمة، يمكنك ترتيب موعد من تفاصيل الطلب." />}
         renderItem={renderAppointment}
         onEndReached={() => void list.loadMore()}
         onEndReachedThreshold={0.4}
-        ListFooterComponent={list.loadingMore
-          ? <View style={{ padding: spacing.md, alignItems: 'center' }}><Spinner color={colors.brand} /></View>
-          : list.loadMoreError
-            ? <View style={{ gap: spacing.sm }}><Notice>{list.loadMoreError}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></View>
-            : list.hasNextPage
-              ? <PrimaryButton label="تحميل مواعيد أقدم" variant="secondary" onPress={() => void list.loadMore()} />
-              : undefined}
+        ListFooterComponent={<PaginatedFooter list={list} moreLabel="تحميل مواعيد أقدم" />}
       />
     </PageShell>
   );

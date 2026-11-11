@@ -6,7 +6,7 @@ import {
   getOfflineCacheStatusSnapshot,
   subscribeOfflineCacheStatus,
 } from '@/api/offline-cache-status';
-import { spacing } from '@/theme/tokens';
+import { spacing, fontWeights } from '@/theme/tokens';
 
 function formatAge(ageMs: number): string {
   const minutes = Math.floor(Math.max(0, ageMs) / 60_000);
@@ -46,7 +46,7 @@ export function OfflineCacheNotice() {
         backgroundColor: colors.warningSoft,
       }}
     >
-      <Text style={{ color: colors.warningText, textAlign: 'right', fontWeight: '700' }}>
+      <Text style={{ color: colors.warningText, textAlign: 'right', fontWeight: fontWeights.bold }}>
         تعرض بعض البيانات نسخة محفوظة ({resources}). أحدث نسخة محفوظة عمرها {age}؛ قد لا تعكس آخر التغييرات.
       </Text>
     </View>

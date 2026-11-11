@@ -16,7 +16,7 @@ import { clearPrivateCleanupFlag } from '@/features/auth/private-data-cleanup';
 import { getAdDraftStorageSummary, type AdDraftStorageSummary } from '@/storage/ad-draft-store';
 import { countUnownedOutboxMutations, listAllOutboxMutations } from '@/storage/outbox-manager';
 import { listPendingFavoriteStates } from '@/features/ads/favorites.store';
-import { fontSizes } from '@/theme/tokens';
+import { fontSizes, fontWeights } from '@/theme/tokens';
 
 type QueueStats = { pending: number; blockedLegacy: number; pendingFavorites: number };
 function formatBytes(bytesValue: number): string {
@@ -145,4 +145,4 @@ export default function StorageScreen() {
     <Pressable accessibilityRole="button" onPress={() => void refresh()} style={styles.refresh}><Text style={styles.refreshText}>تحديث معلومات التخزين</Text></Pressable>
   </PageShell>;
 }
-const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({ intro: { textAlign: 'right', color: colors.muted, fontSize: fontSizes[14], lineHeight: 23 }, sectionTitle: { color: colors.ink, textAlign: 'right', fontWeight: '700', fontSize: fontSizes[16] }, statRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }, statCopy: { flex: 1, gap: 3 }, statLabel: { textAlign: 'right', color: colors.ink, fontSize: fontSizes[14], fontWeight: '700' }, statValue: { color: colors.brand, fontSize: fontSizes[13], fontWeight: '700', maxWidth: '48%', textAlign: 'left' }, detail: { textAlign: 'right', color: colors.muted, fontSize: fontSizes[12], lineHeight: 19 }, loading: { textAlign: 'center', color: colors.muted }, refresh: { padding: 15, alignItems: 'center' }, refreshText: { color: colors.brand, fontWeight: '700' } });
+const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({ intro: { textAlign: 'right', color: colors.muted, fontSize: fontSizes[14], lineHeight: 23 }, sectionTitle: { color: colors.ink, textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[16] }, statRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14, paddingVertical: 13, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }, statCopy: { flex: 1, gap: 3 }, statLabel: { textAlign: 'right', color: colors.ink, fontSize: fontSizes[14], fontWeight: fontWeights.bold }, statValue: { color: colors.brand, fontSize: fontSizes[13], fontWeight: fontWeights.bold, maxWidth: '48%', textAlign: 'left' }, detail: { textAlign: 'right', color: colors.muted, fontSize: fontSizes[12], lineHeight: 19 }, loading: { textAlign: 'center', color: colors.muted }, refresh: { padding: 15, alignItems: 'center' }, refreshText: { color: colors.brand, fontWeight: fontWeights.bold } });

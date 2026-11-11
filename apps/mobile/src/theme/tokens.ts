@@ -199,6 +199,14 @@ export const radius = {
   chip: 20,
 } as const;
 
+/** أوزان الخط الموحّدة — لا تكتب '600'/'700' حرفيًا في الشاشات. */
+export const fontWeights = {
+  regular: '400',
+  medium: '500',
+  semibold: '600',
+  bold: '700',
+} as const;
+
 /** أحجام الخط الموحدة */
 export const fontSizes = {
   10: 10,
@@ -210,13 +218,9 @@ export const fontSizes = {
   16: 16,
   17: 17,
   18: 18,
-  19: 19,
   20: 20,
-  21: 21,
   22: 22,
-  23: 23,
   24: 24,
-  25: 25,
   26: 26,
   28: 28,
   30: 30,

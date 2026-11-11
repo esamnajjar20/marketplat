@@ -3,7 +3,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { useMemo } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
-import { radius, spacing, fontSizes } from '@/theme/tokens';
+import { radius, spacing, fontSizes, fontWeights } from '@/theme/tokens';
 
 export type ActionSheetOption = {
   key: string;
@@ -60,12 +60,12 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   backdrop: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   sheet: { width: '100%', maxWidth: 560, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xl, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, backgroundColor: colors.surface, gap: spacing.sm },
   handle: { width: 42, height: 4, borderRadius: 4, alignSelf: 'center', backgroundColor: colors.controlBorder, marginBottom: spacing.xs },
-  title: { color: colors.ink, fontSize: fontSizes[17], fontWeight: '700', textAlign: 'right' },
+  title: { color: colors.ink, fontSize: fontSizes[17], fontWeight: fontWeights.bold, textAlign: 'right' },
   description: { color: colors.muted, fontSize: fontSizes[13], lineHeight: 20, textAlign: 'right' },
   option: { minHeight: 48, justifyContent: 'center', alignItems: 'flex-end', paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.canvas },
   pressed: { opacity: 0.72 },
-  optionText: { color: colors.ink, fontSize: fontSizes[14], fontWeight: '700' },
+  optionText: { color: colors.ink, fontSize: fontSizes[14], fontWeight: fontWeights.bold },
   dangerText: { color: colors.danger },
   cancel: { backgroundColor: colors.brandSoft, marginTop: spacing.xs },
-  cancelText: { color: colors.brand, fontSize: fontSizes[14], fontWeight: '700' },
+  cancelText: { color: colors.brand, fontSize: fontSizes[14], fontWeight: fontWeights.bold },
 });

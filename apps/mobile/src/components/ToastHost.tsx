@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { subscribeToToasts, type ToastMessage } from '@/lib/toast';
-import { radius, spacing, fontSizes, type ColorPalette } from '@/theme/tokens';
+import { radius, spacing, fontSizes, type ColorPalette, fontWeights } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 
 export function ToastHost() {
@@ -47,8 +47,8 @@ function createStyles(palette: ColorPalette) {
   return StyleSheet.create({
   host: { position: 'absolute', top: spacing.md, left: spacing.md, right: spacing.md, zIndex: 2000, elevation: 20 },
   toast: { backgroundColor: palette.surface, borderColor: palette.border, borderWidth: 1, borderStartWidth: 4, borderRadius: radius.md, padding: spacing.md, gap: spacing.xs, shadowColor: palette.black, shadowOpacity: 0.12, shadowRadius: 12, shadowOffset: { width: 0, height: 5 } },
-  title: { fontSize: fontSizes[13], fontWeight: '700', color: palette.ink, textAlign: 'right' },
+  title: { fontSize: fontSizes[13], fontWeight: fontWeights.bold, color: palette.ink, textAlign: 'right' },
   message: { fontSize: fontSizes[12], lineHeight: 19, color: palette.muted, textAlign: 'right' },
-  action: { marginTop: spacing.xs, fontSize: fontSizes[12], fontWeight: '700', color: palette.brand, textAlign: 'right' },
+  action: { marginTop: spacing.xs, fontSize: fontSizes[12], fontWeight: fontWeights.bold, color: palette.brand, textAlign: 'right' },
 });
 }

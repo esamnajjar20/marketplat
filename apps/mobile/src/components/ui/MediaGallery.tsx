@@ -3,7 +3,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useMemo, useRef, useState } from 'react';
 import { FlatList, Modal, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
-import { fontSizes, radius, spacing, type ColorPalette } from '@/theme/tokens';
+import { fontSizes, radius, spacing, type ColorPalette, fontWeights } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 /** Compact RTL gallery with an accessible image counter and native fullscreen viewer. */
 export function MediaGallery({ images, title }: {
@@ -48,7 +48,7 @@ function createStyles(palette: ColorPalette) {
         }, counter: {
             position: 'absolute', top: spacing.sm, start: spacing.sm, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: palette.mediaCounterOverlay
         }, counterText: {
-            color: palette.white, fontSize: fontSizes[12], fontWeight: '600'
+            color: palette.white, fontSize: fontSizes[12], fontWeight: fontWeights.semibold
         }, thumbs: {
             flexDirection: 'row', gap: spacing.sm
         }, thumbWrap: {
@@ -66,7 +66,7 @@ function createStyles(palette: ColorPalette) {
         }, modalHeader: {
             paddingTop: spacing.x4l, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md
         }, modalTitle: {
-            flex: 1, color: palette.white, textAlign: 'right', fontSize: fontSizes[15], fontWeight: '700'
+            flex: 1, color: palette.white, textAlign: 'right', fontSize: fontSizes[15], fontWeight: fontWeights.bold
         }, close: {
             width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.pill, backgroundColor: palette.mediaCloseOverlay
         }, closeText: {
@@ -76,7 +76,7 @@ function createStyles(palette: ColorPalette) {
         }, fullImage: {
             width: '100%', height: '85%'
         }, fullCounter: {
-            color: palette.white, textAlign: 'center', paddingBottom: 34, fontWeight: '600'
+            color: palette.white, textAlign: 'center', paddingBottom: 34, fontWeight: fontWeights.semibold
         }
     });
 }

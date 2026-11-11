@@ -5,7 +5,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { EmptyState, ErrorState, LoadingState, PageShell, SectionCard, SectionHeader } from '@/components/ui';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { useAppTheme } from '@/theme/ThemeProvider';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { fetchSellerRanking, type RankedSeller } from '@/features/discovery/discovery.api';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 
@@ -45,7 +45,7 @@ export default function SellersRankingScreen() {
           style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
         >
           <View style={{ width: 36, alignItems: 'center' }}>
-            <Text style={{ fontWeight: '700', color: seller.rank <= 3 ? colors.brand : colors.muted, fontSize: fontSizes[16] }}>
+            <Text style={{ fontWeight: fontWeights.bold, color: seller.rank <= 3 ? colors.brand : colors.muted, fontSize: fontSizes[16] }}>
               {seller.rank <= 3 ? MEDALS[seller.rank - 1] : `#${seller.rank}`}
             </Text>
           </View>
@@ -53,7 +53,7 @@ export default function SellersRankingScreen() {
             <AppImage uri={seller.avatarUrl} style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.border }} />
           ) : (
             <View style={{ width: 58, height: 58, borderRadius: 29, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ color: colors.brandOnSoft, fontWeight: '700', fontSize: fontSizes[20] }}>
+              <Text style={{ color: colors.brandOnSoft, fontWeight: fontWeights.bold, fontSize: fontSizes[20] }}>
                 {seller.displayName?.slice(0, 1) || 'ب'}
               </Text>
             </View>

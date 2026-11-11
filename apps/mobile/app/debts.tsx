@@ -3,13 +3,13 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { Spinner, ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchDebtSummary, fetchDebts, type DebtSummary } from '@/features/sales/sales-extra.api';
 import type { SaleRecord } from '@/features/sales/sales.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { formatSafeDate } from '@/lib/date-format';
 import { formatMoney } from '@/lib/formatters';
@@ -87,7 +87,7 @@ export default function DebtsScreen() {
         keyExtractor={(sale) => sale.id}
         {...marketListPerf}
         contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
-        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} />}
+        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <Notice tone="muted">
@@ -109,7 +109,7 @@ export default function DebtsScreen() {
                       style={{
                         textAlign: 'right',
                         fontSize: fontSizes[20],
-                        fontWeight: '700',
+                        fontWeight: fontWeights.bold,
                         color: l === 'متأخر' ? colors.danger : colors.ink,
                       }}
                     >
@@ -119,19 +119,19 @@ export default function DebtsScreen() {
                 ))}
               </View>
             ) : null}
-            {list.loading || summaryLoading ? <Spinner color={colors.brand} /> : null}
-            {summaryError ? <View style={{ gap: spacing.xs }}><Notice>{summaryError}</Notice><PrimaryButton label="إعادة تحميل الملخص" variant="secondary" onPress={() => void loadSummary()} /></View> : null}{list.error ? <Notice>{list.error}</Notice> : null}
+            {summaryLoading ? <Spinner color={colors.brand} /> : null}
+            {summaryError ? <View style={{ gap: spacing.xs }}><Notice>{summaryError}</Notice><PrimaryButton label="إعادة تحميل الملخص" variant="secondary" onPress={() => void loadSummary()} /></View> : null}<ListStaleError list={list} />
           </View>
         }
-        ListEmptyComponent={list.error ? <View style={{ gap: spacing.sm }}><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></View> : !list.loading ? <Notice tone="success">لا توجد مبالغ مستحقة حاليًا.</Notice> : undefined}
+        ListEmptyComponent={<ListEmpty list={list} loadingMessage="جاري تحميل الديون…" errorTitle="تعذر تحميل الديون" emptyTitle="لا توجد مبالغ مستحقة حاليًا" />}
         renderItem={({ item: sale }) => (
           <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/sales/[id]', params: { id: sale.id } })}>
             <SectionCard>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm }}>
-                <Text style={{ flex: 1, textAlign: 'right', fontWeight: '700', fontSize: fontSizes[15], color: colors.ink }}>
+                <Text style={{ flex: 1, textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[15], color: colors.ink }}>
                   {sale.entityTitle}
                 </Text>
-                <Text style={{ fontWeight: '700', color: colors.danger }}>
+                <Text style={{ fontWeight: fontWeights.bold, color: colors.danger }}>
                   {money(sale.dueAmount, sale.currency)}
                 </Text>
               </View>
@@ -149,10 +149,7 @@ export default function DebtsScreen() {
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListFooterComponent={
           <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
-            {list.loadMoreError ? <Notice>{list.loadMoreError}</Notice> : null}
-            {list.hasNextPage || list.loadMoreError ? (
-              <PrimaryButton label={list.loadMoreError ? 'إعادة المحاولة' : 'تحميل المزيد'} onPress={() => void (list.loadMoreError ? list.retry() : list.loadMore())} busy={list.loadingMore} variant="secondary" />
-            ) : null}
+            <PaginatedFooter list={list} />
             <PrimaryButton label="إدارة الأقساط" onPress={() => router.push('/installments')} variant="secondary" />
             <PrimaryButton label="العودة إلى مبيعاتي" onPress={() => router.push('/my-sales')} variant="secondary" />
           </View>

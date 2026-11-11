@@ -9,6 +9,7 @@ import { fetchSaleDetail, fetchSaleReceipt } from '@/features/sales/sales-extra.
 import type { SaleRecord } from '@/features/sales/sales.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { formatDate, formatMoney } from '@/lib/formatters';
+import { fontWeights } from '@/theme/tokens';
 const paymentMethodLabel = (method: string) => ({
     CASH: 'نقدًا', CASH_ON_DELIVERY: 'نقدًا عند الاستلام', CARD: 'بطاقة', BANK_TRANSFER: 'تحويل بنكي', WALLET: 'محفظة إلكترونية', OTHER: 'أخرى'
 } as Record<string, string>)[method] || 'وسيلة دفع أخرى';
@@ -103,7 +104,7 @@ export default function SaleDetailScreen() {
     ].map(([label, value]) => <View key={String(label)} style={{
         flexDirection: 'row', justifyContent: 'space-between', gap: 8
     }}><Text style={{ color: colors.muted }}>{label}</Text><Text style={{
-        color: label === 'المتبقي' && Number(sale.dueAmount) > 0 ? colors.danger : colors.ink, fontWeight: '700'
+        color: label === 'المتبقي' && Number(sale.dueAmount) > 0 ? colors.danger : colors.ink, fontWeight: fontWeights.bold
     }}>{value}</Text></View>)}</SectionCard>{sale.items?.length ? <SectionCard><Text tone="ink" strong size={16}>عناصر البيع</Text>{sale.items.map(item => <View key={item.id} style={{
         paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 4
     }}><Text tone="ink" strong>{item.title}</Text><Text tone="muted">الكمية: {item.quantity} · سعر الوحدة: {formatMoney(item.unitPrice, sale.currency)}</Text><Text tone="brand" strong>الإجمالي: {formatMoney(item.lineTotal, sale.currency)}{item.returnedQuantity ? ` · مرتجع ${item.returnedQuantity}` : ''}</Text></View>)}</SectionCard> : null}{sale.payments?.length ? <SectionCard><Text tone="ink" strong size={16}>الدفعات المسجلة</Text>{sale.payments.map(payment => <View key={payment.id} style={{

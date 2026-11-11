@@ -55,7 +55,7 @@ export const MAIN_TABS: ReadonlyArray<{
   { id: 'account', label: 'حسابي', path: '/account', glyph: 'account', matches: [
     '/account', '/profile', '/my-', '/seller-dashboard', '/seller-profile', '/following', '/favorites', '/orders', '/settings', '/security', '/notifications', '/complete-profile', '/sessions', '/delete-account', '/saved-payments',
     '/activity', '/saved-searches', '/followed-stores', '/offline-queue', '/blocked-users',
-    '/storage', '/seller-orders', '/customers', '/debts', '/installments', '/appointments',
+    '/storage', '/seller-orders', '/customers', '/debts', '/installments', '/sales-costs', '/sales-insights', '/appointments',
     '/service-requests', '/service-provider-profile', '/service-provider-analytics',
     '/service-provider-hours', '/service-reviews', '/store-collections',
     '/store-hours', '/store-invites', '/store-promotions', '/store-team', '/store/', '/my-reports',
@@ -92,6 +92,8 @@ export const DRAWER_ITEMS: ReadonlyArray<{
   { label: 'العملاء', path: '/customers', icon: 'account', section: 'المبيعات', capability: 'sellerWorkspace' },
   { label: 'الديون', path: '/debts', icon: 'orders', section: 'المبيعات', capability: 'sellerWorkspace' },
   { label: 'الأقساط', path: '/installments', icon: 'orders', section: 'المبيعات', capability: 'sellerWorkspace' },
+  { label: 'التحليلات والتقارير', path: '/sales-insights', icon: 'orders', section: 'المبيعات', capability: 'sellerWorkspace' },
+  { label: 'التكلفة الحقيقية', path: '/sales-costs', icon: 'orders', section: 'المبيعات', capability: 'sellerWorkspace' },
 
   { label: 'ملف البائع', path: '/seller-profile', icon: 'account', section: 'متجري' },
   { label: 'لوحة المتجر', path: '/seller-dashboard', icon: 'store', section: 'متجري', capability: 'sellerWorkspace' },
@@ -125,7 +127,7 @@ const AUTH_ONLY_EXACT = new Set([
   '/add', '/messages', '/notifications', '/profile', '/following', '/following-feed', '/favorites',
   '/complete-profile', '/my-ads', '/my-products', '/my-services', '/my-stores',
   '/my-requests', '/my-offers', '/my-sales', '/my-reports', '/orders', '/seller-orders',
-  '/appointments', '/blocked-users', '/customers', '/debts', '/installments',
+  '/appointments', '/blocked-users', '/customers', '/debts', '/installments', '/sales-costs', '/sales-insights',
   '/saved-searches', '/security', '/sessions', '/seller-dashboard', '/seller-profile',
   '/my-store-analytics', '/service-requests', '/offline-queue', '/saved-payments',
   '/followed-stores', '/storage', '/settings', '/activity', '/delete-account',

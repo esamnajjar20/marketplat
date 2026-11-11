@@ -11,7 +11,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { addProductImages, createProduct, fetchProduct, fetchProductCategories, removeProductImage, updateProduct, type ProductCategory } from '@/features/commerce/commerce.api';
-import { fontSizes, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { enqueueOfflineCreate } from '@/storage/outbox-manager';
 import { persistSelectedAdImage } from '@/storage/persist-ad-image';
 import type { SelectedAdImage } from '@/features/ads/manage-ads.api';
@@ -217,7 +217,7 @@ export default function ProductEditorScreen() {
 }
 const createThemeS = (colors: ColorPalette) => StyleSheet.create({
     content: { gap: spacing.md }, label: {
-        fontSize: fontSizes[14], fontWeight: '700', color: colors.ink, textAlign: 'right', marginTop: spacing.sm
+        fontSize: fontSizes[14], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'right', marginTop: spacing.sm
     }, input: {
         minHeight: 54, paddingHorizontal: spacing.md, paddingVertical: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.md, color: colors.ink, fontSize: fontSizes[15], writingDirection: 'rtl'
     }, multiline: { minHeight: 120 }, chips: {
@@ -229,15 +229,15 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
     }, chipText: {
         color: colors.ink, fontSize: fontSizes[13]
     }, chipTextSelected: {
-        color: colors.brandOnSoft, fontWeight: '700'
+        color: colors.brandOnSoft, fontWeight: fontWeights.bold
     }, primary: {
         minHeight: 52, backgroundColor: colors.brand, borderRadius: radius.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center', marginTop: spacing.md
     }, primaryText: {
-        color: colors.onBrand, fontWeight: '700'
+        color: colors.onBrand, fontWeight: fontWeights.bold
     }, removeImage: {
         minHeight: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.danger, borderRadius: 10
     }, removeImageText: {
-        color: colors.danger, fontWeight: '700'
+        color: colors.danger, fontWeight: fontWeights.bold
     }, disabled: { opacity: .6 }, muted: {
         fontSize: fontSizes[13], color: colors.muted, textAlign: 'right'
     }

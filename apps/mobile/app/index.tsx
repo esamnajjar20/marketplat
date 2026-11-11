@@ -10,7 +10,7 @@ import { Spinner } from '@/components/ui';
 
 import { DrawerMenuButton } from '@/components/MobileDrawer';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fontSizes, radius, spacing, ux } from '@/theme/tokens';
+import { fontSizes, radius, spacing, ux, fontWeights } from '@/theme/tokens';
 import { EmptyState, ErrorState, SectionHeader, SkeletonList } from '@/components/MobileUI';
 import { HorizontalAdCard } from '@/components/MarketCards';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -490,13 +490,13 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   logoText: {
     color: colors.onBrand,
     fontSize: fontSizes[20],
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
   },
   brandTextCol: { gap: 1 },
   brandName: {
     color: colors.ink,
     fontSize: fontSizes[17],
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     textAlign: 'right',
   },
   brandSubtitle: {
@@ -521,7 +521,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   accountButtonText: {
     color: colors.brandOnSoft,
     fontSize: fontSizes[13],
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
   },
 
   welcomeRow: {
@@ -548,7 +548,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   searchIcon: {
     color: colors.muted,
     fontSize: fontSizes[18],
-    fontWeight: '600',
+    fontWeight: fontWeights.semibold,
   },
   searchInput: {
     flex: 1,
@@ -573,7 +573,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   searchSubmitText: {
     color: colors.onBrand,
     fontSize: fontSizes[13],
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
   },
 
   // اختصارات مضغوطة
@@ -597,12 +597,12 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   quickChipGlyph: {
     color: colors.brand,
     fontSize: fontSizes[15],
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
   },
   quickChipTitle: {
     color: colors.ink,
     fontSize: fontSizes[12],
-    fontWeight: '600',
+    fontWeight: fontWeights.semibold,
   },
 
   // أقسام المجتمع والسوق
@@ -640,7 +640,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   link: {
     color: colors.brand,
     fontSize: fontSizes[12],
-    fontWeight: '600',
+    fontWeight: fontWeights.semibold,
   },
 
   // فلاتر
@@ -678,7 +678,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   filterCaption: {
     color: colors.muted,
     fontSize: fontSizes[12],
-    fontWeight: '600',
+    fontWeight: fontWeights.semibold,
   },
   filterChip: {
     minHeight: 34,
@@ -697,7 +697,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   filterText: {
     color: colors.muted,
     fontSize: fontSizes[12],
-    fontWeight: '600',
+    fontWeight: fontWeights.semibold,
   },
   filterTextSelected: {
     color: colors.brandOnSoft,
@@ -718,7 +718,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   clearFiltersText: {
     color: colors.ink,
-    fontWeight: '600',
+    fontWeight: fontWeights.semibold,
     fontSize: fontSizes[13],
   },
   applyFiltersButton: {
@@ -731,7 +731,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   applyFiltersText: {
     color: colors.onBrand,
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     fontSize: fontSizes[13],
   },
 
@@ -745,7 +745,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   cacheStatusText: {
     color: colors.brandDark,
     fontSize: fontSizes[11],
-    fontWeight: '600',
+    fontWeight: fontWeights.semibold,
     textAlign: 'right',
   },
 
@@ -768,7 +768,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   loadMoreText: {
     color: colors.brandOnSoft,
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     fontSize: fontSizes[14],
   },
 });

@@ -1,4 +1,5 @@
-import { FlatList, View } from 'react-native';
+import { useAppTheme } from '@/theme/ThemeProvider';
+import { FlatList, RefreshControl, View } from 'react-native';
 import { router } from 'expo-router';
 import { fetchPublicCategories, type PublicCategory } from '@/features/categories/categories.api';
 import { EmptyState, ErrorState, ListRow, LoadingState, PageShell } from '@/components/MobileUI';
@@ -7,10 +8,11 @@ import { spacing } from '@/theme/tokens';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 
 export default function CategoriesScreen() {
-  const { data, loading, error, reload } = useAsyncResource<PublicCategory[]>(
+  const { data, loading, refreshing, error, reload } = useAsyncResource<PublicCategory[]>(
     () => fetchPublicCategories(),
     { key: 'public-market-categories', tag: 'public-categories' },
   );
+  const { colors: refreshTheme } = useAppTheme();
   const items = data ?? [];
 
   return (
@@ -18,7 +20,7 @@ export default function CategoriesScreen() {
       {loading ? <LoadingState message="جاري تحميل التصنيفات…" /> : error ? (
         <ErrorState title="تعذر تحميل التصنيفات" description={error} onAction={() => void reload()} />
       ) : (
-        <FlatList
+        <FlatList refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload({ soft: true })} tintColor={refreshTheme.brand} />}
           data={items}
           keyExtractor={(item) => item.id}
           {...marketListPerf}

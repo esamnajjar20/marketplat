@@ -1,8 +1,10 @@
 
+import { usePullRefresh } from '@/hooks/usePullRefresh';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { invalidateNavigationCapabilities } from '@/lib/navigation-policy';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -36,6 +38,8 @@ export default function StoreInvitesScreen() {
       setLoading(false);
     }
   }, [accessToken]);
+  const { colors: refreshTheme } = useAppTheme();
+  const { refreshing: pullRefreshing, onRefresh: onPullRefresh } = usePullRefresh(() => load());
 
   useEffect(() => {
     void load();
@@ -80,7 +84,7 @@ export default function StoreInvitesScreen() {
           <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
         </>
       ) : (
-        <FlatList
+        <FlatList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
           data={loading ? [] : items}
           keyExtractor={(item) => item.id}
           {...marketListPerf}

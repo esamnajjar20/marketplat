@@ -9,7 +9,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchUserFollowList, type FollowListItem } from '@/features/account/social.api';
 import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 export default function FollowingScreen() {
@@ -36,7 +36,7 @@ export default function FollowingScreen() {
     {list.error ? <SectionCard><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void list.retry()} /></SectionCard> : null}
     {!list.loading && !list.error && user?.id && list.items.length === 0 ? <EmptyState title="لا توجد حسابات تتابعها" description="عند متابعة حسابات من المنصة ستظهر هنا." /> : null}
     {list.items.map((entry) => { const target = entry.target; return <Pressable key={entry.id} accessibilityRole="button" onPress={() => target?.id && router.push({ pathname: '/profile/[id]', params: { id: target.id } })} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.card, padding: spacing.md, minHeight: 76 }}>
-      {target?.avatarUrl ? <AppImage uri={target.avatarUrl} style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.border }} /> : <View style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}><Text style={{ color: colors.brandOnSoft, fontWeight: '700', fontSize: fontSizes[18] }}>{(target?.name || '?').slice(0, 1)}</Text></View>}
+      {target?.avatarUrl ? <AppImage uri={target.avatarUrl} style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.border }} /> : <View style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}><Text style={{ color: colors.brandOnSoft, fontWeight: fontWeights.bold, fontSize: fontSizes[18] }}>{(target?.name || '?').slice(0, 1)}</Text></View>}
       <View style={{ flex: 1, gap: 3 }}><Text tone="ink" strong size={14}>{target?.name || 'حساب مستخدم'}</Text><Text tone="muted" size={12}>{target?.city || 'الموقع غير محدد'}</Text></View>
       <AppIcon name="forward" size={20} color={colors.brand} />
     </Pressable>; })}

@@ -22,7 +22,7 @@ import type { ChatLiveEvent } from '@/features/messaging/chat-live-stream';
 import { useChatLiveStream } from '@/features/messaging/useChatLiveStream';
 import { useChatMediaOutboxLifecycle } from '@/features/messaging/useChatMediaOutboxLifecycle';
 import { markCachedChatMessageDeleted, readCachedChatMessages, saveCachedChatMessages } from '@/storage/chat-message-cache';
-import { fontSizes, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, elevation, radius, sizes, spacing, typography, ux, fontWeights } from '@/theme/tokens';
 import ConversationMessageRow, { type ConversationScreenMessage } from '@/features/messaging/ConversationMessageRow';
 import { isAllowedMediaUrl } from '@/lib/safe-media-url';
 import { showToast } from '@/lib/toast';
@@ -546,7 +546,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   attachText: {
     fontSize: fontSizes[12],
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     color: colors.brand,
   },
   pendingMedia: {
@@ -596,7 +596,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   sendText: {
     color: colors.onBrand,
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     fontSize: fontSizes[14],
   },
   disabled: { opacity: 0.42 },

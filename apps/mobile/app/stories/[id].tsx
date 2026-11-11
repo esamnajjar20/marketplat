@@ -12,7 +12,7 @@ import { AppImage } from '@/components/AppImage';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteStory, fetchStoryFeed, fetchUserStories, markStoryViewed, type Story } from '@/features/stories/stories.api';
 import { shareMarketPlatResource } from '@/features/sharing/deep-links';
-import { fontSizes, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 const STORY_DURATION_MS = 6500;
 export default function StoryViewerScreen() {
     const { colors } = useAppTheme();
@@ -175,9 +175,9 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, top: {
         height: 52, paddingHorizontal: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'
     }, action: {
-        color: colors.brandSoft, fontWeight: '700', padding: spacing.sm
+        color: colors.brandSoft, fontWeight: fontWeights.bold, padding: spacing.sm
     }, count: {
-        color: colors.white, fontWeight: '700'
+        color: colors.white, fontWeight: fontWeights.bold
     }, center: {
         flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.md
     }, muted: { color: colors.borderStrong }, error: {
@@ -185,7 +185,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, button: {
         backgroundColor: colors.brand, padding: spacing.md, borderRadius: radius.md
     }, buttonText: {
-        color: colors.onBrand, fontWeight: '700'
+        color: colors.onBrand, fontWeight: fontWeights.bold
     }, stage: {
         flex: 1, marginHorizontal: spacing.sm, marginBottom: spacing.sm, borderRadius: radius.lg, padding: spacing.md, overflow: 'hidden'
     }, progressRow: {
@@ -197,7 +197,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, author: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md
     }, authorName: {
-        textAlign: 'right', color: colors.white, fontWeight: '700', fontSize: fontSizes[16]
+        textAlign: 'right', color: colors.white, fontWeight: fontWeights.bold, fontSize: fontSizes[16]
     }, authorMeta: {
         textAlign: 'right', color: colors.brandSoft, fontSize: fontSizes[12], marginTop: 3
     }, media: {
@@ -205,15 +205,15 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, textOnly: {
         flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl
     }, storyText: {
-        fontSize: fontSizes[28], fontWeight: '700', textAlign: 'center', lineHeight: 40, color: colors.white
+        fontSize: fontSizes[28], fontWeight: fontWeights.bold, textAlign: 'center', lineHeight: 40, color: colors.white
     }, caption: {
-        color: colors.white, textAlign: 'center', padding: spacing.md, fontSize: fontSizes[16], fontWeight: '700'
+        color: colors.white, textAlign: 'center', padding: spacing.md, fontSize: fontSizes[16], fontWeight: fontWeights.bold
     }, nav: {
         flexDirection: 'row', justifyContent: 'space-between', paddingTop: spacing.md
     }, navButton: {
         minHeight: 48, padding: spacing.md, backgroundColor: colors.storyNavigationOverlay, borderRadius: radius.md, minWidth: 100, alignItems: 'center'
     }, navText: {
-        color: colors.white, fontWeight: '700'
+        color: colors.white, fontWeight: fontWeights.bold
     }, tapZones: {
         position: 'absolute', left: 0, right: 0, top: 70, bottom: 75, flexDirection: 'row'
     }, tapZone: { flex: 1 }, tapZonePause: { flex: 1 }

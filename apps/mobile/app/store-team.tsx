@@ -9,7 +9,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStore } from '@/features/commerce/commerce.api';
 import { fetchMyActiveStoreMemberships, fetchStoreMembers, inviteStoreMember, removeStoreMember, updateStoreMemberRole, type StoreMember } from '@/features/commerce/store-management.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { roleLabel } from '@/lib/status-labels';
 
 const roles = [['MANAGER', 'مدير'], ['EDITOR', 'محرر'], ['STAFF', 'موظف']] as const;
@@ -103,7 +103,7 @@ export default function StoreTeamScreen() {
           <Text tone="ink" strong size={16}>دعوة عضو جديد</Text>
           <Field label="البريد الإلكتروني" value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="person@example.com" />
           <Text tone="ink" strong>الصلاحية</Text>
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>{roles.filter(([value]) => myRole === 'OWNER' || value !== 'MANAGER').map(([value, label]) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: role === value }} onPress={() => setRole(value)} style={{ flex: 1, padding: 9, borderRadius: 10, backgroundColor: role === value ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: role === value ? colors.brand : colors.border }}><Text style={{ textAlign: 'center', color: colors.ink, fontSize: fontSizes[12], fontWeight: '700' }}>{label}</Text></Pressable>)}</View>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>{roles.filter(([value]) => myRole === 'OWNER' || value !== 'MANAGER').map(([value, label]) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: role === value }} onPress={() => setRole(value)} style={{ flex: 1, padding: 9, borderRadius: 10, backgroundColor: role === value ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: role === value ? colors.brand : colors.border }}><Text style={{ textAlign: 'center', color: colors.ink, fontSize: fontSizes[12], fontWeight: fontWeights.bold }}>{label}</Text></Pressable>)}</View>
           <PrimaryButton label="إرسال الدعوة" onPress={() => void invite()} busy={busy} />
           <PrimaryButton label="الدعوات الواردة إليّ" variant="secondary" onPress={() => router.push('/store-invites')} />
         </> : <Notice tone="muted">يمكنك الاطلاع على أعضاء الفريق. تعديل الصلاحيات أو دعوة أعضاء متاح لمالك المتجر والمدير فقط.</Notice>}

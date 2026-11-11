@@ -99,7 +99,7 @@ export default function ServiceProviderDetailScreen() {
     const phone = (provider?.contactPhone || '').replace(/[^0-9+]/g, '');
     const phoneValid = /^\+?[0-9]{7,15}$/.test(phone);
     return <PageShell title="ملف مقدم الخدمة">{loading ? <Spinner color={colors.brand}/> : error && !provider ? <Notice>{error}</Notice> : provider ? <>
-  <SectionCard><Text tone="ink" strong size={21}>{provider.businessName || provider.sellerProfile?.displayName || 'مقدم خدمة'}</Text><Text style={{
+  <SectionCard><Text tone="ink" strong size={20}>{provider.businessName || provider.sellerProfile?.displayName || 'مقدم خدمة'}</Text><Text style={{
             textAlign: 'right', color: colors.muted, lineHeight: 22
         }}>{provider.description || 'لا يوجد وصف.'}</Text><RatingStars score={provider.sellerProfile?.averageRating} count={provider.sellerProfile?.totalRatings}/>{provider.sellerProfile?.id ? <Pressable accessibilityRole="link" onPress={() => router.push({
             pathname: '/service-reviews', params: { sellerProfileId: provider.sellerProfile?.id }

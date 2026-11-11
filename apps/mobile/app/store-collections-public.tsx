@@ -1,7 +1,8 @@
 
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { FlatList, View } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fetchPublicCollections, type StoreCollection } from '@/features/commerce/store-management.api';
 import { ErrorState, Notice, PageShell, SectionCard } from '@/components/MobileUI';
@@ -14,15 +15,16 @@ export default function PublicStoreCollectionsScreen() {
 
   const p = useLocalSearchParams<{ storeId?: string | string[] }>();
   const storeId = Array.isArray(p.storeId) ? p.storeId[0] : p.storeId;
-  const { data, loading, error, reload } = useAsyncResource<StoreCollection[]>(
+  const { data, loading, refreshing, error, reload } = useAsyncResource<StoreCollection[]>(
     (signal) => storeId ? fetchPublicCollections(storeId, signal) : Promise.reject(new Error('معرّف المتجر غير صالح.')),
     { key: `public-store-collections:${storeId ?? 'missing'}`, tag: 'public-store-collections' },
   );
+  const { colors: refreshTheme } = useAppTheme();
   const items = data ?? [];
 
   return (
     <PageShell title="مجموعات المتجر" scroll={false}>
-      <FlatList
+      <FlatList refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload({ soft: true })} tintColor={refreshTheme.brand} />}
         data={loading || error ? [] : items}
         keyExtractor={(item) => item.id}
         {...marketListPerf}

@@ -18,7 +18,7 @@ import { ProductAttributeList } from '@/components/ui/ProductAttributeList';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { ShareButton } from '@/components/ui/ShareButton';
 import { ProductCard } from '@/components/ui/ProductCard';
-import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
 
 function money(value: unknown): string {
@@ -158,8 +158,8 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   pad: { paddingHorizontal: spacing.lg, gap: spacing.lg },
   titleRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
   titleCopy: { flex: 1, gap: spacing.xs },
-  heading: { fontSize: fontSizes[20], fontWeight: '700', color: colors.ink, textAlign: 'right', lineHeight: 28 },
-  price: { fontSize: fontSizes[24], fontWeight: '700', color: colors.brand, textAlign: 'right' },
+  heading: { fontSize: fontSizes[20], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'right', lineHeight: 28 },
+  price: { fontSize: fontSizes[24], fontWeight: fontWeights.bold, color: colors.brand, textAlign: 'right' },
   oldPrice: { ...typography.caption, color: colors.muted, textDecorationLine: 'line-through', textAlign: 'right' },
   category: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   description: { ...typography.body, color: colors.ink, lineHeight: 24, textAlign: 'right' },

@@ -7,7 +7,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStore, fetchMyStoreAnalytics, type StoreAnalytics, type StoreSummary } from '@/features/commerce/commerce.api';
 import { fetchMySellerProfile, type SellerProfile } from '@/features/account/seller.api';
 import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 function Metric({ label, value }: {
   label: string;
   value: string | number;
@@ -16,7 +16,7 @@ function Metric({ label, value }: {
   return <View style={{
     flex: 1, minWidth: 120, padding: spacing.md, borderRadius: radius.card, backgroundColor: colors.brandSoft, gap: spacing.xs
   }}><Text tone="muted" size={12}>{label}</Text><Text style={{
-    color: colors.brandOnSoft, textAlign: 'right', fontSize: fontSizes[21], fontWeight: '700'
+    color: colors.brandOnSoft, textAlign: 'right', fontSize: fontSizes[20], fontWeight: fontWeights.bold
   }}>{value}</Text></View>;
 }
 export default function SellerDashboardScreen() {
@@ -73,18 +73,18 @@ export default function SellerDashboardScreen() {
   {!loading && !store && !storeLoadError ? <SectionCard><EmptyState title="لا يوجد متجر تملكه بعد" description="أنشئ متجرك أو افتح قائمة المتاجر التي تعمل بها."/><PrimaryButton label="إدارة المتجر" onPress={() => router.push('/my-store')}/><PrimaryButton label="المتاجر التي أعمل بها" variant="secondary" onPress={() => router.push('/my-stores')}/><PrimaryButton label="ملف البائع" variant="secondary" onPress={() => router.push('/seller-profile')}/></SectionCard> : null}
   {!loading && storeLoadError ? <SectionCard><Notice>{storeLoadError}</Notice><PrimaryButton label="المتاجر التي أعمل بها" variant="secondary" onPress={() => router.push('/my-stores')}/></SectionCard> : null}
   {!loading && store ? <>
-   <SectionCard><Text tone="ink" strong size={19}>{store.name}</Text><Text style={{
+   <SectionCard><Text tone="ink" strong size={18}>{store.name}</Text><Text style={{
       textAlign: 'right', color: colors.muted, lineHeight: 21
     }}>{store.city || 'الموقع غير محدد'} · الحالة: {store.status === 'PENDING' ? 'بانتظار المراجعة' : store.status === 'BLOCKED' ? 'محظور' : store.status === 'ACTIVE' ? 'نشط' : store.status || 'غير محددة'}</Text><View style={{
       flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm
     }}><View style={{
       borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: profile?.verified || store.sellerProfile?.verified ? colors.successSoft : colors.warningSoft
     }}><Text style={{
-      color: profile?.verified || store.sellerProfile?.verified ? colors.success : colors.warningText, fontWeight: '700', fontSize: fontSizes[12]
+      color: profile?.verified || store.sellerProfile?.verified ? colors.success : colors.warningText, fontWeight: fontWeights.bold, fontSize: fontSizes[12]
     }}>{profile?.verified || store.sellerProfile?.verified ? '✓ بائع موثّق' : 'التحقق غير مكتمل'}</Text></View><View style={{
       borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: colors.brandSoft
     }}><Text style={{
-      color: colors.brandOnSoft, fontWeight: '700', fontSize: fontSizes[12]
+      color: colors.brandOnSoft, fontWeight: fontWeights.bold, fontSize: fontSizes[12]
     }}>{store.isOpen === true ? 'المتجر مفتوح' : store.isOpen === false ? 'المتجر مغلق' : 'ساعات العمل غير محددة'}</Text></View></View>
     <View style={{
       flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.md

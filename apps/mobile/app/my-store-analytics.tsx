@@ -5,7 +5,7 @@ import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { EmptyState, ErrorState, LoadingState, PageShell, SectionCard, SectionHeader } from '@/components/ui';
 import { useAppTheme } from '@/theme/ThemeProvider';
-import { fontSizes, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { formatNumber } from '@/lib/formatters';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStoreAnalytics, type StoreAnalytics } from '@/features/commerce/commerce.api';
@@ -86,7 +86,7 @@ export default function MyStoreAnalyticsScreen() {
               style={{ width: '48%', flexGrow: 1, minHeight: 124, alignItems: 'flex-end', justifyContent: 'space-between' }}
             >
               <Text style={{ fontSize: fontSizes[20], color: colors.brand }}>{item.icon}</Text>
-              <Text style={{ fontSize: fontSizes[25], fontWeight: '700', color: colors.ink }}>{fmt(item.value)}</Text>
+              <Text style={{ fontSize: fontSizes[24], fontWeight: fontWeights.bold, color: colors.ink }}>{fmt(item.value)}</Text>
               <Text tone="muted" size={12}>{item.label}</Text>
             </SectionCard>
           ))}
@@ -113,7 +113,7 @@ export default function MyStoreAnalyticsScreen() {
                 </Text>
                 <Text tone="muted" size={12}>{fmt(p.views)} مشاهدة</Text>
               </View>
-              <Text style={{ fontSize: fontSizes[12], color: colors.brand, fontWeight: '700' }}>عرض</Text>
+              <Text style={{ fontSize: fontSizes[12], color: colors.brand, fontWeight: fontWeights.bold }}>عرض</Text>
             </SectionCard>
           ))
         )}

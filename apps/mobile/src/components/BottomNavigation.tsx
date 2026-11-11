@@ -6,7 +6,7 @@ import { MAIN_TABS, getActiveMainTab, shouldHideBottomNavigation } from '@/lib/n
 import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { radius, sizes, spacing, typography, ux, elevation, type ColorPalette } from '@/theme/tokens';
+import { radius, sizes, spacing, typography, ux, elevation, type ColorPalette, fontWeights } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppIcon } from '@/components/Icons';
 
@@ -126,11 +126,11 @@ function createStyles(palette: ColorPalette) {
   },
   activeLabel: {
     color: palette.brandDark,
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
   },
   addLabel: {
     color: palette.brand,
-    fontWeight: '600',
+    fontWeight: fontWeights.semibold,
   },
 });
 }

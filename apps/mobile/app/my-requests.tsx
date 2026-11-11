@@ -2,7 +2,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
@@ -49,12 +49,10 @@ export default function MyRequestsScreen() {
             <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
               
               <PrimaryButton label="+ طلب جديد" onPress={() => router.push('/request-create')} />
-              {list.loading ? <Spinner color={colors.brand} /> : null}
-              {list.error ? <Notice>{list.error}</Notice> : null}
-              {list.error && list.items.length === 0 ? <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.refresh()} /> : null}
+              <ListStaleError list={list} />
             </View>
           }
-          ListEmptyComponent={!list.loading && !list.error ? <Notice tone="muted">لم تنشر أي طلب بعد.</Notice> : undefined}
+          ListEmptyComponent={<ListEmpty list={list} loadingMessage="جاري تحميل طلباتك…" errorTitle="تعذر تحميل الطلبات" emptyTitle="لم تنشر أي طلب بعد" />}
           renderItem={({ item }) => (
             <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/requests/[id]', params: { id: item.id } })}>
               <SectionCard>
@@ -65,12 +63,7 @@ export default function MyRequestsScreen() {
             </Pressable>
           )}
           ListFooterComponent={
-            list.loadingMore ? <Spinner color={colors.brand} /> : list.loadMoreError ? (
-              <View style={{ gap: spacing.sm }}>
-                <Notice>{list.loadMoreError}</Notice>
-                <PrimaryButton label="إعادة محاولة تحميل المزيد" variant="secondary" onPress={() => void list.loadMore()} />
-              </View>
-            ) : list.hasNextPage ? <PrimaryButton label="تحميل المزيد" variant="secondary" onPress={() => void list.loadMore()} /> : undefined
+            <PaginatedFooter list={list} />
           }
           onEndReached={() => { void list.loadMore(); }}
           onEndReachedThreshold={0.4}

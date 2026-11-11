@@ -15,7 +15,7 @@ import { MediaGallery } from '@/components/ui/MediaGallery';
 import { ServiceRequestTimeline } from '@/components/ui/ServiceRequestTimeline';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { statusLabel } from '@/lib/status-labels';
-import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
 const STATUS: Record<string, string> = {
     PENDING: 'بانتظار الرد', ACCEPTED: 'مقبول', REJECTED: 'مرفوض', IN_PROGRESS: 'قيد التنفيذ', COMPLETED: 'مكتمل', CANCELLED: 'ملغي', EXPIRED: 'منتهي', DISPUTED: 'قيد المراجعة'
@@ -177,7 +177,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
     }, refresh: {
         minWidth: 48, minHeight: 44, alignItems: 'center', justifyContent: 'center'
     }, refreshText: {
-        color: colors.brand, fontWeight: '700'
+        color: colors.brand, fontWeight: fontWeights.bold
     },
     content: {
         padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l
@@ -187,9 +187,9 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
     titleRow: {
         flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, flexWrap: 'wrap'
     }, title: {
-        flex: 1, color: colors.ink, fontSize: fontSizes[19], lineHeight: 27, fontWeight: '700', textAlign: 'right'
+        flex: 1, color: colors.ink, fontSize: fontSizes[18], lineHeight: 27, fontWeight: fontWeights.bold, textAlign: 'right'
     }, status: {
-        color: colors.brandOnSoft, backgroundColor: colors.brandSoft, borderRadius: radius.pill, overflow: 'hidden', paddingHorizontal: spacing.md, paddingVertical: 6, fontSize: fontSizes[12], fontWeight: '700'
+        color: colors.brandOnSoft, backgroundColor: colors.brandSoft, borderRadius: radius.pill, overflow: 'hidden', paddingHorizontal: spacing.md, paddingVertical: 6, fontSize: fontSizes[12], fontWeight: fontWeights.bold
     },
     sectionTitle: {
         ...typography.subtitle, color: colors.ink, textAlign: 'right'
@@ -205,15 +205,15 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
     actions: { gap: spacing.sm }, action: {
         minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.md, borderRadius: radius.control, backgroundColor: colors.brand
     }, actionText: {
-        color: colors.onBrand, fontWeight: '700', textAlign: 'center'
+        color: colors.onBrand, fontWeight: fontWeights.bold, textAlign: 'center'
     }, secondary: {
         backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.brand
     }, secondaryText: {
-        color: colors.brand, fontWeight: '700', textAlign: 'center'
+        color: colors.brand, fontWeight: fontWeights.bold, textAlign: 'center'
     }, danger: {
         backgroundColor: colors.dangerSoft, borderWidth: 1, borderColor: colors.dangerBorder
     }, dangerText: {
-        color: colors.danger, fontWeight: '700', textAlign: 'center'
+        color: colors.danger, fontWeight: fontWeights.bold, textAlign: 'center'
     }, disabled: { opacity: 0.55 }, input: {
         minHeight: 52, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.control, paddingHorizontal: spacing.md, color: colors.ink, textAlign: 'right', backgroundColor: colors.canvas
     }, multiline: {

@@ -10,7 +10,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { EmptyState, ErrorState, LoadingState, PageShell } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
 import { formatSafeDate } from '@/lib/date-format';
-import { fontSizes, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { OUTBOX_MAX_ATTEMPTS } from '@/storage/outbox';
 import { countUnownedOutboxMutations, discardOutboxMutation, listAllOutboxMutations, retryExhaustedMutation, syncOutboxIfReady, discardMarketplaceRequest, listPendingMarketplaceRequests, retryMarketplaceRequest, type PendingRequestOutboxItem, discardMarketplaceOrder, listPendingMarketplaceOrders, retryMarketplaceOrder, syncNextMarketplaceOrder, type PendingOrderOutboxItem, discardRequestOffer, listPendingRequestOffers, retryRequestOffer, syncNextRequestOffer, type PendingRequestOfferItem, discardOfflineCreate, listOfflineCreates, retryOfflineCreate, syncNextOfflineCreate, type OfflineCreateItem, listChatMessagesForOwner, listChatMediaOutbox, type ChatMessageOutboxItem, type ChatMediaOutboxItem, type OutboxItem, } from '@/storage/outbox-manager';
 import { acknowledgeFavoriteState, discardFavoriteState, listPendingFavoriteStates, restoreFavoriteStateIfAbsent, writeFavoriteAdIds, type PendingFavoriteState } from '@/features/ads/favorites.store';
@@ -460,7 +460,7 @@ export default function OfflineQueueScreen() {
 }
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     link: {
-        color: colors.brand, fontWeight: '700', padding: spacing.sm
+        color: colors.brand, fontWeight: fontWeights.bold, padding: spacing.sm
     }, notice: {
         padding: spacing.md, backgroundColor: colors.warningSoft, borderBottomWidth: 1, borderBottomColor: colors.warningBorder
     }, noticeText: {
@@ -468,13 +468,13 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, list: {
         gap: spacing.lg, paddingBottom: spacing.xxxl
     }, summary: {
-        fontSize: fontSizes[13], fontWeight: '700', color: colors.ink, textAlign: 'right'
+        fontSize: fontSizes[13], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'right'
     }, card: {
         padding: spacing.lg, backgroundColor: colors.surface, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, gap: spacing.sm
     }, adTitle: {
-        fontSize: fontSizes[16], fontWeight: '700', color: colors.ink, textAlign: 'right'
+        fontSize: fontSizes[16], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'right'
     }, status: {
-        fontSize: fontSizes[13], fontWeight: '700', color: colors.brand, textAlign: 'right'
+        fontSize: fontSizes[13], fontWeight: fontWeights.bold, color: colors.brand, textAlign: 'right'
     }, muted: {
         fontSize: fontSizes[12], color: colors.muted, textAlign: 'right', lineHeight: 19
     }, errorText: {
@@ -488,10 +488,10 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, secondary: {
         borderWidth: 1, borderColor: colors.brand, borderRadius: radius.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.md
     }, secondaryText: {
-        color: colors.brand, fontWeight: '700'
+        color: colors.brand, fontWeight: fontWeights.bold
     }, delete: {
         backgroundColor: colors.dangerSoft, borderRadius: radius.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.md
     }, deleteText: {
-        color: colors.danger, fontWeight: '700'
+        color: colors.danger, fontWeight: fontWeights.bold
     }, disabled: { opacity: .45 },
 });

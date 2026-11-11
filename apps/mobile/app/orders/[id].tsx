@@ -18,7 +18,7 @@ import {
   PrimaryButton,
   SectionCard,
 } from '@/components/MobileUI';
-import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { AppImage } from '@/components/AppImage';
 import { formatMoney , formatDate} from '@/lib/formatters';
 
@@ -233,7 +233,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   value: { ...typography.captionStrong, color: colors.ink, textAlign: 'right', flexShrink: 1 },
   totalLabel: { ...typography.bodyStrong, color: colors.ink },
-  total: { fontSize: fontSizes[19], fontWeight: '700', color: colors.brand },
+  total: { fontSize: fontSizes[18], fontWeight: fontWeights.bold, color: colors.brand },
   sectionTitle: { ...typography.subtitle, color: colors.ink, textAlign: 'right' },
   errorInline: { ...typography.caption, color: colors.danger, textAlign: 'right' },
 });

@@ -10,7 +10,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchStores, type StoreSummary } from '@/features/commerce/commerce.api';
 import { fetchStoryFeed, type StoryGroup } from '@/features/stories/stories.api';
-import { fontSizes, radius, spacing, ux } from '@/theme/tokens';
+import { fontSizes, radius, spacing, ux, fontWeights } from '@/theme/tokens';
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import { AppImage } from '@/components/AppImage';
 import { HorizontalMarketCard } from '@/components/MarketCards';
@@ -309,18 +309,18 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   storyInitial: {
     color: colors.brandOnSoft,
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     fontSize: fontSizes[18],
   },
   storyName: {
     width: '100%',
     color: colors.ink,
     fontSize: fontSizes[11],
-    fontWeight: '500',
+    fontWeight: fontWeights.medium,
     textAlign: 'center',
   },
   storyNameUnseen: {
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
   },
   emptyBox: {
     minHeight: 64,
@@ -346,7 +346,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   expandText: {
     color: colors.brandOnSoft,
-    fontWeight: '600',
+    fontWeight: fontWeights.semibold,
     fontSize: fontSizes[13],
   },
   pressed: { opacity: ux.pressedOpacity },

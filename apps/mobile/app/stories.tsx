@@ -1,3 +1,4 @@
+import { usePullRefresh } from '@/hooks/usePullRefresh';
 import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
@@ -8,12 +9,12 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useRef, useState, useMemo } from 'react';
 import { router, useFocusEffect } from 'expo-router';
-import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { EmptyState, ErrorState, LoadingState, PageShell } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createStory, fetchStoryFeed, type StoryGroup } from '@/features/stories/stories.api';
-import { fontSizes, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 export default function StoriesScreen() {
     const { colors } = useAppTheme();
     const styles = useMemo(() => createThemeStyles(colors), [colors]);
@@ -53,6 +54,8 @@ export default function StoriesScreen() {
                 setLoading(false);
         }
     }, [getAccessToken]);
+  const { colors: refreshTheme } = useAppTheme();
+  const { refreshing: pullRefreshing, onRefresh: onPullRefresh } = usePullRefresh(() => load());
     useFocusEffect(useCallback(() => {
         void load();
         return () => {
@@ -116,7 +119,7 @@ export default function StoriesScreen() {
                 key: 'public', label: 'صورة عامة', onPress: () => void publishImageStory('PUBLIC')
             },
         ]}/>
-      {!getAccessToken() ? (<EmptyState title="سجّل الدخول لمشاهدة القصص" description="يمكنك فتح القصص العامة عبر رابط مشاركة مباشر." actionLabel="تسجيل الدخول" onAction={() => router.push('/login')}/>) : loading && groups.length === 0 ? (<LoadingState message="جارٍ تحميل القصص…"/>) : error && groups.length === 0 ? (<ErrorState description={error} onAction={() => void load()}/>) : (<FlatList data={groups} keyExtractor={(group) => group.user.id} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} initialNumToRender={6} maxToRenderPerBatch={6} windowSize={7} ListHeaderComponent={(<View style={{ gap: spacing.lg }}>
+      {!getAccessToken() ? (<EmptyState title="سجّل الدخول لمشاهدة القصص" description="يمكنك فتح القصص العامة عبر رابط مشاركة مباشر." actionLabel="تسجيل الدخول" onAction={() => router.push('/login')}/>) : loading && groups.length === 0 ? (<LoadingState message="جارٍ تحميل القصص…"/>) : error && groups.length === 0 ? (<ErrorState description={error} onAction={() => void load()}/>) : (<FlatList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />} data={groups} keyExtractor={(group) => group.user.id} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} initialNumToRender={6} maxToRenderPerBatch={6} windowSize={7} ListHeaderComponent={(<View style={{ gap: spacing.lg }}>
               {error ? (<View style={styles.error}>
                   <Text style={styles.errorText}>{error}</Text>
                   <Pressable accessibilityRole="button" onPress={() => void load()}>
@@ -166,7 +169,7 @@ export default function StoriesScreen() {
 }
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     link: {
-        color: colors.brand, fontWeight: '700', padding: spacing.sm
+        color: colors.brand, fontWeight: fontWeights.bold, padding: spacing.sm
     }, content: {
         gap: spacing.lg, paddingBottom: spacing.xl
     }, muted: {
@@ -176,7 +179,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, addCircle: {
         width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center'
     }, plus: {
-        fontSize: fontSizes[30], color: colors.brandOnSoft, fontWeight: '700'
+        fontSize: fontSizes[30], color: colors.brandOnSoft, fontWeight: fontWeights.bold
     }, group: {
         backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.md
     }, person: {
@@ -188,9 +191,9 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, avatarFallback: {
         flex: 1, borderRadius: 22, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center'
     }, initial: {
-        fontSize: fontSizes[20], fontWeight: '700', color: colors.brandOnSoft
+        fontSize: fontSizes[20], fontWeight: fontWeights.bold, color: colors.brandOnSoft
     }, cardTitle: {
-        fontSize: fontSizes[15], fontWeight: '700', color: colors.ink, textAlign: 'right'
+        fontSize: fontSizes[15], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'right'
     }, storyStrip: {
         gap: spacing.sm, paddingVertical: spacing.xs
     }, storyTile: {
@@ -200,7 +203,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, textTile: {
         alignItems: 'center', justifyContent: 'center', padding: spacing.sm
     }, tileText: {
-        color: colors.white, fontWeight: '700', textAlign: 'center'
+        color: colors.white, fontWeight: fontWeights.bold, textAlign: 'center'
     }, tileCaption: {
         fontSize: fontSizes[11], color: colors.muted, textAlign: 'right'
     }, error: {

@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import type { ConversationItem } from '@/features/messaging/messaging.api';
 import { AppImage } from '@/components/AppImage';
 import { isAllowedMediaUrl } from '@/lib/safe-media-url';
-import { fontSizes, elevation, radius, spacing, typography, ux, type ColorPalette } from '@/theme/tokens';
+import { fontSizes, elevation, radius, spacing, typography, ux, type ColorPalette, fontWeights } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 
 type ConversationListItemProps = {
@@ -155,7 +155,7 @@ function createStyles(colors: ColorPalette) {
   },
   avatarText: {
     color: colors.brandOnSoft,
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     fontSize: fontSizes[18],
   },
   avatarImage: { width: 52, height: 52, borderRadius: 26 },
@@ -183,7 +183,7 @@ function createStyles(colors: ColorPalette) {
     color: colors.ink,
     textAlign: 'right',
   },
-  nameUnread: { fontWeight: '700' },
+  nameUnread: { fontWeight: fontWeights.bold },
   preview: {
     ...typography.caption,
     color: colors.muted,
@@ -192,7 +192,7 @@ function createStyles(colors: ColorPalette) {
   },
   previewUnread: {
     color: colors.inkSecondary ?? colors.ink,
-    fontWeight: '500',
+    fontWeight: fontWeights.medium,
   },
   adHint: {
     ...typography.overline,
@@ -211,7 +211,7 @@ function createStyles(colors: ColorPalette) {
   badgeText: {
     color: colors.onBrand,
     fontSize: fontSizes[11],
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
   },
   actions: {
     flexDirection: 'row',
@@ -233,7 +233,7 @@ function createStyles(colors: ColorPalette) {
   actionText: {
     color: colors.brand,
     fontSize: fontSizes[12],
-    fontWeight: '600',
+    fontWeight: fontWeights.semibold,
   },
   });
 }

@@ -12,7 +12,7 @@ import { AdCard } from '@/components/MarketCards';
 import { adListProps } from '@/lib/listPerformance';
 import { openScreen } from '@/lib/navigation';
 import { routes } from '@/lib/routes';
-import { radius, spacing } from '@/theme/tokens';
+import { radius, spacing, fontWeights } from '@/theme/tokens';
 import type { AdListItem } from '@/features/ads/ads.api';
 import { formatPrice } from '@/features/discovery/homeFormatters';
 
@@ -94,5 +94,5 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     paddingVertical: spacing.md,
     alignItems: 'center',
   },
-  loadMoreText: { color: colors.brandOnSoft, fontWeight: '700' },
+  loadMoreText: { color: colors.brandOnSoft, fontWeight: fontWeights.bold },
 });

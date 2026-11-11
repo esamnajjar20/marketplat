@@ -13,6 +13,7 @@ import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/componen
 import { statusLabel } from '@/lib/status-labels';
 import { formatSafeDate } from '@/lib/date-format';
 import { showToast } from '@/lib/toast';
+import { fontWeights } from '@/theme/tokens';
 const futureDate = (days: number) => new Date(Date.now() + days * 86400000).toISOString();
 const datePresets = [{
     days: 7, label: '7 أيام'
@@ -147,7 +148,7 @@ export default function StorePromotionsScreen() {
   }}>{([['PERCENTAGE', 'خصم نسبة %'], ['FIXED_AMOUNT', 'خصم مبلغ (شيكل)']] as const).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setType(v)} style={{
     flex: 1, padding: 10, borderRadius: 10, backgroundColor: type === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: type === v ? colors.brand : colors.border
   }}><Text style={{
-    textAlign: 'center', color: colors.ink, fontWeight: '700'
+    textAlign: 'center', color: colors.ink, fontWeight: fontWeights.bold
   }}>{l}</Text></Pressable>)}</View><Field label="قيمة الخصم" value={value} onChangeText={setValue} keyboardType="numeric" placeholder="10"/><Text tone="ink" strong>بداية العرض: {formatSafeDate(startsAt, 'dateTime')}</Text><View style={{
     flexDirection: 'row', gap: 8
   }}>{[{
@@ -157,13 +158,13 @@ export default function StorePromotionsScreen() {
     }].map(p => <Pressable key={p.label} accessibilityRole="button" onPress={() => setStartsAt(new Date(Date.now() + (p.hours * 3600000) + (p.minutes * 60000)).toISOString())} style={{
     flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.surface
   }}><Text style={{
-    color: colors.brand, fontWeight: '700'
+    color: colors.brand, fontWeight: fontWeights.bold
   }}>ابدأ {p.label}</Text></Pressable>)}</View><Text tone="ink" strong>نهاية العرض: {formatSafeDate(endsAt, 'dateTime')}</Text><View style={{
     flexDirection: 'row', gap: 8
   }}>{datePresets.map(p => <Pressable key={p.days} accessibilityRole="button" onPress={() => setEndsAt(futureDate(p.days))} style={{
     flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.surface
   }}><Text style={{
-    color: colors.brand, fontWeight: '700'
+    color: colors.brand, fontWeight: fontWeights.bold
   }}>بعد {p.label}</Text></Pressable>)}</View><Field label="حد الاستخدام (اختياري)" value={maxUses} onChangeText={setMaxUses} keyboardType="numeric" placeholder="اتركه فارغًا دون حد"/><PrimaryButton label="إنشاء العرض" onPress={() => void submit()} busy={busy}/></SectionCard>{items.map(item => <SectionCard key={item.id}><Text tone="ink" strong size={15}>{item.title}</Text><Text tone="muted">{item.discountType === 'PERCENTAGE' ? `${item.discountValue}% خصم` : `${formatMoney(item.discountValue)} خصم`} · {statusLabel(item.status)} · الاستخدامات {item.usageCount}</Text><Text tone="muted">من {formatSafeDate(item.startsAt, 'dateTime')} إلى {formatSafeDate(item.endsAt, 'dateTime')}</Text>{!['CANCELLED', 'EXPIRED'].includes(item.status) ? <PrimaryButton label="إلغاء العرض" variant="danger" onPress={() => confirmAlert('إلغاء العرض', 'هل تريد إلغاء هذا العرض؟', [{
       text: 'رجوع', style: 'cancel'
     }, {

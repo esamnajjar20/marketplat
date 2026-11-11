@@ -2,11 +2,11 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
 import { router, useLocalSearchParams } from 'expo-router';
 import { fetchUserFollowList, type FollowListItem } from '@/features/account/social.api';
-import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { spacing } from '@/theme/tokens';
+import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
+import { spacing, fontWeights } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -45,12 +45,10 @@ export default function FollowingScreen() {
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
-            {list.loading ? <Spinner color={colors.brand} /> : null}
-            {list.error ? <Notice>{list.error}</Notice> : null}
-            {list.error && list.items.length === 0 ? <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.refresh()} /> : null}
+            <ListStaleError list={list} />
           </View>
         }
-        ListEmptyComponent={!list.loading && !list.error && id ? <Notice tone="muted">لا توجد حسابات يتابعها هذا المستخدم.</Notice> : undefined}
+        ListEmptyComponent={id ? <ListEmpty list={list} loadingMessage="جاري تحميل الحسابات…" errorTitle="تعذر تحميل الحسابات" emptyTitle="لا توجد حسابات يتابعها هذا المستخدم" /> : undefined}
         renderItem={({ item }) => {
           const person = item.target!;
           return (
@@ -61,7 +59,7 @@ export default function FollowingScreen() {
                     <AppImage uri={person.avatarUrl} style={{ width: 54, height: 54, borderRadius: 27 }} />
                   ) : (
                     <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ color: colors.ink, fontWeight: '700' }}>{(person.name || '?').slice(0, 1)}</Text>
+                      <Text style={{ color: colors.ink, fontWeight: fontWeights.bold }}>{(person.name || '?').slice(0, 1)}</Text>
                     </View>
                   )}
                   <View style={{ flex: 1 }}>
@@ -76,12 +74,7 @@ export default function FollowingScreen() {
         }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListFooterComponent={
-          list.loadingMore ? <Spinner color={colors.brand} /> : list.loadMoreError ? (
-            <View style={{ gap: spacing.sm }}>
-              <Notice>{list.loadMoreError}</Notice>
-              <PrimaryButton label="إعادة محاولة تحميل المزيد" variant="secondary" onPress={() => void list.loadMore()} />
-            </View>
-          ) : list.hasNextPage ? <PrimaryButton label="تحميل المزيد" variant="secondary" onPress={() => void list.loadMore()} /> : undefined
+          <PaginatedFooter list={list} />
         }
         onEndReached={() => { void list.loadMore(); }}
         onEndReachedThreshold={0.4}

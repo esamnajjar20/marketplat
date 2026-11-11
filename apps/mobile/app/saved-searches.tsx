@@ -3,7 +3,7 @@ import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
@@ -13,7 +13,7 @@ import {
   type SavedSearch,
 } from '@/features/account/saved-searches.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { spacing } from '@/theme/tokens';
+import { spacing, fontWeights } from '@/theme/tokens';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { marketListPerf } from '@/lib/listPerformance';
 
@@ -124,7 +124,7 @@ export default function SavedSearchesScreen() {
           <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
         </>
       ) : (
-        <FlatList
+        <FlatList refreshControl={<RefreshControl refreshing={loading && items.length > 0} onRefresh={() => void load()} tintColor={colors.brand} />}
           data={loading && items.length === 0 ? [] : items}
           keyExtractor={(item) => item.id}
           {...marketListPerf}
@@ -168,7 +168,7 @@ export default function SavedSearchesScreen() {
                         style={{
                           textAlign: 'center',
                           color: type === v ? colors.white : colors.ink,
-                          fontWeight: '700',
+                          fontWeight: fontWeights.bold,
                         }}
                       >
                         {l}
@@ -188,7 +188,7 @@ export default function SavedSearchesScreen() {
                 </View>
                 <PrimaryButton label="حفظ البحث" onPress={() => void save()} busy={busy} />
               </SectionCard>
-              <Text tone="ink" strong size={19}>
+              <Text tone="ink" strong size={18}>
                 عمليات البحث المحفوظة
               </Text>
               {loading ? <Notice tone="muted">جارٍ تحميل عمليات البحث…</Notice> : null}

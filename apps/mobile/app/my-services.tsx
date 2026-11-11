@@ -4,12 +4,12 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Press } from '@/components/AccessiblePressable';
 import { useCallback, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteMyServiceListing, fetchMyServiceListingsPage, type ServiceListing } from '@/features/services/services.api';
-import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
+import { Notice, PageShell, PrimaryButton, SectionCard, LoadingState } from '@/components/MobileUI';
 import { statusLabel } from '@/lib/status-labels';
 import { fontSizes, spacing } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -73,12 +73,10 @@ export default function MyServicesScreen() {
             <Text style={{ textAlign: 'right', fontSize: fontSizes[12], lineHeight: 20, color: colors.muted }}>نظّم خدماتك وتابع أسعارها وحالتها من مكان واحد.</Text>
             {needsLogin ? <><Notice>سجّل الدخول لإدارة خدماتك.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /></> : undefined}
             {!needsLogin && accessToken ? <PrimaryButton label="+ إضافة خدمة" onPress={() => router.push('/service-editor')} /> : undefined}
-            {initialLoading ? <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}><Spinner color={colors.brand} /></View> : undefined}
-            {list.error && list.items.length === 0 && !needsLogin ? <><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></> : undefined}
-            {list.error && list.items.length > 0 ? <Notice>{list.error}</Notice> : undefined}
+            <ListStaleError list={list} />
           </View>
         )}
-        ListEmptyComponent={!initialLoading && !needsLogin && !list.error ? <Notice tone="muted">لم تضف أي خدمة بعد. أنشئ أول خدمة ليتمكن العملاء من العثور عليها.</Notice> : undefined}
+        ListEmptyComponent={isRestoring ? <LoadingState message="جارٍ استعادة الجلسة…" /> : needsLogin ? undefined : <ListEmpty list={list} loadingMessage="جاري تحميل خدماتك…" errorTitle="تعذر تحميل الخدمات" emptyTitle="لم تضف أي خدمة بعد" emptyDescription="أنشئ أول خدمة ليتمكن العملاء من العثور عليها." />}
         renderItem={({ item }) => (
           <SectionCard>
             <Press accessibilityRole="button" onPress={() => router.push({ pathname: '/services/[id]', params: { id: item.id } })}>
@@ -94,11 +92,7 @@ export default function MyServicesScreen() {
           </SectionCard>
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        ListFooterComponent={list.loadMoreError
-          ? <View style={{ gap: spacing.sm }}><Notice>{list.loadMoreError}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></View>
-          : list.hasNextPage
-            ? <PrimaryButton label={list.loadingMore ? 'جارٍ التحميل…' : 'تحميل المزيد'} variant="secondary" busy={list.loadingMore} onPress={() => void list.loadMore()} />
-            : undefined}
+        ListFooterComponent={<PaginatedFooter list={list} />}
       />
     </PageShell>
   );

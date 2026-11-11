@@ -3,13 +3,13 @@ import { formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
 import { Spinner } from '@/components/ui';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyActivity, type ActivityRow } from '@/features/sales/sales-extra.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { denseListPerf } from '@/lib/listPerformance';
 
 const groups = [
@@ -117,7 +117,7 @@ export default function ActivityScreen() {
 
   return (
     <PageShell title="سجل النشاط" scroll={false}>
-      <FlatList
+      <FlatList refreshControl={<RefreshControl refreshing={loading && items.length > 0} onRefresh={() => void load()} tintColor={colors.brand} />}
         data={loading && items.length === 0 ? [] : items}
         keyExtractor={(item) => item.id}
         {...denseListPerf}
@@ -143,7 +143,7 @@ export default function ActivityScreen() {
                     borderColor: group === v ? colors.brand : colors.border,
                   }}
                 >
-                  <Text style={{ color: group === v ? colors.white : colors.ink, fontSize: fontSizes[13], fontWeight: '700' }}>
+                  <Text style={{ color: group === v ? colors.white : colors.ink, fontSize: fontSizes[13], fontWeight: fontWeights.bold }}>
                     {label}
                   </Text>
                 </Pressable>

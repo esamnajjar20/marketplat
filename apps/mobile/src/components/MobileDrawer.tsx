@@ -19,7 +19,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMySellerProfile } from '@/features/account/seller.api';
 import { fetchMyActiveStoreMemberships } from '@/features/commerce/store-management.api';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
-import { radius, spacing, typography, type ColorPalette } from '@/theme/tokens';
+import { radius, spacing, typography, type ColorPalette, fontWeights } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { DRAWER_ITEMS, getVisibleDrawerItems, getRouteAccess, getNavigationCapabilitiesRevision, subscribeNavigationCapabilities, resolveNavigationCapabilities, type DrawerSection, type NavigationCapabilities } from '@/lib/navigation-policy';
 import { toAppHref } from '@/lib/typed-navigation';
@@ -414,7 +414,7 @@ function MobileDrawerOverlay({
                           ]}
                         >
                           <View style={[styles.menuIconWrap, active && styles.menuIconWrapActive]}>
-                            <AppIcon name={item.icon} size={19} color={active ? palette.brandDark : palette.muted} />
+                            <AppIcon name={item.icon} size={18} color={active ? palette.brandDark : palette.muted} />
                           </View>
                           <Text
                             numberOfLines={1}
@@ -564,7 +564,7 @@ function createStyles(palette: ColorPalette) {
   },
   menuIconWrapActive: { backgroundColor: palette.brandSoftActive },
   menuItemLabel: { flex: 1, color: palette.ink, ...typography.bodyStrong },
-  menuItemLabelActive: { color: palette.brandDark, fontWeight: '700' },
+  menuItemLabelActive: { color: palette.brandDark, fontWeight: fontWeights.bold },
   activeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: palette.brand },
   drawerFooter: {
     borderTopWidth: 1,

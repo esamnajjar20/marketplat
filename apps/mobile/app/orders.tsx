@@ -13,7 +13,7 @@ import {
 import { AppIcon } from '@/components/Icons';
 import { AppImage } from '@/components/AppImage';
 import { useAppTheme } from '@/theme/ThemeProvider';
-import { spacing, radius, fontSizes, typography } from '@/theme/tokens';
+import { spacing, radius, fontSizes, typography, fontWeights } from '@/theme/tokens';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { fetchMyOrders, type MarketplaceOrder } from '@/features/commerce/orders.api';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -154,7 +154,7 @@ export default function MyOrdersScreen() {
                 }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                  <Text style={{ fontSize: fontSizes[13], fontWeight: '700', color: colors.brand }}>تفاصيل الطلب</Text>
+                  <Text style={{ fontSize: fontSizes[13], fontWeight: fontWeights.bold, color: colors.brand }}>تفاصيل الطلب</Text>
                   <AppIcon name="forward" size={16} color={colors.brand} />
                 </View>
                 <Text style={{ fontSize: fontSizes[12], color: colors.muted }}>الدفع عند الاستلام</Text>

@@ -3,7 +3,7 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyOffers, type RequestOffer } from '@/features/requests/requests.api';
@@ -44,12 +44,10 @@ export default function MyOffersScreen() {
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <PrimaryButton label="استعراض الطلبات المفتوحة" onPress={() => router.push('/requests')} />
             {!user ? <Notice>سجّل الدخول لعرض عروضك.</Notice> : null}
-            {list.loading ? <Spinner color={colors.brand} /> : null}
-            {list.error ? <Notice>{list.error}</Notice> : null}
-            {list.error && list.items.length === 0 ? <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.refresh()} /> : null}
+            <ListStaleError list={list} />
           </View>
         }
-        ListEmptyComponent={user && !list.loading && !list.error ? <Notice tone="muted">لم تقدم أي عروض بعد.</Notice> : undefined}
+        ListEmptyComponent={user ? <ListEmpty list={list} loadingMessage="جاري تحميل عروضك…" errorTitle="تعذر تحميل العروض" emptyTitle="لم تقدم أي عروض بعد" /> : undefined}
         renderItem={({ item }) => (
           <Pressable accessibilityRole="button" onPress={() => item.request?.id && router.push({ pathname: '/requests/[id]', params: { id: item.request.id } })}>
             <SectionCard>
@@ -62,12 +60,7 @@ export default function MyOffersScreen() {
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListFooterComponent={
-          list.loadingMore ? <Spinner color={colors.brand} /> : list.loadMoreError ? (
-            <View style={{ gap: spacing.sm }}>
-              <Notice>{list.loadMoreError}</Notice>
-              <PrimaryButton label="إعادة محاولة تحميل المزيد" variant="secondary" onPress={() => void list.loadMore()} />
-            </View>
-          ) : list.hasNextPage ? <PrimaryButton label="تحميل المزيد" variant="secondary" onPress={() => void list.loadMore()} /> : undefined
+          <PaginatedFooter list={list} />
         }
         onEndReached={() => { void list.loadMore(); }}
         onEndReachedThreshold={0.4}

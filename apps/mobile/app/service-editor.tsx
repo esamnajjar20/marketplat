@@ -10,7 +10,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createMyServiceListing, fetchServiceCategoryOptions, fetchServiceListing, updateMyServiceListing, type ServiceCategoryOption, type ServiceListing } from '@/features/services/services.api';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { enqueueOfflineCreate } from '@/storage/outbox-manager';
 import { persistSelectedAdImage } from '@/storage/persist-ad-image';
 import type { SelectedAdImage } from '@/features/ads/manage-ads.api';
@@ -190,7 +190,7 @@ export default function ServiceEditorScreen() {
   }}>{([['NEGOTIABLE', 'قابل للتفاوض'], ['FIXED', 'سعر محدد'], ['STARTING_FROM', 'يبدأ من']] as const).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setPricingType(v)} style={{
     flex: 1, minHeight: 48, justifyContent: 'center', padding: 10, borderRadius: 12, backgroundColor: pricingType === v ? colors.brand : colors.surface, borderWidth: 1, borderColor: pricingType === v ? colors.brand : colors.border
   }}><Text style={{
-    textAlign: 'center', fontSize: fontSizes[12], color: pricingType === v ? colors.white : colors.ink, fontWeight: '700'
+    textAlign: 'center', fontSize: fontSizes[12], color: pricingType === v ? colors.white : colors.ink, fontWeight: fontWeights.bold
   }}>{l}</Text></Pressable>)}</View>{pricingType !== 'NEGOTIABLE' ? <Field label="السعر (شيكل)" value={price} onChangeText={(v) => setPrice(normalizeNumericInput(v))} keyboardType="numeric" placeholder="0.00"/> : null}<Field label="مدة التنفيذ التقريبية (اختياري)" value={duration} onChangeText={setDuration} maxLength={100} placeholder="مثال: ساعتان"/><Text tone="ink" strong>مكان تقديم الخدمة</Text><View style={{
     flexDirection: 'row', gap: spacing.sm
   }}>{([['AT_CUSTOMER', 'عند العميل'], ['AT_PROVIDER', 'عند مقدم الخدمة'], ['REMOTE', 'عن بُعد']] as const).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setLocation(v)} style={{

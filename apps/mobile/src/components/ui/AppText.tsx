@@ -1,6 +1,6 @@
 import { Text as NativeText, type TextProps } from 'react-native';
 import { useAppThemeColors } from '@/theme/ThemeProvider';
-import { fontSizes } from '@/theme/tokens';
+import { fontSizes, fontWeights } from '@/theme/tokens';
 
 export type AppTextTone = 'ink' | 'muted' | 'brand' | 'danger' | 'success' | 'onBrand';
 
@@ -42,7 +42,7 @@ function ManagedText({ allowFontScaling = true, tone, strong, size, style, ...pr
         {
           textAlign: MANAGED_ALIGN,
           ...(tone ? { color: toneColor[tone] } : null),
-          ...(strong ? { fontWeight: '700' as const } : null),
+          ...(strong ? { fontWeight: fontWeights.bold } : null),
           ...(size !== undefined ? { fontSize: fontSizes[size] } : null),
         },
         style,

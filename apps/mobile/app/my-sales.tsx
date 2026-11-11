@@ -8,7 +8,7 @@ import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-na
 import { marketListPerf } from '@/lib/listPerformance';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { fontSizes, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSales, fetchSalesSummary, type SalePaymentStatus, type SaleRecord, type SalesPeriod, type SalesSummary } from '@/features/sales/sales.api';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -129,7 +129,7 @@ export default function MySalesScreen() {
     }, [refreshList, loadSummary]);
     if (!user)
         return <PageShell title="مبيعاتي"><EmptyState title="مبيعاتي" description="سجّل الدخول لعرض سجل مبيعاتك." actionLabel="تسجيل الدخول" onAction={() => router.push('/login')}/></PageShell>;
-    return <SafeAreaView style={s.safe} edges={['top']}><AppHeader title="مبيعاتي"/><FlatList data={list.items} keyExtractor={(sale) => sale.id} {...marketListPerf} contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={list.refreshing || refreshingSummary} onRefresh={() => void refreshAll()}/>} ListHeaderComponent={<>
+    return <SafeAreaView style={s.safe} edges={['top']}><AppHeader title="مبيعاتي"/><FlatList data={list.items} keyExtractor={(sale) => sale.id} {...marketListPerf} contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={list.refreshing || refreshingSummary} onRefresh={() => void refreshAll()} tintColor={colors.brand} />} ListHeaderComponent={<>
     
     <Text style={s.subtitle}>سجل عمليات البيع والمدفوعات والمبالغ المستحقة.</Text>
     <Text style={s.sectionTitle}>ملخص المبيعات</Text>
@@ -168,7 +168,7 @@ ListFooterComponent={<>
             ] as const).map(([path, label]) => <Pressable key={path} accessibilityRole="button" accessibilityLabel={label} onPress={() => router.push(path)} style={{
                 flexGrow: 1, minWidth: '46%', minHeight: 44, justifyContent: 'center', padding: 13, borderRadius: radius.md, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.controlBorder
             }}><Text style={{
-                textAlign: 'center', color: colors.brand, fontWeight: '700'
+                textAlign: 'center', color: colors.brand, fontWeight: fontWeights.bold
             }}>{label}</Text></Pressable>)}
       </View>
       <Text style={s.footnote}>الملخص للفترة المحددة، بينما سجل العمليات يعرض أحدث المبيعات المطابقة للفلتر.</Text>
@@ -183,7 +183,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
     }, subtitle: {
         fontSize: fontSizes[12], color: colors.muted, textAlign: 'right', lineHeight: 19
     }, sectionTitle: {
-        fontSize: fontSizes[16], fontWeight: '700', color: colors.ink, textAlign: 'right'
+        fontSize: fontSizes[16], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'right'
     },
     segmentRow: {
         flexDirection: 'row', gap: spacing.sm, padding: spacing.xs, borderRadius: radius.lg, backgroundColor: colors.brandSoft
@@ -192,7 +192,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
     }, segmentActive: {
         backgroundColor: colors.brand, borderColor: colors.brand
     }, segmentText: {
-        color: colors.muted, fontSize: fontSizes[12], fontWeight: '700'
+        color: colors.muted, fontSize: fontSizes[12], fontWeight: fontWeights.bold
     }, segmentTextActive: { color: colors.onBrand },
     metrics: {
         flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm
@@ -201,7 +201,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
     }, metricLabel: {
         fontSize: fontSizes[12], color: colors.muted, textAlign: 'right'
     }, metricValue: {
-        fontSize: fontSizes[17], fontWeight: '700', color: colors.ink, textAlign: 'right'
+        fontSize: fontSizes[17], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'right'
     }, dueValue: { color: colors.danger },
     listHeading: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm
@@ -214,33 +214,33 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
     }, filterActive: {
         backgroundColor: colors.brandSoft, borderColor: colors.brand
     }, filterText: {
-        color: colors.muted, fontSize: fontSizes[12], fontWeight: '700'
+        color: colors.muted, fontSize: fontSizes[12], fontWeight: fontWeights.bold
     }, filterTextActive: { color: colors.brandOnSoft },
     saleCard: {
         backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md
     }, saleTop: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm
     }, saleTotal: {
-        color: colors.brand, fontSize: fontSizes[17], fontWeight: '700'
+        color: colors.brand, fontSize: fontSizes[17], fontWeight: fontWeights.bold
     }, status: {
-        overflow: 'hidden', borderRadius: radius.pill, backgroundColor: colors.warningSoft, color: colors.warningText, paddingHorizontal: 10, paddingVertical: 5, fontSize: fontSizes[11], fontWeight: '700'
+        overflow: 'hidden', borderRadius: radius.pill, backgroundColor: colors.warningSoft, color: colors.warningText, paddingHorizontal: 10, paddingVertical: 5, fontSize: fontSizes[11], fontWeight: fontWeights.bold
     }, statusPaid: {
         backgroundColor: colors.successSoft, color: colors.brandOnSoft
     }, statusDanger: {
         backgroundColor: colors.dangerSoft, color: colors.danger
     }, saleName: {
-        color: colors.ink, fontSize: fontSizes[15], fontWeight: '700', textAlign: 'right'
+        color: colors.ink, fontSize: fontSizes[15], fontWeight: fontWeights.bold, textAlign: 'right'
     }, saleMeta: {
         color: colors.muted, fontSize: fontSizes[12], textAlign: 'right', lineHeight: 18
     }, amountRow: {
         flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, marginTop: spacing.xxs
     }, amountLabel: {
-        color: colors.muted, fontSize: fontSizes[12], fontWeight: '700'
+        color: colors.muted, fontSize: fontSizes[12], fontWeight: fontWeights.bold
     },
     state: {
         alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg
     }, emptyTitle: {
-        fontSize: fontSizes[16], fontWeight: '700', color: colors.ink
+        fontSize: fontSizes[16], fontWeight: fontWeights.bold, color: colors.ink
     }, muted: {
         fontSize: fontSizes[13], color: colors.muted, textAlign: 'center', lineHeight: 20
     }, error: {
@@ -248,11 +248,11 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
     }, primary: {
         backgroundColor: colors.brand, borderRadius: radius.md, padding: spacing.md
     }, primaryText: {
-        color: colors.onBrand, fontWeight: '700'
+        color: colors.onBrand, fontWeight: fontWeights.bold
     }, moreButton: {
         alignItems: 'center', padding: spacing.md, borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md
     }, moreText: {
-        color: colors.brand, fontWeight: '700'
+        color: colors.brand, fontWeight: fontWeights.bold
     }, disabled: { opacity: .6 }, footnote: {
         fontSize: fontSizes[11], color: colors.muted, textAlign: 'right', lineHeight: 18
     },

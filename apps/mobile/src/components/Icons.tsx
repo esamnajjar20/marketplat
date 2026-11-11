@@ -1,6 +1,7 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { type TextStyle, type StyleProp } from 'react-native';
 import { useAppTheme } from '@/theme/ThemeProvider';
+import { fontWeights } from '@/theme/tokens';
 
 /**
  * مجموعة رموز نصية موحّدة للتطبيق (بدون تبعية مكتبة أيقونات).
@@ -60,7 +61,7 @@ export function AppIcon({
   const { colors } = useAppTheme();
   const color = colorOverride ?? colors.ink;
   return (
-    <Text maxFontSizeMultiplier={1.3} style={[{ fontSize: size, color, fontWeight: '700', lineHeight: size + 4 }, style]}>
+    <Text maxFontSizeMultiplier={1.3} style={[{ fontSize: size, color, fontWeight: fontWeights.bold, lineHeight: size + 4 }, style]}>
       {glyphs[name]}
     </Text>
   );

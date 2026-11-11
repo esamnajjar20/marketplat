@@ -11,7 +11,7 @@ import { ApiError } from '@/api/client';
 import { createMobileOperationId } from '@/lib/operation-id';
 import { enqueueOfflineCreate } from '@/storage/outbox-manager';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
-import { fontSizes, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { formatMoney } from '@/lib/formatters';
 import { showToast } from '@/lib/toast';
 
@@ -106,7 +106,7 @@ export default function SaleCreateScreen() {
   return <PageShell title="تسجيل عملية بيع">
     <Notice tone="muted">يمكنك تسجيل بيع لسلعة واحدة أو إنشاء فاتورة تضم عدة أصناف. الفاتورة المتعددة اليدوية لا تخصم مخزون المتجر تلقائيًا.</Notice>
     <View style={{ flexDirection: 'row', gap: spacing.md }}>
-      {([{ value: 'single', label: 'بيع أحادي' }, { value: 'multiple', label: 'بيع متعدد الأصناف' }] as const).map(option => <Pressable key={option.value} accessibilityRole="button" accessibilityState={{ selected: mode === option.value }} onPress={() => { setMode(option.value); setError(''); }} style={{ flex: 1, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: mode === option.value ? colors.brand : colors.border, backgroundColor: mode === option.value ? colors.brandSoft : colors.surface }}><Text style={{ textAlign: 'center', color: mode === option.value ? colors.brand : colors.ink, fontWeight: '700' }}>{option.label}</Text></Pressable>)}
+      {([{ value: 'single', label: 'بيع أحادي' }, { value: 'multiple', label: 'بيع متعدد الأصناف' }] as const).map(option => <Pressable key={option.value} accessibilityRole="button" accessibilityState={{ selected: mode === option.value }} onPress={() => { setMode(option.value); setError(''); }} style={{ flex: 1, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: mode === option.value ? colors.brand : colors.border, backgroundColor: mode === option.value ? colors.brandSoft : colors.surface }}><Text style={{ textAlign: 'center', color: mode === option.value ? colors.brand : colors.ink, fontWeight: fontWeights.bold }}>{option.label}</Text></Pressable>)}
     </View>
     {mode === 'single' ? <>
       <Field label="اسم السلعة أو الخدمة المباعة" value={title} onChangeText={setTitle} maxLength={300} placeholder="اسم السلعة" />
@@ -115,7 +115,7 @@ export default function SaleCreateScreen() {
     </> : <>
       <View style={{ gap: spacing.md }}>
         {lines.map((line, index) => <View key={line.id} style={{ gap: spacing.md, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}><Text style={{ color: colors.ink, fontWeight: '700' }}>الصنف {index + 1}</Text>{lines.length > 2 ? <Pressable accessibilityRole="button" onPress={() => setLines(current => current.filter(item => item.id !== line.id))}><Text style={{ color: colors.danger, fontWeight: '700' }}>حذف الصنف</Text></Pressable> : null}</View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}><Text style={{ color: colors.ink, fontWeight: fontWeights.bold }}>الصنف {index + 1}</Text>{lines.length > 2 ? <Pressable accessibilityRole="button" onPress={() => setLines(current => current.filter(item => item.id !== line.id))}><Text style={{ color: colors.danger, fontWeight: fontWeights.bold }}>حذف الصنف</Text></Pressable> : null}</View>
           <Field label="اسم الصنف" value={line.title} onChangeText={value => updateLine(line.id, { title: value })} maxLength={300} placeholder="اسم السلعة أو الخدمة" />
           <Field label="الكمية" value={line.quantity} onChangeText={value => updateLine(line.id, { quantity: value })} keyboardType="numeric" />
           <Field label="سعر الوحدة ((شيكل))" value={line.unitPrice} onChangeText={value => updateLine(line.id, { unitPrice: value })} keyboardType="numeric" placeholder="0.00" />
@@ -123,7 +123,7 @@ export default function SaleCreateScreen() {
         </View>)}
       </View>
       <PrimaryButton label="+ إضافة صنف" variant="secondary" disabled={lines.length >= 200} onPress={() => setLines(current => [...current, makeLine()])} />
-      <View style={{ padding: spacing.md, backgroundColor: colors.brandSoft, borderRadius: radius.md, gap: 6 }}><Text style={{ color: colors.brandOnSoft, textAlign: 'right', fontWeight: '700' }}>عدد الأصناف: {lines.length}</Text><Text style={{ color: colors.brandOnSoft, textAlign: 'right', fontWeight: '700', fontSize: fontSizes[18] }}>إجمالي الفاتورة: {money(total)}</Text></View>
+      <View style={{ padding: spacing.md, backgroundColor: colors.brandSoft, borderRadius: radius.md, gap: 6 }}><Text style={{ color: colors.brandOnSoft, textAlign: 'right', fontWeight: fontWeights.bold }}>عدد الأصناف: {lines.length}</Text><Text style={{ color: colors.brandOnSoft, textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[18] }}>إجمالي الفاتورة: {money(total)}</Text></View>
     </>}
     <Field label="اسم المشتري" value={buyer} onChangeText={setBuyer} maxLength={160} placeholder="اسم المشتري" />
     <Field label="هاتف المشتري (اختياري)" value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={40} placeholder="رقم الهاتف" />

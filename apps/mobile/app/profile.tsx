@@ -8,7 +8,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyProfile, updateMyProfile, changeMyPassword, resendVerification, uploadMyAvatar, type AccountProfile } from '@/features/account/account.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { normalizePickedImage } from '@/lib/normalize-image-asset';
 export default function ProfileScreen() {
   const { colors } = useAppTheme();
@@ -145,7 +145,7 @@ export default function ProfileScreen() {
   }}/> : <View style={{
     width: 104, height: 104, borderRadius: 52, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center'
   }}><Text style={{
-    fontSize: fontSizes[32], fontWeight: '700', color: colors.brand
+    fontSize: fontSizes[32], fontWeight: fontWeights.bold, color: colors.brand
   }}>{(name.trim()[0] || '؟').toUpperCase()}</Text></View>}<PrimaryButton label={avatarBusy ? 'جارٍ رفع الصورة…' : 'تغيير الصورة الشخصية'} variant="secondary" onPress={() => void chooseAvatar()} busy={avatarBusy}/></View><Notice tone="muted">{profile?.emailVerified ? 'البريد الإلكتروني مؤكد.' : `البريد ${user?.email || ''} غير مؤكد بعد.`}</Notice>{profile?.emailVerified === false ? <PrimaryButton label="إعادة إرسال رسالة التحقق" variant="secondary" onPress={async () => {
     setError('');
     setMessage('');
@@ -157,6 +157,6 @@ export default function ProfileScreen() {
       setError(e instanceof Error ? e.message : 'تعذر الإرسال.');
     }
   }}/> : null}<Field label="الاسم" value={name} onChangeText={setName}/><Field label="رقم الهاتف" value={phone} onChangeText={setPhone} keyboardType="phone-pad"/><Field label="المدينة" value={city} onChangeText={setCity}/><Field label="نبذة عنك" value={bio} onChangeText={setBio} multiline maxLength={500}/><PrimaryButton label="حفظ الملف الشخصي" onPress={() => void save()} busy={busy}/></SectionCard><SectionCard><Text style={{
-    textAlign: 'right', fontSize: fontSizes[17], fontWeight: '700', color: colors.ink, marginBottom: spacing.xs
+    textAlign: 'right', fontSize: fontSizes[17], fontWeight: fontWeights.bold, color: colors.ink, marginBottom: spacing.xs
   }}>أمان الحساب</Text><Field label="كلمة المرور الحالية" value={currentPassword} onChangeText={setCurrentPassword} secureTextEntry/><Field label="كلمة المرور الجديدة" value={newPassword} onChangeText={setNewPassword} secureTextEntry/><PrimaryButton label="تغيير كلمة المرور" variant="secondary" onPress={() => void savePassword()} busy={busy}/></SectionCard></>}{message ? <Notice tone="success">{message}</Notice> : null}{error ? <Notice>{error}</Notice> : null}</PageShell>;
 }

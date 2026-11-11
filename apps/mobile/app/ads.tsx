@@ -10,7 +10,7 @@ import { router } from 'expo-router';
 import { fetchPublicAds, type AdListItem } from '@/features/ads/ads.api';
 import { FilterChip } from '@/components/ui/FilterChip';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 type Condition = 'NEW' | 'USED' | 'REFURBISHED';
@@ -89,9 +89,9 @@ export default function AllAdsScreen() {
     </View>
     {list.loading ? <SectionCard><Spinner color={colors.brand} /><Text style={{ textAlign: 'center', color: colors.muted, marginTop: spacing.sm }}>جارٍ تحميل الإعلانات…</Text></SectionCard> : null}
     {list.error ? <SectionCard><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void list.retry()} /></SectionCard> : null}
-    {!list.loading && !list.error && list.items.length === 0 ? <SectionCard><Text style={{ textAlign: 'center', color: colors.ink, fontWeight: '700' }}>لا توجد إعلانات مطابقة</Text><Text style={{ textAlign: 'center', color: colors.muted }}>غيّر عبارة البحث أو حالة الإعلان.</Text></SectionCard> : null}
+    {!list.loading && !list.error && list.items.length === 0 ? <SectionCard><Text style={{ textAlign: 'center', color: colors.ink, fontWeight: fontWeights.bold }}>لا توجد إعلانات مطابقة</Text><Text style={{ textAlign: 'center', color: colors.muted }}>غيّر عبارة البحث أو حالة الإعلان.</Text></SectionCard> : null}
     {list.items.map((ad) => <Pressable key={ad.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/ads/[id]', params: { id: ad.id } })} style={{ flexDirection: 'row', gap: spacing.md, padding: spacing.md, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, minHeight: 112 }}>
-      {ad.images?.[0] ? <AppImage uri={ad.images[0]} style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.border }} /> : <View style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: '700' }}>بدون صورة</Text></View>}
+      {ad.images?.[0] ? <AppImage uri={ad.images[0]} style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.border }} /> : <View style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: fontWeights.bold }}>بدون صورة</Text></View>}
       <View style={{ flex: 1, gap: spacing.xs, justifyContent: 'center' }}><Text numberOfLines={2} tone="ink" strong size={15}>{ad.title}</Text><Text tone="brand" strong size={14}>{adPrice(ad.price)}</Text><Text tone="muted" size={12}>{ad.city || ad.user?.city || 'الموقع غير محدد'}</Text><Text tone="muted" size={11}>{ad.condition === 'NEW' ? 'جديد' : ad.condition === 'USED' ? 'مستعمل' : ad.condition === 'REFURBISHED' ? 'مجدد' : 'حالة غير محددة'}</Text></View>
     </Pressable>)}
     {!list.loading && !list.error && list.items.length > 0 ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>

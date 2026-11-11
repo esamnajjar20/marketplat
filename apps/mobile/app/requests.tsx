@@ -1,7 +1,7 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { router } from 'expo-router';
 import { fetchOpenRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
@@ -65,7 +65,7 @@ export default function RequestsScreen() {
 
   return (
     <PageShell title="طلبات السوق" scroll={false}>
-      <FlatList
+      <FlatList refreshControl={<RefreshControl refreshing={loading && items.length > 0} onRefresh={() => void load()} tintColor={colors.brand} />}
         data={loading || error ? [] : items}
         keyExtractor={(item) => item.id}
         {...marketListPerf}

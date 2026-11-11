@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { subscribeToConfirmations, type ConfirmButton, type ConfirmRequest } from '@/lib/confirm';
-import { radius, spacing, fontSizes, type ColorPalette } from '@/theme/tokens';
+import { radius, spacing, fontSizes, type ColorPalette, fontWeights } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 
 /** يعرض طلبات confirmAlert واحداً تلو الآخر في نافذة تأكيد موحّدة. */
@@ -75,17 +75,17 @@ function createStyles(colors: ColorPalette) {
     root: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg, backgroundColor: colors.modalBackdrop },
     backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
     card: { width: '100%', maxWidth: 420, padding: spacing.lg, gap: spacing.md, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-    title: { color: colors.ink, fontSize: fontSizes[17], fontWeight: '700', textAlign: 'right' },
+    title: { color: colors.ink, fontSize: fontSizes[17], fontWeight: fontWeights.bold, textAlign: 'right' },
     message: { color: colors.muted, fontSize: fontSizes[14], lineHeight: 22, textAlign: 'right' },
     actions: { gap: spacing.sm, marginTop: spacing.xs },
     button: { minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: radius.md },
     buttonPrimary: { backgroundColor: colors.brand },
     buttonDanger: { backgroundColor: colors.danger },
     buttonCancel: { backgroundColor: colors.brandSoft },
-    buttonText: { fontSize: fontSizes[14], fontWeight: '700', textAlign: 'center' },
+    buttonText: { fontSize: fontSizes[14], fontWeight: fontWeights.bold, textAlign: 'center' },
     buttonPrimaryText: { color: colors.onBrand },
     buttonDangerText: { color: colors.onDanger },
-    buttonCancelText: { color: colors.brandOnSoft, fontSize: fontSizes[14], fontWeight: '700', textAlign: 'center' },
+    buttonCancelText: { color: colors.brandOnSoft, fontSize: fontSizes[14], fontWeight: fontWeights.bold, textAlign: 'center' },
     pressed: { opacity: 0.72 },
   });
 }

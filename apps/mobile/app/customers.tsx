@@ -3,7 +3,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { Spinner, ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createCustomer, fetchCustomerSummary, fetchCustomers, type CustomerRow, type CustomerSummary } from '@/features/sales/sales-extra.api';
@@ -142,7 +142,7 @@ export default function CustomersScreen() {
         keyExtractor={(item) => item.id}
         {...marketListPerf}
         contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
-        refreshControl={<RefreshControl refreshing={list.refreshing || summaryLoading} onRefresh={() => void refreshAll()} />}
+        refreshControl={<RefreshControl refreshing={list.refreshing || summaryLoading} onRefresh={() => void refreshAll()} tintColor={colors.brand} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <Notice tone="muted">
@@ -176,11 +176,11 @@ export default function CustomersScreen() {
             {message ? <Notice tone="success">{message}</Notice> : null}
             {error ? <Notice>{error}</Notice> : null}
             {summaryError ? <View style={{ gap: spacing.xs }}><Notice>{summaryError}</Notice><PrimaryButton label="إعادة تحميل الملخص" variant="secondary" onPress={() => void loadSummary()} /></View> : null}
-            {list.error && list.items.length > 0 ? <Notice>{list.error}</Notice> : null}
-            {list.loading || summaryLoading ? <Spinner color={colors.brand} /> : null}
+            <ListStaleError list={list} />
+            {summaryLoading ? <Spinner color={colors.brand} /> : null}
           </View>
         }
-        ListEmptyComponent={list.error ? <View style={{ gap: spacing.sm }}><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} /></View> : !list.loading ? <Notice tone="muted">لا يوجد عملاء بعد.</Notice> : undefined}
+        ListEmptyComponent={<ListEmpty list={list} loadingMessage="جاري تحميل العملاء…" errorTitle="تعذر تحميل العملاء" emptyTitle="لا يوجد عملاء بعد" />}
         renderItem={({ item }) => (
           <SectionCard>
             <Text tone="ink" strong size={16}>{item.name}</Text>
@@ -200,7 +200,7 @@ export default function CustomersScreen() {
           </SectionCard>
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
-        ListFooterComponent={list.hasNextPage || list.loadMoreError ? <View style={{ gap: spacing.sm, paddingBottom: 20 }}>{list.loadMoreError ? <Notice>{list.loadMoreError}</Notice> : null}<PrimaryButton label={list.loadingMore ? 'جارٍ تحميل المزيد…' : list.loadMoreError ? 'إعادة المحاولة' : 'تحميل المزيد'} variant="secondary" busy={list.loadingMore} onPress={() => void (list.loadMoreError ? list.retry() : list.loadMore())} /></View> : undefined}
+        ListFooterComponent={<PaginatedFooter list={list} />}
       />
     </PageShell>
   );

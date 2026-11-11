@@ -9,7 +9,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { fetchServiceListing, getCachedServiceListing, type ServiceListing } from '@/features/services/services.api';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Badge, DetailScaffold, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing, typography } from '@/theme/tokens';
+import { fontSizes, spacing, typography, fontWeights } from '@/theme/tokens';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { showToast } from '@/lib/toast';
@@ -170,14 +170,14 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   pad: { paddingHorizontal: spacing.lg, gap: spacing.lg },
   title: {
     fontSize: fontSizes[20],
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     color: colors.ink,
     textAlign: 'right',
     lineHeight: 28,
   },
   price: {
     fontSize: fontSizes[24],
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     color: colors.brand,
     textAlign: 'right',
   },

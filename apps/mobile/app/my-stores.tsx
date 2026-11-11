@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyActiveStoreMemberships, type StoreMembership } from '@/features/commerce/store-management.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { spacing } from '@/theme/tokens';
+import { spacing, fontWeights } from '@/theme/tokens';
 import { roleLabel, statusLabel } from '@/lib/status-labels';
 
 export default function MyStoresScreen() {
@@ -32,7 +32,7 @@ export default function MyStoresScreen() {
     {!loading && !error && accessToken && items.length === 0 ? <SectionCard><Notice tone="muted">لا توجد متاجر مرتبطة بعضوية نشطة. ستظهر هنا المتاجر التي تقبل دعواتها.</Notice><PrimaryButton label="عرض دعوات المتاجر" onPress={() => router.push('/store-invites')} /><PrimaryButton label="إعداد ملف البائع" variant="secondary" onPress={() => router.push('/seller-profile')} /></SectionCard> : null}
     {items.map((item) => <SectionCard key={item.id}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-        {item.store.logoUrl ? <AppImage uri={item.store.logoUrl} style={{ width: 52, height: 52, borderRadius: 12, backgroundColor: colors.border }} /> : <View style={{ width: 52, height: 52, borderRadius: 12, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontWeight: '700' }}>م</Text></View>}
+        {item.store.logoUrl ? <AppImage uri={item.store.logoUrl} style={{ width: 52, height: 52, borderRadius: 12, backgroundColor: colors.border }} /> : <View style={{ width: 52, height: 52, borderRadius: 12, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontWeight: fontWeights.bold }}>م</Text></View>}
         <View style={{ flex: 1, gap: spacing.xs }}><Text tone="ink" strong size={16}>{item.store.name}</Text><Text tone="muted" size={12}>{roleLabel(item.role)} · {statusLabel(item.store.status)}</Text>{item.store.city ? <Text tone="muted" size={12}>{item.store.city}</Text> : null}</View>
       </View>
       <PrimaryButton label="فتح صفحة المتجر" variant="secondary" onPress={() => router.push(`/stores/${encodeURIComponent(item.store.id)}`)} />

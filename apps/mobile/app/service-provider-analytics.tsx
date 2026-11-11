@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchServiceProviderAnalytics } from '@/features/services/service-management.api';
 import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
+import { fontWeights } from '@/theme/tokens';
 const metrics: [
   string,
   string
@@ -51,13 +52,13 @@ export default function ServiceProviderAnalyticsScreen() {
     };
   }, [load]);
   return <PageShell title="إحصاءات مقدم الخدمة">{!accessToken ? <><Notice>سجّل الدخول لعرض الإحصاءات.</Notice><Pressable accessibilityRole="button" onPress={() => router.push('/login')}><Text style={{
-    textAlign: 'center', color: colors.brand, fontWeight: '700'
+    textAlign: 'center', color: colors.brand, fontWeight: fontWeights.bold
   }}>تسجيل الدخول</Text></Pressable></> : <><View style={{
     flexDirection: 'row', gap: 10
   }}>{([['7d', '7 أيام'], ['30d', '30 يومًا'], ['all', 'كل الفترة']] as const).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setPeriod(v)} style={{
     flex: 1, padding: 12, borderRadius: 12, backgroundColor: period === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: period === v ? colors.brand : colors.border
   }}><Text style={{
-    textAlign: 'center', color: colors.ink, fontWeight: '700'
+    textAlign: 'center', color: colors.ink, fontWeight: fontWeights.bold
   }}>{l}</Text></Pressable>)}</View>{loading ? <Notice tone="muted">جارٍ تحميل الإحصاءات…</Notice> : error ? <Notice>{error}</Notice> : data ? <><View style={{
     flexDirection: 'row', flexWrap: 'wrap', gap: 12
   }}>{metrics.map(([key, label]) => <View key={key} style={{

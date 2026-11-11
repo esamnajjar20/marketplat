@@ -1,9 +1,11 @@
 
+import { usePullRefresh } from '@/hooks/usePullRefresh';
+import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { fetchPublicCollectionProducts } from '@/features/commerce/store-management.api';
 import type { ProductSummary } from '@/features/commerce/commerce.api';
@@ -33,6 +35,8 @@ export default function CollectionProductsScreen() {
       setLoading(false);
     }
   }, [id]);
+  const { colors: refreshTheme } = useAppTheme();
+  const { refreshing: pullRefreshing, onRefresh: onPullRefresh } = usePullRefresh(() => load());
 
   useEffect(() => {
     void load();
@@ -40,7 +44,7 @@ export default function CollectionProductsScreen() {
 
   return (
     <PageShell title="منتجات المجموعة" scroll={false}>
-      <FlatList
+      <FlatList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
         data={loading || error ? [] : items}
         keyExtractor={(item) => item.id}
         {...marketListPerf}

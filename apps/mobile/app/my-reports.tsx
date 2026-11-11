@@ -1,12 +1,12 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { Spinner } from '@/components/ui';
+import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyReports, type MyReport } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
 import { marketListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -50,15 +50,13 @@ export default function MyReportsScreen() {
           refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
           ListHeaderComponent={
             <View style={{ gap: spacing.md }}>
-              {list.loading ? <Spinner color={colors.brand} /> : null}
-              {list.error ? <Notice>{list.error}</Notice> : null}
-              {list.error && list.items.length === 0 ? <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.refresh()} /> : null}
+              <ListStaleError list={list} />
             </View>
           }
-          ListEmptyComponent={!list.loading && !list.error ? <Notice tone="muted">لم ترسل أي بلاغ حتى الآن.</Notice> : undefined}
+          ListEmptyComponent={<ListEmpty list={list} loadingMessage="جاري تحميل بلاغاتك…" errorTitle="تعذر تحميل البلاغات" emptyTitle="لم ترسل أي بلاغ حتى الآن" />}
           renderItem={({ item }) => (
             <SectionCard>
-              <Text style={{ textAlign: 'right', fontWeight: '700', fontSize: fontSizes[15], lineHeight: 22, color: colors.ink }}>
+              <Text style={{ textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[15], lineHeight: 22, color: colors.ink }}>
                 {labels[item.targetType || ''] || item.targetType || 'بلاغ'} · {labels[item.reason || ''] || item.reason || 'سبب غير محدد'}
               </Text>
               <Text style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[13], lineHeight: 20 }}>
@@ -69,12 +67,7 @@ export default function MyReportsScreen() {
             </SectionCard>
           )}
           ListFooterComponent={
-            list.loadingMore ? <Spinner color={colors.brand} /> : list.loadMoreError ? (
-              <View style={{ gap: spacing.sm }}>
-                <Notice>{list.loadMoreError}</Notice>
-                <PrimaryButton label="إعادة محاولة تحميل المزيد" variant="secondary" onPress={() => void list.loadMore()} />
-              </View>
-            ) : list.hasNextPage ? <PrimaryButton label="تحميل المزيد" variant="secondary" onPress={() => void list.loadMore()} /> : undefined
+            <PaginatedFooter list={list} />
           }
           onEndReached={() => { void list.loadMore(); }}
           onEndReachedThreshold={0.4}

@@ -17,7 +17,7 @@ import { AppIcon } from '@/components/Icons';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { SaveOfflineButton } from '@/components/ui/SaveOfflineButton';
 import { Badge, DetailScaffold, Notice, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing, typography } from '@/theme/tokens';
+import { fontSizes, spacing, typography, fontWeights } from '@/theme/tokens';
 
 function formatPrice(price: AdDetail['price']): string {
   if (price === null || price === undefined || price === '') return 'السعر عند التواصل';
@@ -302,12 +302,12 @@ export default function AdDetailScreen() {
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({  pad: { paddingHorizontal: spacing.lg, gap: spacing.lg },
-  price: { color: colors.brand, fontSize: fontSizes[24], fontWeight: '700', textAlign: 'right', letterSpacing: 0.2 },
+  price: { color: colors.brand, fontSize: fontSizes[24], fontWeight: fontWeights.bold, textAlign: 'right', letterSpacing: 0.2 },
   title: {
     color: colors.ink,
     fontSize: fontSizes[20],
     lineHeight: 28,
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     textAlign: 'right',
   },
   meta: { color: colors.muted, ...typography.caption, textAlign: 'right' },

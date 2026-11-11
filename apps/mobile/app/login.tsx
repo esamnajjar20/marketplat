@@ -12,7 +12,7 @@ import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Field, Notice, PrimaryButton } from '@/components/MobileUI';
 import type { TextInputHandle } from '@/components/ui/Field';
-import { fontSizes, elevation, radius, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, elevation, radius, spacing, typography, ux, fontWeights } from '@/theme/tokens';
 import { loginSchema, validate } from '@/lib/validation';
 import { getSafeAuthRedirect } from '@/lib/safe-auth-redirect';
 import { toAppHref } from '@/lib/typed-navigation';
@@ -258,7 +258,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   logoText: {
     color: colors.onBrand,
     fontSize: fontSizes[32],
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
   },
   title: {
     color: colors.ink,
@@ -336,7 +336,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   googleGlyph: {
     color: colors.brand,
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     fontSize: fontSizes[16],
   },
   googleText: {
@@ -355,6 +355,6 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   footerTextStrong: {
     color: colors.brand,
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
   },
 });

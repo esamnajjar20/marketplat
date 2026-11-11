@@ -9,16 +9,9 @@ import { fetchPublicCategories, flattenPublicCategories, type PublicCategory } f
 import { searchMarketplace, type SearchResult } from '@/features/discovery/discovery.api';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
-import { elevation, fontSizes, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
+import { elevation, fontSizes, radius, sizes, spacing, typography, ux, fontWeights } from '@/theme/tokens';
 import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
-import {
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { goBack } from '@/lib/navigation';
@@ -612,6 +605,7 @@ export default function SearchScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <FlatList
+          refreshControl={<RefreshControl refreshing={searchList.refreshing} onRefresh={() => void searchList.refresh()} tintColor={colors.brand} />}
           data={items}
           keyExtractor={(item) => `${item.type}-${item.id}`}
           renderItem={({ item }) => (
@@ -726,7 +720,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   searchIcon: {
     color: colors.muted,
     fontSize: fontSizes[18],
-    fontWeight: '600',
+    fontWeight: fontWeights.semibold,
   },
   searchInput: {
     flex: 1,
@@ -752,7 +746,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   searchBtnText: {
     color: colors.onBrand,
     fontSize: fontSizes[13],
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
   },
 
   chipRow: {
@@ -804,7 +798,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   advancedToggleText: {
     color: colors.brandOnSoft,
     fontSize: fontSizes[13],
-    fontWeight: '600',
+    fontWeight: fontWeights.semibold,
   },
   clearLink: {
     paddingVertical: spacing.xs,
@@ -813,7 +807,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   clearLinkText: {
     color: colors.muted,
     fontSize: fontSizes[13],
-    fontWeight: '600',
+    fontWeight: fontWeights.semibold,
   },
 
   advancedPanel: {
@@ -867,7 +861,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   saveSearchText: {
     color: colors.brand,
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     fontSize: fontSizes[13],
   },
 
@@ -934,7 +928,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   resultPrice: {
     color: colors.brand,
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     fontSize: fontSizes[15],
   },
   resultCity: {
@@ -956,7 +950,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   loadMoreText: {
     color: colors.brandOnSoft,
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     fontSize: fontSizes[14],
   },
 });

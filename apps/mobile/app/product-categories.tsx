@@ -8,6 +8,7 @@ import { Spinner } from '@/components/ui';
 import { router } from 'expo-router';
 import { fetchProductCategories, type ProductCategory } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
+import { fontWeights } from '@/theme/tokens';
 export default function ProductCategoriesScreen() {
   const { colors } = useAppTheme();
   const [items, setItems] = useState<ProductCategory[]>([]);
@@ -34,10 +35,10 @@ export default function ProductCategoriesScreen() {
     textAlign: 'right', color: colors.muted, lineHeight: 21
   }}>اختر تصنيفًا لعرض المنتجات المرتبطة به.</Text>
   <Pressable accessibilityRole="button" accessibilityLabel="عرض جميع المنتجات" onPress={() => router.push('/products')}><SectionCard><Text style={{
-    textAlign: 'right', fontWeight: '700', color: colors.brand, minHeight: 44, textAlignVertical: 'center'
+    textAlign: 'right', fontWeight: fontWeights.bold, color: colors.brand, minHeight: 44, textAlignVertical: 'center'
   }}>جميع المنتجات ←</Text></SectionCard></Pressable>
   {loading ? <Spinner color={colors.brand}/> : error ? <><Notice>{error}</Notice><Pressable accessibilityRole="button" onPress={() => void load()}><Text style={{
-    textAlign: 'center', color: colors.brand, fontWeight: '700'
+    textAlign: 'center', color: colors.brand, fontWeight: fontWeights.bold
   }}>إعادة المحاولة</Text></Pressable></> : items.length === 0 ? <Notice tone="muted">لا توجد تصنيفات نشطة حاليًا.</Notice> : <View style={{ gap: 14 }}>{items.map(category => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={`عرض منتجات تصنيف ${category.nameAr || category.name}`} onPress={() => router.push({
     pathname: '/products', params: { categoryId: category.id }
   })}><SectionCard><View style={{

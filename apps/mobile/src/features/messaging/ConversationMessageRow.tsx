@@ -6,7 +6,7 @@ import { AppImage } from '@/components/AppImage';
 import { AppIcon } from '@/components/Icons';
 import type { ChatMessage } from '@/features/messaging/messaging.api';
 import { CHAT_OUTBOX_MAX_ATTEMPTS } from '@/storage/outbox-manager';
-import { fontSizes, elevation, spacing, typography } from '@/theme/tokens';
+import { fontSizes, elevation, spacing, typography, fontWeights } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { isAllowedMediaUrl } from '@/lib/safe-media-url';
 import { formatDate } from '@/lib/formatters';
@@ -232,12 +232,12 @@ function createStyles(colors: import('@/theme/tokens').ColorPalette) {
   },
   failedAction: {
     fontSize: fontSizes[12],
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     color: colors.onBrand,
   },
   failedDelete: {
     fontSize: fontSizes[12],
-    fontWeight: '700',
+    fontWeight: fontWeights.bold,
     color: colors.onBrand,
   },
   });

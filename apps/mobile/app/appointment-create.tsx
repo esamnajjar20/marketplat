@@ -9,7 +9,7 @@ import { createAppointment, fetchProviderAvailability, type ProviderAvailability
 import { buildAppointmentSlots, type AppointmentSlot } from '@/features/appointments/appointment-slots';
 import { fetchServiceRequest } from '@/features/services/services.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 
 const MARKET_TIME_ZONE = 'Asia/Gaza';
 const marketDateParts = new Intl.DateTimeFormat('en-GB', {
@@ -184,11 +184,11 @@ export default function AppointmentCreateScreen() {
           <Text tone="ink" strong size={16}>اختر تاريخ الموعد</Text>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
             <Pressable accessibilityRole="button" accessibilityLabel="التواريخ السابقة" accessibilityState={{ disabled: datePage === 0 }} disabled={datePage === 0} onPress={() => setDatePageAndDate(datePage - 1)} style={{ minHeight: 44, minWidth: 64, justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ color: datePage === 0 ? colors.muted : colors.brand, fontWeight: '700' }}>السابق</Text>
+              <Text style={{ color: datePage === 0 ? colors.muted : colors.brand, fontWeight: fontWeights.bold }}>السابق</Text>
             </Pressable>
             <Text style={{ color: colors.muted, fontSize: fontSizes[12] }}>عرض 14 يومًا</Text>
             <Pressable accessibilityRole="button" accessibilityLabel="التواريخ التالية" onPress={() => setDatePageAndDate(datePage + 1)} style={{ minHeight: 44, minWidth: 64, justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={{ color: colors.brand, fontWeight: '700' }}>التالي</Text>
+              <Text style={{ color: colors.brand, fontWeight: fontWeights.bold }}>التالي</Text>
             </Pressable>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xs }}>
@@ -203,8 +203,8 @@ export default function AppointmentCreateScreen() {
                   onPress={() => { setDate(option.value); setSelectedSlot(null); }}
                   style={{ minWidth: 76, minHeight: 64, paddingHorizontal: spacing.sm, paddingVertical: 9, borderRadius: radius.md, borderWidth: 1, borderColor: selected ? colors.brand : colors.border, backgroundColor: selected ? colors.brandSoft : colors.surface, justifyContent: 'center', alignItems: 'center', gap: 3 }}
                 >
-                  <Text style={{ color: selected ? colors.brand : colors.muted, fontSize: fontSizes[12], fontWeight: '700' }}>{option.weekday}</Text>
-                  <Text style={{ color: selected ? colors.brand : colors.ink, fontWeight: '700' }}>{option.day}</Text>
+                  <Text style={{ color: selected ? colors.brand : colors.muted, fontSize: fontSizes[12], fontWeight: fontWeights.bold }}>{option.weekday}</Text>
+                  <Text style={{ color: selected ? colors.brand : colors.ink, fontWeight: fontWeights.bold }}>{option.day}</Text>
                 </Pressable>
               );
             })}
@@ -232,7 +232,7 @@ export default function AppointmentCreateScreen() {
                     onPress={() => setSelectedSlot(slot)}
                     style={{ minHeight: 44, minWidth: 112, paddingHorizontal: spacing.md, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: selected ? colors.brand : colors.border, borderRadius: radius.md, backgroundColor: selected ? colors.brandSoft : colors.surface }}
                   >
-                    <Text style={{ color: selected ? colors.brand : colors.ink, fontWeight: '700' }}>{slot.label}</Text>
+                    <Text style={{ color: selected ? colors.brand : colors.ink, fontWeight: fontWeights.bold }}>{slot.label}</Text>
                   </Pressable>
                 );
               })}

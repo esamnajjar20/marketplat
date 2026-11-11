@@ -1,10 +1,11 @@
+import { usePullRefresh } from '@/hooks/usePullRefresh';
 import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useRef, useState , useMemo} from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { marketListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
@@ -96,6 +97,8 @@ export default function MyAdsScreen() {
       if (current === seq.current) { hasLoadedRef.current = true; setLoading(false); }
     }
   }, [getAccessToken, isRestoring, user?.id]);
+  const { colors: refreshTheme } = useAppTheme();
+  const { refreshing: pullRefreshing, onRefresh: onPullRefresh } = usePullRefresh(() => load());
 
   useFocusEffect(
     useCallback(() => {
@@ -213,7 +216,7 @@ export default function MyAdsScreen() {
       ) : error && ads.length === 0 ? (
         <ErrorState title="تعذر تحميل الإعلانات" description={error} onAction={() => void load()} />
       ) : (
-        <FlatList
+        <FlatList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
           data={ads}
           keyExtractor={(ad) => ad.id}
           {...marketListPerf}

@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createSellerProfile, fetchMySellerProfile, updateSellerProfile, type SellerProfile } from '@/features/account/seller.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 export default function SellerProfileScreen() {
   const { colors } = useAppTheme();
   const { accessToken, csrfToken, user } = useAuth();
@@ -74,7 +74,7 @@ export default function SellerProfileScreen() {
     }
   };
   return <PageShell title="ملف البائع">{!accessToken ? <><Notice>سجّل الدخول لإعداد ملف البائع.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل الملف…</Notice> : <SectionCard><Text style={{
-    textAlign: 'right', fontWeight: '700', fontSize: fontSizes[19], color: colors.ink, marginBottom: spacing.xs
+    textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[18], color: colors.ink, marginBottom: spacing.xs
   }}>{profile ? 'تعديل ملف البائع' : 'إنشاء ملف بائع'}</Text><Field label="اسم العرض" value={name} onChangeText={setName} maxLength={50} placeholder="الاسم الذي يظهر للعملاء"/><Field label="نبذة مختصرة" value={bio} onChangeText={setBio} multiline maxLength={300} placeholder="عرّف العملاء بك وبنشاطك"/>{!profile ? <View style={{
     flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm
   }}><Switch value={terms} onValueChange={setTerms} trackColor={{ true: colors.brand }}/><Text style={{

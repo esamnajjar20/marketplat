@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider, updateMyServiceProviderWorkingHours } from '@/features/services/providers.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes } from '@/theme/tokens';
+import { fontSizes, fontWeights } from '@/theme/tokens';
 type Day = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
 type Schedule = {
   open: string;
@@ -115,7 +115,7 @@ export default function ServiceProviderHoursScreen() {
   return <PageShell title="ساعات عمل مقدم الخدمة">{!accessToken ? <><Notice>سجّل الدخول لإدارة ساعات العمل.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل ساعات العمل…</Notice> : noProfile ? <Notice>أنشئ ملف مقدم الخدمة أولًا من صفحة «ملف مقدم الخدمة» قبل ضبط ساعات العمل.</Notice> : <><Notice tone="muted">حدد أوقات توفر نشاطك. اترك اليوم مغلقًا إذا لم تكن تستقبل الحجوزات فيه.</Notice>{days.map(day => <SectionCard key={day.key}><View style={{
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'
   }}><Text style={{
-    fontSize: fontSizes[16], fontWeight: '700', color: colors.ink
+    fontSize: fontSizes[16], fontWeight: fontWeights.bold, color: colors.ink
   }}>{day.label}</Text><Pressable accessibilityRole="button" onPress={() => setHours(old => ({
     ...old, [day.key]: old[day.key] ? null : {
       open: '09:00', close: '17:00'
@@ -123,7 +123,7 @@ export default function ServiceProviderHoursScreen() {
   }))} style={{
     minHeight: 44, paddingVertical: 11, paddingHorizontal: 14, borderRadius: 10, backgroundColor: hours[day.key] ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: colors.controlBorder, minWidth: 82, alignItems: 'center', justifyContent: 'center'
   }}><Text style={{
-    color: colors.brandOnSoft, fontWeight: '700'
+    color: colors.brandOnSoft, fontWeight: fontWeights.bold
   }}>{hours[day.key] ? 'مفتوح' : 'مغلق'}</Text></Pressable></View>{hours[day.key] ? <View style={{
     flexDirection: 'row', gap: 10
   }}><View style={{ flex: 1 }}><Field label="يفتح (HH:mm)" value={hours[day.key]!.open} onChangeText={v => change(day.key, 'open', v)} placeholder="09:00"/></View><View style={{ flex: 1 }}><Field label="يغلق (HH:mm)" value={hours[day.key]!.close} onChangeText={v => change(day.key, 'close', v)} placeholder="17:00"/></View></View> : null}</SectionCard>)}<PrimaryButton label="حفظ ساعات العمل" onPress={() => void save()} busy={busy}/></>}{error ? <Notice>{error}</Notice> : null}{message ? <Notice tone="success">{message}</Notice> : null}</PageShell>;

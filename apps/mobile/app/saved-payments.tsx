@@ -6,7 +6,7 @@ import { router } from 'expo-router';
 import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { radius, spacing, typography } from '@/theme/tokens';
+import { radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteSavedNetCard, deleteSavedPayee, listSavedNetCards, listSavedPayees, saveNetCard, savePayee, updateSavedNetCard, updateSavedPayee, type SavedNetCard, type SavedPayee } from '@/storage/saved-payments.store';
 type Tab = 'payees' | 'cards';
@@ -153,7 +153,7 @@ export default function SavedPaymentsScreen() {
         }] as const).map(x => <Pressable key={x.key} accessibilityRole="tab" accessibilityState={{ selected: tab === x.key }} onPress={() => setTab(x.key)} style={{
         flex: 1, minHeight: 46, alignItems: 'center', justifyContent: 'center', borderRadius: radius.control, backgroundColor: tab === x.key ? colors.brand : colors.surface, borderWidth: 1, borderColor: colors.border
     }}><Text style={{
-        color: tab === x.key ? colors.white : colors.ink, fontWeight: '700'
+        color: tab === x.key ? colors.white : colors.ink, fontWeight: fontWeights.bold
     }}>{x.label}</Text></Pressable>)}</View>
     <Field label="بحث في المحفوظات" value={query} onChangeText={setQuery} placeholder="الاسم أو الرقم"/>
     {tab === 'payees' ? <SectionCard><Text style={{
@@ -163,7 +163,7 @@ export default function SavedPaymentsScreen() {
     }}>{methods.map(m => <Pressable accessibilityRole="button" key={m.value} onPress={() => setMethod(m.value)} style={{
         flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.control, borderWidth: 1, borderColor: method === m.value ? colors.brand : colors.border, backgroundColor: method === m.value ? colors.brandSoft : colors.surface
     }}><Text style={{
-        color: colors.ink, fontWeight: '700'
+        color: colors.ink, fontWeight: fontWeights.bold
     }}>{m.label}</Text></Pressable>)}</View><PrimaryButton label={editingPayee ? 'حفظ التعديلات' : 'حفظ جهة الدفع'} onPress={() => void addPayee()} busy={busy}/>{editingPayee ? <PrimaryButton label="إلغاء التعديل" variant="ghost" onPress={() => {
         setEditingPayee(null);
         setName('');
@@ -187,11 +187,11 @@ export default function SavedPaymentsScreen() {
     }} style={{
         minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center'
     }}><Text style={{
-        color: colors.brand, fontWeight: '700'
+        color: colors.brand, fontWeight: fontWeights.bold
     }}>تعديل</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel={`حذف ${p.name}`} onPress={() => confirmDelete(p.name, () => deleteSavedPayee(p.id, ownerId))} style={{
         minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center'
     }}><Text style={{
-        color: colors.danger, fontWeight: '700'
+        color: colors.danger, fontWeight: fontWeights.bold
     }}>حذف</Text></Pressable></View></SectionCard>) : filteredCards.map(c => <SectionCard key={c.id}><View style={{
         flexDirection: 'row', alignItems: 'center', gap: spacing.sm
     }}><View style={{ flex: 1 }}><Text tone="ink" strong>{c.label || 'بطاقة إنترنت'}</Text><Text tone="muted">{maskIdentifier(c.username)}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="تعديل البطاقة" onPress={() => {
@@ -201,11 +201,11 @@ export default function SavedPaymentsScreen() {
     }} style={{
         minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center'
     }}><Text style={{
-        color: colors.brand, fontWeight: '700'
+        color: colors.brand, fontWeight: fontWeights.bold
     }}>تعديل</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="حذف البطاقة" onPress={() => confirmDelete(c.label || 'البطاقة', () => deleteSavedNetCard(c.id, ownerId))} style={{
         minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center'
     }}><Text style={{
-        color: colors.danger, fontWeight: '700'
+        color: colors.danger, fontWeight: fontWeights.bold
     }}>حذف</Text></Pressable></View></SectionCard>)}
     {!loading && (tab === 'payees' ? filteredPayees.length === 0 : filteredCards.length === 0) ? <Notice tone="muted">لا توجد عناصر مطابقة بعد.</Notice> : null}
   </PageShell>;

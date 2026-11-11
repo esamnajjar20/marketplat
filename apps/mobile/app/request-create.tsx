@@ -13,6 +13,7 @@ import { createMarketplaceRequest, fetchRequestCategories } from '@/features/req
 import { enqueueMarketplaceRequest } from '@/storage/outbox-manager';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
 import { showToast } from '@/lib/toast';
+import { fontWeights } from '@/theme/tokens';
 type Kind = 'SERVICE' | 'PRODUCT' | 'RENTAL';
 export default function RequestCreateScreen() {
   const { colors } = useAppTheme();
@@ -127,7 +128,7 @@ export default function RequestCreateScreen() {
   ][]).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setType(v)} style={{
     flex: 1, minHeight: 48, justifyContent: 'center', padding: 12, borderRadius: 14, backgroundColor: type === v ? colors.brand : colors.surface, borderWidth: 1, borderColor: type === v ? colors.brand : colors.border
   }}><Text style={{
-    textAlign: 'center', color: type === v ? colors.white : colors.ink, fontWeight: '700'
+    textAlign: 'center', color: type === v ? colors.white : colors.ink, fontWeight: fontWeights.bold
   }}>{l}</Text></Pressable>)}</View><Text tone="ink" strong>التصنيف</Text><View style={{
     flexDirection: 'row', flexWrap: 'wrap', gap: 8
   }}>{categories.map(c => <Pressable accessibilityRole="button" key={c.id} onPress={() => setCategoryId(c.id)} style={{

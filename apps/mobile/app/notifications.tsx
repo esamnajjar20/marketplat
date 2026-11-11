@@ -274,7 +274,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     justifyContent: 'center',
   },
   iconUnread: { backgroundColor: colors.surface },
-  icon: { fontSize: fontSizes[19] },
+  icon: { fontSize: fontSizes[18] },
   bodyWrap: { flex: 1, gap: 5 },
   itemTitle: { ...typography.bodyStrong, color: colors.ink, textAlign: 'right' },
   body: { ...typography.caption, color: colors.muted, textAlign: 'right', lineHeight: 20 },

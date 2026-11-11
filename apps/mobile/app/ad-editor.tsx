@@ -19,7 +19,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { cleanupStaleUnreferencedAdImages, persistSelectedAdImage, removePersistedAdImageIfUnused } from '@/storage/persist-ad-image';
 import { clearAdDraft, loadAdDraft, saveAdDraft, clearAdEditDraft, loadAdEditDraft, saveAdEditDraft } from '@/storage/ad-draft-store';
 import { enqueueMutation } from '@/storage/outbox-manager';
-import { fontSizes, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { adEditorSchema, validate } from '@/lib/validation';
 import { createMobileOperationId } from '@/lib/operation-id';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
@@ -458,7 +458,7 @@ export default function AdEditorScreen() {
 }
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     sectionLabel: {
-        fontSize: fontSizes[16], fontWeight: '700', color: colors.ink, textAlign: 'right', marginTop: spacing.sm
+        fontSize: fontSizes[16], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'right', marginTop: spacing.sm
     },
     sectionHint: {
         fontSize: fontSizes[12], color: colors.muted, textAlign: 'right', marginBottom: spacing.xs, lineHeight: 18
@@ -467,7 +467,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, flex: { flex: 1 }, form: {
         padding: spacing.lg, gap: spacing.md, paddingBottom: 56
     }, label: {
-        fontSize: fontSizes[14], fontWeight: '700', color: colors.ink, textAlign: 'right', marginTop: spacing.sm
+        fontSize: fontSizes[14], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'right', marginTop: spacing.sm
     }, input: {
         backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.md, color: colors.ink, fontSize: fontSizes[15], minHeight: 54
     }, multiline: { minHeight: 130 }, switchRow: {
@@ -489,11 +489,11 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, categoryChipSelected: {
         backgroundColor: colors.brand, borderColor: colors.brand
     }, categoryText: {
-        color: colors.ink, fontSize: fontSizes[12], fontWeight: '700'
+        color: colors.ink, fontSize: fontSizes[12], fontWeight: fontWeights.bold
     }, categoryTextSelected: { color: colors.onBrand }, secondary: {
         alignItems: 'center', borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm
     }, secondaryText: {
-        color: colors.brand, fontWeight: '700'
+        color: colors.brand, fontWeight: fontWeights.bold
     }, imageGrid: {
         flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: spacing.sm
     }, imageTile: {
@@ -503,9 +503,9 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, removeImage: {
         position: 'absolute', top: 3, start: 3, width: 44, height: 44, borderRadius: 22, backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center'
     }, removeImageText: {
-        color: colors.onDanger, fontSize: fontSizes[22], fontWeight: '700', lineHeight: 25
+        color: colors.onDanger, fontSize: fontSizes[22], fontWeight: fontWeights.bold, lineHeight: 25
     }, title: {
-        color: colors.ink, fontWeight: '700', fontSize: fontSizes[17]
+        color: colors.ink, fontWeight: fontWeights.bold, fontSize: fontSizes[17]
     }, muted: {
         color: colors.muted, fontSize: fontSizes[13], textAlign: 'center'
     }

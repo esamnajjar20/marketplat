@@ -9,7 +9,7 @@ import { AppImage } from '@/components/AppImage';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import type { TextInputHandle } from '@/components/ui/Field';
 import { AppText } from '@/components/ui/AppText';
-import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ApiError } from '@/api/client';
 import { fetchProduct, type ProductSummary } from '@/features/commerce/commerce.api';
@@ -170,7 +170,7 @@ const createThemeStyles = (colors: ColorPalette) => ({
   price: { color: colors.brand, ...typography.subtitle },
   qty: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: spacing.md },
   qtyButton:{width:44,height:44,minWidth:44,minHeight:44, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center' as const, justifyContent: 'center' as const },
-  qtyText: { fontSize: fontSizes[20], fontWeight: '700' as const, color: colors.brandOnSoft },
+  qtyText: { fontSize: fontSizes[20], fontWeight: fontWeights.bold, color: colors.brandOnSoft },
   qtyNumber: { ...typography.bodyStrong, color: colors.ink },
   sectionTitle: { color: colors.ink, ...typography.subtitle, textAlign: 'right' as const },
   summaryRow: { flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'space-between' as const, gap: spacing.md },

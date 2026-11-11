@@ -6,7 +6,7 @@ import { memo, useState , useMemo} from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppImage } from '@/components/AppImage';
 import { AppIcon } from '@/components/Icons';
-import { fontSizes, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
+import { fontSizes, elevation, radius, sizes, spacing, typography, ux, fontWeights } from '@/theme/tokens';
 
 type CatalogCardProps = {
   title: string;
@@ -425,7 +425,7 @@ export function HorizontalAdCard({
         hitSlop={8}
         style={({ pressed }) => [hStyles.favoriteButton, pressed && hStyles.pressed]}
       >
-        <Text style={{ color: isFavorite ? colors.danger : colors.muted, fontSize: fontSizes[17], fontWeight: '700' }}>
+        <Text style={{ color: isFavorite ? colors.danger : colors.muted, fontSize: fontSizes[17], fontWeight: fontWeights.bold }}>
           {isFavorite ? '♥' : '♡'}
         </Text>
       </Pressable>
@@ -458,7 +458,7 @@ const createThemeHStyles = (colors: ColorPalette) => StyleSheet.create({
   glyph: {
     color: colors.brandOnSoft,
     fontSize: fontSizes[28],
-    fontWeight: '600',
+    fontWeight: fontWeights.semibold,
   },
   body: {
     flex: 1,

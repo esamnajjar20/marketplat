@@ -8,7 +8,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSaleReceipt } from '@/features/sales/sales-extra.api';
 import type { SaleRecord } from '@/features/sales/sales.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { formatDate, formatMoney } from '@/lib/formatters';
 type ReceiptSale = SaleRecord & {
   items?: Array<{
@@ -66,9 +66,9 @@ export default function SaleReceiptScreen() {
   if (!user)
     return <PageShell title="فاتورة البيع"><Notice>سجّل الدخول لعرض الفاتورة.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></PageShell>;
   return <PageShell title="فاتورة البيع">{loading ? <Spinner color={colors.brand}/> : error ? <><Notice>{error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void load()} variant="secondary"/></> : sale ? <><SectionCard><Text style={{
-    textAlign: 'center', fontSize: fontSizes[26], fontWeight: '700', color: colors.ink
+    textAlign: 'center', fontSize: fontSizes[26], fontWeight: fontWeights.bold, color: colors.ink
   }}>سوق غزة</Text><Text style={{
-    textAlign: 'center', fontSize: fontSizes[20], fontWeight: '700', color: colors.brand
+    textAlign: 'center', fontSize: fontSizes[20], fontWeight: fontWeights.bold, color: colors.brand
   }}>فاتورة بيع</Text><Text style={{
     textAlign: 'center', color: colors.muted
   }}>رقم الفاتورة: {invoice || 'غير محدد'}</Text><View style={{
@@ -78,11 +78,11 @@ export default function SaleReceiptScreen() {
   }[sale.entityType] || 'غير محدد'}</Text><Text tone="muted">حالة الدفع: {{
     PAID: 'مدفوع بالكامل', PARTIAL: 'مدفوع جزئيًا', UNPAID: 'غير مدفوع', OVERDUE: 'متأخر'
   }[sale.paymentStatus] || 'غير محددة'}</Text><Text tone="muted">التاريخ: {formatDate(sale.soldAt, 'date')}</Text><Text style={{
-    textAlign: 'right', fontWeight: '700', fontSize: fontSizes[16], color: colors.ink, marginTop: spacing.sm
+    textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[16], color: colors.ink, marginTop: spacing.sm
   }}>{sale.entityTitle}</Text>{sale.items?.map(item => <View key={item.id} style={{
     flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border
   }}><View style={{ flex: 1 }}><Text tone="ink" strong>{item.title}</Text><Text tone="muted">الكمية {item.quantity} × {formatMoney(item.unitPrice, sale.currency)}</Text></View><Text style={{
-    fontWeight: '700', color: colors.ink
+    fontWeight: fontWeights.bold, color: colors.ink
   }}>{formatMoney(item.lineTotal, sale.currency)}</Text></View>)}<View style={{
     height: 1, backgroundColor: colors.border, marginVertical: spacing.sm
   }}/>{[
@@ -90,7 +90,7 @@ export default function SaleReceiptScreen() {
   ].map(([label, value]) => <View key={String(label)} style={{
     flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7
   }}><Text style={{ color: colors.muted }}>{label}</Text><Text style={{
-    color: label === 'المتبقي' && Number(value) > 0 ? colors.danger : colors.ink, fontWeight: '700'
+    color: label === 'المتبقي' && Number(value) > 0 ? colors.danger : colors.ink, fontWeight: fontWeights.bold
   }}>{formatMoney(value, sale.currency)}</Text></View>)}{sale.note ? <Text style={{
     textAlign: 'right', color: colors.muted, marginTop: spacing.sm
   }}>ملاحظات: {sale.note}</Text> : null}<Text style={{

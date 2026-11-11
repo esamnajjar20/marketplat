@@ -9,7 +9,7 @@ import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchActiveSessions, revokeActiveSession, type ActiveSession } from '@/features/auth/sessions.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
+import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
 
 function dateLabel(value: string): string {
@@ -60,7 +60,7 @@ export default function SessionsScreen() {
           <Text tone="muted" size={12}>تسجيل الدخول: {dateLabel(session.createdAt)}</Text>
           <Text tone="muted" size={12}>آخر نشاط: {dateLabel(session.lastSeen)}</Text>
         </View>
-        <View style={{ borderRadius: radius.pill, backgroundColor: session.isCurrent ? colors.successSoft : colors.brandSoft, paddingHorizontal: 10, paddingVertical: 6 }}><Text style={{ color: colors.brand, fontSize: fontSizes[11], fontWeight: '700' }}>{session.isCurrent ? 'حالي' : 'نشط'}</Text></View>
+        <View style={{ borderRadius: radius.pill, backgroundColor: session.isCurrent ? colors.successSoft : colors.brandSoft, paddingHorizontal: 10, paddingVertical: 6 }}><Text style={{ color: colors.brand, fontSize: fontSizes[11], fontWeight: fontWeights.bold }}>{session.isCurrent ? 'حالي' : 'نشط'}</Text></View>
       </View>
       {!session.isCurrent ? <PrimaryButton label={busyId === session.sessionId ? 'جارٍ الإنهاء…' : 'إنهاء هذه الجلسة'} variant="danger" busy={busyId === session.sessionId} disabled={!!busyId} onPress={() => revoke(session)} /> : null}
     </SectionCard>)}

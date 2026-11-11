@@ -11,7 +11,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider, saveMyServiceProvider, type ServiceProviderProfile } from '@/features/services/providers.api';
 import { uploadServiceProviderLogo } from '@/features/services/service-management.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { normalizePickedImage } from '@/lib/normalize-image-asset';
 const hours = {
   sun: null, mon: null, tue: null, wed: null, thu: null, fri: null, sat: null
@@ -133,7 +133,7 @@ export default function ServiceProviderProfileScreen() {
   }}>{([['INDIVIDUAL', 'فردي'], ['SMALL_BUSINESS', 'مشروع صغير']] as const).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setBusinessType(v)} style={{
     flex: 1, padding: 11, borderRadius: 10, backgroundColor: businessType === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: colors.border
   }}><Text style={{
-    textAlign: 'center', color: colors.ink, fontWeight: '700'
+    textAlign: 'center', color: colors.ink, fontWeight: fontWeights.bold
   }}>{l}</Text></Pressable>)}</View><Text tone="ink" strong>حالة التوفر</Text><View style={{
     flexDirection: 'row', gap: spacing.sm
   }}>{([['AVAILABLE', 'متاح'], ['BUSY', 'مشغول'], ['UNAVAILABLE', 'غير متاح']] as const).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setAvailability(v)} style={{

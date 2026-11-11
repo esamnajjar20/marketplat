@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '@/components/BottomNavigation';
 import { MobileDrawerProvider } from '@/components/MobileDrawer';
 import { StatusBar } from 'expo-status-bar';
-import { fontSizes, spacing } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { AppThemeProvider, useAppTheme, useAppThemeColors } from '@/theme/ThemeProvider';
 import { AuthProvider, useAuth } from '@/features/auth/AuthContext';
 import { ConnectivityProvider, useIsOnline } from '@/lib/connectivity';
@@ -44,7 +44,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
         backgroundColor: colors.canvas,
       }}
     >
-      <Text style={{ fontSize: fontSizes[19], fontWeight: '700', color: colors.ink, textAlign: 'center' }}>
+      <Text style={{ fontSize: fontSizes[18], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'center' }}>
         حدث خطأ غير متوقع
       </Text>
       <Text
@@ -71,7 +71,7 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
           justifyContent: 'center',
         }}
       >
-        <Text style={{ color: colors.onBrand, fontWeight: '700', fontSize: fontSizes[15] }}>إعادة المحاولة</Text>
+        <Text style={{ color: colors.onBrand, fontWeight: fontWeights.bold, fontSize: fontSizes[15] }}>إعادة المحاولة</Text>
       </Pressable>
     </View>
   );
@@ -95,7 +95,7 @@ function RootChrome({ children }: { children: ReactNode }) {
           ? 'settings'
           : ['/my-store', '/seller-dashboard', '/my-products', '/product-editor', '/store-collections', '/collections', '/store-promotions', '/store-team', '/store-invites', '/store-hours', '/my-store-analytics'].some(isWithin)
             ? 'store'
-            : ['/my-sales', '/customers', '/debts', '/installments', '/sale-create', '/sales'].some(isWithin)
+            : ['/my-sales', '/customers', '/debts', '/installments', '/sale-create', '/sales', '/sales-costs', '/sales-insights'].some(isWithin)
               ? 'sales'
               : null;
 

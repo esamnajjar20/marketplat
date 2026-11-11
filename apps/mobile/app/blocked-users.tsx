@@ -2,14 +2,14 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
 import { Spinner } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchBlockedUsers, unblockUser, type BlockedUserItem } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
-import { spacing } from '@/theme/tokens';
+import { spacing, fontWeights } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 
@@ -79,7 +79,7 @@ export default function BlockedUsersScreen() {
           <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
         </>
       ) : (
-        <FlatList
+        <FlatList refreshControl={<RefreshControl refreshing={loading && items.length > 0} onRefresh={() => void load()} tintColor={colors.brand} />}
           data={items.filter((item) => item.blocked)}
           keyExtractor={(item) => item.id}
           {...marketListPerf}
@@ -115,7 +115,7 @@ export default function BlockedUsersScreen() {
                         justifyContent: 'center',
                       }}
                     >
-                      <Text style={{ color: colors.brand, fontWeight: '700' }}>
+                      <Text style={{ color: colors.brand, fontWeight: fontWeights.bold }}>
                         {(person.name || '?').slice(0, 1)}
                       </Text>
                     </View>

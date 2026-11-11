@@ -1,3 +1,4 @@
+import { usePullRefresh } from '@/hooks/usePullRefresh';
 import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
@@ -5,7 +6,7 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useRef, useState, useMemo } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -71,6 +72,8 @@ export default function FavoritesScreen() {
       setLoading(false);
     }
   }, [getAccessToken, user?.id]);
+  const { colors: refreshTheme } = useAppTheme();
+  const { refreshing: pullRefreshing, onRefresh: onPullRefresh } = usePullRefresh(() => load());
 
   useFocusEffect(
     useCallback(() => {
@@ -146,7 +149,7 @@ export default function FavoritesScreen() {
           onAction={() => router.replace('/')}
         />
       ) : (
-        <FlatList
+        <FlatList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
           data={items}
           keyExtractor={(record) => record.adId}
           {...marketListPerf}

@@ -10,7 +10,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
 import { EmptyState, ErrorState, LoadingState, Notice, PageShell } from '@/components/ui';
 import { createServiceRequest, fetchServiceRequests, type ServiceRequest } from '@/features/services/services.api';
-import { fontSizes, radius, spacing } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
 import { marketListPerf } from '@/lib/listPerformance';
 
@@ -249,28 +249,28 @@ export default function ServiceRequestsScreen() {
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   content: { gap: spacing.lg, paddingBottom: spacing.xl },
   form: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.md },
-  formTitle: { color: colors.ink, fontSize: fontSizes[18], fontWeight: '700', textAlign: 'right' },
+  formTitle: { color: colors.ink, fontSize: fontSizes[18], fontWeight: fontWeights.bold, textAlign: 'right' },
   formSubtitle: { color: colors.brand, fontSize: fontSizes[13], textAlign: 'right' },
-  label: { color: colors.ink, fontSize: fontSizes[14], fontWeight: '700', textAlign: 'right' },
+  label: { color: colors.ink, fontSize: fontSizes[14], fontWeight: fontWeights.bold, textAlign: 'right' },
   textarea: { minHeight: 120, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, color: colors.ink, fontSize: fontSizes[14], lineHeight: 22, writingDirection: 'rtl' },
   hint: { color: colors.muted, fontSize: fontSizes[11], textAlign: 'right' },
   primary: { backgroundColor: colors.brand, borderRadius: radius.md, minHeight: 52, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.lg },
-  primaryText: { color: colors.onBrand, fontSize: fontSizes[14], fontWeight: '700' },
+  primaryText: { color: colors.onBrand, fontSize: fontSizes[14], fontWeight: fontWeights.bold },
   disabled: { opacity: 0.6 },
   switchRow: { flexDirection: 'row', backgroundColor: colors.border, padding: spacing.xs, borderRadius: radius.md, gap: spacing.xs },
   switchChip: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: 10 },
   switchChipActive: { backgroundColor: colors.surface },
-  switchText: { color: colors.muted, fontSize: fontSizes[13], fontWeight: '700' },
+  switchText: { color: colors.muted, fontSize: fontSizes[13], fontWeight: fontWeights.bold },
   switchTextActive: { color: colors.brand },
   acceptButton: { backgroundColor: colors.brand, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.md, minHeight: 44, justifyContent: 'center' },
-  acceptText: { color: colors.onBrand, fontSize: fontSizes[12], fontWeight: '700' },
+  acceptText: { color: colors.onBrand, fontSize: fontSizes[12], fontWeight: fontWeights.bold },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  sectionTitle: { color: colors.ink, fontSize: fontSizes[18], fontWeight: '700' },
-  link: { color: colors.brand, fontWeight: '700' },
+  sectionTitle: { color: colors.ink, fontSize: fontSizes[18], fontWeight: fontWeights.bold },
+  link: { color: colors.brand, fontWeight: fontWeights.bold },
   requestCard: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.sm },
   requestHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
-  requestTitle: { flex: 1, color: colors.ink, fontSize: fontSizes[16], fontWeight: '700', textAlign: 'right' },
-  status: { color: colors.brandOnSoft, backgroundColor: colors.brandSoft, overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 5, fontSize: fontSizes[11], fontWeight: '700' },
+  requestTitle: { flex: 1, color: colors.ink, fontSize: fontSizes[16], fontWeight: fontWeights.bold, textAlign: 'right' },
+  status: { color: colors.brandOnSoft, backgroundColor: colors.brandSoft, overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 5, fontSize: fontSizes[11], fontWeight: fontWeights.bold },
   statusSuccess: { color: colors.brandOnSoft, backgroundColor: colors.successSoft },
   details: { color: colors.ink, fontSize: fontSizes[13], lineHeight: 21, textAlign: 'right' },
   meta: { color: colors.muted, fontSize: fontSizes[11], textAlign: 'right' },
