@@ -140,7 +140,7 @@ export default function ProfileScreen() {
     }
   };
   return <PageShell title="ملفي الشخصي">{!accessToken ? <><Notice>سجّل الدخول لإدارة ملفك الشخصي.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل بيانات الحساب…</Notice> : <><SectionCard><View style={{
-    alignItems: 'center', gap: 14, paddingVertical: 14
+    alignItems: 'center', gap: spacing.lg, paddingVertical: spacing.lg
   }}>{profile?.avatarUrl ? <AppImage uri={profile.avatarUrl} style={{
     width: 104, height: 104, borderRadius: 52, backgroundColor: colors.border
   }}/> : <View style={{

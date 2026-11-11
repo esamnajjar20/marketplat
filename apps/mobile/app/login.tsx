@@ -12,7 +12,7 @@ import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Field, Notice, PrimaryButton } from '@/components/ui';
 import type { TextInputHandle } from '@/components/ui/Field';
-import { fontSizes, elevation, radius, spacing, typography, ux, fontWeights } from '@/theme/tokens';
+import { fontSizes, elevation, radius, spacing, typography, ux, fontWeights, sizes } from '@/theme/tokens';
 import { loginSchema, validate } from '@/lib/validation';
 import { getSafeAuthRedirect } from '@/lib/safe-auth-redirect';
 import { toAppHref } from '@/lib/typed-navigation';
@@ -53,7 +53,7 @@ export default function LoginScreen() {
       setErrorMessage(
         error instanceof ApiError || error instanceof Error
           ? error.message
-          : 'تعذر تسجيل الدخول. حاول مجددًا.',
+          : 'تعذر تسجيل الدخول. حاول مرة أخرى.',
       );
     }
   };
@@ -279,7 +279,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     ...elevation.sm,
   },
   passwordToggle: {
-    minHeight: 40,
+    minHeight: sizes.touchTarget,
     alignSelf: 'flex-end',
     justifyContent: 'center',
     paddingHorizontal: spacing.xs,
@@ -294,7 +294,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     ...typography.captionStrong,
   },
   linkBtn: {
-    minHeight: 40,
+    minHeight: sizes.touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -328,7 +328,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   googleGlyphWrap: {
     width: 28,
     height: 28,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     backgroundColor: colors.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',

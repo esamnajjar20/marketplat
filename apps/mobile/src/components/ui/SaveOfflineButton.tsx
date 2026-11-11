@@ -20,7 +20,7 @@ export function SaveOfflineButton({ id, kind, title, payload }: { id: string; ki
         : '';
       showToast('تم الحفظ دون اتصال', `حُفظت نسخة مستقلة عن الكاش التلقائي. ستجدها في «المحتوى المحفوظ دون اتصال» من الإعدادات.${imageDetail}`, 'success');
     } catch (error) {
-      showToast('تعذر الحفظ دون اتصال', error instanceof Error ? error.message : 'تحقق من مساحة التخزين ثم حاول مجددًا.', 'error');
+      showToast('تعذر الحفظ دون اتصال', error instanceof Error ? error.message : 'تحقق من مساحة التخزين ثم حاول مرة أخرى.', 'error');
     } finally { setBusy(false); }
   };
   return <Pressable accessibilityRole="button" accessibilityState={{ disabled: busy, selected: saved }} disabled={busy || saved} onPress={() => void save()} style={{ minHeight: sizes.touchTarget, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: saved ? colors.brandSoft : colors.surface }}><Text style={{ color: saved ? colors.brandOnSoft : colors.ink, ...typography.captionStrong }}>{busy ? 'جارٍ الحفظ…' : saved ? '✓ محفوظ دون اتصال' : 'حفظ دون اتصال'}</Text></Pressable>;

@@ -98,7 +98,7 @@ export default function OrderCheckoutScreen() {
           setError(queueError instanceof Error ? queueError.message : 'تعذر حفظ الطلب دون اتصال.');
         }
       } else {
-        setError(e instanceof Error ? e.message : 'تعذر إرسال الطلب. حاول مجددًا.');
+        setError(e instanceof Error ? e.message : 'تعذر إرسال الطلب. حاول مرة أخرى.');
         // Preserve the same idempotency key after ambiguous delivery or server errors.
         if (e instanceof ApiError && e.status !== undefined && e.status >= 400 && e.status < 500) setIdempotencyKey(makeKey());
       }
@@ -165,7 +165,7 @@ const createThemeStyles = (colors: ColorPalette) => ({
   image: { width: 104, height: 112, borderRadius: radius.md, backgroundColor: colors.border },
   imagePlaceholder: { width: 104, height: 112, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center' as const, justifyContent: 'center' as const },
   placeholderGlyph: { fontSize: fontSizes[34], color: colors.brandOnSoft },
-  productInfo: { flex: 1, alignItems: 'flex-end' as const, gap: spacing.sm },
+  productInfo: { flex: 1, alignItems: 'flex-start' as const, gap: spacing.sm },
   productName: { color: colors.ink, ...typography.bodyStrong, textAlign: 'right' as const },
   price: { color: colors.brand, ...typography.subtitle },
   qty: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: spacing.md },

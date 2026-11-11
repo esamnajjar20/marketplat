@@ -8,7 +8,7 @@ import { TextInput } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import { submitReport, type ReportReason } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
-import { spacing } from '@/theme/tokens';
+import { spacing, radius } from '@/theme/tokens';
 const reasons: {
   value: ReportReason;
   label: string;
@@ -81,12 +81,12 @@ export default function ReportTargetScreen() {
   }}>شكرًا لمساعدتك في الحفاظ على سلامة المنصة. سيراجع الفريق البلاغ وفق إجراءات المنصة.</Text><PrimaryButton label="العودة" onPress={() => goBack()}/></SectionCard> : <><SectionCard><Text tone="ink" strong>الإبلاغ عن {targetLabels[targetType || ''] || 'المحتوى'}</Text><Text style={{
     textAlign: 'right', color: colors.muted, lineHeight: 21
   }}>اختر السبب الأقرب للمشكلة. لا ترسل معلومات شخصية لا حاجة لها.</Text>{reasons.map(item => <Pressable key={item.value} accessibilityRole="radio" accessibilityState={{ selected: reason === item.value }} accessibilityLabel={item.label} onPress={() => setReason(item.value)} style={{
-    paddingVertical: 14, paddingHorizontal: 14, marginTop: 10, borderWidth: 1, borderColor: reason === item.value ? colors.brand : colors.border, borderRadius: 14, backgroundColor: reason === item.value ? colors.surface : 'transparent'
+    paddingVertical: spacing.lg, paddingHorizontal: spacing.lg, marginTop: spacing.md, borderWidth: 1, borderColor: reason === item.value ? colors.brand : colors.border, borderRadius: radius.button, backgroundColor: reason === item.value ? colors.surface : 'transparent'
   }}><Text style={{
     textAlign: 'right', color: colors.ink, fontWeight: reason === item.value ? '700' : '400'
   }}>{reason === item.value ? '● ' : '○ '}{item.label}</Text></Pressable>)}<Text style={{
-    textAlign: 'right', color: colors.ink, marginTop: spacing.lg, marginBottom: 6
+    textAlign: 'right', color: colors.ink, marginTop: spacing.lg, marginBottom: spacing.sm
   }}>تفاصيل إضافية (اختياري)</Text><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="تفاصيل البلاغ" multiline value={notes} onChangeText={setNotes} maxLength={500} placeholder="اشرح المشكلة بإيجاز (500 حرف كحد أقصى)" placeholderTextColor={colors.muted} textAlignVertical="top" style={{
-    minHeight: 124, borderWidth: 1, borderColor: colors.border, borderRadius: 14, padding: 14, textAlign: 'right', color: colors.ink
+    minHeight: 124, borderWidth: 1, borderColor: colors.border, borderRadius: radius.button, padding: spacing.lg, textAlign: 'right', color: colors.ink
   }}/><Text tone="muted" size={12}>{notes.length}/500</Text><PrimaryButton label="إرسال البلاغ" onPress={() => void send()} busy={busy}/></SectionCard></>}{error ? <Notice>{error}</Notice> : null}</PageShell>;
 }

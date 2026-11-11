@@ -27,7 +27,7 @@ export default function FollowingScreen() {
     enabled: Boolean(user?.id),
     fetchPage,
     getItemKey: (item) => item.id,
-    mapError: () => 'تعذر تحميل قائمة المتابعة. حاول مجددًا.',
+    mapError: () => 'تعذر تحميل قائمة المتابعة. حاول مرة أخرى.',
   });
 
   return <PageShell title="الأشخاص الذين أتابعهم" right={<Pressable accessibilityRole="button" onPress={() => void list.refresh()} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, ...typography.captionStrong }}>تحديث</Text></Pressable>}>
@@ -36,8 +36,8 @@ export default function FollowingScreen() {
     {list.error ? <SectionCard><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void list.retry()} /></SectionCard> : null}
     {!list.loading && !list.error && user?.id && list.items.length === 0 ? <EmptyState title="لا توجد حسابات تتابعها" description="عند متابعة حسابات من المنصة ستظهر هنا." /> : null}
     {list.items.map((entry) => { const target = entry.target; return <Pressable key={entry.id} accessibilityRole="button" onPress={() => target?.id && router.push({ pathname: '/profile/[id]', params: { id: target.id } })} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.card, padding: spacing.md, minHeight: 76 }}>
-      {target?.avatarUrl ? <AppImage uri={target.avatarUrl} style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.border }} /> : <View style={{ width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}><Text style={{ color: colors.brandOnSoft, fontWeight: fontWeights.bold, fontSize: fontSizes[18] }}>{(target?.name || '?').slice(0, 1)}</Text></View>}
-      <View style={{ flex: 1, gap: 3 }}><Text tone="ink" strong size={14}>{target?.name || 'حساب مستخدم'}</Text><Text tone="muted" size={12}>{target?.city || 'الموقع غير محدد'}</Text></View>
+      {target?.avatarUrl ? <AppImage uri={target.avatarUrl} style={{ width: 48, height: 48, borderRadius: radius.hero, backgroundColor: colors.border }} /> : <View style={{ width: 48, height: 48, borderRadius: radius.hero, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}><Text style={{ color: colors.brandOnSoft, fontWeight: fontWeights.bold, fontSize: fontSizes[18] }}>{(target?.name || '?').slice(0, 1)}</Text></View>}
+      <View style={{ flex: 1, gap: spacing.xs }}><Text tone="ink" strong size={14}>{target?.name || 'حساب مستخدم'}</Text><Text tone="muted" size={12}>{target?.city || 'الموقع غير محدد'}</Text></View>
       <AppIcon name="forward" size={20} color={colors.brand} />
     </Pressable>; })}
     {!list.loading && !list.error && list.items.length > 0 && list.totalPages > 1 ? <View style={{ flexDirection: 'row', gap: spacing.sm }}><PrimaryButton label="السابق" variant="secondary" disabled={list.page <= 1 || list.loading} onPress={() => void list.goToPage(list.page - 1)} /><PrimaryButton label="التالي" variant="secondary" disabled={!list.hasNextPage || list.loading} onPress={() => void list.goToPage(list.page + 1)} /></View> : null}

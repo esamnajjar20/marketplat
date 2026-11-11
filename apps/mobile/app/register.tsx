@@ -12,7 +12,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { ApiError } from '@/api/client';
 import { Field, Notice, PrimaryButton } from '@/components/ui';
 import type { TextInputHandle } from '@/components/ui/Field';
-import { fontSizes, elevation, radius, spacing, typography, ux, fontWeights } from '@/theme/tokens';
+import { fontSizes, elevation, radius, spacing, typography, ux, fontWeights, sizes } from '@/theme/tokens';
 import { registerSchema, validate } from '@/lib/validation';
 import { getSafeAuthRedirect } from '@/lib/safe-auth-redirect';
 import { toAppHref } from '@/lib/typed-navigation';
@@ -244,7 +244,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   logo: {
     width: 64,
     height: 64,
-    borderRadius: 20,
+    borderRadius: radius.lg,
     backgroundColor: colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
@@ -275,7 +275,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     ...elevation.sm,
   },
   passwordToggle: {
-    minHeight: 40,
+    minHeight: sizes.touchTarget,
     alignSelf: 'flex-end',
     justifyContent: 'center',
   },

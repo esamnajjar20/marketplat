@@ -8,7 +8,7 @@ import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider, updateMyServiceProviderWorkingHours } from '@/features/services/providers.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
-import { fontSizes, fontWeights, radius } from '@/theme/tokens';
+import { fontSizes, fontWeights, radius, spacing } from '@/theme/tokens';
 type Day = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
 type Schedule = {
   open: string;
@@ -122,10 +122,10 @@ export default function ServiceProviderHoursScreen() {
       open: '09:00', close: '17:00'
     }
   }))} style={{
-    minHeight: 44, paddingVertical: 11, paddingHorizontal: 14, borderRadius: radius.sm, backgroundColor: hours[day.key] ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: colors.controlBorder, minWidth: 82, alignItems: 'center', justifyContent: 'center'
+    minHeight: 44, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderRadius: radius.sm, backgroundColor: hours[day.key] ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: colors.controlBorder, minWidth: 82, alignItems: 'center', justifyContent: 'center'
   }}><Text style={{
     color: colors.brandOnSoft, fontWeight: fontWeights.bold
   }}>{hours[day.key] ? 'مفتوح' : 'مغلق'}</Text></Pressable></View>{hours[day.key] ? <View style={{
-    flexDirection: 'row', gap: 10
+    flexDirection: 'row', gap: spacing.md
   }}><View style={{ flex: 1 }}><Field label="يفتح (HH:mm)" value={hours[day.key]!.open} onChangeText={v => change(day.key, 'open', v)} placeholder="09:00"/></View><View style={{ flex: 1 }}><Field label="يغلق (HH:mm)" value={hours[day.key]!.close} onChangeText={v => change(day.key, 'close', v)} placeholder="17:00"/></View></View> : null}</SectionCard>)}<PrimaryButton label="حفظ ساعات العمل" onPress={() => void save()} busy={busy}/></>}{error ? <Notice>{error}</Notice> : null}{message ? <Notice tone="success">{message}</Notice> : null}</PageShell>;
 }

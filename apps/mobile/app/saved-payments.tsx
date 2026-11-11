@@ -160,7 +160,7 @@ export default function SavedPaymentsScreen() {
     {tab === 'payees' ? <SectionCard><Text style={{
         ...typography.subtitle, color: colors.ink, textAlign: 'right'
     }}>{editingPayee ? 'تعديل جهة الدفع' : 'إضافة جهة دفع'}</Text><Field label="الاسم" value={name} onChangeText={setName}/><Field label="الرقم أو الحساب" value={number} onChangeText={setNumber}/><View style={{
-        flexDirection: 'row', gap: 6
+        flexDirection: 'row', gap: spacing.sm
     }}>{methods.map(m => <Pressable accessibilityRole="button" key={m.value} onPress={() => setMethod(m.value)} style={{
         flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radius.control, borderWidth: 1, borderColor: method === m.value ? colors.brand : colors.border, backgroundColor: method === m.value ? colors.brandSoft : colors.surface
     }}><Text style={{

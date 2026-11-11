@@ -234,7 +234,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
   content: {
     gap: spacing.md
   }, smallButton: {
-    borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: spacing.sm, borderRadius: 10
+    borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.sm
   }, smallButtonText: {
     fontSize: fontSizes[12], fontWeight: fontWeights.semibold, color: colors.brand
   }, hero: { gap: 0 }, cover: {
@@ -248,9 +248,9 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
       width: 0, height: 4
     }, elevation: 1
   }, logo: {
-    width: 82, height: 82, borderRadius: 24, backgroundColor: colors.border
+    width: 82, height: 82, borderRadius: radius.hero, backgroundColor: colors.border
   }, logoPlaceholder: {
-    width: 82, height: 82, borderRadius: 24, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center'
+    width: 82, height: 82, borderRadius: radius.hero, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center'
   }, glyph: {
     fontSize: fontSizes[28], color: colors.brand
   }, heading: {
@@ -262,7 +262,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
   }, stats: {
     flexDirection: 'row', alignSelf: 'stretch', justifyContent: 'space-around', marginTop: spacing.sm, paddingVertical: spacing.md, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border
   }, stat: {
-    alignItems: 'center', gap: 3
+    alignItems: 'center', gap: spacing.xs
   }, statValue: {
     fontSize: fontSizes[17], fontWeight: fontWeights.bold, color: colors.ink
   }, statLabel: {
@@ -280,7 +280,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
   }, disabled: { opacity: .55 }, tabs: {
     flexDirection: 'row', gap: spacing.xs, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.xs
   }, tab: {
-    flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingVertical: 11, borderRadius: 10
+    flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md, borderRadius: radius.sm
   }, activeTab: { backgroundColor: colors.brandSoft }, tabText: {
     fontSize: fontSizes[13], fontWeight: fontWeights.bold, color: colors.muted
   }, activeTabText: { color: colors.brand }, section: {
@@ -296,7 +296,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
   }, productPlaceholder: {
     width: 76, height: 80, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center'
   }, productBody: {
-    flex: 1, alignItems: 'flex-end', gap: 5
+    flex: 1, alignItems: 'flex-start', gap: spacing.xs
   }, productTitle: {
     fontSize: fontSizes[15], fontWeight: fontWeights.semibold, color: colors.ink, textAlign: 'right'
   }, price: {

@@ -6,7 +6,7 @@
  * تحسين شامل:
  * - لوحة ألوان أدق مع تباين أفضل وعمق بصري
  * - مقياس تايبو أوضح وهدوء أوزان الخط
- * - مسافات أكثر تنفساً
+ * - مسافات أكثر تنفسًا
  * - ظلال ناعمة متعددة المستويات
  * - أحجام تفاعلية موحّدة (touch targets)
  */
@@ -351,6 +351,7 @@ export const sizes = {
   touchTarget: 44,
   touchTargetLg: 48,
   inputHeight: 52,
+  textareaMinHeight: 128,
   buttonHeight: 52,
   buttonHeightSm: 40,
   headerHeight: 56,

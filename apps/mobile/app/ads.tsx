@@ -53,7 +53,7 @@ export default function AllAdsScreen() {
     pageSize: 12,
     fetchPage,
     getItemKey: (item) => item.id,
-    mapError: () => 'تعذر تحميل الإعلانات. تحقق من الاتصال ثم حاول مجددًا.',
+    mapError: () => 'تعذر تحميل الإعلانات. تحقق من الاتصال ثم حاول مرة أخرى.',
   });
 
   const applySearch = () => {

@@ -31,7 +31,7 @@ export default function MyServicesScreen() {
     enabled: Boolean(accessToken && user && !isRestoring),
     fetchPage,
     getItemKey: (item) => item.id,
-    mapError: () => 'تعذر تحميل خدماتك. حاول مجددًا.',
+    mapError: () => 'تعذر تحميل خدماتك. حاول مرة أخرى.',
   });
 
   const remove = (id: string) => confirmAlert('حذف الخدمة', 'هل تريد حذف هذه الخدمة؟', [
@@ -48,7 +48,7 @@ export default function MyServicesScreen() {
             showToast('تم حذف الخدمة', 'تم حذف الخدمة من قائمتك.', 'success');
             await list.refresh();
           })
-          .catch((error) => showToast('تعذر الحذف', error instanceof Error ? error.message : 'حاول مجددًا.', 'error'))
+          .catch((error) => showToast('تعذر الحذف', error instanceof Error ? error.message : 'حاول مرة أخرى.', 'error'))
           .finally(() => setDeletingId(''));
       },
     },

@@ -11,7 +11,7 @@ import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createMyServiceListing, fetchServiceCategoryOptions, fetchServiceListing, updateMyServiceListing, type ServiceCategoryOption, type ServiceListing } from '@/features/services/services.api';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/ui';
-import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights, radius, sizes } from '@/theme/tokens';
 import { enqueueOfflineCreate } from '@/storage/outbox-manager';
 import { persistSelectedAdImage } from '@/storage/persist-ad-image';
 import type { SelectedAdImage } from '@/features/ads/manage-ads.api';
@@ -156,7 +156,7 @@ export default function ServiceEditorScreen() {
   }}>أكمل المعلومات الأساسية والتسعير ومكان تقديم الخدمة، ثم راجعها قبل الحفظ.</Text>{loading ? <Notice tone="muted">جارٍ تحميل البيانات…</Notice> : <><Text tone="ink" strong>تصنيف الخدمة</Text><View style={{
     flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm
   }}>{categories.map(c => <Pressable accessibilityRole="button" key={c.id} onPress={() => setCategoryId(c.id)} style={{
-    minHeight: 42, justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.control, backgroundColor: categoryId === c.id ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: categoryId === c.id ? colors.brand : colors.border
+    minHeight: sizes.touchTarget, justifyContent: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radius.control, backgroundColor: categoryId === c.id ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: categoryId === c.id ? colors.brand : colors.border
   }}><Text style={{ color: colors.ink }}>{c.nameAr || c.name}</Text></Pressable>)}</View>{!id ? <><Text tone="ink" strong>صورة الخدمة (مطلوبة)</Text>{selectedImage ? <AppImage uri={selectedImage.uri} style={{
     width: '100%', height: 210, borderRadius: radius.md, backgroundColor: colors.surface
   }}/> : null}<PrimaryButton label={pickingImage ? 'جارٍ حفظ الصورة…' : selectedImage ? 'تغيير صورة الخدمة' : 'اختيار صورة من الهاتف'} variant="secondary" busy={pickingImage} onPress={() => void (async () => {
@@ -189,13 +189,13 @@ export default function ServiceEditorScreen() {
   })()}/></> : null}<Field label="عنوان الخدمة" value={title} onChangeText={setTitle} maxLength={200} placeholder="مثال: صيانة أجهزة منزلية"/><Field label="وصف الخدمة" value={description} onChangeText={setDescription} multiline maxLength={2000} placeholder="اشرح الخدمة وما تتضمنه…"/><Text tone="ink" strong>طريقة التسعير</Text><View style={{
     flexDirection: 'row', gap: spacing.sm
   }}>{([['NEGOTIABLE', 'قابل للتفاوض'], ['FIXED', 'سعر محدد'], ['STARTING_FROM', 'يبدأ من']] as const).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setPricingType(v)} style={{
-    flex: 1, minHeight: 48, justifyContent: 'center', padding: 10, borderRadius: radius.control, backgroundColor: pricingType === v ? colors.brand : colors.surface, borderWidth: 1, borderColor: pricingType === v ? colors.brand : colors.border
+    flex: 1, minHeight: 48, justifyContent: 'center', padding: spacing.md, borderRadius: radius.control, backgroundColor: pricingType === v ? colors.brand : colors.surface, borderWidth: 1, borderColor: pricingType === v ? colors.brand : colors.border
   }}><Text style={{
     textAlign: 'center', fontSize: fontSizes[12], color: pricingType === v ? colors.white : colors.ink, fontWeight: fontWeights.bold
   }}>{l}</Text></Pressable>)}</View>{pricingType !== 'NEGOTIABLE' ? <Field label="السعر (شيكل)" value={price} onChangeText={(v) => setPrice(normalizeNumericInput(v))} keyboardType="numeric" placeholder="0.00"/> : null}<Field label="مدة التنفيذ التقريبية (اختياري)" value={duration} onChangeText={setDuration} maxLength={100} placeholder="مثال: ساعتان"/><Text tone="ink" strong>مكان تقديم الخدمة</Text><View style={{
     flexDirection: 'row', gap: spacing.sm
   }}>{([['AT_CUSTOMER', 'عند العميل'], ['AT_PROVIDER', 'عند مقدم الخدمة'], ['REMOTE', 'عن بُعد']] as const).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setLocation(v)} style={{
-    flex: 1, minHeight: 48, justifyContent: 'center', padding: 10, borderRadius: radius.control, backgroundColor: location === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: location === v ? colors.brand : colors.border
+    flex: 1, minHeight: 48, justifyContent: 'center', padding: spacing.md, borderRadius: radius.control, backgroundColor: location === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: location === v ? colors.brand : colors.border
   }}><Text style={{
     textAlign: 'center', fontSize: fontSizes[11], color: colors.ink
   }}>{l}</Text></Pressable>)}</View>{id ? <Pressable accessibilityRole="button" onPress={() => setStatus(s => s === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}><Text tone="brand" strong>الحالة الحالية: {status === 'ACTIVE' ? 'نشطة' : 'متوقفة'} (اضغط للتغيير)</Text></Pressable> : null}</>}{id ? <PrimaryButton label="إدارة صور الخدمة" variant="secondary" onPress={() => pushOnce({

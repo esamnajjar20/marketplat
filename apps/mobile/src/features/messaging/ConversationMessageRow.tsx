@@ -107,7 +107,7 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
               return;
             }
             void WebBrowser.openBrowserAsync(message.fileUrl).catch(() => {
-              showToast('تعذر فتح الملف', 'تحقق من الاتصال وحاول مجددًا.', 'error');
+              showToast('تعذر فتح الملف', 'تحقق من الاتصال وحاول مرة أخرى.', 'error');
             });
           }}
         >
@@ -155,9 +155,9 @@ function createStyles(colors: import('@/theme/tokens').ColorPalette) {
     maxWidth: '82%',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm + 2,
-    borderRadius: 18,
-    gap: 6,
-    marginVertical: 3,
+    borderRadius: radius.md,
+    gap: spacing.sm,
+    marginVertical: spacing.xs,
   },
   mine: {
     alignSelf: 'flex-end',
@@ -184,7 +184,7 @@ function createStyles(colors: import('@/theme/tokens').ColorPalette) {
   metadataRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
     marginTop: spacing.xxs,
   },
   time: {

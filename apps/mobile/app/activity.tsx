@@ -135,8 +135,8 @@ export default function ActivityScreen() {
                   key={v}
                   onPress={() => setGroup(v)}
                   style={{
-                    paddingHorizontal: 14,
-                    paddingVertical: 11,
+                    paddingHorizontal: spacing.lg,
+                    paddingVertical: spacing.md,
                     borderRadius: 22,
                     backgroundColor: group === v ? colors.brand : colors.surface,
                     borderWidth: 1,

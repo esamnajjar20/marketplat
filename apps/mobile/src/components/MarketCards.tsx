@@ -105,7 +105,7 @@ type AdCardProps = {
 
 /**
  * بطاقة إعلان أفقية (صورة + عنوان + سعر) — للرئيسية والقوائم.
- * تحسين 2026-11: نسب أوضح، ظل أقوى قليلاً، تايبو أهدأ، شارة أنظف.
+ * تحسين 2026-11: نسب أوضح، ظل أقوى قليلًا، تايبو أهدأ، شارة أنظف.
  */
 function AdCardComponent({
   title,
@@ -219,7 +219,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     justifyContent: 'center',
   },
   glyph: { fontSize: fontSizes[28], color: colors.brandOnSoft },
-  body: { flex: 1, gap: 3, alignItems: 'flex-end' },
+  body: { flex: 1, gap: spacing.xs, alignItems: 'flex-start' },
   title: {
     ...typography.bodyStrong,
     color: colors.ink,
@@ -245,11 +245,11 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     width: '100%',
   },
   badge: {
-    alignSelf: 'flex-end',
+    alignSelf: 'flex-start',
     backgroundColor: colors.brandSoft,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: spacing.xs,
     marginTop: spacing.xxs,
   },
   badgeText: {
@@ -273,7 +273,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     zIndex: 2,
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: radius.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -301,7 +301,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
     gap: spacing.xs,
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     justifyContent: 'center',
   },
   adTitle: {
@@ -444,7 +444,7 @@ const createThemeHStyles = (colors: ColorPalette) => StyleSheet.create({
     ...elevation.sm,
   },
   pressed: { opacity: ux.pressedOpacity },
-  favoriteButton: { position: 'absolute', top: spacing.sm, start: spacing.sm, zIndex: 3, width: 34, height: 34, borderRadius: 17, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', ...elevation.sm },
+  favoriteButton: { position: 'absolute', top: spacing.sm, start: spacing.sm, zIndex: 3, width: 34, height: 34, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', ...elevation.sm },
   image: {
     width: '100%',
     height: 132,
@@ -463,8 +463,8 @@ const createThemeHStyles = (colors: ColorPalette) => StyleSheet.create({
   body: {
     flex: 1,
     padding: spacing.md,
-    gap: 5,
-    alignItems: 'flex-end',
+    gap: spacing.xs,
+    alignItems: 'flex-start',
   },
   title: {
     width: '100%',

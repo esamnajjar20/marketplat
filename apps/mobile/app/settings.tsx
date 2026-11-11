@@ -175,7 +175,7 @@ export default function SettingsScreen() {
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 48, gap: spacing.md }}
             >
               <AppIcon name={showNotificationSettings ? 'back' : 'forward'} size={18} color={colors.brand} />
-              <View style={{ flex: 1, gap: 3 }}>
+              <View style={{ flex: 1, gap: spacing.xs }}>
                 <Text tone="ink" strong>إدارة تفضيلات الإشعارات</Text>
                 <Text tone="muted" size={12}>إعدادات اختيارية؛ افتحها عند الحاجة فقط</Text>
               </View>

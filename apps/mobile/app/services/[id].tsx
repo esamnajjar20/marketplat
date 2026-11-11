@@ -94,7 +94,7 @@ export default function ServiceDetailScreen() {
       label="اطلب هذه الخدمة"
       onPress={() => {
         if (!user) {
-          showToast('تسجيل الدخول مطلوب', 'سجّل الدخول أولاً لإرسال طلب خدمة.', 'info', {
+          showToast('تسجيل الدخول مطلوب', 'سجّل الدخول أولًا لإرسال طلب خدمة.', 'info', {
             label: 'تسجيل الدخول',
             onPress: () => router.push('/login'),
           });

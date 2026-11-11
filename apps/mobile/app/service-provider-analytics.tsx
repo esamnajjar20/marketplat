@@ -55,7 +55,7 @@ export default function ServiceProviderAnalyticsScreen() {
   return <PageShell title="إحصاءات مقدم الخدمة">{!accessToken ? <><Notice>سجّل الدخول لعرض الإحصاءات.</Notice><Pressable accessibilityRole="button" onPress={() => pushOnce('/login')}><Text style={{
     textAlign: 'center', color: colors.brand, fontWeight: fontWeights.bold
   }}>تسجيل الدخول</Text></Pressable></> : <><View style={{
-    flexDirection: 'row', gap: 10
+    flexDirection: 'row', gap: spacing.md
   }}>{([['7d', '7 أيام'], ['30d', '30 يومًا'], ['all', 'كل الفترة']] as const).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setPeriod(v)} style={{
     flex: 1, padding: spacing.md, borderRadius: radius.control, backgroundColor: period === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: period === v ? colors.brand : colors.border
   }}><Text style={{

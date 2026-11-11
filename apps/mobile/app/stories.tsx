@@ -178,7 +178,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, addCard: {
         minHeight: 84, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md
     }, addCircle: {
-        width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center'
+        width: 56, height: 56, borderRadius: radius.xl, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center'
     }, plus: {
         fontSize: fontSizes[30], color: colors.brandOnSoft, fontWeight: fontWeights.bold
     }, group: {
@@ -186,7 +186,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, person: {
         flexDirection: 'row', alignItems: 'center', gap: spacing.sm
     }, avatarRing: {
-        width: 52, height: 52, borderRadius: 26, padding: 3, borderWidth: 2, borderColor: colors.border
+        width: 52, height: 52, borderRadius: 26, padding: spacing.xs, borderWidth: 2, borderColor: colors.border
     }, unseen: { borderColor: colors.brand }, avatar: {
         width: '100%', height: '100%', borderRadius: 22
     }, avatarFallback: {
@@ -198,7 +198,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, storyStrip: {
         gap: spacing.sm, paddingVertical: spacing.xs
     }, storyTile: {
-        width: 108, gap: 6
+        width: 108, gap: spacing.sm
     }, tileImage: {
         width: 108, height: 152, borderRadius: radius.md, backgroundColor: colors.border
     }, textTile: {

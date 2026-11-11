@@ -10,7 +10,7 @@ import { AppImage } from '@/components/AppImage';
 
 import { pushOnce } from '@/lib/navigation';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
-import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 function price(p: ProductSummary): string {
@@ -39,7 +39,7 @@ export default function PromotedScreen() {
     pageSize: 24,
     fetchPage,
     getItemKey: (item) => item.id,
-    mapError: () => 'تعذر تحميل المنتجات المروّجة. حاول مجددًا.',
+    mapError: () => 'تعذر تحميل المنتجات المروّجة. حاول مرة أخرى.',
   });
 
   return (
@@ -62,15 +62,15 @@ export default function PromotedScreen() {
         renderItem={({ item }) => (
           <Pressable accessibilityRole="button" onPress={() => pushOnce(`/products/${encodeURIComponent(item.id)}`)}>
             <SectionCard>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
                 {item.images?.[0] ? (
-                  <AppImage uri={item.images[0]} style={{ width: 92, height: 92, borderRadius: 14, backgroundColor: colors.border }} resizeMode="cover" />
+                  <AppImage uri={item.images[0]} style={{ width: 92, height: 92, borderRadius: radius.button, backgroundColor: colors.border }} resizeMode="cover" />
                 ) : (
-                  <View style={{ width: 92, height: 92, borderRadius: 14, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
+                  <View style={{ width: 92, height: 92, borderRadius: radius.button, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
                     <Text style={{ color: colors.brandOnSoft, fontSize: fontSizes[28] }}>◇</Text>
                   </View>
                 )}
-                <View style={{ flex: 1, alignItems: 'flex-end', gap: 7, paddingVertical: 3 }}>
+                <View style={{ flex: 1, alignItems: 'flex-start', gap: spacing.sm, paddingVertical: spacing.xs }}>
                   <Text tone="ink" strong size={15} numberOfLines={2}>{item.name}</Text>
                   <Text tone="muted" size={12}>{item.store?.name || 'متجر'}</Text>
                   <Text style={{ color: colors.brand, fontWeight: fontWeights.bold }}>{price(item)}</Text>

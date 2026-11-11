@@ -11,7 +11,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSalesDashboard, fetchSalesReport, fetchSalesSmartInsights, type SalesDashboardData, type SalesReportData, type SalesSmartInsightsData } from '@/features/sales/sales-extra.api';
 import type { SalePaymentStatus } from '@/features/sales/sales.api';
 import { formatMoney, formatNumber, formatDate } from '@/lib/formatters';
-import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights, sizes } from '@/theme/tokens';
 const money = (value: unknown) => formatMoney(Number(value ?? 0));
 const STATUS: Array<{
   value: SalePaymentStatus | '';
@@ -144,7 +144,7 @@ const createStyles = (c: ReturnType<typeof useAppTheme>['colors']) => StyleSheet
   }, metrics: {
     flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm
   }, metric: {
-    flexGrow: 1, width: '47%', minHeight: 78, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, justifyContent: 'center', gap: 6
+    flexGrow: 1, width: '47%', minHeight: 78, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface, justifyContent: 'center', gap: spacing.sm
   }, metricLabel: {
     color: c.muted, fontSize: fontSizes[11], textAlign: 'right'
   }, metricValue: {
@@ -166,7 +166,7 @@ const createStyles = (c: ReturnType<typeof useAppTheme>['colors']) => StyleSheet
   }, filters: {
     flexDirection: 'row', gap: spacing.xs, paddingVertical: spacing.sm
   }, filter: {
-    minHeight: 38, justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface
+    minHeight: sizes.touchTarget, justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface
   }, filterActive: {
     borderColor: c.brand, backgroundColor: c.brandSoft
   }, filterText: {

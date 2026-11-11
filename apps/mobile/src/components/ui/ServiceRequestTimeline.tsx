@@ -53,7 +53,7 @@ export function ServiceRequestTimeline({ status, createdAt, respondedAt }: {
     }}/>{i < events.length - 1 ? <View style={{
       width: 2, height: 30, backgroundColor: colors.border
     }}/> : null}</View><View style={{
-      flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: spacing.md, gap: 3
+      flex: 1, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, padding: spacing.md, gap: spacing.xs
     }}><Text tone="ink" strong>{event.label}</Text>{dateText ? <Text tone="muted" size={12}>{dateText}</Text> : null}</View></View>;
   })}</View>;
 }

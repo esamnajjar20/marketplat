@@ -97,7 +97,7 @@ export default function AdEditorScreen() {
             }).catch(() => {
                 if (active) {
                     setDraftSaveStatus('error');
-                    setError('تعذر حفظ المسودة محليًا؛ تحقق من مساحة التخزين ثم حاول مجددًا.');
+                    setError('تعذر حفظ المسودة محليًا؛ تحقق من مساحة التخزين ثم حاول مرة أخرى.');
                 }
             });
         }, 450);
@@ -193,7 +193,7 @@ export default function AdEditorScreen() {
     };
     const submit = async () => {
         if (!accessToken) {
-            showToast('يلزم تسجيل الدخول', 'سجّل الدخول ثم حاول مجددًا.', 'info');
+            showToast('يلزم تسجيل الدخول', 'سجّل الدخول ثم حاول مرة أخرى.', 'info');
             return;
         }
         if (!id && draft.images.length === 0) {
@@ -427,7 +427,7 @@ export default function AdEditorScreen() {
             }
         }
         catch {
-            setError('تعذر فتح معرض الصور. حاول مجددًا.');
+            setError('تعذر فتح معرض الصور. حاول مرة أخرى.');
         }
         finally {
             setPickingImages(false);
@@ -483,7 +483,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, categoryWrap: {
         flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm
     }, categoryChip: {
-        minHeight: 44, justifyContent: 'center', paddingHorizontal: 14, paddingVertical: 10, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: 20, backgroundColor: colors.surface
+        minHeight: 44, justifyContent: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.lg, backgroundColor: colors.surface
     }, categoryChipSelected: {
         backgroundColor: colors.brand, borderColor: colors.brand
     }, categoryText: {
@@ -493,7 +493,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, secondaryText: {
         color: colors.brand, fontWeight: fontWeights.bold
     }, imageGrid: {
-        flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: spacing.sm
+        flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.sm
     }, imageTile: {
         width: 148, height: 148, position: 'relative'
     }, previewImage: {

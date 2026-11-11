@@ -28,7 +28,7 @@ export default function SavedOfflineScreen() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void load(); }, [load]);
-  const remove = (item: SavedOfflineItem) => { void removeSavedOfflineResource(item.kind, item.id).then(() => { setItems((current) => current.filter((row) => row.id !== item.id || row.kind !== item.kind)); showToast('تمت إزالة النسخة المحفوظة', 'يمكنك حفظ المحتوى دون اتصال مرة أخرى من صفحة التفاصيل.', 'success'); }).catch((e) => showToast('تعذر الإزالة', e instanceof Error ? e.message : 'حاول مجددًا.', 'error')); };
+  const remove = (item: SavedOfflineItem) => { void removeSavedOfflineResource(item.kind, item.id).then(() => { setItems((current) => current.filter((row) => row.id !== item.id || row.kind !== item.kind)); showToast('تمت إزالة النسخة المحفوظة', 'يمكنك حفظ المحتوى دون اتصال مرة أخرى من صفحة التفاصيل.', 'success'); }).catch((e) => showToast('تعذر الإزالة', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error')); };
   return <PageShell title="المحتوى المحفوظ دون اتصال" right={<Pressable accessibilityRole="button" onPress={() => void load()} style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, ...typography.captionStrong }}>تحديث</Text></Pressable>}>
     <Notice tone="muted">هذه القائمة منفصلة عن الكاش التلقائي، وتحتفظ بنسخة تفاصيل ومراجع الصور التي تم تنزيلها بنجاح. تبقى صلاحية البيانات النصية مرتبطة بوقت الحفظ.</Notice>
     {loading ? <SectionCard><Text style={{ textAlign: 'center', color: colors.muted }}>جارٍ قراءة المحتوى المحفوظ…</Text></SectionCard> : null}

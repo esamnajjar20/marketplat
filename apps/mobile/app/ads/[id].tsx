@@ -116,7 +116,7 @@ export default function AdDetailScreen() {
 
   const onToggleFavorite = useCallback(async () => {
     if (!accessToken) {
-      setFavoriteMessage('لحفظ المفضلة ومزامنتها، سجّل الدخول أولاً.');
+      setFavoriteMessage('لحفظ المفضلة ومزامنتها، سجّل الدخول أولًا.');
       return;
     }
     if (!id || favoriteBusy) return;
@@ -199,7 +199,7 @@ export default function AdDetailScreen() {
     <DetailScaffold
       title="تفاصيل الإعلان"
       right={ad ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={isFavorite ? 'إزالة الإعلان من المفضلة' : 'إضافة الإعلان إلى المفضلة'}
@@ -253,7 +253,7 @@ export default function AdDetailScreen() {
             <SectionCard>
               <Text style={styles.sectionTitle}>وصف الإعلان</Text>
               <Text style={styles.description}>
-                {ad.description?.trim() || 'لم يضف صاحب الإعلان وصفاً إضافياً.'}
+                {ad.description?.trim() || 'لم يضف صاحب الإعلان وصفًا إضافيًا.'}
               </Text>
             </SectionCard>
 

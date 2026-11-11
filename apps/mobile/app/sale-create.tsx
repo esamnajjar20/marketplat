@@ -124,7 +124,7 @@ export default function SaleCreateScreen() {
         </View>)}
       </View>
       <PrimaryButton label="+ إضافة صنف" variant="secondary" disabled={lines.length >= 200} onPress={() => setLines(current => [...current, makeLine()])} />
-      <View style={{ padding: spacing.md, backgroundColor: colors.brandSoft, borderRadius: radius.md, gap: 6 }}><Text style={{ color: colors.brandOnSoft, textAlign: 'right', fontWeight: fontWeights.bold }}>عدد الأصناف: {lines.length}</Text><Text style={{ color: colors.brandOnSoft, textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[18] }}>إجمالي الفاتورة: {money(total)}</Text></View>
+      <View style={{ padding: spacing.md, backgroundColor: colors.brandSoft, borderRadius: radius.md, gap: spacing.sm }}><Text style={{ color: colors.brandOnSoft, textAlign: 'right', fontWeight: fontWeights.bold }}>عدد الأصناف: {lines.length}</Text><Text style={{ color: colors.brandOnSoft, textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[18] }}>إجمالي الفاتورة: {money(total)}</Text></View>
     </>}
     <Field label="اسم المشتري" value={buyer} onChangeText={setBuyer} maxLength={160} placeholder="اسم المشتري" />
     <Field label="هاتف المشتري (اختياري)" value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={40} placeholder="رقم الهاتف" />

@@ -37,7 +37,7 @@ type Options<T> = {
 };
 
 function defaultMapError(error: unknown): string {
-  return error instanceof Error && error.message ? error.message : 'تعذر تحميل القائمة. حاول مجددًا.';
+  return error instanceof Error && error.message ? error.message : 'تعذر تحميل القائمة. حاول مرة أخرى.';
 }
 
 /**

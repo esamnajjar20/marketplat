@@ -263,7 +263,7 @@ export type ApiRequestOptions<T = unknown> = Omit<RequestInit, 'signal'> & {
 
 const API_ERROR_MESSAGES: Record<string, string> = {
   VALIDATION_ERROR: 'تحقق من الحقول المدخلة؛ بعض البيانات غير صحيحة.',
-  BAD_REQUEST: 'تحقق من البيانات المدخلة ثم حاول مجددًا.',
+  BAD_REQUEST: 'تحقق من البيانات المدخلة ثم حاول مرة أخرى.',
   RESOURCE_NOT_FOUND: 'العنصر المطلوب غير موجود أو لم يعد متاحًا.',
   UNAUTHORIZED: 'انتهت جلسة الدخول أو تحتاج إلى تسجيل الدخول.',
   STORE_ACCESS_DENIED: 'ليس لديك وصول إلى هذا المتجر.',
@@ -273,7 +273,7 @@ const API_ERROR_MESSAGES: Record<string, string> = {
   STORE_OWNER_SUSPENDED: 'حساب مالك المتجر موقوف مؤقتًا.',
   SERVICE_ATTRIBUTE_REQUIRED: 'أكمل الخصائص المطلوبة للخدمة.',
   SERVICE_ATTRIBUTE_INVALID: 'تحقق من قيم خصائص الخدمة.',
-  INVALID_INPUT: 'تحقق من البيانات المدخلة ثم حاول مجددًا.',
+  INVALID_INPUT: 'تحقق من البيانات المدخلة ثم حاول مرة أخرى.',
   INTERNAL_ERROR: 'حدث خطأ غير متوقع في الخادم. حاول مرة أخرى لاحقًا.',
   SERVICE_UNAVAILABLE: 'الخدمة غير متاحة مؤقتًا. حاول مرة أخرى بعد قليل.',
   STORE_NOT_FOUND: 'لم يتم العثور على متجر مرتبط بحسابك.',
@@ -283,14 +283,14 @@ const API_ERROR_MESSAGES: Record<string, string> = {
   FORBIDDEN: 'ليست لديك صلاحية لتنفيذ هذا الإجراء.',
   NOT_FOUND: 'العنصر المطلوب غير موجود أو لم يعد متاحًا.',
   CONFLICT: 'تعذّر إتمام العملية بسبب تعارض مع الحالة الحالية.',
-  RATE_LIMIT_EXCEEDED: 'تم تنفيذ طلبات كثيرة خلال وقت قصير. انتظر قليلًا ثم حاول مجددًا.',
+  RATE_LIMIT_EXCEEDED: 'تم تنفيذ طلبات كثيرة خلال وقت قصير. انتظر قليلًا ثم حاول مرة أخرى.',
 };
 
 function localizeApiMessage(message: string, status?: number, code?: string): string {
   if (code && API_ERROR_MESSAGES[code]) return API_ERROR_MESSAGES[code];
   const normalized = message.trim().toLowerCase();
   if (!normalized || /^(validation failed|internal server error|service unavailable|forbidden|not found|bad request|request failed)$/i.test(message.trim())) {
-    if (status === 400 || status === 422) return 'تحقق من البيانات المدخلة ثم حاول مجددًا.';
+    if (status === 400 || status === 422) return 'تحقق من البيانات المدخلة ثم حاول مرة أخرى.';
     if (status === 401) return 'انتهت جلسة الدخول أو تحتاج إلى تسجيل الدخول.';
     if (status === 403) return 'ليست لديك صلاحية لتنفيذ هذا الإجراء.';
     if (status === 404) return 'العنصر المطلوب غير موجود أو لم يعد متاحًا.';
@@ -303,22 +303,22 @@ function localizeApiMessage(message: string, status?: number, code?: string): st
   if (/invalid email/i.test(message)) return 'صيغة البريد الإلكتروني غير صحيحة.';
   if (/email.*(already|exists|taken)/i.test(message)) return 'هذا البريد الإلكتروني مستخدم بالفعل.';
   if (/too many (?:password|login|sign[- ]?in) attempts|account.{0,32}locked|locked.{0,32}account/i.test(message)) {
-    return 'تم قفل الحساب مؤقتًا بسبب كثرة محاولات الدخول. انتظر قليلًا ثم حاول مجددًا.';
+    return 'تم قفل الحساب مؤقتًا بسبب كثرة محاولات الدخول. انتظر قليلًا ثم حاول مرة أخرى.';
   }
   if (/(invalid|incorrect|wrong|malformed).*phone|phone.*(invalid|incorrect|required|missing)/i.test(message)) return 'تحقق من رقم الهاتف المدخل.';
   if (/(invalid|incorrect|wrong|weak|missing|required).*password|password.*(invalid|incorrect|weak|required|missing|too short)/i.test(message)) return 'تحقق من كلمة المرور المدخلة.';
   if (/unauthorized/i.test(message)) return 'انتهت جلسة الدخول أو تحتاج إلى تسجيل الدخول.';
   if (/forbidden|permission/i.test(message)) return 'ليست لديك صلاحية لتنفيذ هذا الإجراء.';
   if (/not found/i.test(message)) return 'العنصر المطلوب غير موجود أو لم يعد متاحًا.';
-  if (/validation|invalid|bad request/i.test(message)) return 'تحقق من البيانات المدخلة ثم حاول مجددًا.';
+  if (/validation|invalid|bad request/i.test(message)) return 'تحقق من البيانات المدخلة ثم حاول مرة أخرى.';
   if (/internal|server error|temporarily unavailable/i.test(message)) return 'حدث خطأ في الخادم. حاول مرة أخرى لاحقًا.';
-  if (status === 400 || status === 422) return 'تحقق من البيانات المدخلة ثم حاول مجددًا.';
+  if (status === 400 || status === 422) return 'تحقق من البيانات المدخلة ثم حاول مرة أخرى.';
   if (status === 401) return 'انتهت جلسة الدخول أو تحتاج إلى تسجيل الدخول.';
   if (status === 403) return 'ليست لديك صلاحية لتنفيذ هذا الإجراء.';
   if (status === 404) return 'العنصر المطلوب غير موجود أو لم يعد متاحًا.';
   if (status === 409) return 'تعذّر إتمام العملية بسبب تعارض مع الحالة الحالية.';
   if (status && status >= 500) return 'حدث خطأ في الخادم. حاول مرة أخرى لاحقًا.';
-  return 'تعذر إتمام الطلب. حاول مجددًا.';
+  return 'تعذر إتمام الطلب. حاول مرة أخرى.';
 }
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> = {}): Promise<T> {
@@ -444,7 +444,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
         : { ...(rawErrorMeta ?? {}), retryAfterSeconds };
       const serverMessage = typeof body.message === 'string' ? body.message : '';
       const rateLimitMessage = retryAfterSeconds === undefined
-        ? 'تم تنفيذ طلبات كثيرة خلال وقت قصير. انتظر قليلًا ثم حاول مجددًا.'
+        ? 'تم تنفيذ طلبات كثيرة خلال وقت قصير. انتظر قليلًا ثم حاول مرة أخرى.'
         : `تم تنفيذ طلبات كثيرة. أعد المحاولة بعد ${retryAfterSeconds} ثانية.`;
       const baseMessage = response.status === 429
         ? rateLimitMessage
@@ -453,7 +453,7 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
           : response.status === 403 ? 'ليست لديك صلاحية لتنفيذ هذا الإجراء.'
           : response.status === 404 ? 'العنصر المطلوب غير موجود أو لم يعد متاحًا.'
           : response.status === 409 ? 'تعذّر إتمام العملية بسبب تعارض مع الحالة الحالية.'
-          : response.status === 422 || response.status === 400 ? 'تحقق من البيانات المدخلة ثم حاول مجددًا.'
+          : response.status === 422 || response.status === 400 ? 'تحقق من البيانات المدخلة ثم حاول مرة أخرى.'
           : response.status >= 500 ? 'حدث خطأ في الخادم. حاول مرة أخرى لاحقًا.'
           : `تعذر إتمام الطلب (${response.status}).`);
       const fieldDetails = Object.values(fieldErrors).flat().slice(0, 6).join('؛ ');
@@ -516,12 +516,12 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
     if (error instanceof ApiError) throw error;
     if (error instanceof Error && error.name === 'AbortError') {
       throw new ApiError(timeoutExpired
-        ? 'انتهت مهلة الاتصال. تحقق من الإنترنت وحاول مجددًا.'
+        ? 'انتهت مهلة الاتصال. تحقق من الإنترنت وحاول مرة أخرى.'
         : 'تم إلغاء الطلب.', undefined, undefined, timeoutExpired ? 'REQUEST_TIMEOUT' : 'REQUEST_CANCELLED');
     }
     const message = error instanceof TypeError && /network|fetch/i.test(error.message)
-      ? 'تعذر الوصول إلى الخادم. تحقق من الإنترنت وعنوان API ثم حاول مجددًا.'
-      : 'تعذر الاتصال بالخادم. تحقق من الاتصال وحاول مجددًا.';
+      ? 'تعذر الوصول إلى الخادم. تحقق من الإنترنت وعنوان API ثم حاول مرة أخرى.'
+      : 'تعذر الاتصال بالخادم. تحقق من الاتصال وحاول مرة أخرى.';
     throw new ApiError(message);
   } finally {
     clearTimeout(timeout);

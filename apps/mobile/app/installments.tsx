@@ -148,7 +148,7 @@ export default function InstallmentsScreen() {
             <Notice tone="muted">
               تعرض الصفحة الأقساط المرتبطة بمبيعاتك. سجّل فقط المبلغ الذي استلمته فعليًا من العميل.
             </Notice>
-            <View style={{ flexDirection: 'row', gap: 10 }}>
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
               <View style={{ flex: 1 }}>
                 <PrimaryButton
                   label="القادمة"
@@ -211,7 +211,7 @@ export default function InstallmentsScreen() {
                   borderWidth: 1,
                   borderColor: colors.border,
                   borderRadius: radius.control,
-                  padding: 14,
+                  padding: spacing.lg,
                   minHeight: 52,
                   color: colors.ink,
                 }}

@@ -1,5 +1,6 @@
 import { View } from 'react-native';
 import { spacing } from '@/theme/tokens';
+import { COPY } from '@/lib/copy';
 import type { PaginatedListState } from '@/hooks/usePaginatedList';
 import { PrimaryButton } from './Button';
 import { EmptyState, ErrorState, Notice, SkeletonList, Spinner } from './Feedback';
@@ -16,7 +17,7 @@ type ListLike = Pick<
  */
 export function ListEmpty({
   list,
-  loadingMessage = 'جاري التحميل…',
+  loadingMessage = COPY.loading,
   errorTitle = 'تعذر تحميل القائمة',
   emptyTitle,
   emptyDescription,
@@ -42,7 +43,7 @@ export function ListStaleError({ list }: { list: ListLike }) {
   return (
     <View style={{ gap: spacing.sm }}>
       <Notice>{list.error}</Notice>
-      <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} />
+      <PrimaryButton label={COPY.retryAction} variant="secondary" onPress={() => void list.retry()} />
     </View>
   );
 }
@@ -60,7 +61,7 @@ export function PaginatedFooter({ list, moreLabel = 'تحميل المزيد' }:
     return (
       <View style={{ gap: spacing.sm }}>
         <Notice>{list.loadMoreError}</Notice>
-        <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void list.retry()} />
+        <PrimaryButton label={COPY.retryAction} variant="secondary" onPress={() => void list.retry()} />
       </View>
     );
   }

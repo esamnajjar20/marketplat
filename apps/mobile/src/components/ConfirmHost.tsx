@@ -5,7 +5,7 @@ import { subscribeToConfirmations, type ConfirmButton, type ConfirmRequest } fro
 import { radius, spacing, fontSizes, type ColorPalette, fontWeights } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 
-/** يعرض طلبات confirmAlert واحداً تلو الآخر في نافذة تأكيد موحّدة. */
+/** يعرض طلبات confirmAlert واحدًا تلو الآخر في نافذة تأكيد موحّدة. */
 export function ConfirmHost() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);

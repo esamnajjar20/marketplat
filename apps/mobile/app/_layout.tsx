@@ -9,7 +9,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomNavigation from '@/components/BottomNavigation';
 import { MobileDrawerProvider } from '@/components/MobileDrawer';
 import { StatusBar } from 'expo-status-bar';
-import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
+import { radius, sizes, spacing, typography } from '@/theme/tokens';
+import { COPY } from '@/lib/copy';
 import { AppThemeProvider, useAppTheme, useAppThemeColors } from '@/theme/ThemeProvider';
 import { AuthProvider, useAuth } from '@/features/auth/AuthContext';
 import { ConnectivityProvider, useIsOnline } from '@/lib/connectivity';
@@ -35,42 +36,32 @@ export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   }, [error]);
   return (
     <View
+      accessibilityRole="alert"
       style={{
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
         padding: spacing.xl,
+        gap: spacing.sm,
         backgroundColor: colors.canvas,
       }}
     >
-      <Text style={{ fontSize: fontSizes[18], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'center' }}>
-        حدث خطأ غير متوقع
-      </Text>
-      <Text
-        style={{
-          color: colors.muted,
-          textAlign: 'center',
-          marginTop: 10,
-          lineHeight: 22,
-          fontSize: fontSizes[13],
-        }}
-      >
-        يرجى إعادة المحاولة. إذا استمرت المشكلة فأعد فتح التطبيق.
-      </Text>
+      <Text style={{ ...typography.title, color: colors.ink, textAlign: 'center' }}>{COPY.unexpectedErrorTitle}</Text>
+      <Text style={{ ...typography.body, color: colors.muted, textAlign: 'center' }}>{COPY.unexpectedErrorHint}</Text>
       <Pressable
         onPress={retry}
         accessibilityRole="button"
+        accessibilityLabel={COPY.retryAction}
         style={{
-          marginTop: 20,
+          marginTop: spacing.lg,
           backgroundColor: colors.brand,
-          paddingHorizontal: 28,
-          paddingVertical: 14,
-          borderRadius: radius.md,
-          minHeight: 48,
+          paddingHorizontal: spacing.xxl,
+          borderRadius: radius.button,
+          minHeight: sizes.buttonHeight,
           justifyContent: 'center',
         }}
       >
-        <Text style={{ color: colors.onBrand, fontWeight: fontWeights.bold, fontSize: fontSizes[15] }}>إعادة المحاولة</Text>
+        <Text style={{ ...typography.button, color: colors.onBrand }}>{COPY.retryAction}</Text>
       </Pressable>
     </View>
   );

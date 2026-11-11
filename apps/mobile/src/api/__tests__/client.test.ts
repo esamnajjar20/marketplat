@@ -184,7 +184,7 @@ describe('apiRequest reliability contracts', () => {
     const { apiRequest } = await loadClient();
 
     await expect(apiRequest('/api/v1/auth/login', { method: 'POST', body: JSON.stringify({}) }))
-      .rejects.toMatchObject({ message: 'تم قفل الحساب مؤقتًا بسبب كثرة محاولات الدخول. انتظر قليلًا ثم حاول مجددًا.' });
+      .rejects.toMatchObject({ message: 'تم قفل الحساب مؤقتًا بسبب كثرة محاولات الدخول. انتظر قليلًا ثم حاول مرة أخرى.' });
   });
 });
 

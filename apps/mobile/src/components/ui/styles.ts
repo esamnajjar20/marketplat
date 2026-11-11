@@ -4,7 +4,7 @@
  */
 import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
-import { fontSizes, elevation, radius, sizes, spacing, typography, ux, type ColorPalette } from '@/theme/tokens';
+import { fontSizes, fontWeights, elevation, radius, sizes, spacing, typography, ux, type ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 
 function createUIStyles(palette: ColorPalette) {
@@ -112,14 +112,14 @@ function createUIStyles(palette: ColorPalette) {
     gap: spacing.md,
   },
   listRowGlyph: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
+    width: sizes.iconButton,
+    height: sizes.iconButton,
+    borderRadius: radius.control,
     backgroundColor: palette.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  listRowGlyphText: { color: palette.brandOnSoft, fontSize: fontSizes[18], fontWeight: '600' },
+  listRowGlyphText: { color: palette.brandOnSoft, fontSize: fontSizes[18], fontWeight: fontWeights.semibold },
   listRowText: { flex: 1, gap: 3 },
   listRowTitle: { textAlign: 'right', ...typography.bodyStrong, color: palette.ink },
   listRowDescription: { textAlign: 'right', ...typography.caption, color: palette.muted },
@@ -138,7 +138,7 @@ function createUIStyles(palette: ColorPalette) {
     fontSize: typography.body.fontSize,
     textAlign: 'right',
   },
-  textarea: { minHeight: 128, paddingVertical: spacing.md, textAlignVertical: 'top' },
+  textarea: { minHeight: sizes.textareaMinHeight, paddingVertical: spacing.md, textAlignVertical: 'top' },
   inputDisabled: { opacity: ux.disabledOpacity, backgroundColor: palette.surfaceSecondary },
   inputFocused: {
     borderColor: palette.focus,
@@ -196,14 +196,14 @@ function createUIStyles(palette: ColorPalette) {
   mutedBox: { backgroundColor: palette.surfaceSecondary, borderColor: palette.border },
   info: { backgroundColor: palette.infoSoft, borderColor: palette.infoBorder },
   warning: { backgroundColor: palette.warningSoft, borderColor: palette.warningBorder },
-  noticeText: { color: palette.dangerText, textAlign: 'right', lineHeight: 22, fontSize: fontSizes[14] },
+  noticeText: { ...typography.body, fontSize: fontSizes[14], color: palette.dangerText, textAlign: 'right' },
   successText: { color: palette.successText },
   infoText: { color: palette.infoText },
   warningText: { color: palette.warningText },
   mutedText: { color: palette.muted },
 
   badge: {
-    paddingHorizontal: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.pill,
     backgroundColor: palette.brandSoft,
@@ -302,7 +302,7 @@ function createUIStyles(palette: ColorPalette) {
     backgroundColor: palette.surface,
     ...elevation.xs,
   },
-  searchIcon: { color: palette.muted, fontSize: fontSizes[18], fontWeight: '600' },
+  searchIcon: { color: palette.muted, fontSize: fontSizes[18], fontWeight: fontWeights.semibold },
   searchInput: {
     flex: 1,
     color: palette.ink,
@@ -340,8 +340,8 @@ function createUIStyles(palette: ColorPalette) {
     gap: spacing.sm,
   },
   stateIconWrap: {
-    width: 64,
-    height: 64,
+    width: sizes.avatarLg,
+    height: sizes.avatarLg,
     borderRadius: radius.lg,
     backgroundColor: palette.brandSoft,
     alignItems: 'center',
@@ -349,7 +349,7 @@ function createUIStyles(palette: ColorPalette) {
     marginBottom: spacing.sm,
   },
   stateIconError: { backgroundColor: palette.dangerSoft },
-  stateIcon: { fontSize: fontSizes[28], color: palette.brandOnSoft, fontWeight: '600' },
+  stateIcon: { fontSize: fontSizes[28], color: palette.brandOnSoft, fontWeight: fontWeights.semibold },
   stateTitle: { textAlign: 'center', ...typography.subtitle, color: palette.ink },
   stateMessage: { textAlign: 'center', ...typography.body, color: palette.muted },
 
@@ -361,9 +361,7 @@ function createUIStyles(palette: ColorPalette) {
     paddingVertical: spacing.sm,
   },
   offlineBannerText: {
-    fontSize: fontSizes[12],
-    fontWeight: '600',
-    lineHeight: 18,
+    ...typography.captionStrong,
     color: palette.warningText,
     textAlign: 'center',
   },

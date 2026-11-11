@@ -28,7 +28,7 @@ const groups: DestinationGroup[] = [
       { title: 'سوق الطلبات', description: 'اعرف ما يبحث عنه الآخرون وقدّم عرضك', path: '/requests' },
       { title: 'المتاجر', description: 'اكتشف المتاجر المحلية وتابعها', path: '/stores' },
       { title: 'مقدمو الخدمة', description: 'اعثر على مقدم الخدمة المناسب', path: '/service-providers' },
-      { title: 'أفضل البائعين', description: 'تعرّف على البائعين الأعلى ترتيباً', path: '/sellers-ranking' },
+      { title: 'أفضل البائعين', description: 'تعرّف على البائعين الأعلى ترتيبًا', path: '/sellers-ranking' },
     ],
   },
 ];

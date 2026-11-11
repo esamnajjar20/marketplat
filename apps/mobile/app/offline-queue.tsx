@@ -190,7 +190,7 @@ export default function OfflineQueueScreen() {
                 showToast('الطابور متوقف', 'توجد عملية أقدم غير مدعومة؛ لم نتجاوزها للحفاظ على ترتيب التعديلات.', 'info');
             }
             else if (result.status !== 'sync-result') {
-                showToast('لم تُنفّذ المزامنة', 'المزامنة غير جاهزة الآن (قد تكون هناك عملية أخرى قيد التنفيذ). حدّث القائمة وحاول مجددًا.', 'info');
+                showToast('لم تُنفّذ المزامنة', 'المزامنة غير جاهزة الآن (قد تكون هناك عملية أخرى قيد التنفيذ). حدّث القائمة وحاول مرة أخرى.', 'info');
             }
             else {
                 showToast('لم تكتمل المزامنة', 'لم ينجح إرسال العملية. راجع التفاصيل في القائمة ثم حاول مرة أخرى.', 'error');
@@ -317,7 +317,7 @@ export default function OfflineQueueScreen() {
                         setBusyId(item.id);
                         void retryMarketplaceRequest(item.id, user?.id).then((ok) => {
                             if (!ok)
-                                showToast('تعذرت إعادة المحاولة', 'حدّث القائمة ثم حاول مجددًا.', 'error');
+                                showToast('تعذرت إعادة المحاولة', 'حدّث القائمة ثم حاول مرة أخرى.', 'error');
                         }).catch((e) => setError(e instanceof Error ? e.message : 'تعذرت إعادة المحاولة.')).finally(() => {
                             setBusyId(null);
                             void refresh();
@@ -340,7 +340,7 @@ export default function OfflineQueueScreen() {
                         setBusyId(item.id);
                         void retryRequestOffer(item.id, user?.id).then(async (ok) => {
                             if (!ok)
-                                showToast('تعذرت إعادة المحاولة', 'حدّث القائمة ثم حاول مجددًا.', 'error');
+                                showToast('تعذرت إعادة المحاولة', 'حدّث القائمة ثم حاول مرة أخرى.', 'error');
                             else
                                 await syncNextRequestOffer({
                                     isOnline: online, token: accessToken, csrfToken, ownerId: user?.id
@@ -367,7 +367,7 @@ export default function OfflineQueueScreen() {
                         setBusyId(item.id);
                         void retryMarketplaceOrder(item.id, user?.id).then(async (ok) => {
                             if (!ok)
-                                showToast('تعذرت إعادة المحاولة', 'حدّث القائمة ثم حاول مجددًا.', 'error');
+                                showToast('تعذرت إعادة المحاولة', 'حدّث القائمة ثم حاول مرة أخرى.', 'error');
                             else
                                 await syncNextMarketplaceOrder({
                                     isOnline: online, token: accessToken, csrfToken, ownerId: user?.id
@@ -403,7 +403,7 @@ export default function OfflineQueueScreen() {
                             setBusyId(item.id);
                             void retryOfflineCreate(item.id, user?.id).then(async (ok) => {
                                 if (!ok)
-                                    showToast('تعذرت إعادة المحاولة', 'حدّث القائمة ثم حاول مجددًا.', 'error');
+                                    showToast('تعذرت إعادة المحاولة', 'حدّث القائمة ثم حاول مرة أخرى.', 'error');
                                 else
                                     await syncNextOfflineCreate({
                                         isOnline: online, token: accessToken, csrfToken, ownerId: user?.id

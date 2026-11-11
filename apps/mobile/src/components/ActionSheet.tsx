@@ -62,7 +62,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   handle: { width: 42, height: 4, borderRadius: 4, alignSelf: 'center', backgroundColor: colors.controlBorder, marginBottom: spacing.xs },
   title: { color: colors.ink, fontSize: fontSizes[17], fontWeight: fontWeights.bold, textAlign: 'right' },
   description: { color: colors.muted, fontSize: fontSizes[13], lineHeight: 20, textAlign: 'right' },
-  option: { minHeight: 48, justifyContent: 'center', alignItems: 'flex-end', paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.canvas },
+  option: { minHeight: 48, justifyContent: 'center', alignItems: 'flex-start', paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: colors.canvas },
   pressed: { opacity: 0.72 },
   optionText: { color: colors.ink, fontSize: fontSizes[14], fontWeight: fontWeights.bold },
   dangerText: { color: colors.danger },

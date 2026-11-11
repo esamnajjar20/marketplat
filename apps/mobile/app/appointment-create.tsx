@@ -164,7 +164,7 @@ export default function AppointmentCreateScreen() {
       await createAppointment({ requestId, scheduledStart: from.toISOString(), scheduledEnd: to.toISOString(), notes: notes.trim() || undefined }, token, csrfToken);
       router.replace('/appointments');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'تعذر حجز الموعد. حدّث الأوقات المتاحة وحاول مجددًا.';
+      const message = error instanceof Error ? error.message : 'تعذر حجز الموعد. حدّث الأوقات المتاحة وحاول مرة أخرى.';
       setAvailabilityError(message);
       setSelectedSlot(null);
       await loadAvailability();
@@ -202,7 +202,7 @@ export default function AppointmentCreateScreen() {
                   accessibilityLabel={`${option.weekday} ${option.day}`}
                   accessibilityState={{ selected }}
                   onPress={() => { setDate(option.value); setSelectedSlot(null); }}
-                  style={{ minWidth: 76, minHeight: 64, paddingHorizontal: spacing.sm, paddingVertical: 9, borderRadius: radius.md, borderWidth: 1, borderColor: selected ? colors.brand : colors.border, backgroundColor: selected ? colors.brandSoft : colors.surface, justifyContent: 'center', alignItems: 'center', gap: 3 }}
+                  style={{ minWidth: 76, minHeight: 64, paddingHorizontal: spacing.sm, paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: selected ? colors.brand : colors.border, backgroundColor: selected ? colors.brandSoft : colors.surface, justifyContent: 'center', alignItems: 'center', gap: spacing.xs }}
                 >
                   <Text style={{ color: selected ? colors.brand : colors.muted, fontSize: fontSizes[12], fontWeight: fontWeights.bold }}>{option.weekday}</Text>
                   <Text style={{ color: selected ? colors.brand : colors.ink, fontWeight: fontWeights.bold }}>{option.day}</Text>

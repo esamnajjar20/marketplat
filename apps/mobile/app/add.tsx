@@ -60,7 +60,7 @@ export default function AddScreen() {
       const provider = await fetchMyServiceProvider(accessToken);
       router.push(provider ? '/service-editor' : '/service-provider-profile');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر التحقق من صلاحية الإضافة. حاول مجددًا.');
+      setError(e instanceof Error ? e.message : 'تعذر التحقق من صلاحية الإضافة. حاول مرة أخرى.');
     } finally {
       setCheckingPath('');
     }

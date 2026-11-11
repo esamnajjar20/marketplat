@@ -120,7 +120,7 @@ export default function BlockedUsersScreen() {
                       </Text>
                     </View>
                   )}
-                  <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                  <View style={{ flex: 1, alignItems: 'flex-start' }}>
                     <Text tone="ink" strong>
                       {person.name || 'مستخدم'}
                     </Text>

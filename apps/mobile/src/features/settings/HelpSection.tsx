@@ -17,7 +17,7 @@ const INFO_PAGES = [
 
 function openInfoPage(path: string) {
   void WebBrowser.openBrowserAsync(getConfiguredWebUrl(path)).catch(() => {
-    showToast('تعذر فتح الصفحة', 'تحقق من الاتصال وحاول مجددًا.', 'error');
+    showToast('تعذر فتح الصفحة', 'تحقق من الاتصال وحاول مرة أخرى.', 'error');
   });
 }
 

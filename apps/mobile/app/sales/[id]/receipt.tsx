@@ -80,7 +80,7 @@ export default function SaleReceiptScreen() {
   }[sale.paymentStatus] || 'غير محددة'}</Text><Text tone="muted">التاريخ: {formatDate(sale.soldAt, 'date')}</Text><Text style={{
     textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[16], color: colors.ink, marginTop: spacing.sm
   }}>{sale.entityTitle}</Text>{sale.items?.map(item => <View key={item.id} style={{
-    flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: colors.border
+    flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border
   }}><View style={{ flex: 1 }}><Text tone="ink" strong>{item.title}</Text><Text tone="muted">الكمية {item.quantity} × {formatMoney(item.unitPrice, sale.currency)}</Text></View><Text style={{
     fontWeight: fontWeights.bold, color: colors.ink
   }}>{formatMoney(item.lineTotal, sale.currency)}</Text></View>)}<View style={{
@@ -88,7 +88,7 @@ export default function SaleReceiptScreen() {
   }}/>{[
     ['الإجمالي', sale.totalPrice], ['المدفوع', sale.paidAmount], ['المتبقي', sale.dueAmount], ['المسترد', sale.refundedAmount]
   ].map(([label, value]) => <View key={String(label)} style={{
-    flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 7
+    flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing.sm
   }}><Text style={{ color: colors.muted }}>{label}</Text><Text style={{
     color: label === 'المتبقي' && Number(value) > 0 ? colors.danger : colors.ink, fontWeight: fontWeights.bold
   }}>{formatMoney(value, sale.currency)}</Text></View>)}{sale.note ? <Text style={{

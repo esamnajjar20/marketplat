@@ -42,7 +42,7 @@ export default function SessionsScreen() {
         setBusyId(session.sessionId);
         void revokeActiveSession(session.sessionId, accessToken, csrfToken)
           .then(() => setSessions((items) => items.filter((item) => item.sessionId !== session.sessionId)))
-          .catch((e) => showToast('تعذر إنهاء الجلسة', e instanceof Error ? e.message : 'حاول مجددًا.', 'error'))
+          .catch((e) => showToast('تعذر إنهاء الجلسة', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'))
           .finally(() => setBusyId(''));
       } },
     ]);
@@ -61,7 +61,7 @@ export default function SessionsScreen() {
           <Text tone="muted" size={12}>تسجيل الدخول: {dateLabel(session.createdAt)}</Text>
           <Text tone="muted" size={12}>آخر نشاط: {dateLabel(session.lastSeen)}</Text>
         </View>
-        <View style={{ borderRadius: radius.pill, backgroundColor: session.isCurrent ? colors.successSoft : colors.brandSoft, paddingHorizontal: 10, paddingVertical: 6 }}><Text style={{ color: colors.brand, fontSize: fontSizes[11], fontWeight: fontWeights.bold }}>{session.isCurrent ? 'حالي' : 'نشط'}</Text></View>
+        <View style={{ borderRadius: radius.pill, backgroundColor: session.isCurrent ? colors.successSoft : colors.brandSoft, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }}><Text style={{ color: colors.brand, fontSize: fontSizes[11], fontWeight: fontWeights.bold }}>{session.isCurrent ? 'حالي' : 'نشط'}</Text></View>
       </View>
       {!session.isCurrent ? <PrimaryButton label={busyId === session.sessionId ? 'جارٍ الإنهاء…' : 'إنهاء هذه الجلسة'} variant="danger" busy={busyId === session.sessionId} disabled={!!busyId} onPress={() => revoke(session)} /> : null}
     </SectionCard>)}

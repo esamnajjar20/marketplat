@@ -100,7 +100,7 @@ function FeedRowCard({ row }: { row: FeedRow }) {
           <Text size={28} style={{ color: colors.brandOnSoft }}>{KIND_GLYPH[row.kind]}</Text>
         </View>
       )}
-      <View style={{ flex: 1, alignItems: 'flex-end', gap: spacing.xs }}>
+      <View style={{ flex: 1, alignItems: 'flex-start', gap: spacing.xs }}>
         <Text numberOfLines={2} tone="ink" strong>{title(row)}</Text>
         <Text numberOfLines={1} tone="muted" size={12}>{subtitle(row)}</Text>
         {priceLabel ? <Text tone="brand" strong>{priceLabel}</Text> : null}

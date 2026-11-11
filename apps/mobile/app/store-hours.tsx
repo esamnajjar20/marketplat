@@ -9,7 +9,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStore, type StoreSummary } from '@/features/commerce/commerce.api';
 import { saveStoreHours } from '@/features/commerce/store-management.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
-import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights, radius, sizes } from '@/theme/tokens';
 type Day = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
 type Schedule = {
   open: string;
@@ -123,10 +123,10 @@ export default function StoreHoursScreen() {
       open: '09:00', close: '17:00'
     }
   }))} style={{
-    minWidth: 76, minHeight: 42, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.sm, backgroundColor: hours[day.key] ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: hours[day.key] ? colors.brand : colors.border
+    minWidth: 76, minHeight: sizes.touchTarget, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.sm, backgroundColor: hours[day.key] ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: hours[day.key] ? colors.brand : colors.border
   }}><Text style={{
     color: colors.brand, fontWeight: fontWeights.bold
   }}>{hours[day.key] ? 'مفتوح' : 'مغلق'}</Text></Pressable></View>{hours[day.key] ? <View style={{
-    flexDirection: 'row', gap: 10
+    flexDirection: 'row', gap: spacing.md
   }}><View style={{ flex: 1 }}><Field label="يفتح (HH:mm)" value={hours[day.key]!.open} onChangeText={v => change(day.key, 'open', v)} placeholder="09:00"/></View><View style={{ flex: 1 }}><Field label="يغلق (HH:mm)" value={hours[day.key]!.close} onChangeText={v => change(day.key, 'close', v)} placeholder="17:00"/></View></View> : null}</SectionCard>)}<PrimaryButton label="حفظ ساعات العمل" onPress={() => void save()} busy={busy}/></>}{error ? <Notice>{error}</Notice> : null}{message ? <Notice tone="success">{message}</Notice> : null}</PageShell>;
 }

@@ -132,7 +132,7 @@ export default function MyStoreScreen() {
       showToast('تم التحديث', kind === 'logo' ? 'تم تحديث شعار المتجر.' : 'تم تحديث غلاف المتجر.', 'success');
     }
     catch (e) {
-      showToast('تعذر رفع الصورة', e instanceof Error ? e.message : 'تحقق من الاتصال وحاول مجددًا.', 'error');
+      showToast('تعذر رفع الصورة', e instanceof Error ? e.message : 'تحقق من الاتصال وحاول مرة أخرى.', 'error');
     }
     finally {
       setImageBusy(null);
@@ -190,19 +190,19 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
   }, glyph: {
     color: colors.brandOnSoft, fontWeight: fontWeights.bold
   }, imageButton: {
-    backgroundColor: colors.brandSoft, borderRadius: 10, paddingHorizontal: spacing.md, paddingVertical: 10, alignItems: 'center'
+    backgroundColor: colors.brandSoft, borderRadius: radius.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.md, alignItems: 'center'
   }, imageButtonText: {
     color: colors.brandOnSoft, fontWeight: fontWeights.bold, fontSize: fontSizes[12]
   }, logoRow: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingTop: spacing.sm
   }, logo: {
-    width: 58, height: 58, borderRadius: 16, backgroundColor: colors.border
+    width: 58, height: 58, borderRadius: radius.md, backgroundColor: colors.border
   }, logoPlaceholder: {
     alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft
   }, logoText: {
-    flex: 1, alignItems: 'flex-end', gap: spacing.xs
+    flex: 1, alignItems: 'flex-start', gap: spacing.xs
   }, quickActions: { gap: spacing.sm }, quickAction: {
-    padding: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, gap: 6, shadowColor: colors.ink, shadowOpacity: .035, shadowRadius: 8, shadowOffset: {
+    padding: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, gap: spacing.sm, shadowColor: colors.ink, shadowOpacity: .035, shadowRadius: 8, shadowOffset: {
       width: 0, height: 2
     }, elevation: 1
   }, quickTitle: {

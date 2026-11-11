@@ -132,7 +132,7 @@ export default function PublicProfileScreen() {
           {profile.city ? <Text style={{ color: colors.muted }}>{profile.city}</Text> : null}
           {profile.bio ? <Text style={{ color: colors.ink, textAlign: 'center', lineHeight: 22 }}>{profile.bio}</Text> : null}
           <Text style={{ color: colors.muted }}>الإعلانات النشطة: {profile._count?.ads ?? ads.length}</Text>
-          <View style={{ flexDirection: 'row', gap: 28, paddingVertical: 6 }}>
+          <View style={{ flexDirection: 'row', gap: 28, paddingVertical: spacing.sm }}>
             <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/profile/[id]/followers', params: { id: profile.id } })}><Text style={{ color: colors.brand, fontWeight: fontWeights.bold }}>المتابعون {profile.followStats?.followers ?? '—'}</Text></Pressable>
             <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/profile/[id]/following', params: { id: profile.id } })}><Text style={{ color: colors.brand, fontWeight: fontWeights.bold }}>يتابع {profile.followStats?.following ?? '—'}</Text></Pressable>
           </View>
@@ -146,7 +146,7 @@ export default function PublicProfileScreen() {
         {profile.sellerProfile?.storeDetails?.id ? <PrimaryButton label="عرض المتجر" variant="secondary" onPress={() => router.push({ pathname: '/stores/[id]', params: { id: profile.sellerProfile!.storeDetails!.id } })} /> : null}
         {profile.sellerProfile?.serviceProviderDetails?.id ? <PrimaryButton label="عرض ملف مقدم الخدمة" variant="secondary" onPress={() => router.push({ pathname: '/service-providers/[id]', params: { id: profile.sellerProfile!.serviceProviderDetails!.id } })} /> : null}
       </SectionCard>
-      <Text style={{ textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[18], color: colors.ink, marginTop: spacing.lg, marginBottom: 10 }}>إعلانات المستخدم</Text>
+      <Text style={{ textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[18], color: colors.ink, marginTop: spacing.lg, marginBottom: spacing.md }}>إعلانات المستخدم</Text>
       {adsError ? <Notice>{adsError}</Notice> : null}
       {ads.length ? ads.map((ad) => <Pressable key={ad.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/ads/[id]', params: { id: ad.id } })}><SectionCard><Text tone="ink" strong>{ad.title}</Text><Text tone="brand">{price(ad.price)}</Text><Text tone="muted">{ad.city || ''}</Text></SectionCard></Pressable>) : !adsLoading && !adsError ? <Notice tone="muted">لا توجد إعلانات نشطة لهذا المستخدم حاليًا.</Notice> : null}
       {adsPage < adsPages ? <PrimaryButton label="تحميل إعلانات أقدم" variant="secondary" busy={adsLoading} onPress={() => void loadMoreAds()} /> : null}

@@ -76,7 +76,7 @@ export default function FollowingFeedScreen() {
                   <Text style={{ color: colors.brandOnSoft, fontWeight: fontWeights.bold }}>{item.type === 'AD' ? 'إعلان' : item.type === 'PRODUCT' ? 'منتج' : 'خدمة'}</Text>
                 </View>
               )}
-              <View style={{ flex: 1, gap: 5, alignItems: 'flex-end' }}>
+              <View style={{ flex: 1, gap: spacing.xs, alignItems: 'flex-start' }}>
                 <Text numberOfLines={2} tone="ink" strong>{item.title}</Text>
                 <Text style={{ color: colors.brand, fontWeight: fontWeights.bold }}>{price(item.price)}</Text>
                 <Text style={{ color: colors.muted, fontSize: fontSizes[12] }}>{item.type === 'AD' ? 'إعلان' : item.type === 'PRODUCT' ? 'منتج' : 'خدمة'}{item.city ? ` · ${item.city}` : ''}</Text>

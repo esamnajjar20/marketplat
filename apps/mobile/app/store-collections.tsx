@@ -9,7 +9,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyProducts, fetchMyStore, type ProductSummary } from '@/features/commerce/commerce.api';
 import { addProductToCollection, createCollection, deleteCollection, fetchMyCollections, fetchPublicCollectionProducts, removeProductFromCollection, updateCollection, type StoreCollection } from '@/features/commerce/store-management.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
-import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
+import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 export default function StoreCollectionsScreen() {
   const { colors } = useAppTheme();
   const { accessToken, csrfToken } = useAuth();
@@ -167,15 +167,15 @@ export default function StoreCollectionsScreen() {
   }}><Text style={{
     flex: 1, textAlign: 'right', color: colors.ink
   }}>{p.name}</Text><Pressable accessibilityRole="button" onPress={() => void runItem(() => removeProductFromCollection(item.id, p.id, accessToken, csrfToken))} style={{
-    padding: 7, borderRadius: 8, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border
+    padding: spacing.sm, borderRadius: radius.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border
   }}><Text style={{
     color: colors.danger, fontWeight: fontWeights.bold
   }}>إزالة</Text></Pressable></View>)}</> : expandedCollections[item.id] ? <Text tone="muted">لا توجد منتجات في هذه المجموعة أو لا يمكن عرضها حاليًا.</Text> : null}{products.length > 0 ? <><Text tone="ink" strong>إضافة منتج إلى هذه المجموعة</Text><View style={{
-    flexDirection: 'row', flexWrap: 'wrap', gap: 6
+    flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm
   }}>{products.map(p => <Pressable accessibilityRole="button" key={p.id} onPress={() => setSelectedProduct(v => ({
     ...v, [item.id]: p.id
   }))} style={{
-    padding: spacing.sm, borderRadius: 9, borderWidth: 1, borderColor: selectedProduct[item.id] === p.id ? colors.brand : colors.border, backgroundColor: selectedProduct[item.id] === p.id ? colors.brandSoft : colors.surface
+    padding: spacing.sm, borderRadius: radius.sm, borderWidth: 1, borderColor: selectedProduct[item.id] === p.id ? colors.brand : colors.border, backgroundColor: selectedProduct[item.id] === p.id ? colors.brandSoft : colors.surface
   }}><Text style={{
     color: colors.ink, fontSize: fontSizes[12]
   }}>{p.name}</Text></Pressable>)}</View><PrimaryButton label="إضافة المنتج المحدد" disabled={!selectedProduct[item.id]} onPress={() => void runItem(() => addProductToCollection(item.id, selectedProduct[item.id]!, accessToken, csrfToken))}/></> : <Text tone="muted">أضف منتجًا أولًا من صفحة منتجاتي.</Text>}</SectionCard>)}{storeId ? <PrimaryButton label="معاينة صفحة المتجر" variant="secondary" onPress={() => router.push(`/stores/${encodeURIComponent(storeId)}`)}/> : null}</>}{error ? <Notice>{error}</Notice> : null}</PageShell>;

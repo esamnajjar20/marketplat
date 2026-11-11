@@ -5,6 +5,7 @@ import { AccessibilityInfo, ActivityIndicator, Animated, View, type StyleProp, t
 import { radius, spacing, ux } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { COPY } from '@/lib/copy';
+import { AppIcon, type GlyphName } from '@/components/Icons';
 import { PrimaryButton } from './Button';
 import { useUIStyles } from './styles';
 
@@ -32,9 +33,9 @@ export function Notice({
       <Text
         style={[
           s.noticeText,
-          tone === 'success' && { color: colors.success },
+          tone === 'success' && { color: colors.successText },
           tone === 'muted' && { color: colors.muted },
-          tone === 'info' && { color: colors.ink },
+          tone === 'info' && { color: colors.infoText },
           tone === 'warning' && { color: colors.warningText },
         ]}
       >
@@ -66,8 +67,8 @@ export function Badge({
       <Text
         style={[
           s.badgeText,
-          tone === 'danger' && { color: colors.danger },
-          tone === 'success' && { color: colors.success },
+          tone === 'danger' && { color: colors.dangerText },
+          tone === 'success' && { color: colors.successText },
           tone === 'muted' && { color: colors.muted },
           tone === 'accent' && { color: colors.ink },
         ]}
@@ -116,7 +117,7 @@ export function Spinner({
   return <ActivityIndicator size={size} color={color ?? colors.brand} style={style} />;
 }
 
-export function LoadingState({ message = 'جاري التحميل…' }: { message?: string }) {
+export function LoadingState({ message = COPY.loading }: { message?: string }) {
   const s = useUIStyles();
   const { colors } = useAppTheme();
   return (
@@ -132,17 +133,21 @@ export function EmptyState({
   description,
   actionLabel,
   onAction,
+  icon = 'product',
 }: {
   title: string;
   description?: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** رمز من `glyphs` يناسب سياق الشاشة الفارغة. */
+  icon?: GlyphName;
 }) {
   const s = useUIStyles();
+  const { colors } = useAppTheme();
   return (
     <View accessibilityLiveRegion="polite" style={s.stateBox}>
-      <View style={s.stateIconWrap}>
-        <Text style={s.stateIcon}>◇</Text>
+      <View importantForAccessibility="no-hide-descendants" style={s.stateIconWrap}>
+        <AppIcon name={icon} size={28} color={colors.brandOnSoft} />
       </View>
       <Text accessibilityRole="header" style={s.stateTitle}>{title}</Text>
       {description ? <Text style={s.stateMessage}>{description}</Text> : null}
@@ -156,7 +161,7 @@ export function EmptyState({
 }
 
 export function ErrorState({
-  title = 'حدث خطأ',
+  title = COPY.errorTitle,
   description,
   actionLabel = COPY.retryAction,
   onAction,
@@ -170,8 +175,8 @@ export function ErrorState({
   const { colors } = useAppTheme();
   return (
     <View accessibilityRole="alert" accessibilityLiveRegion="polite" style={s.stateBox}>
-      <View style={[s.stateIconWrap, s.stateIconError]}>
-        <Text style={[s.stateIcon, { color: colors.danger }]}>!</Text>
+      <View importantForAccessibility="no-hide-descendants" style={[s.stateIconWrap, s.stateIconError]}>
+        <AppIcon name="warning" size={28} color={colors.dangerText} />
       </View>
       <Text accessibilityRole="header" style={s.stateTitle}>{title}</Text>
       {description ? <Text style={s.stateMessage}>{description}</Text> : null}
@@ -248,7 +253,7 @@ export function SkeletonCard() {
   );
 }
 
-export function SkeletonList({ count = 3, message = 'جاري التحميل…' }: { count?: number; message?: string }) {
+export function SkeletonList({ count = 3, message = COPY.loading }: { count?: number; message?: string }) {
   return (
     <View
       accessibilityRole="progressbar"
@@ -266,7 +271,7 @@ export function SkeletonList({ count = 3, message = 'جاري التحميل…'
 
 export function OfflineBanner({
   visible,
-  message = 'أنت غير متصل — بعض الإجراءات تُحفظ للمزامنة لاحقاً.',
+  message = COPY.offlineBanner,
 }: {
   visible: boolean;
   message?: string;

@@ -221,7 +221,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  itemInfo: { flex: 1, alignItems: 'flex-end', gap: spacing.xs },
+  itemInfo: { flex: 1, alignItems: 'flex-start', gap: spacing.xs },
   productName: { ...typography.bodyStrong, color: colors.ink, textAlign: 'right' },
   lineTotal: { ...typography.bodyStrong, color: colors.brand },
   muted: { ...typography.caption, color: colors.muted, textAlign: 'right', lineHeight: 19 },

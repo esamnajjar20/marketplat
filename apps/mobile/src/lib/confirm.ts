@@ -12,11 +12,11 @@ let sequence = 0;
 
 /**
  * نمط التأكيد الموحّد في التطبيق. نفس توقيع Alert.alert لكن يُعرض عبر ConfirmHost
- * (متوافق مع الثيم وRTL وإمكانية الوصول). إن لم يكن ConfirmHost مركّباً بعد يُستخدم Alert الأصلي
+ * (متوافق مع الثيم وRTL وإمكانية الوصول). إن لم يكن ConfirmHost مركّبًا بعد يُستخدم Alert الأصلي
  * حتى لا يضيع أي تأكيد.
  */
 export function confirmAlert(title: string, message?: string, buttons?: ConfirmButton[], options?: ConfirmOptions): void {
-  const safeButtons: ConfirmButton[] = buttons && buttons.length > 0 ? buttons : [{ text: 'حسناً' }];
+  const safeButtons: ConfirmButton[] = buttons && buttons.length > 0 ? buttons : [{ text: 'حسنًا' }];
   if (listeners.size === 0) {
     Alert.alert(title, message, safeButtons, options);
     return;

@@ -276,7 +276,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   iconUnread: { backgroundColor: colors.surface },
   icon: { fontSize: fontSizes[18] },
-  bodyWrap: { flex: 1, gap: 5 },
+  bodyWrap: { flex: 1, gap: spacing.xs },
   itemTitle: { ...typography.bodyStrong, color: colors.ink, textAlign: 'right' },
   body: { ...typography.caption, color: colors.muted, textAlign: 'right', lineHeight: 20 },
   time: { fontSize: fontSizes[10], color: colors.muted, textAlign: 'right', marginTop: spacing.xxs },
@@ -285,6 +285,6 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: colors.brand,
-    marginTop: 5,
+    marginTop: spacing.xs,
   },
 });

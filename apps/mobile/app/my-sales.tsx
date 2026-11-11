@@ -2,7 +2,7 @@ import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { AppHeader, EmptyState, LoadingState, PageShell } from '@/components/ui';
+import { AppHeader, EmptyState, ErrorState, LoadingState, PageShell } from '@/components/ui';
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
@@ -148,7 +148,7 @@ export default function MySalesScreen() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.filterRow}>{statusOptions.map(option => <Pressable key={option.value} accessibilityRole="button" accessibilityLabel={`فلتر الحالة: ${option.label}`} accessibilityState={{ selected: status === option.value }} onPress={() => setStatus(option.value)} style={[s.filter, status === option.value && s.filterActive]}><Text style={[s.filterText, status === option.value && s.filterTextActive]}>{option.label}</Text></Pressable>)}</ScrollView>
       {summaryError ? <Text style={s.error}>{summaryError}</Text> : null}{list.error ? <Pressable accessibilityRole="button" onPress={() => void list.retry()}><Text style={s.error}>{list.error} — إعادة المحاولة</Text></Pressable> : null}
       </>}
-ListEmptyComponent={list.error ? <View style={s.state}><Text style={s.error}>{list.error}</Text><Pressable accessibilityRole="button" onPress={() => void list.retry()} style={s.primary}><Text style={s.primaryText}>إعادة المحاولة</Text></Pressable></View> : <View style={s.state}><Text style={s.emptyTitle}>لا توجد مبيعات هنا بعد</Text><Text style={s.muted}>ستظهر عمليات البيع المسجلة في حسابك في هذه القائمة.</Text></View>}
+ListEmptyComponent={list.error ? <ErrorState title="تعذر تحميل المبيعات" description={list.error} onAction={() => void list.retry()} /> : <EmptyState title="لا توجد مبيعات هنا بعد" description="ستظهر عمليات البيع المسجلة في حسابك في هذه القائمة." />}
 renderItem={({ item: sale }: {
                 item: SaleRecord;
             }) => (<View style={s.saleCard}>
@@ -186,7 +186,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({ content: {
     segmentRow: {
         flexDirection: 'row', gap: spacing.sm, padding: spacing.xs, borderRadius: radius.lg, backgroundColor: colors.brandSoft
     }, segment: {
-        flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.controlBorder, backgroundColor: colors.surface
+        flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.controlBorder, backgroundColor: colors.surface
     }, segmentActive: {
         backgroundColor: colors.brand, borderColor: colors.brand
     }, segmentText: {
@@ -195,7 +195,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({ content: {
     metrics: {
         flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm
     }, metric: {
-        width: '48%', flexGrow: 1, minHeight: 104, justifyContent: 'center', gap: 10, padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border
+        width: '48%', flexGrow: 1, minHeight: 104, justifyContent: 'center', gap: spacing.md, padding: spacing.lg, borderRadius: radius.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border
     }, metricLabel: {
         fontSize: fontSizes[12], color: colors.muted, textAlign: 'right'
     }, metricValue: {
@@ -206,9 +206,9 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({ content: {
     }, count: {
         fontSize: fontSizes[12], color: colors.muted
     }, filterRow: {
-        flexDirection: 'row', gap: 7, paddingVertical: spacing.xxs
+        flexDirection: 'row', gap: spacing.sm, paddingVertical: spacing.xxs
     }, filter: {
-        minHeight: 44, minWidth: 44, justifyContent: 'center', borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.pill, backgroundColor: colors.surface, paddingHorizontal: 13, paddingVertical: 9
+        minHeight: 44, minWidth: 44, justifyContent: 'center', borderWidth: 1, borderColor: colors.controlBorder, borderRadius: radius.pill, backgroundColor: colors.surface, paddingHorizontal: 13, paddingVertical: spacing.sm
     }, filterActive: {
         backgroundColor: colors.brandSoft, borderColor: colors.brand
     }, filterText: {
@@ -221,7 +221,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({ content: {
     }, saleTotal: {
         color: colors.brand, fontSize: fontSizes[17], fontWeight: fontWeights.bold
     }, status: {
-        overflow: 'hidden', borderRadius: radius.pill, backgroundColor: colors.warningSoft, color: colors.warningText, paddingHorizontal: 10, paddingVertical: 5, fontSize: fontSizes[11], fontWeight: fontWeights.bold
+        overflow: 'hidden', borderRadius: radius.pill, backgroundColor: colors.warningSoft, color: colors.warningText, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, fontSize: fontSizes[11], fontWeight: fontWeights.bold
     }, statusPaid: {
         backgroundColor: colors.successSoft, color: colors.brandOnSoft
     }, statusDanger: {
@@ -231,7 +231,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({ content: {
     }, saleMeta: {
         color: colors.muted, fontSize: fontSizes[12], textAlign: 'right', lineHeight: 18
     }, amountRow: {
-        flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10, marginTop: spacing.xxs
+        flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md, marginTop: spacing.xxs
     }, amountLabel: {
         color: colors.muted, fontSize: fontSizes[12], fontWeight: fontWeights.bold
     },

@@ -78,11 +78,11 @@ export default function SellerDashboardScreen() {
     }}>{store.city || 'الموقع غير محدد'} · الحالة: {store.status === 'PENDING' ? 'بانتظار المراجعة' : store.status === 'BLOCKED' ? 'محظور' : store.status === 'ACTIVE' ? 'نشط' : store.status || 'غير محددة'}</Text><View style={{
       flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm
     }}><View style={{
-      borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: profile?.verified || store.sellerProfile?.verified ? colors.successSoft : colors.warningSoft
+      borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: profile?.verified || store.sellerProfile?.verified ? colors.successSoft : colors.warningSoft
     }}><Text style={{
       color: profile?.verified || store.sellerProfile?.verified ? colors.success : colors.warningText, fontWeight: fontWeights.bold, fontSize: fontSizes[12]
     }}>{profile?.verified || store.sellerProfile?.verified ? '✓ بائع موثّق' : 'التحقق غير مكتمل'}</Text></View><View style={{
-      borderRadius: radius.pill, paddingHorizontal: 11, paddingVertical: 7, backgroundColor: colors.brandSoft
+      borderRadius: radius.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: colors.brandSoft
     }}><Text style={{
       color: colors.brandOnSoft, fontWeight: fontWeights.bold, fontSize: fontSizes[12]
     }}>{store.isOpen === true ? 'المتجر مفتوح' : store.isOpen === false ? 'المتجر مغلق' : 'ساعات العمل غير محددة'}</Text></View></View>

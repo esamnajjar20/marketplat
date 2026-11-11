@@ -101,7 +101,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
   }, image: {
     width: 88, height: 92, borderRadius: radius.md, backgroundColor: colors.border
   }, body: {
-    flex: 1, alignItems: 'flex-end', gap: spacing.xs
+    flex: 1, alignItems: 'flex-start', gap: spacing.xs
   }, name: {
     ...typography.bodyStrong, color: colors.ink, textAlign: 'right'
   }, price: {

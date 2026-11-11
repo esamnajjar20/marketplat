@@ -114,7 +114,7 @@ export default function SavedSearchesScreen() {
         await load();
         showToast('تم حذف البحث المحفوظ', 'يمكنك إنشاء عملية بحث جديدة في أي وقت.', 'success');
       })
-      .catch((e) => showToast('تعذر حذف البحث', e instanceof Error ? e.message : 'حاول مجددًا.', 'error'));
+      .catch((e) => showToast('تعذر حذف البحث', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'));
   };
 
   return (
@@ -143,7 +143,7 @@ export default function SavedSearchesScreen() {
                   maxLength={100}
                   placeholder="مثال: هواتف بسعر مناسب"
                 />
-                <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flexDirection: 'row', gap: spacing.md }}>
                   {(
                     [
                       ['ads', 'الإعلانات'],
@@ -158,7 +158,7 @@ export default function SavedSearchesScreen() {
                         flex: 1,
                         minHeight: 44,
                         justifyContent: 'center',
-                        padding: 10,
+                        padding: spacing.md,
                         borderRadius: radius.control,
                         backgroundColor: type === v ? colors.brand : colors.surface,
                         borderWidth: 1,

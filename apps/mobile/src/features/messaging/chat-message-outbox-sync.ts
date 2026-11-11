@@ -40,7 +40,7 @@ async function runSync(snapshot: ChatOutboxSyncSnapshot): Promise<ChatOutboxSync
       if (snapshot.signal?.aborted) { stoppedReason = 'signed-out'; break; }
       
       // 🟢 الإصلاح: إذا كان الخطأ من السيرفر (400, 404) فهذا يعني أن الرسالة مرفوضة ولا فائدة من إعادتها
-      // يجب حذفها من الطابور بدلاً من إعادتها للأبد
+      // يجب حذفها من الطابور بدلًا من إعادتها للأبد
       if (error instanceof ApiError && error.status && [400, 404, 422].includes(error.status)) {
         // Permanent server rejection — discard so the queue doesn't loop forever.
         await discardRejectedChatMessage(item.operationId, ownerId);

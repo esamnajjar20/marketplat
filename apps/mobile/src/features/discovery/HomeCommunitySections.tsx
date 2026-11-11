@@ -159,7 +159,7 @@ export default function HomeCommunitySections() {
 
   return (
     <View style={styles.root}>
-      {/* القصص أولاً إن وُجدت — عنصر اجتماعي خفيف */}
+      {/* القصص أولًا إن وُجدت — عنصر اجتماعي خفيف */}
       {visibleStories.length > 0 ? (
         <View style={styles.section}>
           <SectionHeader title="قصص المجتمع" subtitle="ماذا ينشر الجيران الآن" />
@@ -283,13 +283,13 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   storyItem: {
     width: 76,
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
   },
   storyRing: {
     width: 64,
     height: 64,
-    borderRadius: 32,
-    padding: 3,
+    borderRadius: radius.xxl,
+    padding: spacing.xs,
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',

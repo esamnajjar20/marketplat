@@ -11,7 +11,8 @@ import { Spinner, EmptyState, ErrorState, SectionHeader, SkeletonList } from '@/
 
 import { DrawerMenuButton } from '@/components/MobileDrawer';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
-import { fontSizes, radius, spacing, ux, fontWeights } from '@/theme/tokens';
+import { fontSizes, radius, sizes, spacing, ux, fontWeights } from '@/theme/tokens';
+import { AppIcon } from '@/components/Icons';
 import { HorizontalAdCard } from '@/components/MarketCards';
 import { useAuth } from '@/features/auth/AuthContext';
 import HomeCommunitySections from '@/features/discovery/HomeCommunitySections';
@@ -209,12 +210,12 @@ export default function HomeScreen() {
                 {/* ترحيب مختصر + بحث بارز */}
                 <View style={styles.welcomeRow}>
                   <Text style={styles.welcomeText}>
-                    {user ? `أهلًا، ${user.name?.split(' ')[0] || user.name}` : 'أهلاً بك في سوقك المحلي'}
+                    {user ? `أهلًا، ${user.name?.split(' ')[0] || user.name}` : 'أهلًا بك في سوقك المحلي'}
                   </Text>
                 </View>
 
                 <View style={styles.searchBox}>
-                  <Text style={styles.searchIcon}>⌕</Text>
+                  <AppIcon name="search" size={20} color={colors.muted} />
                   <TextInput
                     allowFontScaling
                     accessibilityLabel="ابحث عن إعلان"
@@ -230,7 +231,7 @@ export default function HomeScreen() {
                   />
                   {query.length > 0 ? (
                     <Pressable accessibilityRole="button" accessibilityLabel="مسح البحث" onPress={clearSearch} hitSlop={8}>
-                      <Text style={styles.clearSearch}>×</Text>
+                      <AppIcon name="close" size={22} color={colors.muted} />
                     </Pressable>
                   ) : null}
                   <Pressable
@@ -251,7 +252,7 @@ export default function HomeScreen() {
                     onPress={() => pushOnce('/explore')}
                     style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}
                   >
-                    <Text style={styles.quickChipGlyph}>⌕</Text>
+                    <AppIcon name="search" size={16} color={colors.brand} />
                     <Text maxFontSizeMultiplier={1.25} style={styles.quickChipTitle}>استكشف</Text>
                   </Pressable>
                   <Pressable
@@ -260,7 +261,7 @@ export default function HomeScreen() {
                     onPress={() => pushOnce('/search')}
                     style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}
                   >
-                    <Text style={styles.quickChipGlyph}>⚙</Text>
+                    <AppIcon name="settings" size={16} color={colors.brand} />
                     <Text maxFontSizeMultiplier={1.25} style={styles.quickChipTitle}>فلاتر</Text>
                   </Pressable>
                       <Pressable
@@ -269,7 +270,7 @@ export default function HomeScreen() {
                     onPress={() => pushOnce('/for-you')}
                     style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}
                   >
-                    <Text style={styles.quickChipGlyph}>✦</Text>
+                    <AppIcon name="service" size={16} color={colors.brand} />
                     <Text maxFontSizeMultiplier={1.25} style={styles.quickChipTitle}>مخصص</Text>
                   </Pressable>
                   <Pressable
@@ -278,7 +279,7 @@ export default function HomeScreen() {
                     onPress={() => pushOnce('/trending')}
                     style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}
                   >
-                    <Text style={styles.quickChipGlyph}>★</Text>
+                    <AppIcon name="star" size={16} color={colors.brand} />
                     <Text maxFontSizeMultiplier={1.25} style={styles.quickChipTitle}>الرائج</Text>
                   </Pressable>
                 </View>
@@ -462,7 +463,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   deferredSectionsPlaceholder: { minHeight: 1 },
   content: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: 120,
+    paddingBottom: sizes.bottomNavHeight + spacing.xxxl,
     gap: spacing.lg,
     paddingTop: spacing.sm,
   },
@@ -486,9 +487,9 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     flex: 1,
   },
   logo: {
-    width: 42,
-    height: 42,
-    borderRadius: 13,
+    width: sizes.iconButton,
+    height: sizes.iconButton,
+    borderRadius: radius.control,
     backgroundColor: colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
@@ -507,7 +508,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   brandSubtitle: {
     color: colors.muted,
-    fontSize: fontSizes[11],
+    fontSize: fontSizes[12],
     textAlign: 'right',
   },
   headerActions: {
@@ -516,10 +517,10 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     gap: spacing.xs,
   },
   accountButton: {
-    minHeight: 40,
-    minWidth: 60,
+    minHeight: sizes.touchTarget,
+    minWidth: sizes.touchTargetLg + spacing.md,
     paddingHorizontal: spacing.md,
-    borderRadius: 12,
+    borderRadius: radius.control,
     backgroundColor: colors.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',
@@ -551,28 +552,17 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.controlBorder,
   },
-  searchIcon: {
-    color: colors.muted,
-    fontSize: fontSizes[18],
-    fontWeight: fontWeights.semibold,
-  },
   searchInput: {
     flex: 1,
     color: colors.ink,
     fontSize: fontSizes[15],
     paddingVertical: spacing.sm,
   },
-  clearSearch: {
-    color: colors.muted,
-    fontSize: fontSizes[22],
-    lineHeight: 26,
-    paddingHorizontal: spacing.xs,
-  },
   searchSubmit: {
     backgroundColor: colors.brand,
-    borderRadius: 10,
+    borderRadius: radius.control,
     paddingHorizontal: spacing.md,
-    minHeight: 36,
+    minHeight: sizes.touchTarget - spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -593,17 +583,12 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: spacing.xs + 2,
     paddingHorizontal: spacing.sm,
     backgroundColor: colors.surface,
-    borderRadius: 12,
+    borderRadius: radius.control,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  quickChipGlyph: {
-    color: colors.brand,
-    fontSize: fontSizes[15],
-    fontWeight: fontWeights.bold,
   },
   quickChipTitle: {
     color: colors.ink,
@@ -640,7 +625,8 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     paddingTop: spacing.xxs,
   },
   filterToggle: {
-    paddingVertical: spacing.xs,
+    minHeight: sizes.touchTarget,
+    justifyContent: 'center',
     paddingHorizontal: spacing.sm,
   },
   link: {
@@ -662,7 +648,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     minHeight: 44,
     borderWidth: 1,
     borderColor: colors.controlBorder,
-    borderRadius: 12,
+    borderRadius: radius.input,
     backgroundColor: colors.canvas,
     paddingHorizontal: spacing.md,
     color: colors.ink,
@@ -671,7 +657,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   priceRow: { flexDirection: 'row', gap: spacing.sm },
   priceInput: { flex: 1 },
   filterError: {
-    color: colors.danger,
+    color: colors.dangerText,
     fontSize: fontSizes[12],
     textAlign: 'right',
   },
@@ -687,9 +673,9 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     fontWeight: fontWeights.semibold,
   },
   filterChip: {
-    minHeight: 34,
+    minHeight: sizes.chipHeight,
     paddingHorizontal: spacing.md,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -715,8 +701,8 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   clearFiltersButton: {
     flex: 1,
-    minHeight: 42,
-    borderRadius: 12,
+    minHeight: sizes.touchTarget,
+    borderRadius: radius.control,
     borderWidth: 1,
     borderColor: colors.border,
     alignItems: 'center',
@@ -729,8 +715,8 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   applyFiltersButton: {
     flex: 2,
-    minHeight: 42,
-    borderRadius: 12,
+    minHeight: sizes.touchTarget,
+    borderRadius: radius.control,
     backgroundColor: colors.brand,
     alignItems: 'center',
     justifyContent: 'center',
@@ -742,7 +728,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
 
   cacheStatus: {
-    alignSelf: 'flex-end',
+    alignSelf: 'flex-start',
     backgroundColor: colors.successSoft,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.md,
@@ -767,7 +753,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.brandSoft,
     borderWidth: 1,
-    borderColor: colors.brandSoftActive ?? colors.border,
+    borderColor: colors.brandSoftActive,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: spacing.sm,

@@ -188,7 +188,7 @@ export default function ConversationScreen() {
       }
     } catch {
       setPlayingAudioUrl(null);
-      showToast('تعذر تشغيل الرسالة الصوتية', 'تحقق من الاتصال وصيغة الملف ثم حاول مجددًا.', 'error');
+      showToast('تعذر تشغيل الرسالة الصوتية', 'تحقق من الاتصال وصيغة الملف ثم حاول مرة أخرى.', 'error');
     }
   }, [audioPlayer, audioPlayerStatus.playing, playingAudioUrl]);
   useEffect(() => {
@@ -214,7 +214,7 @@ export default function ConversationScreen() {
       initialScrollDone.current = true;
     }));
   }, [messages, loadingOlder]);
-  const loadOlder = useCallback(async () => { if (!accessToken || !id || !nextCursor || olderRequest.current || loading || loadingOlder) return; olderRequest.current = true; setLoadingOlder(true); try { const page = await fetchMessagesPage(id, accessToken, nextCursor); setMessages((current) => mergeFetchedMessages([...page.items, ...current], [])); if (user?.id) void saveCachedChatMessages(user.id, id, page.items); hasLoadedOlder.current = true; setNextCursor(page.nextCursor); } catch (e) { showToast('تعذر تحميل الرسائل الأقدم', e instanceof Error ? e.message : 'تحقق من الاتصال وحاول مجددًا.', 'error'); } finally { olderRequest.current = false; setLoadingOlder(false); } }, [accessToken, id, nextCursor, loading, loadingOlder, user?.id]);
+  const loadOlder = useCallback(async () => { if (!accessToken || !id || !nextCursor || olderRequest.current || loading || loadingOlder) return; olderRequest.current = true; setLoadingOlder(true); try { const page = await fetchMessagesPage(id, accessToken, nextCursor); setMessages((current) => mergeFetchedMessages([...page.items, ...current], [])); if (user?.id) void saveCachedChatMessages(user.id, id, page.items); hasLoadedOlder.current = true; setNextCursor(page.nextCursor); } catch (e) { showToast('تعذر تحميل الرسائل الأقدم', e instanceof Error ? e.message : 'تحقق من الاتصال وحاول مرة أخرى.', 'error'); } finally { olderRequest.current = false; setLoadingOlder(false); } }, [accessToken, id, nextCursor, loading, loadingOlder, user?.id]);
   const submit = async () => {
     const body = draft.trim();
     if (!body || sending || !accessToken || !id || !user?.id) return;
@@ -244,7 +244,7 @@ export default function ConversationScreen() {
         // Only restore the failed body if the user hasn't typed something new
         // in the meantime. Overwriting their new draft would silently lose it.
         setDraft((current) => current || body);
-        showToast('تعذر حفظ الرسالة', e instanceof Error ? e.message : 'لم تُحفظ الرسالة محليًا. حاول مجددًا.', 'error');
+        showToast('تعذر حفظ الرسالة', e instanceof Error ? e.message : 'لم تُحفظ الرسالة محليًا. حاول مرة أخرى.', 'error');
       } else {
         showToast('الرسالة محفوظة محليًا', 'تعذرت المزامنة الآن، لكن الرسالة بقيت في الطابور وستُعاد المحاولة عند توفر الاتصال.', 'error');
       }
@@ -268,7 +268,7 @@ export default function ConversationScreen() {
         showToast('تمت جدولة الرسالة', 'لا يوجد اتصال حاليًا. ستُرسل عند عودة الاتصال.', 'success');
       }
     } catch (e) {
-      showToast('تعذرت إعادة المحاولة', e instanceof Error ? e.message : 'حاول مجددًا لاحقًا.', 'error');
+      showToast('تعذرت إعادة المحاولة', e instanceof Error ? e.message : 'حاول مرة أخرى لاحقًا.', 'error');
     }
   }, [accessToken, csrfToken, isOnline, user?.id]);
   const confirmDiscardFailedMessage = useCallback((message: ScreenMessage) => {
@@ -279,7 +279,7 @@ export default function ConversationScreen() {
       { text: 'حذف', style: 'destructive', onPress: () => {
         void discardFailedChatMessage(operationId, user.id).then((removed) => {
           if (removed) setMessages((current) => current.filter((item) => item.id !== message.id));
-        }).catch(() => showToast('تعذر الحذف', 'لم تُحذف الرسالة. حاول مجددًا.', 'error'));
+        }).catch(() => showToast('تعذر الحذف', 'لم تُحذف الرسالة. حاول مرة أخرى.', 'error'));
       } },
     ]);
   }, [user?.id]);
@@ -309,7 +309,7 @@ export default function ConversationScreen() {
       if (!['image/jpeg','image/png','image/webp'].includes(mime)) throw new Error('الصيغ المدعومة هي JPEG وPNG وWebP.');
       const extension = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
       await queueAndTryMedia('image', { uri: asset.uri, fileName: /\.(jpe?g|png|webp)$/i.test(asset.fileName || '') ? asset.fileName! : `chat-${Date.now()}.${extension}`, mimeType: mime });
-    } catch (e) { showToast('تعذر تجهيز الصورة', e instanceof Error ? e.message : 'تحقق من المساحة والاتصال وحاول مجددًا.', 'error'); }
+    } catch (e) { showToast('تعذر تجهيز الصورة', e instanceof Error ? e.message : 'تحقق من المساحة والاتصال وحاول مرة أخرى.', 'error'); }
     finally { setUploadingImage(false); }
   }, [accessToken, id, queueAndTryMedia, uploadingImage, user?.id]);
   const chooseAndSendFile = useCallback(async () => {
@@ -323,7 +323,7 @@ export default function ConversationScreen() {
       const allowedTypes = new Set(['application/pdf','text/plain','text/csv','application/json','application/zip','application/x-zip-compressed','application/x-7z-compressed','application/vnd.rar','application/x-rar-compressed','application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/vnd.openxmlformats-officedocument.presentationml.presentation','application/msword','application/vnd.ms-excel','application/vnd.ms-powerpoint']);
       if (!file.mimeType || !allowedTypes.has(file.mimeType)) throw new Error('نوع الملف غير مدعوم. اختر PDF أو نصًا أو جدولًا أو مستند Office أو أرشيفًا مدعومًا.');
       await queueAndTryMedia('file', { uri: file.uri, fileName: file.name, mimeType: file.mimeType });
-    } catch (e) { showToast('تعذر تجهيز الملف', e instanceof Error ? e.message : 'اختر ملفًا مدعومًا وحاول مجددًا.', 'error'); }
+    } catch (e) { showToast('تعذر تجهيز الملف', e instanceof Error ? e.message : 'اختر ملفًا مدعومًا وحاول مرة أخرى.', 'error'); }
     finally { setUploadingImage(false); }
   }, [accessToken, id, queueAndTryMedia, uploadingImage, user?.id]);
   const toggleAudioRecording = useCallback(async () => {
@@ -347,7 +347,7 @@ export default function ConversationScreen() {
       const info = await (await import('expo-file-system/legacy')).getInfoAsync(uri);
       if (!info.exists || !info.size || info.size > 8 * 1024 * 1024) throw new Error('حجم التسجيل الصوتي يجب ألا يتجاوز 8 ميغابايت.');
       await queueAndTryMedia('audio', { uri, fileName: `voice-${Date.now()}.m4a`, mimeType: 'audio/mp4' });
-    } catch (e) { showToast('تعذر إرسال التسجيل', e instanceof Error ? e.message : 'حاول مجددًا.', 'error'); }
+    } catch (e) { showToast('تعذر إرسال التسجيل', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'); }
   }, [accessToken, audioRecorder, id, isRecordingAudio, queueAndTryMedia, uploadingImage, user?.id]);
   const toggleMessageMark = useCallback((message: ScreenMessage, kind: 'pin' | 'star') => {
     if (!accessToken || !id || message.id.startsWith('pending-') || message.deletedAt) return;
@@ -356,7 +356,7 @@ export default function ConversationScreen() {
       .then(() => setMessages((current) => current.map((row) => row.id === message.id
         ? { ...row, ...(kind === 'pin' ? { isPinned: !active } : { isStarredByMe: !active }) }
         : row)))
-      .catch((e) => showToast('تعذر تحديث الرسالة', e instanceof Error ? e.message : 'حاول مجددًا.', 'error'));
+      .catch((e) => showToast('تعذر تحديث الرسالة', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'));
   }, [accessToken, csrfToken, id]);
   const confirmDeleteOwnMessage = useCallback((message: ScreenMessage) => {
     if (!accessToken || !id || message.senderId !== user?.id) return;
@@ -369,7 +369,7 @@ export default function ConversationScreen() {
             ? { ...row, body: '', imageUrl: null, audioUrl: null, fileUrl: null, deletedAt }
             : row));
           if (user?.id) void markCachedChatMessageDeleted(user.id, id, message.id, deletedAt);
-        }).catch((e) => showToast('تعذر حذف الرسالة', e instanceof Error ? e.message : 'حاول مجددًا.', 'error'));
+        }).catch((e) => showToast('تعذر حذف الرسالة', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'));
       } },
     ]);
   }, [accessToken, csrfToken, id, user?.id]);
@@ -450,14 +450,14 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   headerBtn: {
     minWidth: 52,
-    minHeight: 40,
+    minHeight: sizes.touchTarget,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.sm,
     borderRadius: radius.sm,
     backgroundColor: colors.brandSoft,
   },
-  headerCenter: { flex: 1, alignItems: 'flex-end', gap: spacing.xxs },
+  headerCenter: { flex: 1, alignItems: 'flex-start', gap: spacing.xxs },
   heading: {
     ...typography.subtitle,
     color: colors.ink,
@@ -553,7 +553,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     color: colors.brand,
     textAlign: 'right',
     paddingHorizontal: spacing.md,
-    paddingVertical: 6,
+    paddingVertical: spacing.sm,
     backgroundColor: colors.brandSoft,
   },
   recording: {

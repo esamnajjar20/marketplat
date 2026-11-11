@@ -34,7 +34,7 @@ export default function AppointmentsScreen() {
       return { items: result.items, meta: { page: result.page, totalPages: result.totalPages, total: result.total } };
     },
     getItemKey: (item) => item.id,
-    mapError: () => 'تعذر تحميل المواعيد. تحقق من الاتصال وحاول مجددًا.',
+    mapError: () => 'تعذر تحميل المواعيد. تحقق من الاتصال وحاول مرة أخرى.',
   });
 
   useEffect(() => {

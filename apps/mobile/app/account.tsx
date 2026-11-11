@@ -36,7 +36,7 @@ const QUICK_ACTIONS: { title: string; path: string; icon: string }[] = [
   { title: 'طلباتي', path: '/orders', icon: 'orders' },
 ];
 
-/** وجهات أساسية تظهر دائماً دون طي */
+/** وجهات أساسية تظهر دائمًا دون طي */
 const ESSENTIALS: Destination[] = [
   { title: 'الملف الشخصي', description: 'بياناتك وصورتك ورقم الهاتف', path: '/profile' },
   { title: 'الإعدادات', description: 'التفضيلات والإشعارات والأمان', path: '/settings' },
@@ -217,7 +217,7 @@ export default function AccountScreen() {
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName} numberOfLines={1}>
-              {user ? displayName : 'مرحباً بك في سوق غزة'}
+              {user ? displayName : 'مرحبًا بك في سوق غزة'}
             </Text>
             <Text style={styles.profileSub} numberOfLines={1}>
               {user
@@ -266,7 +266,7 @@ export default function AccountScreen() {
         </View>
       ) : null}
 
-      {/* أساسيات دائماً ظاهرة */}
+      {/* أساسيات دائمًا ظاهرة */}
       {user ? (
         <View style={styles.group}>
           <SectionHeader title="الأساسيات" subtitle="ملفك وإعداداتك" />
@@ -372,8 +372,8 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   profileInfo: {
     flex: 1,
-    alignItems: 'flex-end',
-    gap: 3,
+    alignItems: 'flex-start',
+    gap: spacing.xs,
   },
   profileName: {
     ...typography.subtitle,
@@ -418,7 +418,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   quickIcon: {
     width: 48,
     height: 48,
-    borderRadius: 14,
+    borderRadius: radius.button,
     backgroundColor: colors.brandSoft,
     alignItems: 'center',
     justifyContent: 'center',

@@ -84,7 +84,7 @@ export default function MyStoreAnalyticsScreen() {
           {metrics.map((item) => (
             <SectionCard
               key={item.label}
-              style={{ width: '48%', flexGrow: 1, minHeight: 124, alignItems: 'flex-end', justifyContent: 'space-between' }}
+              style={{ width: '48%', flexGrow: 1, minHeight: 124, alignItems: 'flex-start', justifyContent: 'space-between' }}
             >
               <Text style={{ fontSize: fontSizes[20], color: colors.brand }}>{item.icon}</Text>
               <Text style={{ fontSize: fontSizes[24], fontWeight: fontWeights.bold, color: colors.ink }}>{fmt(item.value)}</Text>

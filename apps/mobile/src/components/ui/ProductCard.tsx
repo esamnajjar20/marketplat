@@ -23,7 +23,7 @@ function priceLabel(value: unknown): string {
   return Number.isFinite(amount) ? formatMoney(amount) : 'السعر عند التواصل';
 }
 
-/** بطاقة منتج قابلة لإعادة الاستخدام — row أو grid — مُحسَّنة بصرياً */
+/** بطاقة منتج قابلة لإعادة الاستخدام — row أو grid — مُحسَّنة بصريًا */
 export function ProductCard({
   product,
   layout = 'row',
@@ -134,8 +134,8 @@ function createStyles(palette: ColorPalette) {
     justifyContent: 'center',
   },
   glyph: { color: palette.brandOnSoft, fontSize: fontSizes[28] },
-  rowBody: { flex: 1, alignItems: 'flex-end', gap: spacing.xs, justifyContent: 'center' },
-  gridBody: { alignItems: 'flex-end', gap: spacing.xs, paddingHorizontal: spacing.xxs, paddingBottom: spacing.xxs },
+  rowBody: { flex: 1, alignItems: 'flex-start', gap: spacing.xs, justifyContent: 'center' },
+  gridBody: { alignItems: 'flex-start', gap: spacing.xs, paddingHorizontal: spacing.xxs, paddingBottom: spacing.xxs },
   name: {
     ...typography.bodyStrong,
     color: palette.ink,
@@ -163,7 +163,7 @@ function createStyles(palette: ColorPalette) {
     backgroundColor: palette.accentSoft,
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 3,
+    paddingVertical: spacing.xs,
   },
   discountText: {
     ...typography.overline,

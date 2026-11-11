@@ -12,7 +12,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { addProductImages, createProduct, fetchProduct, fetchProductCategories, removeProductImage, updateProduct, type ProductCategory } from '@/features/commerce/commerce.api';
-import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
+import { fontSizes, radius, spacing, fontWeights, sizes } from '@/theme/tokens';
 import { enqueueOfflineCreate } from '@/storage/outbox-manager';
 import { persistSelectedAdImage } from '@/storage/persist-ad-image';
 import type { SelectedAdImage } from '@/features/ads/manage-ads.api';
@@ -177,13 +177,13 @@ export default function ProductEditorScreen() {
             setStock(value);
         }} keyboardType="number-pad" placeholder="اتركه فارغًا إذا لم تستخدم المخزون"/>
         <Text style={s.label}>حالة التوفر</Text><View style={s.chips}>{([['IN_STOCK', 'متوفر'], ['LIMITED', 'كمية محدودة'], ['OUT_OF_STOCK', 'غير متوفر']] as const).map(([v, l]) => <Pressable key={v} accessibilityRole="button" accessibilityState={{ selected: availability === v }} onPress={() => setAvailability(v)} style={[s.chip, availability === v && s.chipSelected]}><Text style={[s.chipText, availability === v && s.chipTextSelected]}>{l}</Text></Pressable>)}</View>
-        <Text style={s.label}>صور المنتج (حتى 10 صور)</Text>{existingImages.map((uri, index) => <View key={`${uri}-${index}`} style={{ gap: 6 }}><AppImage uri={uri} style={{
-            width: '100%', height: 170, borderRadius: 12
+        <Text style={s.label}>صور المنتج (حتى 10 صور)</Text>{existingImages.map((uri, index) => <View key={`${uri}-${index}`} style={{ gap: spacing.sm }}><AppImage uri={uri} style={{
+            width: '100%', height: 170, borderRadius: radius.control
         }}/><Pressable accessibilityRole="button" onPress={() => {
             setExistingImages(current => current.filter((_, i) => i !== index));
             setRemovedImages(current => [...current, uri]);
-        }} style={s.removeImage}><Text style={s.removeImageText}>إزالة هذه الصورة عند الحفظ</Text></Pressable></View>)}{selectedImages.map((image, index) => <View key={`${image.uri}-${index}`} style={{ gap: 6 }}><AppImage uri={image.uri} style={{
-            width: '100%', height: 170, borderRadius: 12
+        }} style={s.removeImage}><Text style={s.removeImageText}>إزالة هذه الصورة عند الحفظ</Text></Pressable></View>)}{selectedImages.map((image, index) => <View key={`${image.uri}-${index}`} style={{ gap: spacing.sm }}><AppImage uri={image.uri} style={{
+            width: '100%', height: 170, borderRadius: radius.control
         }}/><Pressable accessibilityRole="button" onPress={() => setSelectedImages(current => current.filter((_, i) => i !== index))} style={s.removeImage}><Text style={s.removeImageText}>إزالة الصورة الجديدة</Text></Pressable></View>)}<Pressable accessibilityRole="button" disabled={pickingImage || existingImages.length + selectedImages.length >= 10} onPress={() => void (async () => {
             setPickingImage(true);
             try {
@@ -209,7 +209,7 @@ export default function ProductEditorScreen() {
                 setSelectedImages(current => [...current, ...saved]);
             }
             catch (e) {
-                showToast('تعذر اختيار الصور', e instanceof Error ? e.message : 'حاول مجددًا.', 'error');
+                showToast('تعذر اختيار الصور', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error');
             }
             finally {
                 setPickingImage(false);
@@ -225,7 +225,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
     }, multiline: { minHeight: 120 }, chips: {
         flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm
     }, chip: {
-        minHeight: 44, minWidth: 44, justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: 20, borderWidth: 1, borderColor: colors.controlBorder, backgroundColor: colors.surface
+        minHeight: 44, minWidth: 44, justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.controlBorder, backgroundColor: colors.surface
     }, chipSelected: {
         backgroundColor: colors.brandSoft, borderColor: colors.brand
     }, chipText: {
@@ -237,7 +237,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({
     }, primaryText: {
         color: colors.onBrand, fontWeight: fontWeights.bold
     }, removeImage: {
-        minHeight: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.danger, borderRadius: 10
+        minHeight: sizes.touchTarget, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.danger, borderRadius: radius.sm
     }, removeImageText: {
         color: colors.danger, fontWeight: fontWeights.bold
     }, disabled: { opacity: .6 }, muted: {

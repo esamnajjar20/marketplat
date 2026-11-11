@@ -40,7 +40,7 @@ export function pushOnce(href: Href): void {
   router.push(href);
 }
 
-/** استبدال الشاشة الحالية (بعد دخول ناجح مثلاً) */
+/** استبدال الشاشة الحالية (بعد دخول ناجح مثلًا) */
 export function replaceScreen(path: Href | string): void {
   if (!allowNav()) return;
   router.replace(typeof path === 'string' ? toAppHref(path) : path);

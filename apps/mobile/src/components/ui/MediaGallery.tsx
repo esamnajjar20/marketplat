@@ -46,7 +46,7 @@ function createStyles(palette: ColorPalette) {
         container: { gap: spacing.sm }, hero: {
             width: '100%', height: 300, borderRadius: radius.lg, backgroundColor: palette.border
         }, counter: {
-            position: 'absolute', top: spacing.sm, start: spacing.sm, paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.pill, backgroundColor: palette.mediaCounterOverlay
+            position: 'absolute', top: spacing.sm, start: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.pill, backgroundColor: palette.mediaCounterOverlay
         }, counterText: {
             color: palette.white, fontSize: fontSizes[12], fontWeight: fontWeights.semibold
         }, thumbs: {

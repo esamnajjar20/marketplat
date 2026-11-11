@@ -6,7 +6,7 @@ import { ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, SectionC
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { fetchUserFollowList, type FollowListItem } from '@/features/account/social.api';
-import { spacing, fontWeights } from '@/theme/tokens';
+import { spacing, fontWeights, radius } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -54,11 +54,11 @@ export default function FollowingScreen() {
           return (
             <Pressable accessibilityRole="button" accessibilityLabel={`عرض الملف الشخصي لـ ${person.name || 'مستخدم'}`} onPress={() => pushOnce({ pathname: '/profile/[id]', params: { id: person.id } })}>
               <SectionCard>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 56 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg, minHeight: 56 }}>
                   {person.avatarUrl ? (
                     <AppImage uri={person.avatarUrl} style={{ width: 54, height: 54, borderRadius: 27 }} />
                   ) : (
-                    <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
+                    <View style={{ width: 48, height: 48, borderRadius: radius.hero, backgroundColor: colors.border, alignItems: 'center', justifyContent: 'center' }}>
                       <Text style={{ color: colors.ink, fontWeight: fontWeights.bold }}>{(person.name || '?').slice(0, 1)}</Text>
                     </View>
                   )}

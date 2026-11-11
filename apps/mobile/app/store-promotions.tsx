@@ -121,7 +121,7 @@ export default function StorePromotionsScreen() {
     if (start.getTime() <= Date.now()) {
       const bumped = new Date(Date.now() + 60000).toISOString();
       setStartsAt(bumped);
-      setError('وقت البداية مضى أثناء ملء النموذج؛ حُدّث تلقائياً إلى الآن + دقيقة. اضغط "إنشاء العرض" مجدداً.');
+      setError('وقت البداية مضى أثناء ملء النموذج؛ حُدّث تلقائيًا إلى الآن + دقيقة. اضغط "إنشاء العرض" مجددًا.');
       return;
     }
     setBusy(true);
@@ -142,12 +142,12 @@ export default function StorePromotionsScreen() {
       setBusy(false);
     }
   };
-  return <PageShell title="العروض الترويجية">{isRestoring ? <Notice tone="muted">جارٍ استعادة الجلسة…</Notice> : !getAccessToken() ? <><Notice>سجّل الدخول لإدارة عروض متجرك.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل العروض والمنتجات…</Notice> : <><SectionCard><Text tone="ink" strong size={17}>إنشاء عرض</Text><Text tone="ink" strong>اختر المنتج</Text><View style={{ gap: 6 }}>{products.map(p => <Pressable accessibilityRole="button" key={p.id} onPress={() => setProductId(p.id)} style={{
-    padding: 10, borderRadius: radius.sm, borderWidth: 1, borderColor: productId === p.id ? colors.brand : colors.border, backgroundColor: productId === p.id ? colors.brandSoft : colors.surface
+  return <PageShell title="العروض الترويجية">{isRestoring ? <Notice tone="muted">جارٍ استعادة الجلسة…</Notice> : !getAccessToken() ? <><Notice>سجّل الدخول لإدارة عروض متجرك.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل العروض والمنتجات…</Notice> : <><SectionCard><Text tone="ink" strong size={17}>إنشاء عرض</Text><Text tone="ink" strong>اختر المنتج</Text><View style={{ gap: spacing.sm }}>{products.map(p => <Pressable accessibilityRole="button" key={p.id} onPress={() => setProductId(p.id)} style={{
+    padding: spacing.md, borderRadius: radius.sm, borderWidth: 1, borderColor: productId === p.id ? colors.brand : colors.border, backgroundColor: productId === p.id ? colors.brandSoft : colors.surface
   }}><Text tone="ink">{p.name} · {formatMoney(p.price)}</Text></Pressable>)}</View>{productsPage < productsTotalPages ? <PrimaryButton label={loadingMoreProducts ? 'جارٍ تحميل المنتجات…' : 'تحميل المزيد من المنتجات'} variant="secondary" busy={loadingMoreProducts} onPress={() => void loadMoreProducts()}/> : null}<Field label="عنوان العرض" value={title} onChangeText={setTitle} maxLength={200} placeholder="عنوان العرض"/><Field label="الوصف (اختياري)" value={description} onChangeText={setDescription} maxLength={500} multiline placeholder="تفاصيل العرض"/><View style={{
     flexDirection: 'row', gap: spacing.sm
   }}>{([['PERCENTAGE', 'خصم نسبة %'], ['FIXED_AMOUNT', 'خصم مبلغ (شيكل)']] as const).map(([v, l]) => <Pressable accessibilityRole="button" key={v} onPress={() => setType(v)} style={{
-    flex: 1, padding: 10, borderRadius: radius.sm, backgroundColor: type === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: type === v ? colors.brand : colors.border
+    flex: 1, padding: spacing.md, borderRadius: radius.sm, backgroundColor: type === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: type === v ? colors.brand : colors.border
   }}><Text style={{
     textAlign: 'center', color: colors.ink, fontWeight: fontWeights.bold
   }}>{l}</Text></Pressable>)}</View><Field label="قيمة الخصم" value={value} onChangeText={setValue} keyboardType="numeric" placeholder="10"/><Text tone="ink" strong>بداية العرض: {formatSafeDate(startsAt, 'dateTime')}</Text><View style={{

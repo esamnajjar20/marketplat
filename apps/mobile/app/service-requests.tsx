@@ -184,7 +184,7 @@ export default function ServiceRequestsScreen() {
       showToast('تم إرسال الطلب', 'أُرسل طلبك إلى مقدم الخدمة. يمكنك متابعة حالته من هذه الصفحة.', 'success');
       router.setParams({ listingId: undefined, listingTitle: undefined });
       await load(true);
-    } catch (e) { showToast('تعذر إرسال الطلب', e instanceof Error ? e.message : 'لم يتم تأكيد إرسال الطلب. حاول مجددًا.', 'error'); }
+    } catch (e) { showToast('تعذر إرسال الطلب', e instanceof Error ? e.message : 'لم يتم تأكيد إرسال الطلب. حاول مرة أخرى.', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -258,7 +258,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   primaryText: { color: colors.onBrand, fontSize: fontSizes[14], fontWeight: fontWeights.bold },
   disabled: { opacity: 0.6 },
   switchRow: { flexDirection: 'row', backgroundColor: colors.border, padding: spacing.xs, borderRadius: radius.md, gap: spacing.xs },
-  switchChip: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: 10 },
+  switchChip: { flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.sm },
   switchChipActive: { backgroundColor: colors.surface },
   switchText: { color: colors.muted, fontSize: fontSizes[13], fontWeight: fontWeights.bold },
   switchTextActive: { color: colors.brand },
@@ -270,7 +270,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   requestCard: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.sm },
   requestHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.sm },
   requestTitle: { flex: 1, color: colors.ink, fontSize: fontSizes[16], fontWeight: fontWeights.bold, textAlign: 'right' },
-  status: { color: colors.brandOnSoft, backgroundColor: colors.brandSoft, overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: 5, fontSize: fontSizes[11], fontWeight: fontWeights.bold },
+  status: { color: colors.brandOnSoft, backgroundColor: colors.brandSoft, overflow: 'hidden', borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, fontSize: fontSizes[11], fontWeight: fontWeights.bold },
   statusSuccess: { color: colors.brandOnSoft, backgroundColor: colors.successSoft },
   details: { color: colors.ink, fontSize: fontSizes[13], lineHeight: 21, textAlign: 'right' },
   meta: { color: colors.muted, fontSize: fontSizes[11], textAlign: 'right' },

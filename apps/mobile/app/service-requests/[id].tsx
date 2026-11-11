@@ -187,7 +187,7 @@ const createThemeS = (colors: ColorPalette) => StyleSheet.create({ refresh: {
     }, title: {
         flex: 1, color: colors.ink, fontSize: fontSizes[18], lineHeight: 27, fontWeight: fontWeights.bold, textAlign: 'right'
     }, status: {
-        color: colors.brandOnSoft, backgroundColor: colors.brandSoft, borderRadius: radius.pill, overflow: 'hidden', paddingHorizontal: spacing.md, paddingVertical: 6, fontSize: fontSizes[12], fontWeight: fontWeights.bold
+        color: colors.brandOnSoft, backgroundColor: colors.brandSoft, borderRadius: radius.pill, overflow: 'hidden', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, fontSize: fontSizes[12], fontWeight: fontWeights.bold
     },
     sectionTitle: {
         ...typography.subtitle, color: colors.ink, textAlign: 'right'

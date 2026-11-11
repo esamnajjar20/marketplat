@@ -199,7 +199,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     }, authorName: {
         textAlign: 'right', color: colors.white, fontWeight: fontWeights.bold, fontSize: fontSizes[16]
     }, authorMeta: {
-        textAlign: 'right', color: colors.brandSoft, fontSize: fontSizes[12], marginTop: 3
+        textAlign: 'right', color: colors.brandSoft, fontSize: fontSizes[12], marginTop: spacing.xs
     }, media: {
         flex: 1, width: '100%', minHeight: 180
     }, textOnly: {

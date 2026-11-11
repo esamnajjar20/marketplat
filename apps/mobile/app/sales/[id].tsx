@@ -108,9 +108,9 @@ export default function SaleDetailScreen() {
     }}>{value}</Text></View>)}</SectionCard>{sale.items?.length ? <SectionCard><Text tone="ink" strong size={16}>عناصر البيع</Text>{sale.items.map(item => <View key={item.id} style={{
         paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, gap: spacing.xs
     }}><Text tone="ink" strong>{item.title}</Text><Text tone="muted">الكمية: {item.quantity} · سعر الوحدة: {formatMoney(item.unitPrice, sale.currency)}</Text><Text tone="brand" strong>الإجمالي: {formatMoney(item.lineTotal, sale.currency)}{item.returnedQuantity ? ` · مرتجع ${item.returnedQuantity}` : ''}</Text></View>)}</SectionCard> : null}{sale.payments?.length ? <SectionCard><Text tone="ink" strong size={16}>الدفعات المسجلة</Text>{sale.payments.map(payment => <View key={payment.id} style={{
-        paddingVertical: 7, gap: 3
+        paddingVertical: spacing.sm, gap: spacing.xs
     }}><Text tone="ink" strong>{formatMoney(payment.amount, sale.currency)}</Text><Text tone="muted">{formatDate(payment.paidAt)}{payment.method ? ` · ${paymentMethodLabel(payment.method)}` : ''}{payment.note ? ` · ${payment.note}` : ''}</Text></View>)}</SectionCard> : null}{sale.installments?.length ? <SectionCard><Text tone="ink" strong size={16}>جدول الأقساط</Text>{sale.installments.map(inst => <View key={inst.id} style={{
-        paddingVertical: 7, gap: 3
+        paddingVertical: spacing.sm, gap: spacing.xs
     }}><Text tone="ink" strong>القسط {inst.installmentNo} · {formatMoney(inst.amount, sale.currency)}</Text><Text tone="muted">مدفوع {formatMoney(inst.paidAmount, sale.currency)} · الاستحقاق {formatDate(inst.dueDate, 'date')} · {{
         PENDING: 'بانتظار الدفع', PAID: 'مدفوع', PARTIAL: 'مدفوع جزئيًا', OVERDUE: 'متأخر', CANCELLED: 'ملغى'
     }[inst.status] || 'حالة محدثة'}</Text></View>)}</SectionCard> : null}<PrimaryButton label="مشاركة ملخص البيع" variant="secondary" onPress={() => void Share.share({ message: `سوق غزة — ملخص بيع\nالفاتورة: ${receiptNumber || 'غير مرقمة'}\nالعنصر: ${sale.entityTitle}\nالنوع: ${{

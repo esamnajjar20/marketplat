@@ -17,7 +17,7 @@ export function PageShell({
   right?: ReactNode;
   /** سحب للتحديث (يعمل فقط مع scroll=true) */
   refreshControl?: React.ReactElement<RefreshControlProps>;
-  /** عند false يُعرض المحتوى بدون ScrollView (قوائم افتراضية مثلاً) */
+  /** عند false يُعرض المحتوى بدون ScrollView (قوائم افتراضية مثلًا) */
   scroll?: boolean;
 }) {
   const s = useUIStyles();

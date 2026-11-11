@@ -374,7 +374,7 @@ export default function SearchScreen() {
         </Pressable>
       </View>
 
-      {/* نوع النتائج — دائماً ظاهر */}
+      {/* نوع النتائج — دائمًا ظاهر */}
       <View style={styles.chipRow}>
         {types.map((entry) => (
           <Chip
@@ -735,7 +735,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   searchBtn: {
     backgroundColor: colors.brand,
-    borderRadius: 10,
+    borderRadius: radius.sm,
     paddingHorizontal: spacing.md,
     minHeight: 44,
     minWidth: 44,
@@ -883,7 +883,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   resultBody: {
     flex: 1,
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     gap: spacing.xs,
   },
   resultTop: {
