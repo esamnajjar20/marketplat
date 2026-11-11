@@ -15,7 +15,7 @@ const checks = [
   ['backend registers dashboard/report/smart-insights routes', ["'/dashboard'", "'/reports'", "'/smart-insights'"].every((x) => routes.includes(x))],
   ['workspace chrome recognizes sales insights route', layout.includes("'/sales-insights'")],
   ['sales insights route is protected', policy.includes("'/sales-insights'")],
-  ['report filters are applied explicitly instead of fetching on each keystroke', screen.includes('appliedFilters') && screen.includes('setAppliedFilters({ from, to, status })')],
+  ['report filters are applied explicitly instead of fetching on each keystroke', screen.includes('appliedFilters') && screen.replace(/\s+/g, ' ').includes('setAppliedFilters({ from, to, status })')],
   ['report dates are validated as real calendar dates and ordered correctly', screen.includes('parsed.toISOString().slice(0, 10) === value') && screen.includes('from > to')],
   ['CSV report endpoint exists in backend (native export UI remains a separate task)', routes.includes("'/reports.csv'")],
 ];

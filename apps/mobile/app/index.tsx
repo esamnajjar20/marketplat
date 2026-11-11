@@ -273,6 +273,15 @@ export default function HomeScreen() {
                     <Text style={styles.quickChipGlyph}>✦</Text>
                     <Text maxFontSizeMultiplier={1.25} style={styles.quickChipTitle}>مخصص</Text>
                   </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="الإعلانات والمنتجات والخدمات الرائجة الآن"
+                    onPress={() => pushOnce('/trending')}
+                    style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.quickChipGlyph}>★</Text>
+                    <Text maxFontSizeMultiplier={1.25} style={styles.quickChipTitle}>الرائج</Text>
+                  </Pressable>
                 </View>
               </View>
             );

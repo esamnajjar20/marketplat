@@ -79,7 +79,7 @@ export function NativePushLifecycleBridge() {
       if (state === 'active') synchronize();
     });
 
-    let tokenSubscription: any;
+    let tokenSubscription: ReturnType<typeof Notifications.addPushTokenListener> | undefined;
     try {
       tokenSubscription = Notifications.addPushTokenListener((token) => {
         if (!active || !accessToken || syncInFlight.current) return;
@@ -111,7 +111,7 @@ export function NativePushLifecycleBridge() {
       router.push(toAppHref(safeNotificationPath(data?.url)));
     };
 
-    let responseSubscription: any;
+    let responseSubscription: ReturnType<typeof Notifications.addNotificationResponseReceivedListener> | undefined;
     try {
       responseSubscription = Notifications.addNotificationResponseReceivedListener(openResponse);
       void Notifications.getLastNotificationResponseAsync().then(openResponse).catch(() => undefined);

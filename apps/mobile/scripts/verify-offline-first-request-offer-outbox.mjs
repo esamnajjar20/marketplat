@@ -18,7 +18,7 @@ assert.match(store, /MAX_ATTEMPTS = 8/);
 assert.match(store, /discardRequestOffer/);
 assert.match(store, /retryRequestOffer/);
 assert.match(screen, /NetInfo\.fetch\(\)/);
-assert.match(screen, /enqueueRequestOffer\(String\(user\.id\),id,p,message\.trim\(\)\|\|undefined,offerOperationIdRef\.current\)/);
+assert.match(screen.replace(/\s+/g, ''), /enqueueRequestOffer\(String\(user\.id\),id,p,message\.trim\(\)\|\|undefined,offerOperationIdRef\.current\)/);
 assert.match(screen, /لم يُرسل العرض إلى الخادم بعد/);
 assert.match(lifecycle, /syncNextRequestOffer/);
 assert.match(queue, /listPendingRequestOffers/);

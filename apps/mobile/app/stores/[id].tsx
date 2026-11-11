@@ -6,67 +6,329 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { AppIcon } from '@/components/Icons';
 import { ShareButton } from '@/components/ui/ShareButton';
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { Spinner } from '@/components/ui';
-import { ScreenFrame } from '@/components/ui/ScreenFrame';
+import { RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { goBack } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { formatDate, formatMoney } from '@/lib/formatters';
-import { ErrorState, LoadingState, Notice } from '@/components/MobileUI';
-
+import { ErrorState, LoadingState, Notice, PageShell, Spinner } from '@/components/ui';
 import { createStoreReview, fetchProducts, fetchStore, fetchStoreFollowStatus, fetchStoreReviews, toggleStoreFollow, type ProductSummary, type StoreReview, type StoreSummary } from '@/features/commerce/commerce.api';
 import { showToast } from '@/lib/toast';
-
 type Tab = 'products' | 'reviews' | 'about';
-function price(value: ProductSummary['price']) { return formatMoney(value); }
-function dateLabel(value?: string) { return value ? formatDate(value, 'date') : ''; }
+function price(value: ProductSummary['price']) {
+  return formatMoney(value);
+}
+function dateLabel(value?: string) {
+  return value ? formatDate(value, 'date') : '';
+}
 export default function StoreDetailScreen() {
   const { colors } = useAppTheme();
   const s = useMemo(() => createThemeS(colors), [colors]);
-
-  const params = useLocalSearchParams<{ id: string | string[] }>(); const id = Array.isArray(params.id) ? params.id[0] : params.id;
+  const params = useLocalSearchParams<{
+    id: string | string[];
+  }>();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { user, getAccessToken, csrfToken, isRestoring } = useAuth();
-  const [store, setStore] = useState<StoreSummary | null>(null); const [products, setProducts] = useState<ProductSummary[]>([]); const [reviews, setReviews] = useState<StoreReview[]>([]);
-  const [tab, setTab] = useState<Tab>('products'); const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [error, setError] = useState<string | null>(null);
+  const [store, setStore] = useState<StoreSummary | null>(null);
+  const [products, setProducts] = useState<ProductSummary[]>([]);
+  const [reviews, setReviews] = useState<StoreReview[]>([]);
+  const [tab, setTab] = useState<Tab>('products');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [following, setFollowing] = useState<boolean | null>(null);
-  const [productsError, setProductsError] = useState<string | null>(null); const [followLoading, setFollowLoading] = useState(false); const [reviewPage, setReviewPage] = useState(1); const [reviewPages, setReviewPages] = useState(1); const [reviewsLoading, setReviewsLoading] = useState(false);
-  const [score, setScore] = useState(5); const [comment, setComment] = useState(''); const [reviewSaving, setReviewSaving] = useState(false); const [reviewSent, setReviewSent] = useState(false);
+  const [productsError, setProductsError] = useState<string | null>(null);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [reviewPage, setReviewPage] = useState(1);
+  const [reviewPages, setReviewPages] = useState(1);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [score, setScore] = useState(5);
+  const [comment, setComment] = useState('');
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewSent, setReviewSent] = useState(false);
   const sequence = useRef(0);
   const reviewsSequence = useRef(0);
   const reviewsAutoLoadRef = useRef(false);
   const hasLoadedRef = useRef(false);
-  const load = useCallback(async (refresh = false) => { if (!id || isRestoring) return; const token = getAccessToken(); const current = ++sequence.current; if (refresh) setRefreshing(true); else if (!hasLoadedRef.current) setLoading(true); setError(null); setProductsError(null);
-    try { const settled = await Promise.allSettled([fetchStore(id), fetchProducts({ page: 1, limit: 12, storeId: id })]); if (current !== sequence.current) return; const [storeR, productsR] = settled; if (storeR.status === 'rejected') throw storeR.reason; setStore(storeR.value); if (productsR.status === 'fulfilled') setProducts(productsR.value.items); else { setProducts([]); setProductsError(productsR.reason instanceof Error ? productsR.reason.message : 'تعذر تحميل منتجات المتجر.'); }
-      if (token && user?.id) { try { const status = await fetchStoreFollowStatus(id, token); if (current === sequence.current) setFollowing(status.following); } catch { if (current === sequence.current) setFollowing(null); } } else setFollowing(null);
-    } catch (e) { if (current === sequence.current) setError(e instanceof Error ? e.message : 'تعذر تحميل المتجر.'); }
-    finally { if (current === sequence.current) { hasLoadedRef.current = true; setLoading(false); setRefreshing(false); } }
+  const load = useCallback(async (refresh = false) => {
+    if (!id || isRestoring)
+      return;
+    const token = getAccessToken();
+    const current = ++sequence.current;
+    if (refresh)
+      setRefreshing(true);
+    else if (!hasLoadedRef.current)
+      setLoading(true);
+    setError(null);
+    setProductsError(null);
+    try {
+      const settled = await Promise.allSettled([fetchStore(id), fetchProducts({
+          page: 1, limit: 12, storeId: id
+        })]);
+      if (current !== sequence.current)
+        return;
+      const [storeR, productsR] = settled;
+      if (storeR.status === 'rejected')
+        throw storeR.reason;
+      setStore(storeR.value);
+      if (productsR.status === 'fulfilled')
+        setProducts(productsR.value.items);
+      else {
+        setProducts([]);
+        setProductsError(productsR.reason instanceof Error ? productsR.reason.message : 'تعذر تحميل منتجات المتجر.');
+      }
+      if (token && user?.id) {
+        try {
+          const status = await fetchStoreFollowStatus(id, token);
+          if (current === sequence.current)
+            setFollowing(status.following);
+        }
+        catch {
+          if (current === sequence.current)
+            setFollowing(null);
+        }
+      }
+      else
+        setFollowing(null);
+    }
+    catch (e) {
+      if (current === sequence.current)
+        setError(e instanceof Error ? e.message : 'تعذر تحميل المتجر.');
+    }
+    finally {
+      if (current === sequence.current) {
+        hasLoadedRef.current = true;
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
   }, [id, getAccessToken, isRestoring, user?.id]);
-  const loadReviews = useCallback(async (page = 1, append = false) => { if (!id) return; const current = ++reviewsSequence.current; setReviewsLoading(true); try { const result = await fetchStoreReviews(id, { page, limit: 10 }); if (current !== reviewsSequence.current) return; setReviews(current2 => append ? [...current2, ...result.items.filter(item => !current2.some(old => old.id === item.id))] : result.items); setReviewPage(result.page); setReviewPages(result.totalPages); } catch (e) { if (current === reviewsSequence.current) showToast('تعذر تحميل التقييمات', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'); } finally { if (current === reviewsSequence.current) setReviewsLoading(false); } }, [id]);
-  useEffect(() => { void load(); return () => { sequence.current += 1; reviewsSequence.current += 1; }; }, [load]);
-  useEffect(() => { reviewsAutoLoadRef.current = false; }, [id]);
-  useEffect(() => { if (tab !== 'reviews' || reviewsAutoLoadRef.current) return; reviewsAutoLoadRef.current = true; void loadReviews(1); }, [tab, loadReviews]);
+  const loadReviews = useCallback(async (page = 1, append = false) => {
+    if (!id)
+      return;
+    const current = ++reviewsSequence.current;
+    setReviewsLoading(true);
+    try {
+      const result = await fetchStoreReviews(id, {
+        page, limit: 10
+      });
+      if (current !== reviewsSequence.current)
+        return;
+      setReviews(current2 => append ? [...current2, ...result.items.filter(item => !current2.some(old => old.id === item.id))] : result.items);
+      setReviewPage(result.page);
+      setReviewPages(result.totalPages);
+    }
+    catch (e) {
+      if (current === reviewsSequence.current)
+        showToast('تعذر تحميل التقييمات', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error');
+    }
+    finally {
+      if (current === reviewsSequence.current)
+        setReviewsLoading(false);
+    }
+  }, [id]);
+  useEffect(() => {
+    void load();
+    return () => {
+      sequence.current += 1;
+      reviewsSequence.current += 1;
+    };
+  }, [load]);
+  useEffect(() => {
+    reviewsAutoLoadRef.current = false;
+  }, [id]);
+  useEffect(() => {
+    if (tab !== 'reviews' || reviewsAutoLoadRef.current)
+      return;
+    reviewsAutoLoadRef.current = true;
+    void loadReviews(1);
+  }, [tab, loadReviews]);
   const isOwnStore = !!(user?.id && store?.sellerProfile?.userId === user.id);
-  const onFollow = async () => { const token = getAccessToken(); if (!token) { router.push('/login'); return; } if (!id || followLoading || following === null) return; const old = following; setFollowing(!old); setFollowLoading(true); try { const result = await toggleStoreFollow(id, token, csrfToken); setFollowing(result.action === 'followed'); } catch (e) { setFollowing(old); showToast('تعذر تحديث المتابعة', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'); } finally { setFollowLoading(false); } };
-  const submitReview = async () => { const token = getAccessToken(); if (!token) { router.push('/login'); return; } if (!id || reviewSaving) return; setReviewSaving(true); try { await createStoreReview(id, { score, comment: comment.trim() || undefined }, token, csrfToken); setReviewSent(true); setComment(''); await loadReviews(1); showToast('شكرًا لك', 'تم إرسال تقييمك للمتجر.', 'success'); } catch (e) { showToast('تعذر إرسال التقييم', e instanceof Error ? e.message : 'قد تكون قيّمت هذا المتجر من قبل.', 'error'); } finally { setReviewSaving(false); } };
-  return <ScreenFrame keyboardAvoiding><ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}>
-    <View style={s.header}><Pressable accessibilityRole="button" onPress={() => goBack()} style={s.back}><AppIcon name="back" size={24} color={colors.brand} /></Pressable><Text style={s.title}>صفحة المتجر</Text><View style={{flex:1}}/><Pressable accessibilityRole="button" onPress={() => router.push('/stores')} style={s.smallButton}><Text style={s.smallButtonText}>كل المتاجر</Text></Pressable></View>
-    {loading ? <LoadingState message="جاري تحميل المتجر…" /> : error ? <ErrorState title="تعذر تحميل المتجر" description={error} onAction={() => void load()} /> : store ? <>
-      <View style={s.hero}>{store.coverImageUrl ? <AppImage uri={store.coverImageUrl} style={s.cover} resizeMode="cover"/> : <View style={[s.cover,s.coverFallback]}><Text style={s.coverMark}>MARKETPLAT</Text></View>}
-        <View style={s.storeCard}>{store.logoUrl ? <AppImage uri={store.logoUrl} style={s.logo}/> : <View style={s.logoPlaceholder}><Text style={s.glyph}>▣</Text></View>}<Text style={s.heading}>{store.name}</Text><Text style={s.muted}>{store.description || 'متجر محلي على MarketPlat'}</Text><Text style={s.location}>{[store.city,store.address].filter(Boolean).join(' · ') || 'الموقع غير محدد'}</Text>{store.phone ? <Text style={s.muted}>للتواصل: {store.phone}</Text> : null}
-          <View style={s.stats}><View style={s.stat}><Text style={s.statValue}>{store._count?.products ?? products.length}</Text><Text style={s.statLabel}>منتج</Text></View><View style={s.stat}><Text style={s.statValue}>{store._count?.followers ?? 0}</Text><Text style={s.statLabel}>متابع</Text></View><View style={s.stat}><Text style={s.statValue}>{typeof store.views === 'number' ? store.views : '—'}</Text><Text style={s.statLabel}>زيارة</Text></View><View style={s.stat}><Text style={s.statValue}>{store.sellerProfile?.averageRating == null ? '—' : Number(store.sellerProfile.averageRating).toFixed(1)}</Text><Text style={s.statLabel}>التقييم</Text></View><View style={s.stat}><Text style={s.statValue}>{store.sellerProfile?.totalRatings ?? 0}</Text><Text style={s.statLabel}>مقيّم</Text></View></View>
-          <ShareButton resource="stores" id={store.id} title={store.name} />{!isOwnStore ? <Pressable accessibilityRole="button" disabled={followLoading || following === null} onPress={() => void onFollow()} style={[s.primary,s.followButton,(followLoading || following === null)&&s.disabled]}><Text style={s.primaryText}>{followLoading ? 'جاري التحديث…' : following === null ? 'حالة المتابعة غير متاحة' : following ? '✓ تتابع هذا المتجر' : '＋ متابعة المتجر'}</Text></Pressable> : <Pressable accessibilityRole="button" onPress={() => router.push('/my-store')} style={s.secondary}><Text style={s.secondaryText}>إدارة متجري</Text></Pressable>}
-        </View>
-      </View>
-      {store.slug ? <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/store/[slug]/stats', params: { slug: store.slug! } })} style={s.secondary}><Text style={s.secondaryText}>إحصاءات المبيعات العامة</Text></Pressable> : null}
-      <Pressable accessibilityRole="button" onPress={()=>router.push({pathname:'/store-collections-public',params:{storeId:id}})} style={s.secondary}><Text style={s.secondaryText}>تصفح مجموعات المنتجات</Text></Pressable>{!isOwnStore ? <Pressable accessibilityRole="button" onPress={()=>router.push({pathname:'/report/[targetType]/[targetId]',params:{targetType:'stores',targetId:id}})} style={s.secondary}><Text style={s.secondaryText}>الإبلاغ عن المتجر</Text></Pressable> : null}<View style={s.tabs}>{([{key:'products',label:'المنتجات'},{key:'reviews',label:'التقييمات'},{key:'about',label:'عن المتجر'}] as const).map(item=><Pressable key={item.key} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{selected:tab===item.key}} onPress={()=>setTab(item.key)} style={[s.tab,tab===item.key&&s.activeTab]}><Text style={[s.tabText,tab===item.key&&s.activeTabText]}>{item.label}</Text></Pressable>)}</View>
-      {tab === 'products' ? <><View style={s.section}><Text style={s.sectionTitle}>منتجات المتجر</Text><Text style={s.muted}>{products.length} منتج</Text></View>{productsError ? <Notice>{productsError}</Notice> : products.length === 0 ? <View style={s.state}><Text style={s.muted}>لا توجد منتجات منشورة لهذا المتجر حاليًا.</Text></View> : products.map(item=><Pressable key={item.id} accessibilityRole="button" onPress={()=>router.push(`/products/${encodeURIComponent(item.id)}`)} style={s.productCard}>{item.images?.[0] ? <AppImage uri={item.images[0]} style={s.productImage}/> : <View style={s.productPlaceholder}><Text style={s.glyph}>◇</Text></View>}<View style={s.productBody}><Text style={s.productTitle} numberOfLines={2}>{item.name}</Text><Text style={s.price}>{price(item.effectivePrice?.price ?? item.discountPrice ?? item.price)}</Text><Text style={s.muted}>{item.availability==='OUT_OF_STOCK'?'غير متوفر':item.availability==='LIMITED'?'كمية محدودة':'متوفر'}</Text></View><AppIcon name="forward" size={18} color={colors.muted} /></Pressable>)}<Pressable accessibilityRole="button" onPress={()=>router.push({pathname:'/products',params:{storeId:id}})} style={s.secondary}><Text style={s.secondaryText}>تصفح جميع منتجات هذا المتجر</Text></Pressable></> : null}
-      {tab === 'about' ? <View style={s.aboutCard}><Text style={s.sectionTitle}>نبذة عن المتجر</Text><Text style={s.aboutText}>{store.description || 'لم يضف المتجر نبذة تعريفية بعد.'}</Text><View style={s.aboutRow}><Text style={s.aboutLabel}>المدينة</Text><Text style={s.aboutValue}>{store.city || 'غير محددة'}</Text></View><View style={s.aboutRow}><Text style={s.aboutLabel}>العنوان</Text><Text style={s.aboutValue}>{store.address || 'غير محدد'}</Text></View><View style={s.aboutRow}><Text style={s.aboutLabel}>رقم التواصل</Text><Text style={s.aboutValue}>{store.phone || 'غير متاح'}</Text></View><View style={s.aboutRow}><Text style={s.aboutLabel}>حالة المتجر</Text><Text style={s.aboutValue}>{store.isOpen === true ? 'مفتوح الآن' : store.isOpen === false ? 'مغلق الآن' : 'ساعات العمل غير محددة'}</Text></View></View> : null}
-      {tab === 'reviews' ? <><View style={s.section}><Text style={s.sectionTitle}>تقييمات المشترين</Text><Text style={s.muted}>{reviews.length} تقييم معروض</Text></View>{reviews.length === 0 && !reviewsLoading ? <View style={s.state}><Text style={s.muted}>لا توجد تقييمات لهذا المتجر حتى الآن.</Text></View> : reviews.map(review=><View key={review.id} style={s.reviewCard}><View style={s.reviewHeader}><Text style={s.reviewName}>{review.rater?.name || 'مستخدم'}</Text><Text style={s.reviewScore}>{'★'.repeat(Math.max(0,Math.min(5,review.score)))}{'☆'.repeat(5-Math.max(0,Math.min(5,review.score)))}</Text></View>{review.comment ? <Text style={s.aboutText}>{review.comment}</Text> : <Text style={s.muted}>لم يضف تعليقًا.</Text>}<Text style={s.date}>{dateLabel(review.createdAt)}</Text></View>)}{reviewsLoading ? <Spinner color={colors.brand}/> : reviewPage < reviewPages ? <Pressable accessibilityRole="button" onPress={()=>void loadReviews(reviewPage+1,true)} style={s.secondary}><Text style={s.secondaryText}>تحميل تقييمات إضافية</Text></Pressable> : null}
-        {!isOwnStore && !reviewSent ? <View style={s.reviewForm}><Text style={s.sectionTitle}>أضف تقييمك</Text><Text style={s.muted}>اختر تقييمًا من نجمة إلى خمس نجوم.</Text><View style={s.ratingChoices}>{[1,2,3,4,5].map(n=><Pressable key={n} accessibilityRole="button" accessibilityLabel={`التقييم ${n} من 5 نجوم`} accessibilityState={{selected:score===n}} onPress={()=>setScore(n)} style={{minWidth:44,minHeight:44,alignItems:'center',justifyContent:'center'}}><Text style={[s.ratingStar, n<=score&&s.ratingSelected]}>★</Text></Pressable>)}</View><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="تعليق على المتجر" value={comment} onChangeText={setComment} maxLength={500} multiline placeholder="اكتب تعليقك (اختياري)…" placeholderTextColor={colors.muted} style={s.commentInput} textAlign="right"/><Text style={s.muted}>{comment.length}/500</Text><Pressable accessibilityRole="button" disabled={reviewSaving} onPress={()=>void submitReview()} style={[s.primary,reviewSaving&&s.disabled]}><Text style={s.primaryText}>{reviewSaving?'جاري الإرسال…':'إرسال التقييم'}</Text></Pressable></View> : null}
-      </> : null}
-    </> : null}
-  </ScrollView></ScreenFrame>;
+  const onFollow = async () => {
+    const token = getAccessToken();
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+    if (!id || followLoading || following === null)
+      return;
+    const old = following;
+    setFollowing(!old);
+    setFollowLoading(true);
+    try {
+      const result = await toggleStoreFollow(id, token, csrfToken);
+      setFollowing(result.action === 'followed');
+    }
+    catch (e) {
+      setFollowing(old);
+      showToast('تعذر تحديث المتابعة', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error');
+    }
+    finally {
+      setFollowLoading(false);
+    }
+  };
+  const submitReview = async () => {
+    const token = getAccessToken();
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+    if (!id || reviewSaving)
+      return;
+    setReviewSaving(true);
+    try {
+      await createStoreReview(id, {
+        score, comment: comment.trim() || undefined
+      }, token, csrfToken);
+      setReviewSent(true);
+      setComment('');
+      await loadReviews(1);
+      showToast('شكرًا لك', 'تم إرسال تقييمك للمتجر.', 'success');
+    }
+    catch (e) {
+      showToast('تعذر إرسال التقييم', e instanceof Error ? e.message : 'قد تكون قيّمت هذا المتجر من قبل.', 'error');
+    }
+    finally {
+      setReviewSaving(false);
+    }
+  };
+  return <PageShell title="صفحة المتجر" right={<Pressable accessibilityRole="button" onPress={() => router.push('/stores')} style={s.smallButton}><Text style={s.smallButtonText}>كل المتاجر</Text></Pressable>} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} colors={[colors.brand]}/>}>
+  <View style={s.content}>
+  {loading ? <LoadingState message="جاري تحميل المتجر…"/> : error ? <ErrorState title="تعذر تحميل المتجر" description={error} onAction={() => void load()}/> : store ? <>
+   <View style={s.hero}>{store.coverImageUrl ? <AppImage uri={store.coverImageUrl} style={s.cover} resizeMode="cover"/> : <View style={[s.cover, s.coverFallback]}><Text style={s.coverMark}>MARKETPLAT</Text></View>}
+    <View style={s.storeCard}>{store.logoUrl ? <AppImage uri={store.logoUrl} style={s.logo}/> : <View style={s.logoPlaceholder}><Text style={s.glyph}>▣</Text></View>}<Text style={s.heading}>{store.name}</Text><Text style={s.muted}>{store.description || 'متجر محلي على MarketPlat'}</Text><Text style={s.location}>{[store.city, store.address].filter(Boolean).join(' · ') || 'الموقع غير محدد'}</Text>{store.phone ? <Text style={s.muted}>للتواصل: {store.phone}</Text> : null}
+     <View style={s.stats}><View style={s.stat}><Text style={s.statValue}>{store._count?.products ?? products.length}</Text><Text style={s.statLabel}>منتج</Text></View><View style={s.stat}><Text style={s.statValue}>{store._count?.followers ?? 0}</Text><Text style={s.statLabel}>متابع</Text></View><View style={s.stat}><Text style={s.statValue}>{typeof store.views === 'number' ? store.views : '—'}</Text><Text style={s.statLabel}>زيارة</Text></View><View style={s.stat}><Text style={s.statValue}>{store.sellerProfile?.averageRating == null ? '—' : Number(store.sellerProfile.averageRating).toFixed(1)}</Text><Text style={s.statLabel}>التقييم</Text></View><View style={s.stat}><Text style={s.statValue}>{store.sellerProfile?.totalRatings ?? 0}</Text><Text style={s.statLabel}>مقيّم</Text></View></View>
+     <ShareButton resource="stores" id={store.id} title={store.name}/>{!isOwnStore ? <Pressable accessibilityRole="button" disabled={followLoading || following === null} onPress={() => void onFollow()} style={[s.primary, s.followButton, (followLoading || following === null) && s.disabled]}><Text style={s.primaryText}>{followLoading ? 'جاري التحديث…' : following === null ? 'حالة المتابعة غير متاحة' : following ? '✓ تتابع هذا المتجر' : '＋ متابعة المتجر'}</Text></Pressable> : <Pressable accessibilityRole="button" onPress={() => router.push('/my-store')} style={s.secondary}><Text style={s.secondaryText}>إدارة متجري</Text></Pressable>}
+    </View>
+   </View>
+   {store.slug ? <Pressable accessibilityRole="button" onPress={() => router.push({
+      pathname: '/store/[slug]/stats', params: { slug: store.slug! }
+    })} style={s.secondary}><Text style={s.secondaryText}>إحصاءات المبيعات العامة</Text></Pressable> : null}
+   <Pressable accessibilityRole="button" onPress={() => router.push({
+      pathname: '/store-collections-public', params: { storeId: id }
+    })} style={s.secondary}><Text style={s.secondaryText}>تصفح مجموعات المنتجات</Text></Pressable>{!isOwnStore ? <Pressable accessibilityRole="button" onPress={() => router.push({
+      pathname: '/report/[targetType]/[targetId]', params: {
+        targetType: 'stores', targetId: id
+      }
+    })} style={s.secondary}><Text style={s.secondaryText}>الإبلاغ عن المتجر</Text></Pressable> : null}<View style={s.tabs}>{([{
+        key: 'products', label: 'المنتجات'
+      }, {
+        key: 'reviews', label: 'التقييمات'
+      }, {
+        key: 'about', label: 'عن المتجر'
+      }] as const).map(item => <Pressable key={item.key} accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{ selected: tab === item.key }} onPress={() => setTab(item.key)} style={[s.tab, tab === item.key && s.activeTab]}><Text style={[s.tabText, tab === item.key && s.activeTabText]}>{item.label}</Text></Pressable>)}</View>
+   {tab === 'products' ? <><View style={s.section}><Text style={s.sectionTitle}>منتجات المتجر</Text><Text style={s.muted}>{products.length} منتج</Text></View>{productsError ? <Notice>{productsError}</Notice> : products.length === 0 ? <View style={s.state}><Text style={s.muted}>لا توجد منتجات منشورة لهذا المتجر حاليًا.</Text></View> : products.map(item => <Pressable key={item.id} accessibilityRole="button" onPress={() => router.push(`/products/${encodeURIComponent(item.id)}`)} style={s.productCard}>{item.images?.[0] ? <AppImage uri={item.images[0]} style={s.productImage}/> : <View style={s.productPlaceholder}><Text style={s.glyph}>◇</Text></View>}<View style={s.productBody}><Text style={s.productTitle} numberOfLines={2}>{item.name}</Text><Text style={s.price}>{price(item.effectivePrice?.price ?? item.discountPrice ?? item.price)}</Text><Text style={s.muted}>{item.availability === 'OUT_OF_STOCK' ? 'غير متوفر' : item.availability === 'LIMITED' ? 'كمية محدودة' : 'متوفر'}</Text></View><AppIcon name="forward" size={18} color={colors.muted}/></Pressable>)}<Pressable accessibilityRole="button" onPress={() => router.push({
+      pathname: '/products', params: { storeId: id }
+    })} style={s.secondary}><Text style={s.secondaryText}>تصفح جميع منتجات هذا المتجر</Text></Pressable></> : null}
+   {tab === 'about' ? <View style={s.aboutCard}><Text style={s.sectionTitle}>نبذة عن المتجر</Text><Text style={s.aboutText}>{store.description || 'لم يضف المتجر نبذة تعريفية بعد.'}</Text><View style={s.aboutRow}><Text style={s.aboutLabel}>المدينة</Text><Text style={s.aboutValue}>{store.city || 'غير محددة'}</Text></View><View style={s.aboutRow}><Text style={s.aboutLabel}>العنوان</Text><Text style={s.aboutValue}>{store.address || 'غير محدد'}</Text></View><View style={s.aboutRow}><Text style={s.aboutLabel}>رقم التواصل</Text><Text style={s.aboutValue}>{store.phone || 'غير متاح'}</Text></View><View style={s.aboutRow}><Text style={s.aboutLabel}>حالة المتجر</Text><Text style={s.aboutValue}>{store.isOpen === true ? 'مفتوح الآن' : store.isOpen === false ? 'مغلق الآن' : 'ساعات العمل غير محددة'}</Text></View></View> : null}
+   {tab === 'reviews' ? <><View style={s.section}><Text style={s.sectionTitle}>تقييمات المشترين</Text><Text style={s.muted}>{reviews.length} تقييم معروض</Text></View>{reviews.length === 0 && !reviewsLoading ? <View style={s.state}><Text style={s.muted}>لا توجد تقييمات لهذا المتجر حتى الآن.</Text></View> : reviews.map(review => <View key={review.id} style={s.reviewCard}><View style={s.reviewHeader}><Text style={s.reviewName}>{review.rater?.name || 'مستخدم'}</Text><Text style={s.reviewScore}>{'★'.repeat(Math.max(0, Math.min(5, review.score)))}{'☆'.repeat(5 - Math.max(0, Math.min(5, review.score)))}</Text></View>{review.comment ? <Text style={s.aboutText}>{review.comment}</Text> : <Text style={s.muted}>لم يضف تعليقًا.</Text>}<Text style={s.date}>{dateLabel(review.createdAt)}</Text></View>)}{reviewsLoading ? <Spinner color={colors.brand}/> : reviewPage < reviewPages ? <Pressable accessibilityRole="button" onPress={() => void loadReviews(reviewPage + 1, true)} style={s.secondary}><Text style={s.secondaryText}>تحميل تقييمات إضافية</Text></Pressable> : null}
+    {!isOwnStore && !reviewSent ? <View style={s.reviewForm}><Text style={s.sectionTitle}>أضف تقييمك</Text><Text style={s.muted}>اختر تقييمًا من نجمة إلى خمس نجوم.</Text><View style={s.ratingChoices}>{[1, 2, 3, 4, 5].map(n => <Pressable key={n} accessibilityRole="button" accessibilityLabel={`التقييم ${n} من 5 نجوم`} accessibilityState={{ selected: score === n }} onPress={() => setScore(n)} style={{
+        minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center'
+      }}><Text style={[s.ratingStar, n <= score && s.ratingSelected]}>★</Text></Pressable>)}</View><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="تعليق على المتجر" value={comment} onChangeText={setComment} maxLength={500} multiline placeholder="اكتب تعليقك (اختياري)…" placeholderTextColor={colors.muted} style={s.commentInput} textAlign="right"/><Text style={s.muted}>{comment.length}/500</Text><Pressable accessibilityRole="button" disabled={reviewSaving} onPress={() => void submitReview()} style={[s.primary, reviewSaving && s.disabled]}><Text style={s.primaryText}>{reviewSaving ? 'جاري الإرسال…' : 'إرسال التقييم'}</Text></Pressable></View> : null}
+   </> : null}
+  </> : null}
+ </View></PageShell>;
 }
-const createThemeS = (colors: ColorPalette) => StyleSheet.create({content:{paddingHorizontal:spacing.lg,paddingTop:spacing.md,gap:spacing.md,paddingBottom:44},header:{flexDirection:'row',alignItems:'center',gap:spacing.md},back:{width:44,height:44,borderRadius:14,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,alignItems:'center',justifyContent:'center'},title:{fontSize:fontSizes[22],fontWeight: fontWeights.semibold,color:colors.ink},smallButton:{borderWidth:1,borderColor:colors.border,paddingHorizontal:10,paddingVertical:spacing.sm,borderRadius:10},smallButtonText:{fontSize:fontSizes[12],fontWeight: fontWeights.semibold,color:colors.brand},hero:{gap:0},cover:{width:'100%',height:184,borderTopLeftRadius:radius.lg,borderTopRightRadius:radius.lg,backgroundColor:colors.border},coverFallback:{alignItems:'center',justifyContent:'center',backgroundColor:colors.brandSoft},coverMark:{fontWeight: fontWeights.bold,letterSpacing:3,color:colors.brand,opacity:.65},storeCard:{alignItems:'center',gap:spacing.sm,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,borderBottomLeftRadius:radius.lg,borderBottomRightRadius:radius.lg,padding:spacing.lg,shadowColor:colors.ink,shadowOpacity:0.04,shadowRadius:12,shadowOffset:{width:0,height:4},elevation:1},logo:{width:82,height:82,borderRadius:24,backgroundColor:colors.border},logoPlaceholder:{width:82,height:82,borderRadius:24,backgroundColor:colors.brandSoft,alignItems:'center',justifyContent:'center'},glyph:{fontSize:fontSizes[28],color:colors.brand},heading:{fontSize:fontSizes[20],fontWeight: fontWeights.bold,color:colors.ink,textAlign:'center'},muted:{fontSize:fontSizes[13],color:colors.muted,textAlign:'right',lineHeight:20},location:{fontSize:fontSizes[13],color:colors.brand,fontWeight: fontWeights.bold,textAlign:'center'},stats:{flexDirection:'row',alignSelf:'stretch',justifyContent:'space-around',marginTop:spacing.sm,paddingVertical:spacing.md,borderTopWidth:1,borderBottomWidth:1,borderColor:colors.border},stat:{alignItems:'center',gap:3},statValue:{fontSize:fontSizes[17],fontWeight: fontWeights.bold,color:colors.ink},statLabel:{fontSize:fontSizes[11],color:colors.muted},primary:{backgroundColor:colors.brand,padding:spacing.md,borderRadius:radius.md,alignItems:'center'},primaryText:{color:colors.onBrand,fontWeight: fontWeights.semibold},followButton:{alignSelf:'stretch',marginTop:spacing.sm},secondary:{borderWidth:1,borderColor:colors.brand,borderRadius:radius.md,padding:spacing.md,alignItems:'center'},secondaryText:{color:colors.brand,fontWeight: fontWeights.semibold},disabled:{opacity:.55},tabs:{flexDirection:'row',gap:spacing.xs,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:spacing.xs},tab:{flex:1,minHeight:44,alignItems:'center',justifyContent:'center',paddingVertical:11,borderRadius:10},activeTab:{backgroundColor:colors.brandSoft},tabText:{fontSize:fontSizes[13],fontWeight: fontWeights.bold,color:colors.muted},activeTabText:{color:colors.brand},section:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},sectionTitle:{fontSize:fontSizes[17],fontWeight: fontWeights.bold,color:colors.ink,textAlign:'right'},productCard:{flexDirection:'row',alignItems:'center',gap:spacing.md,padding:spacing.md,borderRadius:radius.card,borderWidth:1,borderColor:colors.border,backgroundColor:colors.surface,shadowColor:colors.ink,shadowOpacity:0.035,shadowRadius:8,shadowOffset:{width:0,height:3},elevation:1},productImage:{width:76,height:80,borderRadius:radius.md,backgroundColor:colors.border},productPlaceholder:{width:76,height:80,borderRadius:radius.md,backgroundColor:colors.brandSoft,alignItems:'center',justifyContent:'center'},productBody:{flex:1,alignItems:'flex-end',gap:5},productTitle:{fontSize:fontSizes[15],fontWeight: fontWeights.semibold,color:colors.ink,textAlign:'right'},price:{fontSize:fontSizes[14],fontWeight: fontWeights.bold,color:colors.brand},state:{alignItems:'center',gap:spacing.md,padding:spacing.xl,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,borderRadius:radius.card},aboutCard:{gap:spacing.md,padding:spacing.lg,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,borderRadius:radius.card},aboutText:{fontSize:fontSizes[14],color:colors.ink,textAlign:'right',lineHeight:24},aboutRow:{flexDirection:'row',justifyContent:'space-between',gap:spacing.md,borderTopWidth:1,borderTopColor:colors.border,paddingTop:spacing.sm},aboutLabel:{fontSize:fontSizes[12],color:colors.muted},aboutValue:{flex:1,fontSize:fontSizes[13],fontWeight: fontWeights.bold,color:colors.ink,textAlign:'left'},reviewCard:{gap:spacing.sm,padding:spacing.md,backgroundColor:colors.surface,borderWidth:1,borderColor:colors.border,borderRadius:radius.md},reviewHeader:{flexDirection:'row',justifyContent:'space-between',alignItems:'center'},reviewName:{fontSize:fontSizes[14],fontWeight: fontWeights.semibold,color:colors.ink},reviewScore:{fontSize:fontSizes[17],color:colors.accent},date:{fontSize:fontSizes[11],color:colors.muted,textAlign:'right'},reviewForm:{gap:spacing.md,padding:spacing.lg,borderWidth:1,borderColor:colors.border,borderRadius:radius.card,backgroundColor:colors.surface},ratingChoices:{flexDirection:'row',justifyContent:'center',gap:spacing.md},ratingStar:{fontSize:fontSizes[32],color:colors.muted},ratingSelected:{color:colors.accent},commentInput:{minHeight:100,borderWidth:1,borderColor:colors.border,borderRadius:radius.md,padding:spacing.md,color:colors.ink,textAlignVertical:'top',writingDirection:'rtl'}});
+const createThemeS = (colors: ColorPalette) => StyleSheet.create({
+  content: {
+    gap: spacing.md
+  }, smallButton: {
+    borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, paddingVertical: spacing.sm, borderRadius: 10
+  }, smallButtonText: {
+    fontSize: fontSizes[12], fontWeight: fontWeights.semibold, color: colors.brand
+  }, hero: { gap: 0 }, cover: {
+    width: '100%', height: 184, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, backgroundColor: colors.border
+  }, coverFallback: {
+    alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft
+  }, coverMark: {
+    fontWeight: fontWeights.bold, letterSpacing: 3, color: colors.brand, opacity: .65
+  }, storeCard: {
+    alignItems: 'center', gap: spacing.sm, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderBottomLeftRadius: radius.lg, borderBottomRightRadius: radius.lg, padding: spacing.lg, shadowColor: colors.ink, shadowOpacity: 0.04, shadowRadius: 12, shadowOffset: {
+      width: 0, height: 4
+    }, elevation: 1
+  }, logo: {
+    width: 82, height: 82, borderRadius: 24, backgroundColor: colors.border
+  }, logoPlaceholder: {
+    width: 82, height: 82, borderRadius: 24, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center'
+  }, glyph: {
+    fontSize: fontSizes[28], color: colors.brand
+  }, heading: {
+    fontSize: fontSizes[20], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'center'
+  }, muted: {
+    fontSize: fontSizes[13], color: colors.muted, textAlign: 'right', lineHeight: 20
+  }, location: {
+    fontSize: fontSizes[13], color: colors.brand, fontWeight: fontWeights.bold, textAlign: 'center'
+  }, stats: {
+    flexDirection: 'row', alignSelf: 'stretch', justifyContent: 'space-around', marginTop: spacing.sm, paddingVertical: spacing.md, borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.border
+  }, stat: {
+    alignItems: 'center', gap: 3
+  }, statValue: {
+    fontSize: fontSizes[17], fontWeight: fontWeights.bold, color: colors.ink
+  }, statLabel: {
+    fontSize: fontSizes[11], color: colors.muted
+  }, primary: {
+    backgroundColor: colors.brand, padding: spacing.md, borderRadius: radius.md, alignItems: 'center'
+  }, primaryText: {
+    color: colors.onBrand, fontWeight: fontWeights.semibold
+  }, followButton: {
+    alignSelf: 'stretch', marginTop: spacing.sm
+  }, secondary: {
+    borderWidth: 1, borderColor: colors.brand, borderRadius: radius.md, padding: spacing.md, alignItems: 'center'
+  }, secondaryText: {
+    color: colors.brand, fontWeight: fontWeights.semibold
+  }, disabled: { opacity: .55 }, tabs: {
+    flexDirection: 'row', gap: spacing.xs, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.xs
+  }, tab: {
+    flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingVertical: 11, borderRadius: 10
+  }, activeTab: { backgroundColor: colors.brandSoft }, tabText: {
+    fontSize: fontSizes[13], fontWeight: fontWeights.bold, color: colors.muted
+  }, activeTabText: { color: colors.brand }, section: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'
+  }, sectionTitle: {
+    fontSize: fontSizes[17], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'right'
+  }, productCard: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, shadowColor: colors.ink, shadowOpacity: 0.035, shadowRadius: 8, shadowOffset: {
+      width: 0, height: 3
+    }, elevation: 1
+  }, productImage: {
+    width: 76, height: 80, borderRadius: radius.md, backgroundColor: colors.border
+  }, productPlaceholder: {
+    width: 76, height: 80, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center'
+  }, productBody: {
+    flex: 1, alignItems: 'flex-end', gap: 5
+  }, productTitle: {
+    fontSize: fontSizes[15], fontWeight: fontWeights.semibold, color: colors.ink, textAlign: 'right'
+  }, price: {
+    fontSize: fontSizes[14], fontWeight: fontWeights.bold, color: colors.brand
+  }, state: {
+    alignItems: 'center', gap: spacing.md, padding: spacing.xl, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card
+  }, aboutCard: {
+    gap: spacing.md, padding: spacing.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card
+  }, aboutText: {
+    fontSize: fontSizes[14], color: colors.ink, textAlign: 'right', lineHeight: 24
+  }, aboutRow: {
+    flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm
+  }, aboutLabel: {
+    fontSize: fontSizes[12], color: colors.muted
+  }, aboutValue: {
+    flex: 1, fontSize: fontSizes[13], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'left'
+  }, reviewCard: {
+    gap: spacing.sm, padding: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md
+  }, reviewHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'
+  }, reviewName: {
+    fontSize: fontSizes[14], fontWeight: fontWeights.semibold, color: colors.ink
+  }, reviewScore: {
+    fontSize: fontSizes[17], color: colors.accent
+  }, date: {
+    fontSize: fontSizes[11], color: colors.muted, textAlign: 'right'
+  }, reviewForm: {
+    gap: spacing.md, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.card, backgroundColor: colors.surface
+  }, ratingChoices: {
+    flexDirection: 'row', justifyContent: 'center', gap: spacing.md
+  }, ratingStar: {
+    fontSize: fontSizes[32], color: colors.muted
+  }, ratingSelected: { color: colors.accent }, commentInput: {
+    minHeight: 100, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: spacing.md, color: colors.ink, textAlignVertical: 'top', writingDirection: 'rtl'
+  }
+});

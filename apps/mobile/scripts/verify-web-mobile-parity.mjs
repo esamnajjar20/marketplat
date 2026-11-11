@@ -35,7 +35,7 @@ const [tokens, productDetail, adDetail, storeDetail, search, savedSearchesPage, 
   read('apps/mobile/src/features/ads/ads.api.ts'),
   read('apps/mobile/src/features/ads/favorites.api.ts'),
   read('apps/mobile/src/storage/saved-offline.ts'),
-  read('apps/mobile/app/settings.tsx'),
+  Promise.all([read('apps/mobile/app/settings.tsx'), read('apps/mobile/src/features/settings/HelpSection.tsx')]).then((parts) => parts.join('\n')),
   read('apps/mobile/app/sessions.tsx'),
   read('apps/mobile/app/delete-account.tsx'),
   read('apps/mobile/src/features/account/delete-account.api.ts'),
@@ -75,7 +75,7 @@ check('following list and all-ads listing routes exist', followingPage.includes(
 check('seller dashboard fetches store/seller/analytics in bounded requests', sellerDashboard.includes('fetchMyStore') && sellerDashboard.includes('fetchMySellerProfile') && sellerDashboard.includes('fetchMyStoreAnalytics'));
 check('shared gallery has a fullscreen paged viewer and image counter', gallery.includes('<Modal') && gallery.includes('pagingEnabled') && gallery.includes('validImages.length'));
 check('shared timeline is status-driven and avoids fabricated timestamps', timeline.includes('createdAt') && timeline.includes('respondedAt') && !timeline.includes('updatedAt'));
-check('For You route exists and is reachable from the mobile homepage', forYouPage.includes('<DiscoveryFeedScreen forYou') && home.includes("router.push('/for-you')"));
+check('For You route exists and is reachable from the mobile homepage', forYouPage.includes('<DiscoveryFeedScreen forYou') && home.includes("pushOnce('/for-you')"));
 check('shared ProductCard has grid and row variants', productCard.includes("layout?: 'row' | 'grid'") && productCard.includes('accessibilityLabel'));
 check('legal/privacy/support links are available from settings', ['privacy', 'terms', 'contact', 'about'].every((path) => settings.includes(`/${path}`)));
 

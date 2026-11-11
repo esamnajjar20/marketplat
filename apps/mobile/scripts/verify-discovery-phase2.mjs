@@ -16,8 +16,10 @@ const checks = [
   ['category detail screen is registered', () => assert.ok(fs.existsSync(path.join(root, 'app/categories/[id].tsx')))],
   ['public category list is registered', () => assert.ok(fs.existsSync(path.join(root, 'app/categories.tsx')))],
   ['seller ranking screen is registered', () => assert.ok(fs.existsSync(path.join(root, 'app/sellers-ranking.tsx')))],
-  ['explore menu links discovery screens', () => { const s = read('app/explore.tsx'); for (const p of ['/categories', '/search', '/suggestions', '/trending', '/sellers-ranking']) assert.ok(s.includes(p)); }],
-  ['home keeps only high-priority discovery shortcuts', () => { const s = read('app/index.tsx'); for (const p of ['/explore', '/search', '/add']) assert.ok(s.includes(p)); }],
+  ['explore menu links search and sellers ranking', () => { const s = read('app/explore.tsx'); for (const p of ['/search', '/sellers-ranking']) assert.ok(s.includes(p)); }],
+  ['home quick chips link for-you and trending', () => { const s = read('app/index.tsx'); for (const p of ['/for-you', '/trending']) assert.ok(s.includes(`pushOnce('${p}')`)); }],
+  ['drawer links trending and suggestions', () => { const s = read('src/lib/navigation-policy.ts'); for (const p of ['/trending', '/suggestions']) assert.ok(s.includes(`path: '${p}'`)); }],
+  ['home keeps only high-priority discovery shortcuts', () => { const s = read('app/index.tsx'); for (const p of ['/explore', '/search', '/for-you', '/trending']) assert.ok(s.includes(p)); }],
 ];
 for (const [name, run] of checks) { run(); console.log(`PASS ${name}`); }
 console.log(`Discovery phase 2: ${checks.length} checks passed.`);

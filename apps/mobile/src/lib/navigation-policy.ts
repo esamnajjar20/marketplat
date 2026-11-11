@@ -76,7 +76,8 @@ export const DRAWER_ITEMS: ReadonlyArray<{
   { label: 'المتاجر', path: '/stores', icon: 'store', section: 'السوق' },
   { label: 'مقدمو الخدمة', path: '/service-providers', icon: 'service', section: 'السوق' },
   { label: 'أفضل البائعين', path: '/sellers-ranking', icon: 'account', section: 'السوق' },
-  { label: 'اقتراحات المنتجات', path: '/suggestions', icon: 'help', section: 'السوق' },
+  { label: 'الرائج الآن', path: '/trending', icon: 'star', section: 'السوق' },
+  { label: 'مقترحات لك', path: '/suggestions', icon: 'help', section: 'السوق' },
 
   // الحساب والاتصال.
   { label: 'حسابي', path: '/account', icon: 'account', section: 'حسابك' },
