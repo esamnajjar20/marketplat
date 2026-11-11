@@ -3,7 +3,8 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceTypeProfiles, updateMyServiceTypeProfile, type ProviderServiceTypeField, type ProviderServiceTypeProfile } from '@/features/services/providers.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -151,7 +152,7 @@ export default function ServiceTypesScreen() {
 
   return (
     <PageShell title="أنواع الخدمات وخصائصها">
-      {!accessToken ? <><Notice>سجّل الدخول لإدارة أنواع الخدمات.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /></> : null}
+      {!accessToken ? <><Notice>سجّل الدخول لإدارة أنواع الخدمات.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} /></> : null}
       {accessToken && loading ? <Notice tone="muted">جارٍ تحميل الأنواع…</Notice> : null}
       {accessToken && !loading && items.length === 0 ? <Notice tone="muted">لا توجد أنواع خدمات مرتبطة بملفك بعد. أنشئ خدمة لكل نوع تريد إعداده أولًا.</Notice> : null}
       {accessToken && !loading ? items.map((item) => {

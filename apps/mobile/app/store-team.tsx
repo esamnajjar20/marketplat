@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStore } from '@/features/commerce/commerce.api';
 import { fetchMyActiveStoreMemberships, fetchStoreMembers, inviteStoreMember, removeStoreMember, updateStoreMemberRole, type StoreMember } from '@/features/commerce/store-management.api';
@@ -70,7 +71,7 @@ export default function StoreTeamScreen() {
   useEffect(() => { void load(); }, [load]);
 
   const invite = async () => {
-    if (!accessToken) return router.push('/login');
+    if (!accessToken) return pushOnce('/login');
     if (!canManage) return setError('لا تملك صلاحية إدارة أعضاء هذا المتجر.');
     if (!storeId) return setError('لا يوجد متجر مرتبط بحسابك.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('أدخل بريدًا إلكترونيًا صحيحًا.');
@@ -105,7 +106,7 @@ export default function StoreTeamScreen() {
           <Text tone="ink" strong>الصلاحية</Text>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>{roles.filter(([value]) => myRole === 'OWNER' || value !== 'MANAGER').map(([value, label]) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: role === value }} onPress={() => setRole(value)} style={{ flex: 1, padding: 9, borderRadius: 10, backgroundColor: role === value ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: role === value ? colors.brand : colors.border }}><Text style={{ textAlign: 'center', color: colors.ink, fontSize: fontSizes[12], fontWeight: fontWeights.bold }}>{label}</Text></Pressable>)}</View>
           <PrimaryButton label="إرسال الدعوة" onPress={() => void invite()} busy={busy} />
-          <PrimaryButton label="الدعوات الواردة إليّ" variant="secondary" onPress={() => router.push('/store-invites')} />
+          <PrimaryButton label="الدعوات الواردة إليّ" variant="secondary" onPress={() => pushOnce('/store-invites')} />
         </> : <Notice tone="muted">يمكنك الاطلاع على أعضاء الفريق. تعديل الصلاحيات أو دعوة أعضاء متاح لمالك المتجر والمدير فقط.</Notice>}
       </SectionCard>
       {items.length === 0 ? <Notice tone="muted">لا يوجد أعضاء آخرون في الفريق حاليًا.</Notice> : items.map((member) => <SectionCard key={member.id}>

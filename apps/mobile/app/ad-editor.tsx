@@ -10,7 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import NetInfo from '@react-native-community/netinfo';
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBack } from '@/lib/navigation';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { ApiError } from '@/api/client';
 import { fetchAdDetail } from '@/features/ads/ads.api';
 import { createAd, updateAd, removeAdImage, reorderAdImages, PartialAdUpdateError, type AdDraft, type SelectedAdImage } from '@/features/ads/manage-ads.api';
@@ -371,10 +371,10 @@ export default function AdEditorScreen() {
         }
     };
     if (!user)
-        return <SafeAreaView style={styles.safe} edges={['top']}><AppHeader title="محرر الإعلان"/><View style={styles.center}><Text style={styles.title}>سجّل الدخول لإدارة إعلاناتك</Text><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></View></SafeAreaView>;
+        return <ScreenFrame><AppHeader title="محرر الإعلان"/><View style={styles.center}><Text style={styles.title}>سجّل الدخول لإدارة إعلاناتك</Text><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></View></ScreenFrame>;
     if (loading)
-        return <SafeAreaView style={styles.safe} edges={['top']}><AppHeader title="محرر الإعلان"/><LoadingState message="جاري تحميل الإعلان…"/></SafeAreaView>;
-    return <SafeAreaView style={styles.safe} edges={['top']}><AppHeader title={id ? 'تعديل الإعلان' : 'إضافة إعلان'} onBack={() => goBack()}/>
+        return <ScreenFrame><AppHeader title="محرر الإعلان"/><LoadingState message="جاري تحميل الإعلان…"/></ScreenFrame>;
+    return <ScreenFrame><AppHeader title={id ? 'تعديل الإعلان' : 'إضافة إعلان'} onBack={() => goBack()}/>
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
       {!id && draftOwnerReady === String(user.id) && draftSaveStatus !== 'idle' ? (<Text accessibilityRole="text" accessibilityLiveRegion="polite" style={[styles.note, draftSaveStatus === 'error' && styles.error]}>
           {draftSaveStatus === 'saved'
@@ -454,7 +454,7 @@ export default function AdEditorScreen() {
         void submit();
     }}/>
     </ScrollView></KeyboardAvoidingView>
-  </SafeAreaView>;
+  </ScreenFrame>;
 }
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     sectionLabel: {
@@ -462,8 +462,6 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     },
     sectionHint: {
         fontSize: fontSizes[12], color: colors.muted, textAlign: 'right', marginBottom: spacing.xs, lineHeight: 18
-    }, safe: {
-        flex: 1, backgroundColor: colors.canvas
     }, flex: { flex: 1 }, form: {
         padding: spacing.lg, gap: spacing.md, paddingBottom: 56
     }, label: {

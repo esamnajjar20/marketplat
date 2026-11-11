@@ -4,8 +4,9 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { router } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { fetchMyFollowedStores, toggleStoreFollow, type FollowedStoreRow } from '@/features/commerce/commerce.api';
@@ -63,12 +64,12 @@ export default function FollowedStoresScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.canvas }} edges={['top']}>
+    <ScreenFrame>
       <AppHeader title="المتاجر التي أتابعها" />
       {isRestoring ? (
         <LoadingState message="جارٍ استعادة الجلسة…" />
       ) : !user ? (
-        <EmptyState title="سجّل الدخول لعرض متابعاتك" actionLabel="تسجيل الدخول" onAction={() => router.push('/login')} />
+        <EmptyState title="سجّل الدخول لعرض متابعاتك" actionLabel="تسجيل الدخول" onAction={() => pushOnce('/login')} />
       ) : loading && items.length === 0 ? (
         <LoadingState message="جاري تحميل المتاجر…" />
       ) : error && items.length === 0 ? (
@@ -117,6 +118,6 @@ export default function FollowedStoresScreen() {
           ) : undefined}
         />
       )}
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }

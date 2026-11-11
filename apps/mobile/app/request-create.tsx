@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { router } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { ApiError } from '@/api/client';
 import { createMobileOperationId } from '@/lib/operation-id';
@@ -55,7 +56,7 @@ export default function RequestCreateScreen() {
   }, [type]);
   const submit = async () => {
     if (!accessToken) {
-      router.push('/login');
+      pushOnce('/login');
       return;
     }
     if (!user?.emailVerified) {

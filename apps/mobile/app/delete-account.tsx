@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { TextInput, View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteAccountAfterReauthentication } from '@/features/account/delete-account.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -59,7 +60,7 @@ export default function DeleteAccountScreen() {
       <TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="كلمة المرور الحالية لإعادة التوثيق" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} placeholder="أدخل كلمة المرور الحالية" placeholderTextColor={colors.muted} style={{ minHeight: 52, borderWidth: 1, borderColor: colors.border, borderRadius: radius.control, paddingHorizontal: spacing.md, color: colors.ink, textAlign: 'right' }} />
       <Text style={{ textAlign: 'right', color: colors.ink, ...typography.label }}>اكتب «حذف» للمتابعة</Text>
       <TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="تأكيد حذف الحساب بكتابة حذف" value={confirmation} onChangeText={setConfirmation} editable={!busy} placeholder="حذف" placeholderTextColor={colors.muted} style={{ minHeight: 52, borderWidth: 1, borderColor: colors.border, borderRadius: radius.control, paddingHorizontal: spacing.md, color: colors.ink, textAlign: 'right' }} />
-      <View style={{ gap: spacing.sm }}><PrimaryButton label="حذف الحساب نهائيًا" variant="danger" busy={busy} disabled={confirmation.trim() !== 'حذف' || !password} onPress={submit} /><PrimaryButton label="إلغاء والعودة للإعدادات" variant="secondary" disabled={busy} onPress={() => router.push('/settings')} /></View>
+      <View style={{ gap: spacing.sm }}><PrimaryButton label="حذف الحساب نهائيًا" variant="danger" busy={busy} disabled={confirmation.trim() !== 'حذف' || !password} onPress={submit} /><PrimaryButton label="إلغاء والعودة للإعدادات" variant="secondary" disabled={busy} onPress={() => pushOnce('/settings')} /></View>
       {error ? <Notice>{error}</Notice> : null}
     </SectionCard>
     <Notice tone="muted">الحسابات التي أُنشئت عبر Google فقط، ولا تملك كلمة مرور محلية، تحتاج إلى إعادة توثيق Google. هذا التدفق غير مدعوم هنا حاليًا؛ لن يسمح هذا النموذج بتجاوز إعادة التوثيق.</Notice>

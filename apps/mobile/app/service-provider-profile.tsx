@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider, saveMyServiceProvider, type ServiceProviderProfile } from '@/features/services/providers.api';
 import { uploadServiceProviderLogo } from '@/features/services/service-management.api';
@@ -58,7 +59,7 @@ export default function ServiceProviderProfileScreen() {
   }, [load]);
   const chooseLogo = async () => {
     if (!accessToken)
-      return router.push('/login');
+      return pushOnce('/login');
     if (!user?.emailVerified) {
       setError('أكد بريدك الإلكتروني قبل رفع الشعار.');
       return;
@@ -91,7 +92,7 @@ export default function ServiceProviderProfileScreen() {
   };
   const save = async () => {
     if (!accessToken) {
-      router.push('/login');
+      pushOnce('/login');
       return;
     }
     if (!user?.emailVerified) {
@@ -124,7 +125,7 @@ export default function ServiceProviderProfileScreen() {
       setBusy(false);
     }
   };
-  return <PageShell title="ملف مقدم الخدمة">{!accessToken ? <><Notice>سجّل الدخول للمتابعة.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل الملف…</Notice> : <SectionCard>{profile ? <View style={{
+  return <PageShell title="ملف مقدم الخدمة">{!accessToken ? <><Notice>سجّل الدخول للمتابعة.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل الملف…</Notice> : <SectionCard>{profile ? <View style={{
     alignItems: 'center', gap: spacing.sm
   }}>{profile.logoUrl ? <AppImage uri={profile.logoUrl} style={{
     width: 84, height: 84, borderRadius: 24

@@ -6,7 +6,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, TextInput, View } from 'react-native';
 import { Spinner } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchInstallments, payInstallment, type InstallmentRow } from '@/features/sales/sales-extra.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -131,7 +132,7 @@ export default function InstallmentsScreen() {
     return (
       <PageShell title="الأقساط">
         <Notice>سجّل الدخول لإدارة الأقساط.</Notice>
-        <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
+        <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
       </PageShell>
     );
   }
@@ -222,7 +223,7 @@ export default function InstallmentsScreen() {
                 busy={busyId === item.id}
                 disabled={remaining <= 0}
               />
-              <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/sales/[id]', params: { id: item.sale.id } })}>
+              <Pressable accessibilityRole="button" onPress={() => pushOnce({ pathname: '/sales/[id]', params: { id: item.sale.id } })}>
                 <Text tone="brand" strong>عرض البيع المرتبط ←</Text>
               </Pressable>
             </SectionCard>
@@ -230,7 +231,7 @@ export default function InstallmentsScreen() {
         }}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         ListFooterComponent={
-          <PrimaryButton label="عرض الديون" variant="secondary" onPress={() => router.push('/debts')} />
+          <PrimaryButton label="عرض الديون" variant="secondary" onPress={() => pushOnce('/debts')} />
         }
       />
     </PageShell>

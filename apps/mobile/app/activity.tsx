@@ -5,7 +5,8 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { Spinner } from '@/components/ui';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyActivity, type ActivityRow } from '@/features/sales/sales-extra.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -110,7 +111,7 @@ export default function ActivityScreen() {
     return (
       <PageShell title="سجل النشاط">
         <Notice>سجّل الدخول لعرض نشاط حسابك.</Notice>
-        <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
+        <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
       </PageShell>
     );
   }

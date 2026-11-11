@@ -7,6 +7,7 @@ const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const nav = read('src/components/BottomNavigation.tsx');
 const policy = read('src/lib/navigation-policy.ts');
 const shell = read('src/components/ui/PageShell.tsx');
+const frame = read('src/components/ui/ScreenFrame.tsx');
 const home = read('app/index.tsx');
 const explore = read('app/explore.tsx');
 const account = read('app/account.tsx');
@@ -21,8 +22,9 @@ for (const [label, route] of [['الرئيسية', 'index.tsx'], ['استكشف'
 assert.match(nav, /accessibilityRole="tab"/);
 assert.match(nav, /accessibilityState=\{\{ selected: active \}\}/);
 assert.match(nav, /isBottomNavigationHidden/);
-assert.match(shell, /isBottomNavigationHidden\(pathname\)/, 'PageShell must avoid adding a second bottom inset when the bar is visible.');
-assert.match(shell, /edges: \('top' \| 'bottom'\)\[\]/);
+assert.match(shell, /<ScreenFrame\b/, 'PageShell must build on the shared ScreenFrame.');
+assert.match(frame, /shouldHideBottomNavigation\(pathname\)/, 'ScreenFrame must avoid adding a second bottom inset when the bar is visible.');
+assert.match(frame, /\['top', 'bottom'\]/);
 
 // The home screen should prioritize search and current ads; advanced filters stay collapsed until requested.
 assert.match(home, /heroTitle/);

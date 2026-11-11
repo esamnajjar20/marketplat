@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Linking, View } from 'react-native';
 import { Spinner } from '@/components/ui';
 import { useLocalSearchParams, router } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { fetchServiceProvider, fetchProviderServices, type ProviderSummary } from '@/features/services/providers.api';
 import type { ServiceListing } from '@/features/services/services.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -101,7 +102,7 @@ export default function ServiceProviderDetailScreen() {
     return <PageShell title="ملف مقدم الخدمة">{loading ? <Spinner color={colors.brand}/> : error && !provider ? <Notice>{error}</Notice> : provider ? <>
   <SectionCard><Text tone="ink" strong size={20}>{provider.businessName || provider.sellerProfile?.displayName || 'مقدم خدمة'}</Text><Text style={{
             textAlign: 'right', color: colors.muted, lineHeight: 22
-        }}>{provider.description || 'لا يوجد وصف.'}</Text><RatingStars score={provider.sellerProfile?.averageRating} count={provider.sellerProfile?.totalRatings}/>{provider.sellerProfile?.id ? <Pressable accessibilityRole="link" onPress={() => router.push({
+        }}>{provider.description || 'لا يوجد وصف.'}</Text><RatingStars score={provider.sellerProfile?.averageRating} count={provider.sellerProfile?.totalRatings}/>{provider.sellerProfile?.id ? <Pressable accessibilityRole="link" onPress={() => pushOnce({
             pathname: '/service-reviews', params: { sellerProfileId: provider.sellerProfile?.id }
         })}><Text tone="brand" strong>قراءة التقييمات وإضافة تقييم ←</Text></Pressable> : null}<Text tone="muted">حالة التوفر: {provider.availabilityStatus === 'AVAILABLE' ? 'متاح' : provider.availabilityStatus === 'BUSY' ? 'مشغول' : 'غير محدد'}</Text><Text tone="muted">مناطق الخدمة: {provider.serviceAreaCities?.join('، ') || 'غير محددة'}</Text>{provider.contactPhone ? <><Text tone="ink">رقم التواصل: {provider.contactPhone}</Text><View style={{
             flexDirection: 'row', gap: spacing.sm

@@ -9,6 +9,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { StyleSheet, TextInput, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { addProductImages, createProduct, fetchProduct, fetchProductCategories, removeProductImage, updateProduct, type ProductCategory } from '@/features/commerce/commerce.api';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
@@ -77,7 +78,7 @@ export default function ProductEditorScreen() {
     }, [load]);
     const submit = async () => {
         if (!accessToken) {
-            router.push('/login');
+            pushOnce('/login');
             return;
         }
         if (!id && !user?.emailVerified) {

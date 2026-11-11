@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { Spinner, ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
 import { router } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchDebtSummary, fetchDebts, type DebtSummary } from '@/features/sales/sales-extra.api';
 import type { SaleRecord } from '@/features/sales/sales.api';
@@ -75,7 +76,7 @@ export default function DebtsScreen() {
     return (
       <PageShell title="الديون">
         <Notice>سجّل الدخول لعرض الديون المستحقة لك.</Notice>
-        <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
+        <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
       </PageShell>
     );
   }
@@ -125,7 +126,7 @@ export default function DebtsScreen() {
         }
         ListEmptyComponent={<ListEmpty list={list} loadingMessage="جاري تحميل الديون…" errorTitle="تعذر تحميل الديون" emptyTitle="لا توجد مبالغ مستحقة حاليًا" />}
         renderItem={({ item: sale }) => (
-          <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/sales/[id]', params: { id: sale.id } })}>
+          <Pressable accessibilityRole="button" onPress={() => pushOnce({ pathname: '/sales/[id]', params: { id: sale.id } })}>
             <SectionCard>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm }}>
                 <Text style={{ flex: 1, textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[15], color: colors.ink }}>

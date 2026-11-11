@@ -5,10 +5,11 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppHeader, ErrorState, LoadingState } from '@/components/ui';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { router, useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchServiceRequest, respondToServiceRequest, type ServiceRequest } from '@/features/services/services.api';
 import { MediaGallery } from '@/components/ui/MediaGallery';
@@ -132,9 +133,9 @@ export default function ServiceRequestDetailScreen() {
         }])} style={[
         s.action, tone === 'secondary' && s.secondary, tone === 'danger' && s.danger, busy && s.disabled
     ]}><Text style={[s.actionText, tone === 'secondary' && s.secondaryText, tone === 'danger' && s.dangerText]}>{busy === action ? 'جارٍ التحديث…' : label}</Text></Pressable>;
-    return <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><SafeAreaView style={s.safe} edges={['top'] as const}>
+    return <ScreenFrame keyboardAvoiding>
     <AppHeader title="تفاصيل طلب الخدمة" right={<Pressable accessibilityRole="button" accessibilityLabel="تحديث" onPress={() => void load(true)} style={s.refresh}><Text style={s.refreshText}>{refreshing ? '…' : 'تحديث'}</Text></Pressable>}/>
-    {loading ? <LoadingState message="جارٍ تحميل تفاصيل الطلب…"/> : error ? <ErrorState description={error} actionLabel={accessToken ? 'إعادة المحاولة' : 'تسجيل الدخول'} onAction={() => !accessToken ? router.push('/login') : void load()}/> : request ? <ScrollView contentContainerStyle={s.content}>
+    {loading ? <LoadingState message="جارٍ تحميل تفاصيل الطلب…"/> : error ? <ErrorState description={error} actionLabel={accessToken ? 'إعادة المحاولة' : 'تسجيل الدخول'} onAction={() => !accessToken ? pushOnce('/login') : void load()}/> : request ? <ScrollView contentContainerStyle={s.content}>
       <View style={s.card}>
         <View style={s.titleRow}><Text style={s.title}>{request.listing?.title || 'طلب خدمة'}</Text><Text style={s.status}>{STATUS[status] || status}</Text></View>
         <Text style={s.label}>تفاصيل الطلب كاملة</Text><Text style={s.body}>{request.details?.trim() || 'لم تُسجل تفاصيل إضافية لهذا الطلب.'}</Text>
@@ -169,12 +170,9 @@ export default function ServiceRequestDetailScreen() {
       {!role.customer && !role.provider ? <View style={s.card}><Text style={s.muted}>لا تظهر إجراءات تعديل هذا الطلب لهذا الحساب.</Text></View> : null}
       {request.disputeReason ? <View style={s.card}><Text style={s.sectionTitle}>سبب الاعتراض</Text><Text style={s.body}>{request.disputeReason}</Text></View> : null}
     </ScrollView> : null}
-  </SafeAreaView></KeyboardAvoidingView>;
+  </ScreenFrame>;
 }
-const createThemeS = (colors: ColorPalette) => StyleSheet.create({
-    safe: {
-        flex: 1, backgroundColor: colors.canvas
-    }, refresh: {
+const createThemeS = (colors: ColorPalette) => StyleSheet.create({ refresh: {
         minWidth: 48, minHeight: 44, alignItems: 'center', justifyContent: 'center'
     }, refreshText: {
         color: colors.brand, fontWeight: fontWeights.bold

@@ -11,7 +11,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { AudioModule, RecordingPresets, setAudioModeAsync, useAudioRecorder, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useLocalSearchParams } from 'expo-router';import { goBack } from '@/lib/navigation';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useIsOnline } from '@/lib/connectivity';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteChatMessage, fetchConversation, fetchMessagesPage, setMessageMark, type ChatMessage, type ConversationItem } from '@/features/messaging/messaging.api';
@@ -380,7 +380,7 @@ export default function ConversationScreen() {
   const normalizedSearch = messageSearch.trim().toLocaleLowerCase();
   const visibleMessages = normalizedSearch ? messages.filter(message => (message.body || '').toLocaleLowerCase().includes(normalizedSearch)) : messages;
   const other = conversation && user ? (conversation.buyerId === user.id ? conversation.seller : conversation.buyer) : null;
-  return <SafeAreaView style={styles.safe} edges={['top','bottom']}><KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+  return <ScreenFrame><KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
     <ActionSheet
       visible={Boolean(actionMessage)}
       title="خيارات الرسالة"
@@ -431,10 +431,9 @@ export default function ConversationScreen() {
       )} />
       <>{pendingMediaCount > 0 ? <Text style={styles.pendingMedia}>مرفقات محفوظة للإرسال: {pendingMediaCount}</Text> : null}<View style={styles.composer}><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void chooseAndSendImage()} style={[styles.attach, uploadingImage && styles.disabled]}><Text style={styles.attachText}>{uploadingImage ? '…' : '＋ صورة'}</Text></Pressable><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void chooseAndSendFile()} style={[styles.attach, uploadingImage && styles.disabled]}><Text style={styles.attachText}>＋ ملف</Text></Pressable><Pressable accessibilityRole="button" disabled={uploadingImage || !accessToken} onPress={() => void toggleAudioRecording()} style={[styles.attach, isRecordingAudio && styles.recording, uploadingImage && styles.disabled]}><Text style={styles.attachText}>{isRecordingAudio ? '■ إيقاف' : '♫ صوت'}</Text></Pressable><TextInput allowFontScaling maxFontSizeMultiplier={1.3} value={draft} onChangeText={setDraft} placeholder="اكتب رسالتك…" placeholderTextColor={colors.muted} multiline maxLength={2000} textAlign="right" style={styles.input} accessibilityLabel="نص الرسالة"/><Pressable accessibilityRole="button" disabled={!draft.trim() || sending} onPress={() => void submit()} style={[styles.send, (!draft.trim() || sending) && styles.disabled]}><Text style={styles.sendText}>{sending ? '…' : 'إرسال'}</Text></Pressable></View></>
     </>}
-  </KeyboardAvoidingView></SafeAreaView>;
+  </KeyboardAvoidingView></ScreenFrame>;
 }
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
   flex: { flex: 1 },
   pressed: { opacity: ux.pressedOpacity },
   header: {

@@ -1,8 +1,8 @@
 import { type ReactNode } from 'react';
 import { ScrollView, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from './AppHeader';
 import { ErrorState, LoadingState } from './Feedback';
+import { ScreenFrame } from './ScreenFrame';
 import { useUIStyles } from './styles';
 
 export function DetailScaffold({
@@ -27,7 +27,7 @@ export function DetailScaffold({
 }) {
   const s = useUIStyles();
   return (
-    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
+    <ScreenFrame>
       <AppHeader title={title} right={right} />
       {loading ? (
         <LoadingState message={loadingMessage} />
@@ -45,6 +45,6 @@ export function DetailScaffold({
           {footer ? <View style={s.detailFooter}>{footer}</View> : null}
         </>
       )}
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }

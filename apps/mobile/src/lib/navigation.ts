@@ -30,6 +30,16 @@ export function openScreen(path: Href | string): void {
   router.push(typeof path === 'string' ? toAppHref(path) : path);
 }
 
+/**
+ * `router.push` بحماية النقر المزدوج وبنفس تحقق الأنواع (typedRoutes) الخاص بـ `router.push`.
+ * استعمله بدل `router.push` المباشر في الأزرار والبطاقات؛ فالنقرتان السريعتان على بطاقة
+ * كانتا تكدّسان شاشة التفاصيل مرتين. (`openScreen` يقبل نصًا حرًا ويمرّره عبر toAppHref.)
+ */
+export function pushOnce(href: Href): void {
+  if (!allowNav()) return;
+  router.push(href);
+}
+
 /** استبدال الشاشة الحالية (بعد دخول ناجح مثلاً) */
 export function replaceScreen(path: Href | string): void {
   if (!allowNav()) return;

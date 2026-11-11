@@ -3,7 +3,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { goBack } from '@/lib/navigation';
+import { goBack, pushOnce } from '@/lib/navigation';
 import { TextInput } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import { submitReport, type ReportReason } from '@/features/account/social.api';
@@ -47,7 +47,7 @@ export default function ReportTargetScreen() {
   ].includes(targetType));
   const send = async () => {
     if (!accessToken) {
-      router.push('/login');
+      pushOnce('/login');
       return;
     }
     if (!validTarget || !targetType || !targetId || busy) {

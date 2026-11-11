@@ -5,7 +5,8 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { cancelPromotion, createPromotion, fetchMyPromotions, type StorePromotion } from '@/features/commerce/store-management.api';
@@ -108,7 +109,7 @@ export default function StorePromotionsScreen() {
   const submit = async () => {
     const token = getAccessToken();
     if (!token)
-      return router.push('/login');
+      return pushOnce('/login');
     const n = Number(value);
     const start = new Date(startsAt);
     const end = new Date(endsAt);
@@ -141,7 +142,7 @@ export default function StorePromotionsScreen() {
       setBusy(false);
     }
   };
-  return <PageShell title="العروض الترويجية">{isRestoring ? <Notice tone="muted">جارٍ استعادة الجلسة…</Notice> : !getAccessToken() ? <><Notice>سجّل الدخول لإدارة عروض متجرك.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل العروض والمنتجات…</Notice> : <><SectionCard><Text tone="ink" strong size={17}>إنشاء عرض</Text><Text tone="ink" strong>اختر المنتج</Text><View style={{ gap: 6 }}>{products.map(p => <Pressable accessibilityRole="button" key={p.id} onPress={() => setProductId(p.id)} style={{
+  return <PageShell title="العروض الترويجية">{isRestoring ? <Notice tone="muted">جارٍ استعادة الجلسة…</Notice> : !getAccessToken() ? <><Notice>سجّل الدخول لإدارة عروض متجرك.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل العروض والمنتجات…</Notice> : <><SectionCard><Text tone="ink" strong size={17}>إنشاء عرض</Text><Text tone="ink" strong>اختر المنتج</Text><View style={{ gap: 6 }}>{products.map(p => <Pressable accessibilityRole="button" key={p.id} onPress={() => setProductId(p.id)} style={{
     padding: 10, borderRadius: 10, borderWidth: 1, borderColor: productId === p.id ? colors.brand : colors.border, backgroundColor: productId === p.id ? colors.brandSoft : colors.surface
   }}><Text tone="ink">{p.name} · {formatMoney(p.price)}</Text></Pressable>)}</View>{productsPage < productsTotalPages ? <PrimaryButton label={loadingMoreProducts ? 'جارٍ تحميل المنتجات…' : 'تحميل المزيد من المنتجات'} variant="secondary" busy={loadingMoreProducts} onPress={() => void loadMoreProducts()}/> : null}<Field label="عنوان العرض" value={title} onChangeText={setTitle} maxLength={200} placeholder="عنوان العرض"/><Field label="الوصف (اختياري)" value={description} onChangeText={setDescription} maxLength={500} multiline placeholder="تفاصيل العرض"/><View style={{
     flexDirection: 'row', gap: 8

@@ -3,7 +3,8 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { fetchOpenRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
 import {
   Chip,
@@ -72,7 +73,7 @@ export default function RequestsScreen() {
         contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
-            <PrimaryButton label="+ إنشاء طلب جديد" onPress={() => router.push('/request-create')} />
+            <PrimaryButton label="+ إنشاء طلب جديد" onPress={() => pushOnce('/request-create')} />
             <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
               {(
                 [
@@ -109,7 +110,7 @@ export default function RequestsScreen() {
           ) : undefined
         }
         renderItem={({ item }) => (
-          <SectionCard onPress={() => router.push(`/requests/${encodeURIComponent(item.id)}`)}>
+          <SectionCard onPress={() => pushOnce(`/requests/${encodeURIComponent(item.id)}`)}>
             <Text style={{ textAlign: 'right', ...typography.bodyStrong, color: colors.ink }}>
               {item.title}
             </Text>

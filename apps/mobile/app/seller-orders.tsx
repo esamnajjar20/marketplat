@@ -1,5 +1,6 @@
 import { FlatList, RefreshControl, View } from 'react-native';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { AppText as Text } from '@/components/ui/AppText';
 import {
   Badge,
@@ -56,7 +57,7 @@ export default function SellerOrdersScreen() {
         title="سجّل الدخول لعرض طلبات متجرك"
         description="ستظهر الطلبات الواردة بعد تسجيل الدخول بالحساب المالك للمتجر."
         actionLabel="تسجيل الدخول"
-        onAction={() => router.push('/login')}
+        onAction={() => pushOnce('/login')}
       />
     );
   } else if (initialError) {
@@ -99,7 +100,7 @@ export default function SellerOrdersScreen() {
           return (
             <SectionCard
               accessibilityLabel={`فتح طلب ${order.id.slice(-8)}`}
-              onPress={() => router.push(`/orders/${encodeURIComponent(order.id)}`)}
+              onPress={() => pushOnce(`/orders/${encodeURIComponent(order.id)}`)}
             >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm }}>
                 <Text style={{ ...typography.title, color: colors.brand }}>{formatMoney(order.total)}</Text>

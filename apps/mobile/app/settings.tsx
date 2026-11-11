@@ -5,6 +5,7 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 
 import { fetchMyProfile, updateNotificationPreferences } from '@/features/account/account.api';
@@ -94,7 +95,7 @@ export default function SettingsScreen() {
     try {
       const token = getAccessToken();
       if (!token) {
-        router.push('/login');
+        pushOnce('/login');
         return;
       }
       const saved = await updateNotificationPreferences(prefs, token, csrfToken, user?.id);
@@ -110,7 +111,7 @@ export default function SettingsScreen() {
   const enableDevicePush = async () => {
     const token = getAccessToken();
     if (!token) {
-      router.push('/login');
+      pushOnce('/login');
       return;
     }
     setPushBusy(true);
@@ -130,7 +131,7 @@ export default function SettingsScreen() {
   const disableDevicePush = async () => {
     const token = getAccessToken();
     if (!token) {
-      router.push('/login');
+      pushOnce('/login');
       return;
     }
     setPushBusy(true);
@@ -162,7 +163,7 @@ export default function SettingsScreen() {
       {!accessToken ? (
         <>
           <Notice>سجّل الدخول لإدارة إعدادات الحساب.</Notice>
-          <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
+          <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         </>
       ) : (
         <>

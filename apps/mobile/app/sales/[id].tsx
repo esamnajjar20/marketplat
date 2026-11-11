@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Share, View } from 'react-native';
 import { Spinner } from '@/components/ui';
 import { router, useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSaleDetail, fetchSaleReceipt } from '@/features/sales/sales-extra.api';
 import type { SaleRecord } from '@/features/sales/sales.api';
@@ -94,7 +95,7 @@ export default function SaleDetailScreen() {
     if (isRestoring)
         return <PageShell title="تفاصيل البيع"><Spinner color={colors.brand}/></PageShell>;
     if (!user)
-        return <PageShell title="تفاصيل البيع"><Notice>سجّل الدخول لعرض تفاصيل البيع.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></PageShell>;
+        return <PageShell title="تفاصيل البيع"><Notice>سجّل الدخول لعرض تفاصيل البيع.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></PageShell>;
     return <PageShell title="تفاصيل البيع">{loading ? <Spinner color={colors.brand}/> : error ? <><Notice>{error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void load()} variant="secondary"/></> : sale ? <><SectionCard><Text tone="ink" strong size={20}>{sale.entityTitle}</Text><Text tone="muted" size={13}>فاتورة: {receiptNumber || 'غير مرقمة'}</Text><Text tone="muted">تاريخ البيع: {formatDate(sale.soldAt)}</Text><Text tone="muted">نوع البيع: {{
         PRODUCT: 'منتج', AD: 'إعلان', SERVICE: 'خدمة', FREE: 'عنصر مجاني'
     }[sale.entityType] || 'غير محدد'}</Text><Text tone="muted">حالة الدفع: {{

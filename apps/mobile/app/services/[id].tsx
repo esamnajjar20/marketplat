@@ -6,6 +6,7 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { fetchServiceListing, getCachedServiceListing, type ServiceListing } from '@/features/services/services.api';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Badge, DetailScaffold, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -154,7 +155,7 @@ export default function ServiceDetailScreen() {
             label="الإبلاغ عن الخدمة"
             variant="ghost"
             onPress={() =>
-              router.push({
+              pushOnce({
                 pathname: '/report/[targetType]/[targetId]',
                 params: { targetType: 'services', targetId: item.id },
               })

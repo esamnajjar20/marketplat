@@ -9,7 +9,8 @@ import { useCallback, useRef, useState, useMemo } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { pushOnce } from '@/lib/navigation';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -116,7 +117,7 @@ export default function FavoritesScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <ScreenFrame>
       <AppHeader
         title="المفضلة"
         right={
@@ -134,7 +135,7 @@ export default function FavoritesScreen() {
             title="سجّل الدخول لعرض مفضلتك"
             description="المفضلة تُزامَن مع حسابك عبر الأجهزة."
             actionLabel="تسجيل الدخول"
-            onAction={() => router.push('/login')}
+            onAction={() => pushOnce('/login')}
           />
         </View>
       ) : loading && items.length === 0 ? (
@@ -162,7 +163,7 @@ export default function FavoritesScreen() {
               title="لا توجد عناصر في المفضلة"
               description="أضف إعلانات إلى المفضلة من صفحات التفاصيل."
               actionLabel="تصفح الإعلانات"
-              onAction={() => router.push('/')}
+              onAction={() => pushOnce('/')}
             />
           }
           renderItem={({ item: record }) => {
@@ -181,7 +182,7 @@ export default function FavoritesScreen() {
                 imageUri={imageUri}
                 isFavorite
                 isNegotiable={Boolean(ad?.isNegotiable)}
-                onPress={() => router.push(`/ads/${encodeURIComponent(record.adId)}`)}
+                onPress={() => pushOnce(`/ads/${encodeURIComponent(record.adId)}`)}
                 onToggleFavorite={
                   busyId === record.adId ? undefined : () => remove(record)
                 }
@@ -191,12 +192,11 @@ export default function FavoritesScreen() {
           ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
         />
       )}
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
   link: { color: colors.brand, ...typography.captionStrong },
   center: { flex: 1, justifyContent: 'center' },
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },

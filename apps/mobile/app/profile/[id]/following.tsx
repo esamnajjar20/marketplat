@@ -3,7 +3,8 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { fetchUserFollowList, type FollowListItem } from '@/features/account/social.api';
 import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
 import { spacing, fontWeights } from '@/theme/tokens';
@@ -52,7 +53,7 @@ export default function FollowingScreen() {
         renderItem={({ item }) => {
           const person = item.target!;
           return (
-            <Pressable accessibilityRole="button" accessibilityLabel={`عرض الملف الشخصي لـ ${person.name || 'مستخدم'}`} onPress={() => router.push({ pathname: '/profile/[id]', params: { id: person.id } })}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`عرض الملف الشخصي لـ ${person.name || 'مستخدم'}`} onPress={() => pushOnce({ pathname: '/profile/[id]', params: { id: person.id } })}>
               <SectionCard>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 56 }}>
                   {person.avatarUrl ? (

@@ -1,7 +1,7 @@
 import { AppText as Text } from './AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { type ReactNode, useEffect, useRef } from 'react';
-import { ActivityIndicator, Animated, View, type StyleProp, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, ActivityIndicator, Animated, View, type StyleProp, type ViewStyle } from 'react-native';
 import { radius, spacing, ux } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { PrimaryButton } from './Button';
@@ -199,22 +199,27 @@ export function SkeletonBlock({
   const opacity = useRef(new Animated.Value(0.45)).current;
 
   useEffect(() => {
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: ux.durationSlow + 80,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0.4,
-          duration: ux.durationSlow + 80,
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-    anim.start();
-    return () => anim.stop();
+    // احترام إعداد «تقليل الحركة» في النظام: كتلة ثابتة بدل نبض متكرر.
+    let cancelled = false;
+    let anim: Animated.CompositeAnimation | null = null;
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
+      if (cancelled) return;
+      if (reduceMotion) {
+        opacity.setValue(0.7);
+        return;
+      }
+      anim = Animated.loop(
+        Animated.sequence([
+          Animated.timing(opacity, { toValue: 1, duration: ux.durationSlow + 80, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.4, duration: ux.durationSlow + 80, useNativeDriver: true }),
+        ]),
+      );
+      anim.start();
+    });
+    return () => {
+      cancelled = true;
+      anim?.stop();
+    };
   }, [opacity]);
 
   return (
@@ -242,9 +247,15 @@ export function SkeletonCard() {
   );
 }
 
-export function SkeletonList({ count = 3 }: { count?: number }) {
+export function SkeletonList({ count = 3, message = 'جاري التحميل…' }: { count?: number; message?: string }) {
   return (
-    <View style={{ gap: spacing.md }}>
+    <View
+      accessibilityRole="progressbar"
+      accessibilityLabel={message}
+      accessibilityLiveRegion="polite"
+      importantForAccessibility="no-hide-descendants"
+      style={{ gap: spacing.md }}
+    >
       {Array.from({ length: count }).map((_, i) => (
         <SkeletonCard key={i} />
       ))}

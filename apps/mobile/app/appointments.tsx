@@ -5,6 +5,7 @@ import { FlatList, RefreshControl, View } from 'react-native';
 import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyAppointments, updateAppointmentStatus, type AppointmentRow } from '@/features/appointments/appointments.api';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
@@ -105,7 +106,7 @@ export default function AppointmentsScreen() {
         ListHeaderComponent={(
           <View style={{ gap: spacing.md }}>
             <Notice tone="muted">تظهر هنا المواعيد المرتبطة بطلبات الخدمات. يمكن للعميل الإلغاء، ولمقدم الخدمة الإتمام أو تسجيل عدم الحضور.</Notice>
-            {needsLogin ? <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /> : undefined}
+            {needsLogin ? <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} /> : undefined}
             <ListStaleError list={list} />
             {actionError ? <Notice>{actionError}</Notice> : undefined}
           </View>

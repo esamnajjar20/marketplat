@@ -5,6 +5,7 @@ import { KeyboardAvoidingView, Platform, View } from 'react-native';
 import { Spinner } from '@/components/ui';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { router, useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { AppImage } from '@/components/AppImage';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import type { TextInputHandle } from '@/components/ui/Field';
@@ -64,7 +65,7 @@ export default function OrderCheckoutScreen() {
   const total = useMemo(() => unitPrice * quantity, [unitPrice, quantity]);
 
   const submit = async () => {
-    if (!user || !accessToken) { router.push('/login'); return; }
+    if (!user || !accessToken) { pushOnce('/login'); return; }
     if (!product || !product.store?.id) { setError('لا يمكن تحديد المتجر المسؤول عن هذا المنتج.'); return; }
     if (outOfStock || (product.stockQuantity != null && quantity > product.stockQuantity)) { setError('الكمية المطلوبة غير متوفرة.'); return; }
     if (!validPrice) { setError('سعر المنتج غير صالح حاليًا. حدّث الصفحة أو تواصل مع المتجر.'); return; }

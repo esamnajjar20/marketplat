@@ -4,8 +4,9 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
+
+import { pushOnce } from '@/lib/navigation';
 import { fetchStores, type StoreSummary } from '@/features/commerce/commerce.api';
 import {
   AppHeader,
@@ -95,7 +96,7 @@ export default function StoresScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <ScreenFrame>
       <AppHeader title="المتاجر" />
       <FlatList
         data={items}
@@ -143,7 +144,7 @@ export default function StoresScreen() {
             }`}
             imageUri={store.logoUrl}
             glyph="▣"
-            onPress={() => router.push(`/stores/${encodeURIComponent(store.id)}`)}
+            onPress={() => pushOnce(`/stores/${encodeURIComponent(store.id)}`)}
           />
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
@@ -158,12 +159,11 @@ export default function StoresScreen() {
           ) : undefined
         }
       />
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },
   subtitle: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   sectionRow: {

@@ -5,7 +5,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { Spinner } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchBlockedUsers, unblockUser, type BlockedUserItem } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -52,7 +53,7 @@ export default function BlockedUsersScreen() {
         onPress: () => {
           void (async () => {
             if (!accessToken) {
-              router.push('/login');
+              pushOnce('/login');
               return;
             }
             setBusyId(person.id);
@@ -76,7 +77,7 @@ export default function BlockedUsersScreen() {
       {!accessToken ? (
         <>
           <Notice>سجّل الدخول لإدارة قائمة الحظر.</Notice>
-          <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
+          <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         </>
       ) : (
         <FlatList refreshControl={<RefreshControl refreshing={loading && items.length > 0} onRefresh={() => void load()} tintColor={colors.brand} />}

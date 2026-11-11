@@ -7,6 +7,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createMyServiceListing, fetchServiceCategoryOptions, fetchServiceListing, updateMyServiceListing, type ServiceCategoryOption, type ServiceListing } from '@/features/services/services.api';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/MobileUI';
@@ -79,7 +80,7 @@ export default function ServiceEditorScreen() {
   }, [id]);
   const submit = async () => {
     if (!accessToken) {
-      router.push('/login');
+      pushOnce('/login');
       return;
     }
     if (!user?.emailVerified) {
@@ -197,7 +198,7 @@ export default function ServiceEditorScreen() {
     flex: 1, minHeight: 48, justifyContent: 'center', padding: 10, borderRadius: 12, backgroundColor: location === v ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: location === v ? colors.brand : colors.border
   }}><Text style={{
     textAlign: 'center', fontSize: fontSizes[11], color: colors.ink
-  }}>{l}</Text></Pressable>)}</View>{id ? <Pressable accessibilityRole="button" onPress={() => setStatus(s => s === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}><Text tone="brand" strong>الحالة الحالية: {status === 'ACTIVE' ? 'نشطة' : 'متوقفة'} (اضغط للتغيير)</Text></Pressable> : null}</>}{id ? <PrimaryButton label="إدارة صور الخدمة" variant="secondary" onPress={() => router.push({
+  }}>{l}</Text></Pressable>)}</View>{id ? <Pressable accessibilityRole="button" onPress={() => setStatus(s => s === 'ACTIVE' ? 'PAUSED' : 'ACTIVE')}><Text tone="brand" strong>الحالة الحالية: {status === 'ACTIVE' ? 'نشطة' : 'متوقفة'} (اضغط للتغيير)</Text></Pressable> : null}</>}{id ? <PrimaryButton label="إدارة صور الخدمة" variant="secondary" onPress={() => pushOnce({
     pathname: '/service-images', params: { id }
   })}/> : null}{error ? <Notice>{error}</Notice> : null}<PrimaryButton label={id ? 'حفظ التعديلات' : 'نشر الخدمة'} onPress={() => void submit()} busy={busy}/></PageShell>;
 }

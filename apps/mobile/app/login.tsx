@@ -5,9 +5,9 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { AppIcon } from '@/components/Icons';
 import { useRef, useState , useMemo} from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { router, useLocalSearchParams } from 'expo-router';
-import { goBack } from '@/lib/navigation';
+import { goBack, pushOnce } from '@/lib/navigation';
 import { ApiError } from '@/api/client';
 import { useAuth } from '@/features/auth/AuthContext';
 import { Field, Notice, PrimaryButton } from '@/components/MobileUI';
@@ -81,7 +81,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+    <ScreenFrame>
       <KeyboardAvoidingView
         style={styles.keyboard}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -161,7 +161,7 @@ export default function LoginScreen() {
 
             <Pressable
               accessibilityRole="button"
-              onPress={() => router.push('/forgot-password')}
+              onPress={() => pushOnce('/forgot-password')}
               style={styles.linkBtn}
             >
               <Text style={styles.link}>نسيت كلمة المرور؟</Text>
@@ -199,7 +199,7 @@ export default function LoginScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={() =>
-              router.push({
+              pushOnce({
                 pathname: '/register',
                 params: redirectParam,
               })
@@ -212,12 +212,11 @@ export default function LoginScreen() {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
   keyboard: { flex: 1 },
   content: {
     flexGrow: 1,

@@ -2,7 +2,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyReports, type MyReport } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -39,7 +40,7 @@ export default function MyReportsScreen() {
       {!user ? (
         <View style={{ gap: spacing.md }}>
           <Notice>سجّل الدخول لعرض البلاغات التي أرسلتها.</Notice>
-          <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
+          <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         </View>
       ) : (
         <FlatList

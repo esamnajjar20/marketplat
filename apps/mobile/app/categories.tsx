@@ -1,6 +1,7 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { fetchPublicCategories, type PublicCategory } from '@/features/categories/categories.api';
 import { EmptyState, ErrorState, ListRow, LoadingState, PageShell } from '@/components/MobileUI';
 import { marketListPerf } from '@/lib/listPerformance';
@@ -30,7 +31,7 @@ export default function CategoriesScreen() {
             <ListRow
               title={category.nameAr || category.name}
               description={category.children?.length ? `${category.children.length} تصنيف فرعي` : undefined}
-              onPress={() => router.push({ pathname: '/categories/[id]', params: { id: category.id } })}
+              onPress={() => pushOnce({ pathname: '/categories/[id]', params: { id: category.id } })}
             />
           )}
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}

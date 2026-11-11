@@ -6,11 +6,12 @@ import { marketListPerf } from '@/lib/listPerformance';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchFollowingFeed, type FollowingFeedItem } from '@/features/account/social.api';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton } from '@/components/MobileUI';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { toAppHref } from '@/lib/typed-navigation';
@@ -45,10 +46,10 @@ export default function FollowingFeedScreen() {
   });
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.canvas }} edges={['top']}>
+    <ScreenFrame>
       <AppHeader title="نشاط من تتابعهم" />
       {isRestoring ? <LoadingState message="جارٍ استعادة الجلسة…" /> : !user ? (
-        <EmptyState title="سجّل الدخول أولًا" description="سجّل الدخول لمشاهدة أحدث نشاط من الحسابات التي تتابعها." actionLabel="تسجيل الدخول" onAction={() => router.push('/login')} />
+        <EmptyState title="سجّل الدخول أولًا" description="سجّل الدخول لمشاهدة أحدث نشاط من الحسابات التي تتابعها." actionLabel="تسجيل الدخول" onAction={() => pushOnce('/login')} />
       ) : list.loading ? <LoadingState message="جارٍ تحميل الموجز…" /> : list.error && !list.items.length ? (
         <ErrorState title="تعذر تحميل الموجز" description={list.error} onAction={() => void list.refresh()} />
       ) : (
@@ -65,7 +66,7 @@ export default function FollowingFeedScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`فتح ${item.type === 'AD' ? 'الإعلان' : item.type === 'PRODUCT' ? 'المنتج' : 'الخدمة'}: ${item.title}`}
-              onPress={() => router.push(toAppHref(target(item)))}
+              onPress={() => pushOnce(toAppHref(target(item)))}
               style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}
             >
               {item.images?.[0] ? (
@@ -94,6 +95,6 @@ export default function FollowingFeedScreen() {
           onEndReachedThreshold={0.4}
         />
       )}
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }

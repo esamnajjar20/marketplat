@@ -4,6 +4,7 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { FlatList, RefreshControl, View } from 'react-native';
 import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
 import { router } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -36,7 +37,7 @@ export default function MyRequestsScreen() {
       {!user ? (
         <View style={{ gap: spacing.md }}>
           <Notice>سجّل الدخول لعرض طلباتك.</Notice>
-          <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
+          <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         </View>
       ) : (
         <FlatList

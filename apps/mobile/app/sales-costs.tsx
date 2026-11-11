@@ -9,8 +9,9 @@ import { formatMoney } from '@/lib/formatters';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
+
+import { pushOnce } from '@/lib/navigation';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 
 export default function SalesCostsScreen() {
@@ -87,10 +88,10 @@ export default function SalesCostsScreen() {
     } finally { setBusy(null); }
   };
 
-  if (isRestoring) return <SafeAreaView style={styles.safe}><LoadingState message="جارٍ استعادة الجلسة…" /></SafeAreaView>;
-  if (!user) return <SafeAreaView style={styles.safe}><EmptyState title="سجّل الدخول لإدارة التكاليف" actionLabel="تسجيل الدخول" onAction={() => router.push('/login')} /></SafeAreaView>;
+  if (isRestoring) return <ScreenFrame><LoadingState message="جارٍ استعادة الجلسة…" /></ScreenFrame>;
+  if (!user) return <ScreenFrame><EmptyState title="سجّل الدخول لإدارة التكاليف" actionLabel="تسجيل الدخول" onAction={() => pushOnce('/login')} /></ScreenFrame>;
 
-  return <SafeAreaView style={styles.safe} edges={['top']}>
+  return <ScreenFrame>
     <AppHeader title="التكلفة الحقيقية" />
     <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}>
       <SectionCard>
@@ -106,7 +107,7 @@ export default function SalesCostsScreen() {
       {loading ? <LoadingState message="جاري تحميل تكاليف المنتجات…" /> : error && !settingsLoaded ? <ErrorState title="تعذر تحميل التكاليف" description={error} onAction={() => void load()} /> : !enabled ? <EmptyState title="التكلفة الحقيقية متوقفة" description="لن تُعرض تكاليف المنتجات أو الأرباح حتى تعيد تفعيل الميزة." actionLabel="تفعيل الميزة" onAction={() => void toggle(true)} /> : <>
         <View style={styles.searchWrap}><TextInput value={query} onChangeText={setQuery} placeholder="ابحث عن منتج أو متجر" placeholderTextColor={colors.muted} style={styles.search} returnKeyType="search" /></View>
         {error ? <ErrorState title="تعذر تنفيذ العملية" description={error} onAction={() => setError('')} /> : null}
-        {filtered.length === 0 ? <EmptyState title="لا توجد منتجات مطابقة" description="أضف منتجات إلى متجرك أو غيّر عبارة البحث." actionLabel="إدارة المنتجات" onAction={() => router.push('/my-products')} /> : filtered.map((product) => {
+        {filtered.length === 0 ? <EmptyState title="لا توجد منتجات مطابقة" description="أضف منتجات إلى متجرك أو غيّر عبارة البحث." actionLabel="إدارة المنتجات" onAction={() => pushOnce('/my-products')} /> : filtered.map((product) => {
           const draft = drafts[product.id] ?? (product.costPrice == null ? '' : String(product.costPrice));
           return <View key={product.id} style={styles.productCard}>
             {product.images?.[0] ? <AppImage uri={product.images[0]} style={styles.image} /> : <View style={styles.imagePlaceholder} />}
@@ -123,11 +124,10 @@ export default function SalesCostsScreen() {
         })}
       </>}
     </ScrollView>
-  </SafeAreaView>;
+  </ScreenFrame>;
 }
 
-const createStyles = (colors: ColorPalette) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas }, content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },
+const createStyles = (colors: ColorPalette) => StyleSheet.create({ content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },
   heading: { color: colors.ink, fontSize: fontSizes[17], fontWeight: fontWeights.bold, textAlign: 'right' }, description: { color: colors.muted, fontSize: fontSizes[13], lineHeight: 21, textAlign: 'right' },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm }, toggleLabel: { color: colors.ink, fontWeight: fontWeights.bold }, toggle: { minWidth: 78, minHeight: 40, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md }, toggleOn: { backgroundColor: colors.brandSoft, borderColor: colors.brand }, toggleText: { color: colors.muted, fontWeight: fontWeights.bold }, toggleTextOn: { color: colors.brand },
   searchWrap: { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md }, search: { minHeight: 46, color: colors.ink, textAlign: 'right' },

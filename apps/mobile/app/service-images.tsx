@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchServiceListing, type ServiceListing } from '@/features/services/services.api';
@@ -43,7 +44,7 @@ export default function ServiceImagesScreen() {
     }, [load]);
     const pick = async () => {
         if (!accessToken)
-            return router.push('/login');
+            return pushOnce('/login');
         if (!user?.emailVerified) {
             setError('أكد بريدك الإلكتروني قبل رفع صور الخدمة.');
             return;
@@ -111,7 +112,7 @@ export default function ServiceImagesScreen() {
             setBusy(false);
         }
     };
-    return <PageShell title="صور الخدمة">{!accessToken ? <><Notice>سجّل الدخول لإدارة صور الخدمة.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل الخدمة…</Notice> : error && !item ? <Notice>{error}</Notice> : item ? <><Text tone="ink" strong size={18}>{item.title}</Text><Notice tone="muted">يمكنك إضافة حتى 10 صور. استخدم الأسهم لتغيير ترتيب العرض؛ الصورة الأولى هي الغلاف.</Notice>{item.images?.length ? item.images.map((url, index) => <SectionCard key={`${url}-${index}`}><AppImage uri={url} style={{
+    return <PageShell title="صور الخدمة">{!accessToken ? <><Notice>سجّل الدخول لإدارة صور الخدمة.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل الخدمة…</Notice> : error && !item ? <Notice>{error}</Notice> : item ? <><Text tone="ink" strong size={18}>{item.title}</Text><Notice tone="muted">يمكنك إضافة حتى 10 صور. استخدم الأسهم لتغيير ترتيب العرض؛ الصورة الأولى هي الغلاف.</Notice>{item.images?.length ? item.images.map((url, index) => <SectionCard key={`${url}-${index}`}><AppImage uri={url} style={{
         width: '100%', height: 190, borderRadius: 12
     }}/><Text tone="muted">{index === 0 ? 'الصورة الرئيسية' : `الصورة ${index + 1}`}</Text><View style={{
         flexDirection: 'row', gap: 8

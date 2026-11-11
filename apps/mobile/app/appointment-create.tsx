@@ -4,6 +4,7 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createAppointment, fetchProviderAvailability, type ProviderAvailability } from '@/features/appointments/appointments.api';
 import { buildAppointmentSlots, type AppointmentSlot } from '@/features/appointments/appointment-slots';
@@ -142,7 +143,7 @@ export default function AppointmentCreateScreen() {
   const submit = async () => {
     const token = getAccessToken();
     if (!token) {
-      router.push({ pathname: '/login', params: { redirect: `/appointment-create?requestId=${encodeURIComponent(requestId ?? '')}` } });
+      pushOnce({ pathname: '/login', params: { redirect: `/appointment-create?requestId=${encodeURIComponent(requestId ?? '')}` } });
       return;
     }
     if (!requestId) { setProviderError('رقم طلب الخدمة غير موجود.'); return; }
@@ -177,7 +178,7 @@ export default function AppointmentCreateScreen() {
     <PageShell title="حجز موعد">
       <Notice tone="muted">اختر تاريخًا ثم إحدى الفترات الشاغرة. مدة كل موعد ساعة، ويتحقق الخادم من الإتاحة مرة أخرى قبل التأكيد.</Notice>
       {loadingProvider ? <Notice tone="muted">جارٍ تحميل بيانات طلب الخدمة…</Notice> : null}
-      {!user && !isRestoring ? <View style={{ gap: spacing.sm }}><Notice>سجّل الدخول لحجز الموعد.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push({ pathname: '/login', params: { redirect: `/appointment-create?requestId=${encodeURIComponent(requestId ?? '')}` } })} /></View> : null}
+      {!user && !isRestoring ? <View style={{ gap: spacing.sm }}><Notice>سجّل الدخول لحجز الموعد.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce({ pathname: '/login', params: { redirect: `/appointment-create?requestId=${encodeURIComponent(requestId ?? '')}` } })} /></View> : null}
       {providerError ? <Notice tone="error">{providerError}</Notice> : null}
       {providerId ? (
         <SectionCard>

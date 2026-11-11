@@ -5,7 +5,8 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchActiveSessions, revokeActiveSession, type ActiveSession } from '@/features/auth/sessions.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -64,6 +65,6 @@ export default function SessionsScreen() {
       </View>
       {!session.isCurrent ? <PrimaryButton label={busyId === session.sessionId ? 'جارٍ الإنهاء…' : 'إنهاء هذه الجلسة'} variant="danger" busy={busyId === session.sessionId} disabled={!!busyId} onPress={() => revoke(session)} /> : null}
     </SectionCard>)}
-    <PrimaryButton label="العودة للإعدادات" variant="secondary" onPress={() => router.push('/settings')} />
+    <PrimaryButton label="العودة للإعدادات" variant="secondary" onPress={() => pushOnce('/settings')} />
   </PageShell>;
 }

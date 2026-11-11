@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Share, View } from 'react-native';
 import { Spinner } from '@/components/ui';
 import { router, useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSaleReceipt } from '@/features/sales/sales-extra.api';
 import type { SaleRecord } from '@/features/sales/sales.api';
@@ -64,7 +65,7 @@ export default function SaleReceiptScreen() {
   if (isRestoring)
     return <PageShell title="فاتورة البيع"><Spinner color={colors.brand}/></PageShell>;
   if (!user)
-    return <PageShell title="فاتورة البيع"><Notice>سجّل الدخول لعرض الفاتورة.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></PageShell>;
+    return <PageShell title="فاتورة البيع"><Notice>سجّل الدخول لعرض الفاتورة.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></PageShell>;
   return <PageShell title="فاتورة البيع">{loading ? <Spinner color={colors.brand}/> : error ? <><Notice>{error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void load()} variant="secondary"/></> : sale ? <><SectionCard><Text style={{
     textAlign: 'center', fontSize: fontSizes[26], fontWeight: fontWeights.bold, color: colors.ink
   }}>سوق غزة</Text><Text style={{

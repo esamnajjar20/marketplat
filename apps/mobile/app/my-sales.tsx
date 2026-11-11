@@ -6,8 +6,9 @@ import { AppHeader, EmptyState, LoadingState, PageShell } from '@/components/ui'
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
+
+import { pushOnce } from '@/lib/navigation';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSales, fetchSalesSummary, type SalePaymentStatus, type SaleRecord, type SalesPeriod, type SalesSummary } from '@/features/sales/sales.api';
@@ -128,8 +129,8 @@ export default function MySalesScreen() {
         await Promise.all([refreshList(), loadSummary(true)]);
     }, [refreshList, loadSummary]);
     if (!user)
-        return <PageShell title="مبيعاتي"><EmptyState title="مبيعاتي" description="سجّل الدخول لعرض سجل مبيعاتك." actionLabel="تسجيل الدخول" onAction={() => router.push('/login')}/></PageShell>;
-    return <SafeAreaView style={s.safe} edges={['top']}><AppHeader title="مبيعاتي"/><FlatList data={list.items} keyExtractor={(sale) => sale.id} {...marketListPerf} contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={list.refreshing || refreshingSummary} onRefresh={() => void refreshAll()} tintColor={colors.brand} />} ListHeaderComponent={<>
+        return <PageShell title="مبيعاتي"><EmptyState title="مبيعاتي" description="سجّل الدخول لعرض سجل مبيعاتك." actionLabel="تسجيل الدخول" onAction={() => pushOnce('/login')}/></PageShell>;
+    return <ScreenFrame><AppHeader title="مبيعاتي"/><FlatList data={list.items} keyExtractor={(sale) => sale.id} {...marketListPerf} contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={list.refreshing || refreshingSummary} onRefresh={() => void refreshAll()} tintColor={colors.brand} />} ListHeaderComponent={<>
     
     <Text style={s.subtitle}>سجل عمليات البيع والمدفوعات والمبالغ المستحقة.</Text>
     <Text style={s.sectionTitle}>ملخص المبيعات</Text>
@@ -165,7 +166,7 @@ ListFooterComponent={<>
             }}>
         {([
                 ['/debts', 'الديون والمستحقات'], ['/installments', 'الأقساط'], ['/customers', 'عملائي'], ['/activity', 'سجل النشاط']
-            ] as const).map(([path, label]) => <Pressable key={path} accessibilityRole="button" accessibilityLabel={label} onPress={() => router.push(path)} style={{
+            ] as const).map(([path, label]) => <Pressable key={path} accessibilityRole="button" accessibilityLabel={label} onPress={() => pushOnce(path)} style={{
                 flexGrow: 1, minWidth: '46%', minHeight: 44, justifyContent: 'center', padding: 13, borderRadius: radius.md, backgroundColor: colors.brandSoft, borderWidth: 1, borderColor: colors.controlBorder
             }}><Text style={{
                 textAlign: 'center', color: colors.brand, fontWeight: fontWeights.bold
@@ -173,12 +174,9 @@ ListFooterComponent={<>
       </View>
       <Text style={s.footnote}>الملخص للفترة المحددة، بينما سجل العمليات يعرض أحدث المبيعات المطابقة للفلتر.</Text>
     </>}
-  </>}/></SafeAreaView>;
+  </>}/></ScreenFrame>;
 }
-const createThemeS = (colors: ColorPalette) => StyleSheet.create({
-    safe: {
-        flex: 1, backgroundColor: colors.canvas
-    }, content: {
+const createThemeS = (colors: ColorPalette) => StyleSheet.create({ content: {
         padding: spacing.lg, gap: spacing.lg, paddingBottom: 52
     }, subtitle: {
         fontSize: fontSizes[12], color: colors.muted, textAlign: 'right', lineHeight: 19

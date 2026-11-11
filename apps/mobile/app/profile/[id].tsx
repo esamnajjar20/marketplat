@@ -8,6 +8,7 @@ import { View } from 'react-native';
 import { Spinner } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchBlockedUsers, fetchFollowStatus, fetchPublicUser, fetchPublicUserAds, toggleBlockUser, toggleUserFollow, unblockUser, type PublicAd, type PublicUser } from '@/features/account/social.api';
 import { startConversationWithUser } from '@/features/messaging/messaging.api';
@@ -90,7 +91,7 @@ export default function PublicProfileScreen() {
   };
   const onFollow = async () => {
     const token = getAccessToken();
-    if (!token) { router.push('/login'); return; }
+    if (!token) { pushOnce('/login'); return; }
     if (!profile || busy || following === null) return;
     setBusy(true); setError('');
     try { const action = await toggleUserFollow(profile.id, token, csrfToken); setFollowing(action === 'followed'); setProfile((p) => p ? { ...p, followStats: { followers: Math.max(0, (p.followStats?.followers ?? 0) + (action === 'followed' ? 1 : -1)), following: p.followStats?.following ?? 0 } } : p); }

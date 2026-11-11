@@ -4,7 +4,8 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
   createSavedSearch,
@@ -121,7 +122,7 @@ export default function SavedSearchesScreen() {
       {!accessToken ? (
         <>
           <Notice>سجّل الدخول لحفظ عمليات البحث.</Notice>
-          <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
+          <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         </>
       ) : (
         <FlatList refreshControl={<RefreshControl refreshing={loading && items.length > 0} onRefresh={() => void load()} tintColor={colors.brand} />}
@@ -203,7 +204,7 @@ export default function SavedSearchesScreen() {
               <Text tone="muted">
                 {i.filters.type || 'ads'} · {i.filters.q || i.filters.city || 'فلاتر سعرية'}
               </Text>
-              <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/search', params: { q: i.filters.q || '', categoryId: i.filters.categoryId || '', type: i.filters.type || 'ads', city: i.filters.city || '', minPrice: i.filters.minPrice == null ? '' : String(i.filters.minPrice), maxPrice: i.filters.maxPrice == null ? '' : String(i.filters.maxPrice) } })}>
+              <Pressable accessibilityRole="button" onPress={() => pushOnce({ pathname: '/search', params: { q: i.filters.q || '', categoryId: i.filters.categoryId || '', type: i.filters.type || 'ads', city: i.filters.city || '', minPrice: i.filters.minPrice == null ? '' : String(i.filters.minPrice), maxPrice: i.filters.maxPrice == null ? '' : String(i.filters.maxPrice) } })}>
                 <Text tone="brand" strong>فتح نتائج البحث</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={() => remove(i.id)}>

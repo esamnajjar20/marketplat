@@ -8,7 +8,8 @@ import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useRef, useState, useMemo } from 'react';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { EmptyState, ErrorState, LoadingState, PageShell } from '@/components/ui';
@@ -82,7 +83,7 @@ export default function StoriesScreen() {
                 throw new Error('اختر صورة JPEG أو PNG أو WebP.');
             const token = getAccessToken();
             if (!token) {
-                router.push('/login');
+                pushOnce('/login');
                 return;
             }
             await createStory({ visibility }, {
@@ -100,7 +101,7 @@ export default function StoriesScreen() {
     };
     const addStory = () => {
         if (!getAccessToken()) {
-            router.push('/login');
+            pushOnce('/login');
             return;
         }
         setShowAddStorySheet(true);
@@ -110,7 +111,7 @@ export default function StoriesScreen() {
         </Pressable>)}>
       <ActionSheet visible={showAddStorySheet} title="إضافة قصة" description="اختر نوع القصة والجمهور الذي يمكنه مشاهدتها." onClose={() => setShowAddStorySheet(false)} options={[
             {
-                key: 'text', label: 'قصة نصية', onPress: () => router.push('/story-create')
+                key: 'text', label: 'قصة نصية', onPress: () => pushOnce('/story-create')
             },
             {
                 key: 'followers', label: 'صورة للمتابعين', onPress: () => void publishImageStory('FOLLOWERS')
@@ -119,7 +120,7 @@ export default function StoriesScreen() {
                 key: 'public', label: 'صورة عامة', onPress: () => void publishImageStory('PUBLIC')
             },
         ]}/>
-      {!getAccessToken() ? (<EmptyState title="سجّل الدخول لمشاهدة القصص" description="يمكنك فتح القصص العامة عبر رابط مشاركة مباشر." actionLabel="تسجيل الدخول" onAction={() => router.push('/login')}/>) : loading && groups.length === 0 ? (<LoadingState message="جارٍ تحميل القصص…"/>) : error && groups.length === 0 ? (<ErrorState description={error} onAction={() => void load()}/>) : (<FlatList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />} data={groups} keyExtractor={(group) => group.user.id} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} initialNumToRender={6} maxToRenderPerBatch={6} windowSize={7} ListHeaderComponent={(<View style={{ gap: spacing.lg }}>
+      {!getAccessToken() ? (<EmptyState title="سجّل الدخول لمشاهدة القصص" description="يمكنك فتح القصص العامة عبر رابط مشاركة مباشر." actionLabel="تسجيل الدخول" onAction={() => pushOnce('/login')}/>) : loading && groups.length === 0 ? (<LoadingState message="جارٍ تحميل القصص…"/>) : error && groups.length === 0 ? (<ErrorState description={error} onAction={() => void load()}/>) : (<FlatList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />} data={groups} keyExtractor={(group) => group.user.id} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} initialNumToRender={6} maxToRenderPerBatch={6} windowSize={7} ListHeaderComponent={(<View style={{ gap: spacing.lg }}>
               {error ? (<View style={styles.error}>
                   <Text style={styles.errorText}>{error}</Text>
                   <Pressable accessibilityRole="button" onPress={() => void load()}>
@@ -134,7 +135,7 @@ export default function StoriesScreen() {
                 </View>
               </Pressable>
             </View>)} ListEmptyComponent={!error ? (<EmptyState title="لا توجد قصص نشطة حاليًا" description="تابع المستخدمين لرؤية قصصهم هنا."/>) : undefined} renderItem={({ item: group }) => (<View style={styles.group}>
-              <Pressable accessibilityRole="button" accessibilityLabel={`عرض قصص ${group.user.name || 'المستخدم'}`} onPress={() => router.push({
+              <Pressable accessibilityRole="button" accessibilityLabel={`عرض قصص ${group.user.name || 'المستخدم'}`} onPress={() => pushOnce({
                 pathname: '/stories/[id]', params: {
                     id: group.stories[0]?.id || 'missing', userId: group.user.id
                 }
@@ -153,7 +154,7 @@ export default function StoriesScreen() {
             }}><Text style={styles.link}>عرض</Text><AppIcon name="forward" size={16} color={colors.brand}/></View>
               </Pressable>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.storyStrip}>
-                {group.stories.map((story) => (<Pressable key={story.id} accessibilityRole="button" accessibilityLabel={`فتح قصة ${group.user.name || 'المستخدم'}`} style={styles.storyTile} onPress={() => router.push({
+                {group.stories.map((story) => (<Pressable key={story.id} accessibilityRole="button" accessibilityLabel={`فتح قصة ${group.user.name || 'المستخدم'}`} style={styles.storyTile} onPress={() => pushOnce({
                     pathname: '/stories/[id]', params: {
                         id: story.id, userId: story.userId
                     }

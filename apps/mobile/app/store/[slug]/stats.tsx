@@ -4,7 +4,8 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Spinner } from '@/components/ui';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { apiRequest } from '@/api/client';
 import { PageShell, Notice, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { RatingStars } from '@/components/ui/RatingStars';
@@ -63,5 +64,5 @@ export default function PublicStoreStatsScreen() {
         color: colors.brand, textAlign: 'right', marginTop: spacing.xs
     }}>✓ بائع موثّق</Text> : null}<View style={{ marginTop: spacing.md }}><RatingStars score={data.averageRating} count={data.reviewCount}/></View></SectionCard><View style={{
         flexDirection: 'row', gap: spacing.sm
-    }}><SectionCard><Text tone="muted">المبيعات</Text><Text tone="ink" strong size={26}>{formatNumber(data.totalSales)}</Text></SectionCard><SectionCard><Text tone="muted">التقييمات</Text><Text tone="ink" strong size={26}>{formatNumber(data.reviewCount)}</Text></SectionCard></View><SectionCard><Text tone="muted">آخر عملية بيع</Text><Text tone="ink" strong>{data.lastSaleAt ? formatSafeDate(data.lastSaleAt, 'date') : 'لا توجد مبيعات مسجلة'}</Text></SectionCard><PrimaryButton label="عرض المتجر" variant="secondary" onPress={() => router.push(`/stores/${encodeURIComponent(data.storeId)}`)}/></> : null}</PageShell>;
+    }}><SectionCard><Text tone="muted">المبيعات</Text><Text tone="ink" strong size={26}>{formatNumber(data.totalSales)}</Text></SectionCard><SectionCard><Text tone="muted">التقييمات</Text><Text tone="ink" strong size={26}>{formatNumber(data.reviewCount)}</Text></SectionCard></View><SectionCard><Text tone="muted">آخر عملية بيع</Text><Text tone="ink" strong>{data.lastSaleAt ? formatSafeDate(data.lastSaleAt, 'date') : 'لا توجد مبيعات مسجلة'}</Text></SectionCard><PrimaryButton label="عرض المتجر" variant="secondary" onPress={() => pushOnce(`/stores/${encodeURIComponent(data.storeId)}`)}/></> : null}</PageShell>;
 }

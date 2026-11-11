@@ -9,7 +9,8 @@ import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { marketListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { pushOnce } from '@/lib/navigation';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { ApiError } from '@/api/client';
 import { deleteAd, fetchMyAdsPage, mergeRefreshedAdsPage, type ManagedAd } from '@/features/ads/manage-ads.api';
@@ -187,7 +188,7 @@ export default function MyAdsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <ScreenFrame>
       <AppHeader
         title="إعلاناتي"
         right={
@@ -209,7 +210,7 @@ export default function MyAdsScreen() {
           title="سجّل الدخول أولًا"
           description="إدارة إعلاناتك تتطلب حسابًا مسجّلًا."
           actionLabel="تسجيل الدخول"
-          onAction={() => router.push('/login')}
+          onAction={() => pushOnce('/login')}
         />
       ) : loading ? (
         <LoadingState message="جاري تحميل إعلاناتك…" />
@@ -227,7 +228,7 @@ export default function MyAdsScreen() {
               title="لم تنشر أي إعلان بعد"
               description="ابدأ بنشر إعلانك الأول ليظهر في السوق."
               actionLabel="إضافة إعلان"
-              onAction={() => router.push('/ad-editor')}
+              onAction={() => pushOnce('/ad-editor')}
             />
           }
           renderItem={({ item: ad }) => (
@@ -239,14 +240,14 @@ export default function MyAdsScreen() {
               <View style={styles.actions}>
                 <SecondaryButton
                   label="تعديل"
-                  onPress={() => router.push({ pathname: '/ad-editor', params: { id: ad.id } })}
+                  onPress={() => pushOnce({ pathname: '/ad-editor', params: { id: ad.id } })}
                 />
                 <PrimaryButton
                   label={failedDeleteIds.has(ad.id) ? 'مراجعة عملية الحذف' : pendingDeleteIds.has(ad.id) ? 'بانتظار المزامنة' : busyId === ad.id ? 'جارٍ الحذف…' : online ? 'حذف' : 'حفظ طلب الحذف'}
                   variant="danger"
                   busy={busyId === ad.id}
                   disabled={busyId === ad.id || pendingDeleteIds.has(ad.id)}
-                  onPress={() => failedDeleteIds.has(ad.id) ? router.push('/offline-queue') : remove(ad)}
+                  onPress={() => failedDeleteIds.has(ad.id) ? pushOnce('/offline-queue') : remove(ad)}
                 />
               </View>
             </SectionCard>
@@ -260,12 +261,11 @@ export default function MyAdsScreen() {
           ) : undefined}
         />
       )}
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
   headerActions: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   link: { color: colors.brand, ...typography.captionStrong },
   list: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },

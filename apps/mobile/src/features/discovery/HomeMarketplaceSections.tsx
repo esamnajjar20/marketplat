@@ -6,7 +6,8 @@ import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { useOnlineResync } from '@/lib/useOnlineResync';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 import { SectionHeader } from '@/components/MobileUI';
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
@@ -246,7 +247,7 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
         <MarketplaceSectionHeader
           title="منتجات مميزة"
           subtitle="منتجات من متاجر السوق المحلية"
-          onAll={() => router.push('/products')}
+          onAll={() => pushOnce('/products')}
         />
         {hasProducts ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hScroll}>
@@ -258,7 +259,7 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
                 imageUri={firstImage(item.images)}
                 price={money(item.effectivePrice?.price ?? item.discountPrice ?? item.price)}
                 glyph="◇"
-                onPress={() => router.push({ pathname: '/products/[id]', params: { id: item.id } })}
+                onPress={() => pushOnce({ pathname: '/products/[id]', params: { id: item.id } })}
               />
             ))}
           </ScrollView>
@@ -271,7 +272,7 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
         <MarketplaceSectionHeader
           title="خدمات قريبة"
           subtitle="مقدمو خدمات في منطقتك"
-          onAll={() => router.push('/services')}
+          onAll={() => pushOnce('/services')}
         />
         {hasServices ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hScroll}>
@@ -287,7 +288,7 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
                 imageUri={firstImage(item.images)}
                 price={money(item.price)}
                 glyph="✦"
-                onPress={() => router.push({ pathname: '/services/[id]', params: { id: item.id } })}
+                onPress={() => pushOnce({ pathname: '/services/[id]', params: { id: item.id } })}
               />
             ))}
           </ScrollView>
@@ -300,7 +301,7 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
         <MarketplaceSectionHeader
           title="طلبات السوق"
           subtitle="طلبات مفتوحة من المشترين"
-          onAll={() => router.push('/requests')}
+          onAll={() => pushOnce('/requests')}
         />
         {hasRequests ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hScroll}>
@@ -326,7 +327,7 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
                       : null
                 }
                 glyph="▤"
-                onPress={() => router.push({ pathname: '/requests/[id]', params: { id: item.id } })}
+                onPress={() => pushOnce({ pathname: '/requests/[id]', params: { id: item.id } })}
               />
             ))}
           </ScrollView>
@@ -344,14 +345,14 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
           <View style={styles.ctaRow}>
             <Pressable
               accessibilityRole="button"
-              onPress={() => router.push('/orders')}
+              onPress={() => pushOnce('/orders')}
               style={({ pressed }) => [styles.ctaPrimary, pressed && styles.pressed]}
             >
               <Text style={styles.ctaPrimaryText}>طلباتي ومشترياتي</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              onPress={() => router.push('/my-requests')}
+              onPress={() => pushOnce('/my-requests')}
               style={({ pressed }) => [styles.ctaSecondary, pressed && styles.pressed]}
             >
               <Text style={styles.ctaSecondaryText}>طلبات السوق التي أنشأتها</Text>
@@ -361,7 +362,7 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
       ) : (
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.push('/login')}
+          onPress={() => pushOnce('/login')}
           style={({ pressed }) => [styles.ctaCard, pressed && styles.pressed]}
         >
           <Text style={styles.ctaTitle}>ابدأ بإدارة طلباتك</Text>

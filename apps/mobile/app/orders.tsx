@@ -1,5 +1,6 @@
 import { FlatList, RefreshControl, View } from 'react-native';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { AppText as Text } from '@/components/ui/AppText';
 import {
   Badge,
@@ -56,7 +57,7 @@ export default function MyOrdersScreen() {
         title="سجّل الدخول لعرض طلباتك"
         description="ستظهر مشترياتك بعد تسجيل الدخول بالحساب الذي أرسل الطلب."
         actionLabel="تسجيل الدخول"
-        onAction={() => router.push('/login')}
+        onAction={() => pushOnce('/login')}
       />
     );
   } else if (initialError) {
@@ -93,7 +94,7 @@ export default function MyOrdersScreen() {
             title="لا توجد طلبات حتى الآن"
             description="عندما تطلب منتجًا من أحد المتاجر، سيظهر هنا."
             actionLabel="تصفح المنتجات"
-            onAction={() => router.push('/products')}
+            onAction={() => pushOnce('/products')}
           />
         }
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
@@ -104,7 +105,7 @@ export default function MyOrdersScreen() {
           return (
             <SectionCard
               accessibilityLabel={`تفاصيل الطلب ${order.id.slice(-8)}`}
-              onPress={() => router.push(`/orders/${encodeURIComponent(order.id)}`)}
+              onPress={() => pushOnce(`/orders/${encodeURIComponent(order.id)}`)}
             >
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.sm }}>
                 <Text style={{ ...typography.title, color: colors.brand }}>{formatMoney(order.total)}</Text>

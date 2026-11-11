@@ -2,7 +2,7 @@ import { View } from 'react-native';
 import { spacing } from '@/theme/tokens';
 import type { PaginatedListState } from '@/hooks/usePaginatedList';
 import { PrimaryButton } from './Button';
-import { EmptyState, ErrorState, LoadingState, Notice, Spinner } from './Feedback';
+import { EmptyState, ErrorState, Notice, SkeletonList, Spinner } from './Feedback';
 
 type ListLike = Pick<
   PaginatedListState<unknown>,
@@ -31,7 +31,7 @@ export function ListEmpty({
   actionLabel?: string;
   onAction?: () => void;
 }) {
-  if (list.loading) return <LoadingState message={loadingMessage} />;
+  if (list.loading) return <SkeletonList message={loadingMessage} />;
   if (list.error) return <ErrorState title={errorTitle} description={list.error} onAction={() => void list.retry()} />;
   return <EmptyState title={emptyTitle} description={emptyDescription} actionLabel={actionLabel} onAction={onAction} />;
 }

@@ -1,7 +1,8 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { FlatList, View } from 'react-native';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { toAppHref } from '@/lib/typed-navigation';
 import { ListRow, PageShell, SectionHeader } from '@/components/MobileUI';
 import { spacing, typography } from '@/theme/tokens';
@@ -55,7 +56,7 @@ export default function ExploreScreen() {
                 key={item.path}
                 title={item.title}
                 description={item.description}
-                onPress={() => router.push(toAppHref(item.path))}
+                onPress={() => pushOnce(toAppHref(item.path))}
               />
             ))}
           </View>

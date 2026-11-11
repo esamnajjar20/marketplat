@@ -4,7 +4,8 @@ import { formatMoney, formatNumber, formatDate as formatSharedDate } from '@/lib
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { StyleSheet, View } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import { enqueueFavoriteState, listPendingFavoriteStates, readFavoriteAdIds, updateFavoriteAdId } from '@/features/ads/favorites.store';
@@ -163,7 +164,7 @@ export default function AdDetailScreen() {
 
   const onMessageSeller = useCallback(async () => {
     if (!accessToken) {
-      router.push('/login');
+      pushOnce('/login');
       return;
     }
     if (!id || startingConversation || (user?.id && ad?.user?.id === user.id)) return;
@@ -171,7 +172,7 @@ export default function AdDetailScreen() {
     setConversationMessage(null);
     try {
       const conversation = await startConversationFromAd(id, accessToken, csrfToken);
-      router.push({ pathname: '/messages/[id]', params: { id: conversation.id } });
+      pushOnce({ pathname: '/messages/[id]', params: { id: conversation.id } });
     } catch (error) {
       setConversationMessage(
         error instanceof Error ? error.message : 'تعذر بدء المحادثة. حاول مرة أخرى.',
@@ -204,7 +205,7 @@ export default function AdDetailScreen() {
             accessibilityLabel={isFavorite ? 'إزالة الإعلان من المفضلة' : 'إضافة الإعلان إلى المفضلة'}
             accessibilityState={{ selected: isFavorite, disabled: favoriteBusy }}
             disabled={favoriteBusy}
-            onPress={() => { if (!accessToken) router.push('/login'); else void onToggleFavorite(); }}
+            onPress={() => { if (!accessToken) pushOnce('/login'); else void onToggleFavorite(); }}
             style={{ minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22, backgroundColor: colors.brandSoft }}
           >
             <AppIcon name={isFavorite ? 'favoriteActive' : 'favorite'} size={22} color={colors.brandOnSoft} />
@@ -244,7 +245,7 @@ export default function AdDetailScreen() {
               {favoriteMessage ? <Notice tone="muted">{favoriteMessage}</Notice> : null}
               {cacheNotice ? <Notice tone="muted">تعرض هذه البيانات نسخة محفوظة؛ تعذر التحقق من أحدث تحديث.</Notice> : null}
               {ad.status ? <Badge label={({ ACTIVE: 'نشط', SOLD: 'مباع', EXPIRED: 'منتهي', PENDING: 'قيد المراجعة', REJECTED: 'مرفوض', SUSPENDED: 'موقوف' } as Record<string,string>)[ad.status] || ad.status} tone={ad.status === 'ACTIVE' ? 'success' : 'muted'} /> : null}
-              {isOwner ? <PrimaryButton label="تعديل الإعلان" variant="secondary" onPress={() => router.push({ pathname: '/ad-editor', params: { id: ad.id } })} /> : null}
+              {isOwner ? <PrimaryButton label="تعديل الإعلان" variant="secondary" onPress={() => pushOnce({ pathname: '/ad-editor', params: { id: ad.id } })} /> : null}
               <SaveOfflineButton id={ad.id} kind="ad" title={ad.title} payload={{ id: ad.id, title: ad.title, description: ad.description, price: ad.price, city: ad.city, condition: ad.condition, createdAt: ad.createdAt, images }} />
               {conversationMessage ? <Notice tone="error">{conversationMessage}</Notice> : null}
             </SectionCard>
@@ -268,7 +269,7 @@ export default function AdDetailScreen() {
                 disabled={!ad.user?.id}
                 onPress={() => {
                   if (ad.user?.id) {
-                    router.push({ pathname: '/profile/[id]', params: { id: ad.user.id } });
+                    pushOnce({ pathname: '/profile/[id]', params: { id: ad.user.id } });
                   }
                 }}
               >
@@ -286,7 +287,7 @@ export default function AdDetailScreen() {
                   label="الإبلاغ عن الإعلان"
                   variant="ghost"
                   onPress={() =>
-                    router.push({
+                    pushOnce({
                       pathname: '/report/[targetType]/[targetId]',
                       params: { targetType: 'ads', targetId: ad.id },
                     })

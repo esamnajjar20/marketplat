@@ -4,8 +4,9 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchConversationsPage, setConversationFlags, type ConversationItem } from '@/features/messaging/messaging.api';
 import { useUnreadCounts } from '@/features/messaging/useUnreadCounts';
@@ -116,7 +117,7 @@ export default function MessagesScreen() {
   }, [getAccessToken, csrfToken, busyFlagId]);
 
   const openConversation = useCallback((conversationId: string) => {
-    router.push({ pathname: '/messages/[id]', params: { id: conversationId } });
+    pushOnce({ pathname: '/messages/[id]', params: { id: conversationId } });
   }, []);
   const renderConversation = useCallback(({ item }: { item: ConversationItem }) => (
     <ConversationListItem item={item} currentUserId={user?.id} onPress={openConversation} busy={busyFlagId === item.id} onTogglePin={(row) => void changeFlag(row, { pinned: !row.mySettings?.pinnedAt })} onToggleArchive={(row) => void changeFlag(row, { archived: !row.mySettings?.archivedAt })} />
@@ -169,13 +170,13 @@ export default function MessagesScreen() {
   ), []);
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <ScreenFrame>
       <AppHeader
         title={counts.messages > 0
           ? `المحادثات (${counts.messages > 99 ? '99+' : counts.messages})`
           : 'المحادثات'}
         right={
-          <Pressable accessibilityRole="button" onPress={() => router.push('/notifications')} hitSlop={8}>
+          <Pressable accessibilityRole="button" onPress={() => pushOnce('/notifications')} hitSlop={8}>
             <Text style={styles.link}>
               الإشعارات
               {counts.notifications > 0
@@ -190,7 +191,7 @@ export default function MessagesScreen() {
         <EmptyState
           title="سجّل الدخول أولًا"
           actionLabel="تسجيل الدخول"
-          onAction={() => router.push('/login')}
+          onAction={() => pushOnce('/login')}
         />
       ) : loading && items.length === 0 ? (
         <SkeletonList count={5} />
@@ -218,7 +219,7 @@ export default function MessagesScreen() {
           accessibilityLabel="قائمة المحادثات"
         />
       )}
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }
 
@@ -230,7 +231,6 @@ function ConversationSeparator() {
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
   link: { color: colors.brand, ...typography.captionStrong },
   content: {
     flexGrow: 1,

@@ -5,8 +5,9 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { useState , useMemo} from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
+
+import { pushOnce } from '@/lib/navigation';
 import { fetchServiceListingsPage, getCachedServiceListingsPage, type ServiceListing } from '@/features/services/services.api';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import {
@@ -50,7 +51,7 @@ export default function ServicesScreen() {
   const items = list.items;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <ScreenFrame>
       <AppHeader title="الخدمات" />
       <FlatList
         data={items}
@@ -100,7 +101,7 @@ export default function ServicesScreen() {
               meta={item.category?.nameAr || item.category?.name || undefined}
               imageUri={image}
               glyph="✦"
-              onPress={() => router.push(`/services/${encodeURIComponent(item.id)}`)}
+              onPress={() => pushOnce(`/services/${encodeURIComponent(item.id)}`)}
             />
           );
         }}
@@ -112,12 +113,11 @@ export default function ServicesScreen() {
           </View>
         ) : undefined}
       />
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },
   subtitle: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   sectionRow: {

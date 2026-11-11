@@ -2,7 +2,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -81,7 +82,7 @@ export default function ProfileScreen() {
   };
   const chooseAvatar = async () => {
     if (!accessToken) {
-      router.push('/login');
+      pushOnce('/login');
       return;
     }
     if (!(profile?.emailVerified ?? user?.emailVerified)) {
@@ -138,7 +139,7 @@ export default function ProfileScreen() {
       setBusy(false);
     }
   };
-  return <PageShell title="ملفي الشخصي">{!accessToken ? <><Notice>سجّل الدخول لإدارة ملفك الشخصي.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل بيانات الحساب…</Notice> : <><SectionCard><View style={{
+  return <PageShell title="ملفي الشخصي">{!accessToken ? <><Notice>سجّل الدخول لإدارة ملفك الشخصي.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل بيانات الحساب…</Notice> : <><SectionCard><View style={{
     alignItems: 'center', gap: 14, paddingVertical: 14
   }}>{profile?.avatarUrl ? <AppImage uri={profile.avatarUrl} style={{
     width: 104, height: 104, borderRadius: 52, backgroundColor: colors.border

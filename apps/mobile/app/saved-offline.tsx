@@ -6,7 +6,8 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { listSavedOfflineResources, removeSavedOfflineResource, type SavedOfflineItem } from '@/storage/saved-offline';
 import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { fontSizes, radius, spacing, typography } from '@/theme/tokens';
@@ -44,7 +45,7 @@ export default function SavedOfflineScreen() {
           <View style={{ flex: 1, gap: spacing.xs }}><Text tone="ink" strong size={15}>{item.title}</Text><Text tone="brand" strong size={12}>{kindName(item.kind)}{price ? ` · ${formatMoney(price)}` : ''}</Text>{description ? <Text numberOfLines={3} style={{ textAlign: 'right', color: colors.muted, fontSize: fontSizes[12], lineHeight: 18 }}>{description}</Text> : null}<Text tone="muted" size={11}>تاريخ الحفظ: {dateLabel(item.savedAt)}</Text></View>
         </View>
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <PrimaryButton label="فتح التفاصيل" variant="secondary" onPress={() => router.push(item.kind === 'ad' ? { pathname: '/ads/[id]', params: { id: item.id } } : item.kind === 'product' ? { pathname: '/products/[id]', params: { id: item.id } } : { pathname: '/stores/[id]', params: { id: item.id } })} />
+          <PrimaryButton label="فتح التفاصيل" variant="secondary" onPress={() => pushOnce(item.kind === 'ad' ? { pathname: '/ads/[id]', params: { id: item.id } } : item.kind === 'product' ? { pathname: '/products/[id]', params: { id: item.id } } : { pathname: '/stores/[id]', params: { id: item.id } })} />
           <PrimaryButton label="إزالة الحفظ" variant="danger" onPress={() => remove(item)} />
         </View>
       </SectionCard>;

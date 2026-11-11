@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { router } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createSale } from '@/features/sales/sales.api';
 import { ApiError } from '@/api/client';
@@ -45,7 +46,7 @@ export default function SaleCreateScreen() {
 
   const updateLine = (id: string, patch: Partial<SaleLine>) => setLines(current => current.map(line => line.id === id ? { ...line, ...patch } : line));
   const submit = async () => {
-    if (!accessToken) { router.push('/login'); return; }
+    if (!accessToken) { pushOnce('/login'); return; }
     const paidAmount = Number(paid);
     if (buyer.trim().length < 2 || !Number.isFinite(paidAmount) || paidAmount < 0 || paidAmount > total) {
       setError('تحقق من اسم المشتري والمبلغ المدفوع، ويجب ألا يتجاوز المدفوع إجمالي الفاتورة.'); return;

@@ -3,7 +3,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { fetchPublicCollections, type StoreCollection } from '@/features/commerce/store-management.api';
 import { ErrorState, Notice, PageShell, SectionCard } from '@/components/MobileUI';
 import { spacing } from '@/theme/tokens';
@@ -37,7 +38,7 @@ export default function PublicStoreCollectionsScreen() {
         }
         ListEmptyComponent={!loading && !error ? <Notice tone="muted">لم ينشر المتجر مجموعات منتجات بعد.</Notice> : undefined}
         renderItem={({ item }) => (
-          <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/collections/[id]', params: { id: item.id } })}>
+          <Pressable accessibilityRole="button" onPress={() => pushOnce({ pathname: '/collections/[id]', params: { id: item.id } })}>
             <SectionCard>
               {item.imageUrl ? <AppImage uri={item.imageUrl} style={{ width: '100%', height: 140, borderRadius: 12 }} resizeMode="cover" /> : null}
               <Text tone="ink" strong size={17}>{item.name}</Text>

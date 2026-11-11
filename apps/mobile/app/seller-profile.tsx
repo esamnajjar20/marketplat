@@ -3,7 +3,8 @@ import { invalidateNavigationCapabilities } from '@/lib/navigation-policy';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useState } from 'react';
 import { Switch, View } from 'react-native';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createSellerProfile, fetchMySellerProfile, updateSellerProfile, type SellerProfile } from '@/features/account/seller.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -42,7 +43,7 @@ export default function SellerProfileScreen() {
   }, [load]);
   const save = async () => {
     if (!accessToken) {
-      router.push('/login');
+      pushOnce('/login');
       return;
     }
     if (!user?.emailVerified) {
@@ -73,7 +74,7 @@ export default function SellerProfileScreen() {
       setBusy(false);
     }
   };
-  return <PageShell title="ملف البائع">{!accessToken ? <><Notice>سجّل الدخول لإعداد ملف البائع.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل الملف…</Notice> : <SectionCard><Text style={{
+  return <PageShell title="ملف البائع">{!accessToken ? <><Notice>سجّل الدخول لإعداد ملف البائع.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل الملف…</Notice> : <SectionCard><Text style={{
     textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[18], color: colors.ink, marginBottom: spacing.xs
   }}>{profile ? 'تعديل ملف البائع' : 'إنشاء ملف بائع'}</Text><Field label="اسم العرض" value={name} onChangeText={setName} maxLength={50} placeholder="الاسم الذي يظهر للعملاء"/><Field label="نبذة مختصرة" value={bio} onChangeText={setBio} multiline maxLength={300} placeholder="عرّف العملاء بك وبنشاطك"/>{!profile ? <View style={{
     flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm
@@ -85,5 +86,5 @@ export default function SellerProfileScreen() {
       return;
     }
     void save();
-  }} busy={busy}/>{profile ? <PrimaryButton label="إعداد ملف مقدم الخدمة" variant="secondary" onPress={() => router.push('/service-provider-profile')}/> : null}</SectionCard>}{error ? <Notice>{error}</Notice> : null}{message ? <Notice tone="success">{message}</Notice> : null}</PageShell>;
+  }} busy={busy}/>{profile ? <PrimaryButton label="إعداد ملف مقدم الخدمة" variant="secondary" onPress={() => pushOnce('/service-provider-profile')}/> : null}</SectionCard>}{error ? <Notice>{error}</Notice> : null}{message ? <Notice tone="success">{message}</Notice> : null}</PageShell>;
 }

@@ -6,8 +6,9 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useCallback, useRef, useState , useMemo} from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { denseListPerf } from '@/lib/listPerformance';
-import { router, useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useAuth } from '@/features/auth/AuthContext';
 import {
   fetchNotificationsPage,
@@ -154,11 +155,11 @@ export default function NotificationsScreen() {
         void refreshUnreadCounts();
       });
     }
-    router.push(toAppHref(target));
+    pushOnce(toAppHref(target));
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <ScreenFrame>
       <AppHeader
         title={counts.notifications > 0
           ? `الإشعارات (${counts.notifications > 99 ? '99+' : counts.notifications})`
@@ -183,7 +184,7 @@ export default function NotificationsScreen() {
         <EmptyState
           title="سجّل الدخول أولًا"
           actionLabel="تسجيل الدخول"
-          onAction={() => router.push('/login')}
+          onAction={() => pushOnce('/login')}
         />
       ) : list.loading ? (
         <LoadingState message="جاري تحميل الإشعارات…" />
@@ -241,12 +242,11 @@ export default function NotificationsScreen() {
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
         />
       )}
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
   link: { color: colors.brand, ...typography.captionStrong },
   disabled: { opacity: 0.45 },
   list: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },

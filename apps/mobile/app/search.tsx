@@ -12,9 +12,9 @@ import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { elevation, fontSizes, radius, sizes, spacing, typography, ux, fontWeights } from '@/theme/tokens';
 import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View, RefreshControl } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { goBack } from '@/lib/navigation';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
+import { useLocalSearchParams, type Href } from 'expo-router';
+import { goBack, pushOnce } from '@/lib/navigation';
 
 const types = [
   { label: 'الكل', value: 'all' },
@@ -523,7 +523,7 @@ export default function SearchScreen() {
         <Pressable
           accessibilityRole="button"
           onPress={() =>
-            router.push({
+            pushOnce({
               pathname: '/saved-searches',
               params: {
                 type,
@@ -599,7 +599,7 @@ export default function SearchScreen() {
     ) : null;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <ScreenFrame>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -613,7 +613,7 @@ export default function SearchScreen() {
               accessibilityRole="button"
               accessibilityLabel={`فتح ${item.title}`}
               accessibilityHint="عرض تفاصيل النتيجة"
-              onPress={() => router.push(routeFor(item))}
+              onPress={() => pushOnce(routeFor(item))}
               style={({ pressed }) => [styles.resultCard, pressed && styles.pressed]}
             >
               <View style={styles.resultBody}>
@@ -661,12 +661,11 @@ export default function SearchScreen() {
           removeClippedSubviews={Platform.OS === 'android'}
         />
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
   flex: { flex: 1 },
   listContent: {
     padding: spacing.lg,

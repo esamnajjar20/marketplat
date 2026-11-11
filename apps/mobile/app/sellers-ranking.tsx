@@ -1,5 +1,6 @@
 import { RefreshControl, View } from 'react-native';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { EmptyState, ErrorState, LoadingState, PageShell, SectionCard, SectionHeader } from '@/components/ui';
@@ -41,7 +42,7 @@ export default function SellersRankingScreen() {
         <SectionCard
           key={seller.sellerProfileId}
           accessibilityLabel={`عرض ملف ${seller.displayName || 'بائع'}، الترتيب ${seller.rank}`}
-          onPress={() => router.push({ pathname: '/profile/[id]', params: { id: seller.userId } })}
+          onPress={() => pushOnce({ pathname: '/profile/[id]', params: { id: seller.userId } })}
           style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
         >
           <View style={{ width: 36, alignItems: 'center' }}>

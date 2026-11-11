@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RefreshControl, View } from 'react-native';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { EmptyState, ErrorState, LoadingState, PageShell, SectionCard, SectionHeader } from '@/components/ui';
@@ -59,7 +60,7 @@ export default function MyStoreAnalyticsScreen() {
         title="إحصاءات المتجر"
         description="سجّل الدخول لعرض إحصاءات متجرك."
         actionLabel="تسجيل الدخول"
-        onAction={() => router.push('/login')}
+        onAction={() => pushOnce('/login')}
       />
     );
   } else if (error) {
@@ -99,7 +100,7 @@ export default function MyStoreAnalyticsScreen() {
             <SectionCard
               key={p.id}
               accessibilityLabel={`عرض المنتج ${p.name}`}
-              onPress={() => router.push(`/products/${encodeURIComponent(p.id)}`)}
+              onPress={() => pushOnce(`/products/${encodeURIComponent(p.id)}`)}
               style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
             >
               {p.image ? (

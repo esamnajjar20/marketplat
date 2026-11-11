@@ -6,7 +6,8 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { useOnlineResync } from '@/lib/useOnlineResync';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchStores, type StoreSummary } from '@/features/commerce/commerce.api';
 import { fetchStoryFeed, type StoryGroup } from '@/features/stories/stories.api';
@@ -42,7 +43,7 @@ function StoreCard({ store }: { store: StoreSummary }) {
       imageUri={imageUri}
       imageResizeMode={store.logoUrl ? 'contain' : 'cover'}
       glyph="م"
-      onPress={() => router.push({ pathname: '/stores/[id]', params: { id: store.id } })}
+      onPress={() => pushOnce({ pathname: '/stores/[id]', params: { id: store.id } })}
     />
   );
 }
@@ -179,7 +180,7 @@ export default function HomeCommunitySections() {
                   accessibilityRole="button"
                   accessibilityLabel={`عرض قصص ${group.user.name}`}
                   onPress={() =>
-                    router.push({
+                    pushOnce({
                       pathname: '/stories/[id]',
                       params: { id: latest.id, userId: latest.userId },
                     })
@@ -229,7 +230,7 @@ export default function HomeCommunitySections() {
           title="متاجر تستحق الاكتشاف"
           subtitle="تعرّف على المتاجر المحلية"
           actionLabel="عرض الكل"
-          onAction={() => router.push('/stores')}
+          onAction={() => pushOnce('/stores')}
         />
         {visibleStores.length > 0 ? (
           <ScrollView

@@ -6,7 +6,8 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { fetchPublicCollectionProducts } from '@/features/commerce/store-management.api';
 import type { ProductSummary } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
@@ -59,7 +60,7 @@ export default function CollectionProductsScreen() {
           !loading && !error ? <Notice tone="muted">لا توجد منتجات متاحة في هذه المجموعة.</Notice> : undefined
         }
         renderItem={({ item }) => (
-          <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/products/[id]', params: { id: item.id } })}>
+          <Pressable accessibilityRole="button" onPress={() => pushOnce({ pathname: '/products/[id]', params: { id: item.id } })}>
             <SectionCard>
               {item.images?.[0] ? (
                 <AppImage uri={item.images[0]} style={{ width: '100%', height: 160, borderRadius: 12 }} resizeMode="cover" />

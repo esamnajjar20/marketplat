@@ -2,6 +2,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useState } from 'react';
 import { router } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { View } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStore } from '@/features/commerce/commerce.api';
@@ -67,7 +68,7 @@ export default function AddScreen() {
 
   return (
     <PageShell title="إضافة جديد">
-      {!user ? <Notice>سجّل الدخول أولًا حتى تتمكن من الإضافة. ستتمكن بعد تسجيل الدخول من متابعة النموذج المناسب.</Notice> : user.emailVerified === false ? <Notice tone="warning">بريدك الإلكتروني غير مؤكد. أكّده قبل إنشاء نشاط تجاري أو رفع محتوى يتطلب التحقق. <Text onPress={() => router.push('/verify-email')} style={{ color: colors.brand, fontWeight: fontWeights.bold }}>فتح التحقق</Text></Notice> : null}
+      {!user ? <Notice>سجّل الدخول أولًا حتى تتمكن من الإضافة. ستتمكن بعد تسجيل الدخول من متابعة النموذج المناسب.</Notice> : user.emailVerified === false ? <Notice tone="warning">بريدك الإلكتروني غير مؤكد. أكّده قبل إنشاء نشاط تجاري أو رفع محتوى يتطلب التحقق. <Text onPress={() => pushOnce('/verify-email')} style={{ color: colors.brand, fontWeight: fontWeights.bold }}>فتح التحقق</Text></Notice> : null}
       {checkingPath ? <Notice tone="muted">جارٍ التحقق من صلاحية النشر…</Notice> : null}
       {groups.map((group) => <View key={group.title} style={{ gap: spacing.md }}>
         <SectionHeader title={group.title} subtitle={group.subtitle} />

@@ -7,7 +7,8 @@ import { FlatList, RefreshControl, View } from 'react-native';
 import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
 import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { PageShell, SectionCard } from '@/components/MobileUI';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
@@ -60,7 +61,7 @@ export default function PromotedScreen() {
         }
         ListEmptyComponent={<ListEmpty list={list} loadingMessage="جاري تحميل المنتجات المروجة…" errorTitle="تعذر تحميل المنتجات المروجة" emptyTitle="لا توجد منتجات مروجة حاليًا" />}
         renderItem={({ item }) => (
-          <Pressable accessibilityRole="button" onPress={() => router.push(`/products/${encodeURIComponent(item.id)}`)}>
+          <Pressable accessibilityRole="button" onPress={() => pushOnce(`/products/${encodeURIComponent(item.id)}`)}>
             <SectionCard>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                 {item.images?.[0] ? (

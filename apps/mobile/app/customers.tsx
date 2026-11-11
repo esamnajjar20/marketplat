@@ -4,7 +4,8 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { Spinner, ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createCustomer, fetchCustomerSummary, fetchCustomers, type CustomerRow, type CustomerSummary } from '@/features/sales/sales-extra.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -92,7 +93,7 @@ export default function CustomersScreen() {
   const save = async () => {
     const token = getAccessToken();
     if (!token || !user) {
-      router.push('/login');
+      pushOnce('/login');
       return;
     }
     if (name.trim().length < 2) {
@@ -130,7 +131,7 @@ export default function CustomersScreen() {
     return (
       <PageShell title="عملائي">
         <Notice>سجّل الدخول لإدارة سجل العملاء الخاص بك.</Notice>
-        <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
+        <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
       </PageShell>
     );
   }

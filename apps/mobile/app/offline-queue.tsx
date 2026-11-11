@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useFocusEffect } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { EmptyState, ErrorState, LoadingState, PageShell } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
 import { formatSafeDate } from '@/lib/date-format';
@@ -297,7 +298,7 @@ export default function OfflineQueueScreen() {
     return <PageShell title="العمليات دون اتصال" scroll={false} right={<Pressable onPress={() => void refresh()} accessibilityRole="button" accessibilityLabel="تحديث العمليات"><Text style={styles.link}>تحديث</Text></Pressable>}>
     <View style={styles.notice}><Text style={styles.noticeText}>تُحفظ هذه العمليات على الجهاز. قد توقف عملية أقدم غير مدعومة المزامنة، وستتوقف العمليات الأحدث حتى تُحل المشكلة للحفاظ على ترتيب التعديلات. لا تلغِ عملية إلا إذا كنت متأكدًا أنك لا تريد إرسالها.</Text></View>
     {unownedCount > 0 ? <View style={styles.notice}><Text style={styles.noticeText}>توجد {unownedCount} عملية قديمة محفوظة قبل ربط العمليات بالحساب. لم تُرسل تلقائيًا لأن مالكها غير معروف، وذلك لمنع تنفيذها بحساب آخر. راجعها من نسخة التطبيق السابقة أو احذف بيانات التطبيق فقط إذا لم تعد تحتاجها.</Text></View> : null}
-    {!user ? <EmptyState title="سجّل الدخول لمزامنة العمليات" actionLabel="تسجيل الدخول" onAction={() => router.push('/login')}/>
+    {!user ? <EmptyState title="سجّل الدخول لمزامنة العمليات" actionLabel="تسجيل الدخول" onAction={() => pushOnce('/login')}/>
             : loading ? <LoadingState message="جاري قراءة العمليات…"/>
                 : error && items.length === 0 && favoriteItems.length === 0 && requestItems.length === 0 && offerItems.length === 0 && orderItems.length === 0 && createItems.length === 0 && chatMessages.length === 0 && chatMedia.length === 0 ? <ErrorState title="تعذر تحميل القائمة" description={error ?? undefined} onAction={() => void refresh()}/>
                     : <ScrollView contentContainerStyle={styles.list}>{error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}

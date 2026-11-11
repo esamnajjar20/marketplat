@@ -4,8 +4,9 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
 import { useEffect, useState, useMemo } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { router, useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { fetchProducts, fetchMyStore, type ProductSummary } from '@/features/commerce/commerce.api';
@@ -74,7 +75,7 @@ export default function ProductsScreen() {
       : 'تصفح المنتجات المعروضة في المتاجر';
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <ScreenFrame>
       <AppHeader title={title} />
       <FlatList
         data={items}
@@ -130,7 +131,7 @@ export default function ProductsScreen() {
               <ProductCard
                 product={{ id: item.id, name: item.name, price: item.effectivePrice?.price ?? item.discountPrice ?? item.price, images: item.images, category: item.category }}
                 layout="row"
-                onPress={() => router.push(`/products/${encodeURIComponent(item.id)}`)}
+                onPress={() => pushOnce(`/products/${encodeURIComponent(item.id)}`)}
               />
         )}
         ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
@@ -148,12 +149,11 @@ export default function ProductsScreen() {
           ) : undefined
         }
       />
-    </SafeAreaView>
+    </ScreenFrame>
   );
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.canvas },
   content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },
   subtitle: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   actions: { gap: spacing.sm },

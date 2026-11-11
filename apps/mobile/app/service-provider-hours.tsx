@@ -3,7 +3,8 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider, updateMyServiceProviderWorkingHours } from '@/features/services/providers.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -91,7 +92,7 @@ export default function ServiceProviderHoursScreen() {
   const save = async () => {
     const token = getAccessToken();
     if (!token)
-      return router.push('/login');
+      return pushOnce('/login');
     for (const [day, v] of Object.entries(hours)) {
       if (v && (!/^([01]\d|2[0-3]):[0-5]\d$/.test(v.open) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(v.close) || v.close <= v.open)) {
         setError(`تحقق من أوقات ${days.find(d => d.key === day)?.label || day} بصيغة HH:mm.`);
@@ -112,7 +113,7 @@ export default function ServiceProviderHoursScreen() {
       setBusy(false);
     }
   };
-  return <PageShell title="ساعات عمل مقدم الخدمة">{!accessToken ? <><Notice>سجّل الدخول لإدارة ساعات العمل.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل ساعات العمل…</Notice> : noProfile ? <Notice>أنشئ ملف مقدم الخدمة أولًا من صفحة «ملف مقدم الخدمة» قبل ضبط ساعات العمل.</Notice> : <><Notice tone="muted">حدد أوقات توفر نشاطك. اترك اليوم مغلقًا إذا لم تكن تستقبل الحجوزات فيه.</Notice>{days.map(day => <SectionCard key={day.key}><View style={{
+  return <PageShell title="ساعات عمل مقدم الخدمة">{!accessToken ? <><Notice>سجّل الدخول لإدارة ساعات العمل.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل ساعات العمل…</Notice> : noProfile ? <Notice>أنشئ ملف مقدم الخدمة أولًا من صفحة «ملف مقدم الخدمة» قبل ضبط ساعات العمل.</Notice> : <><Notice tone="muted">حدد أوقات توفر نشاطك. اترك اليوم مغلقًا إذا لم تكن تستقبل الحجوزات فيه.</Notice>{days.map(day => <SectionCard key={day.key}><View style={{
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'
   }}><Text style={{
     fontSize: fontSizes[16], fontWeight: fontWeights.bold, color: colors.ink

@@ -4,7 +4,8 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { ListEmpty, ListStaleError, PaginatedFooter } from '@/components/ui';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyOffers, type RequestOffer } from '@/features/requests/requests.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -42,14 +43,14 @@ export default function MyOffersScreen() {
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
-            <PrimaryButton label="استعراض الطلبات المفتوحة" onPress={() => router.push('/requests')} />
+            <PrimaryButton label="استعراض الطلبات المفتوحة" onPress={() => pushOnce('/requests')} />
             {!user ? <Notice>سجّل الدخول لعرض عروضك.</Notice> : null}
             <ListStaleError list={list} />
           </View>
         }
         ListEmptyComponent={user ? <ListEmpty list={list} loadingMessage="جاري تحميل عروضك…" errorTitle="تعذر تحميل العروض" emptyTitle="لم تقدم أي عروض بعد" /> : undefined}
         renderItem={({ item }) => (
-          <Pressable accessibilityRole="button" onPress={() => item.request?.id && router.push({ pathname: '/requests/[id]', params: { id: item.request.id } })}>
+          <Pressable accessibilityRole="button" onPress={() => item.request?.id && pushOnce({ pathname: '/requests/[id]', params: { id: item.request.id } })}>
             <SectionCard>
               <Text tone="ink" strong size={17}>{item.request?.title || 'عرض على طلب'}</Text>
               <Text tone="brand" strong size={20}>{formatMoney(item.price)}</Text>

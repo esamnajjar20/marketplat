@@ -4,12 +4,13 @@ import { formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { router } from 'expo-router';
-import { FlatList, KeyboardAvoidingView, Platform, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+
+import { pushOnce } from '@/lib/navigation';
+import { FlatList, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { Spinner } from '@/components/ui';
 
 import { DrawerMenuButton } from '@/components/MobileDrawer';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { fontSizes, radius, spacing, ux, fontWeights } from '@/theme/tokens';
 import { EmptyState, ErrorState, SectionHeader, SkeletonList } from '@/components/MobileUI';
 import { HorizontalAdCard } from '@/components/MarketCards';
@@ -121,8 +122,7 @@ export default function HomeScreen() {
   ], []);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <ScreenFrame keyboardAvoiding>
       <FlatList
         data={listRows}
         extraData={{ sectionsVisible, ads, favoriteIds, failedImageIds, loading, refreshing, loadingMore, errorMessage, adsSavedAt, adsFromCache, page, totalPages }}
@@ -167,7 +167,7 @@ export default function HomeScreen() {
                       imageUri={imageUri}
                       isFavorite={favoriteIds.includes(ad.id)}
                       isNegotiable={Boolean(ad.isNegotiable)}
-                      onPress={() => router.push(`/ads/${encodeURIComponent(ad.id)}`)}
+                      onPress={() => pushOnce(`/ads/${encodeURIComponent(ad.id)}`)}
                       onToggleFavorite={() => { void toggleFavorite(ad.id); }}
                       onImageError={() => markImageFailed(ad.id)}
                     />
@@ -197,7 +197,7 @@ export default function HomeScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={user ? 'فتح حسابي' : 'تسجيل الدخول'}
                       disabled={isRestoring}
-                      onPress={() => router.push(user ? '/account' : '/login')}
+                      onPress={() => pushOnce(user ? '/account' : '/login')}
                       style={({ pressed }) => [styles.accountButton, pressed && styles.pressed]}
                     >
                       <Text style={styles.accountButtonText}>
@@ -249,7 +249,7 @@ export default function HomeScreen() {
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="استكشف جميع أقسام السوق"
-                    onPress={() => router.push('/explore')}
+                    onPress={() => pushOnce('/explore')}
                     style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}
                   >
                     <Text style={styles.quickChipGlyph}>⌕</Text>
@@ -258,7 +258,7 @@ export default function HomeScreen() {
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="بحث وفلاتر متقدمة"
-                    onPress={() => router.push('/search')}
+                    onPress={() => pushOnce('/search')}
                     style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}
                   >
                     <Text style={styles.quickChipGlyph}>⚙</Text>
@@ -267,7 +267,7 @@ export default function HomeScreen() {
                       <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="محتوى مخصص لك"
-                    onPress={() => router.push('/for-you')}
+                    onPress={() => pushOnce('/for-you')}
                     style={({ pressed }) => [styles.quickChip, pressed && styles.pressed]}
                   >
                     <Text style={styles.quickChipGlyph}>✦</Text>
@@ -296,7 +296,7 @@ export default function HomeScreen() {
                   </Pressable>
                     <Pressable
                       accessibilityRole="button"
-                      onPress={() => router.push('/ads')}
+                      onPress={() => pushOnce('/ads')}
                       style={({ pressed }) => [styles.filterToggle, pressed && styles.pressed]}
                     >
                       <Text style={styles.link}>عرض الكل</Text>
@@ -445,14 +445,12 @@ export default function HomeScreen() {
           );
         }}
       />
-      </SafeAreaView>
-    </KeyboardAvoidingView>
+      </ScreenFrame>
   );
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   pressed: { opacity: ux.pressedOpacity },
-  safeArea: { flex: 1, backgroundColor: colors.canvas },
   deferredSectionsPlaceholder: { minHeight: 1 },
   content: {
     paddingHorizontal: spacing.lg,

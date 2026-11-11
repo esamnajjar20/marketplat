@@ -1,7 +1,8 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { usePathname, useGlobalSearchParams, router } from 'expo-router';
+import { usePathname, useGlobalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import { useEffect, useRef } from 'react';
 import { ScrollView, View } from 'react-native';
 import { spacing, radius, sizes, typography } from '@/theme/tokens';
@@ -119,7 +120,7 @@ export function WorkspaceTabs({ workspace }: { workspace: Workspace }) {
               onLayout={(event) => { offsets.current[key] = { x: event.nativeEvent.layout.x, width: event.nativeEvent.layout.width }; }}
               onPress={() => {
                 if (active) return;
-                router.push((tab.view ? { pathname: tab.path, params: { view: tab.view } } : tab.path) as never);
+                pushOnce((tab.view ? { pathname: tab.path, params: { view: tab.view } } : tab.path) as never);
               }}
               style={{
                 minHeight: sizes.touchTarget,

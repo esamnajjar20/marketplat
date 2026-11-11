@@ -4,7 +4,8 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
 import { StyleSheet, View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { pushOnce } from '@/lib/navigation';
 import {
   fetchMarketplaceOrder,
   updateMarketplaceOrderStatus,
@@ -120,7 +121,7 @@ export default function OrderDetailScreen() {
             ) : null}
           </View>
         ) : !isRestoring && !user ? (
-          <PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} />
+          <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         ) : null
       }
     >
@@ -191,7 +192,7 @@ export default function OrderDetailScreen() {
             <PrimaryButton
               label="عرض المتجر"
               variant="secondary"
-              onPress={() => router.push(`/stores/${encodeURIComponent(order.store!.id)}`)}
+              onPress={() => pushOnce(`/stores/${encodeURIComponent(order.store!.id)}`)}
             />
           ) : null}
         </View>

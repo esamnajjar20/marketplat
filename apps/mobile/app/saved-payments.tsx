@@ -2,7 +2,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
@@ -141,7 +142,7 @@ export default function SavedPaymentsScreen() {
             }
         }]);
     if (!user)
-        return <PageShell title="المحفوظات المحلية"><Notice tone="muted">سجّل الدخول للوصول إلى محفوظات الدفع المرتبطة بحسابك. لا تُنشأ محفوظات عامة للضيف حتى لا تختلط بيانات المستخدمين على الجهاز نفسه.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')}/></PageShell>;
+        return <PageShell title="المحفوظات المحلية"><Notice tone="muted">سجّل الدخول للوصول إلى محفوظات الدفع المرتبطة بحسابك. لا تُنشأ محفوظات عامة للضيف حتى لا تختلط بيانات المستخدمين على الجهاز نفسه.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></PageShell>;
     return <PageShell title="المحفوظات المحلية">
     <Notice tone="muted">تُحفظ البيانات محليًا داخل قاعدة مشفّرة ومربوطة بحسابك. لا تحفظ كلمات مرور أو CVV. أرقام الحسابات والمعرّفات التي تدخلها تبقى مخزنة مشفّرة ويُخفى معظمها أثناء العرض.</Notice>
     <View style={{

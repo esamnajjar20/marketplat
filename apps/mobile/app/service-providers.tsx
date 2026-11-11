@@ -4,7 +4,8 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { Spinner } from '@/components/ui';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { fetchServiceProviders, type ProviderSummary } from '@/features/services/providers.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/MobileUI';
 import { spacing } from '@/theme/tokens';
@@ -100,7 +101,7 @@ export default function ServiceProvidersScreen() {
           !loading && !error ? <Notice tone="muted">لا توجد ملفات مقدمي خدمات مطابقة.</Notice> : undefined
         }
         renderItem={({ item: p }) => (
-          <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/service-providers/[id]', params: { id: p.id } })}>
+          <Pressable accessibilityRole="button" onPress={() => pushOnce({ pathname: '/service-providers/[id]', params: { id: p.id } })}>
             <SectionCard>
               <Text tone="ink" strong size={18}>
                 {p.businessName || p.sellerProfile?.displayName || 'مقدم خدمة'}

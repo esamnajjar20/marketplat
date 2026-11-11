@@ -4,7 +4,8 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { router } from 'expo-router';
+
+import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchServiceProviderAnalytics } from '@/features/services/service-management.api';
 import { Notice, PageShell, SectionCard } from '@/components/MobileUI';
@@ -51,7 +52,7 @@ export default function ServiceProviderAnalyticsScreen() {
       seq.current += 1;
     };
   }, [load]);
-  return <PageShell title="إحصاءات مقدم الخدمة">{!accessToken ? <><Notice>سجّل الدخول لعرض الإحصاءات.</Notice><Pressable accessibilityRole="button" onPress={() => router.push('/login')}><Text style={{
+  return <PageShell title="إحصاءات مقدم الخدمة">{!accessToken ? <><Notice>سجّل الدخول لعرض الإحصاءات.</Notice><Pressable accessibilityRole="button" onPress={() => pushOnce('/login')}><Text style={{
     textAlign: 'center', color: colors.brand, fontWeight: fontWeights.bold
   }}>تسجيل الدخول</Text></Pressable></> : <><View style={{
     flexDirection: 'row', gap: 10
