@@ -3,7 +3,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { usePathname, useGlobalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ComponentRef } from 'react';
 import { ScrollView, View } from 'react-native';
 import { spacing, radius, sizes, typography } from '@/theme/tokens';
 
@@ -90,7 +90,7 @@ export function WorkspaceTabs({ workspace }: { workspace: Workspace }) {
   const params = useGlobalSearchParams<{ view?: string }>();
   const view = typeof params.view === 'string' ? params.view : undefined;
   const tabs = TABS[workspace];
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const offsets = useRef<Record<string, { x: number; width: number }>>({});
   const activeKey = tabs.map((tab) => (isTabActive(pathname, tabs, tab, view) ? tabKey(workspace, tab) : null)).find(Boolean) ?? null;
 
