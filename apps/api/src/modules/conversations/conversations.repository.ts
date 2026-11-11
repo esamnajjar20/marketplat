@@ -1,10 +1,10 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, Conversation, Message } from '@prisma/client';
-import { getPaginationParams } from '../../shared/utils/pagination';
-import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { getPaginationParams } from '../../shared/http/pagination';
+import { isPrismaError } from '../../shared/db/prismaErrors';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
-import { decodeMessageCursor, encodeMessageCursor } from '../../shared/utils/messageCursor';
-import { extractCloudinaryPublicId, queueCloudinaryAssetCleanup } from '../../shared/utils/cloudinaryHelpers';
+import { decodeMessageCursor, encodeMessageCursor } from '../../shared/http/messageCursor';
+import { extractCloudinaryPublicId, queueCloudinaryAssetCleanup } from '../../shared/media/cloudinaryHelpers';
 
 export type ConversationWithRelations = Prisma.ConversationGetPayload<{
   include: {

@@ -1,4 +1,4 @@
-import { decodeMessageCursor, encodeMessageCursor } from '../../src/shared/utils/messageCursor';
+import { decodeMessageCursor, encodeMessageCursor } from '../../src/shared/http/messageCursor';
 
 describe('messageCursor', () => {
   it('round-trips the deterministic cursor', () => {

@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import {
   runWithQueryTimeout,
   AnalyticsQueryTimeoutError,
-} from '../../src/shared/utils/queryTimeout';
+} from '../../src/shared/db/queryTimeout';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({

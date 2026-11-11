@@ -6,7 +6,7 @@ import { appointmentsRepository } from '../../src/modules/appointments/appointme
 import { serviceReviewsRepository } from '../../src/modules/service-reviews/service-reviews.repository';
 import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
 import { prisma } from '../../src/config/prisma';
-import { withServiceProviderCreationLock } from '../../src/shared/utils/serviceProviderLock';
+import { withServiceProviderCreationLock } from '../../src/shared/locks/serviceProviderLock';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
@@ -18,11 +18,11 @@ jest.mock('../../src/modules/service-requests/service-requests.repository');
 jest.mock('../../src/modules/appointments/appointments.repository');
 jest.mock('../../src/modules/service-reviews/service-reviews.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
-jest.mock('../../src/shared/utils/serviceProviderLock');
+jest.mock('../../src/shared/locks/serviceProviderLock');
 jest.mock('../../src/config/prisma', () => ({
   prisma: { $transaction: jest.fn() },
 }));
-jest.mock('../../src/shared/utils/publicListCache', () => ({
+jest.mock('../../src/shared/cache/publicListCache', () => ({
   cachedPublicList: jest.fn((_ns: string, _query: unknown, fetcher: () => Promise<unknown>) =>
     fetcher()
   ),

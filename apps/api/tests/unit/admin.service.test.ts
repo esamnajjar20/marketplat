@@ -1,14 +1,14 @@
 import { adminService } from '../../src/modules/admin/admin.service';
 import { prisma } from '../../src/config/prisma';
-import { userCache } from '../../src/shared/utils/userCache';
-import { tokenStore } from '../../src/shared/utils/tokenStore';
+import { userCache } from '../../src/shared/cache/userCache';
+import { tokenStore } from '../../src/shared/auth/tokenStore';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { Prisma } from '@prisma/client';
 import { createTestUser } from '../helpers/auth.helper';
 import { createTestAd } from '../helpers/ad.helper';
 import { createTestCategory } from '../helpers/category.helper';
 
-jest.mock('../../src/shared/utils/auditLog', () => ({
+jest.mock('../../src/shared/audit/auditLog', () => ({
   auditLog: jest.fn().mockResolvedValue(undefined),
   AuditEvent: {
     ADMIN_AD_FEATURED: 'ADMIN_AD_FEATURED',

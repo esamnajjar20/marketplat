@@ -20,7 +20,7 @@
  * file is the one deliberate exception to "always go through env.ts.")
  *
  * Same "opt-in, app works identically without it" pattern as the
- * webhook transport in shared/utils/logger.ts: with no SENTRY_DSN set,
+ * webhook transport in shared/observability/logger.ts: with no SENTRY_DSN set,
  * this file does nothing and the app behaves exactly as it did before
  * this file existed. See logger.ts's own comment for why that fallback
  * transport still exists alongside this — Sentry is the recommended

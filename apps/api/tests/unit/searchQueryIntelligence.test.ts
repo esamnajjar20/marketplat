@@ -1,5 +1,5 @@
-import { analyzeSearchQuery, expandedRequiredConcepts } from '../../src/shared/utils/searchQueryIntelligence';
-import { matchesSearchQuery } from '../../src/shared/utils/searchTextMatch';
+import { analyzeSearchQuery, expandedRequiredConcepts } from '../../src/shared/search/searchQueryIntelligence';
+import { matchesSearchQuery } from '../../src/shared/search/searchTextMatch';
 
 describe('searchQueryIntelligence', () => {
   it('expands موبايل ↔ جوال', () => {

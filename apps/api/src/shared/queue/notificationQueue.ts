@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../utils/backgroundTask';
+import { reportBackgroundFailure } from '../jobs/backgroundTask';
 /**
  * BullMQ glue for the `notifications` queue ().
  *
@@ -15,9 +15,9 @@ import { Queue, Worker, type Job } from 'bullmq';
 import type Redis from 'ioredis';
 import { env } from '../../config/env';
 import { createBullMqConnection } from '../../config/redis';
-import { logger } from '../utils/logger';
-import { recordFailedTask } from '../utils/failedBackgroundTasks';
-import type { PushPayload } from '../utils/pushService';
+import { logger } from '../observability/logger';
+import { recordFailedTask } from '../jobs/failedBackgroundTasks';
+import type { PushPayload } from '../notifications/pushService';
 import {
   NOTIFICATION_QUEUE_NAME,
   deferredPushJobId,

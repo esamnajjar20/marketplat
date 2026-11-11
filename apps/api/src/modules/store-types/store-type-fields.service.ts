@@ -1,11 +1,11 @@
 import { cacheRedis as redis } from '../../config/redis';
 import { prisma } from '../../config/prisma';
 import { Prisma } from '@prisma/client';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../shared/observability/logger';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
-import { isPrismaError } from '../../shared/utils/prismaErrors';
-import { bumpPublicListCache } from '../../shared/utils/publicListCache';
+import { isPrismaError } from '../../shared/db/prismaErrors';
+import { bumpPublicListCache } from '../../shared/cache/publicListCache';
 import { storeTypesRepository } from './store-types.repository';
 import { storeTypeFieldsRepository } from './store-type-fields.repository';
 import {

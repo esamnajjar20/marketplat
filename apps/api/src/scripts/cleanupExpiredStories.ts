@@ -5,7 +5,7 @@
  */
 import { prisma } from '../config/prisma';
 import { deleteImage } from '../config/cloudinary';
-import { logger } from '../shared/utils/logger';
+import { logger } from '../shared/observability/logger';
 import { executeWithGoFallback, runAdvisoryLockedBatch } from '../shared/go-worker/executeWithFallback';
 
 const STORY_CLEANUP_LOCK_ID = 731904300n;

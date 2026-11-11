@@ -1,12 +1,12 @@
 import { notificationsController } from '../../src/modules/notifications/notifications.controller';
 import { notificationsService } from '../../src/modules/notifications/notifications.service';
-import { requireUser } from '../../src/shared/utils/requireUser';
+import { requireUser } from '../../src/shared/auth/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/notifications/notifications.service');
-jest.mock('../../src/shared/utils/requireUser');
+jest.mock('../../src/shared/auth/requireUser');
 
 const mockNotification = { id: 'notif-1', type: 'NEW_MESSAGE', title: 'رسالة جديدة' } as any;
 

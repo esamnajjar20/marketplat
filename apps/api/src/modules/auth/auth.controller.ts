@@ -12,7 +12,7 @@ import {
   mobileGoogleExchangeSchema,
 } from './auth.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../shared/utils/requireUser';
+import { requireUser } from '../../shared/auth/requireUser';
 import { getBearerToken } from '../../middlewares/auth.middleware';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { UnauthorizedError } from '../../shared/errors/UnauthorizedError';
@@ -28,11 +28,11 @@ import {
   getOAuthPurpose,
   clearOAuthPurpose,
   clearMobileOAuthFlowCookie,
-} from '../../shared/utils/authCookies';
+} from '../../shared/auth/authCookies';
 
-import { getClientIp } from '../../shared/utils/getClientIp';
+import { getClientIp } from '../../shared/http/getClientIp';
 import { env } from '../../config/env';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../shared/observability/logger';
 
 const getUserAgent = (req: Request): string => req.headers['user-agent'] ?? 'unknown';
 
@@ -41,7 +41,7 @@ const getUserAgent = (req: Request): string => req.headers['user-agent'] ?? 'unk
  * refreshToken as part of the JSON response body, and the frontend
  * stored it in localStorage. Now: refreshToken is set as an httpOnly
  * cookie (never appears in the JSON body at all — see
- * shared/utils/authCookies.ts) and a matching CSRF token is set in a
+ * shared/auth/authCookies.ts) and a matching CSRF token is set in a
  * separate, readable cookie the frontend must echo back on
  * state-changing requests (see middlewares/csrf.middleware.ts).
  *

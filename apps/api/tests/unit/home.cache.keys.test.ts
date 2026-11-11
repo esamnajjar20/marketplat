@@ -10,7 +10,7 @@ import { HOME_CITIES } from '../../src/modules/home/home.validation';
 import * as redisModule from '../../src/config/redis';
 
 jest.mock('../../src/config/redis', () => require('../helpers/fakeRedis.helper').fakeRedisModule());
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
 

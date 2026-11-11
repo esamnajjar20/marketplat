@@ -32,7 +32,7 @@ jest.mock('cloudinary', () => ({
   },
 }));
 
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
 }));
 

@@ -5,12 +5,12 @@
  */
 import { prisma as sharedPrisma } from '../config/prisma';
 import { redis, closeRedisServiceClients } from '../config/redis';
-import { logger } from '../shared/utils/logger';
+import { logger } from '../shared/observability/logger';
 import { bumpAdsCacheVersionAndHome } from '../modules/ads/ads.cache.keys';
 import { flushEdgePurge } from '../shared/cache/edgePurge';
 import { executeWithGoFallback, runAdvisoryLockedBatch } from '../shared/go-worker/executeWithFallback';
 import { publishDurableNotifications } from '../shared/go-worker/publishDurableNotifications';
-import { shutdownNotificationStream } from '../shared/utils/notificationStream';
+import { shutdownNotificationStream } from '../shared/realtime/notificationStream';
 
 const prisma = sharedPrisma;
 const BATCH_SIZE = 500;

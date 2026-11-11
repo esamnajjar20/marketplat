@@ -1,5 +1,5 @@
 import { UserActivityType } from '@prisma/client';
-import { activityBuffer } from '../../src/shared/utils/activityBuffer';
+import { activityBuffer } from '../../src/shared/buffers/activityBuffer';
 import { redis } from '../../src/config/redis';
 
 jest.mock('../../src/config/prisma', () => ({

@@ -25,7 +25,7 @@ const loadEdge = (edgePurge: Record<string, unknown>): EdgeModule => {
     };
     jest.doMock('../../src/config/prisma', () => ({ prisma: outboxPrismaMock }));
     jest.doMock('../../src/config/env', () => ({ env: { edgePurge } }));
-    jest.doMock('../../src/shared/utils/logger', () => ({
+    jest.doMock('../../src/shared/observability/logger', () => ({
       logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
     }));
     mod = require('../../src/shared/cache/edgePurge');
@@ -375,7 +375,7 @@ describe('purge-aware edge TTL (only safe once purging works)', () => {
     let CACHE!: typeof import('../../src/middlewares/cacheControl.middleware').CACHE;
     jest.isolateModules(() => {
       jest.doMock('../../src/config/env', () => ({ env: { edgePurge } }));
-      jest.doMock('../../src/shared/utils/logger', () => ({
+      jest.doMock('../../src/shared/observability/logger', () => ({
         logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
       }));
       CACHE = require('../../src/middlewares/cacheControl.middleware').CACHE;

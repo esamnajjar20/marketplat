@@ -1,6 +1,6 @@
 import { serviceReviewsController } from '../../src/modules/service-reviews/service-reviews.controller';
 import { serviceReviewsService } from '../../src/modules/service-reviews/service-reviews.service';
-import { requireUser } from '../../src/shared/utils/requireUser';
+import { requireUser } from '../../src/shared/auth/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
@@ -8,7 +8,7 @@ import { ConflictError } from '../../src/shared/errors/ConflictError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/service-reviews/service-reviews.service');
-jest.mock('../../src/shared/utils/requireUser');
+jest.mock('../../src/shared/auth/requireUser');
 
 const mockReview = { id: 'review-1', score: 5 } as any;
 

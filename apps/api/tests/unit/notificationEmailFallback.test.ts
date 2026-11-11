@@ -2,7 +2,7 @@ import {
   isEmailFallbackType,
   summarizeDigest,
   userWantsEmailFallback,
-} from '../../src/shared/utils/notificationEmailFallback';
+} from '../../src/shared/email/notificationEmailFallback';
 
 describe('email fallback rules', () => {
   it('only direct/transactional types are eligible', () => {

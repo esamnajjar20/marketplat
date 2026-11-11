@@ -4,9 +4,9 @@ import {
   startCacheKeepWarm,
   WARMUP_TASKS,
   KEEP_WARM_LEADER_KEY,
-} from '../../src/shared/utils/cacheWarmup';
+} from '../../src/shared/cache/cacheWarmup';
 import { HOME_CITIES } from '../../src/modules/home/home.validation';
-import { resetCacheGuard } from '../../src/shared/utils/cacheGuard';
+import { resetCacheGuard } from '../../src/shared/resilience/cacheGuard';
 import * as redisModule from '../../src/config/redis';
 
 jest.mock('../../src/config/redis', () => require('../helpers/fakeRedis.helper').fakeRedisModule());
@@ -38,7 +38,7 @@ jest.mock('../../src/modules/service-listings/service-listings.service', () => (
 jest.mock('../../src/modules/service-providers/service-providers.service', () => ({
   serviceProvidersService: { getServiceProviders: jest.fn().mockResolvedValue({ providers: [], meta: {} }) },
 }));
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
 

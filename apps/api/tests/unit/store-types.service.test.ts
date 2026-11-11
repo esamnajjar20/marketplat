@@ -1,10 +1,10 @@
 import { storeTypesService } from '../../src/modules/store-types/store-types.service';
 import { storeTypesRepository } from '../../src/modules/store-types/store-types.repository';
 import { redis } from '../../src/config/redis';
-import { bumpPublicListCache } from '../../src/shared/utils/publicListCache';
+import { bumpPublicListCache } from '../../src/shared/cache/publicListCache';
 
 jest.mock('../../src/modules/store-types/store-types.repository');
-jest.mock('../../src/shared/utils/publicListCache', () => ({
+jest.mock('../../src/shared/cache/publicListCache', () => ({
   bumpPublicListCache: jest.fn().mockResolvedValue(undefined),
 }));
 

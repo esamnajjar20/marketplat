@@ -1,13 +1,13 @@
 import { conversationsController } from '../../src/modules/conversations/conversations.controller';
 import { conversationsService } from '../../src/modules/conversations/conversations.service';
-import { requireUser } from '../../src/shared/utils/requireUser';
+import { requireUser } from '../../src/shared/auth/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/conversations/conversations.service');
-jest.mock('../../src/shared/utils/requireUser');
+jest.mock('../../src/shared/auth/requireUser');
 
 const mockConversation = { id: 'conv-1', adId: 'ad-1', buyerId: 'buyer-1', sellerId: 'seller-1' } as any;
 const mockMessage = { id: 'msg-1', conversationId: 'conv-1', senderId: 'buyer-1', body: 'Hi' } as any;

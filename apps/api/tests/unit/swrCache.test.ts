@@ -4,14 +4,14 @@ import {
   swrGet,
   swrGetWithStatus,
   type SwrOptions,
-} from '../../src/shared/utils/swrCache';
-import { cacheMetrics } from '../../src/shared/utils/cacheMetrics';
-import { resetCacheGuard } from '../../src/shared/utils/cacheGuard';
+} from '../../src/shared/cache/swrCache';
+import { cacheMetrics } from '../../src/shared/cache/cacheMetrics';
+import { resetCacheGuard } from '../../src/shared/resilience/cacheGuard';
 import * as redisModule from '../../src/config/redis';
 
 jest.mock('../../src/config/redis', () => require('../helpers/fakeRedis.helper').fakeRedisModule());
 jest.mock('../../src/config/prisma', () => ({ prisma: { outboxEvent: { create: jest.fn().mockResolvedValue({ id: 'outbox-1' }) } } }));
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
 

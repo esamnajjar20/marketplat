@@ -14,7 +14,7 @@ import {
 import { HOME_GEN_KEY, invalidateHomeCache } from '../../src/modules/home/home.cache.keys';
 import { homeService } from '../../src/modules/home/home.service';
 import { HOME_CITIES } from '../../src/modules/home/home.validation';
-import { resetCacheGuard } from '../../src/shared/utils/cacheGuard';
+import { resetCacheGuard } from '../../src/shared/resilience/cacheGuard';
 import * as redisModule from '../../src/config/redis';
 
 jest.mock('../../src/config/redis', () => require('../helpers/fakeRedis.helper').fakeRedisModule());
@@ -24,7 +24,7 @@ jest.mock('../../src/modules/home/home.service', () => ({
   isHomepageDegraded: (p: { belowFold: { nearbyProviders: unknown } }) =>
     p.belowFold.nearbyProviders === null,
 }));
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
 

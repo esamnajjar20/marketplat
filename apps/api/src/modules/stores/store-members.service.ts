@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/jobs/backgroundTask';
 import { StoreDetails, StoreMember, StoreMemberRole, StoreMemberStatus } from '@prisma/client';
 import { storeMembersRepository, StoreMemberWithUser } from './store-members.repository';
 import { storesRepository, type StoreAccessRow } from './stores.repository';
@@ -8,9 +8,9 @@ import { ConflictError } from '../../shared/errors/ConflictError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
-import { PaginationMeta, buildPaginationMeta } from '../../shared/utils/pagination';
+import { PaginationMeta, buildPaginationMeta } from '../../shared/http/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
-import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
+import { auditLog, AuditEvent } from '../../shared/audit/auditLog';
 import { notificationEvents } from '../notifications/notifications.service';
 import {
   InviteStoreMemberInput,

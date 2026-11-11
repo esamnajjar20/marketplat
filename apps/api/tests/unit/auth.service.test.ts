@@ -1,15 +1,15 @@
 import { authService } from '../../src/modules/auth/auth.service';
 import { authRepository } from '../../src/modules/auth/auth.repository';
-import { hashPassword } from '../../src/shared/utils/hash';
-import { tokenStore } from '../../src/shared/utils/tokenStore';
-import { userCache } from '../../src/shared/utils/userCache';
+import { hashPassword } from '../../src/shared/auth/hash';
+import { tokenStore } from '../../src/shared/auth/tokenStore';
+import { userCache } from '../../src/shared/cache/userCache';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/modules/auth/auth.repository');
-jest.mock('../../src/shared/utils/tokenStore');
-jest.mock('../../src/shared/utils/userCache');
-jest.mock('../../src/shared/utils/auditLog', () => ({ auditLog: jest.fn().mockResolvedValue(undefined), AuditEvent: { REGISTER: 'REGISTER', LOGIN_SUCCESS: 'LOGIN_SUCCESS', LOGIN_FAILED: 'LOGIN_FAILED' } }));
-jest.mock('../../src/shared/utils/securityAlert', () => ({ sendSecurityAlert: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../../src/shared/auth/tokenStore');
+jest.mock('../../src/shared/cache/userCache');
+jest.mock('../../src/shared/audit/auditLog', () => ({ auditLog: jest.fn().mockResolvedValue(undefined), AuditEvent: { REGISTER: 'REGISTER', LOGIN_SUCCESS: 'LOGIN_SUCCESS', LOGIN_FAILED: 'LOGIN_FAILED' } }));
+jest.mock('../../src/shared/auth/securityAlert', () => ({ sendSecurityAlert: jest.fn().mockResolvedValue(undefined) }));
 
 const mockUser = {
   id: 'user-123',

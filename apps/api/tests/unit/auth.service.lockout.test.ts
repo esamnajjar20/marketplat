@@ -1,22 +1,22 @@
 import { authService } from '../../src/modules/auth/auth.service';
 import { authRepository } from '../../src/modules/auth/auth.repository';
-import { hashPassword } from '../../src/shared/utils/hash';
-import { tokenStore } from '../../src/shared/utils/tokenStore';
-import { userCache } from '../../src/shared/utils/userCache';
+import { hashPassword } from '../../src/shared/auth/hash';
+import { tokenStore } from '../../src/shared/auth/tokenStore';
+import { userCache } from '../../src/shared/cache/userCache';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { TooManyRequestsError } from '../../src/shared/errors/TooManyRequestsError';
 
 jest.mock('../../src/modules/auth/auth.repository');
-jest.mock('../../src/shared/utils/tokenStore');
-jest.mock('../../src/shared/utils/userCache');
-jest.mock('../../src/shared/utils/auditLog', () => ({
+jest.mock('../../src/shared/auth/tokenStore');
+jest.mock('../../src/shared/cache/userCache');
+jest.mock('../../src/shared/audit/auditLog', () => ({
   auditLog: jest.fn().mockResolvedValue(undefined),
   AuditEvent: { LOGIN_FAILED: 'LOGIN_FAILED', LOGIN_SUCCESS: 'LOGIN_SUCCESS' },
 }));
-jest.mock('../../src/shared/utils/securityAlert', () => ({
+jest.mock('../../src/shared/auth/securityAlert', () => ({
   sendSecurityAlert: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { warn: jest.fn(), error: jest.fn(), info: jest.fn() },
 }));
 
@@ -79,7 +79,7 @@ describe('AuthService.login — account-lockout branches', () => {
     (authRepository.findByEmail as jest.Mock).mockResolvedValue(mockUser);
     (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 5, attempts: 5, distinctEmails: 1 });
     (tokenStore.lockAccount as jest.Mock).mockResolvedValue(undefined);
-    const { sendSecurityAlert } = require('../../src/shared/utils/securityAlert');
+    const { sendSecurityAlert } = require('../../src/shared/auth/securityAlert');
 
     await expect(
       authService.login({ email: mockUser.email, password: 'wrong-password' }, '1.2.3.4', 'ua')

@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma';
 import { fraudMonitorService } from '../modules/fraud/fraud-monitor.service';
-import { logger } from '../shared/utils/logger';
+import { logger } from '../shared/observability/logger';
 
 async function main(): Promise<void> {
   const scheduledFor = process.env.MARKETPLAT_SCHEDULED_FOR?.trim() ?? '';

@@ -1,4 +1,4 @@
-import { withOAuthAccountResolutionLock } from '../../src/shared/utils/oauthLock';
+import { withOAuthAccountResolutionLock } from '../../src/shared/locks/oauthLock';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 
 describe('oauthLock / withOAuthAccountResolutionLock', () => {

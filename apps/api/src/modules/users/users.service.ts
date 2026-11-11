@@ -1,17 +1,17 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/jobs/backgroundTask';
 import { usersRepository, SafeUser, PublicUser } from './users.repository';
-import { hashPassword, comparePassword } from '../../shared/utils/hash';
+import { hashPassword, comparePassword } from '../../shared/auth/hash';
 import { UpdateProfileInput, UpdateNotificationPreferencesInput } from './users.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
-import { userCache } from '../../shared/utils/userCache';
-import { getCachedUserProfile, getCachedUserProfileWithStatus } from '../../shared/utils/userProfileCache';
-import { tokenStore } from '../../shared/utils/tokenStore';
-import { getTokenRemainingTTL } from '../../shared/utils/jwt';
-import { auditLog, AuditEvent } from '../../shared/utils/auditLog';
+import { userCache } from '../../shared/cache/userCache';
+import { getCachedUserProfile, getCachedUserProfileWithStatus } from '../../shared/cache/userProfileCache';
+import { tokenStore } from '../../shared/auth/tokenStore';
+import { getTokenRemainingTTL } from '../../shared/auth/jwt';
+import { auditLog, AuditEvent } from '../../shared/audit/auditLog';
 import { activityService, activityTemplates } from '../activity';
 import { adsService } from '../ads/ads.service'; // A-01: use service facade, not repository
-import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { buildPaginationMeta } from '../../shared/http/pagination';
 import { prisma } from '../../config/prisma';
 import { AdStatus, FollowTargetType } from '@prisma/client';
 import { uploadAvatar } from '../../config/cloudinary';
@@ -19,8 +19,8 @@ import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
   deleteCloudinaryAsset,
-} from '../../shared/utils/cloudinaryHelpers';
-import { presence } from '../../shared/utils/presence';
+} from '../../shared/media/cloudinaryHelpers';
+import { presence } from '../../shared/realtime/presence';
 import { followsService } from '../follows/follows.service';
 import { blockedUsersService } from '../blocked-users';
 import { notificationsService } from '../notifications/notifications.service';

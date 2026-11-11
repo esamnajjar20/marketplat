@@ -4,8 +4,8 @@
 import { analyticsService } from '../../src/modules/analytics/analytics.service';
 import { analyticsRepository } from '../../src/modules/analytics/analytics.repository';
 import { prisma } from '../../src/config/prisma';
-import * as jwtUtils from '../../src/shared/utils/jwt';
-import { logger } from '../../src/shared/utils/logger';
+import * as jwtUtils from '../../src/shared/auth/jwt';
+import { logger } from '../../src/shared/observability/logger';
 import jwt from 'jsonwebtoken';
 import { requestJsonWithGoFallback } from '../../src/shared/go-worker/requestJsonWithFallback';
 import { requestJsonWithGoIdempotentFallback } from '../../src/shared/go-worker/requestJsonWithIdempotentFallback';
@@ -17,10 +17,10 @@ jest.mock('../../src/config/prisma', () => ({
     category: { findMany: jest.fn() },
   },
 }));
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
-jest.mock('../../src/shared/utils/jwt');
+jest.mock('../../src/shared/auth/jwt');
 jest.mock('../../src/shared/go-worker/requestJsonWithFallback', () => ({
   requestJsonWithGoFallback: jest.fn(async (options: { runExpressFallback: () => Promise<unknown> }) =>
     options.runExpressFallback(),

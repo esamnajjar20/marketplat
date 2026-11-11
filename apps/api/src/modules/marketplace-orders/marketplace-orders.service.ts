@@ -4,7 +4,7 @@ import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ConflictError } from '../../shared/errors/ConflictError';
-import { getPaginationParams } from '../../shared/utils/pagination';
+import { getPaginationParams } from '../../shared/http/pagination';
 import { marketplaceOrdersRepository } from './marketplace-orders.repository';
 
 type CreateOrderInput = { items: { productId: string; quantity: number }[]; recipientName: string; recipientPhone: string; shippingCity: string; shippingAddress: string; buyerNote?: string | null; idempotencyKey?: string };

@@ -62,7 +62,7 @@ describe('logger — webhook error reporter transport', () => {
     const mockFetch = jest.fn();
     global.fetch = mockFetch as any;
 
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     logger.error('something broke');
 
     expect(mockFetch).not.toHaveBeenCalled();
@@ -73,7 +73,7 @@ describe('logger — webhook error reporter transport', () => {
     const mockFetch = jest.fn().mockResolvedValue({ ok: true });
     global.fetch = mockFetch as any;
 
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     logger.error('database connection failed');
 
     await waitForCondition(() => mockFetch.mock.calls.length > 0);
@@ -95,7 +95,7 @@ describe('logger — webhook error reporter transport', () => {
     const mockFetch = jest.fn().mockResolvedValue({ ok: true });
     global.fetch = mockFetch as any;
 
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     logger.info('just some info');
     logger.warn('just a warning');
 
@@ -110,7 +110,7 @@ describe('logger — webhook error reporter transport', () => {
     const mockFetch = jest.fn().mockRejectedValue(new Error('ENOTFOUND'));
     global.fetch = mockFetch as any;
 
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
 
     expect(() => logger.error('this should not throw even if reporting fails')).not.toThrow();
     await waitForCondition(() => mockFetch.mock.calls.length > 0);
@@ -121,7 +121,7 @@ describe('logger — webhook error reporter transport', () => {
     const mockFetch = jest.fn().mockResolvedValue({ ok: true });
     global.fetch = mockFetch as any;
 
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     logger.error('payment failed', { userId: 'user-42', orderId: 'order-7' });
 
     await waitForCondition(() => mockFetch.mock.calls.length > 0);
@@ -176,7 +176,7 @@ describe('logger — Sentry error reporter transport', () => {
     delete process.env.SENTRY_DSN;
     const Sentry = require('@sentry/node');
 
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     logger.error('something broke');
 
     await new Promise((resolve) => setTimeout(resolve, 50));
@@ -188,7 +188,7 @@ describe('logger — Sentry error reporter transport', () => {
     process.env.SENTRY_DSN = 'https://fake-key@o0.ingest.sentry.io/0';
     const Sentry = require('@sentry/node');
 
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     logger.error(new Error('database connection failed'));
 
     await waitForCondition(
@@ -211,7 +211,7 @@ describe('logger — Sentry error reporter transport', () => {
     process.env.SENTRY_DSN = 'https://fake-key@o0.ingest.sentry.io/0';
     const Sentry = require('@sentry/node');
 
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     // Winston's errors() format only attaches a `stack` field when the
     // logged value is an actual Error instance — a bare string (like
     // most call sites in this codebase pass) has none, so this
@@ -229,7 +229,7 @@ describe('logger — Sentry error reporter transport', () => {
     process.env.SENTRY_DSN = 'https://fake-key@o0.ingest.sentry.io/0';
     const Sentry = require('@sentry/node');
 
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     const realError = new Error('Redis connection refused');
     logger.error('Failed to send security alert email', { err: realError, userId: 'user-1' });
 
@@ -244,7 +244,7 @@ describe('logger — Sentry error reporter transport', () => {
     process.env.SENTRY_DSN = 'https://fake-key@o0.ingest.sentry.io/0';
     const Sentry = require('@sentry/node');
 
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     const realError = new Error('DB write failed');
     logger.error('Something failed', { error: realError });
 
@@ -258,7 +258,7 @@ describe('logger — Sentry error reporter transport', () => {
     process.env.SENTRY_DSN = 'https://fake-key@o0.ingest.sentry.io/0';
     const Sentry = require('@sentry/node');
 
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     logger.info('just some info');
     logger.warn('just a warning');
 
@@ -271,7 +271,7 @@ describe('logger — Sentry error reporter transport', () => {
     process.env.SENTRY_DSN = 'https://fake-key@o0.ingest.sentry.io/0';
     const Sentry = require('@sentry/node');
 
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     logger.error('payment failed', { userId: 'user-42', orderId: 'order-7' });
 
     await waitForCondition(() => (Sentry.captureMessage as jest.Mock).mock.calls.length > 0);
@@ -287,7 +287,7 @@ describe('logger — Sentry error reporter transport', () => {
     const mockFetch = jest.fn().mockResolvedValue({ ok: true });
     global.fetch = mockFetch as any;
 
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     logger.error('needs both destinations');
 
     await waitForCondition(

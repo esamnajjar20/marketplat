@@ -3,7 +3,7 @@ import {
   AdImagesLockedError,
   withUserAdCreationLock,
   AdCreationLockedError,
-} from '../../src/shared/utils/adLock';
+} from '../../src/shared/locks/adLock';
 import { redis } from '../../src/config/redis';
 
 /**

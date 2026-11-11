@@ -1,4 +1,4 @@
-import { runBulk } from '../../src/shared/utils/bulkRunner';
+import { runBulk } from '../../src/shared/jobs/bulkRunner';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 
 describe('runBulk', () => {

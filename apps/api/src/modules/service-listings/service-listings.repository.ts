@@ -1,7 +1,7 @@
 import { prisma } from '../../config/prisma';
 import { Prisma, ServiceListing, ServiceListingStatus } from '@prisma/client';
-import { getPaginationParams } from '../../shared/utils/pagination';
-import { analyzeSearchQuery } from '../../shared/utils/searchQueryIntelligence';
+import { getPaginationParams } from '../../shared/http/pagination';
+import { analyzeSearchQuery } from '../../shared/search/searchQueryIntelligence';
 import { GetServiceListingsQuery } from './service-listings.validation';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
 

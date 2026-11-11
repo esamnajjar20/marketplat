@@ -1,6 +1,6 @@
 import os from 'os';
-import { checkConnectionCapacity } from '../../src/shared/utils/capacityCheck';
-import { logger } from '../../src/shared/utils/logger';
+import { checkConnectionCapacity } from '../../src/shared/observability/capacityCheck';
+import { logger } from '../../src/shared/observability/logger';
 
 /**
  * coverage: checkConnectionCapacity is the only piece of

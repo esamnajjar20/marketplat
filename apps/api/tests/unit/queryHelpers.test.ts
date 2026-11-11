@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { optionalQueryNumber } from '../../src/shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../src/shared/http/queryHelpers';
 
 describe('optionalQueryNumber', () => {
   const schema = optionalQueryNumber(z.number().int().min(1).max(100));

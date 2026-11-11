@@ -9,7 +9,7 @@ read this file alongside the code comments it references.
 
 **Current implementation (PROD-FIX-15):** the refresh token is set by
 the backend as an `httpOnly`, `Secure` cookie (see
-`shared/utils/authCookies.ts`) and is never touched by client JS. The
+`shared/auth/authCookies.ts`) and is never touched by client JS. The
 frontend's Zustand auth store (`store/auth.store.ts`) does **not**
 persist a refresh token at all — its `partialize` excludes it entirely,
 along with the in-memory-only access token. Only non-sensitive `user`

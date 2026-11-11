@@ -1,5 +1,5 @@
 /**
- * shared/utils/pushSubscriptionsRepository.ts centralizes
+ * shared/notifications/pushSubscriptionsRepository.ts centralizes
  * PushSubscription data access (previously duplicated between
  * pushService.ts and notifications.repository.ts, each calling
  * prisma.pushSubscription directly). These tests cover the ownership
@@ -7,7 +7,7 @@
  * notifications.repository.test.ts, now that the actual prisma calls
  * live here.
  */
-import { pushSubscriptionsRepository } from '../../src/shared/utils/pushSubscriptionsRepository';
+import { pushSubscriptionsRepository } from '../../src/shared/notifications/pushSubscriptionsRepository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({

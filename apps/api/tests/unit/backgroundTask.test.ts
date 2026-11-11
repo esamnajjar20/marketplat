@@ -1,11 +1,11 @@
-import { reportBackgroundFailure, runBackgroundTask, isTransientBackgroundError } from '../../src/shared/utils/backgroundTask';
-import { logger } from '../../src/shared/utils/logger';
-import { recordFailedTask } from '../../src/shared/utils/failedBackgroundTasks';
+import { reportBackgroundFailure, runBackgroundTask, isTransientBackgroundError } from '../../src/shared/jobs/backgroundTask';
+import { logger } from '../../src/shared/observability/logger';
+import { recordFailedTask } from '../../src/shared/jobs/failedBackgroundTasks';
 
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { warn: jest.fn(), error: jest.fn() },
 }));
-jest.mock('../../src/shared/utils/failedBackgroundTasks', () => ({
+jest.mock('../../src/shared/jobs/failedBackgroundTasks', () => ({
   recordFailedTask: jest.fn().mockResolvedValue(undefined),
 }));
 

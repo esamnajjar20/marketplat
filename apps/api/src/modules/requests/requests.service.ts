@@ -30,9 +30,9 @@ import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { ConflictError } from '../../shared/errors/ConflictError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
-import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { buildPaginationMeta } from '../../shared/http/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../shared/observability/logger';
 import { getServiceTypeCapabilities } from '../service-types/service-types.service';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 

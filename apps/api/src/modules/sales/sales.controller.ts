@@ -21,8 +21,8 @@ import {
   SALES_REPORT_JSON_MAX_LIMIT,
 } from './sales.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../shared/utils/requireUser';
-import { paginationQuerySchema } from '../../shared/utils/pagination';
+import { requireUser } from '../../shared/auth/requireUser';
+import { paginationQuerySchema } from '../../shared/http/pagination';
 
 export const salesController = {
   costSettings: async (req: Request, res: Response, next: NextFunction) => {

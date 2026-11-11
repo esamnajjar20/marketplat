@@ -1,15 +1,15 @@
 import { usersService } from '../../src/modules/users/users.service';
 import { usersRepository } from '../../src/modules/users/users.repository';
 import { adsService } from '../../src/modules/ads/ads.service';
-import { userCache } from '../../src/shared/utils/userCache';
-import { tokenStore } from '../../src/shared/utils/tokenStore';
+import { userCache } from '../../src/shared/cache/userCache';
+import { tokenStore } from '../../src/shared/auth/tokenStore';
 import { prisma } from '../../src/config/prisma';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
-import { hashPassword } from '../../src/shared/utils/hash';
+import { hashPassword } from '../../src/shared/auth/hash';
 import { uploadAvatar, deleteImage } from '../../src/config/cloudinary';
-import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../src/shared/utils/cloudinaryHelpers';
-import { presence } from '../../src/shared/utils/presence';
+import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../src/shared/media/cloudinaryHelpers';
+import { presence } from '../../src/shared/realtime/presence';
 import { followsService } from '../../src/modules/follows/follows.service';
 import jwt from 'jsonwebtoken';
 
@@ -19,12 +19,12 @@ jest.mock('../../src/config/cloudinary', () => ({
   uploadAvatar: jest.fn(),
   deleteImage: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock('../../src/shared/utils/cloudinaryHelpers', () => ({
+jest.mock('../../src/shared/media/cloudinaryHelpers', () => ({
   extractCloudinaryPublicId: jest.fn(),
   cleanupUploadedImages: jest.fn().mockResolvedValue(undefined),
   deleteCloudinaryAsset: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock('../../src/shared/utils/presence', () => ({
+jest.mock('../../src/shared/realtime/presence', () => ({
   presence: { touch: jest.fn().mockResolvedValue(undefined), getPresence: jest.fn() },
 }));
 jest.mock('../../src/modules/follows/follows.service', () => ({

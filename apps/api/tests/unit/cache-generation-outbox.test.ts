@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 describe('durable cache-generation retry wiring', () => {
-  const swrSource = readFileSync(join(__dirname, '../../src/shared/utils/swrCache.ts'), 'utf8');
+  const swrSource = readFileSync(join(__dirname, '../../src/shared/cache/swrCache.ts'), 'utf8');
   const workerSource = readFileSync(join(__dirname, '../../src/shared/outbox/outbox.worker.ts'), 'utf8');
 
   it('persists a failed generation bump as an outbox event after Redis retries fail', () => {

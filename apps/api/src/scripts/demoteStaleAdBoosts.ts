@@ -4,7 +4,7 @@
  * Prisma/SQL fallback uses the identical PostgreSQL advisory lock.
  */
 import { PrismaClient } from '@prisma/client';
-import { logger } from '../shared/utils/logger';
+import { logger } from '../shared/observability/logger';
 import { env } from '../config/env';
 import { bumpAdsCacheVersion } from '../modules/ads/ads.cache.keys';
 import { flushEdgePurge } from '../shared/cache/edgePurge';

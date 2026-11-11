@@ -1,7 +1,7 @@
 import {
   isSearchCacheWhitelistCandidate,
   normalizeSearchCacheTerm,
-} from '../../src/shared/utils/searchCacheWhitelist';
+} from '../../src/shared/search/searchCacheWhitelist';
 
 describe('search cache whitelist candidates', () => {
   it('normalizes Unicode and collapses whitespace', () => {

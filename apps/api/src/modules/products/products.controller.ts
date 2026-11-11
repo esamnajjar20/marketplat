@@ -10,8 +10,8 @@ import {
   reorderProductImagesSchema,
 } from './products.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../shared/utils/requireUser';
-import { paginationQuerySchema } from '../../shared/utils/pagination';
+import { requireUser } from '../../shared/auth/requireUser';
+import { paginationQuerySchema } from '../../shared/http/pagination';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 
 export const productsController = {

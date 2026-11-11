@@ -9,7 +9,7 @@ import { uploadImage, deleteImage } from '../../src/config/cloudinary';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
-import { hidePublicEntities } from '../../src/shared/utils/publicListCache';
+import { hidePublicEntities } from '../../src/shared/cache/publicListCache';
 
 jest.mock('../../src/modules/service-listings/service-listings.repository');
 jest.mock('../../src/modules/service-providers/service-providers.repository');
@@ -26,7 +26,7 @@ jest.mock('../../src/modules/fraud', () => ({
 jest.mock('../../src/modules/saved-searches', () => ({
   savedSearchEvents: { onServiceListingCreated: jest.fn().mockResolvedValue(undefined) },
 }));
-jest.mock('../../src/shared/utils/publicListCache', () => ({
+jest.mock('../../src/shared/cache/publicListCache', () => ({
   cachedPublicList: jest.fn((_ns: string, _query: unknown, fetcher: () => Promise<unknown>) =>
     fetcher()
   ),

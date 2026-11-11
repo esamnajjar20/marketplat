@@ -1,26 +1,26 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/jobs/backgroundTask';
 import v8 from 'node:v8';
 import { prisma } from '../../config/prisma';
 import { AdStatus, AuditEventType, ReportStatus, Role, Prisma } from '@prisma/client';
-import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { buildPaginationMeta } from '../../shared/http/pagination';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { ServiceUnavailableError } from '../../shared/errors/ServiceUnavailableError';
 import { isDataIntegrityScanReport, type DataIntegrityScanReport } from './data-integrity.types';
-import { userCache } from '../../shared/utils/userCache';
-import { tokenStore } from '../../shared/utils/tokenStore';
-import { auditLog } from '../../shared/utils/auditLog';
-import { canManageRole } from '../../shared/utils/roleHierarchy';
-import { adminStatsCache } from '../../shared/utils/adminStatsCache';
+import { userCache } from '../../shared/cache/userCache';
+import { tokenStore } from '../../shared/auth/tokenStore';
+import { auditLog } from '../../shared/audit/auditLog';
+import { canManageRole } from '../../shared/auth/roleHierarchy';
+import { adminStatsCache } from '../../shared/cache/adminStatsCache';
 // BUGFIX (found during a post-implementation code audit): see
 // ads.service.ts's own comment on bumpAdsCacheVersion for why this is
 // needed here — setAdFeatured/setAdPinned/forceDeleteAd below all
 // mutate Ad rows the GET /ads list cache is built from, but previously
 // never invalidated it.
 import { bumpAdsCacheVersion, bumpAdsCacheVersionAndHome } from '../ads/ads.service';
-import { hidePublicEntities } from '../../shared/utils/publicListCache';
-import { logger } from '../../shared/utils/logger';
+import { hidePublicEntities } from '../../shared/cache/publicListCache';
+import { logger } from '../../shared/observability/logger';
 
 /** كاش دقيقة لصفحة صحة النظام — يقلل PING على Upstash */
 let _systemHealthMem: { at: number; value: any } | null = null;

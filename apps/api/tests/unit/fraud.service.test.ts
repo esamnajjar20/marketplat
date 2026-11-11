@@ -10,15 +10,15 @@ import { fraudService } from '../../src/modules/fraud/fraud.service';
 import { fraudRepository } from '../../src/modules/fraud/fraud.repository';
 import { prisma } from '../../src/config/prisma';
 import { env } from '../../src/config/env';
-import { logger } from '../../src/shared/utils/logger';
-import { auditLog, AuditEvent } from '../../src/shared/utils/auditLog';
+import { logger } from '../../src/shared/observability/logger';
+import { auditLog, AuditEvent } from '../../src/shared/audit/auditLog';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 
 jest.mock('../../src/modules/fraud/fraud.repository');
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
-jest.mock('../../src/shared/utils/auditLog', () => ({
+jest.mock('../../src/shared/audit/auditLog', () => ({
   auditLog: jest.fn().mockResolvedValue(undefined),
   AuditEvent: {
     ADMIN_FRAUD_SIGNAL_REVIEWED: 'ADMIN_FRAUD_SIGNAL_REVIEWED',

@@ -1,4 +1,4 @@
-import { sanitizeAuditDetails } from '../../src/shared/utils/sanitizeAuditDetails';
+import { sanitizeAuditDetails } from '../../src/shared/audit/sanitizeAuditDetails';
 
 describe('sanitizeAuditDetails', () => {
   it('returns undefined when given undefined', () => {

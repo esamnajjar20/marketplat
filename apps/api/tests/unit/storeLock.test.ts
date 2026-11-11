@@ -1,4 +1,4 @@
-import { withStoreCreationLock } from '../../src/shared/utils/storeLock';
+import { withStoreCreationLock } from '../../src/shared/locks/storeLock';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 
 describe('storeLock / withStoreCreationLock', () => {

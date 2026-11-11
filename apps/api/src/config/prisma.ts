@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { recordPrismaQuery } from '../shared/utils/dbQueryTelemetry';
+import { recordPrismaQuery } from '../shared/observability/dbQueryTelemetry';
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

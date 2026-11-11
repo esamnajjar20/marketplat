@@ -1626,7 +1626,7 @@ model PushSubscription {
 // NEW — device tokens for native push (Capacitor + Firebase Cloud
 // Messaging), the Android/iOS-app counterpart to PushSubscription
 // above (which is Web Push / VAPID, browser-only). See
-// apps/api/src/shared/utils/fcmPushService.ts's header for why
+// apps/api/src/shared/notifications/fcmPushService.ts's header for why
 // standard Web Push isn't reused for the native app instead of adding
 // a second table. Same upsert-on-natural-key shape as
 // PushSubscription: `token` is FCM's own opaque device token, unique

@@ -1,13 +1,13 @@
 import { authService } from '../../src/modules/auth/auth.service';
 import { authRepository } from '../../src/modules/auth/auth.repository';
-import { tokenStore } from '../../src/shared/utils/tokenStore';
-import { userCache } from '../../src/shared/utils/userCache';
-import { auditLog, AuditEvent } from '../../src/shared/utils/auditLog';
+import { tokenStore } from '../../src/shared/auth/tokenStore';
+import { userCache } from '../../src/shared/cache/userCache';
+import { auditLog, AuditEvent } from '../../src/shared/audit/auditLog';
 
 jest.mock('../../src/modules/auth/auth.repository');
-jest.mock('../../src/shared/utils/tokenStore');
-jest.mock('../../src/shared/utils/userCache');
-jest.mock('../../src/shared/utils/auditLog', () => ({
+jest.mock('../../src/shared/auth/tokenStore');
+jest.mock('../../src/shared/cache/userCache');
+jest.mock('../../src/shared/audit/auditLog', () => ({
   auditLog: jest.fn().mockResolvedValue(undefined),
   AuditEvent: {
     OAUTH_LOGIN: 'OAUTH_LOGIN',
@@ -15,7 +15,7 @@ jest.mock('../../src/shared/utils/auditLog', () => ({
     OAUTH_SIGNUP: 'OAUTH_SIGNUP',
   },
 }));
-jest.mock('../../src/shared/utils/securityAlert', () => ({ sendSecurityAlert: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../../src/shared/auth/securityAlert', () => ({ sendSecurityAlert: jest.fn().mockResolvedValue(undefined) }));
 
 const baseUser = {
   id: 'user-123',

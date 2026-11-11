@@ -1,6 +1,6 @@
 import Redis from 'ioredis';
 import type { RedisOptions } from 'ioredis';
-import { logger } from '../shared/utils/logger';
+import { logger } from '../shared/observability/logger';
 import { env } from './env';
 
 const commonOptions: RedisOptions = {

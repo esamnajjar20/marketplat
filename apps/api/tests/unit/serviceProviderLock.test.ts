@@ -1,4 +1,4 @@
-import { withServiceProviderCreationLock } from '../../src/shared/utils/serviceProviderLock';
+import { withServiceProviderCreationLock } from '../../src/shared/locks/serviceProviderLock';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 
 describe('serviceProviderLock / withServiceProviderCreationLock', () => {

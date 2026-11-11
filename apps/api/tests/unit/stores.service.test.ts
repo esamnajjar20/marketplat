@@ -8,13 +8,13 @@ import { promotionsRepository } from '../../src/modules/promotions/promotions.re
 import { productsRepository } from '../../src/modules/products/products.repository';
 import { prisma } from '../../src/config/prisma';
 import { Prisma } from '@prisma/client';
-import { withStoreCreationLock } from '../../src/shared/utils/storeLock';
+import { withStoreCreationLock } from '../../src/shared/locks/storeLock';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { storeTypesRepository } from '../../src/modules/store-types/store-types.repository';
-import { cachedPublicList } from '../../src/shared/utils/publicListCache';
+import { cachedPublicList } from '../../src/shared/cache/publicListCache';
 import { badgesService } from '../../src/modules/badges/badges.service';
 import { favoritesRepository } from '../../src/modules/favorites/favorites.repository';
 import { FavoriteEntityType, FollowTargetType } from '@prisma/client';
@@ -35,7 +35,7 @@ jest.mock('../../src/modules/stores/store-followers.repository');
 jest.mock('../../src/modules/follows/follows.repository');
 jest.mock('../../src/modules/stores/store-reviews.repository');
 jest.mock('../../src/modules/sellers/sellers.repository');
-jest.mock('../../src/shared/utils/storeLock');
+jest.mock('../../src/shared/locks/storeLock');
 // STORE-ANALYTICS (Foundation v1): getMyStoreAnalytics pulls from these
 // two — mocked the same way every other cross-module repository
 // dependency in this file already is, so real Prisma calls (which
@@ -53,7 +53,7 @@ jest.mock('../../src/modules/store-types/store-type-fields.service', () => ({
     validateAttributes: jest.fn().mockResolvedValue({}),
   },
 }));
-jest.mock('../../src/shared/utils/publicListCache', () => ({
+jest.mock('../../src/shared/cache/publicListCache', () => ({
   cachedPublicList: jest.fn((_ns: string, _query: unknown, fetcher: () => Promise<unknown>) =>
     fetcher()
   ),

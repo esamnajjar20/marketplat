@@ -2,9 +2,9 @@ import { blockedUsersRepository, UserBlockWithBlockedUser } from './blocked-user
 import { usersRepository } from '../users/users.repository';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
-import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { buildPaginationMeta } from '../../shared/http/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
-import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { isPrismaError } from '../../shared/db/prismaErrors';
 
 export const blockedUsersService = {
   /**

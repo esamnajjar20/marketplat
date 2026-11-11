@@ -26,7 +26,7 @@ describe('healthCache', () => {
     jest.spyOn(prisma, '$queryRaw').mockResolvedValue([{ '?column?': 1 }] as any);
     jest.spyOn(redis, 'ping').mockResolvedValue('PONG');
 
-    const { getCachedReadiness } = await import('../../src/shared/utils/healthCache');
+    const { getCachedReadiness } = await import('../../src/shared/observability/healthCache');
     const status = await getCachedReadiness();
 
     expect(status.db).toBe('ok');
@@ -39,7 +39,7 @@ describe('healthCache', () => {
     jest.spyOn(prisma, '$queryRaw').mockRejectedValue(new Error('connection refused'));
     jest.spyOn(redis, 'ping').mockResolvedValue('PONG');
 
-    const { getCachedReadiness } = await import('../../src/shared/utils/healthCache');
+    const { getCachedReadiness } = await import('../../src/shared/observability/healthCache');
     const status = await getCachedReadiness();
 
     expect(status.db).toBe('error');
@@ -51,7 +51,7 @@ describe('healthCache', () => {
     jest.spyOn(prisma, '$queryRaw').mockResolvedValue([{ '?column?': 1 }] as any);
     jest.spyOn(redis, 'ping').mockRejectedValue(new Error('redis unreachable'));
 
-    const { getCachedReadiness } = await import('../../src/shared/utils/healthCache');
+    const { getCachedReadiness } = await import('../../src/shared/observability/healthCache');
     const status = await getCachedReadiness();
 
     expect(status.db).toBe('ok');
@@ -63,7 +63,7 @@ describe('healthCache', () => {
     const queryRawSpy = jest.spyOn(prisma, '$queryRaw').mockResolvedValue([{ '?column?': 1 }] as any);
     const pingSpy = jest.spyOn(redis, 'ping').mockResolvedValue('PONG');
 
-    const { getCachedReadiness } = await import('../../src/shared/utils/healthCache');
+    const { getCachedReadiness } = await import('../../src/shared/observability/healthCache');
 
     const first = await getCachedReadiness();
     const second = await getCachedReadiness();
@@ -78,7 +78,7 @@ describe('healthCache', () => {
     const queryRawSpy = jest.spyOn(prisma, '$queryRaw').mockResolvedValue([{ '?column?': 1 }] as any);
     const pingSpy = jest.spyOn(redis, 'ping').mockResolvedValue('PONG');
 
-    const { getCachedReadiness } = await import('../../src/shared/utils/healthCache');
+    const { getCachedReadiness } = await import('../../src/shared/observability/healthCache');
 
     const realNow = Date.now;
     let now = realNow();
@@ -104,7 +104,7 @@ describe('healthCache', () => {
     const queryRawSpy = jest.spyOn(prisma, '$queryRaw').mockReturnValue(pending as any);
     const pingSpy = jest.spyOn(redis, 'ping').mockResolvedValue('PONG');
 
-    const { getCachedReadiness } = await import('../../src/shared/utils/healthCache');
+    const { getCachedReadiness } = await import('../../src/shared/observability/healthCache');
 
     // Fire two concurrent calls before the first DB query has resolved.
     const call1 = getCachedReadiness();
@@ -140,7 +140,7 @@ describe('healthCache', () => {
     });
     jest.spyOn(redis, 'ping').mockResolvedValue('PONG');
 
-    const { getCachedReadiness } = await import('../../src/shared/utils/healthCache');
+    const { getCachedReadiness } = await import('../../src/shared/observability/healthCache');
 
     // checkOk() catches the synchronous throw internally, so this
     // resolves — it does not reject.
@@ -157,7 +157,7 @@ describe('healthCache', () => {
     // clean module instance for this assertion.
     jest.resetModules();
     const { getCachedReadiness: freshGetCachedReadiness } = await import(
-      '../../src/shared/utils/healthCache'
+      '../../src/shared/observability/healthCache'
     );
     const recovered = await freshGetCachedReadiness();
     expect(recovered.db).toBe('ok');

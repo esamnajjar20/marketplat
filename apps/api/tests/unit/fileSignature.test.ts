@@ -1,4 +1,4 @@
-import { detectImageType, isAllowedImageContent } from '../../src/shared/utils/fileSignature';
+import { detectImageType, isAllowedImageContent } from '../../src/shared/media/fileSignature';
 import {
   validJpegBuffer,
   validPngBuffer,

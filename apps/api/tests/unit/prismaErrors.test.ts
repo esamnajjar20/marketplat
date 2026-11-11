@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { handlePrismaError } from '../../src/shared/utils/prismaErrors';
+import { handlePrismaError } from '../../src/shared/db/prismaErrors';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 

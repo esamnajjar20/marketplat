@@ -1,4 +1,4 @@
-import { userCache, clearUserCacheL1ForTests } from '../../src/shared/utils/userCache';
+import { userCache, clearUserCacheL1ForTests } from '../../src/shared/cache/userCache';
 import { redis } from '../../src/config/redis';
 import { prisma } from '../../src/config/prisma';
 

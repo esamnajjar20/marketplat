@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { AuditEventType } from '@prisma/client';
-import { optionalQueryNumber } from '../../shared/utils/queryHelpers';
+import { optionalQueryNumber } from '../../shared/http/queryHelpers';
 
 // Sortable columns — kept narrow (only indexed/simple scalar columns on
 // AuditLog, see prisma/schema.prisma's @@index list) so `sortBy` can be
@@ -17,7 +17,7 @@ export const AUDIT_LOG_SORT_FIELDS = ['createdAt', 'event', 'userId'] as const;
 export type AuditLogSortField = (typeof AUDIT_LOG_SORT_FIELDS)[number];
 
 // AuditLog has a single actor column, `userId` — whoever the action is
-// attributed to (see shared/utils/auditLog.ts). For ADMIN_* events this
+// attributed to (see shared/audit/auditLog.ts). For ADMIN_* events this
 // is the acting admin's id (adminService's call sites pass
 // `admin.userId` in as `userId`); for auth events (LOGIN_*, REGISTER,
 // etc.) it's the subject user themselves. There is no separate

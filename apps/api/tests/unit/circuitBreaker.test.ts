@@ -1,5 +1,5 @@
-import { CircuitBreaker, CircuitBreakerOpenError } from '../../src/shared/utils/circuitBreaker';
-import { logger } from '../../src/shared/utils/logger';
+import { CircuitBreaker, CircuitBreakerOpenError } from '../../src/shared/resilience/circuitBreaker';
+import { logger } from '../../src/shared/observability/logger';
 
 /**
  * coverage: CircuitBreaker is new, hand-rolled logic (see

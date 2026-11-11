@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma';
 import { env } from '../config/env';
-import { logger } from '../shared/utils/logger';
+import { logger } from '../shared/observability/logger';
 import {
   executeWithGoFallback,
   runAdvisoryLockedBatch,

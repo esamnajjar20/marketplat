@@ -1,13 +1,13 @@
 import { usersController } from '../../src/modules/users/users.controller';
 import { usersService } from '../../src/modules/users/users.service';
-import { requireUser } from '../../src/shared/utils/requireUser';
+import { requireUser } from '../../src/shared/auth/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/users/users.service');
-jest.mock('../../src/shared/utils/requireUser');
+jest.mock('../../src/shared/auth/requireUser');
 
 const mockUser = { id: 'user-1', name: 'Test User', email: 'test@example.com' } as any;
 

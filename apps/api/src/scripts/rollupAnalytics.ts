@@ -1,6 +1,6 @@
 import { prisma } from '../config/prisma';
 import { env } from '../config/env';
-import { logger } from '../shared/utils/logger';
+import { logger } from '../shared/observability/logger';
 import { executeWithGoFallback, runAdvisoryLockedBatch } from '../shared/go-worker/executeWithFallback';
 
 const LOCK_ID = 731904302n; // Must match analyticsrollup.AdvisoryLockID in Go.

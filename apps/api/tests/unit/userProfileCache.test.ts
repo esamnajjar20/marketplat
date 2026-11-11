@@ -3,7 +3,7 @@ import {
   getCachedUserProfileWithStatus,
   getUserProfileCacheKeysForTests,
   invalidateCachedUserProfile,
-} from '../../src/shared/utils/userProfileCache';
+} from '../../src/shared/cache/userProfileCache';
 
 describe('userProfileCache', () => {
   it('isolates values by user id and reuses a fresh per-user Redis entry', async () => {

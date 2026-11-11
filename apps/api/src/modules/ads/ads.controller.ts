@@ -9,7 +9,7 @@ import {
   searchAdsSchema,
 } from './ads.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../shared/utils/requireUser';
+import { requireUser } from '../../shared/auth/requireUser';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { z } from 'zod';
 

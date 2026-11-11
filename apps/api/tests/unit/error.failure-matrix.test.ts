@@ -3,7 +3,7 @@ import request from 'supertest';
 import { AppError } from '../../src/shared/errors/AppError';
 import { errorMiddleware } from '../../src/middlewares/error.middleware';
 import { requestIdMiddleware } from '../../src/middlewares/requestId.middleware';
-import { register, httpErrorsTotal, metricsMiddleware } from '../../src/shared/utils/metrics';
+import { register, httpErrorsTotal, metricsMiddleware } from '../../src/shared/observability/metrics';
 
 describe('error handling failure matrix', () => {
   beforeEach(() => register.resetMetrics());

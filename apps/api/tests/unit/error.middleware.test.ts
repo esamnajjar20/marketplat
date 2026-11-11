@@ -5,7 +5,7 @@ import { ServiceUnavailableError } from '../../src/shared/errors/ServiceUnavaila
 import { ZodError, z } from 'zod';
 import { Request, Response, NextFunction } from 'express';
 
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
 }));
 
@@ -79,7 +79,7 @@ describe('errorMiddleware', () => {
   // even though it's an expected, handled condition rather than a bug.
   it('handles ServiceUnavailableError (circuit breaker open) as a 503 AppError and logs it', () => {
     const res = mockRes();
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     errorMiddleware(
       new ServiceUnavailableError('Image upload is temporarily unavailable, please try again shortly'),
       mockReq() as Request,
@@ -100,7 +100,7 @@ describe('errorMiddleware', () => {
 
   it('logs 5xx AppError', () => {
     const res = mockRes();
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     errorMiddleware(new AppError('Server issue', 500), mockReq() as Request, res as Response, mockNext);
     expect(logger.error).toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(500);
@@ -121,7 +121,7 @@ describe('errorMiddleware', () => {
 
   it('classifies Prisma P2028 transaction failures as 503 and logs actionable context', () => {
     const res = mockRes();
-    const { logger } = require('../../src/shared/utils/logger');
+    const { logger } = require('../../src/shared/observability/logger');
     const transactionError = Object.assign(
       new Error('Transaction already closed: internal transaction details'),
       { code: 'P2028' },

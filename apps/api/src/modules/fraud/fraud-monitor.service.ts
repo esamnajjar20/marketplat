@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../shared/observability/logger';
 import { ConflictError } from '../../shared/errors/ConflictError';
 import { requestJsonWithGoFallback } from '../../shared/go-worker/requestJsonWithFallback';
 import {

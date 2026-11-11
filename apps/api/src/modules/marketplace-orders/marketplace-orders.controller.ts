@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { requireUser } from '../../shared/utils/requireUser';
+import { requireUser } from '../../shared/auth/requireUser';
 import { successResponse } from '../../shared/types/api-response.types';
 import { marketplaceOrdersService } from './marketplace-orders.service';
 import { createMarketplaceOrderSchema, listMarketplaceOrdersSchema, marketplaceOrderIdSchema, updateMarketplaceOrderStatusSchema } from './marketplace-orders.validation';

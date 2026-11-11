@@ -4,7 +4,7 @@
  */
 import { PrismaClient } from '@prisma/client';
 import type { Prisma } from '@prisma/client';
-import { logger } from '../shared/utils/logger';
+import { logger } from '../shared/observability/logger';
 import {
   executeWithGoFallback,
   runAdvisoryLockedBatch,

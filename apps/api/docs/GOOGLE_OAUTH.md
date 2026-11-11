@@ -134,7 +134,7 @@ JSON يقرأها ذلك الكود مباشرة. أما `GET /auth/google/callb
 مفتوحان) قد تجتازان معًا فحص "لا يوجد حساب بهذا البريد بعد" قبل أن تُكمل أي
 منهما إدراج السجل، مما قد ينتج عنه إما خطأ P2002 غير معالَج أو حسابين
 متسابقين. لمعالجة ذلك، تُغلَّف `loginWithGoogle()` بالكامل بقفل Redis
-(`withOAuthAccountResolutionLock` في `shared/utils/oauthLock.ts`)، بنفس آلية
+(`withOAuthAccountResolutionLock` في `shared/locks/oauthLock.ts`)، بنفس آلية
 القفل المستخدمة مسبقًا في `sellerLock.ts`/`adLock.ts` — مفتاح القفل مبني على
 البريد الإلكتروني (بأحرف صغيرة)، مع مهلة قصيرة (15 ثانية)، ويُطلَق تلقائيًا
 عند انتهاء العملية أو فشلها.

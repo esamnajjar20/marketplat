@@ -23,7 +23,7 @@ jest.mock('web-push', () => ({
   sendNotification: (...args: unknown[]) => mockSendNotification(...args),
 }));
 
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
 }));
 
@@ -31,12 +31,12 @@ const mockFindManyByUserId = jest.fn();
 const mockDeleteByEndpoints = jest.fn();
 
 // pushService.ts now goes through
-// shared/utils/pushSubscriptionsRepository.ts instead of calling
+// shared/notifications/pushSubscriptionsRepository.ts instead of calling
 // prisma.pushSubscription directly (see that file's doc comment for
 // why) — the mock boundary moves to match. mockFindManyByUserId takes
 // only userId (not a Prisma where-clause) since that's this
 // repository's actual signature.
-jest.mock('../../src/shared/utils/pushSubscriptionsRepository', () => ({
+jest.mock('../../src/shared/notifications/pushSubscriptionsRepository', () => ({
   pushSubscriptionsRepository: {
     findManyByUserId: (...args: unknown[]) => mockFindManyByUserId(...args),
     deleteByEndpoints: (...args: unknown[]) => mockDeleteByEndpoints(...args),
@@ -59,7 +59,7 @@ describe('pushService', () => {
     });
 
     it('notifyUser does not throw and does not call web-push or the database', async () => {
-      const { pushService } = require('../../src/shared/utils/pushService');
+      const { pushService } = require('../../src/shared/notifications/pushService');
 
       await expect(pushService.notifyUser('user-1', payload)).resolves.toBeUndefined();
 
@@ -69,8 +69,8 @@ describe('pushService', () => {
     });
 
     it('notifyUser logs a clearly-labeled fallback warning', async () => {
-      const { pushService } = require('../../src/shared/utils/pushService');
-      const { logger } = require('../../src/shared/utils/logger');
+      const { pushService } = require('../../src/shared/notifications/pushService');
+      const { logger } = require('../../src/shared/observability/logger');
 
       await pushService.notifyUser('user-1', payload);
 
@@ -81,14 +81,14 @@ describe('pushService', () => {
     });
 
     it('notifyUsers also falls back to logging for every recipient without throwing', async () => {
-      const { pushService } = require('../../src/shared/utils/pushService');
+      const { pushService } = require('../../src/shared/notifications/pushService');
 
       await expect(pushService.notifyUsers(['u1', 'u2'], payload)).resolves.toBeUndefined();
       expect(mockSendNotification).not.toHaveBeenCalled();
     });
 
     it('notifyUsers resolves immediately with an empty userIds array', async () => {
-      const { pushService } = require('../../src/shared/utils/pushService');
+      const { pushService } = require('../../src/shared/notifications/pushService');
 
       await expect(pushService.notifyUsers([], payload)).resolves.toBeUndefined();
       expect(mockFindManyByUserId).not.toHaveBeenCalled();
@@ -112,7 +112,7 @@ describe('pushService', () => {
 
     it('sets VAPID details from env on first send', async () => {
       mockFindManyByUserId.mockResolvedValue([]);
-      const { pushService } = require('../../src/shared/utils/pushService');
+      const { pushService } = require('../../src/shared/notifications/pushService');
 
       await pushService.notifyUser('user-1', payload);
 
@@ -125,7 +125,7 @@ describe('pushService', () => {
 
     it('does nothing further when the user has no subscriptions', async () => {
       mockFindManyByUserId.mockResolvedValue([]);
-      const { pushService } = require('../../src/shared/utils/pushService');
+      const { pushService } = require('../../src/shared/notifications/pushService');
 
       await pushService.notifyUser('user-1', payload);
 
@@ -138,7 +138,7 @@ describe('pushService', () => {
         { id: 'sub-2', userId: 'user-1', endpoint: 'https://push/2', p256dh: 'p2', auth: 'a2' },
       ]);
       mockSendNotification.mockResolvedValue(undefined);
-      const { pushService } = require('../../src/shared/utils/pushService');
+      const { pushService } = require('../../src/shared/notifications/pushService');
 
       await pushService.notifyUser('user-1', payload);
 
@@ -160,8 +160,8 @@ describe('pushService', () => {
         { id: 'sub-1', userId: 'user-1', endpoint: 'https://push/1', p256dh: 'p1', auth: 'a1' },
       ]);
       mockSendNotification.mockRejectedValue(new Error('network blip'));
-      const { pushService } = require('../../src/shared/utils/pushService');
-      const { logger } = require('../../src/shared/utils/logger');
+      const { pushService } = require('../../src/shared/notifications/pushService');
+      const { logger } = require('../../src/shared/observability/logger');
 
       await expect(pushService.notifyUser('user-1', payload)).resolves.toBeUndefined();
       expect(logger.warn).toHaveBeenCalledWith(
@@ -181,7 +181,7 @@ describe('pushService', () => {
       mockSendNotification
         .mockRejectedValueOnce(Object.assign(new Error('bad request'), { statusCode: 400 }))
         .mockResolvedValueOnce(undefined);
-      const { pushService } = require('../../src/shared/utils/pushService');
+      const { pushService } = require('../../src/shared/notifications/pushService');
 
       await pushService.notifyUser('user-1', payload);
 
@@ -201,7 +201,7 @@ describe('pushService', () => {
         .mockRejectedValueOnce(new Error('network blip'))
         .mockResolvedValueOnce(undefined)
         .mockResolvedValueOnce(undefined);
-      const { pushService } = require('../../src/shared/utils/pushService');
+      const { pushService } = require('../../src/shared/notifications/pushService');
 
       // Use the real 1.5s retry delay here. Advancing fake timers before the
       // retry timer is registered can leave this promise pending indefinitely.
@@ -218,8 +218,8 @@ describe('pushService', () => {
       ]);
       mockSendNotification.mockRejectedValue(Object.assign(new Error('Gone'), { statusCode: 410 }));
       mockDeleteByEndpoints.mockResolvedValue({ count: 1 });
-      const { pushService } = require('../../src/shared/utils/pushService');
-      const { logger } = require('../../src/shared/utils/logger');
+      const { pushService } = require('../../src/shared/notifications/pushService');
+      const { logger } = require('../../src/shared/observability/logger');
 
       await pushService.notifyUser('user-1', payload);
 
@@ -237,7 +237,7 @@ describe('pushService', () => {
         Object.assign(new Error('Not Found'), { statusCode: 404 })
       );
       mockDeleteByEndpoints.mockResolvedValue({ count: 1 });
-      const { pushService } = require('../../src/shared/utils/pushService');
+      const { pushService } = require('../../src/shared/notifications/pushService');
 
       await pushService.notifyUser('user-1', payload);
 
@@ -250,7 +250,7 @@ describe('pushService', () => {
       ]);
       mockSendNotification.mockRejectedValue(Object.assign(new Error('Gone'), { statusCode: 410 }));
       mockDeleteByEndpoints.mockRejectedValue(new Error('db unavailable'));
-      const { pushService } = require('../../src/shared/utils/pushService');
+      const { pushService } = require('../../src/shared/notifications/pushService');
 
       await expect(pushService.notifyUser('user-1', payload)).resolves.toBeUndefined();
     });
@@ -264,7 +264,7 @@ describe('pushService', () => {
           { id: 'sub-2', userId: 'u2', endpoint: 'https://push/2', p256dh: 'p2', auth: 'a2' },
         ]);
       mockSendNotification.mockResolvedValue(undefined);
-      const { pushService } = require('../../src/shared/utils/pushService');
+      const { pushService } = require('../../src/shared/notifications/pushService');
 
       await pushService.notifyUsers(['u1', 'u2'], payload);
 
@@ -275,7 +275,7 @@ describe('pushService', () => {
 
     it('reuses VAPID configuration across multiple calls instead of re-setting it each time', async () => {
       mockFindManyByUserId.mockResolvedValue([]);
-      const { pushService } = require('../../src/shared/utils/pushService');
+      const { pushService } = require('../../src/shared/notifications/pushService');
 
       await pushService.notifyUser('u1', payload);
       await pushService.notifyUser('u2', payload);

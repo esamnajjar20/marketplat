@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/jobs/backgroundTask';
 import { cachePolicy } from '../../shared/cache/cachePolicy';
 import { createHash } from 'crypto';
 import { adsRepository, AdWithAuthor, AdListRow } from './ads.repository';
@@ -6,7 +6,7 @@ import { CreateAdInput, UpdateAdInput, GetAdsQuery, GetMyAdsQuery } from './ads.
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
-import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { buildPaginationMeta } from '../../shared/http/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { ROLES } from '../../shared/constants/roles';
 import { uploadImage } from '../../config/cloudinary';
@@ -14,10 +14,10 @@ import {
   extractCloudinaryPublicId,
   cleanupUploadedImages,
   deleteCloudinaryAsset,
-} from '../../shared/utils/cloudinaryHelpers';
-import { viewsBuffer } from '../../shared/utils/viewsBuffer';
-import { withAdImagesLock, withUserAdCreationLock } from '../../shared/utils/adLock';
-import { swrGet } from '../../shared/utils/swrCache';
+} from '../../shared/media/cloudinaryHelpers';
+import { viewsBuffer } from '../../shared/buffers/viewsBuffer';
+import { withAdImagesLock, withUserAdCreationLock } from '../../shared/locks/adLock';
+import { swrGet } from '../../shared/cache/swrCache';
 import { listHardTtlSec } from '../../shared/cache/warmedListQueries';
 import {
   ADS_GEN_HARD_KEY,
@@ -26,7 +26,7 @@ import {
   bumpAdsCacheHard,
   bumpAdsCacheVersionAndHome,
 } from './ads.cache.keys';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../shared/observability/logger';
 import { env } from '../../config/env';
 import { AdStatus } from '@prisma/client';
 import { sellersRepository } from '../sellers/sellers.repository';
@@ -41,7 +41,7 @@ import { fraudService } from '../fraud';
 import { prisma } from '../../config/prisma';
 import { FollowTargetType } from '@prisma/client';
 import { MAX_IMAGES_PER_ENTITY } from '../../config/limits';
-import { recordFailedTask } from '../../shared/utils/failedBackgroundTasks';
+import { recordFailedTask } from '../../shared/jobs/failedBackgroundTasks';
 
 /**
  * Upload ad images without leaking successful Cloudinary uploads when one
@@ -79,7 +79,7 @@ async function uploadAdImages(files: Express.Multer.File[]) {
  * then value); (3) dead versioned keys piled up until their TTL.
  *
  * Now the key is stable and the value is a stale-while-revalidate envelope
- * (see shared/utils/swrCache.ts) stamped with two generation tokens, fetched
+ * (see shared/cache/swrCache.ts) stamped with two generation tokens, fetched
  * together with the value in ONE MGET:
  *  - HARD generation: bumped by mutations that must HIDE an ad (delete, sold /
  *    non-ACTIVE, admin takedown). A stamp mismatch makes the entry unusable, so

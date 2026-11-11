@@ -2,7 +2,7 @@ import { stableSerialize } from './cacheKey';
 
 /**
  * Single source of truth for the public list queries that the keep-warm loop
- * (shared/utils/cacheWarmup.ts) pre-builds.
+ * (shared/cache/cacheWarmup.ts) pre-builds.
  *
  * Why this exists (FIX WARM-LIST-HARD-TTL-01): the public lists share the
  * `publicLive` policy whose hard TTL is 90s, but the keep-warm loop only runs

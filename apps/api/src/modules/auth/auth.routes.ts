@@ -14,7 +14,7 @@ import { passport } from './google.strategy';
 import type { GoogleProfileData } from './google.strategy';
 import { env } from '../../config/env';
 import { sessionRedis as redis } from '../../config/redis';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../shared/observability/logger';
 import {
   generateAndSetOAuthState,
   getOAuthStateFromCookie,
@@ -24,7 +24,7 @@ import {
   setMobileOAuthFlowCookie,
   getMobileOAuthFlowId,
   clearMobileOAuthFlowCookie,
-} from '../../shared/utils/authCookies';
+} from '../../shared/auth/authCookies';
 
 type GoogleProfileDataOrFalse = GoogleProfileData | false;
 

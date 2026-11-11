@@ -1,6 +1,6 @@
 import { adsController } from '../../src/modules/ads/ads.controller';
 import { adsService } from '../../src/modules/ads/ads.service';
-import { requireUser } from '../../src/shared/utils/requireUser';
+import { requireUser } from '../../src/shared/auth/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
@@ -8,7 +8,7 @@ import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/ads/ads.service');
-jest.mock('../../src/shared/utils/requireUser');
+jest.mock('../../src/shared/auth/requireUser');
 
 const mockAd = { id: 'ad-1', title: 'Test Ad' } as any;
 const mockFile = { buffer: Buffer.from('fake-image'), mimetype: 'image/jpeg' } as Express.Multer.File;

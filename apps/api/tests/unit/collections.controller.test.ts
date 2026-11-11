@@ -1,10 +1,10 @@
 import { collectionsController } from '../../src/modules/collections/collections.controller';
 import { collectionsService } from '../../src/modules/collections/collections.service';
-import { requireUser } from '../../src/shared/utils/requireUser';
+import { requireUser } from '../../src/shared/auth/requireUser';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/collections/collections.service');
-jest.mock('../../src/shared/utils/requireUser');
+jest.mock('../../src/shared/auth/requireUser');
 
 const userId = 'user-1';
 

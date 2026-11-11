@@ -1,4 +1,4 @@
-import { viewsBuffer } from '../../src/shared/utils/viewsBuffer';
+import { viewsBuffer } from '../../src/shared/buffers/viewsBuffer';
 import { redis } from '../../src/config/redis';
 import { prisma } from '../../src/config/prisma';
 

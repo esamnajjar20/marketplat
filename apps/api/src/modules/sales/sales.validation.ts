@@ -6,7 +6,7 @@ import {
   InstallmentStatus,
   ReturnReason,
 } from '@prisma/client';
-import { paginationQuerySchema } from '../../shared/utils/pagination';
+import { paginationQuerySchema } from '../../shared/http/pagination';
 
 const MAX_MONEY = 99_999_999.99; // Prisma Decimal(10,2) storage limit
 const money = z.coerce.number().finite().nonnegative().max(MAX_MONEY).multipleOf(0.01);

@@ -10,9 +10,9 @@ import {
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 import { cacheRedis as redis } from '../../config/redis';
-import { logger } from '../../shared/utils/logger';
+import { logger } from '../../shared/observability/logger';
 import { purgeReferenceKv } from '../../shared/cache/edgePurge';
-import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { isPrismaError } from '../../shared/db/prismaErrors';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 
 // versioned key — bump the suffix whenever

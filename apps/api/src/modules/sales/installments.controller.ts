@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { installmentsService } from './installments.service';
 import { installmentIdSchema, payInstallmentSchema } from './installments.validation';
-import { requireUser } from '../../shared/utils/requireUser';
+import { requireUser } from '../../shared/auth/requireUser';
 import { successResponse } from '../../shared/types/api-response.types';
 export const installmentsController = {
   overview: async (req: Request, res: Response, next: NextFunction) => {

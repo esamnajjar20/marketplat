@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { clientErrorSchema } from './observability.validation';
-import { logger } from '../../shared/utils/logger';
-import { getClientIp } from '../../shared/utils/getClientIp';
+import { logger } from '../../shared/observability/logger';
+import { getClientIp } from '../../shared/http/getClientIp';
 import { successResponse } from '../../shared/types/api-response.types';
 
 const SENSITIVE_CONTEXT_KEY =

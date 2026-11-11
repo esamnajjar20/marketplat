@@ -2,8 +2,8 @@ import request from 'supertest';
 import { app } from '../../src/app';
 import { createTestUser, createTestAdmin } from '../helpers/auth.helper';
 import { redis } from '../../src/config/redis';
-import { hashToken } from '../../src/shared/utils/refreshLock';
-import { verifyRefreshToken } from '../../src/shared/utils/jwt';
+import { hashToken } from '../../src/shared/locks/refreshLock';
+import { verifyRefreshToken } from '../../src/shared/auth/jwt';
 
 
 /** Superagent drops Secure cookies on http:// — re-attach from Set-Cookie. */

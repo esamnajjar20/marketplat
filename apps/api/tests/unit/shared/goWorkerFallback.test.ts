@@ -3,9 +3,9 @@ import {
   runAdvisoryLockedBatch,
 } from '../../../src/shared/go-worker/executeWithFallback';
 import type { PrismaClient, Prisma } from '@prisma/client';
-import { logger } from '../../../src/shared/utils/logger';
+import { logger } from '../../../src/shared/observability/logger';
 
-jest.mock('../../../src/shared/utils/logger', () => ({
+jest.mock('../../../src/shared/observability/logger', () => ({
   logger: {
     info: jest.fn(),
     warn: jest.fn(),

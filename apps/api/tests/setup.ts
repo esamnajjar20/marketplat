@@ -289,7 +289,7 @@ jest.mock('../src/config/redis', () => {
       }
 
       if (script.includes('SWR_WRITE_IF_GENERATION_CURRENT')) {
-        // WRITE_IF_GENERATION_CURRENT_LUA (shared/utils/swrCache.ts):
+        // WRITE_IF_GENERATION_CURRENT_LUA (shared/cache/swrCache.ts):
         // KEYS=[hardGenKey, softGenKey|hardGenKey, valueKey]
         // ARGV=[hardToken, softToken|'', envelopeJson, ttlSec]
         // Must be matched BEFORE the generic "redis.call('GET', KEYS[1])"
@@ -306,7 +306,7 @@ jest.mock('../src/config/redis', () => {
       }
 
       if (script.includes("redis.call('get', KEYS[1]) == ARGV[1]")) {
-        // RELEASE_LOCK_LUA (shared/utils/swrCache.ts): compare-and-delete of
+        // RELEASE_LOCK_LUA (shared/cache/swrCache.ts): compare-and-delete of
         // the `<key>:refresh-lock` token (lowercase `get`, unlike adLock's).
         const [lockKey] = keys;
         const [token] = argv;
@@ -462,16 +462,16 @@ afterEach(async () => {
   (redis as any).__clear?.();
   // the cache circuit breaker is module state —
   // close it so one test's simulated Redis failures never bleed into the next.
-  const { resetCacheGuard } = await import('../src/shared/utils/cacheGuard');
+  const { resetCacheGuard } = await import('../src/shared/resilience/cacheGuard');
   resetCacheGuard();
   // Clear in-process L1 caches so unit tests that populate them do not
   // leak state into subsequent cases (or suites that share the module).
   try {
-    const { clearUserCacheL1ForTests } = await import('../src/shared/utils/userCache');
+    const { clearUserCacheL1ForTests } = await import('../src/shared/cache/userCache');
     clearUserCacheL1ForTests();
   } catch { /* module may not be loaded */ }
   try {
-    const { clearUnreadNotificationsCacheL1ForTests } = await import('../src/shared/utils/unreadNotificationsCache');
+    const { clearUnreadNotificationsCacheL1ForTests } = await import('../src/shared/cache/unreadNotificationsCache');
     clearUnreadNotificationsCacheL1ForTests();
   } catch { /* module may not be loaded */ }
   if (skipDb) return;
@@ -522,9 +522,9 @@ afterEach(async () => {
 // Fire-and-forget tasks (e.g. fraud.service.scoreAd) may still be running
 // after the last test in a file finishes. Without waiting, their logs surface
 // after Jest considers the suite done → "Cannot log after tests are done" →
-// exit 1. See src/shared/utils/background.ts.
+// exit 1. See src/shared/jobs/background.ts.
 // ---------------------------------------------------------------------------
-import { drainBackground } from '../src/shared/utils/background';
+import { drainBackground } from '../src/shared/jobs/background';
 
 afterEach(async () => {
   await drainBackground(2000);

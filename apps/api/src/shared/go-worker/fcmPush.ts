@@ -1,5 +1,5 @@
-import { logger } from '../utils/logger';
-import type { FcmPushPayload, FcmSendOutcome } from '../utils/fcmPushService';
+import { logger } from '../observability/logger';
+import type { FcmPushPayload, FcmSendOutcome } from '../notifications/fcmPushService';
 
 export type GoFcmTargetOutcome = FcmSendOutcome | 'missing';
 

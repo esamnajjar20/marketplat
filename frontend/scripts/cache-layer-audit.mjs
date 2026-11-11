@@ -87,8 +87,8 @@ else pass('Service Worker invalidation consumes canonical cache domains');
 const offlineInvalidation = read('frontend/lib/offlineCacheInvalidation.ts');
 const queryCacheInvalidation = read('frontend/lib/cache/queryCacheInvalidation.ts');
 const apiClient = read('frontend/api/client.ts');
-const cacheMetrics = read('apps/api/src/shared/utils/cacheMetrics.ts');
-const metricsRegistry = read('apps/api/src/shared/utils/metricsRegistry.ts');
+const cacheMetrics = read('apps/api/src/shared/cache/cacheMetrics.ts');
+const metricsRegistry = read('apps/api/src/shared/observability/metricsRegistry.ts');
 if (!offlineInvalidation.includes('canonicalPathname') || !offlineInvalidation.includes('rule.domains')) fail('offline invalidation bypasses canonical identity/contract');
 else pass('offline invalidation uses canonical path identity and domain contract');
 
@@ -103,7 +103,7 @@ if (!apiClient.includes('invalidateReactQueryForMutation')) fail('W4 Axios mutat
 else pass('W4 React Query invalidation is contract-driven at the mutation boundary');
 
 // CACHE-W5: canonical generation identity must be used by public list SWR.
-const publicListCache = read('apps/api/src/shared/utils/publicListCache.ts');
+const publicListCache = read('apps/api/src/shared/cache/publicListCache.ts');
 const backendKeyW5 = read('apps/api/src/shared/cache/cacheKey.ts');
 if (!backendKeyW5.includes('canonicalGenerationKey')) fail('W5 canonical generation key helper missing');
 if (!publicListCache.includes('canonicalGenerationKey')) fail('W5 public-list generations still use a legacy key builder');
@@ -158,8 +158,8 @@ else pass('W8 dedicated cache contract audit is present');
 
 // CACHE-W10 — authenticated HTTP boundary and the private profile Redis read-through.
 const apiRoutes = read('apps/api/src/routes.ts');
-const profileCache = read('apps/api/src/shared/utils/userProfileCache.ts');
-const userCache = read('apps/api/src/shared/utils/userCache.ts');
+const profileCache = read('apps/api/src/shared/cache/userProfileCache.ts');
+const userCache = read('apps/api/src/shared/cache/userCache.ts');
 const usersService = read('apps/api/src/modules/users/users.service.ts');
 const usersRoutes = read('apps/api/src/modules/users/users.routes.ts');
 const salesService = read('apps/api/src/modules/sales/sales.service.ts');

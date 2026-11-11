@@ -15,9 +15,9 @@ import {
   mediaQuerySchema,
 } from './conversations.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../shared/utils/requireUser';
+import { requireUser } from '../../shared/auth/requireUser';
 import { uploadAudio, uploadImage, uploadRawFile } from '../../config/cloudinary';
-import { deleteCloudinaryAsset } from '../../shared/utils/cloudinaryHelpers';
+import { deleteCloudinaryAsset } from '../../shared/media/cloudinaryHelpers';
 import { env } from '../../config/env';
 import { parseTrustedCloudinaryMediaUrl } from './cloudinaryMediaUrl';
 

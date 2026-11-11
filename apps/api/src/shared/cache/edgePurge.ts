@@ -1,7 +1,7 @@
 import { createHmac, randomUUID } from 'node:crypto';
 import { prisma } from '../../config/prisma';
 import { env } from '../../config/env';
-import { logger } from '../utils/logger';
+import { logger } from '../observability/logger';
 
 /**
  * Shared cache invalidation by Cache-Tag (Workers Cache, optional zone cache,

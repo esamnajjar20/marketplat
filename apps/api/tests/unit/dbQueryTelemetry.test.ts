@@ -1,6 +1,6 @@
 import express from 'express';
 import request from 'supertest';
-import { register, metricsMiddleware } from '../../src/shared/utils/metrics';
+import { register, metricsMiddleware } from '../../src/shared/observability/metrics';
 import {
   createDatabaseRequestMetricsFinalizer,
   databaseRequestContextMiddleware,
@@ -10,7 +10,7 @@ import {
   prismaRepeatedQueryMaxPerHttpRequest,
   prismaSlowQueriesTotal,
   recordPrismaQuery,
-} from '../../src/shared/utils/dbQueryTelemetry';
+} from '../../src/shared/observability/dbQueryTelemetry';
 
 describe('database query telemetry', () => {
   beforeEach(() => {

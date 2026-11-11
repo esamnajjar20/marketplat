@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from './shared/utils/backgroundTask';
+import { reportBackgroundFailure } from './shared/jobs/backgroundTask';
 // FIX APM-02: must be the literal first import — see instrument.ts's
 // own header comment for why Sentry.init() has to run before any other
 // module (including ./app and its own transitive imports) is loaded.
@@ -8,24 +8,24 @@ import { app } from './app';
 import { env } from './config/env';
 import { prisma } from './config/prisma';
 import { criticalRedisServiceClients, closeRedisServiceClients } from './config/redis';
-import { logger } from './shared/utils/logger';
-import { viewsBuffer } from './shared/utils/viewsBuffer';
+import { logger } from './shared/observability/logger';
+import { viewsBuffer } from './shared/buffers/viewsBuffer';
 import {
   initUserCacheInvalidationSubscriber,
   stopUserCacheInvalidationSubscriber,
-} from './shared/utils/userCache';
+} from './shared/cache/userCache';
 import {
   initUnreadNotificationsCacheInvalidationSubscriber,
   stopUnreadNotificationsCacheInvalidationSubscriber,
-} from './shared/utils/unreadNotificationsCache';
+} from './shared/cache/unreadNotificationsCache';
 import {
   initBlacklistInvalidationSubscriber,
   stopBlacklistInvalidationSubscriber,
-} from './shared/utils/tokenStore';
-import { activityBuffer } from './shared/utils/activityBuffer';
-import { redisMemoryMonitor } from './shared/utils/redisMemoryMonitor';
-import { startCacheKeepWarm } from './shared/utils/cacheWarmup';
-import { checkConnectionCapacity } from './shared/utils/capacityCheck';
+} from './shared/auth/tokenStore';
+import { activityBuffer } from './shared/buffers/activityBuffer';
+import { redisMemoryMonitor } from './shared/observability/redisMemoryMonitor';
+import { startCacheKeepWarm } from './shared/cache/cacheWarmup';
+import { checkConnectionCapacity } from './shared/observability/capacityCheck';
 
 // TERMUX/PROOT SUPPORT: on Android + Termux + proot-distro Ubuntu,
 // Postgres and Redis are typically started manually by the person
@@ -186,7 +186,7 @@ const bootstrap = async (): Promise<void> => {
       });
       // FIX CACHE-WARMUP-01 / CACHE-KEEPWARM-01: fill the public Redis caches
       // before the first visitor has to, and keep them warm afterwards —
-      // see shared/utils/cacheWarmup.ts.
+      // see shared/cache/cacheWarmup.ts.
       stopCacheKeepWarm = startCacheKeepWarm();
       // Phase 3: queue consumer (no-op unless NOTIFICATION_QUEUE_ENABLED=true).
       // A failure to start must never take the API down — pushes then simply

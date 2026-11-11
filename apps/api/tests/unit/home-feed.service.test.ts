@@ -2,8 +2,8 @@ import { homeFeedService } from '../../src/modules/home/home-feed.service';
 import { recommendationsService } from '../../src/modules/recommendations/recommendations.service';
 import { homeService } from '../../src/modules/home/home.service';
 import { storeTypesService } from '../../src/modules/store-types/store-types.service';
-import { logger } from '../../src/shared/utils/logger';
-import { homeFeedShortRailTotal } from '../../src/shared/utils/metrics';
+import { logger } from '../../src/shared/observability/logger';
+import { homeFeedShortRailTotal } from '../../src/shared/observability/metrics';
 
 jest.mock('../../src/config/prisma', () => ({ prisma: { user: { findUnique: jest.fn() } } }));
 jest.mock('../../src/modules/recommendations/recommendations.service', () => ({
@@ -21,10 +21,10 @@ jest.mock('../../src/modules/products/products.service');
 jest.mock('../../src/modules/service-listings/service-listings.service');
 jest.mock('../../src/modules/stores/stores.service');
 jest.mock('../../src/modules/service-providers/service-providers.service');
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { warn: jest.fn(), error: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
-jest.mock('../../src/shared/utils/metrics', () => ({
+jest.mock('../../src/shared/observability/metrics', () => ({
   homeFeedShortRailTotal: { inc: jest.fn() },
 }));
 

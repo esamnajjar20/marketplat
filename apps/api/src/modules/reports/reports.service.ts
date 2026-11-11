@@ -1,4 +1,4 @@
-import { reportBackgroundFailure } from '../../shared/utils/backgroundTask';
+import { reportBackgroundFailure } from '../../shared/jobs/backgroundTask';
 import { bumpAdsCacheVersion, bumpAdsCacheVersionAndHome } from '../ads/ads.cache.keys';
 import { reportsRepository, ReportWithDetails } from './reports.repository';
 import { adsService } from '../ads/ads.service'; // A-01: use service facade, not repository
@@ -16,10 +16,10 @@ import {
 } from './reports.validation';
 import { NotFoundError } from '../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
-import { buildPaginationMeta } from '../../shared/utils/pagination';
+import { buildPaginationMeta } from '../../shared/http/pagination';
 import { PaginatedResult } from '../../shared/types/pagination.types';
 import { Report, ReportTargetType } from '@prisma/client';
-import { isPrismaError } from '../../shared/utils/prismaErrors';
+import { isPrismaError } from '../../shared/db/prismaErrors';
 import { env } from '../../config/env';
 import { notificationEvents } from '../notifications/notifications.service';
 

@@ -9,9 +9,9 @@ import {
   getPresenceSchema,
 } from './users.validation';
 import { successResponse } from '../../shared/types/api-response.types';
-import { requireUser } from '../../shared/utils/requireUser';
+import { requireUser } from '../../shared/auth/requireUser';
 import { getBearerToken } from '../../middlewares/auth.middleware';
-import { paginationQuerySchema } from '../../shared/utils/pagination';
+import { paginationQuerySchema } from '../../shared/http/pagination';
 import { BadRequestError } from '../../shared/errors/BadRequestError';
 
 export const usersController = {

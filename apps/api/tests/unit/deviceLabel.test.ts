@@ -2,7 +2,7 @@ import {
   deviceFingerprint,
   labelForNativePlatform,
   labelFromUserAgent,
-} from '../../src/shared/utils/deviceLabel';
+} from '../../src/shared/auth/deviceLabel';
 
 describe('labelFromUserAgent', () => {
   it.each([

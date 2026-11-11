@@ -6,18 +6,18 @@ jest.mock('../../src/config/env', () => ({
   env: {
     rateLimit: { disabled: true }, webPush: { isConfigured: false, publicKey: '', privateKey: '', subject: '' } },
 }));
-jest.mock('../../src/shared/utils/logger', () => ({
+jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), info: jest.fn(), warn: jest.fn() },
 }));
-jest.mock('../../src/shared/utils/pushSubscriptionsRepository', () => ({
+jest.mock('../../src/shared/notifications/pushSubscriptionsRepository', () => ({
   pushSubscriptionsRepository: { findManyByUserId: jest.fn(), deleteByEndpoints: jest.fn() },
 }));
-jest.mock('../../src/shared/utils/fcmPushService', () => ({
+jest.mock('../../src/shared/notifications/fcmPushService', () => ({
   fcmPushService: { notifyUser: jest.fn().mockResolvedValue(undefined) },
 }));
 jest.mock('../../src/config/prisma', () => ({ prisma: { user: { findUnique: jest.fn() } } }));
 
-import { resolveQuietTimeZone } from '../../src/shared/utils/pushService';
+import { resolveQuietTimeZone } from '../../src/shared/notifications/pushService';
 import { updateNotificationPreferencesSchema } from '../../src/modules/users/users.validation';
 
 describe('resolveQuietTimeZone', () => {

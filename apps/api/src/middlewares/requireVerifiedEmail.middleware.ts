@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import { userCache } from '../shared/utils/userCache';
+import { userCache } from '../shared/cache/userCache';
 import { ForbiddenError } from '../shared/errors/ForbiddenError';
-import { requireUser } from '../shared/utils/requireUser';
+import { requireUser } from '../shared/auth/requireUser';
 import { env } from '../config/env';
 
 /**

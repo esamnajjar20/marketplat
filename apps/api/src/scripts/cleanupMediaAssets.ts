@@ -5,7 +5,7 @@
  */
 import { prisma } from '../config/prisma';
 import { deleteMedia } from '../config/cloudinary';
-import { logger } from '../shared/utils/logger';
+import { logger } from '../shared/observability/logger';
 import { executeWithGoFallback, runAdvisoryLockedBatch } from '../shared/go-worker/executeWithFallback';
 
 const MEDIA_CLEANUP_LOCK_ID = 731904302n;

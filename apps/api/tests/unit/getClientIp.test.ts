@@ -1,5 +1,5 @@
 import { Request } from 'express';
-import { getClientIp } from '../../src/shared/utils/getClientIp';
+import { getClientIp } from '../../src/shared/http/getClientIp';
 
 function makeRequest(ip: string | undefined): Request {
   return { ip } as unknown as Request;

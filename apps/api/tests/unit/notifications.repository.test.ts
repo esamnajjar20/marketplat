@@ -1,8 +1,8 @@
 import { notificationsRepository } from '../../src/modules/notifications/notifications.repository';
 import { prisma } from '../../src/config/prisma';
-import { pushSubscriptionsRepository } from '../../src/shared/utils/pushSubscriptionsRepository';
+import { pushSubscriptionsRepository } from '../../src/shared/notifications/pushSubscriptionsRepository';
 
-jest.mock('../../src/shared/utils/notificationStream', () => ({
+jest.mock('../../src/shared/realtime/notificationStream', () => ({
   publishNotificationEvent: jest.fn().mockResolvedValue(undefined),
   publishNotificationEventsToMany: jest.fn().mockResolvedValue(undefined),
 }));
@@ -21,10 +21,10 @@ jest.mock('../../src/config/prisma', () => ({
 
 // notificationsRepository.upsertPushSubscription/
 // deletePushSubscription now delegate to
-// shared/utils/pushSubscriptionsRepository.ts instead of calling
+// shared/notifications/pushSubscriptionsRepository.ts instead of calling
 // prisma.pushSubscription directly (see that file's doc comment) — the
 // mock boundary moves to match.
-jest.mock('../../src/shared/utils/pushSubscriptionsRepository', () => ({
+jest.mock('../../src/shared/notifications/pushSubscriptionsRepository', () => ({
   pushSubscriptionsRepository: {
     upsert: jest.fn(),
     deleteForUser: jest.fn(),
@@ -65,7 +65,7 @@ describe('notificationsRepository', () => {
   describe('SSE payload carries deep-link data', () => {
     it('create publishes notification.data (plain objects only)', async () => {
       const { publishNotificationEvent } = jest.requireMock(
-        '../../src/shared/utils/notificationStream',
+        '../../src/shared/realtime/notificationStream',
       );
       (prisma.notification.create as jest.Mock).mockResolvedValue({
         id: 'n1',
@@ -110,7 +110,7 @@ describe('notificationsRepository', () => {
       expect(result).toEqual({ count: 2 });
 
       const { publishNotificationEventsToMany } = jest.requireMock(
-        '../../src/shared/utils/notificationStream',
+        '../../src/shared/realtime/notificationStream',
       );
       expect(publishNotificationEventsToMany).toHaveBeenCalledWith([
         {

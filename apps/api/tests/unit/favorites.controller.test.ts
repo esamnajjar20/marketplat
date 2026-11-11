@@ -1,10 +1,10 @@
 import { favoritesController } from '../../src/modules/favorites/favorites.controller';
 import { favoritesService } from '../../src/modules/favorites/favorites.service';
-import { requireUser } from '../../src/shared/utils/requireUser';
+import { requireUser } from '../../src/shared/auth/requireUser';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 jest.mock('../../src/modules/favorites/favorites.service');
-jest.mock('../../src/shared/utils/requireUser');
+jest.mock('../../src/shared/auth/requireUser');
 
 describe('favoritesController', () => {
   beforeEach(() => {

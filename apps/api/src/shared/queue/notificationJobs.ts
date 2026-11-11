@@ -5,7 +5,7 @@
  * purely numeric ids, so every id here is `<kind>_<part>_<part>`.
  */
 import { createHash } from 'crypto';
-import type { PushPayload } from '../utils/pushService';
+import type { PushPayload } from '../notifications/pushService';
 
 export const NOTIFICATION_QUEUE_NAME = 'notifications';
 

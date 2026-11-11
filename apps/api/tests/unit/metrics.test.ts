@@ -6,7 +6,7 @@ import {
   metricsHandler,
   httpRequestsTotal,
   httpRequestDurationSeconds,
-} from '../../src/shared/utils/metrics';
+} from '../../src/shared/observability/metrics';
 
 /**
  * Coverage for metrics.ts. Uses a minimal standalone express app (not
@@ -124,7 +124,7 @@ describe('metrics', () => {
    * coverage for the new optional METRICS_TOKEN gate.
    * env.ts reads process.env once at module-load time, so each test
    * here sets METRICS_TOKEN *before* resetting modules and re-importing
-   * both config/env and shared/utils/metrics fresh — the only way to
+   * both config/env and shared/observability/metrics fresh — the only way to
    * exercise a specific token value per test rather than whatever was
    * set at the very first import across the whole suite.
    */
@@ -144,7 +144,7 @@ describe('metrics', () => {
       delete process.env.METRICS_TOKEN;
       jest.resetModules();
 
-      const metrics = await import('../../src/shared/utils/metrics');
+      const metrics = await import('../../src/shared/observability/metrics');
       const app = express();
       app.get('/metrics', metrics.metricsHandler);
 
@@ -156,7 +156,7 @@ describe('metrics', () => {
       process.env.METRICS_TOKEN = 'test-secret-token';
       jest.resetModules();
 
-      const metrics = await import('../../src/shared/utils/metrics');
+      const metrics = await import('../../src/shared/observability/metrics');
       const app = express();
       app.get('/metrics', metrics.metricsHandler);
 
@@ -168,7 +168,7 @@ describe('metrics', () => {
       process.env.METRICS_TOKEN = 'test-secret-token';
       jest.resetModules();
 
-      const metrics = await import('../../src/shared/utils/metrics');
+      const metrics = await import('../../src/shared/observability/metrics');
       const app = express();
       app.get('/metrics', metrics.metricsHandler);
 
@@ -180,7 +180,7 @@ describe('metrics', () => {
       process.env.METRICS_TOKEN = 'test-secret-token';
       jest.resetModules();
 
-      const metrics = await import('../../src/shared/utils/metrics');
+      const metrics = await import('../../src/shared/observability/metrics');
       const app = express();
       app.get('/metrics', metrics.metricsHandler);
 

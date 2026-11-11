@@ -1,4 +1,4 @@
-import { normalizeSearchText, matchesSearchQuery } from '../../src/shared/utils/searchTextMatch';
+import { normalizeSearchText, matchesSearchQuery } from '../../src/shared/search/searchTextMatch';
 
 describe('normalizeSearchText', () => {
   it('folds hamza/madda/wasla alef variants to bare alef', () => {

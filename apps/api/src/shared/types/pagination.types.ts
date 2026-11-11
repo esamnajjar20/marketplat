@@ -1,4 +1,4 @@
-import type { PaginationMeta } from '../utils/pagination';
+import type { PaginationMeta } from '../http/pagination';
 
 // T620 — meta is now the same PaginationMeta interface
 // buildPaginationMeta() returns, rather than a hand-inlined shape that

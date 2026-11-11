@@ -2,7 +2,7 @@ import { prisma } from '../config/prisma';
 import {
   isSearchCacheWhitelistCandidate,
   normalizeSearchCacheTerm,
-} from '../shared/utils/searchCacheWhitelist';
+} from '../shared/search/searchCacheWhitelist';
 
 const BUILT_IN_TERMS = new Set([
   'سيارة', 'هاتف', 'لابتوب', 'شقة', 'غرفة', 'كرسي',

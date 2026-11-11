@@ -1,4 +1,4 @@
-import { atomicRefreshRotate, hashToken, RotateResult } from '../../src/shared/utils/refreshLock';
+import { atomicRefreshRotate, hashToken, RotateResult } from '../../src/shared/locks/refreshLock';
 import { redis } from '../../src/config/redis';
 
 /**

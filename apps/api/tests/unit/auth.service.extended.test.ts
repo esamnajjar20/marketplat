@@ -1,14 +1,14 @@
 import { authService } from '../../src/modules/auth/auth.service';
 import { authRepository } from '../../src/modules/auth/auth.repository';
-import { tokenStore } from '../../src/shared/utils/tokenStore';
-import { userCache } from '../../src/shared/utils/userCache';
+import { tokenStore } from '../../src/shared/auth/tokenStore';
+import { userCache } from '../../src/shared/cache/userCache';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { AppError } from '../../src/shared/errors/AppError';
 
 jest.mock('../../src/modules/auth/auth.repository');
-jest.mock('../../src/shared/utils/tokenStore');
-jest.mock('../../src/shared/utils/userCache');
-jest.mock('../../src/shared/utils/auditLog', () => ({
+jest.mock('../../src/shared/auth/tokenStore');
+jest.mock('../../src/shared/cache/userCache');
+jest.mock('../../src/shared/audit/auditLog', () => ({
   auditLog: jest.fn().mockResolvedValue(undefined),
   AuditEvent: {
     LOGOUT: 'LOGOUT',
@@ -18,10 +18,10 @@ jest.mock('../../src/shared/utils/auditLog', () => ({
     TOKEN_REFRESHED: 'TOKEN_REFRESHED',
   },
 }));
-jest.mock('../../src/shared/utils/securityAlert', () => ({
+jest.mock('../../src/shared/auth/securityAlert', () => ({
   sendSecurityAlert: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock('../../src/shared/utils/jwt', () => ({
+jest.mock('../../src/shared/auth/jwt', () => ({
   verifyRefreshToken: jest.fn().mockReturnValue({ userId: 'user-123', sessionId: 'session-1' }),
   rotateTokenPair: jest.fn().mockReturnValue({
     accessToken: 'new-access',
@@ -30,7 +30,7 @@ jest.mock('../../src/shared/utils/jwt', () => ({
   }),
   getTokenRemainingTTL: jest.fn().mockReturnValue(900),
 }));
-jest.mock('../../src/shared/utils/refreshLock', () => ({
+jest.mock('../../src/shared/locks/refreshLock', () => ({
   atomicRefreshRotate: jest.fn(),
   RotateResult: {
     SUCCESS: 'SUCCESS',
@@ -40,7 +40,7 @@ jest.mock('../../src/shared/utils/refreshLock', () => ({
   },
 }));
 
-const { atomicRefreshRotate, RotateResult } = require('../../src/shared/utils/refreshLock');
+const { atomicRefreshRotate, RotateResult } = require('../../src/shared/locks/refreshLock');
 
 describe('AuthService — extended', () => {
   beforeEach(() => {
