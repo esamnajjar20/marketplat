@@ -100,3 +100,6 @@ Modelfile.fast
 /tools/user-simulator/node_modules/
 /tools/user-simulator/data/
 /tools/user-simulator/reports/
+
+# نسخ احتياطية ينشئها cleanup_dead_files.py
+cleanup-backup-*.zip

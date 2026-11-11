@@ -84,7 +84,12 @@ export function RequestsPageClient({ params: initialParams }: { params: OpenRequ
   const city = searchParams.get('city') || undefined;
   const serviceTypeId = type === 'SERVICE' ? searchParams.get('serviceTypeId') || undefined : undefined;
   const q = searchParams.get('q') || undefined;
-  const sort = (searchParams.get('sort') as RequestSort | null) ?? 'newest';
+  // Same whitelist as the server page (app/(public)/requests/page.tsx) so an
+  // unknown ?sort= value falls back to 'newest' and the client query key
+  // matches the server-hydrated one instead of hitting the API with garbage.
+  const rawSort = searchParams.get('sort');
+  const sort: RequestSort =
+    rawSort === 'expiring' || rawSort === 'budget_high' || rawSort === 'fewest_offers' ? rawSort : 'newest';
   const params: OpenRequestsPageParams = { page, limit, type, city, serviceTypeId, q, sort };
 
   const { data, isLoading, isFetching, isError, refetch } = useOpenRequests(params);
