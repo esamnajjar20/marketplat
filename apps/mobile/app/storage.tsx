@@ -137,6 +137,7 @@ export default function StorageScreen() {
       </SectionCard>
       <SectionCard>
         <Text style={styles.sectionTitle}>إدارة البيانات</Text>
+        <PrimaryButton label="المحتوى المحفوظ دون اتصال" variant="secondary" onPress={() => router.push('/saved-offline')} />
         <PrimaryButton label="عمليات البحث المحفوظة" variant="secondary" onPress={() => router.push('/saved-searches')} />
         <PrimaryButton label="الإعدادات" variant="secondary" onPress={() => router.push('/settings')} />
       </SectionCard>

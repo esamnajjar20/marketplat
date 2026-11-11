@@ -19,7 +19,7 @@ const [tokens, provider, appJsonRaw, layout, settings, uiStyles, pageShell, butt
   read('apps/mobile/src/theme/ThemeProvider.tsx'),
   read('apps/mobile/app.json'),
   read('apps/mobile/app/_layout.tsx'),
-  read('apps/mobile/app/settings.tsx'),
+  read('apps/mobile/src/features/settings/ThemeSection.tsx'),
   read('apps/mobile/src/components/ui/styles.ts'),
   read('apps/mobile/src/components/ui/PageShell.tsx'),
   read('apps/mobile/src/components/ui/Button.tsx'),
@@ -75,7 +75,7 @@ check('light and dark palettes expose exactly the same color token keys', () => 
 });
 
 check('semantic color aliases and Arabic typography roles exist centrally', () => {
-  for (const key of ['primary', 'secondary', 'background', 'elevatedSurface', 'textPrimary', 'textSecondary', 'error', 'information', 'disabled', 'disabledText']) {
+  for (const key of ['brand', 'ink', 'muted', 'surface', 'border', 'danger', 'dangerText', 'success', 'successText', 'controlBorder', 'brandOnSoft']) {
     assert.ok(light.has(key), `Missing semantic color ${key}`);
   }
   for (const role of ['display', 'screenTitle', 'sectionTitle', 'cardTitle', 'body', 'supporting', 'caption', 'price', 'buttonLabel']) {
@@ -121,10 +121,10 @@ check('Expo native appearance is automatic and root status/navigation surfaces c
 });
 
 check('settings expose accessible system, light, and dark choices', () => {
-  for (const mode of ['system', 'light', 'dark']) assert.match(settings, new RegExp(`value: '${mode}'`));
+  for (const mode of ['system', 'light', 'dark']) assert.match(settings, new RegExp(`mode: '${mode}'`));
   assert.match(settings, /accessibilityRole="radio"/);
-  assert.match(settings, /accessibilityState=\{\{ selected \}\}/);
-  assert.match(settings, /setThemeMode\(option\.value\)/);
+  assert.match(settings, /accessibilityState=\{\{ selected: active \}\}/);
+  assert.match(settings, /setMode\(next\)/);
 });
 
 check('shared UI style hooks and core reusable controls consume the active palette', () => {

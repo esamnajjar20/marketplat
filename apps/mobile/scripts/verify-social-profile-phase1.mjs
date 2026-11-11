@@ -15,8 +15,8 @@ assert.ok(api.includes("targetType: 'USER'"), 'user follow uses USER target type
 assert.ok(api.includes("'SCAM' | 'FAKE' | 'OFFENSIVE' | 'SPAM'"), 'report reason union is defined');
 const profile = read('app/profile/[id].tsx');
 for (const route of ['/profile/[id]/followers', '/profile/[id]/following', '/report/[targetType]/[targetId]']) assert.ok(profile.includes(route), `profile missing navigation to ${route}`);
-assert.ok(read('app/settings.tsx').includes("router.push('/blocked-users')"), 'settings links to blocked users');
-assert.ok(read('app/settings.tsx').includes("router.push('/my-reports')"), 'settings links to reports');
+assert.ok(read('src/features/settings/AccountLinksSection.tsx').includes("href: '/blocked-users'"), 'settings links to blocked users');
+assert.ok(read('src/features/settings/HelpSection.tsx').includes("pushOnce('/my-reports')"), 'settings links to reports');
 assert.ok(read('app/ads/[id].tsx').includes('الإبلاغ عن الإعلان'), 'ad detail exposes report action');
 assert.ok(read('app/products/[id].tsx').includes('الإبلاغ عن المنتج'), 'product detail exposes report action');
 assert.ok(read('app/services/[id].tsx').includes('الإبلاغ عن الخدمة'), 'service detail exposes report action');

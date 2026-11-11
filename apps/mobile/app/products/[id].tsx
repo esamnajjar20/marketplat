@@ -17,6 +17,7 @@ import { FavoriteButton } from '@/components/ui/FavoriteButton';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { ProductAttributeList } from '@/components/ui/ProductAttributeList';
 import { RatingStars } from '@/components/ui/RatingStars';
+import { SaveOfflineButton } from '@/components/ui/SaveOfflineButton';
 import { ShareButton } from '@/components/ui/ShareButton';
 import { ProductCard } from '@/components/ui/ProductCard';
 import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
@@ -123,6 +124,7 @@ export default function ProductDetailScreen() {
         {item.discountPrice != null && Number(item.discountPrice) < Number(item.price) ? <Text style={styles.oldPrice}>{money(item.price)}</Text> : null}
         <Badge label={availabilityLabel(item.availability)} tone={item.availability === 'OUT_OF_STOCK' ? 'danger' : 'success'} />
         <Text style={styles.description}>{item.description || 'لا يوجد وصف إضافي لهذا المنتج.'}</Text>
+        <SaveOfflineButton id={item.id} kind="product" title={item.name} payload={{ id: item.id, title: item.name, description: item.description ?? '', price: item.effectivePrice?.price ?? item.discountPrice ?? item.price, createdAt: item.createdAt, images: item.images ?? [] }} />
         <View style={styles.metaRow}>
           {typeof item.views === 'number' ? <Text style={styles.meta}>المشاهدات: {formatNumber(item.views)}</Text> : null}
           {dateLabel(item.createdAt) ? <Text style={styles.meta}>تاريخ النشر: {dateLabel(item.createdAt)}</Text> : null}

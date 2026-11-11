@@ -13,7 +13,7 @@ assert.ok(list.indexOf("{ type: 'adsHeader' }") < list.indexOf("{ type: 'footer'
 assert.ok(list.indexOf("{ type: 'footer' }") < list.indexOf("{ type: 'sections' }"));
 assert.ok(home.indexOf("if (item.type === 'adsHeader')") < home.indexOf("if (item.type === 'sections')"));
 assert.ok(home.indexOf('{showFilters ? (', home.indexOf("if (item.type === 'adsHeader')")) < home.indexOf("if (item.type === 'sections')"));
-assert.match(home, /accessibilityLabel="تصفح المتاجر"[\s\S]*?router\.push\('\/stores'\)/);
+assert.match(community, /onAction=\{\(\) => pushOnce\('\/stores'\)\}/);
 assert.match(cards, /imageResizeMode\?: 'cover' \| 'contain'/);
 assert.match(cards, /height: 132/);
 assert.match(community, /imageResizeMode=\{store\.logoUrl \? 'contain' : 'cover'\}/);

@@ -14,7 +14,7 @@ assert.match(store, /next_attempt_at/);
 assert.match(store, /discardMarketplaceRequest/);
 assert.match(store, /retryMarketplaceRequest/);
 assert.match(screen, /NetInfo\.fetch\(\)/);
-assert.match(screen, /enqueueMarketplaceRequest\(String\(user\.id\),operationIdRef\.current,payload\)/);
+assert.match(screen, /enqueueMarketplaceRequest\(String\(user\.id\),\s*operationIdRef\.current,\s*payload\)/);
 assert.match(screen, /لم يُنشر الطلب على الخادم بعد/);
 assert.match(lifecycle, /syncNextMarketplaceRequest/);
 assert.match(queue, /listPendingMarketplaceRequests/);

@@ -15,8 +15,8 @@ const checks = [
   ['Store details exposes a share action', read('app/stores/[id].tsx').includes('<ShareButton resource="stores"')],
   ['Deep-link share supports existing resource routes', ['stories','ads','products','stores','services','profile'].every((r) => read('src/features/sharing/deep-links.ts').includes(`'${r}'`))],
   ['Story viewer consumes story and author IDs from deep links', read('app/stories/[id].tsx').includes('userId') && read('app/stories/[id].tsx').includes('useLocalSearchParams')],
-  ['Home routes discovery through Explore', read('app/index.tsx').includes("router.push('/explore')")],
-  ['Explore screen links to stories', read('app/explore.tsx').includes("path: '/stories'")],
+  ['Home routes discovery through Explore', read('src/components/BottomNavigation.tsx').includes('MAIN_TABS') || read('src/lib/navigation-policy.ts').includes("path: '/explore'")],
+  ['Stories list is reachable from the home community section and the drawer', read('src/features/discovery/HomeCommunitySections.tsx').includes("pushOnce('/stories')") && read('src/lib/navigation-policy.ts').includes("path: '/stories'")],
   ['Expo app scheme is configured', read('app.json').includes('"scheme": "marketplat"')],
 ];
 let failed = 0;

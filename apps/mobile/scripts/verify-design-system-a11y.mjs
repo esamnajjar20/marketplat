@@ -24,7 +24,7 @@ const productEditor = await read('apps/mobile/app/product-editor.tsx');
 const checkout = await read('apps/mobile/app/order-checkout.tsx');
 const sales = await read('apps/mobile/app/my-sales.tsx');
 const storeDetail = await read('apps/mobile/app/stores/[id].tsx');
-const servicesHours = await read('apps/mobile/app/service-provider-hours.tsx');
+const servicesHours = await read('apps/mobile/src/features/hours/WeeklyHoursEditor.tsx');
 
 function tokenColor(name) {
   const match = tokens.match(new RegExp(`\\b${name}\\s*:\\s*['\"](#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6}))['\"]`));
@@ -91,18 +91,18 @@ check('search filters announce selected state and meet touch-size target', () =>
   assert.match(search, /<EmptyState/);
 });
 check('ad-editor image and category controls meet minimum touch dimensions', () => {
-  assert.match(editor, /imageControl:\{width:44,height:44/);
-  assert.match(editor, /removeImage:\{[^}]*width:44,height:44/);
-  assert.match(editor, /categoryChip:\{minHeight:44/);
-  assert.match(editor, /borderColor:colors\.controlBorder/);
+  assert.match(editor, /imageControl:\s*\{\s*width:\s*sizes\.touchTarget,\s*height:\s*sizes\.touchTarget/);
+  assert.match(editor, /removeImage:\s*\{[^}]*width:\s*(?:44|sizes\.touchTarget),\s*height:\s*(?:44|sizes\.touchTarget)/);
+  assert.match(editor, /categoryChip:\s*\{\s*minHeight:\s*44/);
+  assert.match(editor, /borderColor:\s*colors\.controlBorder/);
 });
 check('product editor, checkout, sales filters, store tabs, and working-hours toggles meet accessibility baselines', () => {
-  assert.match(productEditor, /chip:\{minHeight:44,minWidth:44/);
-  assert.match(productEditor, /accessibilityState=\{\{selected:categoryId===c\.id\}\}/);
-  assert.match(checkout, /qtyButton:\{width:44,height:44,minWidth:44,minHeight:44/);
+  assert.match(productEditor, /chip:\s*\{\s*minHeight:\s*(?:44|sizes\.touchTarget),\s*minWidth:\s*(?:44|sizes\.touchTarget)/);
+  assert.match(productEditor, /accessibilityState=\{\{\s*selected:\s*categoryId\s*===\s*c\.id\s*\}\}/);
+  assert.match(checkout, /qtyButton:\s*\{\s*width:\s*(?:44|sizes\.touchTarget),\s*height:\s*(?:44|sizes\.touchTarget),\s*minWidth:\s*(?:44|sizes\.touchTarget),\s*minHeight:\s*(?:44|sizes\.touchTarget)/);
   assert.match(sales, /accessibilityLabel=\{`فلتر الحالة: \$\{option\.label\}`} accessibilityState=\{\{ selected:/);
-  assert.match(storeDetail, /accessibilityRole=\"tab\" accessibilityLabel=\{item\.label\} accessibilityState=\{\{selected:tab===item\.key\}\}/);
-  assert.match(servicesHours, /minHeight:44[\s\S]{0,180}colors\.controlBorder/);
+  assert.match(storeDetail, /accessibilityRole=\"tab\" accessibilityLabel=\{item\.label\} accessibilityState=\{\{\s*selected:\s*tab\s*===\s*item\.key\s*\}\}/);
+  assert.match(servicesHours, /minHeight:\s*(?:44|sizes\.touchTarget)[\s\S]{0,300}colors\.controlBorder/);
 });
 
 console.log(`\nDesign system / a11y regression checks: ${checks.length}/${checks.length} passed.`);

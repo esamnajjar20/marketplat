@@ -33,8 +33,8 @@ assert.match(notifications, /markAllNotificationsRead\(token, csrfToken, user\?\
 assert.match(notifications, /markNotificationRead\(item.id, token, csrfToken, user\?\.id\)/);
 assert.match(adDetail, /startConversationFromAd\(id, accessToken, csrfToken\)/);
 assert.match(productDetail, /startConversationWithUser\([^\n]+csrfToken\)/);
-assert.match(productEditor, /createProduct\(payload,accessToken,csrfToken/);
-assert.match(productEditor, /updateProduct\(id,payload,accessToken,csrfToken\)/);
+assert.match(productEditor, /createProduct\(payload,\s*accessToken,\s*csrfToken/);
+assert.match(productEditor, /updateProduct\(id,\s*payload,\s*accessToken,\s*csrfToken\)/);
 assert.match(myProducts, /deleteProduct\(item\.id,\s*token,\s*csrfToken\)/, 'product deletion uses the current access token and CSRF token');
 assert.match(storyViewer, /markStoryViewed\(story\.id,\s*token,\s*csrfToken\)/, 'story view mutation uses current access and CSRF tokens');
 console.log('Mutation CSRF audit passed (messaging, notifications, products, and story views).');

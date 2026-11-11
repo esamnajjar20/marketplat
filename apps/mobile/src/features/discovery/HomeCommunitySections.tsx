@@ -160,7 +160,7 @@ export default function HomeCommunitySections() {
       {/* القصص أولًا إن وُجدت — عنصر اجتماعي خفيف */}
       {visibleStories.length > 0 ? (
         <View style={styles.section}>
-          <SectionHeader title="قصص المجتمع" subtitle="ماذا ينشر الجيران الآن" />
+          <SectionHeader title="قصص المجتمع" subtitle="ماذا ينشر الجيران الآن" actionLabel="عرض الكل" onAction={() => pushOnce('/stories')} />
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}

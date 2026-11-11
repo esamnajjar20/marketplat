@@ -12,6 +12,7 @@ const LINKS: LinkItem[] = [
   { label: 'الجلسات', description: 'الأجهزة المسجّلة الدخول', href: '/sessions', icon: 'account' },
   { label: 'المستخدمون المحظورون', description: 'إدارة قائمة الحظر', href: '/blocked-users', icon: 'account' },
   { label: 'إدارة المتجر', description: 'متجرك ومنتجاتك وطلباتك', href: '/my-store', icon: 'store' },
+  { label: 'المحتوى المحفوظ دون اتصال', description: 'الإعلانات والمنتجات والمتاجر التي حفظتها', href: '/saved-offline', icon: 'file' },
   { label: 'التخزين والعمل دون اتصال', description: 'البيانات المحفوظة على الجهاز', href: '/storage', icon: 'file' },
   { label: 'حذف الحساب', description: 'إجراء نهائي لا يمكن التراجع عنه', href: '/delete-account', icon: 'warning' },
 ];

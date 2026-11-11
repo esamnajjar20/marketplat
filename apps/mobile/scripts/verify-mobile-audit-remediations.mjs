@@ -21,7 +21,11 @@ assert.match(stream, /Last-Event-ID/);
 assert.match(client, /refreshInFlight: Promise<string> \| null/);
 assert.match(client, /export async function refreshAccessTokenForStream/);
 assert.match(vitest, /src\/features\/\*\*\/__tests__\/\*\*\/\*\.test\.ts/);
-assert.equal(mobilePackage.dependencies.zod, rootPackage.pnpm.overrides.zod);
+{
+  const workspaceYaml = readFileSync(resolve(root, '../../pnpm-workspace.yaml'), 'utf8');
+  const override = /overrides:[\s\S]*?'zod':\s*'([^']+)'/.exec(workspaceYaml)?.[1];
+  assert.equal(mobilePackage.dependencies.zod, override);
+}
 assert.match(connectivity, /createContext<ConnectivityValue>\(\{ isOnline: true \}\)/);
 assert.match(connectivity, /state\.isConnected === false \|\| state\.isInternetReachable === false/);
 const mobileSourceFiles = ['app', 'src'].flatMap((folder) =>

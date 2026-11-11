@@ -16,7 +16,7 @@ assert.match(client, /cacheOwnerId/);
 assert.match(client, /deletePublicCacheEntry/);
 assert.match(api, /fetchMyProfile\(token:string, ownerId\?/);
 assert.match(api, /cacheOwnerId:ownerId/);
-assert.match(profile, /fetchMyProfile\(accessToken,user\?\.id\)/);
+assert.match(profile, /fetchMyProfile\(accessToken,\s*user\?\.id\)/);
 assert.match(profile, /updateMyProfile\([\s\S]*?user\?\.id\)/);
 assert.match(settings, /fetchMyProfile\(token, user\?\.id\)/, 'settings profile read scopes cache to the current user');
 assert.match(settings, /updateNotificationPreferences\(prefs, token, csrfToken, user\?\.id\)/, 'settings preference mutation scopes cache to the current user');

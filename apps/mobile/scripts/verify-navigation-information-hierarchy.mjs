@@ -27,21 +27,19 @@ assert.match(frame, /shouldHideBottomNavigation\(pathname\)/, 'ScreenFrame must 
 assert.match(frame, /\['top', 'bottom'\]/);
 
 // The home screen should prioritize search and current ads; advanced filters stay collapsed until requested.
-assert.match(home, /heroTitle/);
 assert.match(home, /أحدث الإعلانات/);
-assert.match(home, /خدمات قريبة منك/);
-assert.match(home, /useHomeServices\(\)/, 'Homepage service loading should live in its feature hook.');
-const homeServices = read('src/features/discovery/useHomeServices.ts');
-assert.match(homeServices, /fetchServiceListings/);
-assert.match(homeServices, /getCachedServiceListings/);
-assert.match(homeServices, /sequenceRef/);
+assert.match(await read('src/features/discovery/HomeMarketplaceSections.tsx'), /خدمات قريبة/);
+// Services load lazily inside HomeMarketplaceSections (one request); the home screen itself must not duplicate it.
+const marketplaceSections = await read('src/features/discovery/HomeMarketplaceSections.tsx');
+assert.match(marketplaceSections, /fetchServiceListings\(/);
+assert.doesNotMatch(home, /fetchServiceListings|useHomeServices/, 'Home must not issue a second services request.');
 assert.match(home, /showFilters \?/);
 assert.doesNotMatch(home, /تصفّح الأقسام|categoryGrid|fetchPublicCategories/);
 assert.doesNotMatch(home, /<Text style=\{styles\.quickTitle\}>الرائج الآن<\/Text>/, 'Do not duplicate discovery sections as homepage shortcuts.');
 
 // Discovery and account destinations are grouped by user intent and priority.
-assert.match(explore, /الإعلانات والطلبات[\s\S]*المنتجات والمتاجر[\s\S]*الخدمات[\s\S]*المجتمع والاكتشاف/);
-assert.match(account, /المهم الآن[\s\S]*ملفي ونشاطي[\s\S]*إدارة المتجر والخدمات[\s\S]*الإعدادات والخصوصية/);
+for (const route of ['/search', '/ads', '/products', '/services', '/requests', '/stores', '/service-providers', '/sellers-ranking']) assert.ok(explore.includes(`path: '${route}'`), `Explore must link to ${route}`);
+assert.match(account, /المبيعات والعملاء[\s\S]*ملفي ونشاطي[\s\S]*إدارة المتجر والخدمات[\s\S]*الخصوصية والأمان/);
 for (const route of ['/messages', '/notifications', '/my-sales', '/orders', '/my-ads', '/profile', '/my-store', '/my-products', '/my-services', '/my-requests', '/appointments', '/settings', '/offline-queue', '/storage', '/blocked-users', '/my-reports']) {
   const candidate = resolve(root, 'app', `${route.slice(1)}.tsx`);
   assert.ok(existsSync(candidate), `Account hub points to a missing route: ${route}`);

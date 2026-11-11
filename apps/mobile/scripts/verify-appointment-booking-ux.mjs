@@ -55,7 +55,7 @@ assert.match(screen, /setAvailabilityError\(\(current\) => current \|\| message\
 assert.match(formatters, /timeZone: 'Asia\/Gaza'/);
 assert.match(serviceRequestsScreen, /accountIdRef\.current !== nextAccountId/);
 assert.match(serviceRequestsScreen, /itemsOwnerId !== \(user\?\.id \?\? null\)/);
-assert.match(serviceRequestsScreen, /load\(true, accountChanged\)/);
+assert.match(serviceRequestsScreen, /loadRef\.current\(true, accountChanged\)/);
 assert.match(serviceRequestsScreen, /disabled=\{saving \|\| details\.trim\(\)\.length < 10\}/);
 assert.match(servicesScreen, /busy=\{deletingId === item\.id\} disabled=\{Boolean\(deletingId\)\}/);
 

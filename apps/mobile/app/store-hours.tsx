@@ -1,59 +1,23 @@
-import { useAppTheme } from '@/theme/ThemeProvider';
-import { AppText as Text } from '@/components/ui/AppText';
-import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { View } from 'react-native';
 
-import { pushOnce } from '@/lib/navigation';
-import { useAuth } from '@/features/auth/AuthContext';
+import { Notice, PageShell, PrimaryButton } from '@/components/ui';
 import { fetchMyStore, type StoreSummary } from '@/features/commerce/commerce.api';
 import { saveStoreHours } from '@/features/commerce/store-management.api';
-import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
-import { fontSizes, spacing, fontWeights, radius, sizes } from '@/theme/tokens';
-type Day = 'sun' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat';
-type Schedule = {
-  open: string;
-  close: string;
-} | null;
-const days: {
-  key: Day;
-  label: string;
-}[] = [
-  {
-    key: 'sun', label: 'الأحد'
-  },
-  {
-    key: 'mon', label: 'الاثنين'
-  },
-  {
-    key: 'tue', label: 'الثلاثاء'
-  },
-  {
-    key: 'wed', label: 'الأربعاء'
-  },
-  {
-    key: 'thu', label: 'الخميس'
-  },
-  {
-    key: 'fri', label: 'الجمعة'
-  },
-  {
-    key: 'sat', label: 'السبت'
-  }
-];
-const empty = (): Record<Day, Schedule> => ({
-  sun: null, mon: null, tue: null, wed: null, thu: null, fri: null, sat: null
-});
+import { useAuth } from '@/features/auth/AuthContext';
+import { WeeklyHoursEditor } from '@/features/hours/WeeklyHoursEditor';
+import { emptyWeeklyHours, normalizeWeeklyHours, validateWeeklyHours, type WeeklyHours } from '@/features/hours/weekly-hours';
+import { pushOnce } from '@/lib/navigation';
+
 export default function StoreHoursScreen() {
-  const { colors } = useAppTheme();
   const { accessToken, getAccessToken, csrfToken, user } = useAuth();
   const userId = user?.id;
   const [store, setStore] = useState<StoreSummary | null>(null);
-  const [hours, setHours] = useState<Record<Day, Schedule>>(empty());
+  const [hours, setHours] = useState<WeeklyHours>(emptyWeeklyHours());
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+
   const load = useCallback(async () => {
     const token = getAccessToken();
     if (!userId || !token) {
@@ -63,42 +27,22 @@ export default function StoreHoursScreen() {
     setLoading(true);
     setError('');
     try {
-      const s = await fetchMyStore(token);
-      setStore(s);
-      const raw = (s as StoreSummary & {
-        workingHours?: Record<Day, Schedule>;
-      })?.workingHours;
-      setHours({
-        ...empty(), ...(raw || {})
-      });
-    }
-    catch (e) {
+      const mine = await fetchMyStore(token);
+      setStore(mine);
+      setHours(normalizeWeeklyHours(mine?.workingHours));
+    } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر تحميل ساعات العمل.');
-    }
-    finally {
+    } finally {
       setLoading(false);
     }
   }, [getAccessToken, userId]);
-  useEffect(() => {
-    void load();
-  }, [load]);
-  const change = (day: Day, field: 'open' | 'close', value: string) => setHours(old => ({
-    ...old, [day]: old[day] ? {
-      ...old[day]!, [field]: value
-    } : {
-      open: field === 'open' ? value : '09:00', close: field === 'close' ? value : '17:00'
-    }
-  }));
+  useEffect(() => { void load(); }, [load]);
+
   const save = async () => {
     const token = getAccessToken();
-    if (!token)
-      return pushOnce('/login');
-    for (const [day, v] of Object.entries(hours)) {
-      if (v && (!/^([01]\d|2[0-3]):[0-5]\d$/.test(v.open) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(v.close) || v.close <= v.open)) {
-        setError(`تحقق من وقت الفتح والإغلاق ليوم ${days.find(d => d.key === day)?.label || day} (صيغة HH:mm).`);
-        return;
-      }
-    }
+    if (!token) return pushOnce('/login');
+    const invalid = validateWeeklyHours(hours);
+    if (invalid) { setError(invalid); return; }
     setBusy(true);
     setError('');
     setMessage('');
@@ -106,27 +50,33 @@ export default function StoreHoursScreen() {
       const updated = await saveStoreHours(hours, token, csrfToken);
       setStore(updated);
       setMessage('تم حفظ ساعات العمل.');
-    }
-    catch (e) {
+    } catch (e) {
       setError(e instanceof Error ? e.message : 'تعذر حفظ ساعات العمل.');
-    }
-    finally {
+    } finally {
       setBusy(false);
     }
   };
-  return <PageShell title="ساعات عمل المتجر">{!accessToken ? <><Notice>سجّل الدخول لإدارة ساعات العمل.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></> : loading ? <Notice tone="muted">جارٍ تحميل ساعات العمل…</Notice> : !store ? <Notice>أنشئ متجرك أولًا.</Notice> : <><Notice tone="muted">يمكن ترك اليوم مغلقًا. تُستخدم هذه الساعات لعرض حالة «مفتوح الآن» عندما تكون البيانات متاحة.</Notice>{days.map(day => <SectionCard key={day.key}><View style={{
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between'
-  }}><Text style={{
-    fontSize: fontSizes[15], fontWeight: fontWeights.bold, color: colors.ink
-  }}>{day.label}</Text><Pressable accessibilityRole="button" onPress={() => setHours(old => ({
-    ...old, [day.key]: old[day.key] ? null : {
-      open: '09:00', close: '17:00'
-    }
-  }))} style={{
-    minWidth: 76, minHeight: sizes.touchTarget, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.sm, backgroundColor: hours[day.key] ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: hours[day.key] ? colors.brand : colors.border
-  }}><Text style={{
-    color: colors.brand, fontWeight: fontWeights.bold
-  }}>{hours[day.key] ? 'مفتوح' : 'مغلق'}</Text></Pressable></View>{hours[day.key] ? <View style={{
-    flexDirection: 'row', gap: spacing.md
-  }}><View style={{ flex: 1 }}><Field label="يفتح (HH:mm)" value={hours[day.key]!.open} onChangeText={v => change(day.key, 'open', v)} placeholder="09:00"/></View><View style={{ flex: 1 }}><Field label="يغلق (HH:mm)" value={hours[day.key]!.close} onChangeText={v => change(day.key, 'close', v)} placeholder="17:00"/></View></View> : null}</SectionCard>)}<PrimaryButton label="حفظ ساعات العمل" onPress={() => void save()} busy={busy}/></>}{error ? <Notice>{error}</Notice> : null}{message ? <Notice tone="success">{message}</Notice> : null}</PageShell>;
+
+  return (
+    <PageShell title="ساعات عمل المتجر">
+      {!accessToken ? (
+        <>
+          <Notice>سجّل الدخول لإدارة ساعات العمل.</Notice>
+          <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
+        </>
+      ) : loading ? (
+        <Notice tone="muted">جارٍ تحميل ساعات العمل…</Notice>
+      ) : !store ? (
+        <Notice>أنشئ متجرك أولًا.</Notice>
+      ) : (
+        <>
+          <Notice tone="muted">يمكن ترك اليوم مغلقًا. تُستخدم هذه الساعات لعرض حالة «مفتوح الآن» عندما تكون البيانات متاحة.</Notice>
+          <WeeklyHoursEditor hours={hours} onChange={setHours} />
+          <PrimaryButton label="حفظ ساعات العمل" onPress={() => void save()} busy={busy} />
+        </>
+      )}
+      {error ? <Notice>{error}</Notice> : null}
+      {message ? <Notice tone="success">{message}</Notice> : null}
+    </PageShell>
+  );
 }

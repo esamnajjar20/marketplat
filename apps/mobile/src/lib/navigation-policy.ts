@@ -55,7 +55,7 @@ export const MAIN_TABS: ReadonlyArray<{
   { id: 'account', label: 'حسابي', path: '/account', glyph: 'account', matches: [
     '/account', '/profile', '/my-', '/seller-dashboard', '/seller-profile', '/following', '/favorites', '/orders', '/settings', '/security', '/notifications', '/complete-profile', '/sessions', '/delete-account', '/saved-payments',
     '/activity', '/saved-searches', '/followed-stores', '/offline-queue', '/blocked-users',
-    '/storage', '/seller-orders', '/customers', '/debts', '/installments', '/sales-costs', '/sales-insights', '/appointments',
+    '/storage', '/saved-offline', '/seller-orders', '/customers', '/debts', '/installments', '/sales-costs', '/sales-insights', '/appointments',
     '/service-requests', '/service-provider-profile', '/service-provider-analytics',
     '/service-provider-hours', '/service-reviews', '/store-collections',
     '/store-hours', '/store-invites', '/store-promotions', '/store-team', '/store/', '/my-reports',
@@ -76,6 +76,7 @@ export const DRAWER_ITEMS: ReadonlyArray<{
   { label: 'المتاجر', path: '/stores', icon: 'store', section: 'السوق' },
   { label: 'مقدمو الخدمة', path: '/service-providers', icon: 'service', section: 'السوق' },
   { label: 'أفضل البائعين', path: '/sellers-ranking', icon: 'account', section: 'السوق' },
+  { label: 'القصص', path: '/stories', icon: 'star', section: 'السوق' },
   { label: 'الرائج الآن', path: '/trending', icon: 'star', section: 'السوق' },
   { label: 'مقترحات لك', path: '/suggestions', icon: 'help', section: 'السوق' },
 
@@ -122,6 +123,7 @@ export const DRAWER_ITEMS: ReadonlyArray<{
   { label: 'الجلسات', path: '/sessions', icon: 'account', section: 'الإعدادات' },
   { label: 'المستخدمون المحظورون', path: '/blocked-users', icon: 'account', section: 'الإعدادات' },
   { label: 'العمليات دون اتصال', path: '/offline-queue', icon: 'orders', section: 'المساعدة' },
+  { label: 'المحتوى المحفوظ دون اتصال', path: '/saved-offline', icon: 'file', section: 'المساعدة' },
 ];
 
 const AUTH_ONLY_EXACT = new Set([

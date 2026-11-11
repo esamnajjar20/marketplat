@@ -7,7 +7,7 @@ const queue = await read('app/offline-queue.tsx');
 assert.match(store, /export async function restoreFavoriteStateIfAbsent\(item: PendingFavoriteState\)/, 'supports restoring a canceled row if auth changes mid-flight');
 assert.match(store, /INSERT OR IGNORE INTO favorite_state_outbox/, 'restore never overwrites a newer queued intent');
 assert.match(store, /item\.previousFavorited === null \? null/, 'restoration preserves unknown legacy baseline');
-assert.match(queue, /const sessionRef = useRef\(\{ userId: user\?\.id \?\? null, token: accessToken, epoch: 0 \}\)/, 'queue screen tracks current auth session generation');
+assert.match(queue, /const sessionRef = useRef\(\{\s*userId: user\?\.id \?\? null,\s*token: accessToken,\s*epoch: 0\s*\}\)/, 'queue screen tracks current auth session generation');
 assert.match(queue, /sessionRef\.current\.epoch !== session\.epoch/, 'network actions re-check session after awaits');
 assert.match(queue, /await restoreFavoriteStateIfAbsent\(item\)/, 'cancel restores the pending operation if the session changes after deletion');
 assert.match(queue, /احتُفظ بالعملية للمزامنة الآمنة لاحقًا/, 'retry does not acknowledge an operation under a changed session');
