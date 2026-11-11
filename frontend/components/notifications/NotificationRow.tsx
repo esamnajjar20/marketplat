@@ -47,18 +47,18 @@ export const NotificationRow = memo(function NotificationRow({
         <div className="flex items-start justify-between gap-3">
           <p
             className={cn(
-              'text-[14px] leading-snug text-[var(--legacy-ink)] line-clamp-2',
+              'text-sm leading-snug text-[var(--legacy-ink)] line-clamp-2',
               unread && 'font-bold',
             )}
           >
             {n.title}
           </p>
-          <span className="shrink-0 text-[11px] tabular-nums text-[var(--legacy-muted-text)]">
+          <span className="shrink-0 text-2xs-tight tabular-nums text-[var(--legacy-muted-text)]">
             <HydrationSafeRelativeTime date={n.createdAt} />
           </span>
         </div>
         {n.body && (
-          <p className="mt-1 text-[13px] leading-relaxed text-[var(--legacy-muted-text)] line-clamp-2">
+          <p className="mt-1 text-sm-tight leading-relaxed text-[var(--legacy-muted-text)] line-clamp-2">
             {n.body}
           </p>
         )}
@@ -66,7 +66,7 @@ export const NotificationRow = memo(function NotificationRow({
           {unread ? (
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-[var(--legacy-muted-text)] hover:bg-[var(--legacy-surface)] hover:text-[var(--legacy-ink)]"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-2xs-tight font-medium text-[var(--legacy-muted-text)] hover:bg-[var(--legacy-surface)] hover:text-[var(--legacy-ink)]"
               disabled={markReadPending}
               onClick={(e) => {
                 e.preventDefault();
@@ -80,7 +80,7 @@ export const NotificationRow = memo(function NotificationRow({
           ) : (
             <button
               type="button"
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-[var(--legacy-muted-text)] hover:bg-[var(--legacy-surface)] hover:text-[var(--legacy-ink)]"
+              className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-2xs-tight font-medium text-[var(--legacy-muted-text)] hover:bg-[var(--legacy-surface)] hover:text-[var(--legacy-ink)]"
               disabled={markUnreadPending}
               onClick={(e) => {
                 e.preventDefault();
@@ -95,7 +95,7 @@ export const NotificationRow = memo(function NotificationRow({
           <button
             type="button"
             aria-label="حذف الإشعار"
-            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-[var(--legacy-muted-text)] hover:bg-[var(--legacy-danger-soft)] hover:text-[var(--legacy-danger)]"
+            className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-2xs-tight font-medium text-[var(--legacy-muted-text)] hover:bg-[var(--legacy-danger-soft)] hover:text-[var(--legacy-danger)]"
             disabled={deletePending}
             onClick={(e) => {
               e.preventDefault();

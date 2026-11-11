@@ -64,7 +64,7 @@ export function SearchTabs({ value, onChange, className }: Props) {
           onKeyDown={(event) => onKeyDown(event, index)}
           onClick={() => onChange(tab.value)}
           className={cn(
-            'min-h-10 shrink-0 border-b-2 px-3 py-2 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            'min-h-10 shrink-0 border-b-2 px-3 py-2 text-sm-tight font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             value === tab.value
               ? 'border-[var(--legacy-primary)] font-extrabold text-[var(--legacy-primary-deep)] dark:border-primary dark:text-primary'
               : 'border-transparent text-muted-foreground hover:text-foreground'

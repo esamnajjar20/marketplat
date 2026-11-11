@@ -43,7 +43,7 @@ function InstallmentRow({
     <article className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <h3 className="text-[15px] font-extrabold">{name}</h3>
+          <h3 className="text-card-title font-extrabold">{name}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">
             القسط {row.installmentNo}
             {overdue
@@ -55,7 +55,7 @@ function InstallmentRow({
         </div>
         <span
           className={cn(
-            'inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-[11px] font-bold',
+            'inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-2xs-tight font-bold',
             overdue ? 'bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]' : 'bg-[var(--legacy-warning-soft)] text-[var(--legacy-warning-text)]',
           )}
         >

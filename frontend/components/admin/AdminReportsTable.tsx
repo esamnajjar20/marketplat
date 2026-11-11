@@ -168,7 +168,7 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
       {/* Status filter */}
       <div className="flex gap-2" role="group" aria-label="تصفية البلاغات حسب الحالة">
         {([['PENDING', 'قيد المراجعة'], ['RESOLVED', 'محلولة'], ['DISMISSED', 'مرفوضة']] as const).map(([val, label]) => (
-          <button key={val} onClick={() => {
+          <button type="button" key={val} onClick={() => {
             const params = new URLSearchParams(sp.toString());
             params.set('status', val); params.delete('page');
             writeClientUrl(adminListHref('reports', params), 'push');
@@ -187,7 +187,7 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
           pending user reports) shouldn't have to page through ad reports
           mixed in. */}
       <div className="flex gap-2" role="group" aria-label="تصفية البلاغات حسب النوع">
-        <button onClick={() => {
+        <button type="button" onClick={() => {
           const params = new URLSearchParams(sp.toString());
           params.delete('targetType'); params.delete('page');
           writeClientUrl(adminListHref('reports', params), 'push');
@@ -198,7 +198,7 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
           الكل
         </button>
         {(Object.entries(TARGET_TYPE_LABELS) as [ReportTargetType, string][]).map(([val, label]) => (
-          <button key={val} onClick={() => {
+          <button type="button" key={val} onClick={() => {
             const params = new URLSearchParams(sp.toString());
             params.set('targetType', val); params.delete('page');
             writeClientUrl(adminListHref('reports', params), 'push');
@@ -300,7 +300,7 @@ export const AdminReportsTable = memo(function AdminReportsTable() {
 
         <div className="hidden w-full overflow-x-auto overscroll-x-contain rounded-lg border md:block">
           <table className="w-full min-w-[640px] text-sm [&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-muted/50 [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:bg-background [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)]">
-            <thead className="bg-[var(--legacy-surface)] text-[12px] font-bold text-[var(--legacy-foreground-warm)]">
+            <thead className="bg-[var(--legacy-surface)] text-xs font-bold text-[var(--legacy-foreground-warm)]">
               <tr>
                 {/* BULK-ADMIN (item 17): select-all only when the current
                     view has at least one selectable (PENDING) row —

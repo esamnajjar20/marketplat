@@ -35,7 +35,7 @@ export function SalesDebtsSection() {
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]">
               <AlertTriangle className="h-4 w-4" />
             </span>
-            <span className="text-[11px] text-muted-foreground">إجمالي الدين</span>
+            <span className="text-2xs-tight text-muted-foreground">إجمالي الدين</span>
           </div>
           <strong className="mt-1.5 block text-lg font-extrabold tabular-nums">
             {Number(summary?.totalDue ?? 0).toFixed(2)} ₪
@@ -46,7 +46,7 @@ export function SalesDebtsSection() {
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <FileText className="h-4 w-4" />
             </span>
-            <span className="text-[11px] text-muted-foreground">عدد المبيعات المستحقة</span>
+            <span className="text-2xs-tight text-muted-foreground">عدد المبيعات المستحقة</span>
           </div>
           <strong className="mt-1.5 block text-lg font-extrabold tabular-nums">
             {Number(summary?.debtorCount ?? query.data?.debts?.totalCount ?? 0).toLocaleString('ar')}
@@ -85,14 +85,14 @@ export function SalesDebtsSection() {
               <article key={sale.id} className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="text-[15px] font-extrabold">{sale.buyerName}</h3>
+                    <h3 className="text-card-title font-extrabold">{sale.buyerName}</h3>
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {sale.entityTitle}
                       {sale.invoiceNumber ? ` · ${sale.invoiceNumber}` : ''}
                     </p>
                   </div>
                   <div className="text-end">
-                    <p className="text-[11px] text-muted-foreground">المتبقي</p>
+                    <p className="text-2xs-tight text-muted-foreground">المتبقي</p>
                     <strong className="text-base font-extrabold tabular-nums text-destructive">
                       {Number(sale.dueAmount).toFixed(2)} ₪
                     </strong>

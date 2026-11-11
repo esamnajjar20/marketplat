@@ -262,15 +262,15 @@ function DraftRow({
     <li className="rounded-2xl border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
       <div className="flex items-start justify-between gap-2">
         <span
-          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+          className={`rounded-full px-2.5 py-0.5 text-2xs font-bold ${
             isFailed
-              ? 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400'
+              ? 'bg-destructive/10 text-destructive'
               : 'bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary-deep)] dark:bg-primary/15 dark:text-primary'
           }`}
         >
           {isFailed ? 'فشل الإرسال' : kind}
         </span>
-        <span className="text-[11px] text-muted-foreground">{formatDate(draft.updatedAt)}</span>
+        <span className="text-2xs-tight text-muted-foreground">{formatDate(draft.updatedAt)}</span>
       </div>
       <p className="mt-2 text-sm font-extrabold text-foreground">
         {kind}: {title}
@@ -281,11 +281,11 @@ function DraftRow({
       <div className="mt-3 flex items-center gap-2">
         <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--legacy-warm-border)] dark:bg-muted">
           <div
-            className={`h-full rounded-full ${isFailed ? 'bg-red-500' : 'bg-[var(--legacy-primary)]'}`}
+            className={`h-full rounded-full ${isFailed ? 'bg-destructive' : 'bg-[var(--legacy-primary)]'}`}
             style={{ width: `${progress}%` }}
           />
         </div>
-        <span className="text-[11px] font-bold tabular-nums text-muted-foreground">{progress}%</span>
+        <span className="text-2xs-tight font-bold tabular-nums text-muted-foreground">{progress}%</span>
       </div>
       <div className="mt-3 flex items-center gap-2">
         <Button

@@ -71,10 +71,10 @@ export function AdminHeader() {
             س
           </span>
           <div className="min-w-0 leading-tight">
-            <span className="block truncate text-[15px] font-extrabold text-foreground">
+            <span className="block truncate text-card-title font-extrabold text-foreground">
               سوق غزة — إدارة
             </span>
-            <span className="block truncate text-[12px] text-muted-foreground">
+            <span className="block truncate text-xs text-muted-foreground">
               مركز المراجعة والتشغيل
             </span>
           </div>

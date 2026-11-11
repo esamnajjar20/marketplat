@@ -99,7 +99,7 @@ function StockRow({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <IntentPrefetchLink
               href={ROUTES.myStoreProductEdit(id)}
-              className="line-clamp-1 text-[13px] font-bold hover:underline sm:text-sm" prefetch={false}
+              className="line-clamp-1 text-sm-tight font-bold hover:underline sm:text-sm" prefetch={false}
             >
               {name}
             </IntentPrefetchLink>
@@ -337,7 +337,7 @@ export function MyStoreInventory() {
                 ['اختلاف سجل الحركة', summary.movementMismatchProducts],
               ] as const).map(([label, value]) => (
                 <div key={label} className="rounded-xl bg-muted/50 px-3 py-2">
-                  <p className="text-[11px] leading-5 text-muted-foreground">{label}</p>
+                  <p className="text-2xs-tight leading-5 text-muted-foreground">{label}</p>
                   <p className={cn(
                     'mt-1 text-lg font-bold tabular-nums',
                     value > 0 && (label === 'كميات سالبة' || label === 'اختلاف حالة التوفر' || label === 'اختلاف سجل الحركة')

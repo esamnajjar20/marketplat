@@ -27,7 +27,7 @@ export function AdminPageShell({
             {title}
           </h1>
           {description ? (
-            <p className="mt-0.5 max-w-2xl text-pretty text-[13px] leading-5 text-muted-foreground">
+            <p className="mt-0.5 max-w-2xl text-pretty text-sm-tight leading-5 text-muted-foreground">
               {description}
             </p>
           ) : null}

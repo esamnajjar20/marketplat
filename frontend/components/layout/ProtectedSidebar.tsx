@@ -118,7 +118,7 @@ function NavLink({
       prefetch={false}
       aria-current={isActive ? 'page' : undefined}
       className={cn(
-        'flex min-h-11 items-center gap-2.5 text-[13px] transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+        'flex min-h-11 items-center gap-2.5 text-sm-tight transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
         indent
           ? cn(
               'ms-3 border-inline-start-2 py-0 pe-3 ps-3',
@@ -137,7 +137,7 @@ function NavLink({
       {Icon && <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-primary' : 'text-primary')} aria-hidden={true} />}
       <span className="flex-1">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--legacy-primary)] px-1.5 text-[11px] font-extrabold text-primary-foreground">
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--legacy-primary)] px-1.5 text-2xs-tight font-extrabold text-primary-foreground">
           {badge > 9 ? '9+' : badge}
         </span>
       )}
@@ -169,7 +169,7 @@ function DisclosureGroup({
         aria-expanded={isOpen}
         aria-controls={panelId}
         className={cn(
-          'flex min-h-11 w-full items-center gap-2.5 rounded-[10px] px-3 text-[13px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none',
+          'flex min-h-11 w-full items-center gap-2.5 rounded-[10px] px-3 text-sm-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none',
           isAnyChildActive
             ? 'bg-primary/10 font-extrabold text-primary'
             : 'font-semibold text-muted-foreground hover:bg-muted/60 hover:text-primary',
@@ -249,7 +249,7 @@ export function ProtectedSidebar() {
   return (
     <aside className="sticky top-0 z-20 hidden h-[calc(100vh-4rem)] w-56 shrink-0 overflow-y-auto border-e border-border bg-background lg:block lg:w-[260px]">
       <nav aria-label="القائمة الشخصية" className="flex flex-col gap-0.5 p-3 lg:p-4">
-        <p className="px-3 pb-1 pt-1 text-[11px] font-bold text-muted-foreground">الوصول السريع</p>
+        <p className="px-3 pb-1 pt-1 text-2xs-tight font-bold text-muted-foreground">الوصول السريع</p>
         {NAV_ITEMS.map((item) => (
           <NavLink
             key={item.href}
@@ -263,7 +263,7 @@ export function ProtectedSidebar() {
         ))}
 
         <div className="my-2 border-t border-border" aria-hidden="true" />
-        <p className="px-3 pt-1 text-[11px] font-bold text-muted-foreground">مساحتي</p>
+        <p className="px-3 pt-1 text-2xs-tight font-bold text-muted-foreground">مساحتي</p>
 
         {showRoleSkeleton && <RoleNavSkeleton />}
         {!showRoleSkeleton && secondaryItems.map((item) => {
@@ -282,7 +282,7 @@ export function ProtectedSidebar() {
         })}
 
         <div className="mt-2 flex flex-col gap-0.5">
-            <p className="px-3 pt-1 text-[11px] font-bold text-muted-foreground">النشاط والإعدادات</p>
+            <p className="px-3 pt-1 text-2xs-tight font-bold text-muted-foreground">النشاط والإعدادات</p>
             {!activityVisible && (
               <Suspense fallback={<DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} />}>
                 <WithSearch>{(search) => <DisclosureGroup group={ACTIVITY_GROUP} pathname={pathname} search={search} onNavigate={navigate} />}</WithSearch>

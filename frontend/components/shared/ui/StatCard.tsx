@@ -19,7 +19,7 @@ export function StatCard({ icon: Icon, label, value }: StatCardProps) {
           <p className="break-words text-xl font-bold leading-tight tabular-nums sm:text-2xl">
             {typeof value === 'number' ? (value ?? 0).toLocaleString('ar') : value}
           </p>
-          <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-muted-foreground sm:text-xs">{label}</p>
+          <p className="mt-1 line-clamp-2 text-2xs-tight leading-4 text-muted-foreground sm:text-xs">{label}</p>
         </div>
       </CardContent>
     </Card>

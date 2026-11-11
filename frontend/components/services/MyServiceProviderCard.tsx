@@ -14,17 +14,12 @@ import { ROUTES, ALLOWED_IMAGE_TYPES, MAX_FILE_SIZE_MB } from '@/lib/constants';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { toast } from 'sonner';
 import type { ServiceAvailability, ServiceProviderDetails, WorkingHours } from '@/types/service.types';
+import { AVAILABILITY_LABEL } from '@/lib/serviceAvailability';
 import { ServiceProviderServiceTypesEditor } from './ServiceProviderServiceTypesEditor';
 
 interface Props {
   provider: ServiceProviderDetails;
 }
-
-const AVAILABILITY_LABELS: Record<ServiceAvailability, string> = {
-  AVAILABLE: 'متاح الآن',
-  BUSY: 'مشغول',
-  UNAVAILABLE: 'غير متاح',
-};
 
 const DAY_LABELS: Record<keyof WorkingHours, string> = {
   sat: 'السبت', sun: 'الأحد', mon: 'الاثنين', tue: 'الثلاثاء',
@@ -178,7 +173,7 @@ export function MyServiceProviderCard({ provider }: Props) {
         >
           <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
-            {(Object.entries(AVAILABILITY_LABELS) as [ServiceAvailability, string][]).map(
+            {(Object.entries(AVAILABILITY_LABEL) as [ServiceAvailability, string][]).map(
               ([value, label]) => (
                 <SelectItem key={value} value={value}>{label}</SelectItem>
               )

@@ -96,7 +96,7 @@ export function BecomeStoreOwnerCard() {
 
   if (!sellerProfile) {
     return (
-      <div dir="rtl" className="max-w-lg space-y-3 text-right">
+      <div dir="rtl" className="max-w-lg space-y-3 text-start">
         <h2 className="text-lg font-semibold">افتح متجرك</h2>
         <p className="text-sm text-muted-foreground">
           يجب أن يكون لديك ملف بائع أولاً قبل فتح متجر.
@@ -164,7 +164,7 @@ export function BecomeStoreOwnerCard() {
   }
 
   return (
-    <div dir="rtl" className="max-w-lg space-y-4 text-right">
+    <div dir="rtl" className="max-w-lg space-y-4 text-start">
       <div className="space-y-1">
         <h2 className="text-lg font-semibold">افتح متجرك</h2>
         <p className="text-sm text-muted-foreground">

@@ -125,7 +125,7 @@ export function RequestsPageClient({ params: initialParams }: { params: OpenRequ
       <div className="container mx-auto max-w-7xl space-y-4 px-3 pt-5 sm:px-4 sm:pt-7">
         {/* Hero — design mockup */}
         <div className="rounded-2xl border border-[var(--legacy-primary-border)] bg-[var(--legacy-primary-soft)] p-4 dark:border-primary/20 dark:bg-primary/10 sm:p-5">
-          <p className="text-[11px] font-bold text-[var(--legacy-primary)] dark:text-primary">سوق الطلبات</p>
+          <p className="text-2xs-tight font-bold text-[var(--legacy-primary)] dark:text-primary">سوق الطلبات</p>
           <h1 className="mt-0.5 text-xl font-extrabold leading-snug tracking-tight text-foreground sm:text-2xl">
             اطلب ما تحتاجه — وقدّم عرضك
           </h1>
@@ -171,7 +171,7 @@ export function RequestsPageClient({ params: initialParams }: { params: OpenRequ
                 role="tab"
                 aria-selected={active}
                 className={cn(
-                  'inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 px-3 text-[13px] font-semibold transition-colors',
+                  'inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 px-3 text-sm-tight font-semibold transition-colors',
                   active
                     ? 'border-[var(--legacy-primary)] font-extrabold text-[var(--legacy-primary-deep)] dark:border-primary dark:text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground',

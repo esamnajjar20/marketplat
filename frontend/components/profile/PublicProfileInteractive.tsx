@@ -125,7 +125,7 @@ export function PublicProfileFollowAction({ user }: { user: PublicUser }) {
       type="button"
       disabled={toggleFollow.isPending}
       onClick={() => toggleFollow.mutate({ targetType: 'USER', targetId: user.id })}
-      className={`flex h-[46px] flex-[1.4] items-center justify-center gap-2 rounded-[14px] text-[15px] font-bold transition active:scale-[0.98] disabled:opacity-60 ${isFollowing ? 'border-[1.5px] border-primary/25 bg-card text-primary-strong hover:bg-primary-soft' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
+      className={`flex h-[46px] flex-[1.4] items-center justify-center gap-2 rounded-card text-card-title font-bold transition active:scale-[0.98] disabled:opacity-60 ${isFollowing ? 'border-[1.5px] border-primary/25 bg-card text-primary-strong hover:bg-primary-soft' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}
     >
       {isFollowing ? <UserMinus className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
       {isFollowing ? 'إلغاء المتابعة' : 'متابعة'}
@@ -140,7 +140,7 @@ export function PublicProfileMessageActions({ user }: { user: PublicUser }) {
         targetUserId={user.id}
         size="default"
         variant="outline"
-        className="flex h-[46px] flex-1 items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-primary/25 bg-card text-[15px] font-bold text-primary-strong hover:bg-primary-soft"
+        className="flex h-[46px] flex-1 items-center justify-center gap-2 rounded-card border-[1.5px] border-primary/25 bg-card text-card-title font-bold text-primary-strong hover:bg-primary-soft"
       />
       <EditProfileButtonGate targetUserId={user.id} />
     </>

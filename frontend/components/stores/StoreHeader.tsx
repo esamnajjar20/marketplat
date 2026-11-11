@@ -67,7 +67,7 @@ interface Props {
 const CIRCLE_BTN =
   'flex h-11 w-11 items-center justify-center rounded-full border-0 bg-card/95 p-0 text-foreground shadow-md backdrop-blur hover:bg-muted';
 const OUTLINE_BTN =
-  'flex h-[46px] items-center justify-center gap-2 rounded-[14px] border-[1.5px] border-primary/25 bg-card text-[15px] font-bold text-primary-strong transition hover:bg-primary-soft active:scale-[0.98]';
+  'flex h-[46px] items-center justify-center gap-2 rounded-card border-[1.5px] border-primary/25 bg-card text-card-title font-bold text-primary-strong transition hover:bg-primary-soft active:scale-[0.98]';
 
 export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, badges }: Props) {
   const router = useRouter();
@@ -180,7 +180,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
         </div>
 
         <div className="flex min-w-0 flex-col items-center text-center lg:flex-1 lg:items-start lg:pt-16 lg:text-start">
-          <span className="mt-2 text-[13px] font-semibold text-primary lg:mt-0">{presentation.page.title}</span>
+          <span className="mt-2 text-sm-tight font-semibold text-primary lg:mt-0">{presentation.page.title}</span>
           <h1 className="mt-0.5 text-[23px] font-extrabold leading-snug text-foreground">{store.name}</h1>
           {presentation.page.subtitle && <p className="max-w-2xl text-xs leading-5 text-muted-foreground sm:text-sm">{presentation.page.subtitle}</p>}
 
@@ -198,7 +198,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
           </div>
 
           {place && (
-            <span className="mt-2 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
+            <span className="mt-2 inline-flex items-center gap-1.5 text-sm-tight text-muted-foreground">
               <MapPin className="h-4 w-4 shrink-0" aria-hidden />
               <span className="max-w-[28rem] truncate">{place}</span>
             </span>
@@ -223,13 +223,13 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
         <StoreAttributesSummary storeTypeId={store.storeTypeId} fields={store.storeType?.fields} attributes={store.attributes} presentation={store.storeType?.presentation} />
 
         {/* بطاقة الإحصائيات */}
-        <div className="mt-4 flex gap-2 rounded-[20px] border border-border bg-card p-2.5 shadow-sm">
+        <div className="mt-4 flex gap-2 rounded-shell border border-border bg-card p-2.5 shadow-sm">
           {[
             { v: store._count.products, l: storeLabels.product },
             { v: store._count.followers, l: 'متابع' },
             { v: rating > 0 ? rating.toFixed(1) : '—', l: 'التقييم' },
           ].map((t) => (
-            <div key={t.l} className="flex flex-1 flex-col items-center gap-0.5 rounded-[14px] bg-surface-2 px-1 py-3">
+            <div key={t.l} className="flex flex-1 flex-col items-center gap-0.5 rounded-card bg-surface-2 px-1 py-3">
               <span className="text-[19px] font-extrabold leading-tight tabular-nums text-foreground">{t.v}</span>
               <span className="text-xs text-muted-foreground">{t.l}</span>
             </div>
@@ -247,7 +247,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
                   if (resolvedFollowing !== undefined) setPageFollowState(data?.action === 'followed');
                 },
               })}
-              className="h-[46px] flex-[1.4] gap-2 rounded-[14px] text-[15px] font-bold"
+              className="h-[46px] flex-[1.4] gap-2 rounded-card text-card-title font-bold"
             >
               {isFollowing ? <UserMinus className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
               {isFollowing ? 'إلغاء المتابعة' : 'متابعة'}
@@ -275,7 +275,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
               href={`https://wa.me/${waPhone}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-10 items-center justify-center rounded-[14px] border border-success/25 bg-success-soft px-4 text-sm font-bold text-success transition-colors hover:bg-success/15"
+              className="inline-flex h-10 items-center justify-center rounded-card border border-success/25 bg-success-soft px-4 text-sm font-bold text-success transition-colors hover:bg-success/15"
             >
               واتساب
             </a>
@@ -294,7 +294,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
             storeId={store.id}
             storeName={store.name}
             variant="outline"
-            className="h-10 gap-2 rounded-[14px] text-sm font-medium"
+            className="h-10 gap-2 rounded-card text-sm font-medium"
           />
         </div>
 
@@ -308,9 +308,9 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
         />
 
         {isOwnStore && (
-          <div className="mt-4 space-y-3 rounded-[20px] border border-primary/15 bg-primary/[0.035] p-3 sm:p-4">
+          <div className="mt-4 space-y-3 rounded-shell border border-primary/15 bg-primary/[0.035] p-3 sm:p-4">
             {store.status === 'ACTIVE' && (
-              <Button asChild className="h-auto w-full gap-2 rounded-[14px] py-3 font-bold">
+              <Button asChild className="h-auto w-full gap-2 rounded-card py-3 font-bold">
                 <IntentPrefetchLink href={ROUTES.myStoreProductCreate} prefetch={false}>
                   <PackagePlus className="h-4 w-4" aria-hidden />
                   {storeLabels.addProduct}
@@ -318,13 +318,13 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
               </Button>
             )}
             <div className="grid grid-cols-3 gap-2">
-              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-[14px] py-2.5 text-2xs-tight">
+              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-card py-2.5 text-2xs-tight">
                 <IntentPrefetchLink href={ROUTES.myStoreProducts} prefetch={false}><Package className="h-4 w-4" aria-hidden />{storeLabels.products}</IntentPrefetchLink>
               </Button>
-              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-[14px] py-2.5 text-2xs-tight">
+              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-card py-2.5 text-2xs-tight">
                 <IntentPrefetchLink href={ROUTES.myStoreAnalytics} prefetch={false}><BarChart3 className="h-4 w-4" aria-hidden />الإحصائيات</IntentPrefetchLink>
               </Button>
-              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-[14px] py-2.5 text-2xs-tight">
+              <Button asChild variant="outline" size="sm" className="h-auto flex-col gap-1 rounded-card py-2.5 text-2xs-tight">
                 <IntentPrefetchLink href={ROUTES.myStore} prefetch={false}><Settings2 className="h-4 w-4" aria-hidden />تعديل المتجر</IntentPrefetchLink>
               </Button>
             </div>
@@ -336,7 +336,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
             href={`https://www.openstreetmap.org/?mlat=${store.latitude}&mlon=${store.longitude}#map=16/${store.latitude}/${store.longitude}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center gap-1.5 rounded-[14px] border border-border bg-card px-4 py-2 text-sm font-medium text-primary shadow-sm hover:bg-muted/50"
+            className="mt-3 inline-flex items-center gap-1.5 rounded-card border border-border bg-card px-4 py-2 text-sm font-medium text-primary shadow-sm hover:bg-muted/50"
           >
             <MapPin className="h-3.5 w-3.5" />
             {presentation.page.location}
@@ -344,7 +344,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
         )}
 
         {store.workingHours && (
-          <details className="mt-3 w-full rounded-[20px] border border-border bg-card p-4 text-start text-sm shadow-sm lg:max-w-2xl">
+          <details className="mt-3 w-full rounded-shell border border-border bg-card p-4 text-start text-sm shadow-sm lg:max-w-2xl">
             <summary className="cursor-pointer select-none font-semibold text-foreground">ساعات العمل</summary>
             <ul className="mt-3 space-y-1 rounded-xl bg-surface-2 p-3">
               {STORE_HOURS_DAYS.map(({ key, label }) => {

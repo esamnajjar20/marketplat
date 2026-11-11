@@ -245,8 +245,8 @@ export function PushNotificationToggle() {
             <BellOff className="mt-0.5 h-5 w-5 text-[var(--legacy-muted-text)]" />
           )}
           <div>
-            <p className="text-[14px] font-bold text-[var(--legacy-ink)]">تفعيل إشعارات الجهاز</p>
-            <p className="mt-0.5 text-[12px] leading-relaxed text-[var(--legacy-muted-text)]">
+            <p className="text-sm font-bold text-[var(--legacy-ink)]">تفعيل إشعارات الجهاز</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-[var(--legacy-muted-text)]">
               {isChecking
                 ? 'جارٍ التحقق…'
                 : isDenied

@@ -179,7 +179,7 @@ export const AdminStoresTable = memo(function AdminStoresTable() {
           type="button"
           onClick={() => updateParams({ featureRequested: featureRequested ? undefined : '1' })}
           className={cn(
-            'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-[12px] font-bold transition-colors',
+            'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-bold transition-colors',
             featureRequested
               ? 'border-primary bg-primary text-primary-foreground'
               : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:bg-muted/50',
@@ -196,7 +196,7 @@ export const AdminStoresTable = memo(function AdminStoresTable() {
               type="button"
               onClick={() => updateParams({ status: tab.value })}
               className={cn(
-                'inline-flex h-8 items-center rounded-full border px-3 text-[12px] font-bold transition-colors',
+                'inline-flex h-8 items-center rounded-full border px-3 text-xs font-bold transition-colors',
                 isActive
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:bg-muted/50',
@@ -354,7 +354,7 @@ export const AdminStoresTable = memo(function AdminStoresTable() {
 
         <div className="hidden w-full overflow-x-auto overscroll-x-contain rounded-lg border md:block">
           <table className="w-full min-w-[640px] text-sm [&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-[var(--legacy-surface)] [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:bg-card [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.08)]">
-            <thead className="bg-[var(--legacy-surface)] text-[12px] font-bold text-[var(--legacy-foreground-warm)]">
+            <thead className="bg-[var(--legacy-surface)] text-xs font-bold text-[var(--legacy-foreground-warm)]">
               <tr>
                 <th className="w-10 p-3">
                   {items.length > 0 && (

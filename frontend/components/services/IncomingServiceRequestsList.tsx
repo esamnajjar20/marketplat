@@ -209,7 +209,7 @@ export function IncomingServiceRequestsList() {
     <div className="space-y-4 lg:space-y-5">
       <div className="flex gap-2 border-b pb-3 overflow-x-auto overscroll-x-contain" role="group" aria-label="تصفية الطلبات الواردة حسب الحالة">
         {FILTER_TABS.map((val) => (
-          <button
+          <button type="button"
             key={val}
             onClick={() => setStatus(val)}
             aria-pressed={(status ?? '') === val}

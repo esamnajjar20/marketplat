@@ -16,7 +16,7 @@ export default function CompleteProfilePage() {
         <h1 className="text-[28px] font-extrabold tracking-tight text-[var(--legacy-primary-deep)] sm:text-[32px]">
           أكمل ملفك الشخصي
         </h1>
-        <p className="mt-2 text-[14px] text-[var(--legacy-muted-text)]">
+        <p className="mt-2 text-sm text-[var(--legacy-muted-text)]">
           خطوة أخيرة قبل أن تبدأ في استخدام سوق غزة.
         </p>
       </div>

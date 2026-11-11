@@ -192,17 +192,17 @@ export function SaveSearchButton({ type, queryParamKey = 'q' }: SaveSearchButton
 
   return (
     <>
-      <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-full border-[var(--legacy-border-strong)] bg-card px-3 text-[13px] font-bold text-[var(--legacy-primary-deep)]" onClick={handleOpen}>
+      <Button variant="outline" size="sm" className="h-9 gap-1.5 rounded-full border-[var(--legacy-border-strong)] bg-card px-3 text-sm-tight font-bold text-[var(--legacy-primary-deep)]" onClick={handleOpen}>
         <BellPlus className="h-4 w-4" />
         حفظ البحث
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="gap-0 overflow-hidden rounded-[20px] border-[var(--legacy-border)] p-0 sm:max-w-md">
+        <DialogContent className="gap-0 overflow-hidden rounded-shell border-[var(--legacy-border)] p-0 sm:max-w-md">
           {step === 'type' || !effectiveType ? (
             <div className="p-4 sm:p-5">
               <DialogHeader className="space-y-1 text-start">
                 <DialogTitle className="text-[17px] font-extrabold">حفظ البحث كـ...</DialogTitle>
-                <DialogDescription className="text-[13px] text-[var(--legacy-muted-text)]">
+                <DialogDescription className="text-sm-tight text-[var(--legacy-muted-text)]">
                   اختر نوع النتائج التي تريد حفظ هذا البحث لها.
                 </DialogDescription>
               </DialogHeader>
@@ -212,7 +212,7 @@ export function SaveSearchButton({ type, queryParamKey = 'q' }: SaveSearchButton
                     key={t}
                     type="button"
                     onClick={() => handleChooseType(t)}
-                    className="flex flex-col items-center gap-2 rounded-[14px] border-2 border-[var(--legacy-border)] bg-card p-3 text-[13px] font-bold text-foreground transition-colors hover:border-primary hover:bg-primary-soft"
+                    className="flex flex-col items-center gap-2 rounded-card border-2 border-[var(--legacy-border)] bg-card p-3 text-sm-tight font-bold text-foreground transition-colors hover:border-primary hover:bg-primary-soft"
                   >
                     <Icon className="h-5 w-5 text-primary" strokeWidth={1.8} />
                     {l}
@@ -227,30 +227,30 @@ export function SaveSearchButton({ type, queryParamKey = 'q' }: SaveSearchButton
               </DialogHeader>
               <div className="mt-4 space-y-4">
                 <div className="space-y-1.5">
-                  <label htmlFor="saved-search-label" className="text-[13px] font-bold text-foreground">اسم البحث</label>
+                  <label htmlFor="saved-search-label" className="text-sm-tight font-bold text-foreground">اسم البحث</label>
                   <Input
                     id="saved-search-label"
                     value={label}
                     onChange={(e) => setLabel(e.target.value)}
                     maxLength={100}
                     placeholder="مثال: آيفون في النصيرات"
-                    className="h-11 rounded-[10px] border-[var(--legacy-border-strong)] text-[13px]"
+                    className="h-11 rounded-[10px] border-[var(--legacy-border-strong)] text-sm-tight"
                   />
-                  <p className="text-[12px] leading-5 text-[var(--legacy-muted-text)]">
+                  <p className="text-xs leading-5 text-[var(--legacy-muted-text)]">
                     {NOTICE_TEXT[effectiveType]}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-2">
                   {!type && (
-                    <Button variant="ghost" className="h-10 text-[13px] font-bold text-[var(--legacy-muted-text)]" onClick={() => setStep('type')}>
+                    <Button variant="ghost" className="h-10 text-sm-tight font-bold text-[var(--legacy-muted-text)]" onClick={() => setStep('type')}>
                       رجوع
                     </Button>
                   )}
-                  <Button variant="outline" className="h-10 rounded-[10px] border-[var(--legacy-border-strong)] text-[13px] font-bold" onClick={() => setOpen(false)}>
+                  <Button variant="outline" className="h-10 rounded-[10px] border-[var(--legacy-border-strong)] text-sm-tight font-bold" onClick={() => setOpen(false)}>
                     إلغاء
                   </Button>
                   <Button
-                    className="h-10 rounded-[10px] bg-primary px-5 text-[13px] font-bold"
+                    className="h-10 rounded-[10px] bg-primary px-5 text-sm-tight font-bold"
                     onClick={handleSubmit}
                     loading={createSavedSearch.isPending}
                     loadingText="جارٍ الحفظ…"

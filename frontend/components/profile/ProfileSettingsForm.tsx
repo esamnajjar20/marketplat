@@ -162,7 +162,7 @@ export function ProfileSettingsForm() {
             className="hidden"
             onChange={handleAvatarChange}
           />
-          <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+          <p className="mt-1.5 text-2xs-tight leading-relaxed text-muted-foreground">
             JPG، PNG، أو WEBP — بحد أقصى {MAX_FILE_SIZE_MB} MB
           </p>
         </div>

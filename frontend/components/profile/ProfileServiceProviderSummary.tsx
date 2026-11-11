@@ -9,8 +9,8 @@ import { getAvatarUrl } from '@/lib/cloudinary';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import type { PublicProfileServiceProvider } from '@/types/user.types';
 import { StorePaymentMethods } from '@/components/payment/StorePaymentMethods';
-import type { ServiceAvailability } from '@/types/service.types';
 import type { StorePaymentMethodDto } from '@/types/store.types';
+import { AVAILABILITY_LABEL, AVAILABILITY_DOT } from '@/lib/serviceAvailability';
 
 interface Props {
   provider: PublicProfileServiceProvider;
@@ -23,19 +23,6 @@ interface Props {
   // receives the serviceProviderDetails slice, not the whole seller.
   sellerPaymentMethods?: StorePaymentMethodDto[] | null;
 }
-
-const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
-  AVAILABLE: 'متاح الآن',
-  BUSY: 'مشغول',
-  UNAVAILABLE: 'غير متاح',
-};
-
-const AVAILABILITY_DOT: Record<ServiceAvailability, string> = {
-  AVAILABLE: 'bg-success',
-  BUSY: 'bg-warning',
-  UNAVAILABLE: 'bg-muted-foreground',
-};
-
 
 /**
  * UNIFIED-PROFILE: summary card for the profile's "الخدمات" tab.

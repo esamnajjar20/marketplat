@@ -19,7 +19,7 @@ function Row({
     <div className="rounded-xl border border-border/70 bg-card p-2.5 sm:p-3">
       <div className="flex items-center justify-between gap-3">
         <span className="text-sm font-medium">{label}</span>
-        <span className={`text-xs font-semibold ${up ? 'text-emerald-600' : 'text-destructive'}`}>
+        <span className={`text-xs font-semibold ${up ? 'text-success' : 'text-destructive'}`}>
           {pct == null ? 'لا توجد مقارنة' : `${up ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%`}
         </span>
       </div>

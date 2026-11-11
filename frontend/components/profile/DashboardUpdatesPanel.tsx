@@ -88,7 +88,7 @@ export function DashboardUpdatesPanel() {
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-medium">{notification.title}</span>
                         <span className="mt-0.5 block line-clamp-2 text-xs text-muted-foreground">{notification.body}</span>
-                        <span className="mt-1 block text-[11px] text-muted-foreground"><HydrationSafeRelativeTime date={notification.createdAt} /></span>
+                        <span className="mt-1 block text-2xs-tight text-muted-foreground"><HydrationSafeRelativeTime date={notification.createdAt} /></span>
                       </span>
                       {!notification.readAt && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" aria-label="غير مقروء" />}
                     </span>

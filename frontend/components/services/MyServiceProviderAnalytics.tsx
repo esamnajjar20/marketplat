@@ -35,7 +35,7 @@ function StatTile({
         >
           <Icon className="h-4 w-4" />
         </span>
-        <span className="text-[11px] font-medium leading-tight text-muted-foreground">{label}</span>
+        <span className="text-2xs-tight font-medium leading-tight text-muted-foreground">{label}</span>
       </div>
       <b className="text-lg font-extrabold tabular-nums leading-none tracking-tight">{value}</b>
     </div>
@@ -89,7 +89,7 @@ export function MyServiceProviderAnalytics() {
             type="button"
             onClick={() => setPeriod(val)}
             className={cn(
-              'rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors',
+              'rounded-full px-3.5 py-1.5 text-sm-tight font-bold transition-colors',
               period === val
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted/60 text-muted-foreground hover:bg-muted',

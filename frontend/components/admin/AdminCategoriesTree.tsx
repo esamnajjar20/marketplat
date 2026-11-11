@@ -51,14 +51,14 @@ export function AdminCategoriesTree() {
   const roots = (categories ?? []).filter((c) => !c.parentId);
 
   return (
-    <div className="rounded-[14px] border border-[var(--legacy-border)] divide-y">
+    <div className="rounded-card border border-[var(--legacy-border)] divide-y">
       {roots.map((cat) => {
         const isOpen = expanded.has(cat.id);
         const hasChildren = (cat.children?.length ?? 0) > 0;
         return (
           <div key={cat.id}>
             <div className="flex items-center gap-2 p-3 hover:bg-muted/50 transition-colors">
-              <button
+              <button type="button"
                 onClick={() => setExpanded((s) => { const n = new Set(s); if (isOpen) {
       n.delete(cat.id);
     } else {

@@ -75,7 +75,7 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
       noValidate
     >
       <div>
-        <h2 className="text-[15px] font-extrabold">
+        <h2 className="text-card-title font-extrabold">
           {myOffer ? 'تعديل عرضك' : 'قدّم عرضًا'}
         </h2>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">

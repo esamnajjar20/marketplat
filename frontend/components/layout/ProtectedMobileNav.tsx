@@ -89,7 +89,7 @@ function MyAdsDrawerLink({ active, onNavigate }: { active: boolean; onNavigate: 
       onClick={onNavigate}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'flex h-11 items-center rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
+        'flex h-11 items-center rounded-[10px] px-3 text-card-title font-semibold transition-colors',
         active ? 'bg-primary/10 font-extrabold text-primary' : 'text-foreground hover:bg-muted/60',
       )}
     >
@@ -116,7 +116,7 @@ function DrawerDisclosureGroup({
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
         className={cn(
-          'flex h-11 w-full items-center gap-2 rounded-[10px] px-3 text-[15px] transition-colors',
+          'flex h-11 w-full items-center gap-2 rounded-[10px] px-3 text-card-title transition-colors',
           isAnyChildActive
             ? 'bg-primary/10 font-extrabold text-primary'
             : 'font-semibold text-foreground hover:bg-muted/60',
@@ -140,7 +140,7 @@ function DrawerDisclosureGroup({
                   onClick={onNavigate}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'flex h-10 items-center border-inline-start-2 ms-3 pe-3 ps-3 text-[14px] transition-colors',
+                    'flex h-10 items-center border-inline-start-2 ms-3 pe-3 ps-3 text-sm transition-colors',
                     isActive
                       ? 'rounded-e-[10px] border-primary bg-primary/10 font-extrabold text-primary'
                       : 'border-border font-semibold text-foreground hover:bg-muted/60',
@@ -253,7 +253,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
     <>
       {/* PERF-BUNDLE-HEADER-02: hideTrigger → الزر يرسمه LazyProtectedMobileNav (خفيف) والدرج يُحمَّل عند أول فتح. */}
       {!hideTrigger && (
-        <button
+        <button type="button"
           id={TOGGLE_ID}
           onClick={toggle}
           className="rounded p-2 hover:bg-muted lg:hidden"
@@ -330,7 +330,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
       >
         <div className="flex items-center justify-between">
           <span className="text-base font-semibold">القائمة</span>
-          <button
+          <button type="button"
             ref={closeButtonRef}
             onClick={close}
             className="min-h-10 min-w-10 rounded-lg p-2 text-primary hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -361,7 +361,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
                   onClick={() => { recordNavigation(link.href); close(); }}
                   aria-current={pathname === link.href ? 'page' : undefined}
                   className={cn(
-                    'flex h-11 items-center gap-3 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
+                    'flex h-11 items-center gap-3 rounded-[10px] px-3 text-card-title font-semibold transition-colors',
                     pathname === link.href
                       ? 'bg-primary/10 font-extrabold text-primary'
                       : 'text-foreground hover:bg-muted/60',
@@ -389,7 +389,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
                   onClick={() => { recordNavigation(link.href); close(); }}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'flex h-11 items-center rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
+                    'flex h-11 items-center rounded-[10px] px-3 text-card-title font-semibold transition-colors',
                     isActive ? 'bg-primary/10 font-extrabold text-primary' : 'text-foreground hover:bg-muted/60',
                   )}
                 >
@@ -431,7 +431,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
                 onClick={close}
                 aria-current={pathname === ROUTES.settings.root ? 'page' : undefined}
                 className={cn(
-                  'flex h-11 items-center gap-2 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
+                  'flex h-11 items-center gap-2 rounded-[10px] px-3 text-card-title font-semibold transition-colors',
                   pathname === ROUTES.settings.root
                     ? 'bg-primary/10 font-extrabold text-primary'
                     : 'text-foreground hover:bg-muted/60',
@@ -459,7 +459,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
                 onClick={close}
                 aria-current={pathname.startsWith(ROUTES.storeDetail(myStore.id)) ? 'page' : undefined}
                 className={cn(
-                  'flex h-11 items-center gap-2 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
+                  'flex h-11 items-center gap-2 rounded-[10px] px-3 text-card-title font-semibold transition-colors',
                   pathname.startsWith(ROUTES.storeDetail(myStore.id))
                     ? 'bg-primary/10 font-extrabold text-primary'
                     : 'text-foreground hover:bg-muted/60',
@@ -502,7 +502,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
                 onClick={close}
                 aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) ? 'page' : undefined}
                 className={cn(
-                  'flex h-11 items-center gap-2 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
+                  'flex h-11 items-center gap-2 rounded-[10px] px-3 text-card-title font-semibold transition-colors',
                   pathname.startsWith(ROUTES.userProfile(user.id))
                     ? 'bg-primary/10 font-extrabold text-primary'
                     : 'text-foreground hover:bg-muted/60',
@@ -539,7 +539,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
                 onClick={close}
                 aria-current={pathname === ROUTES.admin.root || pathname.startsWith(`${ROUTES.admin.root}/`) ? 'page' : undefined}
                 className={cn(
-                  'flex h-11 items-center rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
+                  'flex h-11 items-center rounded-[10px] px-3 text-card-title font-semibold transition-colors',
                   pathname === ROUTES.admin.root || pathname.startsWith(`${ROUTES.admin.root}/`)
                     ? 'bg-primary/10 font-extrabold text-primary'
                     : 'text-foreground hover:bg-muted/60',
@@ -550,10 +550,10 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
             </li>
           )}
           <li>
-            <button
+            <button type="button"
               onClick={() => { logout(); close(); }}
               disabled={isLoggingOut}
-              className="flex h-11 w-full items-center rounded-[10px] px-3 text-start text-[15px] font-semibold text-destructive hover:bg-muted/60 disabled:opacity-50"
+              className="flex h-11 w-full items-center rounded-[10px] px-3 text-start text-card-title font-semibold text-destructive hover:bg-muted/60 disabled:opacity-50"
             >
               {isLoggingOut ? 'جارٍ تسجيل الخروج…' : 'تسجيل الخروج'}
             </button>

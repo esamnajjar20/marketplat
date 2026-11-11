@@ -127,7 +127,7 @@ export function CompleteProfileForm() {
         </Select>
       </FormField>
 
-      <Button type="submit" className="h-12 w-full rounded-2xl text-[15px] font-bold" disabled={updateProfile.isPending} loading={updateProfile.isPending} loadingText="جارٍ الحفظ...">
+      <Button type="submit" className="h-12 w-full rounded-2xl text-card-title font-bold" disabled={updateProfile.isPending} loading={updateProfile.isPending} loadingText="جارٍ الحفظ...">
         متابعة
       </Button>
     </form>

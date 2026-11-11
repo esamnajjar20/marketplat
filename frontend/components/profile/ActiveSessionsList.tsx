@@ -108,7 +108,7 @@ export function ActiveSessionsList() {
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-bold break-words">{s.userAgent ?? 'جهاز غير معروف'}</p>
                     {s.isCurrent && (
-                      <Badge variant="secondary" className="rounded-full bg-primary-soft text-[11px] font-bold text-primary">
+                      <Badge variant="secondary" className="rounded-full bg-primary-soft text-2xs-tight font-bold text-primary">
                         الجلسة الحالية
                       </Badge>
                     )}

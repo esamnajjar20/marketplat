@@ -78,7 +78,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <nav aria-label="قائمة الإدارة" className="flex flex-col gap-0.5 p-3">
-      <p className="px-2.5 pb-1.5 text-[13px] font-extrabold text-foreground">
+      <p className="px-2.5 pb-1.5 text-sm-tight font-extrabold text-foreground">
         لوحة الإدارة
       </p>
       {/* بحث سريع في القائمة — مفيد خاصة على الموبايل مع كثرة الروابط */}
@@ -111,7 +111,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             aria-current={isActive ? 'page' : undefined}
             className={cn(
               // Design match: ~34px height, rounded-[9px], active = soft green + extrabold
-              'flex min-h-11 items-center gap-2.5 rounded-[9px] px-2.5 py-1.5 text-[13px] font-semibold transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ',
+              'flex min-h-11 items-center gap-2.5 rounded-[9px] px-2.5 py-1.5 text-sm-tight font-semibold transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ',
               isActive
                 ? 'bg-primary-soft text-[var(--legacy-primary-deep)] font-extrabold'
                 : 'text-foreground hover:bg-muted/80',
@@ -121,7 +121,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             <span className="flex-1">{label}</span>
             {badge > 0 && (
               <span
-                className="flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-extrabold tabular-nums bg-destructive text-destructive-foreground"
+                className="flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-2xs-tight font-extrabold tabular-nums bg-destructive text-destructive-foreground"
               >
                 {badge > 99 ? '99+' : badge}
               </span>
@@ -232,7 +232,7 @@ function MobileDrawer() {
               onClick={() => setOpen(false)}
             />
             <div ref={panelRef} className="absolute inset-y-0 [inset-inline-start:0] [inset-inline-end:auto] z-[101] box-border h-full w-[min(18rem,100vw)] max-w-[100vw] overflow-y-auto border-e border-[var(--legacy-border)] bg-card text-right shadow-xl" dir="rtl">
-              <button
+              <button type="button"
                 onClick={() => setOpen(false)}
                 className="absolute top-3 end-3 z-[102] flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 aria-label="إغلاق القائمة"

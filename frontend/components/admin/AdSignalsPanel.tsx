@@ -42,7 +42,7 @@ export function AdSignalsPanel({ adId }: { adId: string }) {
             <Badge variant="outline" className="text-xs text-success shrink-0">تمت المراجعة</Badge>
           ) : (
             <Button
-              variant="ghost" size="sm" className="h-[30px] shrink-0 rounded-lg border border-[var(--legacy-primary-border)] bg-card text-[12px] font-bold text-[var(--legacy-primary-deep)]"
+              variant="ghost" size="sm" className="h-[30px] shrink-0 rounded-lg border border-[var(--legacy-primary-border)] bg-card text-xs font-bold text-[var(--legacy-primary-deep)]"
               disabled={reviewSignal.isPending && reviewSignal.variables === signal.id}
               onClick={() => reviewSignal.mutate(signal.id)}
             >

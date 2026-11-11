@@ -24,22 +24,11 @@ import { BecomeServiceProviderCard } from './BecomeServiceProviderCard';
 import { ROUTES } from '@/lib/constants';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import type { ParsedError } from '@/lib/errorParser';
-import type { ServiceAvailability, ServiceProviderDetails } from '@/types/service.types';
+import type { ServiceProviderDetails } from '@/types/service.types';
+import { AVAILABILITY_LABEL, AVAILABILITY_DOT } from '@/lib/serviceAvailability';
 import type { ServiceProviderDashboardData } from '@/api/service-providers.api';
 import { myServicesWorkspaceParamsFromSearchParams } from '@/lib/myServicesWorkspace';
 import { cn } from '@/lib/utils';
-
-const AVAIL_LABELS: Record<ServiceAvailability, string> = {
-  AVAILABLE: 'متاح الآن',
-  BUSY: 'مشغول',
-  UNAVAILABLE: 'غير متاح',
-};
-
-function availDot(status: ServiceAvailability) {
-  if (status === 'AVAILABLE') return 'bg-emerald-500';
-  if (status === 'BUSY') return 'bg-amber-500';
-  return 'bg-muted-foreground';
-}
 
 function StatTile({
   icon: Icon,
@@ -56,7 +45,7 @@ function StatTile({
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <Icon className="h-4 w-4" />
         </span>
-        <span className="text-[11px] font-medium leading-tight text-muted-foreground">{label}</span>
+        <span className="text-2xs-tight font-medium leading-tight text-muted-foreground">{label}</span>
       </div>
       <b className="text-lg font-extrabold tabular-nums leading-none">{typeof value === 'number' ? value.toLocaleString('ar') : value}</b>
     </div>
@@ -89,7 +78,7 @@ function HubBody({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="truncate text-[15px] font-extrabold sm:text-base">{provider.businessName}</h2>
+              <h2 className="truncate text-card-title font-extrabold sm:text-base">{provider.businessName}</h2>
             </div>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {provider.serviceAreaCities?.length
@@ -100,9 +89,9 @@ function HubBody({
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <span className="inline-flex h-9 items-center gap-2 rounded-xl border border-border/80 bg-background px-3 text-[13px] font-bold">
-            <span className={cn('h-2 w-2 rounded-full', availDot(provider.availabilityStatus))} />
-            {AVAIL_LABELS[provider.availabilityStatus]}
+          <span className="inline-flex h-9 items-center gap-2 rounded-xl border border-border/80 bg-background px-3 text-sm-tight font-bold">
+            <span className={cn('h-2 w-2 rounded-full', AVAILABILITY_DOT[provider.availabilityStatus])} />
+            {AVAILABILITY_LABEL[provider.availabilityStatus]}
           </span>
           {publicProfileHref && (
             <Button variant="outline" size="sm" asChild className="h-9 gap-1.5 rounded-xl font-bold">
@@ -120,7 +109,7 @@ function HubBody({
       </section>
 
       {hasAnalytics && needsAttention > 0 && (
-        <div className="flex items-center gap-2 rounded-2xl border border-[var(--legacy-warning-soft-strong)] bg-[var(--legacy-warning-soft)] px-3.5 py-3 text-[13px] font-bold text-[var(--legacy-warning-text)]">
+        <div className="flex items-center gap-2 rounded-2xl border border-[var(--legacy-warning-soft-strong)] bg-[var(--legacy-warning-soft)] px-3.5 py-3 text-sm-tight font-bold text-[var(--legacy-warning-text)]">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           لديك {needsAttention.toLocaleString('ar')} عناصر تحتاج إلى متابعة.
         </div>
@@ -141,7 +130,7 @@ function HubBody({
               <Inbox className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-bold">طلبات بانتظار ردك</p>
+              <p className="text-sm-tight font-bold">طلبات بانتظار ردك</p>
               <p className="text-xs text-muted-foreground">راجع الطلبات وحدد الإجراء المناسب.</p>
             </div>
             <Button size="sm" asChild className="h-9 shrink-0 rounded-xl font-bold">

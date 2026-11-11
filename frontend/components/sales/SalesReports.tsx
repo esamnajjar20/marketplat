@@ -132,7 +132,7 @@ export function SalesReports() {
           ) : null}
           <div className="overflow-x-auto overscroll-x-contain rounded-xl border bg-card">
             <table className="w-full min-w-[900px] text-sm">
-              <thead className="bg-muted/50 text-right">
+              <thead className="bg-muted/50 text-start">
                 <tr>
                   {['الفاتورة', 'التاريخ', 'العميل', 'المنتج', 'الإيراد', 'التكلفة', 'الربح', 'المدفوع', 'المتبقي'].map(header => (
                     <th key={header} className="px-3 py-3">{header}</th>

@@ -421,8 +421,8 @@ export function MessageInput({ conversationId, disabled }: Props) {
   return (
     <div className="border-t border-border/80 bg-card/95 backdrop-blur-md supports-[backdrop-filter]:bg-card/90 dark:bg-card/95">
       {!isOnline && (
-        <div role="status" aria-live="polite" className="flex items-start gap-2 border-b border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground">
-          <WifiOff className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+        <div role="status" aria-live="polite" className="flex items-start gap-2 border-b border-warning/20 bg-warning/5 px-3 py-2 text-xs text-muted-foreground">
+          <WifiOff className="mt-0.5 h-4 w-4 shrink-0 text-warning-strong dark:text-warning" aria-hidden />
           <span>الاتصال منقطع. يمكنك متابعة الكتابة؛ قد تُضاف الرسالة إلى قائمة الإرسال عند عودة الاتصال.</span>
         </div>
       )}

@@ -108,13 +108,13 @@ export const ConversationRow = memo(function ConversationRow({
         <div className="min-w-0 flex-1 pt-0.5">
           <div className="mb-0.5 flex items-center justify-between gap-2">
             <p className={cn(
-              'flex min-w-0 items-center gap-1.5 text-[15px] leading-tight line-clamp-1',
+              'flex min-w-0 items-center gap-1.5 text-card-title leading-tight line-clamp-1',
               hasUnread ? 'font-bold text-foreground' : 'font-bold text-foreground/90',
             )}>
               {settings?.pinnedAt && <Pin className="h-3.5 w-3.5 shrink-0 text-primary opacity-80" aria-label="مثبّتة" />}
               <span className="truncate">{party.name}</span>
               {muted && (
-                <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
+                <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-secondary px-1.5 py-0.5 text-2xs font-semibold text-muted-foreground">
                   <BellOff className="h-2.5 w-2.5" /> عدم الإزعاج
                 </span>
               )}
@@ -124,8 +124,8 @@ export const ConversationRow = memo(function ConversationRow({
                 className={cn(
                   'shrink-0 tabular-nums',
                   hasUnread
-                    ? 'rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground'
-                    : 'text-[12px] text-muted-foreground',
+                    ? 'rounded-full bg-primary px-2 py-0.5 text-2xs-tight font-bold text-primary-foreground'
+                    : 'text-xs text-muted-foreground',
                 )}
               >
                 {timeLabel}
@@ -133,13 +133,13 @@ export const ConversationRow = memo(function ConversationRow({
             )}
           </div>
           <p className={cn(
-            'text-[13px] leading-snug line-clamp-1',
+            'text-sm-tight leading-snug line-clamp-1',
             hasUnread ? 'font-semibold text-foreground' : 'font-medium text-muted-foreground',
           )}>
             {previewText(conversation, userId)}
           </p>
           {ctx && conversation.lastMessage && (
-            <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground/80 line-clamp-1">
+            <p className="mt-0.5 text-2xs-tight leading-tight text-muted-foreground/80 line-clamp-1">
               بخصوص: {ctx}
             </p>
           )}
@@ -147,7 +147,7 @@ export const ConversationRow = memo(function ConversationRow({
         {hasUnread && (
           <span
             aria-label={`${conversation.unreadCount} رسالة غير مقروءة`}
-            className="mt-1 flex h-5 min-w-5 shrink-0 items-center justify-center self-start rounded-full bg-primary px-1.5 text-[11px] font-bold text-primary-foreground"
+            className="mt-1 flex h-5 min-w-5 shrink-0 items-center justify-center self-start rounded-full bg-primary px-1.5 text-2xs-tight font-bold text-primary-foreground"
           >
             {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
           </span>

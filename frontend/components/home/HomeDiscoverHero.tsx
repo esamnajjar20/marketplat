@@ -36,7 +36,7 @@ export function HomeDiscoverHero({ className }: { className?: string }) {
       <div className="relative container mx-auto max-w-7xl px-3 py-5 sm:px-4 sm:py-7 lg:py-8">
         <div className="grid gap-4 sm:gap-5 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1fr)] lg:items-center lg:gap-10">
           <div className="min-w-0">
-            <span className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/[0.06] px-3 py-1 text-[11px] font-bold text-primary sm:mb-3 sm:text-xs">
+            <span className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/[0.06] px-3 py-1 text-2xs-tight font-bold text-primary sm:mb-3 sm:text-xs">
               <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-primary" />
               سوقك المحلي
             </span>

@@ -29,7 +29,7 @@ export function ProfileStoreSummary({ store, sellerPaymentMethods }: Props) {
     <div className="space-y-4">
       <IntentPrefetchLink
         href={ROUTES.storeDetail(store.id)}
-        className="group block overflow-hidden rounded-[20px] border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" prefetch={false}
+        className="group block overflow-hidden rounded-shell border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" prefetch={false}
       >
         {cover && (
           <div className="relative h-32 w-full bg-muted sm:h-40">
@@ -37,12 +37,12 @@ export function ProfileStoreSummary({ store, sellerPaymentMethods }: Props) {
           </div>
         )}
         <div className="flex items-center gap-4 p-4 sm:p-5">
-          <div className="relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-[14px] bg-primary-soft">
+          <div className="relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-card bg-primary-soft">
             <SafeImage variant="avatar" src={logo} alt={store.name} fill className="object-cover" sizes="52px" />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="truncate text-[15px] font-extrabold text-foreground transition-colors group-hover:text-primary sm:text-lg">{store.name}</h3>
+              <h3 className="truncate text-card-title font-extrabold text-foreground transition-colors group-hover:text-primary sm:text-lg">{store.name}</h3>
               {store.plan === 'FEATURED' && (
                 <span className="inline-flex h-[26px] shrink-0 items-center rounded-full bg-accent-soft px-2.5 text-xs font-bold text-accent">متجر مميز</span>
               )}
@@ -61,7 +61,7 @@ export function ProfileStoreSummary({ store, sellerPaymentMethods }: Props) {
         entityName={store.name}
         fallbackName={store.name}
         fallbackPhone={(store as { phone?: string }).phone}
-        className="w-full rounded-[20px] border border-border bg-card p-3 sm:p-4"
+        className="w-full rounded-shell border border-border bg-card p-3 sm:p-4"
       />
     </div>
   );

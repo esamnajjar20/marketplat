@@ -217,7 +217,7 @@ function Editor({
         <Field label="الأيقونة" dir="ltr" value={form.icon} onChange={(value) => setForm((p) => ({ ...p, icon: value }))} />
         <div className="space-y-1">
           <Field label="الحد المجاني" type="number" value={form.freeProductLimit == null ? '' : String(form.freeProductLimit)} onChange={(value) => setForm((p) => ({ ...p, freeProductLimit: value === '' ? null : Math.max(0, Number(value)) }))} />
-          <p className="text-[11px] text-muted-foreground">اتركه فارغًا لبدون حد. يطبّق على منتجات هذا النوع فقط.</p>
+          <p className="text-2xs-tight text-muted-foreground">اتركه فارغًا لبدون حد. يطبّق على منتجات هذا النوع فقط.</p>
         </div>
       </div>
       <div className="grid min-w-0 gap-3 md:grid-cols-2">

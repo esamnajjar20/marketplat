@@ -86,7 +86,7 @@ function ProductTypeFieldInput({
   const id = `product-attribute-${field.key}`;
   if (field.type === 'BOOLEAN') {
     return (
-      <div dir="rtl" className="rounded-lg border border-border/60 px-3 py-2.5 text-right">
+      <div dir="rtl" className="rounded-lg border border-border/60 px-3 py-2.5 text-start">
       <label className="flex items-center gap-2 text-sm leading-6">
         <input id={id} type="checkbox" checked={value === true} onChange={(e) => onChange(e.target.checked)} />
         <span>{field.labelAr}{field.required ? ' *' : ''}</span>
@@ -553,7 +553,7 @@ export function ProductForm({ mode, product }: Props) {
   }
 
   const formElement = (
-    <form dir="rtl" onSubmit={handleSubmit} noValidate className="space-y-6 text-right">
+    <form dir="rtl" onSubmit={handleSubmit} noValidate className="space-y-6 text-start">
       <FormDraftStatus savedAt={lastSavedAt} saving={combinedDraftSaving} saveError={combinedDraftError} onRetry={!saveError && attachmentError ? retrySaveAttachments : undefined} enabled={mode === 'create'} />
       {mode === 'create' && savedAttachmentCount > 0 && !attachmentError && !isSavingAttachments && <p className="text-xs text-muted-foreground" role="status">تم حفظ {savedAttachmentCount} من الصور محليًا لاستعادتها دون اتصال.</p>}
       <PublishMutationErrorNotice error={mode === 'create' ? create.error : update.error} />

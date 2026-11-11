@@ -469,7 +469,7 @@ function TabBadge({ count, tone = 'default', label }: { count: number; tone?: 'd
   return (
     <span
       className={cn(
-        'ms-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-extrabold tabular-nums',
+        'ms-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-2xs font-extrabold tabular-nums',
         tone === 'danger'
           ? 'bg-destructive text-destructive-foreground'
           : 'bg-[var(--legacy-primary)] text-primary-foreground',
@@ -639,7 +639,7 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
             متصل
           </span>
         ) : (
-          <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-amber-50 px-3 text-xs font-bold text-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+          <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-warning-soft px-3 text-xs font-bold text-warning-strong dark:text-warning">
             <WifiOff className="h-3.5 w-3.5" aria-hidden />
             بدون نت
           </span>
@@ -692,7 +692,7 @@ export function OfflineHub({ initialTab }: { initialTab: OfflineTab | null }) {
                 }
               }}
               className={cn(
-                'group flex min-h-10 snap-start shrink-0 items-center justify-center gap-1.5 border-b-2 px-3 text-[13px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'group flex min-h-10 snap-start shrink-0 items-center justify-center gap-1.5 border-b-2 px-3 text-sm-tight font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 selected
                   ? 'border-[var(--legacy-primary)] font-extrabold text-[var(--legacy-primary-deep)] dark:border-primary dark:text-primary'
                   : 'border-transparent text-muted-foreground hover:text-foreground',

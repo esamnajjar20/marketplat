@@ -39,7 +39,7 @@ function StatTile({
         >
           <Icon className="h-4 w-4" />
         </span>
-        <span className="text-[11px] font-medium leading-tight text-muted-foreground">{label}</span>
+        <span className="text-2xs-tight font-medium leading-tight text-muted-foreground">{label}</span>
       </div>
       <b className="text-lg font-extrabold tabular-nums leading-none tracking-tight">{value}</b>
     </div>
@@ -98,11 +98,11 @@ export function SalesDashboard() {
           </div>
           <div className="mt-3 grid grid-cols-2 gap-2.5">
             <div className="rounded-xl bg-muted/50 p-3 text-center">
-              <p className="text-[11px] text-muted-foreground">الحالي</p>
+              <p className="text-2xs-tight text-muted-foreground">الحالي</p>
               <p className="mt-1 text-base font-extrabold tabular-nums">{money(data.compare.current?.totalRevenue ?? data.summary.totalRevenue)}</p>
             </div>
             <div className="rounded-xl bg-muted/30 p-3 text-center">
-              <p className="text-[11px] text-muted-foreground">المقارنة</p>
+              <p className="text-2xs-tight text-muted-foreground">المقارنة</p>
               <p className="mt-1 text-base font-extrabold tabular-nums text-muted-foreground">
                 {money(data.compare.previous?.totalRevenue ?? 0)}
               </p>
@@ -112,7 +112,7 @@ export function SalesDashboard() {
             <span className="text-xs text-muted-foreground">مقابل الفترة السابقة</span>
             <span
               className={cn(
-                'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold',
+                'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-2xs-tight font-bold',
                 change >= 0 ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive',
               )}
             >
@@ -127,7 +127,7 @@ export function SalesDashboard() {
         <section className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <h3 className="text-sm font-extrabold">أفضل المنتجات</h3>
-            <span className="text-[11px] text-muted-foreground">حسب الإيراد</span>
+            <span className="text-2xs-tight text-muted-foreground">حسب الإيراد</span>
           </div>
           <div className="space-y-2">
             {data.topProducts.map((x, i) => (

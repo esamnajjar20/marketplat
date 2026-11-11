@@ -39,11 +39,11 @@ function RankingInfoSheet({ open, onClose }: { open: boolean; onClose: () => voi
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-labelledby="ranking-info-title">
       <button type="button" className="absolute inset-0 bg-foreground/40 backdrop-blur-[2px]" aria-label="إغلاق" onClick={onClose} />
-      <div className="relative z-10 w-full max-w-md rounded-t-[20px] bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-[20px] sm:p-5">
+      <div className="relative z-10 w-full max-w-md rounded-t-[20px] bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-xl sm:rounded-shell sm:p-5">
         <div className="mb-1 flex items-start justify-between gap-3">
           <div>
             <h2 id="ranking-info-title" className="text-[17px] font-extrabold text-foreground">كيف يُحسب الترتيب؟</h2>
-            <p className="mt-1 text-[13px] leading-5 text-muted-foreground">
+            <p className="mt-1 text-sm-tight leading-5 text-muted-foreground">
               الترتيب يعتمد على التقييم، الثقة، سرعة الرد، ونشاط الحساب — وليس عدد الإعلانات فقط.
             </p>
           </div>
@@ -58,13 +58,13 @@ function RankingInfoSheet({ open, onClose }: { open: boolean; onClose: () => voi
         </div>
         <ul className="mt-4 space-y-2">
           {items.map(({ title, desc, icon: Icon }) => (
-            <li key={title} className="flex items-center gap-3 rounded-[14px] border border-border bg-card px-3 py-3">
+            <li key={title} className="flex items-center gap-3 rounded-card border border-border bg-card px-3 py-3">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                 <Icon className="h-4.5 w-4.5" strokeWidth={1.8} />
               </span>
               <div className="min-w-0">
-                <p className="text-[14px] font-bold text-foreground">{title}</p>
-                <p className="text-[12px] text-muted-foreground">{desc}</p>
+                <p className="text-sm font-bold text-foreground">{title}</p>
+                <p className="text-xs text-muted-foreground">{desc}</p>
               </div>
             </li>
           ))}
@@ -78,7 +78,7 @@ function RankingSkeleton() {
   return (
     <div className="space-y-2.5" aria-busy="true" aria-label="جارٍ التحميل">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="flex items-center gap-3 rounded-[14px] border border-border bg-card px-3 py-3">
+        <div key={i} className="flex items-center gap-3 rounded-card border border-border bg-card px-3 py-3">
           <div className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
           <div className="min-w-0 flex-1 space-y-2">
             <div className="h-3 w-2/5 animate-pulse rounded bg-muted" />
@@ -99,7 +99,7 @@ function Podium({ top3 }: { top3: RankRow[] }) {
   const third = top3.find((r) => r.rank === 3);
   const slots = [
     { row: third, place: 3, ring: 'border-accent/30 bg-accent/10', badge: 'bg-accent text-accent-foreground' },
-    { row: first, place: 1, ring: 'border-amber-500/35 bg-amber-500/10', badge: 'bg-warning text-warning-foreground' },
+    { row: first, place: 1, ring: 'border-warning/35 bg-warning/10', badge: 'bg-warning text-warning-foreground' },
     { row: second, place: 2, ring: 'border-[var(--legacy-border-strong)] bg-muted/70', badge: 'bg-muted text-muted-foreground' },
   ] as const;
 
@@ -120,7 +120,7 @@ function Podium({ top3 }: { top3: RankRow[] }) {
               isFirst ? 'min-h-[160px]' : 'min-h-[140px]',
             )} prefetch={false}
           >
-            <span className={cn('absolute -top-3 flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-extrabold', badge)}>
+            <span className={cn('absolute -top-3 flex h-6 w-6 items-center justify-center rounded-full text-xs font-extrabold', badge)}>
               {place}
             </span>
             <span
@@ -131,15 +131,15 @@ function Podium({ top3 }: { top3: RankRow[] }) {
             >
               {initialLetter(row.displayName)}
             </span>
-            <p className={cn('mt-2 line-clamp-2 font-extrabold leading-tight text-foreground', isFirst ? 'text-[14px]' : 'text-[13px]')}>
+            <p className={cn('mt-2 line-clamp-2 font-extrabold leading-tight text-foreground', isFirst ? 'text-sm' : 'text-sm-tight')}>
               {row.displayName}
             </p>
             {row.verified && (
-              <span className="mt-1 inline-flex h-[20px] items-center rounded-full bg-primary/10 px-2 text-[11px] font-bold text-primary">
+              <span className="mt-1 inline-flex h-[20px] items-center rounded-full bg-primary/10 px-2 text-2xs-tight font-bold text-primary">
                 موثّق
               </span>
             )}
-            <p className="mt-1 text-[12px] font-bold text-muted-foreground">نقاط {row.score}</p>
+            <p className="mt-1 text-xs font-bold text-muted-foreground">نقاط {row.score}</p>
           </IntentPrefetchLink>
         );
       })}
@@ -203,7 +203,7 @@ export function SellersRankingList({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h1 className="text-[22px] font-extrabold tracking-tight text-foreground">أفضل البائعين</h1>
-          <p className="mt-0.5 text-[13px] leading-5 text-muted-foreground">
+          <p className="mt-0.5 text-sm-tight leading-5 text-muted-foreground">
             الترتيب يعتمد على التقييم، الثقة، سرعة الرد، ونشاط الحساب — وليس عدد الإعلانات فقط.
           </p>
         </div>
@@ -226,12 +226,12 @@ export function SellersRankingList({
       )}
 
       {isError && data === undefined && (
-        <div className="rounded-[14px] border border-[var(--legacy-danger-border)] bg-card px-4 py-4 text-center">
-          <p className="text-[14px] font-bold text-destructive">تعذّر تحميل الترتيب.</p>
+        <div className="rounded-card border border-[var(--legacy-danger-border)] bg-card px-4 py-4 text-center">
+          <p className="text-sm font-bold text-destructive">تعذّر تحميل الترتيب.</p>
           <button
             type="button"
             onClick={() => refetch()}
-            className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-[13px] font-bold text-primary"
+            className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-background px-3 text-sm-tight font-bold text-primary"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             إعادة المحاولة
@@ -240,8 +240,8 @@ export function SellersRankingList({
       )}
 
       {!isLoading && !isError && data !== undefined && rows.length === 0 && (
-        <div className="rounded-[14px] border border-border bg-card px-4 py-8 text-center">
-          <p className="text-[14px] text-muted-foreground">لا يوجد بائعون بعد.</p>
+        <div className="rounded-card border border-border bg-card px-4 py-8 text-center">
+          <p className="text-sm text-muted-foreground">لا يوجد بائعون بعد.</p>
         </div>
       )}
 
@@ -253,18 +253,18 @@ export function SellersRankingList({
               <li key={r.sellerProfileId}>
                 <IntentPrefetchLink
                   href={ROUTES.userProfile(r.userId)}
-                  className="flex items-center gap-3 rounded-[14px] border border-border bg-card px-3 py-3 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors hover:bg-muted/60" prefetch={false}
+                  className="flex items-center gap-3 rounded-card border border-border bg-card px-3 py-3 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors hover:bg-muted/60" prefetch={false}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <span className="truncate text-[14px] font-extrabold text-foreground">{r.displayName}</span>
+                      <span className="truncate text-sm font-extrabold text-foreground">{r.displayName}</span>
                       {r.verified && (
-                        <span className="inline-flex h-[20px] items-center rounded-full bg-primary/10 px-1.5 text-[11px] font-bold text-primary">
+                        <span className="inline-flex h-[20px] items-center rounded-full bg-primary/10 px-1.5 text-2xs-tight font-bold text-primary">
                           موثّق
                         </span>
                       )}
                     </div>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
+                    <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-0.5 font-bold text-foreground">
                         <Star className="h-3 w-3 fill-[var(--legacy-warning-strong)] text-[var(--legacy-warning-strong)]" />
                         {r.averageRating.toFixed(1)}
@@ -273,15 +273,15 @@ export function SellersRankingList({
                       <ResponseTimeBadge responseTimeMinutes={r.responseTimeMinutes} size="sm" />
                     </div>
                   </div>
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[15px] font-extrabold text-primary">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-card-title font-extrabold text-primary">
                     {initialLetter(r.displayName)}
                   </span>
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/70 text-[12px] font-extrabold text-foreground">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted/70 text-xs font-extrabold text-foreground">
                     {r.rank}
                   </span>
                   <div className="shrink-0 text-end">
-                    <p className="text-[11px] text-muted-foreground">نقاط</p>
-                    <p className="text-[15px] font-extrabold tabular-nums text-foreground">{r.score}</p>
+                    <p className="text-2xs-tight text-muted-foreground">نقاط</p>
+                    <p className="text-card-title font-extrabold tabular-nums text-foreground">{r.score}</p>
                   </div>
                 </IntentPrefetchLink>
               </li>

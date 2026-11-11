@@ -19,7 +19,7 @@ export default function RegisterPage() {
         <h1 className="text-[28px] font-extrabold tracking-tight text-[var(--legacy-primary-deep)] sm:text-[32px]">
           إنشاء حساب جديد
         </h1>
-        <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-[var(--legacy-muted-text)]">
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-[var(--legacy-muted-text)]">
           انضم إلى مجتمع سوق غزة وابدأ في البيع والشراء بكل سهولة
         </p>
       </div>

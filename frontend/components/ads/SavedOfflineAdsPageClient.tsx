@@ -230,7 +230,7 @@ export function SavedOfflineAdsPageClient() {
               <div className="min-w-0 flex-1">
                 <IntentPrefetchLink href={hrefFor(e)} className="block min-w-0" prefetch={false}>
                   <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-[var(--legacy-primary-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--legacy-primary-deep)] dark:bg-primary/15 dark:text-primary">
+                    <span className="rounded-full bg-[var(--legacy-primary-soft)] px-2 py-0.5 text-2xs font-bold text-[var(--legacy-primary-deep)] dark:bg-primary/15 dark:text-primary">
                       {TYPE_LABEL[e.type]}
                     </span>
                   </div>

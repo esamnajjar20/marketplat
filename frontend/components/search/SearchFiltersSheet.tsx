@@ -39,7 +39,7 @@ export function SearchFiltersSheet() {
         <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
         {activeCount > 0 ? (
           <span
-            className="absolute -end-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--legacy-primary)] px-1 text-[10px] font-extrabold text-primary-foreground"
+            className="absolute -end-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--legacy-primary)] px-1 text-2xs font-extrabold text-primary-foreground"
             aria-label={`${activeCount} فلاتر نشطة`}
           >
             {activeCount}

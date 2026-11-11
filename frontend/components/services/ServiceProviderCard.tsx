@@ -14,7 +14,8 @@ import { useAuthStore } from '@/store/auth.store';
 import { useStartConversation } from '@/hooks/mutations/useStartConversation';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { toast } from 'sonner';
-import type { ServiceProviderDetails, ServiceAvailability } from '@/types/service.types';
+import type { ServiceProviderDetails } from '@/types/service.types';
+import { AVAILABILITY_LABEL, AVAILABILITY_PILL, AVAILABILITY_DOT } from '@/lib/serviceAvailability';
 
 type ServiceProviderCardData = Pick<
   ServiceProviderDetails,
@@ -34,12 +35,6 @@ interface Props {
   provider: ServiceProviderCardData;
   className?: string;
 }
-
-const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
-  AVAILABLE: 'متاح الآن',
-  BUSY: 'مشغول',
-  UNAVAILABLE: 'غير متاح',
-};
 
 function initial(name: string) {
   const t = name.trim();
@@ -133,7 +128,7 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
                 {rating != null && rating !== '' ? (
                   <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-foreground">
-                    <span className="text-amber-500" aria-hidden>
+                    <span className="text-rating" aria-hidden>
                       ★
                     </span>
                     {Number(rating).toFixed(1)}
@@ -151,19 +146,12 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
             </div>
             <span
               className={cn(
-                'inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-[11px] font-bold',
-                avail === 'AVAILABLE' && 'bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary-deep)]',
-                avail === 'BUSY' && 'bg-[var(--legacy-warning-soft)] text-[var(--legacy-warning-text)]',
-                avail === 'UNAVAILABLE' && 'bg-muted text-muted-foreground',
+                'inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-2xs-tight font-bold',
+                AVAILABILITY_PILL[avail],
               )}
             >
               <span
-                className={cn(
-                  'h-1.5 w-1.5 rounded-full',
-                  avail === 'AVAILABLE' && 'bg-[var(--legacy-primary)]',
-                  avail === 'BUSY' && 'bg-amber-500',
-                  avail === 'UNAVAILABLE' && 'bg-muted-foreground',
-                )}
+                className={cn('h-1.5 w-1.5 rounded-full', AVAILABILITY_DOT[avail])}
               />
               {AVAILABILITY_LABEL[avail]}
             </span>
@@ -174,7 +162,7 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
               {skills.map((s, i) => (
                 <span
                   key={i}
-                  className="inline-flex h-6 items-center rounded-full bg-[var(--legacy-surface)] px-2 text-[11px] font-bold text-[var(--legacy-foreground-warm)]"
+                  className="inline-flex h-6 items-center rounded-full bg-[var(--legacy-surface)] px-2 text-2xs-tight font-bold text-[var(--legacy-foreground-warm)]"
                 >
                   {s.nameAr || s.name}
                 </span>

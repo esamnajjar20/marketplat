@@ -205,7 +205,7 @@ export function RegisterForm() {
         </Select>
       </FormField>
 
-      <Button type="submit" size="lg" className="mt-2 h-12 w-full rounded-2xl text-[15px] font-bold" disabled={isFormIncomplete || isPending} loading={isPending} loadingText="جارٍ التسجيل...">
+      <Button type="submit" size="lg" className="mt-2 h-12 w-full rounded-2xl text-card-title font-bold" disabled={isFormIncomplete || isPending} loading={isPending} loadingText="جارٍ التسجيل...">
         إنشاء الحساب
       </Button>
 
@@ -213,7 +213,7 @@ export function RegisterForm() {
 
       <GoogleAuthButton label="التسجيل باستخدام Google" />
 
-      <p className="text-center text-[13px] text-[var(--legacy-muted-text)]">
+      <p className="text-center text-sm-tight text-[var(--legacy-muted-text)]">
         لديك حساب بالفعل؟{' '}
         <IntentPrefetchLink href={loginHref} className="font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>تسجيل الدخول</IntentPrefetchLink>
       </p>

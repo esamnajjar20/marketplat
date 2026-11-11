@@ -53,7 +53,7 @@ export function AuthField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={htmlFor} className="text-[13px] font-bold text-[var(--legacy-ink)]">
+      <label htmlFor={htmlFor} className="text-sm-tight font-bold text-[var(--legacy-ink)]">
         {label}
         {required && (
           <>
@@ -76,14 +76,14 @@ export function AuthField({
         {styledChild}
       </div>
       {hint && !error && (
-        <p id={hintId} className="text-[12px] text-[var(--legacy-muted-text)]">
+        <p id={hintId} className="text-xs text-[var(--legacy-muted-text)]">
           {hint}
         </p>
       )}
       {error && (
         <p
           id={errorId}
-          className="flex items-center gap-1.5 text-[12px] font-medium text-[var(--legacy-danger)]"
+          className="flex items-center gap-1.5 text-xs font-medium text-[var(--legacy-danger)]"
           role="alert"
           aria-live="assertive"
         >

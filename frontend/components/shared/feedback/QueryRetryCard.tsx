@@ -28,15 +28,15 @@ const TONE_ICON: Record<QueryRetryTone, ReactNode> = {
 };
 
 const TONE_WELL: Record<QueryRetryTone, string> = {
-  offline: 'bg-red-50 text-[var(--legacy-danger-text)] dark:bg-red-950/40 dark:text-red-400',
-  error: 'bg-red-50 text-[var(--legacy-danger-text)] dark:bg-red-950/40 dark:text-red-400',
-  warning: 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+  offline: 'bg-destructive/10 text-[var(--legacy-danger-text)]',
+  error: 'bg-destructive/10 text-[var(--legacy-danger-text)]',
+  warning: 'bg-warning-soft text-warning-strong dark:text-warning',
 };
 
 const TONE_TITLE: Record<QueryRetryTone, string> = {
-  offline: 'text-[var(--legacy-danger-text)] dark:text-red-400',
-  error: 'text-[var(--legacy-danger-text)] dark:text-red-400',
-  warning: 'text-amber-900 dark:text-amber-300',
+  offline: 'text-[var(--legacy-danger-text)]',
+  error: 'text-[var(--legacy-danger-text)]',
+  warning: 'text-warning-strong dark:text-warning',
 };
 
 /**

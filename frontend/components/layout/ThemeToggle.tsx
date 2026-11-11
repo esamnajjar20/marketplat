@@ -42,7 +42,7 @@ export function ThemeToggle() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
+        <button type="button"
           className="flex h-11 w-11 items-center justify-center rounded-full outline-none ring-offset-background transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="تبديل المظهر"
         >

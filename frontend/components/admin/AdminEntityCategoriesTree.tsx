@@ -106,7 +106,7 @@ export function AdminEntityCategoriesTree<TCategory extends BaseCategory>({
         className={`flex items-center gap-2 p-3 hover:bg-muted/50 transition-colors ${isChild ? 'ps-8 border-t' : ''}`}
       >
         {!isChild ? (
-          <button
+          <button type="button"
             onClick={() => setExpanded((s) => {
               const n = new Set(s);
               if (isOpen) { n.delete(cat.id); } else { n.add(cat.id); }

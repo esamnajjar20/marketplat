@@ -219,7 +219,7 @@ export function MyProductsList() {
                 type="button"
                 onClick={() => setStatus(val)}
                 aria-pressed={(status ?? '') === val}
-                className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm-tight font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                   (status ?? '') === val
                     ? 'bg-primary/15 text-primary'
                     : 'bg-muted/60 text-muted-foreground hover:bg-muted'}`}
@@ -336,13 +336,13 @@ export function MyProductsList() {
                 </div>
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <div className="flex items-start justify-between gap-2">
-                    <span className="line-clamp-2 text-[13px] font-bold leading-snug sm:text-sm">{product.name}</span>
+                    <span className="line-clamp-2 text-sm-tight font-bold leading-snug sm:text-sm">{product.name}</span>
                     <div className="flex shrink-0 flex-col items-end gap-1 sm:flex-row sm:items-center">
                       <span className="text-sm font-extrabold tabular-nums text-primary">
                         {formatPrice(product.discountPrice ?? product.price)}
                       </span>
                       {product.discountPrice && (
-                        <span className="text-[11px] text-muted-foreground line-through">
+                        <span className="text-2xs-tight text-muted-foreground line-through">
                           {formatPrice(product.price)}
                         </span>
                       )}
@@ -352,10 +352,10 @@ export function MyProductsList() {
                     <span
                       className={
                         product.status === 'ACTIVE'
-                          ? 'inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 text-[11px] font-bold text-primary'
+                          ? 'inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 text-2xs-tight font-bold text-primary'
                           : product.status === 'PAUSED'
-                            ? 'inline-flex h-6 items-center rounded-full bg-muted px-2.5 text-[11px] font-bold text-muted-foreground'
-                            : 'inline-flex h-6 items-center rounded-full bg-destructive/10 px-2.5 text-[11px] font-bold text-destructive'
+                            ? 'inline-flex h-6 items-center rounded-full bg-muted px-2.5 text-2xs-tight font-bold text-muted-foreground'
+                            : 'inline-flex h-6 items-center rounded-full bg-destructive/10 px-2.5 text-2xs-tight font-bold text-destructive'
                       }
                     >
                       {STATUS_LABELS[product.status]}
@@ -363,16 +363,16 @@ export function MyProductsList() {
                     <span
                       className={
                         product.availability === 'IN_STOCK'
-                          ? 'inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 text-[11px] font-bold text-primary'
+                          ? 'inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 text-2xs-tight font-bold text-primary'
                           : product.availability === 'LIMITED'
-                            ? 'inline-flex h-6 items-center rounded-full bg-[var(--legacy-warning-soft)] px-2.5 text-[11px] font-bold text-[var(--legacy-warning-text)]'
-                            : 'inline-flex h-6 items-center rounded-full bg-[var(--legacy-danger-soft)] px-2.5 text-[11px] font-bold text-[var(--legacy-danger)]'
+                            ? 'inline-flex h-6 items-center rounded-full bg-[var(--legacy-warning-soft)] px-2.5 text-2xs-tight font-bold text-[var(--legacy-warning-text)]'
+                            : 'inline-flex h-6 items-center rounded-full bg-[var(--legacy-danger-soft)] px-2.5 text-2xs-tight font-bold text-[var(--legacy-danger)]'
                       }
                     >
                       {AVAIL_LABELS[product.availability]}
                     </span>
                     {!product.images?.length && (
-                      <span className="inline-flex h-6 items-center rounded-full bg-warning/15 px-2.5 text-[11px] font-bold text-warning">
+                      <span className="inline-flex h-6 items-center rounded-full bg-warning/15 px-2.5 text-2xs-tight font-bold text-warning">
                         بدون صور
                       </span>
                     )}

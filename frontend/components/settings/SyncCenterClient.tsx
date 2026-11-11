@@ -615,7 +615,7 @@ export function SyncCenterClient() {
                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{guidance.nextStep}</p>
                   </div>
                   {item.lastError?.status ? (
-                    <p className="mt-1 text-[11px] text-muted-foreground">رمز الاستجابة: {item.lastError.status}</p>
+                    <p className="mt-1 text-2xs-tight text-muted-foreground">رمز الاستجابة: {item.lastError.status}</p>
                   ) : null}
                   {item.operationId ? (
                     <p className="mt-1 text-xs text-muted-foreground">

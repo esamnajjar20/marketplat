@@ -37,7 +37,7 @@ export function SuccessCard({
       </div>
       <h2 className="text-[18px] font-extrabold leading-snug text-[var(--legacy-ink)]">{title}</h2>
       {description && (
-        <p className="mx-auto mt-2 max-w-sm text-[13px] leading-relaxed text-[var(--legacy-muted-text)]">
+        <p className="mx-auto mt-2 max-w-sm text-sm-tight leading-relaxed text-[var(--legacy-muted-text)]">
           {description}
         </p>
       )}

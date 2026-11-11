@@ -193,8 +193,8 @@ export function ServiceListingDetail({ listing, action }: Props) {
       {(providerUserId || action) && (
         <div className={cn(STICKY_BAR, 'md:hidden', stickyCta.transitionClass, stickyCta.hiddenClass)}>
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] text-muted-foreground">يبدأ من</div>
-            <b className="text-[15px] font-extrabold text-primary tabular-nums">
+            <div className="text-2xs-tight text-muted-foreground">يبدأ من</div>
+            <b className="text-card-title font-extrabold text-primary tabular-nums">
               {formatServicePrice(listing.pricingType, listing.price)}
             </b>
           </div>

@@ -188,7 +188,7 @@ export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams: 
       <div className="space-y-1.5">
       <BrowseCityHint />
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="min-w-0 text-[13px] font-extrabold text-foreground">
+        <p className="min-w-0 text-sm-tight font-extrabold text-foreground">
           {total > 0 ? `${total} منتج` : 'لا توجد نتائج'}
           {search && <> بحثاً عن «<span className="font-medium">{search}</span>»</>}
         </p>

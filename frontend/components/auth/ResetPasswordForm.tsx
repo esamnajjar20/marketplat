@@ -91,13 +91,13 @@ export function ResetPasswordForm({ token }: Props) {
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
           </svg>
         </div>
-        <p className="text-[15px] font-bold leading-relaxed text-[var(--legacy-ink)]">
+        <p className="text-card-title font-bold leading-relaxed text-[var(--legacy-ink)]">
           رابط إعادة تعيين كلمة المرور غير صالح. يرجى طلب رابط جديد.
         </p>
-        <Button asChild className="h-12 w-full rounded-2xl text-[15px] font-bold">
+        <Button asChild className="h-12 w-full rounded-2xl text-card-title font-bold">
           <IntentPrefetchLink href={ROUTES.forgotPassword} prefetch={false}>طلب رابط جديد</IntentPrefetchLink>
         </Button>
-        <IntentPrefetchLink href={ROUTES.login} className="block text-[13px] font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.login} className="block text-sm-tight font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>
           العودة لتسجيل الدخول
         </IntentPrefetchLink>
       </div>
@@ -117,11 +117,11 @@ export function ResetPasswordForm({ token }: Props) {
           value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" />
       </FormField>
 
-      <Button type="submit" className="h-12 w-full rounded-2xl text-[15px] font-bold" disabled={isFormIncomplete || isPending} loading={isPending} loadingText="جارٍ الحفظ...">
+      <Button type="submit" className="h-12 w-full rounded-2xl text-card-title font-bold" disabled={isFormIncomplete || isPending} loading={isPending} loadingText="جارٍ الحفظ...">
         تعيين كلمة المرور
       </Button>
 
-      <p className="text-center text-[13px] font-bold text-[var(--legacy-primary-deep)]">
+      <p className="text-center text-sm-tight font-bold text-[var(--legacy-primary-deep)]">
         <IntentPrefetchLink href={ROUTES.login} className="text-primary hover:underline" prefetch={false}>العودة لتسجيل الدخول</IntentPrefetchLink>
       </p>
     </form>

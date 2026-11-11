@@ -64,7 +64,7 @@ function VerifyEmailInner() {
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary)]">
             <Mail className="h-6 w-6" aria-hidden />
           </div>
-          <p className="text-[13px] leading-relaxed text-[var(--legacy-muted-text)]">
+          <p className="text-sm-tight leading-relaxed text-[var(--legacy-muted-text)]">
             افتح الرابط الذي أرسلناه إلى بريدك الإلكتروني لتأكيد الحساب.
           </p>
 
@@ -99,7 +99,7 @@ function VerifyEmailInner() {
       {state.kind === 'verifying' && (
         <div className="flex w-full flex-col items-center gap-3 rounded-2xl border border-[var(--legacy-border)] bg-card p-8 shadow-[0_1px_3px_rgba(42,36,29,0.06)]">
           <LoadingSpinner />
-          <p className="text-[13px] text-[var(--legacy-muted-text)]">جارٍ تأكيد بريدك الإلكتروني...</p>
+          <p className="text-sm-tight text-[var(--legacy-muted-text)]">جارٍ تأكيد بريدك الإلكتروني...</p>
         </div>
       )}
 
@@ -109,8 +109,8 @@ function VerifyEmailInner() {
             <CheckCircle2 className="h-7 w-7" aria-hidden />
           </div>
           <p className="text-[18px] font-extrabold text-[var(--legacy-ink)]">تم تأكيد بريدك الإلكتروني بنجاح</p>
-          <p className="text-[13px] text-[var(--legacy-muted-text)]">يمكنك الآن استخدام جميع ميزات سوق غزة.</p>
-          <Button asChild className="h-12 w-full rounded-2xl text-[15px] font-bold">
+          <p className="text-sm-tight text-[var(--legacy-muted-text)]">يمكنك الآن استخدام جميع ميزات سوق غزة.</p>
+          <Button asChild className="h-12 w-full rounded-2xl text-card-title font-bold">
             <IntentPrefetchLink href={ROUTES.home} prefetch={false}>الذهاب إلى الصفحة الرئيسية</IntentPrefetchLink>
           </Button>
         </div>
@@ -121,8 +121,8 @@ function VerifyEmailInner() {
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]">
             <XCircle className="h-7 w-7" aria-hidden />
           </div>
-          <p className="text-[14px] font-bold text-[var(--legacy-danger)]">{state.message}</p>
-          <p className="text-[12px] text-[var(--legacy-muted-text)]">
+          <p className="text-sm font-bold text-[var(--legacy-danger)]">{state.message}</p>
+          <p className="text-xs text-[var(--legacy-muted-text)]">
             قد يكون الرابط منتهي الصلاحية. يمكنك طلب رابط جديد من صفحة الملف الشخصي.
           </p>
           <Button asChild variant="outline" className="h-11 w-full rounded-2xl border-[var(--legacy-border)] font-bold">

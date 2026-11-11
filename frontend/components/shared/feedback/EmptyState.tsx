@@ -43,7 +43,7 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'section-enter motion-reduce:animate-none flex flex-col items-center justify-center rounded-[14px] border border-[var(--legacy-border)] bg-card px-4 text-center shadow-[0_1px_3px_rgba(42,36,29,0.04)]',
+        'section-enter motion-reduce:animate-none flex flex-col items-center justify-center rounded-card border border-[var(--legacy-border)] bg-card px-4 text-center shadow-[0_1px_3px_rgba(42,36,29,0.04)]',
         compact ? 'gap-2.5 py-8' : 'gap-3 py-10 sm:py-12',
         className,
       )}
@@ -63,11 +63,11 @@ export function EmptyState({
         </div>
       )}
       <div className={cn('space-y-1', compact ? 'max-w-xs' : 'max-w-sm')}>
-        <p className="text-[15px] font-extrabold tracking-tight text-foreground">
+        <p className="text-card-title font-extrabold tracking-tight text-foreground">
           {title}
         </p>
         {description && (
-          <p className="text-[13px] leading-5 text-[var(--legacy-muted-text)]">{description}</p>
+          <p className="text-sm-tight leading-5 text-[var(--legacy-muted-text)]">{description}</p>
         )}
       </div>
       {action && (

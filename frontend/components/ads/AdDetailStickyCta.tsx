@@ -29,12 +29,12 @@ export function AdDetailStickyCta({
   return (
     <div className={cn(STICKY_BAR, 'md:hidden', transitionClass, hiddenClass)}>
       <div className="min-w-0 flex-1">
-        <div className="text-[11px] text-muted-foreground">السعر</div>
-        <b className="truncate text-[15px] font-extrabold tabular-nums text-primary">
+        <div className="text-2xs-tight text-muted-foreground">السعر</div>
+        <b className="truncate text-card-title font-extrabold tabular-nums text-primary">
           {formatPrice(ad.price)}
         </b>
         {ad.isNegotiable && (
-          <p className="text-[11px] text-muted-foreground">قابل للتفاوض</p>
+          <p className="text-2xs-tight text-muted-foreground">قابل للتفاوض</p>
         )}
       </div>
       <Button

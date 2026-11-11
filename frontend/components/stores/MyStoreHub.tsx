@@ -48,7 +48,7 @@ function StatusBanner({ store }: { store: StoreDetails }) {
         <Clock className="mt-0.5 h-5 w-5 shrink-0" />
         <div className="space-y-0.5">
           <p className="font-bold">متجرك قيد المراجعة</p>
-          <p className="text-[13px] leading-relaxed opacity-90">
+          <p className="text-sm-tight leading-relaxed opacity-90">
             لن يظهر للزوار في دليل المتاجر حتى توافق الإدارة. يمكنك تجهيز المنتجات والعروض الآن.
           </p>
         </div>
@@ -84,7 +84,7 @@ function QuickAction({
     <IntentPrefetchLink
       prefetch={false}
       href={href}
-      className="flex h-11 items-center gap-2 rounded-xl border border-border/80 bg-card px-3 text-[13px] font-bold text-foreground shadow-sm transition-colors hover:bg-muted/40"
+      className="flex h-11 items-center gap-2 rounded-xl border border-border/80 bg-card px-3 text-sm-tight font-bold text-foreground shadow-sm transition-colors hover:bg-muted/40"
     >
       <Icon className="h-4 w-4 shrink-0 text-primary" />
       {label}
@@ -126,7 +126,7 @@ function HubBody({ store }: { store: StoreDetails }) {
 
         <div className="mt-2 space-y-2 px-1 pb-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="min-w-0 flex-1 truncate text-[15px] font-bold">{store.name}</h2>
+            <h2 className="min-w-0 flex-1 truncate text-card-title font-bold">{store.name}</h2>
             <Badge
               variant={STORE_STATUS_VARIANT[store.status]}
               className={cn(
@@ -171,7 +171,7 @@ function HubBody({ store }: { store: StoreDetails }) {
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]">
                 <AlertTriangle className="h-4 w-4" />
               </span>
-              <p className="min-w-0 flex-1 text-[13px] font-bold">
+              <p className="min-w-0 flex-1 text-sm-tight font-bold">
                 {attention.productsOutOfStock} {storeLabels.product} غير متوفر
               </p>
               <Button variant="outline" size="sm" asChild className="h-9 shrink-0 rounded-xl font-bold">
@@ -190,7 +190,7 @@ function HubBody({ store }: { store: StoreDetails }) {
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--legacy-warning-soft)] text-[var(--legacy-warning-text)]">
                 <ImageIcon className="h-4 w-4" />
               </span>
-              <p className="min-w-0 flex-1 text-[13px] font-bold">
+              <p className="min-w-0 flex-1 text-sm-tight font-bold">
                 {attention.productsMissingImages} {storeLabels.product} بدون صور
               </p>
               <Button variant="outline" size="sm" asChild className="h-9 shrink-0 rounded-xl font-bold">
@@ -224,7 +224,7 @@ function HubBody({ store }: { store: StoreDetails }) {
       {store.status === 'ACTIVE' && (
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--legacy-accent-border)] bg-[var(--legacy-accent-soft)] p-3">
           <div className="min-w-0">
-            <p className="text-[13px] font-bold text-[var(--legacy-accent)]">ميّز متجرك في الدليل</p>
+            <p className="text-sm-tight font-bold text-[var(--legacy-accent)]">ميّز متجرك في الدليل</p>
             <p className="text-xs text-[var(--legacy-accent-deep)]">
               {featurePending ? 'طلب التمييز قيد المراجعة.' : 'لزيادة الظهور أمام الزوار.'}
             </p>

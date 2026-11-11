@@ -85,7 +85,7 @@ export const StoreCard = memo(function StoreCard({
           )}
           <CardOfflineBadge />
           {store.plan === 'FEATURED' && (
-            <span className="absolute start-2.5 top-2.5 inline-flex h-6 items-center rounded-full bg-[var(--legacy-accent-soft)] px-2.5 text-[11px] font-bold text-[var(--legacy-accent)]">
+            <span className="absolute start-2.5 top-2.5 inline-flex h-6 items-center rounded-full bg-[var(--legacy-accent-soft)] px-2.5 text-2xs-tight font-bold text-[var(--legacy-accent)]">
               مميز
             </span>
           )}
@@ -107,7 +107,7 @@ export const StoreCard = memo(function StoreCard({
           <div className="flex min-w-0 items-center gap-1.5">
             <h3
               title={store.name}
-              className="min-w-0 flex-1 truncate text-[15px] font-bold leading-snug text-foreground"
+              className="min-w-0 flex-1 truncate text-card-title font-bold leading-snug text-foreground"
             >
               {store.name}
             </h3>

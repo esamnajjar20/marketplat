@@ -34,46 +34,46 @@ export function SaleCard({ sale }: { sale: SaleRecord }) {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge variant="outline" className="rounded-full text-[11px] font-bold">
+              <Badge variant="outline" className="rounded-full text-2xs-tight font-bold">
                 {typeLabel[sale.entityType]}
               </Badge>
               <PaymentStatusBadge status={sale.paymentStatus} />
               {Number(sale.refundedAmount ?? 0) > 0 ? (
-                <Badge className="rounded-full text-[11px]">مرتجع</Badge>
+                <Badge className="rounded-full text-2xs-tight">مرتجع</Badge>
               ) : null}
             </div>
-            <h3 className="mt-1.5 truncate text-[15px] font-extrabold leading-snug">{sale.entityTitle}</h3>
+            <h3 className="mt-1.5 truncate text-card-title font-extrabold leading-snug">{sale.entityTitle}</h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {sale.buyerName || 'عميل نقدي'}
               {sale.buyerPhone ? ` · ${sale.buyerPhone}` : ''}
               {sale.items && sale.items.length > 1 ? ` · ${sale.items.length} أصناف` : ''}
             </p>
           </div>
-          <span className="shrink-0 text-[11px] text-muted-foreground">{formatDate(sale.soldAt)}</span>
+          <span className="shrink-0 text-2xs-tight text-muted-foreground">{formatDate(sale.soldAt)}</span>
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           <div>
-            <p className="text-[11px] text-muted-foreground">الإجمالي</p>
+            <p className="text-2xs-tight text-muted-foreground">الإجمالي</p>
             <p className="font-extrabold tabular-nums">{net.toFixed(2)} ₪</p>
           </div>
           <div>
-            <p className="text-[11px] text-muted-foreground">المدفوع</p>
+            <p className="text-2xs-tight text-muted-foreground">المدفوع</p>
             <p className="font-extrabold tabular-nums">{Number(sale.paidAmount).toFixed(2)} ₪</p>
           </div>
           <div>
-            <p className="text-[11px] text-muted-foreground">المتبقي</p>
+            <p className="text-2xs-tight text-muted-foreground">المتبقي</p>
             <p className={cn('font-extrabold tabular-nums', due > 0 && 'text-destructive')}>
               {due.toFixed(2)} ₪
             </p>
           </div>
           <div>
-            <p className="text-[11px] text-muted-foreground">الفاتورة</p>
+            <p className="text-2xs-tight text-muted-foreground">الفاتورة</p>
             <p className="font-extrabold tabular-nums">{sale.invoiceNumber ?? '—'}</p>
           </div>
           {costSettings?.enabled !== false && sale.costPrice != null ? (
             <div>
-              <p className="text-[11px] text-muted-foreground">الربح</p>
+              <p className="text-2xs-tight text-muted-foreground">الربح</p>
               <p className="font-extrabold tabular-nums text-primary">{profit.toFixed(2)} ₪</p>
             </div>
           ) : null}

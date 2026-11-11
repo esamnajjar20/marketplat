@@ -157,12 +157,12 @@ export function EmptySearchSuggestions() {
                   ) : (
                     <Package className="h-7 w-7 text-primary/40" aria-hidden />
                   )}
-                  <span className="absolute end-2 top-2 rounded-full bg-[rgba(42,36,29,0.78)] px-2 py-0.5 text-[10px] font-bold text-white">
+                  <span className="absolute end-2 top-2 rounded-full bg-[rgba(42,36,29,0.78)] px-2 py-0.5 text-2xs font-bold text-white">
                     إعلان
                   </span>
                 </div>
                 <div className="px-2.5 py-2">
-                  <span className="line-clamp-2 text-[12px] font-bold leading-snug text-foreground">{ad.title}</span>
+                  <span className="line-clamp-2 text-xs font-bold leading-snug text-foreground">{ad.title}</span>
                 </div>
               </IntentPrefetchLink>
             ))}

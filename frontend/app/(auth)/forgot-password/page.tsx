@@ -22,7 +22,7 @@ export default function ForgotPasswordPage() {
         <h1 className="text-[28px] font-extrabold tracking-tight text-[var(--legacy-primary-deep)] sm:text-[32px]">
           نسيت كلمة المرور؟
         </h1>
-        <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-[var(--legacy-muted-text)]">
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-[var(--legacy-muted-text)]">
           أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور.
         </p>
       </div>

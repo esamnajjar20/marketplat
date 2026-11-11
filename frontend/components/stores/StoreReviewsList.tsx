@@ -142,7 +142,7 @@ export function StoreReviewsList({ storeId, averageRating, totalRatings }: Props
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <p className="text-sm font-bold">{review.rater.name}</p>
-                      <p className="text-[11px] text-muted-foreground">{formatDate(review.createdAt)}</p>
+                      <p className="text-2xs-tight text-muted-foreground">{formatDate(review.createdAt)}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-0.5" dir="ltr">
                       {[1, 2, 3, 4, 5].map((n) => (
@@ -157,7 +157,7 @@ export function StoreReviewsList({ storeId, averageRating, totalRatings }: Props
                     </div>
                   </div>
                   {review.comment && (
-                    <p className="text-[13px] leading-relaxed text-foreground/90">{review.comment}</p>
+                    <p className="text-sm-tight leading-relaxed text-foreground/90">{review.comment}</p>
                   )}
                 </div>
               </div>

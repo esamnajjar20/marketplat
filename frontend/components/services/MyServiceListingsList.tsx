@@ -267,7 +267,7 @@ export function MyServiceListingsList() {
               type="button"
               onClick={() => setStatus(val)}
               aria-pressed={(status ?? '') === val}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm-tight font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 (status ?? '') === val
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted/60 text-muted-foreground hover:bg-muted'

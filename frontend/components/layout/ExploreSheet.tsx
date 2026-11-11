@@ -28,7 +28,7 @@ export function ExploreSheet({
       <SheetContent className="gap-0 rounded-t-[20px] border-[var(--legacy-border)] p-0">
         <SheetHeader className="space-y-1 px-4 pb-3 pt-2 text-start">
           <SheetTitle className="text-[17px] font-extrabold">استكشاف</SheetTitle>
-          <SheetDescription className="text-[13px] text-[var(--legacy-muted-text)]">
+          <SheetDescription className="text-sm-tight text-[var(--legacy-muted-text)]">
             تصفّح أقسام المنصة
           </SheetDescription>
         </SheetHeader>
@@ -45,8 +45,8 @@ export function ExploreSheet({
                 prefetch={false}
                 onClick={() => onOpenChange(false)}
                 className={cn(
-                  'flex items-center justify-between gap-2 rounded-[14px] border border-[var(--legacy-border)] bg-card px-3 py-3',
-                  'text-[13px] font-bold text-foreground transition-colors hover:bg-[var(--legacy-page-surface)]',
+                  'flex items-center justify-between gap-2 rounded-card border border-[var(--legacy-border)] bg-card px-3 py-3',
+                  'text-sm-tight font-bold text-foreground transition-colors hover:bg-[var(--legacy-page-surface)]',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 )}
               >

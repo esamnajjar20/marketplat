@@ -53,7 +53,7 @@ export function StoryComposer({ onClose }: { onClose: () => void }) {
       <div className="relative flex max-h-[min(92dvh,900px)] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-background shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div><h2 className="font-bold">ستوري جديدة</h2><p className="text-xs text-muted-foreground">تختفي تلقائيًا بعد 24 ساعة</p></div>
-          <button onClick={onClose} className="rounded-full p-2 hover:bg-muted" aria-label="إغلاق"><X className="h-5 w-5" /></button>
+          <button type="button" onClick={onClose} className="rounded-full p-2 hover:bg-muted" aria-label="إغلاق"><X className="h-5 w-5" /></button>
         </div>
 
         <div className="min-h-0 overflow-y-auto overscroll-contain p-3 sm:p-4">
@@ -72,7 +72,7 @@ export function StoryComposer({ onClose }: { onClose: () => void }) {
           </div>
 
           <textarea value={text} onChange={(e) => setText(e.target.value.slice(0, 500))} rows={3} maxLength={500} placeholder="اكتب رسالة قصيرة..." aria-label="نص الستوري" className="mt-3 w-full resize-none rounded-xl border border-border bg-card p-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-primary/50" />
-          <div className="mt-1 text-end text-[11px] text-muted-foreground">{text.length}/500</div>
+          <div className="mt-1 text-end text-2xs-tight text-muted-foreground">{text.length}/500</div>
 
           {!file && <div className="mt-3"><p className="mb-2 text-xs font-semibold">الخلفية</p><div className="flex gap-2">{STORY_BACKGROUNDS.map((item) => <button key={item.key} type="button" title={item.label} onClick={() => setBackground(item.key)} className={`h-9 w-9 rounded-full bg-gradient-to-br ${item.gradient} ring-offset-2 ${background === item.key ? 'ring-2 ring-primary' : ''}`} />)}</div></div>}
 

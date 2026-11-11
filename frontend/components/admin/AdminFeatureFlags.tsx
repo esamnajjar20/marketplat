@@ -199,7 +199,7 @@ export function AdminFeatureFlags() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <code dir="ltr" className="break-all text-sm font-semibold">{flag.name}</code>
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${flag.name.startsWith('PUBLIC_') ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300' : 'bg-muted text-muted-foreground'}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-2xs-tight font-semibold ${flag.name.startsWith('PUBLIC_') ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300' : 'bg-muted text-muted-foreground'}`}>
                         {flag.name.startsWith('PUBLIC_') ? 'عام للعميل' : 'داخلي'}
                       </span>
                     </div>
@@ -278,7 +278,7 @@ export function AdminFeatureFlags() {
                     ? `إنشاء المفتاح: ${entry.enabled ? 'مفعّلة' : 'معطّلة'} (${entry.rolloutPercent}%)`
                     : `من ${entry.oldEnabled ? 'مفعّلة' : 'معطّلة'} (${entry.oldRolloutPercent ?? '—'}%) إلى ${entry.enabled ? 'مفعّلة' : 'معطّلة'} (${entry.rolloutPercent}%)`}
                 </p>
-                <p className="text-[11px] text-muted-foreground">المدير المنفّذ: <code dir="ltr">{entry.changedBy}</code></p>
+                <p className="text-2xs-tight text-muted-foreground">المدير المنفّذ: <code dir="ltr">{entry.changedBy}</code></p>
               </li>
             ))}
           </ol>

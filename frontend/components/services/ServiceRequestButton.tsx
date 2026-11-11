@@ -40,8 +40,8 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
   if (providerAvailability === 'UNAVAILABLE') {
     return (
       <div className="rounded-2xl border border-warning/30 bg-warning/10 px-4 py-3.5" role="status">
-        <p className="text-[14px] font-extrabold text-warning-foreground">مقدم الخدمة غير متاح حاليًا</p>
-        <p className="mt-1 text-[12px] leading-relaxed text-warning-foreground/90">
+        <p className="text-sm font-extrabold text-warning-foreground">مقدم الخدمة غير متاح حاليًا</p>
+        <p className="mt-1 text-xs leading-relaxed text-warning-foreground/90">
           يمكنك حفظ الخدمة والعودة إليها لاحقًا عندما يصبح متاحًا.
         </p>
       </div>
@@ -122,17 +122,17 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
             </div>
           ) : (
           <div className="space-y-3.5 px-4 pb-4 pt-2">
-            <p className="text-[12px] leading-relaxed text-muted-foreground">
+            <p className="text-xs leading-relaxed text-muted-foreground">
               المسار: طلب ← رد المقدّم ← (اختياري) موعد ← اكتمال الخدمة
             </p>
-            <ul className="space-y-1 text-[12px] leading-relaxed text-foreground">
+            <ul className="space-y-1 text-xs leading-relaxed text-foreground">
               <li>• صف احتياجك بوضوح (مكان، وقت، تفاصيل).</li>
               <li>• المقدّم يرد بالقبول أو الرفض أو عرض سعر.</li>
               <li>• يمكنك متابعة الحالة من صفحة طلباتي.</li>
             </ul>
 
             <div className="space-y-1.5">
-              <label htmlFor="request-details" className="text-[13px] font-bold text-foreground">
+              <label htmlFor="request-details" className="text-sm-tight font-bold text-foreground">
                 وصّف اللي محتاجه بالتفصيل
               </label>
               <textarea
@@ -142,13 +142,13 @@ export function ServiceRequestButton({ listingId, providerUserId, providerAvaila
                 value={details}
                 onChange={(e) => setDetails(e.target.value)}
                 placeholder="مثال: بدي تصليح تسريب مي بالمطبخ، متوفر أيام الجمعة بعد الظهر..."
-                className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-[13px] leading-relaxed text-foreground shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
+                className="w-full rounded-xl border border-input bg-background px-3.5 py-2.5 text-sm-tight leading-relaxed text-foreground shadow-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none"
               />
             </div>
 
             <IntentPrefetchLink
               href={ROUTES.myServiceRequests}
-              className="inline-block text-[13px] font-bold text-primary hover:underline"
+              className="inline-block text-sm-tight font-bold text-primary hover:underline"
               onClick={() => setOpen(false)} prefetch={false}
             >
               عرض طلباتي السابقة

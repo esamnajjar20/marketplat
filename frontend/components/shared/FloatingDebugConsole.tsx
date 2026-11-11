@@ -123,8 +123,8 @@ export default function FloatingDebugConsole() {
             autoCorrect="off"
           />
           <div style={{ display: 'flex', gap: 4 }}>
-            <button onClick={() => void run()} style={{ flex: 1, padding: '6px 10px', background: '#397F56', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}>Run ⏎</button>
-            <button onClick={() => setLogs([])} style={{ padding: '6px 10px', background: '#333', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Clear</button>
+            <button type="button" onClick={() => void run()} style={{ flex: 1, padding: '6px 10px', background: '#397F56', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 'bold' }}>Run ⏎</button>
+            <button type="button" onClick={() => setLogs([])} style={{ padding: '6px 10px', background: '#333', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer' }}>Clear</button>
           </div>
         </div>
       )}

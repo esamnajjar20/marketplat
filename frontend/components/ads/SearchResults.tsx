@@ -248,19 +248,19 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
     <div className="space-y-4">
       {/* Toolbar */}
       <div className="flex items-center justify-between">
-        <p className="text-[13px] font-extrabold text-foreground">
+        <p className="text-sm-tight font-extrabold text-foreground">
           {total > 0 ? `${total} إعلان` : 'لا توجد نتائج'}
           {q && <> بحثاً عن «<span className="font-medium">{q}</span>»</>}
         </p>
         <div className="flex items-center gap-2">
           <SaveSearchButton />
           <div className="flex gap-1" role="group" aria-label="طريقة العرض">
-            <button onClick={() => setView('grid')}
+            <button type="button" onClick={() => setView('grid')}
               aria-label="عرض شبكي" aria-pressed={view === 'grid'}
               className={cn('inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background', view === 'grid' ? 'bg-muted' : 'hover:bg-muted/50')}>
               <LayoutGrid className="h-4 w-4" aria-hidden="true" />
             </button>
-            <button onClick={() => setView('list')}
+            <button type="button" onClick={() => setView('list')}
               aria-label="عرض قائمة" aria-pressed={view === 'list'}
               className={cn('inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background', view === 'list' ? 'bg-muted' : 'hover:bg-muted/50')}>
               <LayoutList className="h-4 w-4" aria-hidden="true" />

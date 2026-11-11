@@ -36,7 +36,7 @@ export function PublicProfileHeader({ user }: Props) {
     { value: user.followStats.followers, label: 'متابع', href: `/profile/${user.id}/followers` },
     { value: user.followStats.following, label: 'أتابعهم', href: `/profile/${user.id}/following` },
   ];
-  const tileCls = 'flex flex-1 flex-col items-center gap-0.5 rounded-[14px] bg-surface-2 px-1 py-3';
+  const tileCls = 'flex flex-1 flex-col items-center gap-0.5 rounded-card bg-surface-2 px-1 py-3';
 
   return (
     <div className="mx-auto w-full max-w-5xl">
@@ -73,7 +73,7 @@ export function PublicProfileHeader({ user }: Props) {
               )}
 
               {user.city && (
-                <span className="mt-1.5 inline-flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                <span className="mt-1.5 inline-flex items-center gap-1.5 text-sm-tight text-muted-foreground">
                   <MapPin className="h-4 w-4" aria-hidden />{user.city}
                 </span>
               )}
@@ -85,7 +85,7 @@ export function PublicProfileHeader({ user }: Props) {
 
             {/* الإحصائيات والأزرار */}
             <div className="flex w-full min-w-0 flex-1 flex-col items-stretch lg:pt-14">
-              <div className="mt-4 flex gap-2 rounded-[20px] border border-border bg-card p-2.5 shadow-sm lg:mt-0">
+              <div className="mt-4 flex gap-2 rounded-shell border border-border bg-card p-2.5 shadow-sm lg:mt-0">
                 {stats.map((t) => {
                   const inner = (
                     <>
@@ -109,14 +109,14 @@ export function PublicProfileHeader({ user }: Props) {
               {store && (
                 <IntentPrefetchLink
                   href={ROUTES.storeDetail(store.id)}
-                  className="mt-4 flex items-center gap-3 rounded-[20px] border border-border bg-card p-3 text-start shadow-sm transition hover:border-primary/30" prefetch={false}
+                  className="mt-4 flex items-center gap-3 rounded-shell border border-border bg-card p-3 text-start shadow-sm transition hover:border-primary/30" prefetch={false}
                 >
-                  <span className="relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-[14px] bg-primary-soft">
+                  <span className="relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-card bg-primary-soft">
                     <SafeImage variant="avatar" src={getAvatarUrl(store.logoUrl ?? '', 96)} alt={store.name} fill className="object-cover" sizes="52px" />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-xs font-bold text-primary">متجره</span>
-                    <span className="block truncate text-[15px] font-extrabold text-foreground">{store.name}</span>
+                    <span className="block truncate text-card-title font-extrabold text-foreground">{store.name}</span>
                     <span className="block text-xs text-muted-foreground">{store._count.products} منتج · {store._count.followers} متابع</span>
                   </span>
                   <ChevronLeft className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />

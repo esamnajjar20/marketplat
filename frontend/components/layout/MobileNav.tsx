@@ -225,7 +225,7 @@ function DisclosureGroup({
                   onClick={onNavigate}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'flex h-10 items-center border-inline-start-2 ms-3 pe-3 ps-3 text-[14px] transition-colors',
+                    'flex h-10 items-center border-inline-start-2 ms-3 pe-3 ps-3 text-sm transition-colors',
                     isActive ? 'rounded-e-[10px] border-primary bg-primary/10 font-extrabold text-primary' : 'border-border font-semibold text-foreground hover:bg-muted/60',
                   )} prefetch={false}
                 >
@@ -351,7 +351,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
           hideTrigger: BottomNav opens the same drawer — skip the button
           so the new header design stays clean. */}
       {!hideTrigger && (
-      <button
+      <button type="button"
         id={TOGGLE_ID}
         onClick={toggleMobileNav}
         className="rounded p-2 hover:bg-muted"
@@ -441,7 +441,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
               ) : (
                 <span className="text-base font-semibold">القائمة</span>
               )}
-              <button
+              <button type="button"
                 ref={closeButtonRef}
                 onClick={closeMobileNav}
                 className="min-h-10 min-w-10 shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -480,7 +480,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                           onClick={closeMobileNav}
                           aria-current={pathname === ROUTES.settings.root ? 'page' : undefined}
                           className={cn(
-                            'flex h-11 items-center gap-3 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
+                            'flex h-11 items-center gap-3 rounded-[10px] px-3 text-card-title font-semibold transition-colors',
                             pathname === ROUTES.settings.root
                               ? 'bg-primary/10 font-extrabold text-primary'
                               : 'text-foreground hover:bg-muted/60',
@@ -507,7 +507,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                           onClick={closeMobileNav}
                           aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) ? 'page' : undefined}
                           className={cn(
-                            'flex h-11 items-center gap-3 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
+                            'flex h-11 items-center gap-3 rounded-[10px] px-3 text-card-title font-semibold transition-colors',
                             pathname.startsWith(ROUTES.userProfile(user.id))
                               ? 'bg-primary/10 font-extrabold text-primary'
                               : 'text-foreground hover:bg-muted/60',
@@ -550,7 +550,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                             onClick={closeMobileNav}
                             aria-current={isActive ? 'page' : undefined}
                             className={cn(
-                              'flex h-11 items-center gap-3 rounded-[10px] px-3 text-[15px] font-semibold transition-colors',
+                              'flex h-11 items-center gap-3 rounded-[10px] px-3 text-card-title font-semibold transition-colors',
                               isActive ? 'rounded-e-[10px] border-primary bg-primary/10 font-extrabold text-primary' : 'border-border font-semibold text-foreground hover:bg-muted/60',
                             )} prefetch={false}
                           >
@@ -605,10 +605,10 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
               rather than another destination in the nav. */}
           {isAuthenticated && (
             <div className="shrink-0 border-t p-4">
-              <button
+              <button type="button"
                 onClick={() => { logout(); closeMobileNav(); }}
                 disabled={isLoggingOut}
-                className="flex h-11 w-full items-center gap-3 rounded-[10px] px-3 text-start text-[15px] font-semibold text-destructive hover:bg-muted/60 disabled:opacity-50"
+                className="flex h-11 w-full items-center gap-3 rounded-[10px] px-3 text-start text-card-title font-semibold text-destructive hover:bg-muted/60 disabled:opacity-50"
               >
                 <LogOut className="h-4 w-4 shrink-0" />
                 {isLoggingOut ? 'جارٍ تسجيل الخروج…' : 'تسجيل الخروج'}

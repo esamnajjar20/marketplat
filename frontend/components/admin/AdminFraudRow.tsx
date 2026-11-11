@@ -50,7 +50,7 @@ function ActionBtn({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        'inline-flex h-[30px] items-center justify-center gap-1 rounded-lg px-2.5 text-[12px] font-bold transition-colors disabled:opacity-50',
+        'inline-flex h-[30px] items-center justify-center gap-1 rounded-lg px-2.5 text-xs font-bold transition-colors disabled:opacity-50',
         variant === 'outline' && 'border border-[var(--legacy-primary-border)] bg-card text-[var(--legacy-primary-deep)] hover:bg-primary-soft',
         variant === 'danger' && 'border border-[var(--legacy-danger-border)] bg-card text-[var(--legacy-danger)] hover:bg-[var(--legacy-danger-soft)]',
         variant === 'success' && 'border border-[var(--legacy-primary-border)] bg-card text-[var(--legacy-primary-deep)] hover:bg-primary-soft',
@@ -79,16 +79,16 @@ export const AdminFraudRow = memo(function AdminFraudRow({
             href={ROUTES.adDetail(ad.id)}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-[13px] font-bold hover:underline"
+            className="flex items-center gap-1 text-sm-tight font-bold hover:underline"
           >
             <ExternalLink className="h-3 w-3 shrink-0 text-primary" />
             <span className="truncate">{ad.title}</span>
           </IntentPrefetchLink>
-          <span className="text-[12px] text-[var(--legacy-muted-text)]">
+          <span className="text-xs text-[var(--legacy-muted-text)]">
             {ad.price == null ? '—' : formatPrice(Number(ad.price))}
           </span>
         </td>
-        <td className="p-3 hidden sm:table-cell text-[13px] text-[var(--legacy-foreground-warm)]">
+        <td className="p-3 hidden sm:table-cell text-sm-tight text-[var(--legacy-foreground-warm)]">
           {ad.user?.name ?? '—'}
         </td>
         <td className="p-3">
@@ -99,10 +99,10 @@ export const AdminFraudRow = memo(function AdminFraudRow({
                 style={{ width: `${Math.min(100, score)}%`, background: riskBarColor(score) }}
               />
             </span>
-            <span className="text-[13px] font-extrabold tabular-nums">{score}</span>
+            <span className="text-sm-tight font-extrabold tabular-nums">{score}</span>
           </div>
         </td>
-        <td className="p-3 hidden lg:table-cell text-[12px] text-[var(--legacy-muted-text)]">
+        <td className="p-3 hidden lg:table-cell text-xs text-[var(--legacy-muted-text)]">
           <HydrationSafeRelativeTime date={ad.createdAt} />
         </td>
         <td className="p-3">

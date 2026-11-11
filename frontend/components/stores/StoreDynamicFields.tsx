@@ -63,7 +63,7 @@ export function StoreDynamicFields({
   }
   if (isError && allFields.length === 0) {
     return (
-      <div dir="rtl" role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-destructive/40 p-4 text-right">
+      <div dir="rtl" role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-destructive/40 p-4 text-start">
         <p className="text-sm text-destructive">تعذّر تحميل الحقول الإضافية لنوع المتجر.</p>
         <Button type="button" variant="outline" size="sm" onClick={() => { void refetch(); }}>إعادة المحاولة</Button>
       </div>
@@ -79,8 +79,8 @@ export function StoreDynamicFields({
   }
 
   return (
-    <div dir="rtl" className="space-y-3 rounded-xl border bg-card p-4 text-right">
-      <div className="flex items-start gap-3 text-right">
+    <div dir="rtl" className="space-y-3 rounded-xl border bg-card p-4 text-start">
+      <div className="flex items-start gap-3 text-start">
         <div className="mt-0.5 rounded-full bg-primary/10 p-1.5 text-primary">
           <Info className="h-3.5 w-3.5" aria-hidden />
         </div>
@@ -96,7 +96,7 @@ export function StoreDynamicFields({
 
         if (field.type === 'BOOLEAN') {
           return (
-            <div key={field.id} className="rounded-lg border border-border/60 px-3 py-2.5 text-right">
+            <div key={field.id} className="rounded-lg border border-border/60 px-3 py-2.5 text-start">
             <label className="flex items-center gap-2 text-sm leading-6">
               <Checkbox
                 checked={current === true}
@@ -177,7 +177,7 @@ export function StoreDynamicFieldGrid({
         const label = mode === 'card' ? (field.cardLabelAr || field.labelAr) : (field.pageLabelAr || field.labelAr);
         return (
           <div key={field.id} className={cn(
-            'min-w-0 rounded-xl border px-3 py-2.5 text-right',
+            'min-w-0 rounded-xl border px-3 py-2.5 text-start',
             mode === 'card' ? 'border-border/60 bg-muted/35' : 'border-border/70 bg-card',
           )}>
             <p className="break-words text-2xs-tight leading-5 text-muted-foreground">{label}</p>
@@ -206,7 +206,7 @@ export function StoreDynamicFieldChips({
   if (!visible.length) return null;
 
   return (
-    <div dir="rtl" className="flex flex-wrap gap-1.5 text-right">
+    <div dir="rtl" className="flex flex-wrap gap-1.5 text-start">
       {visible.map((field) => (
         <span key={field.id} className="inline-flex max-w-full items-start gap-1 rounded-full border border-border/70 bg-muted/45 px-2.5 py-1 text-2xs-tight leading-5 text-muted-foreground">
           {field.type === 'BOOLEAN' ? (attributes[field.key] === true ? <Check className="h-3 w-3" /> : <Circle className="h-3 w-3" />) : null}

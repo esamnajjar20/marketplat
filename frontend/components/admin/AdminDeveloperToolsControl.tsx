@@ -61,7 +61,7 @@ export function AdminDeveloperToolsControl() {
             <h2 id="admin-devtools-heading" className="font-semibold">أدوات المطوّر على مستوى الموقع</h2>
             <p className="mt-1 text-sm text-muted-foreground">كونسول، طلبات الشبكة، فحص DOM، التخزين، الأداء، وأخطاء JavaScript. تظهر فقط لحسابات ADMIN وSUPER_ADMIN.</p>
             <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="h-3.5 w-3.5 shrink-0" /> تنفيذ السكربتات الحرة متاح في بيئة التطوير فقط؛ الإنتاج لا يضعف CSP.</p>
-            {updatedAt && <p className="mt-1 text-[11px] text-muted-foreground">آخر تعديل: {new Date(updatedAt).toLocaleString()}</p>}
+            {updatedAt && <p className="mt-1 text-2xs-tight text-muted-foreground">آخر تعديل: {new Date(updatedAt).toLocaleString()}</p>}
           </div>
         </div>
         <button type="button" onClick={() => void toggle()} disabled={!loaded || saving} aria-pressed={enabled} className={`inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${enabled ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border bg-background hover:bg-muted'}`}>

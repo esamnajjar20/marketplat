@@ -80,14 +80,14 @@ export function SalesCustomersSection() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="text-[15px] font-extrabold">{customer.name}</h3>
+                    <h3 className="text-card-title font-extrabold">{customer.name}</h3>
                     <p dir="ltr" className="mt-0.5 text-right text-xs text-muted-foreground">
                       {customer.phone || 'بدون جوال'}
                     </p>
                   </div>
                   <span
                     className={cn(
-                      'inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-[11px] font-bold',
+                      'inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-2xs-tight font-bold',
                       badge.className,
                     )}
                   >
@@ -96,11 +96,11 @@ export function SalesCustomersSection() {
                 </div>
                 <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
                   <div>
-                    <span className="text-[11px] text-muted-foreground">المشتريات</span>
+                    <span className="text-2xs-tight text-muted-foreground">المشتريات</span>
                     <strong className="mt-0.5 block tabular-nums">{Number(customer.totalSpent).toFixed(2)} ₪</strong>
                   </div>
                   <div>
-                    <span className="text-[11px] text-muted-foreground">الدين</span>
+                    <span className="text-2xs-tight text-muted-foreground">الدين</span>
                     <strong
                       className={cn(
                         'mt-0.5 block tabular-nums',
@@ -111,7 +111,7 @@ export function SalesCustomersSection() {
                     </strong>
                   </div>
                   <div>
-                    <span className="text-[11px] text-muted-foreground">العمليات</span>
+                    <span className="text-2xs-tight text-muted-foreground">العمليات</span>
                     <strong className="mt-0.5 block tabular-nums">{customer.purchaseCount}</strong>
                   </div>
                 </div>

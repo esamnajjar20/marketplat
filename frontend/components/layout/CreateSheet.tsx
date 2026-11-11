@@ -72,7 +72,7 @@ export function CreateSheet({
       <SheetContent className="gap-0 rounded-t-[20px] border-[var(--legacy-border)] p-0">
         <SheetHeader className="space-y-1 px-4 pb-3 pt-2 text-start">
           <SheetTitle className="text-[17px] font-extrabold">ماذا تريد أن تضيف؟</SheetTitle>
-          <SheetDescription className="text-[13px] text-[var(--legacy-muted-text)]">
+          <SheetDescription className="text-sm-tight text-[var(--legacy-muted-text)]">
             اختر النوع — المسودات تُحفظ تلقائيًا ويمكن إكمالها لاحقًا
           </SheetDescription>
         </SheetHeader>
@@ -84,14 +84,14 @@ export function CreateSheet({
               href={href}
               prefetch={false}
               onClick={() => onOpenChange(false)}
-              className="flex items-center gap-3 rounded-[14px] border border-[var(--legacy-border)] bg-card px-3 py-3 transition-colors hover:bg-[var(--legacy-page-surface)]"
+              className="flex items-center gap-3 rounded-card border border-[var(--legacy-border)] bg-card px-3 py-3 transition-colors hover:bg-[var(--legacy-page-surface)]"
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[var(--legacy-primary-soft)] text-primary">
                 <Icon className="h-5 w-5" strokeWidth={1.8} />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-[15px] font-extrabold text-foreground">{label}</span>
-                <span className="block text-[12px] text-[var(--legacy-muted-text)]">{description}</span>
+                <span className="block text-card-title font-extrabold text-foreground">{label}</span>
+                <span className="block text-xs text-[var(--legacy-muted-text)]">{description}</span>
               </span>
               <ChevronLeft className="h-4 w-4 shrink-0 text-[var(--legacy-muted-text)]" aria-hidden />
             </IntentPrefetchLink>
@@ -104,11 +104,11 @@ export function CreateSheet({
               href={ROUTES.offline.drafts}
               prefetch={false}
               onClick={() => onOpenChange(false)}
-              className="flex h-11 items-center justify-center gap-2 rounded-[12px] border border-[var(--legacy-danger-border)] bg-[var(--legacy-accent-soft)] text-[13px] font-bold text-[var(--legacy-accent)]"
+              className="flex h-11 items-center justify-center gap-2 rounded-[12px] border border-[var(--legacy-danger-border)] bg-[var(--legacy-accent-soft)] text-sm-tight font-bold text-[var(--legacy-accent)]"
             >
               <FileEdit className="h-4 w-4" />
               متابعة المسودات غير المكتملة
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--legacy-warning-strong)] px-1.5 text-[11px] font-extrabold text-warning-foreground">
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--legacy-warning-strong)] px-1.5 text-2xs-tight font-extrabold text-warning-foreground">
                 {draftsCount > 9 ? '9+' : draftsCount}
               </span>
             </IntentPrefetchLink>

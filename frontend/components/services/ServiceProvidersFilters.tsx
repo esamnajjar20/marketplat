@@ -68,7 +68,7 @@ export function ServiceProvidersFilters({
         ) : null}
       </div>
       {!canChange ? (
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+        <p className="mt-2 text-center text-2xs-tight text-muted-foreground">
           المدينة مربوطة بحسابك — غيّرها من الملف الشخصي.
         </p>
       ) : null}

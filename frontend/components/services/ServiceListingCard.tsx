@@ -60,7 +60,8 @@ import { cn } from '@/lib/utils';
 
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 
-import type { ServiceListingWithProvider, ServiceAvailability } from '@/types/service.types';
+import type { ServiceListingWithProvider } from '@/types/service.types';
+import { AVAILABILITY_LABEL, AVAILABILITY_DOT, AVAILABILITY_TEXT } from '@/lib/serviceAvailability';
 
 
 
@@ -85,18 +86,6 @@ interface Props {
   designLayout?: boolean;
 
 }
-
-
-
-const AVAILABILITY_LABEL: Record<ServiceAvailability, string> = {
-
-  AVAILABLE: 'متاح الآن',
-
-  BUSY: 'مشغول',
-
-  UNAVAILABLE: 'غير متاح',
-
-};
 
 
 
@@ -230,7 +219,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
 
               </div>
 
-              <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+              <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2 text-2xs-tight text-muted-foreground">
 
                 <span
 
@@ -238,9 +227,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
 
                     'inline-flex items-center gap-1 font-semibold',
 
-                    avail === 'AVAILABLE' && 'text-success',
-
-                    avail === 'BUSY' && 'text-warning',
+                    AVAILABILITY_TEXT[avail],
 
                   )}
 
@@ -251,12 +238,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
                     className={cn(
 
                       'h-1.5 w-1.5 rounded-full',
-
-                      avail === 'AVAILABLE' && 'bg-success',
-
-                      avail === 'BUSY' && 'bg-amber-500',
-
-                      avail === 'UNAVAILABLE' && 'bg-muted-foreground',
+                      AVAILABILITY_DOT[avail],
 
                     )}
 
@@ -286,7 +268,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
 
                   <span className="inline-flex items-center gap-0.5 font-medium text-foreground">
 
-                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" aria-hidden />
+                    <Star className="h-3 w-3 fill-rating text-rating" aria-hidden />
 
                     {Number(rating).toFixed(1)}
 
@@ -468,7 +450,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
 
           </div>
 
-          <span title={listing.provider.businessName} className="min-w-0 truncate text-[11px] text-muted-foreground">{listing.provider.businessName}</span>
+          <span title={listing.provider.businessName} className="min-w-0 truncate text-2xs-tight text-muted-foreground">{listing.provider.businessName}</span>
 
         </div>
 

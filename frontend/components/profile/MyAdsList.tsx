@@ -231,8 +231,8 @@ export function MyAdsList() {
   // needs `data` to have resolved successfully first.
   if (isError) {
     return (
-      <div className="rounded-[14px] border border-[var(--legacy-danger-border)] bg-card px-4 py-4 text-center">
-        <p className="text-[14px] font-bold text-[var(--legacy-danger)]">حدث خطأ أثناء تحميل إعلاناتك</p>
+      <div className="rounded-card border border-[var(--legacy-danger-border)] bg-card px-4 py-4 text-center">
+        <p className="text-sm font-bold text-[var(--legacy-danger)]">حدث خطأ أثناء تحميل إعلاناتك</p>
         <button
           type="button"
           onClick={() => refetch()}
@@ -252,9 +252,9 @@ export function MyAdsList() {
       <div className="flex flex-wrap items-center gap-2 border-b border-border/70 pb-3">
         <div className="flex gap-2 overflow-x-auto overscroll-x-contain" role="group" aria-label="تصفية الإعلانات حسب الحالة">
           {([['', 'الكل'], ['ACTIVE', 'نشطة'], ['SOLD', 'مباعة'], ['EXPIRED', 'منتهية'], ['DELETED', 'محذوفة']] as const).map(([val, label]) => (
-            <button key={val} onClick={() => setStatus(val)}
+            <button type="button" key={val} onClick={() => setStatus(val)}
               aria-pressed={(status ?? '') === val}
-              className={`inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-[12px] font-bold transition-colors ${
+              className={`inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-bold transition-colors ${
                 (status ?? '') === val
                   ? 'border-primary bg-primary text-primary-foreground'
                   : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:bg-muted/50'
@@ -312,7 +312,7 @@ export function MyAdsList() {
                   }
                 }}
                 className={cn(
-                  'flex gap-3 rounded-[14px] border bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors',
+                  'flex gap-3 rounded-card border bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors',
                   selected.has(ad.id) ? 'border-primary bg-[var(--legacy-primary-soft)]/40' : 'border-[var(--legacy-border)] hover:border-primary/30',
                   selectionMode && 'cursor-pointer',
                 )}
@@ -401,7 +401,7 @@ export function MyAdsList() {
           Positioned above the mobile bottom nav with safe-area. */}
       {selectionMode && (
         <div className="fixed inset-x-3 bottom-[var(--bottom-nav-offset)] z-30 mx-auto flex max-w-md flex-wrap items-center gap-2 rounded-[16px] border border-[var(--legacy-border)] bg-card/95 px-3 py-2.5 shadow-[0_8px_28px_-12px_rgba(42,36,29,0.25)] backdrop-blur">
-          <span className="text-[13px] font-extrabold text-foreground">{selected.size} محدد</span>
+          <span className="text-sm-tight font-extrabold text-foreground">{selected.size} محدد</span>
           <div className="ms-auto flex gap-2">
             <Button
               type="button"

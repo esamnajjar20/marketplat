@@ -136,7 +136,7 @@ export function ServiceListingsGrid({ initialPage, initialPageUpdatedAt, searchP
       {/* Toolbar — queryParamKey="search" for the same reason as
           ProductsGrid.tsx (see SaveSearchButton's own doc comment). */}
       <div className="flex items-center justify-between">
-        <p className="text-[13px] font-extrabold text-foreground">
+        <p className="text-sm-tight font-extrabold text-foreground">
           {total > 0 ? `${total} خدمة` : 'لا توجد نتائج'}
           {search && <> بحثاً عن «<span className="font-medium">{search}</span>»</>}
         </p>

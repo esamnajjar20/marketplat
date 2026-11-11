@@ -94,7 +94,7 @@ export function SharedPayloadView() {
 
   return (
     <div className="space-y-4">
-      <div role="note" aria-label="بطاقة غير موثّقة" className="flex items-start gap-2 rounded-xl border border-amber-500/35 bg-amber-50 px-3 py-3 text-sm text-amber-900 dark:bg-amber-950/25 dark:text-amber-200">
+      <div role="note" aria-label="بطاقة غير موثّقة" className="flex items-start gap-2 rounded-xl border border-warning/35 bg-warning-soft px-3 py-3 text-sm text-warning-strong dark:text-warning">
         <AlertTriangle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
         <p>بطاقة غير موثّقة وقابلة للتزوير. العنوان والسعر والتفاصيل مصدرها رمز QR ويمكن تعديلها؛ لا تتواصل مع أي طرف ولا تدفع بناءً عليها. افتح الإعلان الأصلي من السوق للتحقق.</p>
       </div>
@@ -115,7 +115,7 @@ export function SharedPayloadView() {
 
         {payload.price != null && (
           <p className="text-2xl font-bold text-muted-foreground">
-            <span className="mb-1 block text-xs font-semibold text-amber-700 dark:text-amber-300">سعر غير موثّق</span>
+            <span className="mb-1 block text-xs font-semibold text-warning-strong dark:text-warning">سعر غير موثّق</span>
             {formatPrice(payload.price)}
           </p>
         )}

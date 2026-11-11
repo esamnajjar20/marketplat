@@ -60,7 +60,7 @@ export function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button
+        <button type="button"
           className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full outline-none ring-offset-background transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="قائمة المستخدم"
         >
@@ -82,12 +82,12 @@ export function UserMenu() {
           {(isSeller || isProvider) && (
             <div className="mt-2 flex gap-1.5">
               {isSeller && (
-                <span className="rounded-full bg-[var(--legacy-primary-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--legacy-primary-deep)]">
+                <span className="rounded-full bg-[var(--legacy-primary-soft)] px-2 py-0.5 text-2xs-tight font-bold text-[var(--legacy-primary-deep)]">
                   بائع
                 </span>
               )}
               {isProvider && (
-                <span className="rounded-full bg-[var(--legacy-accent-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--legacy-accent)]">
+                <span className="rounded-full bg-[var(--legacy-accent-soft)] px-2 py-0.5 text-2xs-tight font-bold text-[var(--legacy-accent)]">
                   مقدّم خدمة
                 </span>
               )}

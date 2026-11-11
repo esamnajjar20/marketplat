@@ -55,7 +55,7 @@ export function RequestOfferCard({ offer, context = 'public', action, className 
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="truncate text-[14px] font-bold text-[var(--legacy-ink)]">
+                <p className="truncate text-sm font-bold text-[var(--legacy-ink)]">
                   من: {offererName}
                 </p>
                 <span
@@ -70,7 +70,7 @@ export function RequestOfferCard({ offer, context = 'public', action, className 
                   {REQUEST_OFFER_STATUS_LABEL[offer.status]}
                 </Badge>
                 {offer.createdAt && (
-                  <span className="text-[11px] text-[var(--legacy-muted-text)]">
+                  <span className="text-2xs-tight text-[var(--legacy-muted-text)]">
                     <HydrationSafeRelativeTime date={offer.createdAt} />
                   </span>
                 )}
@@ -79,7 +79,7 @@ export function RequestOfferCard({ offer, context = 'public', action, className 
           </div>
 
           {offer.message && (
-            <p className="text-[13px] leading-relaxed text-[var(--legacy-foreground-warm)]">{offer.message}</p>
+            <p className="text-sm-tight leading-relaxed text-[var(--legacy-foreground-warm)]">{offer.message}</p>
           )}
 
           <div className="mt-auto flex flex-wrap gap-2 pt-1">

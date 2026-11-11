@@ -202,6 +202,8 @@ const config: Config = {
         // dense UI labels already used text-[11px] ad-hoc.
         '2xs-tight': ['0.6875rem', { lineHeight: '1rem' }], // 11px
         xs: ['0.75rem', { lineHeight: '1rem' }],
+        // TYPO-TOKEN-02: 13px — second most common ad-hoc size (was text-[13px]).
+        'sm-tight': ['0.8125rem', { lineHeight: '1.25rem' }], // 13px
         sm: ['0.875rem', { lineHeight: '1.25rem' }],
         base: ['1rem', { lineHeight: '1.5rem' }],
         lg: ['1.125rem', { lineHeight: '1.75rem' }],

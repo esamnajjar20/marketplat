@@ -81,7 +81,7 @@ export function ProfileBadges({ sellerProfile, className }: Props) {
     parseFloat(sellerProfile.responseRate) >= FAST_RESPONSE_RATE_THRESHOLD &&
     sellerProfile.responseTimeMinutes <= FAST_RESPONSE_TIME_MAX_MINUTES;
 
-  const pillBase = 'gap-1.5 rounded-full px-3 py-1 text-[13px] font-semibold shadow-sm';
+  const pillBase = 'gap-1.5 rounded-full px-3 py-1 text-sm-tight font-semibold shadow-sm';
 
   return (
     <div className={cn('flex flex-wrap items-center justify-center gap-2', className)}>

@@ -70,7 +70,7 @@ export function ForgotPasswordForm() {
           </svg>
         </div>
         <h2 className="text-[18px] font-extrabold text-[var(--legacy-ink)]">تحقق من بريدك الإلكتروني</h2>
-        <p className="text-[13px] leading-relaxed text-[var(--legacy-muted-text)]">
+        <p className="text-sm-tight leading-relaxed text-[var(--legacy-muted-text)]">
           أرسلنا رابط إعادة تعيين كلمة المرور إلى{' '}
           <span className="font-bold text-[var(--legacy-ink)]">{email}</span>
         </p>
@@ -98,7 +98,7 @@ export function ForgotPasswordForm() {
 
       <Button
         type="submit"
-        className="h-12 w-full rounded-2xl text-[15px] font-bold"
+        className="h-12 w-full rounded-2xl text-card-title font-bold"
         disabled={isFormIncomplete || isPending}
         loading={isPending}
         loadingText="جارٍ الإرسال..."
@@ -126,7 +126,7 @@ export function ForgotPasswordForm() {
         </a>
       </Button>
 
-      <p className="text-center text-[13px] font-bold text-[var(--legacy-primary-deep)]">
+      <p className="text-center text-sm-tight font-bold text-[var(--legacy-primary-deep)]">
         <IntentPrefetchLink href={loginHref} className="text-primary hover:underline" prefetch={false}>العودة لتسجيل الدخول</IntentPrefetchLink>
       </p>
     </form>

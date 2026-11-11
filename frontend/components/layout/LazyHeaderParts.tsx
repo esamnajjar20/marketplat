@@ -77,7 +77,7 @@ export function LazyMobileNav({ hideTrigger = false }: { hideTrigger?: boolean }
   return (
     <>
       {!hideTrigger && (
-        <button
+        <button type="button"
           id={TOGGLE_ID}
           onClick={toggleMobileNav}
           className="rounded p-2 hover:bg-muted"
@@ -130,7 +130,7 @@ export function LazyProtectedMobileNav() {
 
   return (
     <>
-      <button
+      <button type="button"
         id={P_TOGGLE_ID}
         onClick={toggleMobileNav}
         className="rounded p-2 hover:bg-muted lg:hidden"

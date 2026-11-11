@@ -12,7 +12,7 @@ export function AdminStatsGrid() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center rounded-[14px] border border-[var(--legacy-border)] bg-card py-10">
+      <div className="flex justify-center rounded-card border border-[var(--legacy-border)] bg-card py-10">
         <LoadingSpinner />
       </div>
     );
@@ -35,20 +35,20 @@ export function AdminStatsGrid() {
   return (
     <section aria-label="مؤشرات المنصة" className="space-y-3">
       <div>
-        <h2 className="text-[15px] font-extrabold tracking-tight">مؤشرات المنصة</h2>
-        <p className="mt-0.5 text-[12px] text-[var(--legacy-muted-text)]">أرقام سريعة تساعدك على تحديد الأولويات.</p>
+        <h2 className="text-card-title font-extrabold tracking-tight">مؤشرات المنصة</h2>
+        <p className="mt-0.5 text-xs text-[var(--legacy-muted-text)]">أرقام سريعة تساعدك على تحديد الأولويات.</p>
       </div>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {stats.map(({ label, value, icon: Icon }) => (
           <div
             key={label}
-            className="flex flex-col gap-1.5 rounded-[14px] border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.05)]"
+            className="flex flex-col gap-1.5 rounded-card border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.05)]"
           >
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--legacy-surface)] text-primary">
               <Icon className="h-4 w-4" strokeWidth={1.8} />
             </span>
             <p className="text-[22px] font-extrabold tabular-nums leading-none">{formatNumber(value)}</p>
-            <p className="text-[12px] text-[var(--legacy-muted-text)]">{label}</p>
+            <p className="text-xs text-[var(--legacy-muted-text)]">{label}</p>
           </div>
         ))}
       </div>

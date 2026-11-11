@@ -29,7 +29,7 @@ export function BulkActionBar({
       aria-label="إجراءات جماعية"
       className={cn(
         'sticky top-0 z-10 flex flex-wrap items-center gap-2.5 rounded-[10px] border border-[var(--legacy-primary-border)]',
-        'bg-[var(--legacy-primary-soft)] px-3 py-2 text-[13px] font-extrabold text-[var(--legacy-primary-deep)]',
+        'bg-[var(--legacy-primary-soft)] px-3 py-2 text-sm-tight font-extrabold text-[var(--legacy-primary-deep)]',
         className,
       )}
     >

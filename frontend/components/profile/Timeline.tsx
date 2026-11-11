@@ -123,13 +123,13 @@ function ActivityRow({ activity }: { activity: GroupedActivity }) {
     activity.type === 'SERVICE_REQUEST_STATUS_CHANGED' && activity.metadata?.toStatus;
 
   const content = (
-    <div className="flex items-start gap-3 rounded-[14px] border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
+    <div className="flex items-start gap-3 rounded-card border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--legacy-primary-soft)] text-primary">
         <Icon className="h-4 w-4" strokeWidth={1.8} />
       </div>
       <div className="min-w-0 flex-1 space-y-0.5">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-[14px] font-extrabold text-foreground">{activity.title}</p>
+          <p className="text-sm font-extrabold text-foreground">{activity.title}</p>
           {activity.count > 1 ? (
             <Badge variant="secondary" className="shrink-0 font-normal">
               ×{activity.count}
@@ -198,7 +198,7 @@ export function Timeline() {
             aria-selected={group === tab.value}
             onClick={() => handleGroupChange(tab.value)}
             className={cn(
-              'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-[12px] font-bold transition-colors',
+              'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-bold transition-colors',
               group === tab.value
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:bg-muted/50'
@@ -217,7 +217,7 @@ export function Timeline() {
           value={q}
           onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="ابحث في نشاطك..."
-          className="h-10 rounded-[10px] border-[var(--legacy-border-strong)] ps-9 text-[13px]"
+          className="h-10 rounded-[10px] border-[var(--legacy-border-strong)] ps-9 text-sm-tight"
           aria-label="بحث في النشاط"
         />
       </div>
@@ -227,8 +227,8 @@ export function Timeline() {
           <LoadingSpinner />
         </div>
       ) : isError ? (
-        <div className="rounded-[14px] border border-[var(--legacy-danger-border)] bg-card px-4 py-4 text-center">
-          <p className="text-[14px] font-bold text-[var(--legacy-danger)]">حدث خطأ أثناء تحميل نشاطك</p>
+        <div className="rounded-card border border-[var(--legacy-danger-border)] bg-card px-4 py-4 text-center">
+          <p className="text-sm font-bold text-[var(--legacy-danger)]">حدث خطأ أثناء تحميل نشاطك</p>
           <button
             type="button"
             onClick={() => refetch()}

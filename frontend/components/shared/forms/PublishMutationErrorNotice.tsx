@@ -62,7 +62,7 @@ export function PublishMutationErrorNotice({ error }: { error: unknown }) {
     <div
       role="alert"
       aria-live="polite"
-      className="relative rounded-lg border border-destructive/40 bg-destructive/5 p-3 pe-24 text-right text-sm"
+      className="relative rounded-lg border border-destructive/40 bg-destructive/5 p-3 pe-24 text-start text-sm"
       dir="rtl"
     >
       <button

@@ -85,7 +85,7 @@ export function MyServiceRequestsList() {
     return (
       <div className="flex flex-col items-center gap-3 py-12 text-center">
         <AlertTriangle className="h-10 w-10 text-muted-foreground" />
-        <p className="text-[14px] font-bold text-[var(--legacy-danger)]">حدث خطأ أثناء تحميل طلباتك</p>
+        <p className="text-sm font-bold text-[var(--legacy-danger)]">حدث خطأ أثناء تحميل طلباتك</p>
         <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
           إعادة المحاولة
         </button>
@@ -97,11 +97,11 @@ export function MyServiceRequestsList() {
     <div className="space-y-4 lg:space-y-5">
       <div className="-mx-1 flex gap-2 overflow-x-auto overscroll-x-contain px-1 pb-2" role="group" aria-label="تصفية الطلبات حسب الحالة" style={{ scrollbarWidth: 'thin' }}>
         {FILTER_TABS.map((val) => (
-          <button
+          <button type="button"
             key={val}
             onClick={() => setStatus(val)}
             aria-pressed={(status ?? '') === val}
-            className={`inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-3 text-[12px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+            className={`inline-flex h-8 shrink-0 items-center justify-center rounded-full border px-3 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
               ${(status ?? '') === val ? 'border-primary bg-primary text-primary-foreground' : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:bg-muted/50'}`}
           >
             {val ? SERVICE_REQUEST_STATUS_LABELS[val] : 'الكل'}
@@ -126,7 +126,7 @@ export function MyServiceRequestsList() {
             const canReview = request.status === 'COMPLETED' && request.review === null;
 
             return (
-              <div key={request.id} className="flex min-w-0 flex-col gap-3 rounded-[14px] border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)] sm:flex-row">
+              <div key={request.id} className="flex min-w-0 flex-col gap-3 rounded-card border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)] sm:flex-row">
                 <div className="relative h-40 w-full shrink-0 overflow-hidden rounded-lg bg-muted sm:h-20 sm:w-24">
                   <SafeImage src={thumb} alt={request.listing.title} fill className="object-cover" sizes="96px" />
                 </div>

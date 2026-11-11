@@ -52,7 +52,7 @@ export function ResponseTimeBadge({
       }
     >
       <Zap className={cn('shrink-0 text-primary', size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4')} strokeWidth={1.8} />
-      <span className="text-[12px] font-medium text-[var(--legacy-primary-deep)]">
+      <span className="text-xs font-medium text-[var(--legacy-primary-deep)]">
         يرد عادة {label}
         {rateHint}
       </span>

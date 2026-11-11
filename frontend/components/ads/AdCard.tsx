@@ -111,7 +111,7 @@ export const AdCard = memo(function AdCard({
     badges.push(
       <span
         key="featured"
-        className="inline-flex h-6 items-center rounded-full bg-[var(--legacy-accent-soft)] px-2.5 text-[11px] font-bold text-[var(--legacy-accent)]"
+        className="inline-flex h-6 items-center rounded-full bg-[var(--legacy-accent-soft)] px-2.5 text-2xs-tight font-bold text-[var(--legacy-accent)]"
       >
         مميز
       </span>,
@@ -123,7 +123,7 @@ export const AdCard = memo(function AdCard({
       <span
         key="cond"
         className={cn(
-          'inline-flex h-6 items-center rounded-full px-2.5 text-[11px] font-bold',
+          'inline-flex h-6 items-center rounded-full px-2.5 text-2xs-tight font-bold',
           isNew ? 'bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary-deep)]' : 'bg-[var(--legacy-surface)] text-[var(--legacy-foreground-warm)]',
         )}
       >
@@ -209,13 +209,13 @@ export const AdCard = memo(function AdCard({
                 {priceNode}
               </span>
               {ad.isNegotiable && !isSold && (
-                <span className="text-[10px] font-semibold text-muted-foreground">قابل للتفاوض</span>
+                <span className="text-2xs font-semibold text-muted-foreground">قابل للتفاوض</span>
               )}
             </div>
             {showSeller && (
-              <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span className="mt-0.5 flex items-center gap-1.5 text-2xs-tight text-muted-foreground">
                 <span
-                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-[9px] font-extrabold text-[var(--legacy-primary-deep)]"
+                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-3xs font-extrabold text-[var(--legacy-primary-deep)]"
                   aria-hidden
                 >
                   {sellerInitial(sellerName)}
@@ -325,7 +325,7 @@ export const AdCard = memo(function AdCard({
             {showSeller && (
               <span className={CARD_META_ITEM}>
                 <span
-                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[9px] font-extrabold text-primary"
+                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/15 text-3xs font-extrabold text-primary"
                   aria-hidden
                 >
                   {sellerInitial(sellerName)}

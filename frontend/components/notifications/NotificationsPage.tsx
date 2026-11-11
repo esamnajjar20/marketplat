@@ -360,8 +360,8 @@ export function NotificationsPage() {
             {groups.map((group) => (
               <div key={group.label}>
                 <div className="sticky top-0 z-[1] flex items-center justify-between border-b border-[var(--legacy-border)] bg-[var(--legacy-page-surface)]/95 px-4 py-2.5 backdrop-blur-sm">
-                  <span className="text-[13px] font-bold text-[var(--legacy-primary-deep)]">{group.label}</span>
-                  <span className="text-[12px] tabular-nums text-[var(--legacy-muted-text)]">{group.items.length}</span>
+                  <span className="text-sm-tight font-bold text-[var(--legacy-primary-deep)]">{group.label}</span>
+                  <span className="text-xs tabular-nums text-[var(--legacy-muted-text)]">{group.items.length}</span>
                 </div>
                 <ul className="divide-y">
                   {group.items.map((n) => (

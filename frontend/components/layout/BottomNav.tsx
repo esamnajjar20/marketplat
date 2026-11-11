@@ -131,7 +131,7 @@ export function BottomNav() {
         prefetch={false}
         aria-current={isActive ? 'page' : undefined}
         className={cn(
-          'relative flex min-h-[52px] min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-[11px] transition-colors duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          'relative flex min-h-[52px] min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-2xs-tight transition-colors duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           isActive ? 'font-extrabold text-primary' : 'font-semibold text-muted-foreground hover:text-primary',
         )}
       >
@@ -180,13 +180,13 @@ export function BottomNav() {
           {isAuthenticated && draftsCount > 0 && (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute -top-1 -end-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-background bg-[var(--legacy-accent-strong)] px-1 text-[10px] font-extrabold leading-none text-accent-foreground"
+              className="pointer-events-none absolute -top-1 -end-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-background bg-[var(--legacy-accent-strong)] px-1 text-2xs font-extrabold leading-none text-accent-foreground"
             >
               {draftsCount > 9 ? '9+' : draftsCount}
             </span>
           )}
         </div>
-        <span className="text-[11px] font-semibold text-muted-foreground">أضف</span>
+        <span className="text-2xs-tight font-semibold text-muted-foreground">أضف</span>
       </div>
 
       <button
@@ -197,7 +197,7 @@ export function BottomNav() {
         aria-haspopup="dialog"
         aria-label="استكشاف الإعلانات والمنتجات والخدمات والمتاجر"
         className={cn(
-          'relative flex min-h-[52px] min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-[11px] transition-colors duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          'relative flex min-h-[52px] min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-2xs-tight transition-colors duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
           isExploreActive ? 'font-extrabold text-primary' : 'font-semibold text-muted-foreground hover:text-primary',
         )}
       >
@@ -218,7 +218,7 @@ export function BottomNav() {
             prefetch={false}
             aria-current={pathname.startsWith(ROUTES.userProfile(user.id)) ? 'page' : undefined}
             className={cn(
-              'flex min-h-[52px] w-full flex-col items-center justify-center gap-0.5 py-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+              'flex min-h-[52px] w-full flex-col items-center justify-center gap-0.5 py-1 text-2xs-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
               pathname.startsWith(ROUTES.userProfile(user.id))
                 ? 'font-extrabold text-primary'
                 : 'font-semibold text-muted-foreground hover:text-primary',
@@ -249,7 +249,7 @@ export function BottomNav() {
             aria-expanded={mobileNavOpen}
             aria-controls="mobile-nav-drawer"
             className={cn(
-              'flex min-h-[52px] w-full flex-col items-center justify-center gap-0.5 py-1 text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+              'flex min-h-[52px] w-full flex-col items-center justify-center gap-0.5 py-1 text-2xs-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
               mobileNavOpen ? 'font-extrabold text-primary' : 'font-semibold text-muted-foreground hover:text-primary',
             )}
           >

@@ -175,7 +175,7 @@ export function RequestFilters({
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         {totalLabel ? (
-          <p className="text-[13px] font-extrabold text-foreground">{totalLabel}</p>
+          <p className="text-sm-tight font-extrabold text-foreground">{totalLabel}</p>
         ) : (
           <span />
         )}

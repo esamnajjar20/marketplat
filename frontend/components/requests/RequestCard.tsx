@@ -54,11 +54,11 @@ export function RequestCard({ request: r, context = 'public', showStatus = false
                 {REQUEST_STATUS_LABEL[r.status]}
               </Badge>
             ) : null}
-            <span className={cn(CARD_BADGE_SUCCESS, 'h-6 px-2.5 text-[11px]')}>
+            <span className={cn(CARD_BADGE_SUCCESS, 'h-6 px-2.5 text-2xs-tight')}>
               {REQUEST_TYPE_LABEL[r.type]}
             </span>
             {expiringSoon ? (
-              <span className={cn(CARD_BADGE_WARNING, 'h-6 gap-1 px-2.5 text-[11px]')}>
+              <span className={cn(CARD_BADGE_WARNING, 'h-6 gap-1 px-2.5 text-2xs-tight')}>
                 <Clock className="h-3 w-3" aria-hidden />
                 ينتهي قريبًا
               </span>

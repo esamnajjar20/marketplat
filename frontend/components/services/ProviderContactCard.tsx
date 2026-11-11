@@ -107,7 +107,7 @@ export function ProviderContactCard({ listing, showPhone = false }: Props) {
             )}
           {typeof rating === 'number' && rating > 0 && (
             <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
-              <Star className="h-3 w-3 fill-amber-400 text-warning" aria-hidden />
+              <Star className="h-3 w-3 fill-rating text-rating" aria-hidden />
               {Number(rating).toFixed(1)}
             </p>
           )}

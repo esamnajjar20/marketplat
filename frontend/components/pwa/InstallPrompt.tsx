@@ -142,7 +142,7 @@ export function InstallPrompt() {
         </Button>
       )}
 
-      <button
+      <button type="button"
         onClick={handleDismiss}
         aria-label="إغلاق"
         className="text-muted-foreground hover:text-foreground"

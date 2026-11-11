@@ -69,7 +69,7 @@ export function NearbyServiceProviders() {
       />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[13px] font-extrabold text-foreground">
+        <p className="text-sm-tight font-extrabold text-foreground">
           {(data?.meta?.total ?? items.length) > 0
             ? `${data?.meta?.total ?? items.length} مقدّم خدمة`
             : 'لا يوجد مقدمو خدمة'}

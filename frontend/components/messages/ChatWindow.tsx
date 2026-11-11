@@ -477,13 +477,13 @@ export function ChatWindow({ conversationId }: Props) {
             />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-bold leading-tight line-clamp-1 text-foreground">{contextCard.title}</p>
-            <p className="text-[12px] text-muted-foreground">
+            <p className="text-sm-tight font-bold leading-tight line-clamp-1 text-foreground">{contextCard.title}</p>
+            <p className="text-xs text-muted-foreground">
               {contextCard.type === 'ad' ? 'بخصوص الإعلان' : contextCard.type === 'product' ? 'بخصوص المنتج' : 'بخصوص الخدمة'}
             </p>
           </div>
           {'price' in contextCard && contextCard.price != null ? (
-            <span className="shrink-0 rounded-full bg-primary-soft px-2.5 py-1 text-[13px] font-bold text-primary">
+            <span className="shrink-0 rounded-full bg-primary-soft px-2.5 py-1 text-sm-tight font-bold text-primary">
               {String(contextCard.price)}
             </span>
           ) : null}
@@ -492,7 +492,7 @@ export function ChatWindow({ conversationId }: Props) {
       {showSafetyTip && (
         <div
           role="note"
-          className="mx-3 mt-2 flex shrink-0 items-start gap-2 rounded-xl bg-warning-soft px-3 py-2.5 text-[12px] leading-relaxed text-warning-foreground transition-opacity"
+          className="mx-3 mt-2 flex shrink-0 items-start gap-2 rounded-xl bg-warning-soft px-3 py-2.5 text-xs leading-relaxed text-warning-foreground transition-opacity"
         >
           <ShieldAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden />
           <p className="min-w-0 flex-1 text-warning-foreground/90">
