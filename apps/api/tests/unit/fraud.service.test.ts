@@ -1,20 +1,20 @@
 /**
- * Unit coverage for modules/fraud/fraud.service.ts (/ P0).
+ * Unit coverage for modules/trust/fraud/fraud.service.ts (/ P0).
  *
  * Integration tests under tests/integration/fraud.test.ts exercise the
  * HTTP surface; this file pins the scoring heuristics, admin review
  * paths, and the fire-and-forget contract (scoring failures must never
  * throw outward to ads.service.createAd).
  */
-import { fraudService } from '../../src/modules/fraud/fraud.service';
-import { fraudRepository } from '../../src/modules/fraud/fraud.repository';
+import { fraudService } from '../../src/modules/trust/fraud/fraud.service';
+import { fraudRepository } from '../../src/modules/trust/fraud/fraud.repository';
 import { prisma } from '../../src/config/prisma';
 import { env } from '../../src/config/env';
 import { logger } from '../../src/shared/observability/logger';
 import { auditLog, AuditEvent } from '../../src/shared/audit/auditLog';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 
-jest.mock('../../src/modules/fraud/fraud.repository');
+jest.mock('../../src/modules/trust/fraud/fraud.repository');
 jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));

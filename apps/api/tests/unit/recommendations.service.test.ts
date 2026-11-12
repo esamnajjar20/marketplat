@@ -1,17 +1,17 @@
-import { recommendationsService } from '../../src/modules/recommendations/recommendations.service';
+import { recommendationsService } from '../../src/modules/discovery/recommendations/recommendations.service';
 import {
   recommendationsRepository,
   productRecommendationsRepository,
   serviceListingRecommendationsRepository,
   storeRecommendationsRepository,
-} from '../../src/modules/recommendations/recommendations.repository';
-import { adsService } from '../../src/modules/ads/ads.service';
-import { productsService } from '../../src/modules/products/products.service';
-import { serviceListingsService } from '../../src/modules/service-listings/service-listings.service';
+} from '../../src/modules/discovery/recommendations/recommendations.repository';
+import { adsService } from '../../src/modules/classifieds/ads/ads.service';
+import { productsService } from '../../src/modules/commerce/products/products.service';
+import { serviceListingsService } from '../../src/modules/services/service-listings/service-listings.service';
 import * as jwtUtils from '../../src/shared/auth/jwt';
 
-jest.mock('../../src/modules/recommendations/recommendations.repository');
-jest.mock('../../src/modules/ads/ads.service');
+jest.mock('../../src/modules/discovery/recommendations/recommendations.repository');
+jest.mock('../../src/modules/classifieds/ads/ads.service');
 // FEAT-RECOMMENDATIONS-GENERALIZE (roadmap step 3): recommendations.
 // service.ts now imports these two for getProductRecommendations/
 // getServiceListingRecommendations' reference-lookup calls — without
@@ -19,8 +19,8 @@ jest.mock('../../src/modules/ads/ads.service');
 // real products/service-listings services (and transitively Prisma)
 // at test-load time, same reasoning as favorites.service.test.ts's
 // equivalent mocks added in PR2.
-jest.mock('../../src/modules/products/products.service');
-jest.mock('../../src/modules/service-listings/service-listings.service');
+jest.mock('../../src/modules/commerce/products/products.service');
+jest.mock('../../src/modules/services/service-listings/service-listings.service');
 
 const mockAd = (id: string) => ({ id, title: `Ad ${id}`, categoryId: 'cat-1' });
 const mockProduct = (id: string) => ({ id, name: `Product ${id}`, categoryId: 'cat-1' });

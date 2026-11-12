@@ -5,7 +5,7 @@ import { decideOutboxHeadAction } from '../src/storage/outbox-sync-policy.mjs';
 const policy = new URL('../src/storage/outbox-sync-policy.mjs', import.meta.url);
 const sync = await readFile(new URL('../src/storage/outbox-sync.ts', import.meta.url), 'utf8');
 const outbox = await readFile(new URL('../src/storage/mutation-outbox.ts', import.meta.url), 'utf8');
-const sales = await readFile(new URL('../../api/src/modules/sales/sales.service.ts', import.meta.url), 'utf8');
+const sales = await readFile(new URL('../../api/src/modules/commerce/sales/sales.service.ts', import.meta.url), 'utf8');
 const integration = await readFile(new URL('../../api/tests/integration/sales.flow.test.ts', import.meta.url), 'utf8');
 
 // Pure policy checks: the queue must preserve FIFO when its head is delayed,

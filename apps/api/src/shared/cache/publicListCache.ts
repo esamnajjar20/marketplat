@@ -1,7 +1,7 @@
 import { canonicalCacheKey, canonicalGenerationKey } from './cacheKey';
 import { getCacheDomain } from './cacheContract';
 import { swrGet, bumpGeneration } from './swrCache';
-import { HOME_GEN_KEY, invalidateHomeCache } from '../../modules/home/home.cache.keys';
+import { HOME_GEN_KEY, invalidateHomeCache } from '../../modules/discovery/home/home.cache.keys';
 import { cachePolicy } from './cachePolicy';
 import { listHardTtlSec } from './warmedListQueries';
 import { logger } from '../observability/logger';

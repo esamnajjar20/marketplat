@@ -27,7 +27,7 @@ const storesTest = read('__tests__/unit/hooks/useStores.test.tsx');
 const storeSnapshotTest = read('__tests__/components/StoreVisitSnapshot.test.tsx');
 const authCleanup = read('lib/authCleanup.ts');
 const serverApiAdapter = read('lib/serverApiAdapter.ts');
-const requestService = fs.readFileSync(path.resolve(root, '../apps/api/src/modules/requests/requests.service.ts'), 'utf8');
+const requestService = fs.readFileSync(path.resolve(root, '../apps/api/src/modules/classifieds/requests/requests.service.ts'), 'utf8');
 
 const checks = [
   ['Product detail seeds the exact useProduct query key on the server', /setQueryData\(queryKeys\.products\.detail\(id\), product\)/.test(productPage)],

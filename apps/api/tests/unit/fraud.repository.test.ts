@@ -1,4 +1,4 @@
-import { fraudRepository } from '../../src/modules/fraud/fraud.repository';
+import { fraudRepository } from '../../src/modules/trust/fraud/fraud.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({

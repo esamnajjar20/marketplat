@@ -9,7 +9,7 @@ const checks = [];
 const check = (label, condition) => { assert.ok(condition, label); checks.push(label); };
 const schema = read('apps/api/prisma/schema.prisma');
 const routes = read('apps/api/src/routes.ts');
-const service = read('apps/api/src/modules/marketplace-orders/marketplace-orders.service.ts');
+const service = read('apps/api/src/modules/commerce/marketplace-orders/marketplace-orders.service.ts');
 const api = read('apps/mobile/src/features/commerce/orders.api.ts');
 const detail = read('apps/mobile/app/products/[id].tsx');
 const checkout = read('apps/mobile/app/order-checkout.tsx');

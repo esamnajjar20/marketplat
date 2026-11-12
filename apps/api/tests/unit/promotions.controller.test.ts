@@ -1,9 +1,9 @@
-import { promotionsController } from '../../src/modules/promotions/promotions.controller';
-import { promotionsService } from '../../src/modules/promotions/promotions.service';
+import { promotionsController } from '../../src/modules/commerce/promotions/promotions.controller';
+import { promotionsService } from '../../src/modules/commerce/promotions/promotions.service';
 import { requireUser } from '../../src/shared/auth/requireUser';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/promotions/promotions.service');
+jest.mock('../../src/modules/commerce/promotions/promotions.service');
 jest.mock('../../src/shared/auth/requireUser');
 
 const userId = 'user-1';

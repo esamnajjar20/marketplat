@@ -1,4 +1,4 @@
-import { createStoreTypeFieldSchema, updateStoreTypeFieldSchema } from '../../src/modules/store-types/store-type-fields.validation';
+import { createStoreTypeFieldSchema, updateStoreTypeFieldSchema } from '../../src/modules/commerce/store-types/store-type-fields.validation';
 
 describe('store-type-fields.validation', () => {
   it('accepts text fields', () => {

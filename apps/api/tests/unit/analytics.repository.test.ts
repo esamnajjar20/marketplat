@@ -1,4 +1,4 @@
-import { analyticsRepository } from '../../src/modules/analytics/analytics.repository';
+import { analyticsRepository } from '../../src/modules/platform/analytics/analytics.repository';
 import { prisma } from '../../src/config/prisma';
 import { runWithQueryTimeout } from '../../src/shared/db/queryTimeout';
 import { AnalyticsEventType } from '@prisma/client';

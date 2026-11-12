@@ -1,7 +1,7 @@
-import { adsService } from '../../src/modules/ads/ads.service';
-import { adsRepository } from '../../src/modules/ads/ads.repository';
-import { favoritesRepository } from '../../src/modules/favorites/favorites.repository';
-import { notificationEvents } from '../../src/modules/notifications';
+import { adsService } from '../../src/modules/classifieds/ads/ads.service';
+import { adsRepository } from '../../src/modules/classifieds/ads/ads.repository';
+import { favoritesRepository } from '../../src/modules/engagement/favorites/favorites.repository';
+import { notificationEvents } from '../../src/modules/engagement/notifications';
 import { ROLES } from '../../src/shared/constants/roles';
 import { Prisma } from '@prisma/client';
 
@@ -12,9 +12,9 @@ import { Prisma } from '@prisma/client';
  * existing test suite never needed either of those two modules mocked
  * before this Epic 6 change.
  */
-jest.mock('../../src/modules/ads/ads.repository');
-jest.mock('../../src/modules/favorites/favorites.repository');
-jest.mock('../../src/modules/notifications', () => ({
+jest.mock('../../src/modules/classifieds/ads/ads.repository');
+jest.mock('../../src/modules/engagement/favorites/favorites.repository');
+jest.mock('../../src/modules/engagement/notifications', () => ({
   notificationEvents: { onFavoritedAdPriceChanged: jest.fn() },
 }));
 jest.mock('../../src/config/env', () => ({

@@ -1,13 +1,13 @@
-import { serviceCategoriesService } from '../../src/modules/service-categories/service-categories.service';
-import { serviceCategoriesRepository } from '../../src/modules/service-categories/service-categories.repository';
+import { serviceCategoriesService } from '../../src/modules/services/service-categories/service-categories.service';
+import { serviceCategoriesRepository } from '../../src/modules/services/service-categories/service-categories.repository';
 import { redis } from '../../src/config/redis';
 import { Prisma } from '@prisma/client';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
-import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
+import { serviceTypesRepository } from '../../src/modules/services/service-types/service-types.repository';
 
-jest.mock('../../src/modules/service-categories/service-categories.repository');
-jest.mock('../../src/modules/service-types/service-types.repository');
+jest.mock('../../src/modules/services/service-categories/service-categories.repository');
+jest.mock('../../src/modules/services/service-types/service-types.repository');
 
 const mockCategory = {
   id: 'cat-1',

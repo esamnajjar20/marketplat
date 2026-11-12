@@ -1,4 +1,4 @@
-import { createStoreTypeSchema, updateStoreTypeSchema } from '../../src/modules/store-types/store-types.validation';
+import { createStoreTypeSchema, updateStoreTypeSchema } from '../../src/modules/commerce/store-types/store-types.validation';
 
 describe('store type presentation validation', () => {
   const presentation = {

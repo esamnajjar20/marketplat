@@ -1,17 +1,17 @@
-import { serviceReviewsService } from '../../src/modules/service-reviews/service-reviews.service';
-import { serviceReviewsRepository } from '../../src/modules/service-reviews/service-reviews.repository';
-import { serviceRequestsRepository } from '../../src/modules/service-requests/service-requests.repository';
-import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
+import { serviceReviewsService } from '../../src/modules/services/service-reviews/service-reviews.service';
+import { serviceReviewsRepository } from '../../src/modules/services/service-reviews/service-reviews.repository';
+import { serviceRequestsRepository } from '../../src/modules/services/service-requests/service-requests.repository';
+import { sellersRepository } from '../../src/modules/identity/sellers/sellers.repository';
 import { prisma } from '../../src/config/prisma';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 
-jest.mock('../../src/modules/service-reviews/service-reviews.repository');
-jest.mock('../../src/modules/service-requests/service-requests.repository');
-jest.mock('../../src/modules/sellers/sellers.repository');
-jest.mock('../../src/modules/blocked-users', () => ({
+jest.mock('../../src/modules/services/service-reviews/service-reviews.repository');
+jest.mock('../../src/modules/services/service-requests/service-requests.repository');
+jest.mock('../../src/modules/identity/sellers/sellers.repository');
+jest.mock('../../src/modules/trust/blocked-users', () => ({
   blockedUsersService: {
     isBlockedEitherDirection: jest.fn().mockResolvedValue(false),
   },

@@ -1,12 +1,12 @@
-import { authService } from '../../src/modules/auth/auth.service';
-import { authRepository } from '../../src/modules/auth/auth.repository';
+import { authService } from '../../src/modules/identity/auth/auth.service';
+import { authRepository } from '../../src/modules/identity/auth/auth.repository';
 import { hashPassword } from '../../src/shared/auth/hash';
 import { tokenStore } from '../../src/shared/auth/tokenStore';
 import { userCache } from '../../src/shared/cache/userCache';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { TooManyRequestsError } from '../../src/shared/errors/TooManyRequestsError';
 
-jest.mock('../../src/modules/auth/auth.repository');
+jest.mock('../../src/modules/identity/auth/auth.repository');
 jest.mock('../../src/shared/auth/tokenStore');
 jest.mock('../../src/shared/cache/userCache');
 jest.mock('../../src/shared/audit/auditLog', () => ({

@@ -1,4 +1,4 @@
-import { promotionsRepository } from '../../src/modules/promotions/promotions.repository';
+import { promotionsRepository } from '../../src/modules/commerce/promotions/promotions.repository';
 import { prisma } from '../../src/config/prisma';
 import { Prisma } from '@prisma/client';
 

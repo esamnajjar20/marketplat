@@ -1,24 +1,24 @@
-import { conversationsService } from '../../src/modules/conversations/conversations.service';
-import { conversationsRepository, messagesRepository } from '../../src/modules/conversations/conversations.repository';
-import { adsRepository } from '../../src/modules/ads/ads.repository';
-import { usersRepository } from '../../src/modules/users/users.repository';
-import { serviceRequestsRepository } from '../../src/modules/service-requests/service-requests.repository';
-import { notificationEvents } from '../../src/modules/notifications';
-import { blockedUsersService } from '../../src/modules/blocked-users';
+import { conversationsService } from '../../src/modules/engagement/conversations/conversations.service';
+import { conversationsRepository, messagesRepository } from '../../src/modules/engagement/conversations/conversations.repository';
+import { adsRepository } from '../../src/modules/classifieds/ads/ads.repository';
+import { usersRepository } from '../../src/modules/identity/users/users.repository';
+import { serviceRequestsRepository } from '../../src/modules/services/service-requests/service-requests.repository';
+import { notificationEvents } from '../../src/modules/engagement/notifications';
+import { blockedUsersService } from '../../src/modules/trust/blocked-users';
 import { presence } from '../../src/shared/realtime/presence';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 
-jest.mock('../../src/modules/conversations/conversations.repository');
-jest.mock('../../src/modules/ads/ads.repository');
-jest.mock('../../src/modules/users/users.repository');
-jest.mock('../../src/modules/service-requests/service-requests.repository');
-jest.mock('../../src/modules/notifications', () => ({
+jest.mock('../../src/modules/engagement/conversations/conversations.repository');
+jest.mock('../../src/modules/classifieds/ads/ads.repository');
+jest.mock('../../src/modules/identity/users/users.repository');
+jest.mock('../../src/modules/services/service-requests/service-requests.repository');
+jest.mock('../../src/modules/engagement/notifications', () => ({
   notificationEvents: { onNewMessage: jest.fn() },
   notificationsService: { markConversationNotificationsRead: jest.fn().mockResolvedValue({ count: 0 }) },
 }));
-jest.mock('../../src/modules/blocked-users', () => ({
+jest.mock('../../src/modules/trust/blocked-users', () => ({
   blockedUsersService: {
     isBlockedEitherDirection: jest.fn(),
     isBlockedBy: jest.fn(),
@@ -34,7 +34,7 @@ jest.mock('../../src/shared/realtime/presence', () => ({
 jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));
-jest.mock('../../src/modules/activity', () => ({
+jest.mock('../../src/modules/engagement/activity', () => ({
   activityService: { record: jest.fn() },
   activityTemplates: {
     messageSent: jest.fn().mockReturnValue({ type: 'MESSAGE_SENT' }),
@@ -591,7 +591,7 @@ describe('conversationsService', () => {
       (messagesRepository.findManyByConversationId as jest.Mock).mockResolvedValue({ messages: [], total: null, nextCursor: null });
       await conversationsService.getMessages(buyerId, 'conv-1', { before: 'cursor-token', cursor: true });
       expect(messagesRepository.markReadForRecipient).not.toHaveBeenCalled();
-      const { notificationsService } = require('../../src/modules/notifications');
+      const { notificationsService } = require('../../src/modules/engagement/notifications');
       expect(notificationsService.markConversationNotificationsRead).not.toHaveBeenCalled();
     });
 

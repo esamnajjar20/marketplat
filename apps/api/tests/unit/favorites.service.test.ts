@@ -1,13 +1,13 @@
-import { favoritesService } from '../../src/modules/favorites/favorites.service';
-import { favoritesRepository } from '../../src/modules/favorites/favorites.repository';
-import { adsService } from '../../src/modules/ads/ads.service';
-import { productsService } from '../../src/modules/products/products.service';
-import { storesService } from '../../src/modules/stores/stores.service';
-import { serviceListingsService } from '../../src/modules/service-listings/service-listings.service';
+import { favoritesService } from '../../src/modules/engagement/favorites/favorites.service';
+import { favoritesRepository } from '../../src/modules/engagement/favorites/favorites.repository';
+import { adsService } from '../../src/modules/classifieds/ads/ads.service';
+import { productsService } from '../../src/modules/commerce/products/products.service';
+import { storesService } from '../../src/modules/commerce/stores/stores.service';
+import { serviceListingsService } from '../../src/modules/services/service-listings/service-listings.service';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 
-jest.mock('../../src/modules/favorites/favorites.repository');
-jest.mock('../../src/modules/ads/ads.service');
+jest.mock('../../src/modules/engagement/favorites/favorites.repository');
+jest.mock('../../src/modules/classifieds/ads/ads.service');
 // FEAT-FAVORITE-POLYMORPHIC PR2: favorites.service.ts now imports
 // these three for resolveEntity's PRODUCT/STORE/SERVICE_LISTING
 // branches — without mocking them here, importing favoritesService
@@ -15,9 +15,9 @@ jest.mock('../../src/modules/ads/ads.service');
 // (and transitively Prisma, Cloudinary config, etc.) at test-load
 // time, not just when a PRODUCT/STORE/SERVICE_LISTING path actually
 // runs.
-jest.mock('../../src/modules/products/products.service');
-jest.mock('../../src/modules/stores/stores.service');
-jest.mock('../../src/modules/service-listings/service-listings.service');
+jest.mock('../../src/modules/commerce/products/products.service');
+jest.mock('../../src/modules/commerce/stores/stores.service');
+jest.mock('../../src/modules/services/service-listings/service-listings.service');
 
 const mockAd = {
   id: 'ad-1',

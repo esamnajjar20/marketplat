@@ -1,6 +1,6 @@
-import { usersService } from '../../src/modules/users/users.service';
-import { usersRepository } from '../../src/modules/users/users.repository';
-import { adsService } from '../../src/modules/ads/ads.service';
+import { usersService } from '../../src/modules/identity/users/users.service';
+import { usersRepository } from '../../src/modules/identity/users/users.repository';
+import { adsService } from '../../src/modules/classifieds/ads/ads.service';
 import { userCache } from '../../src/shared/cache/userCache';
 import { tokenStore } from '../../src/shared/auth/tokenStore';
 import { prisma } from '../../src/config/prisma';
@@ -10,11 +10,11 @@ import { hashPassword } from '../../src/shared/auth/hash';
 import { uploadAvatar, deleteImage } from '../../src/config/cloudinary';
 import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../src/shared/media/cloudinaryHelpers';
 import { presence } from '../../src/shared/realtime/presence';
-import { followsService } from '../../src/modules/follows/follows.service';
+import { followsService } from '../../src/modules/engagement/follows/follows.service';
 import jwt from 'jsonwebtoken';
 
-jest.mock('../../src/modules/users/users.repository');
-jest.mock('../../src/modules/ads/ads.service');
+jest.mock('../../src/modules/identity/users/users.repository');
+jest.mock('../../src/modules/classifieds/ads/ads.service');
 jest.mock('../../src/config/cloudinary', () => ({
   uploadAvatar: jest.fn(),
   deleteImage: jest.fn().mockResolvedValue(undefined),
@@ -27,7 +27,7 @@ jest.mock('../../src/shared/media/cloudinaryHelpers', () => ({
 jest.mock('../../src/shared/realtime/presence', () => ({
   presence: { touch: jest.fn().mockResolvedValue(undefined), getPresence: jest.fn() },
 }));
-jest.mock('../../src/modules/follows/follows.service', () => ({
+jest.mock('../../src/modules/engagement/follows/follows.service', () => ({
   followsService: { status: jest.fn() },
 }));
 

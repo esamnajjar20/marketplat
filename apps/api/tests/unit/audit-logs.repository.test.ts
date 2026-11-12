@@ -1,4 +1,4 @@
-import { auditLogsRepository } from '../../src/modules/audit-logs/audit-logs.repository';
+import { auditLogsRepository } from '../../src/modules/trust/audit-logs/audit-logs.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({

@@ -6,7 +6,7 @@
 import { prisma as sharedPrisma } from '../config/prisma';
 import { redis, closeRedisServiceClients } from '../config/redis';
 import { logger } from '../shared/observability/logger';
-import { bumpAdsCacheVersionAndHome } from '../modules/ads/ads.cache.keys';
+import { bumpAdsCacheVersionAndHome } from '../modules/classifieds/ads/ads.cache.keys';
 import { flushEdgePurge } from '../shared/cache/edgePurge';
 import { executeWithGoFallback, runAdvisoryLockedBatch } from '../shared/go-worker/executeWithFallback';
 import { publishDurableNotifications } from '../shared/go-worker/publishDurableNotifications';

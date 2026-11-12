@@ -1,14 +1,14 @@
-import { promotionsService } from '../../src/modules/promotions/promotions.service';
-import { promotionsRepository } from '../../src/modules/promotions/promotions.repository';
-import { productsRepository } from '../../src/modules/products/products.repository';
-import { requireStoreAccessForProducts } from '../../src/modules/stores/store-members.service';
+import { promotionsService } from '../../src/modules/commerce/promotions/promotions.service';
+import { promotionsRepository } from '../../src/modules/commerce/promotions/promotions.repository';
+import { productsRepository } from '../../src/modules/commerce/products/products.repository';
+import { requireStoreAccessForProducts } from '../../src/modules/commerce/stores/store-members.service';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 
-jest.mock('../../src/modules/promotions/promotions.repository');
-jest.mock('../../src/modules/products/products.repository');
-jest.mock('../../src/modules/stores/store-members.service');
+jest.mock('../../src/modules/commerce/promotions/promotions.repository');
+jest.mock('../../src/modules/commerce/products/products.repository');
+jest.mock('../../src/modules/commerce/stores/store-members.service');
 
 const storeId = 'store-1';
 const userId = 'user-1';

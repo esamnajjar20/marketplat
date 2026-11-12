@@ -9,8 +9,8 @@ const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 const checks = [];
 const check = (name, condition, detail = '') => checks.push({ name, passed: Boolean(condition), detail });
 
-const salesService = read('apps/api/src/modules/sales/sales.service.ts');
-const salesRepository = read('apps/api/src/modules/sales/sales.repository.ts');
+const salesService = read('apps/api/src/modules/commerce/sales/sales.service.ts');
+const salesRepository = read('apps/api/src/modules/commerce/sales/sales.repository.ts');
 const salesServiceTests = read('apps/api/tests/unit/sales.service.test.ts');
 const salesRepositoryTests = read('apps/api/tests/unit/sales.repository.test.ts');
 const profiler = read('apps/api/scripts/profile-prisma-metrics.mjs');

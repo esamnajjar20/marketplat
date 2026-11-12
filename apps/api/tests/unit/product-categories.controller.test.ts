@@ -1,10 +1,10 @@
-import { productCategoriesController } from '../../src/modules/product-categories/product-categories.controller';
-import { productCategoriesService } from '../../src/modules/product-categories/product-categories.service';
+import { productCategoriesController } from '../../src/modules/commerce/product-categories/product-categories.controller';
+import { productCategoriesService } from '../../src/modules/commerce/product-categories/product-categories.service';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/product-categories/product-categories.service');
+jest.mock('../../src/modules/commerce/product-categories/product-categories.service');
 
 const mockCategory = {
   id: 'cat-1',

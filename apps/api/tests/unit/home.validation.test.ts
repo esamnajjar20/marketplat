@@ -1,4 +1,4 @@
-import { getHomepageSchema, HOME_CITIES } from '../../src/modules/home/home.validation';
+import { getHomepageSchema, HOME_CITIES } from '../../src/modules/discovery/home/home.validation';
 
 /**
  * HOME_CITIES mirrors frontend/lib/constants.ts → CITIES. The two lists live

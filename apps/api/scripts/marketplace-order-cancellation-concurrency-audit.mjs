@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const backend = path.resolve(here, '..');
-const service = fs.readFileSync(path.join(backend, 'src/modules/marketplace-orders/marketplace-orders.service.ts'), 'utf8');
+const service = fs.readFileSync(path.join(backend, 'src/modules/commerce/marketplace-orders/marketplace-orders.service.ts'), 'utf8');
 const checks = [
   ['order row is locked before status is read', /SELECT "id" FROM "marketplace_orders" WHERE "id" = \$\{id\} FOR UPDATE[\s\S]*?marketplaceOrder\.findUnique/.test(service)],
   ['product rows are locked in deterministic order before stock restore', /map\(item => item\.productId\)[\s\S]*?\.sort\(\)[\s\S]*?FROM "products" WHERE "id" = \$\{productId\} FOR UPDATE/.test(service)],

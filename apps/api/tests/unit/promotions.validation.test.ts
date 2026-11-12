@@ -2,7 +2,7 @@ import {
   createPromotionSchema,
   updatePromotionSchema,
   promotionIdSchema,
-} from '../../src/modules/promotions/promotions.validation';
+} from '../../src/modules/commerce/promotions/promotions.validation';
 
 describe('promotions.validation', () => {
   describe('createPromotionSchema', () => {

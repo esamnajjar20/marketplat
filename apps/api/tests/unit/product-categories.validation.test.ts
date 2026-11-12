@@ -2,7 +2,7 @@ import {
   createProductCategorySchema,
   updateProductCategorySchema,
   productCategoryIdSchema,
-} from '../../src/modules/product-categories/product-categories.validation';
+} from '../../src/modules/commerce/product-categories/product-categories.validation';
 
 describe('product-categories.validation', () => {
   describe('createProductCategorySchema', () => {

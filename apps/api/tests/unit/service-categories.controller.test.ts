@@ -1,10 +1,10 @@
-import { serviceCategoriesController } from '../../src/modules/service-categories/service-categories.controller';
-import { serviceCategoriesService } from '../../src/modules/service-categories/service-categories.service';
+import { serviceCategoriesController } from '../../src/modules/services/service-categories/service-categories.controller';
+import { serviceCategoriesService } from '../../src/modules/services/service-categories/service-categories.service';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/service-categories/service-categories.service');
+jest.mock('../../src/modules/services/service-categories/service-categories.service');
 
 const mockCategory = { id: 'cat-1', name: 'Plumbing', nameAr: 'سباكة', slug: 'plumbing' } as any;
 

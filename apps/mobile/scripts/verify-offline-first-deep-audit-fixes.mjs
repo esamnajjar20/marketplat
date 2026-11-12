@@ -17,7 +17,7 @@ for (const [path, table] of [
   const source = read(path);
   assert.match(source, new RegExp(`UPDATE ${table} SET state='pending',\\s*lease_until=0,\\s*next_attempt_at=MAX\\(next_attempt_at,\\s*\\?\\s*\\) WHERE state='processing' AND lease_until\\s*<=\\s*\\?`), `${table} must recover expired leases on each sync attempt`);
 }
-const validation = read('../api/src/modules/sales/sales.validation.ts');
+const validation = read('../api/src/modules/commerce/sales/sales.validation.ts');
 assert.match(validation, /MAX_MONEY = 99_999_999\.99/);
 assert.match(validation, /!Number\.isFinite\(total\) \|\| total > MAX_MONEY/);
 const saleScreen = read('app/sale-create.tsx');

@@ -5,7 +5,7 @@
 ## البنية
 
 - `tools/user-simulator`: خدمة Node.js مستقلة لتشغيل Chromium وحفظ الإعدادات والتقارير ولقطات الشاشة.
-- `apps/api/src/modules/user-simulator`: طبقة وسيطة محمية بمصادقة MarketPlat وصلاحية `ADMIN` على الأقل.
+- `apps/api/src/modules/platform/user-simulator`: طبقة وسيطة محمية بمصادقة MarketPlat وصلاحية `ADMIN` على الأقل.
 - `frontend/components/admin/AdminUserSimulatorPanel.tsx`: لوحة إعداد التشغيل وإدارة السيناريوهات ومتابعة النتائج.
 
 لا تشغّل Chromium داخل Cloudflare Worker. انشر هذه الخدمة على خادم Linux يدعم Node.js 22+ وChromium، أو على VM/Container مستقل. لا تفترض أن بيئة Termux أو خطة استضافة محدودة الذاكرة ستستطيع تشغيل العدد نفسه من المتصفحات.

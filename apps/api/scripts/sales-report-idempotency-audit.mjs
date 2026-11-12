@@ -3,8 +3,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
-const repository = readFileSync(resolve(root, 'src/modules/sales/sales.repository.ts'), 'utf8');
-const service = readFileSync(resolve(root, 'src/modules/sales/sales.service.ts'), 'utf8');
+const repository = readFileSync(resolve(root, 'src/modules/commerce/sales/sales.repository.ts'), 'utf8');
+const service = readFileSync(resolve(root, 'src/modules/commerce/sales/sales.service.ts'), 'utf8');
 const tests = readFileSync(resolve(root, 'tests/unit/sales.repository.test.ts'), 'utf8');
 
 assert.match(repository, /SUM\(sr\."totalPrice" - sr\."refundedAmount"\)/, 'Top-customer totals must subtract refunds');

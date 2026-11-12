@@ -1,4 +1,4 @@
-import { authRepository } from '../../src/modules/auth/auth.repository';
+import { authRepository } from '../../src/modules/identity/auth/auth.repository';
 import { prisma } from '../../src/config/prisma';
 import { Prisma } from '@prisma/client';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';

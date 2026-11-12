@@ -2,7 +2,7 @@ import {
   createCategorySchema,
   updateCategorySchema,
   categoryIdSchema,
-} from '../../src/modules/categories/categories.validation';
+} from '../../src/modules/classifieds/categories/categories.validation';
 
 describe('categories.validation', () => {
   describe('createCategorySchema', () => {

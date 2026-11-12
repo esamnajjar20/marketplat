@@ -1,4 +1,4 @@
-import { savedSearchesRepository } from '../../src/modules/saved-searches/saved-searches.repository';
+import { savedSearchesRepository } from '../../src/modules/engagement/saved-searches/saved-searches.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({

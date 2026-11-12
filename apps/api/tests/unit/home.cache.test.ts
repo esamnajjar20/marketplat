@@ -10,15 +10,15 @@ import {
   HOME_REWARM_CITY_PAUSE_MS,
   HOME_KEEPWARM_MAX_AGE_MS,
   cancelPendingHomeRewarm,
-} from '../../src/modules/home/home.cache';
-import { HOME_GEN_KEY, invalidateHomeCache } from '../../src/modules/home/home.cache.keys';
-import { homeService } from '../../src/modules/home/home.service';
-import { HOME_CITIES } from '../../src/modules/home/home.validation';
+} from '../../src/modules/discovery/home/home.cache';
+import { HOME_GEN_KEY, invalidateHomeCache } from '../../src/modules/discovery/home/home.cache.keys';
+import { homeService } from '../../src/modules/discovery/home/home.service';
+import { HOME_CITIES } from '../../src/modules/discovery/home/home.validation';
 import { resetCacheGuard } from '../../src/shared/resilience/cacheGuard';
 import * as redisModule from '../../src/config/redis';
 
 jest.mock('../../src/config/redis', () => require('../helpers/fakeRedis.helper').fakeRedisModule());
-jest.mock('../../src/modules/home/home.service', () => ({
+jest.mock('../../src/modules/discovery/home/home.service', () => ({
   homeService: { getHomepage: jest.fn() },
   // real semantics: degraded when any section is null
   isHomepageDegraded: (p: { belowFold: { nearbyProviders: unknown } }) =>

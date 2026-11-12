@@ -1,22 +1,22 @@
-import { serviceRequestsService } from '../../src/modules/service-requests/service-requests.service';
-import { serviceRequestsRepository } from '../../src/modules/service-requests/service-requests.repository';
-import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
-import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
-import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
+import { serviceRequestsService } from '../../src/modules/services/service-requests/service-requests.service';
+import { serviceRequestsRepository } from '../../src/modules/services/service-requests/service-requests.repository';
+import { serviceProvidersRepository } from '../../src/modules/services/service-providers/service-providers.repository';
+import { serviceTypesRepository } from '../../src/modules/services/service-types/service-types.repository';
+import { sellersRepository } from '../../src/modules/identity/sellers/sellers.repository';
 import { prisma } from '../../src/config/prisma';
-import { notificationEvents } from '../../src/modules/notifications/notifications.service';
+import { notificationEvents } from '../../src/modules/engagement/notifications/notifications.service';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 
-jest.mock('../../src/modules/service-requests/service-requests.repository');
-jest.mock('../../src/modules/service-providers/service-providers.repository');
-jest.mock('../../src/modules/service-types/service-types.repository');
-jest.mock('../../src/modules/blocked-users', () => ({
+jest.mock('../../src/modules/services/service-requests/service-requests.repository');
+jest.mock('../../src/modules/services/service-providers/service-providers.repository');
+jest.mock('../../src/modules/services/service-types/service-types.repository');
+jest.mock('../../src/modules/trust/blocked-users', () => ({
   blockedUsersService: { isBlockedEitherDirection: jest.fn().mockResolvedValue(false) },
 }));
-jest.mock('../../src/modules/sellers/sellers.repository');
-jest.mock('../../src/modules/notifications/notifications.service', () => ({
+jest.mock('../../src/modules/identity/sellers/sellers.repository');
+jest.mock('../../src/modules/engagement/notifications/notifications.service', () => ({
   notificationEvents: {
     onServiceRequestCreated: jest.fn(),
     onServiceRequestStatusChanged: jest.fn(),

@@ -1,9 +1,9 @@
-import { reportsController } from '../../src/modules/reports/reports.controller';
-import { reportsService } from '../../src/modules/reports/reports.service';
+import { reportsController } from '../../src/modules/trust/reports/reports.controller';
+import { reportsService } from '../../src/modules/trust/reports/reports.service';
 import { requireUser } from '../../src/shared/auth/requireUser';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/reports/reports.service');
+jest.mock('../../src/modules/trust/reports/reports.service');
 jest.mock('../../src/shared/auth/requireUser');
 
 describe('reportsController', () => {

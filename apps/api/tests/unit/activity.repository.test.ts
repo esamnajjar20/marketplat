@@ -1,5 +1,5 @@
-import { activityRepository } from '../../src/modules/activity/activity.repository';
-import type { CreateActivityInput } from '../../src/modules/activity/activity.repository';
+import { activityRepository } from '../../src/modules/engagement/activity/activity.repository';
+import type { CreateActivityInput } from '../../src/modules/engagement/activity/activity.repository';
 import { prisma } from '../../src/config/prisma';
 import { UserActivityType } from '@prisma/client';
 

@@ -1,4 +1,4 @@
-import { collectionsRepository } from '../../src/modules/collections/collections.repository';
+import { collectionsRepository } from '../../src/modules/commerce/collections/collections.repository';
 import { prisma } from '../../src/config/prisma';
 import { Prisma } from '@prisma/client';
 

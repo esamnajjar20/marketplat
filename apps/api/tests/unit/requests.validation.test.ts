@@ -1,4 +1,4 @@
-import { createRequestSchema, submitOfferSchema } from '../../src/modules/requests/requests.validation';
+import { createRequestSchema, submitOfferSchema } from '../../src/modules/classifieds/requests/requests.validation';
 
 describe('requests.validation', () => {
   it('accepts a minimal valid SERVICE body without budgets', () => {

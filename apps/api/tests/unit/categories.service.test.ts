@@ -1,10 +1,10 @@
-import { categoriesService } from '../../src/modules/categories/categories.service';
-import { categoriesRepository } from '../../src/modules/categories/categories.repository';
+import { categoriesService } from '../../src/modules/classifieds/categories/categories.service';
+import { categoriesRepository } from '../../src/modules/classifieds/categories/categories.repository';
 import { redis } from '../../src/config/redis';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 
-jest.mock('../../src/modules/categories/categories.repository');
+jest.mock('../../src/modules/classifieds/categories/categories.repository');
 
 const mockCategory = {
   id: 'cat-1',

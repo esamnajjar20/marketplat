@@ -60,11 +60,11 @@ check(/fetchServerApi<AdListItem\[]>/.test(profilePage) && /queryKeys\.users\.ad
 check(/selectedTab === 'overview' \|\| selectedTab === 'ads'/.test(profilePage) && /useUserAds\(userId, \{ page \}\)/.test(profileAds), 'Only the initially visible ads tab is prefetched; other profile tabs remain lazy');
 
 
-const recommendationsRoutes = read('../apps/api/src/modules/recommendations/recommendations.routes.ts');
-const requestsRoutes = read('../apps/api/src/modules/requests/requests.routes.ts');
-const searchRoutes = read('../apps/api/src/modules/search/search.routes.ts');
-const usersRoutes = read('../apps/api/src/modules/users/users.routes.ts');
-const categoriesRoutes = read('../apps/api/src/modules/categories/categories.routes.ts');
+const recommendationsRoutes = read('../apps/api/src/modules/discovery/recommendations/recommendations.routes.ts');
+const requestsRoutes = read('../apps/api/src/modules/classifieds/requests/requests.routes.ts');
+const searchRoutes = read('../apps/api/src/modules/discovery/search/search.routes.ts');
+const usersRoutes = read('../apps/api/src/modules/identity/users/users.routes.ts');
+const categoriesRoutes = read('../apps/api/src/modules/classifieds/categories/categories.routes.ts');
 check(/recommendationsRouter\.get\([\s\S]*?recommendationsRateLimit,\s*CACHE\.NONE,\s*recommendationsController\.getRecommendations/.test(recommendationsRoutes), 'Trending SSR reads the public, non-shared recommendation endpoint without caller identity');
 check(/requestsRouter\.get\('\/', optionalAuthenticate, CACHE\.SHORT, requestsController\.getOpenFeed\)/.test(requestsRoutes), 'Requests SSR targets the public open feed, not the owner-only requests endpoints');
 check(/searchRouter\.get\('\/', CACHE\.SHORT, searchController\.search\)/.test(searchRoutes), 'Search SSR uses the explicitly public search route');

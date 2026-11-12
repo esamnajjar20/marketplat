@@ -5,7 +5,7 @@ import {
   createPushSubscriptionSchema,
   deletePushSubscriptionSchema,
   registerFcmTokenSchema,
-} from '../../src/modules/notifications/notifications.validation';
+} from '../../src/modules/engagement/notifications/notifications.validation';
 
 describe('notifications.validation', () => {
   describe('getNotificationsSchema', () => {

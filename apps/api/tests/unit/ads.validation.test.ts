@@ -1,4 +1,4 @@
-import { createAdSchema, updateAdSchema, getAdsSchema } from '../../src/modules/ads/ads.validation';
+import { createAdSchema, updateAdSchema, getAdsSchema } from '../../src/modules/classifieds/ads/ads.validation';
 
 /**
  * the core bug: isNegotiable used plain z.boolean(),

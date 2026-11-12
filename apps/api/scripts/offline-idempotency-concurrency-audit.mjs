@@ -7,7 +7,7 @@ const checks = [];
 const check = (name, condition) => checks.push({ name, pass: Boolean(condition) });
 
 const test = read('tests/integration/sales.flow.test.ts');
-const service = read('src/modules/sales/sales.service.ts');
+const service = read('src/modules/commerce/sales/sales.service.ts');
 const schema = read('prisma/schema.prisma');
 const docs = read('docs/OFFLINE_IDEMPOTENCY_AUDIT.md');
 

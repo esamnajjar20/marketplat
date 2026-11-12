@@ -3,11 +3,11 @@ import { join } from 'node:path';
 
 describe('reference category cache dependency invalidation', () => {
   const productCategoriesSource = readFileSync(
-    join(__dirname, '../../src/modules/product-categories/product-categories.service.ts'),
+    join(__dirname, '../../src/modules/commerce/product-categories/product-categories.service.ts'),
     'utf8',
   );
   const categoriesSource = readFileSync(
-    join(__dirname, '../../src/modules/categories/categories.service.ts'),
+    join(__dirname, '../../src/modules/classifieds/categories/categories.service.ts'),
     'utf8',
   );
 

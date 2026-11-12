@@ -1,12 +1,12 @@
-import { savedSearchesController } from '../../src/modules/saved-searches/saved-searches.controller';
-import { savedSearchesService } from '../../src/modules/saved-searches/saved-searches.service';
+import { savedSearchesController } from '../../src/modules/engagement/saved-searches/saved-searches.controller';
+import { savedSearchesService } from '../../src/modules/engagement/saved-searches/saved-searches.service';
 import { requireUser } from '../../src/shared/auth/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/saved-searches/saved-searches.service');
+jest.mock('../../src/modules/engagement/saved-searches/saved-searches.service');
 jest.mock('../../src/shared/auth/requireUser');
 
 const mockSearch = { id: 'search-1', label: 'Cheap phones', filters: { city: 'Gaza' } } as any;

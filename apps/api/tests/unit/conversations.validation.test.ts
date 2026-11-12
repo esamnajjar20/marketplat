@@ -4,7 +4,7 @@ import {
   getConversationsSchema,
   sendMessageSchema,
   getMessagesSchema,
-} from '../../src/modules/conversations/conversations.validation';
+} from '../../src/modules/engagement/conversations/conversations.validation';
 
 describe('conversations.validation', () => {
   describe('startConversationSchema', () => {

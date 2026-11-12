@@ -1,8 +1,8 @@
 /**
  * analytics.service unit coverage (/ P2) — previously 0 unit tests.
  */
-import { analyticsService } from '../../src/modules/analytics/analytics.service';
-import { analyticsRepository } from '../../src/modules/analytics/analytics.repository';
+import { analyticsService } from '../../src/modules/platform/analytics/analytics.service';
+import { analyticsRepository } from '../../src/modules/platform/analytics/analytics.repository';
 import { prisma } from '../../src/config/prisma';
 import * as jwtUtils from '../../src/shared/auth/jwt';
 import { logger } from '../../src/shared/observability/logger';
@@ -11,7 +11,7 @@ import { requestJsonWithGoFallback } from '../../src/shared/go-worker/requestJso
 import { requestJsonWithGoIdempotentFallback } from '../../src/shared/go-worker/requestJsonWithIdempotentFallback';
 import { AnalyticsEventType } from '@prisma/client';
 
-jest.mock('../../src/modules/analytics/analytics.repository');
+jest.mock('../../src/modules/platform/analytics/analytics.repository');
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
     category: { findMany: jest.fn() },

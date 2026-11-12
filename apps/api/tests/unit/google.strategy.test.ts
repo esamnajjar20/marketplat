@@ -18,10 +18,10 @@ describe('google.strategy', () => {
     // state, but re-importing via the same dynamic pattern keeps this
     // file internally consistent and avoids relying on Jest's
     // module-registry caching behavior across files.
-    let extractGoogleProfile: typeof import('../../src/modules/auth/google.strategy').extractGoogleProfile;
+    let extractGoogleProfile: typeof import('../../src/modules/identity/auth/google.strategy').extractGoogleProfile;
 
     beforeAll(async () => {
-      ({ extractGoogleProfile } = await import('../../src/modules/auth/google.strategy'));
+      ({ extractGoogleProfile } = await import('../../src/modules/identity/auth/google.strategy'));
     });
 
     function buildProfile(overrides: Partial<Profile> = {}): Profile {
@@ -109,7 +109,7 @@ describe('google.strategy', () => {
       delete process.env.GOOGLE_CALLBACK_URL;
       jest.resetModules();
 
-      const { configureGoogleStrategy, passport } = await import('../../src/modules/auth/google.strategy');
+      const { configureGoogleStrategy, passport } = await import('../../src/modules/identity/auth/google.strategy');
       const useSpy = jest.spyOn(passport, 'use');
       const { logger } = await import('../../src/shared/observability/logger');
       const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
@@ -129,7 +129,7 @@ describe('google.strategy', () => {
       process.env.GOOGLE_CALLBACK_URL = 'http://localhost:5000/api/v1/auth/google/callback';
       jest.resetModules();
 
-      const { configureGoogleStrategy, passport } = await import('../../src/modules/auth/google.strategy');
+      const { configureGoogleStrategy, passport } = await import('../../src/modules/identity/auth/google.strategy');
       const useSpy = jest.spyOn(passport, 'use');
 
       configureGoogleStrategy();
@@ -146,7 +146,7 @@ describe('google.strategy', () => {
       process.env.GOOGLE_CALLBACK_URL = 'http://localhost:5000/api/v1/auth/google/callback';
       jest.resetModules();
 
-      const { configureGoogleStrategy, passport } = await import('../../src/modules/auth/google.strategy');
+      const { configureGoogleStrategy, passport } = await import('../../src/modules/identity/auth/google.strategy');
       const useSpy = jest.spyOn(passport, 'use');
 
       configureGoogleStrategy();

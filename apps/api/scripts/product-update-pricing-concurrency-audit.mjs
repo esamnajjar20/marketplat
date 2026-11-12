@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const repository = readFileSync(new URL('../src/modules/products/products.repository.ts', import.meta.url), 'utf8');
-const service = readFileSync(new URL('../src/modules/products/products.service.ts', import.meta.url), 'utf8');
+const repository = readFileSync(new URL('../src/modules/commerce/products/products.repository.ts', import.meta.url), 'utf8');
+const service = readFileSync(new URL('../src/modules/commerce/products/products.service.ts', import.meta.url), 'utf8');
 
 const lockAt = repository.indexOf('FOR UPDATE', repository.indexOf('updateWithStockMovement'));
 const lockedPricingAt = repository.indexOf('const finalPrice = data.price', lockAt);

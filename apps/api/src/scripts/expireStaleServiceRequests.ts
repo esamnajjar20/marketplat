@@ -5,7 +5,7 @@
  * owns post-commit unread-cache, SSE, and email-fallback side effects.
  */
 import { prisma as sharedPrisma } from '../config/prisma';
-import { SERVICE_REQUEST_PENDING_TTL_DAYS } from '../modules/service-requests/service-requests.service';
+import { SERVICE_REQUEST_PENDING_TTL_DAYS } from '../modules/services/service-requests/service-requests.service';
 import { logger } from '../shared/observability/logger';
 import {
   executeWithGoFallback,

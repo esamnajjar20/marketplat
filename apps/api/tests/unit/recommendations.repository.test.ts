@@ -3,7 +3,7 @@ import {
   productRecommendationsRepository,
   serviceListingRecommendationsRepository,
   storeRecommendationsRepository,
-} from '../../src/modules/recommendations/recommendations.repository';
+} from '../../src/modules/discovery/recommendations/recommendations.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => {

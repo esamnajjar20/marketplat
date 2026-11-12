@@ -1,12 +1,12 @@
 import { Prisma } from '@prisma/client';
-import { blockedUsersService } from '../../src/modules/blocked-users/blocked-users.service';
-import { blockedUsersRepository } from '../../src/modules/blocked-users/blocked-users.repository';
-import { usersRepository } from '../../src/modules/users/users.repository';
+import { blockedUsersService } from '../../src/modules/trust/blocked-users/blocked-users.service';
+import { blockedUsersRepository } from '../../src/modules/trust/blocked-users/blocked-users.repository';
+import { usersRepository } from '../../src/modules/identity/users/users.repository';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 
-jest.mock('../../src/modules/blocked-users/blocked-users.repository');
-jest.mock('../../src/modules/users/users.repository');
+jest.mock('../../src/modules/trust/blocked-users/blocked-users.repository');
+jest.mock('../../src/modules/identity/users/users.repository');
 
 const blockerId = 'user-1';
 const blockedId = 'user-2';

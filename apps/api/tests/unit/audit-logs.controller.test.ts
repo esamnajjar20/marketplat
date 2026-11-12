@@ -1,8 +1,8 @@
-import { auditLogsController } from '../../src/modules/audit-logs/audit-logs.controller';
-import { auditLogsService } from '../../src/modules/audit-logs/audit-logs.service';
+import { auditLogsController } from '../../src/modules/trust/audit-logs/audit-logs.controller';
+import { auditLogsService } from '../../src/modules/trust/audit-logs/audit-logs.service';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/audit-logs/audit-logs.service');
+jest.mock('../../src/modules/trust/audit-logs/audit-logs.service');
 
 describe('auditLogsController', () => {
   beforeEach(() => jest.clearAllMocks());

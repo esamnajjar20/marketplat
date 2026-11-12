@@ -22,9 +22,9 @@ import {
   initBlacklistInvalidationSubscriber,
   stopBlacklistInvalidationSubscriber,
 } from './shared/auth/tokenStore';
-import { activityBuffer } from './shared/buffers/activityBuffer';
+import { activityBuffer } from './modules/engagement/activity/activity.buffer';
 import { redisMemoryMonitor } from './shared/observability/redisMemoryMonitor';
-import { startCacheKeepWarm } from './shared/cache/cacheWarmup';
+import { startCacheKeepWarm } from './bootstrap/cacheWarmup';
 import { checkConnectionCapacity } from './shared/observability/capacityCheck';
 
 // TERMUX/PROOT SUPPORT: on Android + Termux + proot-distro Ubuntu,

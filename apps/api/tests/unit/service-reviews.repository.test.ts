@@ -1,4 +1,4 @@
-import { serviceReviewsRepository } from '../../src/modules/service-reviews/service-reviews.repository';
+import { serviceReviewsRepository } from '../../src/modules/services/service-reviews/service-reviews.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({

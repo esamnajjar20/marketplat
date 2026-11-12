@@ -13,11 +13,11 @@ const model = (name) => {
   return schema.slice(start, next < 0 ? schema.length : next);
 };
 const cases = [
-  ['ads', 'src/modules/ads/ads.service.ts', 'ad', 'userId', 'if (createdNew) {'],
-  ['products', 'src/modules/products/products.service.ts', 'product', 'storeId', 'if (createdNew) {'],
-  ['service listings', 'src/modules/service-listings/service-listings.service.ts', 'serviceListing', 'providerId', 'if (createdNew) {'],
-  ['service requests', 'src/modules/service-requests/service-requests.service.ts', 'serviceRequest', 'customerId', 'if (createdNew) {'],
-  ['requests', 'src/modules/requests/requests.service.ts', 'request', 'customerId', null],
+  ['ads', 'src/modules/classifieds/ads/ads.service.ts', 'ad', 'userId', 'if (createdNew) {'],
+  ['products', 'src/modules/commerce/products/products.service.ts', 'product', 'storeId', 'if (createdNew) {'],
+  ['service listings', 'src/modules/services/service-listings/service-listings.service.ts', 'serviceListing', 'providerId', 'if (createdNew) {'],
+  ['service requests', 'src/modules/services/service-requests/service-requests.service.ts', 'serviceRequest', 'customerId', 'if (createdNew) {'],
+  ['requests', 'src/modules/classifieds/requests/requests.service.ts', 'request', 'customerId', null],
 ];
 
 for (const [label, path, delegate, ownerField, sideEffectGuard] of cases) {
@@ -30,11 +30,11 @@ for (const [label, path, delegate, ownerField, sideEffectGuard] of cases) {
   if (sideEffectGuard) check(`${label}: replay avoids duplicate creation side effects`, source.includes(sideEffectGuard));
 }
 
-const sales = read('src/modules/sales/sales.service.ts');
+const sales = read('src/modules/commerce/sales/sales.service.ts');
 const salesSchema = model('SaleRecord');
 check('sales: composite uniqueness is scoped to seller', /@@unique\(\[sellerId, offlineOperationId\]\)/.test(salesSchema));
 check('sales: duplicate replay returns the same persisted sale', sales.includes('where: { sellerId: userId, offlineOperationId }') && sales.includes('return salesRepository.findById(existing.id)'));
-const message = read('src/modules/conversations/conversations.service.ts');
+const message = read('src/modules/engagement/conversations/conversations.service.ts');
 check('messages: replay is scoped to sender and operation id', message.includes('findBySenderAndOperationId(userId, opId)'));
 check('messages: database unique-race is handled', message.includes("isPrismaError(err, 'P2002')") && message.includes('OFFLINE_OP_ID_CONFLICT'));
 const test = read('tests/integration/sales.flow.test.ts');

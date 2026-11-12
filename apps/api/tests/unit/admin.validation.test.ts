@@ -1,4 +1,4 @@
-import { adminGetAdsSchema, adminGetUsersSchema } from '../../src/modules/admin/admin.validation';
+import { adminGetAdsSchema, adminGetUsersSchema } from '../../src/modules/platform/admin/admin.validation';
 
 describe('admin.validation', () => {
   it('parses isActive=true query param', () => {

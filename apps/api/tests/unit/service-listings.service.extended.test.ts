@@ -1,9 +1,9 @@
-import { serviceListingsService } from '../../src/modules/service-listings/service-listings.service';
-import { serviceListingsRepository } from '../../src/modules/service-listings/service-listings.repository';
-import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
-import { serviceCategoriesRepository } from '../../src/modules/service-categories/service-categories.repository';
-import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
-import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
+import { serviceListingsService } from '../../src/modules/services/service-listings/service-listings.service';
+import { serviceListingsRepository } from '../../src/modules/services/service-listings/service-listings.repository';
+import { serviceProvidersRepository } from '../../src/modules/services/service-providers/service-providers.repository';
+import { serviceCategoriesRepository } from '../../src/modules/services/service-categories/service-categories.repository';
+import { serviceTypesRepository } from '../../src/modules/services/service-types/service-types.repository';
+import { sellersRepository } from '../../src/modules/identity/sellers/sellers.repository';
 import { prisma } from '../../src/config/prisma';
 import { uploadImage, deleteImage } from '../../src/config/cloudinary';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
@@ -11,19 +11,19 @@ import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 import { hidePublicEntities } from '../../src/shared/cache/publicListCache';
 
-jest.mock('../../src/modules/service-listings/service-listings.repository');
-jest.mock('../../src/modules/service-providers/service-providers.repository');
-jest.mock('../../src/modules/service-categories/service-categories.repository');
-jest.mock('../../src/modules/service-types/service-types.repository');
-jest.mock('../../src/modules/sellers/sellers.repository');
+jest.mock('../../src/modules/services/service-listings/service-listings.repository');
+jest.mock('../../src/modules/services/service-providers/service-providers.repository');
+jest.mock('../../src/modules/services/service-categories/service-categories.repository');
+jest.mock('../../src/modules/services/service-types/service-types.repository');
+jest.mock('../../src/modules/identity/sellers/sellers.repository');
 jest.mock('../../src/config/cloudinary');
-jest.mock('../../src/modules/follows/follows.service', () => ({
+jest.mock('../../src/modules/engagement/follows/follows.service', () => ({
   followsService: { notifyActivityForTargets: jest.fn().mockResolvedValue(undefined) },
 }));
-jest.mock('../../src/modules/fraud', () => ({
+jest.mock('../../src/modules/trust/fraud', () => ({
   fraudService: { scoreListing: jest.fn().mockResolvedValue(undefined) },
 }));
-jest.mock('../../src/modules/saved-searches', () => ({
+jest.mock('../../src/modules/engagement/saved-searches', () => ({
   savedSearchEvents: { onServiceListingCreated: jest.fn().mockResolvedValue(undefined) },
 }));
 jest.mock('../../src/shared/cache/publicListCache', () => ({

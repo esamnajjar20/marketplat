@@ -1,4 +1,4 @@
-import { appointmentsRepository } from '../../src/modules/appointments/appointments.repository';
+import { appointmentsRepository } from '../../src/modules/services/appointments/appointments.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({

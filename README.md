@@ -12,7 +12,7 @@
 
 **Backend:**
 - `apps/api/prisma/migrations/20260806120000_add_analytics_events/migration.sql`
-- `apps/api/src/modules/analytics/` (كامل: controller, repository,
+- `apps/api/src/modules/platform/analytics/` (كامل: controller, repository,
   routes, service, validation, index)
 
 **Frontend:**

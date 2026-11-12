@@ -1,4 +1,4 @@
-import { parseTrustedCloudinaryMediaUrl } from '../../src/modules/conversations/cloudinaryMediaUrl';
+import { parseTrustedCloudinaryMediaUrl } from '../../src/shared/media/cloudinaryMediaUrl';
 
 describe('parseTrustedCloudinaryMediaUrl', () => {
   const cloudName = 'marketplat';

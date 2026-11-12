@@ -1,4 +1,4 @@
-import { conversationsRepository, messagesRepository } from '../../src/modules/conversations/conversations.repository';
+import { conversationsRepository, messagesRepository } from '../../src/modules/engagement/conversations/conversations.repository';
 import { prisma } from '../../src/config/prisma';
 
 import { Prisma } from '@prisma/client';

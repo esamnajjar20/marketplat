@@ -1,11 +1,11 @@
-import { storesController } from '../../src/modules/stores/stores.controller';
-import { storesService } from '../../src/modules/stores/stores.service';
+import { storesController } from '../../src/modules/commerce/stores/stores.controller';
+import { storesService } from '../../src/modules/commerce/stores/stores.service';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/stores/stores.service');
+jest.mock('../../src/modules/commerce/stores/stores.service');
 
 const authUser = { userId: 'user-1', role: 'USER' } as any;
 

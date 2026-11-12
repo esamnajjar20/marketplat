@@ -1,4 +1,4 @@
-import { blockedUsersRepository } from '../../src/modules/blocked-users/blocked-users.repository';
+import { blockedUsersRepository } from '../../src/modules/trust/blocked-users/blocked-users.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({

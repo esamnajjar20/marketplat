@@ -9,8 +9,8 @@ import { errorMiddleware } from './middlewares/error.middleware';
 import { globalRateLimit } from './middlewares/rateLimit.middleware';
 import { requestIdMiddleware } from './middlewares/requestId.middleware';
 import { offlineOperationIdMiddleware } from './middlewares/offlineOperationId.middleware';
-import { passport } from './modules/auth/google.strategy';
-import { internalGoWorkerRouter } from './modules/internal-go-worker';
+import { passport } from './modules/identity/auth/google.strategy';
+import { internalGoWorkerRouter } from './modules/platform/internal-go-worker';
 import { sendApiError } from './shared/errors/errorResponse';
 import { ErrorCode } from './shared/errors/errorCodes';
 import { databaseRequestContextMiddleware } from './shared/observability/dbQueryTelemetry';
@@ -27,7 +27,7 @@ import { requestLogger } from './bootstrap/requestLogging';
  * This file only wires middleware in order; the pieces live in:
  *   - bootstrap/*                       cross-cutting HTTP concerns (CORS, health, docs, logging, cache purge)
  *   - middlewares/*                     reusable middleware (auth, rate limit, csrf, ...)
- *   - modules/internal-go-worker        callbacks made by the Go worker
+ *   - modules/platform/internal-go-worker        callbacks made by the Go worker
  *   - routes.ts                         the public /api/v1 route table
  *
  * ORDER MATTERS — each step below depends on the ones above it.

@@ -1,14 +1,14 @@
-import { sellersService } from '../../src/modules/sellers/sellers.service';
-import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
-import { usersRepository } from '../../src/modules/users/users.repository';
+import { sellersService } from '../../src/modules/identity/sellers/sellers.service';
+import { sellersRepository } from '../../src/modules/identity/sellers/sellers.repository';
+import { usersRepository } from '../../src/modules/identity/users/users.repository';
 import { prisma } from '../../src/config/prisma';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 
-jest.mock('../../src/modules/sellers/sellers.repository');
-jest.mock('../../src/modules/users/users.repository');
+jest.mock('../../src/modules/identity/sellers/sellers.repository');
+jest.mock('../../src/modules/identity/users/users.repository');
 jest.mock('../../src/shared/locks/sellerLock', () => ({
   withSellerProfileCreationLock: (_userId: string, fn: () => Promise<any>) => fn(),
 }));

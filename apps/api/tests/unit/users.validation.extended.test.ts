@@ -2,7 +2,7 @@ import {
   getUserByIdSchema,
   changePasswordSchema,
   updateNotificationPreferencesSchema,
-} from '../../src/modules/users/users.validation';
+} from '../../src/modules/identity/users/users.validation';
 
 describe('users.validation — additional schemas', () => {
   describe('getUserByIdSchema', () => {

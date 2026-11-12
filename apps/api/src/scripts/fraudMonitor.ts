@@ -1,5 +1,5 @@
 import { prisma } from '../config/prisma';
-import { fraudMonitorService } from '../modules/fraud/fraud-monitor.service';
+import { fraudMonitorService } from '../modules/trust/fraud/fraud-monitor.service';
 import { logger } from '../shared/observability/logger';
 
 async function main(): Promise<void> {

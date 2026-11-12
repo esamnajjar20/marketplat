@@ -1,4 +1,4 @@
-import { buildFraudMonitorChanges, type FraudMonitorHistoryRun } from '../../src/modules/fraud/fraud-monitor.service';
+import { buildFraudMonitorChanges, type FraudMonitorHistoryRun } from '../../src/modules/trust/fraud/fraud-monitor.service';
 
 function run(status: FraudMonitorHistoryRun['status'], checks: FraudMonitorHistoryRun['checks']): FraudMonitorHistoryRun {
   return {

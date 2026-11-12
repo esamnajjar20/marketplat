@@ -4,7 +4,7 @@
  * wrappers so tests can override single calls (mockRejectedValueOnce, ...).
  *
  * Usage (factory must `require` it — jest.mock is hoisted above imports):
- *   jest.mock('../../src/config/redis', () => require('../helpers/fakeRedis.helper').fakeRedisModule());
+ *   jest.mock('../../src/config/redis', () => require('./fakeRedis.helper').fakeRedisModule());
  */
 type Entry = { value: string; expiresAt: number | null };
 

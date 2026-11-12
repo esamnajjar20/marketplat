@@ -1,9 +1,9 @@
-import { favoritesController } from '../../src/modules/favorites/favorites.controller';
-import { favoritesService } from '../../src/modules/favorites/favorites.service';
+import { favoritesController } from '../../src/modules/engagement/favorites/favorites.controller';
+import { favoritesService } from '../../src/modules/engagement/favorites/favorites.service';
 import { requireUser } from '../../src/shared/auth/requireUser';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/favorites/favorites.service');
+jest.mock('../../src/modules/engagement/favorites/favorites.service');
 jest.mock('../../src/shared/auth/requireUser');
 
 describe('favoritesController', () => {

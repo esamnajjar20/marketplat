@@ -1,4 +1,4 @@
-import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
+import { serviceProvidersRepository } from '../../src/modules/services/service-providers/service-providers.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({

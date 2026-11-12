@@ -75,7 +75,7 @@ for (const dir of ['apps/api/src/modules', 'apps/api/src/shared']) {
 if (controllerHeaders.length) fail(`Cache-Control ownership violation: ${controllerHeaders.join(', ')}`);
 else pass('no public Cache-Control writes outside the policy middleware (explicit private/no-store exceptions only)');
 
-const homeFeedRoute = read('apps/api/src/modules/home/home.routes.ts');
+const homeFeedRoute = read('apps/api/src/modules/discovery/home/home.routes.ts');
 if (!homeFeedRoute.includes("homeRouter.get('/feed', CACHE.PERSONAL")) fail('home feed route has no explicit personal cache policy');
 else pass('home feed declares explicit personal HTTP cache policy');
 
@@ -160,11 +160,11 @@ else pass('W8 dedicated cache contract audit is present');
 const apiRoutes = read('apps/api/src/routes.ts');
 const profileCache = read('apps/api/src/shared/cache/userProfileCache.ts');
 const userCache = read('apps/api/src/shared/cache/userCache.ts');
-const usersService = read('apps/api/src/modules/users/users.service.ts');
-const usersRoutes = read('apps/api/src/modules/users/users.routes.ts');
-const salesService = read('apps/api/src/modules/sales/sales.service.ts');
-const authService = read('apps/api/src/modules/auth/auth.service.ts');
-const adminService = read('apps/api/src/modules/admin/admin.service.ts');
+const usersService = read('apps/api/src/modules/identity/users/users.service.ts');
+const usersRoutes = read('apps/api/src/modules/identity/users/users.routes.ts');
+const salesService = read('apps/api/src/modules/commerce/sales/sales.service.ts');
+const authService = read('apps/api/src/modules/identity/auth/auth.service.ts');
+const adminService = read('apps/api/src/modules/platform/admin/admin.service.ts');
 const authQuery = read('frontend/hooks/queries/useAuth.ts');
 const offlineFreshness = read('frontend/lib/offlineFreshness.ts');
 const appSource = read('apps/api/src/app.ts');
@@ -175,7 +175,7 @@ if (!middleware.includes("res.vary('Authorization')") || !middleware.includes("r
 if (!usersRoutes.includes("usersRouter.get('/me', authenticate, CACHE.PRIVATE_REVALIDATE")) fail('GET /users/me is missing the explicit private revalidation policy');
 if (!appSource.includes("app.set('etag', 'weak')")) fail('Express weak ETag configuration is not explicit');
 if (!usersService.includes('getCachedUserProfileWithStatus(userId')) fail('GET /users/me is not backed by the per-user Redis profile cache/status');
-const usersController = read('apps/api/src/modules/users/users.controller.ts');
+const usersController = read('apps/api/src/modules/identity/users/users.controller.ts');
 if (!usersController.includes("res.setHeader('X-Cache', status.toUpperCase())")) fail('GET /users/me does not expose its Redis hit/miss status');
 if (!profileCache.includes("cachePolicy('privateUserProfile')") || !profileCache.includes('canonicalCacheKey')) fail('private profile cache is not governed by canonical identity/policy');
 if (!userCache.includes('invalidateCachedUserProfile(userId)')) fail('userCache invalidation does not clear the profile response generation');

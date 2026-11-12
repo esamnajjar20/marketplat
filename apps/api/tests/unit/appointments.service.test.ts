@@ -1,26 +1,26 @@
-import { appointmentsService } from '../../src/modules/appointments/appointments.service';
-import { appointmentsRepository } from '../../src/modules/appointments/appointments.repository';
-import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
-import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
-import { serviceRequestsRepository } from '../../src/modules/service-requests/service-requests.repository';
-import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
-import { blockedUsersService } from '../../src/modules/blocked-users';
+import { appointmentsService } from '../../src/modules/services/appointments/appointments.service';
+import { appointmentsRepository } from '../../src/modules/services/appointments/appointments.repository';
+import { sellersRepository } from '../../src/modules/identity/sellers/sellers.repository';
+import { serviceProvidersRepository } from '../../src/modules/services/service-providers/service-providers.repository';
+import { serviceRequestsRepository } from '../../src/modules/services/service-requests/service-requests.repository';
+import { serviceTypesRepository } from '../../src/modules/services/service-types/service-types.repository';
+import { blockedUsersService } from '../../src/modules/trust/blocked-users';
 import { redis } from '../../src/config/redis';
-import { notificationEvents } from '../../src/modules/notifications/notifications.service';
+import { notificationEvents } from '../../src/modules/engagement/notifications/notifications.service';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 
-jest.mock('../../src/modules/appointments/appointments.repository');
-jest.mock('../../src/modules/sellers/sellers.repository');
-jest.mock('../../src/modules/service-providers/service-providers.repository');
-jest.mock('../../src/modules/service-requests/service-requests.repository');
-jest.mock('../../src/modules/service-types/service-types.repository');
-jest.mock('../../src/modules/blocked-users', () => ({
+jest.mock('../../src/modules/services/appointments/appointments.repository');
+jest.mock('../../src/modules/identity/sellers/sellers.repository');
+jest.mock('../../src/modules/services/service-providers/service-providers.repository');
+jest.mock('../../src/modules/services/service-requests/service-requests.repository');
+jest.mock('../../src/modules/services/service-types/service-types.repository');
+jest.mock('../../src/modules/trust/blocked-users', () => ({
   blockedUsersService: { isBlockedEitherDirection: jest.fn() },
 }));
-jest.mock('../../src/modules/notifications/notifications.service', () => ({
+jest.mock('../../src/modules/engagement/notifications/notifications.service', () => ({
   notificationEvents: {
     onServiceRequestCreated: jest.fn(),
     onServiceRequestStatusChanged: jest.fn(),

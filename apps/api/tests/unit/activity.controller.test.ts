@@ -1,11 +1,11 @@
-import { activityController } from '../../src/modules/activity/activity.controller';
-import { activityService } from '../../src/modules/activity/activity.service';
-import { sellersService } from '../../src/modules/sellers/sellers.service';
+import { activityController } from '../../src/modules/engagement/activity/activity.controller';
+import { activityService } from '../../src/modules/engagement/activity/activity.service';
+import { sellersService } from '../../src/modules/identity/sellers/sellers.service';
 import { requireUser } from '../../src/shared/auth/requireUser';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/activity/activity.service');
-jest.mock('../../src/modules/sellers/sellers.service');
+jest.mock('../../src/modules/engagement/activity/activity.service');
+jest.mock('../../src/modules/identity/sellers/sellers.service');
 jest.mock('../../src/shared/auth/requireUser');
 
 describe('activityController', () => {

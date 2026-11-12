@@ -4,8 +4,8 @@ import {
   normalizeRecommendationsQuery,
   RECS_GEN_KEY,
   RECS_MAX_CACHEABLE_CITY,
-} from '../../src/modules/recommendations/recommendations.cache';
-import { invalidateHomeCache } from '../../src/modules/home/home.cache.keys';
+} from '../../src/modules/discovery/recommendations/recommendations.cache';
+import { invalidateHomeCache } from '../../src/modules/discovery/home/home.cache.keys';
 import * as redisModule from '../../src/config/redis';
 
 jest.mock('../../src/config/redis', () => require('../helpers/fakeRedis.helper').fakeRedisModule());

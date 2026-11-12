@@ -1,12 +1,12 @@
-import { adminController } from '../../src/modules/admin/admin.controller';
-import { adminService } from '../../src/modules/admin/admin.service';
+import { adminController } from '../../src/modules/platform/admin/admin.controller';
+import { adminService } from '../../src/modules/platform/admin/admin.service';
 import { requireUser } from '../../src/shared/auth/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/admin/admin.service');
+jest.mock('../../src/modules/platform/admin/admin.service');
 jest.mock('../../src/shared/auth/requireUser');
 
 const mockAd = { id: 'ad-1', title: 'Test Ad' } as any;

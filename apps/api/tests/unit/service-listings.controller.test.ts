@@ -1,12 +1,12 @@
-import { serviceListingsController } from '../../src/modules/service-listings/service-listings.controller';
-import { serviceListingsService } from '../../src/modules/service-listings/service-listings.service';
+import { serviceListingsController } from '../../src/modules/services/service-listings/service-listings.controller';
+import { serviceListingsService } from '../../src/modules/services/service-listings/service-listings.service';
 import { requireUser } from '../../src/shared/auth/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/service-listings/service-listings.service');
+jest.mock('../../src/modules/services/service-listings/service-listings.service');
 jest.mock('../../src/shared/auth/requireUser');
 
 const mockListing = { id: 'listing-1', title: 'Home cleaning', status: 'ACTIVE' } as any;

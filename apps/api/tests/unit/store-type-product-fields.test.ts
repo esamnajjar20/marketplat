@@ -1,4 +1,4 @@
-import { createStoreTypeFieldSchema } from '../../src/modules/store-types/store-type-fields.validation';
+import { createStoreTypeFieldSchema } from '../../src/modules/commerce/store-types/store-type-fields.validation';
 
 describe('StoreType product fields', () => {
   it('accepts PRODUCT scope', () => {

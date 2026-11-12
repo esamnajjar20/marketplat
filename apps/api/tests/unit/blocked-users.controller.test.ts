@@ -1,12 +1,12 @@
-import { blockedUsersController } from '../../src/modules/blocked-users/blocked-users.controller';
-import { blockedUsersService } from '../../src/modules/blocked-users/blocked-users.service';
+import { blockedUsersController } from '../../src/modules/trust/blocked-users/blocked-users.controller';
+import { blockedUsersService } from '../../src/modules/trust/blocked-users/blocked-users.service';
 import { requireUser } from '../../src/shared/auth/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/blocked-users/blocked-users.service');
+jest.mock('../../src/modules/trust/blocked-users/blocked-users.service');
 jest.mock('../../src/shared/auth/requireUser');
 
 const mockBlock = { id: 'b-1', blocked: { id: 'user-2', name: 'Target', avatarUrl: null } } as any;

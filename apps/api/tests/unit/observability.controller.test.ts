@@ -2,7 +2,7 @@ import {
   sanitizeClientErrorContext,
   sanitizeClientUrl,
   sanitizeDiagnosticText,
-} from '../../src/modules/observability/observability.controller';
+} from '../../src/modules/platform/observability/observability.controller';
 
 describe('sanitizeClientErrorContext', () => {
   it('redacts credentials at every nested object level', () => {

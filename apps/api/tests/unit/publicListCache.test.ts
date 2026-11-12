@@ -5,14 +5,14 @@ import {
   publicListCacheKey,
   PUBLIC_LIST_MAX_CACHEABLE_TEXT,
 } from '../../src/shared/cache/publicListCache';
-import { invalidateHomeCache } from '../../src/modules/home/home.cache.keys';
+import { invalidateHomeCache } from '../../src/modules/discovery/home/home.cache.keys';
 import * as redisModule from '../../src/config/redis';
 
 jest.mock('../../src/config/redis', () => require('../helpers/fakeRedis.helper').fakeRedisModule());
 jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));
-jest.mock('../../src/modules/home/home.cache.keys', () => ({ invalidateHomeCache: jest.fn() }));
+jest.mock('../../src/modules/discovery/home/home.cache.keys', () => ({ invalidateHomeCache: jest.fn() }));
 
 const fake = redisModule as unknown as { __store: Map<string, unknown> };
 

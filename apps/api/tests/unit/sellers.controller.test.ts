@@ -1,5 +1,5 @@
-import { sellersController } from '../../src/modules/sellers/sellers.controller';
-import { sellersService } from '../../src/modules/sellers/sellers.service';
+import { sellersController } from '../../src/modules/identity/sellers/sellers.controller';
+import { sellersService } from '../../src/modules/identity/sellers/sellers.service';
 import { requireUser } from '../../src/shared/auth/requireUser';
 import { UnauthorizedError } from '../../src/shared/errors/UnauthorizedError';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
@@ -7,7 +7,7 @@ import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/sellers/sellers.service');
+jest.mock('../../src/modules/identity/sellers/sellers.service');
 jest.mock('../../src/shared/auth/requireUser');
 
 const mockProfile = { id: 'seller-profile-1', userId: 'user-1', suspended: false } as any;

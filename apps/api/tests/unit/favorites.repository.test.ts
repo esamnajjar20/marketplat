@@ -1,4 +1,4 @@
-import { favoritesRepository } from '../../src/modules/favorites/favorites.repository';
+import { favoritesRepository } from '../../src/modules/engagement/favorites/favorites.repository';
 import { prisma } from '../../src/config/prisma';
 
 // FEAT-FAVORITE-POLYMORPHIC PR1: favoritesRepository no longer runs a

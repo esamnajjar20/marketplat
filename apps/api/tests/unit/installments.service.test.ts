@@ -1,4 +1,4 @@
-import { installmentsService } from '../../src/modules/sales/installments.service';
+import { installmentsService } from '../../src/modules/commerce/sales/installments.service';
 import { prisma } from '../../src/config/prisma';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 

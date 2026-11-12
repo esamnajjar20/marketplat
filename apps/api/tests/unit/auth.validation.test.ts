@@ -3,7 +3,7 @@ import {
   loginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
-} from '../../src/modules/auth/auth.validation';
+} from '../../src/modules/identity/auth/auth.validation';
 
 describe('auth.validation', () => {
   describe('registerSchema', () => {

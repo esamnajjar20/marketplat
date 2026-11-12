@@ -1,6 +1,6 @@
-import { sellersService } from '../../src/modules/sellers/sellers.service';
-import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
-import { usersRepository } from '../../src/modules/users/users.repository';
+import { sellersService } from '../../src/modules/identity/sellers/sellers.service';
+import { sellersRepository } from '../../src/modules/identity/sellers/sellers.repository';
+import { usersRepository } from '../../src/modules/identity/users/users.repository';
 import { prisma } from '../../src/config/prisma';
 import { redis } from '../../src/config/redis';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
@@ -11,8 +11,8 @@ import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 // so withSellerProfileCreationLock runs for real against the mocked redis
 // from tests/setup.ts — this is the only place the lock's actual
 // acquire/release/mutual-exclusion behavior gets exercised.
-jest.mock('../../src/modules/sellers/sellers.repository');
-jest.mock('../../src/modules/users/users.repository');
+jest.mock('../../src/modules/identity/sellers/sellers.repository');
+jest.mock('../../src/modules/identity/users/users.repository');
 
 const userId = 'user-1';
 const user = { id: userId, email: 'seller@example.com', name: 'Sam Seller', avatarUrl: null };

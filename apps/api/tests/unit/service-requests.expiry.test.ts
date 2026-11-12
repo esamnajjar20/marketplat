@@ -1,18 +1,18 @@
 import {
   serviceRequestsService,
   SERVICE_REQUEST_PENDING_TTL_DAYS,
-} from '../../src/modules/service-requests/service-requests.service';
-import { serviceRequestsRepository } from '../../src/modules/service-requests/service-requests.repository';
-import { notificationEvents } from '../../src/modules/notifications/notifications.service';
+} from '../../src/modules/services/service-requests/service-requests.service';
+import { serviceRequestsRepository } from '../../src/modules/services/service-requests/service-requests.repository';
+import { notificationEvents } from '../../src/modules/engagement/notifications/notifications.service';
 
-jest.mock('../../src/modules/service-requests/service-requests.repository');
-jest.mock('../../src/modules/service-listings/service-listings.repository');
-jest.mock('../../src/modules/service-providers/service-providers.repository');
-jest.mock('../../src/modules/sellers/sellers.repository');
-jest.mock('../../src/modules/blocked-users', () => ({ blockedUsersService: {} }));
-jest.mock('../../src/modules/activity', () => ({ activityService: { record: jest.fn() }, activityTemplates: {} }));
+jest.mock('../../src/modules/services/service-requests/service-requests.repository');
+jest.mock('../../src/modules/services/service-listings/service-listings.repository');
+jest.mock('../../src/modules/services/service-providers/service-providers.repository');
+jest.mock('../../src/modules/identity/sellers/sellers.repository');
+jest.mock('../../src/modules/trust/blocked-users', () => ({ blockedUsersService: {} }));
+jest.mock('../../src/modules/engagement/activity', () => ({ activityService: { record: jest.fn() }, activityTemplates: {} }));
 jest.mock('../../src/config/prisma', () => ({ prisma: {} }));
-jest.mock('../../src/modules/notifications/notifications.service', () => ({
+jest.mock('../../src/modules/engagement/notifications/notifications.service', () => ({
   notificationEvents: { onServiceRequestExpired: jest.fn() },
 }));
 

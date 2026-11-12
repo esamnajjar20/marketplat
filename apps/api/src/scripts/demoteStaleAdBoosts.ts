@@ -6,7 +6,7 @@
 import { PrismaClient } from '@prisma/client';
 import { logger } from '../shared/observability/logger';
 import { env } from '../config/env';
-import { bumpAdsCacheVersion } from '../modules/ads/ads.cache.keys';
+import { bumpAdsCacheVersion } from '../modules/classifieds/ads/ads.cache.keys';
 import { flushEdgePurge } from '../shared/cache/edgePurge';
 import { redis, closeRedisServiceClients } from '../config/redis';
 import {

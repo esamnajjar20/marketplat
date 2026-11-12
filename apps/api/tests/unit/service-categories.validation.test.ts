@@ -2,7 +2,7 @@ import {
   createServiceCategorySchema,
   updateServiceCategorySchema,
   serviceCategoryIdSchema,
-} from '../../src/modules/service-categories/service-categories.validation';
+} from '../../src/modules/services/service-categories/service-categories.validation';
 
 describe('service-categories.validation', () => {
   describe('createServiceCategorySchema', () => {

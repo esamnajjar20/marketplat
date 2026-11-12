@@ -1,13 +1,13 @@
-import { salesService } from '../../src/modules/sales/sales.service';
-import { salesRepository } from '../../src/modules/sales/sales.repository';
-import { invoicesService } from '../../src/modules/sales/invoices.service';
-import { requireStoreAccess } from '../../src/modules/stores/store-members.service';
+import { salesService } from '../../src/modules/commerce/sales/sales.service';
+import { salesRepository } from '../../src/modules/commerce/sales/sales.repository';
+import { invoicesService } from '../../src/modules/commerce/sales/invoices.service';
+import { requireStoreAccess } from '../../src/modules/commerce/stores/store-members.service';
 import { prisma } from '../../src/config/prisma';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 
-jest.mock('../../src/modules/sales/sales.repository');
-jest.mock('../../src/modules/sales/invoices.service');
-jest.mock('../../src/modules/stores/store-members.service');
+jest.mock('../../src/modules/commerce/sales/sales.repository');
+jest.mock('../../src/modules/commerce/sales/invoices.service');
+jest.mock('../../src/modules/commerce/stores/store-members.service');
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
     saleRecord: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn() },

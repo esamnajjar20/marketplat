@@ -1,5 +1,5 @@
 import { JwtPayload } from '../auth/jwt';
-import { GoogleProfileData } from '../../modules/auth/google.strategy';
+import { GoogleProfileData } from '../auth/googleProfile.types';
 
 declare global {
   namespace Express {

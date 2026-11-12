@@ -1,11 +1,11 @@
-import { authService } from '../../src/modules/auth/auth.service';
-import { authRepository } from '../../src/modules/auth/auth.repository';
+import { authService } from '../../src/modules/identity/auth/auth.service';
+import { authRepository } from '../../src/modules/identity/auth/auth.repository';
 import { hashPassword } from '../../src/shared/auth/hash';
 import { tokenStore } from '../../src/shared/auth/tokenStore';
 import { userCache } from '../../src/shared/cache/userCache';
 import { prisma } from '../../src/config/prisma';
 
-jest.mock('../../src/modules/auth/auth.repository');
+jest.mock('../../src/modules/identity/auth/auth.repository');
 jest.mock('../../src/shared/auth/tokenStore');
 jest.mock('../../src/shared/cache/userCache');
 jest.mock('../../src/shared/audit/auditLog', () => ({ auditLog: jest.fn().mockResolvedValue(undefined), AuditEvent: { REGISTER: 'REGISTER', LOGIN_SUCCESS: 'LOGIN_SUCCESS', LOGIN_FAILED: 'LOGIN_FAILED' } }));

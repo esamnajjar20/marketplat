@@ -1,16 +1,16 @@
-import { reportsService } from '../../src/modules/reports/reports.service';
-import { reportsRepository } from '../../src/modules/reports/reports.repository';
-import { adsService } from '../../src/modules/ads/ads.service';
-import { usersService } from '../../src/modules/users';
-import { storesService } from '../../src/modules/stores';
+import { reportsService } from '../../src/modules/trust/reports/reports.service';
+import { reportsRepository } from '../../src/modules/trust/reports/reports.repository';
+import { adsService } from '../../src/modules/classifieds/ads/ads.service';
+import { usersService } from '../../src/modules/identity/users';
+import { storesService } from '../../src/modules/commerce/stores';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 
-jest.mock('../../src/modules/reports/reports.repository');
-jest.mock('../../src/modules/ads/ads.service');
-jest.mock('../../src/modules/users');
-jest.mock('../../src/modules/stores');
-jest.mock('../../src/modules/notifications/notifications.service', () => ({
+jest.mock('../../src/modules/trust/reports/reports.repository');
+jest.mock('../../src/modules/classifieds/ads/ads.service');
+jest.mock('../../src/modules/identity/users');
+jest.mock('../../src/modules/commerce/stores');
+jest.mock('../../src/modules/engagement/notifications/notifications.service', () => ({
   notificationEvents: {
     onModerationDecision: jest.fn().mockResolvedValue(undefined),
     onModerationReportReceived: jest.fn().mockResolvedValue(undefined),

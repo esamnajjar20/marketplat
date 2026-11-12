@@ -5,8 +5,8 @@ const api = readFileSync(new URL('../src/features/messaging/messaging.api.ts', i
 const screen = readFileSync(new URL('../app/messages/[id].tsx', import.meta.url), 'utf8');
 const queue = readFileSync(new URL('../src/storage/chat-message-outbox.ts', import.meta.url), 'utf8');
 const sync = readFileSync(new URL('../src/features/messaging/chat-message-outbox-sync.ts', import.meta.url), 'utf8');
-const backend = readFileSync(new URL('../../api/src/modules/conversations/conversations.controller.ts', import.meta.url), 'utf8');
-const service = readFileSync(new URL('../../api/src/modules/conversations/conversations.service.ts', import.meta.url), 'utf8');
+const backend = readFileSync(new URL('../../api/src/modules/engagement/conversations/conversations.controller.ts', import.meta.url), 'utf8');
+const service = readFileSync(new URL('../../api/src/modules/engagement/conversations/conversations.service.ts', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 assert.match(api, /operationId\?: string \| null/, 'text send API should accept a stable operation ID');
 assert.match(api, /'X-Offline-Op-Id': operationId/, 'text send API should transmit the idempotency key');

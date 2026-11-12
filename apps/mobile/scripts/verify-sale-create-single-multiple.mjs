@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 const mobile = new URL('../app/sale-create.tsx', import.meta.url);
-const apiRoot = new URL('../../../apps/api/src/modules/sales/', import.meta.url);
+const apiRoot = new URL('../../../apps/api/src/modules/commerce/sales/', import.meta.url);
 const screen = readFileSync(mobile, 'utf8');
 const validation = readFileSync(new URL('sales.validation.ts', apiRoot), 'utf8');
 const service = readFileSync(new URL('sales.service.ts', apiRoot), 'utf8');

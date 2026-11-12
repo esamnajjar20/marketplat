@@ -5,8 +5,8 @@ import {
   homeCacheKeyForCity,
   invalidateHomeCache,
   onHomeInvalidated,
-} from '../../src/modules/home/home.cache.keys';
-import { HOME_CITIES } from '../../src/modules/home/home.validation';
+} from '../../src/modules/discovery/home/home.cache.keys';
+import { HOME_CITIES } from '../../src/modules/discovery/home/home.validation';
 import * as redisModule from '../../src/config/redis';
 
 jest.mock('../../src/config/redis', () => require('../helpers/fakeRedis.helper').fakeRedisModule());

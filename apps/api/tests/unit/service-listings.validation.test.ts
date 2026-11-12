@@ -3,7 +3,7 @@ import {
   updateServiceListingSchema,
   getServiceListingsSchema,
   serviceListingIdSchema,
-} from '../../src/modules/service-listings/service-listings.validation';
+} from '../../src/modules/services/service-listings/service-listings.validation';
 
 describe('service-listings.validation', () => {
   describe('createServiceListingSchema', () => {

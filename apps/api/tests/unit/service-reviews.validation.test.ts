@@ -1,7 +1,7 @@
 import {
   createServiceReviewSchema,
   getServiceReviewsSchema,
-} from '../../src/modules/service-reviews/service-reviews.validation';
+} from '../../src/modules/services/service-reviews/service-reviews.validation';
 
 describe('service-reviews.validation', () => {
   describe('createServiceReviewSchema', () => {

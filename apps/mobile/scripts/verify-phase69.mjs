@@ -15,7 +15,7 @@ assert.match(api, /X-Offline-Op-Id/);
 assert.match(detail, /enqueueFavoriteState\(/);
 assert.match(detail, /listPendingFavoriteStates\(user\.id\)/);
 assert.match(detail, /حُفظ التغيير على هذا الجهاز/);
-const apiRoot = new URL('../../api/src/modules/favorites/', import.meta.url);
+const apiRoot = new URL('../../api/src/modules/engagement/favorites/', import.meta.url);
 const routes = await readFile(new URL('favorites.routes.ts', apiRoot), 'utf8');
 const controller = await readFile(new URL('favorites.controller.ts', apiRoot), 'utf8');
 const service = await readFile(new URL('favorites.service.ts', apiRoot), 'utf8');

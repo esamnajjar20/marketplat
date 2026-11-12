@@ -1,10 +1,10 @@
-import { searchService, clearSearchSuggestL1ForTests } from '../../src/modules/search/search.service';
-import { searchRepository } from '../../src/modules/search/search.repository';
+import { searchService, clearSearchSuggestL1ForTests } from '../../src/modules/discovery/search/search.service';
+import { searchRepository } from '../../src/modules/discovery/search/search.repository';
 import { redis } from '../../src/config/redis';
-import type { RawSearchRow } from '../../src/modules/search/search.types';
-import type { SearchQuery } from '../../src/modules/search/search.validation';
+import type { RawSearchRow } from '../../src/modules/discovery/search/search.types';
+import type { SearchQuery } from '../../src/modules/discovery/search/search.validation';
 
-jest.mock('../../src/modules/search/search.repository');
+jest.mock('../../src/modules/discovery/search/search.repository');
 
 const mockRow: RawSearchRow = {
   id: 'ad-1',

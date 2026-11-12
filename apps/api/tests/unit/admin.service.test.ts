@@ -1,4 +1,4 @@
-import { adminService } from '../../src/modules/admin/admin.service';
+import { adminService } from '../../src/modules/platform/admin/admin.service';
 import { prisma } from '../../src/config/prisma';
 import { userCache } from '../../src/shared/cache/userCache';
 import { tokenStore } from '../../src/shared/auth/tokenStore';

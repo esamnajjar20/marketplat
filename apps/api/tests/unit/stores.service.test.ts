@@ -1,11 +1,11 @@
-import { storesService, requireOwnStoreForProducts } from '../../src/modules/stores/stores.service';
-import { storesRepository } from '../../src/modules/stores/stores.repository';
-import { storeFollowersRepository } from '../../src/modules/stores/store-followers.repository';
-import { followsRepository } from '../../src/modules/follows/follows.repository';
-import { storeReviewsRepository } from '../../src/modules/stores/store-reviews.repository';
-import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
-import { promotionsRepository } from '../../src/modules/promotions/promotions.repository';
-import { productsRepository } from '../../src/modules/products/products.repository';
+import { storesService, requireOwnStoreForProducts } from '../../src/modules/commerce/stores/stores.service';
+import { storesRepository } from '../../src/modules/commerce/stores/stores.repository';
+import { storeFollowersRepository } from '../../src/modules/commerce/stores/store-followers.repository';
+import { followsRepository } from '../../src/modules/engagement/follows/follows.repository';
+import { storeReviewsRepository } from '../../src/modules/commerce/stores/store-reviews.repository';
+import { sellersRepository } from '../../src/modules/identity/sellers/sellers.repository';
+import { promotionsRepository } from '../../src/modules/commerce/promotions/promotions.repository';
+import { productsRepository } from '../../src/modules/commerce/products/products.repository';
 import { prisma } from '../../src/config/prisma';
 import { Prisma } from '@prisma/client';
 import { withStoreCreationLock } from '../../src/shared/locks/storeLock';
@@ -13,10 +13,10 @@ import { ConflictError } from '../../src/shared/errors/ConflictError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
-import { storeTypesRepository } from '../../src/modules/store-types/store-types.repository';
+import { storeTypesRepository } from '../../src/modules/commerce/store-types/store-types.repository';
 import { cachedPublicList } from '../../src/shared/cache/publicListCache';
-import { badgesService } from '../../src/modules/badges/badges.service';
-import { favoritesRepository } from '../../src/modules/favorites/favorites.repository';
+import { badgesService } from '../../src/modules/engagement/badges/badges.service';
+import { favoritesRepository } from '../../src/modules/engagement/favorites/favorites.repository';
 import { FavoriteEntityType, FollowTargetType } from '@prisma/client';
 
 // isPrismaError inside stores.service.ts does an `instanceof
@@ -30,25 +30,25 @@ const prismaKnownError = (code: string): Prisma.PrismaClientKnownRequestError =>
     clientVersion: '5.0.0',
   });
 
-jest.mock('../../src/modules/stores/stores.repository');
-jest.mock('../../src/modules/stores/store-followers.repository');
-jest.mock('../../src/modules/follows/follows.repository');
-jest.mock('../../src/modules/stores/store-reviews.repository');
-jest.mock('../../src/modules/sellers/sellers.repository');
+jest.mock('../../src/modules/commerce/stores/stores.repository');
+jest.mock('../../src/modules/commerce/stores/store-followers.repository');
+jest.mock('../../src/modules/engagement/follows/follows.repository');
+jest.mock('../../src/modules/commerce/stores/store-reviews.repository');
+jest.mock('../../src/modules/identity/sellers/sellers.repository');
 jest.mock('../../src/shared/locks/storeLock');
 // STORE-ANALYTICS (Foundation v1): getMyStoreAnalytics pulls from these
 // two — mocked the same way every other cross-module repository
 // dependency in this file already is, so real Prisma calls (which
 // this file's manual prisma mock below doesn't define model methods
 // for) never execute.
-jest.mock('../../src/modules/promotions/promotions.repository');
-jest.mock('../../src/modules/products/products.repository');
-jest.mock('../../src/modules/store-types/store-types.repository');
-jest.mock('../../src/modules/badges/badges.service', () => ({
+jest.mock('../../src/modules/commerce/promotions/promotions.repository');
+jest.mock('../../src/modules/commerce/products/products.repository');
+jest.mock('../../src/modules/commerce/store-types/store-types.repository');
+jest.mock('../../src/modules/engagement/badges/badges.service', () => ({
   badgesService: { getStoreBadgesForRecord: jest.fn().mockResolvedValue([]) },
 }));
-jest.mock('../../src/modules/favorites/favorites.repository');
-jest.mock('../../src/modules/store-types/store-type-fields.service', () => ({
+jest.mock('../../src/modules/engagement/favorites/favorites.repository');
+jest.mock('../../src/modules/commerce/store-types/store-type-fields.service', () => ({
   storeTypeFieldsService: {
     validateAttributes: jest.fn().mockResolvedValue({}),
   },

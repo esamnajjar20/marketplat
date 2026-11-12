@@ -1,6 +1,6 @@
-import { adsService } from '../../src/modules/ads/ads.service';
-import { adsRepository } from '../../src/modules/ads/ads.repository';
-import { favoritesRepository } from '../../src/modules/favorites/favorites.repository';
+import { adsService } from '../../src/modules/classifieds/ads/ads.service';
+import { adsRepository } from '../../src/modules/classifieds/ads/ads.repository';
+import { favoritesRepository } from '../../src/modules/engagement/favorites/favorites.repository';
 import { uploadImage, deleteImage } from '../../src/config/cloudinary';
 import { viewsBuffer } from '../../src/shared/buffers/viewsBuffer';
 import { redis } from '../../src/config/redis';
@@ -11,13 +11,13 @@ import { AdCreationLockedError } from '../../src/shared/locks/adLock';
 import { ROLES } from '../../src/shared/constants/roles';
 import { createTestUser } from '../helpers/auth.helper';
 import { createTestSellerProfile } from '../helpers/sellerProfile.helper';
-import { requireStoreAccess } from '../../src/modules/stores/store-members.service';
+import { requireStoreAccess } from '../../src/modules/commerce/stores/store-members.service';
 
-jest.mock('../../src/modules/ads/ads.repository');
-jest.mock('../../src/modules/stores/store-members.service', () => ({
+jest.mock('../../src/modules/classifieds/ads/ads.repository');
+jest.mock('../../src/modules/commerce/stores/store-members.service', () => ({
   requireStoreAccess: jest.fn(),
 }));
-jest.mock('../../src/modules/favorites/favorites.repository', () => ({
+jest.mock('../../src/modules/engagement/favorites/favorites.repository', () => ({
   favoritesRepository: {
     countByUserId: jest.fn(),
     findUserIdsByAdId: jest.fn().mockResolvedValue([]),

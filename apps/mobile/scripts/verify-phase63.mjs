@@ -22,6 +22,6 @@ assert.match(screen, /لم يُحذف الإعلان من الخادم بعد/);
 const queue = await read('app/offline-queue.tsx');
 assert.match(queue, /item\.operation === 'update-ad'/, 'Queue UI must only mark update operations unsupported');
 assert.match(queue, /item\.operation === 'delete-ad'/, 'Exhausted delete operations can be retried at FIFO head');
-const api = await read('../api/src/modules/ads/ads.service.ts').catch(() => '');
+const api = await read('../api/src/modules/classifieds/ads/ads.service.ts').catch(() => '');
 assert.ok(api.length === 0 || /ad\.status === 'DELETED'/.test(api), 'Phase 62 idempotent API delete implementation remains present when API path is in workspace');
 console.log('Phase 63 passed: offline delete is durably queued, FIFO-replayed with stable operation ID, and acknowledged only after a successful DELETE envelope.');

@@ -1,8 +1,8 @@
-import { badgesController } from '../../src/modules/badges/badges.controller';
-import { badgesService } from '../../src/modules/badges/badges.service';
+import { badgesController } from '../../src/modules/engagement/badges/badges.controller';
+import { badgesService } from '../../src/modules/engagement/badges/badges.service';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/badges/badges.service');
+jest.mock('../../src/modules/engagement/badges/badges.service');
 
 describe('badgesController', () => {
   beforeEach(() => jest.clearAllMocks());

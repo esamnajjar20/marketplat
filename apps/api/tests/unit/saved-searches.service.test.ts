@@ -2,16 +2,16 @@ import {
   savedSearchesService,
   savedSearchEvents,
   __testables__,
-} from '../../src/modules/saved-searches/saved-searches.service';
-import { savedSearchesRepository } from '../../src/modules/saved-searches/saved-searches.repository';
-import { notificationEvents } from '../../src/modules/notifications';
+} from '../../src/modules/engagement/saved-searches/saved-searches.service';
+import { savedSearchesRepository } from '../../src/modules/engagement/saved-searches/saved-searches.repository';
+import { notificationEvents } from '../../src/modules/engagement/notifications';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
-import type { AdWithAuthor } from '../../src/modules/ads/ads.repository';
+import type { AdWithAuthor } from '../../src/modules/classifieds/ads/ads.repository';
 import type { Product, ServiceListing } from '@prisma/client';
 
-jest.mock('../../src/modules/saved-searches/saved-searches.repository');
-jest.mock('../../src/modules/notifications');
+jest.mock('../../src/modules/engagement/saved-searches/saved-searches.repository');
+jest.mock('../../src/modules/engagement/notifications');
 
 const { matchesAdFilters, matchesProductFilters, matchesServiceFilters } = __testables__;
 // Back-compat alias so the existing ad-matching test block below (all

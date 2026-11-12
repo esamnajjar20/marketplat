@@ -1,20 +1,20 @@
-import { serviceListingsService } from '../../src/modules/service-listings/service-listings.service';
-import { serviceListingsRepository } from '../../src/modules/service-listings/service-listings.repository';
-import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
-import { serviceCategoriesRepository } from '../../src/modules/service-categories/service-categories.repository';
-import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
-import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
+import { serviceListingsService } from '../../src/modules/services/service-listings/service-listings.service';
+import { serviceListingsRepository } from '../../src/modules/services/service-listings/service-listings.repository';
+import { serviceProvidersRepository } from '../../src/modules/services/service-providers/service-providers.repository';
+import { serviceCategoriesRepository } from '../../src/modules/services/service-categories/service-categories.repository';
+import { serviceTypesRepository } from '../../src/modules/services/service-types/service-types.repository';
+import { sellersRepository } from '../../src/modules/identity/sellers/sellers.repository';
 import { prisma } from '../../src/config/prisma';
 import { uploadImage } from '../../src/config/cloudinary';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 
-jest.mock('../../src/modules/service-listings/service-listings.repository');
-jest.mock('../../src/modules/service-providers/service-providers.repository');
-jest.mock('../../src/modules/service-categories/service-categories.repository');
-jest.mock('../../src/modules/service-types/service-types.repository');
-jest.mock('../../src/modules/sellers/sellers.repository');
+jest.mock('../../src/modules/services/service-listings/service-listings.repository');
+jest.mock('../../src/modules/services/service-providers/service-providers.repository');
+jest.mock('../../src/modules/services/service-categories/service-categories.repository');
+jest.mock('../../src/modules/services/service-types/service-types.repository');
+jest.mock('../../src/modules/identity/sellers/sellers.repository');
 jest.mock('../../src/config/cloudinary');
 jest.mock('../../src/shared/cache/publicListCache', () => ({
   cachedPublicList: jest.fn((_ns: string, _query: unknown, fetcher: () => Promise<unknown>) =>

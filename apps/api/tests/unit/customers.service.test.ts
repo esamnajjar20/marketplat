@@ -1,8 +1,8 @@
-import { customersService } from '../../src/modules/customers/customers.service';
-import { customersRepository } from '../../src/modules/customers/customers.repository';
+import { customersService } from '../../src/modules/commerce/customers/customers.service';
+import { customersRepository } from '../../src/modules/commerce/customers/customers.repository';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 
-jest.mock('../../src/modules/customers/customers.repository');
+jest.mock('../../src/modules/commerce/customers/customers.repository');
 
 describe('customersService', () => {
   beforeEach(() => jest.clearAllMocks());

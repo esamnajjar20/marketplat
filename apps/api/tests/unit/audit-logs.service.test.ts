@@ -1,7 +1,7 @@
-import { auditLogsService } from '../../src/modules/audit-logs/audit-logs.service';
-import { auditLogsRepository } from '../../src/modules/audit-logs/audit-logs.repository';
+import { auditLogsService } from '../../src/modules/trust/audit-logs/audit-logs.service';
+import { auditLogsRepository } from '../../src/modules/trust/audit-logs/audit-logs.repository';
 
-jest.mock('../../src/modules/audit-logs/audit-logs.repository');
+jest.mock('../../src/modules/trust/audit-logs/audit-logs.repository');
 
 const mockLog = {
   id: 'log-1',

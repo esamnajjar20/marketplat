@@ -12,7 +12,7 @@ import { Prisma, PushSubscription } from '@prisma/client';
  * every file under shared/utils/ in this codebase imports only from
  * shared/config/other shared/utils modules, never from modules/*
  * (checked: no exception anywhere else in shared/). Having
- * shared/notifications/pushService.ts depend on modules/notifications would be
+ * shared/notifications/pushService.ts depend on modules/engagement/notifications would be
  * a new, backwards dependency direction not used anywhere else in this
  * project, and shared/ code is meant to be safely importable from any
  * module — depending back on one specific module breaks that.

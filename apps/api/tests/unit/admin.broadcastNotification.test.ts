@@ -1,17 +1,17 @@
-import { adminController } from '../../src/modules/admin/admin.controller';
-import { adminService } from '../../src/modules/admin/admin.service';
-import { notificationsService } from '../../src/modules/notifications';
+import { adminController } from '../../src/modules/platform/admin/admin.controller';
+import { adminService } from '../../src/modules/platform/admin/admin.service';
+import { notificationsService } from '../../src/modules/engagement/notifications';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
 /**
  * Separate file from admin.controller.test.ts so this can mock
  * notificationsService without touching that file's existing
- * jest.mock('../../src/modules/admin/admin.service') setup — this
+ * jest.mock('../../src/modules/platform/admin/admin.service') setup — this
  * action is the only one in the controller that reaches outside the
  * admin module.
  */
-jest.mock('../../src/modules/admin/admin.service');
-jest.mock('../../src/modules/notifications', () => ({
+jest.mock('../../src/modules/platform/admin/admin.service');
+jest.mock('../../src/modules/engagement/notifications', () => ({
   notificationsService: { broadcastPromotion: jest.fn() },
 }));
 

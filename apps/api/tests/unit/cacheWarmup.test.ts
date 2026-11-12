@@ -4,38 +4,38 @@ import {
   startCacheKeepWarm,
   WARMUP_TASKS,
   KEEP_WARM_LEADER_KEY,
-} from '../../src/shared/cache/cacheWarmup';
-import { HOME_CITIES } from '../../src/modules/home/home.validation';
+} from '../../src/bootstrap/cacheWarmup';
+import { HOME_CITIES } from '../../src/modules/discovery/home/home.validation';
 import { resetCacheGuard } from '../../src/shared/resilience/cacheGuard';
 import * as redisModule from '../../src/config/redis';
 
 jest.mock('../../src/config/redis', () => require('../helpers/fakeRedis.helper').fakeRedisModule());
-jest.mock('../../src/modules/home/home.cache', () => ({
+jest.mock('../../src/modules/discovery/home/home.cache', () => ({
   ensureHomepageFresh: jest.fn().mockResolvedValue('fresh'),
   HOME_KEEPWARM_MAX_AGE_MS: 300_000,
 }));
-jest.mock('../../src/modules/categories/categories.service', () => ({
+jest.mock('../../src/modules/classifieds/categories/categories.service', () => ({
   categoriesService: { getCategories: jest.fn().mockResolvedValue([]) },
 }));
-jest.mock('../../src/modules/product-categories/product-categories.service', () => ({
+jest.mock('../../src/modules/commerce/product-categories/product-categories.service', () => ({
   productCategoriesService: { getProductCategories: jest.fn().mockResolvedValue([]) },
 }));
-jest.mock('../../src/modules/service-categories/service-categories.service', () => ({
+jest.mock('../../src/modules/services/service-categories/service-categories.service', () => ({
   serviceCategoriesService: { getServiceCategories: jest.fn().mockResolvedValue([]) },
 }));
-jest.mock('../../src/modules/ads/ads.service', () => ({
+jest.mock('../../src/modules/classifieds/ads/ads.service', () => ({
   adsService: { getAds: jest.fn().mockResolvedValue({ items: [], meta: {} }) },
 }));
-jest.mock('../../src/modules/products/products.service', () => ({
+jest.mock('../../src/modules/commerce/products/products.service', () => ({
   productsService: { getProducts: jest.fn().mockResolvedValue({ items: [], meta: {} }) },
 }));
-jest.mock('../../src/modules/stores/stores.service', () => ({
+jest.mock('../../src/modules/commerce/stores/stores.service', () => ({
   storesService: { getStores: jest.fn().mockResolvedValue({ stores: [], meta: {} }) },
 }));
-jest.mock('../../src/modules/service-listings/service-listings.service', () => ({
+jest.mock('../../src/modules/services/service-listings/service-listings.service', () => ({
   serviceListingsService: { getServiceListings: jest.fn().mockResolvedValue({ items: [], meta: {} }) },
 }));
-jest.mock('../../src/modules/service-providers/service-providers.service', () => ({
+jest.mock('../../src/modules/services/service-providers/service-providers.service', () => ({
   serviceProvidersService: { getServiceProviders: jest.fn().mockResolvedValue({ providers: [], meta: {} }) },
 }));
 jest.mock('../../src/shared/observability/logger', () => ({
@@ -104,7 +104,7 @@ describe('warmPublicCaches (FIX CACHE-WARMUP-01 / CACHE-KEEPWARM-01)', () => {
   });
 
   it('ads list warmup tasks call getAds with the default first-page queries', async () => {
-    const { adsService } = jest.requireMock('../../src/modules/ads/ads.service') as {
+    const { adsService } = jest.requireMock('../../src/modules/classifieds/ads/ads.service') as {
       adsService: { getAds: jest.Mock };
     };
     adsService.getAds.mockClear();
@@ -124,10 +124,10 @@ describe('warmPublicCaches (FIX CACHE-WARMUP-01 / CACHE-KEEPWARM-01)', () => {
   });
 
   it('home-strip warmup tasks use the exact shapes the home page requests (FIX WARM-HOME-STRIPS-01)', async () => {
-    const { productsService } = jest.requireMock('../../src/modules/products/products.service') as {
+    const { productsService } = jest.requireMock('../../src/modules/commerce/products/products.service') as {
       productsService: { getProducts: jest.Mock };
     };
-    const { storesService } = jest.requireMock('../../src/modules/stores/stores.service') as {
+    const { storesService } = jest.requireMock('../../src/modules/commerce/stores/stores.service') as {
       storesService: { getStores: jest.Mock };
     };
     productsService.getProducts.mockClear();
@@ -139,7 +139,7 @@ describe('warmPublicCaches (FIX CACHE-WARMUP-01 / CACHE-KEEPWARM-01)', () => {
   });
 
   it('home tasks are age-gated so an idle healthy cache is not rebuilt every cycle (FIX CACHE-KEEPWARM-AGE-01)', async () => {
-    const { ensureHomepageFresh } = jest.requireMock('../../src/modules/home/home.cache') as {
+    const { ensureHomepageFresh } = jest.requireMock('../../src/modules/discovery/home/home.cache') as {
       ensureHomepageFresh: jest.Mock;
     };
     ensureHomepageFresh.mockClear();
@@ -189,7 +189,7 @@ describe('warmPublicCaches (FIX CACHE-WARMUP-01 / CACHE-KEEPWARM-01)', () => {
       jest.useFakeTimers();
       try {
         const stop = startCacheKeepWarm({ initialDelayMs: 100, intervalMs: 10_000 });
-        const { ensureHomepageFresh } = jest.requireMock('../../src/modules/home/home.cache') as {
+        const { ensureHomepageFresh } = jest.requireMock('../../src/modules/discovery/home/home.cache') as {
           ensureHomepageFresh: jest.Mock;
         };
         ensureHomepageFresh.mockClear();

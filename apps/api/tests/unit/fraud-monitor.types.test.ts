@@ -1,4 +1,4 @@
-import { isFraudMonitorScanReport } from '../../src/modules/fraud/fraud-monitor.types';
+import { isFraudMonitorScanReport } from '../../src/modules/trust/fraud/fraud-monitor.types';
 
 describe('isFraudMonitorScanReport', () => {
   const validReport = {

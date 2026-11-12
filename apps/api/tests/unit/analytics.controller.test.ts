@@ -1,9 +1,9 @@
-import { analyticsController } from '../../src/modules/analytics/analytics.controller';
-import { analyticsService } from '../../src/modules/analytics/analytics.service';
+import { analyticsController } from '../../src/modules/platform/analytics/analytics.controller';
+import { analyticsService } from '../../src/modules/platform/analytics/analytics.service';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 import { AnalyticsEventType } from '@prisma/client';
 
-jest.mock('../../src/modules/analytics/analytics.service');
+jest.mock('../../src/modules/platform/analytics/analytics.service');
 
 describe('analyticsController', () => {
   beforeEach(() => jest.clearAllMocks());

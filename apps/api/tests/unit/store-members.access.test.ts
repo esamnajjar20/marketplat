@@ -1,15 +1,15 @@
-import { requireStoreAccess, requireStoreAccessForProducts } from '../../src/modules/stores/store-members.service';
-import { storeMembersRepository } from '../../src/modules/stores/store-members.repository';
-import { storesRepository } from '../../src/modules/stores/stores.repository';
-import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
+import { requireStoreAccess, requireStoreAccessForProducts } from '../../src/modules/commerce/stores/store-members.service';
+import { storeMembersRepository } from '../../src/modules/commerce/stores/store-members.repository';
+import { storesRepository } from '../../src/modules/commerce/stores/stores.repository';
+import { sellersRepository } from '../../src/modules/identity/sellers/sellers.repository';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 
-jest.mock('../../src/modules/stores/store-members.repository');
-jest.mock('../../src/modules/stores/stores.repository');
-jest.mock('../../src/modules/sellers/sellers.repository');
+jest.mock('../../src/modules/commerce/stores/store-members.repository');
+jest.mock('../../src/modules/commerce/stores/stores.repository');
+jest.mock('../../src/modules/identity/sellers/sellers.repository');
 jest.mock('../../src/config/prisma', () => ({ prisma: {} }));
-jest.mock('../../src/modules/notifications/notifications.service', () => ({
+jest.mock('../../src/modules/engagement/notifications/notifications.service', () => ({
   notificationEvents: {},
 }));
 jest.mock('../../src/shared/audit/auditLog', () => ({

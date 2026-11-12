@@ -1,19 +1,19 @@
 /**
  * badges.service unit coverage (/ P2).
  */
-import { badgesService } from '../../src/modules/badges/badges.service';
-import { storesRepository } from '../../src/modules/stores/stores.repository';
-import { storeReviewsRepository } from '../../src/modules/stores/store-reviews.repository';
-import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
-import { serviceListingsRepository } from '../../src/modules/service-listings/service-listings.repository';
-import { serviceReviewsRepository } from '../../src/modules/service-reviews/service-reviews.repository';
+import { badgesService } from '../../src/modules/engagement/badges/badges.service';
+import { storesRepository } from '../../src/modules/commerce/stores/stores.repository';
+import { storeReviewsRepository } from '../../src/modules/commerce/stores/store-reviews.repository';
+import { serviceProvidersRepository } from '../../src/modules/services/service-providers/service-providers.repository';
+import { serviceListingsRepository } from '../../src/modules/services/service-listings/service-listings.repository';
+import { serviceReviewsRepository } from '../../src/modules/services/service-reviews/service-reviews.repository';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 
-jest.mock('../../src/modules/stores/stores.repository');
-jest.mock('../../src/modules/stores/store-reviews.repository');
-jest.mock('../../src/modules/service-providers/service-providers.repository');
-jest.mock('../../src/modules/service-listings/service-listings.repository');
-jest.mock('../../src/modules/service-reviews/service-reviews.repository');
+jest.mock('../../src/modules/commerce/stores/stores.repository');
+jest.mock('../../src/modules/commerce/stores/store-reviews.repository');
+jest.mock('../../src/modules/services/service-providers/service-providers.repository');
+jest.mock('../../src/modules/services/service-listings/service-listings.repository');
+jest.mock('../../src/modules/services/service-reviews/service-reviews.repository');
 
 const activeStore = {
   id: 'store-1',

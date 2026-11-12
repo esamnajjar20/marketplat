@@ -4,9 +4,9 @@ import assert from 'node:assert/strict';
 
 const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
-const controller = read('../apps/api/src/modules/customers/customers.controller.ts');
-const service = read('../apps/api/src/modules/customers/customers.service.ts');
-const routes = read('../apps/api/src/modules/customers/customers.routes.ts');
+const controller = read('../apps/api/src/modules/commerce/customers/customers.controller.ts');
+const service = read('../apps/api/src/modules/commerce/customers/customers.service.ts');
+const routes = read('../apps/api/src/modules/commerce/customers/customers.routes.ts');
 const api = read('api/customers.api.ts');
 const hooks = read('hooks/queries/useCustomers.ts');
 const page = read('components/sales/CustomersPageClient.tsx');

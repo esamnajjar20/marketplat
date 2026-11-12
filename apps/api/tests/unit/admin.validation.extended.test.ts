@@ -5,7 +5,7 @@ import {
   setPinnedSchema,
   toggleActiveSchema,
   changeRoleSchema,
-} from '../../src/modules/admin/admin.validation';
+} from '../../src/modules/platform/admin/admin.validation';
 
 describe('admin.validation — additional coverage', () => {
   describe('adminGetAdsSchema — pagination and filters', () => {

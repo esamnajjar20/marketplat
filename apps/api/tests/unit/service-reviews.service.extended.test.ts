@@ -1,10 +1,10 @@
-import { serviceReviewsService } from '../../src/modules/service-reviews/service-reviews.service';
-import { serviceReviewsRepository } from '../../src/modules/service-reviews/service-reviews.repository';
-import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
+import { serviceReviewsService } from '../../src/modules/services/service-reviews/service-reviews.service';
+import { serviceReviewsRepository } from '../../src/modules/services/service-reviews/service-reviews.repository';
+import { sellersRepository } from '../../src/modules/identity/sellers/sellers.repository';
 
-jest.mock('../../src/modules/sellers/sellers.repository');
+jest.mock('../../src/modules/identity/sellers/sellers.repository');
 
-jest.mock('../../src/modules/service-reviews/service-reviews.repository');
+jest.mock('../../src/modules/services/service-reviews/service-reviews.repository');
 
 const sellerProfileId = 'seller-profile-1';
 

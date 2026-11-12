@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const read = (path) => readFileSync(new URL(path, import.meta.url), 'utf8');
-const service = read('../../api/src/modules/ads/ads.service.ts');
-const controller = read('../../api/src/modules/ads/ads.controller.ts');
+const service = read('../../api/src/modules/classifieds/ads/ads.service.ts');
+const controller = read('../../api/src/modules/classifieds/ads/ads.controller.ts');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 const start = service.indexOf('deleteAd: async (adId: string, userId: string, userRole: string)');
 assert.notEqual(start, -1, 'Ad delete service must exist');

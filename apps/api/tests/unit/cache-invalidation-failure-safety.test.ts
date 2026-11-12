@@ -3,7 +3,7 @@ import { join } from 'node:path';
 
 describe('cache invalidation failure safety', () => {
   const adsKeysSource = readFileSync(
-    join(__dirname, '../../src/modules/ads/ads.cache.keys.ts'),
+    join(__dirname, '../../src/modules/classifieds/ads/ads.cache.keys.ts'),
     'utf8',
   );
   const publicListSource = readFileSync(

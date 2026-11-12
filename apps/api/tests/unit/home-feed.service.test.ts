@@ -1,12 +1,12 @@
-import { homeFeedService } from '../../src/modules/home/home-feed.service';
-import { recommendationsService } from '../../src/modules/recommendations/recommendations.service';
-import { homeService } from '../../src/modules/home/home.service';
-import { storeTypesService } from '../../src/modules/store-types/store-types.service';
+import { homeFeedService } from '../../src/modules/discovery/home/home-feed.service';
+import { recommendationsService } from '../../src/modules/discovery/recommendations/recommendations.service';
+import { homeService } from '../../src/modules/discovery/home/home.service';
+import { storeTypesService } from '../../src/modules/commerce/store-types/store-types.service';
 import { logger } from '../../src/shared/observability/logger';
 import { homeFeedShortRailTotal } from '../../src/shared/observability/metrics';
 
 jest.mock('../../src/config/prisma', () => ({ prisma: { user: { findUnique: jest.fn() } } }));
-jest.mock('../../src/modules/recommendations/recommendations.service', () => ({
+jest.mock('../../src/modules/discovery/recommendations/recommendations.service', () => ({
   resolveOptionalUserId: jest.fn(() => null),
   recommendationsService: {
     getMixedRecommendations: jest.fn(),
@@ -14,13 +14,13 @@ jest.mock('../../src/modules/recommendations/recommendations.service', () => ({
     getServiceProviderRecommendations: jest.fn().mockResolvedValue([]),
   },
 }));
-jest.mock('../../src/modules/home/home.service');
-jest.mock('../../src/modules/store-types/store-types.service');
-jest.mock('../../src/modules/ads/ads.service');
-jest.mock('../../src/modules/products/products.service');
-jest.mock('../../src/modules/service-listings/service-listings.service');
-jest.mock('../../src/modules/stores/stores.service');
-jest.mock('../../src/modules/service-providers/service-providers.service');
+jest.mock('../../src/modules/discovery/home/home.service');
+jest.mock('../../src/modules/commerce/store-types/store-types.service');
+jest.mock('../../src/modules/classifieds/ads/ads.service');
+jest.mock('../../src/modules/commerce/products/products.service');
+jest.mock('../../src/modules/services/service-listings/service-listings.service');
+jest.mock('../../src/modules/commerce/stores/stores.service');
+jest.mock('../../src/modules/services/service-providers/service-providers.service');
 jest.mock('../../src/shared/observability/logger', () => ({
   logger: { warn: jest.fn(), error: jest.fn(), info: jest.fn(), debug: jest.fn() },
 }));

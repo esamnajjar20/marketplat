@@ -1,9 +1,9 @@
-import { collectionsController } from '../../src/modules/collections/collections.controller';
-import { collectionsService } from '../../src/modules/collections/collections.service';
+import { collectionsController } from '../../src/modules/commerce/collections/collections.controller';
+import { collectionsService } from '../../src/modules/commerce/collections/collections.service';
 import { requireUser } from '../../src/shared/auth/requireUser';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/collections/collections.service');
+jest.mock('../../src/modules/commerce/collections/collections.service');
 jest.mock('../../src/shared/auth/requireUser');
 
 const userId = 'user-1';

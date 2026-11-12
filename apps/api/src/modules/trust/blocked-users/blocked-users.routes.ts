@@ -1,0 +1,21 @@
+import { Router } from 'express';
+import { blockedUsersController } from './blocked-users.controller';
+import { authenticate } from '../../../middlewares/auth.middleware';
+import { CACHE } from '../../../middlewares/cacheControl.middleware';
+import { userBlockRateLimit } from '../../../middlewares/rateLimit.middleware';
+
+export const blockedUsersRouter = Router();
+
+// All routes require auth — blocking is always caller-scoped, never
+// publicly listable (same posture as favorites/conversations).
+blockedUsersRouter.get('/', authenticate, CACHE.NONE, blockedUsersController.getMyBlockedUsers);
+// A profile action needs one user's status, not the caller's full block list.
+blockedUsersRouter.get('/:userId/status', authenticate, CACHE.NONE, blockedUsersController.getStatus);
+blockedUsersRouter.post(
+  '/:userId',
+  authenticate,
+  userBlockRateLimit,
+  blockedUsersController.toggleBlock
+);
+// Explicit, idempotent unblock avoids a stale client accidentally re-blocking.
+blockedUsersRouter.delete('/:userId', authenticate, userBlockRateLimit, blockedUsersController.unblock);

@@ -2,13 +2,13 @@
  * Pure badge computation (/ P2).
  * No I/O — thresholds from badges.constants.ts.
  */
-import { BADGE_THRESHOLDS } from '../../src/modules/badges/badges.constants';
+import { BADGE_THRESHOLDS } from '../../src/modules/engagement/badges/badges.constants';
 import {
   computeBadges,
   computeProviderBadges,
   BadgeInput,
   ProviderBadgeInput,
-} from '../../src/modules/badges/badges.types';
+} from '../../src/modules/engagement/badges/badges.types';
 
 const baseStore = (overrides: Partial<BadgeInput> = {}): BadgeInput => ({
   createdAt: new Date('2020-01-01T00:00:00Z'),

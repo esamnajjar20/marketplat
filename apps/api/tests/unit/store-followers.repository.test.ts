@@ -1,4 +1,4 @@
-import { storeFollowersRepository } from '../../src/modules/stores/store-followers.repository';
+import { storeFollowersRepository } from '../../src/modules/commerce/stores/store-followers.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({

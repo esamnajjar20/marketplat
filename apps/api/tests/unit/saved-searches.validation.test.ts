@@ -2,7 +2,7 @@ import {
   savedSearchFiltersSchema,
   createSavedSearchSchema,
   savedSearchIdSchema,
-} from '../../src/modules/saved-searches/saved-searches.validation';
+} from '../../src/modules/engagement/saved-searches/saved-searches.validation';
 
 describe('saved-searches.validation', () => {
   describe('savedSearchFiltersSchema', () => {

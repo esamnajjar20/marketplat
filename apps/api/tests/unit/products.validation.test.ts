@@ -3,7 +3,7 @@ import {
   updateProductSchema,
   getProductsSchema,
   productIdSchema,
-} from '../../src/modules/products/products.validation';
+} from '../../src/modules/commerce/products/products.validation';
 
 describe('products.validation', () => {
   describe('createProductSchema', () => {

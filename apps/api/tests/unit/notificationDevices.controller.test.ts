@@ -1,10 +1,10 @@
-import { notificationsController } from '../../src/modules/notifications/notifications.controller';
-import { notificationsService } from '../../src/modules/notifications/notifications.service';
+import { notificationsController } from '../../src/modules/engagement/notifications/notifications.controller';
+import { notificationsService } from '../../src/modules/engagement/notifications/notifications.service';
 import { requireUser } from '../../src/shared/auth/requireUser';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/notifications/notifications.service');
+jest.mock('../../src/modules/engagement/notifications/notifications.service');
 jest.mock('../../src/shared/auth/requireUser');
 
 describe('notificationsController — device list', () => {

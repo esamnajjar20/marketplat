@@ -11,9 +11,9 @@ const check = (name, condition, detail = '') => {
   checks.push({ name, passed: Boolean(condition), detail });
 };
 
-const repository = read('apps/api/src/modules/stores/stores.repository.ts');
-const service = read('apps/api/src/modules/stores/store-members.service.ts');
-const storesService = read('apps/api/src/modules/stores/stores.service.ts');
+const repository = read('apps/api/src/modules/commerce/stores/stores.repository.ts');
+const service = read('apps/api/src/modules/commerce/stores/store-members.service.ts');
+const storesService = read('apps/api/src/modules/commerce/stores/stores.service.ts');
 const frontendTypes = read('frontend/types/store.types.ts');
 const storesApi = read('frontend/api/stores.api.ts');
 const storesQuery = read('frontend/hooks/queries/useStores.ts');
@@ -44,8 +44,8 @@ check(
 );
 check(
   'Public store service advertises compact response types',
-  /getStores:[\s\S]*?Promise<\{\s*stores:\s*StoreDirectoryRow\[\]/.test(read('apps/api/src/modules/stores/stores.service.ts'))
-    && /getFeaturedStores:[\s\S]*?Promise<\{\s*stores:\s*StoreDirectoryRow\[\]/.test(read('apps/api/src/modules/stores/stores.service.ts')),
+  /getStores:[\s\S]*?Promise<\{\s*stores:\s*StoreDirectoryRow\[\]/.test(read('apps/api/src/modules/commerce/stores/stores.service.ts'))
+    && /getFeaturedStores:[\s\S]*?Promise<\{\s*stores:\s*StoreDirectoryRow\[\]/.test(read('apps/api/src/modules/commerce/stores/stores.service.ts')),
   'getStores and getFeaturedStores return StoreDirectoryRow[].',
 );
 check(

@@ -5,7 +5,7 @@ import {
   getAppointmentsSchema,
   appointmentIdSchema,
   MAX_APPOINTMENT_MINUTES,
-} from '../../src/modules/appointments/appointments.validation';
+} from '../../src/modules/services/appointments/appointments.validation';
 
 describe('appointments.validation', () => {
   describe('createAppointmentSchema', () => {

@@ -1,4 +1,4 @@
-import { notificationsRepository } from '../../src/modules/notifications/notifications.repository';
+import { notificationsRepository } from '../../src/modules/engagement/notifications/notifications.repository';
 import { prisma } from '../../src/config/prisma';
 import { pushSubscriptionsRepository } from '../../src/shared/notifications/pushSubscriptionsRepository';
 

@@ -1,4 +1,4 @@
-import { adsRepository } from '../../src/modules/ads/ads.repository';
+import { adsRepository } from '../../src/modules/classifieds/ads/ads.repository';
 import { prisma } from '../../src/config/prisma';
 import { AdStatus } from '@prisma/client';
 

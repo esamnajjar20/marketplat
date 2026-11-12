@@ -5,7 +5,7 @@ import {
   nearbyServiceProvidersSchema,
   getServiceProvidersSchema,
   workingHoursSchema,
-} from '../../src/modules/service-providers/service-providers.validation';
+} from '../../src/modules/services/service-providers/service-providers.validation';
 
 const validWorkingHours = {
   sun: { open: '09:00', close: '18:00' },

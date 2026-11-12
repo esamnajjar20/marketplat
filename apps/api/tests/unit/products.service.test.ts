@@ -1,11 +1,11 @@
-import { productsService } from '../../src/modules/products/products.service';
-import { productsRepository } from '../../src/modules/products/products.repository';
-import { productCategoriesRepository } from '../../src/modules/product-categories/product-categories.repository';
-import { storesRepository } from '../../src/modules/stores/stores.repository';
-import { storeFollowersRepository } from '../../src/modules/stores/store-followers.repository';
-import { requireStoreAccessForProducts } from '../../src/modules/stores/store-members.service';
-import { notificationEvents } from '../../src/modules/notifications/notifications.service';
-import { promotionsService } from '../../src/modules/promotions/promotions.service';
+import { productsService } from '../../src/modules/commerce/products/products.service';
+import { productsRepository } from '../../src/modules/commerce/products/products.repository';
+import { productCategoriesRepository } from '../../src/modules/commerce/product-categories/product-categories.repository';
+import { storesRepository } from '../../src/modules/commerce/stores/stores.repository';
+import { storeFollowersRepository } from '../../src/modules/commerce/stores/store-followers.repository';
+import { requireStoreAccessForProducts } from '../../src/modules/commerce/stores/store-members.service';
+import { notificationEvents } from '../../src/modules/engagement/notifications/notifications.service';
+import { promotionsService } from '../../src/modules/commerce/promotions/promotions.service';
 import { prisma } from '../../src/config/prisma';
 import { uploadImage, deleteImage } from '../../src/config/cloudinary';
 import { cleanupUploadedImages, extractCloudinaryPublicId } from '../../src/shared/media/cloudinaryHelpers';
@@ -13,23 +13,23 @@ import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 
-jest.mock('../../src/modules/products/products.repository');
-jest.mock('../../src/modules/product-categories/product-categories.repository');
-jest.mock('../../src/modules/stores/stores.repository');
-jest.mock('../../src/modules/stores/store-followers.repository');
-jest.mock('../../src/modules/stores/store-members.service');
-jest.mock('../../src/modules/store-types/store-types.repository');
-jest.mock('../../src/modules/notifications/notifications.service');
+jest.mock('../../src/modules/commerce/products/products.repository');
+jest.mock('../../src/modules/commerce/product-categories/product-categories.repository');
+jest.mock('../../src/modules/commerce/stores/stores.repository');
+jest.mock('../../src/modules/commerce/stores/store-followers.repository');
+jest.mock('../../src/modules/commerce/stores/store-members.service');
+jest.mock('../../src/modules/commerce/store-types/store-types.repository');
+jest.mock('../../src/modules/engagement/notifications/notifications.service');
 // PROMO-1: getProductById/getProducts now fold in promotionsService's
 // computed effectivePrice — mocked here the same way every other
 // cross-module service dependency in this file already is, so this
 // file's own tests stay focused on productsService's own logic rather
 // than re-testing promotion price computation (covered in
 // promotions.service.test.ts).
-jest.mock('../../src/modules/promotions/promotions.service');
+jest.mock('../../src/modules/commerce/promotions/promotions.service');
 jest.mock('../../src/config/cloudinary');
 jest.mock('../../src/shared/media/cloudinaryHelpers');
-jest.mock('../../src/modules/store-types/store-type-fields.service', () => ({
+jest.mock('../../src/modules/commerce/store-types/store-type-fields.service', () => ({
   storeTypeFieldsService: {
     validateAttributes: jest.fn().mockResolvedValue({}),
   },

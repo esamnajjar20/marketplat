@@ -16,8 +16,8 @@ const telemetry = read('apps/api/src/shared/observability/dbQueryTelemetry.ts');
 const tests = read('apps/api/tests/unit/dbQueryTelemetry.test.ts');
 const apiPackage = JSON.parse(read('apps/api/package.json'));
 const rootPackage = JSON.parse(read('package.json'));
-const expiryRepository = read('apps/api/src/modules/service-requests/service-requests.repository.ts');
-const expiryService = read('apps/api/src/modules/service-requests/service-requests.service.ts');
+const expiryRepository = read('apps/api/src/modules/services/service-requests/service-requests.repository.ts');
+const expiryService = read('apps/api/src/modules/services/service-requests/service-requests.service.ts');
 const expiryTests = read('apps/api/tests/unit/service-requests.expiry.test.ts');
 const expiryRepositoryTests = read('apps/api/tests/unit/service-requests.repository.test.ts');
 

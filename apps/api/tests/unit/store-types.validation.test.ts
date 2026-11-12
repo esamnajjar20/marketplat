@@ -3,7 +3,7 @@ import {
   createStoreTypeSchema,
   updateStoreTypeSchema,
   updateStoreTypeStatusSchema,
-} from '../../src/modules/store-types/store-types.validation';
+} from '../../src/modules/commerce/store-types/store-types.validation';
 
 describe('store-types.validation', () => {
   const labels = {

@@ -1,8 +1,8 @@
-import { searchController } from '../../src/modules/search/search.controller';
-import { searchService } from '../../src/modules/search/search.service';
+import { searchController } from '../../src/modules/discovery/search/search.controller';
+import { searchService } from '../../src/modules/discovery/search/search.service';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/search/search.service');
+jest.mock('../../src/modules/discovery/search/search.service');
 
 const mockResult = {
   results: [{ id: 'ad-1', type: 'ad', title: 'iPhone 13' }],

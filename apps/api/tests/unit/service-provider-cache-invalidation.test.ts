@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 describe('service provider public-list cache invalidation', () => {
-  const source = readFileSync(join(__dirname, '../../src/modules/service-providers/service-providers.service.ts'), 'utf8');
+  const source = readFileSync(join(__dirname, '../../src/modules/services/service-providers/service-providers.service.ts'), 'utf8');
 
   it('invalidates the public directory after a provider is created', () => {
     expect(source).toContain("await bumpPublicListCache('service-providers');\n    return created;");

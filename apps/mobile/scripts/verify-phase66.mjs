@@ -5,9 +5,9 @@ const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../.
 const read = (p) => fs.readFileSync(path.join(root, p), 'utf8');
 const schema = read('apps/api/prisma/schema.prisma');
 const migration = read('apps/api/prisma/migrations/20261025100000_add_ad_image_offline_idempotency/migration.sql');
-const controller = read('apps/api/src/modules/ads/ads.controller.ts');
-const service = read('apps/api/src/modules/ads/ads.service.ts');
-const repo = read('apps/api/src/modules/ads/ads.repository.ts');
+const controller = read('apps/api/src/modules/classifieds/ads/ads.controller.ts');
+const service = read('apps/api/src/modules/classifieds/ads/ads.service.ts');
+const repo = read('apps/api/src/modules/classifieds/ads/ads.repository.ts');
 assert.match(schema, /model AdImageOfflineOperation/);
 assert.match(schema, /operationId\s+String\s+@unique/);
 assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS "AdImageOfflineOperation_operationId_key"/);

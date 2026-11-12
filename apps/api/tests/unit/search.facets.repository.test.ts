@@ -1,4 +1,4 @@
-import { searchFacetsRepository } from '../../src/modules/search/search.facets.repository';
+import { searchFacetsRepository } from '../../src/modules/discovery/search/search.facets.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({

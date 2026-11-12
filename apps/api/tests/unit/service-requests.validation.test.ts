@@ -3,7 +3,7 @@ import {
   respondToServiceRequestSchema,
   serviceRequestIdSchema,
   getServiceRequestsSchema,
-} from '../../src/modules/service-requests/service-requests.validation';
+} from '../../src/modules/services/service-requests/service-requests.validation';
 
 describe('service-requests.validation', () => {
   describe('createServiceRequestSchema', () => {

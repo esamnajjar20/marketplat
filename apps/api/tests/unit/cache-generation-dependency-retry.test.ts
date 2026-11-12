@@ -5,7 +5,7 @@ describe('durable cache invalidation dependency chain', () => {
   const swrSource = readFileSync(join(__dirname, '../../src/shared/cache/swrCache.ts'), 'utf8');
   const workerSource = readFileSync(join(__dirname, '../../src/shared/outbox/outbox.worker.ts'), 'utf8');
   const publicListSource = readFileSync(join(__dirname, '../../src/shared/cache/publicListCache.ts'), 'utf8');
-  const adsSource = readFileSync(join(__dirname, '../../src/modules/ads/ads.cache.keys.ts'), 'utf8');
+  const adsSource = readFileSync(join(__dirname, '../../src/modules/classifieds/ads/ads.cache.keys.ts'), 'utf8');
 
   it('persists dependent generation keys with a failed source invalidation', () => {
     expect(swrSource).toContain('retryRequiredGenKeys?: readonly string[]');

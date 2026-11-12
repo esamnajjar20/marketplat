@@ -2,7 +2,7 @@ import {
   updateProfileSchema,
   updateNotificationPreferencesSchema,
   deleteMeWithReauthSchema,
-} from '../../src/modules/users/users.validation';
+} from '../../src/modules/identity/users/users.validation';
 
 describe('users.validation', () => {
   describe('updateProfileSchema', () => {

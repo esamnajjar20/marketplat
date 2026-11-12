@@ -1,4 +1,4 @@
-import { adsRepository } from '../../src/modules/ads/ads.repository';
+import { adsRepository } from '../../src/modules/classifieds/ads/ads.repository';
 import { createTestUser } from '../helpers/auth.helper';
 import { createTestAd } from '../helpers/ad.helper';
 import { prisma } from '../../src/config/prisma';

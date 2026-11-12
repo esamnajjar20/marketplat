@@ -1,11 +1,11 @@
 import { UserActivityType } from '@prisma/client';
-import { activityService, __testables__ } from '../../src/modules/activity/activity.service';
-import { activityRepository } from '../../src/modules/activity/activity.repository';
-import { activityBuffer } from '../../src/shared/buffers/activityBuffer';
+import { activityService, __testables__ } from '../../src/modules/engagement/activity/activity.service';
+import { activityRepository } from '../../src/modules/engagement/activity/activity.repository';
+import { activityBuffer } from '../../src/modules/engagement/activity/activity.buffer';
 import { logger } from '../../src/shared/observability/logger';
 
-jest.mock('../../src/modules/activity/activity.repository');
-jest.mock('../../src/shared/buffers/activityBuffer');
+jest.mock('../../src/modules/engagement/activity/activity.repository');
+jest.mock('../../src/modules/engagement/activity/activity.buffer');
 jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn() },
 }));

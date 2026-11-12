@@ -1,7 +1,7 @@
 import {
   searchQuerySchema,
   searchSuggestionsQuerySchema,
-} from '../../src/modules/search/search.validation';
+} from '../../src/modules/discovery/search/search.validation';
 
 describe('search.validation', () => {
   describe('searchQuerySchema', () => {

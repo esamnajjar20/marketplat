@@ -5,7 +5,7 @@ import {
   getMyAdsSchema,
   adIdSchema,
   searchAdsSchema,
-} from '../../src/modules/ads/ads.validation';
+} from '../../src/modules/classifieds/ads/ads.validation';
 
 describe('ads.validation — additional coverage', () => {
   describe('createAdSchema — field limits', () => {

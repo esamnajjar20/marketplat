@@ -1,5 +1,5 @@
-import { notificationsService, notificationEvents } from '../../src/modules/notifications/notifications.service';
-import { notificationsRepository } from '../../src/modules/notifications/notifications.repository';
+import { notificationsService, notificationEvents } from '../../src/modules/engagement/notifications/notifications.service';
+import { notificationsRepository } from '../../src/modules/engagement/notifications/notifications.repository';
 import { pushService } from '../../src/shared/notifications/pushService';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { prisma } from '../../src/config/prisma';
@@ -7,7 +7,7 @@ import { prisma } from '../../src/config/prisma';
 import { pushSubscriptionsRepository } from '../../src/shared/notifications/pushSubscriptionsRepository';
 import { fcmDeviceTokensRepository } from '../../src/shared/notifications/fcmDeviceTokensRepository';
 
-jest.mock('../../src/modules/notifications/notifications.repository');
+jest.mock('../../src/modules/engagement/notifications/notifications.repository');
 jest.mock('../../src/shared/notifications/pushSubscriptionsRepository');
 jest.mock('../../src/shared/notifications/fcmDeviceTokensRepository');
 jest.mock('../../src/shared/notifications/pushService', () => ({

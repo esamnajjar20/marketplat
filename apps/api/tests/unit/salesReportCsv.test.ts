@@ -1,4 +1,4 @@
-import { buildSalesReportCsv } from '../../src/modules/sales/salesReportCsv';
+import { buildSalesReportCsv } from '../../src/modules/commerce/sales/sales-report-csv';
 
 describe('buildSalesReportCsv', () => {
   it('writes UTF-8 BOM, Arabic headers, and the seller report columns', () => {

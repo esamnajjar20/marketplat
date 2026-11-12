@@ -18,7 +18,7 @@ jest.mock('../../src/shared/notifications/fcmPushService', () => ({
 jest.mock('../../src/config/prisma', () => ({ prisma: { user: { findUnique: jest.fn() } } }));
 
 import { resolveQuietTimeZone } from '../../src/shared/notifications/pushService';
-import { updateNotificationPreferencesSchema } from '../../src/modules/users/users.validation';
+import { updateNotificationPreferencesSchema } from '../../src/modules/identity/users/users.validation';
 
 describe('resolveQuietTimeZone', () => {
   it('keeps a valid IANA zone', () => {

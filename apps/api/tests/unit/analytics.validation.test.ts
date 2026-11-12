@@ -1,4 +1,4 @@
-import { trackEventsSchema } from '../../src/modules/analytics/analytics.validation';
+import { trackEventsSchema } from '../../src/modules/platform/analytics/analytics.validation';
 
 const event = (eventId?: string) => ({
   ...(eventId ? { eventId } : {}),

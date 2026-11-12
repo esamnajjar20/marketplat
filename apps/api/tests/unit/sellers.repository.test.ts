@@ -1,4 +1,4 @@
-import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
+import { sellersRepository } from '../../src/modules/identity/sellers/sellers.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({

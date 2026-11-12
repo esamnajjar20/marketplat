@@ -6,7 +6,7 @@ import {
   updateStoreStatusSchema,
   createStoreReviewSchema,
   getStoreReviewsSchema,
-} from '../../src/modules/stores/stores.validation';
+} from '../../src/modules/commerce/stores/stores.validation';
 
 describe('stores.validation', () => {
   describe('createStoreSchema', () => {

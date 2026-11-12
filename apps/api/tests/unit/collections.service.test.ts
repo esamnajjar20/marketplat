@@ -1,20 +1,20 @@
 /**
  * collections.service — previously 0 unit coverage.
  */
-import { collectionsService } from '../../src/modules/collections/collections.service';
-import { collectionsRepository } from '../../src/modules/collections/collections.repository';
-import { productsRepository } from '../../src/modules/products/products.repository';
-import { requireStoreAccessForProducts } from '../../src/modules/stores/store-members.service';
-import { storesRepository } from '../../src/modules/stores/stores.repository';
+import { collectionsService } from '../../src/modules/commerce/collections/collections.service';
+import { collectionsRepository } from '../../src/modules/commerce/collections/collections.repository';
+import { productsRepository } from '../../src/modules/commerce/products/products.repository';
+import { requireStoreAccessForProducts } from '../../src/modules/commerce/stores/store-members.service';
+import { storesRepository } from '../../src/modules/commerce/stores/stores.repository';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { ConflictError } from '../../src/shared/errors/ConflictError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 
-jest.mock('../../src/modules/collections/collections.repository');
-jest.mock('../../src/modules/products/products.repository');
-jest.mock('../../src/modules/stores/store-members.service');
-jest.mock('../../src/modules/stores/stores.repository');
+jest.mock('../../src/modules/commerce/collections/collections.repository');
+jest.mock('../../src/modules/commerce/products/products.repository');
+jest.mock('../../src/modules/commerce/stores/store-members.service');
+jest.mock('../../src/modules/commerce/stores/stores.repository');
 jest.mock('../../src/shared/utils/slugify', () => ({
   generateStoreSlug: (name: string) =>
     name

@@ -3,11 +3,11 @@ import { join } from 'node:path';
 
 describe('service-type dependent cache invalidation', () => {
   const serviceTypesSource = readFileSync(
-    join(__dirname, '../../src/modules/service-types/service-types.service.ts'),
+    join(__dirname, '../../src/modules/services/service-types/service-types.service.ts'),
     'utf8',
   );
   const serviceCategoriesSource = readFileSync(
-    join(__dirname, '../../src/modules/service-categories/service-categories.service.ts'),
+    join(__dirname, '../../src/modules/services/service-categories/service-categories.service.ts'),
     'utf8',
   );
 

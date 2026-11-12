@@ -1,25 +1,25 @@
-import { homeService, isHomepageDegraded } from '../../src/modules/home/home.service';
-import { getHomepageSchema } from '../../src/modules/home/home.validation';
-import { adsService } from '../../src/modules/ads/ads.service';
-import { storesService } from '../../src/modules/stores/stores.service';
-import { serviceListingsService } from '../../src/modules/service-listings/service-listings.service';
-import { categoriesService } from '../../src/modules/categories/categories.service';
-import { productCategoriesService } from '../../src/modules/product-categories/product-categories.service';
-import { serviceCategoriesService } from '../../src/modules/service-categories/service-categories.service';
-import { productsService } from '../../src/modules/products/products.service';
-import { serviceProvidersService } from '../../src/modules/service-providers/service-providers.service';
-import { recommendationsService } from '../../src/modules/recommendations/recommendations.service';
+import { homeService, isHomepageDegraded } from '../../src/modules/discovery/home/home.service';
+import { getHomepageSchema } from '../../src/modules/discovery/home/home.validation';
+import { adsService } from '../../src/modules/classifieds/ads/ads.service';
+import { storesService } from '../../src/modules/commerce/stores/stores.service';
+import { serviceListingsService } from '../../src/modules/services/service-listings/service-listings.service';
+import { categoriesService } from '../../src/modules/classifieds/categories/categories.service';
+import { productCategoriesService } from '../../src/modules/commerce/product-categories/product-categories.service';
+import { serviceCategoriesService } from '../../src/modules/services/service-categories/service-categories.service';
+import { productsService } from '../../src/modules/commerce/products/products.service';
+import { serviceProvidersService } from '../../src/modules/services/service-providers/service-providers.service';
+import { recommendationsService } from '../../src/modules/discovery/recommendations/recommendations.service';
 import { prisma } from '../../src/config/prisma';
 
-jest.mock('../../src/modules/ads/ads.service');
-jest.mock('../../src/modules/stores/stores.service');
-jest.mock('../../src/modules/service-listings/service-listings.service');
-jest.mock('../../src/modules/categories/categories.service');
-jest.mock('../../src/modules/product-categories/product-categories.service');
-jest.mock('../../src/modules/service-categories/service-categories.service');
-jest.mock('../../src/modules/products/products.service');
-jest.mock('../../src/modules/service-providers/service-providers.service');
-jest.mock('../../src/modules/recommendations/recommendations.service');
+jest.mock('../../src/modules/classifieds/ads/ads.service');
+jest.mock('../../src/modules/commerce/stores/stores.service');
+jest.mock('../../src/modules/services/service-listings/service-listings.service');
+jest.mock('../../src/modules/classifieds/categories/categories.service');
+jest.mock('../../src/modules/commerce/product-categories/product-categories.service');
+jest.mock('../../src/modules/services/service-categories/service-categories.service');
+jest.mock('../../src/modules/commerce/products/products.service');
+jest.mock('../../src/modules/services/service-providers/service-providers.service');
+jest.mock('../../src/modules/discovery/recommendations/recommendations.service');
 jest.mock('../../src/config/prisma', () => ({ prisma: { ad: { count: jest.fn() } } }));
 jest.mock('../../src/shared/observability/logger', () => ({
   logger: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },

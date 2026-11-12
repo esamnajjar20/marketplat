@@ -1,6 +1,6 @@
-import { validateServiceTypeCapabilitiesDefinition, getServiceTypeCapabilities, validateServiceTypeCapabilities } from '../../src/modules/service-types/service-types.service';
-import { validateServiceTypeFieldDefinition } from '../../src/modules/service-types/service-types.validation';
-import { createServiceTypeSchema } from '../../src/modules/service-types/service-types.validation';
+import { validateServiceTypeCapabilitiesDefinition, getServiceTypeCapabilities, validateServiceTypeCapabilities } from '../../src/modules/services/service-types/service-types.service';
+import { validateServiceTypeFieldDefinition } from '../../src/modules/services/service-types/service-types.validation';
+import { createServiceTypeSchema } from '../../src/modules/services/service-types/service-types.validation';
 
 describe('service type capabilities', () => {
   it('normalizes configured allow-lists', () => {

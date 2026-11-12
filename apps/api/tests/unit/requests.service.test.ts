@@ -1,23 +1,23 @@
-import { requestsService } from '../../src/modules/requests/requests.service';
-import { requestsRepository, requestOffersRepository } from '../../src/modules/requests/requests.repository';
-import { serviceCategoriesRepository } from '../../src/modules/service-categories/service-categories.repository';
-import { productCategoriesRepository } from '../../src/modules/product-categories/product-categories.repository';
-import { categoriesRepository } from '../../src/modules/categories/categories.repository';
-import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
-import { serviceProvidersRepository } from '../../src/modules/service-providers/service-providers.repository';
-import { serviceTypesRepository } from '../../src/modules/service-types/service-types.repository';
+import { requestsService } from '../../src/modules/classifieds/requests/requests.service';
+import { requestsRepository, requestOffersRepository } from '../../src/modules/classifieds/requests/requests.repository';
+import { serviceCategoriesRepository } from '../../src/modules/services/service-categories/service-categories.repository';
+import { productCategoriesRepository } from '../../src/modules/commerce/product-categories/product-categories.repository';
+import { categoriesRepository } from '../../src/modules/classifieds/categories/categories.repository';
+import { sellersRepository } from '../../src/modules/identity/sellers/sellers.repository';
+import { serviceProvidersRepository } from '../../src/modules/services/service-providers/service-providers.repository';
+import { serviceTypesRepository } from '../../src/modules/services/service-types/service-types.repository';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { ForbiddenError } from '../../src/shared/errors/ForbiddenError';
 import { prisma } from '../../src/config/prisma';
 
-jest.mock('../../src/modules/requests/requests.repository');
-jest.mock('../../src/modules/service-categories/service-categories.repository');
-jest.mock('../../src/modules/product-categories/product-categories.repository');
-jest.mock('../../src/modules/categories/categories.repository');
-jest.mock('../../src/modules/sellers/sellers.repository');
-jest.mock('../../src/modules/service-providers/service-providers.repository');
-jest.mock('../../src/modules/service-types/service-types.repository');
-jest.mock('../../src/modules/conversations/conversations.service', () => ({
+jest.mock('../../src/modules/classifieds/requests/requests.repository');
+jest.mock('../../src/modules/services/service-categories/service-categories.repository');
+jest.mock('../../src/modules/commerce/product-categories/product-categories.repository');
+jest.mock('../../src/modules/classifieds/categories/categories.repository');
+jest.mock('../../src/modules/identity/sellers/sellers.repository');
+jest.mock('../../src/modules/services/service-providers/service-providers.repository');
+jest.mock('../../src/modules/services/service-types/service-types.repository');
+jest.mock('../../src/modules/engagement/conversations/conversations.service', () => ({
   conversationsService: { startFromUser: jest.fn().mockResolvedValue(undefined) },
 }));
 jest.mock('../../src/config/prisma', () => ({

@@ -1,12 +1,12 @@
-import { recommendationsController } from '../../src/modules/recommendations/recommendations.controller';
-import { recommendationsService, resolveOptionalUserId } from '../../src/modules/recommendations/recommendations.service'; // RECS-CACHE-FIX-01
+import { recommendationsController } from '../../src/modules/discovery/recommendations/recommendations.controller';
+import { recommendationsService, resolveOptionalUserId } from '../../src/modules/discovery/recommendations/recommendations.service'; // RECS-CACHE-FIX-01
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/recommendations/recommendations.service');
+jest.mock('../../src/modules/discovery/recommendations/recommendations.service');
 // RECS-CACHE-01: the controller now goes through the SWR cache. Replace it
 // with a pass-through so these tests keep exercising routing only (the
 // cache itself is covered in recommendations.cache.test.ts).
-jest.mock('../../src/modules/recommendations/recommendations.cache', () => ({
+jest.mock('../../src/modules/discovery/recommendations/recommendations.cache', () => ({
   getCachedRecommendations: jest.fn(
     async (
       query: unknown,

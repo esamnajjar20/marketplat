@@ -1,4 +1,4 @@
-import { isDataIntegrityScanReport } from '../../src/modules/admin/data-integrity.types';
+import { isDataIntegrityScanReport } from '../../src/modules/platform/admin/data-integrity.types';
 
 const validReport = {
   mode: 'read_only',

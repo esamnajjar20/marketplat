@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 const contract = readFileSync(new URL('../src/storage/outbox-transport-contract.mjs', import.meta.url), 'utf8');
 const middleware = readFileSync(new URL('../../api/src/middlewares/offlineOperationId.middleware.ts', import.meta.url), 'utf8');
-const service = readFileSync(new URL('../../api/src/modules/ads/ads.service.ts', import.meta.url), 'utf8');
+const service = readFileSync(new URL('../../api/src/modules/classifieds/ads/ads.service.ts', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 assert.match(contract, /item\.operation !== 'create-ad'/, 'only ad creation is eligible for the current automatic transport contract');
 assert.match(contract, /'X-Offline-Op-Id': item\.idempotencyKey/, 'mobile sends the header the API actually understands');

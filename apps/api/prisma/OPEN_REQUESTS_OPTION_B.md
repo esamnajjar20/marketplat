@@ -69,7 +69,7 @@ Mount: `GET|POST /requests` …
 | DELETE | `/requests/:id/offers/:offerId` | Withdraw |
 | PATCH | `/requests/:id/offers/:offerId/accept` | Accept (transactional) |
 
-Files: `apps/api/src/modules/requests/*`
+Files: `apps/api/src/modules/classifieds/requests/*`
 
 Rate limits: `createOpenRequestRateLimit` (10/h), `submitRequestOfferRateLimit` (30/h)
 

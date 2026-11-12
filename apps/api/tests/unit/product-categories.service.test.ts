@@ -1,12 +1,12 @@
-import { productCategoriesService } from '../../src/modules/product-categories/product-categories.service';
-import { productCategoriesRepository } from '../../src/modules/product-categories/product-categories.repository';
+import { productCategoriesService } from '../../src/modules/commerce/product-categories/product-categories.service';
+import { productCategoriesRepository } from '../../src/modules/commerce/product-categories/product-categories.repository';
 import { redis } from '../../src/config/redis';
 import { Prisma } from '@prisma/client';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 
-jest.mock('../../src/modules/product-categories/product-categories.repository');
-jest.mock('../../src/modules/store-types/store-types.repository');
+jest.mock('../../src/modules/commerce/product-categories/product-categories.repository');
+jest.mock('../../src/modules/commerce/store-types/store-types.repository');
 
 const mockCategory = {
   id: 'cat-1',

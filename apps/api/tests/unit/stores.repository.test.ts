@@ -1,4 +1,4 @@
-import { storesRepository, storeDirectorySelect } from '../../src/modules/stores/stores.repository';
+import { storesRepository, storeDirectorySelect } from '../../src/modules/commerce/stores/stores.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({

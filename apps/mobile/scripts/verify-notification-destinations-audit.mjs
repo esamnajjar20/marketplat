@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import assert from 'node:assert/strict';
 
 const screen = fs.readFileSync(new URL('../app/notifications.tsx', import.meta.url), 'utf8');
-const api = fs.readFileSync(new URL('../../api/src/modules/notifications/notifications.service.ts', import.meta.url), 'utf8');
+const api = fs.readFileSync(new URL('../../api/src/modules/engagement/notifications/notifications.service.ts', import.meta.url), 'utf8');
 const schema = fs.readFileSync(new URL('../../api/prisma/schema.prisma', import.meta.url), 'utf8');
 
 assert.match(screen, /function destination\(item: AppNotification\)/);

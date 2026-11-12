@@ -1,10 +1,10 @@
-import { categoriesController } from '../../src/modules/categories/categories.controller';
-import { categoriesService } from '../../src/modules/categories/categories.service';
+import { categoriesController } from '../../src/modules/classifieds/categories/categories.controller';
+import { categoriesService } from '../../src/modules/classifieds/categories/categories.service';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/categories/categories.service');
+jest.mock('../../src/modules/classifieds/categories/categories.service');
 
 const mockCategory = { id: 'cat-1', name: 'Electronics', nameAr: 'إلكترونيات', slug: 'electronics' } as any;
 

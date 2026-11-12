@@ -1,6 +1,6 @@
-import { searchRepository } from '../../src/modules/search/search.repository';
+import { searchRepository } from '../../src/modules/discovery/search/search.repository';
 import { prisma } from '../../src/config/prisma';
-import type { SearchQuery } from '../../src/modules/search/search.validation';
+import type { SearchQuery } from '../../src/modules/discovery/search/search.validation';
 
 jest.mock('../../src/config/prisma', () => ({
   prisma: {

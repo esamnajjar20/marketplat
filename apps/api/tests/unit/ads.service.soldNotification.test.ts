@@ -1,8 +1,8 @@
-import { adsService } from '../../src/modules/ads/ads.service';
-import { adsRepository } from '../../src/modules/ads/ads.repository';
-import { favoritesRepository } from '../../src/modules/favorites/favorites.repository';
-import { notificationEvents } from '../../src/modules/notifications';
-import { sellersRepository } from '../../src/modules/sellers/sellers.repository';
+import { adsService } from '../../src/modules/classifieds/ads/ads.service';
+import { adsRepository } from '../../src/modules/classifieds/ads/ads.repository';
+import { favoritesRepository } from '../../src/modules/engagement/favorites/favorites.repository';
+import { notificationEvents } from '../../src/modules/engagement/notifications';
+import { sellersRepository } from '../../src/modules/identity/sellers/sellers.repository';
 import { prisma } from '../../src/config/prisma';
 import { ROLES } from '../../src/shared/constants/roles';
 import { AdStatus, Prisma } from '@prisma/client';
@@ -13,9 +13,9 @@ import { AdStatus, Prisma } from '@prisma/client';
  * notifications without touching ads.service.test.ts's existing mocks),
  * but for the ACTIVE -> SOLD transition instead of a price change.
  */
-jest.mock('../../src/modules/ads/ads.repository');
-jest.mock('../../src/modules/favorites/favorites.repository');
-jest.mock('../../src/modules/sellers/sellers.repository');
+jest.mock('../../src/modules/classifieds/ads/ads.repository');
+jest.mock('../../src/modules/engagement/favorites/favorites.repository');
+jest.mock('../../src/modules/identity/sellers/sellers.repository');
 // The ACTIVE -> SOLD path with a sellerProfileId set bypasses
 // adsRepository entirely and opens a real prisma.$transaction (see
 // ads.service.ts's updateAd, the `justSold` branch) so tx.ad.update
@@ -26,7 +26,7 @@ jest.mock('../../src/modules/sellers/sellers.repository');
 jest.mock('../../src/config/prisma', () => ({
   prisma: { $transaction: jest.fn() },
 }));
-jest.mock('../../src/modules/notifications', () => ({
+jest.mock('../../src/modules/engagement/notifications', () => ({
   notificationEvents: {
     onFavoritedAdPriceChanged: jest.fn(),
     onFavoritedAdSold: jest.fn(),

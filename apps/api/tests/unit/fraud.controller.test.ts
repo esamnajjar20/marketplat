@@ -1,8 +1,8 @@
-import { fraudController } from '../../src/modules/fraud/fraud.controller';
-import { fraudService } from '../../src/modules/fraud/fraud.service';
+import { fraudController } from '../../src/modules/trust/fraud/fraud.controller';
+import { fraudService } from '../../src/modules/trust/fraud/fraud.service';
 import { mockRequest, mockResponse, mockNext } from '../helpers/httpMocks.helper';
 
-jest.mock('../../src/modules/fraud/fraud.service');
+jest.mock('../../src/modules/trust/fraud/fraud.service');
 
 describe('fraudController', () => {
   beforeEach(() => jest.clearAllMocks());

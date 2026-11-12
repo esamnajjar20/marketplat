@@ -1,7 +1,7 @@
 import {
   productsRepository,
   productWithRelations,
-} from '../../src/modules/products/products.repository';
+} from '../../src/modules/commerce/products/products.repository';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({

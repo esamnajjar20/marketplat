@@ -4,9 +4,9 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const read = (file) => readFileSync(resolve(process.cwd(), file), 'utf8');
-const routes = read('../apps/api/src/modules/users/users.routes.ts');
-const controller = read('../apps/api/src/modules/users/users.controller.ts');
-const service = read('../apps/api/src/modules/users/users.service.ts');
+const routes = read('../apps/api/src/modules/identity/users/users.routes.ts');
+const controller = read('../apps/api/src/modules/identity/users/users.controller.ts');
+const service = read('../apps/api/src/modules/identity/users/users.service.ts');
 const api = read('api/users.api.ts');
 const hook = read('hooks/queries/useUsers.ts');
 const header = read('components/profile/PublicProfileInteractive.tsx');

@@ -1,5 +1,5 @@
-import { followsService } from '../../src/modules/follows/follows.service';
-import { followFeedQuerySchema, MAX_FEED_PAGE } from '../../src/modules/follows/follows.validation';
+import { followsService } from '../../src/modules/engagement/follows/follows.service';
+import { followFeedQuerySchema, MAX_FEED_PAGE } from '../../src/modules/engagement/follows/follows.validation';
 import { prisma } from '../../src/config/prisma';
 
 jest.mock('../../src/config/prisma', () => ({
@@ -11,9 +11,9 @@ jest.mock('../../src/config/prisma', () => ({
     serviceProviderDetails: { findMany: jest.fn() },
   },
 }));
-jest.mock('../../src/modules/follows/follows.repository', () => ({ followsRepository: {} }));
-jest.mock('../../src/modules/stores/store-followers.repository', () => ({ storeFollowersRepository: {} }));
-jest.mock('../../src/modules/notifications', () => ({ notificationEvents: {} }));
+jest.mock('../../src/modules/engagement/follows/follows.repository', () => ({ followsRepository: {} }));
+jest.mock('../../src/modules/commerce/stores/store-followers.repository', () => ({ storeFollowersRepository: {} }));
+jest.mock('../../src/modules/engagement/notifications', () => ({ notificationEvents: {} }));
 
 const at = (iso: string) => new Date(iso);
 
