@@ -10,8 +10,9 @@ const panel = read('components/admin/AdminNetworkRequestsPanel.tsx');
 const homepage = read('hooks/queries/useHomeFeed.ts');
 const storefront = read('components/stores/StoreStorefront.tsx');
 const batchRouter = read('../apps/api/src/shared/http/readBatchRouter.ts');
-const apiRoutes = read('../apps/api/src/routes.ts');
+const apiRoutes = read('../apps/api/src/routes/index.ts');
 const apiApp = read('../apps/api/src/app.ts');
+const apiCors = read('../apps/api/src/bootstrap/cors.ts');
 const packageJson = JSON.parse(read('package.json'));
 
 function collectSources(directory, files = []) {
@@ -40,7 +41,7 @@ const checks = [
   ['read batch remains explicit and bounded to eight allow-listed relative GETs', /MAX_BATCH_SIZE = 8/.test(batchRouter) && /isAllowedPath\(row\.url\)/.test(batchRouter) && /Only allowlisted relative GET routes/.test(batchRouter)],
   ['batch subrequests execute in parallel and retain downstream route middleware', /Promise\.allSettled\(items\.map/.test(batchRouter) && /\)\.handle\(child, response, done\)/.test(batchRouter)],
   ['batch endpoint is explicitly registered as opt-in transport', /router\.post\('\/batch', CACHE\.NONE, createReadBatchHandler\(router\)\)/.test(apiRoutes)],
-  ['API exposes X-Cache for the diagnostic panel', /exposedHeaders:\s*\[[^\]]*'X-Cache'/.test(apiApp)],
+  ['API exposes X-Cache for the diagnostic panel', /exposedHeaders:\s*\[[^\]]*'X-Cache'/.test(apiCors)],
   ['no unmeasured batchGet callsites were added to application UI', batchCallSites.length === 0],
   ['phase-3 audit is registered in package scripts', packageJson.scripts['network:phase3-audit'] === 'node scripts/http-request-phase3-audit.mjs && node scripts/network-request-monitor-audit.mjs'],
 ];
