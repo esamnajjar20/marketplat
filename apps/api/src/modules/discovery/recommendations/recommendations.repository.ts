@@ -35,6 +35,14 @@ import { StoreWithSeller, storeWithSeller } from '../../commerce/stores/stores.r
 // this module free of a cross-module reach into ads.repository's
 // private `const`, matching how favorites.repository.ts already
 // duplicates its own favoriteListSelect instead of importing adListSelect.
+// PERF: "already owned / already saved" exclusion lists are bound into the
+// recommendation SQL as one array parameter. A power seller (thousands of
+// listings) or heavy saver would make that array — and the preceding id scans —
+// unbounded. Only the most recent entries matter for a "don't re-suggest"
+// heuristic, so each source is capped (newest first).
+const RECOMMENDATION_EXCLUSION_LIMIT = 500;
+const newestExclusions = { orderBy: { createdAt: 'desc' as const }, take: RECOMMENDATION_EXCLUSION_LIMIT };
+
 const recommendationAdSelect = {
   id: true,
   title: true,
@@ -450,10 +458,12 @@ export const productRecommendationsRepository = {
       prisma.product.findMany({
         where: { store: { sellerProfile: { userId } } },
         select: { id: true },
+        ...newestExclusions,
       }),
       prisma.favorite.findMany({
         where: { userId, entityType: 'PRODUCT' },
         select: { entityId: true },
+        ...newestExclusions,
       }),
     ]);
     return [...owned.map(p => p.id), ...favorited.map(f => f.entityId)];
@@ -706,10 +716,12 @@ export const serviceListingRecommendationsRepository = {
       prisma.serviceListing.findMany({
         where: { provider: { sellerProfile: { userId } } },
         select: { id: true },
+        ...newestExclusions,
       }),
       prisma.favorite.findMany({
         where: { userId, entityType: 'SERVICE_LISTING' },
         select: { entityId: true },
+        ...newestExclusions,
       }),
     ]);
     return [...owned.map(l => l.id), ...favorited.map(f => f.entityId)];
@@ -999,8 +1011,12 @@ export const recommendationsRepository = {
   // those favorite types exist and this rail recommends them too).
   excludedAdIds: async (userId: string): Promise<string[]> => {
     const [owned, favorited] = await Promise.all([
-      prisma.ad.findMany({ where: { userId }, select: { id: true } }),
-      prisma.favorite.findMany({ where: { userId, entityType: 'AD' }, select: { entityId: true } }),
+      prisma.ad.findMany({ where: { userId }, select: { id: true }, ...newestExclusions }),
+      prisma.favorite.findMany({
+        where: { userId, entityType: 'AD' },
+        select: { entityId: true },
+        ...newestExclusions,
+      }),
     ]);
     return [...owned.map(a => a.id), ...favorited.map(f => f.entityId)];
   },

@@ -90,26 +90,16 @@ export type FavoriteListRow = {
 // StoreStatus's own enum — PENDING/ACTIVE/BLOCKED), so a BLOCKED
 // store is the equivalent "don't show this anymore" state for stores.
 //
-// Two functions per type on purpose, not one: activeIds is a
-// lightweight { id: true }-only query used by counting (matches the
-// pre-PR1 countByUserId's own id-only query, which ads.service.ts's
-// getMyStats dashboard stat calls on every dashboard load — that call
-// site is untouched by PR2 and shouldn't get slower). fetchActive
-// pulls the full card shape and is only used by the list endpoint.
+// fetchActive pulls the full card shape for one page of the list endpoint.
+// Counting and pagination do NOT go through it: they run in SQL via
+// activeFavoritesFilter/ACTIVE_COUNT_TARGETS below, which must apply the same
+// "not DELETED / not BLOCKED" rule as each fetchActive.
 type EntityConfig<T> = {
-  activeIds: (ids: string[]) => Promise<string[]>;
   fetchActive: (ids: string[]) => Promise<T[]>;
   getId: (entity: T) => string;
 };
 
 const AD_CONFIG: EntityConfig<FavoriteAdEntity> = {
-  activeIds: async ids =>
-    (
-      await prisma.ad.findMany({
-        where: { id: { in: ids }, status: { not: 'DELETED' } },
-        select: { id: true },
-      })
-    ).map(a => a.id),
   fetchActive: ids =>
     prisma.ad.findMany({
       where: { id: { in: ids }, status: { not: 'DELETED' } },
@@ -119,13 +109,6 @@ const AD_CONFIG: EntityConfig<FavoriteAdEntity> = {
 };
 
 const PRODUCT_CONFIG: EntityConfig<ProductWithStoreLite> = {
-  activeIds: async ids =>
-    (
-      await prisma.product.findMany({
-        where: { id: { in: ids }, status: { not: 'DELETED' } },
-        select: { id: true },
-      })
-    ).map(p => p.id),
   fetchActive: ids =>
     prisma.product.findMany({
       where: { id: { in: ids }, status: { not: 'DELETED' } },
@@ -137,13 +120,6 @@ const PRODUCT_CONFIG: EntityConfig<ProductWithStoreLite> = {
 };
 
 const STORE_CONFIG: EntityConfig<StoreWithSeller> = {
-  activeIds: async ids =>
-    (
-      await prisma.storeDetails.findMany({
-        where: { id: { in: ids }, status: { not: 'BLOCKED' } },
-        select: { id: true },
-      })
-    ).map(s => s.id),
   fetchActive: ids =>
     prisma.storeDetails.findMany({
       where: { id: { in: ids }, status: { not: 'BLOCKED' } },
@@ -153,19 +129,44 @@ const STORE_CONFIG: EntityConfig<StoreWithSeller> = {
 };
 
 const SERVICE_LISTING_CONFIG: EntityConfig<ServiceListingWithProvider> = {
-  activeIds: async ids =>
-    (
-      await prisma.serviceListing.findMany({
-        where: { id: { in: ids }, status: { not: 'DELETED' } },
-        select: { id: true },
-      })
-    ).map(s => s.id),
   fetchActive: ids =>
     prisma.serviceListing.findMany({
       where: { id: { in: ids }, status: { not: 'DELETED' } },
       include: listingWithRelations,
     }),
   getId: e => e.id,
+};
+
+// Closed whitelist used by countByUserIdAndType's raw join. Keep in sync with
+// the `status: { not: ... }` filter of the matching *_CONFIG.fetchActive above.
+const ACTIVE_COUNT_TARGETS: Record<FavoriteEntityType, { table: string; excludedStatus: string }> = {
+  AD: { table: '"ads"', excludedStatus: 'DELETED' },
+  PRODUCT: { table: '"products"', excludedStatus: 'DELETED' },
+  STORE: { table: '"store_details"', excludedStatus: 'BLOCKED' },
+  SERVICE_LISTING: { table: '"service_listings"', excludedStatus: 'DELETED' },
+};
+
+/**
+ * `FROM favorites f JOIN <entity table> t WHERE ...` for one user + type,
+ * keeping only favorites whose entity is still "active". Favorite.entityId is
+ * polymorphic (no FK), so it is joined by hand. The unique index
+ * (userId, entityType, entityId) guarantees one row per entity, so COUNT(*)
+ * equals the number of distinct active entities. Table names come only from
+ * ACTIVE_COUNT_TARGETS, never from input; every value is a bound parameter.
+ */
+const activeFavoritesFilter = (
+  userId: string,
+  entityType: FavoriteEntityType,
+  listId?: string
+): Prisma.Sql => {
+  const target = ACTIVE_COUNT_TARGETS[entityType];
+  return Prisma.sql`
+    FROM "favorites" f
+    JOIN ${Prisma.raw(target.table)} t ON t."id" = f."entityId"
+    WHERE f."userId" = ${userId}
+      AND f."entityType" = ${entityType}::"FavoriteEntityType"
+      AND t."status"::text <> ${target.excludedStatus}
+      ${listId ? Prisma.sql`AND f."listId" = ${listId}` : Prisma.empty}`;
 };
 
 // NOTE: EntityConfig<T>'s getId is contravariant in T (a function
@@ -178,6 +179,16 @@ const SERVICE_LISTING_CONFIG: EntityConfig<ServiceListingWithProvider> = {
 // typed and audited; this map only erases that per-branch type at the
 // point where they're stored together, and every call site below
 // immediately narrows back to a real type via FavoriteEntity | null.
+type FavoritePageRow = {
+  id: string;
+  userId: string;
+  entityType: FavoriteEntityType;
+  entityId: string;
+  listId: string | null;
+  createdAt: Date;
+  total: number;
+};
+
 const ENTITY_CONFIG: Record<FavoriteEntityType, EntityConfig<any>> = {
   AD: AD_CONFIG,
   PRODUCT: PRODUCT_CONFIG,
@@ -217,14 +228,14 @@ export const favoritesRepository = {
 
   // FEAT-FAVORITE-POLYMORPHIC PR2: generic version, used by
   // findManyByUserId below for whichever type it was called with.
+  // PERF: one COUNT join instead of loading every favorite row and then an
+  // `id IN (...)` lookup (see activeFavoritesFilter for the join rules).
   countByUserIdAndType: async (userId: string, entityType: FavoriteEntityType): Promise<number> => {
-    const rows = await prisma.favorite.findMany({
-      where: { userId, entityType },
-      select: { entityId: true },
-    });
-    if (rows.length === 0) return 0;
-    const activeIds = await ENTITY_CONFIG[entityType].activeIds(rows.map(r => r.entityId));
-    return activeIds.length;
+    const rows = await prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+      SELECT COUNT(*)::int AS count
+      ${activeFavoritesFilter(userId, entityType)}
+    `);
+    return rows[0]?.count ?? 0;
   },
 
   findManyByUserId: async (
@@ -234,86 +245,46 @@ export const favoritesRepository = {
     const { page = 1, limit = 20 } = query;
     const { skip, take } = getPaginationParams(page, limit);
 
-    // FEAT-FAVORITE-POLYMORPHIC PR2: `type` narrows to exactly one
-    // FavoriteEntityType (AD by default).
+    // `type` narrows to exactly one FavoriteEntityType (AD by default).
     const type: FavoriteEntityType = query.type ? FAVORITE_QUERY_TYPE_MAP[query.type] : 'AD';
     const config = ENTITY_CONFIG[type];
+    const filter = activeFavoritesFilter(userId, type, query.listId);
 
-    // + FAV-PAGINATION-SHORT-PAGE: replaces
-    // the KNOWN LIMITATION block that shipped with the polymorphic
-    // migration. Three problems bundled here.
-    //
-    // (1) `total` was computed two different ways depending on
-    //     ?listId — the listId branch counted every matching row
-    //     including ones whose entity is now deleted/blocked; the
-    //     non-listId branch used countByUserIdAndType which already
-    //     excluded them. Same page could report two different totals.
-    //
-    // (2) skip/take ran over ALL of the user's favorites of this type
-    //     (deleted/blocked entities included), then the active filter
-    //     ran after — so a page could come back with fewer than
-    //     `limit` items even when more active favorites existed on
-    //     the next page. The pre-PR1 code applied the DELETED filter
-    //     inside the Prisma where clause, so this was a regression.
-    //
-    // (3) The naive fix (extra count + activeIds + fetchActive) was
-    //     three to five sequential round-trips depending on how the
-    //     where clause was constructed.
-    //
-    // Approach: fetch every matching favorite's {id, entityId} in one
-    // ordered query, resolve active entityIds in a single follow-up,
-    // then slice/limit over that active-only ordered list. `total` is
-    // the active list's length, `skip + take` slices it, and the full
-    // entity rows are only fetched for the current page's ids (in
-    // parallel). Cost is a 3 queries per call regardless of page
-    // number — same order of magnitude as before, with the
-    // correctness bugs gone. A page is never short.
-    const listFilter = query.listId ? { listId: query.listId } : {};
-    const where = { userId, entityType: type, ...listFilter };
+    // PERF: the active-only filter, ordering, pagination and total are all done
+    // in ONE SQL query (join on the entity table + COUNT(*) OVER()), so memory
+    // and DB work are O(page) instead of O(all of the user's favorites).
+    // Because soft-deleted/blocked entities are excluded *before* LIMIT/OFFSET,
+    // a page is never short and `total` always counts active favorites only
+    // (same guarantees as the previous in-memory slicing: FAV-PAGINATION-SHORT-PAGE).
+    // `id DESC` is a tie-breaker so equal createdAt values paginate stably.
+    const pageRows = await prisma.$queryRaw<Array<FavoritePageRow>>(Prisma.sql`
+      SELECT f."id", f."userId", f."entityType", f."entityId", f."listId", f."createdAt",
+             COUNT(*) OVER()::int AS "total"
+      ${filter}
+      ORDER BY f."createdAt" DESC, f."id" DESC
+      LIMIT ${take} OFFSET ${skip}
+    `);
 
-    // PERF — the initial fetch now selects the FULL favorite row shape
-    // this function ultimately returns (not just {id, entityId}). The
-    // previous version ran a THIRD favorite.findMany({ id: {in:
-    // pageFavoriteIds} }) after slicing, to load the same rows it had
-    // just fetched — the extra round-trip was pure redundancy since
-    // the row shapes are identical and the ids are already in hand.
-    // Now the page slice reuses these rows directly; the only remaining
-    // per-page query is config.fetchActive (needed because entity
-    // relations/columns aren't on the Favorite table).
-    const allOrderedRows = await prisma.favorite.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        entityId: true,
-        userId: true,
-        entityType: true,
-        listId: true,
-        createdAt: true,
-      },
-    });
-    if (allOrderedRows.length === 0) {
-      return { favorites: [], total: 0 };
-    }
-
-    const activeIdsSet = new Set(await config.activeIds(allOrderedRows.map(r => r.entityId)));
-    const activeOrderedRows = allOrderedRows.filter(r => activeIdsSet.has(r.entityId));
-    const total = activeOrderedRows.length;
-
-    const pageRows = activeOrderedRows.slice(skip, skip + take);
     if (pageRows.length === 0) {
-      return { favorites: [], total };
+      // Window total is unavailable when the requested page is past the end;
+      // only then pay for a separate COUNT so `total` stays accurate.
+      if (skip === 0) return { favorites: [], total: 0 };
+      const [{ count } = { count: 0 }] = await prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+        SELECT COUNT(*)::int AS count
+        ${filter}
+      `);
+      return { favorites: [], total: count };
     }
 
+    const total = pageRows[0].total;
     const entities = await config.fetchActive(pageRows.map(r => r.entityId));
     const entitiesById = new Map(entities.map(e => [config.getId(e), e]));
 
-    // Preserve pageRows' ordering — entities come back unordered from
-    // Prisma's `in` filter.
+    // Entities come back unordered from Prisma's `in` filter — keep SQL order.
     const favorites: FavoriteListRow[] = pageRows
       .map(row => {
         const entity = entitiesById.get(row.entityId) ?? null;
-        if (!entity) return null; // activeIds said yes, but fetchActive raced it — treat as inactive
+        if (!entity) return null; // active in the join, but fetchActive raced it — treat as inactive
         return {
           id: row.id,
           userId: row.userId,

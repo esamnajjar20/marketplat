@@ -3,6 +3,7 @@ import { prisma } from '../../config/prisma';
 import { logger } from '../observability/logger';
 import { invalidateCachedUserProfile } from './userProfileCache';
 import type Redis from 'ioredis';
+import { ttlWithJitter } from './ttlJitter';
 
 const USER_CACHE_PREFIX = 'user_cache:';
 const BASE_TTL = 5 * 60;
@@ -42,7 +43,6 @@ function bumpGen(userId: string): void {
   }
 }
 
-const getTTLWithJitter = (): number => BASE_TTL + Math.floor(Math.random() * JITTER);
 
 export interface CachedUser {
   id: string;
@@ -189,7 +189,7 @@ export const userCache = {
   set: async (user: CachedUser): Promise<void> => {
     l1Set(user);
     try {
-      await redis.setex(getUserCacheKey(user.id), getTTLWithJitter(), JSON.stringify(user));
+      await redis.setex(getUserCacheKey(user.id), ttlWithJitter(BASE_TTL, JITTER), JSON.stringify(user));
     } catch (err) {
       logger.warn('userCache.set failed', { userId: user.id, err });
     }

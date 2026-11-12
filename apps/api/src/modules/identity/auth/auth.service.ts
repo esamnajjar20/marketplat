@@ -26,6 +26,7 @@ import { AppError } from '../../../shared/errors/AppError';
 import { RegisterInput, LoginInput } from './auth.validation';
 import { logger } from '../../../shared/observability/logger';
 import { GoogleProfileData } from './google.strategy';
+import { sleep } from '../../../shared/utils/sleep';
 
 const MAX_EMAIL_ATTEMPTS = 5;
 // 500 attempts/hour avoids false lockouts on carrier-grade NAT while
@@ -38,10 +39,6 @@ const LOCKOUT_DURATION = 30 * 60;
 
 /** Keep forgot-password responses from revealing account existence by timing. */
 const FORGOT_PASSWORD_MIN_MS = 700;
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 export interface AuthResult {
   tokens: Omit<TokenPair, 'sessionId'>;

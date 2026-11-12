@@ -16,6 +16,7 @@ jest.mock('../../src/config/prisma', () => ({
     ad: {
       findMany: jest.fn(),
     },
+    $queryRaw: jest.fn(),
   },
 }));
 
@@ -26,137 +27,134 @@ describe('favoritesRepository', () => {
   beforeEach(() => jest.clearAllMocks());
 
   describe('findManyByUserId', () => {
-    // regression coverage, re-targeted at PR1's shape: a
-    // favorited ad that's since been soft-deleted (status: DELETED)
-    // must never appear in, or count toward the total of, "المفضلة".
-    // The exclusion now happens via a second prisma.ad.findMany call
-    // (status: { not: DELETED }) rather than inside the favorite
-    // query's own `where`, since Favorite has no relation to Ad
-    // anymore.
-    // NOTE: findManyByUserId runs its own row fetch and countByUserId
-    // (which internally fetches ad rows again for the active-count
-    // check) inside a Promise.all — so the exact call-order of the two
-    // separate prisma.ad.findMany invocations (main fan-out vs.
-    // countByUserId's own) isn't guaranteed by that structure. This
-    // test deliberately checks aggregate behavior across all
-    // prisma.ad.findMany calls rather than asserting on a specific
-    // call index, so it isn't coupled to an interleaving detail that
-    // was never actually run against real Jest here (no network/
-    // node_modules in this sandbox — verify locally before merging).
-    it('excludes ads with status DELETED from at least one ad lookup', async () => {
-      (prisma.favorite.findMany as jest.Mock).mockResolvedValue([
-        { id: 'fav-1', userId, entityType: 'AD', entityId: 'ad-1', createdAt: new Date() },
-      ]);
-      (prisma.ad.findMany as jest.Mock).mockResolvedValue([{ id: 'ad-1', status: 'ACTIVE' }]);
-
-      await favoritesRepository.findManyByUserId(userId, {});
-
-      const calls = (prisma.ad.findMany as jest.Mock).mock.calls;
-      expect(calls.length).toBeGreaterThanOrEqual(1);
-      expect(
-        calls.some((call) => JSON.stringify(call[0]?.where?.status) === JSON.stringify({ not: 'DELETED' }))
-      ).toBe(true);
+    const sqlOf = (callIndex = 0) => (prisma.$queryRaw as jest.Mock).mock.calls[callIndex][0];
+    const row = (id: string, entityId: string, total: number) => ({
+      id, userId, entityType: 'AD', entityId, listId: null, createdAt: new Date('2026-01-01'), total,
     });
 
-    it('paginates in memory over active rows (no skip/take on favorite.findMany)', async () => {
-      // Implementation fetches all favorite rows then slices active ones
-      // in memory so soft-deleted entities never produce short pages.
-      (prisma.favorite.findMany as jest.Mock).mockResolvedValue([]);
-      (prisma.ad.findMany as jest.Mock).mockResolvedValue([]);
+    // PERF: filtering (DELETED excluded), ordering, pagination and total are
+    // one SQL query; only the current page's entities are then loaded.
+    it('runs one paginated SQL query that excludes DELETED ads before LIMIT/OFFSET', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([row('fav-1', 'ad-1', 1)]);
+      (prisma.ad.findMany as jest.Mock).mockResolvedValue([{ id: 'ad-1', title: 'Test Ad' }]);
 
       await favoritesRepository.findManyByUserId(userId, { page: 3, limit: 10 });
 
-      expect(prisma.favorite.findMany).toHaveBeenCalledWith(
-        expect.not.objectContaining({ skip: expect.anything(), take: expect.anything() })
-      );
-      expect(prisma.favorite.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({ userId, entityType: 'AD' }),
-          orderBy: { createdAt: 'desc' },
-        })
-      );
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(prisma.favorite.findMany).not.toHaveBeenCalled();
+      const sql = sqlOf();
+      const text = sql.strings.join('?');
+      expect(text).toContain('"ads"');
+      expect(text).toContain('LIMIT');
+      expect(text).toContain('OFFSET');
+      expect(sql.values).toEqual(expect.arrayContaining([userId, 'AD', 'DELETED', 10, 20]));
     });
 
-    // Uses mockImplementation keyed on the `select` shape passed to
-    // prisma.ad.findMany, rather than mockResolvedValueOnce call
-    // ordering, since (as noted above) the two ad.findMany call sites
-    // race inside the same Promise.all and their relative order isn't
-    // something this test should assume.
-    it('returns favorites joined with their ad entity, and the active-favorite total', async () => {
-      (prisma.favorite.findMany as jest.Mock).mockResolvedValue([
-        { id: 'fav-1', userId, entityType: 'AD', entityId: 'ad-1', createdAt: new Date('2026-01-01') },
-      ]);
-      (prisma.ad.findMany as jest.Mock).mockImplementation(({ select }) =>
-        select?.title
-          ? Promise.resolve([{ id: 'ad-1', status: 'ACTIVE', title: 'Test Ad' }])
-          : Promise.resolve([{ id: 'ad-1' }])
-      );
+    it('returns favorites joined with their entity, and the window total', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([row('fav-1', 'ad-1', 7)]);
+      (prisma.ad.findMany as jest.Mock).mockResolvedValue([{ id: 'ad-1', status: 'ACTIVE', title: 'Test Ad' }]);
 
       const result = await favoritesRepository.findManyByUserId(userId, {});
 
-      expect(result.total).toBe(1);
+      expect(result.total).toBe(7);
       expect(result.favorites).toHaveLength(1);
       expect(result.favorites[0].entity).toEqual({ id: 'ad-1', status: 'ACTIVE', title: 'Test Ad' });
+      expect(prisma.ad.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { id: { in: ['ad-1'] }, status: { not: 'DELETED' } } })
+      );
     });
 
-    it('drops a favorite row from the results when its ad is DELETED or missing', async () => {
-      (prisma.favorite.findMany as jest.Mock).mockResolvedValue([
-        { id: 'fav-1', userId, entityType: 'AD', entityId: 'ad-1', createdAt: new Date() },
+    it('preserves SQL ordering even when entities come back in another order', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([
+        row('fav-2', 'ad-2', 2),
+        row('fav-1', 'ad-1', 2),
       ]);
-      // Main fan-out select returns the ad with status DELETED; the
-      // active-check branch (no `title` in its select) correctly
-      // finds nothing active.
-      // fetchActive filters with status: { not: 'DELETED' } — a deleted
-      // ad is never returned from that query. Simulate that here.
+      (prisma.ad.findMany as jest.Mock).mockResolvedValue([{ id: 'ad-1' }, { id: 'ad-2' }]);
+
+      const result = await favoritesRepository.findManyByUserId(userId, {});
+
+      expect(result.favorites.map(f => f.entityId)).toEqual(['ad-2', 'ad-1']);
+    });
+
+    it('adds the listId filter as a bound parameter', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
+
+      await favoritesRepository.findManyByUserId(userId, { listId: 'list-9' });
+
+      const sql = sqlOf();
+      expect(sql.strings.join('?')).toContain('"listId"');
+      expect(sql.values).toContain('list-9');
+    });
+
+    it('returns an empty first page with total 0 without a second query', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
+
+      const result = await favoritesRepository.findManyByUserId(userId, {});
+
+      expect(result).toEqual({ favorites: [], total: 0 });
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(prisma.ad.findMany).not.toHaveBeenCalled();
+    });
+
+    it('keeps total accurate for a page past the end via one extra COUNT', async () => {
+      (prisma.$queryRaw as jest.Mock)
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([{ count: 12 }]);
+
+      const result = await favoritesRepository.findManyByUserId(userId, { page: 9, limit: 10 });
+
+      expect(result).toEqual({ favorites: [], total: 12 });
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
+    });
+
+    it('drops a row whose entity disappeared between the SQL query and fetchActive', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([row('fav-1', 'ad-1', 1)]);
       (prisma.ad.findMany as jest.Mock).mockResolvedValue([]);
 
       const result = await favoritesRepository.findManyByUserId(userId, {});
 
       expect(result.favorites).toHaveLength(0);
-      expect(result.total).toBe(0);
     });
   });
 
   describe('countByUserId (FIX BUG-07)', () => {
-    it('counts only AD favorites whose ad is not DELETED', async () => {
-      (prisma.favorite.findMany as jest.Mock).mockResolvedValue([
-        { entityId: 'ad-1' },
-        { entityId: 'ad-2' },
-      ]);
-      (prisma.ad.findMany as jest.Mock).mockResolvedValue([
-        { id: 'ad-1' },
-        { id: 'ad-2' },
-      ]);
+    // PERF: the count is now a single COUNT(DISTINCT) join in SQL, so it no
+    // longer loads every favorite row nor does an `IN (...)` entity lookup.
+    it('returns the count from one raw query without loading favorite rows', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ count: 2 }]);
 
       const result = await favoritesRepository.countByUserId(userId);
 
-      expect(prisma.favorite.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { userId, entityType: 'AD' } })
-      );
       expect(result).toBe(2);
-    });
-
-    // regression guard: the whole point of this method is
-    // that it has no page to outgrow — no skip/take on either query,
-    // so it stays accurate however many favorites the user has.
-    it('is not affected by favorite counts far beyond the old 100-item stats page-size cap', async () => {
-      const manyFavorites = Array.from({ length: 640 }, (_, i) => ({ entityId: `ad-${i}` }));
-      const manyActiveAds = Array.from({ length: 640 }, (_, i) => ({ id: `ad-${i}` }));
-      (prisma.favorite.findMany as jest.Mock).mockResolvedValue(manyFavorites);
-      (prisma.ad.findMany as jest.Mock).mockResolvedValue(manyActiveAds);
-
-      const result = await favoritesRepository.countByUserId(userId);
-
-      expect(result).toBe(640);
-    });
-
-    it('returns 0 without querying ads when the user has no AD favorites', async () => {
-      (prisma.favorite.findMany as jest.Mock).mockResolvedValue([]);
-
-      const result = await favoritesRepository.countByUserId(userId);
-
-      expect(result).toBe(0);
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      expect(prisma.favorite.findMany).not.toHaveBeenCalled();
       expect(prisma.ad.findMany).not.toHaveBeenCalled();
+    });
+
+    it('joins the ads table, scopes by user/type and excludes DELETED ads', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ count: 1 }]);
+
+      await favoritesRepository.countByUserId(userId);
+
+      const sql = (prisma.$queryRaw as jest.Mock).mock.calls[0][0];
+      expect(sql.strings.join('?')).toContain('"ads"');
+      expect(sql.values).toEqual(expect.arrayContaining([userId, 'AD', 'DELETED']));
+    });
+
+    it('uses the entity-specific table and excluded status for other types', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ count: 0 }]);
+
+      await favoritesRepository.countByUserIdAndType(userId, 'STORE');
+
+      const sql = (prisma.$queryRaw as jest.Mock).mock.calls[0][0];
+      expect(sql.strings.join('?')).toContain('"store_details"');
+      expect(sql.values).toEqual(expect.arrayContaining(['STORE', 'BLOCKED']));
+    });
+
+    it('returns 0 when the query yields no row', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([]);
+
+      expect(await favoritesRepository.countByUserId(userId)).toBe(0);
     });
   });
 

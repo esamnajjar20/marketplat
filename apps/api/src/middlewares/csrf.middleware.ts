@@ -1,19 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
-import crypto from 'crypto';
 import { getCsrfCookieName } from '../shared/auth/authCookies';
 import { ForbiddenError } from '../shared/errors/ForbiddenError';
-
-// (defense-in-depth alongside metrics.ts): plain
-// `!==` string comparison is not constant-time. Real-world risk here
-// is low (CSRF tokens are single-use-per-session, not long-lived
-// secrets like the metrics bearer token), but hardening is a one-line
-// change with no behavior difference on the happy path.
-function safeTokenEquals(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  return crypto.timingSafeEqual(bufA, bufB);
-}
+import { safeTokenEquals } from '../shared/utils/timingSafe';
 
 /**
  * CSRF protection, made necessary by moving refreshToken

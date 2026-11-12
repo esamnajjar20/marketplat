@@ -1,5 +1,6 @@
 import { MarketplaceOrderStatus, Prisma } from '@prisma/client';
 import { prisma } from '../../../config/prisma';
+import { availabilityForStock } from '../../../shared/utils/stockAvailability';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { NotFoundError } from '../../../shared/errors/NotFoundError';
@@ -71,7 +72,7 @@ export const marketplaceOrdersService = {
           const product = products.find(candidate => candidate.id === item.productId)!;
           if (product.stockQuantity !== null) {
             const remainingStock = product.stockQuantity - item.quantity;
-            const updated = await tx.product.updateMany({ where: { id: product.id, status: 'ACTIVE', stockQuantity: { gte: item.quantity } }, data: { stockQuantity: { decrement: item.quantity }, availability: remainingStock <= 0 ? 'OUT_OF_STOCK' : remainingStock <= 5 ? 'LIMITED' : 'IN_STOCK' } });
+            const updated = await tx.product.updateMany({ where: { id: product.id, status: 'ACTIVE', stockQuantity: { gte: item.quantity } }, data: { stockQuantity: { decrement: item.quantity }, availability: availabilityForStock(remainingStock) } });
             if (updated.count !== 1) throw new ConflictError(`Insufficient stock for "${product.name}".`, 'INSUFFICIENT_STOCK');
           }
         }
@@ -85,20 +86,20 @@ export const marketplaceOrdersService = {
           items: { create: items.map(item => ({ product: { connect: { id: item.productId } }, productName: item.productName, productImage: item.productImage, quantity: item.quantity, unitPrice: item.unitPrice, lineTotal: item.lineTotal })) },
         };
         const order = await marketplaceOrdersRepository.create(tx, data);
-        for (const item of items) {
+        const reservationMovements = items.flatMap(item => {
           const product = products.find(candidate => candidate.id === item.productId)!;
-          if (product.stockQuantity !== null) {
-            await tx.stockMovement.create({ data: {
-              productId: product.id,
-              storeId: store.id,
-              changedByUserId: buyerId,
-              previousQuantity: product.stockQuantity,
-              newQuantity: product.stockQuantity - item.quantity,
-              delta: -item.quantity,
-              reason: `Marketplace order ${order.id} reservation`,
-            } });
-          }
-        }
+          if (product.stockQuantity === null) return [];
+          return [{
+            productId: product.id,
+            storeId: store.id,
+            changedByUserId: buyerId,
+            previousQuantity: product.stockQuantity,
+            newQuantity: product.stockQuantity - item.quantity,
+            delta: -item.quantity,
+            reason: `Marketplace order ${order.id} reservation`,
+          }];
+        });
+        if (reservationMovements.length) await tx.stockMovement.createMany({ data: reservationMovements });
         return order;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10000, timeout: 20000 });
     } catch (error) {
@@ -155,7 +156,7 @@ export const marketplaceOrdersService = {
               data: {
                 stockQuantity: restored,
                 // Do not make archived/inactive products discoverable by restoring stock.
-                ...(product.status === 'ACTIVE' ? { availability: restored <= 0 ? 'OUT_OF_STOCK' : restored <= 5 ? 'LIMITED' : 'IN_STOCK' } : {}),
+                ...(product.status === 'ACTIVE' ? { availability: availabilityForStock(restored) } : {}),
               },
             });
             await tx.stockMovement.create({ data: {

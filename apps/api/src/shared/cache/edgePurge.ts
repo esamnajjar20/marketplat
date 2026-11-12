@@ -2,6 +2,7 @@ import { createHmac, randomUUID } from 'node:crypto';
 import { prisma } from '../../config/prisma';
 import { env } from '../../config/env';
 import { logger } from '../observability/logger';
+import { sleep } from '../utils/sleep';
 
 /**
  * Shared cache invalidation by Cache-Tag (Workers Cache, optional zone cache,
@@ -125,7 +126,6 @@ export const isEdgePurgeEnabled = (): boolean => {
   );
 };
 
-const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
 type PurgeResult = 'success' | 'retry' | 'blocked';
 

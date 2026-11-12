@@ -23,6 +23,7 @@ import { productsService } from '../modules/commerce/products/products.service';
 import { storesService } from '../modules/commerce/stores/stores.service';
 import { serviceListingsService } from '../modules/services/service-listings/service-listings.service';
 import { serviceProvidersService } from '../modules/services/service-providers/service-providers.service';
+import { sleep } from '../shared/utils/sleep';
 
 /**
  * / CACHE-KEEPWARM-01: keep the public, viewer-independent
@@ -171,7 +172,6 @@ export const WARMUP_TASKS: ReadonlyArray<WarmupTask> = [
   ...HOME_CITIES.map(city => homeTask(city)),
 ];
 
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
 export async function warmPublicCaches(
   tasks: ReadonlyArray<WarmupTask> = WARMUP_TASKS,

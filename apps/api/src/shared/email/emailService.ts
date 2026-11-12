@@ -1,6 +1,7 @@
 import nodemailer, { Transporter } from 'nodemailer';
 import { env } from '../../config/env';
 import { logger } from '../observability/logger';
+import { sleep } from '../utils/sleep';
 
 /**
  * this is the missing piece flagged as the single
@@ -84,9 +85,6 @@ interface SendEmailOptions {
 // immediately rather than silently degrading.
 const EMAIL_RETRY_DELAYS_MS = [500, 1500];
 
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
 /**
  * HTTPS-based send via Resend. See the

@@ -10,6 +10,7 @@ import { homeService, isHomepageDegraded, type HomepageResult } from './home.ser
 import { HOME_CITIES, type GetHomepageQuery } from './home.validation';
 import { homeCacheKeyForCity, HOME_GEN_KEY, onHomeInvalidated } from './home.cache.keys';
 import { cachePolicy } from '../../../shared/cache/cachePolicy';
+import { sleep } from '../../../shared/utils/sleep';
 
 /**
  * Stale-while-revalidate cache for the assembled GET /home payload.
@@ -117,7 +118,6 @@ export function cancelPendingHomeRewarm(): void {
   lastCityRewarmCompleted = true;
 }
 
-const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
 async function rewarmAfterInvalidation(): Promise<void> {
   const epoch = (rewarmEpoch += 1);

@@ -28,6 +28,7 @@ import { cacheRedis } from '../../../config/redis';
 import { sellerResponseTimeService } from '../../identity/sellers/seller-response-time.service';
 import { env } from '../../../config/env';
 import { isPrismaError } from '../../../shared/db/prismaErrors';
+import { sleep } from '../../../shared/utils/sleep';
 
 const assertParty = (conversation: Conversation, userId: string): void => {
   if (conversation.buyerId !== userId && conversation.sellerId !== userId) {
@@ -394,8 +395,6 @@ export const conversationsService = {
 
         if (claimed !== 'OK') {
           // Peer holds the key (pending or final messageId).
-          const sleep = (ms: number) => new Promise<void>(r => setTimeout(r, ms));
-
           // was 12 attempts (up to ~2.35s block on
           // a slow peer). 4 attempts cap the worst case at ~500ms — enough
           // for any in-flight INSERT on Neon to complete. If the peer is

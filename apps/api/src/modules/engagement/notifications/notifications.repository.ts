@@ -16,6 +16,7 @@ import { pushSubscriptionsRepository } from '../../../shared/notifications/pushS
 // NEW — native (Capacitor/FCM) counterpart to pushSubscriptionsRepository above.
 import { fcmDeviceTokensRepository } from '../../../shared/notifications/fcmDeviceTokensRepository';
 import { maybeScheduleEmailFallback } from '../../../shared/email/emailFallbackScheduler';
+import { asPlainObject } from '../../../shared/utils/asPlainObject';
 
 export interface CreateNotificationInput {
   userId: string;
@@ -50,12 +51,6 @@ export interface RegisterFcmTokenInput {
 const countInflight = new Map<string, Promise<number>>();
 
 /** Notification.data is Json? — only plain objects are deep-linkable. */
-function asLiveData(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
 export const notificationsRepository = {
   create: async (input: CreateNotificationInput): Promise<Notification> => {
     const notification = await prisma.notification.create({ data: input });
@@ -68,7 +63,7 @@ export const notificationsRepository = {
       notificationType: notification.type,
       title: notification.title,
       body: notification.body,
-      data: asLiveData(notification.data),
+      data: asPlainObject(notification.data),
     });
     return notification;
   },
@@ -136,7 +131,7 @@ export const notificationsRepository = {
           notificationType: notification.type,
           title: notification.title,
           body: notification.body,
-          data: asLiveData(notification.data),
+          data: asPlainObject(notification.data),
         },
       }))
     );
@@ -322,7 +317,7 @@ export const notificationsRepository = {
         notificationType: updated.type,
         title: updated.title,
         body: updated.body,
-        data: asLiveData(updated.data),
+        data: asPlainObject(updated.data),
       });
       return updated;
     }

@@ -1,4 +1,5 @@
 import { prisma } from '../../../config/prisma';
+import { availabilityForStock } from '../../../shared/utils/stockAvailability';
 import { userCache } from '../../../shared/cache/userCache';
 import { Prisma, SalePaymentStatus } from '@prisma/client';
 import { salesRepository } from './sales.repository';
@@ -544,28 +545,26 @@ export const salesService = {
                 where: { id: product.id },
                 data: {
                   stockQuantity: next,
-                  availability: next <= 0 ? 'OUT_OF_STOCK' : next <= 5 ? 'LIMITED' : 'IN_STOCK',
+                  availability: availabilityForStock(next),
                 },
               });
           }
         } else if (manualItems) {
-          for (const item of manualItems) {
-            await tx.saleItem.create({
-              data: {
-                saleId: sale.id,
-                productId: null,
-                entityType: 'FREE',
-                entityId: null,
-                title: item.title,
-                imageUrl: null,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                costPrice: null,
-                lineTotal: item.lineTotal,
-                stockMovementId: null,
-              },
-            });
-          }
+          await tx.saleItem.createMany({
+            data: manualItems.map(item => ({
+              saleId: sale.id,
+              productId: null,
+              entityType: 'FREE' as const,
+              entityId: null,
+              title: item.title,
+              imageUrl: null,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              costPrice: null,
+              lineTotal: item.lineTotal,
+              stockMovementId: null,
+            })),
+          });
         } else {
           await tx.saleItem.create({
             data: {
@@ -665,7 +664,7 @@ export const salesService = {
               where: { id: product.id },
               data: {
                 stockQuantity: next,
-                availability: next <= 0 ? 'OUT_OF_STOCK' : next <= 5 ? 'LIMITED' : 'IN_STOCK',
+                availability: availabilityForStock(next),
               },
             });
         }
@@ -761,7 +760,7 @@ export const salesService = {
             where: { id: product.id },
             data: {
               stockQuantity: next,
-              availability: next <= 0 ? 'OUT_OF_STOCK' : next <= 5 ? 'LIMITED' : 'IN_STOCK',
+              availability: availabilityForStock(next),
             },
           });
         }
@@ -876,7 +875,7 @@ export const salesService = {
             where: { id: product.id },
             data: {
               stockQuantity: next,
-              availability: next <= 0 ? 'OUT_OF_STOCK' : next <= 5 ? 'LIMITED' : 'IN_STOCK',
+              availability: availabilityForStock(next),
             },
           });
         }

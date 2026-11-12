@@ -25,25 +25,10 @@
  */
 import client from 'prom-client';
 import { Request, Response, NextFunction } from 'express';
-import crypto from 'crypto';
 import { env } from '../../config/env';
 import { sendApiError } from '../errors/errorResponse';
 import { ErrorCode } from '../errors/errorCodes';
-
-// plain `!==` on secret tokens leaks timing
-// information proportional to the length of the matching prefix,
-// letting an attacker recover the token byte-by-byte over many
-// requests. crypto.timingSafeEqual is constant-time, but requires
-// equal-length buffers, so unequal lengths are rejected before ever
-// reaching it (that early return itself doesn't leak byte-level
-// value since the true token's length isn't secret).
-function safeTokenEquals(a: string, b: string): boolean {
-  const bufA = Buffer.from(a);
-  const bufB = Buffer.from(b);
-  if (bufA.length !== bufB.length) return false;
-  return crypto.timingSafeEqual(bufA, bufB);
-}
-
+import { safeTokenEquals } from '../utils/timingSafe';
 import { register } from './metricsRegistry';
 import { recordRequestObservation } from './monitoringState';
 import { createDatabaseRequestMetricsFinalizer } from './dbQueryTelemetry';

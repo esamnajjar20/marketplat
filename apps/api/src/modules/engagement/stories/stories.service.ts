@@ -87,6 +87,7 @@ export const storiesService = {
 
   feed: async (userId: string) => {
     const followed = await followsService.getFollowedTargetIds(userId, FollowTargetType.USER);
+    const followedSet = new Set(followed);
     const userIds = Array.from(new Set([userId, ...followed]));
     const rows = await storiesRepository.listActiveForUsers(userIds);
     const viewed = await prisma.storyView.findMany({
@@ -98,7 +99,7 @@ export const storiesService = {
       story =>
         story.userId === userId ||
         story.visibility === StoryVisibility.PUBLIC ||
-        followed.includes(story.userId)
+        followedSet.has(story.userId)
     );
     const groups = new Map<string, any>();
     for (const story of stories) {

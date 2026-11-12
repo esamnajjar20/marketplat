@@ -37,6 +37,7 @@ import {
   hidePublicEntities,
 } from '../../../shared/cache/publicListCache';
 import { requestJsonWithGoFallback } from '../../../shared/go-worker/requestJsonWithFallback';
+import { availabilityForStock } from '../../../shared/utils/stockAvailability';
 
 const MAX_PRODUCT_IMAGES = MAX_IMAGES_PER_ENTITY; // same cap as ads.images / service-listings.images — see config/limits.ts
 
@@ -103,9 +104,7 @@ function deriveAvailabilityFromStock(
   fallback: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK' | undefined
 ): 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK' {
   if (stock === undefined || stock === null) return fallback ?? 'IN_STOCK';
-  if (stock <= 0) return 'OUT_OF_STOCK';
-  if (stock <= 5) return 'LIMITED';
-  return 'IN_STOCK';
+  return availabilityForStock(stock);
 }
 
 export const productsService = {

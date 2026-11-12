@@ -159,8 +159,24 @@ describe('recommendationsRepository', () => {
       expect(prisma.favorite.findMany).toHaveBeenCalledWith({
         where: { userId: 'user-1', entityType: 'AD' },
         select: { entityId: true },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
       });
       expect(result).toEqual(['owned-1', 'fav-1']);
+    });
+
+    it('caps both exclusion sources (newest first) so the SQL array stays bounded', async () => {
+      (prisma.ad.findMany as jest.Mock).mockResolvedValue([]);
+      (prisma.favorite.findMany as jest.Mock).mockResolvedValue([]);
+
+      await recommendationsRepository.excludedAdIds('user-1');
+
+      expect(prisma.ad.findMany).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+        select: { id: true },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+      });
     });
   });
 

@@ -19,6 +19,7 @@ import { isGoWorkerFcmPushEnabled, sendFcmTargetViaGo } from '../go-worker/fcmPu
 import { env } from '../../config/env';
 import { bumpGeneration } from '../cache/swrCache';
 import { deliverEdgePurgeTags } from '../cache/edgePurge';
+import { asPlainObject } from '../utils/asPlainObject';
 
 // Claim one event at a time: leasing a batch and then processing it serially lets
 // later events' leases expire while they wait behind a slow high-fan-out event.
@@ -435,7 +436,7 @@ async function publishOutboxNotifications(
           notificationType: row.type as NotificationType,
           title: row.title,
           body: row.body,
-          data: asLiveData(row.data),
+          data: asPlainObject(row.data),
         },
       }))
     ).catch(error => logger.warn(`${label} outbox SSE publish failed after durable commit`, {
@@ -494,7 +495,7 @@ async function processSavedSearchMatchEvent(
     if (inserted.length) {
       await tx.notificationPushDispatch.createMany({
         data: inserted.map(row => {
-          const data = asLiveData(row.data);
+          const data = asPlainObject(row.data);
           const savedSearchId = data?.savedSearchId ? String(data.savedSearchId) : event.id;
           const pushPayload: PushPayload = {
             title: row.title,
@@ -662,12 +663,6 @@ function preferenceAllowsFollowUpdates(value: unknown): boolean {
   return Object.prototype.hasOwnProperty.call(preferences, 'followUpdates')
     ? Boolean(preferences.followUpdates)
     : true;
-}
-
-function asLiveData(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
 }
 
 async function processFollowedActivityEvent(

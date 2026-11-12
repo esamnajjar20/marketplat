@@ -1,6 +1,8 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../../config/prisma';
 
+const STORY_VIEWERS_LIST_LIMIT = 500;
+
 export const storiesRepository = {
   create: (data: Prisma.StoryCreateInput) => prisma.story.create({ data }),
   findActiveById: (id: string) =>
@@ -38,6 +40,9 @@ export const storiesRepository = {
     prisma.storyView.findMany({
       where: { storyId },
       orderBy: { viewedAt: 'desc' },
+      // Bounded: a popular story can collect thousands of views and this list
+      // is rendered in one sheet. The exact total comes from countViews().
+      take: STORY_VIEWERS_LIST_LIMIT,
       include: { viewer: { select: { id: true, name: true, avatarUrl: true } } },
     }),
   delete: (id: string, userId: string) => prisma.story.deleteMany({ where: { id, userId } }),
