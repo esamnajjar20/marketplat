@@ -4,6 +4,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useEffect, useRef, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
+import { onlineOnlyBlockReason } from '@/lib/offline-support';
 import { View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -99,11 +100,16 @@ export default function ServiceEditorScreen() {
     setBusy(true);
     setError('');
     try {
-      if (id)
+      if (id) {
+        const blocked = await onlineOnlyBlockReason('edit-service');
+        if (blocked) {
+          setError(blocked.message);
+          return;
+        }
         await updateMyServiceListing(id, {
           categoryId, title: title.trim(), description: description.trim(), pricingType, price: pricingType === 'NEGOTIABLE' ? null : p, durationEstimate: duration.trim() || null, serviceLocation: location, status
         }, accessToken, csrfToken);
-      else {
+      } else {
         if (!selectedImage) {
           setError('اختر صورة واحدة على الأقل للخدمة.');
           return;

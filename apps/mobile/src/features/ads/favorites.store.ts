@@ -1,3 +1,4 @@
+import { secureRandomToken } from '@/lib/operation-id';
 import * as SecureStore from 'expo-secure-store';
 import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
 
@@ -267,7 +268,7 @@ export async function mergeGuestFavoritesIntoAccount(userId: string): Promise<vo
     await writeFavoriteAdIds([...userFavs, ...enqueueable], trimmed);
     for (const adId of enqueueable) {
       try {
-        const operationId = `fav-merge-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        const operationId = `fav-merge-${Date.now()}-${secureRandomToken(8)}`;
         await enqueueFavoriteState({
           userId: trimmed,
           adId,

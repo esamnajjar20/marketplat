@@ -1,4 +1,5 @@
 import { apiRequest, UPLOAD_TIMEOUT_MS } from '@/api/client';
+import { secureRandomToken } from '@/lib/operation-id';
 import {
   chatMessageEnvelopeResponseSchema,
   chatMessageListEnvelopeResponseSchema,
@@ -57,7 +58,7 @@ function mediaForm(asset: ChatMediaAsset, field: 'image' | 'audio' | 'file', cap
 }
 async function sendChatMedia(conversationId: string, asset: ChatMediaAsset, field: 'image' | 'audio' | 'file', token: string, csrfToken?: string | null, operationId?: string, caption?: string, signal?: AbortSignal): Promise<ChatMessage> {
   const endpoint = field === 'image' ? 'image' : field === 'audio' ? 'audio' : 'file';
-  const stableOperationId = operationId || `chat-${field}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+  const stableOperationId = operationId || `chat-${field}:${Date.now()}:${secureRandomToken(8)}`;
   const response = await apiRequest<ApiEnvelope<ChatMessage>>(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/${endpoint}`, {
     method: 'POST', token,
     headers: { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), 'X-Offline-Op-Id': stableOperationId },

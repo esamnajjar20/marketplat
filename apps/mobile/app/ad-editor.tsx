@@ -1,3 +1,4 @@
+import { secureRandomToken } from '@/lib/operation-id';
 import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppImage } from '@/components/AppImage';
@@ -225,7 +226,7 @@ export default function AdEditorScreen() {
                     // Persisted image URIs are included in the same durable outbox payload.
                     // The worker replays field updates first, then appends images with the same
                     // operation ID; the API's image-operation ledger makes that append replay-safe.
-                    const operationId = `offline-update:${Date.now()}:${Math.random().toString(36).slice(2, 12)}`;
+                    const operationId = `offline-update:${Date.now()}:${secureRandomToken(8)}`;
                     await saveAdEditDraft(String(user.id), String(id), draft);
                     await enqueueMutation({
                         ownerId: String(user.id),

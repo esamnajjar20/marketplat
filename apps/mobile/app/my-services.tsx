@@ -9,6 +9,7 @@ import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteMyServiceListing, fetchMyServiceListingsPage, type ServiceListing } from '@/features/services/services.api';
+import { onlineOnlyBlockReason } from '@/lib/offline-support';
 import { statusLabel } from '@/lib/status-labels';
 import { fontSizes, spacing } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -35,25 +36,41 @@ export default function MyServicesScreen() {
     mapError: () => 'تعذر تحميل خدماتك. حاول مرة أخرى.',
   });
 
-  const remove = (id: string) => confirmAlert('حذف الخدمة', 'هل تريد حذف هذه الخدمة؟', [
+  const remove = async (id: string) => {
+    const blocked = await onlineOnlyBlockReason('delete-service');
+    if (blocked) {
+      showToast(blocked.title, blocked.message, 'info');
+      return;
+    }
+    confirmAlert('حذف الخدمة', 'هل تريد حذف هذه الخدمة؟', [
     { text: 'إلغاء', style: 'cancel' },
     {
       text: 'حذف',
       style: 'destructive',
       onPress: () => {
         if (!accessToken || deletingId) return;
-        setDeletingId(id);
-        void deleteMyServiceListing(id, accessToken, csrfToken)
-          .then(async () => {
-            list.updateItems((current) => current.filter((item) => item.id !== id));
-            showToast('تم حذف الخدمة', 'تم حذف الخدمة من قائمتك.', 'success');
-            await list.refresh();
-          })
-          .catch((error) => showToast('تعذر الحذف', error instanceof Error ? error.message : 'حاول مرة أخرى.', 'error'))
-          .finally(() => setDeletingId(''));
+        void (async () => {
+          // Connectivity may have dropped while the confirmation dialog was open: re-check right
+          // before the request, not only before the dialog.
+          const blockedNow = await onlineOnlyBlockReason('delete-service');
+          if (blockedNow) {
+            showToast(blockedNow.title, blockedNow.message, 'info');
+            return;
+          }
+          setDeletingId(id);
+          await deleteMyServiceListing(id, accessToken, csrfToken)
+            .then(async () => {
+              list.updateItems((current) => current.filter((item) => item.id !== id));
+              showToast('تم حذف الخدمة', 'تم حذف الخدمة من قائمتك.', 'success');
+              await list.refresh();
+            })
+            .catch((error) => showToast('تعذر الحذف', error instanceof Error ? error.message : 'حاول مرة أخرى.', 'error'))
+            .finally(() => setDeletingId(''));
+        })();
       },
     },
   ]);
+  };
 
   const needsLogin = !isRestoring && (!accessToken || !user);
   const initialLoading = isRestoring || (list.loading && list.items.length === 0);
@@ -85,7 +102,7 @@ export default function MyServicesScreen() {
             <Text tone="brand" strong>{item.pricingType === 'NEGOTIABLE' ? 'السعر قابل للتفاوض' : formatMoney(item.price)}</Text>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               <View style={{ flex: 1 }}><PrimaryButton label="تعديل" variant="secondary" onPress={() => router.push({ pathname: '/service-editor', params: { id: item.id } })} /></View>
-              <View style={{ flex: 1 }}><PrimaryButton label="حذف" variant="danger" busy={deletingId === item.id} disabled={Boolean(deletingId)} onPress={() => remove(item.id)} /></View>
+              <View style={{ flex: 1 }}><PrimaryButton label="حذف" variant="danger" busy={deletingId === item.id} disabled={Boolean(deletingId)} onPress={() => void remove(item.id)} /></View>
             </View>
             <Text tone="muted" size={12}>الحالة: {statusLabel(item.status || 'ACTIVE')}</Text>
           </SectionCard>

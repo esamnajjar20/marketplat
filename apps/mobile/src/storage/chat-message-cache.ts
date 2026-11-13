@@ -77,12 +77,21 @@ export async function readCachedChatMessages(ownerId: string, conversationId: st
 }
 
 /** Upsert authoritative server messages and keep the local history bounded per account. */
-export async function saveCachedChatMessages(
+export type CachePersistResult = 'saved' | 'skipped' | 'failed';
+
+/**
+ * Same upsert as saveCachedChatMessages but REPORTS the outcome instead of swallowing it:
+ *  - 'saved'   : rows written
+ *  - 'skipped' : nothing storable (bad owner/conversation, invalid or oversized messages) — retrying cannot help
+ *  - 'failed'  : the local database write failed — worth retrying
+ * Callers that must not lose the only local copy (e.g. the attachment outbox) use this one.
+ */
+export async function persistCachedChatMessages(
   ownerId: string,
   conversationId: string,
   messages: ChatMessage[],
-): Promise<void> {
-  if (!ownerId.trim() || !conversationId.trim() || !Array.isArray(messages) || !messages.length) return;
+): Promise<CachePersistResult> {
+  if (!ownerId.trim() || !conversationId.trim() || !Array.isArray(messages) || !messages.length) return 'skipped';
   const safeRows = messages.filter(message => validMessage(message) &&
     (!message.conversationId || message.conversationId === conversationId))
     .map(message => ({
@@ -91,7 +100,7 @@ export async function saveCachedChatMessages(
       createdAt: Date.parse(message.createdAt),
     }))
     .filter(row => row.json.length <= MAX_MESSAGE_JSON_CHARS && Number.isFinite(row.createdAt));
-  if (!safeRows.length) return;
+  if (!safeRows.length) return 'skipped';
 
   try {
     const db = await database();
@@ -122,9 +131,19 @@ export async function saveCachedChatMessages(
         ownerId, ownerId, MAX_MESSAGES_PER_OWNER,
       );
     });
+    return 'saved';
   } catch {
-    // The cache is not the source of truth and must never fail message delivery.
+    return 'failed';
   }
+}
+
+/** Best-effort variant: the cache is not the source of truth and must never fail message delivery. */
+export async function saveCachedChatMessages(
+  ownerId: string,
+  conversationId: string,
+  messages: ChatMessage[],
+): Promise<void> {
+  await persistCachedChatMessages(ownerId, conversationId, messages);
 }
 
 /** Purge private cached messages for an account when the user explicitly signs out/deletes local data. */

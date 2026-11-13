@@ -1,3 +1,4 @@
+import { secureRandomToken } from '@/lib/operation-id';
 import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -18,7 +19,7 @@ import { enqueueMarketplaceOrder } from '@/storage/outbox-manager';
 import { formatMoney } from '@/lib/formatters';
 
 const money = (value: unknown) => formatMoney(value);
-function makeKey() { return `mob-order-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`; }
+function makeKey() { return `mob-order-${Date.now()}-${secureRandomToken(8)}`; }
 
 export default function OrderCheckoutScreen() {
   const { colors } = useAppTheme();

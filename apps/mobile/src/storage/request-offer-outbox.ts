@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import { ApiError, apiRequest } from '@/api/client';
 import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
+import { secureRandomToken } from '@/lib/operation-id';
 
 type OfferPayload = { requestId: string; price: number; message?: string; operationId: string };
 export type PendingRequestOfferItem = { id: string; ownerId: string; payload: OfferPayload; createdAt: number; attempts: number; lastError: string | null; nextAttemptAt: number; state: string };
@@ -27,7 +28,7 @@ function validate(value: unknown): asserts value is OfferPayload {
 }
 function mapRow(row: Row): PendingRequestOfferItem { let payload: OfferPayload; try { const v: unknown = JSON.parse(row.payload_json); validate(v); payload = v; } catch { payload = { requestId: '', price: 0, operationId: row.id }; } return { id: row.id, ownerId: row.owner_id, payload, createdAt: row.created_at, attempts: row.attempts, lastError: row.last_error, nextAttemptAt: row.next_attempt_at, state: row.state }; }
 export async function enqueueRequestOffer(ownerId: string, requestId: string, price: number, message?: string, operationId?: string): Promise<void> {
-  const payload: OfferPayload = { requestId, price, ...(message?.trim() ? { message: message.trim() } : {}), operationId: operationId || `offline-offer:${Date.now()}:${Math.random().toString(36).slice(2,12)}` };
+  const payload: OfferPayload = { requestId, price, ...(message?.trim() ? { message: message.trim() } : {}), operationId: operationId || `offline-offer:${Date.now()}:${secureRandomToken(8)}` };
   if (!ownerId.trim() || ownerId.length > 160) throw new Error('تعذر تحديد الحساب المالك للعرض.'); validate(payload);
   const db = await database(); await db.withExclusiveTransactionAsync(async tx => {
     const existing = await tx.getFirstAsync<{ id: string }>('SELECT id FROM request_offer_outbox WHERE owner_id=? AND id=?', ownerId, payload.operationId); if (existing) return;

@@ -1,6 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system/legacy';
 import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
+import { secureRandomToken } from '@/lib/operation-id';
 
 const DATABASE_NAME = 'marketplat-public-cache.db';
 const MEDIA_DIRECTORY = `${FileSystem.documentDirectory ?? ''}marketplat-chat-media-outbox/`;
@@ -26,7 +27,7 @@ function isOwnedMediaUri(uri: unknown): uri is string {
   const fileName = uri.slice(MEDIA_DIRECTORY.length);
   return Boolean(fileName && fileName !== '.' && fileName !== '..' && /^[A-Za-z0-9._-]+$/.test(fileName));
 }
-export function createChatMediaOperationId(kind: ChatMediaKind): string { return `chat-${kind}:${Date.now()}:${Math.random().toString(36).slice(2, 12)}`; }
+export function createChatMediaOperationId(kind: ChatMediaKind): string { return `chat-${kind}:${Date.now()}:${secureRandomToken(8)}`; }
 export async function enqueueChatMedia(input: { ownerId: string; conversationId: string; kind: ChatMediaKind; uri: string; fileName: string; mimeType: string; operationId?: string }): Promise<ChatMediaOutboxItem> {
   if (!input.ownerId.trim() || !input.conversationId.trim()) throw new Error('يجب تحديد الحساب والمحادثة قبل حفظ المرفق.');
   if (!/^(file|content):\/\//i.test(input.uri)) throw new Error('تعذر حفظ المرفق؛ أعد اختياره من الجهاز.');

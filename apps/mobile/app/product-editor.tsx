@@ -6,6 +6,7 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { ErrorState, Field, LoadingState, PageShell } from '@/components/ui';
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import NetInfo from '@react-native-community/netinfo';
+import { onlineOnlyBlockReason } from '@/lib/offline-support';
 import { StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -110,6 +111,11 @@ export default function ProductEditorScreen() {
                 categoryId, name: name.trim(), description: description.trim(), price: numericPrice, availability, ...(stockDirty && numericStock !== undefined ? { stockQuantity: numericStock } : {})
             };
             if (id) {
+                const blocked = await onlineOnlyBlockReason('edit-product');
+                if (blocked) {
+                    showToast(blocked.title, blocked.message, 'info');
+                    return;
+                }
                 await updateProduct(id, payload, accessToken, csrfToken);
                 for (const imageUrl of removedImages)
                     await removeProductImage(id, imageUrl, accessToken, csrfToken);

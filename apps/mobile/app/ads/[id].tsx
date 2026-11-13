@@ -1,3 +1,4 @@
+import { secureRandomToken } from '@/lib/operation-id';
 import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney, formatNumber, formatDate as formatSharedDate } from '@/lib/formatters';
@@ -124,7 +125,7 @@ export default function AdDetailScreen() {
     setFavoriteMessage(null);
     const next = !isFavorite;
     try {
-      const operationId = `fav-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      const operationId = `fav-${Date.now()}-${secureRandomToken(8)}`;
       await setFavoriteAdState(id, next, accessToken, operationId, csrfToken);
       setIsFavorite(next);
       await updateFavoriteAdId(id, next, user?.id);
@@ -132,7 +133,7 @@ export default function AdDetailScreen() {
     } catch (error) {
       if (error instanceof ApiError && error.status === undefined && user?.id) {
         try {
-          const operationId = `fav-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+          const operationId = `fav-${Date.now()}-${secureRandomToken(8)}`;
           await enqueueFavoriteState({
             userId: user.id,
             adId: id,

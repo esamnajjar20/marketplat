@@ -15,6 +15,7 @@ const client = read('frontend/api/client.ts');
 const id = read('frontend/lib/offlineOperationId.ts');
 const middleware = read('backend/src/middlewares/offlineOperationId.middleware.ts');
 const app = read('backend/src/app.ts');
+const cors = read('backend/src/bootstrap/cors.ts');
 const checks = [];
 const check = (name, ok) => checks.push({ name, ok: Boolean(ok) });
 
@@ -24,15 +25,15 @@ check('request boundary preserves caller-supplied keys', /if \(!headers\[OFFLINE
 check('generated keys use UUID with a compatibility fallback', id.includes('crypto.randomUUID') && id.includes('Math.random()'));
 check('backend validates bounded safe idempotency tokens', middleware.includes('OFFLINE_OPERATION_ID_PATTERN') && middleware.includes('1-128 safe characters'));
 check('backend installs idempotency validation middleware globally', /app\.use\(offlineOperationIdMiddleware\)/.test(app));
-check('CORS permits the idempotency header', /'X-Offline-Op-Id'/.test(app));
+check('CORS permits the idempotency header', /'X-Offline-Op-Id'/.test(cors));
 
 const cases = [
-  ['ads', 'backend/src/modules/ads/ads.service.ts', 'existing.userId !== userId'],
-  ['products', 'backend/src/modules/products/products.service.ts', 'existing.storeId !== store.id'],
-  ['service listings', 'backend/src/modules/service-listings/service-listings.service.ts', 'existing.providerId !== provider.id'],
-  ['open requests', 'backend/src/modules/requests/requests.service.ts', 'existing.customerId !== customerId'],
-  ['service requests', 'backend/src/modules/service-requests/service-requests.service.ts', 'existing.customerId !== customerId'],
-  ['sales', 'backend/src/modules/sales/sales.service.ts', 'sellerId: userId, offlineOperationId'],
+  ['ads', 'backend/src/modules/classifieds/ads/ads.service.ts', 'existing.userId !== userId'],
+  ['products', 'backend/src/modules/commerce/products/products.service.ts', 'existing.storeId !== store.id'],
+  ['service listings', 'backend/src/modules/services/service-listings/service-listings.service.ts', 'existing.providerId !== provider.id'],
+  ['open requests', 'backend/src/modules/classifieds/requests/requests.service.ts', 'existing.customerId !== customerId'],
+  ['service requests', 'backend/src/modules/services/service-requests/service-requests.service.ts', 'existing.customerId !== customerId'],
+  ['sales', 'backend/src/modules/commerce/sales/sales.service.ts', 'sellerId: userId, offlineOperationId'],
 ];
 for (const [name, file, ownerGuard] of cases) {
   const source = read(file);

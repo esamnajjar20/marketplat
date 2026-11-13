@@ -18,8 +18,12 @@ export function newOfflineOperationId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  // fallback لبيئات بلا crypto.randomUUID (متصفحات/تشغيلات قديمة نادرة) —
-  // ليس معرّفًا آمنًا تشفيريًا، لكنه كافٍ هنا: الغرض ربط محلي بين تبويبين
-  // من نفس المتصفح، لا شيء أمني.
+  // fallback لبيئات بلا crypto.randomUUID: نفضّل crypto.getRandomValues (CSPRNG) إن وُجد،
+  // ولا نستعمل Math.random إلا كملاذ أخير. المعرّف مفتاح idempotency وليس حاجزًا أمنيًا؛
+  // حاجز الأمان الفعلي هو التحقق من ملكية السجل في الخادم عند إعادة التشغيل.
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const bytes = crypto.getRandomValues(new Uint8Array(8));
+    return `op_${Date.now()}_${Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')}`;
+  }
   return `op_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }

@@ -11,6 +11,8 @@ import { buildAppointmentSlots, type AppointmentSlot } from '@/features/appointm
 import { fetchServiceRequest } from '@/features/services/services.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
+import { onlineOnlyBlockReason } from '@/lib/offline-support';
+import { showToast } from '@/lib/toast';
 
 const MARKET_TIME_ZONE = 'Asia/Gaza';
 const marketDateParts = new Intl.DateTimeFormat('en-GB', {
@@ -148,6 +150,13 @@ export default function AppointmentCreateScreen() {
     }
     if (!requestId) { setProviderError('رقم طلب الخدمة غير موجود.'); return; }
     if (!selectedSlot) { setAvailabilityError('اختر فترة متاحة قبل تأكيد الحجز.'); return; }
+    // Booking needs the server to confirm availability: say so before sending, instead of a raw network error.
+    const blocked = await onlineOnlyBlockReason('create-appointment');
+    if (blocked) {
+      setAvailabilityError(blocked.message);
+      showToast(blocked.title, blocked.message, 'info');
+      return;
+    }
     const from = new Date(selectedSlot.start);
     const to = new Date(selectedSlot.end);
     if (!Number.isFinite(from.getTime()) || !Number.isFinite(to.getTime()) || from.getTime() <= Date.now() || to <= from) {

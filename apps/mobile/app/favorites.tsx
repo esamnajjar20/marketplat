@@ -1,3 +1,4 @@
+import { secureRandomToken } from '@/lib/operation-id';
 import { usePullRefresh } from '@/hooks/usePullRefresh';
 import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
@@ -88,7 +89,7 @@ export default function FavoritesScreen() {
   const remove = (record: FavoriteRecord) => {
     if (!record.adId || !user?.id) return;
     setBusyId(record.adId);
-    const operationId = `fav-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    const operationId = `fav-${Date.now()}-${secureRandomToken(8)}`;
     let queued = !online || !getAccessToken();
     const enqueueOffline = () => enqueueFavoriteState({
       userId: user.id,

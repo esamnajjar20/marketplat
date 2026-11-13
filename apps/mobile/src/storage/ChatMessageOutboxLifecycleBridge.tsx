@@ -3,9 +3,10 @@ import { AppState } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import { useIsOnline } from '@/lib/connectivity';
 import { syncChatMessageOutbox, type ChatOutboxSyncSnapshot } from '@/features/messaging/chat-message-outbox-sync';
+import { syncChatMediaOutbox } from '@/features/messaging/chat-media-outbox-sync';
 import { cleanupStaleChatMediaFiles } from '@/storage/chat-media-outbox';
 
-/** Persisted chat messages sync when connectivity returns or the app resumes.
+/** Persisted chat messages AND attachments sync when connectivity returns or the app resumes.
  *  Connectivity is provided by ConnectivityProvider (single NetInfo listener for the app). */
 export function ChatMessageOutboxLifecycleBridge() {
   const { accessToken, csrfToken, user, isRestoring } = useAuth();
@@ -32,6 +33,14 @@ export function ChatMessageOutboxLifecycleBridge() {
         await syncChatMessageOutbox({ ...latest.current, signal: sessionController.signal });
       } catch {
         // Queue rows remain durable; next connectivity/resume event retries.
+      }
+      // Attachments sync from the same app-level triggers (no longer only while a conversation screen is open).
+      // Independent try/catch so a text-queue failure never blocks media, and vice versa.
+      try {
+        if (stopped || !latest.current.isOnline || AppState.currentState !== 'active') return;
+        await syncChatMediaOutbox({ ...latest.current, signal: sessionController.signal });
+      } catch {
+        // Media rows remain durable with their own backoff; retried on the next trigger.
       }
     };
 

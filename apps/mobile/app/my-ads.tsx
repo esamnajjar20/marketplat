@@ -1,3 +1,4 @@
+import { secureRandomToken } from '@/lib/operation-id';
 import { usePullRefresh } from '@/hooks/usePullRefresh';
 import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
@@ -209,11 +210,11 @@ export default function MyAdsScreen() {
             const enqueueOfflineDelete = () =>
               enqueueMutation({
                 ownerId: String(user.id),
-                id: `offline-delete:${Date.now()}:${Math.random().toString(36).slice(2, 12)}`,
+                id: `offline-delete:${Date.now()}:${secureRandomToken(8)}`,
                 operation: 'delete-ad',
                 resourceId: ad.id,
                 payload: { title: ad.title },
-                idempotencyKey: `offline-op:delete:${ad.id}:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`,
+                idempotencyKey: `offline-op:delete:${ad.id}:${Date.now()}:${secureRandomToken(8)}`,
               }).then(() => {
                 // Keep queue state separate from server-owned status fields.
                 setPendingDeleteIds((current) => new Set(current).add(ad.id));

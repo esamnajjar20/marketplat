@@ -1,8 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-const root = resolve(process.cwd());
+import { existsSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+// Resolve the API root from this file's location (not process.cwd()), so the audit
+// works from any working directory and survives monorepo layout renames.
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const webRoot = ['../../frontend', '../../apps/web', '../web'].map((p) => resolve(root, p)).find((p) => existsSync(resolve(p, 'lib/offlineMutationPolicy.ts')));
+if (!webRoot) throw new Error('Cannot locate the web app (expected ../../frontend/lib/offlineMutationPolicy.ts)');
 const read = (p) => readFileSync(resolve(root, p), 'utf8');
-const front = (p) => readFileSync(resolve(root, '../web', p), 'utf8');
+const front = (p) => readFileSync(resolve(webRoot, p), 'utf8');
 const checks = [];
 const check = (name, pass) => checks.push({ name, pass: Boolean(pass) });
 const schema = read('prisma/schema.prisma');

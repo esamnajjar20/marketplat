@@ -2,6 +2,7 @@
  * حالة المفضلة مع outbox — مستخرجة من شاشة الرئيسية لإعادة الاستخدام
  * في favorites.tsx / تفاصيل الإعلان / الرئيسية.
  */
+import { secureRandomToken } from '@/lib/operation-id';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {} from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -59,7 +60,7 @@ export function useFavorites() {
     setFavoriteIds(next);
     try {
       if (user?.id) {
-        const operationId = `fav-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        const operationId = `fav-${Date.now()}-${secureRandomToken(8)}`;
         await enqueueFavoriteState({
           userId: user.id,
           adId: id,

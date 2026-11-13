@@ -1,3 +1,4 @@
+import { secureRandomToken } from '@/lib/operation-id';
 import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { denseListPerf } from '@/lib/listPerformance';
@@ -15,7 +16,7 @@ import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useIsOnline } from '@/lib/connectivity';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteChatMessage, fetchConversation, fetchMessagesPage, setMessageMark, type ChatMessage, type ConversationItem } from '@/features/messaging/messaging.api';
-import { syncChatMediaOutbox } from '@/features/messaging/chat-media-outbox-sync';
+import { subscribeChatMediaOutboxSent, syncChatMediaOutbox } from '@/features/messaging/chat-media-outbox-sync';
 import { createChatMediaOperationId, enqueueChatMedia, listChatMediaOutbox, discardFailedChatMessage, enqueueChatMessage, listChatMessagesForConversation, retryChatMessage, type ChatMediaKind } from '@/storage/outbox-manager';
 import { subscribeChatOutboxSent, syncChatMessageOutbox } from '@/features/messaging/chat-message-outbox-sync';
 import type { ChatLiveEvent } from '@/features/messaging/chat-live-stream';
@@ -170,7 +171,8 @@ export default function ConversationScreen() {
   useEffect(() => { hasRenderableMessages.current = messages.length > 0; }, [messages.length]);
   useEffect(() => { if (previousConnectivity.current === false && isOnline) void load(false); previousConnectivity.current = isOnline; }, [isOnline, load]);
   const refreshMediaOutbox = useCallback(async () => { if (!user?.id) { setPendingMediaCount(0); return; } const items = await listChatMediaOutbox(user.id); setPendingMediaCount(items.length); }, [user?.id]);
-  const flushMediaOutbox = useCallback(async () => { if (!accessToken || !user?.id) return; if (!isOnline) { await refreshMediaOutbox(); return; } try { const result = await syncChatMediaOutbox({ isOnline: true, token: accessToken, csrfToken, ownerId: user.id, signal: sessionAbort.current.signal }); for (const item of result.sent) { if (item.conversationId === id) { setMessages(current => mergeFetchedMessages([item.message], current)); void saveCachedChatMessages(user.id, id, [item.message]); } } setPendingMediaCount(result.pending); } catch { await refreshMediaOutbox(); } }, [accessToken, csrfToken, id, isOnline, refreshMediaOutbox, user?.id]);
+  useEffect(() => subscribeChatMediaOutboxSent((item) => { if (item.conversationId !== id) return; setMessages(current => mergeFetchedMessages([item.message], current)); void refreshMediaOutbox(); }), [id, refreshMediaOutbox]);
+  const flushMediaOutbox = useCallback(async () => { if (!accessToken || !user?.id) return; if (!isOnline) { await refreshMediaOutbox(); return; } try { const result = await syncChatMediaOutbox({ isOnline: true, token: accessToken, csrfToken, ownerId: user.id, signal: sessionAbort.current.signal }); setPendingMediaCount(result.pending); } catch { await refreshMediaOutbox(); } }, [accessToken, csrfToken, id, isOnline, refreshMediaOutbox, user?.id]);
   useChatMediaOutboxLifecycle(refreshMediaOutbox, flushMediaOutbox);
   const playChatAudio = useCallback((url: string) => {
     if (!isAllowedMediaUrl(url)) {
@@ -220,7 +222,7 @@ export default function ConversationScreen() {
     if (!body || sending || !accessToken || !id || !user?.id) return;
     setSending(true);
     setDraft('');
-    const operationId = `message:${Date.now()}:${Math.random().toString(36).slice(2, 10)}`;
+    const operationId = `message:${Date.now()}:${secureRandomToken(8)}`;
     const tempId = `pending-${operationId}`;
     let persisted = false;
     try {
