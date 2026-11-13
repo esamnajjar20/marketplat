@@ -17,6 +17,11 @@ type AppImageProps = {
   /** لون خلفية أثناء التحميل */
   placeholderColor?: string;
   accessibilityLabel?: string;
+  /**
+   * list: صور مصغّرة داخل قوائم مُعاد تدويرها (بدون fade عند كل إعادة استخدام للخلية).
+   * detail (الافتراضي): صور الصفحات المفردة، مع انتقال ناعم.
+   */
+  variant?: 'list' | 'detail';
 } & Omit<ImageProps, 'source' | 'style' | 'contentFit' | 'onError'>;
 
 const contentFitMap = {
@@ -33,6 +38,7 @@ export function AppImage({
   onError,
   placeholderColor,
   accessibilityLabel,
+  variant = 'detail',
   ...rest
 }: AppImageProps) {
   const { colors } = useAppTheme();
@@ -45,7 +51,7 @@ export function AppImage({
       style={[{ backgroundColor }, style]}
       contentFit={contentFitMap[resizeMode] ?? 'cover'}
       cachePolicy="memory-disk"
-      transition={120}
+      transition={variant === 'list' ? 0 : 120}
       recyclingKey={uri}
       onError={() => onError?.()}
       accessibilityLabel={accessibilityLabel}

@@ -1,9 +1,10 @@
 import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
-import { marketListPerf } from '@/lib/listPerformance';
-import { useEffect, useState, useMemo } from 'react';
+import { RefreshControl, StyleSheet, View } from 'react-native';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
+import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -14,6 +15,19 @@ import { AppHeader, EmptyState, ErrorState, SkeletonList, PrimaryButton, SearchB
 import { ProductCard } from '@/components/ui/ProductCard';
 import { spacing, typography } from '@/theme/tokens';
 
+
+/** صف منتج — memo: لا يُعاد رسمه عند الكتابة في حقل البحث أو تغيّر حالة الشاشة. */
+const ProductRow = memo(function ProductRow({ item, onOpen }: { item: ProductSummary; onOpen: (id: string) => void }) {
+  const product = useMemo(() => ({
+    id: item.id,
+    name: item.name,
+    price: item.effectivePrice?.price ?? item.discountPrice ?? item.price,
+    images: item.images,
+    category: item.category,
+  }), [item]);
+  const handlePress = useCallback(() => onOpen(item.id), [item.id, onOpen]);
+  return <ProductCard product={product} layout="row" onPress={handlePress} />;
+});
 
 export default function ProductsScreen() {
   const { colors } = useAppTheme();
@@ -67,6 +81,13 @@ export default function ProductsScreen() {
     return () => { cancelled = true; };
   }, [user, accessToken]);
 
+  const openProduct = useCallback((id: string) => pushOnce(`/products/${encodeURIComponent(id)}`), []);
+  const keyExtractor = useCallback((item: ProductSummary) => item.id, []);
+  const renderItem = useCallback(
+    ({ item }: { item: ProductSummary }) => <ProductRow item={item} onOpen={openProduct} />,
+    [openProduct],
+  );
+
   const title = storeId ? 'منتجات المتجر' : categoryId ? 'منتجات القسم' : 'المنتجات';
   const subtitle = storeId
     ? 'تصفح المنتجات المنشورة في هذا المتجر'
@@ -77,17 +98,17 @@ export default function ProductsScreen() {
   return (
     <ScreenFrame>
       <AppHeader title={title} />
-      <FlatList
+      <AppFlashList
         data={items}
-        keyExtractor={(item) => item.id}
-        {...marketListPerf}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.brand} />
         }
         ListHeaderComponent={
-          <View style={{ gap: spacing.md }}>
+          <View style={styles.listHeader}>
             <Text style={styles.subtitle}>{subtitle}</Text>
             <SearchBar
               value={query}
@@ -127,17 +148,10 @@ export default function ProductsScreen() {
             <EmptyState title="لا توجد منتجات مطابقة" description="جرّب كلمات بحث مختلفة أو اسحب للتحديث." />
           ) : undefined
         }
-        renderItem={({ item }) => (
-              <ProductCard
-                product={{ id: item.id, name: item.name, price: item.effectivePrice?.price ?? item.discountPrice ?? item.price, images: item.images, category: item.category }}
-                layout="row"
-                onPress={() => pushOnce(`/products/${encodeURIComponent(item.id)}`)}
-              />
-        )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ListGapMd}
         ListFooterComponent={
           !loading && items.length > 0 && hasNextPage ? (
-            <View style={{ gap: spacing.sm }}>
+            <View style={styles.listFooter}>
               {loadMoreError ? <ErrorState title="تعذر تحميل المزيد" description={loadMoreError} onAction={() => void loadMore()} /> : null}
               <PrimaryButton
                 label={loadingMore ? 'جاري التحميل…' : loadMoreError ? 'إعادة تحميل المزيد' : 'تحميل المزيد'}
@@ -154,7 +168,10 @@ export default function ProductsScreen() {
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },
+  // FlashList: padding فقط (لا gap).
+  content: { padding: spacing.lg, paddingBottom: spacing.x4l },
+  listHeader: { gap: spacing.md, marginBottom: spacing.md },
+  listFooter: { gap: spacing.sm, marginTop: spacing.md },
   subtitle: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   actions: { gap: spacing.sm },
   sectionRow: {

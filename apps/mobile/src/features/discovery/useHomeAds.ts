@@ -134,12 +134,18 @@ export function useHomeAds({ search, filters, sort }: Options) {
     [buildOptions],
   );
 
+  // هوية loadMoreAds ثابتة (تتغيّر فقط مع الفلاتر): القيم المتغيّرة تُقرأ من ref بدل الاعتماديات،
+  // فلا يُعاد رسم التذييل/القائمة عند كل صفحة جديدة أو تبدّل loading.
+  const moreStateRef = useRef({ loading, refreshing, page, totalPages });
+  moreStateRef.current = { loading, refreshing, page, totalPages };
+
   const loadMoreAds = useCallback(async () => {
-    if (loadingMoreRef.current || loading || refreshing || page >= totalPages) return;
+    const current = moreStateRef.current;
+    if (loadingMoreRef.current || current.loading || current.refreshing || current.page >= current.totalPages) return;
     loadingMoreRef.current = true;
     setLoadingMore(true);
     const requestSequence = sequenceRef.current;
-    const nextPage = page + 1;
+    const nextPage = current.page + 1;
     try {
       const result = await fetchPublicAds(buildOptions(nextPage));
       if (requestSequence !== sequenceRef.current) return;
@@ -148,7 +154,7 @@ export function useHomeAds({ search, filters, sort }: Options) {
         return [...prev, ...result.items.filter((item) => !seen.has(item.id))];
       });
       setPage(result.page || nextPage);
-      setTotalPages(result.totalPages ?? totalPages);
+      setTotalPages(result.totalPages ?? moreStateRef.current.totalPages);
     } catch (error) {
       logger.warn('home-ads', 'loadMore failed', {
         message: error instanceof Error ? error.message : String(error),
@@ -157,7 +163,7 @@ export function useHomeAds({ search, filters, sort }: Options) {
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [buildOptions, loading, refreshing, page, totalPages]);
+  }, [buildOptions]);
 
   useEffect(() => {
     void loadAds();

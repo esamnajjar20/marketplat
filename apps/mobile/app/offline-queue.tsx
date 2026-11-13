@@ -3,8 +3,10 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapLg } from '@/components/ui/ListSeparator';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useFocusEffect } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -18,6 +20,18 @@ import { acknowledgeFavoriteState, discardFavoriteState, listPendingFavoriteStat
 import { fetchFavoriteAdIds, setFavoriteAdState } from '@/features/ads/favorites.api';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { showToast } from '@/lib/toast';
+type QueueRow =
+    | { key: string; kind: 'favorite'; item: PendingFavoriteState }
+    | { key: string; kind: 'request'; item: PendingRequestOutboxItem }
+    | { key: string; kind: 'offer'; item: PendingRequestOfferItem }
+    | { key: string; kind: 'order'; item: PendingOrderOutboxItem }
+    | { key: string; kind: 'chatMessage'; item: ChatMessageOutboxItem }
+    | { key: string; kind: 'chatMedia'; item: ChatMediaOutboxItem }
+    | { key: string; kind: 'create'; item: OfflineCreateItem }
+    | { key: string; kind: 'ad'; item: OutboxItem };
+const queueRowKey = (row: QueueRow) => row.key;
+const queueRowType = (row: QueueRow) => row.kind;
+const listContentStyle = { paddingBottom: spacing.xxxl } as const;
 function operationLabel(operation: OutboxItem['operation']): string {
     if (operation === 'create-ad')
         return 'إنشاء إعلان';
@@ -295,15 +309,21 @@ export default function OfflineQueueScreen() {
             },
         ]);
     };
-    return <PageShell title="العمليات دون اتصال" scroll={false} right={<Pressable onPress={() => void refresh()} accessibilityRole="button" accessibilityLabel="تحديث العمليات"><Text style={styles.link}>تحديث</Text></Pressable>}>
-    <View style={styles.notice}><Text style={styles.noticeText}>تُحفظ هذه العمليات على الجهاز. قد توقف عملية أقدم غير مدعومة المزامنة، وستتوقف العمليات الأحدث حتى تُحل المشكلة للحفاظ على ترتيب التعديلات. لا تلغِ عملية إلا إذا كنت متأكدًا أنك لا تريد إرسالها.</Text></View>
-    {unownedCount > 0 ? <View style={styles.notice}><Text style={styles.noticeText}>توجد {unownedCount} عملية قديمة محفوظة قبل ربط العمليات بالحساب. لم تُرسل تلقائيًا لأن مالكها غير معروف، وذلك لمنع تنفيذها بحساب آخر. راجعها من نسخة التطبيق السابقة أو احذف بيانات التطبيق فقط إذا لم تعد تحتاجها.</Text></View> : null}
-    {!user ? <EmptyState title="سجّل الدخول لمزامنة العمليات" actionLabel="تسجيل الدخول" onAction={() => pushOnce('/login')}/>
-            : loading ? <LoadingState message="جاري قراءة العمليات…"/>
-                : error && items.length === 0 && favoriteItems.length === 0 && requestItems.length === 0 && offerItems.length === 0 && orderItems.length === 0 && createItems.length === 0 && chatMessages.length === 0 && chatMedia.length === 0 ? <ErrorState title="تعذر تحميل القائمة" description={error ?? undefined} onAction={() => void refresh()}/>
-                    : <ScrollView contentContainerStyle={styles.list}>{error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
-        <Text style={styles.summary}>{items.length} عملية إعلانات محفوظة · {favoriteItems.length} تغيير مفضلة معلّق · {requestItems.length} طلب إنشاء محفوظ · {offerItems.length} عرض محفوظ · {orderItems.length} طلب شراء محفوظ · {createItems.length} إضافة منتج/خدمة/بيع محفوظة · {chatMessages.length + chatMedia.length} رسالة/مرفق دردشة</Text>
-        {favoriteItems.map((item) => <View key={`favorite-${item.adId}`} style={styles.card}>
+    const rows = useMemo<QueueRow[]>(() => [
+        ...favoriteItems.map((item): QueueRow => ({ key: `favorite-${item.adId}`, kind: 'favorite', item })),
+        ...requestItems.map((item): QueueRow => ({ key: `request-${item.id}`, kind: 'request', item })),
+        ...offerItems.map((item): QueueRow => ({ key: `offer-${item.id}`, kind: 'offer', item })),
+        ...orderItems.map((item): QueueRow => ({ key: `order-${item.id}`, kind: 'order', item })),
+        ...chatMessages.map((item): QueueRow => ({ key: `chat-message-${item.id}`, kind: 'chatMessage', item })),
+        ...chatMedia.map((item): QueueRow => ({ key: `chat-media-${item.id}`, kind: 'chatMedia', item })),
+        ...createItems.map((item): QueueRow => ({ key: `create-${item.id}`, kind: 'create', item })),
+        ...items.map((item): QueueRow => ({ key: `outbox-${item.id}`, kind: 'ad', item })),
+    ], [favoriteItems, requestItems, offerItems, orderItems, chatMessages, chatMedia, createItems, items]);
+    // كل صف يُرسم عبر نفس المعالجات السابقة حرفيًا؛ التغيير الوحيد أن الرسم صار افتراضيًا (FlashList).
+    const renderRow = ({ item: row }: { item: QueueRow }): ReactElement | null => {
+        switch (row.kind) {
+      case 'favorite': { const item = row.item; return (
+<View style={styles.card}>
           <Text style={styles.adTitle}>المفضلة · إعلان مرتبط بتغيير محفوظ</Text>
           <Text style={styles.status}>{item.favorited ? 'بانتظار الإضافة إلى المفضلة' : 'بانتظار الإزالة من المفضلة'}</Text>
           <Text style={styles.muted}>حُفظ: {formatDate(Number(item.operationId.match(/^fav-(\d+)/)?.[1]) || Date.now())}</Text>
@@ -312,8 +332,10 @@ export default function OfflineQueueScreen() {
             <Pressable accessibilityRole="button" disabled={busyId !== null} style={styles.secondary} onPress={() => void retryFavorite(item)}><Text style={styles.secondaryText}>{busyId === item.operationId ? 'جارٍ…' : 'مزامنة الآن'}</Text></Pressable>
             <Pressable accessibilityRole="button" disabled={busyId !== null} style={[styles.delete, busyId !== null && styles.disabled]} onPress={() => cancelFavorite(item)}><Text style={styles.deleteText}>إلغاء التغيير</Text></Pressable>
           </View>
-        </View>)}
-        {requestItems.map((item) => <View key={`request-${item.id}`} style={styles.card}><Text style={styles.adTitle}>{item.payload.title}</Text><Text style={styles.status}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? 'توقفت المحاولات؛ يلزم تدخل' : 'طلب جديد · بانتظار المزامنة'}</Text><Text style={styles.muted}>النوع: {item.payload.type} · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.muted}>لن يُعد الطلب منشورًا حتى يؤكد الخادم نجاح المزامنة.</Text><View style={styles.actions}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? <Pressable accessibilityRole="button" disabled={busyId !== null} style={styles.secondary} onPress={() => {
+        </View>
+      ); }
+      case 'request': { const item = row.item; return (
+<View style={styles.card}><Text style={styles.adTitle}>{item.payload.title}</Text><Text style={styles.status}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? 'توقفت المحاولات؛ يلزم تدخل' : 'طلب جديد · بانتظار المزامنة'}</Text><Text style={styles.muted}>النوع: {item.payload.type} · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.muted}>لن يُعد الطلب منشورًا حتى يؤكد الخادم نجاح المزامنة.</Text><View style={styles.actions}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? <Pressable accessibilityRole="button" disabled={busyId !== null} style={styles.secondary} onPress={() => {
                         setBusyId(item.id);
                         void retryMarketplaceRequest(item.id, user?.id).then((ok) => {
                             if (!ok)
@@ -335,8 +357,10 @@ export default function OfflineQueueScreen() {
                                     void refresh();
                                 });
                             }
-                        }])}><Text style={styles.deleteText}>إلغاء العملية</Text></Pressable></View></View>)}
-        {offerItems.map((item) => <View key={`offer-${item.id}`} style={styles.card}><Text style={styles.adTitle}>عرض محفوظ · {formatMoney(item.payload.price)}</Text><Text style={styles.status}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? 'توقفت المحاولات؛ يلزم تدخل' : item.state === 'processing' ? 'قيد المزامنة' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>رقم الطلب: {item.payload.requestId} · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.payload.message ? <Text style={styles.muted}>الرسالة: {item.payload.message}</Text> : null}{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.warning}>العرض لم يُرسل إلى الخادم بعد. قد يُرفض إذا أُغلق الطلب أو انتهت صلاحيته قبل المزامنة.</Text><View style={styles.actions}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? <Pressable accessibilityRole="button" disabled={busyId !== null} style={styles.secondary} onPress={() => {
+                        }])}><Text style={styles.deleteText}>إلغاء العملية</Text></Pressable></View></View>
+      ); }
+      case 'offer': { const item = row.item; return (
+<View style={styles.card}><Text style={styles.adTitle}>عرض محفوظ · {formatMoney(item.payload.price)}</Text><Text style={styles.status}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? 'توقفت المحاولات؛ يلزم تدخل' : item.state === 'processing' ? 'قيد المزامنة' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>رقم الطلب: {item.payload.requestId} · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.payload.message ? <Text style={styles.muted}>الرسالة: {item.payload.message}</Text> : null}{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.warning}>العرض لم يُرسل إلى الخادم بعد. قد يُرفض إذا أُغلق الطلب أو انتهت صلاحيته قبل المزامنة.</Text><View style={styles.actions}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? <Pressable accessibilityRole="button" disabled={busyId !== null} style={styles.secondary} onPress={() => {
                         setBusyId(item.id);
                         void retryRequestOffer(item.id, user?.id).then(async (ok) => {
                             if (!ok)
@@ -362,8 +386,10 @@ export default function OfflineQueueScreen() {
                                     void refresh();
                                 });
                             }
-                        }])}><Text style={styles.deleteText}>{item.state === 'processing' ? 'قيد المعالجة' : 'إلغاء العرض'}</Text></Pressable></View></View>)}
-        {orderItems.map((item) => <View key={`order-${item.id}`} style={styles.card}><Text style={styles.adTitle}>طلب شراء · {item.payload.items.length} منتج</Text><Text style={styles.status}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? 'توقفت المحاولات؛ يلزم تدخل' : item.state === 'processing' ? 'قيد المزامنة' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>المستلم: {item.payload.recipientName} · {item.payload.shippingCity}</Text><Text style={styles.muted}>المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.warning}>هذا الطلب محفوظ محليًا وليس مؤكدًا لدى المتجر. سيعيد الخادم التحقق من السعر والمخزون عند المزامنة.</Text><View style={styles.actions}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? <Pressable accessibilityRole="button" disabled={busyId !== null} style={styles.secondary} onPress={() => {
+                        }])}><Text style={styles.deleteText}>{item.state === 'processing' ? 'قيد المعالجة' : 'إلغاء العرض'}</Text></Pressable></View></View>
+      ); }
+      case 'order': { const item = row.item; return (
+<View style={styles.card}><Text style={styles.adTitle}>طلب شراء · {item.payload.items.length} منتج</Text><Text style={styles.status}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? 'توقفت المحاولات؛ يلزم تدخل' : item.state === 'processing' ? 'قيد المزامنة' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>المستلم: {item.payload.recipientName} · {item.payload.shippingCity}</Text><Text style={styles.muted}>المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.warning}>هذا الطلب محفوظ محليًا وليس مؤكدًا لدى المتجر. سيعيد الخادم التحقق من السعر والمخزون عند المزامنة.</Text><View style={styles.actions}>{item.attempts >= OUTBOX_MAX_ATTEMPTS ? <Pressable accessibilityRole="button" disabled={busyId !== null} style={styles.secondary} onPress={() => {
                         setBusyId(item.id);
                         void retryMarketplaceOrder(item.id, user?.id).then(async (ok) => {
                             if (!ok)
@@ -389,17 +415,22 @@ export default function OfflineQueueScreen() {
                                     void refresh();
                                 });
                             }
-                        }])}><Text style={styles.deleteText}>{item.state === 'processing' ? 'قيد المعالجة' : 'إلغاء الطلب'}</Text></Pressable></View></View>)}
-        {chatMessages.map((item) => <View key={`chat-message-${item.id}`} style={styles.card}><Text style={styles.adTitle}>رسالة دردشة محفوظة</Text><Text style={styles.status}>بانتظار الإرسال أو إعادة المحاولة</Text><Text style={styles.muted}>المحادثة: {item.conversationId.slice(-6)} · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS}</Text><Text style={styles.muted}>{item.body}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Pressable accessibilityRole="button" style={styles.secondary} onPress={() => router.push({
+                        }])}><Text style={styles.deleteText}>{item.state === 'processing' ? 'قيد المعالجة' : 'إلغاء الطلب'}</Text></Pressable></View></View>
+      ); }
+      case 'chatMessage': { const item = row.item; return (
+<View style={styles.card}><Text style={styles.adTitle}>رسالة دردشة محفوظة</Text><Text style={styles.status}>بانتظار الإرسال أو إعادة المحاولة</Text><Text style={styles.muted}>المحادثة: {item.conversationId.slice(-6)} · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS}</Text><Text style={styles.muted}>{item.body}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Pressable accessibilityRole="button" style={styles.secondary} onPress={() => router.push({
                         pathname: '/messages/[id]', params: { id: item.conversationId }
-                    })}><Text style={styles.secondaryText}>فتح المحادثة</Text></Pressable></View>)}
-        {chatMedia.map((item) => <View key={`chat-media-${item.id}`} style={styles.card}><Text style={styles.adTitle}>مرفق دردشة محفوظ · {item.kind === 'image' ? 'صورة' : item.kind === 'audio' ? 'تسجيل صوتي' : 'ملف'}</Text><Text style={styles.status}>بانتظار المزامنة</Text><Text style={styles.muted}>{item.fileName} · {Math.ceil(item.sizeBytes / 1024)} كيلوبايت · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Pressable accessibilityRole="button" style={styles.secondary} onPress={() => router.push({
+                    })}><Text style={styles.secondaryText}>فتح المحادثة</Text></Pressable></View>
+      ); }
+      case 'chatMedia': { const item = row.item; return (
+<View style={styles.card}><Text style={styles.adTitle}>مرفق دردشة محفوظ · {item.kind === 'image' ? 'صورة' : item.kind === 'audio' ? 'تسجيل صوتي' : 'ملف'}</Text><Text style={styles.status}>بانتظار المزامنة</Text><Text style={styles.muted}>{item.fileName} · {Math.ceil(item.sizeBytes / 1024)} كيلوبايت · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Pressable accessibilityRole="button" style={styles.secondary} onPress={() => router.push({
                         pathname: '/messages/[id]', params: { id: item.conversationId }
-                    })}><Text style={styles.secondaryText}>فتح المحادثة</Text></Pressable></View>)}
-        {createItems.map((item) => {
+                    })}><Text style={styles.secondaryText}>فتح المحادثة</Text></Pressable></View>
+      ); }
+              case 'create': { const item = row.item;
                         const label = item.operation === 'create-product' ? 'إضافة منتج' : item.operation === 'create-service' ? 'نشر خدمة' : 'تسجيل بيع';
                         const title = String(item.payload.name || item.payload.title || item.payload.entityTitle || label);
-                        return <View key={`create-${item.id}`} style={styles.card}><Text style={styles.adTitle}>{label}: {title}</Text><Text style={styles.status}>{item.state === 'failed' ? 'فشلت نهائيًا؛ راجع الخطأ وأعد المحاولة عند التصحيح' : item.state === 'processing' ? 'قيد المزامنة' : item.attempts >= OUTBOX_MAX_ATTEMPTS ? 'توقفت المحاولات؛ يلزم تدخل' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.warning}>لم يؤكد الخادم إنشاء هذا السجل بعد. قد يرفضه إذا تغيرت الصلاحيات أو التصنيفات أو البيانات قبل المزامنة.</Text><View style={styles.actions}>{(item.state === 'failed' || item.attempts >= OUTBOX_MAX_ATTEMPTS) ? <Pressable accessibilityRole="button" disabled={busyId !== null} style={styles.secondary} onPress={() => {
+                        return <View style={styles.card}><Text style={styles.adTitle}>{label}: {title}</Text><Text style={styles.status}>{item.state === 'failed' ? 'فشلت نهائيًا؛ راجع الخطأ وأعد المحاولة عند التصحيح' : item.state === 'processing' ? 'قيد المزامنة' : item.attempts >= OUTBOX_MAX_ATTEMPTS ? 'توقفت المحاولات؛ يلزم تدخل' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS} · حُفظ: {formatSafeDate(item.createdAt, 'dateTime')}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Text style={styles.warning}>لم يؤكد الخادم إنشاء هذا السجل بعد. قد يرفضه إذا تغيرت الصلاحيات أو التصنيفات أو البيانات قبل المزامنة.</Text><View style={styles.actions}>{(item.state === 'failed' || item.attempts >= OUTBOX_MAX_ATTEMPTS) ? <Pressable accessibilityRole="button" disabled={busyId !== null} style={styles.secondary} onPress={() => {
                             setBusyId(item.id);
                             void retryOfflineCreate(item.id, user?.id).then(async (ok) => {
                                 if (!ok)
@@ -426,13 +457,13 @@ export default function OfflineQueueScreen() {
                                     });
                                 }
                             }])}><Text style={styles.deleteText}>{item.state === 'processing' ? 'قيد المعالجة' : 'إلغاء الإضافة'}</Text></Pressable></View></View>;
-                    })}
-        {items.length === 0 && favoriteItems.length === 0 && requestItems.length === 0 && offerItems.length === 0 && orderItems.length === 0 && createItems.length === 0 && chatMessages.length === 0 && chatMedia.length === 0 ? <EmptyState title="لا توجد عمليات معلّقة" description="ستظهر هنا العمليات التي تحتاج إلى المزامنة أو التدخل."/> : items.map((item) => {
+                    }
+              case 'ad': { const item = row.item;
                             const exhausted = item.state === 'failed' && item.attempts >= OUTBOX_MAX_ATTEMPTS;
                             const canDiscard = item.state !== 'processing';
                             const isHead = headId === item.id;
                             const canRetry = exhausted && isHead && (item.operation === 'create-ad' || item.operation === 'delete-ad' || item.operation === 'update-ad');
-                            return <View key={item.id} style={styles.card}>
+                            return <View style={styles.card}>
             <Text style={styles.adTitle}>{titleFromPayload(item) || operationLabel(item.operation)}</Text>
             <Text style={styles.status}>{stateLabel(item)}</Text>
             <Text style={styles.muted}>النوع: {operationLabel(item.operation)} · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS}</Text>
@@ -455,8 +486,33 @@ export default function OfflineQueueScreen() {
               <Pressable accessibilityRole="button" disabled={!canDiscard || busyId !== null} style={[styles.delete, (!canDiscard || busyId !== null) && styles.disabled]} onPress={() => discard(item)}><Text style={styles.deleteText}>{busyId === item.id ? 'جارٍ…' : canDiscard ? 'إلغاء العملية' : 'قيد المعالجة'}</Text></Pressable>
             </View>
           </View>;
-                        })}
-      </ScrollView>}
+                        }
+        }
+        return null;
+    };
+    const listExtraData = { busyId, online, headId, accessToken, csrfToken, userId: user?.id };
+    const listHeader = <View style={styles.listHeader}>{error ? <Text accessibilityRole="alert" style={styles.error}>{error}</Text> : null}
+        <Text style={styles.summary}>{items.length} عملية إعلانات محفوظة · {favoriteItems.length} تغيير مفضلة معلّق · {requestItems.length} طلب إنشاء محفوظ · {offerItems.length} عرض محفوظ · {orderItems.length} طلب شراء محفوظ · {createItems.length} إضافة منتج/خدمة/بيع محفوظة · {chatMessages.length + chatMedia.length} رسالة/مرفق دردشة</Text>
+    </View>;
+    return <PageShell title="العمليات دون اتصال" scroll={false} right={<Pressable onPress={() => void refresh()} accessibilityRole="button" accessibilityLabel="تحديث العمليات"><Text style={styles.link}>تحديث</Text></Pressable>}>
+    <View style={styles.notice}><Text style={styles.noticeText}>تُحفظ هذه العمليات على الجهاز. قد توقف عملية أقدم غير مدعومة المزامنة، وستتوقف العمليات الأحدث حتى تُحل المشكلة للحفاظ على ترتيب التعديلات. لا تلغِ عملية إلا إذا كنت متأكدًا أنك لا تريد إرسالها.</Text></View>
+    {unownedCount > 0 ? <View style={styles.notice}><Text style={styles.noticeText}>توجد {unownedCount} عملية قديمة محفوظة قبل ربط العمليات بالحساب. لم تُرسل تلقائيًا لأن مالكها غير معروف، وذلك لمنع تنفيذها بحساب آخر. راجعها من نسخة التطبيق السابقة أو احذف بيانات التطبيق فقط إذا لم تعد تحتاجها.</Text></View> : null}
+    {!user ? <EmptyState title="سجّل الدخول لمزامنة العمليات" actionLabel="تسجيل الدخول" onAction={() => pushOnce('/login')}/>
+            : loading ? <LoadingState message="جاري قراءة العمليات…"/>
+                : error && items.length === 0 && favoriteItems.length === 0 && requestItems.length === 0 && offerItems.length === 0 && orderItems.length === 0 && createItems.length === 0 && chatMessages.length === 0 && chatMedia.length === 0 ? <ErrorState title="تعذر تحميل القائمة" description={error ?? undefined} onAction={() => void refresh()}/>
+                    : <AppFlashList
+                        style={{ flex: 1 }}
+                        data={rows}
+                        extraData={listExtraData}
+                        keyExtractor={queueRowKey}
+                        getItemType={queueRowType}
+                        renderItem={renderRow}
+                        ItemSeparatorComponent={ListGapLg}
+                        ListHeaderComponent={listHeader}
+                        ListEmptyComponent={<EmptyState title="لا توجد عمليات معلّقة" description="ستظهر هنا العمليات التي تحتاج إلى المزامنة أو التدخل."/>}
+                        contentContainerStyle={listContentStyle}
+                        showsVerticalScrollIndicator={false}
+                    />}
   </PageShell>;
 }
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
@@ -466,8 +522,8 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
         padding: spacing.md, backgroundColor: colors.warningSoft, borderBottomWidth: 1, borderBottomColor: colors.warningBorder
     }, noticeText: {
         color: colors.warningText, fontSize: fontSizes[12], lineHeight: 19, textAlign: 'right'
-    }, list: {
-        gap: spacing.lg, paddingBottom: spacing.xxxl
+    }, listHeader: {
+        gap: spacing.lg, marginBottom: spacing.lg
     }, summary: {
         fontSize: fontSizes[13], fontWeight: fontWeights.bold, color: colors.ink, textAlign: 'right'
     }, card: {

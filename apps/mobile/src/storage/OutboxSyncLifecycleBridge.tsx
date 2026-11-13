@@ -5,6 +5,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { useIsOnline } from '@/lib/connectivity';
 import { startOutboxSyncLifecycle, type OutboxLifecycleSnapshot } from './outbox-sync-lifecycle';
 import { listOfflineCreates } from './entity-create-outbox';
+import { runWhenScrollIdle } from '@/lib/scrollActivity';
 
 /**
  * Adapter: connects the auth session and connectivity to the durable outbox
@@ -29,7 +30,8 @@ export function OutboxSyncLifecycleBridge() {
       onResult: () => {
         const ownerId = latest.current.ownerId;
         if (!ownerId) return;
-        void listOfflineCreates(ownerId).then((items) => {
+        // قراءة SQLite + Toast لا تعمل أثناء تمرير المستخدم لقائمة (تُؤجَّل حتى يهدأ التمرير).
+        runWhenScrollIdle(() => { void listOfflineCreates(ownerId).then((items) => {
           const newlyFailed = items.filter((item) => item.state === 'failed' && !notifiedFailedCreates.current.has(item.id));
           if (newlyFailed.length === 0) return;
           newlyFailed.forEach((item) => notifiedFailedCreates.current.add(item.id));
@@ -44,7 +46,7 @@ export function OutboxSyncLifecycleBridge() {
           );
         }).catch(() => {
           // The queue screen remains the source of truth if a local DB read fails.
-        });
+        }); });
       },
     });
   }, [isRestoring, isOnline, accessToken, csrfToken, user?.id]);

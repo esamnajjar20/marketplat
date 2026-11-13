@@ -27,12 +27,14 @@
     "verify:workspace-unification": "node ./scripts/verify-workspace-unification.mjs",
     "format": "prettier --write \"app/**/*.{ts,tsx}\" \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"app/**/*.{ts,tsx}\" \"src/**/*.{ts,tsx}\"",
-    "report:tokens": "node ./scripts/report-token-bypass.mjs"
+    "report:tokens": "node ./scripts/report-token-bypass.mjs",
+    "analyze:bundle": "node ./scripts/analyze-bundle.mjs"
   },
   "dependencies": {
     "@expo/dom-webview": "~58.0.2",
     "@react-native-community/netinfo": "^12.0.1",
     "@sentry/react-native": "~8.28.0",
+    "@shopify/flash-list": "^2.0.2",
     "expo": "~58.0.19",
     "expo-audio": "~58.0.9",
     "expo-build-properties": "~58.0.12",

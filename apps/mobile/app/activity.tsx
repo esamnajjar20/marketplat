@@ -2,7 +2,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { Spinner, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
@@ -11,6 +11,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyActivity, type ActivityRow } from '@/features/sales/sales-extra.api';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { denseListPerf } from '@/lib/listPerformance';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 
 const groups = [
   ['ALL', 'الكل'],
@@ -47,64 +48,41 @@ const dateLabel = (s: string) => {
     : formatDate(d);
 };
 
+const activityKeyExtractor = (item: ActivityRow) => item.id;
+const ActivitySeparator = () => <View style={{ height: spacing.md }} />;
+
 export default function ActivityScreen() {
   const { colors } = useAppTheme();
 
   const { accessToken, user, isRestoring } = useAuth();
   const [group, setGroup] = useState('ALL');
   const [q, setQ] = useState('');
-  const [items, setItems] = useState<ActivityRow[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [more, setMore] = useState(false);
-  const [error, setError] = useState('');
-  const seq = useRef(0);
+  const [qApplied, setQApplied] = useState('');
 
-  const load = useCallback(async () => {
-    if (!accessToken) {
-      setLoading(false);
-      return;
-    }
-    const current = ++seq.current;
-    setLoading(true);
-    setError('');
-    try {
-      const r = await fetchMyActivity(accessToken, group, q, 1);
-      if (current !== seq.current) return;
-      setItems(r.items);
-      setPage(r.meta.page);
-      setHasMore(r.meta.hasNextPage);
-    } catch (e) {
-      if (current === seq.current) setError(e instanceof Error ? e.message : 'تعذر تحميل سجل النشاط.');
-    } finally {
-      if (current === seq.current) setLoading(false);
-    }
-  }, [accessToken, group, q]);
-
+  // تأخير بسيط: لا طلب جديد عند كل حرف (كان يُرسَل طلب لكل ضغطة مفتاح).
   useEffect(() => {
-    if (!isRestoring) void load();
-    return () => {
-      seq.current += 1;
-    };
-  }, [isRestoring, load]);
+    const t = setTimeout(() => setQApplied(q), 350);
+    return () => clearTimeout(t);
+  }, [q]);
 
-  const loadMore = async () => {
-    if (!accessToken || more || !hasMore) return;
-    const current = seq.current;
-    setMore(true);
-    try {
-      const r = await fetchMyActivity(accessToken, group, q, page + 1);
-      if (current !== seq.current) return;
-      setItems((old) => [...old, ...r.items.filter((x) => !old.some((y) => y.id === x.id))]);
-      setPage(r.meta.page);
-      setHasMore(r.meta.hasNextPage);
-    } catch (e) {
-      if (current === seq.current) setError(e instanceof Error ? e.message : 'تعذر تحميل المزيد.');
-    } finally {
-      setMore(false);
-    }
-  };
+  // دورة الترقيم الموحّدة: هوية القائمة = (الحساب، المجموعة، البحث المطبّق).
+  const list = usePaginatedList<ActivityRow>({
+    key: `${user?.id ?? ''}|${group}|${qApplied}`,
+    pageSize: 20,
+    enabled: Boolean(accessToken) && !isRestoring,
+    fetchPage: (page) => fetchMyActivity(accessToken as string, group, qApplied, page),
+    getItemKey: activityKeyExtractor,
+    mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل سجل النشاط.'),
+  });
+  const { items, loading, refreshing, loadingMore: more, hasNextPage: hasMore } = list;
+  const error = list.error || list.loadMoreError || '';
+  const { refresh, loadMore: loadMoreItems } = list;
+  const applySearch = useCallback(() => {
+    if (q === qApplied) void refresh();
+    else setQApplied(q);
+  }, [q, qApplied, refresh]);
+  const pullRefresh = useCallback(() => { void refresh(); }, [refresh]);
+  const loadMore = useCallback(() => { void loadMoreItems(); }, [loadMoreItems]);
 
   if (!user) {
     return (
@@ -117,9 +95,9 @@ export default function ActivityScreen() {
 
   return (
     <PageShell title="سجل النشاط" scroll={false}>
-      <FlatList refreshControl={<RefreshControl refreshing={loading && items.length > 0} onRefresh={() => void load()} tintColor={colors.brand} />}
+      <FlatList refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pullRefresh} tintColor={colors.brand} />}
         data={loading && items.length === 0 ? [] : items}
-        keyExtractor={(item) => item.id}
+        keyExtractor={activityKeyExtractor}
         {...denseListPerf}
         contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
         ListHeaderComponent={
@@ -149,7 +127,7 @@ export default function ActivityScreen() {
                 </Pressable>
               ))}
             </View>
-            <PrimaryButton label="تطبيق البحث" onPress={() => void load()} variant="secondary" />
+            <PrimaryButton label="تطبيق البحث" onPress={applySearch} variant="secondary" />
             {error ? <Notice>{error}</Notice> : null}
             {loading ? <Spinner color={colors.brand} /> : null}
           </View>
@@ -173,10 +151,10 @@ export default function ActivityScreen() {
             ) : null}
           </SectionCard>
         )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ActivitySeparator}
         ListFooterComponent={
           hasMore ? (
-            <PrimaryButton label="تحميل المزيد" onPress={() => void loadMore()} busy={more} variant="secondary" />
+            <PrimaryButton label="تحميل المزيد" onPress={loadMore} busy={more} variant="secondary" />
           ) : undefined
         }
       />

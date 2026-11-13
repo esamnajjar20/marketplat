@@ -17,70 +17,44 @@ import { createMobileOperationId } from '@/lib/operation-id';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { formatSafeDate } from '@/lib/date-format';
 
+import { useAsyncResource } from '@/hooks/useAsyncResource';
+
 const money = (n: unknown) =>
   formatMoney(Number(n) || 0);
+
+const EMPTY_INSTALLMENTS: InstallmentRow[] = [];
 
 export default function InstallmentsScreen() {
   const { colors } = useAppTheme();
 
   const { accessToken, csrfToken, user, isRestoring } = useAuth();
   const [kind, setKind] = useState<'upcoming' | 'overdue'>('upcoming');
-  const [items, setItems] = useState<InstallmentRow[]>([]);
-  const [itemsKey, setItemsKey] = useState('');
   const listKey = `${user?.id ?? 'guest'}:${kind}`;
-  const visibleItems = itemsKey === listKey ? items : [];
   const [amounts, setAmounts] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState('');
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [message, setMessage] = useState('');
   const paymentOperationsRef = useRef<Record<string, { amount: number; id: string }>>({});
-  const loadControllerRef = useRef<AbortController | null>(null);
-  const loadRequestRef = useRef(0);
 
-  const load = useCallback(async () => {
-    loadControllerRef.current?.abort();
-    const controller = new AbortController();
-    loadControllerRef.current = controller;
-    const requestId = ++loadRequestRef.current;
-    if (!accessToken || !user?.id) {
-      setItems([]);
-      setItemsKey('');
-      setAmounts({});
-      paymentOperationsRef.current = {};
-      setError('');
-      setLoading(false);
-      loadControllerRef.current = null;
-      return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      const next = await fetchInstallments(kind, accessToken, user.id, controller.signal);
-      if (!controller.signal.aborted && requestId === loadRequestRef.current) {
-        setItems(next);
-        setItemsKey(`${user.id}:${kind}`);
-      }
-    } catch (e) {
-      if (!controller.signal.aborted && requestId === loadRequestRef.current) {
-        setError(e instanceof Error ? e.message : 'تعذر تحميل الأقساط.');
-      }
-    } finally {
-      if (!controller.signal.aborted && requestId === loadRequestRef.current) {
-        setLoading(false);
-        if (loadControllerRef.current === controller) loadControllerRef.current = null;
-      }
-    }
-  }, [accessToken, kind, user?.id]);
-
-  useEffect(() => {
-    if (!isRestoring) void load();
-    return () => {
-      loadRequestRef.current += 1;
-      loadControllerRef.current?.abort();
-      loadControllerRef.current = null;
-    };
-  }, [isRestoring, load]);
+  // دورة الجلب الموحّدة (إلغاء الطلب القديم + تجاهل المتأخر). تُخزَّن هوية القائمة مع الصفوف
+  // حتى لا تظهر أقساط «القادمة» أثناء تحميل «المتأخرة» (أو حساب آخر).
+  const resource = useAsyncResource<{ key: string; rows: InstallmentRow[] }>(
+    async (signal) => {
+      const rows = await fetchInstallments(kind, accessToken as string, user?.id as string, signal);
+      return { key: listKey, rows };
+    },
+    {
+      key: listKey,
+      manual: isRestoring || !accessToken || !user?.id,
+      tag: 'installments',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل الأقساط.'),
+    },
+  );
+  const { loading, reload } = resource;
+  const visibleItems = resource.data?.key === listKey ? resource.data.rows : EMPTY_INSTALLMENTS;
+  const error = actionError || resource.error || '';
+  const load = useCallback(() => reload({ soft: true }), [reload]);
+  const pullReload = useCallback(() => { void reload({ soft: true }); }, [reload]);
 
   useEffect(() => {
     setAmounts({});
@@ -92,7 +66,7 @@ export default function InstallmentsScreen() {
     const remaining = Math.round((Number(item.amount) - Number(item.paidAmount)) * 100) / 100;
     const amount = Number(amounts[item.id] ?? String(remaining));
     if (!Number.isFinite(amount) || amount <= 0 || amount > remaining) {
-      setError(`أدخل مبلغًا أكبر من صفر ولا يتجاوز ${money(remaining)}.`);
+      setActionError(`أدخل مبلغًا أكبر من صفر ولا يتجاوز ${money(remaining)}.`);
       return;
     }
     confirmAlert('تأكيد تحصيل القسط', `تسجيل دفعة بقيمة ${money(amount)}؟`, [
@@ -101,7 +75,7 @@ export default function InstallmentsScreen() {
         text: 'تأكيد',
         onPress: () => {
           setBusyId(item.id);
-          setError('');
+          setActionError('');
           setMessage('');
           const existing = paymentOperationsRef.current[item.id];
           const operation = existing?.amount === amount
@@ -119,7 +93,7 @@ export default function InstallmentsScreen() {
               if (e instanceof ApiError && e.status !== undefined && e.status >= 400 && e.status < 500) {
                 delete paymentOperationsRef.current[item.id];
               }
-              setError(e instanceof Error ? e.message : 'تعذر تسجيل الدفعة.');
+              setActionError(e instanceof Error ? e.message : 'تعذر تسجيل الدفعة.');
             })
             .finally(() => setBusyId(''));
         },
@@ -138,7 +112,7 @@ export default function InstallmentsScreen() {
 
   return (
     <PageShell title="الأقساط" scroll={false}>
-      <FlatList refreshControl={<RefreshControl refreshing={loading && visibleItems.length > 0} onRefresh={() => void load()} tintColor={colors.brand} />}
+      <FlatList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={pullReload} tintColor={colors.brand} />}
         data={loading && visibleItems.length === 0 ? [] : visibleItems}
         keyExtractor={(item) => item.id}
         {...marketListPerf}

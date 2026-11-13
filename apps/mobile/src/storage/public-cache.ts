@@ -184,6 +184,31 @@ export async function writePublicCache<T>(key: string, value: T): Promise<void> 
   }
 }
 
+/**
+ * صيانة الكاش: حذف السجلات المنتهية (عامة 7 أيام / خاصة 24 ساعة / تواريخ مستقبلية شاذة).
+ * الحذف كان يحدث عند الكتابة فقط، فتبقى سجلات قديمة إن لم تحدث كتابة. تُستدعى مرة واحدة
+ * وقت الخمول بعد الإقلاع (انظر useDeferredStartupMaintenance). لا تمسّ جدول saved-offline.
+ */
+export async function prunePublicCacheExpired(): Promise<number> {
+  try {
+    const db = await getDatabase();
+    const now = Date.now();
+    const result = await db.runAsync(
+      `DELETE FROM public_cache
+       WHERE (cache_key LIKE 'api-private:%' AND saved_at < ?)
+          OR (cache_key NOT LIKE 'api-private:%' AND saved_at < ?)
+          OR saved_at > ?`,
+      now - 24 * 60 * 60 * 1_000,
+      now - 7 * 24 * 60 * 60 * 1_000,
+      now + 5 * 60 * 1_000,
+    );
+    return typeof result?.changes === 'number' ? result.changes : 0;
+  } catch {
+    // صيانة اختيارية: فشلها لا يجب أن يؤثر على التطبيق.
+    return 0;
+  }
+}
+
 export async function clearPublicCache(): Promise<void> {
   const db = await getDatabase();
   await db.runAsync('DELETE FROM public_cache');

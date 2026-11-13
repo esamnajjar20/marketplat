@@ -1,6 +1,5 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -8,6 +7,15 @@ import { fetchMyStore, fetchMyStoreAnalytics, type StoreAnalytics, type StoreSum
 import { fetchMySellerProfile, type SellerProfile } from '@/features/account/seller.api';
 import { EmptyState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
+
+type DashboardData = {
+  store: StoreSummary | null;
+  profile: SellerProfile | null;
+  analytics: StoreAnalytics | null;
+  storeLoadError: string;
+  profileError: string;
+};
 function Metric({ label, value }: {
   label: string;
   value: string | number;
@@ -22,54 +30,54 @@ function Metric({ label, value }: {
 export default function SellerDashboardScreen() {
   const { colors } = useAppTheme();
   const { accessToken, user } = useAuth();
-  const [store, setStore] = useState<StoreSummary | null>(null);
-  const [profile, setProfile] = useState<SellerProfile | null>(null);
-  const [analytics, setAnalytics] = useState<StoreAnalytics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [storeLoadError, setStoreLoadError] = useState('');
-  const load = useCallback(async () => {
-    if (!accessToken) {
-      setError('سجّل الدخول لعرض لوحة البائع.');
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError('');
-    setStoreLoadError('');
-    const [storeResult, profileResult] = await Promise.allSettled([
-      fetchMyStore(accessToken),
-      fetchMySellerProfile(accessToken, user?.id),
-    ]);
-    const nextStore = storeResult.status === 'fulfilled' ? storeResult.value : null;
-    const nextProfile = profileResult.status === 'fulfilled' ? profileResult.value : null;
-    setStore(nextStore);
-    setProfile(nextProfile);
-    if (storeResult.status === 'rejected')
-      setStoreLoadError(storeResult.reason instanceof Error ? storeResult.reason.message : 'تعذر تحميل بيانات المتجر.');
-    if (profileResult.status === 'rejected')
-      setError(profileResult.reason instanceof Error ? profileResult.reason.message : 'تعذر تحميل ملف البائع.');
-    if (nextStore) {
-      try {
-        setAnalytics(await fetchMyStoreAnalytics(accessToken));
+  // دورة الجلب الموحّدة. فشل جزئي (متجر أو ملف) يبقى جزءًا من البيانات لا خطأً شاملًا.
+  const resource = useAsyncResource<DashboardData>(
+    async () => {
+      if (!accessToken) throw new Error('سجّل الدخول لعرض لوحة البائع.');
+      const [storeResult, profileResult] = await Promise.allSettled([
+        fetchMyStore(accessToken),
+        fetchMySellerProfile(accessToken, user?.id),
+      ]);
+      const store = storeResult.status === 'fulfilled' ? storeResult.value : null;
+      const profile = profileResult.status === 'fulfilled' ? profileResult.value : null;
+      let analytics: StoreAnalytics | null = null;
+      if (store) {
+        try {
+          analytics = await fetchMyStoreAnalytics(accessToken);
+        } catch {
+          analytics = null;
+        }
       }
-      catch {
-        setAnalytics(null);
-      }
-    }
-    else
-      setAnalytics(null);
-    setLoading(false);
-  }, [accessToken, user?.id]);
-  useEffect(() => {
-    void load();
-  }, [load]);
+      return {
+        store,
+        profile,
+        analytics,
+        storeLoadError: storeResult.status === 'rejected'
+          ? (storeResult.reason instanceof Error ? storeResult.reason.message : 'تعذر تحميل بيانات المتجر.')
+          : '',
+        profileError: profileResult.status === 'rejected'
+          ? (profileResult.reason instanceof Error ? profileResult.reason.message : 'تعذر تحميل ملف البائع.')
+          : '',
+      };
+    },
+    {
+      key: `${accessToken ? 1 : 0}|${user?.id ?? ''}`,
+      tag: 'seller-dashboard',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل لوحة البائع.'),
+    },
+  );
+  const { data, loading, reload } = resource;
+  const store = data?.store ?? null;
+  const profile = data?.profile ?? null;
+  const analytics = data?.analytics ?? null;
+  const storeLoadError = data?.storeLoadError ?? '';
+  const error = resource.error || data?.profileError || '';
   return <PageShell title="لوحة البائع">
   <Notice tone="muted">ملخص حالة المتجر والمهام الأساسية.</Notice>
   {loading ? <SectionCard><Text style={{
     textAlign: 'center', color: colors.muted
   }}>جارٍ تحميل بيانات البائع…</Text></SectionCard> : null}
-  {error ? <SectionCard><Notice>{error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void load()}/></SectionCard> : null}
+  {error ? <SectionCard><Notice>{error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void reload()}/></SectionCard> : null}
   {!loading && !store && !storeLoadError ? <SectionCard><EmptyState title="لا يوجد متجر تملكه بعد" description="أنشئ متجرك أو افتح قائمة المتاجر التي تعمل بها."/><PrimaryButton label="إدارة المتجر" onPress={() => router.push('/my-store')}/><PrimaryButton label="المتاجر التي أعمل بها" variant="secondary" onPress={() => router.push('/my-stores')}/><PrimaryButton label="ملف البائع" variant="secondary" onPress={() => router.push('/seller-profile')}/></SectionCard> : null}
   {!loading && storeLoadError ? <SectionCard><Notice>{storeLoadError}</Notice><PrimaryButton label="المتاجر التي أعمل بها" variant="secondary" onPress={() => router.push('/my-stores')}/></SectionCard> : null}
   {!loading && store ? <>

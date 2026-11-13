@@ -3,9 +3,9 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppIcon } from '@/components/Icons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useRef, useState , useMemo} from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
-import { denseListPerf } from '@/lib/listPerformance';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { RefreshControl, StyleSheet, View } from 'react-native';
+import { AppFlashList } from '@/components/ui/AppFlashList';
 import { useFocusEffect } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
@@ -92,6 +92,47 @@ function destination(item: AppNotification): string | null {
 
 function notificationIsRead(item: AppNotification): boolean { return Boolean(item.readAt || item.isRead); }
 
+/** صف إشعار — memo: لا يُعاد رسمه إلا عند تغيّر الإشعار نفسه (مثل حالة القراءة). */
+const NotificationRow = memo(function NotificationRow({
+  item,
+  onOpen,
+}: {
+  item: AppNotification;
+  onOpen: (item: AppNotification) => void;
+}) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+  const read = notificationIsRead(item);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => onOpen(item)}
+      style={[styles.card, !read && styles.unread]}
+    >
+      <View style={[styles.iconWrap, !read && styles.iconUnread]}>
+        <AppIcon
+          name={item.type === 'NEW_MESSAGE' ? 'messages' : item.type.includes('SERVICE') || item.type.includes('REQUEST') ? 'service' : 'notification'}
+          size={20}
+          color={colors.brand}
+        />
+      </View>
+      <View style={styles.bodyWrap}>
+        <Text style={styles.itemTitle}>{item.title}</Text>
+        <Text style={styles.body}>{item.body}</Text>
+        <Text style={styles.time}>
+          {formatSafeDate(item.createdAt, 'dateTime')}
+        </Text>
+      </View>
+      {!read ? <View style={styles.dot} /> : null}
+    </Pressable>
+  );
+});
+
+/** FlashList لا يدعم gap: الفاصل يعادل gap(md) + separator(sm) السابقين. */
+function NotificationSeparator() {
+  return <View style={{ height: spacing.md + spacing.sm }} />;
+}
+
 export default function NotificationsScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
@@ -159,6 +200,16 @@ export default function NotificationsScreen() {
     pushOnce(toAppHref(target));
   };
 
+  // دوال ثابتة: الصف memo و`open` يقرأ آخر نسخة عبر ref.
+  const openRef = useRef(open);
+  openRef.current = open;
+  const onOpen = useCallback((item: AppNotification) => { void openRef.current(item); }, []);
+  const keyExtractor = useCallback((item: AppNotification) => item.id, []);
+  const renderItem = useCallback(
+    ({ item }: { item: AppNotification }) => <NotificationRow item={item} onOpen={onOpen} />,
+    [onOpen],
+  );
+
   return (
     <ScreenFrame>
       <AppHeader
@@ -192,10 +243,10 @@ export default function NotificationsScreen() {
       ) : list.error && list.items.length === 0 ? (
         <ErrorState title="تعذر تحميل الإشعارات" description={list.error || undefined} onAction={() => void list.retry()} />
       ) : (
-        <FlatList
+        <AppFlashList
           data={list.items}
-          keyExtractor={(item) => item.id}
-          {...denseListPerf}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
           contentContainerStyle={styles.list}
           refreshControl={
             <RefreshControl
@@ -204,9 +255,9 @@ export default function NotificationsScreen() {
               tintColor={colors.brand}
             />
           }
-          ListHeaderComponent={list.error ? <ErrorState title="تعذر تحديث الإشعارات" description={list.error} onAction={() => void list.retry()} /> : undefined}
+          ListHeaderComponent={list.error ? <View style={styles.listHeader}><ErrorState title="تعذر تحديث الإشعارات" description={list.error} onAction={() => void list.retry()} /></View> : undefined}
           ListFooterComponent={list.items.length > 0 ? (
-            <View style={{ gap: spacing.sm }}>
+            <View style={styles.listFooter}>
               {list.hasNextPage ? <Pressable accessibilityRole="button" disabled={list.loadingMore} onPress={() => void list.loadMore()} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={styles.link}>{list.loadingMore ? 'جارٍ تحميل المزيد…' : 'تحميل إشعارات أقدم'}</Text></Pressable> : null}
               {list.loadMoreError ? <ErrorState title="تعذر تحميل الإشعارات الأقدم" description={list.loadMoreError} onAction={() => void list.retry()} /> : null}
             </View>
@@ -217,30 +268,7 @@ export default function NotificationsScreen() {
               description="ستظهر هنا تحديثات حسابك ونشاطك في MarketPlat."
             />
           }
-          renderItem={({ item }) => (
-            <Pressable
-                accessibilityRole="button"
-                onPress={() => { void open(item); }}
-                style={[styles.card, !notificationIsRead(item) && styles.unread]}
-              >
-                <View style={[styles.iconWrap, !notificationIsRead(item) && styles.iconUnread]}>
-                  <AppIcon
-                    name={item.type === 'NEW_MESSAGE' ? 'messages' : item.type.includes('SERVICE') || item.type.includes('REQUEST') ? 'service' : 'notification'}
-                    size={20}
-                    color={colors.brand}
-                  />
-                </View>
-                <View style={styles.bodyWrap}>
-                  <Text style={styles.itemTitle}>{item.title}</Text>
-                  <Text style={styles.body}>{item.body}</Text>
-                  <Text style={styles.time}>
-                    {formatSafeDate(item.createdAt, 'dateTime')}
-                  </Text>
-                </View>
-                {!notificationIsRead(item) ? <View style={styles.dot} /> : null}
-              </Pressable>
-          )}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          ItemSeparatorComponent={NotificationSeparator}
         />
       )}
     </ScreenFrame>
@@ -250,7 +278,10 @@ export default function NotificationsScreen() {
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   link: { color: colors.brand, ...typography.captionStrong },
   disabled: { opacity: 0.45 },
-  list: { padding: spacing.md, gap: spacing.md, paddingBottom: spacing.xl },
+  // FlashList: padding فقط (لا gap).
+  list: { padding: spacing.md, paddingBottom: spacing.xl },
+  listHeader: { marginBottom: spacing.md },
+  listFooter: { gap: spacing.sm, marginTop: spacing.md },
   card: {
     minHeight: 78,
     flexDirection: 'row',

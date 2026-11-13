@@ -5,9 +5,11 @@ import { showToast } from '@/lib/toast';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useRef, useState, useMemo } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
-import { marketListPerf } from '@/lib/listPerformance';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { RefreshControl, StyleSheet, View } from 'react-native';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
+import { pickRemoteImageUri } from '@/lib/list-image';
 import { router, useFocusEffect } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
@@ -117,6 +119,35 @@ export default function FavoritesScreen() {
       .finally(() => setBusyId(null));
   };
 
+  // معالجات ثابتة الهوية: البطاقة memo تعتمد على id، والدالة تقرأ آخر نسخة عبر ref.
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const removeRef = useRef(remove);
+  removeRef.current = remove;
+  const openAd = useCallback((adId: string) => pushOnce(`/ads/${encodeURIComponent(adId)}`), []);
+  const toggleFavorite = useCallback((adId: string) => {
+    const record = itemsRef.current.find((item) => item.adId === adId);
+    if (record) removeRef.current(record);
+  }, []);
+  const keyExtractor = useCallback((record: FavoriteRecord) => record.adId, []);
+  const renderItem = useCallback(({ item: record }: { item: FavoriteRecord }) => {
+    const ad = record.ad;
+    return (
+      <AdCard
+        id={record.adId}
+        title={ad?.title || 'إعلان محفوظ'}
+        price={priceLabel(ad?.price)}
+        meta={[ad?.city, ad?.category?.nameAr || ad?.category?.name].filter(Boolean).join(' · ') || 'إعلان محلي'}
+        imageUri={pickRemoteImageUri(ad?.images)}
+        isFavorite
+        isNegotiable={Boolean(ad?.isNegotiable)}
+        favoriteBusy={busyId === record.adId}
+        onPressItem={openAd}
+        onToggleFavoriteItem={toggleFavorite}
+      />
+    );
+  }, [busyId, openAd, toggleFavorite]);
+
   return (
     <ScreenFrame>
       <AppHeader
@@ -151,13 +182,15 @@ export default function FavoritesScreen() {
           onAction={() => router.replace('/')}
         />
       ) : (
-        <FlatList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
+        <AppFlashList
+          refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
           data={items}
-          keyExtractor={(record) => record.adId}
-          {...marketListPerf}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          extraData={busyId}
           contentContainerStyle={styles.content}
           ListHeaderComponent={
-            <View style={{ gap: spacing.sm }}>{error ? <Text tone="danger">{error}</Text> : null}<Text style={styles.count}>{items.length} إعلان محفوظ</Text></View>
+            <View style={styles.listHeader}>{error ? <Text tone="danger">{error}</Text> : null}<Text style={styles.count}>{items.length} إعلان محفوظ</Text></View>
           }
           ListEmptyComponent={
             <EmptyState
@@ -167,30 +200,7 @@ export default function FavoritesScreen() {
               onAction={() => pushOnce('/')}
             />
           }
-          renderItem={({ item: record }) => {
-            const ad = record.ad;
-            const title = ad?.title || 'إعلان محفوظ';
-            const imageUri = ad?.images?.find(
-              (url) => typeof url === 'string' && /^https?:\/\//i.test(url),
-            );
-            return (
-              <AdCard
-                title={title}
-                price={priceLabel(ad?.price)}
-                meta={[ad?.city, ad?.category?.nameAr || ad?.category?.name]
-                  .filter(Boolean)
-                  .join(' · ') || 'إعلان محلي'}
-                imageUri={imageUri}
-                isFavorite
-                isNegotiable={Boolean(ad?.isNegotiable)}
-                onPress={() => pushOnce(`/ads/${encodeURIComponent(record.adId)}`)}
-                onToggleFavorite={
-                  busyId === record.adId ? undefined : () => remove(record)
-                }
-              />
-            );
-          }}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+          ItemSeparatorComponent={ListGapMd}
         />
       )}
     </ScreenFrame>
@@ -200,6 +210,8 @@ export default function FavoritesScreen() {
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   link: { color: colors.brand, ...typography.captionStrong },
   center: { flex: 1, justifyContent: 'center' },
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },
+  // FlashList: padding فقط (لا gap). الفواصل عبر ListGapMd والرأس عبر listHeader.
+  content: { padding: spacing.lg, paddingBottom: spacing.x4l },
+  listHeader: { gap: spacing.sm, marginBottom: spacing.md },
   count: { ...typography.caption, color: colors.muted, textAlign: 'right' },
 });

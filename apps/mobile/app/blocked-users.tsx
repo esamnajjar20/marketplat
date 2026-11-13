@@ -1,7 +1,7 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { Avatar, Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
@@ -11,35 +11,32 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchBlockedUsers, unblockUser, type BlockedUserItem } from '@/features/account/social.api';
 import { spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
+
+const blockedKeyExtractor = (item: BlockedUserItem) => item.id;
+const BlockedSeparator = () => <View style={{ height: spacing.md }} />;
 
 export default function BlockedUsersScreen() {
   const { colors } = useAppTheme();
 
   const { accessToken, csrfToken } = useAuth();
-  const [items, setItems] = useState<BlockedUserItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
-  const load = useCallback(async () => {
-    if (!accessToken) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      setItems((await fetchBlockedUsers(accessToken)).items);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل قائمة الحظر.');
-    } finally {
-      setLoading(false);
-    }
-  }, [accessToken]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // دورة الجلب الموحّدة: تلغي الطلب القديم وتتجاهل الاستجابة المتأخرة عند تغيّر الحساب.
+  const resource = useAsyncResource<BlockedUserItem[]>(
+    async () => (await fetchBlockedUsers(accessToken as string)).items,
+    {
+      key: accessToken ?? '',
+      manual: !accessToken,
+      tag: 'blocked-users',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل قائمة الحظر.'),
+    },
+  );
+  const { data, loading, reload, setData } = resource;
+  const error = actionError || resource.error || '';
+  const items = useMemo(() => (data ?? []).filter((item) => item.blocked), [data]);
+  const refreshList = useCallback(() => { void reload({ soft: true }); }, [reload]);
 
   const unblock = (item: BlockedUserItem) => {
     const person = item.blocked;
@@ -55,12 +52,12 @@ export default function BlockedUsersScreen() {
               return;
             }
             setBusyId(person.id);
-            setError('');
+            setActionError('');
             try {
               await unblockUser(person.id, accessToken, csrfToken);
-              setItems((current) => current.filter((row) => row.blockedId !== person.id));
+              setData((current) => (current ?? []).filter((row) => row.blockedId !== person.id));
             } catch (e) {
-              setError(e instanceof Error ? e.message : 'تعذر إلغاء الحظر.');
+              setActionError(e instanceof Error ? e.message : 'تعذر إلغاء الحظر.');
             } finally {
               setBusyId(null);
             }
@@ -78,9 +75,9 @@ export default function BlockedUsersScreen() {
           <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         </>
       ) : (
-        <FlatList refreshControl={<RefreshControl refreshing={loading && items.length > 0} onRefresh={() => void load()} tintColor={colors.brand} />}
-          data={items.filter((item) => item.blocked)}
-          keyExtractor={(item) => item.id}
+        <FlatList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={refreshList} tintColor={colors.brand} />}
+          data={items}
+          keyExtractor={blockedKeyExtractor}
           {...marketListPerf}
           contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
           ListHeaderComponent={
@@ -113,7 +110,7 @@ export default function BlockedUsersScreen() {
               </SectionCard>
             );
           }}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+          ItemSeparatorComponent={BlockedSeparator}
         />
       )}
     </PageShell>

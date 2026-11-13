@@ -1,7 +1,7 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
@@ -20,45 +20,47 @@ function optionsOf(field: ProviderServiceTypeField): Array<{ value: string; labe
     : [];
 }
 
+import { useAsyncResource } from '@/hooks/useAsyncResource';
+
 export default function ServiceTypesScreen() {
   const { colors } = useAppTheme();
 
   const { accessToken, getAccessToken, csrfToken, user } = useAuth();
   const userId = user?.id;
-  const [items, setItems] = useState<ProviderServiceTypeProfile[]>([]);
   const [attributes, setAttributes] = useState<AttributesByType>({});
   const [active, setActive] = useState<Record<string, boolean>>({});
-  const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState('');
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [message, setMessage] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  const load = useCallback(async () => {
-    const token = getAccessToken();
-    if (!userId || !token) { setLoading(false); return; }
-    setLoading(true);
-    setError('');
-    try {
+  // دورة الجلب الموحّدة؛ حالة النموذج المشتقة (attributes/active) تُهيَّأ من الصفوف المُحمَّلة.
+  const resource = useAsyncResource<ProviderServiceTypeProfile[]>(
+    async () => {
+      const token = getAccessToken();
+      if (!token) return [];
       const rows = await fetchMyServiceTypeProfiles(token);
-      setItems(rows);
       setAttributes(Object.fromEntries(rows.map((row) => [row.serviceTypeId, { ...(row.attributes ?? {}) }])));
       setActive(Object.fromEntries(rows.map((row) => [row.serviceTypeId, row.isActive])));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل أنواع الخدمات.');
-    } finally {
-      setLoading(false);
-    }
-  }, [getAccessToken, userId]);
-
-  useEffect(() => { void load(); }, [load]);
+      return rows;
+    },
+    {
+      key: userId ?? '',
+      manual: !userId,
+      tag: 'service-types',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل أنواع الخدمات.'),
+    },
+  );
+  const { loading, setData } = resource;
+  const items = resource.data ?? [];
+  const error = actionError || resource.error || '';
 
   const setAttribute = (serviceTypeId: string, key: string, value: unknown) => {
     setAttributes((current) => ({
       ...current,
       [serviceTypeId]: { ...(current[serviceTypeId] ?? {}), [key]: value },
     }));
-    setError('');
+    setActionError('');
     setFieldErrors((current) => {
       const next = { ...current };
       delete next[`${serviceTypeId}:${key}`];
@@ -122,12 +124,12 @@ export default function ServiceTypesScreen() {
 
     setFieldErrors((current) => ({ ...Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(`${item.serviceTypeId}:`))), ...nextErrors }));
     if (Object.keys(nextErrors).length) {
-      setError('راجع الحقول المحددة قبل الحفظ.');
+      setActionError('راجع الحقول المحددة قبل الحفظ.');
       return;
     }
 
     setBusyId(item.serviceTypeId);
-    setError('');
+    setActionError('');
     setMessage('');
     try {
       const updated = await updateMyServiceTypeProfile(
@@ -138,13 +140,13 @@ export default function ServiceTypesScreen() {
         csrfToken,
       );
       // Update only this item: do not reload the whole screen and erase edits in other cards.
-      setItems((current) => current.map((row) => row.serviceTypeId === item.serviceTypeId ? updated : row));
+      setData((current) => (current ?? []).map((row) => row.serviceTypeId === item.serviceTypeId ? updated : row));
       setAttributes((current) => ({ ...current, [item.serviceTypeId]: { ...(updated.attributes ?? payload) } }));
       setFieldErrors((current) => Object.fromEntries(Object.entries(current).filter(([key]) => !key.startsWith(`${item.serviceTypeId}:`))));
       setActive((current) => ({ ...current, [item.serviceTypeId]: updated.isActive }));
       setMessage(`تم حفظ «${item.serviceType.nameAr || item.serviceType.name}».`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر حفظ خصائص نوع الخدمة.');
+      setActionError(e instanceof Error ? e.message : 'تعذر حفظ خصائص نوع الخدمة.');
     } finally {
       setBusyId('');
     }

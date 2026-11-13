@@ -24,6 +24,9 @@ import { WorkspaceTabs } from '@/components/navigation/WorkspaceTabs';
 import { ToastHost } from '@/components/ToastHost';
 import { ConfirmHost } from '@/components/ConfirmHost';
 import { captureException, initErrorReporting } from '@/lib/error-reporting';
+import { DeferredMount } from '@/components/DeferredMount';
+import { useDeferredStartupMaintenance } from '@/lib/startup-maintenance';
+import { startJsFpsMonitor } from '@/lib/perf-monitor';
 
 // Initialize before the first React render so early native/JS failures are captured.
 initErrorReporting({ dsn: process.env.EXPO_PUBLIC_SENTRY_DSN });
@@ -129,6 +132,8 @@ function RootChrome({ children }: { children: ReactNode }) {
 
 function RootLayoutContent() {
   const { colors: palette, isDark } = useAppTheme();
+  useDeferredStartupMaintenance();
+  useEffect(() => startJsFpsMonitor(), []);
   // Native RTL is the source of truth. Horizontal row layouts in app/src were
   // migrated from manual reversed rows to normal rows so Yoga mirrors them exactly once.
   // React Native persists this setting; a native restart is required to apply it.
@@ -142,9 +147,12 @@ function RootLayoutContent() {
   return (
     <ConnectivityProvider>
       <AuthProvider>
-        <OutboxSyncLifecycleBridge />
-        <FavoritesSyncLifecycleBridge />
-        <ChatMessageOutboxLifecycleBridge />
+        {/* جسور المزامنة الخلفية تُركَّب بعد أول رسم؛ Push يبقى فوريًا لالتقاط النقر البارد على إشعار. */}
+        <DeferredMount>
+          <OutboxSyncLifecycleBridge />
+          <FavoritesSyncLifecycleBridge />
+          <ChatMessageOutboxLifecycleBridge />
+        </DeferredMount>
         <NativePushLifecycleBridge />
         <StatusBar style={isDark ? "light" : "dark"} />
         <RootChrome>

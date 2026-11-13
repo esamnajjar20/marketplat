@@ -48,3 +48,8 @@ export function resolvePageState(
     : page < totalPages;
   return { page, totalPages: Math.max(page, totalPages), hasNextPage };
 }
+
+/** يحوّل نتيجة API بالشكل {items,page,totalPages,total?} إلى ما يتوقعه usePaginatedList. */
+export function toPaginatedResponse<T>(result: { items: T[]; page: number; totalPages: number; total?: number }) {
+  return { items: result.items, meta: { page: result.page, totalPages: result.totalPages, total: result.total } };
+}

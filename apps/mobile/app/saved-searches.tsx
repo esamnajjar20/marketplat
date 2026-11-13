@@ -2,7 +2,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -18,14 +18,14 @@ import { spacing, fontWeights, radius } from '@/theme/tokens';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { marketListPerf } from '@/lib/listPerformance';
 
+import { useAsyncResource } from '@/hooks/useAsyncResource';
+
 export default function SavedSearchesScreen() {
   const { colors } = useAppTheme();
 
   const params = useLocalSearchParams<{ label?: string | string[]; type?: string | string[]; q?: string | string[]; city?: string | string[]; minPrice?: string | string[]; maxPrice?: string | string[]; categoryId?: string | string[] }>();
   const first = (value?: string | string[]) => Array.isArray(value) ? value[0] : value;
   const { accessToken, csrfToken } = useAuth();
-  const [items, setItems] = useState<SavedSearch[]>([]);
-  const seq = useRef(0);
   const [label, setLabel] = useState(() => first(params.label) || '');
   const [type, setType] = useState<'ads' | 'products' | 'services'>(() => ['ads', 'products', 'services'].includes(first(params.type) || '') ? first(params.type) as 'ads' | 'products' | 'services' : 'ads');
   const [q, setQ] = useState(() => first(params.q) || '');
@@ -33,48 +33,40 @@ export default function SavedSearchesScreen() {
   const [min, setMin] = useState(() => first(params.minPrice) || '');
   const [max, setMax] = useState(() => first(params.maxPrice) || '');
   const [categoryId, setCategoryId] = useState(() => first(params.categoryId) || '');
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [message, setMessage] = useState('');
 
-  const load = useCallback(async () => {
-    if (!accessToken) {
-      setLoading(false);
-      return;
-    }
-    const current = ++seq.current;
-    setLoading(true);
-    setError('');
-    try {
-      const data = await fetchSavedSearches(accessToken);
-      if (current === seq.current) setItems(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل عمليات البحث.');
-    } finally {
-      setLoading(false);
-    }
-  }, [accessToken]);
-
-  useEffect(() => {
-    void load();
-    return () => { seq.current += 1; };
-  }, [load]);
+  // دورة الجلب الموحّدة: تلغي الطلب القديم وتتجاهل الاستجابة المتأخرة عند تغيّر الحساب.
+  const resource = useAsyncResource<SavedSearch[]>(
+    () => fetchSavedSearches(accessToken as string),
+    {
+      key: accessToken ?? '',
+      manual: !accessToken,
+      tag: 'saved-searches',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل عمليات البحث.'),
+    },
+  );
+  const { loading, reload } = resource;
+  const items = resource.data ?? [];
+  const error = actionError || resource.error || '';
+  const load = useCallback(() => reload({ soft: true }), [reload]);
+  const pullReload = useCallback(() => { void reload({ soft: true }); }, [reload]);
 
   const save = async () => {
     if (!accessToken) return;
     if (!label.trim()) {
-      setError('أدخل اسمًا للبحث.');
+      setActionError('أدخل اسمًا للبحث.');
       return;
     }
     const minValue = min.trim() ? Number(normalizeNumericInput(min)) : undefined;
     const maxValue = max.trim() ? Number(normalizeNumericInput(max)) : undefined;
     if ((minValue !== undefined && (!Number.isFinite(minValue) || minValue < 0)) || (maxValue !== undefined && (!Number.isFinite(maxValue) || maxValue < 0)) || (minValue !== undefined && maxValue !== undefined && minValue > maxValue)) {
-      setError('تحقق من نطاق السعر قبل حفظ البحث.');
+      setActionError('تحقق من نطاق السعر قبل حفظ البحث.');
       return;
     }
     setBusy(true);
-    setError('');
+    setActionError('');
     setMessage('');
     try {
       await createSavedSearch(
@@ -101,7 +93,7 @@ export default function SavedSearchesScreen() {
       setMessage('تم حفظ البحث.');
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر حفظ البحث.');
+      setActionError(e instanceof Error ? e.message : 'تعذر حفظ البحث.');
     } finally {
       setBusy(false);
     }
@@ -125,7 +117,7 @@ export default function SavedSearchesScreen() {
           <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         </>
       ) : (
-        <FlatList refreshControl={<RefreshControl refreshing={loading && items.length > 0} onRefresh={() => void load()} tintColor={colors.brand} />}
+        <FlatList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={pullReload} tintColor={colors.brand} />}
           data={loading && items.length === 0 ? [] : items}
           keyExtractor={(item) => item.id}
           {...marketListPerf}

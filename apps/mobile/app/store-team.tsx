@@ -1,7 +1,7 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -15,35 +15,32 @@ import { roleLabel } from '@/lib/status-labels';
 
 const roles = [['MANAGER', 'مدير'], ['EDITOR', 'محرر'], ['STAFF', 'موظف']] as const;
 
+import { useAsyncResource } from '@/hooks/useAsyncResource';
+
+type TeamData = { storeId: string; storeName: string; myRole: StoreMember['role'] | 'OWNER' | ''; items: StoreMember[] };
+const EMPTY_MEMBERS: StoreMember[] = [];
+
 export default function StoreTeamScreen() {
   const { colors } = useAppTheme();
 
   const { accessToken, csrfToken, user } = useAuth();
   const routeParams = useLocalSearchParams<{ storeId?: string | string[] }>();
   const requestedStoreId = Array.isArray(routeParams.storeId) ? routeParams.storeId[0] : routeParams.storeId;
-  const [storeId, setStoreId] = useState('');
-  const [storeName, setStoreName] = useState('');
-  const [myRole, setMyRole] = useState<StoreMember['role'] | 'OWNER' | ''>('');
-  const [items, setItems] = useState<StoreMember[]>([]);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<StoreMember['role']>('STAFF');
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const hasLoadedRef = useRef(false);
-  const canManage = myRole === 'OWNER' || myRole === 'MANAGER';
+  const [actionError, setActionError] = useState('');
 
-  const load = useCallback(async () => {
-    if (!accessToken) { setLoading(false); return; }
-    if (!hasLoadedRef.current) setLoading(true);
-    setError('');
-    try {
-      const owned = await fetchMyStore(accessToken);
+  // دورة الجلب الموحّدة: المتجر المختار + دوري + الأعضاء في مورد واحد (يُستبدل كاملًا أو يبقى كما هو عند الفشل).
+  const resource = useAsyncResource<TeamData>(
+    async () => {
+      const token = accessToken as string;
+      const owned = await fetchMyStore(token);
       let selectedStoreId = owned && (!requestedStoreId || requestedStoreId === owned.id) ? owned.id : '';
       let selectedStoreName = selectedStoreId ? owned?.name ?? '' : '';
-      let selectedRole: StoreMember['role'] | 'OWNER' | '' = selectedStoreId ? 'OWNER' : '';
+      let selectedRole: TeamData['myRole'] = selectedStoreId ? 'OWNER' : '';
       if (!selectedStoreId) {
-        const memberships = await fetchMyActiveStoreMemberships(accessToken);
+        const memberships = await fetchMyActiveStoreMemberships(token);
         const membership = requestedStoreId
           ? memberships.find((entry) => entry.store.id === requestedStoreId)
           : memberships.find((entry) => entry.role === 'MANAGER') ?? memberships[0];
@@ -55,40 +52,44 @@ export default function StoreTeamScreen() {
           throw new Error('لا تملك عضوية نشطة في هذا المتجر.');
         }
       }
-      setStoreId(selectedStoreId);
-      setStoreName(selectedStoreName);
-      setMyRole(selectedRole);
-      if (!selectedStoreId) { setItems([]); return; }
-      setItems(await fetchStoreMembers(selectedStoreId, accessToken));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل فريق المتجر.');
-    } finally {
-      hasLoadedRef.current = true;
-      setLoading(false);
-    }
-  }, [accessToken, requestedStoreId]);
-
-  useEffect(() => { void load(); }, [load]);
+      const members = selectedStoreId ? await fetchStoreMembers(selectedStoreId, token) : [];
+      return { storeId: selectedStoreId, storeName: selectedStoreName, myRole: selectedRole, items: members };
+    },
+    {
+      key: `${accessToken ? 1 : 0}|${requestedStoreId ?? ''}`,
+      manual: !accessToken,
+      tag: 'store-team',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل فريق المتجر.'),
+    },
+  );
+  const { data, loading, reload } = resource;
+  const storeId = data?.storeId ?? '';
+  const storeName = data?.storeName ?? '';
+  const myRole = data?.myRole ?? '';
+  const items = data?.items ?? EMPTY_MEMBERS;
+  const error = actionError || resource.error || '';
+  const canManage = myRole === 'OWNER' || myRole === 'MANAGER';
+  const load = useCallback(() => reload({ soft: true }), [reload]);
 
   const invite = async () => {
     if (!accessToken) return pushOnce('/login');
-    if (!canManage) return setError('لا تملك صلاحية إدارة أعضاء هذا المتجر.');
-    if (!storeId) return setError('لا يوجد متجر مرتبط بحسابك.');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setError('أدخل بريدًا إلكترونيًا صحيحًا.');
-    setBusy(true); setError('');
+    if (!canManage) return setActionError('لا تملك صلاحية إدارة أعضاء هذا المتجر.');
+    if (!storeId) return setActionError('لا يوجد متجر مرتبط بحسابك.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return setActionError('أدخل بريدًا إلكترونيًا صحيحًا.');
+    setBusy(true); setActionError('');
     try {
       await inviteStoreMember(storeId, email.trim().toLowerCase(), role, accessToken, csrfToken);
       setEmail('');
       await load();
-    } catch (e) { setError(e instanceof Error ? e.message : 'تعذر إرسال الدعوة.'); }
+    } catch (e) { setActionError(e instanceof Error ? e.message : 'تعذر إرسال الدعوة.'); }
     finally { setBusy(false); }
   };
 
   const act = async (fn: () => Promise<unknown>) => {
     if (!accessToken || !canManage) return;
-    setBusy(true); setError('');
+    setBusy(true); setActionError('');
     try { await fn(); await load(); }
-    catch (e) { setError(e instanceof Error ? e.message : 'تعذر تنفيذ العملية.'); }
+    catch (e) { setActionError(e instanceof Error ? e.message : 'تعذر تنفيذ العملية.'); }
     finally { setBusy(false); }
   };
 

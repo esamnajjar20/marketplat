@@ -1,106 +1,27 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { Spinner, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
 import { fetchServiceProviders, type ProviderSummary } from '@/features/services/providers.api';
 import { spacing } from '@/theme/tokens';
+import { ListGapMd } from '@/components/ui/ListSeparator';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { toPaginatedResponse } from '@/lib/pagination';
 import { marketListPerf } from '@/lib/listPerformance';
 import { RatingStars } from '@/components/ui/RatingStars';
 
-export default function ServiceProvidersScreen() {
+const providerKey = (item: ProviderSummary) => item.id;
+
+/** صف مقدم خدمة — memo حتى لا يُعاد رسمه عند تغيّر حالة الشاشة (تحميل/خطأ/فلتر). */
+const ProviderRow = memo(function ProviderRow({ provider: p }: { provider: ProviderSummary }) {
   const { colors } = useAppTheme();
-
-  const [items, setItems] = useState<ProviderSummary[]>([]);
-  const [city, setCity] = useState('');
-  const [appliedCity, setAppliedCity] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const sequence = useRef(0);
-
-  const load = useCallback(async (refresh = false) => {
-    const current = ++sequence.current;
-    if (refresh) setRefreshing(true); else setLoading(true);
-    setLoadingMore(false);
-    setError('');
-    try {
-      const result = await fetchServiceProviders({ city: appliedCity, page: 1, limit: 30 });
-      if (current !== sequence.current) return;
-      setItems(result.items);
-      setPage(result.page);
-      setTotalPages(result.totalPages);
-    } catch (e) {
-      if (current === sequence.current) setError(e instanceof Error ? e.message : 'تعذر تحميل مقدمي الخدمات.');
-    } finally {
-      if (current === sequence.current) { setLoading(false); setRefreshing(false); }
-    }
-  }, [appliedCity]);
-
-  useEffect(() => {
-    void load();
-    return () => {
-      sequence.current += 1;
-    };
-  }, [load]);
-
-  const loadMore = async () => {
-    if (loading || loadingMore || page >= totalPages) return;
-    const current = sequence.current;
-    setLoadingMore(true);
-    setError('');
-    try {
-      const result = await fetchServiceProviders({ city: appliedCity, page: page + 1, limit: 30 });
-      if (current !== sequence.current) return;
-      setItems((old) => {
-        const ids = new Set(old.map((x) => x.id));
-        return [...old, ...result.items.filter((x) => !ids.has(x.id))];
-      });
-      setPage(result.page);
-      setTotalPages(result.totalPages);
-    } catch (e) {
-      if (current === sequence.current) setError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من مقدمي الخدمات.');
-    } finally {
-      if (current === sequence.current) setLoadingMore(false);
-    }
-  };
-
+  const onPress = useCallback(() => pushOnce({ pathname: '/service-providers/[id]', params: { id: p.id } }), [p.id]);
   return (
-    <PageShell title="مقدمو الخدمات" scroll={false}>
-      <FlatList
-        keyboardShouldPersistTaps="handled"
-        data={loading && items.length === 0 ? [] : items}
-        keyExtractor={(item) => item.id}
-        {...marketListPerf}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
-        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
-        ListHeaderComponent={
-          <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
-            <Field label="تصفية حسب المدينة" value={city} onChangeText={setCity} placeholder="اسم المدينة" />
-            <PrimaryButton label="تطبيق الفلتر" onPress={() => setAppliedCity(city.trim())} />
-            {loading && items.length === 0 ? <Spinner color={colors.brand} /> : null}
-            {error && items.length === 0 ? (
-              <>
-                <Notice>{error}</Notice>
-                <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void load()} />
-              </>
-            ) : null}
-            {!loading && items.length > 0 ? (
-              <Text tone="muted">{items.length} مقدم خدمة معروض</Text>
-            ) : null}
-          </View>
-        }
-        ListEmptyComponent={
-          !loading && !error ? <Notice tone="muted">لا توجد ملفات مقدمي خدمات مطابقة.</Notice> : undefined
-        }
-        renderItem={({ item: p }) => (
-          <Pressable accessibilityRole="button" onPress={() => pushOnce({ pathname: '/service-providers/[id]', params: { id: p.id } })}>
+    <Pressable accessibilityRole="button" onPress={onPress}>
             <SectionCard>
               <Text tone="ink" strong size={18}>
                 {p.businessName || p.sellerProfile?.displayName || 'مقدم خدمة'}
@@ -115,17 +36,66 @@ export default function ServiceProvidersScreen() {
               <Text tone="brand" strong>عرض الملف والخدمات ←</Text>
             </SectionCard>
           </Pressable>
-        )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+  );
+});
+
+export default function ServiceProvidersScreen() {
+  const { colors } = useAppTheme();
+
+  const [city, setCity] = useState('');
+  const [appliedCity, setAppliedCity] = useState('');
+  const list = usePaginatedList<ProviderSummary>({
+    key: `service-providers:${appliedCity}`,
+    pageSize: 30,
+    fetchPage: async (page) => toPaginatedResponse(await fetchServiceProviders({ city: appliedCity, page, limit: 30 })),
+    getItemKey: (item) => item.id,
+    mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل مقدمي الخدمات.'),
+  });
+  const { items, loading, refreshing, loadingMore, error, loadMoreError, hasNextPage, refresh, retry, loadMore } = list;
+  const onRefresh = useCallback(() => { void refresh(); }, [refresh]);
+  const onRetry = useCallback(() => { void retry(); }, [retry]);
+  const onLoadMore = useCallback(() => { void loadMore(); }, [loadMore]);
+  const renderItem = useCallback(({ item }: { item: ProviderSummary }) => <ProviderRow provider={item} />, []);
+
+  return (
+    <PageShell title="مقدمو الخدمات" scroll={false}>
+      <FlatList
+        keyboardShouldPersistTaps="handled"
+        data={items}
+        keyExtractor={providerKey}
+        {...marketListPerf}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
+        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+        ListHeaderComponent={
+          <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
+            <Field label="تصفية حسب المدينة" value={city} onChangeText={setCity} placeholder="اسم المدينة" />
+            <PrimaryButton label="تطبيق الفلتر" onPress={() => setAppliedCity(city.trim())} />
+            {loading && items.length === 0 ? <Spinner color={colors.brand} /> : null}
+            {error && items.length === 0 ? (
+              <>
+                <Notice>{error}</Notice>
+                <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={onRetry} />
+              </>
+            ) : null}
+            {!loading && items.length > 0 ? (
+              <Text tone="muted">{items.length} مقدم خدمة معروض</Text>
+            ) : null}
+          </View>
+        }
+        ListEmptyComponent={
+          !loading && !error ? <Notice tone="muted">لا توجد ملفات مقدمي خدمات مطابقة.</Notice> : undefined
+        }
+        renderItem={renderItem}
+        ItemSeparatorComponent={ListGapMd}
         ListFooterComponent={
           <View style={{ gap: spacing.sm }}>
-            {error && items.length > 0 ? <Notice>{error}</Notice> : null}
-            {page < totalPages ? (
+            {(loadMoreError || (error && items.length > 0)) ? <Notice>{loadMoreError ?? error}</Notice> : null}
+            {hasNextPage ? (
               <PrimaryButton
                 label={loadingMore ? 'جارٍ تحميل المزيد…' : 'تحميل المزيد'}
                 variant="secondary"
                 busy={loadingMore}
-                onPress={() => void loadMore()}
+                onPress={onLoadMore}
               />
             ) : null}
           </View>

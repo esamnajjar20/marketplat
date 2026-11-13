@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback } from 'react';
 import { RefreshControl, View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
@@ -10,46 +10,30 @@ import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { formatNumber } from '@/lib/formatters';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStoreAnalytics, type StoreAnalytics } from '@/features/commerce/commerce.api';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 
 const fmt = (n: number) => formatNumber(n || 0);
 
 export default function MyStoreAnalyticsScreen() {
   const { colors } = useAppTheme();
   const { getAccessToken, user, isRestoring } = useAuth();
-  const hasLoaded = useRef(false);
-  const [data, setData] = useState<StoreAnalytics | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(
-    async (refresh = false) => {
-      if (isRestoring) return;
+  // دورة الجلب الموحّدة؛ التحديث بالسحب «ناعم» فيُبقي البيانات ظاهرة.
+  const resource = useAsyncResource<StoreAnalytics>(
+    async () => {
       const token = getAccessToken();
-      if (!token) {
-        setLoading(false);
-        setError('انتهت الجلسة أو لم تكتمل استعادتها. سجّل الدخول مجددًا.');
-        return;
-      }
-      if (refresh) setRefreshing(true);
-      else if (!hasLoaded.current) setLoading(true);
-      setError(null);
-      try {
-        setData(await fetchMyStoreAnalytics(token));
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'تعذر تحميل الإحصاءات.');
-      } finally {
-        hasLoaded.current = true;
-        setLoading(false);
-        setRefreshing(false);
-      }
+      if (!token) throw new Error('انتهت الجلسة أو لم تكتمل استعادتها. سجّل الدخول مجددًا.');
+      return fetchMyStoreAnalytics(token);
     },
-    [getAccessToken, isRestoring],
+    {
+      key: user?.id ?? '',
+      manual: isRestoring,
+      tag: 'my-store-analytics',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل الإحصاءات.'),
+    },
   );
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const { data, loading, refreshing, error, reload } = resource;
+  const retry = useCallback(() => { void reload(); }, [reload]);
+  const pullReload = useCallback(() => { void reload({ soft: true }); }, [reload]);
 
   let body;
   if (isRestoring || loading) {
@@ -64,7 +48,7 @@ export default function MyStoreAnalyticsScreen() {
       />
     );
   } else if (error) {
-    body = <ErrorState description={error} onAction={() => void load()} />;
+    body = <ErrorState description={error} onAction={retry} />;
   } else if (data) {
     const metrics = [
       { label: 'الزيارات', value: data.views, icon: '◉' },
@@ -130,7 +114,7 @@ export default function MyStoreAnalyticsScreen() {
       refreshControl={
         <RefreshControl
           refreshing={refreshing}
-          onRefresh={() => void load(true)}
+          onRefresh={pullReload}
           tintColor={colors.brand}
           colors={[colors.brand]}
         />

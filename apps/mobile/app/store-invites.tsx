@@ -3,7 +3,7 @@ import { usePullRefresh } from '@/hooks/usePullRefresh';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { invalidateNavigationCapabilities } from '@/lib/navigation-policy';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 
@@ -13,50 +13,47 @@ import { acceptStoreInvite, fetchMyStoreInvites, removeStoreMember, type StoreMe
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
 import { marketListPerf } from '@/lib/listPerformance';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 import { roleLabel } from '@/lib/status-labels';
 import { showToast } from '@/lib/toast';
+
+const inviteKeyExtractor = (item: StoreMember) => item.id;
+const InviteSeparator = () => <View style={{ height: spacing.md }} />;
 
 export default function StoreInvitesScreen() {
 
   const { accessToken, csrfToken } = useAuth();
-  const [items, setItems] = useState<StoreMember[]>([]);
-  const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState('');
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
-  const load = useCallback(async () => {
-    if (!accessToken) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      setItems(await fetchMyStoreInvites(accessToken));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل الدعوات.');
-    } finally {
-      setLoading(false);
-    }
-  }, [accessToken]);
+  // دورة الجلب الموحّدة: تلغي الطلب القديم وتتجاهل الاستجابة المتأخرة عند تغيّر الحساب.
+  const resource = useAsyncResource<StoreMember[]>(
+    () => fetchMyStoreInvites(accessToken as string),
+    {
+      key: accessToken ?? '',
+      manual: !accessToken,
+      tag: 'store-invites',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل الدعوات.'),
+    },
+  );
+  const { loading, reload, setData } = resource;
+  const items = resource.data ?? [];
+  const error = actionError || resource.error || '';
   const { colors: refreshTheme } = useAppTheme();
-  const { refreshing: pullRefreshing, onRefresh: onPullRefresh } = usePullRefresh(() => load());
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const softReload = useCallback(() => reload({ soft: true }), [reload]);
+  const { refreshing: pullRefreshing, onRefresh: onPullRefresh } = usePullRefresh(softReload);
 
   const accept = async (item: StoreMember) => {
     if (!accessToken) return;
     setBusyId(item.id);
-    setError('');
+    setActionError('');
     try {
       await acceptStoreInvite(item.id, accessToken, csrfToken);
       invalidateNavigationCapabilities();
-      await load();
+      await reload({ soft: true });
       showToast('تم قبول الدعوة', 'أصبحت عضوًا في المتجر.', 'success');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر قبول الدعوة.');
+      setActionError(e instanceof Error ? e.message : 'تعذر قبول الدعوة.');
     } finally {
       setBusyId('');
     }
@@ -68,10 +65,10 @@ export default function StoreInvitesScreen() {
       { text: 'رجوع', style: 'cancel' },
       { text: 'رفض الدعوة', style: 'destructive', onPress: () => {
         setBusyId(item.id);
-        setError('');
+        setActionError('');
         void removeStoreMember(item.store!.id, item.id, accessToken, csrfToken)
-          .then(() => setItems((current) => current.filter((entry) => entry.id !== item.id)))
-          .catch((e) => setError(e instanceof Error ? e.message : 'تعذر رفض الدعوة.'))
+          .then(() => setData((current) => (current ?? []).filter((entry) => entry.id !== item.id)))
+          .catch((e) => setActionError(e instanceof Error ? e.message : 'تعذر رفض الدعوة.'))
           .finally(() => setBusyId(''));
       } },
     ]);
@@ -87,7 +84,7 @@ export default function StoreInvitesScreen() {
       ) : (
         <FlatList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
           data={loading ? [] : items}
-          keyExtractor={(item) => item.id}
+          keyExtractor={inviteKeyExtractor}
           {...marketListPerf}
           contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
           ListHeaderComponent={
@@ -108,7 +105,7 @@ export default function StoreInvitesScreen() {
               <PrimaryButton label="قبول الدعوة" busy={busyId === item.id} onPress={() => void accept(item)} /><PrimaryButton label="رفض الدعوة" variant="secondary" disabled={!!busyId} onPress={() => decline(item)} />
             </SectionCard>
           )}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+          ItemSeparatorComponent={InviteSeparator}
         />
       )}
     </PageShell>

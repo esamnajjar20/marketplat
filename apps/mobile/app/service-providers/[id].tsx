@@ -2,12 +2,16 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback } from 'react';
 import { Linking, View } from 'react-native';
-import { Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
+import { Spinner, Notice, PrimaryButton, SectionCard } from '@/components/ui';
+import { PageList } from '@/components/ui/PageList';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { toPaginatedResponse } from '@/lib/pagination';
 import { useLocalSearchParams, router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { fetchServiceProvider, fetchProviderServices, type ProviderSummary } from '@/features/services/providers.api';
+import { fetchServiceProvider, fetchProviderServices } from '@/features/services/providers.api';
 import type { ServiceListing } from '@/features/services/services.api';
 import { spacing } from '@/theme/tokens';
 import { RatingStars } from '@/components/ui/RatingStars';
@@ -18,87 +22,39 @@ function price(value: ServiceListing['price'], type?: string): string {
     const n = Number(value);
     return Number.isFinite(n) ? formatMoney(n) : 'السعر غير متاح';
 }
+const EMPTY_SERVICES: ServiceListing[] = [];
+const serviceKey = (s: ServiceListing) => s.id;
+/** صف خدمة — memo + onPress ثابت لكل id. */
+const ServiceRow = memo(function ServiceRow({ s }: { s: ServiceListing }) {
+    const onPress = useCallback(() => router.push({ pathname: '/services/[id]', params: { id: s.id } }), [s.id]);
+    return <Pressable accessibilityRole="link" onPress={onPress}><SectionCard><Text tone="ink" strong size={16}>{s.title}</Text><Text tone="muted" numberOfLines={2}>{s.description}</Text><Text tone="brand" strong>{price(s.price, s.pricingType)}</Text></SectionCard></Pressable>;
+});
+const renderService = ({ item }: { item: ServiceListing }) => <ServiceRow s={item} />;
 export default function ServiceProviderDetailScreen() {
     const { colors } = useAppTheme();
     const params = useLocalSearchParams<{
         id?: string | string[];
     }>();
     const id = Array.isArray(params.id) ? params.id[0] : params.id;
-    const [provider, setProvider] = useState<ProviderSummary | null>(null);
-    const [services, setServices] = useState<ServiceListing[]>([]);
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [loading, setLoading] = useState(true);
-    const [loadingMore, setLoadingMore] = useState(false);
-    const [error, setError] = useState('');
-    const seq = useRef(0);
-    const load = useCallback(async () => {
-        const current = ++seq.current;
-        if (!id) {
-            setLoading(false);
-            setError('معرّف مقدم الخدمة غير صالح.');
-            return;
-        }
-        setLoading(true);
-        setError('');
-        try {
-            const [pR, sR] = await Promise.allSettled([fetchServiceProvider(id), fetchProviderServices(id, 1, 20)]);
-            if (current !== seq.current)
-                return;
-            if (pR.status === 'rejected')
-                throw pR.reason;
-            setProvider(pR.value);
-            if (sR.status === 'fulfilled') {
-                setServices(sR.value.items);
-                setPage(sR.value.page);
-                setTotalPages(sR.value.totalPages);
-            }
-            else
-                setError(sR.reason instanceof Error ? sR.reason.message : 'تعذر تحميل خدمات مقدم الخدمة.');
-        }
-        catch (e) {
-            if (current === seq.current)
-                setError(e instanceof Error ? e.message : 'تعذر تحميل الملف.');
-        }
-        finally {
-            if (current === seq.current)
-                setLoading(false);
-        }
-    }, [id]);
-    useEffect(() => {
-        void load();
-        return () => {
-            seq.current += 1;
-        };
-    }, [load]);
-    const loadMore = async () => {
-        if (!id || loadingMore || page >= totalPages)
-            return;
-        const current = seq.current;
-        setLoadingMore(true);
-        try {
-            const result = await fetchProviderServices(id, page + 1, 20);
-            if (current === seq.current) {
-                setServices(old => {
-                    const ids = new Set(old.map(x => x.id));
-                    return [...old, ...result.items.filter(x => !ids.has(x.id))];
-                });
-                setPage(result.page);
-                setTotalPages(result.totalPages);
-            }
-        }
-        catch (e) {
-            if (current === seq.current)
-                setError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من الخدمات.');
-        }
-        finally {
-            if (current === seq.current)
-                setLoadingMore(false);
-        }
-    };
+    const providerRes = useAsyncResource(() => fetchServiceProvider(id as string), {
+        key: id ?? '', manual: !id, tag: 'service-provider',
+        mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل الملف.'),
+    });
+    const provider = providerRes.data;
+    const list = usePaginatedList<ServiceListing>({
+        key: `provider-services:${id ?? ''}`,
+        pageSize: 20,
+        enabled: Boolean(id),
+        fetchPage: async (page) => toPaginatedResponse(await fetchProviderServices(id as string, page, 20)),
+        getItemKey: serviceKey,
+        mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل خدمات مقدم الخدمة.'),
+    });
+    const loading = providerRes.loading;
+    const error = !id ? 'معرّف مقدم الخدمة غير صالح.' : providerRes.error ?? '';
+    const servicesError = list.loadMoreError || list.error;
     const phone = (provider?.contactPhone || '').replace(/[^0-9+]/g, '');
     const phoneValid = /^\+?[0-9]{7,15}$/.test(phone);
-    return <PageShell title="ملف مقدم الخدمة">{loading ? <Spinner color={colors.brand}/> : error && !provider ? <Notice>{error}</Notice> : provider ? <>
+    const header = loading ? <Spinner color={colors.brand}/> : error && !provider ? <Notice>{error}</Notice> : provider ? <>
   <SectionCard><Text tone="ink" strong size={20}>{provider.businessName || provider.sellerProfile?.displayName || 'مقدم خدمة'}</Text><Text style={{
             textAlign: 'right', color: colors.muted, lineHeight: 22
         }}>{provider.description || 'لا يوجد وصف.'}</Text><RatingStars score={provider.sellerProfile?.averageRating} count={provider.sellerProfile?.totalRatings}/>{provider.sellerProfile?.id ? <Pressable accessibilityRole="link" onPress={() => pushOnce({
@@ -116,8 +72,8 @@ export default function ServiceProviderDetailScreen() {
                 targetType: 'users', targetId: provider.sellerProfile?.userId || provider.id
             }
         })}/></SectionCard>
-  <Text tone="ink" strong size={18}>الخدمات المنشورة</Text>{services.length === 0 && !loading ? <Notice tone="muted">لم تُنشر خدمات لهذا الحساب بعد.</Notice> : services.map(s => <Pressable accessibilityRole="link" key={s.id} onPress={() => router.push({
-            pathname: '/services/[id]', params: { id: s.id }
-        })}><SectionCard><Text tone="ink" strong size={16}>{s.title}</Text><Text tone="muted" numberOfLines={2}>{s.description}</Text><Text tone="brand" strong>{price(s.price, s.pricingType)}</Text></SectionCard></Pressable>)}{page < totalPages ? <PrimaryButton label={loadingMore ? 'جارٍ تحميل الخدمات…' : 'تحميل المزيد من الخدمات'} busy={loadingMore} variant="secondary" onPress={() => void loadMore()}/> : null}{error ? <Notice>{error}</Notice> : null}
- </> : null}</PageShell>;
+  <Text tone="ink" strong size={18}>الخدمات المنشورة</Text>{list.items.length === 0 && !list.loading ? <Notice tone="muted">لم تُنشر خدمات لهذا الحساب بعد.</Notice> : null}
+ </> : null;
+    const footer = provider ? <>{list.hasNextPage ? <PrimaryButton label={list.loadingMore ? 'جارٍ تحميل الخدمات…' : 'تحميل المزيد من الخدمات'} busy={list.loadingMore} variant="secondary" onPress={() => void list.loadMore()}/> : null}{servicesError ? <Notice>{servicesError}</Notice> : null}</> : null;
+    return <PageList title="ملف مقدم الخدمة" data={provider ? list.items : EMPTY_SERVICES} keyExtractor={serviceKey} renderItem={renderService} header={header} footer={footer}/>;
 }

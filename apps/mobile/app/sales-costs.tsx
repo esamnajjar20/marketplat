@@ -7,47 +7,59 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSalesCostProducts, fetchSalesCostSettings, updateSalesCostSettings, updateSalesProductCost, type SalesCostProduct } from '@/features/sales/sales-extra.api';
 import { formatMoney } from '@/lib/formatters';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton, SectionCard } from '@/components/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 
 import { pushOnce } from '@/lib/navigation';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 
+import { useAsyncResource } from '@/hooks/useAsyncResource';
+
+type CostsData = { enabled: boolean; products: SalesCostProduct[] };
+
+const EMPTY_COST_PRODUCTS: SalesCostProduct[] = [];
+
 export default function SalesCostsScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, getAccessToken, csrfToken, isRestoring } = useAuth();
-  const [enabled, setEnabled] = useState(true);
-  const [products, setProducts] = useState<SalesCostProduct[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [query, setQuery] = useState('');
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
-  const load = useCallback(async (refresh = false) => {
-    const token = getAccessToken();
-    if (!token || !user?.id || isRestoring) return;
-    if (refresh) setRefreshing(true); else setLoading(true);
-    setError('');
-    try {
+  // دورة الجلب الموحّدة: الإعداد + المنتجات في مورد واحد (data = null حتى يصل الإعداد).
+  const resource = useAsyncResource<CostsData>(
+    async () => {
+      const token = getAccessToken();
+      if (!token || !user?.id) throw new Error('انتهت الجلسة. سجّل الدخول مجددًا.');
       const settings = await fetchSalesCostSettings(token, undefined, user.id);
-      setEnabled(settings.enabled);
-      setSettingsLoaded(true);
-      if (settings.enabled) setProducts(await fetchSalesCostProducts(token, undefined, user.id));
-      else setProducts([]);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'تعذر تحميل إعدادات التكاليف.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [getAccessToken, isRestoring, user?.id]);
-
-  useEffect(() => { void load(); }, [load]);
+      const rows = settings.enabled ? await fetchSalesCostProducts(token, undefined, user.id) : [];
+      return { enabled: settings.enabled, products: rows };
+    },
+    {
+      key: user?.id ?? '',
+      manual: isRestoring || !user?.id,
+      tag: 'sales-costs',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل إعدادات التكاليف.'),
+    },
+  );
+  const { data, loading, refreshing, reload, setData } = resource;
+  const enabled = data?.enabled ?? true;
+  const products = data?.products ?? EMPTY_COST_PRODUCTS;
+  const settingsLoaded = data !== null;
+  const error = actionError || resource.error || '';
+  const setEnabled = useCallback((value: boolean) => {
+    setData((cur) => ({ enabled: value, products: cur?.products ?? [] }));
+  }, [setData]);
+  const setProducts = useCallback((value: SalesCostProduct[] | ((cur: SalesCostProduct[]) => SalesCostProduct[])) => {
+    setData((cur) => {
+      const base = cur?.products ?? [];
+      return { enabled: cur?.enabled ?? true, products: typeof value === 'function' ? value(base) : value };
+    });
+  }, [setData]);
+  const load = useCallback((refresh = false) => reload(refresh ? { soft: true } : undefined), [reload]);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLocaleLowerCase('ar');
@@ -57,14 +69,14 @@ export default function SalesCostsScreen() {
   const toggle = async (next: boolean) => {
     const token = getAccessToken();
     if (!token || !user?.id || busy) return;
-    setBusy('settings'); setError('');
+    setBusy('settings'); setActionError('');
     try {
       const saved = await updateSalesCostSettings(next, token, csrfToken, user.id);
       setEnabled(saved.enabled);
       if (saved.enabled) setProducts(await fetchSalesCostProducts(token, undefined, user.id));
       else setProducts([]);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'تعذر تحديث إعدادات التكلفة.');
+      setActionError(cause instanceof Error ? cause.message : 'تعذر تحديث إعدادات التكلفة.');
     } finally { setBusy(null); }
   };
 
@@ -75,16 +87,16 @@ export default function SalesCostsScreen() {
     let value: number | null = null;
     if (raw !== '') {
       value = Number(raw.replace(',', '.'));
-      if (!Number.isFinite(value) || value < 0) { setError('أدخل تكلفة صحيحة تساوي صفرًا أو أكثر.'); return; }
+      if (!Number.isFinite(value) || value < 0) { setActionError('أدخل تكلفة صحيحة تساوي صفرًا أو أكثر.'); return; }
       value = Math.round(value * 100) / 100;
     }
-    setBusy(product.id); setError('');
+    setBusy(product.id); setActionError('');
     try {
       await updateSalesProductCost(product.id, value, token, csrfToken, user.id);
       setProducts((current) => current.map((item) => item.id === product.id ? { ...item, costPrice: value } : item));
       setDrafts((current) => { const next = { ...current }; delete next[product.id]; return next; });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'تعذر حفظ تكلفة المنتج.');
+      setActionError(cause instanceof Error ? cause.message : 'تعذر حفظ تكلفة المنتج.');
     } finally { setBusy(null); }
   };
 
@@ -106,7 +118,7 @@ export default function SalesCostsScreen() {
       </SectionCard>
       {loading ? <LoadingState message="جاري تحميل تكاليف المنتجات…" /> : error && !settingsLoaded ? <ErrorState title="تعذر تحميل التكاليف" description={error} onAction={() => void load()} /> : !enabled ? <EmptyState title="التكلفة الحقيقية متوقفة" description="لن تُعرض تكاليف المنتجات أو الأرباح حتى تعيد تفعيل الميزة." actionLabel="تفعيل الميزة" onAction={() => void toggle(true)} /> : <>
         <View style={styles.searchWrap}><TextInput value={query} onChangeText={setQuery} placeholder="ابحث عن منتج أو متجر" placeholderTextColor={colors.muted} style={styles.search} returnKeyType="search" /></View>
-        {error ? <ErrorState title="تعذر تنفيذ العملية" description={error} onAction={() => setError('')} /> : null}
+        {error ? <ErrorState title="تعذر تنفيذ العملية" description={error} onAction={() => setActionError('')} /> : null}
         {filtered.length === 0 ? <EmptyState title="لا توجد منتجات مطابقة" description="أضف منتجات إلى متجرك أو غيّر عبارة البحث." actionLabel="إدارة المنتجات" onAction={() => pushOnce('/my-products')} /> : filtered.map((product) => {
           const draft = drafts[product.id] ?? (product.costPrice == null ? '' : String(product.costPrice));
           return <View key={product.id} style={styles.productCard}>

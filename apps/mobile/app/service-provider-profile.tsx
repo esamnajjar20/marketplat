@@ -3,7 +3,7 @@ import { invalidateNavigationCapabilities } from '@/lib/navigation-policy';
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
@@ -14,58 +14,53 @@ import { uploadServiceProviderLogo } from '@/features/services/service-managemen
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { normalizePickedImage } from '@/lib/normalize-image-asset';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 const hours = {
   sun: null, mon: null, tue: null, wed: null, thu: null, fri: null, sat: null
 } as const;
 export default function ServiceProviderProfileScreen() {
   const { colors } = useAppTheme();
   const { accessToken, csrfToken, user } = useAuth();
-  const [profile, setProfile] = useState<ServiceProviderProfile | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [phone, setPhone] = useState('');
   const [cities, setCities] = useState('');
   const [businessType, setBusinessType] = useState<'INDIVIDUAL' | 'SMALL_BUSINESS'>('INDIVIDUAL');
   const [availability, setAvailability] = useState<'AVAILABLE' | 'BUSY' | 'UNAVAILABLE'>('AVAILABLE');
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [message, setMessage] = useState('');
   const [logoBusy, setLogoBusy] = useState(false);
-  const load = useCallback(async () => {
-    if (!accessToken) {
-      setLoading(false);
-      return;
-    }
-    try {
-      const p = await fetchMyServiceProvider(accessToken);
-      setProfile(p);
+  // دورة الجلب الموحّدة؛ حقول النموذج تُهيَّأ من الملف المُحمَّل.
+  const resource = useAsyncResource<ServiceProviderProfile | null>(
+    async () => {
+      const p = await fetchMyServiceProvider(accessToken as string);
       setName(p?.businessName || '');
       setDescription(p?.description || '');
       setPhone(p?.contactPhone || '');
       setCities(p?.serviceAreaCities?.join('، ') || '');
       setBusinessType(p?.businessType === 'SMALL_BUSINESS' ? 'SMALL_BUSINESS' : 'INDIVIDUAL');
       setAvailability(p?.availabilityStatus === 'BUSY' || p?.availabilityStatus === 'UNAVAILABLE' ? p.availabilityStatus : 'AVAILABLE');
-    }
-    catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل ملف مقدم الخدمة.');
-    }
-    finally {
-      setLoading(false);
-    }
-  }, [accessToken]);
-  useEffect(() => {
-    void load();
-  }, [load]);
+      return p;
+    },
+    {
+      key: accessToken ? (user?.id ?? 'anon') : '',
+      manual: !accessToken,
+      tag: 'service-provider-profile',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل ملف مقدم الخدمة.'),
+    },
+  );
+  const { data: profile, loading, setData } = resource;
+  const error = actionError || resource.error || '';
   const chooseLogo = async () => {
     if (!accessToken)
       return pushOnce('/login');
     if (!user?.emailVerified) {
-      setError('أكد بريدك الإلكتروني قبل رفع الشعار.');
+      setActionError('أكد بريدك الإلكتروني قبل رفع الشعار.');
       return;
     }
     setLogoBusy(true);
-    setError('');
+    setActionError('');
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted)
@@ -80,11 +75,11 @@ export default function ServiceProviderProfileScreen() {
         throw new Error('حجم الصورة يجب ألا يتجاوز 5 ميغابايت.');
       await uploadServiceProviderLogo(normalizePickedImage(asset, 'provider-logo'), accessToken, csrfToken);
       const updated = await fetchMyServiceProvider(accessToken);
-      setProfile(updated);
+      setData(updated);
       setMessage('تم تحديث شعار مقدم الخدمة.');
     }
     catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر رفع الشعار.');
+      setActionError(e instanceof Error ? e.message : 'تعذر رفع الشعار.');
     }
     finally {
       setLogoBusy(false);
@@ -96,16 +91,16 @@ export default function ServiceProviderProfileScreen() {
       return;
     }
     if (!user?.emailVerified) {
-      setError('أكد بريدك الإلكتروني قبل إنشاء ملف مقدم الخدمة.');
+      setActionError('أكد بريدك الإلكتروني قبل إنشاء ملف مقدم الخدمة.');
       return;
     }
     const area = Array.from(new Set(cities.split(/[،,]/).map(s => s.trim()).filter(Boolean)));
     if (name.trim().length < 2 || description.trim().length < 10 || phone.trim().length < 6 || area.length === 0) {
-      setError('أدخل اسمًا ووصفًا من 10 أحرف ورقم تواصل ومدينة خدمة واحدة على الأقل.');
+      setActionError('أدخل اسمًا ووصفًا من 10 أحرف ورقم تواصل ومدينة خدمة واحدة على الأقل.');
       return;
     }
     setBusy(true);
-    setError('');
+    setActionError('');
     setMessage('');
     try {
       const p = await saveMyServiceProvider({
@@ -114,12 +109,12 @@ export default function ServiceProviderProfileScreen() {
             close: string;
           } | null> } : {})
       }, !!profile, accessToken, csrfToken);
-      setProfile(p);
+      setData(p);
       invalidateNavigationCapabilities();
       setMessage('تم حفظ ملف مقدم الخدمة. يمكنك الآن إدارة خدماتك.');
     }
     catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر حفظ الملف. قد تحتاج أولًا إلى إنشاء ملف بائع.');
+      setActionError(e instanceof Error ? e.message : 'تعذر حفظ الملف. قد تحتاج أولًا إلى إنشاء ملف بائع.');
     }
     finally {
       setBusy(false);

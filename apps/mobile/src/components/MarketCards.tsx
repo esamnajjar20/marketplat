@@ -2,7 +2,7 @@ import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { memo, useState , useMemo} from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { AppImage } from '@/components/AppImage';
 import { AppIcon } from '@/components/Icons';
@@ -15,7 +15,14 @@ type CatalogCardProps = {
   price?: string;
   imageUri?: string | null;
   glyph?: string;
-  onPress: () => void;
+  /**
+   * مفضّل داخل القوائم: مرّر `id` + `onPressItem` (دالة ثابتة عبر useCallback)
+   * بدل `onPress` المنشأة داخل renderItem، حتى لا ينكسر React.memo.
+   */
+  id?: string;
+  onPressItem?: (id: string) => void;
+  /** يبقى مدعومًا للاستعمال خارج القوائم. */
+  onPress?: () => void;
   badge?: string;
 };
 
@@ -31,21 +38,27 @@ function CatalogCardComponent({
   price,
   imageUri,
   glyph = '◇',
+  id,
+  onPressItem,
   onPress,
   badge,
 }: CatalogCardProps) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
+  const handlePress = useCallback(() => {
+    if (onPressItem && id !== undefined) onPressItem(id);
+    else onPress?.();
+  }, [id, onPress, onPressItem]);
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={title}
-      onPress={onPress}
+      onPress={handlePress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
       {imageUri ? (
-        <AppImage uri={imageUri} style={styles.image} resizeMode="cover" />
+        <AppImage uri={imageUri} style={styles.image} resizeMode="cover" variant="list" />
       ) : (
         <View style={styles.imagePlaceholder}>
           <Text style={styles.glyph}>{glyph}</Text>
@@ -86,6 +99,8 @@ export const CatalogCard = memo(CatalogCardComponent, (prev, next) => {
     prev.imageUri === next.imageUri &&
     prev.glyph === next.glyph &&
     prev.badge === next.badge &&
+    prev.id === next.id &&
+    prev.onPressItem === next.onPressItem &&
     prev.onPress === next.onPress
   );
 });
@@ -98,7 +113,17 @@ type AdCardProps = {
   imageUri?: string | null;
   isFavorite?: boolean;
   isNegotiable?: boolean;
-  onPress: () => void;
+  /**
+   * داخل القوائم: مرّر `id` مع دوال *Item ثابتة (useCallback) — تستقبل الـ id.
+   * الدوال القديمة (onPress / onToggleFavorite / onImageError) تبقى مدعومة.
+   */
+  id?: string;
+  onPressItem?: (id: string) => void;
+  onToggleFavoriteItem?: (id: string) => void;
+  onImageErrorItem?: (id: string) => void;
+  /** يخفي زر المفضلة مؤقتًا (مثلًا أثناء طلب الإزالة) كما كان يحدث عند تمرير undefined. */
+  favoriteBusy?: boolean;
+  onPress?: () => void;
   onToggleFavorite?: () => void;
   onImageError?: () => void;
 };
@@ -114,21 +139,39 @@ function AdCardComponent({
   imageUri,
   isFavorite,
   isNegotiable,
+  id,
+  onPressItem,
+  onToggleFavoriteItem,
+  onImageErrorItem,
+  favoriteBusy,
   onPress,
   onToggleFavorite,
   onImageError,
 }: AdCardProps) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
+  const handlePress = useCallback(() => {
+    if (onPressItem && id !== undefined) onPressItem(id);
+    else onPress?.();
+  }, [id, onPress, onPressItem]);
+  const hasFavoriteAction = Boolean(onToggleFavoriteItem || onToggleFavorite) && !favoriteBusy;
+  const handleToggleFavorite = useCallback(() => {
+    if (onToggleFavoriteItem && id !== undefined) onToggleFavoriteItem(id);
+    else onToggleFavorite?.();
+  }, [id, onToggleFavorite, onToggleFavoriteItem]);
+  const handleImageError = useCallback(() => {
+    if (onImageErrorItem && id !== undefined) onImageErrorItem(id);
+    else onImageError?.();
+  }, [id, onImageError, onImageErrorItem]);
 
   return (
     <View style={styles.adCard}>
-      {onToggleFavorite ? (
+      {hasFavoriteAction ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
           accessibilityState={{ selected: Boolean(isFavorite) }}
-          onPress={onToggleFavorite}
+          onPress={handleToggleFavorite}
           hitSlop={8}
           style={({ pressed }) => [styles.favoriteBtn, pressed && styles.pressed]}
         >
@@ -140,7 +183,7 @@ function AdCardComponent({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`عرض الإعلان: ${title}`}
-        onPress={onPress}
+        onPress={handlePress}
         style={({ pressed }) => [styles.adMain, pressed && styles.pressed]}
       >
         {imageUri ? (
@@ -148,7 +191,8 @@ function AdCardComponent({
             uri={imageUri}
             style={styles.adImage}
             resizeMode="cover"
-            onError={onImageError}
+            variant="list"
+            onError={handleImageError}
           />
         ) : (
           <View style={styles.adImagePlaceholder}>
@@ -184,6 +228,11 @@ export const AdCard = memo(AdCardComponent, (prev, next) => {
     prev.imageUri === next.imageUri &&
     prev.isFavorite === next.isFavorite &&
     prev.isNegotiable === next.isNegotiable &&
+    prev.id === next.id &&
+    prev.favoriteBusy === next.favoriteBusy &&
+    prev.onPressItem === next.onPressItem &&
+    prev.onToggleFavoriteItem === next.onToggleFavoriteItem &&
+    prev.onImageErrorItem === next.onImageErrorItem &&
     prev.onPress === next.onPress &&
     prev.onToggleFavorite === next.onToggleFavorite &&
     prev.onImageError === next.onImageError
@@ -358,6 +407,7 @@ function HorizontalMarketCardComponent({
           uri={imageUri}
           onError={() => { setImageFailed(true); onImageError?.(); }}
           resizeMode={imageResizeMode}
+          variant="list"
           style={hStyles.image}
         />
       ) : (
@@ -387,6 +437,9 @@ function HorizontalMarketCardComponent({
 export const HorizontalMarketCard = memo(HorizontalMarketCardComponent);
 HorizontalMarketCard.displayName = 'HorizontalMarketCard';
 
+/** عرض بطاقة الإعلان الأفقية (ثابت) — يعتمد عليه getItemLayout للـ carousel. */
+export const HORIZONTAL_AD_CARD_WIDTH = 160;
+
 type HorizontalAdCardProps = {
   title: string;
   price: string;
@@ -394,34 +447,56 @@ type HorizontalAdCardProps = {
   imageUri?: string | null;
   isFavorite: boolean;
   isNegotiable?: boolean;
-  onPress: () => void;
-  onToggleFavorite: () => void;
+  /** داخل القوائم: id + دوال *Item ثابتة (useCallback) للحفاظ على React.memo. */
+  id?: string;
+  onPressItem?: (id: string) => void;
+  onToggleFavoriteItem?: (id: string) => void;
+  onImageErrorItem?: (id: string) => void;
+  onPress?: () => void;
+  onToggleFavorite?: () => void;
   onImageError?: () => void;
 };
 
 /** Ad tile uses the same vertical dimensions as the other home-section cards. */
-export function HorizontalAdCard({
-  title, price, meta, imageUri, isFavorite, isNegotiable, onPress, onToggleFavorite, onImageError,
+function HorizontalAdCardComponent({
+  title, price, meta, imageUri, isFavorite, isNegotiable,
+  id, onPressItem, onToggleFavoriteItem, onImageErrorItem,
+  onPress, onToggleFavorite, onImageError,
 }: HorizontalAdCardProps) {
   const { colors } = useAppTheme();
   const hStyles = useMemo(() => createThemeHStyles(colors), [colors]);
-  const subtitle = [meta, isNegotiable ? 'قابل للتفاوض' : null].filter(Boolean).join(' · ');
+  const subtitle = useMemo(
+    () => [meta, isNegotiable ? 'قابل للتفاوض' : null].filter(Boolean).join(' · '),
+    [meta, isNegotiable],
+  );
+  const handlePress = useCallback(() => {
+    if (onPressItem && id !== undefined) onPressItem(id);
+    else onPress?.();
+  }, [id, onPress, onPressItem]);
+  const handleToggleFavorite = useCallback(() => {
+    if (onToggleFavoriteItem && id !== undefined) onToggleFavoriteItem(id);
+    else onToggleFavorite?.();
+  }, [id, onToggleFavorite, onToggleFavoriteItem]);
+  const handleImageError = useCallback(() => {
+    if (onImageErrorItem && id !== undefined) onImageErrorItem(id);
+    else onImageError?.();
+  }, [id, onImageError, onImageErrorItem]);
   return (
-    <View style={{ width: 160, position: 'relative' }}>
+    <View style={{ width: HORIZONTAL_AD_CARD_WIDTH, position: 'relative' }}>
       <HorizontalMarketCard
         title={title}
         subtitle={subtitle || undefined}
         price={price}
         imageUri={imageUri}
-        onImageError={onImageError}
-        onPress={onPress}
-        width={160}
+        onImageError={handleImageError}
+        onPress={handlePress}
+        width={HORIZONTAL_AD_CARD_WIDTH}
       />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={isFavorite ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
         accessibilityState={{ selected: isFavorite }}
-        onPress={onToggleFavorite}
+        onPress={handleToggleFavorite}
         hitSlop={8}
         style={({ pressed }) => [hStyles.favoriteButton, pressed && hStyles.pressed]}
       >
@@ -432,6 +507,9 @@ export function HorizontalAdCard({
     </View>
   );
 }
+
+export const HorizontalAdCard = memo(HorizontalAdCardComponent);
+HorizontalAdCard.displayName = 'HorizontalAdCard';
 
 const createThemeHStyles = (colors: ColorPalette) => StyleSheet.create({
   card: {

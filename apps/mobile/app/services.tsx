@@ -2,9 +2,11 @@ import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useState , useMemo} from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
-import { marketListPerf } from '@/lib/listPerformance';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { RefreshControl, StyleSheet, View } from 'react-native';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
+import { pickRemoteImageUri } from '@/lib/list-image';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 
 import { pushOnce } from '@/lib/navigation';
@@ -29,6 +31,22 @@ function priceLabel(item: ServiceListing) {
     : 'السعر عند الاتفاق';
 }
 
+/** صف خدمة — memo: يعتمد على id + دالة فتح ثابتة. */
+const ServiceRow = memo(function ServiceRow({ item, onOpen }: { item: ServiceListing; onOpen: (id: string) => void }) {
+  return (
+    <CatalogCard
+      id={item.id}
+      title={item.title}
+      subtitle={`${item.provider?.businessName || item.provider?.sellerProfile?.displayName || 'مقدم خدمة'}`}
+      price={priceLabel(item)}
+      meta={item.category?.nameAr || item.category?.name || undefined}
+      imageUri={pickRemoteImageUri(item.images)}
+      glyph="✦"
+      onPressItem={onOpen}
+    />
+  );
+});
+
 export default function ServicesScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
@@ -50,20 +68,27 @@ export default function ServicesScreen() {
   });
   const items = list.items;
 
+  const openService = useCallback((id: string) => pushOnce(`/services/${encodeURIComponent(id)}`), []);
+  const keyExtractor = useCallback((item: ServiceListing) => item.id, []);
+  const renderItem = useCallback(
+    ({ item }: { item: ServiceListing }) => <ServiceRow item={item} onOpen={openService} />,
+    [openService],
+  );
+
   return (
     <ScreenFrame>
       <AppHeader title="الخدمات" />
-      <FlatList
+      <AppFlashList
         data={items}
-        keyExtractor={(item) => item.id}
-        {...marketListPerf}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />
         }
         ListHeaderComponent={
-          <View style={{ gap: spacing.md }}>
+          <View style={styles.listHeader}>
             <Text style={styles.subtitle}>اعثر على مقدم الخدمة المناسب</Text>
             <SearchBar
               value={query}
@@ -91,23 +116,9 @@ export default function ServicesScreen() {
             <EmptyState title="لا توجد خدمات مطابقة" description="جرّب كلمات بحث مختلفة أو اسحب للتحديث." />
           ) : undefined
         }
-        renderItem={({ item }) => {
-          const image = item.images?.find((uri) => typeof uri === 'string' && /^https?:\/\//i.test(uri));
-          return (
-            <CatalogCard
-              title={item.title}
-              subtitle={`${item.provider?.businessName || item.provider?.sellerProfile?.displayName || 'مقدم خدمة'}`}
-              price={priceLabel(item)}
-              meta={item.category?.nameAr || item.category?.name || undefined}
-              imageUri={image}
-              glyph="✦"
-              onPress={() => pushOnce(`/services/${encodeURIComponent(item.id)}`)}
-            />
-          );
-        }}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ListGapMd}
         ListFooterComponent={items.length > 0 ? (
-          <View style={{ gap: spacing.sm }}>
+          <View style={styles.listFooter}>
             {list.loadMoreError ? <ErrorState title="تعذر تحميل المزيد" description={list.loadMoreError} onAction={() => void list.retry()} /> : null}
             {!list.loadMoreError && list.hasNextPage ? <PrimaryButton label={list.loadingMore ? 'جارٍ التحميل…' : 'تحميل المزيد'} onPress={() => void list.loadMore()} busy={list.loadingMore} variant="secondary" /> : null}
           </View>
@@ -118,7 +129,10 @@ export default function ServicesScreen() {
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },
+  // FlashList: padding فقط (لا gap).
+  content: { padding: spacing.lg, paddingBottom: spacing.x4l },
+  listHeader: { gap: spacing.md, marginBottom: spacing.md },
+  listFooter: { gap: spacing.sm, marginTop: spacing.md },
   subtitle: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   sectionRow: {
     flexDirection: 'row',

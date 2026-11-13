@@ -8,11 +8,18 @@ const [home, cards, community, marketplace] = await Promise.all([
   read('../src/features/discovery/HomeCommunitySections.tsx'),
   read('../src/features/discovery/HomeMarketplaceSections.tsx'),
 ]);
-const list = home.slice(home.indexOf('const listRows'), home.indexOf('return (', home.indexOf('const listRows')));
+const list = home.slice(home.indexOf('const HOME_LIST_ROWS'), home.indexOf('];', home.indexOf('const HOME_LIST_ROWS')));
 assert.ok(list.indexOf("{ type: 'adsHeader' }") < list.indexOf("{ type: 'footer' }"));
 assert.ok(list.indexOf("{ type: 'footer' }") < list.indexOf("{ type: 'sections' }"));
-assert.ok(home.indexOf("if (item.type === 'adsHeader')") < home.indexOf("if (item.type === 'sections')"));
-assert.ok(home.indexOf('{showFilters ? (', home.indexOf("if (item.type === 'adsHeader')")) < home.indexOf("if (item.type === 'sections')"));
+const renderStart = home.indexOf('const renderItem = useCallback');
+assert.ok(renderStart > 0, 'Home renderItem must be a stable useCallback');
+assert.ok(home.indexOf("if (item.type === 'adsHeader')", renderStart) < home.indexOf("if (item.type === 'sections')", renderStart));
+// Filters panel lives in the memoized HomeAdsHeader component, which must render before the sections block exists.
+assert.ok(home.indexOf('const HomeAdsHeader = memo(') > 0 && home.indexOf('{showFilters ? (', home.indexOf('const HomeAdsHeader = memo(')) < renderStart);
+// Performance contracts: carousel uses recycling AppFlashList, memoized blocks, deferred secondary sections.
+assert.match(home, /<AppFlashList\s+horizontal/);
+assert.match(home, /const HomeAdsCarousel = memo\(/);
+assert.match(home, /deferToIdle\(\(\) => setSectionsReady\(true\)/);
 assert.match(community, /onAction=\{\(\) => pushOnce\('\/stores'\)\}/);
 assert.match(cards, /imageResizeMode\?: 'cover' \| 'contain'/);
 assert.match(cards, /height: 132/);

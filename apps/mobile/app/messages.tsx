@@ -3,7 +3,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { RefreshControl, StyleSheet, View } from 'react-native';
+import { AppFlashList } from '@/components/ui/AppFlashList';
 import { useFocusEffect } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
@@ -119,9 +120,25 @@ export default function MessagesScreen() {
   const openConversation = useCallback((conversationId: string) => {
     pushOnce({ pathname: '/messages/[id]', params: { id: conversationId } });
   }, []);
+  // دوال ثابتة الهوية حتى لا ينكسر memo في ConversationListItem عند كل render.
+  const changeFlagRef = useRef(changeFlag);
+  changeFlagRef.current = changeFlag;
+  const onTogglePin = useCallback((row: ConversationItem) => {
+    void changeFlagRef.current(row, { pinned: !row.mySettings?.pinnedAt });
+  }, []);
+  const onToggleArchive = useCallback((row: ConversationItem) => {
+    void changeFlagRef.current(row, { archived: !row.mySettings?.archivedAt });
+  }, []);
   const renderConversation = useCallback(({ item }: { item: ConversationItem }) => (
-    <ConversationListItem item={item} currentUserId={user?.id} onPress={openConversation} busy={busyFlagId === item.id} onTogglePin={(row) => void changeFlag(row, { pinned: !row.mySettings?.pinnedAt })} onToggleArchive={(row) => void changeFlag(row, { archived: !row.mySettings?.archivedAt })} />
-  ), [openConversation, user?.id, busyFlagId, changeFlag]);
+    <ConversationListItem
+      item={item}
+      currentUserId={user?.id}
+      onPress={openConversation}
+      busy={busyFlagId === item.id}
+      onTogglePin={onTogglePin}
+      onToggleArchive={onToggleArchive}
+    />
+  ), [openConversation, user?.id, busyFlagId, onTogglePin, onToggleArchive]);
   const keyExtractor = useCallback((item: ConversationItem) => item.id, []);
   const onRefresh = useCallback(() => { void load(true); }, [load]);
   const listHeader = useMemo(() => (
@@ -198,7 +215,7 @@ export default function MessagesScreen() {
       ) : error && !items.length ? (
         <ErrorState title="تعذر تحميل المحادثات" description={error} onAction={() => void load()} />
       ) : (
-        <FlatList
+        <AppFlashList
           data={visibleItems}
           renderItem={renderConversation}
           keyExtractor={keyExtractor}
@@ -213,9 +230,6 @@ export default function MessagesScreen() {
           }
           onEndReached={() => { if (hasMore && !loadingMore) void loadMore(); }}
           onEndReachedThreshold={0.35}
-          initialNumToRender={12}
-          maxToRenderPerBatch={8}
-          windowSize={7}
           accessibilityLabel="قائمة المحادثات"
         />
       )}
@@ -232,8 +246,8 @@ function ConversationSeparator() {
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   link: { color: colors.brand, ...typography.captionStrong },
+  // FlashList: padding فقط (لا flexGrow ولا gap).
   content: {
-    flexGrow: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: insets.listBottom,

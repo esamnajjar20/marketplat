@@ -4,10 +4,11 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useRef, useState , useMemo} from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { RefreshControl, StyleSheet, View } from 'react-native';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 import { confirmAlert } from '@/lib/confirm';
-import { marketListPerf } from '@/lib/listPerformance';
 import { router, useFocusEffect } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
@@ -27,6 +28,58 @@ import {
 } from '@/components/ui';
 import { spacing, typography } from '@/theme/tokens';
 import { COPY } from '@/lib/copy';
+
+const AD_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: 'نشط',
+  PENDING: 'قيد المراجعة',
+  SOLD: 'مباع',
+  EXPIRED: 'منتهي',
+  REJECTED: 'مرفوض',
+  DELETED: 'محذوف',
+};
+
+type MyAdRowProps = {
+  ad: ManagedAd;
+  failedDelete: boolean;
+  pendingDelete: boolean;
+  busy: boolean;
+  online: boolean;
+  onEdit: (adId: string) => void;
+  onRemove: (ad: ManagedAd) => void;
+  onReviewQueue: () => void;
+};
+
+/** صف إعلان مُغلَّف بـ memo: يُعاد رسمه فقط عند تغيّر بياناته أو حالة الحذف الخاصة به. */
+const MyAdRow = memo(function MyAdRow({ ad, failedDelete, pendingDelete, busy, online, onEdit, onRemove, onReviewQueue }: MyAdRowProps) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+  const handleEdit = useCallback(() => onEdit(ad.id), [ad.id, onEdit]);
+  const handleDelete = useCallback(
+    () => (failedDelete ? onReviewQueue() : onRemove(ad)),
+    [failedDelete, onReviewQueue, onRemove, ad],
+  );
+  const statusText = failedDelete
+    ? 'تعذر الحذف — راجع مركز العمليات'
+    : pendingDelete
+      ? 'قيد الحذف — بانتظار المزامنة'
+      : AD_STATUS_LABELS[ad.status || ''] || ad.status || 'الحالة غير متاحة';
+  return (
+    <SectionCard>
+      <Text style={styles.adTitle}>{ad.title}</Text>
+      <Text style={styles.meta}>{[ad.city, statusText].filter(Boolean).join(' · ')}</Text>
+      <View style={styles.actions}>
+        <SecondaryButton label="تعديل" onPress={handleEdit} />
+        <PrimaryButton
+          label={failedDelete ? 'مراجعة عملية الحذف' : pendingDelete ? 'بانتظار المزامنة' : busy ? 'جارٍ الحذف…' : online ? 'حذف' : 'حفظ طلب الحذف'}
+          variant="danger"
+          busy={busy}
+          disabled={busy || pendingDelete}
+          onPress={handleDelete}
+        />
+      </View>
+    </SectionCard>
+  );
+});
 
 export default function MyAdsScreen() {
   const { colors } = useAppTheme();
@@ -188,6 +241,30 @@ export default function MyAdsScreen() {
     );
   };
 
+  // معالجات ثابتة: الصف memo، و`remove` يقرأ آخر نسخة عبر ref.
+  const removeRef = useRef(remove);
+  removeRef.current = remove;
+  const onEdit = useCallback((adId: string) => pushOnce({ pathname: '/ad-editor', params: { id: adId } }), []);
+  const onRemove = useCallback((ad: ManagedAd) => removeRef.current(ad), []);
+  const onReviewQueue = useCallback(() => pushOnce('/offline-queue'), []);
+  const keyExtractor = useCallback((ad: ManagedAd) => ad.id, []);
+  const listExtraData = useMemo(
+    () => ({ busyId, online, pendingDeleteIds, failedDeleteIds }),
+    [busyId, online, pendingDeleteIds, failedDeleteIds],
+  );
+  const renderItem = useCallback(({ item: ad }: { item: ManagedAd }) => (
+    <MyAdRow
+      ad={ad}
+      failedDelete={failedDeleteIds.has(ad.id)}
+      pendingDelete={pendingDeleteIds.has(ad.id)}
+      busy={busyId === ad.id}
+      online={online}
+      onEdit={onEdit}
+      onRemove={onRemove}
+      onReviewQueue={onReviewQueue}
+    />
+  ), [busyId, failedDeleteIds, online, onEdit, onRemove, onReviewQueue, pendingDeleteIds]);
+
   return (
     <ScreenFrame>
       <AppHeader
@@ -218,12 +295,14 @@ export default function MyAdsScreen() {
       ) : error && ads.length === 0 ? (
         <ErrorState title="تعذر تحميل الإعلانات" description={error} onAction={() => void load()} />
       ) : (
-        <FlatList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
+        <AppFlashList
+          refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
           data={ads}
-          keyExtractor={(ad) => ad.id}
-          {...marketListPerf}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
+          extraData={listExtraData}
           contentContainerStyle={styles.list}
-          ListHeaderComponent={error || queueReadError ? <View style={{ gap: spacing.sm }}>{error ? <ErrorState title="تعذر تحديث الإعلانات" description={error} onAction={() => void load()} /> : null}{queueReadError ? <Text tone="danger">{queueReadError}</Text> : null}</View> : undefined}
+          ListHeaderComponent={error || queueReadError ? <View style={styles.listHeader}>{error ? <ErrorState title="تعذر تحديث الإعلانات" description={error} onAction={() => void load()} /> : null}{queueReadError ? <Text tone="danger">{queueReadError}</Text> : null}</View> : undefined}
           ListEmptyComponent={
             <EmptyState
               title="لم تنشر أي إعلان بعد"
@@ -232,30 +311,9 @@ export default function MyAdsScreen() {
               onAction={() => pushOnce('/ad-editor')}
             />
           }
-          renderItem={({ item: ad }) => (
-            <SectionCard>
-              <Text style={styles.adTitle}>{ad.title}</Text>
-              <Text style={styles.meta}>
-                {[ad.city, failedDeleteIds.has(ad.id) ? 'تعذر الحذف — راجع مركز العمليات' : pendingDeleteIds.has(ad.id) ? 'قيد الحذف — بانتظار المزامنة' : ({ ACTIVE: 'نشط', PENDING: 'قيد المراجعة', SOLD: 'مباع', EXPIRED: 'منتهي', REJECTED: 'مرفوض', DELETED: 'محذوف' } as Record<string, string>)[ad.status || ''] || ad.status || 'الحالة غير متاحة'].filter(Boolean).join(' · ')}
-              </Text>
-              <View style={styles.actions}>
-                <SecondaryButton
-                  label="تعديل"
-                  onPress={() => pushOnce({ pathname: '/ad-editor', params: { id: ad.id } })}
-                />
-                <PrimaryButton
-                  label={failedDeleteIds.has(ad.id) ? 'مراجعة عملية الحذف' : pendingDeleteIds.has(ad.id) ? 'بانتظار المزامنة' : busyId === ad.id ? 'جارٍ الحذف…' : online ? 'حذف' : 'حفظ طلب الحذف'}
-                  variant="danger"
-                  busy={busyId === ad.id}
-                  disabled={busyId === ad.id || pendingDeleteIds.has(ad.id)}
-                  onPress={() => failedDeleteIds.has(ad.id) ? pushOnce('/offline-queue') : remove(ad)}
-                />
-              </View>
-            </SectionCard>
-          )}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+          ItemSeparatorComponent={ListGapMd}
           ListFooterComponent={ads.length ? (
-            <View style={{ gap: spacing.sm }}>
+            <View style={styles.listFooter}>
               {moreError ? <ErrorState title="تعذر تحميل المزيد" description={moreError} onAction={() => void loadMore()} /> : null}
               {page < totalPages ? <PrimaryButton label={loadingMore ? 'جارٍ التحميل…' : 'تحميل المزيد'} variant="secondary" busy={loadingMore} onPress={() => void loadMore()} /> : null}
             </View>
@@ -269,7 +327,10 @@ export default function MyAdsScreen() {
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   headerActions: { flexDirection: 'row', gap: spacing.sm, alignItems: 'center' },
   link: { color: colors.brand, ...typography.captionStrong },
-  list: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },
+  // FlashList: padding فقط (لا gap).
+  list: { padding: spacing.lg, paddingBottom: spacing.x4l },
+  listHeader: { gap: spacing.sm, marginBottom: spacing.md },
+  listFooter: { gap: spacing.sm, marginTop: spacing.md },
   adTitle: { ...typography.bodyStrong, color: colors.ink, textAlign: 'right' },
   meta: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   actions: { gap: spacing.sm },

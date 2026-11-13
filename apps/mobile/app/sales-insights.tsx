@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useLocalSearchParams } from 'expo-router';
@@ -11,6 +11,9 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSalesDashboard, fetchSalesReport, fetchSalesSmartInsights, type SalesDashboardData, type SalesReportData, type SalesSmartInsightsData } from '@/features/sales/sales-extra.api';
 import type { SalePaymentStatus } from '@/features/sales/sales.api';
 import { formatMoney, formatNumber, formatDate } from '@/lib/formatters';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
+
+type InsightsData = { dashboard: SalesDashboardData | null; report: SalesReportData | null; smart: SalesSmartInsightsData | null };
 import { fontSizes, radius, spacing, fontWeights, sizes, insets } from '@/theme/tokens';
 const money = (value: unknown) => formatMoney(Number(value ?? 0));
 const STATUS: Array<{
@@ -43,9 +46,6 @@ export default function SalesInsightsScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { user, getAccessToken, isRestoring } = useAuth();
-  const [dashboard, setDashboard] = useState<SalesDashboardData | null>(null);
-  const [report, setReport] = useState<SalesReportData | null>(null);
-  const [smart, setSmart] = useState<SalesSmartInsightsData | null>(null);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [status, setStatus] = useState<SalePaymentStatus | ''>('');
@@ -56,39 +56,33 @@ export default function SalesInsightsScreen() {
   }>({
     from: '', to: '', status: ''
   });
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState('');
-  const load = useCallback(async (refresh = false) => {
-    const token = getAccessToken();
-    if (!token || !user?.id || isRestoring)
-      return;
-    if (refresh)
-      setRefreshing(true);
-    else
-      setLoading(true);
-    setError('');
-    try {
-      if (mode === 'analytics' || mode === 'overview')
-        setDashboard(await fetchSalesDashboard(token, undefined, user.id));
-      else if (mode === 'reports')
-        setReport(await fetchSalesReport(token, {
-          from: appliedFilters.from || undefined, to: appliedFilters.to ? `${appliedFilters.to}T23:59:59.999` : undefined, status: appliedFilters.status || undefined, limit: 100
-        }, undefined, user.id));
-      else
-        setSmart(await fetchSalesSmartInsights(token, undefined, user.id));
-    }
-    catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'تعذر تحميل بيانات المبيعات.');
-    }
-    finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [appliedFilters, getAccessToken, isRestoring, mode, user?.id]);
-  useEffect(() => {
-    void load();
-  }, [load]);
+  const [actionError, setActionError] = useState('');
+  // دورة الجلب الموحّدة: هوية المورد = (الوضع، الفلاتر المطبّقة، الحساب). كل وضع يملأ حقله فقط.
+  const resource = useAsyncResource<InsightsData>(
+    async () => {
+      const token = getAccessToken();
+      if (!token || !user?.id) throw new Error('انتهت الجلسة. سجّل الدخول مجددًا.');
+      const next: InsightsData = { dashboard: null, report: null, smart: null };
+      if (mode === 'analytics' || mode === 'overview') next.dashboard = await fetchSalesDashboard(token, undefined, user.id);
+      else if (mode === 'reports') next.report = await fetchSalesReport(token, {
+        from: appliedFilters.from || undefined, to: appliedFilters.to ? `${appliedFilters.to}T23:59:59.999` : undefined, status: appliedFilters.status || undefined, limit: 100
+      }, undefined, user.id);
+      else next.smart = await fetchSalesSmartInsights(token, undefined, user.id);
+      return next;
+    },
+    {
+      key: `${user?.id ?? ''}|${mode}|${appliedFilters.from}|${appliedFilters.to}|${appliedFilters.status}`,
+      manual: isRestoring || !user?.id,
+      tag: 'sales-insights',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل بيانات المبيعات.'),
+    },
+  );
+  const { data, loading, refreshing, reload } = resource;
+  const dashboard = data?.dashboard ?? null;
+  const report = data?.report ?? null;
+  const smart = data?.smart ?? null;
+  const error = actionError || resource.error || '';
+  const load = useCallback((refresh = false) => reload(refresh ? { soft: true } : undefined), [reload]);
   if (isRestoring)
     return <ScreenFrame><LoadingState message="جارٍ استعادة الجلسة…"/></ScreenFrame>;
   if (!user)
@@ -117,10 +111,10 @@ export default function SalesInsightsScreen() {
           return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
         };
         if (!validDate(from) || !validDate(to) || (from && to && from > to)) {
-          setError('أدخل تاريخًا صحيحًا بصيغة YYYY-MM-DD، وتأكد أن تاريخ البداية لا يتجاوز تاريخ النهاية.');
+          setActionError('أدخل تاريخًا صحيحًا بصيغة YYYY-MM-DD، وتأكد أن تاريخ البداية لا يتجاوز تاريخ النهاية.');
           return;
         }
-        setError('');
+        setActionError('');
         setAppliedFilters({
           from, to, status
         });

@@ -1,13 +1,16 @@
 import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
-import { marketListPerf } from '@/lib/listPerformance';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { RefreshControl, StyleSheet, View } from 'react-native';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 
 import { pushOnce } from '@/lib/navigation';
 import { fetchStores, type StoreSummary } from '@/features/commerce/commerce.api';
+import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { toPaginatedResponse } from '@/lib/pagination';
 import {
   AppHeader,
   EmptyState,
@@ -19,96 +22,63 @@ import {
 import { CatalogCard } from '@/components/MarketCards';
 import { spacing, typography } from '@/theme/tokens';
 
+/** صف متجر — memo: يعتمد على id + دالة فتح ثابتة. */
+const StoreRow = memo(function StoreRow({ store, onOpen }: { store: StoreSummary; onOpen: (id: string) => void }) {
+  return (
+    <CatalogCard
+      id={store.id}
+      title={store.name}
+      subtitle={store.description || 'متجر محلي على MarketPlat'}
+      meta={`${store.city || 'الموقع غير محدد'}${
+        typeof store._count?.products === 'number' ? ` · ${store._count.products} منتج` : ''
+      }`}
+      imageUri={store.logoUrl}
+      glyph="▣"
+      onPressItem={onOpen}
+    />
+  );
+});
+
 export default function StoresScreen() {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
 
-  const [items, setItems] = useState<StoreSummary[]>([]);
   const [query, setQuery] = useState('');
   const [submitted, setSubmitted] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [moreError, setMoreError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const requestSequence = useRef(0);
+  const list = usePaginatedList<StoreSummary>({
+    key: `public-stores:${submitted}`,
+    pageSize: 30,
+    fetchPage: async (page) => toPaginatedResponse(await fetchStores({ page, limit: 30, search: submitted })),
+    getItemKey: (item) => item.id,
+    mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل المتاجر.'),
+  });
+  const { items, loading, refreshing, loadingMore, error, loadMoreError, hasNextPage } = list;
+  const { refresh, retry, loadMore } = list;
+  const onRefresh = useCallback(() => { void refresh(); }, [refresh]);
+  const onRetry = useCallback(() => { void retry(); }, [retry]);
+  const onLoadMore = useCallback(() => { void loadMore(); }, [loadMore]);
 
-  const load = useCallback(
-    async (refresh = false) => {
-      const sequence = ++requestSequence.current;
-      setLoadingMore(false);
-      if (refresh) setRefreshing(true);
-      else setLoading(true);
-      setError(null);
-      setMoreError(null);
-      try {
-        const result = await fetchStores({ page: 1, limit: 30, search: submitted });
-        if (sequence === requestSequence.current) {
-          setItems(result.items);
-          setPage(result.page);
-          setTotalPages(result.totalPages);
-        }
-      } catch (e) {
-        if (sequence === requestSequence.current) {
-          setError(e instanceof Error ? e.message : 'تعذر تحميل المتاجر.');
-        }
-      } finally {
-        if (sequence === requestSequence.current) {
-          setLoading(false);
-          setRefreshing(false);
-        }
-      }
-    },
-    [submitted],
+  const openStore = useCallback((id: string) => pushOnce(`/stores/${encodeURIComponent(id)}`), []);
+  const keyExtractor = useCallback((item: StoreSummary) => item.id, []);
+  const renderItem = useCallback(
+    ({ item }: { item: StoreSummary }) => <StoreRow store={item} onOpen={openStore} />,
+    [openStore],
   );
-
-  useEffect(() => {
-    void load();
-    return () => {
-      requestSequence.current += 1;
-    };
-  }, [load]);
-
-  const loadMore = async () => {
-    if (loadingMore || loading || page >= totalPages) return;
-    const sequence = requestSequence.current;
-    setLoadingMore(true);
-    setMoreError(null);
-    try {
-      const result = await fetchStores({ page: page + 1, limit: 30, search: submitted });
-      if (sequence === requestSequence.current) {
-        setItems((current) => {
-          const seen = new Set(current.map((item) => item.id));
-          return [...current, ...result.items.filter((item) => !seen.has(item.id))];
-        });
-        setPage(result.page);
-        setTotalPages(result.totalPages);
-      }
-    } catch (e) {
-      if (sequence === requestSequence.current) {
-        setMoreError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من المتاجر.');
-      }
-    } finally {
-      if (sequence === requestSequence.current) setLoadingMore(false);
-    }
-  };
 
   return (
     <ScreenFrame>
       <AppHeader title="المتاجر" />
-      <FlatList
+      <AppFlashList
         data={items}
-        keyExtractor={(item) => item.id}
-        {...marketListPerf}
+        keyExtractor={keyExtractor}
+        renderItem={renderItem}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />
         }
         ListHeaderComponent={
-          <View style={{ gap: spacing.md }}>
+          <View style={styles.listHeader}>
             <Text style={styles.subtitle}>اكتشف المتاجر المحلية ومنتجاتها</Text>
             <SearchBar
               value={query}
@@ -121,7 +91,7 @@ export default function StoresScreen() {
             {loading ? (
               <LoadingState message="جاري تحميل المتاجر…" />
             ) : error ? (
-              <ErrorState title="تعذر تحميل المتاجر" description={error} onAction={() => void load()} />
+              <ErrorState title="تعذر تحميل المتاجر" description={error} onAction={onRetry} />
             ) : (
               <View style={styles.sectionRow}>
                 <Text style={styles.sectionTitle}>متاجر متاحة</Text>
@@ -135,25 +105,13 @@ export default function StoresScreen() {
             <EmptyState title="لا توجد متاجر مطابقة" description="جرّب بحثًا آخر أو اسحب الشاشة للتحديث." />
           ) : undefined
         }
-        renderItem={({ item: store }) => (
-          <CatalogCard
-            title={store.name}
-            subtitle={store.description || 'متجر محلي على MarketPlat'}
-            meta={`${store.city || 'الموقع غير محدد'}${
-              typeof store._count?.products === 'number' ? ` · ${store._count.products} منتج` : ''
-            }`}
-            imageUri={store.logoUrl}
-            glyph="▣"
-            onPress={() => pushOnce(`/stores/${encodeURIComponent(store.id)}`)}
-          />
-        )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ListGapMd}
         ListFooterComponent={
           !loading && items.length > 0 ? (
-            <View style={{ gap: spacing.sm }}>
-              {moreError ? <ErrorState title="تعذر تحميل المزيد" description={moreError} onAction={() => void loadMore()} /> : null}
-              {!moreError && page < totalPages ? (
-                <PrimaryButton label={loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'} onPress={() => void loadMore()} busy={loadingMore} variant="secondary" />
+            <View style={styles.listFooter}>
+              {loadMoreError ? <ErrorState title="تعذر تحميل المزيد" description={loadMoreError} onAction={onRetry} /> : null}
+              {!loadMoreError && hasNextPage ? (
+                <PrimaryButton label={loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'} onPress={onLoadMore} busy={loadingMore} variant="secondary" />
               ) : null}
             </View>
           ) : undefined
@@ -164,7 +122,10 @@ export default function StoresScreen() {
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },
+  // FlashList: padding فقط (لا gap).
+  content: { padding: spacing.lg, paddingBottom: spacing.x4l },
+  listHeader: { gap: spacing.md, marginBottom: spacing.md },
+  listFooter: { gap: spacing.sm, marginTop: spacing.md },
   subtitle: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   sectionRow: {
     flexDirection: 'row',

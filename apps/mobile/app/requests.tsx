@@ -1,8 +1,9 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, View } from 'react-native';
 import { marketListPerf } from '@/lib/listPerformance';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 
 import { pushOnce } from '@/lib/navigation';
 import { fetchOpenRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
@@ -26,49 +27,44 @@ const typeLabel: Record<string, string> = {
   RENTAL: 'تأجير',
 };
 
+const requestKeyExtractor = (item: MarketplaceRequest) => item.id;
+const RequestSeparator = () => <View style={{ height: spacing.md }} />;
+
 export default function RequestsScreen() {
   const { colors } = useAppTheme();
 
-  const [items, setItems] = useState<MarketplaceRequest[]>([]);
   const [q, setQ] = useState('');
   const [city, setCity] = useState('');
   const [qApplied, setQApplied] = useState('');
   const [cityApplied, setCityApplied] = useState('');
   const [type, setType] = useState('');
   const [sort, setSort] = useState('newest');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const seq = useRef(0);
 
   useEffect(() => {
     const t = setTimeout(() => { setQApplied(q); setCityApplied(city); }, 350);
     return () => clearTimeout(t);
   }, [q, city]);
 
-  const load = useCallback(async () => {
-    const current = ++seq.current;
-    setLoading(true);
-    setError('');
-    try {
-      const r = await fetchOpenRequests({ q: qApplied, city: cityApplied, type: type || undefined, sort });
-      if (current === seq.current) setItems(r.items);
-    } catch (e) {
-      if (current === seq.current) setError(e instanceof Error ? e.message : 'تعذر تحميل الطلبات.');
-    } finally {
-      if (current === seq.current) setLoading(false);
-    }
-  }, [qApplied, cityApplied, type, sort]);
-
-  useEffect(() => {
-    void load();
-    return () => { seq.current += 1; };
-  }, [load]);
+  // دورة الجلب الموحّدة: الفلاتر المطبّقة هي هوية القائمة، فيُلغى الطلب القديم عند تغيّرها.
+  const resource = useAsyncResource<MarketplaceRequest[]>(
+    async () => (await fetchOpenRequests({ q: qApplied, city: cityApplied, type: type || undefined, sort })).items,
+    {
+      key: `${qApplied}|${cityApplied}|${type}|${sort}`,
+      tag: 'requests',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل الطلبات.'),
+    },
+  );
+  const { loading, reload } = resource;
+  const items = resource.data ?? [];
+  const error = resource.error ?? '';
+  const load = useCallback(() => reload(), [reload]);
+  const softReload = useCallback(() => { void reload({ soft: true }); }, [reload]);
 
   return (
     <PageShell title="طلبات السوق" scroll={false}>
-      <FlatList refreshControl={<RefreshControl refreshing={loading && items.length > 0} onRefresh={() => void load()} tintColor={colors.brand} />}
+      <FlatList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={softReload} tintColor={colors.brand} />}
         data={loading || error ? [] : items}
-        keyExtractor={(item) => item.id}
+        keyExtractor={requestKeyExtractor}
         {...marketListPerf}
         contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
         ListHeaderComponent={
@@ -124,7 +120,7 @@ export default function RequestsScreen() {
             ) : null}
           </SectionCard>
         )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={RequestSeparator}
         ListFooterComponent={
           !loading && items.length > 0 ? <Notice tone="muted">{items.length} طلب مفتوح</Notice> : undefined
         }

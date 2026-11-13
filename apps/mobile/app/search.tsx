@@ -10,8 +10,9 @@ import { searchMarketplace, type SearchResult } from '@/features/discovery/disco
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { elevation, fontSizes, radius, sizes, spacing, typography, ux, fontWeights, insets } from '@/theme/tokens';
-import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View, RefreshControl } from 'react-native';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View, RefreshControl } from 'react-native';
+import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useLocalSearchParams, type Href } from 'expo-router';
 import { goBack, pushOnce } from '@/lib/navigation';
@@ -118,6 +119,63 @@ function Chip({
       </Text>
     </Pressable>
   );
+}
+
+/** نتيجة بحث واحدة — memo: تُعاد فقط عند تغيّر العنصر نفسه (لا عند الكتابة في حقل البحث). */
+const SearchResultCard = memo(function SearchResultCard({
+  item,
+  onOpen,
+}: {
+  item: SearchResult;
+  onOpen: (item: SearchResult) => void;
+}) {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createThemeStyles(colors), [colors]);
+  const handlePress = useCallback(() => onOpen(item), [item, onOpen]);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`فتح ${item.title}`}
+      accessibilityHint="عرض تفاصيل النتيجة"
+      onPress={handlePress}
+      style={({ pressed }) => [styles.resultCard, pressed && styles.pressed]}
+    >
+      <View style={styles.resultBody}>
+        <View style={styles.resultTop}>
+          <View style={styles.typeBadge}>
+            <Text style={styles.typeBadgeText}>{typeLabel(item.type)}</Text>
+          </View>
+          {item.seller?.verified ? (
+            <Text style={styles.verified}>بائع موثّق</Text>
+          ) : null}
+        </View>
+        <Text style={styles.resultTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
+        {item.description || item.city ? (
+          <Text numberOfLines={2} style={styles.resultDesc}>
+            {item.description || item.city || ''}
+          </Text>
+        ) : null}
+        <View style={styles.resultMeta}>
+          <Text style={styles.resultPrice}>
+            {item.price
+              ? formatMoney(item.price)
+              : item.rating > 0
+                ? `★ ${item.rating.toFixed(1)}`
+                : '—'}
+          </Text>
+          <Text style={styles.resultCity}>{item.city || 'الموقع غير محدد'}</Text>
+        </View>
+      </View>
+      <AppIcon name="forward" size={20} color={colors.muted} />
+    </Pressable>
+  );
+});
+
+/** FlashList لا يدعم gap: الفاصل يعادل gap(md) + separator(sm) السابقين. */
+function ResultSeparator() {
+  return <View style={{ height: spacing.md + spacing.sm }} />;
 }
 
 export default function SearchScreen() {
@@ -599,67 +657,32 @@ export default function SearchScreen() {
       </Pressable>
     ) : null;
 
+  const openResult = useCallback((item: SearchResult) => pushOnce(routeFor(item)), []);
+  const keyExtractor = useCallback((item: SearchResult) => `${item.type}-${item.id}`, []);
+  const renderItem = useCallback(
+    ({ item }: { item: SearchResult }) => <SearchResultCard item={item} onOpen={openResult} />,
+    [openResult],
+  );
+
   return (
     <ScreenFrame>
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <FlatList
+        <AppFlashList
           refreshControl={<RefreshControl refreshing={searchList.refreshing} onRefresh={() => void searchList.refresh()} tintColor={colors.brand} />}
           data={items}
-          keyExtractor={(item) => `${item.type}-${item.id}`}
-          renderItem={({ item }) => (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`فتح ${item.title}`}
-              accessibilityHint="عرض تفاصيل النتيجة"
-              onPress={() => pushOnce(routeFor(item))}
-              style={({ pressed }) => [styles.resultCard, pressed && styles.pressed]}
-            >
-              <View style={styles.resultBody}>
-                <View style={styles.resultTop}>
-                  <View style={styles.typeBadge}>
-                    <Text style={styles.typeBadgeText}>{typeLabel(item.type)}</Text>
-                  </View>
-                  {item.seller?.verified ? (
-                    <Text style={styles.verified}>بائع موثّق</Text>
-                  ) : null}
-                </View>
-                <Text style={styles.resultTitle} numberOfLines={2}>
-                  {item.title}
-                </Text>
-                {item.description || item.city ? (
-                  <Text numberOfLines={2} style={styles.resultDesc}>
-                    {item.description || item.city || ''}
-                  </Text>
-                ) : null}
-                <View style={styles.resultMeta}>
-                  <Text style={styles.resultPrice}>
-                    {item.price
-                      ? formatMoney(item.price)
-                      : item.rating > 0
-                        ? `★ ${item.rating.toFixed(1)}`
-                        : '—'}
-                  </Text>
-                  <Text style={styles.resultCity}>{item.city || 'الموقع غير محدد'}</Text>
-                </View>
-              </View>
-              <AppIcon name="forward" size={20} color={colors.muted} />
-            </Pressable>
-          )}
+          keyExtractor={keyExtractor}
+          renderItem={renderItem}
           ListHeaderComponent={listHeader}
           ListEmptyComponent={listEmpty ?? undefined}
           ListFooterComponent={listFooter ?? undefined}
           contentContainerStyle={styles.listContent}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={ResultSeparator}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           showsVerticalScrollIndicator={false}
-          initialNumToRender={8}
-          maxToRenderPerBatch={8}
-          windowSize={7}
-          removeClippedSubviews={Platform.OS === 'android'}
         />
       </KeyboardAvoidingView>
     </ScreenFrame>
@@ -668,17 +691,16 @@ export default function SearchScreen() {
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   flex: { flex: 1 },
+  // FlashList: padding فقط (لا gap ولا flexGrow).
   listContent: {
     padding: spacing.lg,
     paddingBottom: insets.listBottom,
-    flexGrow: 1,
-    gap: spacing.md,
   },
   pressed: { opacity: ux.pressedOpacity },
 
   headerBlock: {
     gap: spacing.md,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md + spacing.sm,
   },
   topBar: {
     flexDirection: 'row',
