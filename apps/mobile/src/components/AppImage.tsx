@@ -4,9 +4,11 @@
  * - واجهة بسيطة متوافقة مع الاستخدام الحالي (uri + onError)
  * - لا يفرض مكتبات ثقيلة إضافية
  */
+import { useState } from 'react';
 import { Image, type ImageProps } from 'expo-image';
 import { type StyleProp, type ImageStyle } from 'react-native';
 import { useAppTheme } from '@/theme/ThemeProvider';
+import { listThumbnailUri } from '@/lib/image-variants';
 
 type AppImageProps = {
   uri?: string | null;
@@ -18,7 +20,8 @@ type AppImageProps = {
   placeholderColor?: string;
   accessibilityLabel?: string;
   /**
-   * list: صور مصغّرة داخل قوائم مُعاد تدويرها (بدون fade عند كل إعادة استخدام للخلية).
+   * list: صور مصغّرة داخل قوائم مُعاد تدويرها (بدون fade عند كل إعادة استخدام للخلية)،
+   *       وتُطلب بنسخة مصغّرة من Cloudinary (انظر image-variants.ts) مع عودة تلقائية للأصل عند الفشل.
    * detail (الافتراضي): صور الصفحات المفردة، مع انتقال ناعم.
    */
   variant?: 'list' | 'detail';
@@ -43,17 +46,28 @@ export function AppImage({
 }: AppImageProps) {
   const { colors } = useAppTheme();
   const backgroundColor = placeholderColor ?? colors.border;
+  // الرابط الذي فشلت نسخته المصغّرة (يُقارَن بالرابط الحالي فيُعاد تلقائيًا عند إعادة تدوير الخلية).
+  const [thumbFailedFor, setThumbFailedFor] = useState<string | null>(null);
   if (!uri) return null;
+
+  const sourceUri = variant === 'list' && thumbFailedFor !== uri ? listThumbnailUri(uri) : uri;
 
   return (
     <Image
-      source={{ uri }}
+      source={{ uri: sourceUri }}
       style={[{ backgroundColor }, style]}
       contentFit={contentFitMap[resizeMode] ?? 'cover'}
       cachePolicy="memory-disk"
       transition={variant === 'list' ? 0 : 120}
       recyclingKey={uri}
-      onError={() => onError?.()}
+      onError={() => {
+        if (sourceUri !== uri) {
+          // النسخة المصغّرة لم تُحمَّل: جرّب الأصل قبل إبلاغ المستدعي بالفشل.
+          setThumbFailedFor(uri);
+          return;
+        }
+        onError?.();
+      }}
       accessibilityLabel={accessibilityLabel}
       {...rest}
     />

@@ -3,9 +3,10 @@ import { showToast } from '@/lib/toast';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
-import { Avatar, Spinner, PageShell, Notice, PrimaryButton, SectionCard } from '@/components/ui';
+import { Avatar, Spinner, Notice, PrimaryButton, SectionCard } from '@/components/ui';
+import { PageList } from '@/components/ui/PageList';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -15,6 +16,12 @@ import { startConversationWithUser } from '@/features/messaging/messaging.api';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 
 function price(value: PublicAd['price']) { if (value === null || value === undefined || value === '') return 'السعر عند التواصل'; const n = Number(value); return Number.isFinite(n) ? formatMoney(n) : 'السعر غير متاح'; }
+const ProfileAdRow = memo(function ProfileAdRow({ ad, onOpen }: { ad: PublicAd; onOpen: (id: string) => void }) {
+  return <Pressable accessibilityRole="button" onPress={() => onOpen(ad.id)}><SectionCard><Text tone="ink" strong>{ad.title}</Text><Text tone="brand">{price(ad.price)}</Text><Text tone="muted">{ad.city || ''}</Text></SectionCard></Pressable>;
+});
+const profileAdKey = (ad: PublicAd) => ad.id;
+const openProfileAd = (id: string) => router.push({ pathname: '/ads/[id]', params: { id } });
+const renderProfileAd = ({ item }: { item: PublicAd }) => <ProfileAdRow ad={item} onOpen={openProfileAd} />;
 export default function PublicProfileScreen() {
   const { colors } = useAppTheme();
 
@@ -119,7 +126,7 @@ export default function PublicProfileScreen() {
     ]);
   };
 
-  return <PageShell title="الملف العام">
+  const header = <>
     {isRestoring ? <Spinner color={colors.brand} /> : null}
     {loading ? <Spinner color={colors.brand} /> : null}
     {error ? <Notice>{error}</Notice> : null}
@@ -146,11 +153,14 @@ export default function PublicProfileScreen() {
         {profile.sellerProfile?.serviceProviderDetails?.id ? <PrimaryButton label="عرض ملف مقدم الخدمة" variant="secondary" onPress={() => router.push({ pathname: '/service-providers/[id]', params: { id: profile.sellerProfile!.serviceProviderDetails!.id } })} /> : null}
       </SectionCard>
       <Text style={{ textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[18], color: colors.ink, marginTop: spacing.lg, marginBottom: spacing.md }}>إعلانات المستخدم</Text>
+    </> : null}
+  </>;
+  const footer = profile ? <>
       {adsError ? <Notice>{adsError}</Notice> : null}
-      {ads.length ? ads.map((ad) => <Pressable key={ad.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/ads/[id]', params: { id: ad.id } })}><SectionCard><Text tone="ink" strong>{ad.title}</Text><Text tone="brand">{price(ad.price)}</Text><Text tone="muted">{ad.city || ''}</Text></SectionCard></Pressable>) : !adsLoading && !adsError ? <Notice tone="muted">لا توجد إعلانات نشطة لهذا المستخدم حاليًا.</Notice> : null}
+      {!ads.length && !adsLoading && !adsError ? <Notice tone="muted">لا توجد إعلانات نشطة لهذا المستخدم حاليًا.</Notice> : null}
       {adsPage < adsPages ? <PrimaryButton label="تحميل إعلانات أقدم" variant="secondary" busy={adsLoading} onPress={() => void loadMoreAds()} /> : null}
       {adsError ? <PrimaryButton label="إعادة المحاولة" variant="secondary" onPress={() => void loadMoreAds()} busy={adsLoading} /> : null}
       <PrimaryButton label="تحديث الصفحة" variant="secondary" onPress={() => void load()} />
-    </> : null}
-  </PageShell>;
+  </> : null;
+  return <PageList title="الملف العام" data={ads} keyExtractor={profileAdKey} renderItem={renderProfileAd} header={header} footer={footer} />;
 }

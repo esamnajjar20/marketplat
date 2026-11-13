@@ -155,7 +155,7 @@ export default function StoriesScreen() {
                         id: story.id, userId: story.userId
                     }
                 })}>
-                    {story.mediaUrl ? (<AppImage uri={story.mediaUrl} style={styles.tileImage}/>) : (<View style={[styles.tileImage, styles.textTile, { backgroundColor: story.background || colors.brand }]}>
+                    {story.mediaUrl ? (<AppImage variant="list" uri={story.mediaUrl} style={styles.tileImage}/>) : (<View style={[styles.tileImage, styles.textTile, { backgroundColor: story.background || colors.brand }]}>
                         <Text numberOfLines={3} style={styles.tileText}>{story.text || 'قصة نصية'}</Text>
                       </View>)}
                     <Text numberOfLines={1} style={styles.tileCaption}>{story.text || (story.viewed ? 'تمت المشاهدة' : 'قصة جديدة')}</Text>

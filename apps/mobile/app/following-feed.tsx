@@ -70,7 +70,7 @@ export default function FollowingFeedScreen() {
               style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}
             >
               {item.images?.[0] ? (
-                <AppImage uri={item.images[0]} style={{ width: 76, height: 76, borderRadius: radius.md, backgroundColor: colors.border }} />
+                <AppImage variant="list" uri={item.images[0]} style={{ width: 76, height: 76, borderRadius: radius.md, backgroundColor: colors.border }} />
               ) : (
                 <View style={{ width: 76, height: 76, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.brandSoft }}>
                   <Text style={{ color: colors.brandOnSoft, fontWeight: fontWeights.bold }}>{item.type === 'AD' ? 'إعلان' : item.type === 'PRODUCT' ? 'منتج' : 'خدمة'}</Text>

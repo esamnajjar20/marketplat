@@ -108,7 +108,7 @@ export default function SellerOrdersScreen() {
               </View>
               <View style={{ flexDirection: 'row', gap: spacing.md }}>
                 {first?.productImage ? (
-                  <AppImage
+                  <AppImage variant="list"
                     uri={first.productImage}
                     style={{ width: 76, height: 76, borderRadius: radius.md, backgroundColor: colors.border }}
                     resizeMode="cover"

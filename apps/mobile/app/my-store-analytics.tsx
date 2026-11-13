@@ -88,7 +88,7 @@ export default function MyStoreAnalyticsScreen() {
               style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
             >
               {p.image ? (
-                <AppImage uri={p.image} style={{ width: 64, height: 64, borderRadius: radius.md, backgroundColor: colors.border }} />
+                <AppImage variant="list" uri={p.image} style={{ width: 64, height: 64, borderRadius: radius.md, backgroundColor: colors.border }} />
               ) : (
                 <View style={{ width: 64, height: 64, borderRadius: radius.md, backgroundColor: colors.brandSoft }} />
               )}

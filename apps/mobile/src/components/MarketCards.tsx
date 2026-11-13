@@ -371,7 +371,14 @@ type HorizontalMarketCardProps = {
   imageUri?: string | null;
   imageResizeMode?: 'cover' | 'contain';
   glyph?: string;
-  onPress: () => void;
+  /**
+   * داخل القوائم/الأقسام: مرّر `id` + `onPressItem` (دالة ثابتة عبر useCallback)
+   * بدل `onPress` المنشأة داخل الـ map، حتى لا ينكسر React.memo.
+   */
+  id?: string;
+  onPressItem?: (id: string) => void;
+  /** يبقى مدعومًا للاستعمال خارج القوائم. */
+  onPress?: () => void;
   onImageError?: () => void;
   width?: number;
 };
@@ -387,6 +394,8 @@ function HorizontalMarketCardComponent({
   imageUri,
   imageResizeMode = 'cover',
   glyph = '◇',
+  id,
+  onPressItem,
   onPress,
   onImageError,
   width = 160,
@@ -395,11 +404,15 @@ function HorizontalMarketCardComponent({
   const hStyles = useMemo(() => createThemeHStyles(colors), [colors]);
 
   const [imageFailed, setImageFailed] = useState(false);
+  const handlePress = useCallback(() => {
+    if (onPressItem && id !== undefined) onPressItem(id);
+    else onPress?.();
+  }, [id, onPress, onPressItem]);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={title}
-      onPress={onPress}
+      onPress={handlePress}
       style={({ pressed }) => [hStyles.card, { width }, pressed && hStyles.pressed]}
     >
       {imageUri && !imageFailed ? (

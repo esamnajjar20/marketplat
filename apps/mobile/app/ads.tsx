@@ -3,9 +3,10 @@ import { formatMoney } from '@/lib/formatters';
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { TextInput, View } from 'react-native';
-import { Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
+import { Spinner, Notice, PrimaryButton, SectionCard } from '@/components/ui';
+import { PageList } from '@/components/ui/PageList';
 
 import { pushOnce } from '@/lib/navigation';
 import { fetchPublicAds, type AdListItem } from '@/features/ads/ads.api';
@@ -28,6 +29,18 @@ function adPrice(value: AdListItem['price']) {
     ? formatMoney(number)
     : 'السعر عند التواصل';
 }
+
+const AdRow = memo(function AdRow({ ad, onOpen }: { ad: AdListItem; onOpen: (id: string) => void }) {
+  const { colors } = useAppTheme();
+  return <Pressable accessibilityRole="button" onPress={() => onOpen(ad.id)} style={{ flexDirection: 'row', gap: spacing.md, padding: spacing.md, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, minHeight: 112 }}>
+    {ad.images?.[0] ? <AppImage uri={ad.images[0]} variant="list" style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.border }} /> : <View style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: fontWeights.bold }}>بدون صورة</Text></View>}
+    <View style={{ flex: 1, gap: spacing.xs, justifyContent: 'center' }}><Text numberOfLines={2} tone="ink" strong size={15}>{ad.title}</Text><Text tone="brand" strong size={14}>{adPrice(ad.price)}</Text><Text tone="muted" size={12}>{ad.city || ad.user?.city || 'الموقع غير محدد'}</Text><Text tone="muted" size={11}>{ad.condition === 'NEW' ? 'جديد' : ad.condition === 'USED' ? 'مستعمل' : ad.condition === 'REFURBISHED' ? 'مجدد' : 'حالة غير محددة'}</Text></View>
+  </Pressable>;
+});
+
+const adKey = (ad: AdListItem) => ad.id;
+const openAd = (id: string) => pushOnce({ pathname: '/ads/[id]', params: { id } });
+const renderAd = ({ item }: { item: AdListItem }) => <AdRow ad={item} onOpen={openAd} />;
 
 export default function AllAdsScreen() {
   const { colors } = useAppTheme();
@@ -67,7 +80,7 @@ export default function AllAdsScreen() {
     else setCondition(parsed);
   };
 
-  return <PageShell title="كل الإعلانات">
+  const header = <>
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
       <TextInput
         allowFontScaling
@@ -90,15 +103,14 @@ export default function AllAdsScreen() {
     {list.loading ? <SectionCard><Spinner color={colors.brand} /><Text style={{ textAlign: 'center', color: colors.muted, marginTop: spacing.sm }}>جارٍ تحميل الإعلانات…</Text></SectionCard> : null}
     {list.error ? <SectionCard><Notice>{list.error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void list.retry()} /></SectionCard> : null}
     {!list.loading && !list.error && list.items.length === 0 ? <SectionCard><Text style={{ textAlign: 'center', color: colors.ink, fontWeight: fontWeights.bold }}>لا توجد إعلانات مطابقة</Text><Text style={{ textAlign: 'center', color: colors.muted }}>غيّر عبارة البحث أو حالة الإعلان.</Text></SectionCard> : null}
-    {list.items.map((ad) => <Pressable key={ad.id} accessibilityRole="button" onPress={() => pushOnce({ pathname: '/ads/[id]', params: { id: ad.id } })} style={{ flexDirection: 'row', gap: spacing.md, padding: spacing.md, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, minHeight: 112 }}>
-      {ad.images?.[0] ? <AppImage uri={ad.images[0]} style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.border }} /> : <View style={{ width: 104, height: 104, borderRadius: radius.md, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: fontWeights.bold }}>بدون صورة</Text></View>}
-      <View style={{ flex: 1, gap: spacing.xs, justifyContent: 'center' }}><Text numberOfLines={2} tone="ink" strong size={15}>{ad.title}</Text><Text tone="brand" strong size={14}>{adPrice(ad.price)}</Text><Text tone="muted" size={12}>{ad.city || ad.user?.city || 'الموقع غير محدد'}</Text><Text tone="muted" size={11}>{ad.condition === 'NEW' ? 'جديد' : ad.condition === 'USED' ? 'مستعمل' : ad.condition === 'REFURBISHED' ? 'مجدد' : 'حالة غير محددة'}</Text></View>
-    </Pressable>)}
+  </>;
+  const footer = <>
     {!list.loading && !list.error && list.items.length > 0 ? <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
       <PrimaryButton label="السابق" variant="secondary" disabled={list.page <= 1 || list.loading} onPress={() => void list.goToPage(list.page - 1)} />
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.muted }}>الصفحة {list.page} من {list.totalPages}</Text></View>
       <PrimaryButton label="التالي" variant="secondary" disabled={!list.hasNextPage || list.loading} onPress={() => void list.goToPage(list.page + 1)} />
     </View> : null}
     <Notice tone="muted">تُعرض أحدث الإعلانات أولًا. حالة الإعلان تُرسل إلى الخادم فقط إذا كان فلتر الحالة محددًا.</Notice>
-  </PageShell>;
+  </>;
+  return <PageList title="كل الإعلانات" data={list.items} keyExtractor={adKey} renderItem={renderAd} header={header} footer={footer} />;
 }

@@ -64,7 +64,7 @@ export default function PromotedScreen() {
             <SectionCard>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
                 {item.images?.[0] ? (
-                  <AppImage uri={item.images[0]} style={{ width: 92, height: 92, borderRadius: radius.button, backgroundColor: colors.border }} resizeMode="cover" />
+                  <AppImage variant="list" uri={item.images[0]} style={{ width: 92, height: 92, borderRadius: radius.button, backgroundColor: colors.border }} resizeMode="cover" />
                 ) : (
                   <View style={{ width: 92, height: 92, borderRadius: radius.button, backgroundColor: colors.brandSoft, alignItems: 'center', justifyContent: 'center' }}>
                     <Text style={{ color: colors.brandOnSoft, fontSize: fontSizes[28] }}>◇</Text>

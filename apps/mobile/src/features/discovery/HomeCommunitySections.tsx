@@ -2,7 +2,7 @@ import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { memo, useEffect, useRef, useState, useMemo } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { useOnlineResync } from '@/lib/useOnlineResync';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -19,7 +19,10 @@ import { SectionHeader, StoryAvatar } from '@/components/ui';
 const PUBLIC_STORES_CACHE_KEY = 'home:public-stores:v1';
 const PUBLIC_STORES_TTL_MS = 10 * 60 * 1000;
 
-function StoreCard({ store }: { store: StoreSummary }) {
+// معالج ثابت الهوية + StoreCard memo: بطاقات المتاجر لا تُعاد رسمها عند تغيّر حالة القسم (توسيع/قصص).
+const openStore = (id: string) => pushOnce({ pathname: '/stores/[id]', params: { id } });
+
+const StoreCard = memo(function StoreCard({ store }: { store: StoreSummary }) {
   const imageUri = store.logoUrl || store.coverImageUrl || null;
   const rating = store.sellerProfile?.averageRating;
   const totalRatings = store.sellerProfile?.totalRatings;
@@ -42,10 +45,11 @@ function StoreCard({ store }: { store: StoreSummary }) {
       imageUri={imageUri}
       imageResizeMode={store.logoUrl ? 'contain' : 'cover'}
       glyph="م"
-      onPress={() => pushOnce({ pathname: '/stores/[id]', params: { id: store.id } })}
+      id={store.id}
+      onPressItem={openStore}
     />
   );
-}
+});
 
 export default function HomeCommunitySections() {
   const { colors } = useAppTheme();
@@ -56,7 +60,7 @@ export default function HomeCommunitySections() {
   const [stories, setStories] = useState<StoryGroup[]>([]);
   const [storiesOwnerId, setStoriesOwnerId] = useState<string | null>(null);
   const reconnectRefreshRef = useRef<() => void>(() => undefined);
-  useOnlineResync(() => reconnectRefreshRef.current());
+  useOnlineResync(() => reconnectRefreshRef.current(), { deferWhileScrolling: true });
   const visibleStories = accessToken && user?.id && storiesOwnerId === user.id ? stories : [];
   const [communityExpanded, setCommunityExpanded] = useState(false);
   const visibleStores = communityExpanded ? stores : stores.slice(0, 4);

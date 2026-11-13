@@ -7,8 +7,10 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSalesCostProducts, fetchSalesCostSettings, updateSalesCostSettings, updateSalesProductCost, type SalesCostProduct } from '@/features/sales/sales-extra.api';
 import { formatMoney } from '@/lib/formatters';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton, SectionCard } from '@/components/ui';
-import { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 
 import { pushOnce } from '@/lib/navigation';
@@ -19,6 +21,35 @@ import { useAsyncResource } from '@/hooks/useAsyncResource';
 type CostsData = { enabled: boolean; products: SalesCostProduct[] };
 
 const EMPTY_COST_PRODUCTS: SalesCostProduct[] = [];
+
+type CostRowProps = {
+  product: SalesCostProduct;
+  draft: string;
+  saving: boolean;
+  disabled: boolean;
+  placeholderColor: string;
+  styles: ReturnType<typeof createStyles>;
+  onChangeDraft: (productId: string, value: string) => void;
+  onSave: (product: SalesCostProduct) => void;
+};
+
+/** صف منتج: memo حتى لا تُعاد رسم كل الصفوف مع كل حرف يُكتب في حقل تكلفة واحد. */
+const CostRow = memo(function CostRow({ product, draft, saving, disabled, placeholderColor, styles, onChangeDraft, onSave }: CostRowProps) {
+  return <View style={styles.productCard}>
+    {product.images?.[0] ? <AppImage uri={product.images[0]} variant="list" style={styles.image} /> : <View style={styles.imagePlaceholder} />}
+    <View style={styles.productBody}>
+      <Text style={styles.productName}>{product.name}</Text>
+      <Text style={styles.meta}>{product.store?.name ?? 'متجر'} · سعر البيع {formatMoney(product.price)}</Text>
+      <View style={styles.editRow}>
+        <TextInput value={draft} onChangeText={(value) => onChangeDraft(product.id, value)} keyboardType="decimal-pad" placeholder="بدون تكلفة" placeholderTextColor={placeholderColor} style={styles.costInput} accessibilityLabel={`تكلفة ${product.name}`} />
+        <PrimaryButton label={saving ? 'جارٍ الحفظ…' : 'حفظ'} busy={saving} disabled={disabled} onPress={() => onSave(product)} />
+      </View>
+      <Text style={styles.meta}>التكلفة الحالية: {product.costPrice == null ? 'غير محددة' : formatMoney(product.costPrice)}</Text>
+    </View>
+  </View>;
+});
+
+const costKey = (product: SalesCostProduct) => product.id;
 
 export default function SalesCostsScreen() {
   const { colors } = useAppTheme();
@@ -100,46 +131,64 @@ export default function SalesCostsScreen() {
     } finally { setBusy(null); }
   };
 
+  // معالجات ثابتة الهوية للصفوف (memo): save تُقرأ عبر ref حتى لا تتغيّر مع كل حرف.
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  const onSaveRow = useCallback((product: SalesCostProduct) => { void saveRef.current(product); }, []);
+  const onChangeDraft = useCallback((productId: string, value: string) => {
+    setDrafts((current) => ({ ...current, [productId]: value }));
+  }, []);
+  const renderProduct = useCallback(({ item }: { item: SalesCostProduct }) => (
+    <CostRow
+      product={item}
+      draft={drafts[item.id] ?? (item.costPrice == null ? '' : String(item.costPrice))}
+      saving={busy === item.id}
+      disabled={Boolean(busy)}
+      placeholderColor={colors.muted}
+      styles={styles}
+      onChangeDraft={onChangeDraft}
+      onSave={onSaveRow}
+    />
+  ), [drafts, busy, colors.muted, styles, onChangeDraft, onSaveRow]);
+  const listExtraData = useMemo(() => ({ drafts, busy }), [drafts, busy]);
+  const showRows = !loading && !(error && !settingsLoaded) && enabled;
+
   if (isRestoring) return <ScreenFrame><LoadingState message="جارٍ استعادة الجلسة…" /></ScreenFrame>;
   if (!user) return <ScreenFrame><EmptyState title="سجّل الدخول لإدارة التكاليف" actionLabel="تسجيل الدخول" onAction={() => pushOnce('/login')} /></ScreenFrame>;
 
   return <ScreenFrame>
     <AppHeader title="التكلفة الحقيقية" />
-    <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}>
-      <SectionCard>
-        <Text style={styles.heading}>احتساب تكلفة المنتجات</Text>
-        <Text style={styles.description}>حدد تكلفة المنتج مرة واحدة. تُستخدم التكلفة عند تسجيل المبيعات لحساب الربح، وتعديلها لا يغيّر تكلفة المبيعات السابقة.</Text>
-        <View style={styles.toggleRow}>
-          <Text style={styles.toggleLabel}>{enabled ? 'الميزة مفعّلة' : 'الميزة متوقفة'}</Text>
-          <Pressable accessibilityRole="switch" accessibilityState={{ checked: enabled, disabled: busy === 'settings' }} disabled={busy === 'settings'} onPress={() => void toggle(!enabled)} style={[styles.toggle, enabled && styles.toggleOn]}>
-            <Text style={[styles.toggleText, enabled && styles.toggleTextOn]}>{busy === 'settings' ? '…' : enabled ? 'إيقاف' : 'تفعيل'}</Text>
-          </Pressable>
-        </View>
-      </SectionCard>
-      {loading ? <LoadingState message="جاري تحميل تكاليف المنتجات…" /> : error && !settingsLoaded ? <ErrorState title="تعذر تحميل التكاليف" description={error} onAction={() => void load()} /> : !enabled ? <EmptyState title="التكلفة الحقيقية متوقفة" description="لن تُعرض تكاليف المنتجات أو الأرباح حتى تعيد تفعيل الميزة." actionLabel="تفعيل الميزة" onAction={() => void toggle(true)} /> : <>
-        <View style={styles.searchWrap}><TextInput value={query} onChangeText={setQuery} placeholder="ابحث عن منتج أو متجر" placeholderTextColor={colors.muted} style={styles.search} returnKeyType="search" /></View>
-        {error ? <ErrorState title="تعذر تنفيذ العملية" description={error} onAction={() => setActionError('')} /> : null}
-        {filtered.length === 0 ? <EmptyState title="لا توجد منتجات مطابقة" description="أضف منتجات إلى متجرك أو غيّر عبارة البحث." actionLabel="إدارة المنتجات" onAction={() => pushOnce('/my-products')} /> : filtered.map((product) => {
-          const draft = drafts[product.id] ?? (product.costPrice == null ? '' : String(product.costPrice));
-          return <View key={product.id} style={styles.productCard}>
-            {product.images?.[0] ? <AppImage uri={product.images[0]} style={styles.image} /> : <View style={styles.imagePlaceholder} />}
-            <View style={styles.productBody}>
-              <Text style={styles.productName}>{product.name}</Text>
-              <Text style={styles.meta}>{product.store?.name ?? 'متجر'} · سعر البيع {formatMoney(product.price)}</Text>
-              <View style={styles.editRow}>
-                <TextInput value={draft} onChangeText={(value) => setDrafts((current) => ({ ...current, [product.id]: value }))} keyboardType="decimal-pad" placeholder="بدون تكلفة" placeholderTextColor={colors.muted} style={styles.costInput} accessibilityLabel={`تكلفة ${product.name}`} />
-                <PrimaryButton label={busy === product.id ? 'جارٍ الحفظ…' : 'حفظ'} busy={busy === product.id} disabled={Boolean(busy)} onPress={() => void save(product)} />
-              </View>
-              <Text style={styles.meta}>التكلفة الحالية: {product.costPrice == null ? 'غير محددة' : formatMoney(product.costPrice)}</Text>
-            </View>
-          </View>;
-        })}
-      </>}
-    </ScrollView>
+    <AppFlashList
+      data={showRows ? filtered : EMPTY_COST_PRODUCTS}
+      extraData={listExtraData}
+      keyExtractor={costKey}
+      renderItem={renderProduct}
+      ItemSeparatorComponent={ListGapMd}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
+      ListHeaderComponent={<View style={styles.listHeader}>
+        <SectionCard>
+          <Text style={styles.heading}>احتساب تكلفة المنتجات</Text>
+          <Text style={styles.description}>حدد تكلفة المنتج مرة واحدة. تُستخدم التكلفة عند تسجيل المبيعات لحساب الربح، وتعديلها لا يغيّر تكلفة المبيعات السابقة.</Text>
+          <View style={styles.toggleRow}>
+            <Text style={styles.toggleLabel}>{enabled ? 'الميزة مفعّلة' : 'الميزة متوقفة'}</Text>
+            <Pressable accessibilityRole="switch" accessibilityState={{ checked: enabled, disabled: busy === 'settings' }} disabled={busy === 'settings'} onPress={() => void toggle(!enabled)} style={[styles.toggle, enabled && styles.toggleOn]}>
+              <Text style={[styles.toggleText, enabled && styles.toggleTextOn]}>{busy === 'settings' ? '…' : enabled ? 'إيقاف' : 'تفعيل'}</Text>
+            </Pressable>
+          </View>
+        </SectionCard>
+        {loading ? <LoadingState message="جاري تحميل تكاليف المنتجات…" /> : error && !settingsLoaded ? <ErrorState title="تعذر تحميل التكاليف" description={error} onAction={() => void load()} /> : !enabled ? <EmptyState title="التكلفة الحقيقية متوقفة" description="لن تُعرض تكاليف المنتجات أو الأرباح حتى تعيد تفعيل الميزة." actionLabel="تفعيل الميزة" onAction={() => void toggle(true)} /> : <>
+          <View style={styles.searchWrap}><TextInput value={query} onChangeText={setQuery} placeholder="ابحث عن منتج أو متجر" placeholderTextColor={colors.muted} style={styles.search} returnKeyType="search" /></View>
+          {error ? <ErrorState title="تعذر تنفيذ العملية" description={error} onAction={() => setActionError('')} /> : null}
+          {filtered.length === 0 ? <EmptyState title="لا توجد منتجات مطابقة" description="أضف منتجات إلى متجرك أو غيّر عبارة البحث." actionLabel="إدارة المنتجات" onAction={() => pushOnce('/my-products')} /> : null}
+        </>}
+      </View>}
+    />
   </ScreenFrame>;
 }
 
-const createStyles = (colors: ColorPalette) => StyleSheet.create({ content: { padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l },
+const createStyles = (colors: ColorPalette) => StyleSheet.create({ content: { padding: spacing.lg, paddingBottom: spacing.x4l }, listHeader: { gap: spacing.md, marginBottom: spacing.md },
   heading: { color: colors.ink, fontSize: fontSizes[17], fontWeight: fontWeights.bold, textAlign: 'right' }, description: { color: colors.muted, fontSize: fontSizes[13], lineHeight: 21, textAlign: 'right' },
   toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm }, toggleLabel: { color: colors.ink, fontWeight: fontWeights.bold }, toggle: { minWidth: 78, minHeight: 40, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md }, toggleOn: { backgroundColor: colors.brandSoft, borderColor: colors.brand }, toggleText: { color: colors.muted, fontWeight: fontWeights.bold }, toggleTextOn: { color: colors.brand },
   searchWrap: { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md }, search: { minHeight: 46, color: colors.ink, textAlign: 'right' },

@@ -140,7 +140,7 @@ export default function OrderDetailScreen() {
             {order.items.map((item) => (
               <View key={item.id} style={styles.itemLine}>
                 {item.productImage ? (
-                  <AppImage uri={item.productImage} style={styles.image} resizeMode="cover" />
+                  <AppImage variant="list" uri={item.productImage} style={styles.image} resizeMode="cover" />
                 ) : (
                   <View style={styles.imagePlaceholder}>
                     <Text>◇</Text>

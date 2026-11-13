@@ -100,7 +100,7 @@ export default function FollowedStoresScreen() {
           renderItem={({ item }) => (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }}>
               <Pressable accessibilityRole="button" onPress={() => router.push(`/stores/${encodeURIComponent(item.store.id)}`)} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-                <AppImage uri={item.store.logoUrl} style={{ width: 64, height: 64, borderRadius: radius.md }} />
+                <AppImage variant="list" uri={item.store.logoUrl} style={{ width: 64, height: 64, borderRadius: radius.md }} />
                 <View style={{ flex: 1, alignItems: 'flex-start', gap: spacing.xs }}>
                   <Text tone="ink" strong>{item.store.name}</Text>
                   <Text numberOfLines={2} tone="muted">{item.store.description || 'متجر محلي'}</Text>

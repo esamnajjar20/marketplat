@@ -66,6 +66,11 @@ function publicRequestSnapshot(item: MarketplaceRequest): MarketplaceRequest {
   };
 }
 
+// معالجات ثابتة الهوية (على مستوى الوحدة) كي لا ينكسر React.memo في HorizontalMarketCard.
+const openProduct = (id: string) => pushOnce({ pathname: '/products/[id]', params: { id } });
+const openService = (id: string) => pushOnce({ pathname: '/services/[id]', params: { id } });
+const openRequest = (id: string) => pushOnce({ pathname: '/requests/[id]', params: { id } });
+
 type SectionKey = keyof SectionData;
 const CACHE_KEYS: Record<SectionKey, string> = {
   products: 'home:public-products:v1',
@@ -209,7 +214,7 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
 
   useOnlineResync(() => {
     void refreshStale();
-  });
+  }, { deferWhileScrolling: true });
 
   useEffect(() => {
     activeRef.current = true;
@@ -259,7 +264,8 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
                 imageUri={firstImage(item.images)}
                 price={money(item.effectivePrice?.price ?? item.discountPrice ?? item.price)}
                 glyph="◇"
-                onPress={() => pushOnce({ pathname: '/products/[id]', params: { id: item.id } })}
+                id={item.id}
+                onPressItem={openProduct}
               />
             ))}
           </ScrollView>
@@ -288,7 +294,8 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
                 imageUri={firstImage(item.images)}
                 price={money(item.price)}
                 glyph="✦"
-                onPress={() => pushOnce({ pathname: '/services/[id]', params: { id: item.id } })}
+                id={item.id}
+                onPressItem={openService}
               />
             ))}
           </ScrollView>
@@ -327,7 +334,8 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
                       : null
                 }
                 glyph="▤"
-                onPress={() => pushOnce({ pathname: '/requests/[id]', params: { id: item.id } })}
+                id={item.id}
+                onPressItem={openRequest}
               />
             ))}
           </ScrollView>

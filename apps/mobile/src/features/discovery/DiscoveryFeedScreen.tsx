@@ -85,7 +85,7 @@ function FeedRowCard({ row }: { row: FeedRow }) {
       }}
     >
       {imageUri ? (
-        <AppImage uri={imageUri} style={{ width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: radius.md, backgroundColor: colors.border }} />
+        <AppImage variant="list" uri={imageUri} style={{ width: THUMB_SIZE, height: THUMB_SIZE, borderRadius: radius.md, backgroundColor: colors.border }} />
       ) : (
         <View
           style={{
