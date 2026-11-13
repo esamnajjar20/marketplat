@@ -1,7 +1,7 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -10,6 +10,9 @@ import { Notice, PrimaryButton, SectionCard } from '@/components/ui';
 import { PageList } from '@/components/ui/PageList';
 import { spacing, fontWeights, radius } from '@/theme/tokens';
 import { roleLabel, statusLabel } from '@/lib/status-labels';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
+
+const EMPTY_STORES: StoreMembership[] = [];
 
 const MyStoreRow = memo(function MyStoreRow({ item }: { item: StoreMembership }) {
   const { colors } = useAppTheme();
@@ -33,17 +36,18 @@ const renderStore = ({ item }: { item: StoreMembership }) => <MyStoreRow item={i
 
 export default function MyStoresScreen() {
   const { accessToken } = useAuth();
-  const [items, setItems] = useState<StoreMembership[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const load = useCallback(async () => {
-    if (!accessToken) { setLoading(false); return; }
-    setLoading(true); setError('');
-    try { setItems(await fetchMyActiveStoreMemberships(accessToken)); }
-    catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحميل المتاجر.'); }
-    finally { setLoading(false); }
-  }, [accessToken]);
-  useEffect(() => { void load(); }, [load]);
+  const resource = useAsyncResource<StoreMembership[]>(
+    () => fetchMyActiveStoreMemberships(accessToken as string),
+    {
+      key: accessToken ? '1' : '0',
+      manual: !accessToken,
+      tag: 'my-stores',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل المتاجر.'),
+    },
+  );
+  const { loading, reload: load } = resource;
+  const items = resource.data ?? EMPTY_STORES;
+  const error = resource.error ?? '';
   const header = <>
     {!accessToken ? <><Notice>سجّل الدخول لعرض المتاجر التي أضافتك إلى فريقها.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => router.push('/login')} /></> : null}
     {loading ? <Notice tone="muted">جارٍ تحميل المتاجر…</Notice> : null}

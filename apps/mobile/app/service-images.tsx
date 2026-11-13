@@ -1,6 +1,6 @@
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -12,51 +12,40 @@ import { removeServiceImage, reorderServiceImages, uploadServiceImages } from '@
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { normalizePickedImage } from '@/lib/normalize-image-asset';
 import { spacing, radius } from '@/theme/tokens';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 export default function ServiceImagesScreen() {
     const p = useLocalSearchParams<{
         id: string | string[];
     }>();
     const id = Array.isArray(p.id) ? p.id[0] : p.id;
     const { accessToken, csrfToken, user } = useAuth();
-    const [item, setItem] = useState<ServiceListing | null>(null);
-    const [loading, setLoading] = useState(true);
     const [busy, setBusy] = useState(false);
-    const [error, setError] = useState('');
-    const load = useCallback(async () => {
-        if (!id) {
-            setLoading(false);
-            setError('معرّف الخدمة غير صالح.');
-            return;
-        }
-        setLoading(true);
-        setError('');
-        try {
-            setItem(await fetchServiceListing(id));
-        }
-        catch (e) {
-            setError(e instanceof Error ? e.message : 'تعذر تحميل صور الخدمة.');
-        }
-        finally {
-            setLoading(false);
-        }
-    }, [id]);
-    useEffect(() => {
-        void load();
-    }, [load]);
+    const [actionError, setActionError] = useState('');
+    const resource = useAsyncResource<ServiceListing>(
+        () => fetchServiceListing(id as string),
+        {
+            key: id ?? '',
+            manual: !id,
+            tag: 'service-images',
+            mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل صور الخدمة.'),
+        },
+    );
+    const { data: item, loading, setData: setItem } = resource;
+    const error = actionError || (!id ? 'معرّف الخدمة غير صالح.' : resource.error ?? '');
     const pick = async () => {
         if (!accessToken)
             return pushOnce('/login');
         if (!user?.emailVerified) {
-            setError('أكد بريدك الإلكتروني قبل رفع صور الخدمة.');
+            setActionError('أكد بريدك الإلكتروني قبل رفع صور الخدمة.');
             return;
         }
         const remaining = 10 - (item?.images?.length || 0);
         if (remaining <= 0) {
-            setError('وصلت إلى الحد الأقصى وهو 10 صور.');
+            setActionError('وصلت إلى الحد الأقصى وهو 10 صور.');
             return;
         }
         setBusy(true);
-        setError('');
+        setActionError('');
         try {
             const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (!permission.granted)
@@ -72,7 +61,7 @@ export default function ServiceImagesScreen() {
             setItem(await uploadServiceImages(id, result.assets.map(a => normalizePickedImage(a, 'service-image')), accessToken, csrfToken));
         }
         catch (e) {
-            setError(e instanceof Error ? e.message : 'تعذر رفع الصور.');
+            setActionError(e instanceof Error ? e.message : 'تعذر رفع الصور.');
         }
         finally {
             setBusy(false);
@@ -82,12 +71,12 @@ export default function ServiceImagesScreen() {
         if (!accessToken)
             return;
         setBusy(true);
-        setError('');
+        setActionError('');
         try {
             setItem(await removeServiceImage(id, url, accessToken, csrfToken));
         }
         catch (e) {
-            setError(e instanceof Error ? e.message : 'تعذر حذف الصورة.');
+            setActionError(e instanceof Error ? e.message : 'تعذر حذف الصورة.');
         }
         finally {
             setBusy(false);
@@ -102,12 +91,12 @@ export default function ServiceImagesScreen() {
             return;
         [next[index], next[target]] = [next[target], next[index]];
         setBusy(true);
-        setError('');
+        setActionError('');
         try {
             setItem(await reorderServiceImages(id, next, accessToken, csrfToken));
         }
         catch (e) {
-            setError(e instanceof Error ? e.message : 'تعذر ترتيب الصور.');
+            setActionError(e instanceof Error ? e.message : 'تعذر ترتيب الصور.');
         }
         finally {
             setBusy(false);

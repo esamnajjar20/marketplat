@@ -2,7 +2,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { Spinner, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { confirmAlert } from '@/lib/confirm';
 import { useLocalSearchParams, router } from 'expo-router';
 import NetInfo from '@react-native-community/netinfo';
@@ -15,6 +15,7 @@ import { ApiError } from '@/api/client';
 import { startConversationWithUser } from '@/features/messaging/messaging.api';
 import { formatSafeDate } from '@/lib/date-format';
 import { showToast } from '@/lib/toast';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 export default function RequestDetailScreen() {
   const { colors } = useAppTheme();
   const { id } = useLocalSearchParams<{
@@ -22,42 +23,25 @@ export default function RequestDetailScreen() {
   }>();
   const { accessToken, getAccessToken, csrfToken, user } = useAuth();
   const offerOperationIdRef = useRef(createMobileOperationId('request-offer'));
-  const [item, setItem] = useState<MarketplaceRequest | null>(null);
   const [price, setPrice] = useState('');
   const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const seq = useRef(0);
-  const load = useCallback(async () => {
-    if (!id) {
-      setLoading(false);
-      setError('معرّف الطلب غير صالح.');
-      return;
-    }
-    const current = ++seq.current;
-    setLoading(true);
-    setError('');
-    try {
-      const fetched = await fetchMarketplaceRequest(id, getAccessToken());
-      if (current === seq.current)
-        setItem(fetched);
-    }
-    catch (e) {
-      if (current === seq.current)
-        setError(e instanceof Error ? e.message : 'تعذر تحميل الطلب.');
-    }
-    finally {
-      if (current === seq.current)
-        setLoading(false);
-    }
-  }, [id, getAccessToken]);
-  useEffect(() => {
-    void load();
-    return () => {
-      seq.current += 1;
-    };
-  }, [load]);
+  const [actionError, setActionError] = useState('');
+  const resource = useAsyncResource<MarketplaceRequest>(
+    () => fetchMarketplaceRequest(id as string, getAccessToken()),
+    {
+      key: id ?? '',
+      manual: !id,
+      tag: 'request-detail',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل الطلب.'),
+    },
+  );
+  const { data: item, loading, reload } = resource;
+  const error = actionError || (!id ? 'معرّف الطلب غير صالح.' : resource.error ?? '');
+  const load = useCallback(() => {
+    setActionError('');
+    return reload();
+  }, [reload]);
   const offer = async () => {
     if (!accessToken) {
       router.push('/login');
@@ -65,15 +49,15 @@ export default function RequestDetailScreen() {
     }
     const p = Number(normalizeNumericInput(price));
     if (!Number.isFinite(p) || p <= 0) {
-      setError('أدخل سعرًا صحيحًا أكبر من صفر.');
+      setActionError('أدخل سعرًا صحيحًا أكبر من صفر.');
       return;
     }
     if (!user?.emailVerified) {
-      setError('أكد بريدك الإلكتروني قبل تقديم عرض.');
+      setActionError('أكد بريدك الإلكتروني قبل تقديم عرض.');
       return;
     }
     setBusy(true);
-    setError('');
+    setActionError('');
     try {
       const network = await NetInfo.fetch();
       const online = network.isConnected === true && network.isInternetReachable !== false;
@@ -114,7 +98,7 @@ export default function RequestDetailScreen() {
       showToast('تم إرسال العرض', 'يمكنك متابعة عروضك من صفحة عروضي.', 'success');
     }
     catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر إرسال العرض.');
+      setActionError(e instanceof Error ? e.message : 'تعذر إرسال العرض.');
     }
     finally {
       setBusy(false);
@@ -127,7 +111,7 @@ export default function RequestDetailScreen() {
         if (!accessToken)
           return;
         setBusy(true);
-        void cancelMarketplaceRequest(id, accessToken, csrfToken).then(load).catch(e => setError(e instanceof Error ? e.message : 'تعذر الإلغاء.')).finally(() => setBusy(false));
+        void cancelMarketplaceRequest(id, accessToken, csrfToken).then(load).catch(e => setActionError(e instanceof Error ? e.message : 'تعذر الإلغاء.')).finally(() => setBusy(false));
       }
     }]);
   const accept = (offerId: string) => confirmAlert('قبول العرض', 'سيُسجّل قبول هذا العرض على الطلب.', [{
@@ -137,7 +121,7 @@ export default function RequestDetailScreen() {
         if (!accessToken)
           return;
         setBusy(true);
-        void acceptRequestOffer(id, offerId, accessToken, csrfToken).then(load).catch(e => setError(e instanceof Error ? e.message : 'تعذر قبول العرض.')).finally(() => setBusy(false));
+        void acceptRequestOffer(id, offerId, accessToken, csrfToken).then(load).catch(e => setActionError(e instanceof Error ? e.message : 'تعذر قبول العرض.')).finally(() => setBusy(false));
       }
     }]);
   const owner = !!user && item?.customerId === user.id;
@@ -145,11 +129,11 @@ export default function RequestDetailScreen() {
   const acceptedContactId = owner ? item?.acceptedOffer?.offerer?.id : acceptedByMe ? item?.customerId : undefined;
   const messageAcceptedParty = async () => {
     if (!accessToken || !acceptedContactId) {
-      setError('تعذر تحديد الطرف المقبول للتواصل.');
+      setActionError('تعذر تحديد الطرف المقبول للتواصل.');
       return;
     }
     setBusy(true);
-    setError('');
+    setActionError('');
     try {
       const conversation = await startConversationWithUser(acceptedContactId, accessToken, undefined, csrfToken);
       router.push({
@@ -157,7 +141,7 @@ export default function RequestDetailScreen() {
       });
     }
     catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر بدء المحادثة.');
+      setActionError(e instanceof Error ? e.message : 'تعذر بدء المحادثة.');
     }
     finally {
       setBusy(false);

@@ -1,7 +1,7 @@
 import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
+import { useRef, useState , useMemo} from 'react';
 import { StyleSheet, View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { useLocalSearchParams } from 'expo-router';
@@ -22,6 +22,7 @@ import {
 import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { AppImage } from '@/components/AppImage';
 import { formatMoney , formatDate} from '@/lib/formatters';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 
 const labels: Record<string, string> = {
   PENDING: 'بانتظار تأكيد المتجر',
@@ -50,39 +51,38 @@ export default function OrderDetailScreen() {
   const { user, accessToken, csrfToken, isRestoring } = useAuth();
   const tokenRef = useRef(accessToken);
   tokenRef.current = accessToken;
-  const [order, setOrder] = useState<MarketplaceOrder | null>(null);
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
 
-  const load = useCallback(async () => {
-    const token = tokenRef.current;
-    if (!id) { setLoading(false); setOrder(null); setError('معرّف الطلب غير صالح.'); return; }
-    if (!token) { setLoading(false); setOrder(null); setError('سجّل الدخول لعرض تفاصيل الطلب.'); return; }
-    setLoading(true);
-    setError('');
-    try {
-      setOrder(await fetchMarketplaceOrder(id, token, user?.id));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل الطلب.');
-    } finally {
-      setLoading(false);
-    }
-  }, [id, user?.id]);
-
-  useEffect(() => {
-    if (!isRestoring) void load();
-  }, [load, isRestoring]);
+  const resource = useAsyncResource<MarketplaceOrder>(
+    async () => {
+      const token = tokenRef.current;
+      if (!id) throw new Error('معرّف الطلب غير صالح.');
+      if (!token) throw new Error('سجّل الدخول لعرض تفاصيل الطلب.');
+      return fetchMarketplaceOrder(id, token, user?.id);
+    },
+    {
+      key: `${id ?? ''}|${user?.id ?? ''}`,
+      manual: isRestoring,
+      tag: 'order-detail',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل الطلب.'),
+    },
+  );
+  const { reload: load, setData: setOrder } = resource;
+  const order = resource.data;
+  const error = actionError || resource.error || '';
+  // manual يتحول إلى false بعد الاستعادة؛ اللحظة قبل أول جلب تُعدّ تحميلًا لا فراغًا.
+  const loading = !isRestoring && (resource.loading || (!resource.data && !resource.error));
 
   const changeStatus = async (status: MarketplaceOrderStatus, sellerNote?: string) => {
     const token = tokenRef.current;
     if (!order || !token) return;
     setBusy(true);
-    setError('');
+    setActionError('');
     try {
       setOrder(await updateMarketplaceOrderStatus(order.id, status, token, csrfToken, sellerNote));
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحديث حالة الطلب.');
+      setActionError(e instanceof Error ? e.message : 'تعذر تحديث حالة الطلب.');
     } finally {
       setBusy(false);
     }

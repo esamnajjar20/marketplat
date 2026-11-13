@@ -2,7 +2,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useState } from 'react';
 import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 
@@ -13,6 +13,9 @@ import { Notice, PrimaryButton, SectionCard } from '@/components/ui';
 import { PageList } from '@/components/ui/PageList';
 import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
+
+const EMPTY_SESSIONS: ActiveSession[] = [];
 
 function dateLabel(value: string): string {
   const date = new Date(value);
@@ -41,18 +44,20 @@ export default function SessionsScreen() {
   const { colors } = useAppTheme();
 
   const { accessToken, csrfToken } = useAuth();
-  const [sessions, setSessions] = useState<ActiveSession[]>([]);
-  const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState('');
-  const [error, setError] = useState('');
-  const load = useCallback(async () => {
-    if (!accessToken) { setError('سجّل الدخول لإدارة الجلسات.'); setLoading(false); return; }
-    setLoading(true); setError('');
-    try { setSessions(await fetchActiveSessions(accessToken)); }
-    catch (e) { setError(e instanceof Error ? e.message : 'تعذر تحميل الجلسات.'); }
-    finally { setLoading(false); }
-  }, [accessToken]);
-  useEffect(() => { void load(); }, [load]);
+  const resource = useAsyncResource<ActiveSession[]>(
+    () => fetchActiveSessions(accessToken as string),
+    {
+      key: accessToken ? '1' : '0',
+      manual: !accessToken,
+      tag: 'sessions',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل الجلسات.'),
+    },
+  );
+  const { loading, setData: setSessionsData } = resource;
+  const sessions = resource.data ?? EMPTY_SESSIONS;
+  const error = !accessToken ? 'سجّل الدخول لإدارة الجلسات.' : resource.error ?? '';
+  const load = resource.reload;
   const revoke = (session: ActiveSession) => {
     if (session.isCurrent) { showToast('الجلسة الحالية', 'لا يمكن إنهاء الجلسة الحالية من هذه الشاشة. استخدم تسجيل الخروج.', 'error'); return; }
     confirmAlert('إنهاء الجلسة', 'سيتم إلغاء صلاحية هذا الجهاز في التجديد التالي للجلسة.', [
@@ -61,7 +66,7 @@ export default function SessionsScreen() {
         if (!accessToken || busyId) return;
         setBusyId(session.sessionId);
         void revokeActiveSession(session.sessionId, accessToken, csrfToken)
-          .then(() => setSessions((items) => items.filter((item) => item.sessionId !== session.sessionId)))
+          .then(() => setSessionsData((items) => (items ? items.filter((item) => item.sessionId !== session.sessionId) : items)))
           .catch((e) => showToast('تعذر إنهاء الجلسة', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error'))
           .finally(() => setBusyId(''));
       } },

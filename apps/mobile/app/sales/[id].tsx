@@ -1,6 +1,5 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useState } from 'react';
 import { Share, View } from 'react-native';
 import { Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -10,6 +9,7 @@ import { fetchSaleDetail, fetchSaleReceipt } from '@/features/sales/sales-extra.
 import type { SaleRecord } from '@/features/sales/sales.api';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { fontWeights, spacing } from '@/theme/tokens';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 const paymentMethodLabel = (method: string) => ({
     CASH: 'نقدًا', CASH_ON_DELIVERY: 'نقدًا عند الاستلام', CARD: 'بطاقة', BANK_TRANSFER: 'تحويل بنكي', WALLET: 'محفظة إلكترونية', OTHER: 'أخرى'
 } as Record<string, string>)[method] || 'وسيلة دفع أخرى';
@@ -57,40 +57,34 @@ export default function SaleDetailScreen() {
     }>();
     const id = Array.isArray(p.id) ? p.id[0] : p.id;
     const { getAccessToken, user, isRestoring } = useAuth();
-    const [sale, setSale] = useState<SaleDetail | null>(null);
-    const [receiptNumber, setReceiptNumber] = useState<string | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const load = useCallback(async () => {
-        const token = getAccessToken();
-        if (!token || !id) {
-            setLoading(false);
-            setError(!id ? 'معرّف البيع غير صالح.' : 'انتهت صلاحية الجلسة؛ سجّل الدخول مجددًا.');
-            return;
-        }
-        setLoading(true);
-        setError('');
-        try {
+    const resource = useAsyncResource<{ sale: SaleDetail; receiptNumber: string | null }>(
+        async () => {
+            const token = getAccessToken();
+            if (!id)
+                throw new Error('معرّف البيع غير صالح.');
+            if (!token)
+                throw new Error('انتهت صلاحية الجلسة؛ سجّل الدخول مجددًا.');
             const [sR, rR] = await Promise.allSettled([fetchSaleDetail(id, token, user?.id), fetchSaleReceipt(id, token, user?.id)]);
             if (sR.status === 'rejected')
                 throw sR.reason;
-            setSale(sR.value as SaleDetail);
-            if (rR.status === 'fulfilled')
-                setReceiptNumber(rR.value.invoiceNumber || rR.value.sale.invoiceNumber || null);
-            else
-                setReceiptNumber(null);
-        }
-        catch (e) {
-            setError(e instanceof Error ? e.message : 'تعذر تحميل تفاصيل البيع.');
-        }
-        finally {
-            setLoading(false);
-        }
-    }, [getAccessToken, id, user?.id]);
-    useEffect(() => {
-        if (!isRestoring)
-            void load();
-    }, [isRestoring, load]);
+            return {
+                sale: sR.value as SaleDetail,
+                receiptNumber: rR.status === 'fulfilled' ? (rR.value.invoiceNumber || rR.value.sale.invoiceNumber || null) : null,
+            };
+        },
+        {
+            key: `${id ?? ''}|${user?.id ?? ''}`,
+            manual: isRestoring,
+            tag: 'sale-detail',
+            mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل تفاصيل البيع.'),
+        },
+    );
+    const { reload: load } = resource;
+    const sale = resource.data?.sale ?? null;
+    const receiptNumber = resource.data?.receiptNumber ?? null;
+    const error = resource.error ?? '';
+    // manual يتحول إلى false بعد الاستعادة؛ اللحظة قبل أول جلب تُعدّ تحميلًا لا فراغًا.
+    const loading = !isRestoring && (resource.loading || (!resource.data && !resource.error));
     if (isRestoring)
         return <PageShell title="تفاصيل البيع"><Spinner color={colors.brand}/></PageShell>;
     if (!user)

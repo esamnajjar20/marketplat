@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { Notice, PageShell, PrimaryButton } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -6,54 +6,48 @@ import { WeeklyHoursEditor } from '@/features/hours/WeeklyHoursEditor';
 import { emptyWeeklyHours, normalizeWeeklyHours, validateWeeklyHours, type WeeklyHours } from '@/features/hours/weekly-hours';
 import { fetchMyServiceProvider, updateMyServiceProviderWorkingHours } from '@/features/services/providers.api';
 import { pushOnce } from '@/lib/navigation';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 
 export default function ServiceProviderHoursScreen() {
   const { accessToken, getAccessToken, csrfToken, user } = useAuth();
   const userId = user?.id;
   const [hours, setHours] = useState<WeeklyHours>(emptyWeeklyHours());
-  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
   const [message, setMessage] = useState('');
-  const [noProfile, setNoProfile] = useState(false);
 
-  const load = useCallback(async () => {
-    const token = getAccessToken();
-    if (!userId || !token) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      const provider = await fetchMyServiceProvider(token);
-      if (!provider) {
-        setNoProfile(true);
-        return;
-      }
-      setNoProfile(false);
+  // دورة الجلب الموحّدة؛ محرّر الساعات يُهيَّأ من ملف مقدم الخدمة المُحمَّل.
+  const resource = useAsyncResource<{ hasProfile: boolean }>(
+    async () => {
+      const provider = await fetchMyServiceProvider(getAccessToken() as string);
+      if (!provider) return { hasProfile: false };
       setHours(normalizeWeeklyHours(provider.workingHours));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل ساعات العمل.');
-    } finally {
-      setLoading(false);
-    }
-  }, [getAccessToken, userId]);
-  useEffect(() => { void load(); }, [load]);
+      return { hasProfile: true };
+    },
+    {
+      key: userId ?? '',
+      manual: !userId || !accessToken,
+      tag: 'service-provider-hours',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل ساعات العمل.'),
+    },
+  );
+  const { loading } = resource;
+  const noProfile = resource.data ? !resource.data.hasProfile : false;
+  const error = actionError || resource.error || '';
 
   const save = async () => {
     const token = getAccessToken();
     if (!token) return pushOnce('/login');
     const invalid = validateWeeklyHours(hours);
-    if (invalid) { setError(invalid); return; }
+    if (invalid) { setActionError(invalid); return; }
     setBusy(true);
-    setError('');
+    setActionError('');
     setMessage('');
     try {
       await updateMyServiceProviderWorkingHours(hours, token, csrfToken);
       setMessage('تم حفظ ساعات عمل مقدم الخدمة.');
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر حفظ ساعات العمل.');
+      setActionError(e instanceof Error ? e.message : 'تعذر حفظ ساعات العمل.');
     } finally {
       setBusy(false);
     }

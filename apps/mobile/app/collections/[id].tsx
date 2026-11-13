@@ -4,7 +4,6 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useState } from 'react';
 import { RefreshControl, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -15,34 +14,30 @@ import { spacing, radius } from '@/theme/tokens';
 import { AppImage } from '@/components/AppImage';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ListGapMd } from '@/components/ui/ListSeparator';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
+
+const EMPTY_PRODUCTS: ProductSummary[] = [];
 
 
 export default function CollectionProductsScreen() {
 
   const p = useLocalSearchParams<{ id: string | string[] }>();
   const id = Array.isArray(p.id) ? p.id[0] : p.id;
-  const [items, setItems] = useState<ProductSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const load = useCallback(async () => {
-    if (!id) return;
-    setLoading(true);
-    setError('');
-    try {
-      setItems(await fetchPublicCollectionProducts(id));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل المنتجات.');
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
+  const resource = useAsyncResource<ProductSummary[]>(
+    () => fetchPublicCollectionProducts(id as string),
+    {
+      key: id ?? '',
+      manual: !id,
+      tag: 'collection-products',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل المنتجات.'),
+    },
+  );
+  const { loading, reload } = resource;
+  const items = resource.data ?? EMPTY_PRODUCTS;
+  const error = resource.error ?? '';
   const { colors: refreshTheme } = useAppTheme();
-  const { refreshing: pullRefreshing, onRefresh: onPullRefresh } = usePullRefresh(() => load());
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // السحب للتحديث يبقي العناصر الحالية ظاهرة بدل تفريغ القائمة (soft reload).
+  const { refreshing: pullRefreshing, onRefresh: onPullRefresh } = usePullRefresh(() => reload({ soft: true }));
 
   return (
     <PageShell title="منتجات المجموعة" scroll={false}>

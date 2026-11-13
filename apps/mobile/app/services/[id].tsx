@@ -3,7 +3,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -14,6 +14,7 @@ import { fontSizes, spacing, typography, fontWeights } from '@/theme/tokens';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { showToast } from '@/lib/toast';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 
 function formatPrice(item: ServiceListing): string {
   if (item.pricingType === 'NEGOTIABLE' || item.price == null) return 'السعر عند الاتفاق';
@@ -37,41 +38,20 @@ export default function ServiceDetailScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { user } = useAuth();
-  const [item, setItem] = useState<ServiceListing | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    if (!id) {
-      setError('رابط الخدمة غير مكتمل.');
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    let hasCache = false;
-    try {
-      const cached = await getCachedServiceListing(id);
-      if (cached) {
-        hasCache = true;
-        setItem(cached);
-        setLoading(false);
-      }
-    } catch {
-      /* cache is optional */
-    }
-    try {
-      setItem(await fetchServiceListing(id));
-    } catch (e) {
-      if (!hasCache) setError(e instanceof Error ? e.message : 'تعذر تحميل الخدمة.');
-    } finally {
-      setLoading(false);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+  // كاش أولاً ثم الشبكة؛ تبقى النسخة المخزنة ظاهرة إن فشلت الشبكة.
+  const resource = useAsyncResource<ServiceListing>(
+    () => fetchServiceListing(id as string),
+    {
+      key: id ?? '',
+      manual: !id,
+      tag: 'service-detail',
+      readCached: () => getCachedServiceListing(id as string),
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل الخدمة.'),
+    },
+  );
+  const { data: item, loading, reload } = resource;
+  const error = !id ? 'رابط الخدمة غير مكتمل.' : resource.error;
+  const load = reload;
 
   const provider =
     item?.provider?.businessName ||

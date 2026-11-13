@@ -36,7 +36,7 @@ const checks = [
   ['notifications read/cache mutations pass the current owner',
     messaging.includes('cacheOwnerId: ownerId ?? undefined') && notificationScreen.includes('fetchNotificationsPage(currentToken, page, 50, false, signal, user?.id)') && notificationScreen.includes('markAllNotificationsRead(token, csrfToken, user?.id)')],
   ['sales mutations and installment reads carry the account owner and cancel stale requests',
-    salesExtra.includes('cacheOwnerId: ownerId ?? undefined') && installmentsScreen.includes('fetchInstallments(kind, accessToken, user.id, controller.signal)') && installmentsScreen.includes('loadControllerRef.current?.abort()') && installmentsScreen.includes('[accessToken, kind, user?.id]') && installmentsScreen.includes('const visibleItems = itemsKey === listKey ? items : []') && saleCreateScreen.includes('createSale(payload, accessToken, csrfToken, operationId, user?.id)')],
+    salesExtra.includes('cacheOwnerId: ownerId ?? undefined') && installmentsScreen.includes('fetchInstallments(kind, accessToken as string, user?.id as string, signal)') && installmentsScreen.includes('useAsyncResource<{ key: string; rows: InstallmentRow[] }>') && installmentsScreen.includes('key: listKey') && installmentsScreen.includes('resource.data?.key === listKey') && saleCreateScreen.includes('createSale(payload, accessToken, csrfToken, operationId, user?.id)')],
   ['outbox sale mutations preserve owner scope through the shared API client',
     createOutbox.includes('cacheOwnerId: input.ownerId')],
   ['shared pagination hydrates a cached first page before network refresh',

@@ -4,7 +4,7 @@ import { formatMoney, formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppHeader, ErrorState, LoadingState } from '@/components/ui';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
@@ -18,6 +18,7 @@ import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { statusLabel } from '@/lib/status-labels';
 import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 const STATUS: Record<string, string> = {
     PENDING: 'بانتظار الرد', ACCEPTED: 'مقبول', REJECTED: 'مرفوض', IN_PROGRESS: 'قيد التنفيذ', COMPLETED: 'مكتمل', CANCELLED: 'ملغي', EXPIRED: 'منتهي', DISPUTED: 'قيد المراجعة'
 };
@@ -37,42 +38,26 @@ export default function ServiceRequestDetailScreen() {
     }>();
     const id = Array.isArray(params.id) ? params.id[0] : params.id;
     const { user, accessToken, csrfToken } = useAuth();
-    const [request, setRequest] = useState<ServiceRequest | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [error, setError] = useState('');
     const [busy, setBusy] = useState<Action | ''>('');
     const [quote, setQuote] = useState('');
     const [disputeReason, setDisputeReason] = useState('');
-    const load = useCallback(async (refresh = false) => {
-        if (!id) {
-            setError('معرّف طلب الخدمة غير صالح.');
-            setLoading(false);
-            return;
-        }
-        if (!accessToken) {
-            setError('سجّل الدخول لعرض تفاصيل طلب الخدمة.');
-            setLoading(false);
-            return;
-        }
-        refresh ? setRefreshing(true) : setLoading(true);
-        setError('');
-        try {
-            const data = await fetchServiceRequest(id, accessToken);
-            setRequest(data);
+    // دورة الجلب الموحّدة؛ حقل السعر المقترح يُهيَّأ من الطلب المُحمَّل.
+    const resource = useAsyncResource<ServiceRequest>(
+        async () => {
+            const data = await fetchServiceRequest(id as string, accessToken as string);
             setQuote(data.quotedPrice == null ? '' : String(data.quotedPrice));
-        }
-        catch (e) {
-            setError(e instanceof Error ? e.message : 'تعذر تحميل تفاصيل الطلب.');
-        }
-        finally {
-            setLoading(false);
-            setRefreshing(false);
-        }
-    }, [accessToken, id]);
-    useEffect(() => {
-        void load();
-    }, [load]);
+            return data;
+        },
+        {
+            key: `${id ?? ''}|${accessToken ? 1 : 0}`,
+            manual: !id || !accessToken,
+            tag: 'service-request-detail',
+            mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل تفاصيل الطلب.'),
+        },
+    );
+    const { data: request, loading, refreshing, reload } = resource;
+    const error = !id ? 'معرّف طلب الخدمة غير صالح.' : !accessToken ? 'سجّل الدخول لعرض تفاصيل طلب الخدمة.' : resource.error ?? '';
+    const load = useCallback((refresh = false) => reload({ soft: refresh }), [reload]);
     const role = useMemo(() => {
         const providerUserId = request?.listing?.provider?.sellerProfile?.userId ?? request?.provider?.sellerProfile?.userId;
         return {

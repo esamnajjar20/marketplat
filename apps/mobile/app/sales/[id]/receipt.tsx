@@ -1,6 +1,5 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useState } from 'react';
 import { Share, View } from 'react-native';
 import { Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -10,6 +9,7 @@ import { fetchSaleReceipt } from '@/features/sales/sales-extra.api';
 import type { SaleRecord } from '@/features/sales/sales.api';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { formatDate, formatMoney } from '@/lib/formatters';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 type ReceiptSale = SaleRecord & {
   items?: Array<{
     id: string;
@@ -33,34 +33,25 @@ export default function SaleReceiptScreen() {
   }>();
   const id = Array.isArray(p.id) ? p.id[0] : p.id;
   const { accessToken, user, isRestoring } = useAuth();
-  const [sale, setSale] = useState<ReceiptSale | null>(null);
-  const [invoice, setInvoice] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const load = useCallback(async () => {
-    if (!accessToken || !id) {
-      setLoading(false);
-      setError('معرّف البيع أو الجلسة غير متاحة.');
-      return;
-    }
-    setLoading(true);
-    setError('');
-    try {
-      const r = await fetchSaleReceipt(id, accessToken);
-      setSale(r.sale as ReceiptSale);
-      setInvoice(r.invoiceNumber || r.sale.invoiceNumber || null);
-    }
-    catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل الفاتورة.');
-    }
-    finally {
-      setLoading(false);
-    }
-  }, [accessToken, id]);
-  useEffect(() => {
-    if (!isRestoring)
-      void load();
-  }, [isRestoring, load]);
+  const canLoad = !isRestoring && !!accessToken && !!id;
+  const resource = useAsyncResource<{ sale: ReceiptSale; invoice: string | null }>(
+    async () => {
+      const r = await fetchSaleReceipt(id as string, accessToken as string, user?.id);
+      return { sale: r.sale as ReceiptSale, invoice: r.invoiceNumber || r.sale.invoiceNumber || null };
+    },
+    {
+      key: `${id ?? ''}|${accessToken ? 1 : 0}`,
+      manual: !canLoad,
+      tag: 'sale-receipt',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل الفاتورة.'),
+    },
+  );
+  const { reload: load } = resource;
+  const sale = resource.data?.sale ?? null;
+  const invoice = resource.data?.invoice ?? null;
+  const error = !isRestoring && (!accessToken || !id) ? 'معرّف البيع أو الجلسة غير متاحة.' : resource.error ?? '';
+  // manual يتحول إلى false بعد انتهاء الاستعادة؛ نعدّ اللحظة السابقة لأول جلب تحميلًا لا فراغًا.
+  const loading = canLoad && (resource.loading || (!resource.data && !resource.error));
   if (isRestoring)
     return <PageShell title="فاتورة البيع"><Spinner color={colors.brand}/></PageShell>;
   if (!user)

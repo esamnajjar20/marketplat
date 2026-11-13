@@ -23,6 +23,12 @@ type Options<T> = {
   mapError?: (error: unknown) => string;
   tag?: string;
   initialData?: T | null;
+  /**
+   * قراءة اختيارية من الكاش المحلي قبل الشبكة (للتحميل الكامل فقط، لا للتحديث الناعم).
+   * إن وُجدت نسخة تُعرض فورًا ثم تُستبدل بنتيجة الشبكة؛ وإن فشلت الشبكة بعد عرضها تبقى النسخة
+   * ظاهرة دون خطأ. فشل القراءة نفسها لا يمنع طلب الشبكة.
+   */
+  readCached?: () => Promise<T | null>;
 };
 
 function isAbortError(error: unknown): boolean {
@@ -39,8 +45,14 @@ export function useAsyncResource<T>(
   fetcher: (signal?: AbortSignal) => Promise<T>,
   options: Options<T> = {},
 ): AsyncResourceState<T> {
-  const { key = '', manual = false, mapError = defaultMapError, tag = 'resource', initialData = null } =
-    options;
+  const {
+    key = '',
+    manual = false,
+    mapError = defaultMapError,
+    tag = 'resource',
+    initialData = null,
+    readCached,
+  } = options;
 
   const [data, setData] = useState<T | null>(initialData);
   const [loading, setLoading] = useState(!manual);
@@ -50,10 +62,12 @@ export function useAsyncResource<T>(
   const fetcherRef = useRef(fetcher);
   const mapErrorRef = useRef(mapError);
   const tagRef = useRef(tag);
+  const readCachedRef = useRef(readCached);
   const controllerRef = useRef<AbortController | null>(null);
   fetcherRef.current = fetcher;
   mapErrorRef.current = mapError;
   tagRef.current = tag;
+  readCachedRef.current = readCached;
 
   const reload = useCallback(
     async (opts?: { soft?: boolean }) => {
@@ -65,15 +79,31 @@ export function useAsyncResource<T>(
       if (soft) setRefreshing(true);
       else setLoading(true);
       setError(null);
+      let shownCached = false;
       try {
+        if (!soft && readCachedRef.current) {
+          try {
+            const cached = await readCachedRef.current();
+            if (cached != null && requestId === seq.current && !controller.signal.aborted) {
+              shownCached = true;
+              setData(cached);
+              setLoading(false);
+            }
+          } catch {
+            // فشل الكاش المحلي لا يجب أن يمنع القراءة من الشبكة.
+          }
+        }
+        if (requestId !== seq.current || controller.signal.aborted) return;
         const result = await fetcherRef.current(controller.signal);
         if (requestId !== seq.current || controller.signal.aborted) return;
         setData(result);
       } catch (e) {
         if (requestId !== seq.current || controller.signal.aborted || isAbortError(e)) return;
         const message = mapErrorRef.current(e);
-        setError(message);
         logger.warn(tagRef.current, 'load failed', { message });
+        // نسخة الكاش المعروضة تبقى بدل استبدالها بشاشة خطأ.
+        if (shownCached) return;
+        setError(message);
       } finally {
         if (requestId === seq.current) {
           setLoading(false);

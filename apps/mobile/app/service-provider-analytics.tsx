@@ -2,7 +2,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney, formatNumber } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
@@ -10,6 +10,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchServiceProviderAnalytics } from '@/features/services/service-management.api';
 import { Notice, PageShell, SectionCard } from '@/components/ui';
 import { fontWeights, spacing, radius } from '@/theme/tokens';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 const metrics: [
   string,
   string
@@ -19,39 +20,18 @@ const metrics: [
 export default function ServiceProviderAnalyticsScreen() {
   const { colors } = useAppTheme();
   const { accessToken } = useAuth();
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [period, setPeriod] = useState<'7d' | '30d' | 'all'>('30d');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const seq = useRef(0);
-  const load = useCallback(async () => {
-    if (!accessToken) {
-      setLoading(false);
-      return;
-    }
-    const current = ++seq.current;
-    setLoading(true);
-    setError('');
-    try {
-      const d = await fetchServiceProviderAnalytics(accessToken, period);
-      if (current === seq.current)
-        setData(d);
-    }
-    catch (e) {
-      if (current === seq.current)
-        setError(e instanceof Error ? e.message : 'تعذر تحميل الإحصاءات.');
-    }
-    finally {
-      if (current === seq.current)
-        setLoading(false);
-    }
-  }, [accessToken, period]);
-  useEffect(() => {
-    void load();
-    return () => {
-      seq.current += 1;
-    };
-  }, [load]);
+  const resource = useAsyncResource<Record<string, unknown>>(
+    () => fetchServiceProviderAnalytics(accessToken as string, period),
+    {
+      key: `${accessToken ? 1 : 0}|${period}`,
+      manual: !accessToken,
+      tag: 'service-provider-analytics',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل الإحصاءات.'),
+    },
+  );
+  const { data, loading } = resource;
+  const error = resource.error ?? '';
   return <PageShell title="إحصاءات مقدم الخدمة">{!accessToken ? <><Notice>سجّل الدخول لعرض الإحصاءات.</Notice><Pressable accessibilityRole="button" onPress={() => pushOnce('/login')}><Text style={{
     textAlign: 'center', color: colors.brand, fontWeight: fontWeights.bold
   }}>تسجيل الدخول</Text></Pressable></> : <><View style={{

@@ -1,7 +1,6 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatNumber } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
-import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Spinner, PageShell, Notice, PrimaryButton, SectionCard } from '@/components/ui';
 import { useLocalSearchParams } from 'expo-router';
@@ -10,6 +9,7 @@ import { apiRequest } from '@/api/client';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { spacing, typography } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 type Stats = {
     storeId: string;
     storeName: string;
@@ -30,33 +30,23 @@ export default function PublicStoreStatsScreen() {
     const { slug } = useLocalSearchParams<{
         slug: string;
     }>();
-    const [data, setData] = useState<Stats | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
-    const load = useCallback(async () => {
-        if (!slug) {
-            setError('رابط المتجر غير صالح.');
-            setLoading(false);
-            return;
-        }
-        setLoading(true);
-        setError('');
-        try {
-            const response = await apiRequest<Envelope<Stats>>(`/api/v1/public/stores/${encodeURIComponent(slug)}/stats`);
+    const resource = useAsyncResource<Stats>(
+        async (signal) => {
+            if (!slug)
+                throw new Error('رابط المتجر غير صالح.');
+            const response = await apiRequest<Envelope<Stats>>(`/api/v1/public/stores/${encodeURIComponent(slug)}/stats`, { signal });
             if (response.success !== true || !response.data)
                 throw new Error(response.message || 'تعذر تحميل إحصاءات المتجر.');
-            setData(response.data);
-        }
-        catch (e) {
-            setError(e instanceof Error ? e.message : 'تعذر تحميل الإحصاءات.');
-        }
-        finally {
-            setLoading(false);
-        }
-    }, [slug]);
-    useEffect(() => {
-        void load();
-    }, [load]);
+            return response.data;
+        },
+        {
+            key: slug ?? '',
+            tag: 'public-store-stats',
+            mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل الإحصاءات.'),
+        },
+    );
+    const { data, loading, reload: load } = resource;
+    const error = resource.error ?? '';
     return <PageShell title="إحصاءات المتجر">{loading ? <Spinner color={colors.brand}/> : error ? <><Notice>{error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void load()}/></> : data ? <><SectionCard><Text style={{
         ...typography.title, color: colors.ink, textAlign: 'right'
     }}>{data.storeName}</Text>{data.verifiedSeller ? <Text style={{
