@@ -2,7 +2,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { Spinner, ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -10,10 +10,11 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchDebtSummary, fetchDebts, type DebtSummary } from '@/features/sales/sales-extra.api';
 import type { SaleRecord } from '@/features/sales/sales.api';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
-import { marketListPerf } from '@/lib/listPerformance';
 import { formatSafeDate } from '@/lib/date-format';
 import { formatMoney } from '@/lib/formatters';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 const money = (n: unknown, c = 'ILS') => formatMoney(n, c);
 
@@ -82,11 +83,10 @@ export default function DebtsScreen() {
 
   return (
     <PageShell title="الديون والمبالغ المستحقة" scroll={false}>
-      <FlatList
+      <AppFlashList
         data={list.loading && list.items.length === 0 ? [] : list.items}
         keyExtractor={(sale) => sale.id}
-        {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l }}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
@@ -146,7 +146,7 @@ export default function DebtsScreen() {
             </SectionCard>
           </Pressable>
         )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ListGapMd}
         ListFooterComponent={
           <View style={{ gap: spacing.sm, marginTop: spacing.md }}>
             <PaginatedFooter list={list} />

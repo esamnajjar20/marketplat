@@ -5,15 +5,16 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { fetchPublicCollectionProducts } from '@/features/commerce/store-management.api';
 import type { ProductSummary } from '@/features/commerce/commerce.api';
 import { Notice, PageShell, SectionCard } from '@/components/ui';
 import { spacing, radius } from '@/theme/tokens';
-import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 
 export default function CollectionProductsScreen() {
@@ -45,11 +46,10 @@ export default function CollectionProductsScreen() {
 
   return (
     <PageShell title="منتجات المجموعة" scroll={false}>
-      <FlatList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
+      <AppFlashList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
         data={loading || error ? [] : items}
         keyExtractor={(item) => item.id}
-        {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l }}
         ListHeaderComponent={
           <View style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
             {loading ? <Notice tone="muted">جارٍ تحميل المنتجات…</Notice> : null}
@@ -75,7 +75,7 @@ export default function CollectionProductsScreen() {
             </SectionCard>
           </Pressable>
         )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ListGapMd}
       />
     </PageShell>
   );

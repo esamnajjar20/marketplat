@@ -4,7 +4,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { invalidateNavigationCapabilities } from '@/lib/navigation-policy';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 
 import { pushOnce } from '@/lib/navigation';
@@ -12,10 +12,10 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { acceptStoreInvite, fetchMyStoreInvites, removeStoreMember, type StoreMember } from '@/features/commerce/store-management.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { spacing } from '@/theme/tokens';
-import { marketListPerf } from '@/lib/listPerformance';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 import { roleLabel } from '@/lib/status-labels';
 import { showToast } from '@/lib/toast';
+import { AppFlashList } from '@/components/ui/AppFlashList';
 
 const inviteKeyExtractor = (item: StoreMember) => item.id;
 const InviteSeparator = () => <View style={{ height: spacing.md }} />;
@@ -82,11 +82,10 @@ export default function StoreInvitesScreen() {
           <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         </>
       ) : (
-        <FlatList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
+        <AppFlashList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
           data={loading ? [] : items}
           keyExtractor={inviteKeyExtractor}
-          {...marketListPerf}
-          contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+          contentContainerStyle={{ paddingBottom: spacing.x4l }}
           ListHeaderComponent={
             <View style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
               {loading ? <Notice tone="muted">جارٍ تحميل الدعوات…</Notice> : null}

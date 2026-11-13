@@ -1,4 +1,4 @@
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -19,7 +19,8 @@ import { formatDate, formatMoney } from '@/lib/formatters';
 import { fetchMyOrders, type MarketplaceOrder } from '@/features/commerce/orders.api';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { useAuth } from '@/features/auth/AuthContext';
-import { marketListPerf } from '@/lib/listPerformance';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 const STATUS: Record<string, { label: string; tone: 'brand' | 'danger' | 'success' | 'muted' | 'accent' }> = {
   PENDING: { label: 'بانتظار تأكيد المتجر', tone: 'accent' },
@@ -64,10 +65,9 @@ export default function MyOrdersScreen() {
     body = <ErrorState description={list.error ?? undefined} onAction={() => void list.retry()} />;
   } else {
     body = (
-      <FlatList
+      <AppFlashList
         data={list.items}
         keyExtractor={(order) => order.id}
-        {...marketListPerf}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -97,7 +97,7 @@ export default function MyOrdersScreen() {
             onAction={() => pushOnce('/products')}
           />
         }
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ListGapMd}
         renderItem={({ item: order }) => {
           const status = STATUS[order.status] ?? { label: order.status, tone: 'muted' as const };
           const first = order.items[0];

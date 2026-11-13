@@ -2,7 +2,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { memo, useCallback, useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { Spinner, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
@@ -11,8 +11,8 @@ import { spacing } from '@/theme/tokens';
 import { ListGapMd } from '@/components/ui/ListSeparator';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { toPaginatedResponse } from '@/lib/pagination';
-import { marketListPerf } from '@/lib/listPerformance';
 import { RatingStars } from '@/components/ui/RatingStars';
+import { AppFlashList } from '@/components/ui/AppFlashList';
 
 const providerKey = (item: ProviderSummary) => item.id;
 
@@ -59,13 +59,12 @@ export default function ServiceProvidersScreen() {
 
   return (
     <PageShell title="مقدمو الخدمات" scroll={false}>
-      <FlatList
+      <AppFlashList
         keyboardShouldPersistTaps="handled"
         data={items}
         keyExtractor={providerKey}
-        {...marketListPerf}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
-        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l }}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <Field label="تصفية حسب المدينة" value={city} onChangeText={setCity} placeholder="اسم المدينة" />

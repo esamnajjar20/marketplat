@@ -1,14 +1,15 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { Avatar, ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, SectionCard } from '@/components/ui';
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { fetchUserFollowList, type FollowListItem } from '@/features/account/social.api';
 import { spacing } from '@/theme/tokens';
-import { marketListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 const PAGE_SIZE = 20;
 const itemKey = (item: FollowListItem) => item.id;
@@ -36,11 +37,10 @@ export default function FollowingScreen() {
   return (
     <PageShell title="يتابع هذا المستخدم" scroll={false}>
       {!id ? <Notice>معرّف المستخدم غير موجود.</Notice> : null}
-      <FlatList
+      <AppFlashList
         data={list.items}
         keyExtractor={itemKey}
-        {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l }}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
@@ -65,7 +65,7 @@ export default function FollowingScreen() {
             </Pressable>
           );
         }}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ListGapMd}
         ListFooterComponent={
           <PaginatedFooter list={list} />
         }

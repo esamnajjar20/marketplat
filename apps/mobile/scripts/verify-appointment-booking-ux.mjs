@@ -34,10 +34,10 @@ assert.match(slots, /stepMs = 30 \* 60 \* 1000/);
 assert.match(slots, /Math\.ceil\(rangeStart \/ stepMs\) \* stepMs/);
 assert.match(slotTests, /does not return past or too-short ranges/);
 assert.match(listScreen, /usePaginatedList/);
-assert.match(listScreen, /<FlatList/);
+assert.match(listScreen, /<(?:AppFlashList|FlatList)/);
 assert.match(listScreen, /list\.loadMore\(\)/);
 assert.match(listScreen, /RefreshControl/);
-assert.match(serviceRequestsScreen, /<FlatList/);
+assert.match(serviceRequestsScreen, /<(?:AppFlashList|FlatList)/);
 assert.match(serviceRequestsScreen, /setLoadMoreError/);
 assert.match(serviceRequestsScreen, /const changeIncoming = \(next: boolean\) => \{/);
 assert.match(serviceRequestsScreen, /requestSequence\.current \+= 1/);
@@ -45,7 +45,7 @@ assert.match(serviceRequestsScreen, /setItems\(\[\]\)/);
 assert.match(serviceRequestsScreen, /changeIncoming/);
 assert.match(serviceRequestsScreen, /controller\.signal/);
 assert.match(serviceRequestsScreen, /data=\{initialLoading \|\| needsLogin \|\| \(visibleError && visibleItems.length === 0\) \? \[\] : visibleItems\}/);
-assert.match(servicesScreen, /<FlatList/);
+assert.match(servicesScreen, /<(?:AppFlashList|FlatList)/);
 assert.match(servicesScreen, /enabled: Boolean\(accessToken && user && !isRestoring\)/);
 
 

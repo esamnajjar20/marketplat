@@ -1,6 +1,6 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
@@ -8,8 +8,9 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyReports, type MyReport } from '@/features/account/social.api';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { formatSafeDate } from '@/lib/date-format';
-import { marketListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 const PAGE_SIZE = 20;
 const labels: Record<string, string> = {
@@ -42,11 +43,10 @@ export default function MyReportsScreen() {
           <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         </View>
       ) : (
-        <FlatList
+        <AppFlashList ItemSeparatorComponent={ListGapMd}
           data={list.items}
           keyExtractor={(item) => item.id}
-          {...marketListPerf}
-          contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+          contentContainerStyle={{ paddingBottom: spacing.x4l }}
           refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
           ListHeaderComponent={
             <View style={{ gap: spacing.md }}>

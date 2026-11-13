@@ -2,16 +2,17 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { Spinner, ListEmpty, ListStaleError, PaginatedFooter, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createCustomer, fetchCustomerSummary, fetchCustomers, type CustomerRow, type CustomerSummary } from '@/features/sales/sales-extra.api';
 import { spacing } from '@/theme/tokens';
-import { marketListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { formatMoney } from '@/lib/formatters';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 
 export default function CustomersScreen() {
@@ -137,11 +138,10 @@ export default function CustomersScreen() {
 
   return (
     <PageShell title="عملائي" scroll={false}>
-      <FlatList
+      <AppFlashList
         data={list.loading && list.items.length === 0 ? [] : list.items}
         keyExtractor={(item) => item.id}
-        {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l }}
         refreshControl={<RefreshControl refreshing={list.refreshing || summaryLoading} onRefresh={() => void refreshAll()} tintColor={colors.brand} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
@@ -199,7 +199,7 @@ export default function CustomersScreen() {
             {item.purchaseCount != null ? <Text tone="muted" size={12}>عدد المشتريات: {item.purchaseCount}</Text> : null}
           </SectionCard>
         )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ListGapMd}
         ListFooterComponent={<PaginatedFooter list={list} />}
       />
     </PageShell>

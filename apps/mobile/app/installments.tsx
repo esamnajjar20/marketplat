@@ -3,7 +3,7 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { FlatList, RefreshControl, TextInput, View } from 'react-native';
+import { RefreshControl, TextInput, View } from 'react-native';
 import { Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 
@@ -11,13 +11,14 @@ import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchInstallments, payInstallment, type InstallmentRow } from '@/features/sales/sales-extra.api';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
-import { marketListPerf } from '@/lib/listPerformance';
 import { ApiError } from '@/api/client';
 import { createMobileOperationId } from '@/lib/operation-id';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { formatSafeDate } from '@/lib/date-format';
 
 import { useAsyncResource } from '@/hooks/useAsyncResource';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 const money = (n: unknown) =>
   formatMoney(Number(n) || 0);
@@ -112,11 +113,10 @@ export default function InstallmentsScreen() {
 
   return (
     <PageShell title="الأقساط" scroll={false}>
-      <FlatList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={pullReload} tintColor={colors.brand} />}
+      <AppFlashList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={pullReload} tintColor={colors.brand} />}
         data={loading && visibleItems.length === 0 ? [] : visibleItems}
         keyExtractor={(item) => item.id}
-        {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l }}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <Notice tone="muted">
@@ -202,7 +202,7 @@ export default function InstallmentsScreen() {
             </SectionCard>
           );
         }}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ListGapMd}
         ListFooterComponent={
           <PrimaryButton label="عرض الديون" variant="secondary" onPress={() => pushOnce('/debts')} />
         }

@@ -3,7 +3,7 @@ import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -16,9 +16,10 @@ import {
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { spacing, fontWeights, radius } from '@/theme/tokens';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
-import { marketListPerf } from '@/lib/listPerformance';
 
 import { useAsyncResource } from '@/hooks/useAsyncResource';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 export default function SavedSearchesScreen() {
   const { colors } = useAppTheme();
@@ -117,11 +118,10 @@ export default function SavedSearchesScreen() {
           <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         </>
       ) : (
-        <FlatList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={pullReload} tintColor={colors.brand} />}
+        <AppFlashList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={pullReload} tintColor={colors.brand} />}
           data={loading && items.length === 0 ? [] : items}
           keyExtractor={(item) => item.id}
-          {...marketListPerf}
-          contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+          contentContainerStyle={{ paddingBottom: spacing.x4l }}
           ListHeaderComponent={
             <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
               <SectionCard>
@@ -204,7 +204,7 @@ export default function SavedSearchesScreen() {
               </Pressable>
             </SectionCard>
           )}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+          ItemSeparatorComponent={ListGapMd}
         />
       )}
     </PageShell>

@@ -2,7 +2,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { Avatar, Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 
@@ -10,8 +10,8 @@ import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchBlockedUsers, unblockUser, type BlockedUserItem } from '@/features/account/social.api';
 import { spacing } from '@/theme/tokens';
-import { marketListPerf } from '@/lib/listPerformance';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
+import { AppFlashList } from '@/components/ui/AppFlashList';
 
 const blockedKeyExtractor = (item: BlockedUserItem) => item.id;
 const BlockedSeparator = () => <View style={{ height: spacing.md }} />;
@@ -75,11 +75,10 @@ export default function BlockedUsersScreen() {
           <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         </>
       ) : (
-        <FlatList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={refreshList} tintColor={colors.brand} />}
+        <AppFlashList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={refreshList} tintColor={colors.brand} />}
           data={items}
           keyExtractor={blockedKeyExtractor}
-          {...marketListPerf}
-          contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+          contentContainerStyle={{ paddingBottom: spacing.x4l }}
           ListHeaderComponent={
             <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
               {loading ? <Spinner color={colors.brand} /> : null}

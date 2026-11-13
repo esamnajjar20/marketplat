@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import NetInfo from '@react-native-community/netinfo';
+import { setHardOffline } from '@/lib/connectivity-state';
 
 /**
  * Single source of truth for online/offline across the app.
@@ -18,23 +19,31 @@ function normalize(state: { isConnected: boolean | null; isInternetReachable: bo
   return true;
 }
 
+function track(state: { isConnected: boolean | null }): void {
+  setHardOffline(state.isConnected === false);
+}
+
 export function ConnectivityProvider({ children }: { children: ReactNode }) {
   const [isOnline, setIsOnline] = useState(true);
 
   useEffect(() => {
     let mounted = true;
     void NetInfo.fetch().then((state) => {
+      track(state);
       if (mounted) setIsOnline(normalize(state));
     }).catch(() => undefined);
 
     const unsubscribe = NetInfo.addEventListener((state) => {
+      track(state);
       if (mounted) setIsOnline(normalize(state));
     });
 
     return () => { mounted = false; unsubscribe(); };
   }, []);
 
-  return <ConnectivityContext.Provider value={{ isOnline }}>{children}</ConnectivityContext.Provider>;
+  const value = useMemo(() => ({ isOnline }), [isOnline]);
+
+  return <ConnectivityContext.Provider value={value}>{children}</ConnectivityContext.Provider>;
 }
 
 export function useIsOnline(): boolean {

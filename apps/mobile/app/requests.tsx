@@ -1,8 +1,7 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
-import { marketListPerf } from '@/lib/listPerformance';
+import { RefreshControl, View } from 'react-native';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 
 import { pushOnce } from '@/lib/navigation';
@@ -19,6 +18,7 @@ import {
   SectionCard,
 } from '@/components/ui';
 import { spacing, typography } from '@/theme/tokens';
+import { AppFlashList } from '@/components/ui/AppFlashList';
 
 
 const typeLabel: Record<string, string> = {
@@ -62,11 +62,10 @@ export default function RequestsScreen() {
 
   return (
     <PageShell title="طلبات السوق" scroll={false}>
-      <FlatList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={softReload} tintColor={colors.brand} />}
+      <AppFlashList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={softReload} tintColor={colors.brand} />}
         data={loading || error ? [] : items}
         keyExtractor={requestKeyExtractor}
-        {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l }}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <PrimaryButton label="+ إنشاء طلب جديد" onPress={() => pushOnce('/request-create')} />

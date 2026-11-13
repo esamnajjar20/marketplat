@@ -1,12 +1,13 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { FlatList, View } from 'react-native';
+import { View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
 import { toAppHref } from '@/lib/typed-navigation';
 import { ListRow, PageShell, SectionHeader } from '@/components/ui';
 import { spacing, typography } from '@/theme/tokens';
-import { marketListPerf } from '@/lib/listPerformance';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapXl } from '@/components/ui/ListSeparator';
 
 type Destination = { title: string; description: string; path: string };
 type DestinationGroup = { title: string; subtitle: string; items: Destination[] };
@@ -38,11 +39,10 @@ export default function ExploreScreen() {
 
   return (
     <PageShell title="استكشف السوق" scroll={false}>
-      <FlatList
+      <AppFlashList ItemSeparatorComponent={ListGapXl}
         data={groups}
         keyExtractor={(group) => group.title}
-        {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.xl }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l }}
         ListHeaderComponent={
           <Text style={{ textAlign: 'right', ...typography.body, color: colors.muted, marginBottom: spacing.md }}>
             تصفح أقسام السوق الثمانية كما تظهر على الويب، مع واجهة ملائمة للهاتف.

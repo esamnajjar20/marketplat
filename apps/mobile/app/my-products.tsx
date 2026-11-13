@@ -2,11 +2,10 @@ import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 import { formatMoney } from '@/lib/formatters';
-import { marketListPerf } from '@/lib/listPerformance';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useState, useMemo } from 'react';
-import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { RefreshControl, StyleSheet, View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
@@ -17,6 +16,8 @@ import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton } from '
 import { AppImage } from '@/components/AppImage';
 import { radius, spacing, typography } from '@/theme/tokens';
 import { COPY } from '@/lib/copy';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 const statusLabel: Record<string, string> = {
   ACTIVE: 'نشط', DRAFT: 'مسودة', PENDING: 'قيد المراجعة', REJECTED: 'مرفوض', SUSPENDED: 'موقوف', IN_STOCK: 'متوفر', LIMITED: 'كمية محدودة', OUT_OF_STOCK: 'نفد المخزون'
 };
@@ -85,7 +86,7 @@ export default function MyProductsScreen() {
   {inventoryMode ? <View style={{
     paddingHorizontal: spacing.lg, paddingTop: spacing.sm
   }}><Text style={s.muted}>عرض المنتجات التي لديها بيانات مخزون أو حالة توفر مسجلة. لتعديل الكمية أو حالة المنتج افتح تعديل المنتج.</Text></View> : null}
-  {isRestoring ? <LoadingState message="جارٍ استعادة الجلسة…"/> : !user ? <EmptyState title="سجّل الدخول لإدارة منتجاتك" actionLabel="تسجيل الدخول" onAction={() => router.push('/login')}/> : loading ? <LoadingState message="جاري تحميل منتجاتك…"/> : error && !items.length ? <ErrorState title="تعذر تحميل المنتجات" description={error} onAction={() => void refresh()}/> : <FlatList {...marketListPerf} data={visibleItems} keyExtractor={x => x.id} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.brand}/>} ListEmptyComponent={<EmptyState title={inventoryMode ? 'لا توجد بيانات مخزون بعد' : 'لم تضف منتجات بعد'} description={inventoryMode ? 'ستظهر هنا المنتجات التي لديها كمية أو حالة توفر مسجلة.' : 'أضف أول منتج إلى متجرك.'} actionLabel={inventoryMode ? 'عرض المنتجات' : 'إضافة منتج'} onAction={() => router.replace(inventoryMode ? '/my-products' : '/product-editor')}/>} renderItem={({ item }) => <View style={s.card}>
+  {isRestoring ? <LoadingState message="جارٍ استعادة الجلسة…"/> : !user ? <EmptyState title="سجّل الدخول لإدارة منتجاتك" actionLabel="تسجيل الدخول" onAction={() => router.push('/login')}/> : loading ? <LoadingState message="جاري تحميل منتجاتك…"/> : error && !items.length ? <ErrorState title="تعذر تحميل المنتجات" description={error} onAction={() => void refresh()}/> : <AppFlashList ItemSeparatorComponent={ListGapMd} data={visibleItems} keyExtractor={x => x.id} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.brand}/>} ListEmptyComponent={<EmptyState title={inventoryMode ? 'لا توجد بيانات مخزون بعد' : 'لم تضف منتجات بعد'} description={inventoryMode ? 'ستظهر هنا المنتجات التي لديها كمية أو حالة توفر مسجلة.' : 'أضف أول منتج إلى متجرك.'} actionLabel={inventoryMode ? 'عرض المنتجات' : 'إضافة منتج'} onAction={() => router.replace(inventoryMode ? '/my-products' : '/product-editor')}/>} renderItem={({ item }) => <View style={s.card}>
    <AppImage variant="list" uri={item.images?.[0]} style={s.image}/>
    <View style={s.body}><Text style={s.name}>{item.name}</Text><Text style={s.price}>{money(item.effectivePrice?.price ?? item.discountPrice ?? item.price)}</Text><Text style={s.muted}>{statusLabel[item.status || ''] || item.status || 'الحالة غير متاحة'} · {statusLabel[item.availability || ''] || item.availability || 'التوفر غير محدد'}</Text><Text style={s.muted}>المخزون: {typeof item.stockQuantity === 'number' ? item.stockQuantity : 'غير محدد'}</Text><View style={s.actions}><PrimaryButton label="تعديل" variant="secondary" onPress={() => router.push({
         pathname: '/product-editor', params: { id: item.id }
@@ -95,7 +96,7 @@ export default function MyProductsScreen() {
 }
 const createThemeS = (colors: ColorPalette) => StyleSheet.create({
   content: {
-    padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l
+    padding: spacing.lg, paddingBottom: spacing.x4l
   }, card: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border
   }, image: {

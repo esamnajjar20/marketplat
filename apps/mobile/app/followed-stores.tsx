@@ -1,9 +1,8 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
-import { marketListPerf } from '@/lib/listPerformance';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -13,6 +12,8 @@ import { fetchMyFollowedStores, toggleStoreFollow, type FollowedStoreRow } from 
 import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton, SearchBar } from '@/components/ui';
 import { AppImage } from '@/components/AppImage';
 import { fontSizes, radius, spacing } from '@/theme/tokens';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 export default function FollowedStoresScreen() {
   const { colors } = useAppTheme();
 
@@ -75,11 +76,10 @@ export default function FollowedStoresScreen() {
       ) : error && items.length === 0 ? (
         <ErrorState title="تعذر تحميل المتاجر" description={error} onAction={() => void refresh()} />
       ) : (
-        <FlatList
-          {...marketListPerf}
+        <AppFlashList ItemSeparatorComponent={ListGapMd}
           data={visible}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l }}
+          contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.x4l }}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.brand} />}
           ListHeaderComponent={(

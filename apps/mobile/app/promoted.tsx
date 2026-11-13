@@ -3,15 +3,16 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { ListEmpty, ListStaleError, PaginatedFooter, PageShell, SectionCard } from '@/components/ui';
-import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 
 import { pushOnce } from '@/lib/navigation';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 function price(p: ProductSummary): string {
   const value = Number(p.effectivePrice?.price ?? p.discountPrice ?? p.price);
@@ -44,11 +45,10 @@ export default function PromotedScreen() {
 
   return (
     <PageShell title="العروض والمنتجات المروجة" scroll={false}>
-      <FlatList
+      <AppFlashList ItemSeparatorComponent={ListGapMd}
         data={list.items}
         keyExtractor={(item) => item.id}
-        {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l }}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>

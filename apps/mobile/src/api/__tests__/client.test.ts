@@ -328,4 +328,31 @@ describe('account-scoped offline cache extensions', () => {
     expect(cache.clearPrivateCacheForPrefix).toHaveBeenCalledWith('/api/v1/notifications', 'owner-a');
     expect(cache.clearPrivateCache).not.toHaveBeenCalled();
   });
+
+  it('rejects writes immediately with OFFLINE (status undefined) while hard-disconnected, without calling fetch', async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const { apiRequest, ApiError } = await loadClient();
+    const { setHardOffline } = await import('@/lib/connectivity-state');
+    setHardOffline(true);
+
+    const error = await apiRequest('/api/v1/stories', { method: 'POST', token: 'token-a', body: '{}' }).catch((e) => e);
+
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.code).toBe('OFFLINE');
+    // Queue-backed screens enqueue on `status === undefined`; this must stay true.
+    expect(error.status).toBeUndefined();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not block reads while hard-disconnected (cache fallback still applies)', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Network request failed')));
+    const { apiRequest } = await loadClient();
+    const { setHardOffline } = await import('@/lib/connectivity-state');
+    setHardOffline(true);
+
+    const error = await apiRequest('/api/v1/ads').catch((e) => e);
+
+    expect(error.code).not.toBe('OFFLINE');
+  });
 });

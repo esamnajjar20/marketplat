@@ -4,7 +4,7 @@ import { formatDate, formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
-import { FlatList, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import { RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
@@ -12,7 +12,8 @@ import { EmptyState, ErrorState, LoadingState, Notice, PageShell } from '@/compo
 import { createServiceRequest, fetchServiceRequests, type ServiceRequest } from '@/features/services/services.api';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
-import { marketListPerf } from '@/lib/listPerformance';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 const statusLabels: Record<string, string> = { PENDING: 'بانتظار الرد', ACCEPTED: 'مقبول', REJECTED: 'مرفوض', IN_PROGRESS: 'قيد التنفيذ', COMPLETED: 'مكتمل', CANCELLED: 'ملغي', EXPIRED: 'منتهي', DISPUTED: 'قيد المراجعة' };
 
@@ -197,10 +198,9 @@ export default function ServiceRequestsScreen() {
 
   return (
     <PageShell title="طلبات الخدمات" scroll={false}>
-        <FlatList
+        <AppFlashList
           data={initialLoading || needsLogin || (visibleError && visibleItems.length === 0) ? [] : visibleItems}
           keyExtractor={(item) => item.id}
-          {...marketListPerf}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
@@ -239,7 +239,7 @@ export default function ServiceRequestsScreen() {
             <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/service-requests/[id]', params: { id: item.id } })} style={styles.acceptButton}><Text style={styles.acceptText}>عرض تفاصيل الطلب</Text></Pressable>
             {item.customerId === user?.id && ['ACCEPTED','IN_PROGRESS'].includes(item.status || '') ? <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/appointment-create', params: { requestId: item.id } })} style={styles.acceptButton}><Text style={styles.acceptText}>حجز موعد</Text></Pressable> : undefined}
           </View>}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+          ItemSeparatorComponent={ListGapMd}
           ListFooterComponent={initialLoading ? undefined : visibleLoadMoreError ? <View style={{ gap: spacing.sm }}><Notice>{visibleLoadMoreError}</Notice><Pressable accessibilityRole="button" disabled={loadingMore} onPress={() => void load(false)} style={[styles.primary, loadingMore && styles.disabled]}><Text style={styles.primaryText}>{loadingMore ? 'جارٍ التحميل…' : 'إعادة محاولة تحميل المزيد'}</Text></Pressable></View> : page < totalPages ? <Pressable accessibilityRole="button" disabled={loadingMore} onPress={() => void load(false)} style={[styles.primary, loadingMore && styles.disabled]}><Text style={styles.primaryText}>{loadingMore ? 'جارٍ تحميل المزيد…' : 'تحميل المزيد من الطلبات'}</Text></Pressable> : undefined}
         />
     </PageShell>
@@ -247,7 +247,7 @@ export default function ServiceRequestsScreen() {
 }
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
-  content: { gap: spacing.lg, paddingBottom: spacing.xl },
+  content: { paddingBottom: spacing.xl },
   form: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.md },
   formTitle: { color: colors.ink, fontSize: fontSizes[18], fontWeight: fontWeights.bold, textAlign: 'right' },
   formSubtitle: { color: colors.brand, fontSize: fontSizes[13], textAlign: 'right' },

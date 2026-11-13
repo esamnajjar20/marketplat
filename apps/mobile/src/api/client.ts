@@ -4,6 +4,8 @@ import { parseApiResponse } from '@/api/response-validation';
 import { API_BASE_URL_ERROR, getConfiguredApiBaseUrl } from '@/lib/api-base-url';
 import { markFreshApiResponse, markOfflineCacheResponse } from '@/api/offline-cache-status';
 import { logger } from '@/lib/logger';
+import { isHardOffline } from '@/lib/connectivity-state';
+import { COPY } from '@/lib/copy';
 /** Minimal API transport. Set EXPO_PUBLIC_API_URL in apps/mobile/.env before connecting real screens. */
 export type ApiFieldErrors = Record<string, string[]>;
 export type ApiErrorMeta = Record<string, unknown>;
@@ -342,6 +344,12 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions<T> 
       if (cached) return cached;
     }
     throw new ApiError(API_BASE_URL_ERROR);
+  }
+  // Fail fast for writes while the device is hard-disconnected: no spinner until timeout, one
+  // consistent message. status is undefined on purpose — queue-backed screens (sales, ads, orders,
+  // requests) already treat `ApiError.status === undefined` as "offline" and enqueue the write.
+  if (isHardOffline() && (init.method ?? 'GET').toUpperCase() !== 'GET') {
+    throw new ApiError(COPY.offlineWriteBlocked, undefined, undefined, 'OFFLINE');
   }
   const controller = new AbortController();
   const abortFromCaller = () => controller.abort();

@@ -1,7 +1,7 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useEffect, useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { ListEmpty, ListStaleError, PaginatedFooter, LoadingState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
@@ -12,7 +12,8 @@ import { fetchMyServiceProvider } from '@/features/services/providers.api';
 import { spacing } from '@/theme/tokens';
 import { formatDate } from '@/lib/formatters';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
-import { marketListPerf } from '@/lib/listPerformance';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 const labels: Record<string, string> = { SCHEDULED: 'مجدول', COMPLETED: 'مكتمل', CANCELLED: 'ملغى', NO_SHOW: 'لم يحضر' };
 
@@ -96,11 +97,10 @@ export default function AppointmentsScreen() {
 
   return (
     <PageShell title="المواعيد" scroll={false}>
-      <FlatList
+      <AppFlashList ItemSeparatorComponent={ListGapMd}
         data={showInitialState ? [] : list.items}
         keyExtractor={(item) => item.id}
-        {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: spacing.xl, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.xl }}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={(
           <View style={{ gap: spacing.md }}>

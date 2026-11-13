@@ -2,15 +2,16 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { fetchPublicCollections, type StoreCollection } from '@/features/commerce/store-management.api';
 import { ErrorState, Notice, PageShell, SectionCard } from '@/components/ui';
 import { spacing, radius } from '@/theme/tokens';
-import { marketListPerf } from '@/lib/listPerformance';
 import { AppImage } from '@/components/AppImage';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 export default function PublicStoreCollectionsScreen() {
 
@@ -25,11 +26,10 @@ export default function PublicStoreCollectionsScreen() {
 
   return (
     <PageShell title="مجموعات المتجر" scroll={false}>
-      <FlatList refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload({ soft: true })} tintColor={refreshTheme.brand} />}
+      <AppFlashList refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload({ soft: true })} tintColor={refreshTheme.brand} />}
         data={loading || error ? [] : items}
         keyExtractor={(item) => item.id}
-        {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l }}
         ListHeaderComponent={
           <View style={{ gap: spacing.sm, marginBottom: spacing.sm }}>
             {loading ? <Notice tone="muted">جارٍ تحميل المجموعات…</Notice> : null}
@@ -47,7 +47,7 @@ export default function PublicStoreCollectionsScreen() {
             </SectionCard>
           </Pressable>
         )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ListGapMd}
       />
     </PageShell>
   );

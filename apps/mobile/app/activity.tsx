@@ -3,15 +3,15 @@ import { formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { Spinner, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyActivity, type ActivityRow } from '@/features/sales/sales-extra.api';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
-import { denseListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { AppFlashList } from '@/components/ui/AppFlashList';
 
 const groups = [
   ['ALL', 'الكل'],
@@ -95,11 +95,10 @@ export default function ActivityScreen() {
 
   return (
     <PageShell title="سجل النشاط" scroll={false}>
-      <FlatList refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pullRefresh} tintColor={colors.brand} />}
+      <AppFlashList refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pullRefresh} tintColor={colors.brand} />}
         data={loading && items.length === 0 ? [] : items}
         keyExtractor={activityKeyExtractor}
-        {...denseListPerf}
-        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l }}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             

@@ -2,7 +2,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
@@ -10,8 +10,9 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyOffers, type RequestOffer } from '@/features/requests/requests.api';
 import { statusLabel } from '@/lib/status-labels';
 import { spacing } from '@/theme/tokens';
-import { marketListPerf } from '@/lib/listPerformance';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 const PAGE_SIZE = 30;
 
@@ -34,11 +35,10 @@ export default function MyOffersScreen() {
 
   return (
     <PageShell title="عروضي" scroll={false}>
-      <FlatList
+      <AppFlashList
         data={user ? list.items : []}
         keyExtractor={(item, index) => item.id || String(index)}
-        {...marketListPerf}
-        contentContainerStyle={{ paddingBottom: spacing.x4l, gap: spacing.md }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l }}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
@@ -58,7 +58,7 @@ export default function MyOffersScreen() {
             </SectionCard>
           </Pressable>
         )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ListGapMd}
         ListFooterComponent={
           <PaginatedFooter list={list} />
         }

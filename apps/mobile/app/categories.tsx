@@ -1,12 +1,13 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
 import { fetchPublicCategories, type PublicCategory } from '@/features/categories/categories.api';
 import { EmptyState, ErrorState, ListRow, LoadingState, PageShell } from '@/components/ui';
-import { marketListPerf } from '@/lib/listPerformance';
 import { spacing } from '@/theme/tokens';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapSm } from '@/components/ui/ListSeparator';
 
 export default function CategoriesScreen() {
   const { data, loading, refreshing, error, reload } = useAsyncResource<PublicCategory[]>(
@@ -21,10 +22,9 @@ export default function CategoriesScreen() {
       {loading ? <LoadingState message="جاري تحميل التصنيفات…" /> : error ? (
         <ErrorState title="تعذر تحميل التصنيفات" description={error} onAction={() => void reload()} />
       ) : (
-        <FlatList refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload({ soft: true })} tintColor={refreshTheme.brand} />}
+        <AppFlashList refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload({ soft: true })} tintColor={refreshTheme.brand} />}
           data={items}
           keyExtractor={(item) => item.id}
-          {...marketListPerf}
           contentContainerStyle={{ paddingBottom: spacing.xxl }}
           ListEmptyComponent={<EmptyState title="لا توجد تصنيفات نشطة" />}
           renderItem={({ item: category }) => (
@@ -34,7 +34,7 @@ export default function CategoriesScreen() {
               onPress={() => pushOnce({ pathname: '/categories/[id]', params: { id: category.id } })}
             />
           )}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          ItemSeparatorComponent={ListGapSm}
         />
       )}
     </PageShell>

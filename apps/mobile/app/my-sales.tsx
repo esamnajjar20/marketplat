@@ -4,8 +4,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PageShell } from '@/components/ui';
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
-import { marketListPerf } from '@/lib/listPerformance';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 
 import { pushOnce } from '@/lib/navigation';
@@ -14,6 +13,8 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchSales, fetchSalesSummary, type SalePaymentStatus, type SaleRecord, type SalesPeriod, type SalesSummary } from '@/features/sales/sales.api';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { formatDate, formatMoney, formatNumber } from '@/lib/formatters';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapLg } from '@/components/ui/ListSeparator';
 const periodOptions: {
     value: SalesPeriod;
     label: string;
@@ -130,7 +131,7 @@ export default function MySalesScreen() {
     }, [refreshList, loadSummary]);
     if (!user)
         return <PageShell title="مبيعاتي"><EmptyState title="مبيعاتي" description="سجّل الدخول لعرض سجل مبيعاتك." actionLabel="تسجيل الدخول" onAction={() => pushOnce('/login')}/></PageShell>;
-    return <ScreenFrame><AppHeader title="مبيعاتي"/><FlatList data={list.items} keyExtractor={(sale) => sale.id} {...marketListPerf} contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={list.refreshing || refreshingSummary} onRefresh={() => void refreshAll()} tintColor={colors.brand} />} ListHeaderComponent={<>
+    return <ScreenFrame><AppHeader title="مبيعاتي"/><AppFlashList ItemSeparatorComponent={ListGapLg} data={list.items} keyExtractor={(sale) => sale.id} contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={list.refreshing || refreshingSummary} onRefresh={() => void refreshAll()} tintColor={colors.brand} />} ListHeaderComponent={<>
     
     <Text style={s.subtitle}>سجل عمليات البيع والمدفوعات والمبالغ المستحقة.</Text>
     <Text style={s.sectionTitle}>ملخص المبيعات</Text>
@@ -177,7 +178,7 @@ ListFooterComponent={<>
   </>}/></ScreenFrame>;
 }
 const createThemeS = (colors: ColorPalette) => StyleSheet.create({ content: {
-        padding: spacing.lg, gap: spacing.lg, paddingBottom: insets.pageBottom
+        padding: spacing.lg, paddingBottom: insets.pageBottom
     }, subtitle: {
         fontSize: fontSizes[12], color: colors.muted, textAlign: 'right', lineHeight: 19
     }, sectionTitle: {

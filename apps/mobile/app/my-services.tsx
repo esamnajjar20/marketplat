@@ -3,7 +3,7 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Press } from '@/components/AccessiblePressable';
 import { useCallback, useState } from 'react';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 import { ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryButton, SectionCard, LoadingState } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
@@ -12,8 +12,9 @@ import { deleteMyServiceListing, fetchMyServiceListingsPage, type ServiceListing
 import { statusLabel } from '@/lib/status-labels';
 import { fontSizes, spacing } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
-import { marketListPerf } from '@/lib/listPerformance';
 import { showToast } from '@/lib/toast';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 export default function MyServicesScreen() {
   const { colors } = useAppTheme();
@@ -59,12 +60,11 @@ export default function MyServicesScreen() {
 
   return (
     <PageShell title="خدماتي" scroll={false}>
-      <FlatList
+      <AppFlashList
         data={initialLoading || needsLogin || (list.error && list.items.length === 0) ? [] : list.items}
         keyExtractor={(item) => item.id}
-        {...marketListPerf}
         style={{ flex: 1 }}
-        contentContainerStyle={{ flexGrow: 1, paddingBottom: spacing.xl }}
+        contentContainerStyle={{ paddingBottom: spacing.xl }}
         refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
         ListHeaderComponent={(
           <View style={{ gap: spacing.md, marginBottom: spacing.md }}>
@@ -90,7 +90,7 @@ export default function MyServicesScreen() {
             <Text tone="muted" size={12}>الحالة: {statusLabel(item.status || 'ACTIVE')}</Text>
           </SectionCard>
         )}
-        ItemSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ItemSeparatorComponent={ListGapMd}
         ListFooterComponent={<PaginatedFooter list={list} />}
       />
     </PageShell>

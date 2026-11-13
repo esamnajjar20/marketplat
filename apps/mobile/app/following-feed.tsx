@@ -2,10 +2,9 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppIcon } from '@/components/Icons';
 import { AppImage } from '@/components/AppImage';
-import { marketListPerf } from '@/lib/listPerformance';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { FlatList, RefreshControl, View } from 'react-native';
+import { RefreshControl, View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -15,6 +14,8 @@ import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { toAppHref } from '@/lib/typed-navigation';
+import { AppFlashList } from '@/components/ui/AppFlashList';
+import { ListGapMd } from '@/components/ui/ListSeparator';
 
 const PAGE_SIZE = 20;
 const itemKey = (item: FollowingFeedItem) => `${item.type}:${item.id}`;
@@ -53,11 +54,10 @@ export default function FollowingFeedScreen() {
       ) : list.loading ? <LoadingState message="جارٍ تحميل الموجز…" /> : list.error && !list.items.length ? (
         <ErrorState title="تعذر تحميل الموجز" description={list.error} onAction={() => void list.refresh()} />
       ) : (
-        <FlatList
-          {...marketListPerf}
+        <AppFlashList ItemSeparatorComponent={ListGapMd}
           data={list.items}
           keyExtractor={itemKey}
-          contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing.x4l, flexGrow: 1 }}
+          contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.x4l }}
           keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
           ListEmptyComponent={<EmptyState title="لا يوجد نشاط بعد" description="ستظهر هنا الإعلانات والمنتجات والخدمات الجديدة من الحسابات والمتاجر التي تتابعها." />}
