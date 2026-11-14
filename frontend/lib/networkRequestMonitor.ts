@@ -5,6 +5,8 @@
  * status; never records auth headers, bodies, cookies, arbitrary response
  * payloads, or raw query values.
  */
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
+
 export type NetworkRequestOutcome = 'success' | 'http-error' | 'network-error' | 'aborted';
 export type NetworkRequestRecord = {
   id: string;
@@ -185,7 +187,7 @@ function safeError(error: unknown): string {
 export function getNetworkRequests(): NetworkRequestRecord[] {
   if (typeof window === 'undefined') return [];
   try {
-    const value: unknown = JSON.parse(window.localStorage.getItem(NETWORK_REQUESTS_KEY) ?? '[]');
+    const value: unknown = JSON.parse(safeStorageGet(NETWORK_REQUESTS_KEY) ?? '[]');
     if (!Array.isArray(value)) return [];
 
     return value
@@ -215,14 +217,14 @@ function saveRequest(input: Omit<NetworkRequestRecord, 'id'>): void {
   try {
     const rows = getNetworkRequests();
     rows.unshift(row);
-    window.localStorage.setItem(NETWORK_REQUESTS_KEY, JSON.stringify(rows.slice(0, MAX_REQUESTS)));
+    safeStorageSet(NETWORK_REQUESTS_KEY, JSON.stringify(rows.slice(0, MAX_REQUESTS)));
     emitUpdate();
   } catch { /* Quota/private browsing: diagnostics must never break requests. */ }
 }
 
 export function clearNetworkRequests(): void {
   if (typeof window === 'undefined') return;
-  try { window.localStorage.removeItem(NETWORK_REQUESTS_KEY); } catch { /* restricted storage */ }
+  try { safeStorageRemove(NETWORK_REQUESTS_KEY); } catch { /* restricted storage */ }
   emitUpdate();
 }
 

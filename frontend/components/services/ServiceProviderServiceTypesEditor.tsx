@@ -13,7 +13,7 @@ import { queryKeys } from '@/lib/queryKeys';
 
 import { Spinner } from '@/components/ui/spinner';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 export function ServiceProviderServiceTypesEditor() {
   const queryClient = useQueryClient();
   const profiles = useQuery({ queryKey: queryKeys.serviceProviders.myServiceTypes(), queryFn: ({ signal }) => serviceProvidersApi.getMyServiceTypeProfiles({ signal }).then(r => r.data.data) });

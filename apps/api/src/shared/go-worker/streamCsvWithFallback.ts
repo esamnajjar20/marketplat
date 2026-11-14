@@ -3,6 +3,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
 import { logger } from '../observability/logger';
+import { getGoWorkerBaseUrl, getGoWorkerToken } from './goWorkerConfig';
 
 type StreamCsvWithFallbackOptions = {
   jobName: 'admin-users-csv' | 'admin-reports-csv' | 'seller-sales-csv';
@@ -40,8 +41,8 @@ export async function streamCsvWithGoFallback({
   body,
   timeoutMs = 15_000,
 }: StreamCsvWithFallbackOptions): Promise<'go' | 'express'> {
-  const baseUrl = process.env.GO_WORKER_URL?.trim().replace(/\/+$/, '');
-  const token = process.env.GO_WORKER_TOKEN?.trim();
+  const baseUrl = getGoWorkerBaseUrl();
+  const token = getGoWorkerToken();
 
   if (baseUrl && token) {
     let streamStarted = false;

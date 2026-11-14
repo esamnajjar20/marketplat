@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils';
 import type { Conversation, Message } from '@/types/conversation.types';
 
 import { Spinner } from '@/components/ui/spinner';
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
 const MESSAGES_PAGE_SIZE = 50;
 const MessageMediaGallery = dynamic(
   () => import('./MessageMediaGallery').then((module) => module.MessageMediaGallery),
@@ -153,9 +154,9 @@ export function ChatWindow({ conversationId }: Props) {
   useEffect(() => {
     if (typeof window === 'undefined' || !conversationId) return;
     const key = `chat-safety-tip:${conversationId}`;
-    if (window.sessionStorage.getItem(key)) return;
+    if (safeStorageGet(key, 'session')) return;
     setShowSafetyTip(true);
-    window.sessionStorage.setItem(key, '1');
+    safeStorageSet(key, '1', 'session');
     const timer = window.setTimeout(() => setShowSafetyTip(false), 9000);
     return () => window.clearTimeout(timer);
   }, [conversationId]);

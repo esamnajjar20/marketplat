@@ -1,4 +1,5 @@
 import { logger } from '../observability/logger';
+import { getGoWorkerBaseUrl, getGoWorkerToken } from './goWorkerConfig';
 
 type RequestJsonWithFallbackOptions<TResult> = {
   jobName: string;
@@ -20,8 +21,8 @@ type RequestJsonWithFallbackOptions<TResult> = {
 export async function requestJsonWithGoFallback<TResult>(
   options: RequestJsonWithFallbackOptions<TResult>
 ): Promise<TResult> {
-  const baseUrl = process.env.GO_WORKER_URL?.trim().replace(/\/+$/, '');
-  const token = process.env.GO_WORKER_TOKEN?.trim();
+  const baseUrl = getGoWorkerBaseUrl();
+  const token = getGoWorkerToken();
 
   if (baseUrl && token) {
     try {

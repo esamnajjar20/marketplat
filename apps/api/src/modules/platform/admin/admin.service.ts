@@ -21,6 +21,7 @@ import { adminStatsCache } from '../../../shared/cache/adminStatsCache';
 import { bumpAdsCacheVersion, bumpAdsCacheVersionAndHome } from '../../classifieds/ads/ads.service';
 import { hidePublicEntities } from '../../../shared/cache/publicListCache';
 import { logger } from '../../../shared/observability/logger';
+import { getGoWorkerBaseUrl, getGoWorkerToken } from '../../../shared/go-worker/goWorkerConfig';
 
 /** كاش دقيقة لصفحة صحة النظام — يقلل PING على Upstash */
 let _systemHealthMem: { at: number; value: any } | null = null;
@@ -58,8 +59,8 @@ export const adminService = {
   runDataIntegrityScan: async (): Promise<DataIntegrityScanReport> => {
     if (_dataIntegrityScanInFlight) return _dataIntegrityScanInFlight;
 
-    const baseUrl = process.env.GO_WORKER_URL?.trim().replace(/\/+$/, '');
-    const token = process.env.GO_WORKER_TOKEN?.trim();
+    const baseUrl = getGoWorkerBaseUrl();
+    const token = getGoWorkerToken();
     if (!baseUrl || !token) {
       throw new ServiceUnavailableError(
         'خدمة فحص سلامة البيانات في Go غير مهيأة حاليًا.',

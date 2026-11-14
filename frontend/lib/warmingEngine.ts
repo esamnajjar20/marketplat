@@ -10,6 +10,7 @@ import { WarmingPriorityQueue } from './warmingPriorityQueue';
 import { beginWarmingRuntimeBudget, getWarmingRuntimeBudgetState } from './warmingRuntimeBudget';
 import { getBackgroundWarmingBudget, shouldPauseBackgroundWarming } from './offlineStoragePressure';
 import { warmRouteShellsAtomic, warmPersonalShellsAtomic } from './offlineRouteShells';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 export interface WarmingEngineOptions {
   authenticated: boolean;
@@ -101,7 +102,7 @@ export async function runWarmingEngine(options: WarmingEngineOptions): Promise<W
       allowImages: budget.allowImages && liveBudget.allowImages,
     };
     const networkUnavailable =
-      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      (isDeviceOffline()) ||
       livePolicy.tier === 'offline' ||
       livePolicy.saveData ||
       !livePolicy.allowBackgroundWarming ||

@@ -25,6 +25,7 @@ import { CACHE_TTL } from '@/lib/constants';
 import { useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { canonicalBrowseSearchParams, getBrowseParam, parseBrowseSearchParams, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type BrowseSearchParams } from '@/lib/browseSearchParams';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 /** GET /stores directory grid. Route filters arrive from the Server Page as props. */
 interface StoresGridProps {
@@ -79,7 +80,7 @@ export function StoresGrid({ initialPage, initialPageUpdatedAt, searchParams: in
         description="لا تتوفر بيانات المتاجر المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
         fallback={
       <div className="space-y-4">
-        <div className="h-5 w-32 rounded bg-muted animate-pulse" />
+        <Skeleton className="h-5 w-32 rounded" />
         {/* DESKTOP-AUDIT-05: capped at md:grid-cols-2 with no lg/xl/2xl
             step at all, unlike ProductsGrid/ServiceListingsGrid/
             SearchResults sharing this exact same content column width

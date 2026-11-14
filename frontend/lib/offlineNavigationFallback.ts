@@ -7,6 +7,8 @@
  * navigation. The Service Worker can then serve the already-visited, verified
  * HTML shell and its cached chunks.
  */
+import { isDeviceOffline } from '@/lib/offlineError';
+
 
 const INTERNAL_NON_PAGE_PATHS = ['/api', '/_next', '/auth', '/csrf', '/login', '/register', '/forgot-password', '/reset-password'];
 
@@ -101,7 +103,7 @@ export function installOfflineNavigationFallback(): () => void {
   };
 
   const onClick = (event: MouseEvent) => {
-    if (navigator.onLine !== false || event.defaultPrevented || event.button !== 0) return;
+    if (!isDeviceOffline() || event.defaultPrevented || event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const anchor = findAnchor(event.target);
     if (!anchor || anchor.hasAttribute('download')) return;

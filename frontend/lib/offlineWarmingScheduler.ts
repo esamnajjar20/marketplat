@@ -35,6 +35,7 @@
 import { getLastPipelineRun, runWarmingPipeline } from './offlineWarmingPipeline';
 import { getWarmingPlan } from './offlineWarmingPlanner';
 import { getNetworkPolicy } from './networkPolicy';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 export type WarmTrigger = 'mount' | 'auth' | 'online' | 'visible' | 'tick';
 
@@ -105,7 +106,7 @@ function start(): void {
   // pending job, so a later visible/online trigger can resume it.
   if (!pending) return;
   if (document.visibilityState === 'hidden') return;
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  if (isDeviceOffline()) return;
   const policy = getNetworkPolicy();
   if (policy.tier === 'offline' || !policy.allowBackgroundWarming) return;
 

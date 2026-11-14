@@ -15,6 +15,7 @@ import { subscribeNetworkLifecycle } from '@/lib/networkLifecycle';
 import type { Message, ConversationListItem } from '@/types/conversation.types';
 import type { PaginatedResponse } from '@/types/api.types';
 import type { NotificationData } from '@/types/notification.types';
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
 
 export type LiveNotificationPayload = {
   type: 'notification';
@@ -244,7 +245,7 @@ export function useNotificationStream(options?: Options) {
     // server replays what we missed; absent on the very first connect.
     let lastEventId: string | undefined;
     try {
-      lastEventId = sessionStorage.getItem(SSE_LAST_EVENT_STORAGE_KEY) ?? undefined;
+      lastEventId = safeStorageGet(SSE_LAST_EVENT_STORAGE_KEY, 'session') ?? undefined;
     } catch {
       lastEventId = undefined;
     }
@@ -335,7 +336,7 @@ export function useNotificationStream(options?: Options) {
               // FIX-F3-RESYNC-01: clear lastEventId; otherwise every reconnect
               // re-sends the same stale id and the server re-emits resync+refetch.
               lastEventId = undefined;
-              try { sessionStorage.removeItem(SSE_LAST_EVENT_STORAGE_KEY); } catch { /* storage unavailable */ }
+              try { safeStorageRemove(SSE_LAST_EVENT_STORAGE_KEY, 'session'); } catch { /* storage unavailable */ }
               // Server could not prove the replay was complete → drop caches' trust.
               refetchAfterGap(queryClient);
               continue;
@@ -385,7 +386,7 @@ export function useNotificationStream(options?: Options) {
               onEventRef.current?.(payload);
               if (eventId) {
                 lastEventId = eventId;
-                try { sessionStorage.setItem(SSE_LAST_EVENT_STORAGE_KEY, eventId); } catch { /* storage unavailable */ }
+                try { safeStorageSet(SSE_LAST_EVENT_STORAGE_KEY, eventId, 'session'); } catch { /* storage unavailable */ }
               }
             } catch {
               /* ignore */

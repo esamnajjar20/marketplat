@@ -19,6 +19,7 @@ import { getNetworkRequests } from '@/lib/networkRequestMonitor';
 import { getDeviceErrorsAsync } from '@/lib/deviceErrorMonitor';
 import { toast } from 'sonner';
 import { formatClockTime } from '@/lib/formatters';
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
 
 const HISTORY_KEY = 'admin:console:history';
 const MAX_HISTORY = 20;
@@ -80,7 +81,7 @@ export function AdminConsolePanel() {
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(HISTORY_KEY);
+      const raw = safeStorageGet(HISTORY_KEY);
       if (raw) setHistory(JSON.parse(raw));
     } catch { /* ignore */ }
   }, []);
@@ -94,7 +95,7 @@ export function AdminConsolePanel() {
   const pushHistory = (cmd: string) => {
     const next = [cmd, ...history.filter((h) => h !== cmd)].slice(0, MAX_HISTORY);
     setHistory(next);
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+    try { safeStorageSet(HISTORY_KEY, JSON.stringify(next)); } catch { /* ignore */ }
     setHistoryIdx(-1);
   };
 

@@ -36,6 +36,7 @@ import { getOfflineBrowseSnapshot, saveOfflineBrowseSnapshot } from '@/lib/offli
 import type { AdListItem as AdListItemData } from '@/types/ad.types';
 import type { BrowsePage } from '@/types/browse.types';
 import { SSR_BROWSE_PAGE_SIZE } from '@/lib/browseSearchParams';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 const SaveSearchButton = dynamic(
   () => import('@/components/ads/SaveSearchButton').then((module) => module.SaveSearchButton),
@@ -203,7 +204,7 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
         description="لا تتوفر بيانات الإعلانات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
         fallback={
       <div className="space-y-4">
-        <div className="h-5 w-32 rounded bg-muted animate-pulse" />
+        <Skeleton className="h-5 w-32 rounded" />
         {view === 'grid' ? (
           <div className={cn(LIST_CARD_GRID_CLASS)}>
             {Array.from({ length: 9 }).map((_, i) => <AdCardSkeleton key={i} />)}

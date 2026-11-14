@@ -1,67 +1,13 @@
-import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { NextResponse, type NextRequest } from 'next/server';
+import { asRecord, callApiWorker, isSameOriginMutation, jsonError, NO_STORE_HEADERS, readLimitedText, runtimeBindings, type WorkerBinding } from '@/lib/server/gatewayRoute';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-type WorkerBinding = { fetch: (request: Request) => Promise<Response> };
 type RuntimeBindings = {
   API_WORKER?: WorkerBinding;
   FEATURE_FLAGS_ADMIN_TOKEN?: string;
 };
-
-const NO_STORE_HEADERS = { 'cache-control': 'no-store, max-age=0' };
-
-function runtimeBindings(): RuntimeBindings {
-  try {
-    return getCloudflareContext().env as unknown as RuntimeBindings;
-  } catch {
-    return {};
-  }
-}
-
-function apiFallbackOrigin(): string | null {
-  const configured = process.env.API_BASE_URL || process.env.NEXT_PUBLIC_API_URL;
-  if (!configured) return process.env.NODE_ENV === 'production' ? null : 'http://localhost:5000';
-  try {
-    const url = new URL(configured);
-    if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
-    return url.origin;
-  } catch {
-    return null;
-  }
-}
-
-async function callApiWorker(path: string, init: RequestInit, bindings: RuntimeBindings): Promise<Response> {
-  const request = new Request(`https://api${path}`, { ...init, redirect: 'manual' });
-  if (bindings.API_WORKER) return bindings.API_WORKER.fetch(request);
-  if (process.env.NODE_ENV === 'production') throw new Error('API_WORKER service binding is unavailable');
-  const origin = apiFallbackOrigin();
-  if (!origin) throw new Error('API origin is not configured');
-  return fetch(new URL(path, origin), { ...init, redirect: 'manual', cache: 'no-store' });
-}
-
-function isSameOriginMutation(request: NextRequest): boolean {
-  const origin = request.headers.get('origin');
-  if (!origin) return false;
-  try {
-    if (new URL(origin).origin !== request.nextUrl.origin) return false;
-  } catch {
-    return false;
-  }
-  const fetchSite = request.headers.get('sec-fetch-site');
-  return !fetchSite || fetchSite === 'same-origin';
-}
-
-function jsonError(error: string, status: number) {
-  return NextResponse.json({ ok: false, error }, { status, headers: NO_STORE_HEADERS });
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null;
-}
 
 function superAdminIdFromPayload(payload: unknown): string | null {
   const root = asRecord(payload);
@@ -75,39 +21,6 @@ function superAdminIdFromPayload(payload: unknown): string | null {
     return record.id;
   }
   return null;
-}
-
-async function readLimitedText(response: Response, maxBytes: number): Promise<string> {
-  const declaredLength = response.headers.get('content-length');
-  if (declaredLength !== null && (!/^\d+$/.test(declaredLength) || Number(declaredLength) > maxBytes)) {
-    throw new Error('Upstream response exceeded the configured size limit');
-  }
-  if (!response.body) return '';
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > maxBytes) {
-        await reader.cancel();
-        throw new Error('Upstream response exceeded the configured size limit');
-      }
-      chunks.push(value);
-    }
-  } catch (error) {
-    await reader.cancel().catch(() => undefined);
-    throw error;
-  }
-  const bytes = new Uint8Array(total);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
 }
 
 async function verifySuperAdminSession(request: NextRequest, bindings: RuntimeBindings): Promise<string | null> {
@@ -167,7 +80,7 @@ async function readLimitedJsonBody(request: NextRequest): Promise<string | null>
 }
 
 async function proxy(request: NextRequest, method: 'GET' | 'PUT') {
-  const bindings = runtimeBindings();
+  const bindings = runtimeBindings<RuntimeBindings>();
   if (method === 'PUT' && !isSameOriginMutation(request)) return jsonError('CSRF_REJECTED', 403);
   const actorId = await verifySuperAdminSession(request, bindings);
   if (!actorId) return jsonError('SUPER_ADMIN_REQUIRED', 403);

@@ -1,6 +1,7 @@
 'use client';
 
 import { reportBackgroundFailure } from './backgroundTask';
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
 /**
  * lib/offlineWarmingCoordinator.ts
  *
@@ -75,7 +76,7 @@ function fallbackKeyFor(lockName: string): string {
 
 function readFallbackLock(key: string): number {
   try {
-    const raw = localStorage.getItem(key);
+    const raw = safeStorageGet(key);
     if (!raw) return 0;
     const ts = Number(raw);
     return Number.isFinite(ts) ? ts : 0;
@@ -86,7 +87,7 @@ function readFallbackLock(key: string): number {
 
 function writeFallbackLock(key: string, ts: number): void {
   try {
-    localStorage.setItem(key, String(ts));
+    safeStorageSet(key, String(ts));
   } catch {
     // localStorage may be unavailable (Safari Private, quota, etc.)
     // — in that case the fallback lock simply never engages and
@@ -99,7 +100,7 @@ function clearFallbackLock(key: string, ts: number): void {
     // Only clear if we still own it (someone else may have stolen it
     // after our TTL expired).
     if (readFallbackLock(key) === ts) {
-      localStorage.removeItem(key);
+      safeStorageRemove(key);
     }
   } catch {
     // silent

@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Search, ShoppingCart, Trash2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/shared/ui/Dialog';
+import { Button } from '@/components/shared/ui/Button';
+import { Input } from '@/components/shared/ui/Input';
 import { useMyProducts } from '@/hooks/queries/useProducts';
 import { useCustomerSearch } from '@/hooks/queries/useCustomers';
 import { useCreateSale } from '@/hooks/mutations/useSaleMutations';

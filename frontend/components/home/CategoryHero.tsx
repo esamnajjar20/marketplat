@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { Tag, AlertTriangle } from 'lucide-react';
 import { useCategoryBySlug } from '@/hooks/queries/useCategories';
 import { track } from '@/lib/analytics';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 interface Props { slug: string; }
 
@@ -19,7 +20,7 @@ export function CategoryHero({ slug }: Props) {
   }, [category?.id, slug]);
 
   if (isLoading) {
-    return <div className="h-16 rounded-lg bg-muted animate-pulse" />;
+    return <Skeleton className="h-16 rounded-lg" />;
   }
 
   // previously `isLoading || !category` fell through to the

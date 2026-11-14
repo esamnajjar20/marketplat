@@ -3,7 +3,7 @@
 import { BellRing, Play, CheckCircle2, AlertCircle } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/shared/ui/Button';
 import { salesApi } from '@/api/sales.api';
 import { parseApiError } from '@/lib/errorParser';
 

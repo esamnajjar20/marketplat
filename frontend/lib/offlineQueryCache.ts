@@ -3,6 +3,7 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query';
 // PERF-BUNDLE-PROVIDERS-01: المفتاح + قارئ التاريخ في ملف صغير (NetworkStatusBanner يقرأه
 // من الحزمة الأولى دون سحب هذا الملف كاملًا).
 import { LAST_CACHE_AT_KEY, getLastOfflineQueryCacheSavedAt } from './offlineQueryCacheMarker';
+import { safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
 export { getLastOfflineQueryCacheSavedAt };
 
 export const OFFLINE_QUERY_CACHE_DB = 'marketplat-offline-query-cache-v1';
@@ -62,8 +63,8 @@ export function isValidOfflineQueryCacheEntry(record: unknown, now = Date.now())
 function writeLastCacheMarker(value: number | null): void {
   try {
     if (typeof localStorage === 'undefined') return;
-    if (value !== null && value > 0) localStorage.setItem(LAST_CACHE_AT_KEY, String(value));
-    else localStorage.removeItem(LAST_CACHE_AT_KEY);
+    if (value !== null && value > 0) safeStorageSet(LAST_CACHE_AT_KEY, String(value));
+    else safeStorageRemove(LAST_CACHE_AT_KEY);
   } catch { /* best-effort */ }
 }
 
@@ -396,7 +397,7 @@ export async function clearOfflineQueryCache(): Promise<void> {
   try {
     db = await openDb(); const tx = db.transaction(OFFLINE_QUERY_CACHE_STORE, 'readwrite'); tx.objectStore(OFFLINE_QUERY_CACHE_STORE).clear();
     await new Promise<void>((resolve, reject) => { tx.oncomplete = () => resolve(); tx.onerror = () => reject(tx.error ?? new Error('IndexedDB clear failed')); tx.onabort = () => reject(tx.error ?? new Error('IndexedDB clear aborted')); });
-  } catch { /* logout must continue if IndexedDB is unavailable */ } finally { db?.close(); try { localStorage.removeItem(LAST_CACHE_AT_KEY); } catch { /* ignore */ } }
+  } catch { /* logout must continue if IndexedDB is unavailable */ } finally { db?.close(); try { safeStorageRemove(LAST_CACHE_AT_KEY); } catch { /* ignore */ } }
 }
 export function subscribeOfflineQueryCache(queryClient: QueryClient): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined; let disposed = false;

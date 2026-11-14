@@ -7,6 +7,7 @@ import type { Ad } from '@/types/ad.types';
 import { localGet, localSet } from '@/lib/localStore';
 import { getThumbnailUrl } from '@/lib/cloudinary';
 import { API_BASE_URL } from '@/lib/constants';
+import { safeStorageRemove } from '@/lib/browserStorage';
 import { fetchWithTimeout } from './fetchTimeout'; // NETWORK-FETCH-TIMEOUT-01
 
 const INDEX_KEY = 'marketplat:auto-read-ads';
@@ -261,7 +262,7 @@ async function autoSaveVisitedAdImpl(ad: Ad, userId?: string | null): Promise<vo
 export async function clearAutoReadCache(): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.removeItem(INDEX_KEY);
+    safeStorageRemove(INDEX_KEY);
   } catch {
     /* ignore */
   }

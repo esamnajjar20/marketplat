@@ -3,6 +3,8 @@
  */
 
 /** تسمية فاصل اليوم في المحادثة */
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
+
 export function messageDayLabel(iso: string, now: Date): string {
   const d = new Date(iso);
   const dayParts = (date: Date) => {
@@ -76,7 +78,7 @@ const DRAFT_PREFIX = 'msg-draft:';
 export function loadMessageDraft(conversationId: string): string {
   if (typeof window === 'undefined') return '';
   try {
-    return sessionStorage.getItem(DRAFT_PREFIX + conversationId) ?? '';
+    return safeStorageGet(DRAFT_PREFIX + conversationId, 'session') ?? '';
   } catch {
     return '';
   }
@@ -85,8 +87,8 @@ export function loadMessageDraft(conversationId: string): string {
 export function saveMessageDraft(conversationId: string, body: string): void {
   if (typeof window === 'undefined') return;
   try {
-    if (!body.trim()) sessionStorage.removeItem(DRAFT_PREFIX + conversationId);
-    else sessionStorage.setItem(DRAFT_PREFIX + conversationId, body);
+    if (!body.trim()) safeStorageRemove(DRAFT_PREFIX + conversationId, 'session');
+    else safeStorageSet(DRAFT_PREFIX + conversationId, body, 'session');
   } catch {
     /* private mode */
   }
@@ -95,7 +97,7 @@ export function saveMessageDraft(conversationId: string, body: string): void {
 export function clearMessageDraft(conversationId: string): void {
   if (typeof window === 'undefined') return;
   try {
-    sessionStorage.removeItem(DRAFT_PREFIX + conversationId);
+    safeStorageRemove(DRAFT_PREFIX + conversationId, 'session');
   } catch {
     /* */
   }

@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/shared/ui/Dialog';
+import { Button } from '@/components/shared/ui/Button';
+import { Input } from '@/components/shared/ui/Input';
 import type { SaleRecord, SaleTransferMethod } from '@/types/sale.types';
 import { useAddSalePayment } from '@/hooks/mutations/useSaleMutations';
 import { formatMoney } from '@/lib/formatters';

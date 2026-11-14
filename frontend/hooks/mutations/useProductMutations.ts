@@ -25,6 +25,7 @@ import type { CreateProductPayload, UpdateProductPayload } from '@/types/product
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 
+import { isDeviceOffline } from '@/lib/offlineError';
 /**
  * Accepts an optional onUploadProgress callback, same pattern as
  * useCreateServiceListing, so ProductForm can drive a real progress
@@ -64,7 +65,7 @@ export function useCreateProduct(onUploadProgress?: (percent: number) => void) {
     },
     onError: async (err, payload) => {
       const parsed = parseApiError(err);
-      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      const offline = isDeviceOffline();
       // FIX FALSE-OFFLINE-DRAFT-01 + ONLINE-SILENT-DRAFT-01
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
@@ -161,7 +162,7 @@ export function useUpdateProduct(productId: string) {
     },
     onError: async (err, payload) => {
       const parsed = parseApiError(err);
-      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      const offline = isDeviceOffline();
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
           await saveAdDraft({

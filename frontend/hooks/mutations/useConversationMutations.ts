@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { sendConversationMessage } from '@/lib/sendConversationMessage';
 import type { SendMessagePayload, Message, ConversationListItem } from '@/types/conversation.types';
 import type { PaginatedResponse } from '@/types/api.types';
+import { toastMutationError } from '@/lib/mutationFeedback';
 
 export type SendMessageVariables = SendMessagePayload & { operationId?: string };
 
@@ -298,7 +299,7 @@ export function useDeleteMessage(conversationId: string) {
         queryKey: queryKeys.conversations.messagesRoot(conversationId),
       });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -320,7 +321,7 @@ export function useSetConversationFlags() {
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
       if (variables?.id) queryClient.invalidateQueries({ queryKey: queryKeys.conversations.detail(variables.id) });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -339,7 +340,7 @@ export function useMessageMarkMutation(conversationId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations.messagesRoot(conversationId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations.media(conversationId) });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -354,6 +355,6 @@ export function useDeleteConversation() {
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations.unreadCount() });
       toast.success('تم حذف المحادثة من محادثاتك');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

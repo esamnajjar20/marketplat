@@ -28,6 +28,8 @@
  */
 
 import { reportClientError } from './errorReporter';
+import { isDeviceOffline } from '@/lib/offlineError';
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
 
 const SESSION_COUNT_KEY = 'warming:report-count';
 const ROUTE_REPORTED_KEY = 'warming:reported'; // JSON map of key -> ts
@@ -70,7 +72,7 @@ interface ReportInput {
 
 function readCount(): number {
   try {
-    return Number(sessionStorage.getItem(SESSION_COUNT_KEY) ?? 0) || 0;
+    return Number(safeStorageGet(SESSION_COUNT_KEY, 'session') ?? 0) || 0;
   } catch {
     return 0;
   }
@@ -78,7 +80,7 @@ function readCount(): number {
 
 function bumpCount(): void {
   try {
-    sessionStorage.setItem(SESSION_COUNT_KEY, String(readCount() + 1));
+    safeStorageSet(SESSION_COUNT_KEY, String(readCount() + 1), 'session');
   } catch {
     // silent
   }
@@ -86,7 +88,7 @@ function bumpCount(): void {
 
 function readReportedMap(): Record<string, number> {
   try {
-    const raw = sessionStorage.getItem(ROUTE_REPORTED_KEY);
+    const raw = safeStorageGet(ROUTE_REPORTED_KEY, 'session');
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === 'object' ? parsed : {};
@@ -97,14 +99,14 @@ function readReportedMap(): Record<string, number> {
 
 function writeReportedMap(m: Record<string, number>): void {
   try {
-    sessionStorage.setItem(ROUTE_REPORTED_KEY, JSON.stringify(m));
+    safeStorageSet(ROUTE_REPORTED_KEY, JSON.stringify(m), 'session');
   } catch {
     // silent
   }
 }
 
 function shouldSkip(input: ReportInput): string | null {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+  if (isDeviceOffline()) {
     return 'offline';
   }
   if (input.attempts < 2) return 'first-attempt';

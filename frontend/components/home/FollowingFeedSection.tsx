@@ -6,7 +6,7 @@ import { useFollowingFeed } from '@/hooks/queries/useFollows';
 import { useAuthStore } from '@/store/auth.store';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { ROUTES } from '@/lib/constants';
 import { formatPrice } from '@/lib/formatters';
 

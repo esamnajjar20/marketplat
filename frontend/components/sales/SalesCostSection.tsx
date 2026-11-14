@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import { Save, Search, Power, CircleDollarSign } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Input } from '@/components/shared/ui/Input';
+import { Button } from '@/components/shared/ui/Button';
 import { useSalesCostProducts, useSalesCostSettings } from '@/hooks/queries/useSales';
 import { useUpdateProductCost, useUpdateSalesCostSettings } from '@/hooks/mutations/useSaleMutations';
 import { formatMoney } from '@/lib/formatters';

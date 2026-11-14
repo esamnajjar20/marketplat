@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { DownloadCloud, X } from 'lucide-react';
 import { subscribeWarmingProgress, type AggregatedProgress } from '@/lib/warmingProgress';
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
 
 function WarmingRow({
   label,
@@ -87,7 +88,7 @@ export function WarmupIndicator() {
   // skip rendering entirely — warming still runs, just silently.
   useEffect(() => {
     try {
-      if (sessionStorage.getItem(SHOWN_THIS_SESSION_KEY) === '1') {
+      if (safeStorageGet(SHOWN_THIS_SESSION_KEY, 'session') === '1') {
         setSuppressed(true);
       }
     } catch {
@@ -104,12 +105,12 @@ export function WarmupIndicator() {
   useEffect(() => {
     if (!progress.active) return;
     try {
-      if (sessionStorage.getItem(SHOWN_THIS_SESSION_KEY) !== '1') {
+      if (safeStorageGet(SHOWN_THIS_SESSION_KEY, 'session') !== '1') {
         // STORAGE-QUOTA-GUARD-01: sessionStorage can throw in Safari
         // private mode. Worst case: the indicator shows again next tick
         // within the same session — cosmetic, not functional.
         try {
-          sessionStorage.setItem(SHOWN_THIS_SESSION_KEY, '1');
+          safeStorageSet(SHOWN_THIS_SESSION_KEY, '1', 'session');
         } catch {
           /* private mode — indicator will re-show, harmless */
         }

@@ -3,7 +3,7 @@
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { useStickyCtaVisible } from '@/hooks/useStickyCtaVisible';
 import { useEffect, useMemo, useState, useCallback } from 'react';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { AdDetailGallery } from '@/components/ads/AdDetailGallery';
 import { ROUTES } from '@/lib/constants';
 import dynamic from 'next/dynamic';

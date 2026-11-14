@@ -3,7 +3,7 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import type { ReactNode } from 'react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/shared/ui/Badge';
 import { ROUTES } from '@/lib/constants';
 import { formatPrice } from '@/lib/formatters';
 import { REQUEST_OFFER_STATUS_LABEL, REQUEST_OFFER_STATUS_VARIANT, REQUEST_TYPE_LABEL } from '@/lib/requestStatus';

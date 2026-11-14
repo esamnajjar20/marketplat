@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/shared/ui/Checkbox';
 import { useStoreTypeFields } from '@/hooks/queries/useStoreTypes';
 import type { StoreAttributes, StoreTypeField } from '@/types/store.types';
 import { Button } from '@/components/shared/ui/Button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
 
 export function formatStoreFieldValue(field: StoreTypeField, value: StoreAttributes[string] | undefined): string {

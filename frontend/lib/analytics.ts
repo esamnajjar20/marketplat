@@ -20,6 +20,7 @@
  */
 import { API_BASE_URL } from './constants';
 import { hasAnalyticsConsent } from './analyticsConsent';
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
 
 export type AnalyticsEventType =
   | 'PAGE_VIEW'
@@ -85,7 +86,7 @@ const queue: QueuedEvent[] = [];
 export function resetAnalyticsSession(): void {
   if (typeof window === 'undefined') return;
   try {
-    sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    safeStorageRemove(SESSION_STORAGE_KEY, 'session');
   } catch {
     // sessionStorage unavailable — nothing to clear.
   }
@@ -103,10 +104,10 @@ let flushTimer: ReturnType<typeof setInterval> | null = null;
 function getSessionId(): string {
   if (typeof window === 'undefined') return 'ssr';
   try {
-    let id = sessionStorage.getItem(SESSION_STORAGE_KEY);
+    let id = safeStorageGet(SESSION_STORAGE_KEY, 'session');
     if (!id) {
       id = generateId();
-      sessionStorage.setItem(SESSION_STORAGE_KEY, id);
+      safeStorageSet(SESSION_STORAGE_KEY, id, 'session');
     }
     return id;
   } catch {

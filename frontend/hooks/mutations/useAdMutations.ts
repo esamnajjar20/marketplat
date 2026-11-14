@@ -39,6 +39,7 @@ import { useAuthStore, selectUser } from '@/store/auth.store';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 
 
+import { isDeviceOffline } from '@/lib/offlineError';
 /**
  * UX-FIX P3-10b: accepts an optional onUploadProgress callback so callers
  * (AdForm) can drive a real progress bar in ImageUpload during the actual
@@ -102,7 +103,7 @@ export function useCreateAd(onUploadProgress?: (percent: number) => void) {
     onError: async (err, payload) => {
       const parsed = parseApiError(err);
       const offline =
-        typeof navigator !== 'undefined' && navigator.onLine === false;
+        isDeviceOffline();
       // FIX FALSE-OFFLINE-DRAFT-01 + ONLINE-SILENT-DRAFT-01:
       // أوفلاين → مسودة + رسالة انتظار النت.
       // أونلاين + فشل شبكة → مسودة status failed بلا ادعاء انقطاع نت.
@@ -214,7 +215,7 @@ export function useUpdateAd(adId: string) {
     onError: async (err, payload) => {
       const parsed = parseApiError(err);
       const offline =
-        typeof navigator !== 'undefined' && navigator.onLine === false;
+        isDeviceOffline();
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
           await saveAdDraft({

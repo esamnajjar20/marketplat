@@ -30,6 +30,7 @@ import { CACHE_TTL } from '@/lib/constants';
 import { canonicalBrowseSearchParams, getBrowseParam, parseBrowseSearchParams, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type BrowseSearchParams } from '@/lib/browseSearchParams';
 import { useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 /**
  * GET /products directory grid — mirrors StoresGrid's layout/behavior
@@ -146,7 +147,7 @@ export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams: 
         description="لا تتوفر بيانات المنتجات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
         fallback={
       <div className="space-y-4">
-        <div className="h-5 w-32 rounded bg-muted animate-pulse" />
+        <Skeleton className="h-5 w-32 rounded" />
         <div className={cn(LIST_CARD_GRID_CLASS)}>
           {Array.from({ length: 12 }).map((_, i) => <ProductCardSkeleton key={i} />)}
         </div>

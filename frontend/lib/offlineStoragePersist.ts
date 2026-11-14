@@ -7,6 +7,8 @@
  * و Firefox يعرض نافذة إذن، لذلك لا نستدعيه إلا للمستخدم المسجّل أو التطبيق
  * المثبّت، ولا نعيد الطلب بعد رفض قبل DENIED_RETRY_AFTER_MS.
  */
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
+
 
 export type StoragePersistOutcome = 'granted' | 'already' | 'denied' | 'unsupported' | 'throttled';
 
@@ -17,7 +19,7 @@ type PersistState = { result: 'granted' | 'denied'; at: number };
 
 function readState(): PersistState | null {
   try {
-    const raw = window.localStorage.getItem(STATE_KEY);
+    const raw = safeStorageGet(STATE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<PersistState>;
     if ((parsed.result === 'granted' || parsed.result === 'denied') && typeof parsed.at === 'number') {
@@ -31,7 +33,7 @@ function readState(): PersistState | null {
 
 function writeState(state: PersistState): void {
   try {
-    window.localStorage.setItem(STATE_KEY, JSON.stringify(state));
+    safeStorageSet(STATE_KEY, JSON.stringify(state));
   } catch {
     /* ignore */
   }

@@ -1,4 +1,5 @@
 import type { Message } from '@/types/conversation.types';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 const DB_NAME = 'market-conversation-media';
 const DB_VERSION = 3;
@@ -418,7 +419,7 @@ export async function getOrCacheConversationMediaBlob(
 ): Promise<Blob | null> {
   const cached = await getConversationMediaBlob(userId, conversationId, messageId, kind);
   if (cached) return cached;
-  if (!remoteUrl || (typeof navigator !== 'undefined' && !navigator.onLine)) return null;
+  if (!remoteUrl || (isDeviceOffline())) return null;
 
   const keyValue = blobKey(userId, conversationId, messageId, kind);
   const pending = inFlightBlobLoads.get(keyValue);

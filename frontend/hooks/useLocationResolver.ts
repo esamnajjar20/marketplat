@@ -6,6 +6,7 @@ import { GEO_POSITION_OPTIONS, isUsableNearbyCoord } from '@/lib/geo';
 import { isNativePlatform } from '@/lib/capacitor/platform';
 import { getNativeCoordinates } from '@/lib/capacitor/nativeGeolocation';
 import { FEATURES } from '@/lib/featureFlags';
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
 
 // SW-CLEAR-GPS-ON-LOGOUT-01: exported so authCleanup and any future
 // consumer can reference the same key without duplicating the string.
@@ -282,7 +283,7 @@ export function useLocationResolver(): ResolvedLocation {
 function readSavedGps(): SavedGps | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = safeStorageGet(STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SavedGps>;
     if (
@@ -308,7 +309,7 @@ function persistSavedGps(coords: { latitude: number; longitude: number }): void 
   if (typeof window === 'undefined') return;
   try {
     const payload: SavedGps = { ...coords, timestamp: Date.now() };
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    safeStorageSet(STORAGE_KEY, JSON.stringify(payload));
     gpsUpdateBus?.dispatchEvent(new Event(GPS_UPDATED_EVENT));
   } catch {
     // Storage full or unavailable (private browsing) — non-fatal;

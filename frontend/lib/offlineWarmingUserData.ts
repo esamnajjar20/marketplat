@@ -45,6 +45,8 @@ import { isWarmingCancelled } from './offlineRouteShells';
 import { registerWarmingController } from './offlineWarmingAbort';
 import { useAuthStore } from '@/store/auth.store';
 import { SW_CACHE_VERSION, userDataCacheName, USER_DATA_CACHE_PREFIX } from '@/lib/cacheVersion';
+import { isDeviceOffline } from '@/lib/offlineError';
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
 // Single source: the prefix lives in lib/cacheVersion.ts, next to
 // SW_CACHE_VERSION. Re-exporting avoids a second literal that could silently
 // drift from the source of truth.
@@ -117,7 +119,7 @@ function freshKey(userId: string): string {
 
 function readFreshMap(userId: string): FreshMap {
   try {
-    const raw = localStorage.getItem(freshKey(userId));
+    const raw = safeStorageGet(freshKey(userId));
     if (!raw) return {};
     const parsed = JSON.parse(raw) as unknown;
     return parsed && typeof parsed === 'object' ? (parsed as FreshMap) : {};
@@ -128,7 +130,7 @@ function readFreshMap(userId: string): FreshMap {
 
 function writeFreshMap(userId: string, map: FreshMap): void {
   try {
-    localStorage.setItem(freshKey(userId), JSON.stringify(map));
+    safeStorageSet(freshKey(userId), JSON.stringify(map));
   } catch {
     // private mode / quota — next pass simply re-fetches.
   }
@@ -323,7 +325,7 @@ export async function warmUserData(options: { force?: boolean } = {}): Promise<v
   if (!warmUserId) return;
   if (typeof window === 'undefined') return;
   if (typeof caches === 'undefined') return;
-  if (!navigator.onLine) return;
+  if (isDeviceOffline()) return;
 
   const force = options.force === true;
   const plan = getWarmingPlan();

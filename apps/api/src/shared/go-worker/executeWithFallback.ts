@@ -1,5 +1,6 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { logger } from '../observability/logger';
+import { getGoWorkerBaseUrl, getGoWorkerToken } from './goWorkerConfig';
 
 export type GoWorkerOutcome = 'go' | 'express' | 'busy';
 
@@ -15,7 +16,7 @@ function safeDiagnosticText(value: unknown): string | undefined {
   if (typeof value !== 'string' || value.length === 0) return undefined;
 
   let safe = value;
-  const token = process.env.GO_WORKER_TOKEN?.trim();
+  const token = getGoWorkerToken();
   if (token) safe = safe.split(token).join('[redacted]');
 
   safe = safe
@@ -75,8 +76,8 @@ export interface ExecuteWithGoFallbackOptions<TResult> {
 export async function executeWithGoFallback<TResult>(
   options: ExecuteWithGoFallbackOptions<TResult>
 ): Promise<GoWorkerOutcome> {
-  const baseUrl = process.env.GO_WORKER_URL?.trim().replace(/\/+$/, '');
-  const token = process.env.GO_WORKER_TOKEN?.trim();
+  const baseUrl = getGoWorkerBaseUrl();
+  const token = getGoWorkerToken();
 
   if (baseUrl && token) {
     try {

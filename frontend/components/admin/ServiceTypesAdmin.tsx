@@ -11,7 +11,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { Badge } from '@/components/shared/ui/Badge';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 import type { CreateServiceTypeFieldPayload, CreateServiceTypePayload, ServiceType, ServiceTypeField, ServiceTypeFieldType } from '@/types/service.types';
 
 const FIELD_TYPES: ServiceTypeFieldType[] = ['TEXT', 'TEXTAREA', 'NUMBER', 'BOOLEAN', 'SELECT', 'MULTI_SELECT'];

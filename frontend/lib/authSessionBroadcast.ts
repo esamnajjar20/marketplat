@@ -5,6 +5,8 @@
  * The message only tells sibling tabs that the local session ended and their
  * user-scoped state must be cleared as well.
  */
+import { safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
+
 
 const CHANNEL_NAME = 'marketplat-auth-session';
 const STORAGE_KEY = 'marketplat:auth-session-event';
@@ -48,8 +50,8 @@ export function publishSessionEnded(userId: string | null): void {
   }
 
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(event));
-    window.localStorage.removeItem(STORAGE_KEY);
+    safeStorageSet(STORAGE_KEY, JSON.stringify(event));
+    safeStorageRemove(STORAGE_KEY);
   } catch {
     // Private mode / storage disabled — the current tab still cleans itself.
   }

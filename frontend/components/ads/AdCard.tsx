@@ -4,7 +4,7 @@ import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useRouter } from 'next/navigation';
 import { memo, useState } from 'react';
 import { Heart, Clock3, MapPin, Package } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/shared/ui/Badge';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
 import { formatPrice, formatRelativeTime } from '@/lib/formatters';

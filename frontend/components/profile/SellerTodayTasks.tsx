@@ -18,7 +18,7 @@ import { useDashboardOverview } from '@/hooks/queries/useActivity';
 import { useIsProvider } from '@/hooks/queries/useServiceProviders';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 type Task = {
   id: string;

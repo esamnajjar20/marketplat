@@ -1,4 +1,6 @@
 import { subscribeNetworkLifecycle } from './networkLifecycle';
+import { getRawErrorReporterUrl } from './env';
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
 /**
  * Device-local diagnostics that complement (not replace) Sentry.
  * Sensitive payloads, DOM text/HTML, form values and response bodies are never captured.
@@ -71,7 +73,7 @@ function getDb(): Promise<IDBDatabase | null> {
 function readLocalRecords(): DeviceErrorRecord[] {
   if (typeof window === 'undefined') return [];
   try {
-    const parsed: unknown = JSON.parse(window.localStorage.getItem(DEVICE_ERRORS_KEY) ?? '[]');
+    const parsed: unknown = JSON.parse(safeStorageGet(DEVICE_ERRORS_KEY) ?? '[]');
     return Array.isArray(parsed) ? parsed.filter((x): x is DeviceErrorRecord => Boolean(x && typeof x === 'object' && 'id' in x && 'title' in x)) : [];
   } catch { return []; }
 }
@@ -80,7 +82,7 @@ function persist(records: DeviceErrorRecord[], changedRecord?: DeviceErrorRecord
   const limit = isReproduceMode() ? MAX_REPRODUCE_RECORDS : MAX_RECORDS;
   cachedRecords = records.slice(0, limit);
   if (typeof window !== 'undefined') {
-    try { window.localStorage.setItem(DEVICE_ERRORS_KEY, JSON.stringify(cachedRecords.slice(0, LOCALSTORAGE_MIRROR_RECORDS))); } catch { /* IndexedDB is the larger store; storage can be blocked. */ }
+    try { safeStorageSet(DEVICE_ERRORS_KEY, JSON.stringify(cachedRecords.slice(0, LOCALSTORAGE_MIRROR_RECORDS))); } catch { /* IndexedDB is the larger store; storage can be blocked. */ }
   }
   void getDb().then((db) => {
     if (!db) return;
@@ -120,7 +122,7 @@ function isErrorReportingRequest(url: string): boolean {
   try {
     const parsed = new URL(url, typeof window === 'undefined' ? 'https://marketplat.invalid' : window.location.href);
     if (/\/observability\/client-error\/?$/i.test(parsed.pathname)) return true;
-    const configuredReporter = process.env.NEXT_PUBLIC_ERROR_REPORTER_URL;
+    const configuredReporter = getRawErrorReporterUrl();
     if (configuredReporter) {
       const reporter = new URL(configuredReporter, parsed.origin);
       return reporter.origin === parsed.origin && reporter.pathname.replace(/\/$/, '') === parsed.pathname.replace(/\/$/, '');
@@ -130,11 +132,11 @@ function isErrorReportingRequest(url: string): boolean {
 }
 export function isReproduceMode(): boolean {
   if (typeof window === 'undefined') return false;
-  try { return window.localStorage.getItem(REPRODUCE_MODE_KEY) === '1'; } catch { return false; }
+  try { return safeStorageGet(REPRODUCE_MODE_KEY) === '1'; } catch { return false; }
 }
 export function setReproduceMode(enabled: boolean): void {
   if (typeof window === 'undefined') return;
-  try { if (enabled) window.localStorage.setItem(REPRODUCE_MODE_KEY, '1'); else window.localStorage.removeItem(REPRODUCE_MODE_KEY); } catch { /* private mode */ }
+  try { if (enabled) safeStorageSet(REPRODUCE_MODE_KEY, '1'); else safeStorageRemove(REPRODUCE_MODE_KEY); } catch { /* private mode */ }
   addBreadcrumb('lifecycle', `وضع إعادة الإنتاج ${enabled ? 'مفعّل' : 'متوقف'}`);
   if (!enabled && cachedRecords && cachedRecords.length > MAX_RECORDS) persist(cachedRecords.slice(0, MAX_RECORDS), undefined, true);
   dispatchUpdate();
@@ -168,7 +170,7 @@ export async function getDeviceErrorsAsync(): Promise<DeviceErrorRecord[]> {
 export function clearDeviceErrors(): void {
   if (typeof window === 'undefined') return;
   cachedRecords = []; breadcrumbs.length = 0;
-  try { window.localStorage.removeItem(DEVICE_ERRORS_KEY); } catch { /* blocked */ }
+  try { safeStorageRemove(DEVICE_ERRORS_KEY); } catch { /* blocked */ }
   void getDb().then((db) => { try { db?.transaction(DB_STORE, 'readwrite').objectStore(DB_STORE).clear(); } catch { /* fallback */ } });
   dispatchUpdate();
 }

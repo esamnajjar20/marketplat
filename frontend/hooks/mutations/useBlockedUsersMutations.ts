@@ -3,9 +3,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { blockedUsersApi } from '@/api/blocked-users.api';
 import { queryKeys } from '@/lib/queryKeys';
-import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/auth.store';
+import { toastMutationError } from '@/lib/mutationFeedback';
 
 /**
  * POST /blocked-users/:userId — toggles block/unblock. Same shape as
@@ -36,6 +36,6 @@ export function useToggleUserBlock() {
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
       toast.success(data?.action === 'blocked' ? 'تم حظر المستخدم' : 'تم إلغاء حظر المستخدم');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

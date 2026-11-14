@@ -3,7 +3,7 @@ import { memo } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { MapPin, Eye, Calendar, Store, Tag } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/shared/ui/Badge';
 import { ROUTES, CONDITION_LABELS } from '@/lib/constants';
 import { formatPrice } from '@/lib/formatters';
 import { CARD_PRICE_UNSET } from '@/components/shared/cards/cardTokens';

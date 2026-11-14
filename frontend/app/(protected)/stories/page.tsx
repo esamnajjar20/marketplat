@@ -8,6 +8,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import type { StoryGroup } from '@/api/stories.api';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 const StoryComposer = dynamic(
   () => import('@/components/stories/StoryComposer').then((module) => module.StoryComposer),
@@ -34,9 +35,9 @@ export default function StoriesPage() {
       </header>
       {isLoading ? <LoadingGate loading={isLoading} label="جارٍ تحميل القصص" fallback={<div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5" aria-hidden="true">
         {Array.from({ length: 10 }).map((_, i) => <div key={i} className="rounded-2xl border border-border p-3">
-          <div className="mx-auto h-16 w-16 animate-pulse rounded-full bg-muted sm:h-[72px] sm:w-[72px]" />
-          <div className="mx-auto mt-3 h-3 w-20 animate-pulse rounded bg-muted" />
-          <div className="mx-auto mt-2 h-2 w-12 animate-pulse rounded bg-muted" />
+          <Skeleton className="mx-auto h-16 w-16 rounded-full sm:h-[72px] sm:w-[72px]" />
+          <Skeleton className="mx-auto mt-3 h-3 w-20 rounded" />
+          <Skeleton className="mx-auto mt-2 h-2 w-12 rounded" />
         </div>)}
       </div>}>
         {null}

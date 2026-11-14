@@ -26,7 +26,7 @@ import {
   HIT_AREA,
   cardPlaceholderToneForId,
 } from '@/components/shared/cards/cardTokens';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/shared/ui/Badge';
 import { formatPrice } from '@/lib/formatters';
 import { ROUTES } from '@/lib/constants';
 import { getListThumbnailUrl, getPlaceholderUrl, isCloudinaryUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';

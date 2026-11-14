@@ -1,4 +1,5 @@
 import { reportBackgroundFailure } from './backgroundTask';
+import { isDeviceOffline } from '@/lib/offlineError';
 /**
  * تسجيل الـ Service Worker + إدارة التحديثات + اشتراكات Push.
  *
@@ -11,6 +12,7 @@ import { reportBackgroundFailure } from './backgroundTask';
 import { fetchClient as apiClient } from '@/lib/fetchClient';
 import { getRawVapidPublicKey } from '@/lib/env';
 import { isPushOptedOut } from '@/lib/runtime/pushPreference';
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
 
 // FIX PWA-05: previously read once as a module-level constant
 // (`const VAPID_PUBLIC_KEY = process.env...`), which freezes the value at
@@ -85,7 +87,7 @@ let userRequestedUpdateActivation = false;
 /** One reload path for controllerchange and its timeout fallback. Never reload offline. */
 function reloadAfterServiceWorkerChange(): void {
   if (updateReloadInProgress) return;
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+  if (isDeviceOffline()) {
     if (deferredOnlineReload) return;
     deferredOnlineReload = () => {
       deferredOnlineReload = null;
@@ -105,7 +107,7 @@ function reloadAfterServiceWorkerChange(): void {
 
 function markJustUpdated(): void {
   try {
-    sessionStorage.setItem(JUST_UPDATED_KEY, String(Date.now()));
+    safeStorageSet(JUST_UPDATED_KEY, String(Date.now()), 'session');
   } catch {
     /* private mode */
   }
@@ -113,7 +115,7 @@ function markJustUpdated(): void {
 
 function wasJustUpdated(): boolean {
   try {
-    const ts = Number(sessionStorage.getItem(JUST_UPDATED_KEY) || 0);
+    const ts = Number(safeStorageGet(JUST_UPDATED_KEY, 'session') || 0);
     return Boolean(ts) && Date.now() - ts < JUST_UPDATED_SUPPRESS_MS;
   } catch {
     return false;
@@ -152,7 +154,7 @@ let lastSwUpdateFailureReportAt = 0;
 const SW_UPDATE_FAILURE_REPORT_INTERVAL_MS = 15 * 60 * 1000;
 
 function isTransientSwUpdateFailure(error: unknown): boolean {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return true;
+  if (isDeviceOffline()) return true;
   if (error instanceof TypeError) return true;
   if (error instanceof DOMException && ['AbortError', 'NetworkError', 'TimeoutError'].includes(error.name)) return true;
   const message = error instanceof Error ? error.message : String(error);
@@ -160,7 +162,7 @@ function isTransientSwUpdateFailure(error: unknown): boolean {
 }
 
 function checkServiceWorkerUpdate(registration: ServiceWorkerRegistration): void {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  if (isDeviceOffline()) return;
   if (swUpdateCheckInFlight) return;
   const startedAt = Date.now();
   if (lastSwUpdateCheckAt && startedAt - lastSwUpdateCheckAt < SW_UPDATE_MIN_GAP_MS) return;
@@ -175,7 +177,7 @@ function checkServiceWorkerUpdate(registration: ServiceWorkerRegistration): void
       // retry; non-network failures are also throttled to avoid duplicate
       // lifecycle events producing a telemetry storm.
       if (now - lastSwUpdateFailureReportAt < SW_UPDATE_FAILURE_REPORT_INTERVAL_MS) return;
-      if (isTransientSwUpdateFailure(error) && typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      if (isTransientSwUpdateFailure(error) && isDeviceOffline()) return;
       lastSwUpdateFailureReportAt = now;
       reportBackgroundFailure('frontend/lib/pwa.ts', error, { operation: 'service-worker-update-check' });
     })
@@ -291,7 +293,7 @@ async function doRegisterServiceWorker(): Promise<ServiceWorkerRegistration | nu
       // أثناء offline يُلقي خطأ صامتًا، ويفوت على المستخدم فرصة اكتشاف
       // تحديث نُشِر ثم عاد الاتصال. الآن نفحص فوراً عند 'online' بدل
       // انتظار 5 دقائق.
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      if (isDeviceOffline()) return;
       checkServiceWorkerUpdate(registration);
     };
     window.setInterval(checkUpdate, UPDATE_CHECK_MS);
@@ -476,7 +478,7 @@ export async function unsubscribeFromPush(): Promise<void> {
 export async function ensurePushSubscriptionSynced(): Promise<'synced' | 'subscribed' | 'skipped'> {
   // Push registration is server synchronization, not a local-only action.
   // The OfflineBootstrap retries it on the next online lifecycle event.
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'skipped';
+  if (isDeviceOffline()) return 'skipped';
   if (!isPushSupported()) return 'skipped';
   const vapidPublicKey = getVapidPublicKey();
   if (!vapidPublicKey) return 'skipped';

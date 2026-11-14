@@ -34,6 +34,7 @@ import { clearSensitiveLocalData } from '@/lib/authCleanup';
 import { unwrapData } from '@/lib/apiPagination';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import type { UpdateProfilePayload, NotificationPreferences } from '@/types/user.types';
+import { toastMutationError } from '@/lib/mutationFeedback';
 
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
@@ -55,7 +56,7 @@ export function useUpdateProfile() {
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.me() });
       toast.success('تم حفظ التغييرات');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -171,7 +172,7 @@ export function useDeleteAccount() {
       signalNavigationStart(ROUTES.home);
       router.push(ROUTES.home);
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 

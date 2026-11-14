@@ -11,6 +11,8 @@
  * useLocationResolver) because the native `storage` event only fires
  * across tabs.
  */
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
+
 
 export const BROWSE_CITY_STORAGE_KEY = 'home:browseCity';
 export const BROWSE_ALL_CITIES = '__ALL__';
@@ -22,7 +24,7 @@ const EVENT = 'browse-city:updated';
 export function readBrowseCity(): string | typeof BROWSE_ALL_CITIES | undefined {
   if (typeof window === 'undefined') return undefined;
   try {
-    const raw = localStorage.getItem(BROWSE_CITY_STORAGE_KEY);
+    const raw = safeStorageGet(BROWSE_CITY_STORAGE_KEY);
     const v = raw?.trim();
     if (v === BROWSE_ALL_CITIES) return BROWSE_ALL_CITIES;
     return v || undefined;
@@ -35,9 +37,9 @@ export function writeBrowseCity(city: string | undefined): void {
   if (typeof window === 'undefined') return;
   try {
     if (!city?.trim()) {
-      localStorage.setItem(BROWSE_CITY_STORAGE_KEY, BROWSE_ALL_CITIES);
+      safeStorageSet(BROWSE_CITY_STORAGE_KEY, BROWSE_ALL_CITIES);
     } else {
-      localStorage.setItem(BROWSE_CITY_STORAGE_KEY, city.trim());
+      safeStorageSet(BROWSE_CITY_STORAGE_KEY, city.trim());
     }
   } catch {
     // quota / private mode — ignore

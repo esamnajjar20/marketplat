@@ -11,6 +11,7 @@
 
 import { getQueryClient } from '@/lib/queryClient';
 import { getNetworkPolicy } from '@/lib/networkPolicy';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 const PREFETCH_DEDUPE_MS = 2 * 60 * 1000;
 const scheduled = new Map<string, number>();
@@ -29,7 +30,7 @@ function hasIntentCapablePointer(): boolean {
 
 function canPrefetch(): boolean {
   if (typeof window === 'undefined') return false;
-  if (!navigator.onLine) return false;
+  if (isDeviceOffline()) return false;
   if (!hasIntentCapablePointer()) return false;
 
   const policy = getNetworkPolicy();

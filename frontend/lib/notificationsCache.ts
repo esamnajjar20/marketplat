@@ -11,6 +11,7 @@
 
 import { localGet, localSet, localRemove } from '@/lib/localStore';
 import type { Notification } from '@/types/notification.types';
+import { safeStorageGet } from '@/lib/browserStorage';
 
 const KEY = 'notifications-cache';
 /** أقصى عدد إشعارات يُحتفظ به محليًا — يكفي لعرض قائمة مفيدة بدون تضخيم localStorage. */
@@ -28,7 +29,7 @@ const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 function getCurrentUserId(): string | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem('marketplace-auth');
+    const raw = safeStorageGet('marketplace-auth');
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { state?: { user?: { id?: string } } };
     return parsed?.state?.user?.id ?? null;

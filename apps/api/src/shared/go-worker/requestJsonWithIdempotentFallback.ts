@@ -1,4 +1,5 @@
 import { logger } from '../observability/logger';
+import { getGoWorkerBaseUrl, getGoWorkerToken } from './goWorkerConfig';
 
 type RequestJsonWithIdempotentFallbackOptions<TResult> = {
   jobName: string;
@@ -26,8 +27,8 @@ export async function requestJsonWithGoIdempotentFallback<TResult>(
     throw new Error('A non-empty idempotency key of at most 200 characters is required');
   }
 
-  const baseUrl = process.env.GO_WORKER_URL?.trim().replace(/\/+$/, '');
-  const token = process.env.GO_WORKER_TOKEN?.trim();
+  const baseUrl = getGoWorkerBaseUrl();
+  const token = getGoWorkerToken();
 
   if (baseUrl && token) {
     try {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { recordRouteUse } from '@/lib/warmingTelemetry';
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
 
 const STORAGE_KEY = 'marketplat:navigation-usage:v1';
 const MAX_ITEMS = 80;
@@ -15,7 +16,7 @@ export type NavigationUsageMap = Record<string, NavigationUsageEntry>;
 export function readNavigationUsage(): NavigationUsageMap {
   if (typeof window === 'undefined') return {};
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = safeStorageGet(STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as NavigationUsageMap;
     return parsed && typeof parsed === 'object' ? parsed : {};
@@ -26,7 +27,7 @@ export function readNavigationUsage(): NavigationUsageMap {
 
 function writeUsage(usage: NavigationUsageMap) {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(usage));
+    safeStorageSet(STORAGE_KEY, JSON.stringify(usage));
   } catch {
     // Navigation must never fail because localStorage is unavailable.
   }

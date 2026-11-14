@@ -32,6 +32,8 @@
  *   npm i @capacitor/preferences
  *   npx cap sync
  */
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
+
 
 const STORAGE_KEY = 'marketplat:native-session';
 
@@ -77,7 +79,7 @@ async function prefsRemove(key: string): Promise<void> {
 function localGet(): NativeSessionMeta {
   if (typeof window === 'undefined') return { ...EMPTY };
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeStorageGet(STORAGE_KEY);
     if (!raw) return { ...EMPTY };
     const parsed = JSON.parse(raw) as NativeSessionMeta;
     return {
@@ -93,7 +95,7 @@ function localGet(): NativeSessionMeta {
 function localSet(meta: NativeSessionMeta): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(meta));
+    safeStorageSet(STORAGE_KEY, JSON.stringify(meta));
   } catch {
     /* quota / private mode */
   }
@@ -102,7 +104,7 @@ function localSet(meta: NativeSessionMeta): void {
 function localRemove(): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    safeStorageRemove(STORAGE_KEY);
   } catch {
     /* ignore */
   }

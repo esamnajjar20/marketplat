@@ -13,7 +13,7 @@ import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import type { Conversation, ConversationListItem } from '@/types/conversation.types';
 import { ConversationRow } from './ConversationRow';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 import { Spinner } from '@/components/ui/spinner';
 import { PullToRefresh } from '@/components/shared/ui/PullToRefresh';

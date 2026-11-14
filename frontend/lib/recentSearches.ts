@@ -5,6 +5,7 @@ import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
  */
 
 import { arabicNormalize } from './arabicNormalize';
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
 
 const STORAGE_KEY = 'marketplat:recent-searches-v2';
 const LEGACY_KEY = 'marketplat:recent-searches';
@@ -38,7 +39,7 @@ function storageKey(): string {
 function readEntries(): RecentSearchEntry[] {
   if (!canUseStorage()) return [];
   try {
-    const raw = window.localStorage.getItem(storageKey());
+    const raw = safeStorageGet(storageKey());
     if (raw) {
       const parsed = JSON.parse(raw) as unknown;
       if (Array.isArray(parsed)) {
@@ -58,7 +59,7 @@ function readEntries(): RecentSearchEntry[] {
       }
     }
     // migrate legacy string[] once
-    const legacy = getCurrentOfflineUserId() === null ? window.localStorage.getItem(LEGACY_KEY) : null;
+    const legacy = getCurrentOfflineUserId() === null ? safeStorageGet(LEGACY_KEY) : null;
     if (legacy) {
       const arr = JSON.parse(legacy) as unknown;
       if (Array.isArray(arr)) {
@@ -82,7 +83,7 @@ function readEntries(): RecentSearchEntry[] {
 function writeEntries(entries: RecentSearchEntry[]): void {
   if (!canUseStorage()) return;
   try {
-    window.localStorage.setItem(storageKey(), JSON.stringify(entries.slice(0, MAX_ITEMS)));
+    safeStorageSet(storageKey(), JSON.stringify(entries.slice(0, MAX_ITEMS)));
   } catch {
     /* quota */
   }
@@ -164,8 +165,8 @@ export function addRecentSearch(query: string): void {
 export function clearRecentSearches(): void {
   if (!canUseStorage()) return;
   try {
-    window.localStorage.removeItem(storageKey());
-    window.localStorage.removeItem(LEGACY_KEY);
+    safeStorageRemove(storageKey());
+    safeStorageRemove(LEGACY_KEY);
   } catch {
     /* ignore */
   }

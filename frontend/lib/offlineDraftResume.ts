@@ -18,18 +18,19 @@
 import { ROUTES } from '@/lib/constants';
 import type { AdDraft, OfflineDraftKind } from '@/lib/offlineAdDrafts';
 import type { AdCondition } from '@/types/ad.types';
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
 
 const ACTIVE_KEY = 'market-offline-resume-draft-id';
 
 export function setActiveOfflineDraftId(id: string | null): void {
   if (typeof sessionStorage === 'undefined') return;
-  if (id) sessionStorage.setItem(ACTIVE_KEY, id);
-  else sessionStorage.removeItem(ACTIVE_KEY);
+  if (id) safeStorageSet(ACTIVE_KEY, id, 'session');
+  else safeStorageRemove(ACTIVE_KEY, 'session');
 }
 
 export function getActiveOfflineDraftId(): string | null {
   if (typeof sessionStorage === 'undefined') return null;
-  return sessionStorage.getItem(ACTIVE_KEY);
+  return safeStorageGet(ACTIVE_KEY, 'session');
 }
 
 export function clearActiveOfflineDraftId(): void {

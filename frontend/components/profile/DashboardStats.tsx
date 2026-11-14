@@ -26,6 +26,7 @@ import { formatNumber } from '@/lib/formatters';
 import { ROUTES } from '@/lib/constants';
 import type { ParsedError } from '@/lib/errorParser';
 import { cn } from '@/lib/utils';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 type StatItem = {
   label: string;
@@ -76,7 +77,7 @@ export function DashboardStats() {
   if (isError) {
     const isOffline =
       (error as unknown as ParsedError | null)?.statusCode === 0 ||
-      (typeof navigator !== 'undefined' && navigator.onLine === false);
+      isDeviceOffline();
 
     if (isOffline) {
       return (

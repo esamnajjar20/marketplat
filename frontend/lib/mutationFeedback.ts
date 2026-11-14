@@ -35,11 +35,12 @@
  */
 import { toast } from 'sonner';
 import { parseApiError } from '@/lib/errorParser';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 export function toastMutationError(err: unknown): void {
   const parsed = parseApiError(err);
   const offline =
-    typeof navigator !== 'undefined' && navigator.onLine === false;
+    isDeviceOffline();
   // FIX FALSE-OFFLINE-DRAFT-01: رسالة الطابور الهادئة فقط والجهاز أوفلاين.
   // لو SW قديم رجّع queued وأنت أونلاين، نعرض خطأ عادي بدل «محفوظ محليًا».
   if (parsed.queued && offline) {

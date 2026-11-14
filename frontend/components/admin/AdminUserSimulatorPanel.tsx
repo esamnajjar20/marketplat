@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Spinner } from '@/components/ui/spinner';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import {
   adminApi,
   type UserSimulatorConfig,
@@ -15,6 +16,7 @@ import {
   type UserSimulatorScenario
 } from '@/api/admin.api';
 import { formatTimestamp } from '@/lib/formatters';
+import { canBackgroundPoll } from '@/lib/polling';
 
 const ACTIVE_STATES = new Set(['queued', 'running', 'stopping']);
 const asNumber = (value: string, fallback: number) => {
@@ -85,6 +87,8 @@ export function AdminUserSimulatorPanel() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editorSaving, setEditorSaving] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [confirmRunOpen, setConfirmRunOpen] = useState(false);
+  const [scenarioToDelete, setScenarioToDelete] = useState<string | null>(null);
 
   const refresh = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -117,6 +121,7 @@ export function AdminUserSimulatorPanel() {
   useEffect(() => {
     if (!selectedRun || !ACTIVE_STATES.has(selectedRun.status)) return;
     const timer = window.setInterval(() => {
+      if (!canBackgroundPoll()) return;
       void adminApi.getUserSimulatorRun(selectedRun.id).then(async next => {
         if (ACTIVE_STATES.has(next.status)) {
           setSelectedRun(next);
@@ -171,7 +176,7 @@ export function AdminUserSimulatorPanel() {
     }
   }
 
-  async function startRun() {
+  async function startRun(confirmed = false) {
     if (!config || selectedScenarioIds.length === 0 || activeRun) return;
     if (hasMixedAccountRoles) {
       toast.error('شغّل سيناريوهات المشتري والبائع في دفعتين منفصلتين.');
@@ -181,7 +186,10 @@ export function AdminUserSimulatorPanel() {
       toast.error('السيناريو المختار ينشئ بيانات. فعّل السماح بإنشاء بيانات الاختبار أولًا.');
       return;
     }
-    if (requiresWrites && !window.confirm(`سيتم تنفيذ ${config.virtualUsers} جلسة متصفح على الموقع المنشور، وقد تُنشأ حسابات وبيانات اختبار. لن يحذف المحاكي بيانات موجودة. هل تؤكد؟`)) return;
+    if (requiresWrites && !confirmed) {
+      setConfirmRunOpen(true);
+      return;
+    }
     setStarting(true);
     try {
       const run = await adminApi.startUserSimulatorRun({
@@ -253,7 +261,6 @@ export function AdminUserSimulatorPanel() {
   }
 
   async function deleteScenario(id: string) {
-    if (!window.confirm('حذف هذا السيناريو من إعدادات المحاكي؟')) return;
     try {
       await adminApi.deleteUserSimulatorScenario(id);
       setScenarios(current => current.filter(item => item.id !== id));
@@ -307,6 +314,27 @@ export function AdminUserSimulatorPanel() {
 
   return (
     <div className="space-y-5" dir="rtl">
+      <ConfirmDialog
+        open={confirmRunOpen}
+        onOpenChange={setConfirmRunOpen}
+        title="تشغيل محاكاة المتصفحات؟"
+        description={`سيتم تنفيذ ${config?.virtualUsers ?? 0} جلسة متصفح على الموقع المنشور، وقد تُنشأ حسابات وبيانات اختبار. لن يحذف المحاكي بيانات موجودة.`}
+        confirmLabel="تشغيل"
+        onConfirm={() => void startRun(true)}
+      />
+      <ConfirmDialog
+        open={scenarioToDelete !== null}
+        onOpenChange={(open) => { if (!open) setScenarioToDelete(null); }}
+        title="حذف السيناريو؟"
+        description="سيُحذف هذا السيناريو من إعدادات المحاكي."
+        confirmLabel="حذف"
+        destructive
+        onConfirm={() => {
+          const id = scenarioToDelete;
+          setScenarioToDelete(null);
+          if (id) void deleteScenario(id);
+        }}
+      />
       {lastError && (
         <div className="flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/5 p-4 text-sm">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning-strong" />
@@ -429,7 +457,7 @@ export function AdminUserSimulatorPanel() {
                   </div>
                   <div className="mt-2 flex gap-2">
                     <button type="button" onClick={() => openEditor(scenario)} className="text-xs font-semibold text-primary">تعديل الخطوات</button>
-                    <button type="button" onClick={() => void deleteScenario(scenario.id)} className="text-xs font-semibold text-destructive">حذف</button>
+                    <button type="button" onClick={() => setScenarioToDelete(scenario.id)} className="text-xs font-semibold text-destructive">حذف</button>
                   </div>
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import { API_BASE_URL } from '@/lib/constants';
+import { getRawErrorReporterUrl } from '@/lib/env';
 
 /**
  * FIX ERROR-REPORTER-URL-01: the Cloudflare build env still had
@@ -21,7 +22,7 @@ const LEGACY_HOST = /(^|\.)onrender\.com$/i;
 const CLIENT_ERROR_PATH = '/observability/client-error';
 
 export function resolveErrorReporterUrl(
-  configured: string | undefined = process.env.NEXT_PUBLIC_ERROR_REPORTER_URL,
+  configured: string | undefined = getRawErrorReporterUrl(),
 ): string | undefined {
   const value = configured?.trim();
   if (!value) return undefined;

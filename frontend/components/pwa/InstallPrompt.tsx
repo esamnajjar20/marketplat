@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react';
 import { X, Share, PlusSquare, Download } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { APP_NAME } from '@/lib/constants';
+import { safeStorageGet } from '@/lib/browserStorage';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -55,7 +56,7 @@ export function InstallPrompt() {
       // inconsistent. A throw here aborts the whole prompt bootstrap.
       let dismissedAt = 0;
       try {
-        dismissedAt = Number(localStorage.getItem(DISMISS_STORAGE_KEY) ?? 0);
+        dismissedAt = Number(safeStorageGet(DISMISS_STORAGE_KEY) ?? 0);
       } catch {
         dismissedAt = 0;
       }

@@ -32,6 +32,7 @@ import { InfiniteScrollTrigger } from '@/components/shared/list/InfiniteScrollTr
 import { queryKeys } from '@/lib/queryKeys';
 import { throwIfQueryCancelled } from '@/lib/queryCancellation';
 import { writeClientUrl } from '@/lib/urlWithParams';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 /**
  * Unified results grid — reads q/city/type/categoryId/sort/page
@@ -181,7 +182,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
         description="لا تتوفر بيانات نتائج البحث المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
         fallback={
       <div className="space-y-4">
-        <div className="h-5 w-32 rounded bg-muted animate-pulse" />
+        <Skeleton className="h-5 w-32 rounded" />
         {/* UX-FIX: this grid sits in a 3-of-4-column <main> next to the
             filters <aside> (see (public)/search/page.tsx), so it had
             real width to work with but was capped at xl:grid-cols-3 —

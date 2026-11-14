@@ -8,10 +8,11 @@ import { DetailSafetyTips } from '@/components/shared/DetailSafetyTips';
 // Lazy-load SellerCard (already done in AdDetail, but need it here too)
 const SellerCard = dynamic(
   () => import('@/components/ads/SellerCard').then((m) => m.SellerCard),
-  { loading: () => <div className="h-24 w-full animate-pulse bg-muted" /> },
+  { loading: () => <Skeleton className="h-24 w-full" /> },
 );
 import { DETAIL_PRICE_PANEL } from '@/components/shared/detail/detailTokens';
 import type { Ad } from '@/types/ad.types';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 interface AdDetailSidebarProps {
   ad: Ad;

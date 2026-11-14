@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, ImageOff, X } from 'lucide-react';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import dynamic from 'next/dynamic';
 import { ProgressiveDetailImage } from '@/components/shared/detail/ProgressiveDetailImage';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/shared/ui/Dialog';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 import {

@@ -2,8 +2,8 @@
 import { useState } from 'react';
 import { useInstallmentsOverview } from '@/hooks/queries/useInstallments';
 import { usePayInstallment } from '@/hooks/mutations/useInstallmentMutations';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/shared/ui/Button';
+import { Input } from '@/components/shared/ui/Input';
 import { formatMoney, formatShortDate } from '@/lib/formatters';
 function Group({ title, rows, onPay }: { title: string; rows: any[]; onPay: (id: string, amount: number) => Promise<void> }) {
   return <section className="space-y-3">

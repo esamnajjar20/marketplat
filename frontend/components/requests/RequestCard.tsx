@@ -13,7 +13,7 @@ import {
   isRequestExpiringSoon,
 } from '@/lib/requestStatus';
 import type { RequestListItem } from '@/types/request.types';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/shared/ui/Badge';
 import { cn } from '@/lib/utils';
 import type { CardContext } from '@/components/shared/cards/cardParts';
 import { useNowAfterMount } from '@/components/shared/cards/useNowAfterMount';

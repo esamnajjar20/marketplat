@@ -7,6 +7,7 @@ import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { summarizeDurations } from '@/lib/monitoringMetrics';
 import { copyToClipboard } from '@/lib/copyToClipboard';
 import { formatNumber } from '@/lib/formatters';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 
 const outcomeLabel: Record<NetworkRequestOutcome, string> = {
   success: 'ناجح', 'http-error': 'خطأ HTTP', 'network-error': 'فشل اتصال', aborted: 'ملغى',
@@ -39,6 +40,7 @@ export function AdminNetworkRequestsPanel() {
   const [statusGroup, setStatusGroup] = useState('all');
   const [onlyFailures, setOnlyFailures] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const online = useOnlineStatus();
 
   const refresh = useCallback(() => setRecords(getNetworkRequests()), []);
@@ -113,15 +115,22 @@ export function AdminNetworkRequestsPanel() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const clearAll = () => {
-    if (window.confirm('هل تريد مسح سجل طلبات الشبكة من هذا المتصفح؟ لا يمكن التراجع عن ذلك.')) {
-      clearNetworkRequests();
-      setSelectedId(null);
-      setRecords([]);
-    }
+    clearNetworkRequests();
+    setSelectedId(null);
+    setRecords([]);
   };
 
   return (
     <div className="space-y-5" dir="rtl">
+      <ConfirmDialog
+        open={confirmClearOpen}
+        onOpenChange={setConfirmClearOpen}
+        title="مسح سجل طلبات الشبكة؟"
+        description="سيُمسح سجل طلبات الشبكة المحفوظ في هذا المتصفح. لا يمكن التراجع عن ذلك."
+        confirmLabel="مسح السجل"
+        destructive
+        onConfirm={clearAll}
+      />
       <header className="flex flex-col gap-4 rounded-2xl border bg-card p-4 sm:p-5 xl:flex-row xl:items-start xl:justify-between">
         <div className="flex min-w-0 gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -145,7 +154,7 @@ export function AdminNetworkRequestsPanel() {
             {copied ? 'تم النسخ' : 'نسخ التقرير'}
           </button>
           <button type="button" onClick={downloadReport} className="inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm hover:bg-muted"><Download className="h-4 w-4" /> تنزيل JSON</button>
-          <button type="button" onClick={clearAll} className="inline-flex h-9 items-center gap-2 rounded-lg border border-destructive/30 px-3 text-sm text-destructive hover:bg-destructive/5"><Trash2 className="h-4 w-4" /> مسح السجل</button>
+          <button type="button" onClick={() => setConfirmClearOpen(true)} className="inline-flex h-9 items-center gap-2 rounded-lg border border-destructive/30 px-3 text-sm text-destructive hover:bg-destructive/5"><Trash2 className="h-4 w-4" /> مسح السجل</button>
         </div>
       </header>
 

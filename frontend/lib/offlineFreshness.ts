@@ -8,6 +8,7 @@
  */
 
 import { CACHE_POLICY } from '@/lib/cachePolicy';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 /** Default thresholds (ms). Override per-call when a surface needs tighter TTL. */
 export const OFFLINE_STALE_AFTER_MS = {
@@ -80,7 +81,7 @@ export function offlineFreshnessLabel(
   const kind = options.kind ?? 'list';
   const offline =
     options.isOffline ??
-    (typeof navigator !== 'undefined' && navigator.onLine === false);
+    isDeviceOffline();
 
   if (!savedAt) {
     return offline ? 'بيانات غير متوفرة دون اتصال' : '';

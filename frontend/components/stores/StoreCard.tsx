@@ -9,7 +9,7 @@ import { CARD_SHELL_SOFT, CARD_PRESS, CARD_FOCUS, CARD_HOVER, HIT_AREA } from '@
 import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { getStoreTypePresentation, type StoreDirectoryItem, type StoreWithSeller } from '@/types/store.types';
 import { CardOfflineBadge, type CardContext } from '@/components/shared/cards/cardParts';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/shared/ui/Button';
 import { formatNumber } from '@/lib/formatters';
 
 interface Props {

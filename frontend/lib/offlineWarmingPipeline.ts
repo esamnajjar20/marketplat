@@ -20,6 +20,7 @@
 import { runWarmingEngine } from '@/lib/warmingEngine';
 import { getBackgroundWarmingBudget, shouldPauseBackgroundWarming } from '@/lib/offlineStoragePressure';
 import { getNetworkPolicy } from '@/lib/networkPolicy';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 let pipelineInFlight = false;
 // FIX WARM-PIPELINE-RERUN-01: whether the run currently in flight was asked to
@@ -103,7 +104,7 @@ export async function runWarmingPipeline(
   options: WarmingPipelineOptions = {},
 ): Promise<{ ran: boolean }> {
   if (typeof window === 'undefined') return { ran: false };
-  const online = navigator.onLine;
+  const online = !isDeviceOffline();
   if (!online) return { ran: false };
   if (pipelineInFlight) {
     // WARM-PIPELINE-QUEUE-01: see the flag's doc comment. Only a
@@ -133,7 +134,7 @@ export async function runWarmingPipeline(
     // Re-check the live connection after waiting for queue replay/storage.
     // `online` is only a snapshot from function entry and may be stale after
     // a long wait or a connection drop.
-    if (!navigator.onLine) return { ran: false };
+    if (isDeviceOffline()) return { ran: false };
 
     // FIX WARM-PIPELINE-STAMP-01: stamp the run only once it is really going to
     // start. The stamp used to be written BEFORE the online re-check above, so a

@@ -31,6 +31,7 @@ import { reportBackgroundFailure } from '../lib/backgroundTask';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { AuthUser, AuthTokens, AuthResultUser, UserRole } from '@/types/auth.types';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 /**
  * No-op Storage for the SSR context where localStorage is unavailable.
@@ -319,7 +320,7 @@ export const useAuthStore = create<AuthStore>()(
         if (
           state?.user &&
           typeof navigator !== 'undefined' &&
-          navigator.onLine === false
+          isDeviceOffline()
         ) {
           state.setAccessToken(state.accessToken ?? '');
         }

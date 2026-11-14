@@ -10,6 +10,7 @@ import dynamic from 'next/dynamic';
 import { getAvatarUrl } from '@/lib/cloudinary';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
 import type { StoryGroup } from '@/api/stories.api';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 // PERF: both are opened by a tap — keep them out of the home page's first load.
 const StoryComposer = dynamic(() => import('./StoryComposer').then((m) => m.StoryComposer), { ssr: false, loading: () => null });
@@ -44,8 +45,8 @@ export function StoriesRail() {
             <span className="max-w-16 truncate text-2xs-tight">قصتك</span>
           </button>
           {isLoading && Array.from({ length: 5 }).map((_, i) => <div key={i} className="flex w-16 shrink-0 flex-col items-center gap-2" aria-hidden="true">
-            <div className="h-14 w-14 animate-pulse rounded-full bg-muted" />
-            <div className="h-2 w-10 animate-pulse rounded bg-muted" />
+            <Skeleton className="h-14 w-14 rounded-full" />
+            <Skeleton className="h-2 w-10 rounded" />
           </div>)}
           {isError && <div className="flex min-w-48 flex-col justify-center gap-2 rounded-xl bg-muted/50 p-3 text-xs">
             <span className="text-muted-foreground">تعذّر تحميل القصص.</span>

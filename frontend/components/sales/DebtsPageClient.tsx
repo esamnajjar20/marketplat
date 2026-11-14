@@ -3,9 +3,9 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { useDebts } from '@/hooks/queries/useDebts';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/shared/ui/Button';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
 import { formatMoney } from '@/lib/formatters';
 

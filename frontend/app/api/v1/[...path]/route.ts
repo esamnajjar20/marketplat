@@ -19,6 +19,7 @@ import type { NextRequest } from 'next/server';
 import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { isViewerIndependentPath, stripIdentityHeaders } from '@/lib/edgeProxy';
 import { PRODUCTION_API_ORIGIN } from '@/lib/constants';
+import { getRawServerApiBaseUrl } from '@/lib/env';
 const DEV_API_ORIGIN = 'http://localhost:5000';
 
 /**
@@ -34,7 +35,7 @@ function getApiOrigin(): string {
   // blocked by Cloudflare (error 1042) and returns the Workers 404 page,
   // which manifested as a broken login and stale "element not found"
   // toasts for authenticated users.
-  const configured = process.env.API_BASE_URL;
+  const configured = getRawServerApiBaseUrl();
   const candidate = configured?.trim();
   if (candidate) {
     const url = new URL(candidate);

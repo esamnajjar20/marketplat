@@ -1,4 +1,4 @@
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/shared/ui/Badge';
 import type { CardKind } from './cardTypes';
 
 const KIND_BADGE: Record<CardKind, { label: string; className?: string; accent?: boolean }> = {

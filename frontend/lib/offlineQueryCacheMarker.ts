@@ -4,12 +4,14 @@
  * (NetworkStatusBanner) تحتاج القراءة فقط؛ أما الاسترجاع/الحفظ فيُحمَّلان كسولًا
  * من AppProviders. offlineQueryCache.ts يعيد تصدير القارئ للتوافق.
  */
+import { safeStorageGet } from '@/lib/browserStorage';
+
 export const LAST_CACHE_AT_KEY = 'marketplat:offline-query-cache:last-saved-at';
 
 export function getLastOfflineQueryCacheSavedAt(): number | null {
   try {
     if (typeof localStorage === 'undefined') return null;
-    const raw = localStorage.getItem(LAST_CACHE_AT_KEY);
+    const raw = safeStorageGet(LAST_CACHE_AT_KEY);
     if (!raw) return null;
     const value = Number(raw);
     // Ignore corrupt/future markers (clock changes or manually edited storage).

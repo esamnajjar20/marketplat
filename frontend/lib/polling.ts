@@ -5,13 +5,14 @@
 
 import { isNotificationStreamConnected } from '@/hooks/useNotificationStream';
 import { getNetworkPolicy } from '@/lib/networkPolicy';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 /** Whether periodic refetch / heartbeat should run right now. */
 export function canBackgroundPoll(): boolean {
   if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
     return false;
   }
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+  if (isDeviceOffline()) {
     return false;
   }
   return true;

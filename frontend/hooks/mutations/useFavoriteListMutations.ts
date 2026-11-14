@@ -4,8 +4,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { favoriteListsApi } from '@/api/favorite-lists.api';
 import { favoriteListsQueryKey } from '@/hooks/queries/useFavoriteLists';
-import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
+import { toastMutationError } from '@/lib/mutationFeedback';
 
 export function useCreateFavoriteList() {
   const qc = useQueryClient();
@@ -15,7 +15,7 @@ export function useCreateFavoriteList() {
       qc.invalidateQueries({ queryKey: favoriteListsQueryKey });
       toast.success('تم إنشاء القائمة');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -28,7 +28,7 @@ export function useRenameFavoriteList() {
       qc.invalidateQueries({ queryKey: favoriteListsQueryKey });
       toast.success('تم تعديل الاسم');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -41,7 +41,7 @@ export function useDeleteFavoriteList() {
       qc.invalidateQueries({ queryKey: queryKeys.favorites.listRoot() });
       toast.success('تم حذف القائمة (العناصر بقيت في «الكل»)');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -73,7 +73,7 @@ export function useMoveFavoritesToList() {
         toast.success(fail > 0 ? `نُقل ${ok} عنصر · فشل ${fail}` : `نُقل ${ok} عنصر`);
       }
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -92,6 +92,6 @@ export function useMoveFavoriteToList() {
       qc.invalidateQueries({ queryKey: queryKeys.favorites.listRoot() });
       toast.success('تم نقل العنصر');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

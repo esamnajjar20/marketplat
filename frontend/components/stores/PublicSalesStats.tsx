@@ -6,7 +6,7 @@ import { BadgeCheck, BarChart3, Star } from 'lucide-react';
 import type { PublicStoreSalesStats } from '@/types/public-store-stats.types';
 import { queryKeys } from '@/lib/queryKeys';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { formatShortDate, formatNumber } from '@/lib/formatters';
 import { sameOriginApi } from '@/lib/sameOriginApi';
 

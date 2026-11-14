@@ -4,6 +4,7 @@ import type { ApiResponse } from '@/types/api.types';
 import { recordRequestRetry, recordUploadAttempt, recordUploadResult } from '@/lib/networkObservability';
 import { isNetworkFailure } from '@/lib/networkErrors';
 import { computeUploadTimeoutMs, totalFileBytes } from '@/lib/uploadTimeout';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 export type UploadedImage = { url: string; publicId: string };
 
@@ -87,7 +88,7 @@ export const mediaApi = {
           lastErr = err;
           recordUploadResult(false);
           if (!isNetworkFailure(err)) throw err;
-          if (typeof navigator !== 'undefined' && navigator.onLine === false) throw err;
+          if (isDeviceOffline()) throw err;
 
           const delayMs = retryDelays[attempt];
           if (delayMs == null) break;

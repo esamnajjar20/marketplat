@@ -19,6 +19,7 @@ import {
   isRetryableParsedError,
   MAX_QUERY_RETRIES,
 } from '@/lib/retryPolicy';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 /**
  * API-INT-04 FIX: Only retry on network/5xx errors — not client errors.
@@ -29,7 +30,7 @@ import {
  */
 function shouldRetry(failureCount: number, error: unknown): boolean {
   // OFFLINE-NORETRY-01: never retry while offline.
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+  if (isDeviceOffline()) {
     return false;
   }
   if (failureCount >= MAX_QUERY_RETRIES) return false;
@@ -61,7 +62,7 @@ export function makeQueryClient() {
         refetchOnWindowFocus: false,
         refetchOnMount: (query) => {
           // OFFLINE-FIRST-01: nothing to refetch when we have no network.
-          if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+          if (isDeviceOffline()) {
             return false;
           }
           // QueryOptions typing varies by TanStack version — read safely

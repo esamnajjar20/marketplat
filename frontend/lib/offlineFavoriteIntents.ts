@@ -1,6 +1,7 @@
 import { favoritesApi } from '@/api/favorites.api';
 import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
 import type { FavoriteEntityKind } from '@/types/favorite.types';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 const DB_NAME = 'market-offline-favorite-intents';
 const DB_VERSION = 1;
@@ -70,7 +71,7 @@ export async function removeOfflineFavoriteIntent(key: string): Promise<void> {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event('offline-favorite-intents:updated'));
 }
 export async function syncOfflineFavoriteIntents(userId = getCurrentOfflineUserId()): Promise<{ synced: number; failed: number }> {
-  if (!userId || (typeof navigator !== 'undefined' && navigator.onLine === false)) return { synced: 0, failed: 0 };
+  if (!userId || isDeviceOffline()) return { synced: 0, failed: 0 };
   const intents = await listOfflineFavoriteIntents(userId); let synced = 0; let failed = 0;
   for (const intent of intents.sort((a, b) => a.updatedAt - b.updatedAt)) {
     // Never replay a toggle blindly. Read the authoritative state first; a crash after toggle

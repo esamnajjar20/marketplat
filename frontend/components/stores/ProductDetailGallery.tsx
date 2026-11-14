@@ -10,7 +10,7 @@ import {
   DETAIL_GALLERY_FRAME,
   DETAIL_THUMBNAIL_RAIL,
 } from '@/components/shared/detail/detailTokens';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/shared/ui/Dialog';
 import { getDetailImageUrl, getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { cn } from '@/lib/utils';
 

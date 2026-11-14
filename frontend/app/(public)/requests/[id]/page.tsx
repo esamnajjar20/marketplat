@@ -28,6 +28,7 @@ import { parseApiError } from '@/lib/errorParser';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { OfflineStaleDataNotice } from '@/components/shared/feedback/OfflineStaleDataNotice';
 import { formatShortDate } from '@/lib/formatters';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 const RequestOfferForm = dynamic(
   () =>
@@ -60,10 +61,10 @@ export default function RequestDetailPage() {
   if (isLoading) {
     return (
       <div className="mx-auto max-w-3xl space-y-4 px-3 py-4 pb-4 sm:p-4" dir="rtl" aria-busy>
-        <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-        <div className="h-8 w-2/3 animate-pulse rounded bg-muted" />
-        <div className="h-24 animate-pulse rounded-xl bg-muted" />
-        <div className="h-32 animate-pulse rounded-xl bg-muted" />
+        <Skeleton className="h-4 w-24 rounded" />
+        <Skeleton className="h-8 w-2/3 rounded" />
+        <Skeleton className="h-24 rounded-xl" />
+        <Skeleton className="h-32 rounded-xl" />
       </div>
     );
   }

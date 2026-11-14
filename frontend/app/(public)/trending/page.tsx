@@ -7,13 +7,14 @@ import { queryKeys } from '@/lib/queryKeys';
 import { fetchServerApi } from '@/lib/server/serverApiFetch';
 import type { MixedRecommendations } from '@/api/recommendations.api';
 import { APP_NAME } from '@/lib/constants';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 const SuggestionsPageClient = dynamic(
   () =>
     import('@/components/suggestions/SuggestionsPageClient').then(
       (module) => module.SuggestionsPageClient,
     ),
-  { loading: () => <div className="mx-auto max-w-7xl space-y-4 p-4"><div className="h-12 animate-pulse rounded-2xl bg-muted" /><div className="h-48 animate-pulse rounded-2xl bg-muted" /></div> },
+  { loading: () => <div className="mx-auto max-w-7xl space-y-4 p-4"><Skeleton className="h-12 rounded-2xl" /><Skeleton className="h-48 rounded-2xl" /></div> },
 );
 
 export const metadata: Metadata = buildMetadata({

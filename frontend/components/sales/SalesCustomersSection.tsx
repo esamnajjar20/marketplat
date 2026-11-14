@@ -6,7 +6,7 @@ import { useCustomers } from '@/hooks/queries/useCustomers';
 import { Button } from '@/components/shared/ui/Button';
 import { Input } from '@/components/shared/ui/Input';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/formatters';
 

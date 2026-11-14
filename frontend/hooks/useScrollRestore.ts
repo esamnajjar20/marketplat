@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
 
 const PREFIX = 'marketplat:scroll:';
 
@@ -67,7 +68,7 @@ export function useScrollRestore(enabled = true, searchParam?: string) {
     };
 
     try {
-      const raw = sessionStorage.getItem(key);
+      const raw = safeStorageGet(key, 'session');
       const y = raw ? Number(raw) : 0;
       if (Number.isFinite(y) && y > 0) {
         // A restore is a one-time navigation aid, not an ongoing controller
@@ -131,7 +132,7 @@ export function useScrollRestore(enabled = true, searchParam?: string) {
       requestAnimationFrame(() => {
         ticking = false;
         try {
-          sessionStorage.setItem(key, String(Math.round(window.scrollY)));
+          safeStorageSet(key, String(Math.round(window.scrollY)), 'session');
         } catch {
           /* ignore */
         }
@@ -142,7 +143,7 @@ export function useScrollRestore(enabled = true, searchParam?: string) {
     return () => {
       window.removeEventListener('scroll', persist);
       try {
-        sessionStorage.setItem(key, String(Math.round(window.scrollY)));
+        safeStorageSet(key, String(Math.round(window.scrollY)), 'session');
       } catch {
         /* ignore */
       }

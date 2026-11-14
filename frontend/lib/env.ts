@@ -19,6 +19,11 @@
  * own fallback on top of the raw value returned below, exactly as it
  * did before this file existed.
  *
+ * Every NEXT_PUBLIC_* read in app code goes through the getters below
+ * (API URL, VAPID key, Android app URL, error-reporter URL, app URL,
+ * support email, Google OAuth flag). Do not read process.env.NEXT_PUBLIC_*
+ * directly elsewhere.
+ *
  * Exported as functions, not frozen top-level consts, for the same
  * reason lib/pwa.ts's getVapidPublicKey already is one (see its own
  * comment): NEXT_PUBLIC_* values are inlined by Next.js at
@@ -40,4 +45,32 @@ export function getRawVapidPublicKey(): string | undefined {
 /** Public Android install URL (Play Store or direct APK). Unset → no promo is shown. */
 export function getRawAndroidAppUrl(): string | undefined {
   return process.env.NEXT_PUBLIC_ANDROID_APP_URL;
+}
+
+/** Optional client-error reporter endpoint (legacy hosts are filtered by errorReporterUrl.ts). */
+export function getRawErrorReporterUrl(): string | undefined {
+  return process.env.NEXT_PUBLIC_ERROR_REPORTER_URL;
+}
+
+/** Public site URL; consumers apply their own dev/prod fallback. */
+export function getRawAppUrl(): string | undefined {
+  return process.env.NEXT_PUBLIC_APP_URL;
+}
+
+/** Public support email shown on the contact page. Unset → no email is shown. */
+export function getRawSupportEmail(): string | undefined {
+  return process.env.NEXT_PUBLIC_SUPPORT_EMAIL;
+}
+
+/** Truthy string enables the Google sign-in button. */
+export function getRawGoogleOauthEnabled(): string | undefined {
+  return process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED;
+}
+
+/**
+ * Private (server-only) API origin used by route handlers. Never exposed to the
+ * client bundle; NEXT_PUBLIC_API_URL is a different variable (see getRawApiUrl).
+ */
+export function getRawServerApiBaseUrl(): string | undefined {
+  return process.env.API_BASE_URL;
 }

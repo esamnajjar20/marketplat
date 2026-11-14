@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { useSalesChart } from '@/hooks/queries/useSales';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 export function SalesChart() {
   const [period, setPeriod] = useState<'day'|'week'|'month'>('day');

@@ -15,6 +15,8 @@
  * visible. Freshness gates decide whether anything is actually fetched. It
  * can also be triggered on demand from /settings/offline.
  */
+import { safeStorageSet } from '@/lib/browserStorage';
+
 
 const STORAGE_KEY = 'marketplat:warming-pref';
 
@@ -44,7 +46,7 @@ export function getWarmingMode(): WarmingMode {
   if (typeof window === 'undefined') return 'off';
   try {
     // Override any stored preference so warming stays disabled.
-    localStorage.setItem(STORAGE_KEY, 'off');
+    safeStorageSet(STORAGE_KEY, 'off');
     current = 'off';
     return 'off';
   } catch { /* private mode */ }
@@ -53,7 +55,7 @@ export function getWarmingMode(): WarmingMode {
 
 export function setWarmingMode(mode: WarmingMode): void {
   current = mode;
-  try { localStorage.setItem(STORAGE_KEY, mode); } catch { /* in-memory */ }
+  try { safeStorageSet(STORAGE_KEY, mode); } catch { /* in-memory */ }
   listeners.forEach((cb) => { try { cb(mode); } catch { /* ignore */ } });
 }
 

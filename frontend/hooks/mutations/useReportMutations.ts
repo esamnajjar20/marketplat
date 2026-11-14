@@ -11,8 +11,8 @@
 
 import { useMutation } from '@tanstack/react-query';
 import { reportsApi, type CreateReportPayload } from '@/api/reports.api';
-import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
+import { toastMutationError } from '@/lib/mutationFeedback';
 
 export function useReportAd(adId: string) {
   return useMutation({
@@ -21,7 +21,7 @@ export function useReportAd(adId: string) {
     onSuccess: () => {
       toast.success('تم إرسال بلاغك، شكراً لك');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -35,7 +35,7 @@ export function useReportUser(userId: string) {
     onSuccess: () => {
       toast.success('تم إرسال بلاغك، شكراً لك');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -47,7 +47,7 @@ export function useReportStore(storeId: string) {
     onSuccess: () => {
       toast.success('تم إرسال بلاغك، شكراً لك');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -59,7 +59,7 @@ export function useReportProduct(productId: string) {
     onSuccess: () => {
       toast.success('تم إرسال بلاغك، شكراً لك');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -71,6 +71,6 @@ export function useReportService(serviceListingId: string) {
     onSuccess: () => {
       toast.success('تم إرسال بلاغك، شكراً لك');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

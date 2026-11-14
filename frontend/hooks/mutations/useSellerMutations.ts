@@ -3,9 +3,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { sellersApi } from '@/api/sellers.api';
 import { queryKeys } from '@/lib/queryKeys';
-import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
 import type { CreateSellerProfilePayload, UpdateSellerProfilePayload, CreateSellerRatingPayload } from '@/types/seller.types';
+import { toastMutationError } from '@/lib/mutationFeedback';
 
 /**
  * POST /sellers/me/profile — one-time seller profile creation.
@@ -23,7 +23,7 @@ export function useCreateSellerProfile() {
       queryClient.invalidateQueries({ queryKey: queryKeys.sellers.me() });
       toast.success('تم إنشاء ملفك كبائع بنجاح');
     },
-    onError: err => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -42,7 +42,7 @@ export function useRequestSellerVerification() {
       queryClient.invalidateQueries({ queryKey: queryKeys.sellers.me() });
       toast.success('تم إرسال طلب التوثيق، سيتم مراجعته قريباً');
     },
-    onError: err => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -68,7 +68,7 @@ export function useCreateSellerRating(sellerProfileId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.sellers.ratings(sellerProfileId) });
       toast.success('تم إرسال تقييمك');
     },
-    onError: err => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -84,6 +84,6 @@ export function useUpdateSellerProfile() {
       queryClient.invalidateQueries({ queryKey: queryKeys.sellers.me() });
       toast.success('تم حفظ تعديلات ملف البائع');
     },
-    onError: err => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

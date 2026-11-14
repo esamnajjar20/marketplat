@@ -15,6 +15,7 @@ import {
   type ConnectionQuality,
 } from './connectionQuality';
 import { subscribeNetworkLifecycle } from './networkLifecycle';
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
 
 export type NetworkTier = 'offline' | 'very-slow' | 'slow' | 'normal' | 'fast' | 'unknown';
 
@@ -254,14 +255,14 @@ export function getStablePageSize(
   const storageKey = `${STABLE_PAGE_SIZE_KEY_PREFIX}${baseSize}`;
   if (policy.tier === 'offline') {
     try {
-      const stored = Number(localStorage.getItem(storageKey));
+      const stored = Number(safeStorageGet(storageKey));
       if (Number.isInteger(stored) && stored >= minSize && stored <= maxSize) return stored;
     } catch { /* storage unavailable — fall through */ }
     return getAdaptivePageSize(baseSize, policy, minSize, maxSize);
   }
   const size = getAdaptivePageSize(baseSize, policy, minSize, maxSize);
   if (policy.tier !== 'unknown') {
-    try { localStorage.setItem(storageKey, String(size)); } catch { /* ignore */ }
+    try { safeStorageSet(storageKey, String(size)); } catch { /* ignore */ }
   }
   return size;
 }

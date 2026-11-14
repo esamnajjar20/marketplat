@@ -1,4 +1,5 @@
 import type { AdSortField, AdSortOrder } from '@/types/ad.types';
+import { getRawApiUrl, getRawAppUrl } from '@/lib/env';
 import type { StoreSortField } from '@/types/store.types';
 import type { ProductSortField } from '@/types/product.types';
 import type { ServiceListingSortField } from '@/types/service.types';
@@ -6,7 +7,7 @@ import type { ServiceListingSortField } from '@/types/service.types';
 export const APP_NAME = 'سوق غزة';
 const PRODUCTION_APP_URL = 'https://marketplat.esamnajjar6.workers.dev';
 const FALLBACK_APP_URL = process.env.NODE_ENV === 'production' ? PRODUCTION_APP_URL : 'http://localhost:3000';
-export const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? FALLBACK_APP_URL;
+export const APP_URL = getRawAppUrl() ?? FALLBACK_APP_URL;
 
 export const ROUTES = {
   home:          '/',
@@ -318,7 +319,7 @@ export const API_BASE_URL = (() => {
   if (process.env.NODE_ENV === 'production') {
     return `${PRODUCTION_API_ORIGIN}/api/v1`;
   }
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+  return getRawApiUrl() || 'http://localhost:5000/api/v1';
 })();
 
 /**

@@ -2,10 +2,10 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { notificationsApi } from '@/api/notifications.api';
-import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
 import { queryKeys } from '@/lib/queryKeys';
 import type { NotificationDevice } from '@/types/notification.types';
+import { toastMutationError } from '@/lib/mutationFeedback';
 
 /**
  * PATCH /notifications/:id/read — fires when the caller clicks a
@@ -52,7 +52,7 @@ export function useMarkAllNotificationsRead() {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.mineRoot() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -65,7 +65,7 @@ export function useDeleteNotification() {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.mineRoot() });
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount() });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -81,7 +81,7 @@ export function useDeleteAllReadNotifications() {
       const count = data?.count ?? 0;
       toast.success(count > 0 ? `تم حذف ${count} إشعاراً مقروءاً` : 'لا توجد إشعارات مقروءة');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -96,7 +96,7 @@ export function useRenameNotificationDevice() {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.devices() });
       toast.success('تم تحديث اسم الجهاز');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }
 
@@ -111,6 +111,6 @@ export function useRemoveNotificationDevice() {
       queryClient.invalidateQueries({ queryKey: queryKeys.notifications.devices() });
       toast.success('تم إيقاف الإشعارات على هذا الجهاز');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

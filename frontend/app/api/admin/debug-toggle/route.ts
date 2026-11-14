@@ -1,27 +1,16 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { PRODUCTION_API_ORIGIN } from '@/lib/constants';
+import { getRawApiUrl, getRawServerApiBaseUrl } from '@/lib/env';
+import { isSameOriginMutation, NO_STORE_HEADERS, roleFromPayload } from '@/lib/server/gatewayRoute';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const COOKIE_NAME = 'mp_debug_console';
-const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0' };
-
-function isSameOriginMutation(request: NextRequest): boolean {
-  const origin = request.headers.get('origin');
-  if (!origin) return false;
-  try {
-    if (new URL(origin).origin !== request.nextUrl.origin) return false;
-  } catch {
-    return false;
-  }
-  const fetchSite = request.headers.get('sec-fetch-site');
-  return !fetchSite || fetchSite === 'same-origin';
-}
 
 function apiAuthUrl(): URL | null {
   try {
-    const configured = process.env.API_BASE_URL?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim() || PRODUCTION_API_ORIGIN;
+    const configured = getRawServerApiBaseUrl()?.trim() || getRawApiUrl()?.trim() || PRODUCTION_API_ORIGIN;
     const url = new URL(configured);
     if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') return null;
     if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
@@ -30,25 +19,6 @@ function apiAuthUrl(): URL | null {
   } catch {
     return null;
   }
-}
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null;
-}
-
-function roleFromPayload(payload: unknown): string | null {
-  const root = asRecord(payload);
-  if (!root) return null;
-  const data = asRecord(root.data);
-  const candidates = [data?.user, root.user, data?.profile, data, root];
-  for (const candidate of candidates) {
-    const record = asRecord(candidate);
-    const role = record?.role;
-    if (typeof role === 'string') return role.toUpperCase();
-  }
-  return null;
 }
 
 async function verifyAdmin(request: NextRequest): Promise<boolean> {

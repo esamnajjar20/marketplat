@@ -1,6 +1,6 @@
 'use client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/shared/ui/Button';
+import { Input } from '@/components/shared/ui/Input';
 import type { SaleTransferMethod } from '@/types/sale.types';
 import { formatMoney } from '@/lib/formatters';
 export interface PaymentPart { id?: string; amount: string; method: SaleTransferMethod; transferRef?: string; }

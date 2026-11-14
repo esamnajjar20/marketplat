@@ -38,6 +38,7 @@ import type {
   ServiceLocationType,
 } from '@/types/service.types';
 import type { RequestType } from '@/types/request.types';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 /**
  * FIX DRAFT-SIZE-DOC-01: the offline draft publish path intentionally
@@ -333,7 +334,7 @@ export async function syncPendingOfflineDrafts(options?: {
   /** إن true: يعيد محاولة failed أيضًا (زر «مزامنة الآن»). الافتراضي: pending_sync فقط + failed تحت سقف المحاولات */
   includeFailed?: boolean;
 }): Promise<DraftPublishResult> {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+  if (isDeviceOffline()) {
     return { sent: 0, failed: 0, skipped: 0 };
   }
   if (syncInFlight) return syncInFlight;

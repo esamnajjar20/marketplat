@@ -6,9 +6,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { conversationsApi } from '@/api/conversations.api';
 import { queryKeys } from '@/lib/queryKeys';
-import { parseApiError } from '@/lib/errorParser';
-import { toast } from 'sonner';
 import type { StartConversationPayload } from '@/types/conversation.types';
+import { toastMutationError } from '@/lib/mutationFeedback';
 
 /**
  * POST /conversations — SellerCard's "مراسلة البائع" (adId) and
@@ -29,6 +28,6 @@ export function useStartConversation() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

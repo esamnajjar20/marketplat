@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
+import { Input } from '@/components/shared/ui/Input';
+import { Button } from '@/components/shared/ui/Button';
 import { formatMoney, formatShortDate } from '@/lib/formatters';
 export interface InstallmentDraft { installmentNo: number; amount: number; dueDate: string; }
 export function InstallmentForm({ due, onChange }: { due: number; onChange: (v: InstallmentDraft[]) => void }) {

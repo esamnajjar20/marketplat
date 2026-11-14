@@ -1,4 +1,5 @@
 import { recordConnectionSnapshot, recordRequestCompleted, recordRequestStarted, type RequestFailureType } from './networkObservability';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 /**
  * UX: connection quality from request timings + Network Information API.
@@ -58,7 +59,7 @@ export function recordRequestSuccess(): void {
  * network tier, so queueing/requests keep trying and can self-heal.
  */
 export function isConnectivitySuspect(now: number = Date.now()): boolean {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
+  if (isDeviceOffline()) return false;
   return (
     consecutiveFailures >= SUSPECT_FAILURE_THRESHOLD &&
     now - lastNetworkFailureAt < SUSPECT_WINDOW_MS
@@ -144,7 +145,7 @@ function fromEffectiveType(): ConnectionQuality | null {
  * 4) unknown
  */
 export function getConnectionQuality(): ConnectionQuality {
-  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  const offline = isDeviceOffline();
   const conn = typeof navigator !== 'undefined'
     ? (navigator as Navigator & { connection?: { effectiveType?: string; downlink?: number; rtt?: number; saveData?: boolean } }).connection
     : undefined;

@@ -20,6 +20,7 @@ import { env } from '../../config/env';
 import { bumpGeneration } from '../cache/swrCache';
 import { deliverEdgePurgeTags } from '../cache/edgePurge';
 import { asPlainObject } from '../utils/asPlainObject';
+import { getGoWorkerBaseUrl, getGoWorkerToken } from '../go-worker/goWorkerConfig';
 
 // Claim one event at a time: leasing a batch and then processing it serially lets
 // later events' leases expire while they wait behind a slow high-fan-out event.
@@ -277,8 +278,8 @@ async function isGoOutboxPrimaryActive(): Promise<boolean> {
     goOutboxPrimaryCached = false;
     return false;
   }
-  const baseUrl = process.env.GO_WORKER_URL?.trim().replace(/\/+$/, '');
-  const token = process.env.GO_WORKER_TOKEN?.trim();
+  const baseUrl = getGoWorkerBaseUrl();
+  const token = getGoWorkerToken();
   if (!baseUrl || !token) return false;
   const now = Date.now();
   if (now - goOutboxPrimaryCheckedAt < 5_000) return goOutboxPrimaryCached;
@@ -321,8 +322,8 @@ async function isGoPushDispatchPrimaryActive(): Promise<boolean> {
     goPushDispatchPrimaryCached = false;
     return false;
   }
-  const baseUrl = process.env.GO_WORKER_URL?.trim().replace(/\/+$/, '');
-  const token = process.env.GO_WORKER_TOKEN?.trim();
+  const baseUrl = getGoWorkerBaseUrl();
+  const token = getGoWorkerToken();
   if (!baseUrl || !token) return false;
   const now = Date.now();
   if (now - goPushDispatchPrimaryCheckedAt < 5_000) return goPushDispatchPrimaryCached;
@@ -354,8 +355,8 @@ async function tryExecuteOutboxEventInGo(
   event: OutboxEvent,
   workerId: string
 ): Promise<GoOutboxResult | null> {
-  const baseUrl = process.env.GO_WORKER_URL?.trim().replace(/\/+$/, '');
-  const token = process.env.GO_WORKER_TOKEN?.trim();
+  const baseUrl = getGoWorkerBaseUrl();
+  const token = getGoWorkerToken();
   if (!baseUrl || !token) return null;
 
   try {

@@ -28,6 +28,7 @@ import type {
 } from '@/types/service.types';
 
 
+import { isDeviceOffline } from '@/lib/offlineError';
 /**
  * UX-FIX P3-10b: accepts an optional onUploadProgress callback, same
  * pattern as useCreateAd, so ServiceListingForm can drive a real
@@ -69,7 +70,7 @@ export function useCreateServiceListing(onUploadProgress?: (percent: number) => 
     },
     onError: async (err, payload) => {
       const parsed = parseApiError(err);
-      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      const offline = isDeviceOffline();
       // FIX FALSE-OFFLINE-DRAFT-01 + ONLINE-SILENT-DRAFT-01
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
@@ -166,7 +167,7 @@ export function useUpdateServiceListing(listingId: string) {
     },
     onError: async (err, payload) => {
       const parsed = parseApiError(err);
-      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      const offline = isDeviceOffline();
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
           await saveAdDraft({

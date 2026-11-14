@@ -1,3 +1,5 @@
+
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
 const KEY = 'marketplat:data-saver';
 const EVENT = 'marketplat:data-saver';
 
@@ -32,7 +34,7 @@ export function isDataSaverEnabled(): boolean {
   if (typeof window === 'undefined' || !hydrated) return false;
 
   try {
-    if (window.localStorage.getItem(KEY) === '1') return true;
+    if (safeStorageGet(KEY) === '1') return true;
   } catch {
     /* ignore */
   }
@@ -49,9 +51,9 @@ export function setDataSaverEnabled(on: boolean): void {
 
   try {
     if (on) {
-      window.localStorage.setItem(KEY, '1');
+      safeStorageSet(KEY, '1');
     } else {
-      window.localStorage.removeItem(KEY);
+      safeStorageRemove(KEY);
     }
 
     window.dispatchEvent(

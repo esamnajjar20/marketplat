@@ -21,6 +21,7 @@ import { getSessionCleanupVersion } from '@/lib/authCleanup';
 import { useAuthStore } from '@/store/auth.store';
 import { isNetworkLikeFailure } from '@/lib/isNetworkLikeFailure';
 import { saveOfflineFavoriteIntent } from '@/lib/offlineFavoriteIntents';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 export function useToggleFavorite() {
   const queryClient = useQueryClient();
@@ -30,7 +31,7 @@ export function useToggleFavorite() {
     mutationFn: async (adId: string) => {
       const userId = useAuthStore.getState().user?.id;
       const desired = queryClient.getQueryData<Set<string>>(queryKeys.favorites.ids())?.has(adId) ?? false;
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      if (isDeviceOffline()) {
         if (!userId) throw new Error('سجّل الدخول لحفظ المفضلة');
         await saveOfflineFavoriteIntent(userId, 'AD', adId, desired);
         toast.message('حُفظ تغيير المفضلة على الجهاز', { description: 'ستتم مزامنته تلقائيًا عند عودة الإنترنت.' });
@@ -129,7 +130,7 @@ export function useToggleFavoriteEntity(type: FavoriteEntityKind) {
     mutationFn: async (entityId: string) => {
       const userId = useAuthStore.getState().user?.id;
       const desired = queryClient.getQueryData<Set<string>>(queryKeys.favorites.entityIds(type))?.has(entityId) ?? false;
-      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      if (isDeviceOffline()) {
         if (!userId) throw new Error('سجّل الدخول لحفظ المفضلة');
         await saveOfflineFavoriteIntent(userId, type, entityId, desired);
         toast.message('حُفظ تغيير المفضلة على الجهاز', { description: 'ستتم مزامنته تلقائيًا عند عودة الإنترنت.' });

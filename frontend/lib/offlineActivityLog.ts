@@ -1,4 +1,5 @@
 import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
 /**
  * سجل نشاط بسيط لمركز الأوفلاين — محلي (localStorage)، آخر N حدث.
  */
@@ -37,7 +38,7 @@ export function getActivityKindLabel(kind: OfflineActivityKind): string {
 
 function readAll(): OfflineActivityEntry[] {
   try {
-    const raw = localStorage.getItem(storageKey());
+    const raw = safeStorageGet(storageKey());
     if (!raw) return [];
     const parsed = JSON.parse(raw) as OfflineActivityEntry[];
     return Array.isArray(parsed) ? parsed : [];
@@ -48,7 +49,7 @@ function readAll(): OfflineActivityEntry[] {
 
 function writeAll(items: OfflineActivityEntry[]): void {
   try {
-    localStorage.setItem(storageKey(), JSON.stringify(items.slice(0, MAX)));
+    safeStorageSet(storageKey(), JSON.stringify(items.slice(0, MAX)));
     window.dispatchEvent(new CustomEvent('offline-hub:activity'));
   } catch {
     /* ignore */
@@ -75,7 +76,7 @@ export function logOfflineActivity(
 
 export function clearOfflineActivity(): void {
   if (typeof window === 'undefined') return;
-  try { localStorage.removeItem(storageKey()); window.dispatchEvent(new CustomEvent('offline-hub:activity')); } catch {}
+  try { safeStorageRemove(storageKey()); window.dispatchEvent(new CustomEvent('offline-hub:activity')); } catch {}
 }
 
 export function formatActivityTime(at: number): string {

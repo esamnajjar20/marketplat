@@ -1,7 +1,8 @@
 import { getCsrfToken } from '@/lib/csrf';
 import { useAuthStore } from '@/store/auth.store';
+import { getRawApiUrl } from '@/lib/env';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
+const API_BASE = getRawApiUrl() ?? '';
 
 const SAFE_HTTP_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 

@@ -24,6 +24,7 @@ import {
 } from './offlineWarmingPlanner';
 import { describeCoordination } from './offlineWarmingCoordinator';
 import { CACHE_VERSION_SUFFIX } from './offlineRouteShells';
+import { safeStorageGet } from '@/lib/browserStorage';
 
 export interface RouteReport {
   route: string;
@@ -203,7 +204,7 @@ function readThrottle(): WarmingDebugReport['throttle'] {
   }
   const read = (k: string): number => {
     try {
-      const v = localStorage.getItem(k);
+      const v = safeStorageGet(k);
       return v ? Number(v) || 0 : 0;
     } catch {
       return 0;

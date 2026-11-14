@@ -4,7 +4,7 @@ import { Download, FileText, Printer } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { salesApi } from '@/api/sales.api';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/shared/ui/Button';
 import { useSalesReport } from '@/hooks/queries/useSales';
 import type { SalePaymentStatus } from '@/types/sale.types';
 import { formatShortDate } from '@/lib/formatters';

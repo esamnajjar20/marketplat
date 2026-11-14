@@ -27,6 +27,8 @@
  *
  * Storage quota: one snapshot is ~20-40 KB JSON. Negligible.
  */
+import { safeStorageRemove } from '@/lib/browserStorage';
+
 
 const DB_NAME = 'marketplat-warming';
 const DB_VERSION = 1;
@@ -178,7 +180,7 @@ export async function readSnapshotForCacheVersion(
         const k = window.localStorage.key(i);
         if (k && k.startsWith(PREFIX) && k !== KEEP_KEY) stale.push(k);
       }
-      for (const k of stale) window.localStorage.removeItem(k);
+      for (const k of stale) safeStorageRemove(k);
     }
   } catch {
     /* private mode / quota — harmless */
@@ -222,7 +224,7 @@ export async function readSnapshotForCacheVersion(
             k.startsWith('marketplat:core-bundle:last-warmed') ||
             k.startsWith('marketplat:drip-last-pass')
           ) {
-            window.localStorage.removeItem(k);
+            safeStorageRemove(k);
           }
           // NOTE: never clear 'marketplat:warming-pref' here — that's the
           // user's own mode selection (off/fast/full), not warming state.

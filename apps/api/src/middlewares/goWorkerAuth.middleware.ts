@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { Request, RequestHandler } from 'express';
+import { getGoWorkerToken } from '../shared/go-worker/goWorkerConfig';
 
 /**
  * Shared bearer-token guard for every `/internal/go-worker/*` endpoint.
@@ -27,7 +28,7 @@ export function requireGoWorkerToken(options: GoWorkerAuthOptions = {}): Request
   const unauthorizedBody = options.unauthorizedBody ?? 'error';
 
   return (req, res, next) => {
-    const expectedToken = process.env.GO_WORKER_TOKEN?.trim() ?? '';
+    const expectedToken = getGoWorkerToken() ?? '';
     const expected = Buffer.from(expectedToken);
     const supplied = Buffer.from(extractBearerToken(req));
     const authorized =

@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 import { Plus, RefreshCw, ShoppingCart, WalletCards } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/shared/ui/Button';
+import { Input } from '@/components/shared/ui/Input';
 import { SaleCard } from './SaleCard';
 import { POSDialog } from './POSDialog';
 import { AddSaleDialog } from './AddSaleDialog';

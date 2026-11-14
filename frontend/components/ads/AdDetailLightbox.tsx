@@ -4,7 +4,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { ChevronRight, ChevronLeft, X } from 'lucide-react';
 import { ZoomableDetailImage } from '@/components/shared/detail/ZoomableDetailImage';
 import { getDetailImageUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/shared/ui/Dialog';
 
 interface AdDetailLightboxProps {
   images: string[];

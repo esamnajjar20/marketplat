@@ -20,6 +20,7 @@ import {
 import { Info, Star, RefreshCw, X, Shield, Zap, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { sameOriginApi } from '@/lib/sameOriginApi';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 type RankRow = SellerRankingRow;
 
@@ -79,12 +80,12 @@ function RankingSkeleton() {
     <div className="space-y-2.5" aria-busy="true" aria-label="جارٍ التحميل">
       {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="flex items-center gap-3 rounded-card border border-border bg-card px-3 py-3">
-          <div className="h-8 w-8 animate-pulse rounded-lg bg-muted" />
+          <Skeleton className="h-8 w-8 rounded-lg" />
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-3 w-2/5 animate-pulse rounded bg-muted" />
+            <Skeleton className="h-3 w-2/5 rounded" />
             <div className="h-2.5 w-3/5 animate-pulse rounded bg-muted/70" />
           </div>
-          <div className="h-9 w-9 animate-pulse rounded-full bg-muted" />
+          <Skeleton className="h-9 w-9 rounded-full" />
           <div className="h-6 w-6 animate-pulse rounded-full bg-muted/70" />
         </div>
       ))}

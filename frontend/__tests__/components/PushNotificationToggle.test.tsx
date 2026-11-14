@@ -34,6 +34,10 @@ vi.mock('@/lib/env', () => ({
   getRawVapidPublicKey: vi.fn(),
   getRawApiUrl: vi.fn(),
   getRawAndroidAppUrl: vi.fn(),
+  getRawErrorReporterUrl: vi.fn(),
+  getRawAppUrl: vi.fn(),
+  getRawSupportEmail: vi.fn(),
+  getRawGoogleOauthEnabled: vi.fn(),
 }));
 
 vi.mock('@/lib/pwa', () => ({

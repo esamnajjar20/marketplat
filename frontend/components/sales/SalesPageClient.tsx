@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { Plus, ReceiptText, ShoppingCart, WalletCards } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/shared/ui/Button';
 import { SalesSummary } from './SalesSummary';
 import { SaleCard } from './SaleCard';
 import { POSDialog } from './POSDialog';

@@ -17,6 +17,7 @@ import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { RefreshCw, X } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { onServiceWorkerUpdate, activateWaitingServiceWorker } from '@/lib/pwa';
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
 
 // إعادة تصدير ليستخدمها NotificationBell وصفحة الإشعارات
 export { activateWaitingServiceWorker };
@@ -53,7 +54,7 @@ export function getPwaUpdateRegistration(): ServiceWorkerRegistration | null {
 function isDismissedRecently(): boolean {
   if (typeof window === 'undefined') return false;
   try {
-    const raw = localStorage.getItem(DISMISS_KEY);
+    const raw = safeStorageGet(DISMISS_KEY);
     if (!raw) return false;
     const ts = Number(raw);
     if (Number.isNaN(ts)) return false;
@@ -65,7 +66,7 @@ function isDismissedRecently(): boolean {
 
 function markDismissed() {
   try {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()));
+    safeStorageSet(DISMISS_KEY, String(Date.now()));
   } catch {
     // ignore quota / private mode
   }
@@ -87,7 +88,7 @@ export function UpdatePrompt() {
     notifyShared(reg);
     // كتم فوري بعد تفعيل حديث (انظر JUST_UPDATED في lib/pwa.ts)
     try {
-      const ts = Number(sessionStorage.getItem('pwa-just-updated-at') || 0);
+      const ts = Number(safeStorageGet('pwa-just-updated-at', 'session') || 0);
       if (ts && Date.now() - ts < 5 * 60 * 1000) {
         setVisible(false);
         return;

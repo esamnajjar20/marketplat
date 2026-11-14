@@ -26,6 +26,7 @@
  */
 
 import { resolveErrorReporterUrl } from './errorReporterUrl';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 export function reportClientError(error: Error, context?: Record<string, unknown>): void {
   // Always log locally first — this is the original fallback behavior,
@@ -99,7 +100,7 @@ export function isOfflineChunkLoadError(
 ): boolean {
   if (!isChunkLoadError(error)) return false;
   if (typeof navigator === 'undefined') return false;
-  return navigator.onLine === false;
+  return isDeviceOffline();
 }
 
 export function isChunkLoadError(error: Error | null | undefined): boolean {
@@ -132,7 +133,7 @@ export function handleChunkLoadError(error: Error): boolean {
   // re-serves the same cached shell, fails again, and burns the one-shot
   // 30s recovery window. Return false so the error UI renders (and can
   // explain the offline cause) instead of reloading pointlessly.
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+  if (isDeviceOffline()) {
     console.warn('[chunk-recovery] skipped: device is offline');
     return false;
   }

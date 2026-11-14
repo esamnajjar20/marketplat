@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import { useInstallmentsOverview } from '@/hooks/queries/useInstallments';
 import { usePayInstallment } from '@/hooks/mutations/useInstallmentMutations';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Button } from '@/components/shared/ui/Button';
+import { Input } from '@/components/shared/ui/Input';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/formatters';
 

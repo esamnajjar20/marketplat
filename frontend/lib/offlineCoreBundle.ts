@@ -51,6 +51,8 @@ import { reportWarmingFailure } from './offlineWarmingReport';
 import { fetchWithTimeout } from './fetchTimeout';
 import { getListThumbnailUrl, getAvatarUrl } from './cloudinary';
 import { saveOfflineList, OFFLINE_LIST_KEYS, OFFLINE_LIST_LIMITS } from './offlineListCache';
+import { isDeviceOffline } from '@/lib/offlineError';
+import { safeStorageSet } from '@/lib/browserStorage';
 
 // FIX PWA-VER-01: نفس مشكلة lib/offlineRouteShells.ts's STATIC_CACHE — كانت
 // عالقة على 'v4' بينما public/sw.js تجاوزها إلى 'v5'، فكان warmCoreBundle()
@@ -324,7 +326,7 @@ export async function cachePut(cache: Cache, url: string, response: Response): P
  */
 async function warmCoreBundleImpl(options?: { force?: boolean }): Promise<void> {
   if (typeof window === 'undefined') return;
-  if (!navigator.onLine) return;
+  if (isDeviceOffline()) return;
   if (typeof caches === 'undefined') return;
   if (isWarming) return;
 
@@ -388,7 +390,7 @@ async function warmCoreBundleImpl(options?: { force?: boolean }): Promise<void> 
       // below were skipped whenever this setItem threw. Worst case the marker is
       // missing and the next pass simply runs again.
       try {
-        localStorage.setItem(LAST_WARMED_KEY, String(Date.now()));
+        safeStorageSet(LAST_WARMED_KEY, String(Date.now()));
       } catch {
         // storage unavailable: no marker, no harm.
       }
@@ -469,7 +471,7 @@ async function warmCoreBundleImpl(options?: { force?: boolean }): Promise<void> 
  */
 export async function warmCoreBundle(options?: { force?: boolean }): Promise<void> {
   if (typeof window === 'undefined') return;
-  if (!navigator.onLine) return;
+  if (isDeviceOffline()) return;
   if (typeof caches === 'undefined') return;
 
   const plan = getWarmingPlan();

@@ -33,6 +33,7 @@ import { DEVICE_ERRORS_EVENT, getDeviceErrorsAsync, type DeviceErrorRecord } fro
 import { NETWORK_REQUESTS_EVENT, getNetworkRequests, type NetworkRequestRecord } from '@/lib/networkRequestMonitor';
 import { summarizeDurations } from '@/lib/monitoringMetrics';
 import { formatClockTime, formatTimestamp } from '@/lib/formatters';
+import { canBackgroundPoll } from '@/lib/polling';
 
 function Section({ title, description, icon: Icon, children }: {
   title: string;
@@ -128,7 +129,7 @@ export function AdminMonitoringCenter() {
     let cancelled = false;
     const tick = () => {
       if (cancelled) return;
-      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      if (!canBackgroundPoll()) return;
       void refreshServerDiagnostics();
     };
     tick();

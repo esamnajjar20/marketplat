@@ -2,6 +2,7 @@ import { getActiveSW } from '@/lib/swReady';
 import { getCurrentOfflineUserId } from '@/lib/offlineUserScope';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
 import { isOfflineMutationQueueAllowed } from '@/lib/offlineMutationPolicy';
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
 /**
  * واجهة الصفحة (لا الـ Service Worker) لطابور الطلبات غير المرسلة.
  *
@@ -468,7 +469,7 @@ const REPLAY_STORAGE_KEY = 'market-offline-last-replay';
 function getLastReplayAt(): number {
   try {
     if (typeof sessionStorage === 'undefined') return 0;
-    return Number(sessionStorage.getItem(REPLAY_STORAGE_KEY) || 0);
+    return Number(safeStorageGet(REPLAY_STORAGE_KEY, 'session') || 0);
   } catch {
     return 0;
   }
@@ -477,7 +478,7 @@ function getLastReplayAt(): number {
 function setLastReplayAt(value: number): void {
   try {
     if (typeof sessionStorage === 'undefined') return;
-    sessionStorage.setItem(REPLAY_STORAGE_KEY, String(value));
+    safeStorageSet(REPLAY_STORAGE_KEY, String(value), 'session');
   } catch {
     // sessionStorage قد يكون محجوبًا في وضع التصفح المتخفي —
     // نتجاهل ونكمل بدون throttle.

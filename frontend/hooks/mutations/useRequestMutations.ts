@@ -21,6 +21,7 @@ import {
 } from '@/lib/offlineDraftResume';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 export function useCreateRequest() {
   const qc = useQueryClient();
@@ -66,7 +67,7 @@ export function useCreateRequest() {
     },
     onError: async (err, input) => {
       const parsed = parseApiError(err);
-      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      const offline = isDeviceOffline();
       if (offline || isNetworkLikeFailure(parsed)) {
         try {
           const { files, ...body } = input;

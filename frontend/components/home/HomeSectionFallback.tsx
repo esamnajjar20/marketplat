@@ -1,4 +1,4 @@
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 /**
  * HOME-FLICKER-01: shown by next/dynamic while a lazy home section's JS chunk

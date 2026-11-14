@@ -29,6 +29,7 @@ import { clearAppBadge } from '@/lib/appBadge';
 import { clearRecentSearches } from '@/lib/recentSearches';
 import { clearOfflineActivity } from '@/lib/offlineActivityLog';
 import { clearNativeSessionMeta } from '@/lib/capacitor/nativeSessionStorage';
+import { safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
 
 /** يطلب من الـ SW مسح كاش API + PERSONAL_SHELL — نفس بروتوكول
  * CLEAR_API_CACHE الموجود أصلًا بـ public/sw.js (SECURITY FIX audit #2 +
@@ -158,7 +159,7 @@ const PENDING_CLEANUP_KEY = 'marketplat:pending-store-cleanup';
 type CleanupStage = 'clearAutoReadStage' | 'clearOfflineStoresStage';
 
 function setPendingCleanupFlag(): void {
-  try { localStorage.setItem(PENDING_CLEANUP_KEY, '1'); } catch { /* ignore */ }
+  try { safeStorageSet(PENDING_CLEANUP_KEY, '1'); } catch { /* ignore */ }
 }
 
 async function runCleanupStage(stage: CleanupStage): Promise<void> {
@@ -201,7 +202,7 @@ export async function runPendingStoreCleanupIfNeeded(isAuthenticated: boolean): 
     const mod = await import('@/lib/authCleanupStores');
     await mod.clearAutoReadStage();
     await mod.clearOfflineStoresStage();
-    try { localStorage.removeItem(PENDING_CLEANUP_KEY); } catch { /* ignore */ }
+    try { safeStorageRemove(PENDING_CLEANUP_KEY); } catch { /* ignore */ }
   } catch (err) {
     console.warn('[auth-cleanup] pending store cleanup still failing:', err);
   }
@@ -286,7 +287,7 @@ export async function clearSensitiveLocalData(): Promise<void> {
     // here is intentional and documented; a future change to the key
     // must update this line as well.
     try {
-      localStorage.removeItem('location:gps');
+      safeStorageRemove('location:gps');
     } catch {
       // localStorage may throw in private mode / when full
     }
@@ -304,7 +305,7 @@ export async function clearSensitiveLocalData(): Promise<void> {
   try {
     // Index for the 'market-saved-ads' bucket wiped above (must match
     // SAVED_INDEX_KEY in offlineSavedAds.ts / offlineSavedEntities.ts).
-    localStorage.removeItem('saved-ads-offline');
+    safeStorageRemove('saved-ads-offline');
   } catch {
     /* ignore */
   }

@@ -1,5 +1,6 @@
 import { logger } from '../observability/logger';
 import type { FcmPushPayload, FcmSendOutcome } from '../notifications/fcmPushService';
+import { getGoWorkerBaseUrl, getGoWorkerToken } from './goWorkerConfig';
 
 export type GoFcmTargetOutcome = FcmSendOutcome | 'missing';
 
@@ -31,8 +32,8 @@ export async function sendFcmTargetViaGo(input: {
   targetId: string;
   payload: FcmPushPayload;
 }): Promise<GoFcmTargetOutcome> {
-  const baseUrl = process.env.GO_WORKER_URL?.trim().replace(/\/+$/, '');
-  const token = process.env.GO_WORKER_TOKEN?.trim();
+  const baseUrl = getGoWorkerBaseUrl();
+  const token = getGoWorkerToken();
   if (!baseUrl || !token) {
     logger.error('[push-fcm-go] enabled but GO_WORKER_URL/GO_WORKER_TOKEN is missing');
     return 'transient';

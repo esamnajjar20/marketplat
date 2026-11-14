@@ -2,8 +2,9 @@ import { getCsrfToken } from '@/lib/csrf';
 import { OFFLINE_OP_ID_HEADER, newOfflineOperationId } from '@/lib/offlineOperationId';
 import { useAuthStore } from '@/store/auth.store';
 import type { Message, SendMessagePayload } from '@/types/conversation.types';
+import { getRawApiUrl } from '@/lib/env';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+const API_BASE_URL = getRawApiUrl() || '';
 
 export type ConversationMessageRequest =
   | { kind: 'text'; payload: SendMessagePayload }

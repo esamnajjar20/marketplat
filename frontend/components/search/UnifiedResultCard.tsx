@@ -2,7 +2,7 @@ import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRela
 
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/shared/ui/Badge';
 import { MapPin, Star, BadgeCheck, Eye } from 'lucide-react';
 import { formatPrice } from '@/lib/formatters';
 import {

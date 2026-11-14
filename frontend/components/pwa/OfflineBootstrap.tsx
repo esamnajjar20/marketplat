@@ -1,5 +1,6 @@
 'use client';
 import { reportBackgroundFailure } from '@/lib/backgroundTask';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 /**
  * نقطة إقلاع نظام الـ Offline — تُركَّب مرة واحدة في AppProviders.
@@ -57,7 +58,7 @@ function safeFire(label: string, p: Promise<unknown>): void {
 
 /** SW replay ثم نشر المسودات — مع إعلام الـ pipeline أن الطابور مشغول. */
 function syncAuthenticatedPushSubscriptions(): void {
-  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  if (isDeviceOffline()) return;
   if (!useAuthStore.getState().isAuthenticated) return;
 
   void (async () => {
@@ -177,7 +178,7 @@ export function OfflineBootstrap() {
     const periodicId = window.setInterval(() => {
       if (
         typeof navigator !== 'undefined' &&
-        navigator.onLine &&
+        !isDeviceOffline() &&
         document.visibilityState === 'visible'
       ) {
         replayThenPublishDrafts();
@@ -192,7 +193,7 @@ export function OfflineBootstrap() {
     const tickId = window.setInterval(() => {
       if (
         typeof navigator !== 'undefined' &&
-        navigator.onLine &&
+        !isDeviceOffline() &&
         document.visibilityState === 'visible'
       ) {
         scheduleWarming('tick', {

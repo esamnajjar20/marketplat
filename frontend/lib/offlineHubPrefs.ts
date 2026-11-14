@@ -2,11 +2,14 @@
  * تفضيلات مركز الأوفلاين (محلية على الجهاز).
  * - wifiOnlySync: لا تُزامَن تلقائياً على بيانات الجوال
  */
+import { isDeviceOffline } from '@/lib/offlineError';
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
+
 
 const WIFI_KEY = 'offline-hub:wifi-only-sync';
 export function getWifiOnlySync(): boolean {
   try {
-    const v = localStorage.getItem(WIFI_KEY);
+    const v = safeStorageGet(WIFI_KEY);
     // افتراضي: false (مزامنة على أي اتصال) حتى لا نكسر السلوك الحالي صامتًا
     return v === '1' || v === 'true';
   } catch {
@@ -16,7 +19,7 @@ export function getWifiOnlySync(): boolean {
 
 export function setWifiOnlySync(enabled: boolean): void {
   try {
-    localStorage.setItem(WIFI_KEY, enabled ? '1' : '0');
+    safeStorageSet(WIFI_KEY, enabled ? '1' : '0');
     window.dispatchEvent(new CustomEvent('offline-hub:prefs-changed'));
   } catch {
     /* private mode */
@@ -31,7 +34,7 @@ export function setWifiOnlySync(enabled: boolean): void {
  */
 export function shouldAutoSyncNow(): boolean {
   if (typeof navigator === 'undefined') return false;
-  if (!navigator.onLine) return false;
+  if (isDeviceOffline()) return false;
   if (!getWifiOnlySync()) return true;
 
   type NetInfo = { type?: string; effectiveType?: string; saveData?: boolean };
@@ -58,7 +61,7 @@ export function shouldAutoSyncNow(): boolean {
 }
 
 export function describeNetworkForSync(): string {
-  if (typeof navigator === 'undefined' || !navigator.onLine) return 'غير متصل';
+  if ((typeof navigator === 'undefined' || isDeviceOffline())) return 'غير متصل';
   const conn = (navigator as Navigator & {
     connection?: { type?: string; effectiveType?: string };
   }).connection;

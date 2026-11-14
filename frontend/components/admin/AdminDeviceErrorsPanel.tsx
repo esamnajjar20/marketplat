@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react
 import { AlertTriangle, CheckCircle2, Clipboard, Download, RefreshCw, Search, Trash2, Wifi, WifiOff, Bug, Layers3, Activity, Filter } from 'lucide-react';
 import { clearDeviceErrors, DEVICE_ERRORS_EVENT, getDeviceErrors, getDeviceErrorsAsync, isReproduceMode, setReproduceMode, type DeviceErrorRecord } from '@/lib/deviceErrorMonitor';
 import { copyToClipboard } from '@/lib/copyToClipboard';
+import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 
 const categoryNames: Record<string, string> = {
   runtime: 'خطأ JavaScript', promise: 'وعد غير معالج', hydration: 'تعارض Hydration / React',
@@ -27,6 +28,7 @@ export function AdminDeviceErrorsPanel() {
   const [grouped, setGrouped] = useState(true);
   const [reproduce, setReproduce] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
 
   const refresh = useCallback(() => {
     setRecords(getDeviceErrors());
@@ -115,11 +117,9 @@ export function AdminDeviceErrorsPanel() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   const clearAll = () => {
-    if (window.confirm('هل تريد حذف سجل الأخطاء المحلي من هذا المتصفح؟ لا يمكن التراجع عن ذلك.')) {
-      clearDeviceErrors();
-      setSelectedId(null);
-      setRecords([]);
-    }
+    clearDeviceErrors();
+    setSelectedId(null);
+    setRecords([]);
   };
   const toggleReproduce = (enabled: boolean) => {
     setReproduce(enabled);
@@ -129,6 +129,15 @@ export function AdminDeviceErrorsPanel() {
 
   return (
     <div className="space-y-5" dir="rtl">
+      <ConfirmDialog
+        open={confirmClearOpen}
+        onOpenChange={setConfirmClearOpen}
+        title="حذف سجل الأخطاء المحلي؟"
+        description="سيُحذف سجل الأخطاء المحفوظ في هذا المتصفح. لا يمكن التراجع عن ذلك."
+        confirmLabel="حذف السجل"
+        destructive
+        onConfirm={clearAll}
+      />
       <header className="flex flex-col gap-3 rounded-2xl border bg-card p-5 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex gap-3">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -146,7 +155,7 @@ export function AdminDeviceErrorsPanel() {
             {copied ? 'تم النسخ' : 'نسخ التقرير'}
           </button>
           <button type="button" onClick={() => void downloadReport()} className="inline-flex h-9 items-center gap-2 rounded-lg border px-3 text-sm hover:bg-muted"><Download className="h-4 w-4" /> تنزيل JSON</button>
-          <button type="button" onClick={clearAll} className="inline-flex h-9 items-center gap-2 rounded-lg border border-destructive/30 px-3 text-sm text-destructive hover:bg-destructive/5"><Trash2 className="h-4 w-4" /> مسح السجل</button>
+          <button type="button" onClick={() => setConfirmClearOpen(true)} className="inline-flex h-9 items-center gap-2 rounded-lg border border-destructive/30 px-3 text-sm text-destructive hover:bg-destructive/5"><Trash2 className="h-4 w-4" /> مسح السجل</button>
         </div>
       </header>
 

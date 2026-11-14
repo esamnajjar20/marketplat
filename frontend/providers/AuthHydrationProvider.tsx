@@ -81,6 +81,7 @@ import { subscribeToSessionEnded } from '@/lib/authSessionBroadcast';
 import { buildSessionExpiredLoginUrl } from '@/lib/sessionRedirect';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { isDefiniteSessionRejection } from '@/lib/authRestoreError';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 // PERF-BUNDLE-HYDRATION-01: offlineSelfWarm (+ stores.api/service-providers.api)
 // تُحمَّل بعد نجاح الجلسة فقط وليس مع كل route للزوّار.
@@ -550,7 +551,7 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
           deleteCookie('app_has_session'); // AUDIT-FIX C-1
         } else if (
           typeof navigator !== 'undefined' &&
-          navigator.onLine === false
+          isDeviceOffline()
         ) {
           // FIX AUTH-OFFLINE-SESSION-01 / FIX AUTH-401-STORM-01:
           // فقط عند أوفلاين حقيقي. لا تضبط isAuthenticated وأنت أونلاين

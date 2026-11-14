@@ -3,9 +3,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { storesApi } from '@/api/stores.api';
 import { queryKeys } from '@/lib/queryKeys';
-import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
 import type { CreateStoreReviewPayload } from '@/types/store.types';
+import { toastMutationError } from '@/lib/mutationFeedback';
 
 /** POST /stores/:id/reviews — once per (user, store). */
 export function useCreateStoreReview(storeId: string) {
@@ -22,6 +22,6 @@ export function useCreateStoreReview(storeId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.stores.detail(storeId) });
       toast.success('تم إرسال تقييمك بنجاح');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

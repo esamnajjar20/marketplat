@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 /**
  * Records a completed page visit with the Service Worker.
@@ -20,7 +21,7 @@ export function VisitedPageShellTracker() {
     const url = window.location.href;
     let cancelled = false;
     void navigator.serviceWorker.ready.then((registration) => {
-      if (cancelled || navigator.onLine === false) return;
+      if (cancelled || isDeviceOffline()) return;
       const worker = navigator.serviceWorker.controller ?? registration.active;
       worker?.postMessage({ type: 'CACHE_VISITED_PAGE', url });
     }).catch(() => {

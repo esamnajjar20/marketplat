@@ -15,7 +15,7 @@ import { StoreTypeFieldsAdmin } from '@/components/admin/StoreTypeFieldsAdmin';
 import type { AdminStoreType, CreateAdminStoreTypePayload } from '@/types/admin.types';
 import { DEFAULT_STORE_TYPE_PRESENTATION, type StoreTypePresentation } from '@/types/store.types';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 const EMPTY_LABELS = {
   products: 'المنتجات',

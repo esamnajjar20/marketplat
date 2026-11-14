@@ -10,7 +10,7 @@ import {
   TrendingUp,
   Wallet,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/shared/ui/Button';
 import { useSalesDashboard } from '@/hooks/queries/useSales';
 import { cn } from '@/lib/utils';
 import { formatMoney } from '@/lib/formatters';

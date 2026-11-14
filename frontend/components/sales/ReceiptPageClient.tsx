@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/shared/ui/Button';
 import { CloudinaryImage } from '@/components/shared/CloudinaryImage';
 import { PaymentHistoryList } from '@/components/sales/payments/PaymentHistoryList';
 import { useEffect, useState } from 'react';

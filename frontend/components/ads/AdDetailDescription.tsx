@@ -1,6 +1,6 @@
 'use client';
 
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 import dynamic from 'next/dynamic';
 import { ReportAdButton } from '@/components/ads/ReportAdButton';
 import type { Ad } from '@/types/ad.types';

@@ -30,6 +30,7 @@ import { CACHE_TTL } from '@/lib/constants';
 import { canonicalBrowseSearchParams, getBrowseNumber, getBrowseParam, parseBrowseSearchParams, serializeBrowseSearchParams, SSR_BROWSE_PAGE_SIZE, type BrowseSearchParams } from '@/lib/browseSearchParams';
 import { useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 
 const SaveSearchButton = dynamic(
   () => import('@/components/ads/SaveSearchButton').then((module) => module.SaveSearchButton),
@@ -96,7 +97,7 @@ export function ServiceListingsGrid({ initialPage, initialPageUpdatedAt, searchP
         description="لا تتوفر بيانات الخدمات المخزنة على هذا الجهاز. اتصل بالإنترنت لتحميلها ثم حاول مرة أخرى."
         fallback={
       <div className="space-y-4">
-        <div className="h-5 w-32 rounded bg-muted animate-pulse" />
+        <Skeleton className="h-5 w-32 rounded" />
         <div className={cn(view === 'list' ? 'grid grid-cols-1 gap-3 sm:gap-4' : LIST_SERVICE_GRID_CLASS)}>
           {Array.from({ length: 9 }).map((_, i) => <ServiceListingCardSkeleton key={i} />)}
         </div>

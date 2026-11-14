@@ -3,9 +3,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryKeys';
 import { serviceReviewsApi } from '@/api/service-reviews.api';
-import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
 import type { CreateServiceReviewPayload } from '@/types/service.types';
+import { toastMutationError } from '@/lib/mutationFeedback';
 
 /**
  * POST /service-reviews — customer reviews a COMPLETED request, once.
@@ -32,6 +32,6 @@ export function useCreateServiceReview() {
       queryClient.invalidateQueries({ queryKey: queryKeys.serviceRequests.mineRoot() });
       toast.success('تم إرسال تقييمك بنجاح');
     },
-    onError: (err) => toast.error(parseApiError(err).message),
+    onError: toastMutationError,
   });
 }

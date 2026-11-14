@@ -3,6 +3,7 @@
  */
 
 import { localGet, localSet } from '@/lib/localStore';
+import { safeStorageGet, safeStorageRemove } from '@/lib/browserStorage';
 
 const PAYEES_KEY = 'saved-payees';
 const CARDS_KEY = 'saved-net-cards';
@@ -20,7 +21,7 @@ const LEGACY_CARDS = 'marketplat:saved-net-cards';
 function getCurrentUserId(): string | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = localStorage.getItem('marketplace-auth');
+    const raw = safeStorageGet('marketplace-auth');
     if (!raw) return null;
     const parsed = JSON.parse(raw) as { state?: { user?: { id?: string } } };
     return parsed?.state?.user?.id ?? null;
@@ -57,12 +58,12 @@ function migrateLegacy<T>(legacyKey: string, newKey: string): T[] {
   const current = localGet<T[]>(newKey, []);
   if (current.length > 0) return current;
   try {
-    const raw = localStorage.getItem(legacyKey);
+    const raw = safeStorageGet(legacyKey);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as T[];
     if (Array.isArray(parsed) && parsed.length) {
       localSet(newKey, parsed);
-      localStorage.removeItem(legacyKey);
+      safeStorageRemove(legacyKey);
       return parsed;
     }
   } catch {

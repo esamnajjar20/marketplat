@@ -5,7 +5,7 @@ import { SafeImage } from '@/components/shared/ui/SafeImage';
 import { usePublicCollections, useCollectionProducts } from '@/hooks/queries/useCollections';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { formatPrice } from '@/lib/formatters';
-import { Skeleton } from '@/components/ui/skeleton';
+import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { cn } from '@/lib/utils';
 import type { StoreCollectionWithCount } from '@/types/collection.types';
 

@@ -13,6 +13,7 @@ import type {
   CreateAppointmentPayload,
   UpdateAppointmentStatusPayload,
 } from '@/types/service.types';
+import { isDeviceOffline } from '@/lib/offlineError';
 
 /**
  * POST /appointments — provider books a slot (optionally against an
@@ -57,7 +58,7 @@ export function useCreateAppointment() {
       toast.success('تم حجز الموعد بنجاح');
     },
     onError: async (error, payload) => {
-      const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+      const offline = isDeviceOffline();
       const parsed = parseApiError(error);
       if (offline || isNetworkLikeFailure(parsed)) {
         if (!userId) { toast.error('سجّل الدخول قبل حفظ طلب الموعد أوفلاين'); return; }

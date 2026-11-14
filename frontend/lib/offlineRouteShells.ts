@@ -74,6 +74,8 @@ import { getExpectedRouteAssets } from './warmingManifest';
 import { recordWarmedRoute, recordWarmingTransfer } from './warmingTelemetry';
 import { reserveWarmingRequest, recordWarmingRuntimeBytes } from './warmingRuntimeBudget';
 import { abortActiveWarmingRequests } from './offlineWarmingAbort';
+import { isDeviceOffline } from '@/lib/offlineError';
+import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
 
 // PROXY-WARMING: transient staging area for atomic per-route warming.
 // Deliberately NOT versioned — sw.js's activate handler deletes any
@@ -1034,7 +1036,7 @@ export function isWarmingCancelled(): boolean { return warmingCancelled; }
 // WARMING-MODES-05: kept for potential future progress UI.
 function readDripLast(): number {
   try {
-    return Number(localStorage.getItem(LAST_DRIP_WARMED_KEY) ?? 0);
+    return Number(safeStorageGet(LAST_DRIP_WARMED_KEY) ?? 0);
   } catch {
     return 0;
   }
@@ -1094,7 +1096,7 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
   // current throttle / freshness behaviour.
   if (typeof window === 'undefined') return;
   if (typeof caches === 'undefined') return;
-  if (!navigator.onLine) return;
+  if (isDeviceOffline()) return;
 
   await runUnderWarmingLock(async () => {
     const plan = getWarmingPlan();
@@ -1116,7 +1118,7 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
       ).length;
       const throttleMs =
         incompleteCount === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
-      const last = Number(localStorage.getItem(LAST_ROUTE_WARMED_KEY) ?? 0);
+      const last = Number(safeStorageGet(LAST_ROUTE_WARMED_KEY) ?? 0);
       if (Date.now() - last < throttleMs) return;
     }
 
@@ -1216,7 +1218,7 @@ export async function warmRouteShellsAtomic(force = false): Promise<void> {
     }
 
     if (completedThisPass > 0) {
-      localStorage.setItem(LAST_ROUTE_WARMED_KEY, String(Date.now()));
+      safeStorageSet(LAST_ROUTE_WARMED_KEY, String(Date.now()));
     }
 
     const prevLive = snapshot?.liveUrls ?? [];
@@ -1415,7 +1417,7 @@ async function warmPersonalRouteAtomic(
 export async function warmPersonalShellsAtomic(force = false): Promise<void> {
   if (typeof window === 'undefined') return;
   if (typeof caches === 'undefined') return;
-  if (!navigator.onLine) return;
+  if (isDeviceOffline()) return;
 
   await runUnderWarmingLock(async () => {
     const plan = getWarmingPlan();
@@ -1442,7 +1444,7 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
     if (!force) {
       const throttleMsP =
         incompletePersonal === 0 ? WARM_INTERVAL_MS : PARTIAL_WARM_INTERVAL_MS;
-      const last = Number(localStorage.getItem(LAST_PERSONAL_WARMED_KEY) ?? 0);
+      const last = Number(safeStorageGet(LAST_PERSONAL_WARMED_KEY) ?? 0);
       if (Date.now() - last < throttleMsP) return;
     }
 
@@ -1577,7 +1579,7 @@ export async function warmPersonalShellsAtomic(force = false): Promise<void> {
     }
 
     if (completedThisPass > 0) {
-      localStorage.setItem(LAST_PERSONAL_WARMED_KEY, String(Date.now()));
+      safeStorageSet(LAST_PERSONAL_WARMED_KEY, String(Date.now()));
     }
     } finally {
       reportProgress('personal', { active: false, completed: completedThisPass, total: routes.length });

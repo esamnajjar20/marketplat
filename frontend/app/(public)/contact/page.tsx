@@ -3,6 +3,7 @@ import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { LegalPageShell } from '@/components/shared/legal/LegalPageShell';
 import { buildMetadata } from '@/lib/seo';
 import { ROUTES } from '@/lib/constants';
+import { getRawSupportEmail } from '@/lib/env';
 
 export const metadata: Metadata = buildMetadata({
   title: 'تواصل معنا',
@@ -11,7 +12,7 @@ export const metadata: Metadata = buildMetadata({
 });
 
 export default function ContactPage() {
-  const supportEmail = process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() ?? '';
+  const supportEmail = getRawSupportEmail()?.trim() ?? '';
 
   return (
     <LegalPageShell

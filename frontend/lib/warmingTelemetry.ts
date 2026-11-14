@@ -9,6 +9,8 @@
  *   2. how much estimated/observed transfer it consumed;
  *   3. did a warmed route get used afterwards?
  */
+import { safeStorageGet, safeStorageRemove, safeStorageSet } from '@/lib/browserStorage';
+
 
 const KEY = 'marketplat:warming-telemetry:v1';
 const MAX_EVENTS = 120;
@@ -28,7 +30,7 @@ export type WarmingTelemetryEvent = {
 function read(): WarmingTelemetryEvent[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = safeStorageGet(KEY);
     const value = raw ? JSON.parse(raw) : [];
     return Array.isArray(value) ? value.slice(-MAX_EVENTS) : [];
   } catch {
@@ -39,7 +41,7 @@ function read(): WarmingTelemetryEvent[] {
 function append(event: WarmingTelemetryEvent): void {
   try {
     const next = [...read(), event].slice(-MAX_EVENTS);
-    localStorage.setItem(KEY, JSON.stringify(next));
+    safeStorageSet(KEY, JSON.stringify(next));
   } catch {
     // Telemetry must never affect warming.
   }
@@ -102,5 +104,5 @@ export function getWarmingTelemetrySnapshot(): {
 }
 
 export function clearWarmingTelemetry(): void {
-  try { localStorage.removeItem(KEY); } catch { /* noop */ }
+  try { safeStorageRemove(KEY); } catch { /* noop */ }
 }

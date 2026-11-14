@@ -8,7 +8,7 @@
 import { X } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { writeClientUrl } from '@/lib/urlWithParams';
-import { Badge } from '@/components/ui/badge';
+import { Badge } from '@/components/shared/ui/Badge';
 import { Button } from '@/components/shared/ui/Button';
 import { ROUTES } from '@/lib/constants';
 import {

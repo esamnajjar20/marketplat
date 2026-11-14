@@ -2,6 +2,7 @@
 
 import { Button } from '@/components/shared/ui/Button';
 import { API_BASE_URL } from '@/lib/constants';
+import { getRawGoogleOauthEnabled } from '@/lib/env';
 
 /**
  * "Continue with Google" button.
@@ -41,7 +42,7 @@ interface GoogleAuthButtonProps {
 }
 
 export function GoogleAuthButton({ label = 'المتابعة باستخدام Google' }: GoogleAuthButtonProps) {
-  if (!process.env.NEXT_PUBLIC_GOOGLE_OAUTH_ENABLED) return null;
+  if (!getRawGoogleOauthEnabled()) return null;
 
   return (
     // SW-GOOGLE-BTN-AS-LINK-01: was <Button onClick={() => window.location.href}>.
