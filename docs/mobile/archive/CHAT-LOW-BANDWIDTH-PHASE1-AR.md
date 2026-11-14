@@ -9,7 +9,7 @@
 5. **إضافة مخزن SQLite خاص بالرسائل التي زارها المستخدم**، مع نطاق حساب ومحادثة، وحد أقصى 300 رسالة لكل محادثة و2000 رسالة لكل حساب.
 6. **عرض الرسائل المخزنة محليًا قبل انتظار الشبكة**، ثم دمج أحدث صفحة من الخادم وتحديث المخزن المحلي.
 7. **تنفيذ جلب تعويض عند عودة الاتصال** بدل إضافة polling سريع ومتكرر.
-8. إضافة تدقيق ساكن `verify-chat-pagination-audit.mjs` وربطه بالمسار الموجود أصلًا في `npm test`، وإضافة اختبارات وحدة للخادم لتوثيق سلوك cursor وتجاوز عمليات القراءة عند تصفح التاريخ.
+8. إضافة تدقيق ساكن `verify-chat-pagination-audit.mts` وربطه بالمسار الموجود أصلًا في `npm test`، وإضافة اختبارات وحدة للخادم لتوثيق سلوك cursor وتجاوز عمليات القراءة عند تصفح التاريخ.
 
 ## الملفات المتغيرة/الجديدة
 
@@ -21,7 +21,7 @@
 - `apps/mobile/app/messages/[id].tsx`
 - `apps/mobile/src/features/messaging/messaging.api.ts`
 - `apps/mobile/src/storage/chat-message-cache.ts` (جديد)
-- `apps/mobile/scripts/verify-chat-pagination-audit.mjs` (جديد)
+- `apps/mobile/scripts/verify-chat-pagination-audit.mts` (جديد)
 - `apps/mobile/CHAT-LOW-BANDWIDTH-PHASE1-AR.md` (جديد)
 
 ## التحقق المنفذ

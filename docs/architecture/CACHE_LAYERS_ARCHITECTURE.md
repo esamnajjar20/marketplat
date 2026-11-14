@@ -8,7 +8,7 @@
 - `apps/api/src/shared/cache/cache-policy.json` — typed server consumers.
 - `frontend/public/cache-policy.js` — classic Service Worker runtime.
 
-`frontend/scripts/cache-layer-audit.mjs` fails when any generated copy drifts.
+`frontend/scripts/cache-layer-audit.mts` fails when any generated copy drifts.
 
 ## Layers
 
@@ -73,20 +73,20 @@ The cache system now has a single logical contract in `shared/cache/cache-contra
 ## CACHE-W7..W9 — Storage Pressure, Contract Audit, and Correctness
 
 - **W7:** browser quota pressure is a shared budget across Cache Storage/IndexedDB. Warning pressure reduces background warming to public data; critical pressure pauses warming after best-effort cleanup of reconstructable caches. The Service Worker progressively trims API/image caches at 90%/95% quota and never targets durable offline-write/user-owned caches.
-- **W8:** `frontend/scripts/cache-contract-audit.mjs` validates domain scopes, query prefixes, invalidation references, and generated contract parity.
+- **W8:** `frontend/scripts/cache-contract-audit.mts` validates domain scopes, query prefixes, invalidation references, and generated contract parity.
 - **W9:** regression coverage verifies API-version mutation routing, unmapped-path no-op behavior, quota boundaries, and per-user ownership of offline JSON/list caches.
 
 ## CACHE-W10..W12 — Server Invalidation Boundary, Observability Hardening, Final Audit
 
 - **W10:** `apps/api/src/shared/cache/serverCacheInvalidation.ts` is the canonical server-side entry point for public-list generation invalidation. It resolves mutation paths from the shared contract and refuses to globally invalidate personal/private domains. The store-types mutation path now uses this boundary instead of hard-coding a Redis generation namespace.
 - **W11:** SWR telemetry is emitted at the actual `swrGetWithStatus()` decision points (`hit`, `stale`, `miss`, `bypass`) and during background refresh/lock contention. Metrics remain in the application Prometheus registry and use bounded logical cache/event labels rather than request/user identifiers.
-- **W12:** `frontend/scripts/cache-final-audit.mjs` performs the release gate across contract parity, key-algorithm parity, W4-W9 artifacts, server invalidation boundary, public-list canonical identity, HTTP ownership, Service Worker contract usage, and cache telemetry. `cache:contract-audit` and `cache:final-audit` are exposed as explicit package scripts.
+- **W12:** `frontend/scripts/cache-final-audit.mts` performs the release gate across contract parity, key-algorithm parity, W4-W9 artifacts, server invalidation boundary, public-list canonical identity, HTTP ownership, Service Worker contract usage, and cache telemetry. `cache:contract-audit` and `cache:final-audit` are exposed as explicit package scripts.
 
 ## CACHE-W10..W12 — Performance, Lifecycle, Final Hardening
 
 - **W10 — cache performance telemetry:** the Redis SWR boundary records monotonic operation duration into `app_cache_operation_duration_seconds`, using bounded `cache`/`event` labels and fixed latency buckets. This is measurement infrastructure; production before/after latency must be read from the deployed Prometheus data rather than inferred statically.
 - **W11 — coordinated browser lifecycle:** critical storage-pressure cleanup delegates to the Service Worker through `TRIM_DISPOSABLE_CACHES`. The SW trims disposable API/image layers according to pressure instead of deleting their entire caches. Protected layers such as core, saved ads, personal shells and the offline queue are excluded.
-- **W12 — final architecture gate:** `cache-final-audit.mjs` verifies the canonical 24-domain contract, key parity, lifecycle coordinator, storage-pressure delegation and W10 telemetry. The frontend exposes `cache:contract-audit`, `cache:performance-audit` and `cache:final-audit` scripts for repeatable CI/local checks.
+- **W12 — final architecture gate:** `cache-final-audit.mts` verifies the canonical 24-domain contract, key parity, lifecycle coordinator, storage-pressure delegation and W10 telemetry. The frontend exposes `cache:contract-audit`, `cache:performance-audit` and `cache:final-audit` scripts for repeatable CI/local checks.
 
 
 ## Private profile cache and validators (2026-10)

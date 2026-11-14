@@ -7,9 +7,6 @@
  *
  * Sync workers should keep using the specific modules (mutation-outbox,
  * order-outbox, chat-*-outbox, entity-create-outbox) for enqueue/claim/ack.
- *
- * Dual .ts / .mjs copies under this folder exist for Node static tests that
- * cannot load TypeScript; treat the `.ts` file as the source of truth.
  */
 import {
   clearMutationOutbox,

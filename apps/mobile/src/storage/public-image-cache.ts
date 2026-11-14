@@ -1,6 +1,6 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { getReferencedPublicImageUris } from '@/storage/public-cache';
-import { planPublicImageEviction, MAX_TRACKED_PUBLIC_IMAGES, MAX_PUBLIC_IMAGE_CACHE_BYTES } from './public-image-cache-policy.mjs';
+import { planPublicImageEviction, MAX_TRACKED_PUBLIC_IMAGES, MAX_PUBLIC_IMAGE_CACHE_BYTES } from './public-image-cache-policy';
 
 const IMAGE_DIRECTORY = `${FileSystem.documentDirectory ?? ''}marketplat-public-images/`;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;

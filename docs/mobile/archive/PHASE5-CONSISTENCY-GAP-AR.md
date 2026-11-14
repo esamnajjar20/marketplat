@@ -13,7 +13,7 @@
 | `orders/[id].tsx` | DetailScaffold + SectionCard + Badge + CTA سفلي |
 
 ## الحوكمة
-أُضيفت الملفات أعلاه إلى القائمة الصارمة في `verify-design-tokens-no-raw-hex.mjs`.  
+أُضيفت الملفات أعلاه إلى القائمة الصارمة في `verify-design-tokens-no-raw-hex.mts`.  
 النتيجة: ✅ لا hex خام في الملفات المرحّلة · تحذير فقط للباقي (~89).
 
 ## ما تبقّى لاحقاً

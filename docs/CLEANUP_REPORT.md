@@ -34,7 +34,7 @@
 
 - إعادة كتابة مراجع مسارات (tooling→tools …): 5 ملف
 - package.json (إزالة سكربتات): apps/mobile/package.json: 1, frontend/package.json: 9
-- run-all-verifications.mjs: run-all-verifications.mjs: أُزيل الاعتماد على legacy-verifications/manifest.json
+- run-all-verifications.mts: run-all-verifications.mts: أُزيل الاعتماد على legacy-verifications/manifest.json
 - quarantined-active.json: quarantined-active.json: متبقٍ 0 إدخال
 - روابط md المُصلَحة: 4
 - مجلدات فارغة محذوفة: 3
@@ -244,7 +244,7 @@
 - `apps/mobile/scripts/legacy-verifications/verify-feature-phase5.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/legacy-verifications/verify-feature-phase6.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/legacy-verifications/verify-feature-phase7.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
-- `apps/mobile/scripts/legacy-verifications/verify-feature-remaining-account-pages.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-feature-remaining-account-pages.mts` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/legacy-verifications/verify-homepage-community-sections.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/legacy-verifications/verify-homepage-marketplace-sections.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/legacy-verifications/verify-homepage-mixed-removal-navigation.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
@@ -261,11 +261,11 @@
 - `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase7.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase8.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/legacy-verifications/verify-homepage-ux-phase9.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
-- `apps/mobile/scripts/legacy-verifications/verify-mutation-csrf-audit.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
-- `apps/mobile/scripts/legacy-verifications/verify-native-chat-parity-audit.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
-- `apps/mobile/scripts/legacy-verifications/verify-navigation-information-hierarchy.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
-- `apps/mobile/scripts/legacy-verifications/verify-offline-first-all-creations.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
-- `apps/mobile/scripts/legacy-verifications/verify-offline-first-deep-audit-fixes.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-mutation-csrf-audit.mts` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-native-chat-parity-audit.mts` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-navigation-information-hierarchy.mts` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-offline-first-all-creations.mts` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-offline-first-deep-audit-fixes.mts` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/legacy-verifications/verify-order-cancellation-stage-audit.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/legacy-verifications/verify-phase10.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/legacy-verifications/verify-phase11.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
@@ -318,9 +318,9 @@
 - `apps/mobile/scripts/legacy-verifications/verify-phase71.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/legacy-verifications/verify-phase74.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/legacy-verifications/verify-phase76.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
-- `apps/mobile/scripts/legacy-verifications/verify-phase79.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-phase79.mts` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/legacy-verifications/verify-phase9.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
-- `apps/mobile/scripts/legacy-verifications/verify-product-contact-flow.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
+- `apps/mobile/scripts/legacy-verifications/verify-product-contact-flow.mts` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/legacy-verifications/verify-scaffold.mjs` — تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح
 - `apps/mobile/scripts/verify-app-journey-audit.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
 - `apps/mobile/scripts/verify-chat-dead-letter-recovery-audit.mjs` — تحقق معزول فاشل (quarantined-active.json) خارج مجموعة التشغيل
@@ -586,22 +586,22 @@
 
 ### tools (3)
 
-- `tooling/dev-all.mjs` → `tools/dev-all.mjs`
-- `tooling/verify-prisma-layout.mjs` → `tools/verify-prisma-layout.mjs`
-- `tooling/verify-workspace.mjs` → `tools/verify-workspace.mjs`
+- `tooling/dev-all.mts` → `tools/dev-all.mts`
+- `tooling/verify-prisma-layout.mts` → `tools/verify-prisma-layout.mts`
+- `tooling/verify-workspace.mts` → `tools/verify-workspace.mts`
 
 ## ملفات يتيمة بالرسم لكن محميّة بإشارة نصية (راجعها يدويًا)
 
 - `apps/api/src/shared/constants/status.ts` ← مذكور في: `.github/workflows/cache-integrity.yml`, `.github/workflows/load-test-50k.yml`, `.github/workflows/load-test-5k.yml`, `.github/workflows/load-test-dynamic.yml`, `.github/workflows/load-test-pages.yml`
-- `apps/mobile/src/features/discovery/useHomeServices.ts` ← مذكور في: `apps/mobile/scripts/verify-navigation-information-hierarchy.mjs`
+- `apps/mobile/src/features/discovery/useHomeServices.ts` ← مذكور في: `apps/mobile/scripts/verify-navigation-information-hierarchy.mts`
 - `apps/mobile/src/storage/draft-operation-queue.ts` ← مذكور في: `apps/mobile/src/storage/ad-draft-store.ts`
-- `frontend/components/messages/ConversationTypingIndicator.tsx` ← مذكور في: `frontend/scripts/render-regression-audit.mjs`
+- `frontend/components/messages/ConversationTypingIndicator.tsx` ← مذكور في: `frontend/scripts/render-regression-audit.mts`
 - `frontend/components/shared/feedback/Toaster.tsx` ← مذكور في: `frontend/app/(protected)/layout.tsx`
 - `frontend/components/shared/ui/Avatar.tsx` ← مذكور في: `apps/mobile/app/blocked-users.tsx`, `apps/mobile/app/profile.tsx`, `apps/mobile/app/profile/[id].tsx`, `apps/mobile/app/profile/[id]/followers.tsx`, `apps/mobile/app/profile/[id]/following.tsx`
 - `frontend/components/shared/ui/Separator.tsx` ← مذكور في: `frontend/components/ui/dropdown-menu.tsx`, `frontend/components/ui/select.tsx`
-- `frontend/components/ui/avatar.tsx` ← مذكور في: `apps/api/src/config/cloudinary.ts`, `apps/api/src/modules/users/users.routes.ts`, `apps/mobile/app/account.tsx`, `apps/mobile/app/profile.tsx`, `apps/mobile/scripts/verify-account-storage-store.mjs`
-- `frontend/components/ui/empty-state.tsx` ← مذكور في: `frontend/scripts/feedback-motion-audit.mjs`
-- `frontend/components/ui/separator.tsx` ← مذكور في: `apps/mobile/app/messages.tsx`, `apps/mobile/app/search.tsx`, `apps/mobile/src/features/messaging/chat-live-stream.ts`, `frontend/scripts/hydration-regression-audit.mjs`, `frontend/scripts/render-regression-audit.mjs`
+- `frontend/components/ui/avatar.tsx` ← مذكور في: `apps/api/src/config/cloudinary.ts`, `apps/api/src/modules/users/users.routes.ts`, `apps/mobile/app/account.tsx`, `apps/mobile/app/profile.tsx`, `apps/mobile/scripts/verify-account-storage-store.mts`
+- `frontend/components/ui/empty-state.tsx` ← مذكور في: `frontend/scripts/feedback-motion-audit.mts`
+- `frontend/components/ui/separator.tsx` ← مذكور في: `apps/mobile/app/messages.tsx`, `apps/mobile/app/search.tsx`, `apps/mobile/src/features/messaging/chat-live-stream.ts`, `frontend/scripts/hydration-regression-audit.mts`, `frontend/scripts/render-regression-audit.mts`
 - `frontend/hooks/usePublicFeatureFlag.ts` ← مذكور في: `frontend/components/admin/AdminFeatureFlags.tsx`
 - `frontend/lib/lastKnownLocation.ts` ← مذكور في: `frontend/lib/offlineJsonCache.ts`
 - `frontend/lib/publicFeatureFlags.ts` ← مذكور في: `frontend/components/admin/AdminFeatureFlags.tsx`, `frontend/lib/queryKeys.ts`

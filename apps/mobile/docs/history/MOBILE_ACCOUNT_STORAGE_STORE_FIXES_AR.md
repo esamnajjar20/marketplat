@@ -28,6 +28,6 @@
 - `apps/mobile/src/features/account/account.api.ts`
 - `apps/mobile/src/storage/public-cache.ts`
 - `apps/mobile/src/storage/ad-draft-store.ts`
-- `apps/mobile/scripts/verify-account-storage-store.mjs`
+- `apps/mobile/scripts/verify-account-storage-store.mts`
 
 **الحكم:** عولجت الملاحظات المصدرية الواردة في المراجعة. ما يزال إثبات الجاهزية التشغيلية يتطلب تثبيت التبعيات من ملف القفل المعتمد، وتشغيل TypeScript والبناء، ثم اختبار المسح ورفع الصور على جهاز وخادم فعليين.

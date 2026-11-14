@@ -22,7 +22,7 @@ public/tessdata/
 /android/build/
 /android/.gradle/
 
-# W5: generated at build time by scripts/generate-warming-manifest.mjs
+# W5: generated at build time by scripts/generate-warming-manifest.mts
 public/warming-manifest.json
 
 public/build-id.json

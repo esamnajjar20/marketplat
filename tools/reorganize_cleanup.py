@@ -892,7 +892,7 @@ def patch_package_json(root: Path, removed: dict[str, list[str]]) -> dict[str, i
 
 def patch_mobile_runner(root: Path) -> list[str]:
     msgs = []
-    runner = root / "apps/mobile/scripts/run-all-verifications.mjs"
+    runner = root / "apps/mobile/scripts/run-all-verifications.mts"
     if runner.exists():
         t = runner.read_text(encoding="utf-8")
         o = t
@@ -903,7 +903,7 @@ def patch_mobile_runner(root: Path) -> list[str]:
         t = t.replace("  |  Quarantined historical (not passed): ${legacyCount}", "")
         if t != o:
             runner.write_text(t, encoding="utf-8")
-            msgs.append("run-all-verifications.mjs: أُزيل الاعتماد على legacy-verifications/manifest.json")
+            msgs.append("run-all-verifications.mts: أُزيل الاعتماد على legacy-verifications/manifest.json")
     qa = root / "apps/mobile/scripts/quarantined-active.json"
     if qa.exists():
         # كل المعزولات حُذفت → أفرغ المانيفست

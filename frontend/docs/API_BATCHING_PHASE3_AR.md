@@ -58,11 +58,11 @@ GET /api/v1/users/:id/profile-state
 - `frontend/components/profile/PublicProfileInteractive.tsx`
 - `frontend/hooks/mutations/useFollowMutations.ts`
 - `frontend/__tests__/components/PublicProfileHeader.test.tsx`
-- `frontend/scripts/api-batching-phase3-audit.mjs`
+- `frontend/scripts/api-batching-phase3-audit.mts`
 
 ## التحقق
 
-- تدقيق عقد التجميع ومفاتيح الكاش وترتيب المسار وخصوصية الاستجابة: 10/10 (`node scripts/api-batching-phase3-audit.mjs` من مجلد `frontend`).
+- تدقيق عقد التجميع ومفاتيح الكاش وترتيب المسار وخصوصية الاستجابة: 10/10 (`node scripts/api-batching-phase3-audit.mts` من مجلد `frontend`).
 - تدقيقا المرحلتين السابقتين: المرحلة الأولى 13/13، والمرحلة الثانية PASSED.
 - تحويل صياغة TypeScript/TSX للملفات المعدلة: 12/12.
 - أضيفت اختبارات وحدات للـ controller والخدمة، لكنها لم تُشغّل في هذه البيئة.

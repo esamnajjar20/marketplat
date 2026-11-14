@@ -12,7 +12,7 @@
 
 ## التحقق المنفذ
 - `node scripts/verify-feature-store-pages.mjs` — نجح (12 فحصًا).
-- `node scripts/verify-feature-store-services-completion.mjs` — نجح (28 فحصًا).
-- `node scripts/verify-store-services-audit-fixes.mjs` — نجح (6 فحوص ثابتة).
+- `node scripts/verify-feature-store-services-completion.mts` — نجح (28 فحصًا).
+- `node scripts/verify-store-services-audit-fixes.mts` — نجح (6 فحوص ثابتة).
 - فحص تحليل TypeScript/TSX باستخدام `transpileModule` للملفات الخمسة المعدلة — نجح نحويًا.
 - لم ينجح فحص الأنواع الكامل `tsc --noEmit` لأن حزم المشروع غير مثبتة (`expo/tsconfig.base` ووحدات React Native غير متاحة في بيئة الفحص). لا يعني ذلك إثبات وجود أخطاء في التعديلات؛ الفحص الكامل ما زال مطلوبًا بعد تثبيت الاعتماديات.

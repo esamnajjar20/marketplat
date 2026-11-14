@@ -20,7 +20,7 @@
 
 ## التحقق
 
-أضيف `scripts/home-first-render-performance-audit.mjs` للتحقق من حد الانتظار، واستخدام المسار العام، وتطابق مفتاح الاستعلام بين الخادم والعميل، وبقاء hydration وشرط تفعيل الطلب.
+أضيف `scripts/home-first-render-performance-audit.mts` للتحقق من حد الانتظار، واستخدام المسار العام، وتطابق مفتاح الاستعلام بين الخادم والعميل، وبقاء hydration وشرط تفعيل الطلب.
 
 شغّل: `npm run perf:home-first-render-audit`
 

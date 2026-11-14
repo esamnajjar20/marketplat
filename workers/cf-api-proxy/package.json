@@ -6,9 +6,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "type-check": "tsc --noEmit -p tsconfig.json",
-    "test": "npm run build && node cache-policy.test.mjs",
+    "test": "npm run build && node cache-policy.test.mts",
     "check": "npm run type-check && npm test",
-    "audit:probe": "node cache-probe.mjs"
+    "audit:probe": "node cache-probe.mts"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

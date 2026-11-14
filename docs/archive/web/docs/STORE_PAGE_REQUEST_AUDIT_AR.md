@@ -83,23 +83,23 @@
 - `frontend/__tests__/unit/hooks/useStoreMutations.test.tsx`
 - `frontend/__tests__/components/StoreStorefront.test.tsx`
 - `frontend/__tests__/components/StoreDetailClient.test.tsx` — جديد
-- `frontend/scripts/render-regression-audit.mjs`
+- `frontend/scripts/render-regression-audit.mts`
 - `frontend/scripts/followed-store-cache-consistency-audit.mjs`
 
 ## نتائج الفحوص
 
 **نجحت الفحوص التالية على نسخة العمل:**
 
-- `render-regression-audit.mjs`
-- `detail-query-dedup-phase3-audit.mjs` — 33/33
-- `http-request-phase3-audit.mjs` — 15/15
-- `network-request-monitor-audit.mjs` — 21/21
+- `render-regression-audit.mts`
+- `detail-query-dedup-phase3-audit.mts` — 33/33
+- `http-request-phase3-audit.mts` — 15/15
+- `network-request-monitor-audit.mts` — 21/21
 - `store-profile-cache-consistency-audit.mjs` — 10/10
 - `followed-store-cache-consistency-audit.mjs` — 6/6
 - `necessary-request-audit.mjs`
-- `rsc-boundary-phase4-audit.mjs` — 21/21
-- `query-key-audit.cjs` — 145 تعريف استعلام/Hook يستعمل مصنع مفاتيح Query المركزي
-- `query-invalidation-factory-audit.cjs` — 244 عملية كاش تستعمل مفاتيح مشتقة من المصنع
+- `rsc-boundary-phase4-audit.mts` — 21/21
+- `query-key-audit.cts` — 145 تعريف استعلام/Hook يستعمل مصنع مفاتيح Query المركزي
+- `query-invalidation-factory-audit.cts` — 244 عملية كاش تستعمل مفاتيح مشتقة من المصنع
 - `node --check` لسكريبتَي التدقيق المعدّلين.
 
 **فحص مستقل لم ينجح:**

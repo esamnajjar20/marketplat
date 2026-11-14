@@ -1,5 +1,5 @@
 /**
- * تسلسل عمليات المسودات لكل مفتاح (حساب) — TypeScript نقي (بدل .mjs).
+ * تسلسل عمليات المسودات لكل مفتاح (حساب) — TypeScript نقي.
  */
 const tails = new Map<string, Promise<void>>();
 

@@ -9,3 +9,4 @@ coverage/
 *.md
 *.d.mts
 *.mjs
+*.mts

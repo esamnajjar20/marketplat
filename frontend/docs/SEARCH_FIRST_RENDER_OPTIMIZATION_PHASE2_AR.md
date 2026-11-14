@@ -18,6 +18,6 @@
 
 ## التحقق
 
-- `node scripts/search-first-render-audit.mjs`: 6/6.
+- `node scripts/search-first-render-audit.mts`: 6/6.
 - TypeScript `transpileModule` للملفين المعدلين: 2/2.
 - لم تُشغّل Vitest أو `tsc --noEmit` أو build لعدم توفر `node_modules`.

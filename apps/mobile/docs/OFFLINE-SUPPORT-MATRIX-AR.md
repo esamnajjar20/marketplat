@@ -1,7 +1,7 @@
 # مصفوفة دعم العمل دون إنترنت — تطبيق الموبايل
 
 المصدر البرمجي الوحيد لهذه المصفوفة: `src/lib/offline-support.ts` (`OFFLINE_SUPPORT_MATRIX`).
-يتحقق منها السكربت `scripts/verify-offline-support-matrix.mjs` ضمن `npm run verify:static`.
+يتحقق منها السكربت `scripts/verify-offline-support-matrix.mts` ضمن `npm run verify:static`.
 
 ## ما يعمل دون إنترنت (يُحفظ على الجهاز ويُرسل لاحقًا)
 

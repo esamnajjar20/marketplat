@@ -21,7 +21,7 @@
 
 أنشأت مولّدًا ثابتًا:
 
-`frontend/scripts/export-http-request-inventory.cjs`
+`frontend/scripts/export-http-request-inventory.cts`
 
 والملف الناتج:
 
@@ -135,15 +135,15 @@ pnpm audit:http-requests
 
 - `frontend/lib/fetchClient.ts`
 - `frontend/__tests__/unit/lib/fetchClient.test.ts`
-- `frontend/scripts/fetch-client-csrf-audit.mjs`
+- `frontend/scripts/fetch-client-csrf-audit.mts`
 - `frontend/lib/networkRequestMonitor.ts`
 - `frontend/components/admin/AdminNetworkRequestsPanel.tsx`
 - `frontend/__tests__/unit/lib/networkRequestMonitor.test.ts`
-- `frontend/scripts/http-request-phase3-audit.mjs`
-- `frontend/scripts/network-request-monitor-audit.mjs`
-- `frontend/scripts/http-request-phase6-audit.mjs`
-- `frontend/scripts/export-http-request-inventory.cjs`
-- `frontend/scripts/http-request-inventory.cjs`
+- `frontend/scripts/http-request-phase3-audit.mts`
+- `frontend/scripts/network-request-monitor-audit.mts`
+- `frontend/scripts/http-request-phase6-audit.mts`
+- `frontend/scripts/export-http-request-inventory.cts`
+- `frontend/scripts/http-request-inventory.cts`
 - `frontend/package.json` و`package.json`
 - `frontend/docs/HTTP_REQUEST_OPTIMIZATION_AUDIT.md`
 - `frontend/docs/HTTP_REQUEST_CALLSITE_INVENTORY.csv`

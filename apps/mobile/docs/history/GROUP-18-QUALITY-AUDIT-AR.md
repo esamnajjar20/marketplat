@@ -13,6 +13,6 @@
 
 ## الملفات
 - `apps/api/tests/integration/sales.flow.test.ts`
-- `apps/mobile/scripts/verify-phase78.mjs`
+- `apps/mobile/scripts/verify-phase78.mts`
 - `apps/mobile/package.json`
 - `apps/mobile/GROUP-18-QUALITY-AUDIT-AR.md`

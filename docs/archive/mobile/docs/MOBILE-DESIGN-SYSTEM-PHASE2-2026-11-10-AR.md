@@ -71,7 +71,7 @@
 
 ## 4. قياسات الألوان
 
-حسابات luminance داخل `verify-theme-system.mjs`:
+حسابات luminance داخل `verify-theme-system.mts`:
 
 | اللوحة | النص الأساسي مقابل السطح | النص الثانوي مقابل السطح | حد التحكم مقابل السطح |
 |---|---:|---:|---:|
@@ -96,35 +96,35 @@
 - `apps/mobile/src/features/messaging/ConversationListItem.tsx`
 - `apps/mobile/src/features/messaging/ConversationMessageRow.tsx`
 - المكوّنات المشتركة المدرجة في القسم 2.3.
-- `apps/mobile/scripts/verify-theme-system.mjs` (جديد)
+- `apps/mobile/scripts/verify-theme-system.mts` (جديد)
 - مدقّقات التصميم والتنقّل والتوافق التي تم تحديثها لقراءة التنفيذ الديناميكي الحالي.
 
 ## 6. الاختبارات والنتائج الفعلية
 
 | الاختبار | النتيجة |
 |---|---:|
-| `verify-theme-system.mjs` | 11/11 نجاح |
-| `verify-design-system-a11y.mjs` | 13/13 نجاح |
-| `verify-navigation-policy.mjs` | نجاح |
+| `verify-theme-system.mts` | 11/11 نجاح |
+| `verify-design-system-a11y.mts` | 13/13 نجاح |
+| `verify-navigation-policy.mts` | نجاح |
 | `verify-navigation-drawer.mjs` | نجاح |
-| `verify-design-tokens-no-raw-hex.mjs` | نجاح؛ لا ألوان مباشرة خارج `tokens.ts` وفق نطاق الفحص |
-| `verify-web-mobile-parity.mjs` | 25/25 نجاح |
+| `verify-design-tokens-no-raw-hex.mts` | نجاح؛ لا ألوان مباشرة خارج `tokens.ts` وفق نطاق الفحص |
+| `verify-web-mobile-parity.mts` | 25/25 نجاح |
 | `verify-mobile-critical-contracts.mjs` | نجاح |
-| `verify-phase4-offline-security.mjs` | 8/8 نجاح |
+| `verify-phase4-offline-security.mts` | 8/8 نجاح |
 | `node --test apps/mobile/src/storage/__tests__/*.test.mjs` | 40/40 نجاح |
 | تحليل صياغة TypeScript/TSX للملفات المعدلة | 41 ملفًا، 0 أخطاء parse |
 | `git diff --check` | نجاح |
-| `run-all-verifications.mjs` | 59/71 نجاح، 12 فشل |
+| `run-all-verifications.mts` | 59/71 نجاح، 12 فشل |
 
 ### تفسير الإخفاقات الـ12 في المجموعة الشاملة
 
 هذه المجموعة عبارة عن مدقّقات ثابتة متعددة الأعمار، وليست جميعها اختبارات وقت تشغيل. من الإخفاقات التي ثبتت أسبابها من الرسائل:
 
 - عدة scripts تحاول قراءة `src/...` أو `app/...` من جذر المستودع، بينما المسارات الفعلية داخل `apps/mobile/`؛ لذلك تفشل برسالة `ENOENT` قبل تنفيذ التحقق.
-- `verify-appointment-booking-ux.mjs` يتوقع نصًا قديمًا `load(true, accountChanged)` غير موجود في التنفيذ الحالي.
-- `verify-mobile-unification-round3.mjs` يتوقع عبارة/نمطًا نصيًا ثابتًا لمكوّن المبيعات، ولا يثبت فشل الوظيفة في وقت التشغيل.
-- `verify-feature-remaining-account-pages.mjs` يطلب ملفات ديون/أقساط/إيصالات مبيعات غير موجودة في المسارات المفترضة؛ يجب التعامل معها كفجوة ميزة محتملة ومراجعتها على حدة، لا كنجاح.
-- `verify-social-profile-phase1.mjs` و`verify-stories-deep-links-phase3.mjs` كذلك تتوقف بسبب مراجع جذر غير صحيحة، وقد تتضمن توقعات لمسارات يجب تدقيقها بعد تصحيح root.
+- `verify-appointment-booking-ux.mts` يتوقع نصًا قديمًا `load(true, accountChanged)` غير موجود في التنفيذ الحالي.
+- `verify-mobile-unification-round3.mts` يتوقع عبارة/نمطًا نصيًا ثابتًا لمكوّن المبيعات، ولا يثبت فشل الوظيفة في وقت التشغيل.
+- `verify-feature-remaining-account-pages.mts` يطلب ملفات ديون/أقساط/إيصالات مبيعات غير موجودة في المسارات المفترضة؛ يجب التعامل معها كفجوة ميزة محتملة ومراجعتها على حدة، لا كنجاح.
+- `verify-social-profile-phase1.mts` و`verify-stories-deep-links-phase3.mts` كذلك تتوقف بسبب مراجع جذر غير صحيحة، وقد تتضمن توقعات لمسارات يجب تدقيقها بعد تصحيح root.
 
 لم أغيّر مسارات التطبيق أو منطق المبيعات/المواعيد/القصص لمجرد جعل assertions قديمة تمر. يجب إعادة تأهيل هذه المدقّقات في مهمة منفصلة، ثم تشغيل اختبارات وظيفية للمسارات ذات الملفات المفقودة.
 

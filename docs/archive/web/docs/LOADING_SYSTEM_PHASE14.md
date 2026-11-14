@@ -16,10 +16,10 @@
 
 ## نتائج التحقق
 
-- `node --check frontend/scripts/route-navigation-loading-audit.mjs`: PASS.
-- `node frontend/scripts/route-navigation-loading-audit.mjs`: 13/13 PASS.
-- `node frontend/scripts/loading-system-audit.mjs`: 50/50 PASS.
-- `node frontend/scripts/sync-center-loading-states-audit.mjs`: 10/10 PASS.
+- `node --check frontend/scripts/route-navigation-loading-audit.mts`: PASS.
+- `node frontend/scripts/route-navigation-loading-audit.mts`: 13/13 PASS.
+- `node frontend/scripts/loading-system-audit.mts`: 50/50 PASS.
+- `node frontend/scripts/sync-center-loading-states-audit.mts`: 10/10 PASS.
 - `frontend/package.json` JSON parse: PASS.
 - أرشيف المشروع وPatch تم فحصهما باستخدام `unzip -t`.
 

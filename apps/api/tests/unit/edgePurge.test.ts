@@ -2,7 +2,7 @@
  * Edge cache purge by Cache-Tag + purge-aware edge TTLs.
  *
  * The tag literals below are pinned identically in
- * workers/cf-api-proxy/cache-policy.test.mjs — if one side changes the tag
+ * workers/cf-api-proxy/cache-policy.test.mts — if one side changes the tag
  * vocabulary, BOTH tests must change or purges silently stop matching.
  */
 import type { Request, Response, NextFunction } from 'express';

@@ -1,0 +1,19 @@
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+
+const transport = readFileSync(new URL('../src/storage/outbox-transport.ts', import.meta.url), 'utf8');
+const contract = readFileSync(new URL('../src/storage/outbox-transport-contract.ts', import.meta.url), 'utf8');
+const client = readFileSync(new URL('../src/api/client.ts', import.meta.url), 'utf8');
+const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+assert.match(transport, /toOutboxCreateAdRequest\(item\)/, 'transport must pass through the allowlisted contract');
+assert.match(transport, /new FormData\(\)/, 'ad creation uses multipart form data required by the image-upload API');
+assert.match(transport, /form\.append\('images'/, 'local images are attached as multipart files');
+assert.match(transport, /request\.headers/, 'offline operation ID header is sent');
+assert.match(transport, /X-CSRF-Token/, 'optional CSRF token is forwarded');
+assert.match(transport, /response\.success !== true/, 'invalid API envelopes must fail rather than acknowledge');
+assert.match(transport, /does not acknowledge\/delete/, 'transport must not delete local work before caller validates success');
+assert.match(contract, /item\.operation !== 'create-ad'/, 'only supported create operations are allowed');
+assert.match(client, /export async function apiRequest/, 'transport uses shared timeout/error handling client');
+assert.match(pkg.scripts['verify:static'], /run-all-verifications\.mts/, 'verify:static must invoke the discovery runner');
+assert.match(readFileSync(new URL('./run-all-verifications.mts', import.meta.url), 'utf8'), /startsWith\('verify-'\)[\s\S]*endsWith\('\.mts'\)/, 'phase 28 check is wired into test command');
+console.log('Phase 28 outbox transport checks passed (static source checks; no live API/database integration).');

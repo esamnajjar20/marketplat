@@ -19,8 +19,8 @@
 - إدارة المتجر تتطلب ملف بائع (seller profile) وبريدًا موثقًا بحسب قواعد الخادم. إذا لم يكن الحساب مؤهلًا، ستظهر رسالة الخادم ولن يتم تجاوز القيود.
 
 ## نتائج التحقق
-- `verify-feature-phase3.mjs`: ناجح.
-- `verify-feature-phase2.mjs`: ناجح، 8 فحوص ساكنة.
+- `verify-feature-phase3.mts`: ناجح.
+- `verify-feature-phase2.mts`: ناجح، 8 فحوص ساكنة.
 - `verify-feature-phase1.mjs`: ناجح، 5 فحوص ساكنة.
 - `verify-scaffold.mjs`: ناجح.
 - لم يُشغّل TypeScript كاملًا أو بناء Expo/Android؛ الاعتماديات غير مثبتة في بيئة التدقيق. محاولة `tsc` المباشرة لم تستطع تحميل `expo/tsconfig.base` أو وحدات React Native، لذلك لا تُعتبر بديلًا عن `pnpm --filter @marketplat/mobile type-check` بعد تثبيت الاعتماديات.
@@ -36,7 +36,7 @@
 - `app/my-store.tsx`
 - `app/my-products.tsx`
 - `src/features/commerce/commerce.api.ts`
-- `scripts/verify-feature-phase3.mjs`
+- `scripts/verify-feature-phase3.mts`
 - `package.json`
 
 ## تطبيق الحزمة

@@ -29,17 +29,17 @@ Run from the relevant package directory:
 ```sh
 # Web
 cd frontend
-node scripts/accessibility-visibility-audit.mjs
-node scripts/app-shell-navigation-audit.mjs
-node scripts/user-journey-shell-audit.mjs
-node scripts/route-navigation-loading-audit.mjs
-node scripts/design-system-token-contract-audit.mjs
+node scripts/accessibility-visibility-audit.mts
+node scripts/app-shell-navigation-audit.mts
+node scripts/user-journey-shell-audit.mts
+node scripts/route-navigation-loading-audit.mts
+node scripts/design-system-token-contract-audit.mts
 
 # Mobile
 cd apps/mobile
-node scripts/run-all-verifications.mjs
-node scripts/verify-design-system-a11y.mjs
-node scripts/verify-design-tokens-no-raw-hex.mjs
+node scripts/run-all-verifications.mts
+node scripts/verify-design-system-a11y.mts
+node scripts/verify-design-tokens-no-raw-hex.mts
 node scripts/verify-navigation-drawer.mjs
 node --test src/storage/__tests__/*.test.mjs
 ```

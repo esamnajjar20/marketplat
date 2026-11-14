@@ -32,7 +32,7 @@ From `apps/mobile`:
 
 ```bash
 node scripts/verify-navigation-drawer.mjs
-node scripts/run-all-verifications.mjs
+node scripts/run-all-verifications.mts
 node --test src/storage/__tests__/*.test.mjs
 pnpm run type-check
 pnpm run lint

@@ -17,7 +17,7 @@
 
 - أُضيفت `src/features/sales/sales-extra.api.ts` لعزل طلبات API والتحقق من أغلفة الاستجابة.
 - أُضيفت روابط للصفحات من `my-sales.tsx` والصفحة الرئيسية `index.tsx`.
-- أُضيف فحص ثابت `scripts/verify-feature-remaining-account-pages.mjs` وربطه بأمر `npm test`.
+- أُضيف فحص ثابت `scripts/verify-feature-remaining-account-pages.mts` وربطه بأمر `npm test`.
 
 ## التحقق
 

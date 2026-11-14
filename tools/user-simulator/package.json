@@ -5,9 +5,9 @@
   "type": "module",
   "engines": { "node": ">=22 <25" },
   "scripts": {
-    "start": "node src/server.mjs",
-    "dev": "node --watch src/server.mjs",
-    "test": "node --test test/*.test.mjs",
+    "start": "node src/server.mts",
+    "dev": "node --watch src/server.mts",
+    "test": "node --test test/*.test.mts",
     "install:browser": "playwright install chromium"
   },
   "dependencies": {

@@ -4,8 +4,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 import { assertLegacyDataPreserved, type SqliteMigrationDatabase } from '@/storage/sqlite-migration-integrity';
 import * as Crypto from 'expo-crypto';
-import { isValidSqlCipherKey } from './sqlcipher-key-policy.mjs';
-export { isValidSqlCipherKey } from './sqlcipher-key-policy.mjs';
+import { isValidSqlCipherKey } from './sqlcipher-key-policy';
+export { isValidSqlCipherKey } from './sqlcipher-key-policy';
 
 /** All account/private queues and the public cache share one encrypted native database. */
 export const ENCRYPTED_DATABASE_NAME = 'marketplat-private-v2.db';

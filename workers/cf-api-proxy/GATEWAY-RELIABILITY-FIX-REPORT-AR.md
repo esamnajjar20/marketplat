@@ -22,7 +22,7 @@
 - `workers/cf-api-proxy/src/types.ts`
 - `workers/cf-api-proxy/wrangler.toml`
 - `workers/cf-api-proxy/wrangler.example.jsonc`
-- `workers/cf-api-proxy/cache-policy.test.mjs`
+- `workers/cf-api-proxy/cache-policy.test.mts`
 - `workers/cf-api-proxy/SMART-GATEWAY-IMPLEMENTATION-AR.md`
 - `frontend/app/api/admin/gateway/registry/route.ts`
 - `frontend/components/admin/AdminInfrastructureGateway.tsx`
@@ -33,7 +33,7 @@
 
 - `npm run check` داخل `workers/cf-api-proxy`: **PASS** — TypeScript type-check، build، ومجموعة اختبارات Worker كاملة.
 - اختبارات Gateway الجديدة تشمل: تعطل DO مع استعادة KV، منع الكتابة من النسخة الاحتياطية، عدم إرسال seed بعد الفشل، فضّ تعارض إصدار D1/KV، اختيار أحدث نسخة في المسار العادي، منع طلب DO صحي ثانٍ فور فشل Registry، وتهيئة DO فارغ فقط بعد تأكيد مركزي ناجح.
-- `node scripts/gateway-proxy-audit.mjs` داخل `frontend`: **PASS — 8/8**.
+- `node scripts/gateway-proxy-audit.mts` داخل `frontend`: **PASS — 8/8**.
 - فحص بناء AST لملف TSX وموجه Next.js: **PASS**.
 
 ## ما لم يتم تنفيذه

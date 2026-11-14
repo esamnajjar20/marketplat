@@ -40,7 +40,7 @@ This sweep starts from the cumulative Stage 1–5 source tree. It checks remaini
 
 ### Audit guardrails
 
-- Updated `render-regression-audit.mjs` to inspect the extracted `useNowAfterMount.ts` clock module rather than its old barrel path.
+- Updated `render-regression-audit.mts` to inspect the extracted `useNowAfterMount.ts` clock module rather than its old barrel path.
 - Updated the hydration audit to accept the actual root body class ordering while still requiring `notranslate` and `translate="no"`.
 - Updated the object URL guard to accept the current equivalent identity check expression.
 - Updated upload concurrency checks to assert the current Redis-backed distributed semaphore rather than an obsolete process-local counter.

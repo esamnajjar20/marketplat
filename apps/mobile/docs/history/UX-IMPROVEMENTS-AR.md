@@ -33,7 +33,7 @@
 
 ## التحقق
 ```bash
-node scripts/verify-design-tokens-no-raw-hex.mjs
+node scripts/verify-design-tokens-no-raw-hex.mts
 # ✅ No raw hex colors in app/ or src/components.
 ```
 

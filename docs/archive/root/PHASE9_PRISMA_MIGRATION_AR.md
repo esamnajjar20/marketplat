@@ -1,7 +1,7 @@
 # المرحلة 9 — Prisma والترحيلات
 
 ## فحوص أضيفت
-- `tooling/verify-prisma-layout.mjs` يتحقق ساكنًا من تطابق حقول `AdImageOfflineOperation` والفهارس الأساسية بين Prisma schema وملف الترحيل.
+- `tooling/verify-prisma-layout.mts` يتحقق ساكنًا من تطابق حقول `AdImageOfflineOperation` والفهارس الأساسية بين Prisma schema وملف الترحيل.
 - بوابة التحقق اليدوية تشغّل الفحص الساكن ثم `prisma validate` باستخدام عناوين اتصال اختبارية؛ لا تنفذ `migrate deploy` ولا تتصل بقاعدة بيانات.
 
 ## نتائج تستلزم متابعة

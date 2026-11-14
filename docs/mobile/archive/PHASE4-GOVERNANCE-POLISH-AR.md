@@ -12,7 +12,7 @@
 - نفس منطق المزامنة والـ outbox دون تغيير
 
 ### 3. حوكمة Design Tokens
-سكربت: `scripts/verify-design-tokens-no-raw-hex.mjs`
+سكربت: `scripts/verify-design-tokens-no-raw-hex.mts`
 - **صارم** على الملفات المرحَّلة (phases 1–4)
 - **تحذير فقط** لباقي الشاشات القديمة (~107 hex متبقية للترحيل التدريجي)
 - يُشغَّل تلقائيًا ضمن `npm test` لأنه ضمن `verify-*.mjs`
@@ -31,7 +31,7 @@
 | `app/ad-editor.tsx` | tokens في الأنماط |
 | `src/components/MarketCards.tsx` | onImageError |
 | `src/components/MobileUI.tsx` | badgeAccent |
-| `scripts/verify-design-tokens-no-raw-hex.mjs` | جديد |
+| `scripts/verify-design-tokens-no-raw-hex.mts` | جديد |
 
 ## المرحلة التالية (اختياري)
 - ترحيل الرسائل / الدخول / my-ads من hex المتبقي

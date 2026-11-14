@@ -19,7 +19,7 @@ import { sleep } from '../utils/sleep';
  * coalescing queue remains only a best-effort fast path for legacy callers.
  *
  * TAG VOCABULARY — MUST stay identical to `edgeTagsFor()` in the Worker
- * (tests/unit/edgePurge.test.ts and workers/cf-api-proxy/cache-policy.test.mjs pin
+ * (tests/unit/edgePurge.test.ts and workers/cf-api-proxy/cache-policy.test.mts pin
  * the same literals):
  *   api                     every cached API response
  *   route:<segment>         first path segment after /api/v1   (route:ads, route:home …)

@@ -49,7 +49,7 @@
 
 | Check | Result | Notes |
 |---|---:|---|
-| `node ./scripts/run-all-verifications.mjs` from `apps/mobile` | **58/58 active passed** | 86 historical checks remain quarantined, not counted as passing |
+| `node ./scripts/run-all-verifications.mts` from `apps/mobile` | **58/58 active passed** | 86 historical checks remain quarantined, not counted as passing |
 | `node --test src/storage/__tests__/*.test.mjs` | **30/30 passed** | Durable storage/outbox test files |
 | Complete `pnpm --filter @marketplat/mobile type-check` | **Not run successfully** | Workspace dependencies are absent; package install was blocked by registry connectivity (`EAI_AGAIN`) |
 | Vitest suite | **Not run** | Vitest dependency is not installed in the current environment; new Vitest cases are included for CI |

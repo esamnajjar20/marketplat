@@ -27,8 +27,8 @@ on:
       - 'frontend/public/sw.js'
       - 'frontend/lib/offlineStoragePersist.ts'
       - 'frontend/lib/offlineStoragePressure.ts'
-      - 'frontend/scripts/cache-*.mjs'
-      - 'frontend/scripts/offline-cache-truth-audit.mjs'
+      - 'frontend/scripts/cache-*.mts'
+      - 'frontend/scripts/offline-cache-truth-audit.mts'
       - 'frontend/__tests__/unit/lib/swCachePolicy.test.ts'
       - 'frontend/__tests__/unit/lib/swShellDurability.test.ts'
       - 'apps/mobile/src/api/**'
@@ -61,8 +61,8 @@ on:
       - 'frontend/public/sw.js'
       - 'frontend/lib/offlineStoragePersist.ts'
       - 'frontend/lib/offlineStoragePressure.ts'
-      - 'frontend/scripts/cache-*.mjs'
-      - 'frontend/scripts/offline-cache-truth-audit.mjs'
+      - 'frontend/scripts/cache-*.mts'
+      - 'frontend/scripts/offline-cache-truth-audit.mts'
       - 'frontend/__tests__/unit/lib/swCachePolicy.test.ts'
       - 'frontend/__tests__/unit/lib/swShellDurability.test.ts'
       - 'apps/mobile/src/api/**'
@@ -98,14 +98,14 @@ jobs:
         run: npm run check
       - name: Regenerate and verify canonical policy copies
         run: |
-          node frontend/scripts/sync-cache-policy.mjs
+          node frontend/scripts/sync-cache-policy.mts
           git diff --exit-code -- shared/cache-policy.json shared/cache/cache-contract.json frontend/lib/cache-policy.json frontend/lib/cache/cache-contract.json frontend/public/cache-policy.js frontend/public/cache-contract.js apps/api/src/shared/cache/cache-policy.json apps/api/src/shared/cache/cache-contract.json
       - name: Run cache architecture audits
         run: |
-          node frontend/scripts/cache-layer-audit.mjs
-          node frontend/scripts/cache-contract-audit.mjs
-          node frontend/scripts/offline-cache-truth-audit.mjs
-          node frontend/scripts/cache-invalidation-ack-audit.mjs
+          node frontend/scripts/cache-layer-audit.mts
+          node frontend/scripts/cache-contract-audit.mts
+          node frontend/scripts/offline-cache-truth-audit.mts
+          node frontend/scripts/cache-invalidation-ack-audit.mts
           node --check frontend/public/sw.js
 
   api-cache-unit:

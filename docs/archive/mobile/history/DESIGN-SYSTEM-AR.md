@@ -58,7 +58,7 @@ import { colors, spacing } from '@/theme';
 شغّل من حزمة الموبايل:
 
 ```bash
-node scripts/verify-design-tokens-no-raw-hex.mjs
+node scripts/verify-design-tokens-no-raw-hex.mts
 ```
 
 أو ضمن `npm test` (كل `verify-*.mjs`).

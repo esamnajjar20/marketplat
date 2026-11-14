@@ -26,11 +26,11 @@ Static source audit of the current Marketplat frontend and its offline/cache int
 - Increased the maximum persisted query snapshot from 20 KiB to 64 KiB. The existing 5 MiB aggregate budget, 500-record cap, and seven-day age limit remain in place.
 - Recompute serialized data size during restore and reject records whose payload cannot be serialized, exceeds 64 KiB, or disagrees with its stored byte count.
 - Added regression tests for allowed public shapes, private/admin siblings, 30 KiB list payloads, oversize payloads, future timestamps, and stable query-key identity.
-- Added `scripts/offline-phase12-audit.mjs`, a dependency-free static guardrail for the provider integration, key-shape allowlist, restored-size validation, cache limit, and regression tests.
+- Added `scripts/offline-phase12-audit.mts`, a dependency-free static guardrail for the provider integration, key-shape allowlist, restored-size validation, cache limit, and regression tests.
 
 ## Verification performed
 
-- `node scripts/offline-phase12-audit.mjs`: PASS (6 checks).
+- `node scripts/offline-phase12-audit.mts`: PASS (6 checks).
 - Existing warming, cache contract, cache performance, cache final/layer, and query invalidation static audits: PASS.
 - ZIP integrity and browser E2E were not run as part of this source audit.
 - `node_modules` was absent, so Vitest, TypeScript project type-check, and Next.js production build were not run. The new Vitest regression cases are included but not represented as executed tests.

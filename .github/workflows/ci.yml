@@ -70,17 +70,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Verify monorepo and Docker build contexts
-        run: node tools/verify-workspace.mjs
+        run: node tools/verify-workspace.mts
       - name: API Worker cache tests
-        run: node workers/cf-api-proxy/cache-policy.test.mjs
+        run: node workers/cf-api-proxy/cache-policy.test.mts
       - name: Policy copies are in sync with shared/cache-policy.json
         working-directory: frontend
         run: |
-          node scripts/sync-cache-policy.mjs
+          node scripts/sync-cache-policy.mts
           git diff --exit-code -- ../shared ../apps/api/src/shared/cache ../frontend/lib ../frontend/public/cache-policy.js ../frontend/public/cache-contract.js
       - name: Cache layer audit
         working-directory: frontend
-        run: node scripts/cache-layer-audit.mjs
+        run: node scripts/cache-layer-audit.mts
 
   # ─────────────────────────────────────────────────────────────
   # Backend: lint → type-check → unit tests → integration tests

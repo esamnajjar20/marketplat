@@ -60,6 +60,6 @@
 - `app/account.tsx`
 - `src/components/BottomNavigation.tsx`
 - `src/components/MobileUI.tsx`
-- `scripts/verify-bottom-navigation-organization.mjs`
-- `scripts/verify-navigation-information-hierarchy.mjs`
+- `scripts/verify-bottom-navigation-organization.mts`
+- `scripts/verify-navigation-information-hierarchy.mts`
 - تحديث فحوص الانحدار المتأثرة بإعادة تنظيم الروابط.

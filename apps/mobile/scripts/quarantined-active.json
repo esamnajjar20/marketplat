@@ -1,5 +1,5 @@
 {
-  "generatedFrom": "node scripts/run-all-verifications.mjs on supplied source archive before remediation",
+  "generatedFrom": "node scripts/run-all-verifications.mts on supplied source archive before remediation",
   "count": 0,
   "entries": []
 }

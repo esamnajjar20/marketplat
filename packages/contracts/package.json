@@ -14,7 +14,7 @@
   },
   "scripts": {
     "type-check": "tsc --noEmit",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mts"
   },
   "dependencies": {
     "zod": "^3.22.0"

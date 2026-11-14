@@ -43,7 +43,7 @@
 | 2.1 تقسيم الشاشات الكبيرة | جزئي | نُقلت مقتطفات توثيقية خارج شجرة التطبيق، وتستخدم الشاشة الرئيسية الآن حالات UI موحدة للخدمات. تقسيم `app/ad-editor.tsx` إلى hook ومكونات منفصلة لم يُنفذ بالكامل؛ يلزم تنفيذه على دفعات بعد نجاح type-check/build لتقليل مخاطر تغيير السلوك. |
 | 2.2 طبقة Outbox موحدة | تم جزئيًا إلى حد جيد | أضيف/وُسّع `src/storage/outbox-manager.ts` ليجمع واجهة الطوابير، وتحوّلت الشاشات التي كانت تستورد طوابيرها مباشرة إلى الاستيراد من الواجهة. تتضمن لقطة حالة الطابور الطوابير الرئيسية المسجلة، وتتعامل مع غياب المستخدم/فشل القراءة باعتبار اللقطة غير مكتملة. |
 | 2.3 Zustand/Jotai | مؤجل مع توضيح | لم يُضف مخزن حالة جديد لمجرد اتباع الخطة؛ لا يوجد إثبات قياس يبرر إدخال اعتماد إضافي لهذه الإصلاحات. تبقى إدارة الجلسة الحالية، ويستحسن اتخاذ القرار بعد قياس فعلي لتكرار الحالة أو إعادة التصيير. |
-| 2.4 توحيد `.ts` و`.mjs` و`.d.mts` | تم للمنطق النقي المحدد | أصبح `draft-operation-queue.mjs` مصدر المنطق التنفيذي الوحيد مع تعريف الأنواع، وأزيل ملف `.ts` المكرر. تحولت ملفات `outbox-sync-policy` و`outbox-transport-contract` إلى واجهات TypeScript رفيعة تستورد مصدر MJS، مع إعادة توحيد التعريفات. أضيفت اختبارات مستقلة لتسلسل عمليات المسودات. |
+| 2.4 توحيد `.ts` و`.mjs` و`.d.mts` | تم للمنطق النقي المحدد | أصبح `draft-operation-queue.mts` مصدر المنطق التنفيذي الوحيد مع تعريف الأنواع، وأزيل ملف `.ts` المكرر. تحولت ملفات `outbox-sync-policy` و`outbox-transport-contract` إلى واجهات TypeScript رفيعة تستورد مصدر MJS، مع إعادة توحيد التعريفات. أضيفت اختبارات مستقلة لتسلسل عمليات المسودات. |
 
 ## المرحلة 3 — الجودة والاتساق
 
@@ -90,7 +90,7 @@
 - `apps/mobile/src/storage/outbox-manager.ts`
 - `apps/mobile/src/storage/sqlite-migration-integrity.ts`
 - `apps/mobile/src/storage/__tests__/sqlite-migration-integrity.test.ts`
-- `apps/mobile/src/storage/__tests__/draft-operation-queue.test.mjs`
+- `apps/mobile/src/storage/__tests__/draft-operation-queue.test.mts`
 - `apps/mobile/app/index.tsx`
 - `apps/mobile/app/ad-editor.tsx`
 - `apps/mobile/package.json` و`pnpm-lock.yaml`

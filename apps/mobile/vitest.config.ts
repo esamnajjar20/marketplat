@@ -16,7 +16,7 @@ export default defineConfig({
       'src/lib/__tests__/**/*.test.ts',
       'src/features/**/__tests__/**/*.test.ts',
     ],
-    exclude: ['**/*.test.mjs', '**/node_modules/**'],
+    exclude: ['**/*.test.mts', '**/node_modules/**'],
     environment: 'node',
     globals: false,
     testTimeout: 10_000,

@@ -69,9 +69,9 @@
 
 ## 6. ملفات الفحص المضافة/المحدثة
 
-- `scripts/verify-navigation-policy.mjs`: فحص وجهات التبويب والـDrawer وحارس الجذر، ومسح ملفات المسارات.
+- `scripts/verify-navigation-policy.mts`: فحص وجهات التبويب والـDrawer وحارس الجذر، ومسح ملفات المسارات.
 - `scripts/verify-navigation-drawer.mjs`: تحديث التوقعات لتتحقق من مصدر صلاحيات مركزي بدل `requiresAuth` مكرر.
-- `scripts/verify-shared-data-lifecycle.mjs`: فحص عقد الإلغاء والترقيم ومستهلكيه واستثناء Cursor، والتحقق من عدم وجود مزود Query وهمي.
+- `scripts/verify-shared-data-lifecycle.mts`: فحص عقد الإلغاء والترقيم ومستهلكيه واستثناء Cursor، والتحقق من عدم وجود مزود Query وهمي.
 - `src/lib/__tests__/navigation-policy.test.ts`: حالات تنقل ووصول إضافية.
 - `src/lib/__tests__/pagination.test.ts`: حالات إزالة تكرار الصفحات.
 
@@ -81,11 +81,11 @@
 
 | الفحص | النتيجة |
 |---|---:|
-| `verify-navigation-policy.mjs` | ناجح — 102 مسار شاشة مفحوص |
+| `verify-navigation-policy.mts` | ناجح — 102 مسار شاشة مفحوص |
 | `verify-mobile-audit-repairs.mjs` | 31/31 |
 | `verify-navigation-drawer.mjs` | ناجح |
-| `verify-design-system-a11y.mjs` | 13/13 |
-| `verify-shared-data-lifecycle.mjs` | ناجح |
+| `verify-design-system-a11y.mts` | 13/13 |
+| `verify-shared-data-lifecycle.mts` | ناجح |
 | فحوصات مركّزة للأنظمة التي تغيرت | 10/10 فحوص ناجحة |
 | TypeScript syntax transpile للملفات المعدلة | 27 ملف TS/TSX، دون أخطاء صياغة |
 

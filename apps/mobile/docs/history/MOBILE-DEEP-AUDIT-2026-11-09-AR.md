@@ -90,16 +90,16 @@ flowchart TD
 |---|---|---|
 | `package.json` | `expo-build-properties` مكرر في `dependencies` و`devDependencies` رغم أنه Plugin/اعتماد وقت إعداد Expo وموجود بالفعل ضمن dependencies وضمن pnpm importer هناك | إزالة النسخة المكررة من `devDependencies` فقط؛ لا تغيير للإصدار أو lockfile |
 
-التحقق بعد الإصلاح: `node scripts/verify-phase2-build-config.mjs` نجح.
+التحقق بعد الإصلاح: `node scripts/verify-phase2-build-config.mts` نجح.
 
 ## 5. نتائج الاختبارات المنفذة
 
 | الاختبار | النتيجة | حدود الإثبات |
 |---|---:|---|
 | `node --test src/storage/__tests__/*.test.mjs` | **40/40 ناجح** | اختبارات Node لسياسات التخزين/Outbox/cache؛ لا تشغّل Expo SQLite Native |
-| `node scripts/verify-release-config.mjs` | ناجح | تحقق ساكن من إعداد التوقيع فقط؛ لا يوقّع APK |
-| `node scripts/verify-phase2-build-config.mjs` بعد الإصلاح | ناجح | تحقق ساكن من توافق manifest والـ lockfile وإعدادات البناء |
-| `node scripts/run-all-verifications.mjs` | **68/70 ناجح** | الفحوص Script-based وليست E2E؛ فشلان موضحان أدناه |
+| `node scripts/verify-release-config.mts` | ناجح | تحقق ساكن من إعداد التوقيع فقط؛ لا يوقّع APK |
+| `node scripts/verify-phase2-build-config.mts` بعد الإصلاح | ناجح | تحقق ساكن من توافق manifest والـ lockfile وإعدادات البناء |
+| `node scripts/run-all-verifications.mts` | **68/70 ناجح** | الفحوص Script-based وليست E2E؛ فشلان موضحان أدناه |
 | `npm run type-check` | لم يكتمل | غياب `expo/tsconfig.base` واعتماد TypeScript غير المثبت؛ كما ظهر اختلاف خيار `ignoreDeprecations` مع المترجم المتاح |
 | Vitest (43 ملف اختبار) | لم يُشغّل | `node_modules` غير موجودة |
 | ESLint | لم يُشغّل | `node_modules` غير موجودة |
@@ -108,8 +108,8 @@ flowchart TD
 
 ### الفشلان في فحوص Script-based
 
-1. `verify-appointment-booking-ux.mjs`: يتوقع النص `load(true, accountChanged)` حرفيًا، بينما التنفيذ الحالي يستخدم `loadRef.current(true, accountChanged)` بعد تحديث مرجع أحدث loader. هذا اختلاف في صياغة الاستدعاء، وليس دليلًا على غياب إعادة التحميل عند تبديل الحساب.
-2. `verify-mobile-unification-round3.mjs`: يتوقع `list.refresh()` مباشرة داخل شاشة المبيعات، بينما الشاشة تحفظه في `refreshList` وتستدعي `refreshList()` ضمن `refreshAll`. فشل الاختبار لا يثبت غياب التحديث.
+1. `verify-appointment-booking-ux.mts`: يتوقع النص `load(true, accountChanged)` حرفيًا، بينما التنفيذ الحالي يستخدم `loadRef.current(true, accountChanged)` بعد تحديث مرجع أحدث loader. هذا اختلاف في صياغة الاستدعاء، وليس دليلًا على غياب إعادة التحميل عند تبديل الحساب.
+2. `verify-mobile-unification-round3.mts`: يتوقع `list.refresh()` مباشرة داخل شاشة المبيعات، بينما الشاشة تحفظه في `refreshList` وتستدعي `refreshList()` ضمن `refreshAll`. فشل الاختبار لا يثبت غياب التحديث.
 
 لم أعدّل هذين الاختبارين لتجنب تحويل فحوص Regex إلى إثبات زائف لصحة السلوك.
 

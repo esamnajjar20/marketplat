@@ -1,6 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import type { AdDraft } from '@/features/ads/manage-ads.api';
-import { runSerializedByKey } from './draft-operation-queue.mjs';
+import { runSerializedByKey } from './draft-operation-queue';
 import { openEncryptedDatabaseAsync } from '@/storage/encrypted-database';
 
 const DATABASE_NAME = 'marketplat-public-cache.db';

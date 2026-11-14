@@ -73,16 +73,16 @@
 
 نجحت الفحوص المصدرية المستهدفة التالية:
 
-- `verify-release-config.mjs`
+- `verify-release-config.mts`
 - `verify-mobile-audit-repairs.mjs` — 31/31
 - `verify-mobile-critical-contracts.mjs`
-- `verify-design-system-a11y.mjs` — 13/13
-- `verify-chat-session-abort-audit.mjs`
-- `verify-outbox-owner-scoped-sync.mjs` — خمس وحدات طوابير
-- `verify-phase2-build-config.mjs`
-- `verify-offline-first-deep-audit-fixes.mjs`
+- `verify-design-system-a11y.mts` — 13/13
+- `verify-chat-session-abort-audit.mts`
+- `verify-outbox-owner-scoped-sync.mts` — خمس وحدات طوابير
+- `verify-phase2-build-config.mts`
+- `verify-offline-first-deep-audit-fixes.mts`
 - `verify-offline-first-public-cache.mjs`
-- `lint-mobile.mjs` — فحصه المخصص لـ265 ملف TS/TSX، وليس ESLint.
+- `lint-mobile.mts` — فحصه المخصص لـ265 ملف TS/TSX، وليس ESLint.
 - فحص صياغة TypeScript/TSX فقط بواسطة TypeScript `transpileModule`: 12/12 ملفًا معدّلًا/مضافًا بلا أخطاء صياغة.
 - فحص صياغة ملفات سيرتي GitHub Actions المعدلتين.
 - مطابقة محتوى الوثائق المنقولة: 70/70 محفوظة بايتًا ببايت.

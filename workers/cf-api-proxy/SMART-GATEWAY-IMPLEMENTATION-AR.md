@@ -167,7 +167,7 @@ curl -X PUT https://marketplat-api.esamnajjar6.workers.dev/__gateway/registry \
 - يجب ضبط `PURGE_TOKEN` كـ Worker Secret، ثم ضبط المتغيرين في Express API: `EDGE_WORKER_PURGE_URL=https://marketplat-api.esamnajjar6.workers.dev/__purge__` و`EDGE_WORKER_PURGE_TOKEN` بالقيمة نفسها. لا تفعّل `CF_CACHE_TAG_PURGE_ENABLED=true` إلا بعد نشر الإعداد واختبار إبطال الوسوم بنجاح.
 - أصبحت مدد `s-maxage` الطويلة للإعلانات مشروطة بإعداد مسار إبطال Workers Cache؛ وجود Zone ID/API token وحده لا يكفي على `workers.dev`. إذا ضبطت الوجهتين، يرسل API الإبطال إلى Workers Cache وإلى Zone Cache معًا.
 - خُفّضت كتابة عينات نجاح Go المركزية إلى 10% بدل 20%؛ وتظل كل الإخفاقات مسجلة. وزيدت ذاكرة لقطة الصحة المحلية من 5 إلى 15 ثانية لتقليل قراءة DO بنحو 66% على حساب انتشار أبطأ بحد أقصى 15 ثانية لتغيرات العوازل الأخرى. وكل استجابة عامة تحمل `Vary: Origin, Host` حتى لا تختلط استجابات CORS بين أصل مسموح وآخر غير مسموح أو طلب بلا Origin.
-- أداة `cache-probe.mjs` أصبحت تقرأ `Cf-Cache-Status` للكاش الأصلي وتفصلها عن `x-proxy-cache` للكاش الداخلي. تحقق من `WORKERS-HIT` ابتداءً من الجولة الثانية بعد النشر.
+- أداة `cache-probe.mts` أصبحت تقرأ `Cf-Cache-Status` للكاش الأصلي وتفصلها عن `x-proxy-cache` للكاش الداخلي. تحقق من `WORKERS-HIT` ابتداءً من الجولة الثانية بعد النشر.
 
 أوامر التحقق المحلية:
 
@@ -175,7 +175,7 @@ curl -X PUT https://marketplat-api.esamnajjar6.workers.dev/__gateway/registry \
 npx wrangler --version   # يجب أن يكون 4.69.0 أو أحدث
 npm run type-check
 npm test
-node cache-probe.mjs https://marketplat-api.esamnajjar6.workers.dev 3
+node cache-probe.mts https://marketplat-api.esamnajjar6.workers.dev 3
 ```
 
 ## التسخين المحدود وتنظيف D1 (تحديث 2026-11-06)
@@ -238,7 +238,7 @@ new_sqlite_classes = ["GatewayHealthCoordinator"]
 
 - `npm test` داخل `workers/cf-api-proxy`: ناجح، ويشمل سيناريو ثلاث نسخ Worker مستقلة تتشارك حالة الصحة عبر Durable Object، ثم تتجاوز Backend الذي وصل إلى Circuit Open.
 - `npm run type-check` داخل Worker: ناجح (فحوص Node syntax المعرّفة في package scripts).
-- `node frontend/scripts/navigation-integrity-audit.mjs`: 26/26 ناجحة.
+- `node frontend/scripts/navigation-integrity-audit.mts`: 26/26 ناجحة.
 - TypeScript TSX transpile للوحة الإدارة: صفر diagnostics نحوية.
 - `wrangler.toml`: تم تحليله بنجاح والتحقق من Binding وSQLite migration.
 - لم يُشغّل `next build` أو `tsc --noEmit` الكامل؛ اعتماديات الواجهة غير مثبتة في الحزمة.
@@ -309,7 +309,7 @@ eight targets per Worker invocation; Cron, alarms, and warmup remain disabled.
 
 - Worker TypeScript strict check (`tsc --noEmit -p tsconfig.json`): passed.
 - Worker TypeScript build (`tsc -p tsconfig.json`): passed.
-- Full Worker regression file `cache-policy.test.mjs`: passed, including Go auth, service-token injection, path rewrites, same-origin multi-service registration, replica failover, POST non-replay, bounded three-attempt GET failover, 32-target registry cap, central health namespace, and 8-target manual probe batches.
+- Full Worker regression file `cache-policy.test.mts`: passed, including Go auth, service-token injection, path rewrites, same-origin multi-service registration, replica failover, POST non-replay, bounded three-attempt GET failover, 32-target registry cap, central health namespace, and 8-target manual probe batches.
 - Admin TSX syntax parse: passed. Full Next.js type-check/build was not run because frontend dependencies are not installed in the supplied archive/runtime.
 - `go test ./...` could not complete because the environment could not resolve `proxy.golang.org` while downloading `github.com/jackc/pgx/v5@v5.7.2`; no Go runtime source was changed in this extension.
 - Wrangler deploy/dry-run and live multi-origin tests were not performed. No production deployment is claimed.

@@ -248,7 +248,7 @@ erDiagram
 - فحص هيكلي للمجلدات: 120 Migration أصلية، كل واحدة لها `migration.sql` غير فارغ، لا timestamp مكرر، وMigration جديدة واحدة في آخر الترتيب.
 - مقارنة بايتية لجميع `migration.sql` الأصلية بين الأرشيف الأصلي ونسخة العمل: صفر ملفات معدلة/مفقودة.
 - فحص بنية Schema: 75 Model و45 Enum، لا يوجد `Float`، واكتشاف الفهرسين الجديدين في النموذج والـ migration.
-- تشغيل source audit scripts الموجودة `prisma-query-phase5-audit.mjs` و`prisma-query-phase6-audit.mjs`: النتائج 16/16 و15/15. هذه فحوص مصدر/عقود ساكنة وليست اختبارات PostgreSQL، ولم أحتسبها كإثبات لصحة المنطق أو الأداء.
+- تشغيل source audit scripts الموجودة `prisma-query-phase5-audit.mts` و`prisma-query-phase6-audit.mts`: النتائج 16/16 و15/15. هذه فحوص مصدر/عقود ساكنة وليست اختبارات PostgreSQL، ولم أحتسبها كإثبات لصحة المنطق أو الأداء.
 
 ### لم يُنفذ
 

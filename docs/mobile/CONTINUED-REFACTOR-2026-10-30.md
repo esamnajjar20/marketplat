@@ -19,7 +19,7 @@
 - Wired those schemas into the high-traffic methods in `src/features/messaging/messaging.api.ts`.
 - The schemas enforce required identifiers and key fields while allowing additional backend fields for forward compatibility.
 - Unread count accepts a non-negative integer or digit-only string and normalizes it to a number.
-- Added Vitest cases for valid and malformed payloads in `src/api/__tests__/response-validation.test.ts` and a static guard `scripts/verify-messaging-api-contracts.mjs`.
+- Added Vitest cases for valid and malformed payloads in `src/api/__tests__/response-validation.test.ts` and a static guard `scripts/verify-messaging-api-contracts.mts`.
 
 ### 3. Documentation and maintainability
 - Updated `apps/mobile/README.md` with the current active-check count and the new inbox/API-contract architecture.
@@ -29,7 +29,7 @@
 
 | Check | Result | Meaning |
 |---|---:|---|
-| `node ./scripts/run-all-verifications.mjs` from `apps/mobile` | **60/60 active passed** | Includes the new virtualization and messaging-schema static guards |
+| `node ./scripts/run-all-verifications.mts` from `apps/mobile` | **60/60 active passed** | Includes the new virtualization and messaging-schema static guards |
 | `node --test src/storage/__tests__/*.test.mjs` | **30/30 passed** | Existing durable storage/outbox tests remain green |
 | TypeScript `transpileModule` syntax pass on 5 edited TS/TSX files | **5/5 passed** | This is a syntax check only, not a full type-check |
 | Vitest | **Not run** | The workspace dependencies, including Zod/Vitest, are not installed in this environment |

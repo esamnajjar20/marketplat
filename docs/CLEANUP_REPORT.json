@@ -93,7 +93,7 @@
       "category": "scripts",
       "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
     },
-    "apps/mobile/scripts/legacy-verifications/verify-feature-remaining-account-pages.mjs": {
+    "apps/mobile/scripts/legacy-verifications/verify-feature-remaining-account-pages.mts": {
       "category": "scripts",
       "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
     },
@@ -161,23 +161,23 @@
       "category": "scripts",
       "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
     },
-    "apps/mobile/scripts/legacy-verifications/verify-mutation-csrf-audit.mjs": {
+    "apps/mobile/scripts/legacy-verifications/verify-mutation-csrf-audit.mts": {
       "category": "scripts",
       "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
     },
-    "apps/mobile/scripts/legacy-verifications/verify-native-chat-parity-audit.mjs": {
+    "apps/mobile/scripts/legacy-verifications/verify-native-chat-parity-audit.mts": {
       "category": "scripts",
       "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
     },
-    "apps/mobile/scripts/legacy-verifications/verify-navigation-information-hierarchy.mjs": {
+    "apps/mobile/scripts/legacy-verifications/verify-navigation-information-hierarchy.mts": {
       "category": "scripts",
       "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
     },
-    "apps/mobile/scripts/legacy-verifications/verify-offline-first-all-creations.mjs": {
+    "apps/mobile/scripts/legacy-verifications/verify-offline-first-all-creations.mts": {
       "category": "scripts",
       "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
     },
-    "apps/mobile/scripts/legacy-verifications/verify-offline-first-deep-audit-fixes.mjs": {
+    "apps/mobile/scripts/legacy-verifications/verify-offline-first-deep-audit-fixes.mts": {
       "category": "scripts",
       "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
     },
@@ -389,7 +389,7 @@
       "category": "scripts",
       "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
     },
-    "apps/mobile/scripts/legacy-verifications/verify-phase79.mjs": {
+    "apps/mobile/scripts/legacy-verifications/verify-phase79.mts": {
       "category": "scripts",
       "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
     },
@@ -397,7 +397,7 @@
       "category": "scripts",
       "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
     },
-    "apps/mobile/scripts/legacy-verifications/verify-product-contact-flow.mjs": {
+    "apps/mobile/scripts/legacy-verifications/verify-product-contact-flow.mts": {
       "category": "scripts",
       "reason": "تحقق تاريخي معزول (quarantined) — فاشل ولا يُحتسب كنجاح"
     },
@@ -1415,16 +1415,16 @@
       "to": "docs/archive/web/docs/server-data-cache-phase2.md",
       "category": "archive"
     },
-    "tooling/dev-all.mjs": {
-      "to": "tools/dev-all.mjs",
+    "tooling/dev-all.mts": {
+      "to": "tools/dev-all.mts",
       "category": "tools"
     },
-    "tooling/verify-prisma-layout.mjs": {
-      "to": "tools/verify-prisma-layout.mjs",
+    "tooling/verify-prisma-layout.mts": {
+      "to": "tools/verify-prisma-layout.mts",
       "category": "tools"
     },
-    "tooling/verify-workspace.mjs": {
-      "to": "tools/verify-workspace.mjs",
+    "tooling/verify-workspace.mts": {
+      "to": "tools/verify-workspace.mts",
       "category": "tools"
     }
   },

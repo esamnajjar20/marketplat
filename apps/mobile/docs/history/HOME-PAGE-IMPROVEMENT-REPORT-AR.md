@@ -20,7 +20,7 @@
 ## نتائج التحقق المنفّذ
 
 - `verify-homepage-multi-section.mjs`: ناجح.
-- `verify-phase78.mjs`: ناجح.
+- `verify-phase78.mts`: ناجح.
 - فحص تحليل TypeScript/JSX النحوي للملفين المعدّلين: ناجح.
 
 ## حدود التحقق

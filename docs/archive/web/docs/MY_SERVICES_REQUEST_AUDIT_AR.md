@@ -38,10 +38,10 @@
 ## التحقق المنفذ
 
 - `prefetch-policy-audit.mjs`: ناجح، 362 رابطًا عبر المهايئ و173 ملف مصدر متأثر.
-- `network-request-monitor-audit.mjs`: ناجح، 21/21.
+- `network-request-monitor-audit.mts`: ناجح، 21/21.
 - `necessary-request-audit.mjs`: ناجح.
 - `profile-and-global-request-audit.mjs`: ناجح.
-- `navigation-integrity-audit.mjs`: 25/26؛ الفشل الوحيد هو فحص إداري سابق بعنوان `every admin hub tab has a legacy URL redirect`، ولا يتعلق بصفحة خدماتي أو تعديلات هذه المرحلة.
+- `navigation-integrity-audit.mts`: 25/26؛ الفشل الوحيد هو فحص إداري سابق بعنوان `every admin hub tab has a legacy URL redirect`، ولا يتعلق بصفحة خدماتي أو تعديلات هذه المرحلة.
 - فحص تحليل صياغة TypeScript/TSX للملفات المعدّلة: ناجح.
 - لم يتم تشغيل Vitest/Jest أو `tsc --noEmit` أو بناء Next.js؛ لا تتوفر `node_modules` في النسخة المرفوعة. لذلك لا تُعد اختبارات الوحدات المضافة منفذة بعد.
 

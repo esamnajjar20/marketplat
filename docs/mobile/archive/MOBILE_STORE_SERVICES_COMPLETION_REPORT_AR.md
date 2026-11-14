@@ -19,7 +19,7 @@
 استخدمت المسارات الموجودة في `apps/api/src/modules/collections`, `promotions`, `stores` (الأعضاء والساعات)، `service-listings` (الصور)، `service-providers` (الشعار والإحصاءات وأنواع الخدمة)، و`service-reviews`. لم أضف جداول أو مسارات Backend جديدة.
 
 ## التحقق
-- أضيف `verify-feature-store-services-completion.mjs` إلى `npm test`.
+- أضيف `verify-feature-store-services-completion.mts` إلى `npm test`.
 - يجب تشغيل `npm test` و`npm run type-check` من `apps/mobile` بعد تثبيت التبعيات.
 - لم يتم تأكيد بناء APK أو اختبار API على خادم وقاعدة بيانات فعلية في بيئة التنفيذ الحالية.
 

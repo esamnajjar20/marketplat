@@ -23,4 +23,4 @@
 
 ## التحقق
 
-شغّل `node scripts/api-batching-phase6-audit.mjs` من مجلد `frontend`. هذا تدقيق عقد ثابت، وليس اختبار تشغيل أو بديلًا عن `tsc` أو اختبارات Jest.
+شغّل `node scripts/api-batching-phase6-audit.mts` من مجلد `frontend`. هذا تدقيق عقد ثابت، وليس اختبار تشغيل أو بديلًا عن `tsc` أو اختبارات Jest.

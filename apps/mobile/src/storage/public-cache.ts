@@ -6,7 +6,7 @@ import {
   planPublicCacheEviction,
   MAX_PUBLIC_CACHE_ENTRIES,
   MAX_PUBLIC_CACHE_BYTES,
-} from './public-cache-policy.mjs';
+} from './public-cache-policy';
 
 const DATABASE_NAME = 'marketplat-public-cache.db';
 const MAX_ENTRY_CHARS = 500_000;

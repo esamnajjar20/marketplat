@@ -32,7 +32,7 @@ import { COPY } from '@/lib/copy';                                      // ال�
 `ListEmpty`, `ListStaleError`, `PaginatedFooter`, `OfflineBanner`.
 
 ## القواعد
-1. **لا hex** خام في `app/` و`src/` (يفرضها ESLint و`lint-mobile.mjs`).
+1. **لا hex** خام في `app/` و`src/` (يفرضها ESLint و`lint-mobile.mts`).
 2. **حقول الإدخال عبر `Field`** عند وجود تسمية ظاهرة. `TextInput` الخام فقط لحقول البحث/الدردشة/الفلاتر الخاصة.
 3. **لا `row-reverse`**: RTL أصلي (`forceRTL`) فالصفوف العادية تنعكس تلقائيًا. (النسخة السابقة من هذا الملف قالت العكس وكانت خاطئة.)
 4. **نصوص الأخطاء/إعادة المحاولة من `COPY`**: زر = «إعادة المحاولة» (`COPY.retryAction`)، رسالة = «حاول مرة أخرى.» (`COPY.tryAgain`).

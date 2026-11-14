@@ -5,7 +5,7 @@
 ### Phase 1 — Baseline and measurement contract
 
 - Added `docs/performance/RENDER-PHASE-1-BASELINE.md`.
-- Added `apps/web/scripts/render-audit.mjs` and the `perf:render-audit` npm script.
+- Added `apps/web/scripts/render-audit.mts` and the `perf:render-audit` npm script.
 - The audit deliberately measures source architecture, not runtime render counts.
 - Defined representative profiler flows and acceptance criteria so later render changes can be measured instead of guessed.
 

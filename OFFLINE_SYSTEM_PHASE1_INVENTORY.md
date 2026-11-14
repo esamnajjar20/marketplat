@@ -41,8 +41,8 @@ Static import inventory of frontend/shared/backend runtime source files. Scanned
 -  frontend/public/cache-contract.js — 0 static importers
 -  frontend/public/cache-policy.js — 0 static importers
 -  shared/cache/cacheKey.ts — 0 static importers
--  workers/cf-api-proxy/cache-policy.test.mjs — 0 static importers
--  workers/cf-api-proxy/cache-probe.mjs — 0 static importers
+-  workers/cf-api-proxy/cache-policy.test.mts — 0 static importers
+-  workers/cf-api-proxy/cache-probe.mts — 0 static importers
 
 ### Mutations, drafts, queues and sync (11)
 

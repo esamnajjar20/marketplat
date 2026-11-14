@@ -170,7 +170,7 @@
 ### تنظيف معماري صغير
 
 - `apps/mobile/src/storage/draft-operation-queue.ts` كان تنفيذًا موازيًا غير مستخدم.
-- الاستيراد الفعلي في `ad-draft-store.ts` والاختبارات يستعمل `draft-operation-queue.mjs`، كما ينص `src/storage/README.md` على أن MJS هو مصدر التنفيذ الوحيد.
+- الاستيراد الفعلي في `ad-draft-store.ts` والاختبارات يستعمل `draft-operation-queue.mts`، كما ينص `src/storage/README.md` على أن MJS هو مصدر التنفيذ الوحيد.
 - الحالة: **حُذف الملف المكرر**، ولم تتغير واجهة الدالة أو سلوك الطابور؛ اختبارات Node التي تستورد MJS بقيت ناجحة.
 
 ## 4. شرح قبل/بعد
@@ -205,7 +205,7 @@
 
 **مدقّقات التحقق:**
 
-- `apps/mobile/scripts/verify-design-system-a11y.mjs` — تعديل التحقق ليتعامل مع شريحة البحث كمكوّن مشترك واحد بدل اشتراط تكرار خاصية الوصولية في كل استعمال.
+- `apps/mobile/scripts/verify-design-system-a11y.mts` — تعديل التحقق ليتعامل مع شريحة البحث كمكوّن مشترك واحد بدل اشتراط تكرار خاصية الوصولية في كل استعمال.
 - `apps/mobile/scripts/verify-mobile-critical-contracts.mjs` — تحديث اختبار مساري fallback ليأخذ `cacheEpochAtRequestStart` بالحسبان، والتحقق من تعطيل Sentry دون DSN ومن عدم إرسال PII الافتراضي وحذف ترويسات الطلب قبل الإرسال.
 
 **ملف محذوف:**
@@ -223,11 +223,11 @@
 | الفحص | النتيجة |
 |---|---:|
 | اختبارات Node لطبقة التخزين `src/storage/__tests__/*.test.mjs` | **40/40 ناجحة** |
-| `verify-navigation-policy.mjs` | ناجح: 23 وجهة سياسة معلنة و102 مسار Expo مفحوص |
-| `verify-design-system-a11y.mjs` | **13/13 ناجحة** |
-| `verify-chat-pagination-audit.mjs` | ناجح |
-| `verify-chat-live-stream-audit.mjs` | ناجح |
-| `verify-offline-first-all-creations.mjs` | ناجح |
+| `verify-navigation-policy.mts` | ناجح: 23 وجهة سياسة معلنة و102 مسار Expo مفحوص |
+| `verify-design-system-a11y.mts` | **13/13 ناجحة** |
+| `verify-chat-pagination-audit.mts` | ناجح |
+| `verify-chat-live-stream-audit.mts` | ناجح |
+| `verify-offline-first-all-creations.mts` | ناجح |
 | `verify-mobile-critical-contracts.mjs` | ناجح بعد تحديث مطابق للكود الحالي |
 
 ### تعذر تشغيلها في بيئة الأرشيف

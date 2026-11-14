@@ -33,7 +33,7 @@
   "exclude": [
     "node_modules",
     "dist",
-    "*.test.mjs",
-    "cache-probe.mjs"
+    "*.test.mts",
+    "cache-probe.mts"
   ]
 }

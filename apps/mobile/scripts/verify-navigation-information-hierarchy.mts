@@ -1,0 +1,66 @@
+// @ts-nocheck
+import assert from 'node:assert/strict';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import type { PathLike } from 'node:fs';
+
+
+
+const root = process.cwd();
+const read = (path: string) => readFileSync(resolve(root, path), 'utf8');
+const nav = read('src/components/BottomNavigation.tsx');
+const policy = read('src/lib/navigation-policy.ts');
+const shell = read('src/components/ui/PageShell.tsx');
+const frame = read('src/components/ui/ScreenFrame.tsx');
+const home = read('app/index.tsx');
+const explore = read('app/explore.tsx');
+const account = read('app/account.tsx');
+const layout = read('app/_layout.tsx');
+
+// Global navigation must be present, accessible, and limited to the five primary destinations.
+assert.match(layout, /<BottomNavigation\s*\/>/);
+for (const [label, route] of [['الرئيسية', 'index.tsx'], ['استكشف', 'explore.tsx'], ['إضافة', 'add.tsx'], ['الرسائل', 'messages.tsx'], ['حسابي', 'account.tsx']]) {
+  assert.ok(policy.includes(`label: '${label}'`), `Missing primary navigation item in central policy: ${label}`);
+  assert.ok(existsSync(resolve(root, 'app', route)), `Missing route for ${label}: ${route}`);
+}
+assert.match(nav, /accessibilityRole="tab"/);
+assert.match(nav, /accessibilityState=\{\{ selected: active \}\}/);
+assert.match(nav, /isBottomNavigationHidden/);
+assert.match(shell, /<ScreenFrame\b/, 'PageShell must build on the shared ScreenFrame.');
+assert.match(frame, /shouldHideBottomNavigation\(pathname\)/, 'ScreenFrame must avoid adding a second bottom inset when the bar is visible.');
+assert.match(frame, /\['top', 'bottom'\]/);
+
+// The home screen should prioritize search and current ads; advanced filters stay collapsed until requested.
+assert.match(home, /أحدث الإعلانات/);
+assert.match(await read('src/features/discovery/HomeMarketplaceSections.tsx'), /خدمات قريبة/);
+// Services load lazily inside HomeMarketplaceSections (one request); the home screen itself must not duplicate it.
+const marketplaceSections = await read('src/features/discovery/HomeMarketplaceSections.tsx');
+assert.match(marketplaceSections, /fetchServiceListings\(/);
+assert.doesNotMatch(home, /fetchServiceListings|useHomeServices/, 'Home must not issue a second services request.');
+assert.match(home, /showFilters \?/);
+assert.doesNotMatch(home, /تصفّح الأقسام|categoryGrid|fetchPublicCategories/);
+assert.doesNotMatch(home, /<Text style=\{styles\.quickTitle\}>الرائج الآن<\/Text>/, 'Do not duplicate discovery sections as homepage shortcuts.');
+
+// Discovery and account destinations are grouped by user intent and priority.
+for (const route of ['/search', '/ads', '/products', '/services', '/requests', '/stores', '/service-providers', '/sellers-ranking']) assert.ok(explore.includes(`path: '${route}'`), `Explore must link to ${route}`);
+assert.match(account, /المبيعات والعملاء[\s\S]*ملفي ونشاطي[\s\S]*إدارة المتجر والخدمات[\s\S]*الخصوصية والأمان/);
+for (const route of ['/messages', '/notifications', '/my-sales', '/orders', '/my-ads', '/profile', '/my-store', '/my-products', '/my-services', '/my-requests', '/appointments', '/settings', '/offline-queue', '/storage', '/blocked-users', '/my-reports']) {
+  const candidate = resolve(root, 'app', `${route.slice(1)}.tsx`);
+  assert.ok(existsSync(candidate), `Account hub points to a missing route: ${route}`);
+}
+
+// Check that every top-level route has a file; dynamic segments are represented by [param] directories.
+const appRoot = resolve(root, 'app');
+const routes: string[] = [];
+function walk(dir: PathLike, prefix = '') {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith('_') || entry.name.startsWith('+')) continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) walk(full, `${prefix}/${entry.name}`);
+    else if (entry.name.endsWith('.tsx') && entry.name !== '_layout.tsx') routes.push(`${prefix}/${entry.name.replace(/\.tsx$/, '')}`.replace(/\/index$/, '') || '/');
+  }
+}
+walk(appRoot);
+assert.ok(routes.length >= 70, `Unexpectedly low route count (${routes.length}); route inventory may be incomplete.`);
+assert.ok(routes.includes('/'), 'Root home route must exist.');
+console.log(`Navigation/information hierarchy audit passed (${routes.length} route files inventoried).`);

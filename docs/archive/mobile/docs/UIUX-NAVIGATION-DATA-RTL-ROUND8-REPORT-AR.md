@@ -39,12 +39,12 @@
 - `verify:navigation-policy` — 23 وجهة تبويب/Drawer موجودة في Expo Router، ومصدر مشترك للقوائم.
 - `verify-mobile-audit-repairs.mjs` — 31/31.
 - `verify-mobile-critical-contracts.mjs`.
-- `verify-design-system-a11y.mjs` — 13/13.
-- `lint-mobile.mjs` — فحص المشروع المخصص لـ269 ملف TypeScript؛ ليس ESLint.
-- `verify-phase2-build-config.mjs`.
-- `verify-offline-first-deep-audit-fixes.mjs`.
+- `verify-design-system-a11y.mts` — 13/13.
+- `lint-mobile.mts` — فحص المشروع المخصص لـ269 ملف TypeScript؛ ليس ESLint.
+- `verify-phase2-build-config.mts`.
+- `verify-offline-first-deep-audit-fixes.mts`.
 - `verify-offline-first-public-cache.mjs`.
-- `verify-release-config.mjs` — فحص إعدادات ساكن، وليس بناء Gradle أو توقيع APK.
+- `verify-release-config.mts` — فحص إعدادات ساكن، وليس بناء Gradle أو توقيع APK.
 - فحص TypeScript syntax عبر `transpileModule` للملفات السبعة المعدلة/المضافة — بلا أخطاء parsing.
 
 ## فحوص لم تُنفذ
@@ -57,7 +57,7 @@
 - جديد: `src/lib/pagination.ts`
 - جديد: `src/lib/__tests__/navigation-policy.test.ts`
 - جديد: `src/lib/__tests__/pagination.test.ts`
-- جديد: `scripts/verify-navigation-policy.mjs`
+- جديد: `scripts/verify-navigation-policy.mts`
 - جديد: `docs/APP-WIDE-UI-NAVIGATION-DATA-RTL-POLICY-AR.md`
 - جديد: `docs/UIUX-NAVIGATION-DATA-RTL-ROUND8-REPORT-AR.md`
 - معدل: `src/components/BottomNavigation.tsx`

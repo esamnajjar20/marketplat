@@ -59,7 +59,7 @@
 
 ## 5. منع رجوع الألوان الصلبة
 
-تم توسيع `scripts/verify-design-tokens-no-raw-hex.mjs` ليفحص جميع ملفات `app/` و`src/` بدل نطاق جزئي، ويكشف قيم الألوان الخام `hex` و`rgb/rgba` و`hsl/hsla` خارج `src/theme/tokens.ts`. فحص التباين وأهداف اللمس موجود في `scripts/verify-design-system-a11y.mjs`.
+تم توسيع `scripts/verify-design-tokens-no-raw-hex.mts` ليفحص جميع ملفات `app/` و`src/` بدل نطاق جزئي، ويكشف قيم الألوان الخام `hex` و`rgb/rgba` و`hsl/hsla` خارج `src/theme/tokens.ts`. فحص التباين وأهداف اللمس موجود في `scripts/verify-design-system-a11y.mts`.
 
 ## 6. ما لم يُفعّل عمدًا
 
@@ -81,9 +81,9 @@
 
 تم تشغيل الأوامر داخل `apps/mobile`:
 
-- `node scripts/run-all-verifications.mjs`: **62/62** من فحوص التحقق النشطة ناجحة. يوجد **86** فحصًا تاريخيًا معزولًا؛ لم تُحتسب ضمن الفحوص الناجحة.
-- `node scripts/verify-design-system-a11y.mjs`: **13/13** تحققًا من التباين/اللمس/الوصول المشترك.
-- `node scripts/verify-design-tokens-no-raw-hex.mjs`: لا توجد ألوان خام مكتشفة خارج ملف tokens.
+- `node scripts/run-all-verifications.mts`: **62/62** من فحوص التحقق النشطة ناجحة. يوجد **86** فحصًا تاريخيًا معزولًا؛ لم تُحتسب ضمن الفحوص الناجحة.
+- `node scripts/verify-design-system-a11y.mts`: **13/13** تحققًا من التباين/اللمس/الوصول المشترك.
+- `node scripts/verify-design-tokens-no-raw-hex.mts`: لا توجد ألوان خام مكتشفة خارج ملف tokens.
 - `node --test src/storage/__tests__/*.test.mjs`: **30/30** اختبارًا ناجحًا.
 - فحص صياغة TypeScript/TSX عبر TypeScript `transpileModule`: **214 ملفًا**، دون أخطاء صياغة.
 

@@ -3,7 +3,7 @@
 ## النتيجة
 - **0** لون hex خام داخل `app/` و `src/components/`
 - سكربت الحوكمة صار **صارماً على كامل** `app/` و `src/components/`
-- `node scripts/verify-design-tokens-no-raw-hex.mjs` → ✅
+- `node scripts/verify-design-tokens-no-raw-hex.mts` → ✅
 
 ## ما شملته هذه المرحلة
 1. استبدال كل ألوان hex المتبقية (~47) بـ tokens (danger / brand / warning / ink / border…)

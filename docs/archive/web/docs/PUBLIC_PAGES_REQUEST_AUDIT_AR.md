@@ -98,10 +98,10 @@
 - `node scripts/public-page-request-reduction-audit.mjs`
 - `node scripts/prefetch-policy-audit.mjs`
 - `node scripts/necessary-request-audit.mjs`
-- `node scripts/network-request-monitor-audit.mjs` — 21/21
-- `node scripts/server-prefetch-audit.mjs` — 9/9
-- `node scripts/http-request-phase3-audit.mjs` — 15/15
-- `node scripts/http-request-phase6-audit.mjs` — 9/9
+- `node scripts/network-request-monitor-audit.mts` — 21/21
+- `node scripts/server-prefetch-audit.mts` — 9/9
+- `node scripts/http-request-phase3-audit.mts` — 15/15
+- `node scripts/http-request-phase6-audit.mts` — 9/9
 
 **قيود التحقق:** الحزمة لا تحتوي `node_modules`، لذلك لم يتم تشغيل Vitest/Jest أو `tsc --noEmit` أو build فعلي. اجتياز تدقيقات AST والسكريبتات لا يساوي اجتياز اختبار وقت التشغيل. كما لم يتم تسجيل trace جديد من المتصفح بعد التعديل؛ لذا لا نقدّم رقمًا مختلقًا لنسبة الانخفاض.
 

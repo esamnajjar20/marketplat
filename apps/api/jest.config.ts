@@ -43,7 +43,7 @@ const config: Config = {
   // Shared DB cleanup in setup.ts — parallel workers cause FK race conditions
   maxWorkers: 1,
   // Run integration tests before unit tests (unit tests may spy on prisma/redis)
-  testSequencer: '<rootDir>/tests/testSequencer.js',
+  testSequencer: '<rootDir>/tests/testSequencer.ts',
   verbose: true,
 };
 

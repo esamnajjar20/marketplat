@@ -15,7 +15,7 @@
 
 ## التحقق
 اجتازت ملفات المجموعة تحويل TypeScript/TSX للتحقق من البنية النحوية. واجتازت اختبارات المشروع الثابتة التالية عند تشغيلها من `apps/mobile`:
-- `verify-discovery-phase2.mjs` (14 فحصًا)
+- `verify-discovery-phase2.mts` (14 فحصًا)
 - `verify-discovery-add-pages.mjs` (18 تأكيدًا)
 - `verify-app-journey-audit.mjs`
 - `verify-remaining-pages-audit.mjs`

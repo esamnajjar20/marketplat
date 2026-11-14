@@ -47,7 +47,7 @@
 | CI | تثبيت الأكشنز | `checkout` و`setup-node` و`upload-artifact` و`pnpm/action-setup` عائمة (`@v4`) في 29 ملفًا ومثبتة بـ SHA في workflows الموبايل | الكل مثبّت بنفس الـ SHA المستخدم أصلًا في workflows الموبايل |
 | CI | Dependabot | `directory: /backend` (المجلد غير موجود؛ الـ API في `apps/api`) فلا تصل تحديثات الـ API | `/apps/api` |
 
-حواجز جديدة: `apps/mobile/scripts/verify-mobile-unification-round5.mjs` (يفشل إن عاد `RefreshControl` مباشر)،
+حواجز جديدة: `apps/mobile/scripts/verify-mobile-unification-round5.mts` (يفشل إن عاد `RefreshControl` مباشر)،
 واختبارات `contactLinks` و`openExternal` في الويب، وصفّان جدد في `frontend/docs/UNIFIED_HELPERS.md`.
 
 ## لم يُغيَّر عمدًا (يحتاج قرارك أو اختبار جهاز)
@@ -64,8 +64,8 @@
 ## نتائج التحقق
 
 - فحص صياغة TypeScript لـ78 ملفًا معدّلًا/جديدًا: 0 أخطاء. لا يوجد `node_modules` ولا شبكة، فلم يُشغَّل `tsc` الدلالي ولا Vitest ولا Jest ولا ESLint.
-- فاحصات الموبايل الساكنة: 77 فاحصًا نشطًا، 73 ناجحًا. الإخفاقات الأربعة (`feature-orders`, `phase65`, `phase67`, `sale-create-single-multiple`) موجودة في النسخة الأصلية قبل أي تعديل. عُدّل سطر واحد في `verify-appointment-booking-ux.mjs` ليتوافق مع `marketDateKey`.
-- `lint-mobile.mjs` ناجح، و`node --test packages/contracts/test` 5/5، و`verify-workspace.mjs` ناجح، وكل ملفات YAML تُقرأ بلا أخطاء.
+- فاحصات الموبايل الساكنة: 77 فاحصًا نشطًا، 73 ناجحًا. الإخفاقات الأربعة (`feature-orders`, `phase65`, `phase67`, `sale-create-single-multiple`) موجودة في النسخة الأصلية قبل أي تعديل. عُدّل سطر واحد في `verify-appointment-booking-ux.mts` ليتوافق مع `marketDateKey`.
+- `lint-mobile.mts` ناجح، و`node --test packages/contracts/test` 5/5، و`verify-workspace.mts` ناجح، وكل ملفات YAML تُقرأ بلا أخطاء.
 - يُنصح بتشغيل `pnpm install && pnpm type-check:all && pnpm test:all` قبل الدمج.
 
 ---

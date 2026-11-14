@@ -3,9 +3,9 @@
 ## الملفات المحوَّلة في المرحلة 6
 | قديم | جديد |
 |------|------|
-| outbox-sync-policy.mjs + .d.ts | outbox-sync-policy.ts |
-| outbox-transport-contract.mjs | outbox-transport-contract.ts (كامل) |
-| draft-operation-queue.mjs + .d.mts | draft-operation-queue.ts |
+| outbox-sync-policy.ts + .d.ts | outbox-sync-policy.ts |
+| outbox-transport-contract.ts | outbox-transport-contract.ts (كامل) |
+| draft-operation-queue.ts + .d.mts | draft-operation-queue.ts |
 
 ## بعد الدمج
 1. احذف الملفات القديمة `.mjs` / `.d.ts` / `.d.mts` المقابلة.

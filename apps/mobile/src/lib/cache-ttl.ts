@@ -4,7 +4,7 @@
  * sections keep their original mobile-specific values (10-15 min) rather
  * than reading publicLive / publicHome (90 s): re-fetching every 90 s on
  * mobile data would be a real cost to the user. The persisted public cache
- * (SQLite) keeps its own limits in storage/public-cache-policy.mjs.
+ * (SQLite) keeps its own limits in storage/public-cache-policy.ts.
  */
 import policy from '../../../../shared/cache-policy.json';
 
