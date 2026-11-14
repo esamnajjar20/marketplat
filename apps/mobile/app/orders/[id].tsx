@@ -23,15 +23,7 @@ import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tok
 import { AppImage } from '@/components/AppImage';
 import { formatMoney , formatDate} from '@/lib/formatters';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
-
-const labels: Record<string, string> = {
-  PENDING: 'بانتظار تأكيد المتجر',
-  CONFIRMED: 'تم تأكيد الطلب',
-  PROCESSING: 'قيد التجهيز',
-  SHIPPED: 'تم الشحن',
-  DELIVERED: 'تم التسليم',
-  CANCELLED: 'ملغي',
-};
+import { domainLabel } from '@/lib/status-labels';
 
 const money = (v: unknown) => formatMoney(v);
 
@@ -111,7 +103,7 @@ export default function OrderDetailScreen() {
         order ? (
           <View style={{ gap: spacing.sm }}>
             {isSeller && advance ? (
-              <PrimaryButton label={`تحديث الحالة → ${labels[advance] || advance}`} busy={busy} onPress={() => confirmChange(advance, 'تحديث حالة الطلب', `تحويل الطلب إلى «${labels[advance]}»؟`)} />
+              <PrimaryButton label={`تحديث الحالة → ${domainLabel('order', advance, advance)}`} busy={busy} onPress={() => confirmChange(advance, 'تحديث حالة الطلب', `تحويل الطلب إلى «${domainLabel('order', advance)}»؟`)} />
             ) : null}
             {isSeller && (order.status === 'PENDING' || order.status === 'CONFIRMED') ? (
               <PrimaryButton label="رفض / إلغاء الطلب" variant="danger" busy={busy} onPress={() => confirmChange('CANCELLED', 'إلغاء الطلب من المتجر', 'سيُلغى الطلب وتُعاد الكمية المحجوزة إلى المخزون. هل تريد المتابعة؟', 'اعتذار من المتجر: تعذر توفير المنتج.')} />
@@ -130,7 +122,7 @@ export default function OrderDetailScreen() {
           <SectionCard>
             <View style={styles.statusRow}>
               <Text style={styles.orderId}>#{order.id.slice(-8).toUpperCase()}</Text>
-              <Badge label={labels[order.status] || order.status} tone="brand" />
+              <Badge label={domainLabel('order', order.status, order.status)} tone="brand" />
             </View>
             <Text style={styles.muted}>
               تاريخ الطلب: {formatDate(order.createdAt)}

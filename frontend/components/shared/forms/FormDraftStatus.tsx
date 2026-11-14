@@ -2,9 +2,9 @@
 
 import { Check, CloudOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatHourMinute } from '@/lib/formatters';
 
 import { Spinner } from '@/components/ui/spinner';
-const DRAFT_TIME_FORMATTER = typeof Intl !== 'undefined' ? new Intl.DateTimeFormat('ar', { hour: 'numeric', minute: '2-digit' }) : null;
 
 interface Props {
   savedAt: number | null;
@@ -30,7 +30,7 @@ export function FormDraftStatus({
     : saving
       ? 'جارٍ حفظ المسودة…'
       : savedAt
-        ? `محفوظة تلقائيًا · ${DRAFT_TIME_FORMATTER?.format(savedAt) ?? ''}`
+        ? `محفوظة تلقائيًا · ${formatHourMinute(savedAt)}`
         : 'سيتم حفظ المسودة تلقائيًا';
 
   const statusClass = saveError

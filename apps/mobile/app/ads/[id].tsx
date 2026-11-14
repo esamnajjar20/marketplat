@@ -20,6 +20,7 @@ import { MediaGallery } from '@/components/ui/MediaGallery';
 import { SaveOfflineButton } from '@/components/ui/SaveOfflineButton';
 import { Badge, DetailScaffold, Notice, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, typography, fontWeights, radius } from '@/theme/tokens';
+import { domainLabel } from '@/lib/status-labels';
 
 function formatPrice(price: AdDetail['price']): string {
   if (price === null || price === undefined || price === '') return 'السعر عند التواصل';
@@ -231,7 +232,7 @@ export default function AdDetailScreen() {
               <Text style={styles.price}>{formatPrice(ad.price)}</Text>
               <Text style={styles.title}>{ad.title}</Text>
               <Text style={styles.meta}>
-                {[ad.city, ad.category?.nameAr || ad.category?.name, ({ NEW: 'جديد', USED: 'مستعمل', REFURBISHED: 'مجدّد' } as Record<string,string>)[ad.condition || ''] || ad.condition]
+                {[ad.city, ad.category?.nameAr || ad.category?.name, domainLabel('adCondition', ad.condition, ad.condition || '')]
                   .filter(Boolean)
                   .join(' · ') || 'إعلان محلي'}
               </Text>
@@ -245,7 +246,7 @@ export default function AdDetailScreen() {
 
               {favoriteMessage ? <Notice tone="muted">{favoriteMessage}</Notice> : null}
               {cacheNotice ? <Notice tone="muted">تعرض هذه البيانات نسخة محفوظة؛ تعذر التحقق من أحدث تحديث.</Notice> : null}
-              {ad.status ? <Badge label={({ ACTIVE: 'نشط', SOLD: 'مباع', EXPIRED: 'منتهي', PENDING: 'قيد المراجعة', REJECTED: 'مرفوض', SUSPENDED: 'موقوف' } as Record<string,string>)[ad.status] || ad.status} tone={ad.status === 'ACTIVE' ? 'success' : 'muted'} /> : null}
+              {ad.status ? <Badge label={domainLabel('ad', ad.status, ad.status)} tone={ad.status === 'ACTIVE' ? 'success' : 'muted'} /> : null}
               {isOwner ? <PrimaryButton label="تعديل الإعلان" variant="secondary" onPress={() => pushOnce({ pathname: '/ad-editor', params: { id: ad.id } })} /> : null}
               <SaveOfflineButton id={ad.id} kind="ad" title={ad.title} payload={{ id: ad.id, title: ad.title, description: ad.description, price: ad.price, city: ad.city, condition: ad.condition, createdAt: ad.createdAt, images }} />
               {conversationMessage ? <Notice tone="error">{conversationMessage}</Notice> : null}

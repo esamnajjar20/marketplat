@@ -16,12 +16,10 @@ import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton } from '
 import { AppImage } from '@/components/AppImage';
 import { radius, spacing, typography } from '@/theme/tokens';
 import { COPY } from '@/lib/copy';
+import { domainLabel } from '@/lib/status-labels';
 import { onlineOnlyBlockReason } from '@/lib/offline-support';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ListGapMd } from '@/components/ui/ListSeparator';
-const statusLabel: Record<string, string> = {
-  ACTIVE: 'نشط', DRAFT: 'مسودة', PENDING: 'قيد المراجعة', REJECTED: 'مرفوض', SUSPENDED: 'موقوف', IN_STOCK: 'متوفر', LIMITED: 'كمية محدودة', OUT_OF_STOCK: 'نفد المخزون'
-};
 function money(value: ProductSummary['price']): string {
   const n = Number(value);
   return Number.isFinite(n) ? formatMoney(n) : 'السعر غير متاح';
@@ -101,7 +99,7 @@ export default function MyProductsScreen() {
   }}><Text style={s.muted}>عرض المنتجات التي لديها بيانات مخزون أو حالة توفر مسجلة. لتعديل الكمية أو حالة المنتج افتح تعديل المنتج.</Text></View> : null}
   {isRestoring ? <LoadingState message="جارٍ استعادة الجلسة…"/> : !user ? <EmptyState title="سجّل الدخول لإدارة منتجاتك" actionLabel="تسجيل الدخول" onAction={() => router.push('/login')}/> : loading ? <LoadingState message="جاري تحميل منتجاتك…"/> : error && !items.length ? <ErrorState title="تعذر تحميل المنتجات" description={error} onAction={() => void refresh()}/> : <AppFlashList ItemSeparatorComponent={ListGapMd} data={visibleItems} keyExtractor={x => x.id} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.brand}/>} ListEmptyComponent={<EmptyState title={inventoryMode ? 'لا توجد بيانات مخزون بعد' : 'لم تضف منتجات بعد'} description={inventoryMode ? 'ستظهر هنا المنتجات التي لديها كمية أو حالة توفر مسجلة.' : 'أضف أول منتج إلى متجرك.'} actionLabel={inventoryMode ? 'عرض المنتجات' : 'إضافة منتج'} onAction={() => router.replace(inventoryMode ? '/my-products' : '/product-editor')}/>} renderItem={({ item }) => <View style={s.card}>
    <AppImage variant="list" uri={item.images?.[0]} style={s.image}/>
-   <View style={s.body}><Text style={s.name}>{item.name}</Text><Text style={s.price}>{money(item.effectivePrice?.price ?? item.discountPrice ?? item.price)}</Text><Text style={s.muted}>{statusLabel[item.status || ''] || item.status || 'الحالة غير متاحة'} · {statusLabel[item.availability || ''] || item.availability || 'التوفر غير محدد'}</Text><Text style={s.muted}>المخزون: {typeof item.stockQuantity === 'number' ? item.stockQuantity : 'غير محدد'}</Text><View style={s.actions}><PrimaryButton label="تعديل" variant="secondary" onPress={() => router.push({
+   <View style={s.body}><Text style={s.name}>{item.name}</Text><Text style={s.price}>{money(item.effectivePrice?.price ?? item.discountPrice ?? item.price)}</Text><Text style={s.muted}>{domainLabel('product', item.status, item.status || 'الحالة غير متاحة')} · {domainLabel('product', item.availability, item.availability || 'التوفر غير محدد')}</Text><Text style={s.muted}>المخزون: {typeof item.stockQuantity === 'number' ? item.stockQuantity : 'غير محدد'}</Text><View style={s.actions}><PrimaryButton label="تعديل" variant="secondary" onPress={() => router.push({
         pathname: '/product-editor', params: { id: item.id }
       })}/><PrimaryButton label={busyId === item.id ? 'جارٍ الحذف…' : 'حذف'} variant="danger" busy={busyId === item.id} disabled={Boolean(busyId)} onPress={() => void remove(item)}/></View></View>
   </View>} ListFooterComponent={items.length ? <View style={{ gap: spacing.sm }}>{error ? <ErrorState title="تعذر تحديث المنتجات" description={error} onAction={() => void refresh()}/> : null}{loadMoreError ? <ErrorState title="تعذر تحميل المزيد" description={loadMoreError} onAction={() => void loadMore()}/> : null}{hasNextPage ? <PrimaryButton label={loadingMore ? 'جارٍ التحميل…' : loadMoreError ? 'إعادة المحاولة' : 'تحميل المزيد'} variant="secondary" busy={loadingMore} onPress={() => void loadMore()}/> : null}</View> : undefined}/>}

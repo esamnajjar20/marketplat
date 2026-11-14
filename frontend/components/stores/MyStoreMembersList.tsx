@@ -38,6 +38,7 @@ import type { ParsedError } from '@/lib/errorParser';
 import type { StoreMember, StoreMemberRole } from '@/types/store-member.types';
 
 import { Spinner } from '@/components/ui/spinner';
+import { STORE_MEMBER_STATUS_LABELS, STORE_MEMBER_STATUS_VARIANT } from '@/lib/storeStatus';
 const ROLE_LABELS: Record<StoreMemberRole, string> = {
   MANAGER: 'مدير',
   STAFF: 'موظف',
@@ -48,21 +49,6 @@ const ROLE_HINTS: Record<StoreMemberRole, string> = {
   MANAGER: 'إدارة المنتجات والعروض والموظفين والإعدادات',
   STAFF: 'عرض المنتجات (صلاحيات إضافية لاحقًا)',
   EDITOR: 'إضافة وتعديل المنتجات فقط',
-};
-
-const STATUS_LABELS = {
-  PENDING: 'بانتظار القبول',
-  ACTIVE: 'نشط',
-  REMOVED: 'مزال',
-} as const;
-
-const STATUS_VARIANTS: Record<
-  string,
-  'default' | 'secondary' | 'destructive' | 'success' | 'warning'
-> = {
-  PENDING: 'warning',
-  ACTIVE: 'success',
-  REMOVED: 'secondary',
 };
 
 function InviteForm({ storeId }: { storeId: string }) {
@@ -190,8 +176,8 @@ function MemberRow({
         <div className="min-w-0 flex-1 space-y-0.5">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium truncate">{member.user.name}</span>
-            <Badge variant={STATUS_VARIANTS[member.status] ?? 'secondary'}>
-              {STATUS_LABELS[member.status] ?? member.status}
+            <Badge variant={STORE_MEMBER_STATUS_VARIANT[member.status] ?? 'secondary'}>
+              {STORE_MEMBER_STATUS_LABELS[member.status] ?? member.status}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground truncate dir-ltr text-left">

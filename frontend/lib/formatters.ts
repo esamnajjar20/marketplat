@@ -271,6 +271,22 @@ export function formatClockTime(value: DateInput): string {
   return d ? d.toLocaleTimeString('ar-PS', { numberingSystem: 'latn', timeZone: 'Asia/Gaza' }) : '—';
 }
 
+/** Hour:minute only in the Gaza timezone with Latin digits, e.g. draft-saved / story timestamps. */
+export function formatHourMinute(value: DateInput): string {
+  const d = toValidDate(value);
+  return d
+    ? new Intl.DateTimeFormat('ar-PS', { hour: 'numeric', minute: '2-digit', numberingSystem: 'latn', timeZone: 'Asia/Gaza' }).format(d)
+    : '';
+}
+
+/** Short "day month, hh:mm" in the Gaza timezone with Latin digits, e.g. activity-log rows. */
+export function formatDayMonthTime(value: DateInput): string {
+  const d = toValidDate(value);
+  return d
+    ? new Intl.DateTimeFormat('ar-PS', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short', numberingSystem: 'latn', timeZone: 'Asia/Gaza' }).format(d)
+    : '';
+}
+
 // ── Strings ───────────────────────────────────────────────────────
 
 /** Truncate text to maxLength with ellipsis. */

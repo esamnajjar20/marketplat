@@ -1,6 +1,6 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { Share, View } from 'react-native';
+import { View } from 'react-native';
 import { Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -9,7 +9,9 @@ import { fetchSaleReceipt } from '@/features/sales/sales-extra.api';
 import type { SaleRecord } from '@/features/sales/sales.api';
 import { fontSizes, spacing, fontWeights } from '@/theme/tokens';
 import { formatDate, formatMoney } from '@/lib/formatters';
+import { domainLabel } from '@/lib/status-labels';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
+import { shareText } from '@/features/sharing/deep-links';
 type ReceiptSale = SaleRecord & {
   items?: Array<{
     id: string;
@@ -64,11 +66,7 @@ export default function SaleReceiptScreen() {
     textAlign: 'center', color: colors.muted
   }}>رقم الفاتورة: {invoice || 'غير محدد'}</Text><View style={{
     height: 1, backgroundColor: colors.border, marginVertical: spacing.sm
-  }}/><Text tone="ink">العميل: {sale.buyerName}</Text><Text tone="muted">نوع العنصر: {{
-    PRODUCT: 'منتج', AD: 'إعلان', SERVICE: 'خدمة', FREE: 'عنصر مجاني'
-  }[sale.entityType] || 'غير محدد'}</Text><Text tone="muted">حالة الدفع: {{
-    PAID: 'مدفوع بالكامل', PARTIAL: 'مدفوع جزئيًا', UNPAID: 'غير مدفوع', OVERDUE: 'متأخر'
-  }[sale.paymentStatus] || 'غير محددة'}</Text><Text tone="muted">التاريخ: {formatDate(sale.soldAt, 'date')}</Text><Text style={{
+  }}/><Text tone="ink">العميل: {sale.buyerName}</Text><Text tone="muted">نوع العنصر: {domainLabel('saleEntity', sale.entityType, 'غير محدد')}</Text><Text tone="muted">حالة الدفع: {domainLabel('salePayment', sale.paymentStatus, 'غير محددة')}</Text><Text tone="muted">التاريخ: {formatDate(sale.soldAt, 'date')}</Text><Text style={{
     textAlign: 'right', fontWeight: fontWeights.bold, fontSize: fontSizes[16], color: colors.ink, marginTop: spacing.sm
   }}>{sale.entityTitle}</Text>{sale.items?.map(item => <View key={item.id} style={{
     flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm, paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border
@@ -86,7 +84,7 @@ export default function SaleReceiptScreen() {
     textAlign: 'right', color: colors.muted, marginTop: spacing.sm
   }}>ملاحظات: {sale.note}</Text> : null}<Text style={{
     textAlign: 'center', fontSize: fontSizes[11], color: colors.muted, marginTop: spacing.md
-  }}>نسخة عرض داخل التطبيق. لا تمثل مستندًا ضريبيًا معتمدًا.</Text></SectionCard><Notice tone="muted">هذه فاتورة عرض داخل التطبيق وليست مستندًا ضريبيًا معتمدًا. تتوفر المشاركة النصية، أما PDF والطباعة فلم يُفعّلا بعد.</Notice><PrimaryButton label="مشاركة ملخص الفاتورة" variant="secondary" onPress={() => void Share.share({ message: `سوق غزة — فاتورة بيع\nرقم الفاتورة: ${invoice || 'غير محدد'}\nالعنصر: ${sale.entityTitle}\nالعميل: ${sale.buyerName}\nالإجمالي: ${formatMoney(sale.totalPrice, sale.currency)}\nالمدفوع: ${formatMoney(sale.paidAmount, sale.currency)}\nالمتبقي: ${formatMoney(sale.dueAmount, sale.currency)}\nالتاريخ: ${formatDate(sale.soldAt, 'date')}` })}/><PrimaryButton label="العودة إلى تفاصيل البيع" onPress={() => router.replace({
+  }}>نسخة عرض داخل التطبيق. لا تمثل مستندًا ضريبيًا معتمدًا.</Text></SectionCard><Notice tone="muted">هذه فاتورة عرض داخل التطبيق وليست مستندًا ضريبيًا معتمدًا. تتوفر المشاركة النصية، أما PDF والطباعة فلم يُفعّلا بعد.</Notice><PrimaryButton label="مشاركة ملخص الفاتورة" variant="secondary" onPress={() => void shareText(`سوق غزة — فاتورة بيع\nرقم الفاتورة: ${invoice || 'غير محدد'}\nالعنصر: ${sale.entityTitle}\nالعميل: ${sale.buyerName}\nالإجمالي: ${formatMoney(sale.totalPrice, sale.currency)}\nالمدفوع: ${formatMoney(sale.paidAmount, sale.currency)}\nالمتبقي: ${formatMoney(sale.dueAmount, sale.currency)}\nالتاريخ: ${formatDate(sale.soldAt, 'date')}`)}/><PrimaryButton label="العودة إلى تفاصيل البيع" onPress={() => router.replace({
     pathname: '/sales/[id]', params: { id }
   })}/></> : null}</PageShell>;
 }

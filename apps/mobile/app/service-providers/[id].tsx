@@ -16,6 +16,7 @@ import type { ServiceListing } from '@/features/services/services.api';
 import { spacing } from '@/theme/tokens';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { ShareButton } from '@/components/ui/ShareButton';
+import { telUrl, whatsappUrl } from '@/lib/contact-links';
 function price(value: ServiceListing['price'], type?: string): string {
     if (type === 'NEGOTIABLE' || value == null)
         return 'السعر عند التواصل';
@@ -63,10 +64,10 @@ export default function ServiceProviderDetailScreen() {
             flexDirection: 'row', gap: spacing.sm
         }}><PrimaryButton label="اتصال" disabled={!phoneValid} variant="secondary" onPress={() => {
             if (phoneValid)
-                void Linking.openURL(`tel:${phone}`);
+                void Linking.openURL(telUrl(phone));
         }}/><PrimaryButton label="واتساب" disabled={!phoneValid} variant="secondary" onPress={() => {
             if (phoneValid)
-                void Linking.openURL(`https://wa.me/${phone.replace(/^\+/, '')}`);
+                void Linking.openURL(whatsappUrl(phone));
         }}/></View></> : null}<ShareButton resource="profile" id={provider.sellerProfile?.userId || provider.id} title={provider.businessName || provider.sellerProfile?.displayName || 'مقدم خدمة'}/><PrimaryButton label="الإبلاغ عن مقدم الخدمة" variant="secondary" onPress={() => router.push({
             pathname: '/report/[targetType]/[targetId]', params: {
                 targetType: 'users', targetId: provider.sellerProfile?.userId || provider.id

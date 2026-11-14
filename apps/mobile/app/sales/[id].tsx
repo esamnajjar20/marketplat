@@ -1,6 +1,6 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { Share, View } from 'react-native';
+import { View } from 'react-native';
 import { Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -10,12 +10,8 @@ import type { SaleRecord } from '@/features/sales/sales.api';
 import { formatDate, formatMoney } from '@/lib/formatters';
 import { fontWeights, spacing } from '@/theme/tokens';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
-const paymentMethodLabel = (method: string) => ({
-    CASH: 'نقدًا', CASH_ON_DELIVERY: 'نقدًا عند الاستلام', CARD: 'بطاقة', BANK_TRANSFER: 'تحويل بنكي', WALLET: 'محفظة إلكترونية', OTHER: 'أخرى'
-} as Record<string, string>)[method] || 'وسيلة دفع أخرى';
-const installmentStatusLabel = (status: string) => ({
-    PENDING: 'بانتظار الدفع', PAID: 'مدفوع', PARTIAL: 'مدفوع جزئيًا', OVERDUE: 'متأخر', CANCELLED: 'ملغى'
-} as Record<string, string>)[status] || 'حالة محدثة';
+import { domainLabel } from '@/lib/status-labels';
+import { shareText } from '@/features/sharing/deep-links';
 type SaleDetail = SaleRecord & {
     note?: string | null;
     dueDate?: string | null;
@@ -89,11 +85,7 @@ export default function SaleDetailScreen() {
         return <PageShell title="تفاصيل البيع"><Spinner color={colors.brand}/></PageShell>;
     if (!user)
         return <PageShell title="تفاصيل البيع"><Notice>سجّل الدخول لعرض تفاصيل البيع.</Notice><PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')}/></PageShell>;
-    return <PageShell title="تفاصيل البيع">{loading ? <Spinner color={colors.brand}/> : error ? <><Notice>{error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void load()} variant="secondary"/></> : sale ? <><SectionCard><Text tone="ink" strong size={20}>{sale.entityTitle}</Text><Text tone="muted" size={13}>فاتورة: {receiptNumber || 'غير مرقمة'}</Text><Text tone="muted">تاريخ البيع: {formatDate(sale.soldAt)}</Text><Text tone="muted">نوع البيع: {{
-        PRODUCT: 'منتج', AD: 'إعلان', SERVICE: 'خدمة', FREE: 'عنصر مجاني'
-    }[sale.entityType] || 'غير محدد'}</Text><Text tone="muted">حالة الدفع: {{
-        PAID: 'مدفوع بالكامل', PARTIAL: 'مدفوع جزئيًا', UNPAID: 'غير مدفوع', OVERDUE: 'متأخر'
-    }[sale.paymentStatus] || 'غير محددة'}</Text><Text tone="muted">العميل: {sale.buyerName}{sale.buyerPhone ? ` · ${sale.buyerPhone}` : ''}</Text>{sale.store ? <Text tone="muted">المتجر: {sale.store.name}</Text> : null}{sale.note ? <Text tone="muted">ملاحظات: {sale.note}</Text> : null}</SectionCard><SectionCard><Text tone="ink" strong size={17}>ملخص المبالغ</Text>{[
+    return <PageShell title="تفاصيل البيع">{loading ? <Spinner color={colors.brand}/> : error ? <><Notice>{error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void load()} variant="secondary"/></> : sale ? <><SectionCard><Text tone="ink" strong size={20}>{sale.entityTitle}</Text><Text tone="muted" size={13}>فاتورة: {receiptNumber || 'غير مرقمة'}</Text><Text tone="muted">تاريخ البيع: {formatDate(sale.soldAt)}</Text><Text tone="muted">نوع البيع: {domainLabel('saleEntity', sale.entityType, 'غير محدد')}</Text><Text tone="muted">حالة الدفع: {domainLabel('salePayment', sale.paymentStatus, 'غير محددة')}</Text><Text tone="muted">العميل: {sale.buyerName}{sale.buyerPhone ? ` · ${sale.buyerPhone}` : ''}</Text>{sale.store ? <Text tone="muted">المتجر: {sale.store.name}</Text> : null}{sale.note ? <Text tone="muted">ملاحظات: {sale.note}</Text> : null}</SectionCard><SectionCard><Text tone="ink" strong size={17}>ملخص المبالغ</Text>{[
         ['الإجمالي', formatMoney(sale.totalPrice, sale.currency)], ['المحصّل', formatMoney(sale.paidAmount, sale.currency)], ['المتبقي', formatMoney(sale.dueAmount, sale.currency)], ['المسترد', formatMoney(sale.refundedAmount, sale.currency)], ['الاستحقاق', sale.dueDate ? formatDate(sale.dueDate, 'date') : 'غير محدد']
     ].map(([label, value]) => <View key={String(label)} style={{
         flexDirection: 'row', justifyContent: 'space-between', gap: spacing.sm
@@ -103,13 +95,9 @@ export default function SaleDetailScreen() {
         paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border, gap: spacing.xs
     }}><Text tone="ink" strong>{item.title}</Text><Text tone="muted">الكمية: {item.quantity} · سعر الوحدة: {formatMoney(item.unitPrice, sale.currency)}</Text><Text tone="brand" strong>الإجمالي: {formatMoney(item.lineTotal, sale.currency)}{item.returnedQuantity ? ` · مرتجع ${item.returnedQuantity}` : ''}</Text></View>)}</SectionCard> : null}{sale.payments?.length ? <SectionCard><Text tone="ink" strong size={16}>الدفعات المسجلة</Text>{sale.payments.map(payment => <View key={payment.id} style={{
         paddingVertical: spacing.sm, gap: spacing.xs
-    }}><Text tone="ink" strong>{formatMoney(payment.amount, sale.currency)}</Text><Text tone="muted">{formatDate(payment.paidAt)}{payment.method ? ` · ${paymentMethodLabel(payment.method)}` : ''}{payment.note ? ` · ${payment.note}` : ''}</Text></View>)}</SectionCard> : null}{sale.installments?.length ? <SectionCard><Text tone="ink" strong size={16}>جدول الأقساط</Text>{sale.installments.map(inst => <View key={inst.id} style={{
+    }}><Text tone="ink" strong>{formatMoney(payment.amount, sale.currency)}</Text><Text tone="muted">{formatDate(payment.paidAt)}{payment.method ? ` · ${domainLabel('paymentMethod', payment.method, 'وسيلة دفع أخرى')}` : ''}{payment.note ? ` · ${payment.note}` : ''}</Text></View>)}</SectionCard> : null}{sale.installments?.length ? <SectionCard><Text tone="ink" strong size={16}>جدول الأقساط</Text>{sale.installments.map(inst => <View key={inst.id} style={{
         paddingVertical: spacing.sm, gap: spacing.xs
-    }}><Text tone="ink" strong>القسط {inst.installmentNo} · {formatMoney(inst.amount, sale.currency)}</Text><Text tone="muted">مدفوع {formatMoney(inst.paidAmount, sale.currency)} · الاستحقاق {formatDate(inst.dueDate, 'date')} · {{
-        PENDING: 'بانتظار الدفع', PAID: 'مدفوع', PARTIAL: 'مدفوع جزئيًا', OVERDUE: 'متأخر', CANCELLED: 'ملغى'
-    }[inst.status] || 'حالة محدثة'}</Text></View>)}</SectionCard> : null}<PrimaryButton label="مشاركة ملخص البيع" variant="secondary" onPress={() => void Share.share({ message: `سوق غزة — ملخص بيع\nالفاتورة: ${receiptNumber || 'غير مرقمة'}\nالعنصر: ${sale.entityTitle}\nالنوع: ${{
-            PRODUCT: 'منتج', AD: 'إعلان', SERVICE: 'خدمة', FREE: 'عنصر مجاني'
-        }[sale.entityType] || 'غير محدد'}\nالإجمالي: ${formatMoney(sale.totalPrice, sale.currency)}\nالمدفوع: ${formatMoney(sale.paidAmount, sale.currency)}\nالمتبقي: ${formatMoney(sale.dueAmount, sale.currency)}\nالتاريخ: ${formatDate(sale.soldAt)}` })}/><PrimaryButton label="عرض الفاتورة" variant="secondary" onPress={() => router.push({
+    }}><Text tone="ink" strong>القسط {inst.installmentNo} · {formatMoney(inst.amount, sale.currency)}</Text><Text tone="muted">مدفوع {formatMoney(inst.paidAmount, sale.currency)} · الاستحقاق {formatDate(inst.dueDate, 'date')} · {domainLabel('installment', inst.status, 'حالة محدثة')}</Text></View>)}</SectionCard> : null}<PrimaryButton label="مشاركة ملخص البيع" variant="secondary" onPress={() => void shareText(`سوق غزة — ملخص بيع\nالفاتورة: ${receiptNumber || 'غير مرقمة'}\nالعنصر: ${sale.entityTitle}\nالنوع: ${domainLabel('saleEntity', sale.entityType, 'غير محدد')}\nالإجمالي: ${formatMoney(sale.totalPrice, sale.currency)}\nالمدفوع: ${formatMoney(sale.paidAmount, sale.currency)}\nالمتبقي: ${formatMoney(sale.dueAmount, sale.currency)}\nالتاريخ: ${formatDate(sale.soldAt)}`)}/><PrimaryButton label="عرض الفاتورة" variant="secondary" onPress={() => router.push({
         pathname: '/sales/[id]/receipt', params: { id }
     })}/><PrimaryButton label="تسجيل دفعة قسط" onPress={() => router.push('/installments')}/><PrimaryButton label="العودة إلى مبيعاتي" variant="secondary" onPress={() => router.push('/my-sales')}/></> : null}</PageShell>;
 }

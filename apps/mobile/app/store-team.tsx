@@ -11,7 +11,7 @@ import { fetchMyStore } from '@/features/commerce/commerce.api';
 import { fetchMyActiveStoreMemberships, fetchStoreMembers, inviteStoreMember, removeStoreMember, updateStoreMemberRole, type StoreMember } from '@/features/commerce/store-management.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
-import { roleLabel } from '@/lib/status-labels';
+import { roleLabel, domainLabel } from '@/lib/status-labels';
 
 const roles = [['MANAGER', 'مدير'], ['EDITOR', 'محرر'], ['STAFF', 'موظف']] as const;
 
@@ -112,7 +112,7 @@ export default function StoreTeamScreen() {
       </SectionCard>
       {items.length === 0 ? <Notice tone="muted">لا يوجد أعضاء آخرون في الفريق حاليًا.</Notice> : items.map((member) => <SectionCard key={member.id}>
         <Text tone="ink" strong size={15}>{member.user?.name || member.user?.email || 'عضو فريق'}</Text>
-        <Text tone="muted">{member.user?.email || '—'} · {member.status === 'ACTIVE' ? 'نشط' : member.status === 'PENDING' ? 'بانتظار القبول' : 'مزال'} · {roleLabel(member.role)}</Text>
+        <Text tone="muted">{member.user?.email || '—'} · {domainLabel('storeMember', member.status, 'مزال')} · {roleLabel(member.role)}</Text>
         {canManage && member.status !== 'REMOVED' && member.user?.id !== user?.id ? <>
           <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>{roles.filter(([value]) => myRole === 'OWNER' || value !== 'MANAGER').map(([value, label]) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: member.role === value }} onPress={() => member.role !== value && void act(() => updateStoreMemberRole(storeId, member.id, value, accessToken, csrfToken))} style={{ padding: spacing.sm, borderRadius: radius.sm, borderWidth: 1, borderColor: member.role === value ? colors.brand : colors.border, backgroundColor: member.role === value ? colors.brandSoft : colors.surface }}><Text style={{ color: colors.ink, fontSize: fontSizes[12] }}>{label}</Text></Pressable>)}</View>
           {myRole === 'OWNER' || member.role !== 'MANAGER' ? <PrimaryButton label="إزالة من الفريق" variant="danger" onPress={() => confirmAlert('إزالة العضو', 'سيُلغى وصول هذا العضو إلى المتجر. هل تريد المتابعة؟', [{ text: 'إلغاء', style: 'cancel' }, { text: 'إزالة', style: 'destructive', onPress: () => void act(() => removeStoreMember(storeId, member.id, accessToken, csrfToken)) }]) } /> : null}

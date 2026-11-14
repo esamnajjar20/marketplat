@@ -14,8 +14,7 @@ import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ListGapMd } from '@/components/ui/ListSeparator';
-
-const statusLabels: Record<string, string> = { PENDING: 'بانتظار الرد', ACCEPTED: 'مقبول', REJECTED: 'مرفوض', IN_PROGRESS: 'قيد التنفيذ', COMPLETED: 'مكتمل', CANCELLED: 'ملغي', EXPIRED: 'منتهي', DISPUTED: 'قيد المراجعة' };
+import { domainLabel } from '@/lib/status-labels';
 
 export default function ServiceRequestsScreen() {
   const { colors } = useAppTheme();
@@ -232,7 +231,7 @@ export default function ServiceRequestsScreen() {
           renderItem={({ item }) => <View style={styles.requestCard}>
             <View style={styles.requestHeader}>
               <Pressable accessibilityRole="button" accessibilityLabel={`عرض تفاصيل طلب ${item.listing?.title || 'خدمة'}`} onPress={() => router.push({ pathname: '/service-requests/[id]', params: { id: item.id } })} style={{ flex: 1 }}><Text style={styles.requestTitle} numberOfLines={2}>{item.listing?.title || 'طلب خدمة'}</Text></Pressable>
-              <Text style={[styles.status, item.status === 'COMPLETED' ? styles.statusSuccess : null]}>{statusLabels[item.status || ''] || item.status || 'قيد المتابعة'}</Text>
+              <Text style={[styles.status, item.status === 'COMPLETED' ? styles.statusSuccess : null]}>{domainLabel('serviceRequest', item.status, item.status || 'قيد المتابعة')}</Text>
             </View>
             <Text style={styles.details} numberOfLines={3}>{item.details || 'لا توجد تفاصيل إضافية.'}</Text>
             <Text style={styles.meta}>{item.createdAt ? formatDate(item.createdAt, 'date') : ''}{item.quotedPrice != null ? ` · السعر المقترح ${formatMoney(item.quotedPrice)}` : ''}</Text>

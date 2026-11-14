@@ -22,6 +22,11 @@ export async function shareMarketPlatResource(resource: ShareableResource, id: s
   await Share.share({ message: `${title.trim() || 'شاهد هذا المحتوى على MarketPlat'}\n${url}`, url, title: 'مشاركة على MarketPlat' });
 }
 
+/** Plain-text share through the native sheet (sale/receipt summaries). */
+export async function shareText(message: string): Promise<void> {
+  await Share.share({ message });
+}
+
 /** Shares the compact v1 offline QR payload through the native receiver route. */
 export async function shareSharedPayload(encodedPayload: string, title: string): Promise<void> {
   if (!encodedPayload || encodedPayload.length > 12000 || !/^[A-Za-z0-9_-]+$/.test(encodedPayload)) throw new Error('بيانات المشاركة غير صالحة.');

@@ -8,6 +8,7 @@
  */
 
 import { CACHE_POLICY } from '@/lib/cachePolicy';
+import { formatTimestamp } from '@/lib/formatters';
 import { isDeviceOffline } from '@/lib/offlineError';
 
 /** Default thresholds (ms). Override per-call when a surface needs tighter TTL. */
@@ -61,7 +62,7 @@ export function formatOfflineSavedAt(savedAt: string | null | undefined): string
     if (mins < 60) return `آخر تحديث: منذ ${mins} دقيقة`;
     const hours = Math.floor(mins / 60);
     if (hours < 48) return `آخر تحديث: منذ ${hours} ساعة`;
-    return `آخر تحديث: ${new Date(savedAt).toLocaleString('ar-PS', { timeZone: 'Asia/Gaza' })}`;
+    return `آخر تحديث: ${formatTimestamp(savedAt)}`;
   } catch {
     return '';
   }

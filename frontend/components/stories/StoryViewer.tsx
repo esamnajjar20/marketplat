@@ -8,6 +8,7 @@ import { useDeleteStory, useViewStory } from '@/hooks/mutations/useStoryMutation
 import { useStoryViewers } from '@/hooks/queries/useStories';
 import type { StoryGroup } from '@/api/stories.api';
 import { resolveStoryBackground } from '@/lib/storyBackgrounds';
+import { formatHourMinute } from '@/lib/formatters';
 
 export function StoryViewer({ group, onClose }: { group: StoryGroup; onClose: () => void }) {
   const [index, setIndex] = useState(0);
@@ -54,7 +55,6 @@ export function StoryViewer({ group, onClose }: { group: StoryGroup; onClose: ()
     () => group.stories.map((_, i) => (i < index ? 100 : i === index && filled ? 100 : 0)),
     [group.stories, index, filled],
   );
-  const storyTime = useMemo(() => new Intl.DateTimeFormat('ar', { hour: '2-digit', minute: '2-digit' }), []);
 
   if (!story) return null;
 
@@ -81,7 +81,7 @@ export function StoryViewer({ group, onClose }: { group: StoryGroup; onClose: ()
                 {group.user.name}
               </p>
               <p className="text-2xs text-white/70">
-                {storyTime.format(new Date(story.createdAt))}
+                {formatHourMinute(story.createdAt)}
               </p>
             </div>
           </div>

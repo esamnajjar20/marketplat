@@ -14,8 +14,8 @@ import { formatDate } from '@/lib/formatters';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ListGapMd } from '@/components/ui/ListSeparator';
+import { domainLabel } from '@/lib/status-labels';
 
-const labels: Record<string, string> = { SCHEDULED: 'مجدول', COMPLETED: 'مكتمل', CANCELLED: 'ملغى', NO_SHOW: 'لم يحضر' };
 
 export default function AppointmentsScreen() {
   const { colors } = useAppTheme();
@@ -52,7 +52,7 @@ export default function AppointmentsScreen() {
   const update = (item: AppointmentRow, status: 'COMPLETED' | 'CANCELLED' | 'NO_SHOW') => {
     const token = getAccessToken();
     if (!token) { router.push('/login'); return; }
-    confirmAlert('تحديث الموعد', `هل تريد تغيير الحالة إلى «${labels[status]}»؟`, [
+    confirmAlert('تحديث الموعد', `هل تريد تغيير الحالة إلى «${domainLabel('appointment', status)}»؟`, [
       { text: 'تراجع', style: 'cancel' },
       { text: 'تأكيد', onPress: () => {
         const currentToken = getAccessToken();
@@ -78,7 +78,7 @@ export default function AppointmentsScreen() {
     return (
       <SectionCard>
         <Text tone="ink" strong size={17}>{item.request?.listing?.title || 'موعد خدمة'}</Text>
-        <Text tone="brand" strong>{labels[item.status || ''] || item.status || 'مجدول'}</Text>
+        <Text tone="brand" strong>{domainLabel('appointment', item.status, item.status || 'مجدول')}</Text>
         <Text tone="ink">البداية: {formatted(item.scheduledStart)}</Text>
         <Text tone="ink">النهاية: {formatted(item.scheduledEnd)}</Text>
         {item.notes ? <Text tone="muted">{item.notes}</Text> : undefined}

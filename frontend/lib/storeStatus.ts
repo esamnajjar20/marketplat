@@ -22,3 +22,19 @@ export const STORE_STATUS_VARIANT: Record<
   ACTIVE:  'success',
   BLOCKED: 'destructive',
 };
+
+/** StoreMember.status — previously hand-rolled inside MyStoreMembersList. */
+export const STORE_MEMBER_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'بانتظار القبول',
+  ACTIVE:  'نشط',
+  REMOVED: 'مزال',
+};
+
+export const STORE_MEMBER_STATUS_VARIANT: Record<
+  string,
+  'default' | 'secondary' | 'destructive' | 'success' | 'warning'
+> = {
+  PENDING: 'warning',
+  ACTIVE:  'success',
+  REMOVED: 'secondary',
+};

@@ -15,13 +15,10 @@ import { fetchServiceRequest, respondToServiceRequest, type ServiceRequest } fro
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { ServiceRequestTimeline } from '@/components/ui/ServiceRequestTimeline';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
-import { statusLabel } from '@/lib/status-labels';
+import { domainLabel } from '@/lib/status-labels';
 import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
-const STATUS: Record<string, string> = {
-    PENDING: 'بانتظار الرد', ACCEPTED: 'مقبول', REJECTED: 'مرفوض', IN_PROGRESS: 'قيد التنفيذ', COMPLETED: 'مكتمل', CANCELLED: 'ملغي', EXPIRED: 'منتهي', DISPUTED: 'قيد المراجعة'
-};
 const money = (v?: string | number | null) => v == null || v === '' ? 'غير محدد' : Number.isFinite(Number(v)) ? formatMoney(Number(v)) : String(v);
 const dateTime = (v?: string | null) => {
     if (!v)
@@ -122,7 +119,7 @@ export default function ServiceRequestDetailScreen() {
     <AppHeader title="تفاصيل طلب الخدمة" right={<Pressable accessibilityRole="button" accessibilityLabel="تحديث" onPress={() => void load(true)} style={s.refresh}><Text style={s.refreshText}>{refreshing ? '…' : 'تحديث'}</Text></Pressable>}/>
     {loading ? <LoadingState message="جارٍ تحميل تفاصيل الطلب…"/> : error ? <ErrorState description={error} actionLabel={accessToken ? 'إعادة المحاولة' : 'تسجيل الدخول'} onAction={() => !accessToken ? pushOnce('/login') : void load()}/> : request ? <ScrollView contentContainerStyle={s.content}>
       <View style={s.card}>
-        <View style={s.titleRow}><Text style={s.title}>{request.listing?.title || 'طلب خدمة'}</Text><Text style={s.status}>{STATUS[status] || status}</Text></View>
+        <View style={s.titleRow}><Text style={s.title}>{request.listing?.title || 'طلب خدمة'}</Text><Text style={s.status}>{domainLabel('serviceRequest', status, status)}</Text></View>
         <Text style={s.label}>تفاصيل الطلب كاملة</Text><Text style={s.body}>{request.details?.trim() || 'لم تُسجل تفاصيل إضافية لهذا الطلب.'}</Text>
         <View style={s.metaGroup}><Text style={s.meta}>تاريخ الإرسال: {dateTime(request.createdAt) || 'غير متوفر'}</Text><Text style={s.meta}>السعر في الخدمة: {money(request.listing?.price)}</Text>{request.quotedPrice != null ? <Text style={s.meta}>السعر المقترح: {money(request.quotedPrice)}</Text> : null}{request.agreedPrice != null ? <Text style={s.meta}>السعر المتفق عليه: {money(request.agreedPrice)}</Text> : null}{request.listing?.durationEstimate ? <Text style={s.meta}>المدة المتوقعة: {request.listing.durationEstimate}</Text> : null}</View>
         {request.listing?.description ? <><Text style={s.label}>وصف الخدمة</Text><Text style={s.body}>{request.listing.description}</Text></> : null}
@@ -130,7 +127,7 @@ export default function ServiceRequestDetailScreen() {
       </View>
       {request.attachedImages?.length ? <View style={s.card}><Text style={s.sectionTitle}>صور مرفقة بالطلب</Text><MediaGallery images={request.attachedImages} title="صور طلب الخدمة"/></View> : null}
       {request.listing?.images?.length ? <View style={s.card}><Text style={s.sectionTitle}>صور الخدمة</Text><MediaGallery images={request.listing.images} title={request.listing.title || 'صور الخدمة'}/></View> : null}
-      {request.appointment ? <View style={s.card}><Text style={s.sectionTitle}>الموعد</Text><Text style={s.meta}>من: {dateTime(request.appointment.scheduledStart) || 'غير محدد'}</Text><Text style={s.meta}>إلى: {dateTime(request.appointment.scheduledEnd) || 'غير محدد'}</Text><Text style={s.meta}>الحالة: {statusLabel(request.appointment.status)}</Text>{request.appointment.notes ? <Text style={s.body}>{request.appointment.notes}</Text> : null}</View> : null}
+      {request.appointment ? <View style={s.card}><Text style={s.sectionTitle}>الموعد</Text><Text style={s.meta}>من: {dateTime(request.appointment.scheduledStart) || 'غير محدد'}</Text><Text style={s.meta}>إلى: {dateTime(request.appointment.scheduledEnd) || 'غير محدد'}</Text><Text style={s.meta}>الحالة: {domainLabel('appointment', request.appointment.status, 'غير محدد')}</Text>{request.appointment.notes ? <Text style={s.body}>{request.appointment.notes}</Text> : null}</View> : null}
       <View style={s.card}><ServiceRequestTimeline status={status} createdAt={request.createdAt} respondedAt={request.respondedAt}/></View>
       {role.provider && status === 'PENDING' && needsQuote ? <View style={s.card}><Text style={s.sectionTitle}>السعر المقترح</Text><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="السعر المقترح بالشيكل" value={quote} onChangeText={(value) => setQuote(normalizeNumericInput(value))} keyboardType="decimal-pad" placeholder="أدخل السعر بالشيكل" placeholderTextColor={colors.muted} style={s.input}/></View> : null}
       {(role.customer || role.provider) && [

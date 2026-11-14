@@ -8,7 +8,7 @@ import { ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryB
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyOffers, type RequestOffer } from '@/features/requests/requests.api';
-import { statusLabel } from '@/lib/status-labels';
+import { domainLabel } from '@/lib/status-labels';
 import { spacing } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { AppFlashList } from '@/components/ui/AppFlashList';
@@ -54,7 +54,7 @@ export default function MyOffersScreen() {
               <Text tone="ink" strong size={17}>{item.request?.title || 'عرض على طلب'}</Text>
               <Text tone="brand" strong size={20}>{formatMoney(item.price)}</Text>
               <Text tone="muted">{item.message || 'بدون رسالة'}</Text>
-              <Text tone="muted" size={12}>الحالة: {statusLabel(item.status || 'PENDING')}</Text>
+              <Text tone="muted" size={12}>الحالة: {domainLabel('offer', item.status || 'PENDING', 'محدّثة')}</Text>
             </SectionCard>
           </Pressable>
         )}

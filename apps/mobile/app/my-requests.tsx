@@ -7,7 +7,7 @@ import { router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
-import { statusLabel } from '@/lib/status-labels';
+import { domainLabel } from '@/lib/status-labels';
 import { spacing } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { AppFlashList } from '@/components/ui/AppFlashList';
@@ -57,7 +57,7 @@ export default function MyRequestsScreen() {
             <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/requests/[id]', params: { id: item.id } })}>
               <SectionCard>
                 <Text tone="ink" strong size={17}>{item.title}</Text>
-                <Text tone="brand" strong>الحالة: {statusLabel(item.status || 'OPEN')}</Text>
+                <Text tone="brand" strong>الحالة: {domainLabel('request', item.status || 'OPEN', 'قيد المعالجة')}</Text>
                 <Text tone="muted">{item._count?.offers ?? item.offers?.length ?? 0} عروض · {item.city || 'مدينة غير محددة'}</Text>
               </SectionCard>
             </Pressable>

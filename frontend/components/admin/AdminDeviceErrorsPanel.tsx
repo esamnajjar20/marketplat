@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Clipboard, Download, RefreshCw, Search, Tr
 import { clearDeviceErrors, DEVICE_ERRORS_EVENT, getDeviceErrors, getDeviceErrorsAsync, isReproduceMode, setReproduceMode, type DeviceErrorRecord } from '@/lib/deviceErrorMonitor';
 import { copyToClipboard } from '@/lib/copyToClipboard';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+import { formatTimestamp } from '@/lib/formatters';
 
 const categoryNames: Record<string, string> = {
   runtime: 'خطأ JavaScript', promise: 'وعد غير معالج', hydration: 'تعارض Hydration / React',
@@ -14,7 +15,7 @@ const categoryNames: Record<string, string> = {
 const severityNames = { error: 'خطأ', warning: 'تنبيه', network: 'شبكة', debug: 'تشخيص' } as const;
 const timeLabel = (value: string) => {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ar-PS', { dateStyle: 'medium', timeStyle: 'medium' }).format(date);
+  return Number.isNaN(date.getTime()) ? value : formatTimestamp(date);
 };
 const hourLabel = (date: Date) => `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 

@@ -29,15 +29,7 @@ import {
 } from '@/components/ui';
 import { spacing, typography } from '@/theme/tokens';
 import { COPY } from '@/lib/copy';
-
-const AD_STATUS_LABELS: Record<string, string> = {
-  ACTIVE: 'نشط',
-  PENDING: 'قيد المراجعة',
-  SOLD: 'مباع',
-  EXPIRED: 'منتهي',
-  REJECTED: 'مرفوض',
-  DELETED: 'محذوف',
-};
+import { domainLabel } from '@/lib/status-labels';
 
 type MyAdRowProps = {
   ad: ManagedAd;
@@ -63,7 +55,7 @@ const MyAdRow = memo(function MyAdRow({ ad, failedDelete, pendingDelete, busy, o
     ? 'تعذر الحذف — راجع مركز العمليات'
     : pendingDelete
       ? 'قيد الحذف — بانتظار المزامنة'
-      : AD_STATUS_LABELS[ad.status || ''] || ad.status || 'الحالة غير متاحة';
+      : domainLabel('ad', ad.status, ad.status || 'الحالة غير متاحة');
   return (
     <SectionCard>
       <Text style={styles.adTitle}>{ad.title}</Text>

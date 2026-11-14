@@ -7,6 +7,7 @@ import { ApiError } from '@/components/shared/ApiError';
 import { adminApi } from '@/api/admin.api';
 import { parseApiError } from '@/lib/errorParser';
 import type { FraudMonitorHistoryResponse, FraudMonitorScanReport } from '@/types/admin.types';
+import { formatDateTimeMedium } from '@/lib/formatters';
 
 const CHECK_LABELS: Record<string, string> = {
   REPORTER_BURST: 'اندفاع البلاغات من حساب واحد',
@@ -19,7 +20,7 @@ function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime())
     ? value
-    : new Intl.DateTimeFormat('ar-PS', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+    : formatDateTimeMedium(date);
 }
 
 function sampleDetails(sample: Record<string, unknown>) {
