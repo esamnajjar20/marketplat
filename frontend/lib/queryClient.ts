@@ -12,8 +12,7 @@
  */
 import { QueryClient } from '@tanstack/react-query';
 import { cache } from 'react';
-import { CLIENT_CACHE_DEFAULTS, cachePolicy } from '@/lib/cachePolicy';
-import { CACHE_TTL } from '@/lib/constants';
+import { CLIENT_CACHE_DEFAULTS } from '@/lib/cachePolicy';
 import {
   getRetryAfterFromParsedError,
   getRetryDelayMs,

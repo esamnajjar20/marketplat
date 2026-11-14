@@ -107,7 +107,7 @@ export function parsePrice(price: string | null | undefined): number | null {
 
 // ── Date / time ───────────────────────────────────────────────────
 
-const RTF = new Intl.RelativeTimeFormat('ar', { numeric: 'auto', numberingSystem: 'latn' });
+const RTF = new Intl.RelativeTimeFormat('ar-u-nu-latn', { numeric: 'auto', });
 const GAZA_DATE_PARTS = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Gaza', year: 'numeric', month: '2-digit', day: '2-digit',
 });
