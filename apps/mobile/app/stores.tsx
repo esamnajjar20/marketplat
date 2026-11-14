@@ -2,7 +2,8 @@ import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { RefreshControl, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ListGapMd } from '@/components/ui/ListSeparator';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
@@ -75,7 +76,7 @@ export default function StoresScreen() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />
+          <BrandRefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
         ListHeaderComponent={
           <View style={styles.listHeader}>

@@ -1,5 +1,6 @@
 import { memo, useCallback } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 
 import { pushOnce } from '@/lib/navigation';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -57,11 +58,9 @@ export default function SellersRankingScreen() {
     <PageList
       title="أفضل البائعين"
       refreshControl={
-        <RefreshControl
+        <BrandRefreshControl
           refreshing={refreshing}
           onRefresh={() => void reload({ soft: true })}
-          tintColor={colors.brand}
-          colors={[colors.brand]}
         />
       }
       data={items}

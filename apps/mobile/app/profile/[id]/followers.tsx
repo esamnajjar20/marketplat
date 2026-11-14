@@ -1,7 +1,8 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { Avatar, ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, SectionCard } from '@/components/ui';
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -38,7 +39,7 @@ export default function FollowersScreen() {
         data={list.items}
         keyExtractor={itemKey}
         contentContainerStyle={{ paddingBottom: spacing.x4l }}
-        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
+        refreshControl={<BrandRefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <ListStaleError list={list} />

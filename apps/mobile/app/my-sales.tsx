@@ -4,7 +4,8 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PageShell } from '@/components/ui';
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 
 import { pushOnce } from '@/lib/navigation';
@@ -131,7 +132,7 @@ export default function MySalesScreen() {
     }, [refreshList, loadSummary]);
     if (!user)
         return <PageShell title="مبيعاتي"><EmptyState title="مبيعاتي" description="سجّل الدخول لعرض سجل مبيعاتك." actionLabel="تسجيل الدخول" onAction={() => pushOnce('/login')}/></PageShell>;
-    return <ScreenFrame><AppHeader title="مبيعاتي"/><AppFlashList ItemSeparatorComponent={ListGapLg} data={list.items} keyExtractor={(sale) => sale.id} contentContainerStyle={s.content} refreshControl={<RefreshControl refreshing={list.refreshing || refreshingSummary} onRefresh={() => void refreshAll()} tintColor={colors.brand} />} ListHeaderComponent={<>
+    return <ScreenFrame><AppHeader title="مبيعاتي"/><AppFlashList ItemSeparatorComponent={ListGapLg} data={list.items} keyExtractor={(sale) => sale.id} contentContainerStyle={s.content} refreshControl={<BrandRefreshControl refreshing={list.refreshing || refreshingSummary} onRefresh={() => void refreshAll()} />} ListHeaderComponent={<>
     
     <Text style={s.subtitle}>سجل عمليات البيع والمدفوعات والمبالغ المستحقة.</Text>
     <Text style={s.sectionTitle}>ملخص المبيعات</Text>

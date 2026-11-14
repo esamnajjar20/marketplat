@@ -7,6 +7,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
+import { openExternal } from '@/lib/openExternal';
 import { formatMoney } from '@/lib/formatters';
 
 export default function DebtsPage() {
@@ -44,7 +45,7 @@ export default function DebtsPage() {
                 <strong>{formatMoney(Number(sale.dueAmount))}</strong>
               </div>
               <div className="mt-4 flex gap-2">
-                <Button size="sm" onClick={() => window.open(href, '_blank', 'noopener,noreferrer')}>تذكير واتساب</Button>
+                <Button size="sm" onClick={() => openExternal(href)}>تذكير واتساب</Button>
                 <Button size="sm" variant="outline" disabled={openingReceiptId !== null} onClick={() => {
                   if (openingReceiptId) return;
                   const destination = `/account/sales/${sale.id}/receipt`;

@@ -11,7 +11,8 @@ import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { elevation, fontSizes, radius, sizes, spacing, typography, ux, fontWeights, insets } from '@/theme/tokens';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View, RefreshControl } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useLocalSearchParams, type Href } from 'expo-router';
@@ -671,7 +672,7 @@ export default function SearchScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <AppFlashList
-          refreshControl={<RefreshControl refreshing={searchList.refreshing} onRefresh={() => void searchList.refresh()} tintColor={colors.brand} />}
+          refreshControl={<BrandRefreshControl refreshing={searchList.refreshing} onRefresh={() => void searchList.refresh()} />}
           data={items}
           keyExtractor={keyExtractor}
           renderItem={renderItem}

@@ -4,10 +4,11 @@ import { showToast } from '@/lib/toast';
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback } from 'react';
 import { View } from 'react-native';
 
 import { pushOnce } from '@/lib/navigation';
+import { useAsyncResource } from '@/hooks/useAsyncResource';
 import { listSavedOfflineResources, removeSavedOfflineResource, type SavedOfflineItem } from '@/storage/saved-offline';
 import { EmptyState, Notice, PrimaryButton, SectionCard } from '@/components/ui';
 import { PageList } from '@/components/ui/PageList';
@@ -41,17 +42,17 @@ const SavedRow = memo(function SavedRow({ item, onOpen, onRemove }: { item: Save
 export default function SavedOfflineScreen() {
   const { colors } = useAppTheme();
 
-  const [items, setItems] = useState<SavedOfflineItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const load = useCallback(async () => {
-    setLoading(true); setError('');
-    try { setItems(await listSavedOfflineResources()); }
-    catch (e) { setError(e instanceof Error ? e.message : 'تعذر قراءة المحتوى المحفوظ.'); }
-    finally { setLoading(false); }
-  }, []);
-  useEffect(() => { void load(); }, [load]);
-  const remove = useCallback((item: SavedOfflineItem) => { void removeSavedOfflineResource(item.kind, item.id).then(() => { setItems((current) => current.filter((row) => row.id !== item.id || row.kind !== item.kind)); showToast('تمت إزالة النسخة المحفوظة', 'يمكنك حفظ المحتوى دون اتصال مرة أخرى من صفحة التفاصيل.', 'success'); }).catch((e) => showToast('تعذر الإزالة', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error')); }, []);
+  const resource = useAsyncResource<SavedOfflineItem[]>(() => listSavedOfflineResources(), {
+    tag: 'saved-offline',
+    initialData: [],
+    mapError: (e) => (e instanceof Error ? e.message : 'تعذر قراءة المحتوى المحفوظ.'),
+  });
+  const { setData: setItems, reload } = resource;
+  const items = resource.data ?? [];
+  const loading = resource.loading;
+  const error = resource.error ?? '';
+  const load = useCallback(() => reload(), [reload]);
+  const remove = useCallback((item: SavedOfflineItem) => { void removeSavedOfflineResource(item.kind, item.id).then(() => { setItems((current) => (current ?? []).filter((row) => row.id !== item.id || row.kind !== item.kind)); showToast('تمت إزالة النسخة المحفوظة', 'يمكنك حفظ المحتوى دون اتصال مرة أخرى من صفحة التفاصيل.', 'success'); }).catch((e) => showToast('تعذر الإزالة', e instanceof Error ? e.message : 'حاول مرة أخرى.', 'error')); }, []);
   const open = useCallback((item: SavedOfflineItem) => pushOnce(item.kind === 'ad' ? { pathname: '/ads/[id]', params: { id: item.id } } : item.kind === 'product' ? { pathname: '/products/[id]', params: { id: item.id } } : { pathname: '/stores/[id]', params: { id: item.id } }), []);
   const renderItem = useCallback(({ item }: { item: SavedOfflineItem }) => <SavedRow item={item} onOpen={open} onRemove={remove} />, [open, remove]);
   return <PageList

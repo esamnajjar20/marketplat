@@ -271,6 +271,14 @@ export function formatClockTime(value: DateInput): string {
   return d ? d.toLocaleTimeString('ar-PS', { numberingSystem: 'latn', timeZone: 'Asia/Gaza' }) : '—';
 }
 
+/** Clock time with milliseconds in the Gaza timezone (Latin digits), e.g. network/diagnostic logs. */
+export function formatClockTimeMs(value: DateInput): string {
+  const d = toValidDate(value);
+  return d
+    ? new Intl.DateTimeFormat('ar-PS', { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3, numberingSystem: 'latn', timeZone: 'Asia/Gaza' }).format(d)
+    : '';
+}
+
 /** Hour:minute only in the Gaza timezone with Latin digits, e.g. draft-saved / story timestamps. */
 export function formatHourMinute(value: DateInput): string {
   const d = toValidDate(value);

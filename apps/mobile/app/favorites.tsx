@@ -7,7 +7,8 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { RefreshControl, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ListGapMd } from '@/components/ui/ListSeparator';
 import { pickRemoteImageUri } from '@/lib/list-image';
@@ -77,7 +78,6 @@ export default function FavoritesScreen() {
       setLoading(false);
     }
   }, [getAccessToken, user?.id]);
-  const { colors: refreshTheme } = useAppTheme();
   const { refreshing: pullRefreshing, onRefresh: onPullRefresh } = usePullRefresh(() => load());
 
   useFocusEffect(
@@ -184,7 +184,7 @@ export default function FavoritesScreen() {
         />
       ) : (
         <AppFlashList
-          refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
+          refreshControl={<BrandRefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} />}
           data={items}
           keyExtractor={keyExtractor}
           renderItem={renderItem}

@@ -4,7 +4,7 @@
  * tokens are retained until expiry, including used tokens, as a short-lived
  * audit trail.
  */
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prisma';
 import type { Prisma } from '@prisma/client';
 import { logger } from '../shared/observability/logger';
 import {
@@ -12,7 +12,6 @@ import {
   runAdvisoryLockedBatch,
 } from '../shared/go-worker/executeWithFallback';
 
-const prisma = new PrismaClient();
 const BATCH_SIZE = 500;
 // Must match authTokenRetentionLockID in apps/go-worker/cmd/server/main.go.
 const AUTH_TOKEN_RETENTION_LOCK_ID = 731904282n;

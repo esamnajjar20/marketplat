@@ -19,6 +19,7 @@ import {
 import { AdminPageShell } from '@/components/admin/AdminPageShell';
 import { useAuthStore } from '@/store/auth.store';
 import { formatTimestamp } from '@/lib/formatters';
+import { adminRouteFetch } from '@/lib/adminRouteFetch';
 
 type GatewayServer = {
   id: string;
@@ -235,10 +236,7 @@ export function AdminInfrastructureGateway() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(forceRefresh ? `${API_PATH}?refresh=1` : API_PATH, {
-        method: 'GET',
-        credentials: 'same-origin',
-        cache: 'no-store',
+      const response = await adminRouteFetch(forceRefresh ? `${API_PATH}?refresh=1` : API_PATH, {
         headers: authorizationHeaders,
       });
       const payload = await response.json().catch(() => null) as RegistryResponse | null;
@@ -613,12 +611,10 @@ export function AdminInfrastructureGateway() {
         goServiceRoutes.set(server.serviceKey, { routePrefix: server.routePrefix, upstreamPrefix: server.upstreamPrefix });
         goRouteOwners.set(server.routePrefix, server.serviceKey);
       }
-      const response = await fetch(API_PATH, {
+      const response = await adminRouteFetch(API_PATH, {
         method: 'PUT',
-        credentials: 'same-origin',
-        cache: 'no-store',
-        headers: { 'content-type': 'application/json', ...authorizationHeaders },
-        body: JSON.stringify({ version, backend: { strategy: 'weighted-random', servers }, frontend: { strategy: 'weighted-random', servers: frontendServers }, go: { strategy: 'weighted-random', adaptive: { enabled: goAdaptiveEnabled, sensitivity: goAdaptiveSensitivity }, servers: goServices } }),
+        headers: authorizationHeaders,
+        body: { version, backend: { strategy: 'weighted-random', servers }, frontend: { strategy: 'weighted-random', servers: frontendServers }, go: { strategy: 'weighted-random', adaptive: { enabled: goAdaptiveEnabled, sensitivity: goAdaptiveSensitivity }, servers: goServices } },
       });
       const payload = await response.json() as RegistryResponse;
       if (response.status === 409 && payload.error === 'REGISTRY_VERSION_CONFLICT') {
@@ -669,12 +665,10 @@ export function AdminInfrastructureGateway() {
       // Keep each Worker invocation bounded; a probe may perform an origin fetch
       // plus a Durable Object health-state write (and Frontend also checks Build ID).
       for (let offset = 0; offset < targets.length; offset += 8) {
-        const response = await fetch(API_PATH, {
+        const response = await adminRouteFetch(API_PATH, {
           method: 'POST',
-          credentials: 'same-origin',
-          cache: 'no-store',
-          headers: { 'content-type': 'application/json', ...authorizationHeaders },
-          body: JSON.stringify({ action: 'probe', targetIds: targets.slice(offset, offset + 8) }),
+          headers: authorizationHeaders,
+          body: { action: 'probe', targetIds: targets.slice(offset, offset + 8) },
         });
         const payload = await response.json() as ProbeResponse;
         if (!response.ok || !Array.isArray(payload.results)) throw new Error(payload.error || `تعذّر فحص مجموعة السيرفرات (${response.status})`);

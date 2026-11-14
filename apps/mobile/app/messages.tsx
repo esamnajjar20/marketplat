@@ -3,7 +3,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshControl, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { useFocusEffect } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -226,7 +227,7 @@ export default function MessagesScreen() {
           ItemSeparatorComponent={ConversationSeparator}
           keyboardShouldPersistTaps="handled"
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />
+            <BrandRefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
           onEndReached={() => { if (hasMore && !loadingMore) void loadMore(); }}
           onEndReachedThreshold={0.35}

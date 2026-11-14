@@ -3,7 +3,8 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { ListEmpty, ListStaleError, PaginatedFooter, PageShell, SectionCard } from '@/components/ui';
 import { AppImage } from '@/components/AppImage';
 
@@ -49,7 +50,7 @@ export default function PromotedScreen() {
         data={list.items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: spacing.x4l }}
-        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
+        refreshControl={<BrandRefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 21 }}>

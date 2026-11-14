@@ -1,10 +1,10 @@
 
 import { usePullRefresh } from '@/hooks/usePullRefresh';
-import { useAppTheme } from '@/theme/ThemeProvider';
 import { invalidateNavigationCapabilities } from '@/lib/navigation-policy';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useState } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { confirmAlert } from '@/lib/confirm';
 
 import { pushOnce } from '@/lib/navigation';
@@ -39,7 +39,6 @@ export default function StoreInvitesScreen() {
   const { loading, reload, setData } = resource;
   const items = resource.data ?? [];
   const error = actionError || resource.error || '';
-  const { colors: refreshTheme } = useAppTheme();
   const softReload = useCallback(() => reload({ soft: true }), [reload]);
   const { refreshing: pullRefreshing, onRefresh: onPullRefresh } = usePullRefresh(softReload);
 
@@ -82,7 +81,7 @@ export default function StoreInvitesScreen() {
           <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         </>
       ) : (
-        <AppFlashList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
+        <AppFlashList refreshControl={<BrandRefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} />}
           data={loading ? [] : items}
           keyExtractor={inviteKeyExtractor}
           contentContainerStyle={{ paddingBottom: spacing.x4l }}

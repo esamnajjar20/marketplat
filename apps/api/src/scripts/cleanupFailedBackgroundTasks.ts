@@ -2,7 +2,7 @@
  * Retains resolved FailedBackgroundTask rows and reports unresolved backlog.
  * Unresolved rows and rows with a NULL resolvedAt are never deleted.
  */
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prisma';
 import type { Prisma } from '@prisma/client';
 import { logger } from '../shared/observability/logger';
 import { env } from '../config/env';
@@ -11,7 +11,6 @@ import {
   runAdvisoryLockedBatch,
 } from '../shared/go-worker/executeWithFallback';
 
-const prisma = new PrismaClient();
 const RETENTION_DAYS = env.reports.failedTaskRetentionDays;
 const BATCH_SIZE = 500;
 // Must match failedTaskRetentionLockID in apps/go-worker/cmd/server/main.go.

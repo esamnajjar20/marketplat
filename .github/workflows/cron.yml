@@ -16,13 +16,16 @@ concurrency:
   group: scheduled-jobs
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   run-due-jobs:
     runs-on: ubuntu-latest
     # Leave enough time for the bounded Go attempt and a full Express fallback.
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Run scheduled jobs on Go
         id: go-scheduler
@@ -45,9 +48,9 @@ jobs:
 
       - name: Setup Node for Express fallback
         if: steps.go-scheduler.outcome == 'failure'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
           cache-dependency-path: apps/api/package-lock.json
 

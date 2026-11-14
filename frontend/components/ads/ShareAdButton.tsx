@@ -32,6 +32,7 @@ import { copyToClipboard } from '@/lib/copyToClipboard';
 import { ShareAdQrDialog } from './ShareAdQrDialog';
 import type { SharedPayload } from '@/lib/shareQr';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
+import { openExternal } from '@/lib/openExternal';
 
 interface Props {
   title: string;
@@ -62,13 +63,13 @@ export function ShareAdButton({ title, url, variant = 'icon', className, qrPaylo
 
   function handleWhatsApp() {
     const shareUrl = getUrl();
-    window.open(buildWhatsAppUrl({ text: `${title}\n${shareUrl}` }), '_blank', 'noopener,noreferrer');
+    openExternal(buildWhatsAppUrl({ text: `${title}\n${shareUrl}` }));
   }
 
   function handleTelegram() {
     const shareUrl = getUrl();
     const params = new URLSearchParams({ url: shareUrl, text: title });
-    window.open(`https://t.me/share/url?${params.toString()}`, '_blank', 'noopener,noreferrer');
+    openExternal(`https://t.me/share/url?${params.toString()}`);
   }
 
   async function handleCopyLink() {

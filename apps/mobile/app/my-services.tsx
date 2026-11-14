@@ -3,7 +3,8 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Press } from '@/components/AccessiblePressable';
 import { useCallback, useState } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryButton, SectionCard, LoadingState } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
@@ -82,7 +83,7 @@ export default function MyServicesScreen() {
         keyExtractor={(item) => item.id}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: spacing.xl }}
-        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
+        refreshControl={<BrandRefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} />}
         ListHeaderComponent={(
           <View style={{ gap: spacing.md, marginBottom: spacing.md }}>
             

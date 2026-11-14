@@ -6,7 +6,7 @@ import { clearNetworkRequests, getNetworkRequests, NETWORK_REQUESTS_EVENT, summa
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { summarizeDurations } from '@/lib/monitoringMetrics';
 import { copyToClipboard } from '@/lib/copyToClipboard';
-import { formatNumber } from '@/lib/formatters';
+import { formatClockTimeMs, formatNumber } from '@/lib/formatters';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 
 const outcomeLabel: Record<NetworkRequestOutcome, string> = {
@@ -18,10 +18,7 @@ const outcomeClass: Record<NetworkRequestOutcome, string> = {
   'network-error': 'bg-destructive/10 text-destructive ',
   aborted: 'bg-muted text-muted-foreground',
 };
-const formatTime = (value: string) => {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ar-PS', { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 }).format(date);
-};
+const formatTime = (value: string) => formatClockTimeMs(value) || value;
 const formatDuration = (value: number | null) => value === null ? '—' : `${formatNumber(Math.max(0, Math.round(value)))} مللي ثانية`;
 const formatBytes = (value: number) => {
   if (value < 1024) return `${formatNumber(value)} بايت`;

@@ -2,7 +2,7 @@
  * Retention job: deletes only read notifications older than 90 days, and never
  * removes a notification while a push dispatch remains unfinished.
  */
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prisma';
 import type { Prisma } from '@prisma/client';
 import { logger } from '../shared/observability/logger';
 import {
@@ -10,7 +10,6 @@ import {
   runAdvisoryLockedBatch,
 } from '../shared/go-worker/executeWithFallback';
 
-const prisma = new PrismaClient();
 const RETENTION_DAYS = 90;
 const BATCH_SIZE = 500;
 // Must match notificationRetentionLockID in apps/go-worker/cmd/server/main.go.

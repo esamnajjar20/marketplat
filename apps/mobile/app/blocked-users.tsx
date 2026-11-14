@@ -2,7 +2,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 
 import { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { Avatar, Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 
@@ -75,7 +76,7 @@ export default function BlockedUsersScreen() {
           <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         </>
       ) : (
-        <AppFlashList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={refreshList} tintColor={colors.brand} />}
+        <AppFlashList refreshControl={<BrandRefreshControl refreshing={resource.refreshing} onRefresh={refreshList} />}
           data={items}
           keyExtractor={blockedKeyExtractor}
           contentContainerStyle={{ paddingBottom: spacing.x4l }}

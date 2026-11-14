@@ -3,7 +3,8 @@ import { formatDate } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { Spinner, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
@@ -95,7 +96,7 @@ export default function ActivityScreen() {
 
   return (
     <PageShell title="سجل النشاط" scroll={false}>
-      <AppFlashList refreshControl={<RefreshControl refreshing={refreshing} onRefresh={pullRefresh} tintColor={colors.brand} />}
+      <AppFlashList refreshControl={<BrandRefreshControl refreshing={refreshing} onRefresh={pullRefresh} />}
         data={loading && items.length === 0 ? [] : items}
         keyExtractor={activityKeyExtractor}
         contentContainerStyle={{ paddingBottom: spacing.x4l }}

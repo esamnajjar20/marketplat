@@ -30,4 +30,5 @@ export { ScreenFrame } from './ScreenFrame';
 export { FilterChip } from './FilterChip';
 export { Avatar, avatarInitial, type AvatarSize } from './Avatar';
 export { IconButton } from './IconButton';
+export { BrandRefreshControl } from './BrandRefreshControl';
 export { StoryAvatar } from './StoryAvatar';

@@ -3,7 +3,7 @@
  * STALE_BOOST_DAYS. Does not change ad status. Go is preferred; the bounded
  * Prisma/SQL fallback uses the identical PostgreSQL advisory lock.
  */
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prisma';
 import { logger } from '../shared/observability/logger';
 import { env } from '../config/env';
 import { bumpAdsCacheVersion } from '../modules/classifieds/ads/ads.cache.keys';
@@ -14,7 +14,6 @@ import {
   runAdvisoryLockedBatch,
 } from '../shared/go-worker/executeWithFallback';
 
-const prisma = new PrismaClient();
 const STALE_BOOST_DAYS = env.reports.staleBoostDays;
 const DRY_RUN = env.reports.dryRun;
 const BATCH_SIZE = 1_000;

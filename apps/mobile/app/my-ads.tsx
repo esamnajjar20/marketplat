@@ -6,7 +6,8 @@ import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { RefreshControl, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ListGapMd } from '@/components/ui/ListSeparator';
 import { confirmAlert } from '@/lib/confirm';
@@ -145,7 +146,6 @@ export default function MyAdsScreen() {
       if (current === seq.current) { hasLoadedRef.current = true; setLoading(false); }
     }
   }, [getAccessToken, isRestoring, user?.id]);
-  const { colors: refreshTheme } = useAppTheme();
   const { refreshing: pullRefreshing, onRefresh: onPullRefresh } = usePullRefresh(() => load());
 
   useFocusEffect(
@@ -289,7 +289,7 @@ export default function MyAdsScreen() {
         <ErrorState title="تعذر تحميل الإعلانات" description={error} onAction={() => void load()} />
       ) : (
         <AppFlashList
-          refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
+          refreshControl={<BrandRefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} />}
           data={ads}
           keyExtractor={keyExtractor}
           renderItem={renderItem}

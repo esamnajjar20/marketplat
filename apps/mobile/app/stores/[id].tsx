@@ -7,7 +7,8 @@ import { AppIcon } from '@/components/Icons';
 import { SaveOfflineButton } from '@/components/ui/SaveOfflineButton';
 import { ShareButton } from '@/components/ui/ShareButton';
 import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
@@ -194,7 +195,7 @@ export default function StoreDetailScreen() {
       setReviewSaving(false);
     }
   };
-  return <PageShell title="صفحة المتجر" right={<Pressable accessibilityRole="button" onPress={() => router.push('/stores')} style={s.smallButton}><Text style={s.smallButtonText}>كل المتاجر</Text></Pressable>} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} colors={[colors.brand]}/>}>
+  return <PageShell title="صفحة المتجر" right={<Pressable accessibilityRole="button" onPress={() => router.push('/stores')} style={s.smallButton}><Text style={s.smallButtonText}>كل المتاجر</Text></Pressable>} refreshControl={<BrandRefreshControl refreshing={refreshing} onRefresh={() => void load(true)}/>}>
   <View style={s.content}>
   {loading ? <LoadingState message="جاري تحميل المتجر…"/> : error ? <ErrorState title="تعذر تحميل المتجر" description={error} onAction={() => void load()}/> : store ? <>
    <View style={s.hero}>{store.coverImageUrl ? <AppImage uri={store.coverImageUrl} style={s.cover} resizeMode="cover"/> : <View style={[s.cover, s.coverFallback]}><Text style={s.coverMark}>MARKETPLAT</Text></View>}

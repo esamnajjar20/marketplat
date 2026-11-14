@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prisma';
 import { logger } from '../shared/observability/logger';
 import { executeTransactionalJobWithGoFallback } from '../shared/go-worker/transactionalJobFallback';
 import { runWeeklyViewsExpressFallback } from '../shared/go-worker/scheduledJobFallbacks';
 
-const prisma = new PrismaClient();
 const LOCK_ID = 731904288n;
 
 type Result = { kind: 'services'; notificationsCreated: number; baselinesAdvanced: number; ownersConsidered: number; runKey: string };

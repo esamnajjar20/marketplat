@@ -28,7 +28,7 @@ assert.match(serviceRequestsScreen, /fetchServiceRequests\(accessToken, incoming
 assert.match(slots, /marketDateKey\(endDate\) !== date/);
 assert.match(slots, /MARKET_TIME_ZONE = 'Asia\/Gaza'/);
 assert.match(slots, /hourCycle: 'h23'/);
-assert.match(screen, /MARKET_TIME_ZONE = 'Asia\/Gaza'/);
+assert.match(screen, /marketDateKey\(new Date\(\)\)/); // market-local day comes from the shared helper in appointment-slots.ts
 assert.match(slots, /durationMs = 60 \* 60 \* 1000/);
 assert.match(slots, /stepMs = 30 \* 60 \* 1000/);
 assert.match(slots, /Math\.ceil\(rangeStart \/ stepMs\) \* stepMs/);

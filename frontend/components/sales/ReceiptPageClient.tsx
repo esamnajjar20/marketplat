@@ -6,6 +6,7 @@ import { PaymentHistoryList } from '@/components/sales/payments/PaymentHistoryLi
 import { useEffect, useState } from 'react';
 import { useSalesReceipt } from '@/hooks/queries/useSales';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
+import { openExternal } from '@/lib/openExternal';
 import { formatMoney, formatTimestamp } from '@/lib/formatters';
 
 // PERF-BUNDLE-01: `qrcode` (~20 kB) is only needed for the optional receipt
@@ -38,7 +39,7 @@ export default function ReceiptPage({ id }: { id: string }) {
   const share = () => {
     const text = `فاتورة ${sale.invoiceNumber ?? ''}\n${sale.entityTitle}\nالإجمالي: ${formatMoney(Number(sale.totalPrice))}\nالمدفوع: ${formatMoney(Number(sale.paidAmount))}\nالمتبقي: ${formatMoney(Number(sale.dueAmount))}`;
     const url = buildWhatsAppUrl({ phone: sale.buyerPhone, text });
-    window.open(url, '_blank', 'noopener,noreferrer');
+    openExternal(url);
   };
 
   return (

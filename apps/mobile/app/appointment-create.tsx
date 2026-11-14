@@ -7,20 +7,16 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { createAppointment, fetchProviderAvailability, type ProviderAvailability } from '@/features/appointments/appointments.api';
-import { buildAppointmentSlots, type AppointmentSlot } from '@/features/appointments/appointment-slots';
+import { buildAppointmentSlots, marketDateKey, type AppointmentSlot } from '@/features/appointments/appointment-slots';
 import { fetchServiceRequest } from '@/features/services/services.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { onlineOnlyBlockReason } from '@/lib/offline-support';
 import { showToast } from '@/lib/toast';
 
-const MARKET_TIME_ZONE = 'Asia/Gaza';
-const marketDateParts = new Intl.DateTimeFormat('en-GB', {
-  timeZone: MARKET_TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit',
-});
 function makeDateOptions(page: number) {
-  const parts = Object.fromEntries(marketDateParts.formatToParts(new Date()).map((part) => [part.type, part.value]));
-  const marketToday = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)));
+  const [year, month, day] = marketDateKey(new Date()).split('-').map(Number);
+  const marketToday = new Date(Date.UTC(year, month - 1, day));
   return Array.from({ length: 14 }, (_, index) => {
     // Construct calendar days in UTC from market-local date parts. This avoids
     // device-timezone and daylight-saving shifts in the provider's calendar.

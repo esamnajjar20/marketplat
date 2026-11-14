@@ -9,7 +9,8 @@ const marketTimeFormatter = new Intl.DateTimeFormat('en-GB', {
   timeZone: MARKET_TIME_ZONE, hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
 });
 
-function marketDateKey(value: Date): string {
+/** `YYYY-MM-DD` of the given instant in the market (Asia/Gaza) timezone. Single source for market-local calendar days. */
+export function marketDateKey(value: Date): string {
   const parts = Object.fromEntries(marketDateFormatter.formatToParts(value).map((part) => [part.type, part.value]));
   return `${parts.year}-${parts.month}-${parts.day}`;
 }

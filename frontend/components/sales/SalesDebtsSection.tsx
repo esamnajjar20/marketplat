@@ -9,6 +9,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 import { buildWhatsAppUrl } from '@/lib/whatsapp';
+import { openExternal } from '@/lib/openExternal';
 import { formatMoney, formatNumber } from '@/lib/formatters';
 
 export function SalesDebtsSection() {
@@ -102,7 +103,7 @@ export function SalesDebtsSection() {
                   <Button
                     size="sm"
                     className="h-10 flex-1 rounded-xl font-bold"
-                    onClick={() => window.open(href, '_blank', 'noopener,noreferrer')}
+                    onClick={() => openExternal(href)}
                   >
                     تذكير واتساب
                   </Button>

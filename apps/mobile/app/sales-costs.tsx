@@ -8,7 +8,8 @@ import { fetchSalesCostProducts, fetchSalesCostSettings, updateSalesCostSettings
 import { formatMoney } from '@/lib/formatters';
 import { AppHeader, EmptyState, ErrorState, LoadingState, PrimaryButton, SectionCard } from '@/components/ui';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ListGapMd } from '@/components/ui/ListSeparator';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
@@ -166,7 +167,7 @@ export default function SalesCostsScreen() {
       ItemSeparatorComponent={ListGapMd}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
+      refreshControl={<BrandRefreshControl refreshing={refreshing} onRefresh={() => void load(true)} />}
       ListHeaderComponent={<View style={styles.listHeader}>
         <SectionCard>
           <Text style={styles.heading}>احتساب تكلفة المنتجات</Text>

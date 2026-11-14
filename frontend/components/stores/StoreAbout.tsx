@@ -2,6 +2,7 @@
 
 import { Info, MapPin, Phone, Clock } from 'lucide-react';
 import { formatPhone } from '@/lib/formatters';
+import { buildTelUrl } from '@/lib/contactLinks';
 import type { getStoreTypePresentation, StoreWithSellerAndCounts, StoreWeekday } from '@/types/store.types';
 
 const STORE_HOURS_DAYS: { key: StoreWeekday; label: string }[] = [
@@ -42,7 +43,7 @@ export function StoreAbout({ store, presentation }: StoreAboutProps) {
         <ul className="space-y-3 text-sm text-muted-foreground">
           <li className="flex items-center gap-2">
             <Phone className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-            <a href={`tel:${store.phone}`} className="font-medium text-foreground hover:text-primary hover:underline">{formatPhone(store.phone)}</a>
+            <a href={buildTelUrl(store.phone)} className="font-medium text-foreground hover:text-primary hover:underline">{formatPhone(store.phone)}</a>
           </li>
           <li className="flex items-start gap-2">
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />

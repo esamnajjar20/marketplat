@@ -167,7 +167,7 @@ export function AddSaleDialog({ open, onOpenChange, prefill }: Props) {
             <span className="text-xs text-muted-foreground">إجمالي البيع</span>
             <strong className="mt-1 block text-lg">{formatMoney(total)}</strong>
             <span className="text-xs text-muted-foreground">
-              {quantityValid ? `${safeQuantity} × ${priceValid ? safeUnitPrice.toFixed(2) : '0.00'} ₪` : 'تحقق من الكمية والسعر'}
+              {quantityValid ? `${safeQuantity} × ${formatMoney(priceValid ? safeUnitPrice : 0)}` : 'تحقق من الكمية والسعر'}
             </span>
           </div>
         </div>

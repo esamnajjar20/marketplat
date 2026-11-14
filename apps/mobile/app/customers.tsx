@@ -2,7 +2,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { Spinner, ListEmpty, ListStaleError, PaginatedFooter, Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
@@ -142,7 +143,7 @@ export default function CustomersScreen() {
         data={list.loading && list.items.length === 0 ? [] : list.items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: spacing.x4l }}
-        refreshControl={<RefreshControl refreshing={list.refreshing || summaryLoading} onRefresh={() => void refreshAll()} tintColor={colors.brand} />}
+        refreshControl={<BrandRefreshControl refreshing={list.refreshing || summaryLoading} onRefresh={() => void refreshAll()} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <Notice tone="muted">

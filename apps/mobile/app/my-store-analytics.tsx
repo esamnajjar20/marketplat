@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 
 import { pushOnce } from '@/lib/navigation';
 import { AppImage } from '@/components/AppImage';
@@ -112,11 +113,9 @@ export default function MyStoreAnalyticsScreen() {
     <PageShell
       title="إحصاءات المتجر"
       refreshControl={
-        <RefreshControl
+        <BrandRefreshControl
           refreshing={refreshing}
           onRefresh={pullReload}
-          tintColor={colors.brand}
-          colors={[colors.brand]}
         />
       }
     >

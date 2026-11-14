@@ -33,6 +33,7 @@ import { ProductCard } from '@/components/stores/ProductCard';
 import dynamic from 'next/dynamic';
 import { getThumbnailUrl, PLACEHOLDER_SVG } from '@/lib/cloudinary';
 import { formatPrice, formatPhone } from '@/lib/formatters';
+import { buildTelUrl } from '@/lib/contactLinks';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 import type { ProductWithFullStore, ProductAvailability } from '@/types/product.types';
@@ -339,7 +340,7 @@ function StorePanel({ store, productId }: { store: ProductWithFullStore['store']
       <div className="flex flex-col gap-2">
         {store.phone && (
           <Button asChild variant="outline" className="w-full gap-2 font-semibold">
-            <a href={`tel:${store.phone}`}>
+            <a href={buildTelUrl(store.phone)}>
               <Phone className="h-4 w-4" />
               اتصال · {formatPhone(store.phone)}
             </a>

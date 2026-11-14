@@ -3,7 +3,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { memo, useCallback, useMemo, useState } from 'react';
-import { RefreshControl, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ListGapMd } from '@/components/ui/ListSeparator';
 import { pickRemoteImageUri } from '@/lib/list-image';
@@ -85,7 +86,7 @@ export default function ServicesScreen() {
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />
+          <BrandRefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} />
         }
         ListHeaderComponent={
           <View style={styles.listHeader}>

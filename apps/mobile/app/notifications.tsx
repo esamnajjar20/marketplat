@@ -4,7 +4,8 @@ import { AppIcon } from '@/components/Icons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { memo, useCallback, useMemo, useRef, useState } from 'react';
-import { RefreshControl, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { useFocusEffect } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -249,10 +250,9 @@ export default function NotificationsScreen() {
           renderItem={renderItem}
           contentContainerStyle={styles.list}
           refreshControl={
-            <RefreshControl
+            <BrandRefreshControl
               refreshing={list.refreshing}
               onRefresh={() => void list.refresh()}
-              tintColor={colors.brand}
             />
           }
           ListHeaderComponent={list.error ? <View style={styles.listHeader}><ErrorState title="تعذر تحديث الإشعارات" description={list.error} onAction={() => void list.retry()} /></View> : undefined}

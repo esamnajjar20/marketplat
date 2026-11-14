@@ -31,6 +31,7 @@ import { StoreAttributesSummary } from '@/components/stores/StoreAttributesSumma
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { getStoreTypeLabels, getStoreTypePresentation, type StoreWithSellerAndCounts, type StoreWeekday } from '@/types/store.types';
 import { buildWhatsAppUrl, toWaPhone } from '@/lib/whatsapp';
+import { buildTelUrl } from '@/lib/contactLinks';
 
 // STORE-HOURS (Foundation v1): sat-first order, same as
 // WorkingHoursEditor.tsx's DAYS array — kept as a separate literal
@@ -249,7 +250,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
               {isFollowing ? 'إلغاء المتابعة' : 'متابعة'}
             </Button>
           )}
-          <a href={`tel:${store.phone}`} className={`${OUTLINE_BTN} ${showFollow ? 'flex-1' : 'flex-[1.4]'}`}>
+          <a href={buildTelUrl(store.phone)} className={`${OUTLINE_BTN} ${showFollow ? 'flex-1' : 'flex-[1.4]'}`}>
             <Phone className="h-5 w-5" /> اتصال
           </a>
           {!isOwnStore && (

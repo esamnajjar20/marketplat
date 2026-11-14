@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -90,7 +91,7 @@ export default function SalesInsightsScreen() {
   const metric = (label: string, value: string, danger = false) => <View key={label} style={styles.metric}><Text style={styles.metricLabel}>{label}</Text><Text style={[styles.metricValue, danger && styles.danger]}>{value}</Text></View>;
   return <ScreenFrame>
   <AppHeader title={title}/>
-  <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand}/>}>
+  <ScrollView contentContainerStyle={styles.content} refreshControl={<BrandRefreshControl refreshing={refreshing} onRefresh={() => void load(true)}/>}>
    {loading ? <LoadingState message="جارٍ تحميل بيانات المبيعات…"/> : error ? <ErrorState title="تعذر تحميل البيانات" description={error} onAction={() => void load(true)}/> : null}
    {!loading && !error && (mode === 'analytics' || mode === 'overview') && dashboard ? <>
     <SectionCard><Text style={styles.heading}>ملخص الأداء</Text><View style={styles.metrics}>

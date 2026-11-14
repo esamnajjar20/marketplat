@@ -1,9 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prisma';
 import { logger } from '../shared/observability/logger';
 import { executeTransactionalJobWithGoFallback } from '../shared/go-worker/transactionalJobFallback';
 import { runSalesNotificationExpressFallback } from '../shared/go-worker/scheduledJobFallbacks';
 
-const prisma = new PrismaClient();
 const LOCK_ID = 731904291n;
 
 type Result = { job: 'debt-reminder'; notificationsCreated: number; pushDispatchesCreated: number; evaluatedAt: string };

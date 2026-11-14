@@ -1,10 +1,10 @@
 
 import { usePullRefresh } from '@/hooks/usePullRefresh';
-import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { fetchPublicCollectionProducts } from '@/features/commerce/store-management.api';
@@ -35,13 +35,12 @@ export default function CollectionProductsScreen() {
   const { loading, reload } = resource;
   const items = resource.data ?? EMPTY_PRODUCTS;
   const error = resource.error ?? '';
-  const { colors: refreshTheme } = useAppTheme();
   // السحب للتحديث يبقي العناصر الحالية ظاهرة بدل تفريغ القائمة (soft reload).
   const { refreshing: pullRefreshing, onRefresh: onPullRefresh } = usePullRefresh(() => reload({ soft: true }));
 
   return (
     <PageShell title="منتجات المجموعة" scroll={false}>
-      <AppFlashList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />}
+      <AppFlashList refreshControl={<BrandRefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} />}
         data={loading || error ? [] : items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: spacing.x4l }}

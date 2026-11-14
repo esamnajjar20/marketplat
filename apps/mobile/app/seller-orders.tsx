@@ -1,4 +1,5 @@
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 
 import { pushOnce } from '@/lib/navigation';
 import { AppText as Text } from '@/components/ui/AppText';
@@ -70,11 +71,9 @@ export default function SellerOrdersScreen() {
         keyExtractor={(order) => order.id}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl
+          <BrandRefreshControl
             refreshing={list.refreshing}
             onRefresh={() => void list.refresh()}
-            tintColor={colors.brand}
-            colors={[colors.brand]}
           />
         }
         ListHeaderComponent={

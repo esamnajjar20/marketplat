@@ -4,6 +4,7 @@ import { LegalPageShell } from '@/components/shared/legal/LegalPageShell';
 import { buildMetadata } from '@/lib/seo';
 import { ROUTES } from '@/lib/constants';
 import { getRawSupportEmail } from '@/lib/env';
+import { buildMailtoUrl } from '@/lib/contactLinks';
 
 export const metadata: Metadata = buildMetadata({
   title: 'تواصل معنا',
@@ -26,7 +27,7 @@ export default function ContactPage() {
         <br />
         {supportEmail ? (
           <a
-            href={`mailto:${supportEmail}`}
+            href={buildMailtoUrl(supportEmail)}
             className="font-medium text-foreground underline underline-offset-4"
           >
             {supportEmail}

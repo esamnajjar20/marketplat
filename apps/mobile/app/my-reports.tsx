@@ -1,6 +1,7 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
@@ -42,7 +43,7 @@ export default function MyReportsScreen() {
           data={list.items}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: spacing.x4l }}
-          refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
+          refreshControl={<BrandRefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} />}
           ListHeaderComponent={
             <View style={{ gap: spacing.md }}>
               <ListStaleError list={list} />

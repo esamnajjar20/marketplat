@@ -4,7 +4,8 @@ import { AppIcon } from '@/components/Icons';
 import { AppImage } from '@/components/AppImage';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -59,7 +60,7 @@ export default function FollowingFeedScreen() {
           keyExtractor={itemKey}
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.x4l }}
           keyboardShouldPersistTaps="handled"
-          refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
+          refreshControl={<BrandRefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} />}
           ListEmptyComponent={<EmptyState title="لا يوجد نشاط بعد" description="ستظهر هنا الإعلانات والمنتجات والخدمات الجديدة من الحسابات والمتاجر التي تتابعها." />}
           ListHeaderComponent={list.error ? <ErrorState title="تعذر تحديث الموجز" description={list.error} onAction={() => void list.refresh()} /> : undefined}
           renderItem={({ item }) => (

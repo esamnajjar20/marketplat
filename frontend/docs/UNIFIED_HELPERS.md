@@ -9,3 +9,7 @@
 | WhatsApp links / phone normalisation | `buildWhatsAppUrl`, `toWaPhone` — `lib/whatsapp.ts` | `https://wa.me/...` strings |
 | Copy to clipboard | `copyToClipboard` — `lib/copyToClipboard.ts` | `navigator.clipboard.writeText` |
 | User feedback | `toast` (sonner) | `alert()` |
+| `tel:` / `mailto:` links | `buildTelUrl`, `buildMailtoUrl` — `lib/contactLinks.ts` | `` `tel:${phone}` ``, `` `mailto:${email}` `` |
+| Open URL in new tab | `openExternal` — `lib/openExternal.ts` | `window.open(url, '_blank', ...)` |
+| Clock time with milliseconds (diagnostics) | `formatClockTimeMs` — `lib/formatters.ts` | `Intl.DateTimeFormat` with `fractionalSecondDigits` |
+| Client calls to `/api/admin/*` Next routes | `adminRouteFetch` — `lib/adminRouteFetch.ts` | `fetch('/api/admin/...')` |

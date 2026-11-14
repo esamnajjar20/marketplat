@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { router } from 'expo-router';
 
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -176,7 +177,7 @@ export default function DiscoveryFeedScreen({ trending = false, forYou = false }
   return (
     <PageShell
       title={heading(mode)}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} colors={[colors.brand]} />}
+      refreshControl={<BrandRefreshControl refreshing={refreshing} onRefresh={() => void load(true)} />}
     >
       {body}
     </PageShell>

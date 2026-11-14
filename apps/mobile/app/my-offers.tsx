@@ -1,8 +1,8 @@
-import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { ListEmpty, ListStaleError, PaginatedFooter, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 
 import { pushOnce } from '@/lib/navigation';
@@ -17,7 +17,6 @@ import { ListGapMd } from '@/components/ui/ListSeparator';
 const PAGE_SIZE = 30;
 
 export default function MyOffersScreen() {
-  const { colors } = useAppTheme();
 
   const { user, getAccessToken } = useAuth();
   const list = usePaginatedList<RequestOffer>({
@@ -39,7 +38,7 @@ export default function MyOffersScreen() {
         data={user ? list.items : []}
         keyExtractor={(item, index) => item.id || String(index)}
         contentContainerStyle={{ paddingBottom: spacing.x4l }}
-        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
+        refreshControl={<BrandRefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} />}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <PrimaryButton label="استعراض الطلبات المفتوحة" onPress={() => pushOnce('/requests')} />

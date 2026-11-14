@@ -1,8 +1,8 @@
 
-import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { fetchPublicCollections, type StoreCollection } from '@/features/commerce/store-management.api';
@@ -21,12 +21,11 @@ export default function PublicStoreCollectionsScreen() {
     (signal) => storeId ? fetchPublicCollections(storeId, signal) : Promise.reject(new Error('معرّف المتجر غير صالح.')),
     { key: `public-store-collections:${storeId ?? 'missing'}`, tag: 'public-store-collections' },
   );
-  const { colors: refreshTheme } = useAppTheme();
   const items = data ?? [];
 
   return (
     <PageShell title="مجموعات المتجر" scroll={false}>
-      <AppFlashList refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload({ soft: true })} tintColor={refreshTheme.brand} />}
+      <AppFlashList refreshControl={<BrandRefreshControl refreshing={refreshing} onRefresh={() => void reload({ soft: true })} />}
         data={loading || error ? [] : items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: spacing.x4l }}

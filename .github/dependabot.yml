@@ -2,7 +2,7 @@ version: 2
 updates:
   # Backend (Express + Prisma)
   - package-ecosystem: npm
-    directory: /backend
+    directory: /apps/api
     schedule:
       interval: weekly
       day: monday
@@ -50,3 +50,24 @@ updates:
       interval: monthly
     open-pull-requests-limit: 2
     labels: [dependencies, ci]
+
+  # pnpm workspace root + apps/mobile, packages/contracts, workers (single pnpm-lock.yaml)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns: ['*']
+    labels: [dependencies, mobile]
+    commit-message:
+      prefix: 'chore(deps)'
+    ignore:
+      # Expo SDK and React Native majors are upgraded manually together
+      - dependency-name: 'expo'
+        update-types: ['version-update:semver-major']
+      - dependency-name: 'react-native'
+        update-types: ['version-update:semver-major']

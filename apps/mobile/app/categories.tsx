@@ -1,5 +1,4 @@
-import { useAppTheme } from '@/theme/ThemeProvider';
-import { RefreshControl } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 
 import { pushOnce } from '@/lib/navigation';
 import { fetchPublicCategories, type PublicCategory } from '@/features/categories/categories.api';
@@ -14,7 +13,6 @@ export default function CategoriesScreen() {
     () => fetchPublicCategories(),
     { key: 'public-market-categories', tag: 'public-categories' },
   );
-  const { colors: refreshTheme } = useAppTheme();
   const items = data ?? [];
 
   return (
@@ -22,7 +20,7 @@ export default function CategoriesScreen() {
       {loading ? <LoadingState message="جاري تحميل التصنيفات…" /> : error ? (
         <ErrorState title="تعذر تحميل التصنيفات" description={error} onAction={() => void reload()} />
       ) : (
-        <AppFlashList refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void reload({ soft: true })} tintColor={refreshTheme.brand} />}
+        <AppFlashList refreshControl={<BrandRefreshControl refreshing={refreshing} onRefresh={() => void reload({ soft: true })} />}
           data={items}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: spacing.xxl }}

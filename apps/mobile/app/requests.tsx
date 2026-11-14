@@ -1,7 +1,8 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 
 import { pushOnce } from '@/lib/navigation';
@@ -62,7 +63,7 @@ export default function RequestsScreen() {
 
   return (
     <PageShell title="طلبات السوق" scroll={false}>
-      <AppFlashList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={softReload} tintColor={colors.brand} />}
+      <AppFlashList refreshControl={<BrandRefreshControl refreshing={resource.refreshing} onRefresh={softReload} />}
         data={loading || error ? [] : items}
         keyExtractor={requestKeyExtractor}
         contentContainerStyle={{ paddingBottom: spacing.x4l }}

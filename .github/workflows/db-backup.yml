@@ -7,6 +7,9 @@ concurrency:
   group: db-backup
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   backup:
     runs-on: ubuntu-latest
@@ -55,7 +58,7 @@ jobs:
           echo "FILE=$FILE" >> "$GITHUB_ENV"
 
       - name: Upload backup artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: neon-backup-${{ github.run_id }}
           path: |

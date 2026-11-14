@@ -10,7 +10,8 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useCallback, useRef, useState, useMemo } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
-import { FlatList, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, ScrollView, StyleSheet, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import * as ImagePicker from 'expo-image-picker';
 import { EmptyState, ErrorState, LoadingState, PageShell, StoryAvatar } from '@/components/ui';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -55,7 +56,6 @@ export default function StoriesScreen() {
                 setLoading(false);
         }
     }, [getAccessToken]);
-  const { colors: refreshTheme } = useAppTheme();
   const { refreshing: pullRefreshing, onRefresh: onPullRefresh } = usePullRefresh(() => load());
     useFocusEffect(useCallback(() => {
         void load();
@@ -120,7 +120,7 @@ export default function StoriesScreen() {
                 key: 'public', label: 'صورة عامة', onPress: () => void publishImageStory('PUBLIC')
             },
         ]}/>
-      {!getAccessToken() ? (<EmptyState title="سجّل الدخول لمشاهدة القصص" description="يمكنك فتح القصص العامة عبر رابط مشاركة مباشر." actionLabel="تسجيل الدخول" onAction={() => pushOnce('/login')}/>) : loading && groups.length === 0 ? (<LoadingState message="جارٍ تحميل القصص…"/>) : error && groups.length === 0 ? (<ErrorState description={error} onAction={() => void load()}/>) : (<FlatList refreshControl={<RefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} tintColor={refreshTheme.brand} />} data={groups} keyExtractor={(group) => group.user.id} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} initialNumToRender={6} maxToRenderPerBatch={6} windowSize={7} ListHeaderComponent={(<View style={{ gap: spacing.lg }}>
+      {!getAccessToken() ? (<EmptyState title="سجّل الدخول لمشاهدة القصص" description="يمكنك فتح القصص العامة عبر رابط مشاركة مباشر." actionLabel="تسجيل الدخول" onAction={() => pushOnce('/login')}/>) : loading && groups.length === 0 ? (<LoadingState message="جارٍ تحميل القصص…"/>) : error && groups.length === 0 ? (<ErrorState description={error} onAction={() => void load()}/>) : (<FlatList refreshControl={<BrandRefreshControl refreshing={pullRefreshing} onRefresh={() => void onPullRefresh()} />} data={groups} keyExtractor={(group) => group.user.id} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} initialNumToRender={6} maxToRenderPerBatch={6} windowSize={7} ListHeaderComponent={(<View style={{ gap: spacing.lg }}>
               {error ? (<View style={styles.error}>
                   <Text style={styles.errorText}>{error}</Text>
                   <Pressable accessibilityRole="button" onPress={() => void load()}>

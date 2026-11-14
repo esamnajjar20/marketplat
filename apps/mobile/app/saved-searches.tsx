@@ -3,7 +3,8 @@ import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useState } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { useLocalSearchParams } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -118,7 +119,7 @@ export default function SavedSearchesScreen() {
           <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} />
         </>
       ) : (
-        <AppFlashList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={pullReload} tintColor={colors.brand} />}
+        <AppFlashList refreshControl={<BrandRefreshControl refreshing={resource.refreshing} onRefresh={pullReload} />}
           data={loading && items.length === 0 ? [] : items}
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: spacing.x4l }}

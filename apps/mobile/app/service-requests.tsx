@@ -4,7 +4,8 @@ import { formatDate, formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
-import { RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
@@ -202,7 +203,7 @@ export default function ServiceRequestsScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.brand} />}
+          refreshControl={<BrandRefreshControl refreshing={refreshing} onRefresh={() => void load(true)} />}
           ListHeaderComponent={(
             <View style={{ gap: spacing.lg }}>
               {listingId ? <View style={styles.form}>

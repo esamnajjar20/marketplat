@@ -2,7 +2,8 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useState } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
@@ -81,7 +82,7 @@ export default function FollowedStoresScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.x4l }}
           keyboardShouldPersistTaps="handled"
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void refresh()} tintColor={colors.brand} />}
+          refreshControl={<BrandRefreshControl refreshing={refreshing} onRefresh={() => void refresh()} />}
           ListHeaderComponent={(
             <View style={{ gap: spacing.md }}>
               <SearchBar value={query} onChangeText={setQuery} onSubmit={() => undefined} onClear={() => setQuery('')} placeholder="ابحث باسم المتجر أو المدينة…" />

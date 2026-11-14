@@ -2,6 +2,8 @@
  * IndexedDB لتخزين محتوى كتالوج HTML كاملًا — فتح دون إنترنت من صفحة التنزيلات.
  */
 
+import { openExternal } from '@/lib/openExternal';
+
 const DB_NAME = 'marketplat-offline';
 const DB_VERSION = 1;
 const STORE = 'catalogs';
@@ -120,7 +122,7 @@ export async function openCatalogOffline(id: string): Promise<boolean> {
     // costs nothing and removes the window.opener surface entirely
     // (a blob-URL document with XSS would otherwise be able to navigate
     // or read the parent). Defensive consistency, not a bug fix.
-    const w = window.open(url, '_blank', 'noopener,noreferrer');
+    const w = openExternal(url);
     if (!w) {
       // popup blocked — تنزيل بدلًا من ذلك
       const a = document.createElement('a');

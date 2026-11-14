@@ -15,7 +15,7 @@ import {
   type UserSimulatorRun,
   type UserSimulatorScenario
 } from '@/api/admin.api';
-import { formatTimestamp } from '@/lib/formatters';
+import { formatNumber, formatTimestamp } from '@/lib/formatters';
 import { canBackgroundPoll } from '@/lib/polling';
 
 const ACTIVE_STATES = new Set(['queued', 'running', 'stopping']);
@@ -23,7 +23,7 @@ const asNumber = (value: string, fallback: number) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.trunc(parsed) : fallback;
 };
-const formatMs = (value: unknown) => typeof value === 'number' ? `${Math.round(value).toLocaleString()} ms` : '—';
+const formatMs = (value: unknown) => typeof value === 'number' ? `${formatNumber(Math.round(value))} ms` : '—';
 const formatDate = (value: unknown) => typeof value === 'string' ? formatTimestamp(value) : '—';
 const readString = (value: unknown, fallback = '—') => typeof value === 'string' && value ? value : fallback;
 const readNumber = (value: unknown) => typeof value === 'number' ? value : 0;

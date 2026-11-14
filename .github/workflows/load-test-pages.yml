@@ -31,6 +31,7 @@ permissions:
 jobs:
   discover:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     outputs:
       product_ids: ${{ steps.find.outputs.product_ids }}
       store_ids:   ${{ steps.find.outputs.store_ids }}
@@ -41,7 +42,7 @@ jobs:
       user_ids:    ${{ steps.find.outputs.user_ids }}
       category_slugs: ${{ steps.find.outputs.category_slugs }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Discover IDs
         id: find
         env:
@@ -107,7 +108,7 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install k6
         run: |
@@ -423,7 +424,7 @@ jobs:
 
       - name: Upload artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: k6-full-report
           path: |

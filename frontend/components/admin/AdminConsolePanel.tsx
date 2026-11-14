@@ -18,6 +18,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { getNetworkRequests } from '@/lib/networkRequestMonitor';
 import { getDeviceErrorsAsync } from '@/lib/deviceErrorMonitor';
 import { toast } from 'sonner';
+import { adminRouteFetch } from '@/lib/adminRouteFetch';
 import { formatClockTime } from '@/lib/formatters';
 import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
 
@@ -76,7 +77,7 @@ export function AdminConsolePanel() {
   const outputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch('/api/admin/debug-toggle').then((r) => r.json()).then((d) => setDebugEnabled(!!d.enabled)).catch(() => {});
+    adminRouteFetch('/api/admin/debug-toggle').then((r) => r.json()).then((d) => setDebugEnabled(!!d.enabled)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -220,7 +221,7 @@ export function AdminConsolePanel() {
   const toggleDebugConsole = async () => {
     const method = debugEnabled ? 'DELETE' : 'POST';
     try {
-      const res = await fetch('/api/admin/debug-toggle', { method });
+      const res = await adminRouteFetch('/api/admin/debug-toggle', { method });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         toast.error('تعذر التبديل: ' + (err.error || res.status));

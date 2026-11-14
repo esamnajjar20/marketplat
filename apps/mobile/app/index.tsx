@@ -6,7 +6,8 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 
 import { pushOnce } from '@/lib/navigation';
-import { FlatList, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, StyleSheet, TextInput, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { Spinner, EmptyState, ErrorState, SectionHeader, SkeletonList } from '@/components/ui';
 
 import { DrawerMenuButton } from '@/components/MobileDrawer';
@@ -705,7 +706,7 @@ export default function HomeScreen() {
         onViewableItemsChanged={onViewableItemsChanged}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
+        refreshControl={<BrandRefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         ItemSeparatorComponent={HomeRowSeparator}
         renderItem={renderItem}
       />

@@ -3,7 +3,7 @@
  * Go performs the same keyset-paginated SQL batch when configured; Express is
  * the automatic fallback. Critical notification types are never included.
  */
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/prisma';
 import type { Prisma } from '@prisma/client';
 import { logger } from '../shared/observability/logger';
 import {
@@ -11,7 +11,6 @@ import {
   runAdvisoryLockedBatch,
 } from '../shared/go-worker/executeWithFallback';
 
-const prisma = new PrismaClient();
 const BATCH_SIZE = 100;
 // Must match notificationDigestLockID in apps/go-worker/cmd/server/main.go.
 const NOTIFICATION_DIGEST_LOCK_ID = 731904285n;

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { useQueryClient } from '@tanstack/react-query';
 import { Flag, History, Plus, RefreshCw, ShieldCheck, ToggleLeft, ToggleRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { adminRouteFetch } from '@/lib/adminRouteFetch';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import { AdminPageShell } from '@/components/admin/AdminPageShell';
 import { Spinner } from '@/components/ui/spinner';
@@ -37,16 +38,13 @@ type FeatureFlagsResponse = {
 };
 
 async function requestFlags(method: 'GET' | 'PUT', payload?: { name: string; enabled: boolean; rolloutPercent?: number }, accessToken?: string | null): Promise<FeatureFlagsResponse> {
-  const response = await fetch('/api/admin/feature-flags', {
+  const response = await adminRouteFetch('/api/admin/feature-flags', {
     method,
-    credentials: 'same-origin',
-    cache: 'no-store',
     headers: {
       accept: 'application/json',
-      ...(payload ? { 'content-type': 'application/json' } : {}),
       ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
     },
-    ...(payload ? { body: JSON.stringify(payload) } : {}),
+    ...(payload ? { body: payload } : {}),
   });
   const result = await response.json().catch(() => null) as FeatureFlagsResponse | null;
   if (!response.ok || !result?.ok) {

@@ -1,7 +1,7 @@
-import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useEffect, useState } from 'react';
-import { RefreshControl, View } from 'react-native';
+import { View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { ListEmpty, ListStaleError, PaginatedFooter, LoadingState, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
@@ -18,7 +18,6 @@ import { domainLabel } from '@/lib/status-labels';
 
 
 export default function AppointmentsScreen() {
-  const { colors } = useAppTheme();
 
   const { accessToken, getAccessToken, csrfToken, user, isRestoring } = useAuth();
   const [providerId, setProviderId] = useState<string | null>(null);
@@ -101,7 +100,7 @@ export default function AppointmentsScreen() {
         data={showInitialState ? [] : list.items}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: spacing.xl }}
-        refreshControl={<RefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} tintColor={colors.brand} />}
+        refreshControl={<BrandRefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} />}
         ListHeaderComponent={(
           <View style={{ gap: spacing.md }}>
             <Notice tone="muted">تظهر هنا المواعيد المرتبطة بطلبات الخدمات. يمكن للعميل الإلغاء، ولمقدم الخدمة الإتمام أو تسجيل عدم الحضور.</Notice>

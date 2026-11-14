@@ -15,6 +15,7 @@ import { useAuthStore, selectUser, selectIsAuthenticated } from '@/store/auth.st
 import { toast } from 'sonner';
 import type { ServiceListingWithProvider } from '@/types/service.types';
 import { buildWhatsAppUrl, toWaPhone } from '@/lib/whatsapp';
+import { buildTelUrl } from '@/lib/contactLinks';
 
 interface Props {
   listing: ServiceListingWithProvider;
@@ -125,7 +126,7 @@ export function ProviderContactCard({ listing, showPhone = false }: Props) {
       {showPhone && phone && (
         <div className="flex flex-wrap gap-2 border-t border-border/60 pt-3">
           <a
-            href={`tel:${phone}`}
+            href={buildTelUrl(phone)}
             className="inline-flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 text-sm font-medium hover:bg-muted/50"
           >
             <Phone className="h-3.5 w-3.5" aria-hidden />

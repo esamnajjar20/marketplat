@@ -3,7 +3,8 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshControl, TextInput, View } from 'react-native';
+import { TextInput, View } from 'react-native';
+import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { Spinner, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { confirmAlert } from '@/lib/confirm';
 
@@ -113,7 +114,7 @@ export default function InstallmentsScreen() {
 
   return (
     <PageShell title="الأقساط" scroll={false}>
-      <AppFlashList refreshControl={<RefreshControl refreshing={resource.refreshing} onRefresh={pullReload} tintColor={colors.brand} />}
+      <AppFlashList refreshControl={<BrandRefreshControl refreshing={resource.refreshing} onRefresh={pullReload} />}
         data={loading && visibleItems.length === 0 ? [] : visibleItems}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: spacing.x4l }}

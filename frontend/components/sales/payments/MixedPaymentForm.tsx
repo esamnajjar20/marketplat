@@ -25,7 +25,7 @@ export function MixedPaymentForm({ payments, onChange, total }: { payments: Paym
     <div className="flex justify-between text-xs text-muted-foreground">
       <span>الموزع: {formatMoney(sum)} من {formatMoney(total)}</span>
       <span className={sum > total ? 'text-destructive' : ''}>
-        {sum <= total ? 'متبقي ' + Math.max(total - sum, 0).toFixed(2) + ' ₪' : 'تجاوز ' + (sum - total).toFixed(2) + ' ₪'}
+        {sum <= total ? `متبقي ${formatMoney(Math.max(total - sum, 0))}` : `تجاوز ${formatMoney(sum - total)}`}
       </span>
     </div>
   </div>;
