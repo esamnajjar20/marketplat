@@ -6,6 +6,8 @@ import { useDebts } from '@/hooks/queries/useDebts';
 import { Button } from '@/components/ui/button';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/ui/skeleton';
+import { buildWhatsAppUrl } from '@/lib/whatsapp';
+import { formatMoney } from '@/lib/formatters';
 
 export default function DebtsPage() {
   const router = useRouter();
@@ -29,8 +31,8 @@ export default function DebtsPage() {
       </LoadingGate> : (query.isError || listFailed) ? <div className="text-destructive">تعذر تحميل الديون.</div> : !rows.length ? <div className="rounded-xl border border-dashed p-10 text-center">لا توجد ديون مستحقة.</div> : (
         <div className="grid gap-3 md:grid-cols-2">
           {rows.map((sale) => {
-            const text = `مرحبًا ${sale.buyerName}، تذكير بوجود مبلغ مستحق قدره ${Number(sale.dueAmount).toFixed(2)} ₪ على الفاتورة ${sale.invoiceNumber ?? ''}.`;
-            const href = sale.buyerPhone ? `https://wa.me/${sale.buyerPhone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
+            const text = `مرحبًا ${sale.buyerName}، تذكير بوجود مبلغ مستحق قدره ${formatMoney(Number(sale.dueAmount))} على الفاتورة ${sale.invoiceNumber ?? ''}.`;
+            const href = buildWhatsAppUrl({ phone: sale.buyerPhone, text });
             return <article key={sale.id} className="rounded-xl border bg-card p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -39,7 +41,7 @@ export default function DebtsPage() {
                   </h2>
                   <p className="text-sm text-muted-foreground">{sale.entityTitle} · {sale.invoiceNumber ?? 'بدون فاتورة'}</p>
                 </div>
-                <strong>{Number(sale.dueAmount).toFixed(2)} ₪</strong>
+                <strong>{formatMoney(Number(sale.dueAmount))}</strong>
               </div>
               <div className="mt-4 flex gap-2">
                 <Button size="sm" onClick={() => window.open(href, '_blank', 'noopener,noreferrer')}>تذكير واتساب</Button>

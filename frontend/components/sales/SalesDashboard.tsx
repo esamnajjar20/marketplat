@@ -13,9 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useSalesDashboard } from '@/hooks/queries/useSales';
 import { cn } from '@/lib/utils';
-
-const money = (n: number) =>
-  `${Number(n || 0).toLocaleString('ar', { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ₪`;
+import { formatMoney } from '@/lib/formatters';
 
 function StatTile({
   icon: Icon,
@@ -82,10 +80,10 @@ export function SalesDashboard() {
   return (
     <div className="space-y-4 lg:space-y-6" dir="rtl">
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
-        <StatTile icon={TrendingUp} label="إيرادات الشهر" value={money(data.summary.totalRevenue)} />
-        <StatTile icon={Wallet} label="الربح الصافي" value={money(data.summary.netProfit)} />
-        <StatTile icon={CheckCircle2} label="المدفوع" value={money(paid)} />
-        <StatTile icon={AlertTriangle} label="الديون" value={money(data.debt.totalDue)} warn />
+        <StatTile icon={TrendingUp} label="إيرادات الشهر" value={formatMoney(data.summary.totalRevenue)} />
+        <StatTile icon={Wallet} label="الربح الصافي" value={formatMoney(data.summary.netProfit)} />
+        <StatTile icon={CheckCircle2} label="المدفوع" value={formatMoney(paid)} />
+        <StatTile icon={AlertTriangle} label="الديون" value={formatMoney(data.debt.totalDue)} warn />
       </div>
 
       {change !== null && (
@@ -99,12 +97,12 @@ export function SalesDashboard() {
           <div className="mt-3 grid grid-cols-2 gap-2.5">
             <div className="rounded-xl bg-muted/50 p-3 text-center">
               <p className="text-2xs-tight text-muted-foreground">الحالي</p>
-              <p className="mt-1 text-base font-extrabold tabular-nums">{money(data.compare.current?.totalRevenue ?? data.summary.totalRevenue)}</p>
+              <p className="mt-1 text-base font-extrabold tabular-nums">{formatMoney(data.compare.current?.totalRevenue ?? data.summary.totalRevenue)}</p>
             </div>
             <div className="rounded-xl bg-muted/30 p-3 text-center">
               <p className="text-2xs-tight text-muted-foreground">المقارنة</p>
               <p className="mt-1 text-base font-extrabold tabular-nums text-muted-foreground">
-                {money(data.compare.previous?.totalRevenue ?? 0)}
+                {formatMoney(data.compare.previous?.totalRevenue ?? 0)}
               </p>
             </div>
           </div>
@@ -139,7 +137,7 @@ export function SalesDashboard() {
                   <span className="me-1.5 text-muted-foreground">{i + 1}.</span>
                   {x.title}
                 </span>
-                <span className="shrink-0 font-extrabold tabular-nums">{money(x.revenue)}</span>
+                <span className="shrink-0 font-extrabold tabular-nums">{formatMoney(x.revenue)}</span>
               </div>
             ))}
             {!data.topProducts.length && (

@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useMyStoreAnalytics } from '@/hooks/queries/useStores';
 import { getThumbnailUrl } from '@/lib/cloudinary';
 import type { ParsedError } from '@/lib/errorParser';
+import { formatNumber } from '@/lib/formatters';
 
 /**
  * STORE-ANALYTICS (Foundation v1): deliberately no orders/revenue/
@@ -96,7 +97,7 @@ export function MyStoreAnalytics() {
                   </div>
                   <span className="flex-1 truncate text-sm">{product.name}</span>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {product.views.toLocaleString('ar')} مشاهدة
+                    {formatNumber(product.views)} مشاهدة
                   </span>
                   </div>
                   <div className="ms-7 h-1.5 rounded-full bg-muted overflow-hidden">

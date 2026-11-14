@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { formatMoney } from '@/lib/formatters';
 
 type Installment = {
   id: string;
@@ -85,7 +86,7 @@ function InstallmentRow({
         </Button>
       </div>
       <p className="mt-2 text-xs text-muted-foreground">
-        المتبقي من القسط: {Math.max(0, remaining).toFixed(2)} ₪
+        المتبقي من القسط: {formatMoney(Math.max(0, remaining))}
       </p>
     </article>
   );

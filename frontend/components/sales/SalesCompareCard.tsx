@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useSalesCompare } from '@/hooks/queries/useSales';
 import { CARD_SHELL } from '@/components/shared/cards/cardTokens';
+import { formatMoney } from '@/lib/formatters';
 
 function Row({
   label,
@@ -26,11 +27,11 @@ function Row({
       <div className="mt-2 grid grid-cols-2 gap-3">
         <div>
           <p className="text-2xs text-muted-foreground">الحالي</p>
-          <p className="font-bold">{current.toFixed(2)} ₪</p>
+          <p className="font-bold">{formatMoney(current)}</p>
         </div>
         <div>
           <p className="text-2xs text-muted-foreground">المقارنة</p>
-          <p className="font-bold">{previous.toFixed(2)} ₪</p>
+          <p className="font-bold">{formatMoney(previous)}</p>
         </div>
       </div>
     </div>

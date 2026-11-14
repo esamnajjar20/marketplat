@@ -8,6 +8,7 @@ import { useAuthStore, selectUser } from '@/store/auth.store';
 import { AdminPageShell } from '@/components/admin/AdminPageShell';
 import { Spinner } from '@/components/ui/spinner';
 import { queryKeys } from '@/lib/queryKeys';
+import { formatTimestamp } from '@/lib/formatters';
 
 type FeatureFlag = {
   name: string;
@@ -73,7 +74,7 @@ function flagErrorMessage(error: unknown): string {
 
 function formatUpdatedAt(value: number): string {
   if (!value) return 'لم يتم التحديث بعد';
-  return new Date(value * 1000).toLocaleString('ar-PS');
+  return formatTimestamp(value * 1000);
 }
 
 export function AdminFeatureFlags() {
@@ -199,7 +200,7 @@ export function AdminFeatureFlags() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <code dir="ltr" className="break-all text-sm font-semibold">{flag.name}</code>
-                      <span className={`rounded-full px-2 py-0.5 text-2xs-tight font-semibold ${flag.name.startsWith('PUBLIC_') ? 'bg-sky-500/10 text-sky-700 dark:text-sky-300' : 'bg-muted text-muted-foreground'}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-2xs-tight font-semibold ${flag.name.startsWith('PUBLIC_') ? 'bg-info/10 text-info ' : 'bg-muted text-muted-foreground'}`}>
                         {flag.name.startsWith('PUBLIC_') ? 'عام للعميل' : 'داخلي'}
                       </span>
                     </div>
@@ -243,7 +244,7 @@ export function AdminFeatureFlags() {
                     onClick={() => void saveFlag(flag.name, !flag.enabled)}
                     disabled={Boolean(savingName)}
                     aria-pressed={flag.enabled}
-                    className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${flag.enabled ? 'bg-emerald-600 text-white hover:bg-emerald-700' : 'border bg-background hover:bg-muted'}`}
+                    className={`inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50 ${flag.enabled ? 'bg-success text-white hover:bg-success' : 'border bg-background hover:bg-muted'}`}
                   >
                     {busy ? <Spinner size="sm" /> : flag.enabled ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
                     {busy ? 'جارٍ الحفظ…' : flag.enabled ? 'مفعّلة — إيقاف' : 'معطّلة — تفعيل'}

@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { Card, CardContent } from '@/components/shared/ui/Card';
+import { formatNumber } from '@/lib/formatters';
 
 interface StatCardProps {
   icon: LucideIcon;
@@ -17,7 +18,7 @@ export function StatCard({ icon: Icon, label, value }: StatCardProps) {
         </div>
         <div className="min-w-0">
           <p className="break-words text-xl font-bold leading-tight tabular-nums sm:text-2xl">
-            {typeof value === 'number' ? (value ?? 0).toLocaleString('ar') : value}
+            {typeof value === 'number' ? formatNumber(value ?? 0) : value}
           </p>
           <p className="mt-1 line-clamp-2 text-2xs-tight leading-4 text-muted-foreground sm:text-xs">{label}</p>
         </div>

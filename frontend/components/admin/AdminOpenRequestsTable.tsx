@@ -16,6 +16,7 @@ import { parseApiError } from '@/lib/errorParser';
 import type { RequestStatus, RequestType } from '@/types/request.types';
 import { adminPagination } from '@/lib/adminHubTabs';
 import { AdminOpenRequestRow } from './AdminOpenRequestRow';
+import { AdminTableFrame, ADMIN_THEAD_CLASS } from '@/components/admin/AdminTableFrame';
 
 type RequestRow = {
   id: string;
@@ -87,9 +88,8 @@ export const AdminOpenRequestsTable = memo(function AdminOpenRequestsTable() {
       )}
 
       {!isLoading && items.length > 0 && (
-        <div className="overflow-x-auto overscroll-x-contain rounded-xl border">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead className="bg-muted/50 text-start">
+        <AdminTableFrame hiddenOnMobile={false} stickyActions={false}>
+            <thead className={ADMIN_THEAD_CLASS}>
               <tr>
                 <th className="p-3 font-medium">الطلب</th>
                 <th className="p-3 font-medium">النوع</th>
@@ -104,8 +104,7 @@ export const AdminOpenRequestsTable = memo(function AdminOpenRequestsTable() {
                 <AdminOpenRequestRow key={r.id} row={r} onCancel={setCancelId} />
               ))}
             </tbody>
-          </table>
-        </div>
+        </AdminTableFrame>
       )}
 
       {/* FIX OPEN-REQ-POLISH-01 (part 3): {totalPages > 1 && ...} gate */}

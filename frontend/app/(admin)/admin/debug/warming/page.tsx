@@ -24,6 +24,7 @@ import { warmRouteShellsAtomic, warmPersonalShellsAtomic } from '@/lib/offlineRo
 import { warmCoreBundle } from '@/lib/offlineCoreBundle';
 import { clearSnapshot } from '@/lib/offlineWarmingState';
 import { toast } from 'sonner';
+import { formatClockTime } from '@/lib/formatters';
 
 // ── small presentational bits ───────────────────────────────────
 
@@ -270,7 +271,7 @@ export default function WarmingDebugPage() {
         <div>
           <h1 className="text-lg font-semibold">تشخيص warming</h1>
           <p className="text-xs text-muted-foreground">
-            آخر تحديث: {new Date(report.generatedAt).toLocaleTimeString('ar-PS', { timeZone: 'Asia/Gaza' })}{' '}
+            آخر تحديث: {formatClockTime(report.generatedAt)}{' '}
             — يُحدَّث تلقائياً كل 10 ثوانٍ
           </p>
         </div>

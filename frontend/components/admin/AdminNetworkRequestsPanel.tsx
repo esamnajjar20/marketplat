@@ -5,23 +5,25 @@ import { Activity, CheckCircle2, CircleAlert, Clipboard, Download, Filter, Refre
 import { clearNetworkRequests, getNetworkRequests, NETWORK_REQUESTS_EVENT, summarizeNetworkRequestsByRoute, type NetworkRequestOutcome, type NetworkRequestRecord } from '@/lib/networkRequestMonitor';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { summarizeDurations } from '@/lib/monitoringMetrics';
+import { copyToClipboard } from '@/lib/copyToClipboard';
+import { formatNumber } from '@/lib/formatters';
 
 const outcomeLabel: Record<NetworkRequestOutcome, string> = {
   success: 'ناجح', 'http-error': 'خطأ HTTP', 'network-error': 'فشل اتصال', aborted: 'ملغى',
 };
 const outcomeClass: Record<NetworkRequestOutcome, string> = {
-  success: 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
-  'http-error': 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
-  'network-error': 'bg-red-500/10 text-red-700 dark:text-red-300',
+  success: 'bg-success/10 text-success ',
+  'http-error': 'bg-warning/10 text-warning-strong dark:text-warning',
+  'network-error': 'bg-destructive/10 text-destructive ',
   aborted: 'bg-muted text-muted-foreground',
 };
 const formatTime = (value: string) => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('ar-PS', { hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 }).format(date);
 };
-const formatDuration = (value: number | null) => value === null ? '—' : `${Math.max(0, Math.round(value)).toLocaleString('ar-PS')} مللي ثانية`;
+const formatDuration = (value: number | null) => value === null ? '—' : `${formatNumber(Math.max(0, Math.round(value)))} مللي ثانية`;
 const formatBytes = (value: number) => {
-  if (value < 1024) return `${value.toLocaleString('ar-PS')} بايت`;
+  if (value < 1024) return `${formatNumber(value)} بايت`;
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
   return `${(value / (1024 * 1024)).toFixed(2)} MB`;
 };
@@ -93,7 +95,7 @@ export function AdminNetworkRequestsPanel() {
     };
     const text = JSON.stringify(payload, null, 2);
     try {
-      await navigator.clipboard.writeText(text);
+      if (!(await copyToClipboard(text))) throw new Error('copy failed');
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     }
@@ -128,7 +130,7 @@ export function AdminNetworkRequestsPanel() {
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-bold">مراقب طلبات الشبكة</h1>
-              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${online ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-red-500/10 text-red-700 dark:text-red-300'}`}>
+              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${online ? 'bg-success/10 text-success ' : 'bg-destructive/10 text-destructive '}`}>
                 {online ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
                 {online ? 'الجهاز متصل' : 'الجهاز غير متصل'}
               </span>
@@ -176,7 +178,7 @@ export function AdminNetworkRequestsPanel() {
           <Select label="صفحة المصدر" value={route} onChange={setRoute} options={[['all', 'كل الصفحات'], ...routes.map((item) => [item, item] as [string, string])]} />
           <Select label="فئة HTTP" value={statusGroup} onChange={setStatusGroup} options={[['all', 'كل فئات HTTP'], ['4xx', 'HTTP 4xx'], ['5xx', 'HTTP 5xx'], ['no-response', 'بلا استجابة HTTP']]} />
         </div>
-        <p className="text-xs text-muted-foreground">يعرض {filtered.length.toLocaleString('ar-PS')} من أصل {records.length.toLocaleString('ar-PS')} طلب. تُخفى قيم query string الحساسة/الشخصية في السجل عمدًا.</p>
+        <p className="text-xs text-muted-foreground">يعرض {formatNumber(filtered.length)} من أصل {formatNumber(records.length)} طلب. تُخفى قيم query string الحساسة/الشخصية في السجل عمدًا.</p>
       </section>
 
       <section className="space-y-3 rounded-2xl border bg-card p-4">
@@ -275,7 +277,7 @@ export function AdminNetworkRequestsPanel() {
                   <p className="break-all font-mono text-xs" dir="ltr">
                     {row.url}
                   </p>
-                  {row.error && <p className="mt-1 max-w-md truncate text-xs text-red-600" title={row.error}>
+                  {row.error && <p className="mt-1 max-w-md truncate text-xs text-destructive" title={row.error}>
                     {row.error}
                   </p>}
                 </td>
@@ -333,7 +335,7 @@ export function AdminNetworkRequestsPanel() {
           <p className="break-all font-mono text-sm" dir="ltr">
             {selected.url}
           </p>
-          {selected.error && <p className="mt-3 break-words text-sm text-red-600">
+          {selected.error && <p className="mt-3 break-words text-sm text-destructive">
             {selected.error}
           </p>}
         </div>
@@ -349,11 +351,11 @@ function Metric({ title, value, detail, icon, danger = false }: { title: string;
       <p className="text-sm text-muted-foreground">
         {title}
       </p>
-      <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${danger ? 'bg-red-500/10 text-red-600' : 'bg-primary/10 text-primary'}`}>
+      <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${danger ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
         {icon}
       </span>
     </div>
-    <p className={`mt-3 text-2xl font-bold tabular-nums ${danger ? 'text-red-600' : ''}`}>
+    <p className={`mt-3 text-2xl font-bold tabular-nums ${danger ? 'text-destructive' : ''}`}>
       {value}
     </p>
     <p className="mt-1 text-xs text-muted-foreground">

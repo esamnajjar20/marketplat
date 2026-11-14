@@ -8,6 +8,8 @@ import { useDebts } from '@/hooks/queries/useDebts';
 import { Button } from '@/components/ui/button';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/ui/skeleton';
+import { buildWhatsAppUrl } from '@/lib/whatsapp';
+import { formatMoney, formatNumber } from '@/lib/formatters';
 
 export function SalesDebtsSection() {
   const router = useRouter();
@@ -38,7 +40,7 @@ export function SalesDebtsSection() {
             <span className="text-2xs-tight text-muted-foreground">إجمالي الدين</span>
           </div>
           <strong className="mt-1.5 block text-lg font-extrabold tabular-nums">
-            {Number(summary?.totalDue ?? 0).toFixed(2)} ₪
+            {formatMoney(Number(summary?.totalDue ?? 0))}
           </strong>
         </div>
         <div className="rounded-2xl border border-border/70 bg-card p-3 shadow-sm">
@@ -49,7 +51,7 @@ export function SalesDebtsSection() {
             <span className="text-2xs-tight text-muted-foreground">عدد المبيعات المستحقة</span>
           </div>
           <strong className="mt-1.5 block text-lg font-extrabold tabular-nums">
-            {Number(summary?.debtorCount ?? query.data?.debts?.totalCount ?? 0).toLocaleString('ar')}
+            {formatNumber(Number(summary?.debtorCount ?? query.data?.debts?.totalCount ?? 0))}
           </strong>
         </div>
       </div>
@@ -77,10 +79,8 @@ export function SalesDebtsSection() {
       ) : (
         <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3 sm:gap-3">
           {debtRows.map((sale) => {
-            const text = `مرحبًا ${sale.buyerName}، تذكير بوجود مبلغ مستحق قدره ${Number(sale.dueAmount).toFixed(2)} ₪ على الفاتورة ${sale.invoiceNumber ?? ''}.`;
-            const href = sale.buyerPhone
-              ? `https://wa.me/${sale.buyerPhone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`
-              : `https://wa.me/?text=${encodeURIComponent(text)}`;
+            const text = `مرحبًا ${sale.buyerName}، تذكير بوجود مبلغ مستحق قدره ${formatMoney(Number(sale.dueAmount))} على الفاتورة ${sale.invoiceNumber ?? ''}.`;
+            const href = buildWhatsAppUrl({ phone: sale.buyerPhone, text });
             return (
               <article key={sale.id} className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
                 <div className="flex items-start justify-between gap-3">
@@ -94,7 +94,7 @@ export function SalesDebtsSection() {
                   <div className="text-end">
                     <p className="text-2xs-tight text-muted-foreground">المتبقي</p>
                     <strong className="text-base font-extrabold tabular-nums text-destructive">
-                      {Number(sale.dueAmount).toFixed(2)} ₪
+                      {formatMoney(Number(sale.dueAmount))}
                     </strong>
                   </div>
                 </div>

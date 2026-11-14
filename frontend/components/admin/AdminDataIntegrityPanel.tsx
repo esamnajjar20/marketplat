@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react';
 import { AlertTriangle, CheckCircle2, RefreshCw, ShieldCheck } from 'lucide-react';
 import { adminApi, type AdminDataIntegrityReport } from '@/api/admin.api';
+import { formatTimestamp } from '@/lib/formatters';
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms} ms`;
@@ -13,8 +14,8 @@ function SeverityLabel({ severity }: { severity: 'critical' | 'warning' | 'info'
   const labels = { critical: 'حرج', warning: 'تحذير', info: 'معلومة' };
   const styles = {
     critical: 'bg-destructive/10 text-destructive',
-    warning: 'bg-amber-500/10 text-amber-700 dark:text-amber-300',
-    info: 'bg-sky-500/10 text-sky-700 dark:text-sky-300',
+    warning: 'bg-warning/10 text-warning-strong dark:text-warning',
+    info: 'bg-info/10 text-info ',
   };
   return <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${styles[severity]}`}>{labels[severity]}</span>;
 }
@@ -69,22 +70,22 @@ export function AdminDataIntegrityPanel() {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground">إجمالي النتائج</p><p className="mt-1 text-2xl font-semibold tabular-nums">{report.findingCount}</p></div>
             <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground">حرجة</p><p className="mt-1 text-2xl font-semibold tabular-nums text-destructive">{report.bySeverity.critical}</p></div>
-            <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground">تحذيرات</p><p className="mt-1 text-2xl font-semibold tabular-nums text-amber-600 dark:text-amber-400">{report.bySeverity.warning}</p></div>
-            <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground">معلومات</p><p className="mt-1 text-2xl font-semibold tabular-nums text-sky-700 dark:text-sky-300">{report.bySeverity.info}</p></div>
+            <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground">تحذيرات</p><p className="mt-1 text-2xl font-semibold tabular-nums text-warning-strong dark:text-warning">{report.bySeverity.warning}</p></div>
+            <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground">معلومات</p><p className="mt-1 text-2xl font-semibold tabular-nums text-info ">{report.bySeverity.info}</p></div>
             <div className="rounded-xl border p-3"><p className="text-xs text-muted-foreground">فحوص بلا نتائج</p><p className="mt-1 text-2xl font-semibold tabular-nums">{healthyChecks}/{report.checkCount}</p></div>
           </div>
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
-            <span>وقت الفحص: {new Date(report.scannedAt).toLocaleString('ar-PS')}</span>
+            <span>وقت الفحص: {formatTimestamp(report.scannedAt)}</span>
             <span>المدة: {formatDuration(report.durationMillis)}</span>
             <span>المحرك: Go</span>
             <span>الوضع: قراءة فقط</span>
           </div>
 
           {report.findingCount === 0 ? (
-            <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-4">
-              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
-              <div><p className="font-semibold text-emerald-700 dark:text-emerald-300">لم تُكتشف مخالفات ضمن القواعد الحالية</p><p className="mt-1 text-sm text-muted-foreground">هذا لا يثبت خلو كل أنظمة المنصة من المشاكل؛ النتيجة تقتصر على الفحوص المعروضة.</p></div>
+            <div className="flex items-start gap-3 rounded-xl border border-success/30 bg-success/5 p-4">
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+              <div><p className="font-semibold text-success ">لم تُكتشف مخالفات ضمن القواعد الحالية</p><p className="mt-1 text-sm text-muted-foreground">هذا لا يثبت خلو كل أنظمة المنصة من المشاكل؛ النتيجة تقتصر على الفحوص المعروضة.</p></div>
             </div>
           ) : (
             <div className="space-y-3">

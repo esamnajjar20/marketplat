@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useReturnSale } from '@/hooks/mutations/useSaleMutations';
 import type { SaleRecord } from '@/types/sale.types';
+import { formatMoney } from '@/lib/formatters';
 const reasons = [['DAMAGED', 'معطوب'], ['WRONG_ITEM', 'صنف خاطئ'], ['NOT_LIKED', 'لم يعجبه'], ['LATE', 'متأخر'], ['OTHER', 'أخرى']] as const;
 export function ReturnSaleDialog({ sale, open, onOpenChange }: { sale: SaleRecord; open: boolean; onOpenChange: (v: boolean) => void }) {
   const items = sale.items?.length ? sale.items : [{ id: 'legacy', title: sale.entityTitle, quantity: sale.quantity, returnedQuantity: (sale.returns ?? []).reduce((s, r) => s + Number(r.quantity), 0), unitPrice: sale.unitPrice } as any];
@@ -51,7 +52,7 @@ export function ReturnSaleDialog({ sale, open, onOpenChange }: { sale: SaleRecor
             </option>)}
           </select></label>
           <label className="block text-sm">مبلغ الاسترداد<input className="mt-1 w-full rounded-md border bg-background px-3 py-2" type="number" min={0} step="0.01" value={refund} onChange={e => setRefund(e.target.value)} /></label>
-          <p className="text-xs text-muted-foreground">المقترح: {auto.toFixed(2)} ₪</p>
+          <p className="text-xs text-muted-foreground">المقترح: {formatMoney(auto)}</p>
           <label className="block text-sm">ملاحظة<textarea className="mt-1 min-h-20 w-full rounded-md border bg-background px-3 py-2" value={note} onChange={e => setNote(e.target.value)} /></label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={restock} onChange={e => setRestock(e.target.checked)} /> إعادة الكمية إلى المخزون</label>
         </div>

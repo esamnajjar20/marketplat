@@ -31,6 +31,7 @@ import { nativeShare, canNativeShare } from '@/lib/capacitor/nativeShare';
 import { copyToClipboard } from '@/lib/copyToClipboard';
 import { ShareAdQrDialog } from './ShareAdQrDialog';
 import type { SharedPayload } from '@/lib/shareQr';
+import { buildWhatsAppUrl } from '@/lib/whatsapp';
 
 interface Props {
   title: string;
@@ -61,8 +62,7 @@ export function ShareAdButton({ title, url, variant = 'icon', className, qrPaylo
 
   function handleWhatsApp() {
     const shareUrl = getUrl();
-    const text = encodeURIComponent(`${title}\n${shareUrl}`);
-    window.open(`https://wa.me/?text=${text}`, '_blank', 'noopener,noreferrer');
+    window.open(buildWhatsAppUrl({ text: `${title}\n${shareUrl}` }), '_blank', 'noopener,noreferrer');
   }
 
   function handleTelegram() {

@@ -2,6 +2,7 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { SaleTransferMethod } from '@/types/sale.types';
+import { formatMoney } from '@/lib/formatters';
 export interface PaymentPart { id?: string; amount: string; method: SaleTransferMethod; transferRef?: string; }
 const methods: Array<[SaleTransferMethod, string]> = [['CASH', 'نقدي'], ['JAWWAL_PAY', 'جوال باي'], ['BANK_PALESTINE', 'بنك فلسطين'], ['PALPAY', 'PalPay'], ['CARD', 'بطاقة'], ['OTHER', 'أخرى']];
 export function MixedPaymentForm({ payments, onChange, total }: { payments: PaymentPart[]; onChange: (p: PaymentPart[]) => void; total: number }) {
@@ -22,7 +23,7 @@ export function MixedPaymentForm({ payments, onChange, total }: { payments: Paym
       {payments.length > 1 ? <Button type="button" variant="ghost" onClick={() => onChange(payments.filter((_, j) => j !== i))}>حذف</Button> : <span />}
     </div>)}
     <div className="flex justify-between text-xs text-muted-foreground">
-      <span>الموزع: {sum.toFixed(2)} ₪ من {total.toFixed(2)} ₪</span>
+      <span>الموزع: {formatMoney(sum)} من {formatMoney(total)}</span>
       <span className={sum > total ? 'text-destructive' : ''}>
         {sum <= total ? 'متبقي ' + Math.max(total - sum, 0).toFixed(2) + ' ₪' : 'تجاوز ' + (sum - total).toFixed(2) + ' ₪'}
       </span>

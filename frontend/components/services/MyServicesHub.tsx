@@ -2,6 +2,7 @@
 
 import type { ComponentType } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { formatNumber } from '@/lib/formatters';
 
 /**
  * Provider hub overview — layout aligned with design mockup «خدماتي — نظرة عامة».
@@ -47,7 +48,7 @@ function StatTile({
         </span>
         <span className="text-2xs-tight font-medium leading-tight text-muted-foreground">{label}</span>
       </div>
-      <b className="text-lg font-extrabold tabular-nums leading-none">{typeof value === 'number' ? value.toLocaleString('ar') : value}</b>
+      <b className="text-lg font-extrabold tabular-nums leading-none">{typeof value === 'number' ? formatNumber(value) : value}</b>
     </div>
   );
 }
@@ -111,7 +112,7 @@ function HubBody({
       {hasAnalytics && needsAttention > 0 && (
         <div className="flex items-center gap-2 rounded-2xl border border-[var(--legacy-warning-soft-strong)] bg-[var(--legacy-warning-soft)] px-3.5 py-3 text-sm-tight font-bold text-[var(--legacy-warning-text)]">
           <AlertTriangle className="h-4 w-4 shrink-0" />
-          لديك {needsAttention.toLocaleString('ar')} عناصر تحتاج إلى متابعة.
+          لديك {formatNumber(needsAttention)} عناصر تحتاج إلى متابعة.
         </div>
       )}
 

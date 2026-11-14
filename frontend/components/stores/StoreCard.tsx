@@ -10,6 +10,7 @@ import { FavoriteButton } from '@/components/shared/FavoriteButton';
 import { getStoreTypePresentation, type StoreDirectoryItem, type StoreWithSeller } from '@/types/store.types';
 import { CardOfflineBadge, type CardContext } from '@/components/shared/cards/cardParts';
 import { Button } from '@/components/ui/button';
+import { formatNumber } from '@/lib/formatters';
 
 interface Props {
   store: StoreDirectoryItem | StoreWithSeller;
@@ -131,7 +132,7 @@ export const StoreCard = memo(function StoreCard({
             {typeof productCount === 'number' && (
               <span className="inline-flex items-center gap-1">
                 <Package className="h-3.5 w-3.5" aria-hidden />
-                {productCount.toLocaleString('ar')} منتج
+                {formatNumber(productCount)} منتج
               </span>
             )}
             {typeof followerCount === 'number' && (
@@ -139,7 +140,7 @@ export const StoreCard = memo(function StoreCard({
                 <Users className="h-3.5 w-3.5" aria-hidden />
                 {followerCount >= 1000
                   ? `${(followerCount / 1000).toFixed(followerCount % 1000 === 0 ? 0 : 1)}k`
-                  : followerCount.toLocaleString('ar')}{' '}
+                  : formatNumber(followerCount)}{' '}
                 متابع
               </span>
             )}

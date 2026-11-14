@@ -52,6 +52,7 @@ import {
 } from '@/lib/paymentStorage';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { copyToClipboard } from '@/lib/copyToClipboard';
 
 function CopyBtn({ value, label }: { value: string; label: string }) {
   const [ok, setOk] = useState(false);
@@ -75,7 +76,7 @@ function CopyBtn({ value, label }: { value: string; label: string }) {
       className="gap-1.5"
       onClick={async () => {
         try {
-          await navigator.clipboard.writeText(value);
+          if (!(await copyToClipboard(value))) throw new Error('copy failed');
           setOk(true);
           toast.success(`تم نسخ ${label}`);
           if (resetTimerRef.current) clearTimeout(resetTimerRef.current);

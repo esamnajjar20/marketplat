@@ -7,6 +7,7 @@ import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { AlertTriangle, CheckCircle2, Database, Server, Info, Cpu, Gauge } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/shared/ui/Button';
+import { formatTimestamp } from '@/lib/formatters';
 
 function StatusPill({ ok }: { ok: boolean }) {
   return (
@@ -92,9 +93,9 @@ export function AdminSystemHealth() {
         <p className="text-sm text-muted-foreground">
           آخر فحص:{' '}
           {data.checkedAt
-            ? new Date(data.checkedAt).toLocaleString('ar-PS', { timeZone: 'Asia/Gaza' })
+            ? formatTimestamp(data.checkedAt)
             : dataUpdatedAt
-              ? new Date(dataUpdatedAt).toLocaleString('ar-PS', { timeZone: 'Asia/Gaza' })
+              ? formatTimestamp(dataUpdatedAt)
               : '—'}
         </p>
         <Button
@@ -225,9 +226,9 @@ export function AdminSystemHealth() {
             <p className="mt-1 text-xs text-muted-foreground">من أصل {formatBytes(data.runtime.memoryHeapTotalBytes)} مخصصة للـ Heap</p>
             {typeof data.runtime.memoryHeapUsedPercent === 'number' && <>
               <div className="mt-2 h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-label="نسبة استخدام Heap" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.min(100, Math.max(0, data.runtime.memoryHeapUsedPercent))}>
-                <div className={cn('h-full rounded-full transition-all', data.runtime.memoryHeapUsedPercent >= 90 ? 'bg-destructive' : data.runtime.memoryHeapUsedPercent >= 75 ? 'bg-amber-500' : 'bg-emerald-500')} style={{ width: `${Math.min(100, Math.max(0, data.runtime.memoryHeapUsedPercent))}%` }} />
+                <div className={cn('h-full rounded-full transition-all', data.runtime.memoryHeapUsedPercent >= 90 ? 'bg-destructive' : data.runtime.memoryHeapUsedPercent >= 75 ? 'bg-warning' : 'bg-success')} style={{ width: `${Math.min(100, Math.max(0, data.runtime.memoryHeapUsedPercent))}%` }} />
               </div>
-              <p className={cn('mt-1 text-xs', data.runtime.memoryHeapUsedPercent >= 90 ? 'text-destructive' : data.runtime.memoryHeapUsedPercent >= 75 ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground')}>
+              <p className={cn('mt-1 text-xs', data.runtime.memoryHeapUsedPercent >= 90 ? 'text-destructive' : data.runtime.memoryHeapUsedPercent >= 75 ? 'text-warning-strong dark:text-warning' : 'text-muted-foreground')}>
                 {data.runtime.memoryHeapUsedPercent}% مستخدم{data.runtime.memoryHeapUsedPercent >= 90 ? ' — راجع احتمال ضغط الذاكرة' : data.runtime.memoryHeapUsedPercent >= 75 ? ' — راقب الاتجاه مع الوقت' : ''}
               </p>
             </>}
@@ -257,8 +258,8 @@ export function AdminSystemHealth() {
               !data.backgroundWork.available
                 ? 'bg-muted text-muted-foreground'
                 : (data.backgroundWork.deadLetterOutbox ?? 0) > 0 || (data.backgroundWork.staleOutbox ?? 0) > 0 || (data.backgroundWork.unresolvedFailedTasks ?? 0) > 0
-                  ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300'
-                  : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300',
+                  ? 'bg-warning/10 text-warning-strong dark:text-warning'
+                  : 'bg-success/10 text-success ',
             )}>
               {!data.backgroundWork.available ? 'البيانات غير متاحة' : (data.backgroundWork.deadLetterOutbox ?? 0) > 0 || (data.backgroundWork.staleOutbox ?? 0) > 0 || (data.backgroundWork.unresolvedFailedTasks ?? 0) > 0 ? 'تحتاج مراجعة' : 'لا توجد مؤشرات تراكم'}
             </span>
@@ -277,7 +278,7 @@ export function AdminSystemHealth() {
             ))}
           </div>
           <p className="text-xs leading-5 text-muted-foreground">
-            {data.backgroundWork.note ?? `آخر قراءة: ${new Date(data.backgroundWork.checkedAt).toLocaleString('ar-PS')}. الأحداث المتأخرة محسوبة بعتبة خمس دقائق؛ اضغط تحديث الآن لإعادة الفحص بعد انتهاء التخزين المؤقت.`}
+            {data.backgroundWork.note ?? `آخر قراءة: ${formatTimestamp(data.backgroundWork.checkedAt)}. الأحداث المتأخرة محسوبة بعتبة خمس دقائق؛ اضغط تحديث الآن لإعادة الفحص بعد انتهاء التخزين المؤقت.`}
           </p>
         </section>
       )}

@@ -3,11 +3,12 @@
 import { useQuery } from '@tanstack/react-query';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { BadgeCheck, BarChart3, Star } from 'lucide-react';
-import type { ApiResponse } from '@/types/api.types';
 import type { PublicStoreSalesStats } from '@/types/public-store-stats.types';
 import { queryKeys } from '@/lib/queryKeys';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/ui/skeleton';
+import { formatShortDate, formatNumber } from '@/lib/formatters';
+import { sameOriginApi } from '@/lib/sameOriginApi';
 
 type Stats = PublicStoreSalesStats;
 
@@ -15,13 +16,10 @@ export function PublicSalesStats({ slug }: { slug: string }) {
   const { data, isLoading, isError, isFetching } = useQuery({
     queryKey: queryKeys.publicStoreSalesStats(slug),
     queryFn: async ({ signal }) => {
-      const response = await fetch(`/api/v1/public/stores/${encodeURIComponent(slug)}/stats`, {
+      const payload = await sameOriginApi<Stats>(`/public/stores/${encodeURIComponent(slug)}/stats`, {
         signal,
-        credentials: 'include',
         cache: 'no-store',
       });
-      if (!response.ok) throw new Error(`Store statistics request failed (${response.status})`);
-      const payload = await response.json() as ApiResponse<Stats>;
       if (!payload.data) throw new Error(payload.message || 'Store statistics response is empty');
       return payload.data;
     },
@@ -61,9 +59,9 @@ export function PublicSalesStats({ slug }: { slug: string }) {
           </div>
         </div>
         <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-xl bg-muted/40 p-4"><p className="text-xs text-muted-foreground">إجمالي المبيعات</p><p className="mt-1 text-xl font-bold">{data.totalSales.toLocaleString('ar-PS')}</p></div>
+          <div className="rounded-xl bg-muted/40 p-4"><p className="text-xs text-muted-foreground">إجمالي المبيعات</p><p className="mt-1 text-xl font-bold">{formatNumber(data.totalSales)}</p></div>
           <div className="rounded-xl bg-muted/40 p-4"><p className="text-xs text-muted-foreground">التقييم</p><p className="mt-1 text-xl font-bold">{data.averageRating.toFixed(1)} ★</p></div>
-          <div className="rounded-xl bg-muted/40 p-4"><p className="text-xs text-muted-foreground">آخر مبيعة</p><p className="mt-1 text-sm font-semibold">{data.lastSaleAt ? new Date(data.lastSaleAt).toLocaleDateString('ar-PS', { timeZone: 'Asia/Gaza' }) : 'لا توجد'}</p></div>
+          <div className="rounded-xl bg-muted/40 p-4"><p className="text-xs text-muted-foreground">آخر مبيعة</p><p className="mt-1 text-sm font-semibold">{data.lastSaleAt ? formatShortDate(data.lastSaleAt) : 'لا توجد'}</p></div>
         </div>
         <div className="mt-5 flex flex-wrap gap-2">
           <IntentPrefetchLink href={`/stores/${data.storeId}`} className="rounded-lg border px-4 py-2 text-sm" prefetch={false}>عرض المتجر</IntentPrefetchLink>

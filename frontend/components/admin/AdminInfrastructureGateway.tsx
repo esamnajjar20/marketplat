@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { AdminPageShell } from '@/components/admin/AdminPageShell';
 import { useAuthStore } from '@/store/auth.store';
+import { formatTimestamp } from '@/lib/formatters';
 
 type GatewayServer = {
   id: string;
@@ -148,7 +149,7 @@ function distributeGoShares(targets: GoServiceServer[], totalPercent: number): M
 function formatDate(value?: string | null): string {
   if (!value) return 'لم يتم الحفظ بعد';
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'وقت غير معروف' : date.toLocaleString('ar-PS');
+  return Number.isNaN(date.getTime()) ? 'وقت غير معروف' : formatTimestamp(date);
 }
 
 function formatRetryAt(value: number | null): string {
@@ -160,7 +161,7 @@ function formatRetryAt(value: number | null): string {
 function StatusPill({ healthy, label }: { healthy: boolean | null; label?: string }) {
   if (healthy === null) return <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-muted-foreground"><CircleHelp className="h-3.5 w-3.5" />{label || 'لم يُفحص'}</span>;
   return healthy
-    ? <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300"><CheckCircle2 className="h-3.5 w-3.5" />{label || 'سليم'}</span>
+    ? <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2.5 py-1 text-xs font-semibold text-success "><CheckCircle2 className="h-3.5 w-3.5" />{label || 'سليم'}</span>
     : <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive"><AlertCircle className="h-3.5 w-3.5" />{label || 'غير سليم'}</span>;
 }
 
@@ -714,9 +715,9 @@ export function AdminInfrastructureGateway() {
     >
       <div className="space-y-5" dir="rtl">
         {error && <div role="alert" className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />{error}</div>}
-        {notice && <div role="status" className="flex items-start gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3 text-sm text-emerald-700 dark:text-emerald-300"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />{notice}</div>}
-        {registryBootstrap && <div role="status" className="flex items-start gap-2 rounded-xl border border-sky-500/30 bg-sky-500/5 p-3 text-sm text-sky-900 dark:text-sky-100"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-semibold">السجل المركزي فارغ وجاهز للتهيئة</p><p className="mt-1 leading-6">أكد المنسّق المركزي عدم وجود سجل محفوظ؛ يمكنك إعداد المجموعة وحفظها كإصدار أول. لا يظهر هذا الخيار عند تعذر الاتصال بالمنسّق.</p></div></div>}
-        {registryReadOnly && <div role="alert" className="flex items-start gap-2 rounded-xl border border-amber-500/35 bg-amber-500/10 p-3 text-sm text-amber-900 dark:text-amber-100"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-semibold">السجل في وضع الاستعادة — القراءة فقط</p><p className="mt-1 leading-6">المصدر الحالي {source === 'kv' ? 'نسخة Workers KV الاحتياطية' : source === 'd1' ? 'نسخة D1 الاحتياطية' : 'إعداد fallback الافتراضي'}، وليس Durable Object المركزي. تم تعطيل تعديل إعدادات الخوادم والحفظ لمنع استبدال سجل أحدث بنسخة احتياطية قديمة. أعد التحديث بعد استعادة المنسّق المركزي.</p></div></div>}
+        {notice && <div role="status" className="flex items-start gap-2 rounded-xl border border-success/25 bg-success/5 p-3 text-sm text-success "><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />{notice}</div>}
+        {registryBootstrap && <div role="status" className="flex items-start gap-2 rounded-xl border border-info/30 bg-info/5 p-3 text-sm text-info "><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-semibold">السجل المركزي فارغ وجاهز للتهيئة</p><p className="mt-1 leading-6">أكد المنسّق المركزي عدم وجود سجل محفوظ؛ يمكنك إعداد المجموعة وحفظها كإصدار أول. لا يظهر هذا الخيار عند تعذر الاتصال بالمنسّق.</p></div></div>}
+        {registryReadOnly && <div role="alert" className="flex items-start gap-2 rounded-xl border border-warning/35 bg-warning/10 p-3 text-sm text-warning-strong dark:text-warning"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><div><p className="font-semibold">السجل في وضع الاستعادة — القراءة فقط</p><p className="mt-1 leading-6">المصدر الحالي {source === 'kv' ? 'نسخة Workers KV الاحتياطية' : source === 'd1' ? 'نسخة D1 الاحتياطية' : 'إعداد fallback الافتراضي'}، وليس Durable Object المركزي. تم تعطيل تعديل إعدادات الخوادم والحفظ لمنع استبدال سجل أحدث بنسخة احتياطية قديمة. أعد التحديث بعد استعادة المنسّق المركزي.</p></div></div>}
 
         <fieldset disabled={!canSaveRegistry || loading || saving} className="m-0 min-w-0 space-y-5 border-0 p-0">
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6" aria-label="ملخص البوابة">
@@ -748,7 +749,7 @@ export function AdminInfrastructureGateway() {
                   <article key={server.id} className={`rounded-xl border p-3 sm:p-4 ${server.enabled ? 'bg-background' : 'bg-muted/30 opacity-80'}`}>
                     <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                       <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{server.id}</h3><StatusPill healthy={server.enabled ? isHealthy : null} label={!server.enabled ? 'معطّل' : undefined} />{local?.quarantined && <span className="rounded-full bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">Build Mismatch · معزول</span>}{!local?.quarantined && local?.circuit === 'open' && <span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">Circuit Open · {formatRetryAt(local.retryAt)}</span>}</div>
+                        <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{server.id}</h3><StatusPill healthy={server.enabled ? isHealthy : null} label={!server.enabled ? 'معطّل' : undefined} />{local?.quarantined && <span className="rounded-full bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">Build Mismatch · معزول</span>}{!local?.quarantined && local?.circuit === 'open' && <span className="rounded-full bg-warning/10 px-2 py-1 text-xs font-semibold text-warning-strong dark:text-warning">Circuit Open · {formatRetryAt(local.retryAt)}</span>}</div>
                         <p className="break-all text-xs text-muted-foreground" dir="ltr">{server.url}</p>
                         {(server.provider || server.region) && <p className="text-2xs-tight text-muted-foreground">Provider: {server.provider || 'غير محدد'} · Region: {server.region || 'غير محدد'}</p>}
                         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${server.enabled ? normalizedWeight : 0}%` }} /></div>
@@ -769,7 +770,7 @@ export function AdminInfrastructureGateway() {
                         <label className="flex min-w-28 flex-col gap-1 text-xs text-muted-foreground">مهلة الطلب (ms)
                           <input type="number" min={1000} max={30000} step={500} value={server.timeoutMs ?? 20000} onChange={(event) => updateServer(server.id, { timeoutMs: Number(event.target.value) })} className="h-10 w-full rounded-lg border bg-background px-2 text-sm text-foreground" aria-label={`مهلة ${server.id}`} />
                         </label>
-                        <button type="button" onClick={() => toggleServer(server)} className={`h-10 rounded-lg border px-3 text-sm font-medium ${server.enabled ? 'hover:bg-muted' : 'border-emerald-500/30 text-emerald-700 dark:text-emerald-300'}`}>{server.enabled ? 'تعطيل' : 'تفعيل'}</button>
+                        <button type="button" onClick={() => toggleServer(server)} className={`h-10 rounded-lg border px-3 text-sm font-medium ${server.enabled ? 'hover:bg-muted' : 'border-success/30 text-success '}`}>{server.enabled ? 'تعطيل' : 'تفعيل'}</button>
                         <button type="button" onClick={() => removeServer(server)} className="inline-flex h-10 items-center justify-center gap-1 rounded-lg border border-destructive/25 px-3 text-sm text-destructive hover:bg-destructive/5" aria-label={`إزالة ${server.id}`}><Trash2 className="h-4 w-4" /> إزالة</button>
                       </div>
                     </div>
@@ -815,7 +816,7 @@ export function AdminInfrastructureGateway() {
             <div>
               <h2 className="text-lg font-bold">مجموعة خوادم Frontend</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">توجّه طلبات الموقع العام إلى أي أصول HTTPS متوافقة، بغض النظر عن مزوّد الاستضافة. تثبيت الجلسة على أصل واحد يحافظ على توافق HTML وRSC وServer Actions وملفات الإصدار.</p>
-              <p className="mt-1 text-xs leading-5 text-amber-700 dark:text-amber-300">جميع الأصول المفعّلة في المجموعة يجب أن تطابق Build ID نفسه. التوجيه لا يعمل على نطاق الموقع حتى تضيف نطاقه إلى FRONTEND_GATEWAY_HOSTS وتوجّه Route ذلك النطاق إلى هذا Worker.</p>
+              <p className="mt-1 text-xs leading-5 text-warning-strong dark:text-warning">جميع الأصول المفعّلة في المجموعة يجب أن تطابق Build ID نفسه. التوجيه لا يعمل على نطاق الموقع حتى تضيف نطاقه إلى FRONTEND_GATEWAY_HOSTS وتوجّه Route ذلك النطاق إلى هذا Worker.</p>
             </div>
           </div>
 
@@ -831,7 +832,7 @@ export function AdminInfrastructureGateway() {
                   <article key={server.id} className={`rounded-xl border p-3 sm:p-4 ${server.enabled ? 'bg-background' : 'bg-muted/30 opacity-80'}`}>
                     <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                       <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{server.id}</h3><StatusPill healthy={server.enabled ? isHealthy : null} label={!server.enabled ? 'معطّل' : undefined} />{local?.quarantined && <span className="rounded-full bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">Build Mismatch · معزول</span>}{!local?.quarantined && local?.circuit === 'open' && <span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">Circuit Open · {formatRetryAt(local.retryAt)}</span>}</div>
+                        <div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold">{server.id}</h3><StatusPill healthy={server.enabled ? isHealthy : null} label={!server.enabled ? 'معطّل' : undefined} />{local?.quarantined && <span className="rounded-full bg-destructive/10 px-2 py-1 text-xs font-semibold text-destructive">Build Mismatch · معزول</span>}{!local?.quarantined && local?.circuit === 'open' && <span className="rounded-full bg-warning/10 px-2 py-1 text-xs font-semibold text-warning-strong dark:text-warning">Circuit Open · {formatRetryAt(local.retryAt)}</span>}</div>
                         <p className="break-all text-xs text-muted-foreground" dir="ltr">{server.url}</p>
                         <p className="text-xs text-muted-foreground" dir="ltr">Build ID: {server.buildId} · Provider: {server.provider || 'غير محدد'} · Region: {server.region || 'غير محدد'}</p>
                         <p className="text-2xs-tight text-muted-foreground">حصة داخل الأولوية {server.priority ?? 100}: {server.enabled ? `${normalizedWeight.toFixed(1)}%` : '0%'} · الوزن {server.weight} · الأولوية {server.priority ?? 100} · المهلة {server.timeoutMs ?? 20000}ms · {server.healthPath || '/build-id.json'} · {server.releasePath || '/build-id.json'}</p>
@@ -856,7 +857,7 @@ export function AdminInfrastructureGateway() {
                         <label className="flex min-w-32 flex-col gap-1 text-xs text-muted-foreground">Release Path
                           <input value={server.releasePath || '/build-id.json'} onChange={(event) => updateFrontendServer(server.id, { releasePath: event.target.value })} className="h-10 w-full rounded-lg border bg-background px-2 text-left text-xs text-foreground" dir="ltr" aria-label={`Release Path ${server.id}`} />
                         </label>
-                        <button type="button" onClick={() => toggleFrontendServer(server)} className={`h-10 rounded-lg border px-3 text-sm font-medium ${server.enabled ? 'hover:bg-muted' : 'border-emerald-500/30 text-emerald-700 dark:text-emerald-300'}`}>{server.enabled ? 'تعطيل' : 'تفعيل'}</button>
+                        <button type="button" onClick={() => toggleFrontendServer(server)} className={`h-10 rounded-lg border px-3 text-sm font-medium ${server.enabled ? 'hover:bg-muted' : 'border-success/30 text-success '}`}>{server.enabled ? 'تعطيل' : 'تفعيل'}</button>
                         <button type="button" onClick={() => removeFrontendServer(server)} className="inline-flex h-10 items-center justify-center gap-1 rounded-lg border border-destructive/25 px-3 text-sm text-destructive hover:bg-destructive/5" aria-label={`إزالة Frontend ${server.id}`}><Trash2 className="h-4 w-4" /> إزالة</button>
                       </div>
                     </div>
@@ -903,7 +904,7 @@ export function AdminInfrastructureGateway() {
 
         <section className="rounded-2xl border bg-card p-4 sm:p-5">
           <div className="mb-4 flex items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"><Server className="h-5 w-5" /></span>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-success/10 text-success "><Server className="h-5 w-5" /></span>
             <div>
               <h2 className="text-lg font-bold">مجموعة خدمات Go Worker</h2>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">أضف خدمات Go مستقلة بمسارات داخلية مختلفة، أو أضف أكثر من نسخة تشغيل للخدمة نفسها باستخدام serviceKey وRoute Prefix متطابقين. تُوجّه الطلبات عبر <code dir="ltr">/__go</code> إلى أكثر مسار مطابق تحديدًا.</p>
@@ -939,14 +940,14 @@ export function AdminInfrastructureGateway() {
                       <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-semibold" dir="ltr">{server.id}</h3>
-                          <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300" dir="ltr">{server.serviceKey}</span>
+                          <span className="rounded-full bg-success/10 px-2 py-1 text-xs font-semibold text-success " dir="ltr">{server.serviceKey}</span>
                           <StatusPill healthy={server.enabled ? isHealthy : null} label={!server.enabled ? 'معطّل' : undefined} />
-                          {local?.circuit === 'open' && <span className="rounded-full bg-amber-500/10 px-2 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">Circuit Open · {formatRetryAt(local.retryAt)}</span>}
+                          {local?.circuit === 'open' && <span className="rounded-full bg-warning/10 px-2 py-1 text-xs font-semibold text-warning-strong dark:text-warning">Circuit Open · {formatRetryAt(local.retryAt)}</span>}
                         </div>
                         <p className="break-all text-xs text-muted-foreground" dir="ltr">{server.url}</p>
                         <p className="text-xs text-muted-foreground" dir="ltr">{server.routePrefix} → {server.upstreamPrefix}</p>
                         {(server.provider || server.region) && <p className="text-2xs-tight text-muted-foreground">Provider: {server.provider || 'غير محدد'} · Region: {server.region || 'غير محدد'}</p>}
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-emerald-600 transition-all" style={{ width: `${normalizedWeight}%` }} /></div>
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-success transition-all" style={{ width: `${normalizedWeight}%` }} /></div>
                         <p className="text-2xs-tight text-muted-foreground">الحصة اليدوية: {Number(server.manualSharePercent ?? normalizedWeight).toFixed(1)}% · الحصة المعدّلة حاليًا: {local?.effectiveSharePercent != null ? `${local.effectiveSharePercent.toFixed(1)}%` : 'بانتظار بيانات كافية'} · {server.enabled ? `الحصة اليدوية المطبّعة للنسخ المفعّلة: ${normalizedWeight.toFixed(1)}%` : 'النسخة معطّلة'}</p>
                         {local && (local.sampleCount || 0) > 0 && <p className="text-2xs-tight text-muted-foreground">متوسط الاستجابة المتحرك: {local.ewmaDurationMs != null ? `${Math.round(local.ewmaDurationMs)} ms` : 'غير متاح'} · آخر أعمال نشطة مرصودة: {local.activeRequests ?? 'غير متاح'} · متوسط الأعمال النشطة: {local.ewmaActiveRequests != null ? local.ewmaActiveRequests.toFixed(1) : 'غير متاح'} · معدل الإخفاقات: {local.errorRate != null ? `${(local.errorRate * 100).toFixed(1)}%` : 'غير متاح'} · العينات: {local.sampleCount}</p>}
                         {local && <p className="text-xs text-muted-foreground">قاطع الدائرة: {local.circuit === 'open' ? 'مفتوح' : 'مغلق'} · الإخفاقات: {local.failures}</p>}
@@ -965,7 +966,7 @@ export function AdminInfrastructureGateway() {
                         <label className="flex min-w-32 flex-col gap-1 text-xs text-muted-foreground">المهلة (ms)
                           <input type="number" min={1000} max={600000} step={1000} value={server.timeoutMs ?? 540000} onChange={(event) => updateGoServiceTarget(server.id, { timeoutMs: Number(event.target.value) })} className="h-10 w-full rounded-lg border bg-background px-2 text-sm text-foreground" aria-label={`مهلة Go ${server.id}`} />
                         </label>
-                        <button type="button" onClick={() => toggleGoServiceTarget(server)} className={`h-10 rounded-lg border px-3 text-sm font-medium ${server.enabled ? 'hover:bg-muted' : 'border-emerald-500/30 text-emerald-700 dark:text-emerald-300'}`}>{server.enabled ? 'تعطيل' : 'تفعيل'}</button>
+                        <button type="button" onClick={() => toggleGoServiceTarget(server)} className={`h-10 rounded-lg border px-3 text-sm font-medium ${server.enabled ? 'hover:bg-muted' : 'border-success/30 text-success '}`}>{server.enabled ? 'تعطيل' : 'تفعيل'}</button>
                         <button type="button" onClick={() => removeGoServiceTarget(server)} className="inline-flex h-10 items-center justify-center gap-1 rounded-lg border border-destructive/25 px-3 text-sm text-destructive hover:bg-destructive/5" aria-label={`إزالة Go target ${server.id}`}><Trash2 className="h-4 w-4" /> إزالة</button>
                       </div>
                     </div>
@@ -1036,14 +1037,14 @@ export function AdminInfrastructureGateway() {
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><Clock3 className="h-4 w-4" />{probeCheckedAt ? `آخر فحص: ${formatDate(probeCheckedAt)}` : 'لم يُنفّذ فحص يدوي بعد'}</div>
             <p className="mt-2 text-xs text-muted-foreground">نطاق سجل الصحة: {healthScope === 'central-durable-object' ? 'مركزي ومشترك بين نسخ Worker' : 'محلي لنسخة Worker الحالية'}.</p>
             <p className="mt-2 text-xs leading-5 text-muted-foreground">الفحص اليدوي ينطلق من موقع Cloudflare الذي نفذ طلب الإدارة؛ لكن النتيجة والحالة المسجلة تُحفظان مركزيًا وتظهران لنسخ Worker الأخرى. لا تُنفّذ أي فحوص دورية تلقائية.</p>
-            {propagation && <p className="mt-3 rounded-lg bg-amber-500/10 p-3 text-xs leading-5 text-amber-800 dark:text-amber-200">{propagation}</p>}
+            {propagation && <p className="mt-3 rounded-lg bg-warning/10 p-3 text-xs leading-5 text-warning-strong dark:text-warning">{propagation}</p>}
           </div>
         </section>
 
         <section className="rounded-xl border bg-card p-4">
           <div className="flex flex-wrap items-center gap-2"><WifiOff className="h-4 w-4 text-muted-foreground" /><h2 className="text-sm font-semibold">معلومات مهمة</h2></div>
           <p className="mt-2 text-xs leading-5 text-muted-foreground">إضافة أصل هنا لا تنشئ خدمة أو قاعدة بيانات جديدة. كل Backend يجب أن يطابق عقد API ويتشارك PostgreSQL وRedis ومخطط Prisma المتوافق. وكل Frontend يجب أن يخدم بناء Next.js نفسه مع مفاتيح الجلسات وServer Actions المتوافقة. خدمات Go تُسجّل بمفتاح خدمة ومسار داخلي؛ افتراضيًا تستخدم GO_WORKER_TOKEN، ويمكن عزل رمز كل serviceKey عبر سر GO_WORKER_TOKENS_JSON، وتشارك النسخ التابعة للخدمة رمزها. كما يلزم ربط اسم النطاق العام بالـ Worker مرة واحدة من إعدادات Cloudflare؛ إضافة الأصل وحدها لا تنشئ DNS أو Route.</p>
-          {isDirty && <p className="mt-2 text-xs font-semibold text-amber-700 dark:text-amber-300" aria-live="polite">لديك تغييرات محلية غير محفوظة. اضغط «حفظ التغييرات» لتطبيقها.</p>}
+          {isDirty && <p className="mt-2 text-xs font-semibold text-warning-strong dark:text-warning" aria-live="polite">لديك تغييرات محلية غير محفوظة. اضغط «حفظ التغييرات» لتطبيقها.</p>}
         </section>
         </fieldset>
       </div>

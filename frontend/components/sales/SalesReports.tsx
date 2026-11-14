@@ -7,6 +7,7 @@ import { salesApi } from '@/api/sales.api';
 import { Button } from '@/components/ui/button';
 import { useSalesReport } from '@/hooks/queries/useSales';
 import type { SalePaymentStatus } from '@/types/sale.types';
+import { formatShortDate } from '@/lib/formatters';
 
 const money = (value: number) => Number(value || 0).toFixed(2);
 
@@ -144,7 +145,7 @@ export function SalesReports() {
                   <tr key={row.id} className="border-t">
                     <td className="px-3 py-3 font-medium">{row.invoiceNumber ?? '—'}</td>
                     <td className="px-3 py-3">
-                      {new Date(row.soldAt).toLocaleDateString('ar-PS', { timeZone: 'Asia/Gaza' })}
+                      {formatShortDate(row.soldAt)}
                     </td>
                     <td className="px-3 py-3">{row.buyerName}</td>
                     <td className="px-3 py-3">{row.title}</td>

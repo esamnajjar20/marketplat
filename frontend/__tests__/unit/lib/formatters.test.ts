@@ -19,6 +19,13 @@ import {
   truncate,
   formatPhone,
   formatFileSize,
+  formatMoney,
+  formatTimestamp,
+  formatShortDate,
+  formatClockTime,
+  formatNumber,
+  formatPercent,
+  formatDateTimeMedium,
 } from '@/lib/formatters';
 
 // ── formatPrice ───────────────────────────────────────────────────
@@ -301,5 +308,66 @@ describe('formatFileSize', () => {
     for (const n of [0, 1, 1023, 1024, 1048576, 1073741824]) {
       expect(formatFileSize(n).length).toBeGreaterThan(0);
     }
+  });
+});
+
+// ── formatMoney (unified sales money: fixed 2 decimals + ₪) ───────
+describe('formatMoney', () => {
+  it('formats strings and numbers with 2 decimals, grouping and currency', () => {
+    expect(formatMoney('12345.5')).toBe('12,345.50 ₪');
+    expect(formatMoney(0)).toBe('0.00 ₪');
+    expect(formatMoney(99.999)).toBe('100.00 ₪');
+  });
+  it('treats null/undefined/NaN as zero instead of throwing', () => {
+    expect(formatMoney(null)).toBe('0.00 ₪');
+    expect(formatMoney(undefined)).toBe('0.00 ₪');
+    expect(formatMoney('abc')).toBe('0.00 ₪');
+  });
+  it('supports a custom currency', () => {
+    expect(formatMoney(5, '$')).toBe('5.00 $');
+  });
+});
+
+// ── Gaza-timezone timestamp helpers ───────────────────────────────
+describe('formatTimestamp / formatShortDate / formatClockTime', () => {
+  it.each([null, undefined, '', 'not-a-date'])('returns an em dash for %p', (v) => {
+    expect(formatTimestamp(v as never)).toBe('—');
+    expect(formatShortDate(v as never)).toBe('—');
+    expect(formatClockTime(v as never)).toBe('—');
+  });
+  it('accepts ISO strings, epoch ms and Date objects and agrees across them', () => {
+    const iso = '2026-08-05T09:30:00.000Z';
+    const asDate = new Date(iso);
+    expect(formatTimestamp(iso)).toBe(formatTimestamp(asDate));
+    expect(formatTimestamp(asDate.getTime())).toBe(formatTimestamp(iso));
+    expect(formatTimestamp(iso)).not.toBe('—');
+  });
+  it('renders in Asia/Gaza regardless of the runner timezone', () => {
+    const d = new Date('2026-08-05T21:30:00.000Z');
+    expect(formatShortDate(d)).toBe(
+      d.toLocaleDateString('ar-PS', { timeZone: 'Asia/Gaza' }),
+    );
+  });
+});
+
+describe('formatNumber / formatPercent (Latin digits, never mixed with Arabic-Indic)', () => {
+  it('formats counts with Latin digits and grouping', () => {
+    expect(formatNumber(12000)).toBe('12,000');
+    expect(formatNumber(0)).toBe('0');
+    expect(formatNumber(null)).toBe('--');
+    expect(formatNumber(Number.NaN)).toBe('--');
+    expect(formatNumber(1234)).not.toMatch(/[\u0660-\u0669]/);
+  });
+  it('formats ratios as percentages with up to 1 decimal', () => {
+    expect(formatPercent(0.256)).toBe('25.6%');
+    expect(formatPercent(0)).toBe('0%');
+    expect(formatPercent(null)).toBe('--');
+  });
+});
+
+describe('formatDateTimeMedium', () => {
+  it('returns a dash for invalid input and a non-empty string otherwise', () => {
+    expect(formatDateTimeMedium('nope')).toBe('—');
+    expect(formatDateTimeMedium('2026-08-05T09:30:00.000Z')).not.toBe('—');
   });
 });

@@ -28,6 +28,7 @@ import { ListDataStatus } from '@/components/shared/feedback/ListDataStatus';
 import { REQUEST_TYPE_LABEL } from '@/lib/requestStatus';
 import { cn } from '@/lib/utils';
 import type { OpenRequestsPageParams } from './RequestsPageShell';
+import { formatNumber } from '@/lib/formatters';
 
 const TYPE_CHIPS: Array<{
   value: RequestType | undefined;
@@ -122,7 +123,7 @@ export function RequestsPageClient({ params: initialParams }: { params: OpenRequ
 
   const totalLabel =
     !isLoading && typeof total === 'number' && total > 0
-      ? `${total.toLocaleString('ar')} طلب مفتوح`
+      ? `${formatNumber(total)} طلب مفتوح`
       : undefined;
 
   return (

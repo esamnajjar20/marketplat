@@ -10,6 +10,7 @@ import { Button } from '@/components/shared/ui/Button';
 import { REQUEST_OFFER_STATUS_LABEL } from '@/lib/requestStatus';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
+import { formatNumber } from '@/lib/formatters';
 
 const MAX_MESSAGE_LENGTH = 1000;
 
@@ -162,7 +163,7 @@ export function RequestOfferForm({ requestId, myOffer }: Props) {
         <p className="rounded-lg bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           معاينة:{' '}
           <span className="font-semibold text-foreground tabular-nums">
-            {Number(price).toLocaleString('ar')} ₪
+            {formatNumber(Number(price))} ₪
           </span>
           {message.trim() ? ' — مع رسالة مرفقة' : ''}
         </p>

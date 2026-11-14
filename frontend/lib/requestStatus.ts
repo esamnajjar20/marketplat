@@ -1,4 +1,5 @@
 import type { RequestOfferStatus, RequestStatus, RequestType } from '@/types/request.types';
+import { formatNumber } from '@/lib/formatters';
 
 export const REQUEST_STATUS_LABEL: Record<RequestStatus, string> = {
   OPEN: 'مفتوح',
@@ -65,7 +66,7 @@ export function formatRequestBudget(
   const fmt = (v: string | number) => {
     const n = typeof v === 'number' ? v : Number(v);
     if (Number.isFinite(n)) {
-      return `${n.toLocaleString('ar')} ₪`;
+      return `${formatNumber(n)} ₪`;
     }
     return `${v} ₪`;
   };

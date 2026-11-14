@@ -38,6 +38,7 @@ import {
 
 import { Spinner } from '@/components/ui/spinner';
 import { DeleteReadNotificationsAction } from '@/components/notifications/DeleteReadNotificationsAction';
+import { formatDateTimeMedium } from '@/lib/formatters';
 const PAGE_SIZE = 20;
 const NotificationRow = dynamic(
   () => import('@/components/notifications/NotificationRow').then((m) => m.NotificationRow),
@@ -199,10 +200,7 @@ export function NotificationsPage() {
           <WifiOff className="h-3.5 w-3.5 shrink-0" />
           أنت دون اتصال — تُعرض آخر الإشعارات المحفوظة على جهازك
           {dataUpdatedAt
-            ? ` (آخر تحديث: ${new Date(dataUpdatedAt).toLocaleString('ar-PS', {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-               timeZone: 'Asia/Gaza'})})`
+            ? ` (آخر تحديث: ${formatDateTimeMedium(dataUpdatedAt)})`
             : ''}
           .
         </p>

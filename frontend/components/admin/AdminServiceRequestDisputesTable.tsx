@@ -10,6 +10,7 @@ import { useAdminServiceRequestDisputes } from '@/hooks/queries/useAdmin';
 import { useAdminResolveServiceRequestDispute } from '@/hooks/mutations/useAdminMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { AdminServiceRequestDisputeRow } from './AdminServiceRequestDisputeRow';
+import { AdminTableFrame, ADMIN_THEAD_CLASS } from '@/components/admin/AdminTableFrame';
 
 type Row = {
   id: string; status: 'DISPUTED'; disputeReason?: string | null; disputedAt?: string | null;
@@ -29,14 +30,12 @@ export const AdminServiceRequestDisputesTable = memo(function AdminServiceReques
 
   return (
     <div className="space-y-4">
-      <div className="overflow-x-auto overscroll-x-contain rounded-xl border">
-        <table className="w-full min-w-[760px] text-sm">
-          <thead className="bg-muted/50 text-start"><tr>
+      <AdminTableFrame minWidthClass="min-w-[760px]" hiddenOnMobile={false} stickyActions={false}>
+          <thead className={ADMIN_THEAD_CLASS}><tr>
             <th className="p-3 font-medium">الطلب</th><th className="p-3 font-medium">الأطراف</th><th className="p-3 font-medium">سبب النزاع</th><th className="p-3 font-medium">التاريخ</th><th className="p-3" />
           </tr></thead>
           <tbody>{items.map((r) => <AdminServiceRequestDisputeRow key={r.id} row={r} onResolve={(id, resolution) => setTarget({ id, resolution })} />)}</tbody>
-        </table>
-      </div>
+      </AdminTableFrame>
       <ConfirmDialog
         open={Boolean(target)} onOpenChange={(open) => { if (!open) setTarget(null); }}
         title={target?.resolution === 'COMPLETED' ? 'اعتماد إتمام الخدمة؟' : 'إلغاء الطلب محل النزاع؟'}

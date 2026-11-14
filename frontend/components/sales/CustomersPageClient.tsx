@@ -9,6 +9,7 @@ import { Badge } from '@/components/shared/ui/Badge';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { formatMoney, formatShortDate } from '@/lib/formatters';
 
 export default function CustomersPage() {
   const [q, setQ] = useState('');
@@ -46,7 +47,7 @@ export default function CustomersPage() {
     </header>
     {overview.data?.failures.summary ? <p className="text-sm text-destructive" role="status">تعذر تحميل إحصائيات العملاء.</p> : null}
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-      {[['العملاء', summary?.totalCustomers ?? 0], ['VIP', summary?.vipCustomers ?? 0], ['مدينون', summary?.debtors ?? 0], ['غير نشطين', summary?.inactiveCustomers ?? 0], ['إجمالي المشتريات', `${(summary?.totalSpent ?? 0).toFixed(2)} ₪`], ['متوسط العميل', `${(summary?.averageCustomerSpend ?? 0).toFixed(2)} ₪`]].map(([label, value]) => <div key={String(label)} className="rounded-xl border bg-card p-4">
+      {[['العملاء', summary?.totalCustomers ?? 0], ['VIP', summary?.vipCustomers ?? 0], ['مدينون', summary?.debtors ?? 0], ['غير نشطين', summary?.inactiveCustomers ?? 0], ['إجمالي المشتريات', `${formatMoney((summary?.totalSpent ?? 0))}`], ['متوسط العميل', `${formatMoney((summary?.averageCustomerSpend ?? 0))}`]].map(([label, value]) => <div key={String(label)} className="rounded-xl border bg-card p-4">
         <span className="text-xs text-muted-foreground">
           {label}
         </span>
@@ -78,7 +79,7 @@ export default function CustomersPage() {
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {c.email || 'بدون بريد'}
-              {c.lastPurchaseAt ? ` · آخر شراء ${new Date(c.lastPurchaseAt).toLocaleDateString('ar-PS', { timeZone: 'Asia/Gaza' })}` : ''}
+              {c.lastPurchaseAt ? ` · آخر شراء ${formatShortDate(c.lastPurchaseAt)}` : ''}
             </p>
           </div>
           <div className="flex gap-1">
@@ -89,11 +90,11 @@ export default function CustomersPage() {
         <div className="mt-4 grid grid-cols-3 gap-2 text-sm">
           <div>
             <span className="text-muted-foreground">المشتريات</span>
-            <strong className="block">{Number(c.totalSpent).toFixed(2)} ₪</strong>
+            <strong className="block">{formatMoney(Number(c.totalSpent))}</strong>
           </div>
           <div>
             <span className="text-muted-foreground">الدين</span>
-            <strong className="block">{Number(c.totalDue).toFixed(2)} ₪</strong>
+            <strong className="block">{formatMoney(Number(c.totalDue))}</strong>
           </div>
           <div>
             <span className="text-muted-foreground">العمليات</span>

@@ -10,7 +10,7 @@ import { AddPaymentDialog } from './payments/AddPaymentDialog';
 import { ReturnSaleDialog } from './ReturnSaleDialog';
 import { PaymentStatusBadge } from './payments/PaymentStatusBadge';
 import type { SaleRecord } from '@/types/sale.types';
-import { formatDate } from '@/lib/formatters';
+import { formatDate, formatMoney } from '@/lib/formatters';
 import { cn } from '@/lib/utils';
 
 const typeLabel: Record<SaleRecord['entityType'], string> = {
@@ -55,16 +55,16 @@ export function SaleCard({ sale }: { sale: SaleRecord }) {
         <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
           <div>
             <p className="text-2xs-tight text-muted-foreground">الإجمالي</p>
-            <p className="font-extrabold tabular-nums">{net.toFixed(2)} ₪</p>
+            <p className="font-extrabold tabular-nums">{formatMoney(net)}</p>
           </div>
           <div>
             <p className="text-2xs-tight text-muted-foreground">المدفوع</p>
-            <p className="font-extrabold tabular-nums">{Number(sale.paidAmount).toFixed(2)} ₪</p>
+            <p className="font-extrabold tabular-nums">{formatMoney(Number(sale.paidAmount))}</p>
           </div>
           <div>
             <p className="text-2xs-tight text-muted-foreground">المتبقي</p>
             <p className={cn('font-extrabold tabular-nums', due > 0 && 'text-destructive')}>
-              {due.toFixed(2)} ₪
+              {formatMoney(due)}
             </p>
           </div>
           <div>
@@ -74,7 +74,7 @@ export function SaleCard({ sale }: { sale: SaleRecord }) {
           {costSettings?.enabled !== false && sale.costPrice != null ? (
             <div>
               <p className="text-2xs-tight text-muted-foreground">الربح</p>
-              <p className="font-extrabold tabular-nums text-primary">{profit.toFixed(2)} ₪</p>
+              <p className="font-extrabold tabular-nums text-primary">{formatMoney(profit)}</p>
             </div>
           ) : null}
         </div>

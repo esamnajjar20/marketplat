@@ -11,6 +11,7 @@ import { ROUTES, APP_NAME } from '@/lib/constants';
 import type { ProductWithStore } from '@/types/product.types';
 import type { PaginationMeta } from '@/types/api.types';
 import { buildMetadata } from '@/lib/seo';
+import { formatNumber } from '@/lib/formatters';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,7 +60,7 @@ export default async function PromotedPage() {
                 منتجات بخصومات وعروض من متاجر سوق غزة — تُحدَّث باستمرار.
               </p>
               {typeof meta?.total === 'number' && meta.total > 0 && (
-                <p className="text-xs text-muted-foreground">{meta.total.toLocaleString('ar')} منتج مُروَّج</p>
+                <p className="text-xs text-muted-foreground">{formatNumber(meta.total)} منتج مُروَّج</p>
               )}
             </div>
             <div className="flex flex-wrap gap-2">

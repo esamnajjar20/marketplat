@@ -31,6 +31,7 @@ import {
 } from '@/lib/shareQr';
 
 import { Spinner } from '@/components/ui/spinner';
+import { copyToClipboard } from '@/lib/copyToClipboard';
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -110,7 +111,7 @@ export function ShareAdQrDialog({ open, onOpenChange, payload }: Props) {
         typeof window !== 'undefined' ? window.location.origin : '',
         encoded,
       );
-      await navigator.clipboard.writeText(url);
+      if (!(await copyToClipboard(url))) throw new Error('copy failed');
       toast.success('تم نسخ رابط المشاركة');
     } catch {
       toast.error('تعذّر نسخ الرابط');

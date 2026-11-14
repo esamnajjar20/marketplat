@@ -12,6 +12,7 @@ import { MixedPaymentForm, type PaymentPart } from './payments/MixedPaymentForm'
 import { InstallmentForm, type InstallmentDraft } from './payments/InstallmentForm';
 import type { ProductWithStore } from '@/types/product.types';
 import type { SaleTransferMethod } from '@/types/sale.types';
+import { formatMoney } from '@/lib/formatters';
 
 type CartLine = { product: ProductWithStore; quantity: number; unitPrice: number; discount: number };
 const n = (v: string | number | null | undefined) => Number(v ?? 0);
@@ -133,7 +134,7 @@ export function POSDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
                 <strong className="line-clamp-2">
                   {product.name}
                 </strong>
-                <span className="shrink-0 text-sm">{n(product.effectivePrice?.price ?? product.price).toFixed(2)} ₪</span>
+                <span className="shrink-0 text-sm">{formatMoney(n(product.effectivePrice?.price ?? product.price))}</span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">المخزون: {product.stockQuantity ?? 'غير محدد'}</p>
               {product.stockQuantity != null && product.stockQuantity <= 0 ? <span className="mt-2 inline-block text-xs text-destructive">نفد المخزون</span> : null}
@@ -164,7 +165,7 @@ export function POSDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
                 <Input type="number" min="1" value={line.quantity} onChange={(e) => changeQty(line.product.id, n(e.target.value))} aria-label="الكمية" />
                 <Input type="number" min="0" step="0.01" value={line.unitPrice} onChange={(e) => changePrice(line.product.id, n(e.target.value))} aria-label="السعر" />
                 <Input type="number" min="0" step="0.01" value={line.discount} onChange={(e) => changeDiscount(line.product.id, n(e.target.value))} aria-label="الخصم" />
-                <strong className="text-sm">{(Math.max(0, line.unitPrice - line.discount) * line.quantity).toFixed(2)} ₪</strong>
+                <strong className="text-sm">{formatMoney((Math.max(0, line.unitPrice - line.discount) * line.quantity))}</strong>
                 <Button variant="ghost" size="icon" onClick={() => remove(line.product.id)} aria-label="حذف">
                   <Trash2 className="h-4 w-4" />
                 </Button>
@@ -217,25 +218,25 @@ export function POSDialog({ open, onOpenChange }: { open: boolean; onOpenChange:
                 <option value="CARD">بطاقة</option>
                 <option value="OTHER">أخرى</option>
               </select>
-              <div className="rounded-lg bg-muted/40 p-2 text-sm">المدفوع: <strong>{total.toFixed(2)} ₪</strong></div>
+              <div className="rounded-lg bg-muted/40 p-2 text-sm">المدفوع: <strong>{formatMoney(total)}</strong></div>
             </div> : null}
             {paymentMode === 'partial' ? <div className="mt-3">
               <MixedPaymentForm payments={payments} onChange={setPayments} total={total} />
             </div> : null}
             {paymentMode === 'installments' ? <div className="mt-3">
               <InstallmentForm due={total} onChange={setInstallments} />
-              <p className="mt-2 text-xs text-muted-foreground">مجموع الأقساط: {installmentTotal.toFixed(2)} ₪</p>
+              <p className="mt-2 text-xs text-muted-foreground">مجموع الأقساط: {formatMoney(installmentTotal)}</p>
             </div> : null}
             <div className="mt-4 flex justify-between border-t pt-3">
               <span>المتبقي</span>
-              <strong>{due.toFixed(2)} ₪</strong>
+              <strong>{formatMoney(due)}</strong>
             </div>
           </div>
           <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="ملاحظة على الفاتورة" />
           <div className="rounded-xl border bg-muted/30 p-4">
             <div className="flex justify-between text-sm">
               <span>الإجمالي</span>
-              <strong className="text-xl">{total.toFixed(2)} ₪</strong>
+              <strong className="text-xl">{formatMoney(total)}</strong>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">الخصومات محسوبة على مستوى كل منتج.</p>
           </div>

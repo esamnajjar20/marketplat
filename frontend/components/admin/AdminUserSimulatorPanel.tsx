@@ -14,6 +14,7 @@ import {
   type UserSimulatorRun,
   type UserSimulatorScenario
 } from '@/api/admin.api';
+import { formatTimestamp } from '@/lib/formatters';
 
 const ACTIVE_STATES = new Set(['queued', 'running', 'stopping']);
 const asNumber = (value: string, fallback: number) => {
@@ -21,7 +22,7 @@ const asNumber = (value: string, fallback: number) => {
   return Number.isFinite(parsed) ? Math.trunc(parsed) : fallback;
 };
 const formatMs = (value: unknown) => typeof value === 'number' ? `${Math.round(value).toLocaleString()} ms` : '—';
-const formatDate = (value: unknown) => typeof value === 'string' ? new Date(value).toLocaleString('ar-PS') : '—';
+const formatDate = (value: unknown) => typeof value === 'string' ? formatTimestamp(value) : '—';
 const readString = (value: unknown, fallback = '—') => typeof value === 'string' && value ? value : fallback;
 const readNumber = (value: unknown) => typeof value === 'number' ? value : 0;
 
@@ -30,11 +31,11 @@ function StatusPill({ status }: { status: string }) {
   const failed = status === 'failed' || status === 'completed_with_errors';
   const active = ACTIVE_STATES.has(status);
   const className = success
-    ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700'
+    ? 'border-success/30 bg-success/10 text-success'
     : failed
-      ? 'border-red-500/30 bg-red-500/10 text-red-700'
+      ? 'border-destructive/30 bg-destructive/10 text-destructive'
       : active
-        ? 'border-blue-500/30 bg-blue-500/10 text-blue-700'
+        ? 'border-info/30 bg-info/10 text-info'
         : 'border-border bg-muted text-muted-foreground';
   const label = success ? 'مكتمل' : failed ? 'يحتاج مراجعة' : status === 'stopped' ? 'متوقف' : status === 'stopping' ? 'جارٍ الإيقاف' : status === 'queued' ? 'بالانتظار' : status === 'running' ? 'قيد التنفيذ' : status;
   return <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${className}`}>
@@ -307,8 +308,8 @@ export function AdminUserSimulatorPanel() {
   return (
     <div className="space-y-5" dir="rtl">
       {lastError && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/5 p-4 text-sm">
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+        <div className="flex items-start gap-3 rounded-xl border border-warning/40 bg-warning/5 p-4 text-sm">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-warning-strong" />
           <div className="min-w-0">
             <p className="font-semibold">محرك المحاكاة غير متاح</p>
             <p className="mt-1 break-words text-muted-foreground">
@@ -412,8 +413,8 @@ export function AdminUserSimulatorPanel() {
                     <span className="font-semibold">
                       {scenario.name}
                     </span>
-                    {scenario.writes && <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-2xs font-semibold text-amber-700">ينشئ بيانات</span>}
-                    {scenario.requiresAccount && <span className="rounded-full bg-blue-500/10 px-2 py-0.5 text-2xs font-semibold text-blue-700">حسابات {scenario.accountRole === 'seller' ? 'بائع' : scenario.accountRole === 'buyer' ? 'مشتري' : 'QA'} مطلوبة</span>}
+                    {scenario.writes && <span className="rounded-full bg-warning/10 px-2 py-0.5 text-2xs font-semibold text-warning-strong">ينشئ بيانات</span>}
+                    {scenario.requiresAccount && <span className="rounded-full bg-info/10 px-2 py-0.5 text-2xs font-semibold text-info">حسابات {scenario.accountRole === 'seller' ? 'بائع' : scenario.accountRole === 'buyer' ? 'مشتري' : 'QA'} مطلوبة</span>}
                     {(scenario.requiresSeedAd || scenario.requiresSeedSeller || scenario.requiresSeedProduct || scenario.requiresSeedService) && <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-2xs font-semibold text-violet-700">يحتاج سجلات QA مهيأة</span>}
                     {!scenario.enabled && <span className="text-2xs text-muted-foreground">معطّل</span>}
                   </div>
@@ -428,24 +429,24 @@ export function AdminUserSimulatorPanel() {
                   </div>
                   <div className="mt-2 flex gap-2">
                     <button type="button" onClick={() => openEditor(scenario)} className="text-xs font-semibold text-primary">تعديل الخطوات</button>
-                    <button type="button" onClick={() => void deleteScenario(scenario.id)} className="text-xs font-semibold text-red-600">حذف</button>
+                    <button type="button" onClick={() => void deleteScenario(scenario.id)} className="text-xs font-semibold text-destructive">حذف</button>
                   </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
-        {requiresAccount && !config?.testAccountsConfigured && <p className="mt-3 flex items-start gap-2 rounded-lg bg-amber-500/5 p-3 text-xs text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" /> السيناريوهات المحددة تحتاج حسابات اختبار موجودة. أضف عددًا مساويًا لعدد المستخدمين في SIMULATOR_TEST_ACCOUNTS على خادم المحاكي.</p>}
-        {(requiresBuyer && (config?.testAccountRoleCounts?.buyer ?? 0) < (config?.virtualUsers ?? 1) || requiresSeller && (config?.testAccountRoleCounts?.seller ?? 0) < (config?.virtualUsers ?? 1)) && <p className="mt-3 flex items-start gap-2 rounded-lg bg-amber-500/5 p-3 text-xs text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" /> عدد حسابات الدور المطلوب أقل من عدد المستخدمين الافتراضيين. اضبط SIMULATOR_TEST_ACCOUNTS مع role=buyer أو role=seller وحساب مستقل لكل مستخدم.</p>}
-        {requiresBuyer && requiresSeller && <p className="mt-3 flex items-start gap-2 rounded-lg bg-amber-500/5 p-3 text-xs text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" /> الاختيارات الحالية تجمع رحلات مشتري وبائع. شغّل رحلات المشترين والبائعين في تشغيلين منفصلين حتى يستخدم كل متصفح حساب الدور الصحيح.</p>}
-        {(requiresSeedAd && !config?.seedAdConfigured || requiresSeedSeller && !config?.seedSellerConfigured || requiresSeedProduct && !config?.seedProductConfigured || requiresSeedService && !config?.seedServiceConfigured) && <p className="mt-3 flex items-start gap-2 rounded-lg bg-amber-500/5 p-3 text-xs text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" /> بعض السيناريوهات تحتاج معرّفات سجلات QA في إعدادات محرك المتصفح (إعلان/بائع/منتج/خدمة). لا تستخدم سجلات مستخدمين حقيقيين أو محتوى إنتاجي مهم.</p>}
-        {selectedScenarios.some(item => item.id === 'register-test-user') && !config?.registrationConfigured && <p className="mt-3 flex items-start gap-2 rounded-lg bg-amber-500/5 p-3 text-xs text-amber-800"><AlertTriangle className="h-4 w-4 shrink-0" /> التسجيل يحتاج SIMULATOR_EMAIL_TEMPLATE وSIMULATOR_TEST_PASSWORD. استخدم نطاق بريد تملكه حتى يمكن تأكيد الحسابات لاحقًا.</p>}
+        {requiresAccount && !config?.testAccountsConfigured && <p className="mt-3 flex items-start gap-2 rounded-lg bg-warning/5 p-3 text-xs text-warning-strong"><AlertTriangle className="h-4 w-4 shrink-0" /> السيناريوهات المحددة تحتاج حسابات اختبار موجودة. أضف عددًا مساويًا لعدد المستخدمين في SIMULATOR_TEST_ACCOUNTS على خادم المحاكي.</p>}
+        {(requiresBuyer && (config?.testAccountRoleCounts?.buyer ?? 0) < (config?.virtualUsers ?? 1) || requiresSeller && (config?.testAccountRoleCounts?.seller ?? 0) < (config?.virtualUsers ?? 1)) && <p className="mt-3 flex items-start gap-2 rounded-lg bg-warning/5 p-3 text-xs text-warning-strong"><AlertTriangle className="h-4 w-4 shrink-0" /> عدد حسابات الدور المطلوب أقل من عدد المستخدمين الافتراضيين. اضبط SIMULATOR_TEST_ACCOUNTS مع role=buyer أو role=seller وحساب مستقل لكل مستخدم.</p>}
+        {requiresBuyer && requiresSeller && <p className="mt-3 flex items-start gap-2 rounded-lg bg-warning/5 p-3 text-xs text-warning-strong"><AlertTriangle className="h-4 w-4 shrink-0" /> الاختيارات الحالية تجمع رحلات مشتري وبائع. شغّل رحلات المشترين والبائعين في تشغيلين منفصلين حتى يستخدم كل متصفح حساب الدور الصحيح.</p>}
+        {(requiresSeedAd && !config?.seedAdConfigured || requiresSeedSeller && !config?.seedSellerConfigured || requiresSeedProduct && !config?.seedProductConfigured || requiresSeedService && !config?.seedServiceConfigured) && <p className="mt-3 flex items-start gap-2 rounded-lg bg-warning/5 p-3 text-xs text-warning-strong"><AlertTriangle className="h-4 w-4 shrink-0" /> بعض السيناريوهات تحتاج معرّفات سجلات QA في إعدادات محرك المتصفح (إعلان/بائع/منتج/خدمة). لا تستخدم سجلات مستخدمين حقيقيين أو محتوى إنتاجي مهم.</p>}
+        {selectedScenarios.some(item => item.id === 'register-test-user') && !config?.registrationConfigured && <p className="mt-3 flex items-start gap-2 rounded-lg bg-warning/5 p-3 text-xs text-warning-strong"><AlertTriangle className="h-4 w-4 shrink-0" /> التسجيل يحتاج SIMULATOR_EMAIL_TEMPLATE وSIMULATOR_TEST_PASSWORD. استخدم نطاق بريد تملكه حتى يمكن تأكيد الحسابات لاحقًا.</p>}
       </section>
 
-      <section className="rounded-xl border border-amber-500/30 bg-amber-500/[0.03] p-4 sm:p-5">
+      <section className="rounded-xl border border-warning/30 bg-warning/[0.03] p-4 sm:p-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-2">
-            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-warning-strong" />
             <div>
               <h2 className="font-bold">بوابة الأمان قبل التشغيل</h2>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">الوضع الافتراضي للقراءة والتصفح فقط. الكتابة تتطلب موافقة صريحة ومحدودة بحد أقصى {config?.hardMaxWriteUsers ?? 5} مستخدمين افتراضيين في التشغيل الواحد. نشر إعلان QA أو تعديل سجل QA يؤثر على بيانات الموقع المنشور؛ لا توجد سيناريوهات حذف أو دفع حقيقي مفعّلة.</p>
@@ -460,7 +461,7 @@ export function AdminUserSimulatorPanel() {
           </button>
           <button type="button" onClick={() => void stopRun()} disabled={!activeRun} className="inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm font-semibold disabled:opacity-50"><Square className="h-3.5 w-3.5" /> إيقاف التشغيل</button>
           <button type="button" onClick={() => void refresh(true)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm font-semibold"><RefreshCw className="h-4 w-4" /> تحديث</button>
-          {requiresWrites && !allowWrites && <span className="text-xs text-amber-800">التشغيل متوقف حتى تفعيل خيار إنشاء بيانات QA.</span>}
+          {requiresWrites && !allowWrites && <span className="text-xs text-warning-strong">التشغيل متوقف حتى تفعيل خيار إنشاء بيانات QA.</span>}
         </div>
       </section>
 
@@ -539,10 +540,10 @@ export function AdminUserSimulatorPanel() {
                   </div>
                 </div>
                 <div className="min-w-0 rounded-lg border p-3">
-                  <h3 className="mb-2 flex items-center gap-2 text-sm font-bold"><XCircle className="h-4 w-4 text-red-600" /> الأخطاء</h3>
+                  <h3 className="mb-2 flex items-center gap-2 text-sm font-bold"><XCircle className="h-4 w-4 text-destructive" /> الأخطاء</h3>
                   <div className="max-h-52 space-y-2 overflow-auto">
-                    {selectedRun.errors.slice(-40).reverse().map((error, index) => <div key={`${String(error.at)}-${index}`} className="rounded bg-red-500/5 p-2 text-xs">
-                      <div className="font-semibold text-red-700">{readString(error.kind, readString(error.stage, 'operation'))} · {readString(error.user)}</div>
+                    {selectedRun.errors.slice(-40).reverse().map((error, index) => <div key={`${String(error.at)}-${index}`} className="rounded bg-destructive/5 p-2 text-xs">
+                      <div className="font-semibold text-destructive">{readString(error.kind, readString(error.stage, 'operation'))} · {readString(error.user)}</div>
                       <p className="mt-1 break-words text-muted-foreground">
                         {readString(error.message)}
                       </p>
@@ -597,7 +598,7 @@ export function AdminUserSimulatorPanel() {
                           {formatMs(operation.durationMs)}
                         </td>
                         <td className="p-2">
-                          {operation.status === 'passed' ? <span className="inline-flex items-center gap-1 text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> ناجح</span> : <span className="inline-flex items-center gap-1 text-red-700"><XCircle className="h-3.5 w-3.5" /> فشل</span>}
+                          {operation.status === 'passed' ? <span className="inline-flex items-center gap-1 text-success"><CheckCircle2 className="h-3.5 w-3.5" /> ناجح</span> : <span className="inline-flex items-center gap-1 text-destructive"><XCircle className="h-3.5 w-3.5" /> فشل</span>}
                         </td>
                       </tr>)}
                     </tbody>

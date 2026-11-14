@@ -17,6 +17,8 @@ import { getQueryClient } from '@/lib/queryClient';
 import { Button } from '@/components/shared/ui/Button';
 import { getNetworkRequests } from '@/lib/networkRequestMonitor';
 import { getDeviceErrorsAsync } from '@/lib/deviceErrorMonitor';
+import { toast } from 'sonner';
+import { formatClockTime } from '@/lib/formatters';
 
 const HISTORY_KEY = 'admin:console:history';
 const MAX_HISTORY = 20;
@@ -220,14 +222,14 @@ export function AdminConsolePanel() {
       const res = await fetch('/api/admin/debug-toggle', { method });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert('تعذر التبديل: ' + (err.error || res.status));
+        toast.error('تعذر التبديل: ' + (err.error || res.status));
         return;
       }
       const data = await res.json();
       setDebugEnabled(!!data.enabled);
       setTimeout(() => window.location.reload(), 400);
     } catch (e) {
-      alert('خطأ: ' + (e instanceof Error ? e.message : String(e)));
+      toast.error('خطأ: ' + (e instanceof Error ? e.message : String(e)));
     }
   };
 
@@ -317,7 +319,7 @@ export function AdminConsolePanel() {
             <div key={i} className="mb-3 border-b border-border/40 pb-2 last:border-0">
               <div>
                 <span className="text-slate-400">
-                  {new Date(entry.at).toLocaleTimeString('ar-PS')}
+                  {formatClockTime(entry.at)}
                 </span>
                 {' '}
                 <span className="font-semibold text-emerald-300">$ {entry.command}</span>

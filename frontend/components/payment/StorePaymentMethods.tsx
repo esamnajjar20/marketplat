@@ -27,6 +27,7 @@ import {
 import { savePayee } from '@/lib/paymentStorage';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { copyToClipboard } from '@/lib/copyToClipboard';
 
 interface Props {
   paymentMethods?: unknown;
@@ -92,7 +93,7 @@ export function StorePaymentMethods({
   async function copyNumber() {
     if (!selected) return;
     try {
-      await navigator.clipboard.writeText(selected.accountNumber);
+      if (!(await copyToClipboard(selected.accountNumber))) throw new Error('copy failed');
       setCopied(true);
       toast.success('تم نسخ الرقم');
       setTimeout(() => setCopied(false), 1500);

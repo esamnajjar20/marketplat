@@ -8,7 +8,7 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useStoreReviews } from '@/hooks/queries/useStoreReviews';
 import { getAvatarUrl } from '@/lib/cloudinary';
-import { formatDate } from '@/lib/formatters';
+import { formatDate, formatNumber } from '@/lib/formatters';
 import { ROUTES } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
@@ -107,7 +107,7 @@ export function StoreReviewsList({ storeId, averageRating, totalRatings }: Props
                   />
                 ))}
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">{(totalRatings ?? 0).toLocaleString('ar')} تقييم</p>
+              <p className="mt-1 text-xs text-muted-foreground">{formatNumber(totalRatings ?? 0)} تقييم</p>
             </div>
           </div>
         </div>

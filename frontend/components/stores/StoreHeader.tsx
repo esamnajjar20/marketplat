@@ -30,6 +30,7 @@ import { MessageUserButtonGate } from '@/components/profile/MessageUserButtonGat
 import { StoreAttributesSummary } from '@/components/stores/StoreAttributesSummary';
 import { ROUTES, APP_URL } from '@/lib/constants';
 import { getStoreTypeLabels, getStoreTypePresentation, type StoreWithSellerAndCounts, type StoreWeekday } from '@/types/store.types';
+import { buildWhatsAppUrl, toWaPhone } from '@/lib/whatsapp';
 
 // STORE-HOURS (Foundation v1): sat-first order, same as
 // WorkingHoursEditor.tsx's DAYS array — kept as a separate literal
@@ -113,12 +114,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
     : (pageFollowState ?? resolvedFollowing);
   const isOwnStore = currentUser?.id === store.sellerProfile?.userId;
   const shareUrl = `${APP_URL}${ROUTES.storeDetail(store.id)}`;
-  const waDigits = store.phone.replace(/\D/g, '');
-  const waPhone = waDigits.startsWith('970')
-    ? waDigits
-    : waDigits.startsWith('0')
-      ? `970${waDigits.slice(1)}`
-      : waDigits;
+  const waPhone = toWaPhone(store.phone);
   const avatar = getAvatarUrl(store.logoUrl ?? '', 128);
   const cover = store.coverImageUrl ? getDetailImageUrl(store.coverImageUrl, 1200) : null;
   const rating = parseFloat(store.sellerProfile?.averageRating ?? '0');
@@ -272,7 +268,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {!isOwnStore && waPhone.length >= 9 && (
             <a
-              href={`https://wa.me/${waPhone}`}
+              href={buildWhatsAppUrl({ phone: store.phone })}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex h-10 items-center justify-center rounded-card border border-success/25 bg-success-soft px-4 text-sm font-bold text-success transition-colors hover:bg-success/15"

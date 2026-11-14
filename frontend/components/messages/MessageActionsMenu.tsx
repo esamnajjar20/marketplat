@@ -6,6 +6,7 @@ import { MoreVertical, Copy, Pin, Star, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/shared/ui/DropdownMenu';
 import type { DisplayMessage } from './messageTypes';
+import { copyToClipboard } from '@/lib/copyToClipboard';
 
 type Props = {
   message: DisplayMessage;
@@ -31,7 +32,7 @@ export const MessageActionsMenu = memo(function MessageActionsMenu({ message, ma
           <Pin className={cn('h-4 w-4', message.isPinned && 'fill-current')} />
           {message.isPinned ? 'إلغاء تثبيت الرسالة' : 'تثبيت الرسالة'}
         </DropdownMenuItem>
-        <DropdownMenuItem className="flex items-center gap-2 cursor-pointer" onClick={async () => { try { await navigator.clipboard.writeText(message.body); toast.success('تم نسخ الرسالة'); } catch { toast.error('تعذّر النسخ'); } }}>
+        <DropdownMenuItem className="flex items-center gap-2 cursor-pointer" onClick={async () => { try { if (!(await copyToClipboard(message.body))) throw new Error('copy failed'); toast.success('تم نسخ الرسالة'); } catch { toast.error('تعذّر النسخ'); } }}>
           <Copy className="h-4 w-4" />نسخ
         </DropdownMenuItem>
         <DropdownMenuItem className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive" onClick={() => onDeleteRequest(message.id)}>

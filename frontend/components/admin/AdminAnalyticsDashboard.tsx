@@ -19,7 +19,7 @@ import { ApiError } from '@/components/shared/ApiError';
 import { parseApiError } from '@/lib/errorParser';
 import { Eye, Search, Tag, MessageSquare, UserPlus, FileText } from 'lucide-react';
 import type { AnalyticsEventType } from '@/lib/analytics';
-import { formatNumber } from '@/lib/formatters';
+import { formatNumber, formatPercent, formatShortDate } from '@/lib/formatters';
 
 const EVENT_LABELS: Record<AnalyticsEventType, string> = {
   PAGE_VIEW: 'مشاهدات الصفحات',
@@ -38,10 +38,6 @@ const RANGE_OPTIONS = [
   { label: '30 يومًا', days: 30 },
   { label: '90 يومًا', days: 90 },
 ] as const;
-
-function formatPercent(rate: number): string {
-  return `${(rate * 100).toLocaleString('ar', { maximumFractionDigits: 1 })}%`;
-}
 
 export function AdminAnalyticsDashboard() {
   const [rangeDays, setRangeDays] = useState<number>(30);
@@ -187,7 +183,7 @@ export function AdminAnalyticsDashboard() {
               const h = (n: number) => `${Math.max(n > 0 ? 2 : 0, (n / maxCount) * 100)}%`;
               return (
                 <div key={date} className="flex-1 flex flex-col items-center gap-1 min-w-0">
-                  <div className="w-full flex items-end gap-px h-36" title={`${new Date(date).toLocaleDateString('ar-PS', { timeZone: 'Asia/Gaza' })}: إعلانات ${formatNumber(ad)} · منتجات ${formatNumber(product)} · خدمات ${formatNumber(service)}`}>
+                  <div className="w-full flex items-end gap-px h-36" title={`${formatShortDate(date)}: إعلانات ${formatNumber(ad)} · منتجات ${formatNumber(product)} · خدمات ${formatNumber(service)}`}>
                     <div className="flex-1 bg-primary/70 rounded-t-sm" style={{ height: h(ad) }} />
                     <div className="flex-1 bg-chart-1/80 rounded-t-sm" style={{ height: h(product) }} />
                     <div className="flex-1 bg-chart-2/80 rounded-t-sm" style={{ height: h(service) }} />

@@ -5,7 +5,6 @@ import { throwIfQueryCancelled } from '@/lib/queryCancellation';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
-import type { ApiResponse } from '@/types/api.types';
 import type { SellerRankingRow } from '@/types/seller-ranking.types';
 import { normalizeSellerRankingRows } from '@/lib/sellerRanking';
 import { queryKeys } from '@/lib/queryKeys';
@@ -20,6 +19,7 @@ import {
 } from '@/lib/offlineListCache';
 import { Info, Star, RefreshCw, X, Shield, Zap, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { sameOriginApi } from '@/lib/sameOriginApi';
 
 type RankRow = SellerRankingRow;
 
@@ -166,13 +166,10 @@ export function SellersRankingList({
     queryKey,
     queryFn: async ({ signal }) => {
       try {
-        const response = await fetch(`/api/v1/sellers/ranking?limit=${limit}`, {
+        const payload = await sameOriginApi<RankRow[]>(`/sellers/ranking?limit=${limit}`, {
           signal,
-          credentials: 'include',
           cache: 'no-store',
         });
-        if (!response.ok) throw new Error(`Seller ranking request failed (${response.status})`);
-        const payload = (await response.json()) as ApiResponse<RankRow[]>;
         const rows = normalizeSellerRankingRows(payload.data ?? []);
         saveOfflineList(OFFLINE_LIST_KEYS.sellersRanking, rows, OFFLINE_LIST_LIMITS.sellersRanking);
         return rows;

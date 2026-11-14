@@ -14,11 +14,19 @@ import type { ServicePricingType } from '@/types/service.types';
  * Centralised so a future locale change (e.g. 'ar' → 'ar-EG' digits)
  * is a one-line edit instead of a multi-file find/replace.
  *
- * @example formatNumber(12000) → "١٢٬٠٠٠" (ar) or "12,000" depending on locale
+ * @example formatNumber(12000) → "12,000"
  */
 export function formatNumber(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return '--';
-  return value.toLocaleString('ar');
+  // Latin digits everywhere (same as formatPrice/formatMoney/formatTime) so a
+  // single screen never mixes ١٢٣ and 123.
+  return new Intl.NumberFormat('ar-PS', { numberingSystem: 'latn', maximumFractionDigits: 2 }).format(value);
+}
+
+/** Ratio (0..1) as a percentage with up to 1 decimal. @example formatPercent(0.256) → "25.6%" */
+export function formatPercent(rate: number | null | undefined): string {
+  if (rate === null || rate === undefined || !Number.isFinite(rate)) return '--';
+  return `${new Intl.NumberFormat('ar-PS', { numberingSystem: 'latn', maximumFractionDigits: 1 }).format(rate * 100)}%`;
 }
 
 // ── Price ─────────────────────────────────────────────────────────
@@ -52,6 +60,32 @@ export function formatPrice(
 }
 
 /**
+ * Money with fixed 2 decimals + currency (sales/receipts/debts, where
+ * piastres matter). Single source for every "X.XX ₪" string — do not
+ * hand-roll `.toFixed(2) + ' ₪'`. Use formatPrice() for listing prices
+ * (0 decimals, "السعر غير محدد" fallback).
+ *
+ * @example formatMoney("12345.5") → "12,345.50 ₪"
+ * @example formatMoney(null)      → "0.00 ₪"
+ */
+export function formatMoney(
+  value: string | number | null | undefined,
+  currency = '₪',
+): string {
+  const num = Number(value ?? 0);
+  const safe = Number.isFinite(num) ? num : 0;
+  return (
+    new Intl.NumberFormat('ar-PS', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+      numberingSystem: 'latn',
+    }).format(safe) +
+    ' ' +
+    currency
+  );
+}
+
+/**
  * Service listing price label: "حسب الاتفاق" for NEGOTIABLE / missing price,
  * "يبدأ من X" for STARTING_FROM, otherwise the plain formatted price.
  */
@@ -73,7 +107,7 @@ export function parsePrice(price: string | null | undefined): number | null {
 
 // ── Date / time ───────────────────────────────────────────────────
 
-const RTF = new Intl.RelativeTimeFormat('ar', { numeric: 'auto' });
+const RTF = new Intl.RelativeTimeFormat('ar', { numeric: 'auto', numberingSystem: 'latn' });
 const GAZA_DATE_PARTS = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'Asia/Gaza', year: 'numeric', month: '2-digit', day: '2-digit',
 });
@@ -153,7 +187,7 @@ export function formatRelativeTimeShort(dateStr: string, now = Date.now()): stri
     return new Intl.DateTimeFormat('ar-PS', { weekday: 'long', timeZone: 'Asia/Gaza' }).format(date);
   }
   if (dateCalendar.year === nowCalendar.year) {
-    return new Intl.DateTimeFormat('ar-PS', { day: 'numeric', month: 'long', timeZone: 'Asia/Gaza' }).format(date);
+    return new Intl.DateTimeFormat('ar-PS', { day: 'numeric', month: 'long', numberingSystem: 'latn', timeZone: 'Asia/Gaza' }).format(date);
   }
   const dd = String(dateCalendar.day).padStart(2, '0');
   const mm = String(dateCalendar.month).padStart(2, '0');
@@ -172,6 +206,7 @@ export function formatDate(dateStr: string): string {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    numberingSystem: 'latn',
     timeZone: 'Asia/Gaza',
   }).format(d);
 }
@@ -197,6 +232,43 @@ export function formatTime(dateStr: string): string {
 /** Combined date + time, e.g. for an appointment list row. */
 export function formatDateTime(dateStr: string): string {
   return `${formatDate(dateStr)} — ${formatTime(dateStr)}`;
+}
+
+/**
+ * Accepts the shapes call sites actually hold (ISO string, epoch ms, Date)
+ * and returns null for anything unparseable so no formatter can throw.
+ */
+type DateInput = string | number | Date | null | undefined;
+function toValidDate(value: DateInput): Date | null {
+  if (value === null || value === undefined || value === '') return null;
+  const d = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Date + time in the Gaza timezone, e.g. admin panels, sync/draft logs. */
+export function formatTimestamp(value: DateInput): string {
+  const d = toValidDate(value);
+  return d ? d.toLocaleString('ar-PS', { numberingSystem: 'latn', timeZone: 'Asia/Gaza' }) : '—';
+}
+
+/** Date only (numeric) in the Gaza timezone, e.g. table cells. */
+export function formatShortDate(value: DateInput): string {
+  const d = toValidDate(value);
+  return d ? d.toLocaleDateString('ar-PS', { numberingSystem: 'latn', timeZone: 'Asia/Gaza' }) : '—';
+}
+
+/** "5 Aug 2026, 9:30 AM"-style medium date + short time in Gaza TZ (lists, banners). */
+export function formatDateTimeMedium(value: DateInput): string {
+  const d = toValidDate(value);
+  return d
+    ? new Intl.DateTimeFormat('ar-PS', { dateStyle: 'medium', timeStyle: 'short', numberingSystem: 'latn', timeZone: 'Asia/Gaza' }).format(d)
+    : '—';
+}
+
+/** Clock time only in the Gaza timezone, e.g. log rows. */
+export function formatClockTime(value: DateInput): string {
+  const d = toValidDate(value);
+  return d ? d.toLocaleTimeString('ar-PS', { numberingSystem: 'latn', timeZone: 'Asia/Gaza' }) : '—';
 }
 
 // ── Strings ───────────────────────────────────────────────────────

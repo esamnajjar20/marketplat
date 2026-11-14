@@ -8,6 +8,7 @@ import { Input } from '@/components/shared/ui/Input';
 import { LoadingGate } from '@/components/shared/feedback/LoadingGate';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { formatMoney } from '@/lib/formatters';
 
 function debtBadge(due: number, overdue?: boolean) {
   if (overdue || due > 0 && overdue) {
@@ -97,7 +98,7 @@ export function SalesCustomersSection() {
                 <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
                   <div>
                     <span className="text-2xs-tight text-muted-foreground">المشتريات</span>
-                    <strong className="mt-0.5 block tabular-nums">{Number(customer.totalSpent).toFixed(2)} ₪</strong>
+                    <strong className="mt-0.5 block tabular-nums">{formatMoney(Number(customer.totalSpent))}</strong>
                   </div>
                   <div>
                     <span className="text-2xs-tight text-muted-foreground">الدين</span>
@@ -107,7 +108,7 @@ export function SalesCustomersSection() {
                         due > 0 && 'text-destructive',
                       )}
                     >
-                      {due.toFixed(2)} ₪
+                      {formatMoney(due)}
                     </strong>
                   </div>
                   <div>

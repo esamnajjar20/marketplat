@@ -5,6 +5,8 @@ import { CloudinaryImage } from '@/components/shared/CloudinaryImage';
 import { PaymentHistoryList } from '@/components/sales/payments/PaymentHistoryList';
 import { useEffect, useState } from 'react';
 import { useSalesReceipt } from '@/hooks/queries/useSales';
+import { buildWhatsAppUrl } from '@/lib/whatsapp';
+import { formatMoney, formatTimestamp } from '@/lib/formatters';
 
 // PERF-BUNDLE-01: `qrcode` (~20 kB) is only needed for the optional receipt
 // QR and was previously a top-level import that pulled the whole library into
@@ -34,10 +36,8 @@ export default function ReceiptPage({ id }: { id: string }) {
   if (q.isError || !q.data) return <main className="p-6 text-destructive" dir="rtl">تعذر تحميل الإيصال.</main>;
   const sale = q.data.sale;
   const share = () => {
-    const text = `فاتورة ${sale.invoiceNumber ?? ''}\n${sale.entityTitle}\nالإجمالي: ${Number(sale.totalPrice).toFixed(2)} ₪\nالمدفوع: ${Number(sale.paidAmount).toFixed(2)} ₪\nالمتبقي: ${Number(sale.dueAmount).toFixed(2)} ₪`;
-    const url = sale.buyerPhone
-      ? `https://wa.me/${sale.buyerPhone.replace(/\D/g, '')}?text=${encodeURIComponent(text)}`
-      : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    const text = `فاتورة ${sale.invoiceNumber ?? ''}\n${sale.entityTitle}\nالإجمالي: ${formatMoney(Number(sale.totalPrice))}\nالمدفوع: ${formatMoney(Number(sale.paidAmount))}\nالمتبقي: ${formatMoney(Number(sale.dueAmount))}`;
+    const url = buildWhatsAppUrl({ phone: sale.buyerPhone, text });
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
@@ -64,16 +64,16 @@ export default function ReceiptPage({ id }: { id: string }) {
               {(sale.items?.length ? sale.items : [{ title: sale.entityTitle, quantity: sale.quantity, lineTotal: sale.totalPrice }]).map((item) => (
                 <div key={`${item.title}-${item.quantity}`} className="flex justify-between gap-3 rounded-lg bg-muted/30 px-3 py-2">
                   <span>{item.title} × {item.quantity}</span>
-                  <strong>{Number(item.lineTotal ?? 0).toFixed(2)} ₪</strong>
+                  <strong>{formatMoney(Number(item.lineTotal ?? 0))}</strong>
                 </div>
               ))}
             </div>
           </div>
           <div className="flex justify-between"><span>المشتري</span><strong>{sale.buyerName}</strong></div>
-          <div className="flex justify-between"><span>التاريخ</span><strong>{new Date(sale.soldAt).toLocaleString('ar-PS', { timeZone: 'Asia/Gaza' })}</strong></div>
-          <div className="flex justify-between border-t pt-3"><span>الإجمالي</span><strong>{Number(sale.totalPrice).toFixed(2)} ₪</strong></div>
-          <div className="flex justify-between"><span>المدفوع</span><strong>{Number(sale.paidAmount).toFixed(2)} ₪</strong></div>
-          <div className="flex justify-between"><span>المتبقي</span><strong>{Number(sale.dueAmount).toFixed(2)} ₪</strong></div>
+          <div className="flex justify-between"><span>التاريخ</span><strong>{formatTimestamp(sale.soldAt)}</strong></div>
+          <div className="flex justify-between border-t pt-3"><span>الإجمالي</span><strong>{formatMoney(Number(sale.totalPrice))}</strong></div>
+          <div className="flex justify-between"><span>المدفوع</span><strong>{formatMoney(Number(sale.paidAmount))}</strong></div>
+          <div className="flex justify-between"><span>المتبقي</span><strong>{formatMoney(Number(sale.dueAmount))}</strong></div>
         </div>
         <section className="border-t pt-4">
           <h2 className="mb-3 font-semibold">سجل الدفعات</h2>

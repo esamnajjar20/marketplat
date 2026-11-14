@@ -28,6 +28,7 @@ import { parseApiError } from '@/lib/errorParser';
 import type { AuditLog, AuditEventType } from '@/types/admin.types';
 import { adminListHref, adminPagination } from '@/lib/adminHubTabs';
 import { writeClientUrl } from '@/lib/urlWithParams';
+import { AdminTableFrame, ADMIN_THEAD_CLASS } from '@/components/admin/AdminTableFrame';
 
 const AUDIT_EVENT_TYPES = Object.keys(AUDIT_EVENT_LABELS) as AuditEventType[];
 
@@ -258,9 +259,8 @@ export const AdminAuditLogsTable = memo(function AdminAuditLogsTable() {
           ))}
         </div>
 
-        <div className="hidden w-full overflow-x-auto overscroll-x-contain rounded-lg border md:block">
-          <table className="w-full min-w-[640px] text-sm [&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-muted/50 [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:bg-background [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)]">
-            <thead className="bg-[var(--legacy-surface)] text-xs font-bold text-[var(--legacy-foreground-warm)]">
+        <AdminTableFrame>
+            <thead className={ADMIN_THEAD_CLASS}>
               <tr>
                 <th className="text-start p-3 font-medium">الحدث</th>
                 <th className="text-start p-3 font-medium hidden sm:table-cell">المستخدم</th>
@@ -301,8 +301,7 @@ export const AdminAuditLogsTable = memo(function AdminAuditLogsTable() {
                 </tr>
               )}
             </tbody>
-          </table>
-        </div>
+        </AdminTableFrame>
         </>
       )}
 

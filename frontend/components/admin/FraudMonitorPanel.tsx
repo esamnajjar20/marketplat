@@ -85,7 +85,7 @@ export function FraudMonitorPanel() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5 text-amber-600" aria-hidden="true" />
+            <ShieldAlert className="h-5 w-5 text-warning-strong" aria-hidden="true" />
             <h2 id="fraud-monitor-title" className="font-semibold">مراقبة أنماط إساءة الاستخدام</h2>
           </div>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -132,7 +132,7 @@ export function FraudMonitorPanel() {
               <article key={check.code} className="rounded-lg border border-border/70 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold">{CHECK_LABELS[check.code] ?? check.title}</h3>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${check.count > 0 ? 'bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200' : 'bg-muted text-muted-foreground'}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${check.count > 0 ? 'bg-warning-soft text-warning-strong  dark:text-warning' : 'bg-muted text-muted-foreground'}`}>
                     {check.count} حالة
                   </span>
                 </div>
@@ -186,7 +186,7 @@ export function FraudMonitorPanel() {
                     <p className="mt-1 text-sm font-semibold tabular-nums">
                       {change.latestCount} حالة
                       {change.delta !== null && (
-                        <span className={`ms-2 text-xs font-medium ${change.delta > 0 ? 'text-amber-700 dark:text-amber-300' : change.delta < 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground'}`}>
+                        <span className={`ms-2 text-xs font-medium ${change.delta > 0 ? 'text-warning-strong dark:text-warning' : change.delta < 0 ? 'text-success ' : 'text-muted-foreground'}`}>
                           {change.delta > 0 ? `+${change.delta}` : change.delta < 0 ? String(change.delta) : 'دون تغيير'} مقارنة بالفحص السابق
                         </span>
                       )}

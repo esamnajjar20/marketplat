@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { loadAdminDeveloperToolsSetting } from '@/lib/adminDeveloperToolsSetting';
 import { useAuthStore } from '@/store/auth.store';
+import { copyToClipboard } from '@/lib/copyToClipboard';
+import { formatClockTime } from '@/lib/formatters';
 
 type ToolTab = 'console' | 'network' | 'elements' | 'storage' | 'performance' | 'errors' | 'info';
 type ConsoleEntry = { id: number; level: 'log' | 'info' | 'warn' | 'error' | 'debug'; message: string; at: number; source?: string };
@@ -282,7 +284,7 @@ export function AdminScriptConsole() {
 
   const copyOutput = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(latestOutput);
+      if (!(await copyToClipboard(latestOutput))) throw new Error('copy failed');
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1200);
     }
@@ -407,7 +409,7 @@ export function AdminScriptConsole() {
                     {entry.source ? `· ${entry.source}` : ''}
                   </span>
                   <span className="text-2xs text-slate-600">
-                    {new Date(entry.at).toLocaleTimeString()}
+                    {formatClockTime(entry.at)}
                   </span>
                 </div>
                 <pre className="whitespace-pre-wrap break-words font-mono text-slate-200">
@@ -444,7 +446,7 @@ export function AdminScriptConsole() {
                       </td>
                       <td className="p-2">{request.durationMs} ms</td>
                       <td className="p-2 text-slate-500">
-                        {new Date(request.at).toLocaleTimeString()}
+                        {formatClockTime(request.at)}
                       </td>
                     </tr>)}
                   </tbody>
@@ -523,7 +525,7 @@ export function AdminScriptConsole() {
                 <p className="whitespace-pre-wrap break-words text-red-300">
                   {error.message}
                 </p>
-                <p className="mt-1 text-slate-600">{error.source ?? ''} · {new Date(error.at).toLocaleTimeString()}</p>
+                <p className="mt-1 text-slate-600">{error.source ?? ''} · {formatClockTime(error.at)}</p>
               </div>)}
             </div>}
             {tab === 'info' && <div className="space-y-2">

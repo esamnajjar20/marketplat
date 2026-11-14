@@ -18,6 +18,7 @@ import { formatPrice } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { parseApiError } from '@/lib/errorParser';
 import { AdminServiceListingRow } from './AdminServiceListingRow';
+import { AdminTableFrame, ADMIN_THEAD_CLASS } from '@/components/admin/AdminTableFrame';
 
 export const AdminServiceListingsTable = memo(function AdminServiceListingsTable() {
   const sp = useSearchParams();
@@ -128,9 +129,8 @@ export const AdminServiceListingsTable = memo(function AdminServiceListingsTable
       )}
       </div>
 
-      <div className="hidden overflow-x-auto overscroll-x-contain rounded-lg border md:block">
-        <table className="w-full min-w-[640px] text-sm [&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-muted/50 [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:bg-background [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)]">
-          <thead className="bg-muted/50 text-start">
+      <AdminTableFrame>
+          <thead className={ADMIN_THEAD_CLASS}>
             <tr>
               <th className="p-3 font-medium">الخدمة</th>
               <th className="p-3 font-medium">المزوّد</th>
@@ -152,8 +152,7 @@ export const AdminServiceListingsTable = memo(function AdminServiceListingsTable
               </tr>
             )}
           </tbody>
-        </table>
-      </div>
+      </AdminTableFrame>
 
       {totalPages > 1 && (
         <Pagination

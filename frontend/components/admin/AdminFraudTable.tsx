@@ -1,5 +1,6 @@
 'use client';
 import { HydrationSafeRelativeTime } from '@/components/shared/HydrationSafeRelativeTime';
+import { AdminTableFrame, ADMIN_THEAD_CLASS } from '@/components/admin/AdminTableFrame';
 
 // FIX FRAUD-FRAGMENT-KEY-01: the row + its expandable signals row were
 // wrapped in a keyless Fragment, so React saw an array of unkeyed
@@ -139,9 +140,8 @@ export const AdminFraudTable = memo(function AdminFraudTable() {
           )}
         </div>
 
-        <div className="hidden w-full overflow-x-auto overscroll-x-contain rounded-lg border md:block">
-          <table className="w-full min-w-[640px] text-sm [&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-muted/50 [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:bg-background [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)]">
-            <thead className="bg-[var(--legacy-surface)] text-xs font-bold text-[var(--legacy-foreground-warm)]">
+        <AdminTableFrame>
+            <thead className={ADMIN_THEAD_CLASS}>
               <tr>
                 <th className="text-start p-3 font-medium">الإعلان</th>
                 <th className="text-start p-3 font-medium hidden sm:table-cell">صاحب الإعلان</th>
@@ -168,8 +168,7 @@ export const AdminFraudTable = memo(function AdminFraudTable() {
                 </td></tr>
               )}
             </tbody>
-          </table>
-        </div>
+        </AdminTableFrame>
         </>
       )}
 

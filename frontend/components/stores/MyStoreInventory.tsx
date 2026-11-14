@@ -22,6 +22,7 @@ import { ROUTES } from '@/lib/constants';
 import { writeClientUrl } from '@/lib/urlWithParams';
 import type { ProductAvailability } from '@/types/product.types';
 import { cn } from '@/lib/utils';
+import { formatTimestamp } from '@/lib/formatters';
 
 const AVAIL_LABELS: Record<ProductAvailability, string> = {
   IN_STOCK: 'متوفر',
@@ -434,7 +435,7 @@ export function MyStoreInventory() {
                   <p className="text-xs text-muted-foreground">
                     {stockMovementReasonLabel(movement.reason)}
                     {' · '}
-                    {new Date(movement.createdAt).toLocaleString('ar-PS', { timeZone: 'Asia/Gaza' })}
+                    {formatTimestamp(movement.createdAt)}
                   </p>
                 </div>
                 <div className="text-end tabular-nums">

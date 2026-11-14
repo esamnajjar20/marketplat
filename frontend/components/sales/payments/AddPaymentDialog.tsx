@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { SaleRecord, SaleTransferMethod } from '@/types/sale.types';
 import { useAddSalePayment } from '@/hooks/mutations/useSaleMutations';
+import { formatMoney } from '@/lib/formatters';
 export function AddPaymentDialog({ sale, open, onOpenChange }: { sale: SaleRecord; open: boolean; onOpenChange: (v: boolean) => void }) {
   const [amount, setAmount] = useState('');
   const [method, setMethod] = useState<SaleTransferMethod>('CASH');
@@ -20,7 +21,7 @@ export function AddPaymentDialog({ sale, open, onOpenChange }: { sale: SaleRecor
         <DialogTitle>إضافة دفعة</DialogTitle>
       </DialogHeader>
       <div className="space-y-3">
-        <div className="text-sm text-muted-foreground">المتبقي: {Number(sale.dueAmount).toFixed(2)} ₪</div>
+        <div className="text-sm text-muted-foreground">المتبقي: {formatMoney(Number(sale.dueAmount))}</div>
         <Input type="number" min="0.01" max={sale.dueAmount} value={amount} onChange={e => setAmount(e.target.value)} placeholder="المبلغ" />
         <select value={method} onChange={e => setMethod(e.target.value as SaleTransferMethod)} className="h-10 w-full rounded-md border bg-background px-3">
           <option value="CASH">نقدي</option>

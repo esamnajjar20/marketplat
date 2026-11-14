@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { formatMoney, formatShortDate } from '@/lib/formatters';
 export interface InstallmentDraft { installmentNo: number; amount: number; dueDate: string; }
 export function InstallmentForm({ due, onChange }: { due: number; onChange: (v: InstallmentDraft[]) => void }) {
   const [count, setCount] = useState('2');
@@ -20,7 +21,7 @@ export function InstallmentForm({ due, onChange }: { due: number; onChange: (v: 
     <div className="max-h-40 space-y-1 overflow-auto text-xs">
       {baseTime === null ? <p className="text-muted-foreground">جارٍ تجهيز جدول الأقساط…</p> : rows.map(r => <div key={r.installmentNo} className="flex justify-between rounded bg-muted/40 px-2 py-1">
         <span>قسط {r.installmentNo}</span>
-        <span>{r.amount.toFixed(2)} ₪ · {new Date(r.dueDate).toLocaleDateString('ar-PS', { timeZone: 'Asia/Gaza' })}</span>
+        <span>{formatMoney(r.amount)} · {formatShortDate(r.dueDate)}</span>
       </div>)}
     </div>
     <Button type="button" size="sm" variant="outline" disabled={baseTime === null} onClick={() => onChange(rows)}>اعتماد جدول الأقساط</Button>

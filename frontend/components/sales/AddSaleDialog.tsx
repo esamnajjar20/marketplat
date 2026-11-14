@@ -14,6 +14,7 @@ import type { SaleEntityType, SaleTransferMethod, CreateSalePayload } from '@/ty
 import type { Product } from '@/types/product.types';
 import type { AdListItem } from '@/types/ad.types';
 import type { ServiceListing } from '@/types/service.types';
+import { formatMoney } from '@/lib/formatters';
 export interface SalePrefill { entityType?: SaleEntityType; entityId?: string; entityTitle?: string; entityImageUrl?: string | null; unitPrice?: number; storeId?: string; serviceRequestId?: string; buyerName?: string; buyerPhone?: string; }
 interface Props { open: boolean; onOpenChange: (open: boolean) => void; prefill?: SalePrefill | null; }
 function Label({ children }: { children: ReactNode }) {
@@ -164,7 +165,7 @@ export function AddSaleDialog({ open, onOpenChange, prefill }: Props) {
           </div>
           <div className="col-span-2 rounded-lg border bg-muted/40 p-3">
             <span className="text-xs text-muted-foreground">إجمالي البيع</span>
-            <strong className="mt-1 block text-lg">{total.toFixed(2)} ₪</strong>
+            <strong className="mt-1 block text-lg">{formatMoney(total)}</strong>
             <span className="text-xs text-muted-foreground">
               {quantityValid ? `${safeQuantity} × ${priceValid ? safeUnitPrice.toFixed(2) : '0.00'} ₪` : 'تحقق من الكمية والسعر'}
             </span>
@@ -219,17 +220,17 @@ export function AddSaleDialog({ open, onOpenChange, prefill }: Props) {
                 <option value="OTHER">أخرى</option>
               </select>
             </div>
-            <div className="rounded-lg bg-muted/40 p-3 text-sm">المدفوع <strong>{total.toFixed(2)} ₪</strong></div>
+            <div className="rounded-lg bg-muted/40 p-3 text-sm">المدفوع <strong>{formatMoney(total)}</strong></div>
           </div> : null}
           {paymentMode === 'partial' ? <MixedPaymentForm payments={payments} onChange={setPayments} total={total} /> : null}
-          {paymentMode === 'installments' ? <><div className="text-sm">دفعة أولى: 0 ₪ · المتبقي: {total.toFixed(2)} ₪</div><InstallmentForm due={total} onChange={setInstallments} />{installments.length ? <div className="text-xs text-muted-foreground">تم اعتماد {installments.length} أقساط بمجموع {installmentsTotal.toFixed(2)} ₪</div> : null}</> : null}
+          {paymentMode === 'installments' ? <><div className="text-sm">دفعة أولى: 0 ₪ · المتبقي: {formatMoney(total)}</div><InstallmentForm due={total} onChange={setInstallments} />{installments.length ? <div className="text-xs text-muted-foreground">تم اعتماد {installments.length} أقساط بمجموع {formatMoney(installmentsTotal)}</div> : null}</> : null}
           <div className="flex justify-between border-t pt-3 text-sm">
             <span>
               {paymentMode === 'installments' ? 'المغطى بالأقساط' : 'المتبقي على العميل'}
             </span>
-            <strong>{(paymentMode === 'installments' ? Math.max(0, total - installmentsTotal) : due).toFixed(2)} ₪</strong>
+            <strong>{formatMoney((paymentMode === 'installments' ? Math.max(0, total - installmentsTotal) : due))}</strong>
           </div>
-          {paymentMode === 'installments' && installments.length && Math.abs(installmentsTotal - total) > 0.009 ? <p className="text-xs text-destructive">يجب أن يساوي مجموع الأقساط إجمالي البيع ({total.toFixed(2)} ₪).</p> : null}
+          {paymentMode === 'installments' && installments.length && Math.abs(installmentsTotal - total) > 0.009 ? <p className="text-xs text-destructive">يجب أن يساوي مجموع الأقساط إجمالي البيع ({formatMoney(total)}).</p> : null}
         </div>
         <div className="space-y-1">
           <Label>ملاحظة (اختياري)</Label>

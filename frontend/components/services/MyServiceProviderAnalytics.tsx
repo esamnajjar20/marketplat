@@ -9,7 +9,7 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { useState } from 'react';
 import { useMyServiceProviderAnalytics } from '@/hooks/queries/useServiceProviders';
 import { getThumbnailUrl } from '@/lib/cloudinary';
-import { formatPrice } from '@/lib/formatters';
+import { formatPrice, formatNumber } from '@/lib/formatters';
 import type { ParsedError } from '@/lib/errorParser';
 import { cn } from '@/lib/utils';
 
@@ -108,10 +108,10 @@ export function MyServiceProviderAnalytics() {
         </p>
       )}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 sm:gap-3">
-        <StatTile icon={Eye} label="مشاهدات الخدمات" value={analytics.totalViews.toLocaleString('ar')} />
-        <StatTile icon={ListChecks} label="خدمات نشطة" value={analytics.activeListings.toLocaleString('ar')} />
-        <StatTile icon={Clock} label="طلبات معلّقة" value={analytics.pendingRequests.toLocaleString('ar')} />
-        <StatTile icon={CheckCircle2} label="طلبات مكتملة" value={analytics.completedRequests.toLocaleString('ar')} />
+        <StatTile icon={Eye} label="مشاهدات الخدمات" value={formatNumber(analytics.totalViews)} />
+        <StatTile icon={ListChecks} label="خدمات نشطة" value={formatNumber(analytics.activeListings)} />
+        <StatTile icon={Clock} label="طلبات معلّقة" value={formatNumber(analytics.pendingRequests)} />
+        <StatTile icon={CheckCircle2} label="طلبات مكتملة" value={formatNumber(analytics.completedRequests)} />
         <StatTile
           icon={TrendingUp}
           label="معدّل الإنجاز"
@@ -120,7 +120,7 @@ export function MyServiceProviderAnalytics() {
         <StatTile
           icon={CalendarClock}
           label="مواعيد قادمة"
-          value={analytics.upcomingAppointments.toLocaleString('ar')}
+          value={formatNumber(analytics.upcomingAppointments)}
         />
         <StatTile
           icon={Star}
@@ -163,7 +163,7 @@ export function MyServiceProviderAnalytics() {
                   </div>
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold">{listing.title}</span>
                   <span className="shrink-0 text-xs text-muted-foreground">
-                    {listing.views.toLocaleString('ar')} مشاهدة
+                    {formatNumber(listing.views)} مشاهدة
                   </span>
                 </li>
               ))}

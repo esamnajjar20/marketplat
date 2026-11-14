@@ -18,16 +18,11 @@ import {
 import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import { formatDateTimeMedium } from '@/lib/formatters';
 
 // toLocaleString never throws — an invalid
 // date produces the string "Invalid Date", not an exception. The old
 // try/catch was dead code; the `iso` fallback never ran.
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleString('ar-PS', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-   timeZone: 'Asia/Gaza'});
-}
 
 export function DownloadsPageClient() {
   const [items, setItems] = useState<CatalogDownloadRecord[]>([]);
@@ -123,7 +118,7 @@ export function DownloadsPageClient() {
                 {item.sizeBytes ? ` · ${formatCatalogSize(item.sizeBytes)}` : ''}
               </p>
               <p className="text-xs text-muted-foreground">
-                آخر تحديث: {formatDate(item.downloadedAt)}
+                آخر تحديث: {formatDateTimeMedium(item.downloadedAt)}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">

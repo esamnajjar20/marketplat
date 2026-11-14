@@ -14,18 +14,12 @@ import { useStartConversation } from '@/hooks/mutations/useStartConversation';
 import { useAuthStore, selectUser, selectIsAuthenticated } from '@/store/auth.store';
 import { toast } from 'sonner';
 import type { ServiceListingWithProvider } from '@/types/service.types';
+import { buildWhatsAppUrl, toWaPhone } from '@/lib/whatsapp';
 
 interface Props {
   listing: ServiceListingWithProvider;
   /** Show phone/WhatsApp under the card */
   showPhone?: boolean;
-}
-
-function toWaPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '');
-  if (digits.startsWith('970')) return digits;
-  if (digits.startsWith('0')) return `970${digits.slice(1)}`;
-  return digits;
 }
 
 /**
@@ -139,7 +133,7 @@ export function ProviderContactCard({ listing, showPhone = false }: Props) {
           </a>
           {toWaPhone(phone).length >= 9 && (
             <a
-              href={`https://wa.me/${toWaPhone(phone)}`}
+              href={buildWhatsAppUrl({ phone })}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex min-h-10 flex-1 items-center justify-center rounded-xl border border-[#25D366]/40 bg-[#25D366]/10 px-3 text-sm font-medium text-[#128C7E] dark:text-[#25D366]"

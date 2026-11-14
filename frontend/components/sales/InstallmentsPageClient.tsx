@@ -4,6 +4,7 @@ import { useInstallmentsOverview } from '@/hooks/queries/useInstallments';
 import { usePayInstallment } from '@/hooks/mutations/useInstallmentMutations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { formatMoney, formatShortDate } from '@/lib/formatters';
 function Group({ title, rows, onPay }: { title: string; rows: any[]; onPay: (id: string, amount: number) => Promise<void> }) {
   return <section className="space-y-3">
     <h2 className="font-semibold">
@@ -20,9 +21,9 @@ function InstallmentRow({ row, onPay }: { row: any; onPay: (id: string, amount: 
         <strong>
           {row.sale?.customer?.name ?? row.sale?.buyerName ?? 'عميل'}
         </strong>
-        <p className="text-sm text-muted-foreground">قسط {row.installmentNo} · استحقاق {new Date(row.dueDate).toLocaleDateString('ar-PS', { timeZone: 'Asia/Gaza' })}</p>
+        <p className="text-sm text-muted-foreground">قسط {row.installmentNo} · استحقاق {formatShortDate(row.dueDate)}</p>
       </div>
-      <strong>{(Number(row.amount) - Number(row.paidAmount ?? 0)).toFixed(2)} ₪</strong>
+      <strong>{formatMoney((Number(row.amount) - Number(row.paidAmount ?? 0)))}</strong>
     </div>
     <div className="mt-3 flex gap-2">
       <Input type="number" min="0.01" value={amount} onChange={e => setAmount(e.target.value)} />

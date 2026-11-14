@@ -27,6 +27,7 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { parseApiError } from '@/lib/errorParser';
 import { ConfirmDialog } from '@/components/shared/feedback/ConfirmDialog';
 import { OfflineStaleDataNotice } from '@/components/shared/feedback/OfflineStaleDataNotice';
+import { formatShortDate } from '@/lib/formatters';
 
 const RequestOfferForm = dynamic(
   () =>
@@ -167,7 +168,7 @@ export default function RequestDetailPage() {
           {request.expiresAt && (
             <span className="inline-flex items-center gap-1">
               <CalendarClock className="h-3.5 w-3.5" aria-hidden />
-              ينتهي {new Date(request.expiresAt).toLocaleDateString('ar', { timeZone: 'Asia/Gaza' })}
+              ينتهي {formatShortDate(request.expiresAt)}
             </span>
           )}
           {request.status === 'OPEN' && (

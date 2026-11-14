@@ -24,6 +24,7 @@ import { resumeHrefForDraft } from '@/lib/offlineDraftResume';
 import { syncPendingOfflineDrafts } from '@/lib/offlineDraftPublisher';
 
 import { Spinner } from '@/components/ui/spinner';
+import { formatDateTimeMedium } from '@/lib/formatters';
 type TabKey = 'all' | 'draft' | 'failed' | 'synced';
 
 const TABS: { key: TabKey; label: string }[] = [
@@ -33,17 +34,6 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: 'synced', label: 'منشور' },
 ];
 
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleString('ar-PS', {
-      year: 'numeric', month: 'short', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-      timeZone: 'Asia/Gaza',
-    });
-  } catch {
-    return iso;
-  }
-}
 
 type ConfirmState =
   | { kind: 'one'; draft: AdDraft }
@@ -270,7 +260,7 @@ function DraftRow({
         >
           {isFailed ? 'فشل الإرسال' : kind}
         </span>
-        <span className="text-2xs-tight text-muted-foreground">{formatDate(draft.updatedAt)}</span>
+        <span className="text-2xs-tight text-muted-foreground">{formatDateTimeMedium(draft.updatedAt)}</span>
       </div>
       <p className="mt-2 text-sm font-extrabold text-foreground">
         {kind}: {title}

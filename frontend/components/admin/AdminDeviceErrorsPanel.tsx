@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { AlertTriangle, CheckCircle2, Clipboard, Download, RefreshCw, Search, Trash2, Wifi, WifiOff, Bug, Layers3, Activity, Filter } from 'lucide-react';
 import { clearDeviceErrors, DEVICE_ERRORS_EVENT, getDeviceErrors, getDeviceErrorsAsync, isReproduceMode, setReproduceMode, type DeviceErrorRecord } from '@/lib/deviceErrorMonitor';
+import { copyToClipboard } from '@/lib/copyToClipboard';
 
 const categoryNames: Record<string, string> = {
   runtime: 'خطأ JavaScript', promise: 'وعد غير معالج', hydration: 'تعارض Hydration / React',
@@ -95,7 +96,7 @@ export function AdminDeviceErrorsPanel() {
     };
     const text = JSON.stringify(payload, null, 2);
     try {
-      await navigator.clipboard.writeText(text);
+      if (!(await copyToClipboard(text))) throw new Error('copy failed');
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     }
@@ -210,7 +211,7 @@ export function AdminDeviceErrorsPanel() {
             </option>)}
           </select>
         </div>
-        <div className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 rounded-xl border border-warning/30 bg-warning/5 p-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-2">
             <Bug className="mt-0.5 h-4 w-4 shrink-0" />
             <div>
@@ -232,12 +233,12 @@ export function AdminDeviceErrorsPanel() {
           </div>
           <div className="max-h-[680px] divide-y overflow-y-auto">
             {groupedRows.length === 0 ? <div className="flex min-h-48 flex-col items-center justify-center gap-2 p-6 text-center">
-              <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+              <CheckCircle2 className="h-8 w-8 text-success" />
               <p className="font-medium">لا توجد أحداث مطابقة</p>
               <p className="text-sm text-muted-foreground">جرّب تغيير الفلاتر أو أعد إنتاج المشكلة.</p>
             </div> : groupedRows.map(({ key, record, occurrences, latest }) => <button key={key} type="button" onClick={() => setSelectedId(record.id)} className={`block w-full p-4 text-right transition hover:bg-muted/60 ${selected?.id === record.id ? 'bg-primary/5 ring-1 ring-inset ring-primary/30' : ''}`}>
               <div className="flex items-start gap-3">
-                <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${record.severity === 'error' ? 'bg-destructive' : record.severity === 'network' ? 'bg-amber-500' : 'bg-sky-500'}`} />
+                <span className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${record.severity === 'error' ? 'bg-destructive' : record.severity === 'network' ? 'bg-warning' : 'bg-info'}`} />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold">
@@ -317,7 +318,7 @@ export function AdminDeviceErrorsPanel() {
               </pre>
             </details>}
             <CodeDetails label="المتصفح والجهاز" value={selected.userAgent} />
-            <p className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-5 text-muted-foreground">التقرير محلي لهذا المتصفح. لا تُلتقط قيم الحقول أو محتويات DOM النصية أو أجسام استجابات الشبكة. قد تبقى رسائل الأخطاء نفسها حساسة؛ راجع التقرير قبل مشاركته.</p>
+            <p className="rounded-lg border border-warning/30 bg-warning/5 p-3 text-xs leading-5 text-muted-foreground">التقرير محلي لهذا المتصفح. لا تُلتقط قيم الحقول أو محتويات DOM النصية أو أجسام استجابات الشبكة. قد تبقى رسائل الأخطاء نفسها حساسة؛ راجع التقرير قبل مشاركته.</p>
           </div>}
         </section>
       </div>
