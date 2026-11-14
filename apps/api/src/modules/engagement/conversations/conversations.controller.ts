@@ -238,7 +238,6 @@ export const conversationsController = {
       res.status(200);
       res.setHeader('Content-Type', contentType);
       res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('Cache-Control', 'private, no-store, max-age=0');
       res.setHeader('Content-Disposition', kind === 'file'
         ? `attachment; filename="download"; filename*=UTF-8''${encodeRfc5987FileName(safeFileName)}`
         : 'inline');

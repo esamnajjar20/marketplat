@@ -12,13 +12,14 @@ import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { cacheRedis as redis } from '../../../config/redis';
 import { logger } from '../../../shared/observability/logger';
 import { purgeReferenceKv } from '../../../shared/cache/edgePurge';
+import { REFERENCE_DATA_REDIS_TTL_SECONDS } from '../../../shared/cache/referenceDataTtl';
 import { isPrismaError } from '../../../shared/db/prismaErrors';
 import { serviceTypesRepository } from '../service-types/service-types.repository';
 
 // versioned key — bump the suffix whenever
 // the cached payload shape changes (see categories.service.ts).
 const SERVICE_CATEGORIES_CACHE_KEY = 'service_categories:all:v2';
-const SERVICE_CATEGORIES_TTL = 60 * 60; // 1 hour — same as categories, rarely changes
+const SERVICE_CATEGORIES_TTL = REFERENCE_DATA_REDIS_TTL_SECONDS;
 
 export const invalidateServiceCategoriesCache = async (): Promise<void> => {
   try {

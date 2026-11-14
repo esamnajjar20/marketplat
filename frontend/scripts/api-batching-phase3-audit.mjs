@@ -17,8 +17,8 @@ const serviceTest = read('../apps/api/tests/unit/users.service.test.ts');
 
 const checks = [
   ['Private aggregate route is registered before the public user-id route', routes.indexOf("'/:id/profile-state'") < routes.indexOf("'/:id'")],
-  ['Aggregate route requires authentication', /get\('\/:id\/profile-state',\s*authenticate,/.test(routes)],
-  ['Controller sends a private no-store response', /Cache-Control',\s*'private, no-store'/.test(controller)],
+  ['Aggregate route requires authentication', /get\(\s*'\/:id\/profile-state',\s*authenticate,/.test(routes)],
+  ['Route (not the controller) owns the private no-store response', /get\(\s*'\/:id\/profile-state',\s*authenticate,\s*CACHE\.NONE,/.test(routes) && !/Cache-Control/.test(controller)],
   ['Service executes follow and presence lookups together', /Promise\.all\(\[[\s\S]*?followsService\.status[\s\S]*?presence\.getPresence/.test(service)],
   ['Self-profile returns defaults without calling downstream lookups', /if \(viewerId === profileUserId\)[\s\S]*?following: false[\s\S]*?online: false/.test(service)],
   ['Frontend exposes the aggregate endpoint', /getProfileInteractionState:[\s\S]*?profile-state/.test(api)],

@@ -157,7 +157,7 @@ if (!fs.existsSync(contractAuditPath)) fail('W8 dedicated contract audit script 
 else pass('W8 dedicated cache contract audit is present');
 
 // CACHE-W10 — authenticated HTTP boundary and the private profile Redis read-through.
-const apiRoutes = read('apps/api/src/routes.ts');
+const apiRoutes = read('apps/api/src/routes/index.ts');
 const profileCache = read('apps/api/src/shared/cache/userProfileCache.ts');
 const userCache = read('apps/api/src/shared/cache/userCache.ts');
 const usersService = read('apps/api/src/modules/identity/users/users.service.ts');

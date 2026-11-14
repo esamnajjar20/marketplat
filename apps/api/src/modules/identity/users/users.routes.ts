@@ -53,7 +53,12 @@ usersRouter.get('/presence', authenticate, usersController.getPresence);
 // One authenticated round-trip for the public-profile header's viewer-specific
 // follow + online state. Keep it before /:id so Express does not treat the
 // literal segment as a user id. The response is private and never cacheable.
-usersRouter.get('/:id/profile-state', authenticate, usersController.getProfileInteractionState);
+usersRouter.get(
+  '/:id/profile-state',
+  authenticate,
+  CACHE.NONE,
+  usersController.getProfileInteractionState
+);
 
 // Public — after /me and /presence so those literal strings are not intercepted
 usersRouter.get('/:id', CACHE.MEDIUM, usersController.getUserById);

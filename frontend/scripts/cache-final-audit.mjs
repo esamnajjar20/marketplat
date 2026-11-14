@@ -54,7 +54,7 @@ if (!metrics.includes('app_cache_operation_duration_seconds') || !swr.includes('
 else pass('W10 cache latency telemetry is wired to SWR outcomes');
 
 const warmupMetrics = read('apps/api/src/shared/observability/metrics.ts');
-const warmup = read('apps/api/src/shared/cache/cacheWarmup.ts');
+const warmup = read('apps/api/src/bootstrap/cacheWarmup.ts');
 if (!warmupMetrics.includes('cache_warmup_tasks_total') || !warmupMetrics.includes('cache_warmup_task_duration_seconds')) fail('cache warmup telemetry definitions missing');
 else if (!warmup.includes('cacheWarmupTasksTotal.inc') || !warmup.includes('cacheWarmupTaskDurationSeconds.observe')) fail('cache warmup telemetry is not wired to task outcomes');
 else pass('cache warmup telemetry is defined and wired');

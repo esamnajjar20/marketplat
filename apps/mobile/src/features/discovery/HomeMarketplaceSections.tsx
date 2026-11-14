@@ -18,6 +18,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 
 import { HorizontalMarketCard } from '@/components/MarketCards';
 import { formatMoney } from '@/lib/formatters';
+import { HOME_PUBLIC_LIST_TTL_MS } from '@/lib/cache-ttl';
 
 type SectionData = { products: ProductSummary[]; services: ServiceListing[]; requests: MarketplaceRequest[] };
 
@@ -77,7 +78,6 @@ const CACHE_KEYS: Record<SectionKey, string> = {
   services: 'home:public-services:v1',
   requests: 'home:public-market-requests:v1',
 };
-const PUBLIC_LIST_TTL_MS = 15 * 60 * 1000;
 const EMPTY: SectionData = { products: [], services: [], requests: [] };
 
 function money(value: number | string | null | undefined): string | null {
@@ -156,7 +156,7 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
       // Fetch these independent, secondary sections sequentially. This avoids
       // a burst of requests on weak mobile connections while cached content is
       // already visible. A manual pull-to-refresh can bypass the section TTL.
-      if (force || !savedAt.current.products || now - savedAt.current.products >= PUBLIC_LIST_TTL_MS) {
+      if (force || !savedAt.current.products || now - savedAt.current.products >= HOME_PUBLIC_LIST_TTL_MS) {
         try {
           const result = await fetchProducts({ page: 1, limit: 8, sortBy: 'createdAt', sortOrder: 'desc' });
           if (!activeRef.current) return;
@@ -172,7 +172,7 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
         }
       }
       if (!activeRef.current) return;
-      if (force || !savedAt.current.services || now - savedAt.current.services >= PUBLIC_LIST_TTL_MS) {
+      if (force || !savedAt.current.services || now - savedAt.current.services >= HOME_PUBLIC_LIST_TTL_MS) {
         try {
           const items = await fetchServiceListings({ page: 1, limit: 8 });
           if (!activeRef.current) return;
@@ -188,7 +188,7 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
         }
       }
       if (!activeRef.current) return;
-      if (force || !savedAt.current.requests || now - savedAt.current.requests >= PUBLIC_LIST_TTL_MS) {
+      if (force || !savedAt.current.requests || now - savedAt.current.requests >= HOME_PUBLIC_LIST_TTL_MS) {
         try {
           const result = await fetchOpenRequests({ page: 1, limit: 8, sort: 'newest' });
           if (!activeRef.current) return;

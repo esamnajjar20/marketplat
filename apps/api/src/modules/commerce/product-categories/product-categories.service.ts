@@ -16,11 +16,12 @@ import { storeTypesRepository } from '../store-types/store-types.repository';
 import { bumpPublicListCache } from '../../../shared/cache/publicListCache';
 import { invalidateHomeCache } from '../../discovery/home/home.cache.keys';
 import { purgeReferenceKv } from '../../../shared/cache/edgePurge';
+import { REFERENCE_DATA_REDIS_TTL_SECONDS } from '../../../shared/cache/referenceDataTtl';
 
 // versioned key — bump the suffix whenever
 // the cached payload shape changes (see categories.service.ts).
 const PRODUCT_CATEGORIES_CACHE_KEY = 'product_categories:all:v1';
-const PRODUCT_CATEGORIES_TTL = 60 * 60; // 1 hour, same as service categories
+const PRODUCT_CATEGORIES_TTL = REFERENCE_DATA_REDIS_TTL_SECONDS;
 
 const invalidateProductCategoriesCache = async (): Promise<void> => {
   try {

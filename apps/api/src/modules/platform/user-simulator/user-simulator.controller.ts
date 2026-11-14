@@ -26,7 +26,6 @@ async function artifact(req: Request, res: Response, next: NextFunction): Promis
     const result = await userSimulatorService.getArtifact(req.params.id, req.params.name);
     res.setHeader('Content-Type', result.contentType);
     res.setHeader('Content-Disposition', `attachment; filename="${req.params.name}"`);
-    res.setHeader('Cache-Control', 'private, no-store');
     res.status(200).send(result.data);
   } catch (error) { next(error); }
 }

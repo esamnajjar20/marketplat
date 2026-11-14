@@ -105,7 +105,7 @@
       "staleWhileRevalidateSec": 600
     },
     "client": {
-      "staleTimeMs": 3600000,
+      "staleTimeMs": 300000,
       "gcTimeMs": 86400000
     },
     "offline": {

@@ -55,7 +55,6 @@ describe('usersController', () => {
       await usersController.getProfileInteractionState(req, res, next);
 
       expect(usersService.getProfileInteractionState).toHaveBeenCalledWith('user-1', 'profile-2');
-      expect(res.setHeader).toHaveBeenCalledWith('Cache-Control', 'private, no-store');
       expect(res.status).toHaveBeenCalledWith(200);
       expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ success: true, data: state }));
       expect(next).not.toHaveBeenCalled();

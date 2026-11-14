@@ -60,7 +60,6 @@ export const usersController = {
       const viewer = requireUser(req);
       const { params } = getUserByIdSchema.parse({ params: req.params });
       const result = await usersService.getProfileInteractionState(viewer.userId, params.id);
-      res.setHeader('Cache-Control', 'private, no-store');
       res.status(200).json(successResponse('Profile interaction state fetched', result));
     } catch (error) {
       next(error);

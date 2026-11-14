@@ -8,13 +8,14 @@ import { logger } from '../../../shared/observability/logger';
 import { isPrismaError } from '../../../shared/db/prismaErrors';
 import { bumpAdsCacheVersionAndHome } from '../ads/ads.cache.keys';
 import { purgeReferenceKv } from '../../../shared/cache/edgePurge';
+import { REFERENCE_DATA_REDIS_TTL_SECONDS } from '../../../shared/cache/referenceDataTtl';
 
 // versioned key. Warmup/cache-aside never
 // overwrite an existing key, so a deploy that changes the payload shape would
 // otherwise keep serving the old shape for up to the 1h TTL. Bump the suffix
 // whenever the cached shape changes.
 const CATEGORIES_CACHE_KEY = 'categories:all:v1';
-const CATEGORIES_TTL = 60 * 60; // 1 hour — categories rarely change
+const CATEGORIES_TTL = REFERENCE_DATA_REDIS_TTL_SECONDS;
 
 const invalidateCategoriesCache = async (): Promise<void> => {
   try {

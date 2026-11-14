@@ -45,7 +45,7 @@ describe('makeQueryClient', () => {
     expect(makeQueryClient()).toBeInstanceOf(QueryClient);
   });
 
-  it('sets staleTime to 60 000 ms', () => {
+  it('sets staleTime to the publicLive policy (90 000 ms)', () => {
     const qc = makeQueryClient();
     expect(qc.getDefaultOptions().queries?.staleTime).toBe(90_000);
   });

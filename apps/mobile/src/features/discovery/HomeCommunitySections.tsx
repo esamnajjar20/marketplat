@@ -13,11 +13,11 @@ import { fetchStores, type StoreSummary } from '@/features/commerce/commerce.api
 import { fetchStoryFeed, type StoryGroup } from '@/features/stories/stories.api';
 import { fontSizes, radius, spacing, ux, fontWeights } from '@/theme/tokens';
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
+import { HOME_PUBLIC_STORES_TTL_MS } from '@/lib/cache-ttl';
 import { HorizontalMarketCard } from '@/components/MarketCards';
 import { SectionHeader, StoryAvatar } from '@/components/ui';
 
 const PUBLIC_STORES_CACHE_KEY = 'home:public-stores:v1';
-const PUBLIC_STORES_TTL_MS = 10 * 60 * 1000;
 
 // معالج ثابت الهوية + StoreCard memo: بطاقات المتاجر لا تُعاد رسمها عند تغيّر حالة القسم (توسيع/قصص).
 const openStore = (id: string) => pushOnce({ pathname: '/stores/[id]', params: { id } });
@@ -95,7 +95,7 @@ export default function HomeCommunitySections() {
 
         const tasks: Promise<void>[] = [];
         const storesCacheIsFresh =
-          lastStoresSuccessfulAt > 0 && Date.now() - lastStoresSuccessfulAt < PUBLIC_STORES_TTL_MS;
+          lastStoresSuccessfulAt > 0 && Date.now() - lastStoresSuccessfulAt < HOME_PUBLIC_STORES_TTL_MS;
         if (force || !storesCacheIsFresh) {
           tasks.push(
             fetchStores({ page: 1, limit: 10 })

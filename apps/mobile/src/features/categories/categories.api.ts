@@ -1,6 +1,7 @@
 import { apiRequest } from '@/api/client';
 import { readPublicCache, writePublicCache } from '@/storage/public-cache';
 import { canUseStaleCacheAfterReadFailure } from '@/lib/offline-cache-policy';
+import { CATEGORY_MEMORY_TTL_MS } from '@/lib/cache-ttl';
 
 export type PublicCategory = {
   id: string;
@@ -13,7 +14,6 @@ export type PublicCategory = {
 
 type ApiEnvelope<T> = { success: boolean; message?: string; data?: T };
 
-const CATEGORY_MEMORY_TTL_MS = 5 * 60 * 1000;
 let memoryCache: { items: PublicCategory[]; savedAt: number } | null = null;
 let inFlight: Promise<PublicCategory[]> | null = null;
 

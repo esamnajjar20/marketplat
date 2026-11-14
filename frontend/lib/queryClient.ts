@@ -12,7 +12,8 @@
  */
 import { QueryClient } from '@tanstack/react-query';
 import { cache } from 'react';
-import { CLIENT_CACHE_DEFAULTS } from '@/lib/cachePolicy';
+import { CLIENT_CACHE_DEFAULTS, cachePolicy } from '@/lib/cachePolicy';
+import { CACHE_TTL } from '@/lib/constants';
 import {
   getRetryAfterFromParsedError,
   getRetryDelayMs,
@@ -91,19 +92,29 @@ export function makeQueryClient() {
   // Default staleTime (90s) remains the fallback for anything not listed below.
   // networkMode: 'offlineFirst' and gcTime are intentionally unchanged.
 
-  // Static reference data — 15 min
+  // Every value below comes from CACHE_TTL / shared/cache-policy.json — no
+  // inline millisecond literals, so hooks without an explicit staleTime match
+  // the hooks that pass CACHE_TTL.* directly.
+
+  // Reference data — categories are admin-edited and purged explicitly, so
+  // this stays at the original 15 min. It is intentionally longer than
+  // CACHE_TTL.categories (5 min) so hooks that do not pass an explicit
+  // staleTime keep the old behaviour.
   client.setQueryDefaults(['categories'], { staleTime: 15 * 60 * 1000 });
 
-  // Semi-static — 5 min
+  // Public catalogues — 5 min. Longer than publicLive (90 s) on purpose:
+  // these are paged lists behind a server-side cache; 90 s would refetch
+  // every catalogue page on every tab switch.
   client.setQueryDefaults(['stores'], { staleTime: 5 * 60 * 1000 });
   client.setQueryDefaults(['service-listings'], { staleTime: 5 * 60 * 1000 });
   client.setQueryDefaults(['products'], { staleTime: 5 * 60 * 1000 });
 
-  // Dynamic — 30 sec
+  // Dynamic — 30 s / 90 s (per-surface tuning, no matching policy bucket).
   client.setQueryDefaults(['notifications'], { staleTime: 30 * 1000 });
   client.setQueryDefaults(['activity'], { staleTime: 90 * 1000 });
 
-  // Real-time — 0 (always refetch): chat messages + unread counts
+  // Chat — always refetch. SSE covers the open thread, and staleTime 0
+  // keeps the inbox in sync across tab switches.
   client.setQueryDefaults(['conversations'], { staleTime: 0 });
 
   return client;
