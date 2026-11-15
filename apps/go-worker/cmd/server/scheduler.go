@@ -46,7 +46,7 @@ type scheduledJobsResponse struct {
 // Go-first database path, Express fallback, and post-commit side effects.
 func (s *server) runDueScheduledJobs(w http.ResponseWriter, r *http.Request) {
 	if !authorized(r, s.token) {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	if !requireEmptyJSONObject(w, r, 2*1024) {
@@ -165,21 +165,6 @@ func (s *server) runDueScheduledJobs(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusBadGateway
 	}
 	writeJSON(w, status, response)
-}
-
-func requireEmptyJSONObject(w http.ResponseWriter, r *http.Request, maxBytes int64) bool {
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBytes))
-	decoder.DisallowUnknownFields()
-	var body map[string]json.RawMessage
-	if err := decoder.Decode(&body); err != nil || body == nil || len(body) != 0 {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "request body must be an empty JSON object"})
-		return false
-	}
-	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "request body must contain one JSON object"})
-		return false
-	}
-	return true
 }
 
 func normalizeAPIBaseURL(raw string) (string, error) {

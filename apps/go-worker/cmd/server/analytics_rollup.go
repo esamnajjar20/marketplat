@@ -12,7 +12,7 @@ const analyticsRollupTimeout = 12 * time.Minute
 
 func (s *server) runAnalyticsRollup(w http.ResponseWriter, r *http.Request) {
 	if !authorized(r, s.token) {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	if !requireEmptyJSONObject(w, r, 1024) {

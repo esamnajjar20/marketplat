@@ -1,5 +1,8 @@
 # MarketPlat Go Worker (pilot)
 
+> **Code layout and contribution guide:** see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+
 This is a separately deployable Go worker for maintenance, scheduling, and background processing. Express remains the main HTTP/business backend and keeps a coordinated Outbox fallback.
 
 ## What it does

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -14,20 +13,13 @@ import (
 
 func (s *server) getInventoryStoreSummary(w http.ResponseWriter, r *http.Request) {
 	if !authorized(r, s.token) {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	var request struct {
 		StoreID string `json:"storeId"`
 	}
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1024))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&request); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid inventory summary request"})
-		return
-	}
-	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "request body must contain one JSON object"})
+	if !decodeStrictJSON(w, r, 1024, &request, "invalid inventory summary request") {
 		return
 	}
 	request.StoreID = strings.TrimSpace(request.StoreID)
@@ -50,7 +42,7 @@ func (s *server) getInventoryStoreSummary(w http.ResponseWriter, r *http.Request
 
 func (s *server) runInventoryMonitor(w http.ResponseWriter, r *http.Request) {
 	if !authorized(r, s.token) {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	if !requireEmptyJSONObject(w, r, 1024) {

@@ -13,7 +13,7 @@ const dataIntegrityScanTimeout = 22 * time.Second
 
 func (s *server) runDataIntegrityScan(w http.ResponseWriter, r *http.Request) {
 	if !authorized(r, s.token) {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	if !requireEmptyJSONObject(w, r, 1024) {

@@ -16,7 +16,7 @@ const (
 
 func (s *server) runSearchIndexRefresh(w http.ResponseWriter, r *http.Request) {
 	if !authorized(r, s.token) {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	if !requireEmptyJSONObject(w, r, 1024) {
@@ -37,7 +37,7 @@ func (s *server) runSearchIndexRefresh(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) searchIndexStatus(w http.ResponseWriter, r *http.Request) {
 	if !authorized(r, s.token) {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)

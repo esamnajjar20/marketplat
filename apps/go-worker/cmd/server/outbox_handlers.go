@@ -3,9 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -24,19 +22,12 @@ type outboxEventRequest struct {
 // outboxevents package directly.
 func (s *server) executeOutboxEvent(w http.ResponseWriter, r *http.Request) {
 	if !authorized(r, s.token) {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
 	var request outboxEventRequest
-	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16*1024))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&request); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid request body"})
-		return
-	}
-	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "request body must contain one JSON object"})
+	if !decodeStrictJSON(w, r, 16*1024, &request, "invalid request body") {
 		return
 	}
 	request.EventID = strings.TrimSpace(request.EventID)
@@ -81,7 +72,7 @@ func contextWithOutboxTimeout(r *http.Request) (context.Context, context.CancelF
 // Express polling worker remains the automatic fallback.
 func (s *server) outboxWorkerStatus(w http.ResponseWriter, r *http.Request) {
 	if !authorized(r, s.token) {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	enabled := false
@@ -112,7 +103,7 @@ func (s *server) outboxWorkerStatus(w http.ResponseWriter, r *http.Request) {
 // existing Express dispatcher as an automatic fallback.
 func (s *server) pushDispatchWorkerStatus(w http.ResponseWriter, r *http.Request) {
 	if !authorized(r, s.token) {
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 	enabled := s.pushDispatchEnabled && s.pushDispatchActive.Load()
