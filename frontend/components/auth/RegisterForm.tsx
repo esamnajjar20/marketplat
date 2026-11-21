@@ -5,6 +5,7 @@ import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { useSearchParams } from 'next/navigation';
 import { User, Mail, Lock, LockKeyhole, Phone } from 'lucide-react';
 import { useRegister } from '@/hooks/mutations/useAuthMutations';
+import { TurnstileWidget, isTurnstileEnabled } from '@/components/auth/TurnstileWidget';
 import { parseApiError } from '@/lib/errorParser';
 import { getSafeRedirectPath } from '@/lib/cookies';
 import { track } from '@/lib/analytics';
@@ -25,6 +26,9 @@ interface Errors {
 export function RegisterForm() {
   const searchParams = useSearchParams();
   const { mutate: register, isPending } = useRegister();
+  // TURNSTILE-01: token + remount counter (a token is single-use, so a failed submit needs a new one).
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileResetKey, setTurnstileResetKey] = useState(0);
 
   // AUDIT-FIX auth#1: RegisterForm previously never read `from` at all,
   // so a visitor who arrived here via /login?from=X → "إنشاء حساب" (or
@@ -115,7 +119,7 @@ export function RegisterForm() {
     if (!validate()) return;
     const redirectTo = getSafeRedirectPath(from, ROUTES.dashboard);
     register(
-      { name: name.trim(), email: email.trim(), password, phone: phone || undefined, city: city || undefined, redirectTo },
+      { name: name.trim(), email: email.trim(), password, phone: phone || undefined, city: city || undefined, redirectTo, ...(turnstileToken ? { turnstileToken } : {}) },
       {
         // UX-FIX P-REG-2: "email already in use" / "phone already in
         // use" arrive as a plain BadRequestError (400, general
@@ -139,6 +143,10 @@ export function RegisterForm() {
         // never containing that exact Arabic substring. The field-specific
         // error silently never fired; only the generic toast did.
         onError: (err) => {
+          if (isTurnstileEnabled) {
+            setTurnstileToken(null);
+            setTurnstileResetKey((k) => k + 1);
+          }
           const parsed = parseApiError(err);
           setServerErrors(parsed.fieldErrors);
           if (parsed.code === 'EMAIL_ALREADY_EXISTS') {
@@ -205,7 +213,9 @@ export function RegisterForm() {
         </Select>
       </FormField>
 
-      <Button type="submit" size="lg" className="mt-2 h-12 w-full rounded-2xl text-card-title font-bold" disabled={isFormIncomplete || isPending} loading={isPending} loadingText="جارٍ التسجيل...">
+      <TurnstileWidget key={turnstileResetKey} onToken={setTurnstileToken} />
+
+      <Button type="submit" size="lg" className="mt-2 h-12 w-full rounded-2xl text-card-title font-bold" disabled={isFormIncomplete || isPending || (isTurnstileEnabled && !turnstileToken)} loading={isPending} loadingText="جارٍ التسجيل...">
         إنشاء الحساب
       </Button>
 

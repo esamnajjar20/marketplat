@@ -422,3 +422,39 @@ describe('middleware — token edge cases (decodeToken)', () => {
     expect(res.status).toBe(200);
   });
 });
+
+// ── Session hint mirror (AUTH-ANON-REFRESH-01) ─────────────────────
+// The backend's app_has_session cookie is httpOnly; the middleware mirrors it into the
+// JS-readable app_session_hint cookie so client code can tell "anonymous" from "maybe logged in".
+
+describe('middleware — app_session_hint mirror', () => {
+  function requestWithCookies(pathname: string, cookies: Record<string, string>): NextRequest {
+    const req = new NextRequest(new URL(`http://localhost${pathname}`));
+    for (const [k, v] of Object.entries(cookies)) req.cookies.set(k, v);
+    return req;
+  }
+
+  it('sets the readable mirror when the httpOnly hint is present', () => {
+    const res = middleware(requestWithCookies('/', { app_has_session: '1' }));
+    const mirror = res.cookies.get('app_session_hint');
+    expect(mirror?.value).toBe('1');
+    expect(mirror?.path).toBe('/');
+  });
+
+  it('does not touch cookies for an anonymous visitor', () => {
+    const res = middleware(requestWithCookies('/', {}));
+    expect(res.cookies.get('app_session_hint')).toBeUndefined();
+  });
+
+  it('does not re-send the mirror when it is already present', () => {
+    const res = middleware(requestWithCookies('/', { app_has_session: '1', app_session_hint: '1' }));
+    expect(res.cookies.get('app_session_hint')).toBeUndefined();
+  });
+
+  it('clears a stale mirror once the backend hint is gone (logout)', () => {
+    const res = middleware(requestWithCookies('/', { app_session_hint: '1' }));
+    const mirror = res.cookies.get('app_session_hint');
+    expect(mirror?.value).toBe('');
+    expect(mirror?.maxAge).toBe(0);
+  });
+});

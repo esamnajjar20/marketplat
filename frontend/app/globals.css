@@ -524,17 +524,31 @@
     animation: fade-slide-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
+  /* PERF-ANIM-01: the sweep is a transform animation on a pseudo-element, which the
+     browser composites on the GPU. The old version animated background-position,
+     which Lighthouse reports as a non-composited animation. */
   .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background-color: hsl(var(--muted));
+  }
+  .skeleton-shimmer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
     background: linear-gradient(
       100deg,
-      hsl(var(--muted)) 0%,
-      hsl(var(--muted)) 35%,
+      transparent 30%,
       hsl(var(--muted-foreground) / 0.08) 50%,
-      hsl(var(--muted)) 65%,
-      hsl(var(--muted)) 100%
+      transparent 70%
     );
-    background-size: 200% 100%;
-    animation: shimmer 1.6s ease-in-out infinite;
+    transform: translateX(-100%);
+    animation: shimmer-sweep 1.6s ease-in-out infinite;
+  }
+  [dir='rtl'] .skeleton-shimmer::after {
+    transform: translateX(100%);
+    animation-name: shimmer-sweep-rtl;
   }
 
   /* شريط تقدّم علوي للتنقّل / loading.tsx */
@@ -690,9 +704,11 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+@keyframes shimmer-sweep {
+  to { transform: translateX(100%); }
+}
+@keyframes shimmer-sweep-rtl {
+  to { transform: translateX(-100%); }
 }
 
 /* ── نظام التحميل الموحّد (انظر docs/LOADING_SYSTEM.md) ─────────────────
@@ -740,6 +756,7 @@ a, button, [role="button"] {
   .stagger-fade-in > *,
   .section-enter,
   .skeleton-shimmer,
+  .skeleton-shimmer::after,
   .nav-progress-bar {
     animation: none !important;
     opacity: 1;

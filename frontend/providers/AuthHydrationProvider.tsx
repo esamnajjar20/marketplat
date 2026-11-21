@@ -60,7 +60,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { useAuthStore, selectIsHydrated } from '@/store/auth.store';
 import { usersApi }   from '@/api/users.api';
@@ -82,9 +82,24 @@ import { buildSessionExpiredLoginUrl } from '@/lib/sessionRedirect';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { isDefiniteSessionRejection } from '@/lib/authRestoreError';
 import { isDeviceOffline } from '@/lib/offlineError';
+import { shouldSkipAnonymousRefresh } from '@/lib/authSessionHint';
 
 // PERF-BUNDLE-HYDRATION-01: offlineSelfWarm (+ stores.api/service-providers.api)
 // تُحمَّل بعد نجاح الجلسة فقط وليس مع كل route للزوّار.
+// PERF-SSR-SHELL-01 (opt-in): by default this provider renders a loading skeleton
+// until the client has mounted and the auth store has rehydrated, so the HTML sent
+// by the server never contains the page itself and LCP waits for JS + hydration.
+// With NEXT_PUBLIC_SSR_PUBLIC_SHELL=1 the listed public routes render their real
+// content in the server HTML instead (the home page already prefetches its feed on
+// the server). Build-time flag: test for hydration warnings (#418) before enabling.
+const SSR_PUBLIC_SHELL_ENABLED = process.env.NEXT_PUBLIC_SSR_PUBLIC_SHELL === '1';
+const SSR_PUBLIC_SHELL_PATHS = new Set<string>(['/']);
+// The flag is inlined at build time, so this picks one hook identity for the whole bundle.
+// With the flag off the provider never subscribes to route changes (no re-render per navigation).
+const usePublicShellPathname: () => string | null = SSR_PUBLIC_SHELL_ENABLED
+  ? usePathname
+  : () => null;
+
 function warmSelfDataLazily(queryClient: QueryClient, userId: string): void {
   void import('@/lib/offlineSelfWarm')
     .then((m) => m.warmSelfDataForOffline(queryClient, userId))
@@ -112,6 +127,7 @@ interface AuthHydrationProviderProps {
 
 export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) {
   const router = useRouter();
+  const pathname = usePublicShellPathname();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -207,6 +223,27 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
     // above the backend's normal response time and below the point at
     // which a user would consider the page hung.
     const timeout    = setTimeout(() => controller.abort(), 15_000);
+
+    // AUTH-ANON-REFRESH-01: a visitor with no session hint cookie, no access-token
+    // cookie and no persisted user cannot have a refresh token (the backend sets
+    // app_has_session together with it). Skip the guaranteed-401 /auth/refresh so
+    // anonymous page loads stay free of a failed request and console error.
+    // Any doubt (hint present, persisted user, native app) keeps the old behaviour.
+    if (
+      typeof document !== 'undefined' &&
+      shouldSkipAnonymousRefresh({
+        cookieString: document.cookie,
+        hasPersistedUser: Boolean(useAuthStore.getState().user),
+        isNative: Boolean(
+          (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } })
+            .Capacitor?.isNativePlatform?.(),
+        ),
+      })
+    ) {
+      clearTimeout(timeout);
+      setAuthResolved();
+      return;
+    }
 
     // FIX AUTH-BOOTSTRAP-403-01: set once /auth/refresh succeeds, so a later 403 from
     // /users/me/bootstrap can be told apart from a rejected session.
@@ -608,7 +645,10 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
   // ready, but render an actual route skeleton rather than an empty viewport.
   // This gate is only for initial hydration; it does not remount on client-side
   // navigation. Protected/admin layouts retain their own session boundaries.
-  if (!mounted || !isHydrated) {
+  const rendersPublicShell =
+    SSR_PUBLIC_SHELL_ENABLED && SSR_PUBLIC_SHELL_PATHS.has(pathname ?? '');
+
+  if (!rendersPublicShell && (!mounted || !isHydrated)) {
     return <RouteLoadingState variant="browse" />;
   }
 

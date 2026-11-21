@@ -9,6 +9,7 @@ import {
   refreshRateLimit,
   resendVerificationRateLimit,
 } from '../../../middlewares/rateLimit.middleware';
+import { verifyTurnstile } from '../../../middlewares/turnstile.middleware';
 import { authenticate } from '../../../middlewares/auth.middleware';
 import { passport } from './google.strategy';
 import type { GoogleProfileData } from './google.strategy';
@@ -78,7 +79,7 @@ function requireGoogleOAuthConfigured(req: Request, res: Response, next: NextFun
  *       400:
  *         description: Validation error or email already in use
  */
-authRouter.post('/register', authRateLimit, authController.register);
+authRouter.post('/register', authRateLimit, verifyTurnstile, authController.register);
 
 /**
  * @swagger

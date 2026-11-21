@@ -78,6 +78,10 @@ export const CAROUSEL_ASPECT = 'aspect-[16/10] sm:aspect-[2/1] md:aspect-[21/9] 
 
 export function FeaturedCarousel() {
   const trackRef = useRef<HTMLDivElement>(null);
+  // PERF-REFLOW-01: track width is cached from a ResizeObserver so the sync effect and
+  // scroll handler do not force a layout by reading clientWidth on every run.
+  const widthRef = useRef(0);
+  const movedRef = useRef(false);
   const [index, setIndex] = useState(0);
   const lastInteractionRef = useRef(0);
   // scroll events fired by our own scrollTo() must not be read as user swipes.
@@ -140,6 +144,18 @@ export function FeaturedCarousel() {
     return out;
   })();
 
+  const hasSlides = slides.length > 0;
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) widthRef.current = entry.contentRect.width;
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasSlides]);
+
   // إعادة ضبط الفهرس عند تغيّر عدد الشرائح (تحميل/إعادة جلب)
   useEffect(() => {
     setIndex((i) => Math.min(i, Math.max(slides.length - 1, 0)));
@@ -173,10 +189,17 @@ export function FeaturedCarousel() {
     const el = trackRef.current;
     if (!el) return;
 
-    const isRtl = getComputedStyle(el).direction === 'rtl';
-    const target = scrollLeftForSlide(index, el.clientWidth, isRtl);
+    // PERF-REFLOW-01: nothing to sync while still on the first slide and untouched;
+    // skipping avoids reading scrollLeft (a forced layout) during initial load.
+    if (index !== 0) movedRef.current = true;
+    if (index === 0 && !movedRef.current) return;
+
+    // Read once, then cache: later runs reuse the ref instead of forcing layout again.
+    const width = widthRef.current || (widthRef.current = el.clientWidth);
+    const isRtl = document.documentElement.dir === 'rtl';
+    const target = scrollLeftForSlide(index, width, isRtl);
     // لا نُعيد التمرير إن كان المستخدم قد وصل للشريحة بنفسه (تفادي الصراع مع السحب).
-    if (slideIndexFromScroll(el.scrollLeft, el.clientWidth, slides.length) === index &&
+    if (slideIndexFromScroll(el.scrollLeft, width, slides.length) === index &&
         Math.abs(Math.abs(el.scrollLeft) - Math.abs(target)) < 2) {
       return;
     }
@@ -190,7 +213,8 @@ export function FeaturedCarousel() {
     if (!el || slides.length === 0) return;
     if (Date.now() < programmaticUntilRef.current) return;
     lastInteractionRef.current = Date.now();
-    setIndex(slideIndexFromScroll(el.scrollLeft, el.clientWidth, slides.length));
+    const width = widthRef.current || (widthRef.current = el.clientWidth);
+    setIndex(slideIndexFromScroll(el.scrollLeft, width, slides.length));
   }
 
   if (isLoading) {
@@ -257,6 +281,8 @@ export function FeaturedCarousel() {
         onScroll={handleScroll}
         className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain rounded-2xl [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         tabIndex={0}
+        role="group"
+        aria-label="شرائح المحتوى المميز"
         aria-live={autoPlaying ? 'off' : 'polite'}
       >
         {slides.map((slide, i) => (

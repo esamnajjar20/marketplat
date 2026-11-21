@@ -183,6 +183,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     // warning on every load even though nothing is actually broken.
     <html lang="ar" dir="rtl" translate="no" suppressHydrationWarning>
       <head>
+        {/* PERF-LCP-01: open the Cloudinary connection (DNS + TCP + TLS) during HTML
+            parsing instead of when the first <img> is discovered. Cloudinary serves
+            the LCP slide, so this shortens LCP on slow mobile networks. */}
+        <link rel="preconnect" href="https://res.cloudinary.com" />
         {process.env.NODE_ENV !== 'production' && (
           <Script src="/hydration-trace.js" strategy="lazyOnload" />
         )}

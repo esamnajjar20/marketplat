@@ -102,6 +102,8 @@ export interface RegisterPayload {
   password:  string;
   city?:     string;
   phone?:    string;
+  /** Cloudflare Turnstile token; only sent when Turnstile is configured. */
+  turnstileToken?: string;
 }
 
 export interface ForgotPasswordPayload {

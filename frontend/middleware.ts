@@ -271,6 +271,9 @@ function getCspApiOrigin(): string | null {
   }
 }
 
+// TURNSTILE-01: Cloudflare Turnstile is only allow-listed when a site key is configured.
+const TURNSTILE_ENABLED = Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY);
+
 function buildCsp(nonce: string, isDev: boolean, allowEval: boolean = false): string {
   const apiOrigin = getCspApiOrigin();
   return [
@@ -284,7 +287,7 @@ function buildCsp(nonce: string, isDev: boolean, allowEval: boolean = false): st
     // execution limited to the app and the explicitly required Google SDKs.
     // Google Sign-In widget loads its SDK from accounts.google.com (gsi/client)
     // and apis.google.com (legacy platform.js).
-    `script-src 'self' 'nonce-${nonce}' https://accounts.google.com https://apis.google.com${isDev ? " 'unsafe-eval' 'unsafe-inline'" : (allowEval ? " 'unsafe-eval'" : '')}`,
+    `script-src 'self' 'nonce-${nonce}' https://accounts.google.com https://apis.google.com${TURNSTILE_ENABLED ? ' https://challenges.cloudflare.com' : ''}${isDev ? " 'unsafe-eval' 'unsafe-inline'" : (allowEval ? " 'unsafe-eval'" : '')}`,
     // FIX OFFLINE-01: fonts.googleapis.com/fonts.gstatic.com dropped —
     // fonts are now self-hosted via @fontsource (see app/layout.tsx)
     // and served from this app's own origin, not Google's CDN, so
@@ -311,7 +314,7 @@ function buildCsp(nonce: string, isDev: boolean, allowEval: boolean = false): st
     // res.cloudinary.com is the delivery CDN; api.cloudinary.com is only
     // uploads. Both are needed — fetch() of an image goes to res.*.
     // Google Sign-In renders its button in an iframe from accounts.google.com.
-    `frame-src 'self' blob: https://accounts.google.com`,
+    `frame-src 'self' blob: https://accounts.google.com${TURNSTILE_ENABLED ? ' https://challenges.cloudflare.com' : ''}`,
     `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''} https://api.cloudinary.com https://res.cloudinary.com https://accounts.google.com`,
     // FIX PWA-11: بدون worker-src صريح، بعض المتصفحات (خاصة القديمة أو
     // الصارمة) قد ترفض تسجيل public/sw.js حتى لو كان default-src 'self'
@@ -479,6 +482,23 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);
+  // AUTH-ANON-REFRESH-01: app_has_session is httpOnly (backend), so client JS cannot read it.
+  // Mirror it into a JS-readable cookie, written on this same response so it is in
+  // document.cookie before any client script runs. Only touches cookies when the state changed.
+  const hasHintMirror = request.cookies.get('app_session_hint')?.value === '1';
+  if (hasSessionHint && !hasHintMirror) {
+    response.cookies.set('app_session_hint', '1', {
+      path: '/',
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60,
+    });
+  } else if (!hasSessionHint && request.cookies.has('app_session_hint')) {
+    response.cookies.set('app_session_hint', '', { path: '/', maxAge: 0 });
+  }
+  // COOP-01: isolates the browsing context group while still allowing the popups the
+  // page itself opens (Google Sign-In popup flow). 'same-origin' alone would break it.
+  response.headers.set('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
   // Attach request ID for distributed tracing.
   response.headers.set('X-Request-Id', crypto.randomUUID());
 

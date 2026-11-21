@@ -2,6 +2,8 @@ name: NPM Audit
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * 1'   # weekly, Monday 06:00 UTC
 
 permissions:
   contents: read
@@ -10,25 +12,65 @@ jobs:
   audit-backend:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
       - working-directory: apps/api
+        run: npm ci
+      - name: Audit production dependencies (gate)
+        working-directory: apps/api
+        run: npm audit --omit=dev --audit-level=high
+      - name: Audit dev dependencies (report only)
+        if: always()
+        continue-on-error: true
+        working-directory: apps/api
+        run: npm audit --audit-level=high
+      - name: Open issue on scheduled failure
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          npm ci
-          npm audit --audit-level=high || true
+          title="Weekly npm audit failed: backend"
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -z "$existing" ]; then
+            gh issue create --title "$title" --body "Production dependency audit found high/critical advisories. Run: $RUN_URL"
+          fi
 
   audit-frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
       - working-directory: frontend
+        run: npm ci
+      - name: Audit production dependencies (gate)
+        working-directory: frontend
+        run: npm audit --omit=dev --audit-level=high
+      - name: Audit dev dependencies (report only)
+        if: always()
+        continue-on-error: true
+        working-directory: frontend
+        run: npm audit --audit-level=high
+      - name: Open issue on scheduled failure
+        if: failure() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          npm ci
-          npm audit --audit-level=high || true
+          title="Weekly npm audit failed: frontend"
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -z "$existing" ]; then
+            gh issue create --title "$title" --body "Production dependency audit found high/critical advisories. Run: $RUN_URL"
+          fi

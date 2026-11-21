@@ -58,6 +58,7 @@ vi.mock('@/lib/networkPolicy', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => '/',
 }));
 
 vi.mock('@/lib/authSessionBroadcast', () => ({
@@ -123,10 +124,30 @@ describe('AuthHydrationProvider', () => {
     deleteCookie('app_access_token');
     deleteCookie('app_user_role');
     deleteCookie('app_has_session');
+    deleteCookie('app_session_hint');
+    // AUTH-ANON-REFRESH-01: the restore flow only runs when a session signal exists.
+    // The backend's app_has_session is httpOnly, so the browser only ever sees the
+    // middleware-mirrored app_session_hint. Most tests below exercise that flow.
+    document.cookie = 'app_session_hint=1; path=/';
   });
 
   afterEach(() => {
     cleanup();
+  });
+
+  it('AUTH-ANON-REFRESH-01: anonymous visitor (no hint, no token, no user) skips /auth/refresh', async () => {
+    deleteCookie('app_has_session');
+    deleteCookie('app_session_hint');
+    resetStoreToHydrated();
+    useAuthStore.setState({ user: null });
+    renderWithClient(
+      <AuthHydrationProvider>
+        <div />
+      </AuthHydrationProvider>,
+    );
+    await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
+    expect(refreshSessionShared).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
   it('shows a visible route skeleton, not a blank viewport, while auth persistence hydrates', () => {
@@ -159,7 +180,7 @@ describe('AuthHydrationProvider', () => {
     expect(getByText('App content')).toBeTruthy();
   });
 
-  it('PROD-FIX-15: always calls refreshSessionShared on mount', async () => {
+  it('PROD-FIX-15: calls refreshSessionShared on mount when a session hint exists', async () => {
     resetStoreToHydrated();
     refreshSessionShared.mockRejectedValue({ response: { status: 401 } });
     renderWithClient(
