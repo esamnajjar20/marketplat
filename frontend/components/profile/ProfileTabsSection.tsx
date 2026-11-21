@@ -7,6 +7,7 @@ import { writeClientUrl } from '@/lib/urlWithParams';
 import { ErrorBoundary } from '@/components/shared/feedback/ErrorBoundary';
 import { useAuthStore, selectUser } from '@/store/auth.store';
 import type { PublicUser } from '@/types/user.types';
+import { ENTITY_TAB_PANEL } from '@/components/shared/entity-page/entityPageTokens';
 
 const PublicProfileAds = dynamic(() =>
   import('@/components/profile/PublicProfileAds').then((module) => module.PublicProfileAds),
@@ -90,13 +91,14 @@ export function ProfileTabsSection({ user }: Props) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-0">
       <ProfileTabs
         value={value}
         onChange={handleChange}
         available={available.map((v) => ({ value: v, label: TAB_LABEL[v] }))}
       />
 
+      <div className={ENTITY_TAB_PANEL}>
       {(value === 'overview' || value === 'ads') && <PublicProfileAds userId={user.id} />}
 
       {value === 'store' && seller?.storeDetails && (
@@ -138,6 +140,7 @@ export function ProfileTabsSection({ user }: Props) {
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }

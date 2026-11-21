@@ -182,7 +182,7 @@ export function ProductDetail({ product, related = [] }: Props) {
             size="lg"
             variant="default"
             label="راسل المتجر"
-            className="flex-[1.6] gap-1.5 rounded-xl font-bold"
+            className="min-h-11 flex-[1.6] gap-1.5 rounded-xl font-bold"
           />
         </div>
       )}

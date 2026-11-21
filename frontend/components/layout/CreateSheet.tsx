@@ -78,7 +78,7 @@ export function CreateSheet({
         <SheetHeader className="space-y-1 px-4 pb-3 pt-2 text-start">
           <SheetTitle className="text-[17px] font-extrabold">ماذا تريد أن تضيف؟</SheetTitle>
           <SheetDescription className="text-sm text-muted-foreground">
-            اختر النوع — المسودات تُحفظ تلقائيًا ويمكن إكمالها لاحقًا
+            اختر النوع المناسب — المسودات تُحفظ تلقائيًا ويمكن إكمالها لاحقًا حتى بدون إنترنت
           </SheetDescription>
         </SheetHeader>
 

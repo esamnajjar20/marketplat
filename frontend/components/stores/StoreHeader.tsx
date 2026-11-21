@@ -32,6 +32,18 @@ import { ROUTES, APP_URL } from '@/lib/constants';
 import { getStoreTypeLabels, getStoreTypePresentation, type StoreWithSellerAndCounts, type StoreWeekday } from '@/types/store.types';
 import { buildWhatsAppUrl, toWaPhone } from '@/lib/whatsapp';
 import { buildTelUrl } from '@/lib/contactLinks';
+import {
+  ENTITY_SHELL,
+  ENTITY_COVER,
+  ENTITY_STATS,
+  ENTITY_STAT_TILE,
+  ENTITY_STAT_VALUE,
+  ENTITY_STAT_LABEL,
+  ENTITY_ACTIONS_PRIMARY,
+  ENTITY_ACTIONS_SECONDARY,
+  ENTITY_META,
+  ENTITY_OWNER_PANEL,
+} from '@/components/shared/entity-page/entityPageTokens';
 
 // STORE-HOURS (Foundation v1): sat-first order, same as
 // WorkingHoursEditor.tsx's DAYS array — kept as a separate literal
@@ -126,9 +138,9 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
   const place = [store.city, store.address].filter(Boolean).join(' — ');
 
   return (
-    <section className="mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm">
+    <section className={`mx-auto w-full max-w-6xl ${ENTITY_SHELL}`}>
       {/* الغلاف */}
-      <div className="relative h-[168px] w-full overflow-hidden rounded-b-[28px] bg-muted sm:h-52 md:h-60 lg:h-72">
+      <div className={ENTITY_COVER}>
         {cover ? (
           <SafeImage src={cover} alt="" fill className="object-cover" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1152px" priority />
         ) : (
@@ -220,21 +232,21 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
         <StoreAttributesSummary storeTypeId={store.storeTypeId} fields={store.storeType?.fields} attributes={store.attributes} presentation={store.storeType?.presentation} />
 
         {/* بطاقة الإحصائيات */}
-        <div className="mt-4 flex gap-2 rounded-shell border border-border bg-card p-2.5 shadow-sm">
+        <div className={`${ENTITY_STATS} mt-4`}>
           {[
             { v: store._count.products, l: storeLabels.product },
             { v: store._count.followers, l: 'متابع' },
             { v: rating > 0 ? rating.toFixed(1) : '—', l: 'التقييم' },
           ].map((t) => (
-            <div key={t.l} className="flex flex-1 flex-col items-center gap-0.5 rounded-card bg-surface-2 px-1 py-3">
-              <span className="text-[19px] font-extrabold leading-tight tabular-nums text-foreground">{t.v}</span>
-              <span className="text-xs text-muted-foreground">{t.l}</span>
+            <div key={t.l} className={ENTITY_STAT_TILE}>
+              <span className={ENTITY_STAT_VALUE}>{t.v}</span>
+              <span className={ENTITY_STAT_LABEL}>{t.l}</span>
             </div>
           ))}
         </div>
 
         {/* متابعة | اتصال | مراسلة */}
-        <div className="mt-3.5 flex gap-2 lg:max-w-2xl">
+        <div className={`${ENTITY_ACTIONS_PRIMARY} lg:max-w-2xl`}>
           {showFollow && (
             <Button
               variant={isFollowing ? 'outline' : 'default'}
@@ -266,7 +278,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
         </div>
 
         {/* أدوات إضافية */}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        <div className={ENTITY_ACTIONS_SECONDARY}>
           {!isOwnStore && waPhone.length >= 9 && (
             <a
               href={buildWhatsAppUrl({ phone: store.phone })}
@@ -305,7 +317,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
         />
 
         {isOwnStore && (
-          <div className="mt-4 space-y-3 rounded-shell border border-primary/15 bg-primary/[0.035] p-3 sm:p-4">
+          <div className={ENTITY_OWNER_PANEL}>
             {store.status === 'ACTIVE' && (
               <Button asChild className="h-auto w-full gap-2 rounded-card py-3 font-bold">
                 <IntentPrefetchLink href={ROUTES.myStoreProductCreate} prefetch={false}>
@@ -328,12 +340,13 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
           </div>
         )}
 
+        <div className={ENTITY_META}>
         {store.latitude && store.longitude && (
           <a
             href={`https://www.openstreetmap.org/?mlat=${store.latitude}&mlon=${store.longitude}#map=16/${store.latitude}/${store.longitude}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center gap-1.5 rounded-card border border-border bg-card px-4 py-2 text-sm font-medium text-primary shadow-sm hover:bg-muted/50"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-medium text-primary shadow-sm hover:bg-muted/50"
           >
             <MapPin className="h-3.5 w-3.5" />
             {presentation.page.location}
@@ -341,7 +354,7 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
         )}
 
         {store.workingHours && (
-          <details className="mt-3 w-full rounded-shell border border-border bg-card p-4 text-start text-sm shadow-sm lg:max-w-2xl">
+          <details className="w-full rounded-2xl border border-border bg-card p-4 text-start text-sm shadow-sm lg:max-w-2xl">
             <summary className="cursor-pointer select-none font-semibold text-foreground">ساعات العمل</summary>
             <ul className="mt-3 space-y-1 rounded-xl bg-surface-2 p-3">
               {STORE_HOURS_DAYS.map(({ key, label }) => {
@@ -358,10 +371,11 @@ export function StoreHeader({ store, isFollowing: isFollowingProp, isFavorited, 
         )}
 
         {isAuthenticated && !isOwnStore && (
-          <div className="mt-3">
+          <div>
             <ReportStoreButton storeId={store.id} />
           </div>
         )}
+        </div>
       </div>
     </section>
   );

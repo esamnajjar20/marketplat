@@ -69,11 +69,13 @@
     --online: 142.6 33.3% 35.9%;
     --online-foreground: 40 60% 98%;
 
-    /* Categorical entity-type tokens (D1) */
-    --cat-product: 160 84% 39%; /* emerald-600 (true hue) */
-    --cat-service: 24 95% 53%;  /* orange-500 */
-    --cat-store: 221 83% 53%;   /* blue-600 */
-    --cat-ad: 262 83% 58%;      /* violet-600 */
+    /* Categorical entity-type tokens (D1)
+       UX-IMPROVEMENT Phase 0: softened toward warm brand family.
+       Still distinct, but less "cold tech" (especially store blue & ad violet). */
+    --cat-product: 155 55% 38%; /* warm emerald, closer to primary olive */
+    --cat-service: 22 75% 48%;  /* terracotta-leaning orange */
+    --cat-store: 200 55% 42%;   /* soft teal-blue instead of pure blue-600 */
+    --cat-ad: 280 45% 48%;      /* muted violet, less neon */
 
     /* Chart palette (D2) */
     --chart-1: 170 55% 45%; /* teal — distinct from --primary (145) */
@@ -142,7 +144,8 @@
     --secondary: 150 10% 17%;
     --secondary-foreground: 40 30% 94%;
     --muted: 150 10% 17%;
-    --muted-foreground: 36 12% 65%;
+    /* UX-IMPROVEMENT Phase 5: slightly brighter muted text for small badges/labels (AA) */
+    --muted-foreground: 36 14% 70%;
 
     --accent: 22 62% 62%;
     --accent-foreground: 150 20% 8%;
@@ -166,11 +169,11 @@
     --online: 143 35% 48%;
     --online-foreground: 150 20% 8%;
 
-    /* Categorical entity-type tokens (D1) — lightened ~10% */
-    --cat-product: 160 70% 55%;
-    --cat-service: 24 90% 62%;
-    --cat-store: 221 75% 65%;
-    --cat-ad: 262 70% 68%;
+    /* Categorical entity-type tokens (D1) — softened + lightened for dark */
+    --cat-product: 155 50% 58%;
+    --cat-service: 22 70% 62%;
+    --cat-store: 200 50% 62%;
+    --cat-ad: 280 40% 65%;
 
     /* Chart palette (D2) — lightness +15% */
     --chart-1: 170 60% 65%;

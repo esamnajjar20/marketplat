@@ -16,6 +16,10 @@ interface AdDetailStickyCtaProps {
   isMessaging: boolean;
 }
 
+/**
+ * Mobile sticky CTA for ad detail.
+ * UX-IMPROVEMENT Phase 2: clearer price-unset treatment + stronger primary action.
+ */
 export function AdDetailStickyCta({
   ad,
   isOwnAd,
@@ -27,12 +31,13 @@ export function AdDetailStickyCta({
   if (isOwnAd) return null;
 
   const isSold = ad.status === 'SOLD';
-  // Prefer a clear sold label over "السعر غير معلن" + strikethrough.
+  const hasPrice = ad.price != null;
+
   const priceLabel = isSold
-    ? ad.price == null
+    ? !hasPrice
       ? 'مُباع'
       : formatPrice(ad.price)
-    : ad.price == null
+    : !hasPrice
       ? 'السعر غير معلن'
       : formatPrice(ad.price);
 
@@ -43,15 +48,15 @@ export function AdDetailStickyCta({
         <b
           className={cn(
             'truncate text-sm font-extrabold tabular-nums tracking-tight',
-            isSold && ad.price != null && 'text-muted-foreground line-through',
-            isSold && ad.price == null && 'text-muted-foreground',
-            !isSold && ad.price == null && 'text-xs text-muted-foreground',
-            !isSold && ad.price != null && 'text-primary',
+            isSold && hasPrice && 'text-muted-foreground line-through',
+            isSold && !hasPrice && 'text-muted-foreground',
+            !isSold && !hasPrice && 'text-xs font-semibold text-muted-foreground',
+            !isSold && hasPrice && 'text-primary',
           )}
         >
           {priceLabel}
         </b>
-        {isSold && ad.price != null ? (
+        {isSold && hasPrice ? (
           <p className="text-2xs-tight font-semibold text-muted-foreground">مُباع</p>
         ) : !isSold && ad.isNegotiable ? (
           <p className="text-2xs-tight text-muted-foreground">قابل للتفاوض</p>
@@ -60,7 +65,7 @@ export function AdDetailStickyCta({
       <Button
         variant="default"
         size="lg"
-        className="flex-[1.6] gap-1.5 rounded-xl font-bold"
+        className="min-h-11 flex-[1.6] gap-1.5 rounded-xl font-bold"
         loading={isMessaging}
         loadingText="جارٍ…"
         disabled={isSold}

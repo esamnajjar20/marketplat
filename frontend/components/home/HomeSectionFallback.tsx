@@ -4,12 +4,19 @@ import { Skeleton } from '@/components/shared/ui/Skeleton';
  * HOME-FLICKER-01: shown by next/dynamic while a lazy home section's JS chunk
  * loads. Same shape and height as LazySection's own placeholder, so there is no
  * blank frame between "skeleton" and "section skeleton" while scrolling.
+ *
+ * PERF-LOAD-01: content-visibility + intrinsic size so off-screen fallbacks
+ * cost almost no paint work until they approach the viewport.
  */
 export function HomeSectionFallback({ minHeight = 240 }: { minHeight?: number }) {
   return (
     <div
-      className="container mx-auto max-w-7xl space-y-4 px-4 py-2 sm:py-3"
-      style={{ minHeight }}
+      className="container mx-auto max-w-7xl space-y-3 px-4 py-2 sm:py-3"
+      style={{
+        minHeight,
+        contentVisibility: 'auto',
+        containIntrinsicSize: `auto ${minHeight}px`,
+      }}
       aria-hidden
     >
       <div className="flex items-center justify-between gap-3">

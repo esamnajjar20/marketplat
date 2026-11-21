@@ -105,6 +105,12 @@ export function FavoriteButton({ entityType, entityId, className, size = 'md', w
     toggleFavorite.mutate(entityId, {
       onSuccess: (data) => {
         if (initialIsFavorited !== undefined) setPageFavoriteState(data?.action === 'added');
+        // UX-IMPROVEMENT Phase 3.2: light success feedback (animation already runs on add)
+        if (data?.action === 'added') {
+          toast.success('أُضيف إلى المفضلة');
+        } else if (data?.action === 'removed') {
+          toast.message('أُزيل من المفضلة');
+        }
       },
     });
   }

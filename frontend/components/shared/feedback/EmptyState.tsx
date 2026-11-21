@@ -43,8 +43,9 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'section-enter motion-reduce:animate-none flex flex-col items-center justify-center rounded-card border border-border bg-card px-4 text-center shadow-[0_1px_3px_rgba(42,36,29,0.04)]',
-        compact ? 'gap-2.5 py-8' : 'gap-3 py-10 sm:py-12',
+        // UX-IMPROVEMENT Phase 3: warmer soft shadow + clearer vertical rhythm
+        'section-enter motion-reduce:animate-none flex flex-col items-center justify-center rounded-2xl border border-border bg-card px-4 text-center shadow-[0_1px_3px_hsl(var(--shadow-color)/0.06)]',
+        compact ? 'gap-2.5 py-8' : 'gap-3.5 py-10 sm:py-12',
         className,
       )}
       role={role}

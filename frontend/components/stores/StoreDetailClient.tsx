@@ -19,6 +19,7 @@ import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { Button } from '@/components/shared/ui/Button';
 import { parseApiError } from '@/lib/errorParser';
 import { ROUTES } from '@/lib/constants';
+import { ENTITY_PAGE } from '@/components/shared/entity-page/entityPageTokens';
 
 export function StoreDetailClient({ id }: { id: string }) {
   const { data: pageData, isLoading, isError, error, refetch } = useStore(id, { trackView: true });
@@ -31,7 +32,7 @@ export function StoreDetailClient({ id }: { id: string }) {
   if (isError || !store) {
     const notFound = isError && parseApiError(error).statusCode === 404;
     return (
-      <div className="container mx-auto max-w-7xl px-3 py-6 sm:px-4 lg:py-8">
+      <div className={ENTITY_PAGE}>
         <EmptyState
           icon={notFound ? <SearchX className="h-10 w-10" /> : <AlertTriangle className="h-10 w-10" />}
           title={notFound ? 'المتجر غير موجود' : 'تعذّر تحميل المتجر'}
@@ -45,7 +46,7 @@ export function StoreDetailClient({ id }: { id: string }) {
   }
 
   return (
-    <div className="container mx-auto w-full max-w-7xl space-y-8 px-3 py-6 sm:px-4 lg:py-8">
+    <div className={ENTITY_PAGE}>
       <StoreHeader
         store={store}
         isFollowing={pageData?.viewer?.isFollowing ?? false}

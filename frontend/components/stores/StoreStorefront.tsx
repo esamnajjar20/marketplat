@@ -17,6 +17,13 @@ import { ROUTES } from '@/lib/constants';
 import { writeClientUrl } from '@/lib/urlWithParams';
 import { getStoreTypePresentation, type StoreWithSellerAndCounts } from '@/types/store.types';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
+import {
+  ENTITY_TABLIST,
+  ENTITY_TAB_BTN,
+  ENTITY_TAB_ACTIVE,
+  ENTITY_TAB_IDLE,
+  ENTITY_TAB_PANEL,
+} from '@/components/shared/entity-page/entityPageTokens';
 
 const StoreAds = dynamic(
   () => import('@/components/stores/StoreAds').then((m) => m.StoreAds),
@@ -89,9 +96,9 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
   }
 
   return (
-    <div className="space-y-5 lg:space-y-6">
+    <div className="space-y-4 sm:space-y-5">
       <div
-        className="sticky top-[var(--protected-header-offset,4rem)] z-20 -mx-2 flex gap-1.5 overflow-x-auto overscroll-x-contain border-b border-border bg-background/95 px-4 scrollbar-thin backdrop-blur supports-[backdrop-filter]:bg-background/85"
+        className={ENTITY_TABLIST}
         role="tablist"
         aria-label="أقسام المتجر"
       >
@@ -108,10 +115,8 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
             onKeyDown={(event) => handleTabKeyDown(event, index)}
             onClick={() => setTab(id)}
             className={cn(
-              'h-12 shrink-0 whitespace-nowrap border-b-[3px] px-3 text-sm transition-colors',
-              active === id
-                ? 'border-primary font-extrabold text-primary-strong'
-                : 'border-transparent font-semibold text-muted-foreground hover:text-foreground',
+              ENTITY_TAB_BTN,
+              active === id ? ENTITY_TAB_ACTIVE : ENTITY_TAB_IDLE,
             )}
           >
             {label}

@@ -78,7 +78,8 @@ export function SectionHeader({
           prefetch={false}
           aria-label={`عرض كل ${title}`}
           className={cn(
-            'inline-flex min-h-9 shrink-0 items-center gap-0.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-[background-color,border-color,color,transform] duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.995] sm:min-h-0 sm:px-2.5 sm:py-1',
+            // UX-IMPROVEMENT: slightly larger touch target + clearer active state
+            'inline-flex min-h-10 shrink-0 items-center gap-0.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-[background-color,border-color,color,transform] duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98] sm:min-h-9 sm:px-3 sm:py-1',
             featured
               ? 'border-accent/30 bg-accent/10 text-accent hover:bg-accent/15'
               : tone === 'nearby'

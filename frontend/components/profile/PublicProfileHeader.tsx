@@ -13,6 +13,19 @@ import {
   PublicProfileMessageActions,
 } from '@/components/profile/PublicProfileInteractive';
 import type { PublicUser } from '@/types/user.types';
+import {
+  ENTITY_SHELL,
+  ENTITY_BAND,
+  ENTITY_GRID,
+  ENTITY_IDENTITY,
+  ENTITY_SIDE,
+  ENTITY_STATS,
+  ENTITY_STAT_TILE,
+  ENTITY_STAT_VALUE,
+  ENTITY_STAT_LABEL,
+  ENTITY_ACTIONS_PRIMARY,
+  ENTITY_ACTIONS_SECONDARY,
+} from '@/components/shared/entity-page/entityPageTokens';
 
 interface Props { user: PublicUser; }
 
@@ -36,19 +49,19 @@ export function PublicProfileHeader({ user }: Props) {
     { value: user.followStats.followers, label: 'متابع', href: `/profile/${user.id}/followers` },
     { value: user.followStats.following, label: 'أتابعهم', href: `/profile/${user.id}/following` },
   ];
-  const tileCls = 'flex flex-1 flex-col items-center gap-0.5 rounded-card bg-surface-2 px-1 py-3';
+  const tileCls = ENTITY_STAT_TILE;
 
   return (
-    <div className="mx-auto w-full max-w-5xl">
-      <section className="relative isolate overflow-hidden rounded-3xl border border-border/70 bg-background shadow-sm">
+    <div className="mx-auto w-full max-w-6xl">
+      <section className={ENTITY_SHELL}>
         {/* الشريط العلوي */}
-        <div aria-hidden="true" className="absolute inset-x-0 top-0 h-[120px] rounded-b-[28px] bg-gradient-to-br from-primary-soft to-accent-soft" />
+        <div aria-hidden="true" className={ENTITY_BAND} />
         <PublicProfileHeaderTopActions user={user} />
 
         <div className="relative z-10 pb-6 pt-[72px] lg:pb-8">
-          <div className="flex flex-col items-center px-4 text-center lg:flex-row lg:items-start lg:gap-10 lg:px-10 lg:text-start">
+          <div className={`${ENTITY_GRID} px-4 lg:px-8`}>
             {/* الهوية */}
-            <div className="flex w-full flex-col items-center lg:w-72 lg:shrink-0 lg:items-start">
+            <div className={ENTITY_IDENTITY}>
               <PublicProfileAvatar user={user} />
 
               <h1 className="mt-2.5 text-[23px] font-extrabold leading-snug text-foreground">{user.name}</h1>
@@ -84,13 +97,13 @@ export function PublicProfileHeader({ user }: Props) {
             </div>
 
             {/* الإحصائيات والأزرار */}
-            <div className="flex w-full min-w-0 flex-1 flex-col items-stretch lg:pt-14">
-              <div className="mt-4 flex gap-2 rounded-shell border border-border bg-card p-2.5 shadow-sm lg:mt-0">
+            <div className={ENTITY_SIDE}>
+              <div className={`${ENTITY_STATS} mt-4 lg:mt-0`}>
                 {stats.map((t) => {
                   const inner = (
                     <>
-                      <span className="text-[19px] font-extrabold leading-tight tabular-nums text-foreground">{t.value}</span>
-                      <span className="text-xs text-muted-foreground">{t.label}</span>
+                      <span className={ENTITY_STAT_VALUE}>{t.value}</span>
+                      <span className={ENTITY_STAT_LABEL}>{t.label}</span>
                     </>
                   );
                   return t.href ? (
@@ -101,7 +114,7 @@ export function PublicProfileHeader({ user }: Props) {
                 })}
               </div>
 
-              <div className="mt-3.5 flex flex-wrap gap-2">
+              <div className={ENTITY_ACTIONS_PRIMARY}>
                 <PublicProfileFollowAction user={user} />
                 <PublicProfileMessageActions user={user} />
               </div>
@@ -123,7 +136,7 @@ export function PublicProfileHeader({ user }: Props) {
                 </IntentPrefetchLink>
               )}
 
-              <div className="mt-3 flex items-center justify-center gap-1 text-xs text-muted-foreground lg:justify-start">
+              <div className={`${ENTITY_ACTIONS_SECONDARY} justify-center border-0 pt-1 lg:justify-start`}>
                 <BlockUserButtonGate targetUserId={user.id} targetUserName={user.name} />
                 <ReportUserButtonGate targetUserId={user.id} />
               </div>

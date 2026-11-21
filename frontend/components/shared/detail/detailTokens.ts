@@ -45,6 +45,9 @@ export const BTN_OUTLINE =
 export const BTN_DANGER =
   'h-11 px-4 rounded-xl bg-background text-destructive border border-destructive/30 text-sm font-bold flex items-center justify-center gap-1.5 hover:bg-destructive/10 transition-colors';
 
-/** Mobile action bars share the global offset that clears the bottom navigation. */
+/** Mobile action bars share the global offset that clears the bottom navigation.
+ * UX-IMPROVEMENT Phase 2: slightly stronger elevation + safer vertical padding
+ * so the bar feels more intentional and remains readable over content.
+ */
 export const STICKY_BAR =
-  'sticky-contact-bar flex items-center gap-2.5 border-t border-border bg-card/95 px-4 py-2.5 shadow-sm backdrop-blur';
+  'sticky-contact-bar flex items-center gap-2.5 border-t border-border bg-card/95 px-4 py-3 shadow-[0_-4px_16px_-4px_hsl(var(--shadow-color)/0.12)] backdrop-blur-md';

@@ -2,6 +2,12 @@
 
 import { useRef, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/utils';
+import {
+  ENTITY_TABLIST,
+  ENTITY_TAB_BTN,
+  ENTITY_TAB_ACTIVE,
+  ENTITY_TAB_IDLE,
+} from '@/components/shared/entity-page/entityPageTokens';
 
 export type ProfileTabValue = 'overview' | 'ads' | 'store' | 'services' | 'ratings';
 
@@ -16,13 +22,9 @@ interface Props {
 }
 
 /**
- * UNIFIED-PROFILE: same lightweight button-group pattern SearchTabs.tsx
- * already established (no shadcn Tabs primitive installed in this
- * project) — reused here rather than introducing a second tab
- * implementation. The tab list itself is driven entirely by the
- * `available` prop the page computes from what the profile actually
- * has, so a plain user only ever sees [نظرة عامة] [الإعلانات]
- * [التقييمات] while a seller with a store and services sees all five.
+ * UNIFIED-PROFILE + ENTITY-PAGE-RESTRUCTURE:
+ * Same sticky tablist tokens as StoreStorefront so profile and store
+ * feel like one product system on mobile and desktop.
  */
 export function ProfileTabs({ value, onChange, available, className }: Props) {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -45,7 +47,7 @@ export function ProfileTabs({ value, onChange, available, className }: Props) {
     <div
       role="tablist"
       aria-label="أقسام الملف الشخصي"
-      className={cn('flex gap-1.5 overflow-x-auto overscroll-x-contain border-b border-border px-1 scrollbar-thin', className)}
+      className={cn(ENTITY_TABLIST, className)}
     >
       {available.map((tab, index) => (
         <button
@@ -54,14 +56,14 @@ export function ProfileTabs({ value, onChange, available, className }: Props) {
           role="tab"
           aria-selected={value === tab.value}
           tabIndex={value === tab.value ? 0 : -1}
-          ref={(el) => { refs.current[index] = el; }}
+          ref={(el) => {
+            refs.current[index] = el;
+          }}
           onKeyDown={(event) => onKeyDown(event, index)}
           onClick={() => onChange(tab.value)}
           className={cn(
-            'h-12 shrink-0 whitespace-nowrap border-b-[3px] px-3 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-            value === tab.value
-              ? 'border-primary font-extrabold text-primary-strong'
-              : 'border-transparent font-semibold text-muted-foreground hover:text-foreground'
+            ENTITY_TAB_BTN,
+            value === tab.value ? ENTITY_TAB_ACTIVE : ENTITY_TAB_IDLE,
           )}
         >
           {tab.label}

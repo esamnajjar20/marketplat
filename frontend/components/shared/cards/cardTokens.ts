@@ -1,3 +1,12 @@
+/**
+ * Card design tokens — shared visual language for Ad / Product / Service / Store cards.
+ *
+ * UX-IMPROVEMENT Phase 0 (2026-11-21):
+ * - Stronger, more consistent hover/press/active feedback
+ * - Clearer "price unset" treatment
+ * - Slightly larger hit area for heart button
+ * - Unified shadow tokens that work in both light and dark
+ */
 export const CARD_SHELL =
   'h-full w-full min-w-0 overflow-hidden rounded-2xl border border-border bg-card shadow-[0_1px_3px_hsl(var(--shadow-color)/0.06)] transition-[transform,box-shadow,border-color] duration-normal ease-standard';
 export const CARD_BODY_DEFAULT = 'flex flex-1 flex-col gap-1.5 p-2 sm:gap-2 sm:p-3.5';
@@ -16,18 +25,27 @@ export function freshnessClass(now: number | null, createdAt: string): string {
 }
 
 export const TIME_PLACEHOLDER = '\u00A0';
-export const HIT_AREA = "after:absolute after:-inset-1.5 after:content-['']";
+/** Larger hit area for better touch targets on mobile (was -inset-1.5). */
+export const HIT_AREA = "after:absolute after:-inset-2 after:content-['']";
 
 export const CARD_MAX_BADGES = 2;
-export const CARD_PRESS = 'active:scale-[0.995] motion-reduce:active:scale-100';
-export const CARD_HOVER = 'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card-hover motion-reduce:hover:translate-y-0';
+/** Stronger press feedback — more noticeable on touch devices. */
+export const CARD_PRESS = 'active:scale-[0.98] active:brightness-[0.98] motion-reduce:active:scale-100 motion-reduce:active:brightness-100';
+/** Unified hover: lift + warmer border + clearer shadow. Works with shadow-card-hover utility. */
+export const CARD_HOVER =
+  'hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[0_8px_20px_-4px_hsl(var(--shadow-color)/0.12),0_2px_6px_-2px_hsl(var(--shadow-color)/0.06)] motion-reduce:hover:translate-y-0';
 export const CARD_FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
-export const CARD_IMAGE_HOVER = 'transition-transform duration-normal ease-standard group-hover/card:scale-[1.02] motion-reduce:group-hover/card:scale-100';
+export const CARD_IMAGE_HOVER = 'transition-transform duration-normal ease-standard group-hover/card:scale-[1.03] motion-reduce:group-hover/card:scale-100';
 /** Consistent favorite position across content cards. */
 export const CARD_HEART_POSITION = 'absolute end-2 top-2 z-20';
+/** Plain text fallback (kept for compatibility). Prefer CARD_PRICE_UNSET_CLASS for new code. */
 export const CARD_PRICE_UNSET = 'السعر غير معلن';
+/** Visual treatment for missing price — muted pill so it doesn't look like a real price. */
+export const CARD_PRICE_UNSET_CLASS =
+  'inline-flex items-center rounded-md bg-muted/80 px-1.5 py-0.5 text-2xs font-medium text-muted-foreground';
 
-export const CARD_HEART_BUTTON_BASE = 'flex items-center justify-center rounded-full backdrop-blur transition-transform duration-fast ease-standard active:scale-90 disabled:opacity-60 motion-reduce:active:scale-100';
+export const CARD_HEART_BUTTON_BASE =
+  'flex items-center justify-center rounded-full backdrop-blur transition-transform duration-fast ease-standard active:scale-90 disabled:opacity-60 motion-reduce:active:scale-100';
 export const CARD_HEART_BUTTON_BG = 'bg-background/95 shadow-card';
 export const CARD_HEART_ICON_FILLED = 'fill-rating text-rating';
 export const CARD_HEART_ICON_OUTLINE = 'text-foreground/80';

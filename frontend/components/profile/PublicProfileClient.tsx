@@ -17,6 +17,17 @@ import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { Button } from '@/components/shared/ui/Button';
 import { parseApiError } from '@/lib/errorParser';
 import { ROUTES } from '@/lib/constants';
+import {
+  ENTITY_PAGE,
+  ENTITY_SHELL,
+  ENTITY_BAND,
+  ENTITY_BODY,
+  ENTITY_STATS,
+  ENTITY_STAT_TILE,
+  ENTITY_STAT_VALUE,
+  ENTITY_STAT_LABEL,
+  ENTITY_ACTIONS_PRIMARY,
+} from '@/components/shared/entity-page/entityPageTokens';
 import type { PublicUser } from '@/types/user.types';
 
 function ClientProfileFallbackHeader({ user }: { user: PublicUser }) {
@@ -24,32 +35,40 @@ function ClientProfileFallbackHeader({ user }: { user: PublicUser }) {
   const memberYear = new Date(user.createdAt).getFullYear();
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-border/70 bg-background p-5 pt-16 shadow-sm">
-      <div aria-hidden="true" className="absolute inset-x-0 top-0 h-20 bg-gradient-to-br from-primary-soft to-accent-soft" />
+    <section className={ENTITY_SHELL}>
+      <div aria-hidden="true" className={ENTITY_BAND} />
       <PublicProfileHeaderTopActions user={user} />
-      <div className="relative flex flex-col items-center gap-2 text-center">
-        <PublicProfileAvatar user={user} />
-        <h1 className="text-xl font-extrabold">{user.name}</h1>
-        {seller?.verified && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-bold text-primary-strong">
-            <BadgeCheck className="h-3.5 w-3.5" aria-hidden /> بائع موثّق
-          </span>
-        )}
-        <p className="text-xs text-muted-foreground">عضو منذ {memberYear}</p>
-        <ProfileBadges sellerProfile={seller} />
-        {user.city && <p className="text-sm text-muted-foreground">{user.city}</p>}
-        {user.bio && <p className="max-w-prose text-sm leading-relaxed text-foreground/75">{user.bio}</p>}
-        <div className="flex w-full gap-2">
-          <IntentPrefetchLink href={ROUTES.userFollowers(user.id)} className="flex-1 rounded-xl bg-surface-2 p-2 text-sm" prefetch={false}>
-            {user.followStats.followers} متابع
-          </IntentPrefetchLink>
-          <IntentPrefetchLink href={ROUTES.userFollowing(user.id)} className="flex-1 rounded-xl bg-surface-2 p-2 text-sm" prefetch={false}>
-            {user.followStats.following} أتابعهم
-          </IntentPrefetchLink>
-        </div>
-        <div className="flex w-full gap-2">
-          <PublicProfileFollowAction user={user} />
-          <PublicProfileMessageActions user={user} />
+      <div className={`${ENTITY_BODY} pt-14`}>
+        <div className="flex flex-col items-center gap-2.5 text-center">
+          <PublicProfileAvatar user={user} />
+          <h1 className="text-xl font-extrabold tracking-tight sm:text-[22px]">{user.name}</h1>
+          {seller?.verified && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-bold text-primary">
+              <BadgeCheck className="h-3.5 w-3.5" aria-hidden /> بائع موثّق
+            </span>
+          )}
+          <p className="text-xs text-muted-foreground">عضو منذ {memberYear}</p>
+          <ProfileBadges sellerProfile={seller} />
+          {user.city && <p className="text-sm text-muted-foreground">{user.city}</p>}
+          {user.bio && <p className="max-w-prose text-sm leading-relaxed text-foreground/75">{user.bio}</p>}
+          <div className={`${ENTITY_STATS} mt-1 w-full max-w-md`}>
+            <IntentPrefetchLink href={ROUTES.userFollowers(user.id)} className={ENTITY_STAT_TILE} prefetch={false}>
+              <span className={ENTITY_STAT_VALUE}>{user.followStats.followers}</span>
+              <span className={ENTITY_STAT_LABEL}>متابع</span>
+            </IntentPrefetchLink>
+            <IntentPrefetchLink href={ROUTES.userFollowing(user.id)} className={ENTITY_STAT_TILE} prefetch={false}>
+              <span className={ENTITY_STAT_VALUE}>{user.followStats.following}</span>
+              <span className={ENTITY_STAT_LABEL}>أتابعهم</span>
+            </IntentPrefetchLink>
+            <div className={ENTITY_STAT_TILE}>
+              <span className={ENTITY_STAT_VALUE}>{user._count.ads}</span>
+              <span className={ENTITY_STAT_LABEL}>إعلان</span>
+            </div>
+          </div>
+          <div className={`${ENTITY_ACTIONS_PRIMARY} w-full max-w-md`}>
+            <PublicProfileFollowAction user={user} />
+            <PublicProfileMessageActions user={user} />
+          </div>
         </div>
       </div>
     </section>
@@ -66,7 +85,7 @@ export function PublicProfileClient({ id }: { id: string }) {
   if (isError || !user) {
     const notFound = isError && parseApiError(error).statusCode === 404;
     return (
-      <div className="container mx-auto px-4 py-6">
+      <div className={ENTITY_PAGE}>
         <EmptyState
           icon={notFound ? <UserX className="h-10 w-10" /> : <AlertTriangle className="h-10 w-10" />}
           title={notFound ? 'المستخدم غير موجود' : 'تعذّر تحميل الملف الشخصي'}
@@ -80,7 +99,7 @@ export function PublicProfileClient({ id }: { id: string }) {
   }
 
   return (
-    <div className="container mx-auto w-full max-w-5xl space-y-6 px-3 py-6 sm:px-4 lg:py-8">
+    <div className={ENTITY_PAGE}>
       <ClientProfileFallbackHeader user={user} />
       <ProfileTabsSection user={user} />
     </div>

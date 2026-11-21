@@ -13,19 +13,23 @@ interface Props {
   fallback?: ReactNode;
   className?: string;
   /**
-   * N3: after the section is near the viewport, wait for requestIdleCallback
-   * (or a short timeout) before mounting children — reduces query fan-out on
-   * weak CPUs / slow nets. Recommended for lowest-priority home blocks.
+   * After the section is near the viewport, wait for requestIdleCallback
+   * before mounting children — reduces query fan-out on weak CPUs / slow nets.
    */
   whenIdle?: boolean;
+  /**
+   * PERF-LOAD-01: high-priority sections skip idle delay and use a wider
+   * rootMargin so they mount sooner (ForYou / Following).
+   */
+  priority?: boolean;
 }
 
-function defaultRootMargin(): string {
-  // Data-saver / 2G: only load when truly near viewport (less prefetch).
+function defaultRootMargin(priority: boolean): string {
   if (typeof window !== 'undefined' && isDataSaverEnabled()) {
-    return '48px 0px';
+    return priority ? '80px 0px' : '48px 0px';
   }
-  return '240px 0px';
+  // Priority sections start loading earlier to reduce blank time while scrolling.
+  return priority ? '360px 0px' : '200px 0px';
 }
 
 /** Defer mounting until near viewport — cuts home-page query fan-out. */
@@ -36,6 +40,7 @@ export function LazySection({
   fallback,
   className,
   whenIdle = false,
+  priority = false,
 }: Props) {
   const ref = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -48,7 +53,9 @@ export function LazySection({
   // self-hides when it has no data). Without it the reserved minHeight stays
   // forever and leaves a blank gap in the page.
   const [collapsed, setCollapsed] = useState(false);
-  const margin = rootMargin ?? defaultRootMargin();
+  const margin = rootMargin ?? defaultRootMargin(priority);
+  // Priority sections never wait for idle — mount as soon as near.
+  const effectiveIdle = whenIdle && !priority;
 
   useEffect(() => {
     const node = ref.current;
@@ -72,7 +79,7 @@ export function LazySection({
 
   useEffect(() => {
     if (!near || visible) return;
-    if (!whenIdle) {
+    if (!effectiveIdle) {
       setVisible(true);
       return;
     }
@@ -84,10 +91,12 @@ export function LazySection({
       if (!cancelled) setVisible(true);
     };
 
+    // PERF-LOAD-01: tighter idle timeout (was 2500) so low-priority sections
+    // still appear quickly once near, without blocking main-thread work.
     if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      idleId = window.requestIdleCallback(mount, { timeout: 2500 });
+      idleId = window.requestIdleCallback(mount, { timeout: 1200 });
     } else {
-      timeoutId = setTimeout(mount, 400);
+      timeoutId = setTimeout(mount, 280);
     }
 
     return () => {
@@ -97,7 +106,7 @@ export function LazySection({
       }
       if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [near, whenIdle, visible]);
+  }, [near, effectiveIdle, visible]);
 
   // After mount, watch the children's own box. minHeight is kept while they
   // render content (CLS), and released only when they render nothing at all.
@@ -142,7 +151,12 @@ export function LazySection({
       // Phase D: keep minHeight after mount so a short section does not
       // collapse the reserved slot and shift the rest of the page (CLS) —
       // unless the section rendered nothing (see `collapsed`).
-      style={{ minHeight: collapsed ? 0 : minHeight }}
+      // PERF-LOAD-01: content-visibility on pending slots reduces paint cost.
+      style={{
+        minHeight: collapsed ? 0 : minHeight,
+        contentVisibility: visible ? undefined : 'auto',
+        containIntrinsicSize: visible ? undefined : `auto ${minHeight}px`,
+      }}
       data-lazy={visible ? 'ready' : near ? 'idle' : 'pending'}
       aria-busy={!visible}
     >
