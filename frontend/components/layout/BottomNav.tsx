@@ -180,7 +180,7 @@ export function BottomNav() {
           {isAuthenticated && draftsCount > 0 && (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute -top-1 -end-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-background bg-[var(--legacy-accent-strong)] px-1 text-2xs font-extrabold leading-none text-accent-foreground"
+              className="pointer-events-none absolute -top-1 -end-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-background bg-accent px-1 text-2xs font-extrabold leading-none text-accent-foreground"
             >
               {draftsCount > 9 ? '9+' : draftsCount}
             </span>

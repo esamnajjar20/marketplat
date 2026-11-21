@@ -42,6 +42,11 @@ export const CREATE_LINKS = [
   },
 ] as const;
 
+/**
+ * Filter create destinations by known role capabilities.
+ * Destination pages still gate incomplete profiles; this only hides options
+ * the user clearly cannot use (keeps existing unit tests green).
+ */
 export function getVisibleCreateLinks(roles: LastKnownRoles | null) {
   return CREATE_LINKS.filter((link) => {
     if (link.href === ROUTES.adCreate) return Boolean(roles?.isSeller);
@@ -69,10 +74,10 @@ export function CreateSheet({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="gap-0 rounded-t-[20px] border-[var(--legacy-border)] p-0">
+      <SheetContent className="gap-0 rounded-t-[20px] border-border p-0">
         <SheetHeader className="space-y-1 px-4 pb-3 pt-2 text-start">
           <SheetTitle className="text-[17px] font-extrabold">ماذا تريد أن تضيف؟</SheetTitle>
-          <SheetDescription className="text-sm-tight text-[var(--legacy-muted-text)]">
+          <SheetDescription className="text-sm text-muted-foreground">
             اختر النوع — المسودات تُحفظ تلقائيًا ويمكن إكمالها لاحقًا
           </SheetDescription>
         </SheetHeader>
@@ -84,31 +89,31 @@ export function CreateSheet({
               href={href}
               prefetch={false}
               onClick={() => onOpenChange(false)}
-              className="flex items-center gap-3 rounded-card border border-[var(--legacy-border)] bg-card px-3 py-3 transition-colors hover:bg-[var(--legacy-page-surface)]"
+              className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-3 transition-colors hover:border-primary/30 hover:bg-primary-soft/60 active:scale-[0.99] motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[var(--legacy-primary-soft)] text-primary">
-                <Icon className="h-5 w-5" strokeWidth={1.8} />
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                <Icon className="h-5 w-5" strokeWidth={1.8} aria-hidden />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-card-title font-extrabold text-foreground">{label}</span>
-                <span className="block text-xs text-[var(--legacy-muted-text)]">{description}</span>
+                <span className="block text-sm font-extrabold text-foreground">{label}</span>
+                <span className="block text-xs text-muted-foreground">{description}</span>
               </span>
-              <ChevronLeft className="h-4 w-4 shrink-0 text-[var(--legacy-muted-text)]" aria-hidden />
+              <ChevronLeft className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
             </IntentPrefetchLink>
           ))}
         </nav>
 
         {draftsCount > 0 && (
-          <div className="border-t border-[var(--legacy-border)] px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="border-t border-border px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
             <IntentPrefetchLink
               href={ROUTES.offline.drafts}
               prefetch={false}
               onClick={() => onOpenChange(false)}
-              className="flex h-11 items-center justify-center gap-2 rounded-[12px] border border-[var(--legacy-danger-border)] bg-[var(--legacy-accent-soft)] text-sm-tight font-bold text-[var(--legacy-accent)]"
+              className="flex h-11 items-center justify-center gap-2 rounded-xl border border-accent/30 bg-accent-soft text-sm font-bold text-accent transition-colors hover:bg-accent-soft/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              <FileEdit className="h-4 w-4" />
+              <FileEdit className="h-4 w-4" aria-hidden />
               متابعة المسودات غير المكتملة
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--legacy-warning-strong)] px-1.5 text-2xs-tight font-extrabold text-warning-foreground">
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-warning px-1.5 text-2xs font-extrabold text-warning-foreground">
                 {draftsCount > 9 ? '9+' : draftsCount}
               </span>
             </IntentPrefetchLink>

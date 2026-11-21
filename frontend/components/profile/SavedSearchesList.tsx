@@ -47,9 +47,9 @@ const TYPE_LABELS: Record<'ads' | 'products' | 'services', string> = {
 };
 
 const TYPE_CHIP: Record<'ads' | 'products' | 'services', string> = {
-  ads: 'bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary-deep)]',
-  products: 'bg-[var(--legacy-accent-soft)] text-[var(--legacy-accent)]',
-  services: 'bg-[var(--legacy-muted-surface)] text-[var(--legacy-foreground-warm)]',
+  ads: 'bg-primary-soft text-primary',
+  products: 'bg-accent-soft text-accent',
+  services: 'bg-muted text-muted-foreground',
 };
 
 function filterChips(filters: SavedSearchFilters): string[] {
@@ -75,14 +75,14 @@ function SavedSearchRow({ search }: { search: SavedSearch }) {
   const chips = filterChips(search.filters);
 
   return (
-    <article className="rounded-card border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
+    <article className="rounded-card border border-border bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
       <div className="flex items-start gap-2">
         <button
           type="button"
           aria-label={`حذف البحث المحفوظ ${search.label}`}
           disabled={deleteSavedSearch.isPending}
           onClick={() => deleteSavedSearch.mutate(search.id)}
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-[var(--legacy-border)] bg-card text-[var(--legacy-muted-text)] hover:bg-[var(--legacy-danger-soft)] hover:text-[var(--legacy-danger)] disabled:opacity-50"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-border bg-card text-muted-foreground hover:bg-destructive-soft hover:text-destructive disabled:opacity-50"
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -98,14 +98,14 @@ function SavedSearchRow({ search }: { search: SavedSearch }) {
               {chips.map((chip) => (
                 <span
                   key={chip}
-                  className="inline-flex h-[24px] items-center rounded-full bg-[var(--legacy-muted-surface)] px-2.5 text-xs font-bold text-[var(--legacy-foreground-warm)]"
+                  className="inline-flex h-[24px] items-center rounded-full bg-muted px-2.5 text-xs font-bold text-muted-foreground"
                 >
                   {chip}
                 </span>
               ))}
             </div>
           )}
-          <p className="mt-2 text-xs text-[var(--legacy-muted-text)]">
+          <p className="mt-2 text-xs text-muted-foreground">
             أُنشئ في {formatDate(search.createdAt)}
             {search.lastNotifiedAt ? ` · آخر تنبيه ${formatDate(search.lastNotifiedAt)}` : ''}
           </p>
@@ -113,7 +113,7 @@ function SavedSearchRow({ search }: { search: SavedSearch }) {
       </div>
       <IntentPrefetchLink
         href={searchUrlFor(search.filters)}
-        className="mt-3 flex h-10 w-full items-center justify-center rounded-[10px] border border-[var(--legacy-primary-border)] bg-card text-sm-tight font-bold text-[var(--legacy-primary-deep)] transition-colors hover:bg-primary-soft" prefetch={false}
+        className="mt-3 flex h-10 w-full items-center justify-center rounded-[10px] border border-primary/25 bg-card text-sm-tight font-bold text-primary transition-colors hover:bg-primary-soft" prefetch={false}
       >
         عرض النتائج المطابقة
       </IntentPrefetchLink>
@@ -125,20 +125,20 @@ function ListSkeleton() {
   return (
     <div className="space-y-3" aria-busy="true" aria-label="جارٍ التحميل">
       {Array.from({ length: 2 }).map((_, i) => (
-        <div key={i} className="rounded-card border border-[var(--legacy-border)] bg-card p-3.5">
+        <div key={i} className="rounded-card border border-border bg-card p-3.5">
           <div className="flex gap-3">
-            <div className="h-9 w-9 animate-pulse rounded-[10px] bg-[var(--legacy-border)]" />
+            <div className="h-9 w-9 animate-pulse rounded-[10px] bg-border" />
             <div className="min-w-0 flex-1 space-y-2">
-              <div className="ms-auto h-5 w-16 animate-pulse rounded-full bg-[var(--legacy-muted-surface)]" />
-              <div className="h-4 w-2/5 animate-pulse rounded bg-[var(--legacy-border)]" />
+              <div className="ms-auto h-5 w-16 animate-pulse rounded-full bg-muted" />
+              <div className="h-4 w-2/5 animate-pulse rounded bg-border" />
               <div className="flex gap-1.5">
-                <div className="h-6 w-16 animate-pulse rounded-full bg-[var(--legacy-muted-surface)]" />
-                <div className="h-6 w-20 animate-pulse rounded-full bg-[var(--legacy-muted-surface)]" />
+                <div className="h-6 w-16 animate-pulse rounded-full bg-muted" />
+                <div className="h-6 w-20 animate-pulse rounded-full bg-muted" />
               </div>
-              <div className="h-3 w-1/3 animate-pulse rounded bg-[var(--legacy-muted-surface)]" />
+              <div className="h-3 w-1/3 animate-pulse rounded bg-muted" />
             </div>
           </div>
-          <div className="mt-3 h-10 w-full animate-pulse rounded-[10px] bg-[var(--legacy-muted-surface)]" />
+          <div className="mt-3 h-10 w-full animate-pulse rounded-[10px] bg-muted" />
         </div>
       ))}
     </div>
@@ -152,21 +152,21 @@ export function SavedSearchesList() {
     <div className="space-y-4">
       <div>
         <h1 className="text-[22px] font-extrabold tracking-tight text-foreground">عمليات البحث المحفوظة</h1>
-        <p className="mt-0.5 text-sm-tight text-[var(--legacy-muted-text)]">عمليات البحث التي حفظتها للوصول إليها بسرعة.</p>
+        <p className="mt-0.5 text-sm-tight text-muted-foreground">عمليات البحث التي حفظتها للوصول إليها بسرعة.</p>
       </div>
 
       {isLoading && <ListSkeleton />}
 
       {isError && (
-        <div className="rounded-card border border-[var(--legacy-danger-border)] bg-card px-4 py-4 text-center">
-          <p className="flex items-center justify-center gap-2 text-sm font-bold text-[var(--legacy-danger)]">
+        <div className="rounded-card border border-destructive/30 bg-card px-4 py-4 text-center">
+          <p className="flex items-center justify-center gap-2 text-sm font-bold text-destructive">
             <AlertTriangle className="h-4 w-4" />
             حدث خطأ أثناء تحميل عمليات البحث المحفوظة
           </p>
           <button
             type="button"
             onClick={() => refetch()}
-            className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full border border-[var(--legacy-primary-border)] bg-card px-3 text-sm-tight font-bold text-[var(--legacy-primary-deep)]"
+            className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full border border-primary/25 bg-card px-3 text-sm-tight font-bold text-primary"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             إعادة المحاولة
@@ -175,31 +175,31 @@ export function SavedSearchesList() {
       )}
 
       {!isLoading && !isError && (searches ?? []).length === 0 && (
-        <div className="rounded-card border border-[var(--legacy-border)] bg-card px-4 py-8 text-center">
-          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--legacy-muted-surface)] text-[var(--legacy-muted-text)]">
+        <div className="rounded-card border border-border bg-card px-4 py-8 text-center">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <Bookmark className="h-5 w-5" />
           </span>
           <h2 className="mt-3 text-[16px] font-extrabold text-foreground">لا توجد عمليات بحث محفوظة</h2>
-          <p className="mx-auto mt-1 max-w-sm text-sm-tight leading-5 text-[var(--legacy-muted-text)]">
+          <p className="mx-auto mt-1 max-w-sm text-sm-tight leading-5 text-muted-foreground">
             احفظ بحثًا من صفحة النتائج وسنُعلمك عند نشر إعلان أو منتج أو خدمة مطابقة
           </p>
           <div className="mt-4 flex flex-col gap-2">
             <IntentPrefetchLink
               prefetch={false}
               href={ROUTES.search}
-              className="flex h-11 items-center justify-center rounded-[10px] border border-[var(--legacy-primary-border)] bg-card text-sm-tight font-bold text-[var(--legacy-primary-deep)]"
+              className="flex h-11 items-center justify-center rounded-[10px] border border-primary/25 bg-card text-sm-tight font-bold text-primary"
             >
               تصفح الإعلانات
             </IntentPrefetchLink>
             <IntentPrefetchLink
               href={ROUTES.products}
-              className="flex h-11 items-center justify-center rounded-[10px] border border-[var(--legacy-primary-border)] bg-card text-sm-tight font-bold text-[var(--legacy-primary-deep)]" prefetch={false}
+              className="flex h-11 items-center justify-center rounded-[10px] border border-primary/25 bg-card text-sm-tight font-bold text-primary" prefetch={false}
             >
               تصفح المنتجات
             </IntentPrefetchLink>
             <IntentPrefetchLink
               href={ROUTES.services}
-              className="flex h-11 items-center justify-center rounded-[10px] border border-[var(--legacy-primary-border)] bg-card text-sm-tight font-bold text-[var(--legacy-primary-deep)]" prefetch={false}
+              className="flex h-11 items-center justify-center rounded-[10px] border border-primary/25 bg-card text-sm-tight font-bold text-primary" prefetch={false}
             >
               تصفح الخدمات
             </IntentPrefetchLink>

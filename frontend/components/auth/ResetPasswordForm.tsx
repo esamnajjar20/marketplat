@@ -85,19 +85,19 @@ export function ResetPasswordForm({ token }: Props) {
   if (missingToken) {
     return (
       <div className="space-y-5 text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive-soft text-destructive">
           <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
           </svg>
         </div>
-        <p className="text-card-title font-bold leading-relaxed text-[var(--legacy-ink)]">
+        <p className="text-card-title font-bold leading-relaxed text-foreground">
           رابط إعادة تعيين كلمة المرور غير صالح. يرجى طلب رابط جديد.
         </p>
         <Button asChild className="h-12 w-full rounded-2xl text-card-title font-bold">
           <IntentPrefetchLink href={ROUTES.forgotPassword} prefetch={false}>طلب رابط جديد</IntentPrefetchLink>
         </Button>
-        <IntentPrefetchLink href={ROUTES.login} className="block text-sm-tight font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.login} className="block text-sm-tight font-bold text-primary hover:underline" prefetch={false}>
           العودة لتسجيل الدخول
         </IntentPrefetchLink>
       </div>
@@ -121,7 +121,7 @@ export function ResetPasswordForm({ token }: Props) {
         تعيين كلمة المرور
       </Button>
 
-      <p className="text-center text-sm-tight font-bold text-[var(--legacy-primary-deep)]">
+      <p className="text-center text-sm-tight font-bold text-primary">
         <IntentPrefetchLink href={ROUTES.login} className="text-primary hover:underline" prefetch={false}>العودة لتسجيل الدخول</IntentPrefetchLink>
       </p>
     </form>

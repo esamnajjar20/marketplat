@@ -44,7 +44,7 @@ function StatusBanner({ store }: { store: StoreDetails }) {
 
   if (store.status === 'PENDING') {
     return (
-      <div className="flex items-start gap-3 rounded-2xl border border-[var(--legacy-warning-soft-strong)] bg-[var(--legacy-warning-soft)] p-3.5 text-sm text-[var(--legacy-warning-text)]">
+      <div className="flex items-start gap-3 rounded-2xl border border-warning/40 bg-warning-soft p-3.5 text-sm text-warning-strong">
         <Clock className="mt-0.5 h-5 w-5 shrink-0" />
         <div className="space-y-0.5">
           <p className="font-bold">متجرك قيد المراجعة</p>
@@ -108,7 +108,7 @@ function HubBody({ store }: { store: StoreDetails }) {
 
       {/* Store identity card — matches mockup cover + logo */}
       <div className="overflow-hidden rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm sm:p-3">
-        <div className="relative h-16 overflow-hidden rounded-xl bg-gradient-to-br from-[var(--legacy-primary-deep)] via-[var(--legacy-primary)] to-[var(--legacy-primary-mid)]">
+        <div className="relative h-16 overflow-hidden rounded-xl bg-gradient-to-br from-primary via-primary to-primary/80">
           {cover ? (
             <SafeImage src={cover} alt="" fill className="object-cover" sizes="400px" />
           ) : null}
@@ -130,7 +130,7 @@ function HubBody({ store }: { store: StoreDetails }) {
             <Badge
               variant={STORE_STATUS_VARIANT[store.status]}
               className={cn(
-                store.status === 'PENDING' && 'border-0 bg-[var(--legacy-accent-soft)] text-[var(--legacy-accent)]',
+                store.status === 'PENDING' && 'border-0 bg-accent-soft text-accent',
               )}
             >
               {STORE_STATUS_LABELS[store.status]}
@@ -168,7 +168,7 @@ function HubBody({ store }: { store: StoreDetails }) {
           <h2 className="text-sm font-extrabold">يحتاج انتباهك</h2>
           {attention.productsOutOfStock > 0 && (
             <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-destructive-soft text-destructive">
                 <AlertTriangle className="h-4 w-4" />
               </span>
               <p className="min-w-0 flex-1 text-sm-tight font-bold">
@@ -187,7 +187,7 @@ function HubBody({ store }: { store: StoreDetails }) {
           )}
           {attention.productsMissingImages > 0 && (
             <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--legacy-warning-soft)] text-[var(--legacy-warning-text)]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-warning-soft text-warning-strong">
                 <ImageIcon className="h-4 w-4" />
               </span>
               <p className="min-w-0 flex-1 text-sm-tight font-bold">
@@ -222,16 +222,16 @@ function HubBody({ store }: { store: StoreDetails }) {
 
       {/* Feature CTA */}
       {store.status === 'ACTIVE' && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--legacy-accent-border)] bg-[var(--legacy-accent-soft)] p-3">
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-accent/30 bg-accent-soft p-3">
           <div className="min-w-0">
-            <p className="text-sm-tight font-bold text-[var(--legacy-accent)]">ميّز متجرك في الدليل</p>
-            <p className="text-xs text-[var(--legacy-accent-deep)]">
+            <p className="text-sm-tight font-bold text-accent">ميّز متجرك في الدليل</p>
+            <p className="text-xs text-accent">
               {featurePending ? 'طلب التمييز قيد المراجعة.' : 'لزيادة الظهور أمام الزوار.'}
             </p>
           </div>
           <Button
             size="sm"
-            className="h-9 shrink-0 rounded-xl bg-[var(--legacy-accent-strong)] font-bold text-accent-foreground hover:bg-[var(--legacy-accent)]"
+            className="h-9 shrink-0 rounded-xl bg-accent font-bold text-accent-foreground hover:bg-accent"
             disabled={featurePending || requestFeature.isPending}
             onClick={() => requestFeature.mutate()}
           >

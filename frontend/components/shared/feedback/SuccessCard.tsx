@@ -27,17 +27,17 @@ export function SuccessCard({
   return (
     <div
       className={cn(
-        'rounded-2xl border border-[var(--legacy-border)] bg-card px-5 py-8 text-center shadow-[0_1px_3px_rgba(42,36,29,0.06)]',
+        'rounded-2xl border border-border bg-card px-5 py-8 text-center shadow-[0_1px_3px_rgba(42,36,29,0.06)]',
         className,
       )}
       role="status"
     >
-      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary)]">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft text-primary">
         <Check className="h-7 w-7" strokeWidth={2.5} aria-hidden />
       </div>
-      <h2 className="text-[18px] font-extrabold leading-snug text-[var(--legacy-ink)]">{title}</h2>
+      <h2 className="text-[18px] font-extrabold leading-snug text-foreground">{title}</h2>
       {description && (
-        <p className="mx-auto mt-2 max-w-sm text-sm-tight leading-relaxed text-[var(--legacy-muted-text)]">
+        <p className="mx-auto mt-2 max-w-sm text-sm-tight leading-relaxed text-muted-foreground">
           {description}
         </p>
       )}

@@ -25,10 +25,10 @@ export function ExploreSheet({
 }) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="gap-0 rounded-t-[20px] border-[var(--legacy-border)] p-0">
+      <SheetContent className="gap-0 rounded-t-[20px] border-border p-0">
         <SheetHeader className="space-y-1 px-4 pb-3 pt-2 text-start">
           <SheetTitle className="text-[17px] font-extrabold">استكشاف</SheetTitle>
-          <SheetDescription className="text-sm-tight text-[var(--legacy-muted-text)]">
+          <SheetDescription className="text-sm text-muted-foreground">
             تصفّح أقسام المنصة
           </SheetDescription>
         </SheetHeader>
@@ -45,13 +45,13 @@ export function ExploreSheet({
                 prefetch={false}
                 onClick={() => onOpenChange(false)}
                 className={cn(
-                  'flex items-center justify-between gap-2 rounded-card border border-[var(--legacy-border)] bg-card px-3 py-3',
-                  'text-sm-tight font-bold text-foreground transition-colors hover:bg-[var(--legacy-page-surface)]',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'flex items-center justify-between gap-2 rounded-xl border border-border bg-card px-3 py-3',
+                  'text-sm font-bold text-foreground transition-colors hover:border-primary/30 hover:bg-primary-soft/50',
+                  'active:scale-[0.99] motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 )}
               >
                 <span>{label}</span>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--legacy-primary-soft)] text-primary">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-primary-soft text-primary">
                   <Icon className="h-[18px] w-[18px]" strokeWidth={1.8} aria-hidden />
                 </span>
               </IntentPrefetchLink>

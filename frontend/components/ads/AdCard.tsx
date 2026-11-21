@@ -111,7 +111,7 @@ export const AdCard = memo(function AdCard({
     badges.push(
       <span
         key="featured"
-        className="inline-flex h-6 items-center rounded-full bg-[var(--legacy-accent-soft)] px-2.5 text-2xs-tight font-bold text-[var(--legacy-accent)]"
+        className="inline-flex h-6 items-center rounded-full bg-accent-soft px-2.5 text-2xs-tight font-bold text-accent"
       >
         مميز
       </span>,
@@ -124,7 +124,7 @@ export const AdCard = memo(function AdCard({
         key="cond"
         className={cn(
           'inline-flex h-6 items-center rounded-full px-2.5 text-2xs-tight font-bold',
-          isNew ? 'bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary-deep)]' : 'bg-[var(--legacy-surface)] text-[var(--legacy-foreground-warm)]',
+          isNew ? 'bg-primary-soft text-primary' : 'bg-muted text-muted-foreground',
         )}
       >
         {CONDITION_LABELS[ad.condition] ?? ad.condition}
@@ -215,7 +215,7 @@ export const AdCard = memo(function AdCard({
             {showSeller && (
               <span className="mt-0.5 flex items-center gap-1.5 text-2xs-tight text-muted-foreground">
                 <span
-                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-3xs font-extrabold text-[var(--legacy-primary-deep)]"
+                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary-soft text-3xs font-extrabold text-primary"
                   aria-hidden
                 >
                   {sellerInitial(sellerName)}

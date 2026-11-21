@@ -55,11 +55,11 @@ export function ServicesPageClient({ initialPage, initialPageUpdatedAt, searchPa
     <ListPageShell
       title="الخدمات"
       description={`تصفح الخدمات المحلية في ${APP_NAME}`}
-      className="bg-[var(--legacy-page-surface)] dark:bg-background"
+      className="bg-surface-1 dark:bg-background"
       headerEnd={
         <IntentPrefetchLink
           href={ROUTES.serviceProviders}
-          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-[var(--legacy-border)] bg-card px-3 text-xs font-bold text-[var(--legacy-primary-deep)] shadow-sm hover:border-primary/40 dark:border-border dark:bg-card dark:text-primary" prefetch={false}
+          className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-card px-3 text-xs font-bold text-primary shadow-sm hover:border-primary/40 dark:border-border dark:bg-card dark:text-primary" prefetch={false}
         >
           <Users className="h-3.5 w-3.5" aria-hidden />
           مقدمو الخدمة

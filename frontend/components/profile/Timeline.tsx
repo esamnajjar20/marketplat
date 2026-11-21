@@ -123,8 +123,8 @@ function ActivityRow({ activity }: { activity: GroupedActivity }) {
     activity.type === 'SERVICE_REQUEST_STATUS_CHANGED' && activity.metadata?.toStatus;
 
   const content = (
-    <div className="flex items-start gap-3 rounded-card border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--legacy-primary-soft)] text-primary">
+    <div className="flex items-start gap-3 rounded-card border border-border bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-primary-soft text-primary">
         <Icon className="h-4 w-4" strokeWidth={1.8} />
       </div>
       <div className="min-w-0 flex-1 space-y-0.5">
@@ -201,7 +201,7 @@ export function Timeline() {
               'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-bold transition-colors',
               group === tab.value
                 ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:bg-muted/50'
+                : 'border-border bg-card text-muted-foreground hover:bg-muted/50'
             )}
           >
             {tab.label}
@@ -217,7 +217,7 @@ export function Timeline() {
           value={q}
           onChange={(e) => handleSearchChange(e.target.value)}
           placeholder="ابحث في نشاطك..."
-          className="h-10 rounded-[10px] border-[var(--legacy-border-strong)] ps-9 text-sm-tight"
+          className="h-10 rounded-[10px] border border-border/80 bg-card ps-9 text-sm-tight shadow-xs focus-visible:border-primary/40"
           aria-label="بحث في النشاط"
         />
       </div>
@@ -227,8 +227,8 @@ export function Timeline() {
           <LoadingSpinner />
         </div>
       ) : isError ? (
-        <div className="rounded-card border border-[var(--legacy-danger-border)] bg-card px-4 py-4 text-center">
-          <p className="text-sm font-bold text-[var(--legacy-danger)]">حدث خطأ أثناء تحميل نشاطك</p>
+        <div className="rounded-card border border-destructive/30 bg-card px-4 py-4 text-center">
+          <p className="text-sm font-bold text-destructive">حدث خطأ أثناء تحميل نشاطك</p>
           <button
             type="button"
             onClick={() => refetch()}

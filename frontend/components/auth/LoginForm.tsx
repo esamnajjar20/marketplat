@@ -103,7 +103,7 @@ export function LoginForm() {
       {sessionExpired && (
         <p
           role="alert"
-          className="flex items-start gap-2 rounded-xl border border-[var(--legacy-warning-border)] bg-[var(--legacy-warning-soft)] px-3.5 py-2.5 text-sm-tight leading-relaxed text-[var(--legacy-warning-deep)]"
+          className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning-soft px-3.5 py-2.5 text-sm-tight leading-relaxed text-warning-strong"
         >
           <span aria-hidden>⚠</span>
           انتهت جلستك، الرجاء تسجيل الدخول مجددًا للمتابعة
@@ -112,7 +112,7 @@ export function LoginForm() {
       {googleAuthFailed && (
         <p
           role="alert"
-          className="flex items-start gap-2 rounded-xl border border-[var(--legacy-danger-border)] bg-[var(--legacy-danger-soft)] px-3.5 py-2.5 text-sm-tight leading-relaxed text-[var(--legacy-danger)]"
+          className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive-soft px-3.5 py-2.5 text-sm-tight leading-relaxed text-destructive"
         >
           <span aria-hidden>⚠</span>
           تعذّر تسجيل الدخول باستخدام Google، الرجاء المحاولة مرة أخرى أو استخدام البريد الإلكتروني
@@ -161,7 +161,7 @@ export function LoginForm() {
       </AuthField>
 
       <div className="flex justify-end">
-        <IntentPrefetchLink href={ROUTES.forgotPassword} className="text-sm-tight font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>
+        <IntentPrefetchLink href={ROUTES.forgotPassword} className="text-sm-tight font-bold text-primary hover:underline" prefetch={false}>
           نسيت كلمة المرور؟
         </IntentPrefetchLink>
       </div>
@@ -192,9 +192,9 @@ export function LoginForm() {
 
       <GoogleAuthButton label="تسجيل الدخول باستخدام Google" />
 
-      <p className="text-center text-sm-tight text-[var(--legacy-muted-text)]">
+      <p className="text-center text-sm-tight text-muted-foreground">
         ليس لديك حساب؟{' '}
-        <IntentPrefetchLink href={registerHref} className="font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>
+        <IntentPrefetchLink href={registerHref} className="font-bold text-primary hover:underline" prefetch={false}>
           إنشاء حساب
         </IntentPrefetchLink>
       </p>

@@ -39,16 +39,16 @@ function MyReportRow({ report }: { report: Report }) {
     (report.targetType === 'USER' ? 'مستخدم' : TARGET_TYPE_LABELS[report.targetType]);
 
   return (
-    <article className="rounded-card border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
+    <article className="rounded-card border border-border bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="inline-flex h-[22px] items-center rounded-full bg-[var(--legacy-muted-surface)] px-2 text-2xs-tight font-bold text-[var(--legacy-foreground-warm)]">
+        <span className="inline-flex h-[22px] items-center rounded-full bg-muted px-2 text-2xs-tight font-bold text-muted-foreground">
           {TARGET_TYPE_LABELS[report.targetType]}
         </span>
         <span
           className={
             isPending
-              ? 'inline-flex h-[22px] items-center rounded-full bg-[var(--legacy-warning-soft)] px-2 text-2xs-tight font-bold text-[var(--legacy-warning-text)]'
-              : 'inline-flex h-[22px] items-center rounded-full bg-[var(--legacy-primary-soft)] px-2 text-2xs-tight font-bold text-[var(--legacy-primary-deep)]'
+              ? 'inline-flex h-[22px] items-center rounded-full bg-warning-soft px-2 text-2xs-tight font-bold text-warning-strong'
+              : 'inline-flex h-[22px] items-center rounded-full bg-primary-soft px-2 text-2xs-tight font-bold text-primary'
           }
         >
           {statusLabel}
@@ -60,7 +60,7 @@ function MyReportRow({ report }: { report: Report }) {
       >
         {title}
       </IntentPrefetchLink>
-      <p className="mt-1 text-xs text-[var(--legacy-muted-text)]">
+      <p className="mt-1 text-xs text-muted-foreground">
         <HydrationSafeRelativeTime date={report.createdAt} />
       </p>
     </article>
@@ -81,12 +81,12 @@ export function MyReportsList() {
 
   if (isError) {
     return (
-      <div className="rounded-card border border-[var(--legacy-danger-border)] bg-card px-4 py-4 text-center">
-        <p className="text-sm font-bold text-[var(--legacy-danger)]">حدث خطأ أثناء تحميل بلاغاتك</p>
+      <div className="rounded-card border border-destructive/30 bg-card px-4 py-4 text-center">
+        <p className="text-sm font-bold text-destructive">حدث خطأ أثناء تحميل بلاغاتك</p>
         <button
           type="button"
           onClick={() => refetch()}
-          className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full border border-[var(--legacy-primary-border)] bg-card px-3 text-sm-tight font-bold text-[var(--legacy-primary-deep)]"
+          className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full border border-primary/25 bg-card px-3 text-sm-tight font-bold text-primary"
         >
           إعادة المحاولة
         </button>

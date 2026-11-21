@@ -137,7 +137,7 @@ function NavLink({
       {Icon && <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-primary' : 'text-primary')} aria-hidden={true} />}
       <span className="flex-1">{label}</span>
       {badge !== undefined && badge > 0 && (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-[var(--legacy-primary)] px-1.5 text-2xs-tight font-extrabold text-primary-foreground">
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-2xs-tight font-extrabold text-primary-foreground">
           {badge > 9 ? '9+' : badge}
         </span>
       )}

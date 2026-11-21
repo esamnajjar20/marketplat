@@ -77,10 +77,10 @@ export function RecentActivityFeed() {
 
   if (items.length === 0) {
     return (
-      <div className="rounded-card border border-[var(--legacy-border)] bg-card px-4 py-8 text-center">
+      <div className="rounded-card border border-border bg-card px-4 py-8 text-center">
         <p className="text-card-title font-extrabold">لا يوجد نشاط بعد</p>
-        <p className="mt-1 text-sm-tight text-[var(--legacy-muted-text)]">ستظهر هنا كل الأنشطة المرتبطة بحسابك</p>
-        <IntentPrefetchLink href={ROUTES.adCreate} className="mt-3 inline-flex h-9 items-center rounded-full bg-[var(--legacy-primary)] px-4 text-sm-tight font-bold text-primary-foreground" prefetch={false}>
+        <p className="mt-1 text-sm-tight text-muted-foreground">ستظهر هنا كل الأنشطة المرتبطة بحسابك</p>
+        <IntentPrefetchLink href={ROUTES.adCreate} className="mt-3 inline-flex h-9 items-center rounded-full bg-primary px-4 text-sm-tight font-bold text-primary-foreground" prefetch={false}>
           انشر أول إعلان
         </IntentPrefetchLink>
       </div>
@@ -94,12 +94,12 @@ export function RecentActivityFeed() {
         const href = linkFor(activity);
         const body = (
           <>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--legacy-primary-soft)]">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-primary-soft">
               <Icon className="h-4 w-4 text-primary" strokeWidth={1.8} aria-hidden />
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-extrabold text-foreground">{activity.title}</p>
-              <p className="truncate text-xs text-[var(--legacy-muted-text)]">
+              <p className="truncate text-xs text-muted-foreground">
                 {activity.description ? `${activity.description} · ` : ''}
                 {<HydrationSafeRelativeTime date={activity.createdAt} />}
               </p>
@@ -111,12 +111,12 @@ export function RecentActivityFeed() {
           <IntentPrefetchLink
             key={activity.id}
             href={href}
-            className="flex items-center gap-3 rounded-card border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors hover:bg-[var(--legacy-page-surface)]" prefetch={false}
+            className="flex items-center gap-3 rounded-card border border-border bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)] transition-colors hover:bg-surface-1" prefetch={false}
           >
             {body}
           </IntentPrefetchLink>
         ) : (
-          <div key={activity.id} className="flex items-center gap-3 rounded-card border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
+          <div key={activity.id} className="flex items-center gap-3 rounded-card border border-border bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.04)]">
             {body}
           </div>
         );

@@ -365,14 +365,14 @@ export function MyProductsList() {
                         product.availability === 'IN_STOCK'
                           ? 'inline-flex h-6 items-center rounded-full bg-primary/10 px-2.5 text-2xs-tight font-bold text-primary'
                           : product.availability === 'LIMITED'
-                            ? 'inline-flex h-6 items-center rounded-full bg-[var(--legacy-warning-soft)] px-2.5 text-2xs-tight font-bold text-[var(--legacy-warning-text)]'
-                            : 'inline-flex h-6 items-center rounded-full bg-[var(--legacy-danger-soft)] px-2.5 text-2xs-tight font-bold text-[var(--legacy-danger)]'
+                            ? 'inline-flex h-6 items-center rounded-full bg-warning-soft px-2.5 text-2xs-tight font-bold text-warning-strong'
+                            : 'inline-flex h-6 items-center rounded-full bg-destructive-soft px-2.5 text-2xs-tight font-bold text-destructive'
                       }
                     >
                       {AVAIL_LABELS[product.availability]}
                     </span>
                     {!product.images?.length && (
-                      <span className="inline-flex h-6 items-center rounded-full bg-warning/15 px-2.5 text-2xs-tight font-bold text-warning">
+                      <span className="inline-flex h-6 items-center rounded-full bg-warning/15 px-2.5 text-2xs-tight font-bold text-warning-strong">
                         بدون صور
                       </span>
                     )}

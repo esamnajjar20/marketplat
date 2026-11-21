@@ -51,7 +51,7 @@ export const StoreCard = memo(function StoreCard({
   const initial = (store.name?.trim()?.[0] || 'م').toUpperCase();
 
   const coverFallbackClass =
-    'absolute inset-0 bg-gradient-to-br from-[var(--legacy-primary-deep)] via-[var(--legacy-primary)] to-[var(--legacy-primary-mid)]';
+    'absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/80';
 
   return (
     <article
@@ -86,7 +86,7 @@ export const StoreCard = memo(function StoreCard({
           )}
           <CardOfflineBadge />
           {store.plan === 'FEATURED' && (
-            <span className="absolute start-2.5 top-2.5 inline-flex h-6 items-center rounded-full bg-[var(--legacy-accent-soft)] px-2.5 text-2xs-tight font-bold text-[var(--legacy-accent)]">
+            <span className="absolute start-2.5 top-2.5 inline-flex h-6 items-center rounded-full bg-accent-soft px-2.5 text-2xs-tight font-bold text-accent">
               مميز
             </span>
           )}
@@ -124,7 +124,7 @@ export const StoreCard = memo(function StoreCard({
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-xs text-muted-foreground">
             {hasRating && (
               <span className="inline-flex items-center gap-1">
-                <Star className="h-3.5 w-3.5 fill-[var(--legacy-rating)] text-[var(--legacy-rating)]" aria-hidden />
+                <Star className="h-3.5 w-3.5 fill-rating text-rating" aria-hidden />
                 <span className="font-bold text-foreground">{rating.toFixed(1)}</span>
                 <span>({store.sellerProfile.totalRatings})</span>
               </span>

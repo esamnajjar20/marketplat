@@ -35,15 +35,15 @@ export function EmptyState({
 }: Props) {
   const iconWell =
     tone === 'warning'
-      ? 'bg-[var(--legacy-accent-soft)] text-[var(--legacy-accent)]'
+      ? 'bg-warning-soft text-warning-strong'
       : tone === 'muted'
-        ? 'bg-[var(--legacy-muted-surface)] text-[var(--legacy-muted-text)]'
-        : 'bg-[var(--legacy-muted-surface)] text-[var(--legacy-muted-text)]';
+        ? 'bg-muted text-muted-foreground'
+        : 'bg-primary-soft text-primary';
 
   return (
     <div
       className={cn(
-        'section-enter motion-reduce:animate-none flex flex-col items-center justify-center rounded-card border border-[var(--legacy-border)] bg-card px-4 text-center shadow-[0_1px_3px_rgba(42,36,29,0.04)]',
+        'section-enter motion-reduce:animate-none flex flex-col items-center justify-center rounded-card border border-border bg-card px-4 text-center shadow-[0_1px_3px_rgba(42,36,29,0.04)]',
         compact ? 'gap-2.5 py-8' : 'gap-3 py-10 sm:py-12',
         className,
       )}
@@ -67,7 +67,7 @@ export function EmptyState({
           {title}
         </p>
         {description && (
-          <p className="text-sm-tight leading-5 text-[var(--legacy-muted-text)]">{description}</p>
+          <p className="text-sm-tight leading-5 text-muted-foreground">{description}</p>
         )}
       </div>
       {action && (

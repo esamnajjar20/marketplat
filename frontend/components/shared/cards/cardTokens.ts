@@ -19,29 +19,30 @@ export const TIME_PLACEHOLDER = '\u00A0';
 export const HIT_AREA = "after:absolute after:-inset-1.5 after:content-['']";
 
 export const CARD_MAX_BADGES = 2;
-export const CARD_PRESS = 'active:scale-[0.995]';
-export const CARD_HOVER = 'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card-hover';
+export const CARD_PRESS = 'active:scale-[0.995] motion-reduce:active:scale-100';
+export const CARD_HOVER = 'hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-card-hover motion-reduce:hover:translate-y-0';
 export const CARD_FOCUS = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
-export const CARD_IMAGE_HOVER = 'transition-transform duration-normal ease-standard group-hover/card:scale-[1.02]';
+export const CARD_IMAGE_HOVER = 'transition-transform duration-normal ease-standard group-hover/card:scale-[1.02] motion-reduce:group-hover/card:scale-100';
 /** Consistent favorite position across content cards. */
 export const CARD_HEART_POSITION = 'absolute end-2 top-2 z-20';
 export const CARD_PRICE_UNSET = 'السعر غير معلن';
 
-export const CARD_HEART_BUTTON_BASE = 'flex items-center justify-center rounded-full backdrop-blur transition-transform duration-fast ease-standard active:scale-90 disabled:opacity-60';
+export const CARD_HEART_BUTTON_BASE = 'flex items-center justify-center rounded-full backdrop-blur transition-transform duration-fast ease-standard active:scale-90 disabled:opacity-60 motion-reduce:active:scale-100';
 export const CARD_HEART_BUTTON_BG = 'bg-background/95 shadow-card';
 export const CARD_HEART_ICON_FILLED = 'fill-rating text-rating';
 export const CARD_HEART_ICON_OUTLINE = 'text-foreground/80';
 
 
 /** Semantic primitives shared by every marketplace content-card family. */
-export const CARD_TITLE = 'line-clamp-2 min-w-0 text-sm font-bold leading-5 text-foreground sm:text-sm sm:leading-6';
+export const CARD_TITLE = 'line-clamp-2 min-w-0 text-sm font-bold leading-5 text-foreground sm:leading-6';
 /** Grid titles reserve two lines so price/metadata rows align across mixed card content. */
 export const CARD_TITLE_GRID = `${CARD_TITLE} min-h-10 sm:min-h-12`;
-export const CARD_SELLER_INITIAL = 'flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[9px] font-extrabold text-primary';
-export const CARD_BADGE_FEATURED = 'inline-flex h-6 items-center rounded-full bg-accent/15 px-2.5 text-[11px] font-bold text-accent-foreground';
+export const CARD_SELLER_INITIAL = 'flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary-soft text-3xs font-extrabold text-primary';
+/** Featured badge: accent-soft + dark accent text for AA contrast on small type */
+export const CARD_BADGE_FEATURED = 'inline-flex h-6 items-center rounded-full bg-accent-soft px-2.5 text-2xs-tight font-bold text-accent';
 export const CARD_BADGE_CONDITION_NEW = 'bg-success/15 text-success';
 export const CARD_BADGE_CONDITION_USED = 'bg-muted text-muted-foreground';
-export const CARD_MUTED_FOOTER = 'mt-auto flex min-h-5 min-w-0 flex-wrap items-center gap-1 border-t border-border/50 pt-1.5 text-[11px] text-muted-foreground sm:min-h-6 sm:gap-1.5 sm:pt-2 sm:text-xs';
+export const CARD_MUTED_FOOTER = 'mt-auto flex min-h-5 min-w-0 flex-wrap items-center gap-1 border-t border-border/50 pt-1.5 text-2xs-tight text-muted-foreground sm:min-h-6 sm:gap-1.5 sm:pt-2 sm:text-xs';
 
 /** Shared profile/service card primitives. Keep layout-specific geometry in each component. */
 export const CARD_SHELL_SOFT = 'h-full min-w-0 overflow-hidden rounded-2xl border border-border bg-card shadow-[0_1px_3px_hsl(var(--shadow-color)/0.06)] transition-[box-shadow,border-color] duration-normal ease-standard';
@@ -60,18 +61,18 @@ export const CARD_SKELETON_BODY_COMPACT = 'flex min-w-0 flex-1 flex-col gap-1.5 
 /** Fixed-height skeletons for cards whose real image is a fixed height (not an aspect ratio). */
 export const CARD_SKELETON_MEDIA_FIXED = 'relative h-[92px] w-full overflow-hidden bg-muted sm:h-[116px]';
 
-/** Warning-toned badge (e.g. "expiring soon"). */
-export const CARD_BADGE_WARNING = 'inline-flex h-5 items-center gap-0.5 rounded-full bg-warning/15 px-1.5 text-[10px] font-bold text-warning';
+/** Warning-toned badge (e.g. "expiring soon") — strong text on soft/tint for AA. */
+export const CARD_BADGE_WARNING = 'inline-flex h-5 items-center gap-0.5 rounded-full bg-warning-soft px-1.5 text-2xs font-bold text-warning-strong';
 
 
 /** Shared, theme-aware placeholder surfaces for ad, product and service cards. */
 export const CARD_PLACEHOLDER_SURFACES = [
-  'bg-[var(--legacy-primary-soft)]',
-  'bg-[var(--legacy-accent-soft-2)]',
-  'bg-[var(--legacy-neutral-soft)]',
-  'bg-[var(--legacy-info-soft)]',
-  'bg-[var(--legacy-warning-soft)]',
-  'bg-[var(--legacy-surface)]',
+  'bg-primary-soft',
+  'bg-accent-soft',
+  'bg-muted',
+  'bg-info-soft',
+  'bg-warning-soft',
+  'bg-surface-2',
 ] as const;
 
 /** Keep missing-image colors stable across every card type. */

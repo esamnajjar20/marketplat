@@ -21,16 +21,24 @@ export function EmptySearchAlternatives() {
   if (isError || (!isLoading && items.length === 0)) return null;
 
   return (
-    <div className="mt-8 space-y-3 border-t pt-6">
+    <div className="mt-8 space-y-3 border-t border-border pt-6">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold">أحدث الإعلانات بدلاً من ذلك</h2>
+        <h2 className="text-sm font-extrabold text-foreground">أحدث الإعلانات — جرّب هذه</h2>
         {/* SW-FIX-ESA-PREFETCH-MALFORM: historical malformed prefetch markup was
             corrected. This link now uses IntentPrefetchLink, so it warms only
             after user intent rather than on initial viewport entry. */}
-        <IntentPrefetchLink prefetch={false} href={`${ROUTES.search}?type=ads`} clientQueryNavigation className="text-xs font-medium text-primary hover:underline">
+        <IntentPrefetchLink
+          prefetch={false}
+          href={`${ROUTES.search}?type=ads`}
+          clientQueryNavigation
+          className="rounded-sm text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           عرض الكل
         </IntentPrefetchLink>
       </div>
+      <p className="-mt-1 text-xs text-muted-foreground">
+        لم نجد نتائج مطابقة — إليك أحدث ما نُشر على المنصة
+      </p>
       {isLoading ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -40,7 +48,7 @@ export function EmptySearchAlternatives() {
       ) : (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {items.map((ad) => (
-            <AdCard key={ad.id} ad={ad} />
+            <AdCard key={ad.id} ad={ad} density="compact" />
           ))}
         </div>
       )}

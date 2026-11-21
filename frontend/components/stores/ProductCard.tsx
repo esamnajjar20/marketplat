@@ -96,7 +96,7 @@ export const ProductCard = memo(function ProductCard({
       node: (
         <span
           key="promo"
-          className="inline-flex h-6 items-center rounded-full bg-[var(--legacy-accent-soft)] px-2.5 text-2xs-tight font-bold text-[var(--legacy-accent)]"
+          className="inline-flex h-6 items-center rounded-full bg-accent-soft px-2.5 text-2xs-tight font-bold text-accent"
         >
           عرض خاص
         </span>
@@ -120,7 +120,7 @@ export const ProductCard = memo(function ProductCard({
       node: (
         <span
           key="avail"
-          className="inline-flex h-6 items-center rounded-full bg-[var(--legacy-surface)] px-2.5 text-2xs-tight font-bold text-[var(--legacy-foreground-warm)]"
+          className="inline-flex h-6 items-center rounded-full bg-muted px-2.5 text-2xs-tight font-bold text-muted-foreground"
         >
           كمية محدودة
         </span>
@@ -143,7 +143,7 @@ export const ProductCard = memo(function ProductCard({
       node: (
         <span
           key="avail"
-          className="inline-flex h-6 items-center rounded-full bg-[var(--legacy-primary-soft)] px-2.5 text-2xs-tight font-bold text-[var(--legacy-primary-deep)]"
+          className="inline-flex h-6 items-center rounded-full bg-primary-soft px-2.5 text-2xs-tight font-bold text-primary"
         >
           متوفر
         </span>
@@ -240,7 +240,7 @@ export const ProductCard = memo(function ProductCard({
             {showStore && (
               <span className="mt-0.5 flex items-center gap-1.5 text-2xs-tight text-muted-foreground">
                 <span
-                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-3xs font-extrabold text-[var(--legacy-primary-deep)]"
+                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary-soft text-3xs font-extrabold text-primary"
                   aria-hidden
                 >
                   {storeInitial(product.store.name)}
