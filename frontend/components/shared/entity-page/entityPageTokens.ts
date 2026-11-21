@@ -76,8 +76,11 @@ export const ENTITY_OWNER_PANEL =
  * Sticky tab bar shared by store storefront + profile tabs.
  * Clears public header; horizontal scroll on mobile.
  */
-export const ENTITY_TABLIST =
+export const ENTITY_TABLIST_STICKY =
   'sticky top-[var(--protected-header-offset,3.5rem)] z-20 -mx-1 flex gap-1 overflow-x-auto overscroll-x-contain border-b border-border bg-background/95 px-1 scrollbar-thin backdrop-blur supports-[backdrop-filter]:bg-background/90 sm:mx-0';
+
+export const ENTITY_TABLIST =
+  'flex gap-1 overflow-x-auto overscroll-x-contain border-b border-border px-1 scrollbar-thin';
 
 export const ENTITY_TAB_BTN =
   'h-12 shrink-0 whitespace-nowrap border-b-[3px] px-3.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1';

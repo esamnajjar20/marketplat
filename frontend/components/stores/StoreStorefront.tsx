@@ -18,11 +18,10 @@ import { writeClientUrl } from '@/lib/urlWithParams';
 import { getStoreTypePresentation, type StoreWithSellerAndCounts } from '@/types/store.types';
 import { SuspenseFallback } from '@/components/shared/feedback/SuspenseFallback';
 import {
-  ENTITY_TABLIST,
+  ENTITY_TABLIST_STICKY,
   ENTITY_TAB_BTN,
   ENTITY_TAB_ACTIVE,
   ENTITY_TAB_IDLE,
-  ENTITY_TAB_PANEL,
 } from '@/components/shared/entity-page/entityPageTokens';
 
 const StoreAds = dynamic(
@@ -98,7 +97,7 @@ export function StoreStorefront({ storeId, storeName, ownerUserId, store }: Prop
   return (
     <div className="space-y-4 sm:space-y-5">
       <div
-        className={ENTITY_TABLIST}
+        className={ENTITY_TABLIST_STICKY}
         role="tablist"
         aria-label="أقسام المتجر"
       >
