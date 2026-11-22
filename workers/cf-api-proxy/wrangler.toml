@@ -1,6 +1,7 @@
 name = "marketplat-api"
 main = "worker.ts"
 compatibility_date = "2026-11-04"
+compatibility_flags = ["no_handle_cross_request_promise_resolution"]
 
 # Keep native Workers Cache disabled: it runs before fetch() and cannot apply
 # this Worker's Authorization/Cookie bypass logic. Public caching is performed
