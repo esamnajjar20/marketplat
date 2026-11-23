@@ -330,7 +330,7 @@ export function completePendingServerLogout(): Promise<PendingLogoutOutcome> {
           CROSS_TAB_LOCK_NAME,
           { ifAvailable: true },
           async (lock) => (lock ? runCompletion() : ('busy' as PendingLogoutOutcome)),
-        ) as Promise<PendingLogoutOutcome>
+        ) as unknown as Promise<PendingLogoutOutcome>
     : runCompletion;
 
   inFlight = run()
