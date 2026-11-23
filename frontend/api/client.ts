@@ -46,6 +46,8 @@ import { API_BASE_URL }  from '@/lib/constants';
 import { serverApiAdapter } from '@/lib/serverApiAdapter';
 import { setCookie, deleteCookie, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
 import { getCsrfToken } from '@/lib/csrf';
+import { isDefiniteSessionRejection } from '@/lib/authRestoreError';
+import { hasPendingServerLogout } from '@/lib/pendingServerLogout';
 import { QUEUE_UPDATED_EVENT } from '@/lib/offlineQueueEvents';
 import { clearSensitiveLocalData, getSessionCleanupVersion } from '@/lib/authCleanup';
 import { registerSessionRequest } from '@/lib/sessionRequestRegistry';
@@ -495,6 +497,16 @@ export async function refreshSessionShared() {
   }
 
   sharedRefreshPromise = (async () => {
+    // FIX WEB-PENDING-LOGOUT-01: every "restore the session from the cookie"
+    // path funnels through here (page-load hydration, the 401 interceptor,
+    // the restore-stalled retry). While a server-side logout is still owed
+    // the cookie belongs to a session the user ended, so none of them may
+    // revive it — hydration finishes the logout first and clears the marker.
+    // A plain Error (no HTTP status) is classified as "no verdict on the
+    // session" by every caller, so this never signs anyone out by itself.
+    if (hasPendingServerLogout()) {
+      throw new Error('Server-side logout pending; refusing to restore the session');
+    }
     const { authApi } = await import('@/api/auth.api');
     const res = await authApi.refresh();
 
@@ -910,6 +922,21 @@ apiClient.interceptors.response.use(
         return Promise.reject(parseForRequest(error, original));
       }
 
+      // FIX AUTH-REFRESH-TRANSIENT-01: the comment above used to claim that
+      // ANY HTTP status from /auth/refresh (500 included) is a real session
+      // rejection. It is not: only 401/403 are a verdict on the session
+      // (see lib/authRestoreError.ts — the same rule AuthHydrationProvider,
+      // useAuthRestoreRetry and the mobile app already follow, and the
+      // backend's own refresh handler deliberately keeps the cookies on
+      // anything but a 401). A 502/503/504 (cold start, deploy, Redis blip)
+      // or 429 used to fall through to logout() + a full local data wipe +
+      // a hard redirect to /login for a perfectly valid session. Reject the
+      // original request instead and keep the session; the next request
+      // retries the refresh once the server answers again.
+      if (!isDefiniteSessionRejection(refreshError)) {
+        return Promise.reject(parseForRequest(error, original));
+      }
+
       // FIX REFRESH-QUEUE-LOGOUT: if the user already logged out while
       // this refresh was in flight, don't redundantly log them out
       // again or surface a "session expired" toast + hard redirect
@@ -962,8 +989,14 @@ apiClient.interceptors.response.use(
         original.headers.Authorization = `Bearer ${retryAccess}`;
         delete original.headers['X-CSRF-Token'];
         return apiClient(original);
-      } catch {
-        // Retry also failed — fall through to real logout below.
+      } catch (retryError) {
+        // FIX AUTH-REFRESH-TRANSIENT-01: the retry's own failure must be
+        // classified too. A network error / 5xx / 429 here is still not a
+        // verdict on the session — only a second 401/403 is.
+        if (!isDefiniteSessionRejection(retryError)) {
+          return Promise.reject(parseForRequest(error, original));
+        }
+        // Retry also definitively rejected — fall through to real logout.
       }
 
       useAuthStore.getState().logout();

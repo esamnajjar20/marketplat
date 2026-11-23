@@ -10,9 +10,23 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthHydrationProvider } from '@/providers/AuthHydrationProvider';
 import { useAuthStore } from '@/store/auth.store';
 import { deleteCookie } from '@/lib/cookies';
+import { clearPendingServerLogout, markPendingServerLogout } from '@/lib/pendingServerLogout';
 
 const refreshSessionShared = vi.fn();
 const getBootstrap = vi.fn();
+const completePendingWithin = vi.fn();
+const completePending = vi.fn();
+
+// FIX WEB-PENDING-LOGOUT-01: marker storage stays real (localStorage); only the
+// network-bound completion is replaced so each outcome can be driven directly.
+vi.mock('@/lib/pendingServerLogout', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/pendingServerLogout')>();
+  return {
+    ...actual,
+    completePendingServerLogoutWithin: (...args: unknown[]) => completePendingWithin(...args),
+    completePendingServerLogout: (...args: unknown[]) => completePending(...args),
+  };
+});
 
 vi.mock('@/api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/client')>();
@@ -129,10 +143,14 @@ describe('AuthHydrationProvider', () => {
     // The backend's app_has_session is httpOnly, so the browser only ever sees the
     // middleware-mirrored app_session_hint. Most tests below exercise that flow.
     document.cookie = 'app_session_hint=1; path=/';
+    clearPendingServerLogout();
+    completePendingWithin.mockResolvedValue('retry-later');
+    completePending.mockResolvedValue('retry-later');
   });
 
   afterEach(() => {
     cleanup();
+    clearPendingServerLogout();
   });
 
   it('AUTH-ANON-REFRESH-01: anonymous visitor (no hint, no token, no user) skips /auth/refresh', async () => {
@@ -335,5 +353,147 @@ describe('AuthHydrationProvider', () => {
       </QueryClientProvider>,
     );
     expect(refreshSessionShared).toHaveBeenCalledTimes(1);
+  });
+  // FIX WEB-PENDING-LOGOUT-01 ─────────────────────────────────────────────
+  describe('pending server logout (a logout the server never confirmed)', () => {
+    const validRefresh = {
+      data: { data: { tokens: { accessToken: 'new-access', expiresIn: '15m' }, csrfToken: 'csrf-abc' } },
+    };
+
+    it.each([['retry-later'], ['completed'], ['already-ended'], ['busy'], ['gave-up']])(
+      'outcome "%s": stays signed out and never restores from the cookie',
+      async (outcome) => {
+        markPendingServerLogout('one', 'sess-A');
+        completePendingWithin.mockResolvedValue(outcome);
+        refreshSessionShared.mockResolvedValue(validRefresh);
+        resetStoreToHydrated();
+
+        renderWithClient(
+          <AuthHydrationProvider>
+            <div />
+          </AuthHydrationProvider>,
+        );
+        await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
+
+        expect(completePendingWithin).toHaveBeenCalledTimes(1);
+        expect(refreshSessionShared).not.toHaveBeenCalled();
+        expect(getBootstrap).not.toHaveBeenCalled();
+        expect(useAuthStore.getState().isAuthenticated).toBe(false);
+      },
+    );
+
+    it('runs the pending branch even with no JS-readable session hint at all (anonymous skip must not apply)', async () => {
+      deleteCookie('app_session_hint');
+      markPendingServerLogout('one', null);
+      completePendingWithin.mockResolvedValue('completed');
+      resetStoreToHydrated();
+      useAuthStore.setState({ user: null });
+
+      renderWithClient(
+        <AuthHydrationProvider>
+          <div />
+        </AuthHydrationProvider>,
+      );
+      await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
+
+      expect(completePendingWithin).toHaveBeenCalledTimes(1);
+      expect(refreshSessionShared).not.toHaveBeenCalled();
+    });
+
+    it('outcome "superseded": a newer login owns the cookie, so the normal restore proceeds', async () => {
+      markPendingServerLogout('one', 'sess-OLD');
+      completePendingWithin.mockResolvedValue('superseded');
+      refreshSessionShared.mockResolvedValue(validRefresh);
+      getBootstrap.mockResolvedValue(bootstrapPayload());
+      resetStoreToHydrated();
+
+      renderWithClient(
+        <AuthHydrationProvider>
+          <div />
+        </AuthHydrationProvider>,
+      );
+      await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
+
+      expect(refreshSessionShared).toHaveBeenCalledTimes(1);
+      expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    });
+
+    it('outcome "none": the marker vanished (another tab finished it), so the normal restore proceeds', async () => {
+      markPendingServerLogout('one', 'sess-A');
+      completePendingWithin.mockResolvedValue('none');
+      refreshSessionShared.mockRejectedValue({ response: { status: 401 } });
+      resetStoreToHydrated();
+
+      renderWithClient(
+        <AuthHydrationProvider>
+          <div />
+        </AuthHydrationProvider>,
+      );
+      await waitFor(() => expect(refreshSessionShared).toHaveBeenCalledTimes(1));
+    });
+
+    it('without a marker, the pending-logout completion is never invoked', async () => {
+      refreshSessionShared.mockRejectedValue({ response: { status: 401 } });
+      resetStoreToHydrated();
+
+      renderWithClient(
+        <AuthHydrationProvider>
+          <div />
+        </AuthHydrationProvider>,
+      );
+      await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
+
+      expect(completePendingWithin).not.toHaveBeenCalled();
+    });
+
+    it('retries the owed logout when connectivity returns while signed out', async () => {
+      markPendingServerLogout('one', 'sess-A');
+      completePendingWithin.mockResolvedValue('retry-later');
+      resetStoreToHydrated();
+      renderWithClient(
+        <AuthHydrationProvider>
+          <div />
+        </AuthHydrationProvider>,
+      );
+      await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
+      completePending.mockClear();
+
+      window.dispatchEvent(new Event('online'));
+
+      expect(completePending).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry on "online" when nothing is owed', async () => {
+      resetStoreToHydrated();
+      refreshSessionShared.mockRejectedValue({ response: { status: 401 } });
+      renderWithClient(
+        <AuthHydrationProvider>
+          <div />
+        </AuthHydrationProvider>,
+      );
+      await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
+
+      window.dispatchEvent(new Event('online'));
+
+      expect(completePending).not.toHaveBeenCalled();
+    });
+
+    it('does not retry on "online" while a session is active', async () => {
+      markPendingServerLogout('one', 'sess-A');
+      completePendingWithin.mockResolvedValue('retry-later');
+      resetStoreToHydrated();
+      renderWithClient(
+        <AuthHydrationProvider>
+          <div />
+        </AuthHydrationProvider>,
+      );
+      await waitFor(() => expect(useAuthStore.getState().isAuthResolving).toBe(false));
+      useAuthStore.setState({ isAuthenticated: true });
+      completePending.mockClear();
+
+      window.dispatchEvent(new Event('online'));
+
+      expect(completePending).not.toHaveBeenCalled();
+    });
   });
 });

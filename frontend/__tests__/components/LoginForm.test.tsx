@@ -228,4 +228,56 @@ describe('LoginForm', () => {
       expect(screen.queryByText(/انتهت جلستك/)).not.toBeInTheDocument();
     });
   });
+  // FIX LOGIN-GOOGLE-CODE-01: googleCallback redirects with
+  // ?error=google_auth_failed&code=<AppError code>. The form must surface
+  // the specific reason for allow-listed codes and stay generic otherwise.
+  describe('Google sign-in failure reason (FIX LOGIN-GOOGLE-CODE-01)', () => {
+    it('shows the generic message when only ?error=google_auth_failed is present', () => {
+      mockSearchParams = new URLSearchParams({ error: 'google_auth_failed' });
+      render(<LoginForm />);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('تعذّر تسجيل الدخول باستخدام Google');
+    });
+
+    it('tells the user to sign in with their password when the email is already registered', () => {
+      mockSearchParams = new URLSearchParams({
+        error: 'google_auth_failed',
+        code: 'OAUTH_EMAIL_ALREADY_REGISTERED',
+      });
+      render(<LoginForm />);
+
+      const alert = screen.getByRole('alert');
+      expect(alert).toHaveTextContent('يوجد حساب مسجّل بهذا البريد مسبقًا');
+      expect(alert).not.toHaveTextContent('تعذّر تسجيل الدخول باستخدام Google');
+    });
+
+    it('shows the deactivated-account message for ACCOUNT_DEACTIVATED', () => {
+      mockSearchParams = new URLSearchParams({ error: 'google_auth_failed', code: 'ACCOUNT_DEACTIVATED' });
+      render(<LoginForm />);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('تم إيقاف هذا الحساب');
+    });
+
+    it('falls back to the generic message for an unknown or forged code', () => {
+      mockSearchParams = new URLSearchParams({ error: 'google_auth_failed', code: '<script>alert(1)</script>' });
+      render(<LoginForm />);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('تعذّر تسجيل الدخول باستخدام Google');
+      expect(screen.queryByText(/script/)).not.toBeInTheDocument();
+    });
+
+    it('ignores a code that is not allow-listed even if it exists in the error dictionary', () => {
+      mockSearchParams = new URLSearchParams({ error: 'google_auth_failed', code: 'INVALID_CREDENTIALS' });
+      render(<LoginForm />);
+
+      expect(screen.getByRole('alert')).toHaveTextContent('تعذّر تسجيل الدخول باستخدام Google');
+    });
+
+    it('shows nothing about Google when ?error is absent, even if a code is present', () => {
+      mockSearchParams = new URLSearchParams({ code: 'OAUTH_EMAIL_ALREADY_REGISTERED' });
+      render(<LoginForm />);
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+  });
 });

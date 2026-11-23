@@ -550,6 +550,20 @@ export const tokenStore = {
     return result !== null;
   },
 
+  // FIX AUTH-RESET-UNLOCK-01: lifts the per-email lockout and its failed-
+  // attempt counter. Called only after a password reset succeeded — the
+  // caller has just proven control of the mailbox, which is a stronger
+  // proof than the password the lockout was protecting. Without this, a
+  // user who got locked out (5 failures) and then did the right thing
+  // (reset via email) was still told "account locked, try in 30 minutes"
+  // on their very first login with the new password. Deliberately does
+  // NOT touch the per-IP counters/Set: those describe the network, not
+  // this account, and the spray signature must not be resettable by an
+  // account owner action. Best-effort contract lives at the call site.
+  clearLoginLockout: async (email: string): Promise<void> => {
+    await redis.del(`${ACCOUNT_LOCKED_PREFIX}${email}`, `${FAILED_EMAIL_PREFIX}${email}`);
+  },
+
   getIpAttempts: async (ip: string): Promise<number> => {
     const val = await redis.get(`${FAILED_IP_PREFIX}${ip}`);
     return val ? parseInt(val) : 0;

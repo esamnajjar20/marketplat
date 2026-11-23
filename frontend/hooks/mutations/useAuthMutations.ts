@@ -22,6 +22,11 @@ import { track }         from '@/lib/analytics';
 import { clearSensitiveLocalData, clearServiceWorkerApiCache, unbindPushBindings } from '@/lib/authCleanup';
 import { publishSessionEnded } from '@/lib/authSessionBroadcast';
 import { clearNotificationsCache } from '@/lib/notificationsCache';
+import {
+  clearPendingServerLogout,
+  getCurrentSessionIdHint,
+  markPendingServerLogout,
+} from '@/lib/pendingServerLogout';
 import { useAuthStore, selectSetAuth, selectSetUser, selectLogout } from '@/store/auth.store';
 import { resumeSession } from '@/api/client';
 import { setCookie, clearAuthCookies, cookieMaxAgeFromExpiresIn, SESSION_HINT_COOKIE_MAX_AGE } from '@/lib/cookies';
@@ -81,6 +86,38 @@ function setAuthCookies(user: AuthResultUser, tokens: AuthTokens) {
 // lib/authCleanup.ts (FIX AUTH-CLEANUP-CENTRALIZE-01).
 export { clearServiceWorkerApiCache };
 
+/**
+ * FIX AUTH-LOGIN-CLEANUP-GUARD-01: the housekeeping that runs between "the
+ * server accepted the credentials" and "the client stores the session"
+ * (full local wipe on a user change, SW API cache, notifications cache)
+ * used to run bare inside onSuccess. By then the backend has already
+ * created the session and set its cookies, so an exception here (storage
+ * blocked in a private tab, a quota/IndexedDB error, a failing
+ * postMessage) escaped onSuccess — TanStack Query treats that as a failed
+ * mutation, onError toasted a generic error, and setAuth() never ran: the
+ * user saw "login failed" while a live session sat unused in the browser.
+ * Cleanup is hygiene, not a precondition for being signed in, so a failure
+ * is logged and the sign-in proceeds. (clearSensitiveLocalData's own
+ * offline-store stages already flag a pending retry on failure; anything
+ * that throws outside those stages is only logged.)
+ */
+async function cleanupBeforeNewSession(userChanged: boolean): Promise<void> {
+  // FIX WEB-PENDING-LOGOUT-01: a fresh login/registration just replaced the
+  // browser's refresh cookie, so a logout still owed for the PREVIOUS session
+  // can no longer be completed from here (its cookie is gone) and must not be
+  // applied to this new one. Never throws.
+  clearPendingServerLogout();
+  try {
+    if (userChanged) {
+      await clearSensitiveLocalData();
+    }
+    await clearServiceWorkerApiCache();
+    clearNotificationsCache();
+  } catch (err) {
+    console.warn('[auth] pre-session cleanup failed; continuing with sign-in', err);
+  }
+}
+
 export function useLogin() {
   // PERF-05 FIX: targeted selectors instead of full store subscription.
   const setAuth   = useAuthStore(selectSetAuth);
@@ -114,17 +151,13 @@ export function useLogin() {
       // partialize), so `previousUserId` is reliable across reloads.
       const previousUserId = useAuthStore.getState().user?.id;
       const userChanged = previousUserId === undefined || previousUserId !== data.user.id;
-      if (userChanged) {
-        await clearSensitiveLocalData();
-      }
-      // These two are unconditional: cheap (a postMessage + a
-      // localStorage removal) and clearing them just means one extra
+      // The last two steps inside are unconditional: cheap (a postMessage
+      // + a localStorage removal) and clearing them just means one extra
       // API round-trip on the first page after login. The SW API cache
       // has no per-user scoping, so a same-user login leaving it in
       // place is fine — but running it here matches the previous
       // behavior and removes any doubt.
-      await clearServiceWorkerApiCache();
-      clearNotificationsCache();
+      await cleanupBeforeNewSession(userChanged);
 
       // FIX T-01: data.user is AuthResultUser (id/name/email/role only).
       // CROSS-ORIGIN-CSRF-FIX: also pass csrfToken from the response
@@ -221,11 +254,7 @@ export function useRegister() {
       // matters for the post-deletion-re-registration edge case.
       const previousUserId = useAuthStore.getState().user?.id;
       const userChanged = previousUserId === undefined || previousUserId !== data.user.id;
-      if (userChanged) {
-        await clearSensitiveLocalData();
-      }
-      await clearServiceWorkerApiCache();
-      clearNotificationsCache();
+      await cleanupBeforeNewSession(userChanged);
 
       // CROSS-ORIGIN-CSRF-FIX: see the matching comment in useLogin above.
       setAuth(data.user, data.tokens, data.csrfToken);
@@ -331,8 +360,23 @@ export function useLogout() {
     // PUSH-LOGOUT-01: unbind this device's push while the access token
     // is still valid (see unbindPushBindings). Never throws, 3s cap.
     mutationFn: async () => {
+      // FIX WEB-PENDING-LOGOUT-01: capture the session id BEFORE the local
+      // cleanup in onSettled deletes the token it is read from.
+      const sessionId = getCurrentSessionIdHint();
       await unbindPushBindings();
-      return authApi.logout();
+      try {
+        const res = await authApi.logout();
+        clearPendingServerLogout();
+        return res;
+      } catch (err) {
+        // The server may still hold a live session whose httpOnly cookies
+        // this page cannot delete. Local state is cleared below regardless;
+        // the marker makes sure that session is NOT silently restored on the
+        // next load and that the logout is finished once the server answers
+        // (see lib/pendingServerLogout.ts).
+        markPendingServerLogout('one', sessionId);
+        throw err;
+      }
     },
     // Always clear local state regardless of server response.
     // Wrapped in an arrow because clearLocalSession now takes an
@@ -350,8 +394,17 @@ export function useLogoutAll() {
 
   return useMutation({
     mutationFn: async () => {
+      // FIX WEB-PENDING-LOGOUT-01: see useLogout above.
+      const sessionId = getCurrentSessionIdHint();
       await unbindPushBindings();
-      return authApi.logoutAll();
+      try {
+        const res = await authApi.logoutAll();
+        clearPendingServerLogout();
+        return res;
+      } catch (err) {
+        markPendingServerLogout('all', sessionId);
+        throw err;
+      }
     },
     // UX-FIX P1-7: previously only onSettled cleared local state, with no
     // onSuccess/onError at all — the confirmation dialog promises "all

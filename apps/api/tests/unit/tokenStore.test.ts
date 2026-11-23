@@ -252,3 +252,35 @@ describe('peekBlacklistL1 / rememberBlacklistL1 (LRU touch)', () => {
     expect(peekBlacklistL1(token)).toBe(false);
   });
 });
+
+describe('clearLoginLockout (FIX AUTH-RESET-UNLOCK-01)', () => {
+  const email = 'locked-user@example.com';
+  const ip = '203.0.113.77';
+
+  it('removes the account lock and the per-email failure counter', async () => {
+    const { redis } = await import('../../src/config/redis');
+    await tokenStore.incrementFailedLogins(email, ip);
+    await tokenStore.lockAccount(email, 1800);
+    expect(await tokenStore.isAccountLocked(email)).toBe(true);
+    expect(await redis.get(`failed_login_email:${email}`)).not.toBeNull();
+
+    await tokenStore.clearLoginLockout(email);
+
+    expect(await tokenStore.isAccountLocked(email)).toBe(false);
+    expect(await redis.get(`failed_login_email:${email}`)).toBeNull();
+  });
+
+  it('leaves the per-IP counters alone (spray signature must not be resettable by an account owner)', async () => {
+    const { redis } = await import('../../src/config/redis');
+    await tokenStore.incrementFailedLogins(email, ip);
+    await tokenStore.lockAccount(email, 1800);
+
+    await tokenStore.clearLoginLockout(email);
+
+    expect(await redis.get(`failed_login_ip:${ip}`)).not.toBeNull();
+  });
+
+  it('is a harmless no-op for an email that was never locked', async () => {
+    await expect(tokenStore.clearLoginLockout('never-locked@example.com')).resolves.toBeUndefined();
+  });
+});

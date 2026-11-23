@@ -108,6 +108,28 @@ describe('AuthService', () => {
         .rejects.toThrow('Account is deactivated');
     });
 
+    // FIX LOGIN-DEACTIVATED-ORACLE-01: the deactivated state must only be
+    // revealed to someone who proved the password. A wrong password on a
+    // deactivated account must look exactly like a wrong password anywhere
+    // else — same error, and it still feeds the lockout counter.
+    it('does NOT reveal a deactivated account when the password is wrong', async () => {
+      (authRepository.findByEmail as jest.Mock).mockResolvedValue({ ...mockUser, isActive: false });
+      (tokenStore.incrementFailedLogins as jest.Mock).mockResolvedValue({ emailAttempts: 1, ipAttempts: 1, attempts: 1, distinctEmails: 1 });
+
+      await expect(authService.login({ email: 'test@example.com', password: 'wrong' }))
+        .rejects.toMatchObject({ code: 'INVALID_CREDENTIALS', statusCode: 401 });
+      expect(tokenStore.incrementFailedLogins).toHaveBeenCalledTimes(1);
+    });
+
+    it('reveals ACCOUNT_DEACTIVATED (without issuing a session) when the password is right', async () => {
+      (authRepository.findByEmail as jest.Mock).mockResolvedValue({ ...mockUser, isActive: false });
+
+      await expect(authService.login({ email: 'test@example.com', password: 'password123' }))
+        .rejects.toMatchObject({ code: 'ACCOUNT_DEACTIVATED', statusCode: 401 });
+      expect(tokenStore.saveRefreshToken).not.toHaveBeenCalled();
+      expect(tokenStore.clearFailedLogins).not.toHaveBeenCalled();
+    });
+
     it('should throw when account is locked', async () => {
       (tokenStore.isAccountLocked as jest.Mock).mockResolvedValue(true);
       await expect(authService.login({ email: 'test@example.com', password: 'password123' }))
@@ -196,6 +218,45 @@ describe('AuthService', () => {
       });
       expect(prisma.$transaction).toHaveBeenCalledTimes(1);
       expect(tokenStore.deleteAllRefreshTokens).toHaveBeenCalledWith(mockUser.id);
+    });
+
+    // FIX AUTH-RESET-UNLOCK-01
+    it('lifts the login lockout (normalized email) after a successful reset', async () => {
+      jest.spyOn(prisma.passwordResetToken, 'findUnique').mockResolvedValue({
+        token: 'valid-token', userId: mockUser.id, expiresAt: futureDate(), used: false,
+        user: { ...mockUser, email: '  Test@Example.com ' },
+      } as any);
+      jest.spyOn(prisma.passwordResetToken, 'updateMany').mockResolvedValue({ count: 1 } as any);
+      jest.spyOn(prisma.user, 'update').mockResolvedValue(mockUser as any);
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (callback: any) => callback(prisma) as any);
+      (tokenStore.deleteAllRefreshTokens as jest.Mock).mockResolvedValue(undefined);
+      (tokenStore.clearLoginLockout as jest.Mock).mockResolvedValue(undefined);
+
+      await authService.resetPassword('valid-token', 'newPassword123');
+
+      expect(tokenStore.clearLoginLockout).toHaveBeenCalledWith('test@example.com');
+    });
+
+    it('still succeeds when lifting the lockout fails (best-effort side effect)', async () => {
+      jest.spyOn(prisma.passwordResetToken, 'findUnique').mockResolvedValue({
+        token: 'valid-token', userId: mockUser.id, expiresAt: futureDate(), used: false,
+        user: mockUser,
+      } as any);
+      jest.spyOn(prisma.passwordResetToken, 'updateMany').mockResolvedValue({ count: 1 } as any);
+      jest.spyOn(prisma.user, 'update').mockResolvedValue(mockUser as any);
+      jest.spyOn(prisma, '$transaction').mockImplementation(async (callback: any) => callback(prisma) as any);
+      (tokenStore.deleteAllRefreshTokens as jest.Mock).mockResolvedValue(undefined);
+      (tokenStore.clearLoginLockout as jest.Mock).mockRejectedValue(new Error('redis down'));
+
+      await expect(authService.resetPassword('valid-token', 'newPassword123')).resolves.toBeUndefined();
+      expect(tokenStore.deleteAllRefreshTokens).toHaveBeenCalledWith(mockUser.id);
+    });
+
+    it('does not lift the lockout when the token is rejected', async () => {
+      jest.spyOn(prisma.passwordResetToken, 'findUnique').mockResolvedValue(null);
+
+      await expect(authService.resetPassword('bad-token', 'newPassword123')).rejects.toThrow();
+      expect(tokenStore.clearLoginLockout).not.toHaveBeenCalled();
     });
 
     it('does not update the password when the token expires before the atomic claim', async () => {

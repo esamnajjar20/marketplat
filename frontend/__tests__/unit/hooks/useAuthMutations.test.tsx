@@ -34,6 +34,12 @@ import {
 import { authApi } from '@/api/auth.api';
 import { usersApi } from '@/api/users.api';
 import { useAuthStore } from '@/store/auth.store';
+import {
+  PENDING_SERVER_LOGOUT_KEY,
+  clearPendingServerLogout,
+  readPendingServerLogout,
+  markPendingServerLogout,
+} from '@/lib/pendingServerLogout';
 import { toast } from 'sonner';
 import { clearSensitiveLocalData, clearServiceWorkerApiCache, unbindPushBindings } from '@/lib/authCleanup';
 
@@ -86,6 +92,7 @@ beforeEach(() => {
   vi.mocked(clearServiceWorkerApiCache).mockResolvedValue(undefined);
   vi.mocked(unbindPushBindings).mockResolvedValue(undefined);
   useAuthStore.getState().logout();
+  clearPendingServerLogout();
   document.cookie = 'app_access_token=; max-age=0';
   document.cookie = 'app_user_role=; max-age=0';
   (usersApi.getMe as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -127,6 +134,68 @@ describe('useLogin session isolation', () => {
 
     expect(clearSensitiveLocalData).not.toHaveBeenCalled();
     expect(useAuthStore.getState().user?.id).toBe('user-1');
+  });
+});
+
+// FIX AUTH-LOGIN-CLEANUP-GUARD-01: by the time onSuccess runs, the server
+// has already created the session. A throwing cleanup helper used to
+// escape onSuccess, which TanStack Query reports as a failed mutation:
+// the user got an error toast and setAuth() never ran.
+describe('useLogin / useRegister — cleanup failures never block sign-in', () => {
+  it('login still completes when clearSensitiveLocalData rejects', async () => {
+    (clearSensitiveLocalData as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('IndexedDB blocked'));
+    (authApi.login as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: mockAuthResult } });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { result } = renderHook(() => useLogin(), { wrapper: createWrapper() });
+    act(() => { result.current.mutate({ email: 'a@example.com', password: 'pw' }); });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(useAuthStore.getState().user?.id).toBe('user-1');
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.success).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('login still completes when clearServiceWorkerApiCache rejects', async () => {
+    useAuthStore.getState().setAuth(mockAuthResult.user as any, mockAuthResult.tokens);
+    (clearServiceWorkerApiCache as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('SW unavailable'));
+    (authApi.login as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: mockAuthResult } });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { result } = renderHook(() => useLogin(), { wrapper: createWrapper() });
+    act(() => { result.current.mutate({ email: 'a@example.com', password: 'pw' }); });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(toast.error).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('register still completes when clearSensitiveLocalData rejects', async () => {
+    (clearSensitiveLocalData as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('IndexedDB blocked'));
+    (authApi.register as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: mockAuthResult } });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const { result } = renderHook(() => useRegister(), { wrapper: createWrapper() });
+    act(() => { result.current.mutate({ name: 'Ahmed', email: 'a@example.com', password: 'pw' } as any); });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(useAuthStore.getState().user?.id).toBe('user-1');
+    expect(toast.error).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('a genuine login failure from the server still surfaces as an error', async () => {
+    (authApi.login as ReturnType<typeof vi.fn>).mockRejectedValue({ message: 'bad credentials', statusCode: 401 });
+
+    const { result } = renderHook(() => useLogin(), { wrapper: createWrapper() });
+    act(() => { result.current.mutate({ email: 'a@example.com', password: 'wrong' }); });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(toast.error).toHaveBeenCalled();
   });
 });
 
@@ -313,6 +382,84 @@ describe('useLogout / useLogoutAll', () => {
     act(() => { result.current.mutate(); });
 
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
+  });
+});
+
+// FIX WEB-PENDING-LOGOUT-01: a logout the server never confirmed must leave
+// a write-ahead marker so the (still valid) httpOnly refresh cookie is not
+// used to silently restore the account on the next load.
+function jwtWithSession(sessionId: string): string {
+  const b64 = (o: object) => btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return `${b64({ alg: 'HS256', typ: 'JWT' })}.${b64({ userId: 'user-1', sessionId })}.sig`;
+}
+
+describe('useLogout / useLogoutAll — pending server logout marker', () => {
+  it('records a marker (with the session id) when the server call fails, and still clears local state', async () => {
+    useAuthStore.getState().setAuth(mockAuthResult.user as any, { accessToken: jwtWithSession('sess-A') });
+    (authApi.logout as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network error'));
+    const { result } = renderHook(() => useLogout(), { wrapper: createWrapper() });
+
+    act(() => { result.current.mutate(); });
+    await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(false));
+
+    const marker = readPendingServerLogout();
+    expect(marker).toMatchObject({ v: 1, scope: 'one', sessionId: 'sess-A' });
+  });
+
+  it('records an unidentified marker when no session id can be captured', async () => {
+    useAuthStore.getState().setAuth(mockAuthResult.user as any, mockAuthResult.tokens); // 'access-1' is not a JWT
+    (authApi.logout as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network error'));
+    const { result } = renderHook(() => useLogout(), { wrapper: createWrapper() });
+
+    act(() => { result.current.mutate(); });
+    await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(false));
+
+    expect(readPendingServerLogout()).toMatchObject({ scope: 'one', sessionId: null });
+  });
+
+  it('writes no marker when the server confirms the logout', async () => {
+    useAuthStore.getState().setAuth(mockAuthResult.user as any, { accessToken: jwtWithSession('sess-A') });
+    (authApi.logout as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { success: true } });
+    const { result } = renderHook(() => useLogout(), { wrapper: createWrapper() });
+
+    act(() => { result.current.mutate(); });
+    await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(false));
+
+    expect(localStorage.getItem(PENDING_SERVER_LOGOUT_KEY)).toBeNull();
+  });
+
+  it('a confirmed logout also clears a marker left by an earlier failed one', async () => {
+    markPendingServerLogout('one', 'sess-OLD');
+    useAuthStore.getState().setAuth(mockAuthResult.user as any, mockAuthResult.tokens);
+    (authApi.logout as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { success: true } });
+    const { result } = renderHook(() => useLogout(), { wrapper: createWrapper() });
+
+    act(() => { result.current.mutate(); });
+    await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(false));
+
+    expect(localStorage.getItem(PENDING_SERVER_LOGOUT_KEY)).toBeNull();
+  });
+
+  it('useLogoutAll records scope "all" when the server call fails', async () => {
+    useAuthStore.getState().setAuth(mockAuthResult.user as any, { accessToken: jwtWithSession('sess-B') });
+    (authApi.logoutAll as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('network error'));
+    const { result } = renderHook(() => useLogoutAll(), { wrapper: createWrapper() });
+
+    act(() => { result.current.mutate(); });
+    await waitFor(() => expect(useAuthStore.getState().isAuthenticated).toBe(false));
+
+    expect(readPendingServerLogout()).toMatchObject({ scope: 'all', sessionId: 'sess-B' });
+  });
+
+  it('a successful login drops a marker owed for the previous session', async () => {
+    markPendingServerLogout('one', 'sess-OLD');
+    (authApi.login as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { data: mockAuthResult } });
+    const { result } = renderHook(() => useLogin(), { wrapper: createWrapper() });
+
+    act(() => { result.current.mutate({ email: 'a@example.com', password: 'pw' }); });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(localStorage.getItem(PENDING_SERVER_LOGOUT_KEY)).toBeNull();
   });
 });
 

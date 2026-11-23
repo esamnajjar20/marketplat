@@ -343,9 +343,6 @@ export const authService = {
       throw new UnauthorizedError('Invalid email or password', 'INVALID_CREDENTIALS');
     }
 
-    if (!user.isActive)
-      throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
-
     if (!isPasswordValid) {
       const { emailAttempts } = await tokenStore.incrementFailedLogins(normalizedEmail, ip);
 
@@ -376,6 +373,19 @@ export const authService = {
         );
       }
       throw new UnauthorizedError('Invalid email or password', 'INVALID_CREDENTIALS');
+    }
+
+    // FIX LOGIN-DEACTIVATED-ORACLE-01: this check used to sit BEFORE the
+    // password check. Anyone who only knew an email address (no password)
+    // could therefore tell "this account exists AND was deactivated" apart
+    // from every other failure — an enumeration oracle that also exposed
+    // an account's moderation state. It now runs only once the caller has
+    // proven the password, so a wrong password on a deactivated account is
+    // indistinguishable from a wrong password on any other account (and is
+    // counted by the same lockout machinery above), while the real owner
+    // still gets the specific, actionable ACCOUNT_DEACTIVATED message.
+    if (!user.isActive) {
+      throw new UnauthorizedError('Account is deactivated', 'ACCOUNT_DEACTIVATED');
     }
 
     await tokenStore.clearFailedLogins(normalizedEmail, ip);
@@ -1147,6 +1157,21 @@ export const authService = {
     // a TypeError at runtime on every successful password reset).
     // The correct exported method is deleteAllRefreshTokens.
     await tokenStore.deleteAllRefreshTokens(record.userId);
+
+    // FIX AUTH-RESET-UNLOCK-01: the reset proves control of the mailbox, so
+    // a lockout caused by earlier wrong-password attempts must not keep the
+    // owner out for up to 30 more minutes. Best-effort: the password is
+    // already changed and every session revoked — failing to lift the lock
+    // must never turn a successful reset into an error response.
+    try {
+      await tokenStore.clearLoginLockout(record.user.email.trim().toLowerCase());
+    } catch (err) {
+      logger.warn('Failed to lift login lockout after password reset', {
+        userId: record.userId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+
     logger.info('Password reset completed', { userId: record.userId });
   },
   /**

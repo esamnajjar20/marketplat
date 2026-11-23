@@ -83,6 +83,11 @@ import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { isDefiniteSessionRejection } from '@/lib/authRestoreError';
 import { isDeviceOffline } from '@/lib/offlineError';
 import { shouldSkipAnonymousRefresh } from '@/lib/authSessionHint';
+import {
+  completePendingServerLogout,
+  completePendingServerLogoutWithin,
+  hasPendingServerLogout,
+} from '@/lib/pendingServerLogout';
 
 // PERF-BUNDLE-HYDRATION-01: offlineSelfWarm (+ stores.api/service-providers.api)
 // تُحمَّل بعد نجاح الجلسة فقط وليس مع كل route للزوّار.
@@ -125,6 +130,10 @@ interface AuthHydrationProviderProps {
   children: React.ReactNode;
 }
 
+// How long app start waits for an owed server-side logout to finish before
+// giving up the WAIT (not the attempt) and resolving as signed-out.
+const PENDING_LOGOUT_BLOCK_MS = 8_000;
+
 export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) {
   const router = useRouter();
   const pathname = usePublicShellPathname();
@@ -164,6 +173,20 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
       });
     });
   }, [router]);
+
+  // FIX WEB-PENDING-LOGOUT-01: a logout that could not reach the server (offline
+  // / outage) is finished as soon as connectivity returns, without waiting for
+  // the next page load. Only while signed out — a new login clears the marker.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const retry = () => {
+      if (useAuthStore.getState().isAuthenticated) return;
+      if (!hasPendingServerLogout()) return;
+      void completePendingServerLogout();
+    };
+    window.addEventListener('online', retry);
+    return () => window.removeEventListener('online', retry);
+  }, []);
 
   const isHydrated = useAuthStore(selectIsHydrated);
   const { setAccessToken, setCsrfToken, setUser, logout, setAuthResolved } = useAuthStore.getState();
@@ -229,8 +252,13 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
     // app_has_session together with it). Skip the guaranteed-401 /auth/refresh so
     // anonymous page loads stay free of a failed request and console error.
     // Any doubt (hint present, persisted user, native app) keeps the old behaviour.
+    //
+    // FIX WEB-PENDING-LOGOUT-01: never skip while a server-side logout is
+    // still owed — the pending-logout branch below must get to run even when
+    // the JS-readable hints are missing (e.g. an offline shell load).
     if (
       typeof document !== 'undefined' &&
+      !hasPendingServerLogout() &&
       shouldSkipAnonymousRefresh({
         cookieString: document.cookie,
         hasPersistedUser: Boolean(useAuthStore.getState().user),
@@ -251,6 +279,25 @@ export function AuthHydrationProvider({ children }: AuthHydrationProviderProps) 
 
     (async () => {
       try {
+        // FIX WEB-PENDING-LOGOUT-01: the user logged out, but the server
+        // never confirmed it (offline / 5xx / timeout), so their httpOnly
+        // refresh cookie may still be valid. Restoring from it here would
+        // silently sign the logged-out account back in — on a shared device,
+        // for the next person. Finish the logout instead and stay signed
+        // out. Two outcomes fall through to the normal restore because the
+        // cookie is not the one the user logged out of: 'none' (the marker
+        // vanished — e.g. another tab finished it) and 'superseded' (a newer
+        // deliberate login, e.g. Google sign-in, replaced the cookie).
+        // Waiting is capped so a slow server cannot hold the app on the
+        // session spinner; the attempt itself keeps running, and the
+        // 'online' listener below retries after an outage.
+        if (hasPendingServerLogout()) {
+          const outcome = await completePendingServerLogoutWithin(PENDING_LOGOUT_BLOCK_MS);
+          if (outcome !== 'none' && outcome !== 'superseded') {
+            return; // finally{} below resolves auth as signed-out
+          }
+        }
+
         // 1. Get a fresh access token. PROD-FIX-15: no refreshToken
         // argument anymore — the httpOnly cookie (if any) rides along
         // automatically via apiClient's withCredentials:true.

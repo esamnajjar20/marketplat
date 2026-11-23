@@ -46,6 +46,7 @@ import { authApi } from '@/api/auth.api';
 import { useAuthStore } from '@/store/auth.store';
 import { API_BASE_URL } from '@/lib/constants';
 import { deleteCookie } from '@/lib/cookies';
+import { clearPendingServerLogout, markPendingServerLogout } from '@/lib/pendingServerLogout';
 import { toast } from 'sonner';
 
 // UX-FIX P0-1: client.ts's 401/refresh-failure branch now shows a toast
@@ -613,6 +614,111 @@ describe('api/client.ts — silent refresh on 401', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
     expect(useAuthStore.getState().accessToken).toBe('expired-access-token');
     expect(window.location.href).not.toContain('reason=session_expired');
+  });
+
+  // FIX WEB-PENDING-LOGOUT-01: while a server-side logout is still owed, the
+  // refresh cookie belongs to a session the user ended. The 401 interceptor
+  // (like page-load hydration) must not use it to revive that session.
+  it('REGRESSION (pending logout): a 401 does NOT trigger /auth/refresh while a server logout is owed', async () => {
+    markPendingServerLogout('one', 'sess-A');
+    setAuthenticatedState('expired-access-token');
+
+    let refreshCalls = 0;
+    getMswServer()?.use(
+      http.post(REFRESH_URL, () => {
+        refreshCalls += 1;
+        return HttpResponse.json(
+          { success: true, data: { tokens: { accessToken: 'revived', expiresIn: '15m' }, csrfToken: 'c' } },
+          { status: 200 },
+        );
+      }),
+      http.get(PROTECTED_URL, () => HttpResponse.json({ success: false }, { status: 401 })),
+    );
+
+    try {
+      await expect(apiClient.get('/users/me')).rejects.toBeDefined();
+      expect(refreshCalls).toBe(0);
+      expect(useAuthStore.getState().accessToken).not.toBe('revived');
+    } finally {
+      clearPendingServerLogout();
+    }
+  });
+
+  // FIX AUTH-REFRESH-TRANSIENT-01: only 401/403 from /auth/refresh are a
+  // verdict on the session (lib/authRestoreError.ts). A 5xx/429 means the
+  // backend could not answer right now (cold start, deploy, Redis blip) —
+  // the refresh cookie is still valid, so tearing the session down and
+  // wiping local data would turn an infrastructure hiccup into a forced
+  // logout. The previous code only exempted statusCode 0 (no response).
+  it.each([
+    ['503 Service Unavailable', 503],
+    ['502 Bad Gateway', 502],
+    ['500 Internal Server Error', 500],
+    ['429 Too Many Requests', 429],
+  ])('REGRESSION (transient refresh failure): %s on /auth/refresh keeps the session', async (_label, status) => {
+    vi.mocked(toast.error).mockClear();
+    setAuthenticatedState('expired-access-token');
+
+    getMswServer()?.use(
+      http.post(REFRESH_URL, () =>
+        HttpResponse.json({ success: false, message: 'temporarily unavailable' }, { status }),
+      ),
+      http.get(PROTECTED_URL, () =>
+        HttpResponse.json({ success: false }, { status: 401 }),
+      ),
+    );
+
+    await expect(apiClient.get('/users/me')).rejects.toBeDefined();
+
+    // Give any (buggy) delayed redirect/toast the chance to fire before
+    // asserting that none did.
+    await new Promise((r) => setTimeout(r, 900));
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(useAuthStore.getState().accessToken).toBe('expired-access-token');
+    expect(window.location.href).not.toContain('reason=session_expired');
+    expect(toast.error).not.toHaveBeenCalledWith('انتهت جلستك، الرجاء تسجيل الدخول مجددًا');
+  });
+
+  it('REGRESSION (transient retry failure): a 401 on the first refresh followed by a 503 on the retry keeps the session', async () => {
+    vi.mocked(toast.error).mockClear();
+    setAuthenticatedState('expired-access-token');
+
+    let refreshCalls = 0;
+    getMswServer()?.use(
+      http.post(REFRESH_URL, () => {
+        refreshCalls += 1;
+        return refreshCalls === 1
+          ? HttpResponse.json({ success: false, message: 'Invalid refresh token' }, { status: 401 })
+          : HttpResponse.json({ success: false, message: 'temporarily unavailable' }, { status: 503 });
+      }),
+      http.get(PROTECTED_URL, () =>
+        HttpResponse.json({ success: false }, { status: 401 }),
+      ),
+    );
+
+    await expect(apiClient.get('/users/me')).rejects.toBeDefined();
+    await new Promise((r) => setTimeout(r, 900));
+
+    expect(refreshCalls).toBe(2);
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+    expect(window.location.href).not.toContain('reason=session_expired');
+  });
+
+  it('a 403 from /auth/refresh is still a definitive rejection and ends the session', async () => {
+    setAuthenticatedState('expired-access-token');
+
+    getMswServer()?.use(
+      http.post(REFRESH_URL, () =>
+        HttpResponse.json({ success: false, message: 'Forbidden' }, { status: 403 }),
+      ),
+      http.get(PROTECTED_URL, () =>
+        HttpResponse.json({ success: false }, { status: 401 }),
+      ),
+    );
+
+    await expect(apiClient.get('/users/me')).rejects.toBeDefined();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
 
   // FIX QUEUE-UX-01: sw.js answers an offline-queued mutation with

@@ -13,6 +13,15 @@ import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
 import { AuthDivider } from '@/components/auth/AuthDivider';
 import { ROUTES } from '@/lib/constants';
 import { getSafeRedirectPath } from '@/lib/cookies';
+import { getErrorMessage } from '@/lib/i18n/ar';
+
+// Backend codes googleCallback can attach to the failure redirect that have a
+// message worth showing on the login page (see lib/i18n/ar/errors.ts).
+const GOOGLE_FAILURE_CODES: ReadonlySet<string> = new Set([
+  'OAUTH_EMAIL_ALREADY_REGISTERED',
+  'GOOGLE_ALREADY_LINKED_ELSEWHERE',
+  'ACCOUNT_DEACTIVATED',
+]);
 
 export function LoginForm() {
   const searchParams = useSearchParams();
@@ -35,6 +44,21 @@ export function LoginForm() {
   // account, etc.) — same "explain via query param" pattern as
   // sessionExpired above.
   const googleAuthFailed = searchParams.get('error') === 'google_auth_failed';
+
+  // FIX LOGIN-GOOGLE-CODE-01: googleCallback also appends `&code=<AppError
+  // code>` precisely so this page can say WHY it failed — the key case is
+  // OAUTH_EMAIL_ALREADY_REGISTERED (the email already belongs to a
+  // password account, so the user must sign in with the password first).
+  // This form used to ignore `code` and always show the generic line, which
+  // left that user with no clue what to do. The value comes from the URL,
+  // so it is only ever used as a lookup key into a static allow-list and
+  // never rendered itself — an unknown/forged code falls back to the
+  // generic message.
+  const googleErrorCode = searchParams.get('code');
+  const googleErrorMessage =
+    googleAuthFailed && googleErrorCode && GOOGLE_FAILURE_CODES.has(googleErrorCode)
+      ? getErrorMessage(googleErrorCode)
+      : undefined;
 
   // AUDIT-FIX auth#1: carried through to "إنشاء حساب" below so a visitor
   // who arrived here via /login?from=X and has no account yet doesn't
@@ -115,7 +139,8 @@ export function LoginForm() {
           className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive-soft px-3.5 py-2.5 text-sm-tight leading-relaxed text-destructive"
         >
           <span aria-hidden>⚠</span>
-          تعذّر تسجيل الدخول باستخدام Google، الرجاء المحاولة مرة أخرى أو استخدام البريد الإلكتروني
+          {googleErrorMessage ??
+            'تعذّر تسجيل الدخول باستخدام Google، الرجاء المحاولة مرة أخرى أو استخدام البريد الإلكتروني'}
         </p>
       )}
 
