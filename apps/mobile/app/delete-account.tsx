@@ -2,14 +2,15 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { useState } from 'react';
-import { TextInput, View } from 'react-native';
+import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { router } from 'expo-router';
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
 import { deleteAccountAfterReauthentication } from '@/features/account/delete-account.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
-import { radius, spacing, typography } from '@/theme/tokens';
+import { spacing } from '@/theme/tokens';
+import { Field } from '@/components/ui/Field';
 
 export default function DeleteAccountScreen() {
   const { colors } = useAppTheme();
@@ -56,10 +57,8 @@ export default function DeleteAccountScreen() {
     <SectionCard>
       <Text tone="ink" strong size={17}>إعادة توثيق الحساب</Text>
       <Text style={{ textAlign: 'right', color: colors.muted, lineHeight: 22 }}>الحساب: {user?.email || 'مستخدم مسجل'}</Text>
-      <Text style={{ textAlign: 'right', color: colors.ink, ...typography.label }}>كلمة المرور الحالية</Text>
-      <TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="كلمة المرور الحالية لإعادة التوثيق" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} placeholder="أدخل كلمة المرور الحالية" placeholderTextColor={colors.muted} style={{ minHeight: 52, borderWidth: 1, borderColor: colors.border, borderRadius: radius.control, paddingHorizontal: spacing.md, color: colors.ink, textAlign: 'right' }} />
-      <Text style={{ textAlign: 'right', color: colors.ink, ...typography.label }}>اكتب «حذف» للمتابعة</Text>
-      <TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="تأكيد حذف الحساب بكتابة حذف" value={confirmation} onChangeText={setConfirmation} editable={!busy} placeholder="حذف" placeholderTextColor={colors.muted} style={{ minHeight: 52, borderWidth: 1, borderColor: colors.border, borderRadius: radius.control, paddingHorizontal: spacing.md, color: colors.ink, textAlign: 'right' }} />
+      <Field label="كلمة المرور الحالية" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" autoCorrect={false} editable={!busy} placeholder="أدخل كلمة المرور الحالية" />
+      <Field label="اكتب «حذف» للمتابعة" value={confirmation} onChangeText={setConfirmation} editable={!busy} placeholder="حذف" />
       <View style={{ gap: spacing.sm }}><PrimaryButton label="حذف الحساب نهائيًا" variant="danger" busy={busy} disabled={confirmation.trim() !== 'حذف' || !password} onPress={submit} /><PrimaryButton label="إلغاء والعودة للإعدادات" variant="secondary" disabled={busy} onPress={() => pushOnce('/settings')} /></View>
       {error ? <Notice>{error}</Notice> : null}
     </SectionCard>

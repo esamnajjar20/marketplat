@@ -13,7 +13,7 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchMyStoreAnalytics, type StoreAnalytics } from '@/features/commerce/commerce.api';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 
-const fmt = (n: number) => formatNumber(n || 0);
+const fmt = (n: number | string) => typeof n === 'number' ? formatNumber(n || 0) : n;
 
 export default function MyStoreAnalyticsScreen() {
   const { colors } = useAppTheme();
@@ -59,11 +59,12 @@ export default function MyStoreAnalyticsScreen() {
       { label: 'متابعون جدد · 7 أيام', value: data.newFollowers7d, icon: '↗' },
       { label: 'متابعون جدد · 30 يومًا', value: data.newFollowers30d, icon: '↗' },
       { label: 'استخدامات العروض', value: data.promotionUses, icon: '✓' },
+      { label: 'طلبات المتجر · كل الفترة', value: data.orders?.totalCount ?? '—', icon: '▤' },
     ];
     body = (
       <>
         <Text style={{ fontSize: fontSizes[13], color: colors.muted, textAlign: 'right', lineHeight: 21 }}>
-          ملخص أداء متجرك بناءً على البيانات المتاحة حاليًا. الأرقام لا تشمل المبيعات أو الإيرادات.
+          ملخص أداء متجرك بناءً على البيانات المتاحة حاليًا. طلبات الشراء معروضة منفصلة، وقيمتها ليست مبالغ محصّلة ولا تُدمج مع سجل المبيعات اليدوية.
         </Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
           {metrics.map((item) => (
@@ -77,7 +78,33 @@ export default function MyStoreAnalyticsScreen() {
             </SectionCard>
           ))}
         </View>
-        <SectionHeader title="المنتجات الأكثر مشاهدة" />
+        {data.orders ? <SectionCard>
+          <SectionHeader title="حالات طلبات المتجر · كل الفترة" subtitle="طلبات الشراء عبر المتجر، منفصلة عن سجل المبيعات اليدوية." />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+            {([
+              ['قيد الانتظار', data.orders.byStatus?.PENDING ?? 0],
+              ['مؤكدة', data.orders.byStatus?.CONFIRMED ?? 0],
+              ['قيد التجهيز', data.orders.byStatus?.PROCESSING ?? 0],
+              ['تم الشحن', data.orders.byStatus?.SHIPPED ?? 0],
+              ['تم التسليم', data.orders.byStatus?.DELIVERED ?? 0],
+              ['ملغاة', data.orders.byStatus?.CANCELLED ?? 0],
+            ] as const).map(([label, value]) => (
+              <View key={label} style={{ width: '31%', flexGrow: 1, padding: spacing.sm, backgroundColor: colors.surface, borderRadius: radius.md }}>
+                <Text style={{ color: colors.ink, fontSize: fontSizes[18], fontWeight: fontWeights.bold }}>{fmt(value)}</Text>
+                <Text tone="muted" size={11}>{label}</Text>
+              </View>
+            ))}
+          </View>
+          <Text tone="muted" size={12}>قيمة الطلبات غير الملغاة حسب العملة:</Text>
+          {data.orders.nonCancelledValueByCurrency?.length ? data.orders.nonCancelledValueByCurrency.map((row) => (
+            <Text key={`active-${row.currency}`} tone="ink">{formatNumber(row.total, 2)} {row.currency}</Text>
+          )) : <Text tone="muted" size={12}>لا توجد طلبات بعد.</Text>}
+          <Text tone="muted" size={12}>قيمة الطلبات المسلّمة حسب العملة:</Text>
+          {data.orders.deliveredValueByCurrency?.length ? data.orders.deliveredValueByCurrency.map((row) => (
+            <Text key={`delivered-${row.currency}`} tone="ink">{formatNumber(row.total, 2)} {row.currency}</Text>
+          )) : <Text tone="muted" size={12}>لا توجد طلبات مسلّمة بعد.</Text>}
+        </SectionCard> : <SectionCard><Text tone="muted" size={12}>مؤشرات طلبات الشراء غير متاحة من إصدار الخادم الحالي.</Text></SectionCard>}
+        <SectionHeader title="المنتجات الأكثر مشاهدة · كل الفترة" />
         {data.topProducts.length === 0 ? (
           <EmptyState title="لا توجد بيانات بعد" description="لا توجد بيانات مشاهدة كافية بعد." />
         ) : (

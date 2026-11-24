@@ -3,6 +3,7 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 
@@ -25,6 +26,8 @@ const datePresets = [{
   }] as const;
 export default function StorePromotionsScreen() {
   const { colors } = useAppTheme();
+  const routeParams = useLocalSearchParams<{ storeId?: string | string[] }>();
+  const storeId = Array.isArray(routeParams.storeId) ? routeParams.storeId[0] : routeParams.storeId;
   const { getAccessToken, csrfToken, isRestoring } = useAuth();
   const [items, setItems] = useState<StorePromotion[]>([]);
   const hasLoadedRef = useRef(false);
@@ -55,7 +58,7 @@ export default function StorePromotionsScreen() {
       setLoading(true);
     setError('');
     try {
-      const [aR, pR] = await Promise.allSettled([fetchMyPromotions(token), fetchMyProducts(token)]);
+      const [aR, pR] = await Promise.allSettled([fetchMyPromotions(token, storeId), fetchMyProducts(token, '', { storeId })]);
       if (aR.status === 'rejected')
         throw aR.reason;
       setItems(aR.value);
@@ -78,7 +81,7 @@ export default function StorePromotionsScreen() {
       hasLoadedRef.current = true;
       setLoading(false);
     }
-  }, [getAccessToken, isRestoring]);
+  }, [getAccessToken, isRestoring, storeId]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -90,7 +93,7 @@ export default function StorePromotionsScreen() {
     setError('');
     try {
       const next = await fetchMyProducts(token, '', {
-        page: productsPage + 1, limit: 50
+        page: productsPage + 1, limit: 50, storeId
       });
       setProducts(old => {
         const ids = new Set(old.map(p => p.id));
@@ -129,7 +132,7 @@ export default function StorePromotionsScreen() {
     try {
       await createPromotion({
         productId, title: title.trim(), description: description.trim() || undefined, discountType: type, discountValue: n, startsAt: start.toISOString(), endsAt: end.toISOString(), ...(max ? { maxUses: max } : {})
-      }, token, csrfToken);
+      }, token, csrfToken, storeId);
       setTitle('');
       setDescription('');
       await load();

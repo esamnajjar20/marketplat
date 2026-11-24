@@ -153,13 +153,14 @@ export default function MySalesScreen() {
 ListEmptyComponent={list.error ? <ErrorState title="تعذر تحميل المبيعات" description={list.error} onAction={() => void list.retry()} /> : <EmptyState title="لا توجد مبيعات هنا بعد" description="ستظهر عمليات البيع المسجلة في حسابك في هذه القائمة." />}
 renderItem={({ item: sale }: {
                 item: SaleRecord;
-            }) => (<View style={s.saleCard}>
+            }) => (<Pressable accessibilityRole="button" accessibilityLabel={`فتح تفاصيل بيع ${sale.entityTitle}، فاتورة ${sale.invoiceNumber || sale.id}`} onPress={() => pushOnce({ pathname: '/sales/[id]', params: { id: sale.id } })} style={({ pressed }) => [s.saleCard, pressed && { opacity: 0.78 }]}>
         <View style={s.saleTop}><Text style={s.saleTotal}>{money(sale.totalPrice, sale.currency)}</Text><Text style={[s.status, sale.paymentStatus === 'OVERDUE' && s.statusDanger, sale.paymentStatus === 'PAID' && s.statusPaid]}>{statusLabel[sale.paymentStatus] || sale.paymentStatus}</Text></View>
         <Text style={s.saleName}>{sale.entityTitle}</Text>
         <Text style={s.saleMeta}>العميل: {sale.buyerName}{sale.invoiceNumber ? ` · فاتورة ${sale.invoiceNumber}` : ''}</Text>
         <Text style={s.saleMeta}>التاريخ: {dateLabel(sale.soldAt)} · الكمية: {sale.quantity}</Text>
         <View style={s.amountRow}><Text style={s.amountLabel}>المحصّل: {money(sale.paidAmount, sale.currency)}</Text><Text style={[s.amountLabel, Number(sale.dueAmount) > 0 && s.dueValue]}>المتبقي: {money(sale.dueAmount, sale.currency)}</Text></View>
-      </View>)}
+        <Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: fontWeights.bold, textAlign: 'left' }}>عرض التفاصيل والفاتورة ←</Text>
+      </Pressable>)}
 ListFooterComponent={<>
       {list.hasNextPage ? <Pressable accessibilityRole="button" disabled={list.loadingMore || list.loading} onPress={() => void list.loadMore()} style={[s.moreButton, (list.loadingMore || list.loading) && s.disabled]}><Text style={s.moreText}>{list.loadingMore ? 'جاري التحميل…' : 'تحميل المزيد'}</Text></Pressable> : null}{list.loadMoreError ? <Pressable accessibilityRole="button" onPress={() => void list.retry()}><Text style={s.error}>{list.loadMoreError} — إعادة المحاولة</Text></Pressable> : null}
       <Text style={s.sectionTitle}>أدوات إدارة المبيعات</Text>

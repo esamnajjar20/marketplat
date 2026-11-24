@@ -2,7 +2,7 @@ import { useAppTheme } from '@/theme/ThemeProvider';
 import { showToast } from '@/lib/toast';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { useLocalSearchParams } from 'expo-router';
@@ -17,27 +17,73 @@ import {
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { spacing, fontWeights, radius } from '@/theme/tokens';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
+import { fetchPublicCategories, flattenPublicCategories } from '@/features/categories/categories.api';
+import { fetchProductCategories } from '@/features/commerce/commerce.api';
+import { fetchServiceCategoryOptions } from '@/features/services/services.api';
 
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ListGapMd } from '@/components/ui/ListSeparator';
 
+function savedSearchFilterLabels(item: SavedSearch, categoryLabels: Record<string, string>): string[] {
+  const filters = item.filters;
+  const type = filters.type || 'ads';
+  const labels: string[] = [type === 'ads' ? 'الإعلانات' : type === 'products' ? 'المنتجات' : 'الخدمات'];
+  if (filters.q?.trim()) labels.push(`بحث: ${filters.q.trim()}`);
+  if (type === 'ads' && filters.city?.trim()) labels.push(`المدينة: ${filters.city.trim()}`);
+  if (filters.categoryId) labels.push(`التصنيف: ${categoryLabels[filters.categoryId] || filters.categoryId}`);
+  if (type === 'ads' && filters.condition) {
+    labels.push(filters.condition === 'NEW' ? 'جديد' : filters.condition === 'USED' ? 'مستعمل' : 'مجدد');
+  }
+  if (filters.minPrice != null) labels.push(`من ${filters.minPrice}`);
+  if (filters.maxPrice != null) labels.push(`إلى ${filters.maxPrice}`);
+  if (labels.length === 1) labels.push('دون فلاتر إضافية');
+  return labels;
+}
+
 export default function SavedSearchesScreen() {
   const { colors } = useAppTheme();
 
-  const params = useLocalSearchParams<{ label?: string | string[]; type?: string | string[]; q?: string | string[]; city?: string | string[]; minPrice?: string | string[]; maxPrice?: string | string[]; categoryId?: string | string[] }>();
+  const params = useLocalSearchParams<{ label?: string | string[]; type?: string | string[]; q?: string | string[]; city?: string | string[]; minPrice?: string | string[]; maxPrice?: string | string[]; condition?: string | string[]; categoryId?: string | string[] }>();
   const first = (value?: string | string[]) => Array.isArray(value) ? value[0] : value;
   const { accessToken, csrfToken } = useAuth();
   const [label, setLabel] = useState(() => first(params.label) || '');
   const [type, setType] = useState<'ads' | 'products' | 'services'>(() => ['ads', 'products', 'services'].includes(first(params.type) || '') ? first(params.type) as 'ads' | 'products' | 'services' : 'ads');
   const [q, setQ] = useState(() => first(params.q) || '');
-  const [city, setCity] = useState(() => first(params.city) || '');
+  const [city, setCity] = useState(() => first(params.type) === 'ads' ? first(params.city) || '' : '');
   const [min, setMin] = useState(() => first(params.minPrice) || '');
   const [max, setMax] = useState(() => first(params.maxPrice) || '');
   const [categoryId, setCategoryId] = useState(() => first(params.categoryId) || '');
+  const [condition, setCondition] = useState<'NEW' | 'USED' | 'REFURBISHED' | ''>(() => {
+    const value = first(params.condition);
+    return first(params.type) === 'ads' && (value === 'NEW' || value === 'USED' || value === 'REFURBISHED') ? value : '';
+  });
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
   const [message, setMessage] = useState('');
+  const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let active = true;
+    void Promise.allSettled([
+      fetchPublicCategories().then((items) => flattenPublicCategories(items)),
+      fetchProductCategories(),
+      fetchServiceCategoryOptions(),
+    ]).then((groups) => {
+      if (!active) return;
+      const next: Record<string, string> = {};
+      for (const group of groups) {
+        if (group.status !== 'fulfilled' || !Array.isArray(group.value)) continue;
+        for (const category of group.value) {
+          if (!category || typeof category.id !== 'string') continue;
+          const label = category.nameAr?.trim() || category.name?.trim();
+          if (label) next[category.id] = label;
+        }
+      }
+      setCategoryLabels(next);
+    });
+    return () => { active = false; };
+  }, []);
 
   // دورة الجلب الموحّدة: تلغي الطلب القديم وتتجاهل الاستجابة المتأخرة عند تغيّر الحساب.
   const resource = useAsyncResource<SavedSearch[]>(
@@ -77,10 +123,11 @@ export default function SavedSearchesScreen() {
           filters: {
             type,
             ...(q.trim() ? { q: q.trim() } : {}),
-            ...(city.trim() ? { city: city.trim() } : {}),
+            ...(type === 'ads' && city.trim() ? { city: city.trim() } : {}),
             ...(minValue !== undefined ? { minPrice: minValue } : {}),
             ...(maxValue !== undefined ? { maxPrice: maxValue } : {}),
             ...(categoryId.trim() ? { categoryId: categoryId.trim() } : {}),
+            ...(type === 'ads' && condition ? { condition } : {}),
           },
         },
         accessToken,
@@ -92,6 +139,7 @@ export default function SavedSearchesScreen() {
       setMin('');
       setMax('');
       setCategoryId('');
+      setCondition('');
       setMessage('تم حفظ البحث.');
       await load();
     } catch (e) {
@@ -146,7 +194,12 @@ export default function SavedSearchesScreen() {
                   ).map(([v, l]) => (
                     <Pressable accessibilityRole="button"
                       key={v}
-                      onPress={() => setType(v)}
+                      onPress={() => {
+                        if (type === v) return;
+                        setType(v);
+                        setCategoryId('');
+                        if (v !== 'ads') { setCity(''); setCondition(''); }
+                      }}
                       style={{
                         flex: 1,
                         minHeight: 44,
@@ -171,7 +224,23 @@ export default function SavedSearchesScreen() {
                   ))}
                 </View>
                 <Field label="كلمة البحث" value={q} onChangeText={setQ} placeholder="اختياري" />
-                <Field label="المدينة" value={city} onChangeText={setCity} placeholder="للإعلانات فقط حاليًا" />
+                {type === 'ads' ? (
+                  <>
+                    <Field label="المدينة" value={city} onChangeText={setCity} placeholder="اختياري" />
+                    <View style={{ gap: spacing.xs }}>
+                      <Text tone="muted" strong>حالة الإعلان</Text>
+                      <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
+                        {([['', 'الكل'], ['NEW', 'جديد'], ['USED', 'مستعمل'], ['REFURBISHED', 'مجدد']] as const).map(([value, title]) => (
+                          <Pressable key={value || 'all'} accessibilityRole="button" accessibilityState={{ selected: condition === value }} onPress={() => setCondition(value)} style={{ minHeight: 40, justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1, borderColor: condition === value ? colors.brand : colors.border, backgroundColor: condition === value ? colors.brandSoft : colors.surface }}>
+                            <Text tone={condition === value ? 'brand' : 'ink'} strong>{title}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  </>
+                ) : (
+                  <Notice tone="muted">فلتر المدينة غير مدعوم في تنبيهات البحث المحفوظ لهذا النوع؛ لذلك لن يُحفظ ضمن شروط المطابقة.</Notice>
+                )}
                 <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                   <View style={{ flex: 1 }}>
                     <Field label="أقل سعر" value={min} onChangeText={(v) => setMin(normalizeNumericInput(v))} keyboardType="numeric" />
@@ -194,10 +263,14 @@ export default function SavedSearchesScreen() {
           renderItem={({ item: i }) => (
             <SectionCard>
               <Text tone="ink" strong>{i.label}</Text>
-              <Text tone="muted">
-                {i.filters.type || 'ads'} · {i.filters.q || i.filters.city || 'فلاتر سعرية'}
-              </Text>
-              <Pressable accessibilityRole="button" onPress={() => pushOnce({ pathname: '/search', params: { q: i.filters.q || '', categoryId: i.filters.categoryId || '', type: i.filters.type || 'ads', city: i.filters.city || '', minPrice: i.filters.minPrice == null ? '' : String(i.filters.minPrice), maxPrice: i.filters.maxPrice == null ? '' : String(i.filters.maxPrice) } })}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+                {savedSearchFilterLabels(i, categoryLabels).map((filterLabel) => (
+                  <View key={filterLabel} style={{ borderRadius: radius.pill, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, backgroundColor: colors.surfaceSecondary, borderWidth: 1, borderColor: colors.borderSubtle }}>
+                    <Text tone="muted" size={12}>{filterLabel}</Text>
+                  </View>
+                ))}
+              </View>
+              <Pressable accessibilityRole="button" onPress={() => pushOnce({ pathname: '/search', params: { q: i.filters.q || '', categoryId: i.filters.categoryId || '', type: i.filters.type || 'ads', city: (i.filters.type || 'ads') === 'ads' ? i.filters.city || '' : '', condition: (i.filters.type || 'ads') === 'ads' ? i.filters.condition || '' : '', minPrice: i.filters.minPrice == null ? '' : String(i.filters.minPrice), maxPrice: i.filters.maxPrice == null ? '' : String(i.filters.maxPrice) } })}>
                 <Text tone="brand" strong>فتح نتائج البحث</Text>
               </Pressable>
               <Pressable accessibilityRole="button" onPress={() => remove(i.id)}>

@@ -12,6 +12,7 @@ import { elevation, radius, spacing, typography, ux } from '@/theme/tokens';
 import { SectionHeader } from '@/components/ui';
 import { readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
+import { getProductPricing } from '@/features/commerce/product-pricing';
 import { fetchServiceListings, type ServiceListing } from '@/features/services/services.api';
 import { fetchOpenRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -262,7 +263,7 @@ export default function HomeMarketplaceSections({ refreshKey = 0 }: { refreshKey
                 title={item.name}
                 subtitle={[item.store?.name, item.store?.city].filter(Boolean).join(' · ') || 'متجر محلي'}
                 imageUri={firstImage(item.images)}
-                price={money(item.effectivePrice?.price ?? item.discountPrice ?? item.price)}
+                price={money(getProductPricing(item).currentPrice)}
                 glyph="◇"
                 id={item.id}
                 onPressItem={openProduct}

@@ -4,7 +4,7 @@ import { formatDate, formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useCallback, useEffect, useRef, useState , useMemo} from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -16,6 +16,7 @@ import { showToast } from '@/lib/toast';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ListGapMd } from '@/components/ui/ListSeparator';
 import { domainLabel } from '@/lib/status-labels';
+import { Field } from '@/components/ui/Field';
 
 export default function ServiceRequestsScreen() {
   const { colors } = useAppTheme();
@@ -209,9 +210,7 @@ export default function ServiceRequestsScreen() {
               {listingId ? <View style={styles.form}>
                 <Text style={styles.formTitle}>طلب خدمة جديدة</Text>
                 <Text style={styles.formSubtitle} numberOfLines={2}>{listingTitle || 'الخدمة المحددة'}</Text>
-                <Text style={styles.label}>اشرح احتياجك</Text>
-                <TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="تفاصيل طلب الخدمة" value={details} onChangeText={setDetails} multiline maxLength={1000} placeholder="اكتب التفاصيل المهمة لمقدم الخدمة…" placeholderTextColor={colors.muted} textAlign="right" textAlignVertical="top" style={styles.textarea}/>
-                <Text style={styles.hint}>{details.trim().length}/1000 · الحد الأدنى 10 أحرف</Text>
+                <Field label="اشرح احتياجك" value={details} onChangeText={setDetails} multiline maxLength={1000} showCharacterCount hint="الحد الأدنى 10 أحرف" placeholder="اكتب التفاصيل المهمة لمقدم الخدمة…" inputStyle={styles.textarea}/>
                 {accessToken ? <Pressable accessibilityRole="button" disabled={saving || details.trim().length < 10} onPress={() => void submit()} style={[styles.primary, (saving || details.trim().length < 10) && styles.disabled]}><Text style={styles.primaryText}>{saving ? 'جارٍ الإرسال…' : 'إرسال الطلب'}</Text></Pressable> : <><Notice>سجّل الدخول لإرسال طلب الخدمة وحفظه في حسابك.</Notice><Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/login', params: { redirect: `/service-requests?listingId=${encodeURIComponent(listingId)}&listingTitle=${encodeURIComponent(listingTitle || '')}` } })} style={styles.primary}><Text style={styles.primaryText}>تسجيل الدخول</Text></Pressable></>}
               </View> : undefined}
               {needsLogin && !listingId ? <EmptyState title="سجّل الدخول لمتابعة طلبات الخدمات" description="يمكنك إرسال طلباتك ومتابعة ردود مقدمي الخدمات بعد تسجيل الدخول." actionLabel="تسجيل الدخول" onAction={() => router.push('/login')} /> : undefined}

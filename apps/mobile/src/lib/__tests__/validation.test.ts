@@ -20,8 +20,10 @@ describe('shared form validation schemas', () => {
 
   it('enforces the minimum password length without silently trimming it', () => {
     expect(passwordSchema.safeParse('1234567').success).toBe(false);
-    expect(passwordSchema.safeParse('12345678').success).toBe(true);
-    expect(passwordSchema.safeParse(' 123456 ').success).toBe(true);
+    expect(passwordSchema.safeParse('12345678').success).toBe(false);
+    expect(passwordSchema.safeParse(' 123456 ').success).toBe(false);
+    expect(passwordSchema.safeParse('Correct-Horse-73!').success).toBe(true);
+    expect(passwordSchema.safeParse('ThisPasswordIsLongerThanOneHundredCharacters-'.repeat(3)).success).toBe(false);
   });
 
   it('requires both login fields and returns normalized email', () => {

@@ -14,10 +14,11 @@ describe('weekly-hours', () => {
     expect(toggleDay(opened, 'tue').tue).toBeNull();
     expect(setDayTime(opened, 'tue', 'close', '20:30').tue).toEqual({ open: '09:00', close: '20:30' });
   });
-  it('validates format and ordering with a day-specific Arabic message', () => {
+  it('accepts overnight hours but rejects equal times and invalid formats', () => {
     expect(validateWeeklyHours(emptyWeeklyHours())).toBeNull();
     expect(validateWeeklyHours({ ...emptyWeeklyHours(), wed: { open: '09:00', close: '17:00' } })).toBeNull();
-    expect(validateWeeklyHours({ ...emptyWeeklyHours(), thu: { open: '17:00', close: '09:00' } })).toContain('الخميس');
+    expect(validateWeeklyHours({ ...emptyWeeklyHours(), thu: { open: '17:00', close: '09:00' } })).toBeNull();
+    expect(validateWeeklyHours({ ...emptyWeeklyHours(), fri: { open: '09:00', close: '09:00' } })).toContain('الجمعة');
     expect(validateWeeklyHours({ ...emptyWeeklyHours(), sat: { open: '9:00', close: '17:00' } })).toContain('السبت');
   });
 });

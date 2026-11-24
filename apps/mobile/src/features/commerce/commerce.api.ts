@@ -22,26 +22,27 @@ function dataOf<T>(response: Envelope<T>, fallback: string): T {
 export type StoreSummary = {
   id: string; name: string; slug?: string | null; description?: string | null; city?: string | null; address?: string | null;
   logoUrl?: string | null; coverImageUrl?: string | null; status?: string; plan?: string;
-  phone?: string | null; _count?: { products?: number; followers?: number };
+  phone?: string | null; latitude?: number | string | null; longitude?: number | string | null; storeTypeId?: string | null; storeType?: { id?: string; fields?: StoreTypeFieldSummary[] | null } | null; _count?: { products?: number; followers?: number };
   owner?: { name?: string | null; displayName?: string | null } | null;
-  sellerProfile?: { userId?: string; averageRating?: number | string | null; totalRatings?: number; verified?: boolean; user?: { name?: string | null } } | null;
+  sellerProfile?: { userId?: string; averageRating?: number | string | null; totalRatings?: number; verified?: boolean; paymentMethods?: unknown; user?: { name?: string | null } } | null;
   views?: number;
   isOpen?: boolean | null;
   workingHours?: Record<string, { open: string; close: string } | null> | null;
 };
 export type ProductSummary = {
   id: string; name: string; description?: string | null; price: number | string;
-  discountPrice?: number | string | null; effectivePrice?: { price?: number | string; amount?: number | string; originalPrice?: number | string } | null;
-  images?: string[]; availability?: string; status?: string; stockQuantity?: number | null;
+  discountPrice?: number | string | null; effectivePrice?: { price?: number | string; amount?: number | string; originalPrice?: number | string; discountPrice?: number | string | null; discountPercentage?: number | null; hasActivePromotion?: boolean; activePromotionId?: string | null } | null;
+  images?: string[]; availability?: string; status?: string; stockQuantity?: number | null; wholesalePrice?: number | string | null; wholesaleMinQty?: number | null; costPrice?: number | string | null;
   category?: { id?: string; name?: string; nameAr?: string | null } | null;
   createdAt?: string; views?: number; attributes?: Record<string, unknown> | null;
   store?: {
-    id?: string; name?: string; logoUrl?: string | null; city?: string | null; phone?: string | null;
+    id?: string; name?: string; logoUrl?: string | null; city?: string | null; phone?: string | null; storeTypeId?: string | null;
     sellerProfile?: { userId?: string; paymentMethods?: unknown; averageRating?: number | string | null; totalRatings?: number; verified?: boolean; user?: { name?: string | null } } | null;
     storeType?: { fields?: { id?: string; key: string; label?: string | null; labelAr?: string | null; pageLabelAr?: string | null; type?: string; scope?: string; isActive?: boolean; options?: { value?: unknown; label?: string; labelAr?: string }[] | null }[] | null } | null;
   } | null;
 };
 export type ProductCategory = { id: string; name: string; nameAr?: string | null; slug?: string; parentId?: string | null; isActive?: boolean; children?: ProductCategory[] };
+export type StoreTypeFieldSummary = { id?: string; key: string; label?: string | null; labelAr?: string | null; cardLabelAr?: string | null; pageLabelAr?: string | null; scope?: 'PRODUCT' | 'STORE' | string; type: 'TEXT' | 'NUMBER' | 'BOOLEAN' | 'SELECT' | string; required?: boolean; isActive?: boolean; options?: Array<{ value: string; label?: string; labelAr?: string }> | null };
 export type PageResult<T> = { items: T[]; page: number; totalPages: number; total: number };
 function pageFrom<T>(response: Envelope<T[]>, fallback: string, page: number): PageResult<T> {
   const items = dataOf(response, fallback);
@@ -57,9 +58,9 @@ export async function fetchStores(options: { page?: number; limit?: number; sear
 }
 export async function fetchStore(id: string) { return dataOf(await apiRequest<Envelope<StoreSummary>>(`/api/v1/stores/${encodeURIComponent(id)}`), 'تعذر تحميل المتجر.'); }
 export async function toggleStoreFollow(id: string, token: string, csrfToken?: string | null) { return dataOf(await apiRequest<Envelope<{ action: 'followed' | 'unfollowed' }>>(`/api/v1/stores/${encodeURIComponent(id)}/follow`, { method: 'POST', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify({}) }), 'تعذر تحديث متابعة المتجر.'); }
-export async function fetchProducts(options: { page?: number; limit?: number; search?: string; storeId?: string; categoryId?: string; hasPromotion?: boolean; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc'; signal?: AbortSignal } = {}) {
+export async function fetchProducts(options: { page?: number; limit?: number; search?: string; storeId?: string; categoryId?: string; city?: string; minPrice?: number; maxPrice?: number; hasPromotion?: boolean; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc'; signal?: AbortSignal } = {}) {
   const page = options.page ?? 1; const sortBy = options.sortBy ?? 'createdAt'; const sortOrder = options.sortOrder ?? (sortBy === 'price' ? 'asc' : 'desc'); const params = new URLSearchParams({ page: String(page), limit: String(options.limit ?? 20), sortBy, sortOrder });
-  if (options.search?.trim()) params.set('search', options.search.trim()); if (options.storeId) params.set('storeId', options.storeId); if (options.categoryId) params.set('categoryId', options.categoryId); if (options.hasPromotion) params.set('hasPromotion', 'true');
+  if (options.search?.trim()) params.set('search', options.search.trim()); if (options.storeId) params.set('storeId', options.storeId); if (options.categoryId) params.set('categoryId', options.categoryId); if (options.city?.trim()) params.set('city', options.city.trim()); if (options.minPrice !== undefined) params.set('minPrice', String(options.minPrice)); if (options.maxPrice !== undefined) params.set('maxPrice', String(options.maxPrice)); if (options.hasPromotion) params.set('hasPromotion', 'true');
   const response = await apiRequest<Envelope<ProductSummary[]>>(`/api/v1/products?${params}`, { signal: options.signal });
   return pageFrom(response, 'تعذر تحميل المنتجات.', page);
 }
@@ -78,8 +79,8 @@ export async function createStore(input: { name: string; description: string; ci
 export async function updateMyStore(input: Partial<Pick<StoreSummary, 'name' | 'description' | 'city' | 'address' | 'phone'>>, token: string, csrfToken?: string | null) {
   return dataOf(await apiRequest<Envelope<StoreSummary>>('/api/v1/stores/me', { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر تحديث المتجر.');
 }
-export async function fetchMyProducts(token: string, search = '', options: { page?: number; limit?: number; signal?: AbortSignal } = {}) {
-  const page = options.page ?? 1; const params = new URLSearchParams({ page: String(page), limit: String(options.limit ?? 50) }); if (search.trim()) params.set('search', search.trim());
+export async function fetchMyProducts(token: string, search = '', options: { page?: number; limit?: number; signal?: AbortSignal; storeId?: string } = {}) {
+  const page = options.page ?? 1; const params = new URLSearchParams({ page: String(page), limit: String(options.limit ?? 50) }); if (search.trim()) params.set('search', search.trim()); if (options.storeId) params.set('storeId', options.storeId);
   return pageFrom(await apiRequest<Envelope<ProductSummary[]>>(`/api/v1/products/me?${params}`, { token, signal: options.signal }), 'تعذر تحميل منتجاتك.', page);
 }
 export async function fetchProductCategories() {
@@ -96,15 +97,30 @@ export async function fetchProductCategories() {
     throw error;
   }
 }
-export async function createProduct(input: { categoryId: string; name: string; description: string; price: number; availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity?: number }, token: string, csrfToken?: string | null, offlineOperationId?: string, images: Array<{uri:string;fileName:string;mimeType:string}> = []) {
+export async function fetchStoreTypeFields(storeTypeId: string): Promise<StoreTypeFieldSummary[]> {
+  if (!storeTypeId.trim()) return [];
+  const response = await apiRequest<Envelope<StoreTypeFieldSummary[]>>(`/api/v1/store-types/${encodeURIComponent(storeTypeId)}/fields`);
+  const fields = dataOf(response, 'تعذر تحميل خصائص نوع المتجر.');
+  if (!Array.isArray(fields)) throw new Error('استجابة خصائص نوع المتجر غير صالحة.');
+  return fields.filter((field) => field && typeof field.key === 'string' && field.isActive !== false && field.scope === 'PRODUCT');
+}
+
+export type ProductWriteInput = {
+  categoryId: string; name: string; description: string; price: number;
+  availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity?: number;
+  discountPrice?: number; wholesalePrice?: number; wholesaleMinQty?: number; costPrice?: number;
+  attributes?: Record<string, string | number | boolean>;
+};
+export async function createProduct(input: ProductWriteInput, token: string, csrfToken?: string | null, offlineOperationId?: string, images: Array<{uri:string;fileName:string;mimeType:string}> = [], storeId?: string) {
   const headers = { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), ...(offlineOperationId ? { 'X-Offline-Op-Id': offlineOperationId } : {}) };
-  let body: FormData | string = JSON.stringify(input);
-  if (images.length) { const form = new FormData(); for (const [key,value] of Object.entries(input)) if (value !== undefined) form.append(key, typeof value === 'string' ? value : String(value)); for (const image of images) form.append('images', {uri:image.uri,name:image.fileName,type:image.mimeType} as unknown as Blob); body = form; }
+  const scopedInput = storeId ? { ...input, storeId } : input;
+  let body: FormData | string = JSON.stringify(scopedInput);
+  if (images.length) { const form = new FormData(); for (const [key,value] of Object.entries(scopedInput)) if (value !== undefined) form.append(key, value !== null && typeof value === 'object' ? JSON.stringify(value) : String(value)); for (const image of images) form.append('images', {uri:image.uri,name:image.fileName,type:image.mimeType} as unknown as Blob); body = form; }
   const created = dataOf(await apiRequest<Envelope<ProductSummary>>('/api/v1/products', { method: 'POST', token, headers, body }), 'تعذر إنشاء المنتج.');
   await invalidateProductCaches(created.id);
   return created;
 }
-export async function updateProduct(id: string, input: Partial<{ categoryId: string; name: string; description: string; price: number; availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity: number; status: string }>, token: string, csrfToken?: string | null) {
+export async function updateProduct(id: string, input: Partial<{ categoryId: string; name: string; description: string; price: number; availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK'; stockQuantity: number | null; discountPrice: number | null; wholesalePrice: number | null; wholesaleMinQty: number | null; costPrice: number | null; attributes: Record<string, string | number | boolean>; status: string }>, token: string, csrfToken?: string | null) {
   const updated = dataOf(await apiRequest<Envelope<ProductSummary>>(`/api/v1/products/${encodeURIComponent(id)}`, { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) }), 'تعذر تحديث المنتج.');
   await invalidateProductCaches(id);
   return updated;
@@ -137,6 +153,12 @@ export type StoreReview = {
 export type StoreAnalytics = {
   views: number; followers: number; newFollowers7d: number; newFollowers30d: number;
   activeProducts: number; activePromotions: number; promotionUses: number;
+  orders: {
+    totalCount: number;
+    byStatus: Record<'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED', number>;
+    nonCancelledValueByCurrency: { currency: string; total: number }[];
+    deliveredValueByCurrency: { currency: string; total: number }[];
+  };
   topProducts: { id: string; name: string; views: number; image?: string | null }[];
 };
 export type FollowedStoreRow = { id: string; store: StoreSummary; createdAt?: string };

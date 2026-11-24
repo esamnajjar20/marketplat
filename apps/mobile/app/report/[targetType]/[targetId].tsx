@@ -4,11 +4,11 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { goBack, pushOnce } from '@/lib/navigation';
-import { TextInput } from 'react-native';
 import { useAuth } from '@/features/auth/AuthContext';
 import { submitReport, type ReportReason } from '@/features/account/social.api';
 import { Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { spacing, radius } from '@/theme/tokens';
+import { Field } from '@/components/ui/Field';
 const reasons: {
   value: ReportReason;
   label: string;
@@ -84,9 +84,5 @@ export default function ReportTargetScreen() {
     paddingVertical: spacing.lg, paddingHorizontal: spacing.lg, marginTop: spacing.md, borderWidth: 1, borderColor: reason === item.value ? colors.brand : colors.border, borderRadius: radius.button, backgroundColor: reason === item.value ? colors.surface : 'transparent'
   }}><Text style={{
     textAlign: 'right', color: colors.ink, fontWeight: reason === item.value ? '700' : '400'
-  }}>{reason === item.value ? '● ' : '○ '}{item.label}</Text></Pressable>)}<Text style={{
-    textAlign: 'right', color: colors.ink, marginTop: spacing.lg, marginBottom: spacing.sm
-  }}>تفاصيل إضافية (اختياري)</Text><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="تفاصيل البلاغ" multiline value={notes} onChangeText={setNotes} maxLength={500} placeholder="اشرح المشكلة بإيجاز (500 حرف كحد أقصى)" placeholderTextColor={colors.muted} textAlignVertical="top" style={{
-    minHeight: 124, borderWidth: 1, borderColor: colors.border, borderRadius: radius.button, padding: spacing.lg, textAlign: 'right', color: colors.ink
-  }}/><Text tone="muted" size={12}>{notes.length}/500</Text><PrimaryButton label="إرسال البلاغ" onPress={() => void send()} busy={busy}/></SectionCard></>}{error ? <Notice>{error}</Notice> : null}</PageShell>;
+  }}>{reason === item.value ? '● ' : '○ '}{item.label}</Text></Pressable>)}<Field label="تفاصيل إضافية (اختياري)" value={notes} onChangeText={setNotes} multiline maxLength={500} showCharacterCount placeholder="اشرح المشكلة بإيجاز (500 حرف كحد أقصى)" inputStyle={{ minHeight: 124, borderWidth: 1, borderColor: colors.border, borderRadius: radius.button, padding: spacing.lg, textAlign: 'right', color: colors.ink }} /><PrimaryButton label="إرسال البلاغ" onPress={() => void send()} busy={busy}/></SectionCard></>}{error ? <Notice>{error}</Notice> : null}</PageShell>;
 }

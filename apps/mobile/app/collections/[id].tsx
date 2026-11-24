@@ -1,6 +1,7 @@
 
 import { usePullRefresh } from '@/hooks/usePullRefresh';
 import { formatMoney } from '@/lib/formatters';
+import { getProductPricing } from '@/features/commerce/product-pricing';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { View } from 'react-native';
@@ -61,7 +62,7 @@ export default function CollectionProductsScreen() {
               ) : null}
               <Text tone="ink" strong size={16}>{item.name}</Text>
               <Text tone="brand" strong>
-                {(() => { const value = Number(item.effectivePrice?.price ?? item.discountPrice ?? item.price); return Number.isFinite(value) ? formatMoney(value) : 'السعر غير متاح'; })()}
+                {(() => { const value = Number(getProductPricing(item).currentPrice ?? item.price); return Number.isFinite(value) ? formatMoney(value) : 'السعر غير متاح'; })()}
               </Text>
               <Text tone="muted">
                 {item.availability === 'OUT_OF_STOCK' ? 'غير متوفر' : item.availability === 'LIMITED' ? 'كمية محدودة' : item.availability === 'IN_STOCK' ? 'متوفر' : 'حالة التوفر غير محددة'}

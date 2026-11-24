@@ -8,6 +8,8 @@ export type AuthUser = {
   role: string;
   needsProfileCompletion?: boolean;
   emailVerified?: boolean;
+  city?: string | null;
+  avatarUrl?: string | null;
 };
 
 export type AuthSession = {

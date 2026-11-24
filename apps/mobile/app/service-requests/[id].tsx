@@ -5,7 +5,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppHeader, ErrorState, LoadingState } from '@/components/ui';
 import { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -14,11 +14,11 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { fetchServiceRequest, respondToServiceRequest, type ServiceRequest } from '@/features/services/services.api';
 import { MediaGallery } from '@/components/ui/MediaGallery';
 import { ServiceRequestTimeline } from '@/components/ui/ServiceRequestTimeline';
-import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { domainLabel } from '@/lib/status-labels';
 import { fontSizes, radius, spacing, typography, fontWeights } from '@/theme/tokens';
 import { showToast } from '@/lib/toast';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
+import { Field } from '@/components/ui/Field';
 const money = (v?: string | number | null) => v == null || v === '' ? 'غير محدد' : Number.isFinite(Number(v)) ? formatMoney(Number(v)) : String(v);
 const dateTime = (v?: string | null) => {
     if (!v)
@@ -129,7 +129,7 @@ export default function ServiceRequestDetailScreen() {
       {request.listing?.images?.length ? <View style={s.card}><Text style={s.sectionTitle}>صور الخدمة</Text><MediaGallery images={request.listing.images} title={request.listing.title || 'صور الخدمة'}/></View> : null}
       {request.appointment ? <View style={s.card}><Text style={s.sectionTitle}>الموعد</Text><Text style={s.meta}>من: {dateTime(request.appointment.scheduledStart) || 'غير محدد'}</Text><Text style={s.meta}>إلى: {dateTime(request.appointment.scheduledEnd) || 'غير محدد'}</Text><Text style={s.meta}>الحالة: {domainLabel('appointment', request.appointment.status, 'غير محدد')}</Text>{request.appointment.notes ? <Text style={s.body}>{request.appointment.notes}</Text> : null}</View> : null}
       <View style={s.card}><ServiceRequestTimeline status={status} createdAt={request.createdAt} respondedAt={request.respondedAt}/></View>
-      {role.provider && status === 'PENDING' && needsQuote ? <View style={s.card}><Text style={s.sectionTitle}>السعر المقترح</Text><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="السعر المقترح بالشيكل" value={quote} onChangeText={(value) => setQuote(normalizeNumericInput(value))} keyboardType="decimal-pad" placeholder="أدخل السعر بالشيكل" placeholderTextColor={colors.muted} style={s.input}/></View> : null}
+      {role.provider && status === 'PENDING' && needsQuote ? <View style={s.card}><Field label="السعر المقترح بالشيكل" value={quote} onChangeText={setQuote} keyboardType="decimal-pad" placeholder="أدخل السعر بالشيكل" inputStyle={s.input}/></View> : null}
       {(role.customer || role.provider) && [
                 'PENDING', 'ACCEPTED', 'IN_PROGRESS', 'COMPLETED'
             ].includes(status) ? <View style={s.card}><Text style={s.sectionTitle}>إجراءات الطلب</Text><View style={s.actions}>
@@ -139,7 +139,7 @@ export default function ServiceRequestDetailScreen() {
         {role.customer && status === 'ACCEPTED' && needsQuote ? actionButton('الموافقة على السعر وبدء التنفيذ', 'IN_PROGRESS', 'primary', `هل توافق على السعر المقترح ${money(request.quotedPrice)}؟`) : null}
         {(role.customer || role.provider) && ['ACCEPTED', 'IN_PROGRESS'].includes(status) ? actionButton('إلغاء الطلب', 'CANCELLED', 'danger') : null}
         {role.provider && status === 'IN_PROGRESS' ? actionButton('تأكيد اكتمال الخدمة', 'COMPLETED') : null}
-        {role.customer && ['IN_PROGRESS', 'COMPLETED'].includes(status) ? <View style={s.dispute}><Text style={s.label}>سبب الاعتراض (10 أحرف على الأقل)</Text><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="سبب الاعتراض على الخدمة" value={disputeReason} onChangeText={setDisputeReason} multiline maxLength={1000} placeholder="اشرح سبب الاعتراض…" placeholderTextColor={colors.muted} style={[s.input, s.multiline]} textAlign="right"/><View>{actionButton('فتح اعتراض', 'DISPUTED', 'danger', 'سيتم تحويل الطلب إلى حالة المراجعة.')}</View></View> : null}
+        {role.customer && ['IN_PROGRESS', 'COMPLETED'].includes(status) ? <View style={s.dispute}><Field label="سبب الاعتراض (10 أحرف على الأقل)" value={disputeReason} onChangeText={setDisputeReason} multiline maxLength={1000} showCharacterCount placeholder="اشرح سبب الاعتراض…" inputStyle={[s.input, s.multiline]}/><View>{actionButton('فتح اعتراض', 'DISPUTED', 'danger', 'سيتم تحويل الطلب إلى حالة المراجعة.')}</View></View> : null}
         {role.customer && status === 'COMPLETED' && (request.listing?.provider?.sellerProfile?.id || request.provider?.sellerProfile?.id) ? <Pressable accessibilityRole="button" onPress={() => router.push({
                 pathname: '/service-reviews', params: {
                     sellerProfileId: request.listing?.provider?.sellerProfile?.id || request.provider?.sellerProfile?.id || '', requestId: request.id

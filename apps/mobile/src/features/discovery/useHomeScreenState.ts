@@ -19,7 +19,6 @@ export type HomeSort = {
 
 export function useHomeScreenState() {
   const [query, setQuery] = useState('');
-  const [submittedSearch, setSubmittedSearch] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [cityInput, setCityInput] = useState('');
   const [minPriceInput, setMinPriceInput] = useState('');
@@ -31,13 +30,8 @@ export function useHomeScreenState() {
 
   const { favoriteIds, isFavorite, toggleFavorite, ready: favoritesReady } = useFavorites();
 
-  const submitSearch = useCallback(() => {
-    setSubmittedSearch(query.trim());
-  }, [query]);
-
   const clearSearch = useCallback(() => {
     setQuery('');
-    setSubmittedSearch('');
   }, []);
 
   const applyFilters = useCallback(() => {
@@ -80,8 +74,6 @@ export function useHomeScreenState() {
   return {
     query,
     setQuery,
-    submittedSearch,
-    submitSearch,
     clearSearch,
 
     showFilters,

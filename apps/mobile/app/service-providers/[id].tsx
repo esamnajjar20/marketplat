@@ -17,6 +17,7 @@ import { spacing } from '@/theme/tokens';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { ShareButton } from '@/components/ui/ShareButton';
 import { telUrl, whatsappUrl } from '@/lib/contact-links';
+import { serviceAvailabilityLabel } from '@/features/services/service-availability';
 function price(value: ServiceListing['price'], type?: string): string {
     if (type === 'NEGOTIABLE' || value == null)
         return 'السعر عند التواصل';
@@ -60,7 +61,7 @@ export default function ServiceProviderDetailScreen() {
             textAlign: 'right', color: colors.muted, lineHeight: 22
         }}>{provider.description || 'لا يوجد وصف.'}</Text><RatingStars score={provider.sellerProfile?.averageRating} count={provider.sellerProfile?.totalRatings}/>{provider.sellerProfile?.id ? <Pressable accessibilityRole="link" onPress={() => pushOnce({
             pathname: '/service-reviews', params: { sellerProfileId: provider.sellerProfile?.id }
-        })}><Text tone="brand" strong>قراءة التقييمات وإضافة تقييم ←</Text></Pressable> : null}<Text tone="muted">حالة التوفر: {provider.availabilityStatus === 'AVAILABLE' ? 'متاح' : provider.availabilityStatus === 'BUSY' ? 'مشغول' : 'غير محدد'}</Text><Text tone="muted">مناطق الخدمة: {provider.serviceAreaCities?.join('، ') || 'غير محددة'}</Text>{provider.contactPhone ? <><Text tone="ink">رقم التواصل: {provider.contactPhone}</Text><View style={{
+        })}><Text tone="brand" strong>قراءة التقييمات وإضافة تقييم ←</Text></Pressable> : null}<Text tone="muted">حالة التوفر: {serviceAvailabilityLabel(provider.availabilityStatus)}</Text><Text tone="muted">مناطق الخدمة: {provider.serviceAreaCities?.join('، ') || 'غير محددة'}</Text>{provider.contactPhone ? <><Text tone="ink">رقم التواصل: {provider.contactPhone}</Text><View style={{
             flexDirection: 'row', gap: spacing.sm
         }}><PrimaryButton label="اتصال" disabled={!phoneValid} variant="secondary" onPress={() => {
             if (phoneValid)

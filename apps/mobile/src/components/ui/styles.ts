@@ -147,8 +147,8 @@ function createUIStyles(palette: ColorPalette) {
     backgroundColor: palette.surface,
   },
   inputError: { borderColor: palette.danger, backgroundColor: palette.dangerSoft },
-  fieldError: { textAlign: 'right', ...typography.caption, color: palette.dangerText },
   fieldHint: { textAlign: 'right', ...typography.caption, color: palette.muted },
+  fieldError: { textAlign: 'right', ...typography.caption, color: palette.dangerText },
 
   button: {
     minHeight: sizes.buttonHeight,

@@ -53,8 +53,8 @@ export function toggleDay(hours: WeeklyHours, day: Day): WeeklyHours {
 export function validateWeeklyHours(hours: WeeklyHours): string | null {
   for (const { key, label } of WEEK_DAYS) {
     const value = hours[key];
-    if (value && (!TIME_PATTERN.test(value.open) || !TIME_PATTERN.test(value.close) || value.close <= value.open)) {
-      return `تحقق من وقت الفتح والإغلاق ليوم ${label} (صيغة HH:mm).`;
+    if (value && (!TIME_PATTERN.test(value.open) || !TIME_PATTERN.test(value.close) || value.close === value.open)) {
+      return `تحقق من وقت الفتح والإغلاق ليوم ${label} (صيغة HH:mm)، ويجب ألا يتطابق وقتا الفتح والإغلاق. يمكن أن يمتد الإغلاق إلى اليوم التالي.`;
     }
   }
   return null;

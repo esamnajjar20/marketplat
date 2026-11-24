@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Field, Notice, PageShell, PrimaryButton } from '@/components/ui';
 import { resetPassword } from '@/features/account/account.api';
+import { getPasswordPolicyError } from '../../../shared/password-policy';
 export default function ResetPasswordScreen() {
   const params = useLocalSearchParams<{
     token?: string;
@@ -17,8 +18,9 @@ export default function ResetPasswordScreen() {
       setError('أدخل رمز الاستعادة الموجود في الرابط.');
       return;
     }
-    if (pw.length < 8) {
-      setError('كلمة المرور يجب أن تكون 8 أحرف على الأقل.');
+    const passwordError = getPasswordPolicyError(pw);
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
     if (pw !== confirm) {

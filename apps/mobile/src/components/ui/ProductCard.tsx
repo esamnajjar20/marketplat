@@ -6,13 +6,14 @@ import { StyleSheet, View, type ViewStyle } from 'react-native';
 import { fontSizes, elevation, radius, sizes, spacing, typography, ux, type ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatMoney } from '@/lib/formatters';
+import { getProductPricing } from '@/features/commerce/product-pricing';
 
 export type ProductCardData = {
   id: string;
   name: string;
   price?: number | string | null;
   discountPrice?: number | string | null;
-  effectivePrice?: { price?: number | string | null } | null;
+  effectivePrice?: { price?: number | string | null; amount?: number | string | null; originalPrice?: number | string | null; discountPrice?: number | string | null; discountPercentage?: number | null; hasActivePromotion?: boolean } | null;
   images?: string[] | null;
   category?: { name?: string; nameAr?: string | null } | null;
 };
@@ -40,12 +41,10 @@ export function ProductCard({
   const image = Array.isArray(product.images)
     ? product.images.find((url) => typeof url === 'string' && /^https?:/i.test(url))
     : undefined;
-  const amount = product.effectivePrice?.price ?? product.discountPrice ?? product.price;
+  const pricing = getProductPricing(product);
+  const amount = pricing.currentPrice;
   const grid = layout === 'grid';
-  const hasDiscount =
-    product.discountPrice != null &&
-    product.price != null &&
-    Number(product.discountPrice) < Number(product.price);
+  const hasDiscount = pricing.hasDiscount;
 
   return (
     <Pressable

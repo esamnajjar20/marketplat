@@ -64,7 +64,9 @@ function destination(item: AppNotification): string | null {
     case 'NEW_REQUEST_OFFER':
     case 'REQUEST_OFFER_ACCEPTED': return requestId ? `/requests/${requestId}` : '/requests';
     case 'SERVICE_REQUEST_NEW':
-    case 'SERVICE_REQUEST_UPDATE': return '/service-requests';
+    case 'SERVICE_REQUEST_UPDATE': return requestId ? `/service-requests/${requestId}` : '/service-requests';
+    case 'MARKETPLACE_ORDER_NEW':
+    case 'MARKETPLACE_ORDER_UPDATE': { const orderId = id('orderId'); return orderId ? `/orders/${orderId}` : '/orders'; }
     case 'APPOINTMENT_UPDATE': return '/appointments';
     case 'SALES_OVERDUE_INSTALLMENT':
     case 'SALES_UPCOMING_INSTALLMENT': return '/installments';

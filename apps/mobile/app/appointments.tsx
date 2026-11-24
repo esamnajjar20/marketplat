@@ -21,6 +21,9 @@ export default function AppointmentsScreen() {
 
   const { accessToken, getAccessToken, csrfToken, user, isRestoring } = useAuth();
   const [providerId, setProviderId] = useState<string | null>(null);
+  const [providerLoading, setProviderLoading] = useState(true);
+  const [providerError, setProviderError] = useState('');
+  const [providerRetry, setProviderRetry] = useState(0);
   const [busyId, setBusyId] = useState('');
   const [actionError, setActionError] = useState('');
   const list = usePaginatedList<AppointmentRow>({
@@ -40,13 +43,21 @@ export default function AppointmentsScreen() {
   useEffect(() => {
     if (isRestoring) return;
     const token = getAccessToken();
-    if (!token) { setProviderId(null); return; }
+    if (!token) { setProviderId(null); setProviderError('انتهت جلسة الدخول.'); setProviderLoading(false); return; }
     let active = true;
+    setProviderLoading(true);
+    setProviderError('');
     void fetchMyServiceProvider(token)
       .then((provider) => { if (active) setProviderId(provider?.id ?? null); })
-      .catch(() => { if (active) setProviderId(null); });
+      .catch((cause) => {
+        if (active) {
+          setProviderId(null);
+          setProviderError(cause instanceof Error ? cause.message : 'تعذر تحميل ملف مقدم الخدمة.');
+        }
+      })
+      .finally(() => { if (active) setProviderLoading(false); });
     return () => { active = false; };
-  }, [getAccessToken, isRestoring, user?.id]);
+  }, [accessToken, getAccessToken, isRestoring, user?.id, providerRetry]);
 
   const update = (item: AppointmentRow, status: 'COMPLETED' | 'CANCELLED' | 'NO_SHOW') => {
     const token = getAccessToken();
@@ -106,6 +117,8 @@ export default function AppointmentsScreen() {
             <Notice tone="muted">تظهر هنا المواعيد المرتبطة بطلبات الخدمات. يمكن للعميل الإلغاء، ولمقدم الخدمة الإتمام أو تسجيل عدم الحضور.</Notice>
             {needsLogin ? <PrimaryButton label="تسجيل الدخول" onPress={() => pushOnce('/login')} /> : undefined}
             <ListStaleError list={list} />
+            {providerLoading ? <Notice tone="muted">جارٍ التحقق من صلاحيات مقدم الخدمة…</Notice> : null}
+            {providerError ? <View style={{ gap: spacing.xs }}><Notice>تعذر تحميل ملف مقدم الخدمة؛ قد لا تظهر إجراءات إتمام الموعد أو تسجيل عدم الحضور حتى ينجح التحميل. {providerError}</Notice><PrimaryButton label="إعادة تحميل ملف مقدم الخدمة" variant="secondary" onPress={() => setProviderRetry(value => value + 1)} /></View> : null}
             {actionError ? <Notice>{actionError}</Notice> : undefined}
           </View>
         )}

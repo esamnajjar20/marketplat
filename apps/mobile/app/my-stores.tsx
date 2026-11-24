@@ -22,10 +22,11 @@ const MyStoreRow = memo(function MyStoreRow({ item }: { item: StoreMembership })
       <View style={{ flex: 1, gap: spacing.xs }}><Text tone="ink" strong size={16}>{item.store.name}</Text><Text tone="muted" size={12}>{roleLabel(item.role)} · {statusLabel(item.store.status)}</Text>{item.store.city ? <Text tone="muted" size={12}>{item.store.city}</Text> : null}</View>
     </View>
     <PrimaryButton label="فتح صفحة المتجر" variant="secondary" onPress={() => router.push(`/stores/${encodeURIComponent(item.store.id)}`)} />
-    {item.role === 'MANAGER' || item.role === 'EDITOR' ? <PrimaryButton label="إدارة المنتجات" onPress={() => router.push('/my-products')} /> : null}
+    {item.role === 'MANAGER' || item.role === 'EDITOR' ? <PrimaryButton label="إدارة المنتجات" onPress={() => router.push({ pathname: '/my-products', params: { storeId: item.store.id } })} /> : null}
     {item.role === 'MANAGER' ? <>
-      <PrimaryButton label="إدارة العروض" variant="secondary" onPress={() => router.push('/store-promotions')} />
-      <PrimaryButton label="مجموعات المنتجات" variant="secondary" onPress={() => router.push('/store-collections')} />
+      <PrimaryButton label="إدارة العروض" variant="secondary" onPress={() => router.push({ pathname: '/store-promotions', params: { storeId: item.store.id } })} />
+      <PrimaryButton label="مجموعات المنتجات" variant="secondary" onPress={() => router.push({ pathname: '/store-collections', params: { storeId: item.store.id } })} />
+      <PrimaryButton label="إعدادات المتجر" variant="secondary" onPress={() => router.push({ pathname: '/store-settings', params: { storeId: item.store.id } })} />
       <PrimaryButton label="فريق المتجر" variant="secondary" onPress={() => router.push({ pathname: '/store-team', params: { storeId: item.store.id } })} />
     </> : null}
   </SectionCard>;

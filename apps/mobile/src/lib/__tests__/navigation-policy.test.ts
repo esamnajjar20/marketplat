@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DRAWER_ITEMS, MAIN_TABS, getActiveMainTab, getNavigationCapabilitiesRevision, getRouteAccess, getVisibleDrawerItems, invalidateNavigationCapabilities, subscribeNavigationCapabilities, resolveNavigationCapabilities, shouldHideBottomNavigation } from '../navigation-policy';
+import { DRAWER_ITEMS, MAIN_TABS, getActiveMainTab, getNavigationCapabilitiesRevision, getRouteAccess, getVisibleDrawerItems, invalidateNavigationCapabilities, subscribeNavigationCapabilities, resolveNavigationCapabilities, mergeNavigationCapabilitiesAfterFetch, shouldHideBottomNavigation } from '../navigation-policy';
 
 describe('central navigation policy', () => {
   it('keeps unique primary tab paths and drawer destinations', () => {
@@ -98,6 +98,50 @@ describe('central navigation policy', () => {
     expect(visible.some((item) => item.path === '/service-requests')).toBe(true);
     expect(getVisibleDrawerItems(true, { sellerWorkspace: false, storeMembership: false, serviceProvider: false })
       .some((item) => item.path === '/seller-dashboard' || item.path === '/my-stores' || item.path === '/service-requests')).toBe(false);
+  });
+
+  it('keeps workspace destinations discoverable while capabilities are unknown', () => {
+    const visible = getVisibleDrawerItems(true, undefined, { unknownCapabilities: { sellerWorkspace: true, storeMembership: true, serviceProvider: true } });
+    expect(visible.some((item) => item.path === '/seller-dashboard')).toBe(true);
+    expect(visible.some((item) => item.path === '/my-stores')).toBe(true);
+    expect(visible.some((item) => item.path === '/service-requests')).toBe(true);
+
+    // Unknown role capabilities must not make authenticated links visible to guests.
+    expect(getVisibleDrawerItems(false, undefined, { unknownCapabilities: { sellerWorkspace: true, storeMembership: true, serviceProvider: true } })
+      .some((item) => item.path === '/seller-dashboard' || item.path === '/service-requests')).toBe(false);
+  });
+
+  it('shows only workspace sections whose capability result is unknown during a partial failure', () => {
+    const visible = getVisibleDrawerItems(true, {
+      sellerWorkspace: false,
+      storeMembership: false,
+      serviceProvider: false,
+    }, {
+      unknownCapabilities: { sellerWorkspace: true },
+    });
+    expect(visible.some((item) => item.path === '/seller-dashboard')).toBe(true);
+    expect(visible.some((item) => item.path === '/my-stores')).toBe(false);
+    expect(visible.some((item) => item.path === '/service-requests')).toBe(false);
+  });
+
+  it('preserves previously confirmed workspace access when a capability request fails', () => {
+    const previous = { sellerWorkspace: true, storeMembership: true, serviceProvider: true };
+    const unresolved = { sellerWorkspace: false, storeMembership: false, serviceProvider: false };
+    expect(mergeNavigationCapabilitiesAfterFetch(previous, unresolved, {
+      sellerProfile: true,
+      storeMemberships: true,
+      serviceProvider: true,
+    })).toEqual(previous);
+  });
+
+  it('uses fresh capability results when every capability request succeeds', () => {
+    const previous = { sellerWorkspace: true, storeMembership: true, serviceProvider: true };
+    const resolved = { sellerWorkspace: false, storeMembership: false, serviceProvider: false };
+    expect(mergeNavigationCapabilitiesAfterFetch(previous, resolved, {
+      sellerProfile: false,
+      storeMemberships: false,
+      serviceProvider: false,
+    })).toEqual(resolved);
   });
 
   it('marks private account roots without treating public entity details as private', () => {

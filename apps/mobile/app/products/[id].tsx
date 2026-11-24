@@ -1,6 +1,7 @@
 import type { ColorPalette } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { formatDate, formatMoney, formatNumber } from '@/lib/formatters';
+import { getProductPricing } from '@/features/commerce/product-pricing';
 import { AppIcon } from '@/components/Icons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
@@ -110,6 +111,8 @@ export default function ProductDetailScreen() {
     {products.map((product) => <ProductCard key={product.id} product={product} layout="grid" onPress={() => router.push(`/products/${encodeURIComponent(product.id)}`)} />)}
   </ScrollView> : <Text style={styles.muted}>{labelPrefix === 'store' ? 'لا توجد منتجات أخرى منشورة من هذا المتجر.' : 'ستظهر اقتراحات مناسبة عند توفرها.'}</Text>;
 
+  const pricing = item ? getProductPricing(item) : null;
+
   const recommendationProducts: ProductSummary[] = recommendations.map((product) => ({
     id: product.id, name: product.name || product.title || 'منتج', price: (product.price ?? '') as string | number,
     description: product.description ?? undefined, images: product.images ?? (product.image ? [product.image] : []),
@@ -120,11 +123,11 @@ export default function ProductDetailScreen() {
       <MediaGallery images={item.images} title={item.name} />
       <SectionCard>
         <View style={styles.titleRow}><View style={styles.titleCopy}><Text style={styles.heading}>{item.name}</Text><Text style={styles.category}>{item.category?.nameAr || item.category?.name || 'منتج'}</Text></View><FavoriteButton entityType="products" entityId={item.id} label="المنتج" /></View>
-        <Text style={styles.price}>{money(item.effectivePrice?.price ?? item.discountPrice ?? item.price)}</Text>
-        {item.discountPrice != null && Number(item.discountPrice) < Number(item.price) ? <Text style={styles.oldPrice}>{money(item.price)}</Text> : null}
+        <Text style={styles.price}>{money(pricing?.currentPrice ?? item.price)}</Text>
+        {pricing?.hasDiscount ? <><Text style={styles.oldPrice}>{money(pricing.originalPrice)}</Text>{pricing.discountPercentage != null ? <Badge label={`خصم ${pricing.discountPercentage}%`} tone="success" /> : null}</> : null}
         <Badge label={availabilityLabel(item.availability)} tone={item.availability === 'OUT_OF_STOCK' ? 'danger' : 'success'} />
         <Text style={styles.description}>{item.description || 'لا يوجد وصف إضافي لهذا المنتج.'}</Text>
-        <SaveOfflineButton id={item.id} kind="product" title={item.name} payload={{ id: item.id, title: item.name, description: item.description ?? '', price: item.effectivePrice?.price ?? item.discountPrice ?? item.price, createdAt: item.createdAt, images: item.images ?? [] }} />
+        <SaveOfflineButton id={item.id} kind="product" title={item.name} payload={{ id: item.id, title: item.name, description: item.description ?? '', price: pricing?.currentPrice ?? item.price, createdAt: item.createdAt, images: item.images ?? [] }} />
         <View style={styles.metaRow}>
           {typeof item.views === 'number' ? <Text style={styles.meta}>المشاهدات: {formatNumber(item.views)}</Text> : null}
           {dateLabel(item.createdAt) ? <Text style={styles.meta}>تاريخ النشر: {dateLabel(item.createdAt)}</Text> : null}

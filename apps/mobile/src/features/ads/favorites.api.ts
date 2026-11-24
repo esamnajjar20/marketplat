@@ -7,7 +7,21 @@ export type FavoriteRecord = {
   ad?: { id: string; title?: string; price?: number | string | null; images?: string[]; city?: string; isNegotiable?: boolean; createdAt?: string; category?: { id: string; name?: string; nameAr?: string | null } | null; user?: { id: string; name?: string | null; city?: string | null } | null };
 };
 
-type Envelope<T> = { success: boolean; data?: T; meta?: { pagination?: { totalPages?: number } } };
+type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } } };
+
+export type FavoritePage<T> = { items: T[]; page: number; totalPages: number; total: number };
+
+function favoritePage<T>(response: Envelope<T[]>, page: number, fallback: string): FavoritePage<T> {
+  if (response?.success !== true || !Array.isArray(response.data)) throw new Error(response?.message || fallback);
+  const pagination = response.meta?.pagination;
+  const total = pagination?.total ?? response.data.length;
+  return {
+    items: response.data,
+    page: pagination?.page ?? page,
+    totalPages: pagination?.totalPages ?? (response.data.length >= 20 ? page + 1 : page),
+    total,
+  };
+}
 
 /** Uses the existing authenticated /api/v1/favorites contract. */
 export async function fetchFavoriteAdIds(token: string): Promise<string[]> {
@@ -80,21 +94,69 @@ export async function setFavoriteAdState(
 }
 
 
-/** Fetch the paginated ad records for the dedicated favorites screen. */
-export async function fetchFavoriteAds(token: string): Promise<FavoriteRecord[]> {
-  const records: FavoriteRecord[] = [];
-  for (let page = 1; page <= 100; page += 1) {
-    const response = await apiRequest<Envelope<FavoriteRecord[]>>(`/api/v1/favorites?page=${page}&limit=100`, { token });
-    if (response?.success !== true || !Array.isArray(response.data)) throw new Error('استجابة المفضلة من الخادم غير متوقعة.');
-    records.push(...response.data.filter((item) => typeof item?.adId === 'string' && item.ad && typeof item.ad.id === 'string'));
-    const totalPages = response.meta?.pagination?.totalPages;
-    if (typeof totalPages === 'number' ? page >= totalPages : response.data.length < 100) break;
-  }
-  return records;
+/** Fetch only one page of ad favorites; the screen requests more as the user scrolls. */
+export async function fetchFavoriteAdsPage(
+  token: string,
+  page = 1,
+  limit = 20,
+): Promise<FavoritePage<FavoriteRecord>> {
+  const safePage = Math.max(1, Math.floor(page));
+  const safeLimit = Math.min(100, Math.max(1, Math.floor(limit)));
+  const response = await apiRequest<Envelope<FavoriteRecord[]>>(
+    `/api/v1/favorites?page=${safePage}&limit=${safeLimit}`,
+    { token },
+  );
+  const result = favoritePage(response, safePage, 'استجابة المفضلة من الخادم غير متوقعة.');
+  return {
+    ...result,
+    items: result.items.filter((item) => typeof item?.adId === 'string' && item.ad && typeof item.ad.id === 'string'),
+  };
 }
 
-
 export type FavoriteEntityType = 'ads' | 'products' | 'stores' | 'services';
+export type FavoriteEntityQueryType = 'product' | 'store' | 'service';
+export type FavoriteEntityValue = {
+  id: string;
+  name?: string;
+  title?: string;
+  description?: string | null;
+  price?: number | string | null;
+  pricingType?: string | null;
+  images?: string[] | null;
+  logoUrl?: string | null;
+  coverImageUrl?: string | null;
+  city?: string | null;
+  address?: string | null;
+  category?: { id?: string; name?: string; nameAr?: string | null } | null;
+  store?: { name?: string | null; city?: string | null } | null;
+  provider?: { businessName?: string | null; city?: string | null; sellerProfile?: { displayName?: string | null } | null } | null;
+  effectivePrice?: { price?: number | string | null; amount?: number | string | null } | null;
+};
+export type FavoriteEntityRecord = {
+  id: string;
+  entityType: 'PRODUCT' | 'STORE' | 'SERVICE_LISTING';
+  entityId: string;
+  createdAt?: string;
+  entity: FavoriteEntityValue;
+};
+
+/** Uses the backend's per-type response shape and database pagination. */
+export async function fetchFavoriteEntityPage(
+  type: FavoriteEntityQueryType,
+  token: string,
+  page = 1,
+  limit = 20,
+): Promise<FavoritePage<FavoriteEntityRecord>> {
+  const safePage = Math.max(1, Math.floor(page));
+  const safeLimit = Math.min(100, Math.max(1, Math.floor(limit)));
+  const params = new URLSearchParams({ type, page: String(safePage), limit: String(safeLimit) });
+  const response = await apiRequest<Envelope<FavoriteEntityRecord[]>>(`/api/v1/favorites?${params.toString()}`, { token });
+  const result = favoritePage(response, safePage, 'تعذر تحميل هذا النوع من المفضلة.');
+  return {
+    ...result,
+    items: result.items.filter((item) => typeof item?.entityId === 'string' && item.entity && typeof item.entity.id === 'string'),
+  };
+}
 
 /** Use the backend's existing polymorphic favorite endpoint (no per-card list fetches). */
 export async function checkFavoriteEntity(
@@ -126,4 +188,26 @@ export async function toggleFavoriteEntity(
     throw new Error('لم يؤكد الخادم تحديث المفضلة.');
   }
   return action;
+}
+
+/** Explicit desired-state write; retrying it cannot invert a favorite state. */
+export async function setFavoriteEntityState(
+  entityType: FavoriteEntityType,
+  entityId: string,
+  favorited: boolean,
+  token: string,
+  csrfToken?: string | null,
+): Promise<boolean> {
+  if (!entityId.trim() || typeof favorited !== 'boolean') throw new Error('بيانات تحديث المفضلة غير صالحة.');
+  const response = await apiRequest<Envelope<{ action?: 'added' | 'removed'; isFavorited?: boolean }>>(
+    `/api/v1/favorites/${entityType}/${encodeURIComponent(entityId)}/state`, {
+      method: 'PUT', token,
+      headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
+      body: JSON.stringify({ favorited }),
+    },
+  );
+  if (response?.success !== true || response.data?.isFavorited !== favorited) {
+    throw new Error('لم يؤكد الخادم حالة المفضلة المطلوبة.');
+  }
+  return response.data.isFavorited;
 }

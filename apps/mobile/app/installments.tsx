@@ -10,7 +10,7 @@ import { confirmAlert } from '@/lib/confirm';
 
 import { pushOnce } from '@/lib/navigation';
 import { useAuth } from '@/features/auth/AuthContext';
-import { fetchInstallments, payInstallment, type InstallmentRow } from '@/features/sales/sales-extra.api';
+import { fetchInstallments, payInstallment, type InstallmentRow, type SaleTransferMethod } from '@/features/sales/sales-extra.api';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { ApiError } from '@/api/client';
 import { createMobileOperationId } from '@/lib/operation-id';
@@ -33,10 +33,17 @@ export default function InstallmentsScreen() {
   const [kind, setKind] = useState<'upcoming' | 'overdue'>('upcoming');
   const listKey = `${user?.id ?? 'guest'}:${kind}`;
   const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [paymentMethodsById, setPaymentMethodsById] = useState<Record<string, SaleTransferMethod>>({});
+  const [transferRefs, setTransferRefs] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState('');
   const [actionError, setActionError] = useState('');
   const [message, setMessage] = useState('');
-  const paymentOperationsRef = useRef<Record<string, { amount: number; id: string }>>({});
+  const paymentOperationsRef = useRef<Record<string, { fingerprint: string; id: string }>>({});
+  const paymentMethods: Array<{ value: SaleTransferMethod; label: string }> = [
+    { value: 'CASH', label: 'نقدي' }, { value: 'JAWWAL_PAY', label: 'جوال باي' },
+    { value: 'BANK_PALESTINE', label: 'بنك فلسطين' }, { value: 'PALPAY', label: 'PalPay' },
+    { value: 'CARD', label: 'بطاقة' }, { value: 'OTHER', label: 'أخرى' },
+  ];
 
   // دورة الجلب الموحّدة (إلغاء الطلب القديم + تجاهل المتأخر). تُخزَّن هوية القائمة مع الصفوف
   // حتى لا تظهر أقساط «القادمة» أثناء تحميل «المتأخرة» (أو حساب آخر).
@@ -60,7 +67,9 @@ export default function InstallmentsScreen() {
 
   useEffect(() => {
     setAmounts({});
+    setTransferRefs({});
     paymentOperationsRef.current = {};
+    setPaymentMethodsById({});
   }, [user?.id]);
 
   const collect = async (item: InstallmentRow) => {
@@ -79,16 +88,20 @@ export default function InstallmentsScreen() {
           setBusyId(item.id);
           setActionError('');
           setMessage('');
+          const transferRef = transferRefs[item.id]?.trim() || '';
+          const method = paymentMethodsById[item.id] ?? 'CASH';
+          const fingerprint = JSON.stringify({ amount, method, transferRef });
           const existing = paymentOperationsRef.current[item.id];
-          const operation = existing?.amount === amount
+          const operation = existing?.fingerprint === fingerprint
             ? existing
-            : { amount, id: createMobileOperationId(`installment-${item.id}`) };
+            : { fingerprint, id: createMobileOperationId(`installment-${item.id}`) };
           paymentOperationsRef.current[item.id] = operation;
-          void payInstallment(item.id, amount, accessToken, csrfToken, operation.id, user?.id)
+          void payInstallment(item.id, amount, accessToken, csrfToken, operation.id, user?.id, method, transferRef)
             .then(() => {
               delete paymentOperationsRef.current[item.id];
               setMessage('تم تسجيل الدفعة بنجاح.');
               setAmounts((old) => ({ ...old, [item.id]: '' }));
+              setTransferRefs((old) => ({ ...old, [item.id]: '' }));
               return load();
             })
             .catch((e) => {
@@ -191,6 +204,23 @@ export default function InstallmentsScreen() {
                   color: colors.ink,
                 }}
               />
+              <Text tone="muted" strong>وسيلة الدفع الفعلية</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+                {paymentMethods.map((method) => (
+                  <Press key={method.value} accessibilityRole="radio" accessibilityState={{ selected: (paymentMethodsById[item.id] ?? 'CASH') === method.value }} onPress={() => setPaymentMethodsById((old) => ({ ...old, [item.id]: method.value }))} style={{ borderWidth: 1, borderColor: (paymentMethodsById[item.id] ?? 'CASH') === method.value ? colors.brand : colors.border, backgroundColor: (paymentMethodsById[item.id] ?? 'CASH') === method.value ? colors.brandSoft : colors.surface, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }}>
+                    <Text tone={(paymentMethodsById[item.id] ?? 'CASH') === method.value ? 'brand' : 'ink'}>{method.label}</Text>
+                  </Press>
+                ))}
+              </View>
+              {(paymentMethodsById[item.id] ?? 'CASH') !== 'CASH' && (paymentMethodsById[item.id] ?? 'CASH') !== 'OTHER' ? <TextInput allowFontScaling maxFontSizeMultiplier={1.3}
+                accessibilityLabel={`مرجع تحويل القسط ${item.installmentNo}`}
+                value={transferRefs[item.id] ?? ''}
+                onChangeText={(v) => setTransferRefs((old) => ({ ...old, [item.id]: v }))}
+                maxLength={160}
+                placeholder="مرجع التحويل (اختياري)"
+                textAlign="right"
+                style={{ borderWidth: 1, borderColor: colors.border, borderRadius: radius.control, padding: spacing.lg, minHeight: 52, color: colors.ink }}
+              /> : null}
               <PrimaryButton
                 label="تسجيل التحصيل"
                 onPress={() => void collect(item)}

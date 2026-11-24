@@ -6,7 +6,7 @@ import { AppIcon } from '@/components/Icons';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import NetInfo from '@react-native-community/netinfo';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -14,6 +14,8 @@ import { goBack } from '@/lib/navigation';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { ApiError } from '@/api/client';
 import { fetchAdDetail } from '@/features/ads/ads.api';
+import { fetchMyStore } from '@/features/commerce/commerce.api';
+import { fetchMyActiveStoreMemberships } from '@/features/commerce/store-management.api';
 import { createAd, updateAd, removeAdImage, reorderAdImages, PartialAdUpdateError, type AdDraft, type SelectedAdImage } from '@/features/ads/manage-ads.api';
 import { useAdEditorCategories } from '@/features/ads/useAdEditorCategories';
 import { useAuth } from '@/features/auth/AuthContext';
@@ -23,11 +25,11 @@ import { enqueueMutation } from '@/storage/outbox-manager';
 import { fontSizes, radius, spacing, fontWeights, insets, sizes } from '@/theme/tokens';
 import { adEditorSchema, validate } from '@/lib/validation';
 import { createMobileOperationId } from '@/lib/operation-id';
-import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { AppHeader, Notice, PrimaryButton, LoadingState } from '@/components/ui';
+import { Field } from '@/components/ui/Field';
 import { showToast } from '@/lib/toast';
 const emptyDraft: AdDraft = {
-    title: '', description: '', price: '', city: '', categoryId: '', isNegotiable: false, images: []
+    title: '', description: '', price: '', city: '', categoryId: '', isNegotiable: false, images: [], condition: '', storeId: null
 };
 export default function AdEditorScreen() {
     const { colors } = useAppTheme();
@@ -46,9 +48,26 @@ export default function AdEditorScreen() {
     const [error, setError] = useState<string | null>(null);
     const { categories, categoriesError } = useAdEditorCategories();
     const [pickingImages, setPickingImages] = useState(false);
+    const [publisherStores, setPublisherStores] = useState<Array<{ id: string; name: string }>>([]);
+    const [publisherStoresError, setPublisherStoresError] = useState<string | null>(null);
     const [draftCompleted, setDraftCompleted] = useState(false);
     const [draftOwnerReady, setDraftOwnerReady] = useState<string | null>(null);
     const [draftSaveStatus, setDraftSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved' | 'error'>('idle');
+    useEffect(() => {
+        let active = true;
+        if (id || !accessToken) { setPublisherStores([]); return () => { active = false; }; }
+        void Promise.all([fetchMyStore(accessToken).catch(() => null), fetchMyActiveStoreMemberships(accessToken).catch(() => [])]).then(([ownedStore, memberships]) => {
+            if (!active) return;
+            const candidates = [
+                ...(ownedStore?.id && ownedStore.status === 'ACTIVE' ? [{ id: ownedStore.id, name: ownedStore.name }] : []),
+                ...memberships.filter((item) => item.store.status === 'ACTIVE' && (item.role === 'MANAGER' || item.role === 'EDITOR')).map((item) => ({ id: item.store.id, name: item.store.name })),
+            ];
+            const unique = Array.from(new Map(candidates.map((item) => [item.id, item])).values());
+            setPublisherStores(unique);
+            setPublisherStoresError(null);
+        }).catch(() => { if (active) setPublisherStoresError('تعذر تحميل المتاجر المتاحة للنشر؛ يمكنك النشر باسم حسابك.'); });
+        return () => { active = false; };
+    }, [id, accessToken]);
     // Reclaim only old, unreferenced files; this never blocks editing or network work.
     useEffect(() => {
         void cleanupStaleUnreferencedAdImages().catch(() => undefined);
@@ -126,7 +145,7 @@ export default function AdEditorScreen() {
             if (!active)
                 return;
             const baseDraft: AdDraft = {
-                title: ad.title, description: ad.description || '', price: ad.price == null ? '' : String(ad.price), city: ad.city || '', categoryId: ad.category?.id || '', isNegotiable: Boolean(ad.isNegotiable), images: []
+                title: ad.title, description: ad.description || '', price: ad.price == null ? '' : String(ad.price), city: ad.city || '', categoryId: ad.category?.id || '', isNegotiable: Boolean(ad.isNegotiable), images: [], condition: (ad.condition as AdDraft['condition']) || '', storeId: null
             };
             setOriginalImages(Array.isArray(ad.images) ? ad.images.filter((url) => typeof url === 'string' && /^https?:\/\//i.test(url)) : []);
             setExistingImages(Array.isArray(ad.images) ? ad.images.filter((url) => typeof url === 'string' && /^https?:\/\//i.test(url)) : []);
@@ -177,6 +196,8 @@ export default function AdEditorScreen() {
                 ...(draft.price.trim() ? { price: draft.price.trim() } : {}),
                 ...(draft.categoryId.trim() ? { categoryId: draft.categoryId.trim() } : {}),
                 isNegotiable: draft.isNegotiable,
+                ...(draft.condition ? { condition: draft.condition } : {}),
+                ...(draft.storeId ? { storeId: draft.storeId } : {}),
                 images: draft.images.map((image) => ({
                     uri: image.uri,
                     name: image.fileName,
@@ -239,6 +260,7 @@ export default function AdEditorScreen() {
                             price: draft.price.trim() ? Number(draft.price) : null,
                             categoryId: draft.categoryId.trim() || null,
                             isNegotiable: draft.isNegotiable,
+                            ...(draft.condition ? { condition: draft.condition } : {}),
                             ...(draft.images.length > 0 ? { images: draft.images.map((image) => ({
                                     uri: image.uri, name: image.fileName, type: image.mimeType,
                                     ...(typeof (image as SelectedAdImage & {
@@ -386,13 +408,15 @@ export default function AdEditorScreen() {
                         ? 'جارٍ حفظ المسودة محليًا…'
                         : 'سيتم حفظ المسودة محليًا…'}
         </Text>) : null}
-      <Text style={styles.sectionLabel}>1) البيانات الأساسية</Text><Text style={styles.sectionHint}>العنوان والسعر والموقع كما سيظهر للمشترين</Text><Text style={styles.label}>عنوان الإعلان *</Text><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="عنوان الإعلان" value={draft.title} onChangeText={(v) => set('title', v)} maxLength={200} placeholder="مثال: هاتف بحالة ممتازة" placeholderTextColor={colors.muted} style={styles.input} textAlign="right"/>
-      <Text style={styles.label}>الوصف *</Text><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="وصف الإعلان" value={draft.description} onChangeText={(v) => set('description', v)} maxLength={5000} multiline placeholder="اكتب تفاصيل الإعلان بوضوح…" placeholderTextColor={colors.muted} style={[styles.input, styles.multiline]} textAlign="right" textAlignVertical="top"/>
-      <Text style={styles.label}>السعر ((شيكل))</Text><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="سعر الإعلان" value={draft.price} onChangeText={(v) => set('price', normalizeNumericInput(v))} keyboardType="decimal-pad" placeholder="اتركه فارغًا إذا لم تحدد السعر" placeholderTextColor={colors.muted} style={styles.input} textAlign="right"/>
-      <Text style={styles.label}>المدينة *</Text><TextInput allowFontScaling maxFontSizeMultiplier={1.3} accessibilityLabel="مدينة الإعلان" value={draft.city} onChangeText={(v) => set('city', v)} maxLength={100} placeholder="المدينة" placeholderTextColor={colors.muted} style={styles.input} textAlign="right"/>
+      <Text style={styles.sectionLabel}>1) البيانات الأساسية</Text><Text style={styles.sectionHint}>العنوان والسعر والموقع كما سيظهر للمشترين</Text><Field label="عنوان الإعلان *" value={draft.title} onChangeText={(v) => set('title', v)} maxLength={200} placeholder="مثال: هاتف بحالة ممتازة" labelStyle={styles.label} inputStyle={styles.input} />
+      <Field label="الوصف *" value={draft.description} onChangeText={(v) => set('description', v)} maxLength={5000} multiline placeholder="اكتب تفاصيل الإعلان بوضوح…" labelStyle={styles.label} inputStyle={[styles.input, styles.multiline]} />
+      <Field label="السعر (شيكل)" value={draft.price} onChangeText={(v) => set('price', v)} keyboardType="decimal-pad" placeholder="اتركه فارغًا إذا لم تحدد السعر" labelStyle={styles.label} inputStyle={styles.input} />
+      <Field label="المدينة *" value={draft.city} onChangeText={(v) => set('city', v)} maxLength={100} placeholder="المدينة" labelStyle={styles.label} inputStyle={styles.input} />
       <Text style={styles.label}>التصنيف</Text>
       {categoriesError ? <Text style={styles.error}>{categoriesError}</Text> : null}
       <View style={styles.categoryWrap}>{categories.map((category) => <Pressable key={category.id} accessibilityRole="button" accessibilityLabel={category.nameAr || category.name} accessibilityState={{ selected: draft.categoryId === category.id }} onPress={() => set('categoryId', category.id)} style={[styles.categoryChip, draft.categoryId === category.id && styles.categoryChipSelected]}><Text style={[styles.categoryText, draft.categoryId === category.id && styles.categoryTextSelected]}>{category.nameAr || category.name}</Text></Pressable>)}</View>
+      <Text style={styles.label}>حالة المنتج</Text><View style={styles.categoryWrap}>{([{ value: '', label: 'غير محدد' }, { value: 'NEW', label: 'جديد' }, { value: 'USED', label: 'مستعمل' }, { value: 'REFURBISHED', label: 'مجدّد' }] as const).map((option) => <Pressable key={option.value || 'unspecified'} accessibilityRole="button" accessibilityState={{ selected: (draft.condition || '') === option.value }} onPress={() => set('condition', option.value)} style={[styles.categoryChip, (draft.condition || '') === option.value && styles.categoryChipSelected]}><Text style={[styles.categoryText, (draft.condition || '') === option.value && styles.categoryTextSelected]}>{option.label}</Text></Pressable>)}</View>
+      {!id ? <><Text style={styles.label}>النشر باسم</Text><View style={styles.categoryWrap}><Pressable accessibilityRole="button" accessibilityState={{ selected: !draft.storeId }} onPress={() => setDraft((current) => ({ ...current, storeId: null }))} style={[styles.categoryChip, !draft.storeId && styles.categoryChipSelected]}><Text style={[styles.categoryText, !draft.storeId && styles.categoryTextSelected]}>حسابي الشخصي</Text></Pressable>{publisherStores.map((store) => <Pressable key={store.id} accessibilityRole="button" accessibilityState={{ selected: draft.storeId === store.id }} onPress={() => setDraft((current) => ({ ...current, storeId: store.id }))} style={[styles.categoryChip, draft.storeId === store.id && styles.categoryChipSelected]}><Text style={[styles.categoryText, draft.storeId === store.id && styles.categoryTextSelected]}>{store.name}</Text></Pressable>)}</View>{publisherStoresError ? <Text style={styles.note}>{publisherStoresError}</Text> : null}</> : null}
       <Text style={styles.sectionLabel}>2) الصور</Text><Text style={styles.sectionHint}>صورة واحدة على الأقل عند النشر الجديد · حتى 10 صور</Text><Text style={styles.label}>صور الإعلان * (بحد أقصى 10، وحجم 5MB لكل صورة)</Text>
       <Pressable accessibilityRole="button" accessibilityLabel="اختيار صور للإعلان" disabled={pickingImages || draft.images.length >= 10} style={[styles.secondary, (pickingImages || draft.images.length >= 10) && styles.disabled]} onPress={() => void (async () => {
         setPickingImages(true);

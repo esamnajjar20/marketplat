@@ -12,9 +12,35 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { Badge, DetailScaffold, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, typography, fontWeights } from '@/theme/tokens';
 import { MediaGallery } from '@/components/ui/MediaGallery';
+import { FavoriteButton } from '@/components/ui/FavoriteButton';
 import { RatingStars } from '@/components/ui/RatingStars';
 import { showToast } from '@/lib/toast';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
+import { canRequestService, serviceAvailabilityLabel } from '@/features/services/service-availability';
+
+
+function serviceAttributeLabel(field: import('@/features/services/services.api').ServiceTypeListingField, value: unknown): string {
+  if (field.type === 'BOOLEAN') return value === true ? 'نعم' : value === false ? 'لا' : String(value);
+  if (field.type === 'SELECT') {
+    const selected = field.options?.find((option) => String(option.value) === String(value));
+    return selected?.labelAr || selected?.label || String(value);
+  }
+  if (field.type === 'MULTI_SELECT' && Array.isArray(value)) {
+    const options = new Map((field.options ?? []).map((option) => [String(option.value), option.labelAr || option.label || String(option.value)]));
+    return value.map((entry) => options.get(String(entry)) || String(entry)).join('، ');
+  }
+  return String(value);
+}
+
+function serviceAttributeRows(item: ServiceListing) {
+  const attributes = item.attributes ?? {};
+  return (item.serviceType?.fields ?? []).filter((field) => {
+    const value = attributes[field.key];
+    return field.scope === 'LISTING' && field.isActive !== false && field.showOnPage === true
+      && value !== undefined && value !== null && value !== ''
+      && !(Array.isArray(value) && value.length === 0);
+  });
+}
 
 function formatPrice(item: ServiceListing): string {
   if (item.pricingType === 'NEGOTIABLE' || item.price == null) return 'السعر عند الاتفاق';
@@ -69,7 +95,8 @@ export default function ServiceDetailScreen() {
   const images = item?.images?.filter((uri) => /^(https?:|file:|content:)/i.test(uri)).slice(0, 10) ?? [];
   const isOwnService = Boolean(user?.id && item?.provider?.sellerProfile?.userId === user.id);
 
-  const footer = item && !isOwnService ? (
+  const availability = item?.provider?.availabilityStatus;
+  const footer = item && !isOwnService && canRequestService(availability) ? (
     <PrimaryButton
       label="اطلب هذه الخدمة"
       onPress={() => {
@@ -104,17 +131,35 @@ export default function ServiceDetailScreen() {
           <MediaGallery images={images} title={item.title} />
 
           <SectionCard>
-            <Text style={styles.title}>{item.title}</Text>
+            <View style={styles.titleRow}>
+              <Text style={styles.title}>{item.title}</Text>
+              <FavoriteButton entityType="services" entityId={item.id} label="الخدمة" />
+            </View>
             <Text style={styles.price}>{formatPrice(item)}</Text>
             {item.provider?.id ? <Pressable accessibilityRole="link" onPress={() => router.push({ pathname: '/service-providers/[id]', params: { id: item.provider!.id! } })}><Text style={styles.provider}>{provider} ↗{item.provider?.sellerProfile?.verified ? ' · مقدم موثّق' : ''}</Text></Pressable> : <Text style={styles.provider}>{provider}</Text>}
             <RatingStars score={item.provider?.sellerProfile?.averageRating} count={item.provider?.sellerProfile?.totalRatings} />
             {item.provider?.sellerProfile?.id ? <Pressable accessibilityRole="link" onPress={() => router.push({ pathname: '/service-reviews', params: { sellerProfileId: item.provider?.sellerProfile?.id } })}><Text style={styles.provider}>قراءة التقييمات ←</Text></Pressable> : null}
+            <Text style={styles.meta}>حالة مقدم الخدمة: {serviceAvailabilityLabel(availability)}</Text>
+            {availability === 'BUSY' ? <Text style={styles.meta}>مقدم الخدمة مشغول حاليًا؛ قد يتأخر الرد على طلبك.</Text> : null}
+            {availability === 'UNAVAILABLE' ? <Text style={styles.meta}>لا يستقبل مقدم الخدمة طلبات جديدة حاليًا.</Text> : null}
             {isOwnService ? <Text style={styles.meta}>هذه خدمتك؛ لا يمكنك طلبها من حسابك.</Text> : null}
             {meta ? <Text style={styles.meta}>{meta}</Text> : null}
             {item.provider?.sellerProfile?.verified ? (
               <Badge label="مقدم موثّق" tone="success" />
             ) : null}
           </SectionCard>
+
+          {serviceAttributeRows(item).length ? (
+            <SectionCard>
+              <Text style={styles.sectionTitle}>معلومات الخدمة{item.serviceType?.nameAr ? ` · ${item.serviceType.nameAr}` : ''}</Text>
+              {serviceAttributeRows(item).map((field) => (
+                <View key={field.id} style={styles.attributeRow}>
+                  <Text style={styles.attributeLabel}>{field.pageLabelAr || field.labelAr || field.key}</Text>
+                  <Text style={styles.attributeValue}>{serviceAttributeLabel(field, item.attributes?.[field.key])}</Text>
+                </View>
+              ))}
+            </SectionCard>
+          ) : null}
 
           <SectionCard>
             <Text style={styles.sectionTitle}>وصف الخدمة</Text>
@@ -149,6 +194,7 @@ export default function ServiceDetailScreen() {
 
 const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   pad: { paddingHorizontal: spacing.lg, gap: spacing.lg },
+  titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
   title: {
     fontSize: fontSizes[20],
     fontWeight: fontWeights.bold,
@@ -165,6 +211,9 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   provider: { ...typography.bodyStrong, color: colors.ink, textAlign: 'right' },
   meta: { ...typography.caption, color: colors.muted, textAlign: 'right' },
   sectionTitle: { ...typography.subtitle, color: colors.ink, textAlign: 'right' },
+  attributeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: spacing.md, paddingVertical: spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  attributeLabel: { ...typography.caption, color: colors.muted, flex: 1, textAlign: 'right' },
+  attributeValue: { ...typography.bodyStrong, color: colors.ink, flex: 1, textAlign: 'left' },
   description: {
     ...typography.body,
     color: colors.ink,

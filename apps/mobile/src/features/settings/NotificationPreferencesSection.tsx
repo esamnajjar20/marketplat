@@ -1,10 +1,11 @@
 import { useMemo, type Dispatch, type SetStateAction } from 'react';
-import { Switch, View } from 'react-native';
+import { Platform, Switch, View } from 'react-native';
 import { AppText as Text } from '@/components/ui/AppText';
 import { Field, LoadingState, Notice, PrimaryButton, SecondaryButton, SectionCard } from '@/components/ui';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { createSettingsStyles } from './settings.styles';
 import { DEFAULT_QUIET_TIME_ZONE, PREFERENCE_GROUPS, type Preferences } from './preferences';
+import { NotificationDevicesSection } from '@/features/notifications/NotificationDevicesSection';
 
 type Props = {
   prefs: Preferences;
@@ -92,15 +93,19 @@ export function NotificationPreferencesSection({
         <View style={styles.groupHeader}>
           <Text tone="ink" strong>إشعارات هذا الجهاز</Text>
           <Text tone="muted" size={12}>
-            {pushEnabled ? 'مفعّلة لهذا الحساب على هذا الجهاز' : 'غير مفعّلة على هذا الجهاز'}
+            {Platform.OS === 'android' ? (pushEnabled ? 'مفعّلة لهذا الحساب على هذا الجهاز' : 'غير مفعّلة على هذا الجهاز') : 'غير متاحة على هذا النظام في الإصدار الحالي'}
           </Text>
         </View>
-        {pushEnabled ? (
+        {Platform.OS === 'android' ? (pushEnabled ? (
           <SecondaryButton label="إيقاف إشعارات الجهاز" onPress={() => void disableDevicePush()} busy={pushBusy} />
         ) : (
           <PrimaryButton label="تفعيل إشعارات الجهاز" onPress={() => void enableDevicePush()} busy={pushBusy} />
+        )) : (
+          <Notice tone="muted">إشعارات الدفع الأصلية غير متاحة على هذا النظام في الإصدار الحالي؛ يمكن تغيير تفضيلات الإشعارات داخل التطبيق أدناه.</Notice>
         )}
       </SectionCard>
+
+      <NotificationDevicesSection pushEnabled={pushEnabled} />
 
       {loadingPreferences ? <LoadingState /> : null}
       {!loadingPreferences && !preferencesLoaded ? (

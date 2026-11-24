@@ -12,7 +12,6 @@ import { useAsyncResource } from '@/hooks/useAsyncResource';
 type DashboardData = {
   store: StoreSummary | null;
   profile: SellerProfile | null;
-  analytics: StoreAnalytics | null;
   storeLoadError: string;
   profileError: string;
 };
@@ -40,18 +39,9 @@ export default function SellerDashboardScreen() {
       ]);
       const store = storeResult.status === 'fulfilled' ? storeResult.value : null;
       const profile = profileResult.status === 'fulfilled' ? profileResult.value : null;
-      let analytics: StoreAnalytics | null = null;
-      if (store) {
-        try {
-          analytics = await fetchMyStoreAnalytics(accessToken);
-        } catch {
-          analytics = null;
-        }
-      }
       return {
         store,
         profile,
-        analytics,
         storeLoadError: storeResult.status === 'rejected'
           ? (storeResult.reason instanceof Error ? storeResult.reason.message : 'تعذر تحميل بيانات المتجر.')
           : '',
@@ -69,7 +59,22 @@ export default function SellerDashboardScreen() {
   const { data, loading, reload } = resource;
   const store = data?.store ?? null;
   const profile = data?.profile ?? null;
-  const analytics = data?.analytics ?? null;
+  // Analytics are loaded independently from the store/profile summary so a
+  // failed analytics request is visible and can be retried without hiding
+  // otherwise healthy seller dashboard data.
+  const analyticsResource = useAsyncResource<StoreAnalytics>(
+    async () => {
+      if (!accessToken) throw new Error('انتهت الجلسة. سجّل الدخول مجددًا.');
+      return fetchMyStoreAnalytics(accessToken);
+    },
+    {
+      key: `${user?.id ?? ''}|${store?.id ?? ''}`,
+      manual: !accessToken || !store,
+      tag: 'seller-dashboard-analytics',
+      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحديث إحصاءات المتجر.'),
+    },
+  );
+  const analytics = analyticsResource.error ? null : analyticsResource.data ?? null;
   const storeLoadError = data?.storeLoadError ?? '';
   const error = resource.error || data?.profileError || '';
   return <PageShell title="لوحة البائع">
@@ -80,6 +85,8 @@ export default function SellerDashboardScreen() {
   {error ? <SectionCard><Notice>{error}</Notice><PrimaryButton label="إعادة المحاولة" onPress={() => void reload()}/></SectionCard> : null}
   {!loading && !store && !storeLoadError ? <SectionCard><EmptyState title="لا يوجد متجر تملكه بعد" description="أنشئ متجرك أو افتح قائمة المتاجر التي تعمل بها."/><PrimaryButton label="إدارة المتجر" onPress={() => router.push('/my-store')}/><PrimaryButton label="المتاجر التي أعمل بها" variant="secondary" onPress={() => router.push('/my-stores')}/><PrimaryButton label="ملف البائع" variant="secondary" onPress={() => router.push('/seller-profile')}/></SectionCard> : null}
   {!loading && storeLoadError ? <SectionCard><Notice>{storeLoadError}</Notice><PrimaryButton label="المتاجر التي أعمل بها" variant="secondary" onPress={() => router.push('/my-stores')}/></SectionCard> : null}
+  {!loading && store && analyticsResource.loading ? <SectionCard><Notice tone="muted">جارٍ تحديث إحصاءات المتجر…</Notice></SectionCard> : null}
+  {!loading && store && analyticsResource.error ? <SectionCard><Notice tone="warning">تعذر تحديث الإحصاءات. لن نعرض أرقامًا بديلة على أنها بيانات تحليلية حديثة.</Notice><PrimaryButton label="إعادة محاولة تحميل الإحصاءات" variant="secondary" onPress={() => void analyticsResource.reload()}/></SectionCard> : null}
   {!loading && store ? <>
    <SectionCard><Text tone="ink" strong size={18}>{store.name}</Text><Text style={{
       textAlign: 'right', color: colors.muted, lineHeight: 21
@@ -102,7 +109,7 @@ export default function SellerDashboardScreen() {
       textAlign: 'right', color: colors.ink, ...typography.subtitle
     }}>لمحة سريعة</Text><View style={{
       flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm
-    }}><Metric label="مشاهدات المتجر" value={analytics?.views ?? store.views ?? 0}/><Metric label="متابعو المتجر" value={analytics?.followers ?? store._count?.followers ?? 0}/><Metric label="المنتجات النشطة" value={analytics?.activeProducts ?? store._count?.products ?? 0}/><Metric label="العروض النشطة" value={analytics?.activePromotions ?? '—'}/></View></SectionCard>
+    }}><Metric label="مشاهدات المتجر" value={analytics?.views ?? '—'}/><Metric label="متابعو المتجر" value={analytics?.followers ?? '—'}/><Metric label="المنتجات النشطة" value={analytics?.activeProducts ?? '—'}/><Metric label="العروض النشطة" value={analytics?.activePromotions ?? '—'}/></View></SectionCard>
    <SectionCard><Text style={{
       textAlign: 'right', color: colors.ink, ...typography.subtitle
     }}>مهام اليوم</Text>{!(profile?.verified || store.sellerProfile?.verified) ? <Notice tone="warning">أكمل متطلبات توثيق ملف البائع إذا كانت متاحة لحسابك.</Notice> : null}{profile?.suspended ? <Notice>ملف البائع موقوف؛ راجع الدعم لمعرفة التفاصيل.</Notice> : null}<PrimaryButton label="إدارة المنتجات" variant="secondary" onPress={() => router.push('/my-products')}/><PrimaryButton label="إدارة العروض" variant="secondary" onPress={() => router.push('/store-promotions')}/><PrimaryButton label="طلبات المتجر" variant="secondary" onPress={() => router.push('/seller-orders')}/><PrimaryButton label="طلبات الخدمات" variant="secondary" onPress={() => router.push('/service-requests')}/><PrimaryButton label="فريق المتجر والدعوات" variant="secondary" onPress={() => router.push('/store-team')}/></SectionCard>

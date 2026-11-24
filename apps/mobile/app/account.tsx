@@ -7,6 +7,9 @@ import { toAppHref } from '@/lib/typed-navigation';
 import { StyleSheet, View } from 'react-native';
 import { useEffect, useState, useMemo, useSyncExternalStore } from 'react';
 import { fetchMyStore } from '@/features/commerce/commerce.api';
+import { fetchMyAdStats } from '@/features/ads/manage-ads.api';
+import { fetchUnreadCounts } from '@/features/messaging/messaging.api';
+import { formatNumber } from '@/lib/formatters';
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
 import { fetchMySellerProfile } from '@/features/account/seller.api';
 import { fetchMyActiveStoreMemberships } from '@/features/commerce/store-management.api';
@@ -22,6 +25,16 @@ import {
 } from '@/components/ui';
 import { AppIcon } from '@/components/Icons';
 import { fontSizes, elevation, radius, sizes, spacing, typography, ux } from '@/theme/tokens';
+
+type AccountActivityStats = {
+  activeAds: number | null;
+  soldAds: number | null;
+  totalViews: number | null;
+  favoritesCount: number | null;
+  unreadMessages: number | null;
+  loading: boolean;
+  hasError: boolean;
+};
 
 type Destination = { title: string; description: string; path: string };
 type DestinationGroup = { title: string; subtitle: string; items: Destination[] };
@@ -144,6 +157,39 @@ export default function AccountScreen() {
   const [profilesVerificationFailed, setProfilesVerificationFailed] = useState(false);
   const [verificationRetry, setVerificationRetry] = useState(0);
   const [showAllDestinations, setShowAllDestinations] = useState(false);
+  const [activityStatsRetry, setActivityStatsRetry] = useState(0);
+  const [activityStats, setActivityStats] = useState<AccountActivityStats>({
+    activeAds: null, soldAds: null, totalViews: null, favoritesCount: null,
+    unreadMessages: null, loading: false, hasError: false,
+  });
+
+  useEffect(() => {
+    let active = true;
+    if (!accessToken || !userId) {
+      setActivityStats({ activeAds: null, soldAds: null, totalViews: null, favoritesCount: null, unreadMessages: null, loading: false, hasError: false });
+      return () => { active = false; };
+    }
+    setActivityStats({ activeAds: null, soldAds: null, totalViews: null, favoritesCount: null, unreadMessages: null, loading: true, hasError: false });
+    void Promise.allSettled([fetchMyAdStats(accessToken), fetchUnreadCounts(accessToken)]).then(([adsResult, messagesResult]) => {
+      if (!active) return;
+      const ads = adsResult.status === 'fulfilled' ? adsResult.value : null;
+      const unreadMessages = messagesResult.status === 'fulfilled' && typeof messagesResult.value.messages === 'number'
+        ? messagesResult.value.messages
+        : null;
+      setActivityStats({
+        activeAds: ads?.activeAds ?? null,
+        soldAds: ads?.soldAds ?? null,
+        totalViews: ads?.totalViews ?? null,
+        favoritesCount: ads?.favoritesCount ?? null,
+        unreadMessages,
+        loading: false,
+        hasError: !ads || unreadMessages === null,
+      });
+    }).catch(() => {
+      if (active) setActivityStats((current) => ({ ...current, loading: false, hasError: true }));
+    });
+    return () => { active = false; };
+  }, [accessToken, userId, activityStatsRetry]);
 
   useEffect(() => {
     let active = true;
@@ -263,6 +309,39 @@ export default function AccountScreen() {
               </Pressable>
             ))}
           </View>
+        </View>
+      ) : null}
+
+      {user ? (
+        <View style={styles.quickSection}>
+          <SectionHeader title="ملخص نشاطك" subtitle="مؤشرات الإعلانات والرسائل والمفضلة" />
+          <View style={styles.quickGrid}>
+            {([
+              { label: 'إعلانات نشطة', value: activityStats.activeAds, path: '/my-ads' },
+              { label: 'إعلانات مباعة', value: activityStats.soldAds, path: '/my-ads' },
+              { label: 'المشاهدات', value: activityStats.totalViews, path: '/my-ads' },
+              { label: 'المفضلة', value: activityStats.favoritesCount, path: '/favorites' },
+              { label: 'رسائل غير مقروءة', value: activityStats.unreadMessages, path: '/messages' },
+            ]).map((item) => (
+              <Pressable
+                key={item.label}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.label}: ${item.value === null ? 'غير متاح' : item.value}`}
+                onPress={() => open(item.path)}
+                style={({ pressed }) => [styles.statQuickItem, pressed && styles.pressed]}
+              >
+                <Text style={styles.statQuickValue}>{item.value === null ? '—' : formatNumber(item.value)}</Text>
+                <Text style={styles.quickLabel} numberOfLines={2}>{item.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {activityStats.loading ? <Notice tone="muted">جارٍ تحميل ملخص النشاط…</Notice> : null}
+          {activityStats.hasError ? (
+            <View style={{ gap: spacing.xs }}>
+              <Notice tone="warning">تعذر تحديث بعض مؤشرات النشاط. تظهر الشرطة بدل الصفر عندما لا تتوفر البيانات.</Notice>
+              <PrimaryButton label="إعادة تحميل ملخص النشاط" variant="secondary" onPress={() => setActivityStatsRetry((value) => value + 1)} />
+            </View>
+          ) : null}
         </View>
       ) : null}
 
@@ -400,6 +479,28 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+  },
+  statQuickItem: {
+    width: '31%',
+    minWidth: 100,
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    minHeight: 84,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card ?? radius.lg,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.border,
+    ...elevation.sm,
+  },
+  statQuickValue: {
+    color: colors.ink,
+    fontSize: fontSizes[20],
+    fontWeight: fontWeights.bold,
+    fontVariant: ['tabular-nums'],
   },
   quickItem: {
     width: '31%',

@@ -15,11 +15,12 @@ import { useAuth } from '@/features/auth/AuthContext';
 import { formatSafeDate } from '@/lib/date-format';
 import { fontSizes, radius, spacing, fontWeights } from '@/theme/tokens';
 import { OUTBOX_MAX_ATTEMPTS } from '@/storage/outbox';
-import { countUnownedOutboxMutations, discardOutboxMutation, listAllOutboxMutations, retryExhaustedMutation, syncOutboxIfReady, discardMarketplaceRequest, listPendingMarketplaceRequests, retryMarketplaceRequest, type PendingRequestOutboxItem, discardMarketplaceOrder, listPendingMarketplaceOrders, retryMarketplaceOrder, syncNextMarketplaceOrder, type PendingOrderOutboxItem, discardRequestOffer, listPendingRequestOffers, retryRequestOffer, syncNextRequestOffer, type PendingRequestOfferItem, discardOfflineCreate, listOfflineCreates, retryOfflineCreate, syncNextOfflineCreate, type OfflineCreateItem, listChatMessagesForOwner, listChatMediaOutbox, type ChatMessageOutboxItem, type ChatMediaOutboxItem, type OutboxItem, } from '@/storage/outbox-manager';
+import { countUnownedOutboxMutations, discardOutboxMutation, listAllOutboxMutations, retryExhaustedMutation, syncOutboxIfReady, discardMarketplaceRequest, listPendingMarketplaceRequests, retryMarketplaceRequest, type PendingRequestOutboxItem, discardMarketplaceOrder, listPendingMarketplaceOrders, retryMarketplaceOrder, syncNextMarketplaceOrder, type PendingOrderOutboxItem, discardRequestOffer, listPendingRequestOffers, retryRequestOffer, syncNextRequestOffer, type PendingRequestOfferItem, discardOfflineCreate, listOfflineCreates, retryOfflineCreate, syncNextOfflineCreate, type OfflineCreateItem, listChatMessagesForOwner, listChatMediaOutbox, retryChatMedia, discardChatMedia, type ChatMessageOutboxItem, type ChatMediaOutboxItem, type OutboxItem, } from '@/storage/outbox-manager';
 import { acknowledgeFavoriteState, discardFavoriteState, listPendingFavoriteStates, restoreFavoriteStateIfAbsent, writeFavoriteAdIds, type PendingFavoriteState } from '@/features/ads/favorites.store';
 import { fetchFavoriteAdIds, setFavoriteAdState } from '@/features/ads/favorites.api';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { showToast } from '@/lib/toast';
+import { syncChatMediaOutbox } from '@/features/messaging/chat-media-outbox-sync';
 type QueueRow =
     | { key: string; kind: 'favorite'; item: PendingFavoriteState }
     | { key: string; kind: 'request'; item: PendingRequestOutboxItem }
@@ -422,10 +423,24 @@ export default function OfflineQueueScreen() {
                         pathname: '/messages/[id]', params: { id: item.conversationId }
                     })}><Text style={styles.secondaryText}>فتح المحادثة</Text></Pressable></View>
       ); }
-      case 'chatMedia': { const item = row.item; return (
-<View style={styles.card}><Text style={styles.adTitle}>مرفق دردشة محفوظ · {item.kind === 'image' ? 'صورة' : item.kind === 'audio' ? 'تسجيل صوتي' : 'ملف'}</Text><Text style={styles.status}>بانتظار المزامنة</Text><Text style={styles.muted}>{item.fileName} · {Math.ceil(item.sizeBytes / 1024)} كيلوبايت · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<Pressable accessibilityRole="button" style={styles.secondary} onPress={() => router.push({
-                        pathname: '/messages/[id]', params: { id: item.conversationId }
-                    })}><Text style={styles.secondaryText}>فتح المحادثة</Text></Pressable></View>
+      case 'chatMedia': { const item = row.item; const failed = item.attempts > 0 || Boolean(item.lastError); const exhausted = item.attempts >= OUTBOX_MAX_ATTEMPTS; return (
+<View style={styles.card}><Text style={styles.adTitle}>مرفق دردشة محفوظ · {item.kind === 'image' ? 'صورة' : item.kind === 'audio' ? 'تسجيل صوتي' : 'ملف'}</Text><Text style={styles.status}>{exhausted ? 'توقفت المحاولات؛ يلزم تدخل' : failed ? 'تعذرت آخر محاولة؛ يمكنك إعادة المحاولة أو حذف المرفق' : 'بانتظار المزامنة'}</Text><Text style={styles.muted}>{item.fileName} · {Math.ceil(item.sizeBytes / 1024)} كيلوبايت · المحاولات: {item.attempts}/{OUTBOX_MAX_ATTEMPTS}</Text>{item.lastError ? <Text style={styles.errorText}>آخر خطأ: {item.lastError}</Text> : null}<View style={styles.actions}><Pressable accessibilityRole="button" style={styles.secondary} onPress={() => router.push({ pathname: '/messages/[id]', params: { id: item.conversationId } })}><Text style={styles.secondaryText}>فتح المحادثة</Text></Pressable>{failed ? <Pressable accessibilityRole="button" disabled={busyId !== null} style={[styles.secondary, !online && styles.disabled]} onPress={() => {
+                        if (!online || !accessToken || !user?.id) { showToast('المزامنة غير جاهزة', 'اتصل بالإنترنت وسجّل الدخول بالحساب نفسه أولًا.', 'info'); return; }
+                        const session = { ...sessionRef.current };
+                        if (session.userId !== user.id || session.token !== accessToken) { setError('تغيّرت جلسة الدخول؛ حدّث القائمة قبل إعادة المحاولة.'); return; }
+                        setBusyId(item.id); setError(null);
+                        void retryChatMedia(item.operationId, item.ownerId).then(async reset => {
+                            if (!reset) { showToast('لم تُحدّث العملية', 'قد يكون المرفق أُرسل أو حُذف بالفعل. حدّث القائمة.', 'warning'); return; }
+                            const result = await syncChatMediaOutbox({ isOnline: online, token: accessToken, csrfToken, ownerId: user.id });
+                            if (sessionRef.current.epoch !== session.epoch || sessionRef.current.userId !== session.userId || sessionRef.current.token !== session.token) { setError('تغيّرت جلسة الدخول أثناء المزامنة؛ تحقق من القائمة بالحساب نفسه.'); return; }
+                            showToast(result.stoppedReason === null && result.pending === 0 ? 'تمت المزامنة' : 'أُعيدت المحاولة', result.sent.length ? 'تم إرسال المرفق وتأكيده.' : 'تمت إعادة المحاولة؛ راجع حالة المرفق في القائمة.', result.sent.length ? 'success' : 'info');
+                        }).catch(cause => setError(cause instanceof Error ? cause.message : 'تعذرت إعادة محاولة المرفق.')).finally(() => { setBusyId(null); void refresh(); });
+                    }}><Text style={styles.secondaryText}>{busyId === item.id ? 'جارٍ...' : 'إعادة المحاولة'}</Text></Pressable> : null}<Pressable accessibilityRole="button" disabled={busyId !== null} style={styles.delete} onPress={() => confirmAlert('حذف المرفق المحفوظ', 'سيُحذف المرفق من طابور هذا الجهاز. إذا كانت المزامنة قد بدأت بالفعل فقد يكون الخادم قد استلمه. هل تريد المتابعة؟', [{ text: 'رجوع', style: 'cancel' }, { text: 'حذف المرفق', style: 'destructive', onPress: () => {
+                        const session = { ...sessionRef.current };
+                        if (!user?.id || session.userId !== user.id || session.token !== accessToken) { setError('تغيّرت جلسة الدخول؛ حدّث القائمة قبل الحذف.'); return; }
+                        setBusyId(item.id);
+                        void discardChatMedia(item.operationId, item.ownerId).then(() => showToast('تم حذف المرفق', 'حُذف المرفق من طابور الإرسال المحلي.', 'success')).catch(cause => setError(cause instanceof Error ? cause.message : 'تعذر حذف المرفق.')).finally(() => { setBusyId(null); void refresh(); });
+                    } }])}><Text style={styles.deleteText}>{busyId === item.id ? 'جارٍ...' : 'حذف من الطابور'}</Text></Pressable></View></View>
       ); }
               case 'create': { const item = row.item;
                         const label = item.operation === 'create-product' ? 'إضافة منتج' : item.operation === 'create-service' ? 'نشر خدمة' : 'تسجيل بيع';

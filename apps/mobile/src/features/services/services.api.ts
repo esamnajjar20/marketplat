@@ -4,10 +4,13 @@ import { deletePublicCacheEntriesByPrefix, deletePublicCacheEntry, readPublicCac
 import { canUseStaleCacheAfterReadFailure } from '@/lib/offline-cache-policy';
 
 type Envelope<T> = { success: boolean; message?: string; data?: T; meta?: { pagination?: { page?: number; limit?: number; total?: number; totalPages?: number } } };
+export type ServiceTypeListingField = { id: string; key: string; scope: string; type: string; labelAr?: string; pageLabelAr?: string | null; showOnPage?: boolean; isActive?: boolean; options?: Array<{ value: string; labelAr?: string; label?: string }> | null };
 export type ServiceListing = {
   id: string; title: string; description?: string | null; images?: string[];
   pricingType?: 'FIXED' | 'STARTING_FROM' | 'NEGOTIABLE' | string; price?: number | string | null;
   durationEstimate?: string | null; serviceLocation?: 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE' | string;
+  serviceTypeId?: string; attributes?: Record<string, unknown> | null;
+  serviceType?: { id: string; slug?: string; nameAr?: string | null; fields?: ServiceTypeListingField[] } | null;
   status?: string; createdAt?: string;
   provider?: { id?: string; businessName?: string | null; logoUrl?: string | null; availabilityStatus?: string; sellerProfile?: { id?: string; userId?: string; displayName?: string | null; verified?: boolean; averageRating?: number | null; totalRatings?: number } | null };
   category?: { id?: string; name?: string; nameAr?: string | null } | null;
@@ -35,17 +38,27 @@ function readData<T>(response: Envelope<T>, fallback: string): T {
   if (!response || response.success !== true || response.data === undefined) throw new Error(response?.message || fallback);
   return response.data;
 }
-export function serviceListingsCacheKey(options: { page?: number; limit?: number; search?: string } = {}): string {
-  const params = new URLSearchParams({ page: String(options.page ?? 1), limit: String(options.limit ?? 20), sortBy: 'createdAt', sortOrder: 'desc' });
+export type ServiceBrowseFilters = { serviceTypeId?: string; categoryId?: string; serviceLocation?: 'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE'; city?: string; minPrice?: number; maxPrice?: number; attributeFilters?: Record<string, unknown>; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc' };
+export type ServiceListingsOptions = { page?: number; limit?: number; search?: string; signal?: AbortSignal } & ServiceBrowseFilters;
+
+export function serviceListingsCacheKey(options: ServiceListingsOptions = {}): string {
+  const params = new URLSearchParams({ page: String(options.page ?? 1), limit: String(options.limit ?? 20), sortBy: options.sortBy ?? 'createdAt', sortOrder: options.sortOrder ?? 'desc' });
   if (options.search?.trim()) params.set('search', options.search.trim());
+  if (options.serviceTypeId) params.set('serviceTypeId', options.serviceTypeId);
+  if (options.categoryId) params.set('categoryId', options.categoryId);
+  if (options.serviceLocation) params.set('serviceLocation', options.serviceLocation);
+  if (options.attributeFilters && Object.keys(options.attributeFilters).length) params.set('attributeFilters', JSON.stringify(options.attributeFilters));
+  if (options.city?.trim()) params.set('city', options.city.trim());
+  if (options.minPrice !== undefined) params.set('minPrice', String(options.minPrice));
+  if (options.maxPrice !== undefined) params.set('maxPrice', String(options.maxPrice));
   return `service-listings:${params.toString()}`;
 }
-export async function getCachedServiceListings(options: { page?: number; limit?: number; search?: string } = {}): Promise<ServiceListing[] | null> {
+export async function getCachedServiceListings(options: ServiceListingsOptions = {}): Promise<ServiceListing[] | null> {
   const cached = await readPublicCache<ServiceListing[]>(serviceListingsCacheKey(options));
   return Array.isArray(cached) ? cached : null;
 }
 export type ServiceListingPage = { items: ServiceListing[]; page: number; totalPages: number; total: number };
-export async function getCachedServiceListingsPage(options: { page?: number; limit?: number; search?: string } = {}): Promise<ServiceListingPage | null> {
+export async function getCachedServiceListingsPage(options: ServiceListingsOptions = {}): Promise<ServiceListingPage | null> {
   const page = Math.max(1, Math.floor(options.page ?? 1));
   const limit = Math.max(1, Math.floor(options.limit ?? 30));
   const cached = await getCachedServiceListings({ ...options, page, limit });
@@ -54,11 +67,18 @@ export async function getCachedServiceListingsPage(options: { page?: number; lim
   // conservatively signals that another page may exist; a live refresh corrects it.
   return { items: cached, page, totalPages: cached.length >= limit ? page + 1 : page, total: cached.length };
 }
-export async function fetchServiceListingsPage(options: { page?: number; limit?: number; search?: string; signal?: AbortSignal } = {}): Promise<ServiceListingPage> {
+export async function fetchServiceListingsPage(options: ServiceListingsOptions = {}): Promise<ServiceListingPage> {
   const page = options.page ?? 1;
   const limit = options.limit ?? 30;
-  const params = new URLSearchParams({ page: String(page), limit: String(limit), sortBy: 'createdAt', sortOrder: 'desc' });
+  const params = new URLSearchParams({ page: String(page), limit: String(limit), sortBy: options.sortBy ?? 'createdAt', sortOrder: options.sortOrder ?? 'desc' });
   if (options.search?.trim()) params.set('search', options.search.trim());
+  if (options.serviceTypeId) params.set('serviceTypeId', options.serviceTypeId);
+  if (options.categoryId) params.set('categoryId', options.categoryId);
+  if (options.serviceLocation) params.set('serviceLocation', options.serviceLocation);
+  if (options.attributeFilters && Object.keys(options.attributeFilters).length) params.set('attributeFilters', JSON.stringify(options.attributeFilters));
+  if (options.city?.trim()) params.set('city', options.city.trim());
+  if (options.minPrice !== undefined) params.set('minPrice', String(options.minPrice));
+  if (options.maxPrice !== undefined) params.set('maxPrice', String(options.maxPrice));
   const cacheKey = serviceListingsCacheKey({ ...options, page, limit });
   let response: Envelope<ServiceListing[]>;
   try { response = await apiRequest<Envelope<ServiceListing[]>>(`/api/v1/service-listings?${params.toString()}`, { signal: options.signal }); }
@@ -125,7 +145,32 @@ export async function respondToServiceRequest(id: string, action: 'ACCEPTED' | '
   return readData(response, 'تعذر تحديث حالة الطلب.');
 }
 
-export type ServiceCategoryOption = { id: string; name: string; nameAr?: string | null; serviceTypeId?: string | null; isActive?: boolean };
+export type ServiceCategoryOption = { id: string; name: string; nameAr?: string | null; serviceTypeId?: string | null; parentId?: string | null; isActive?: boolean };
+export type PublicServiceTypeFieldOption = {
+  id?: string;
+  key: string;
+  label?: string;
+  labelAr?: string;
+  scope?: 'LISTING' | 'PROVIDER' | string;
+  type: 'SELECT' | 'BOOLEAN' | 'NUMBER' | 'TEXT' | 'MULTI_SELECT' | 'TEXTAREA' | string;
+  isActive?: boolean;
+  required?: boolean;
+  options?: Array<{ value: string; label?: string; labelAr?: string }> | null;
+};
+export type PublicServiceTypeOption = {
+  id: string;
+  name: string;
+  nameAr?: string | null;
+  isActive?: boolean;
+  capabilities?: { remote?: boolean; atCustomer?: boolean; atProvider?: boolean; allowedLocations?: Array<'AT_CUSTOMER' | 'AT_PROVIDER' | 'REMOTE'>; allowedPricingTypes?: Array<'FIXED' | 'STARTING_FROM' | 'NEGOTIABLE'> } | null;
+  fields?: PublicServiceTypeFieldOption[];
+};
+export async function fetchPublicServiceTypes(): Promise<PublicServiceTypeOption[]> {
+  const response = await apiRequest<Envelope<PublicServiceTypeOption[]>>('/api/v1/service-types');
+  const items = readData(response, 'تعذر تحميل مجالات الخدمات.');
+  if (!Array.isArray(items)) throw new Error('استجابة مجالات الخدمات غير صالحة.');
+  return items.filter((item) => item && typeof item.id === 'string' && item.isActive !== false);
+}
 export async function fetchServiceCategoryOptions(): Promise<ServiceCategoryOption[]> {
   try {
     const response = await apiRequest<Envelope<ServiceCategoryOption[]>>('/api/v1/service-categories');
@@ -157,16 +202,28 @@ export async function fetchMyServiceListingsPage(token: string, page = 1, limit 
 export async function fetchMyServiceListings(token: string): Promise<ServiceListing[]> {
   return (await fetchMyServiceListingsPage(token, 1, 50)).items;
 }
-export async function createMyServiceListing(input: { categoryId: string; title: string; description: string; pricingType: 'FIXED'|'STARTING_FROM'|'NEGOTIABLE'; price?: number; durationEstimate?: string; serviceLocation: 'AT_CUSTOMER'|'AT_PROVIDER'|'REMOTE' }, token: string, csrfToken?: string | null, offlineOperationId?: string, images: Array<{uri:string;fileName:string;mimeType:string}> = []): Promise<ServiceListing> {
+export type ServiceListingWriteInput = {
+  serviceTypeId: string;
+  categoryId: string;
+  title: string;
+  description: string;
+  pricingType: 'FIXED'|'STARTING_FROM'|'NEGOTIABLE';
+  price?: number | null;
+  durationEstimate?: string | null;
+  serviceLocation: 'AT_CUSTOMER'|'AT_PROVIDER'|'REMOTE';
+  attributes?: Record<string, unknown>;
+  status?: 'ACTIVE'|'PAUSED';
+};
+export async function createMyServiceListing(input: ServiceListingWriteInput, token: string, csrfToken?: string | null, offlineOperationId?: string, images: Array<{uri:string;fileName:string;mimeType:string}> = []): Promise<ServiceListing> {
   const headers = { ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}), ...(offlineOperationId ? { 'X-Offline-Op-Id': offlineOperationId } : {}) };
   let body: FormData | string = JSON.stringify(input);
-  if (images.length) { const form = new FormData(); for (const [key,value] of Object.entries(input)) if (value !== undefined) form.append(key, typeof value === 'string' ? value : String(value)); for (const image of images) form.append('images', {uri:image.uri,name:image.fileName,type:image.mimeType} as unknown as Blob); body = form; }
+  if (images.length) { const form = new FormData(); for (const [key,value] of Object.entries(input)) if (value !== undefined) form.append(key, value !== null && typeof value === 'object' ? JSON.stringify(value) : String(value)); for (const image of images) form.append('images', {uri:image.uri,name:image.fileName,type:image.mimeType} as unknown as Blob); body = form; }
   const response = await apiRequest<Envelope<ServiceListing>>('/api/v1/service-listings', { method: 'POST', token, headers, body });
   const created = readData(response, 'تعذر إنشاء الخدمة.');
   await invalidateServiceListingCaches(created.id);
   return created;
 }
-export async function updateMyServiceListing(id: string, input: Partial<{ categoryId: string; title: string; description: string; pricingType: 'FIXED'|'STARTING_FROM'|'NEGOTIABLE'; price: number|null; durationEstimate: string|null; serviceLocation: 'AT_CUSTOMER'|'AT_PROVIDER'|'REMOTE'; status: 'ACTIVE'|'PAUSED' }>, token: string, csrfToken?: string | null): Promise<ServiceListing> {
+export async function updateMyServiceListing(id: string, input: Partial<ServiceListingWriteInput>, token: string, csrfToken?: string | null): Promise<ServiceListing> {
   const response = await apiRequest<Envelope<ServiceListing>>(`/api/v1/service-listings/${encodeURIComponent(id)}`, { method: 'PATCH', token, headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined, body: JSON.stringify(input) });
   const updated = readData(response, 'تعذر تحديث الخدمة.');
   await invalidateServiceListingCaches(id);

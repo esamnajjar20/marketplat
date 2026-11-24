@@ -36,6 +36,8 @@ export type AdDraft = {
   city: string;
   categoryId: string;
   isNegotiable: boolean;
+  condition?: 'NEW' | 'USED' | 'REFURBISHED' | '';
+  storeId?: string | null;
 };
 
 function requireEnvelopeData<T>(response: Envelope<T>, fallback: string): T {
@@ -46,6 +48,25 @@ function requireEnvelopeData<T>(response: Envelope<T>, fallback: string): T {
 }
 
 export type ManagedAdPage = { items: ManagedAd[]; page: number; totalPages: number; total: number };
+export type MyAdStats = { activeAds: number; soldAds: number; totalAds: number; totalViews: number; favoritesCount: number };
+export async function fetchMyAdStats(token: string): Promise<MyAdStats> {
+  const response = await apiRequest<Envelope<MyAdStats>>('/api/v1/ads/me/stats', { token });
+  const data = requireEnvelopeData(response, 'تعذر تحميل إحصاءات الإعلانات.');
+  const count = (value: unknown, field: string): number => {
+    const parsed = Number(value);
+    if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '') || !Number.isInteger(parsed) || parsed < 0) {
+      throw new Error(`قيمة إحصاء الإعلانات غير صالحة: ${field}.`);
+    }
+    return Math.floor(parsed);
+  };
+  return {
+    activeAds: count(data.activeAds, 'activeAds'),
+    soldAds: count(data.soldAds, 'soldAds'),
+    totalAds: count(data.totalAds, 'totalAds'),
+    totalViews: count(data.totalViews, 'totalViews'),
+    favoritesCount: count(data.favoritesCount, 'favoritesCount'),
+  };
+}
 /** Refresh page one without losing previously loaded pages or duplicating rows. */
 export function mergeRefreshedAdsPage(
   existing: ManagedAd[],
@@ -87,6 +108,8 @@ export async function createAd(draft: AdDraft, token: string, csrfToken?: string
   if (draft.price.trim()) body.append('price', draft.price.trim());
   if (draft.categoryId.trim()) body.append('categoryId', draft.categoryId.trim());
   body.append('isNegotiable', String(draft.isNegotiable));
+  if (draft.condition) body.append('condition', draft.condition);
+  if (draft.storeId) body.append('storeId', draft.storeId);
   const response = await apiRequest<Envelope<ManagedAd>>('/api/v1/ads', {
     method: 'POST', body, token, headers: {
       ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}),
@@ -105,6 +128,7 @@ export async function updateAd(id: string, draft: AdDraft, token: string, csrfTo
     price: draft.price.trim() ? Number(draft.price) : null,
     categoryId: draft.categoryId.trim() || null,
     isNegotiable: draft.isNegotiable,
+    condition: draft.condition || null,
   };
   const response = await apiRequest<Envelope<ManagedAd>>(`/api/v1/ads/${encodeURIComponent(id)}`, {
     method: 'PATCH', body: JSON.stringify(payload), token,

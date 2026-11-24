@@ -3,6 +3,8 @@
  * استخدم parse/safeParse عند إرسال النماذج (تسجيل، إعلان، بيع...).
  */
 import { z } from 'zod';
+import { PASSWORD_LENGTH_MESSAGE, PASSWORD_WEAK_MESSAGE, getPasswordPolicyError } from '../../../../shared/password-policy';
+export { getPasswordPolicyError };
 
 export const emailSchema = z
   .string()
@@ -10,9 +12,10 @@ export const emailSchema = z
   .min(1, 'البريد مطلوب')
   .email('صيغة البريد غير صحيحة');
 
-export const passwordSchema = z
-  .string()
-  .min(8, 'كلمة المرور يجب ألا تقل عن 8 أحرف');
+export const passwordSchema = z.string().superRefine((value, ctx) => {
+  const message = getPasswordPolicyError(value);
+  if (message) ctx.addIssue({ code: z.ZodIssueCode.custom, message: message === PASSWORD_LENGTH_MESSAGE ? PASSWORD_LENGTH_MESSAGE : PASSWORD_WEAK_MESSAGE });
+});
 
 export const loginSchema = z.object({
   email: emailSchema,

@@ -1,7 +1,7 @@
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -17,7 +17,7 @@ const roles = [['MANAGER', 'مدير'], ['EDITOR', 'محرر'], ['STAFF', 'مو�
 
 import { useAsyncResource } from '@/hooks/useAsyncResource';
 
-type TeamData = { storeId: string; storeName: string; myRole: StoreMember['role'] | 'OWNER' | ''; items: StoreMember[] };
+type TeamData = { storeId: string; storeName: string; myRole: StoreMember['role'] | 'OWNER' | ''; items: StoreMember[]; total: number; totalPages: number };
 const EMPTY_MEMBERS: StoreMember[] = [];
 
 export default function StoreTeamScreen() {
@@ -30,6 +30,10 @@ export default function StoreTeamScreen() {
   const [role, setRole] = useState<StoreMember['role']>('STAFF');
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [moreMembers, setMoreMembers] = useState<StoreMember[]>([]);
+  const [memberPage, setMemberPage] = useState(1);
+  const [memberTotalPages, setMemberTotalPages] = useState(1);
+  const [moreBusy, setMoreBusy] = useState(false);
 
   // دورة الجلب الموحّدة: المتجر المختار + دوري + الأعضاء في مورد واحد (يُستبدل كاملًا أو يبقى كما هو عند الفشل).
   const resource = useAsyncResource<TeamData>(
@@ -52,8 +56,10 @@ export default function StoreTeamScreen() {
           throw new Error('لا تملك عضوية نشطة في هذا المتجر.');
         }
       }
-      const members = selectedStoreId ? await fetchStoreMembers(selectedStoreId, token) : [];
-      return { storeId: selectedStoreId, storeName: selectedStoreName, myRole: selectedRole, items: members };
+      const membersPage = selectedStoreId
+        ? await fetchStoreMembers(selectedStoreId, token, { page: 1, limit: 20 })
+        : { items: [], page: 1, total: 0, totalPages: 1, limit: 20 };
+      return { storeId: selectedStoreId, storeName: selectedStoreName, myRole: selectedRole, items: membersPage.items, total: membersPage.total, totalPages: membersPage.totalPages };
     },
     {
       key: `${accessToken ? 1 : 0}|${requestedStoreId ?? ''}`,
@@ -66,10 +72,33 @@ export default function StoreTeamScreen() {
   const storeId = data?.storeId ?? '';
   const storeName = data?.storeName ?? '';
   const myRole = data?.myRole ?? '';
-  const items = data?.items ?? EMPTY_MEMBERS;
+  useEffect(() => {
+    setMoreMembers([]);
+    setMemberPage(data ? 1 : 1);
+    setMemberTotalPages(data?.totalPages ?? 1);
+  }, [data]);
+  const items = [...(data?.items ?? EMPTY_MEMBERS), ...moreMembers.filter((member) => !(data?.items ?? EMPTY_MEMBERS).some((first) => first.id === member.id))];
   const error = actionError || resource.error || '';
   const canManage = myRole === 'OWNER' || myRole === 'MANAGER';
   const load = useCallback(() => reload({ soft: true }), [reload]);
+  const loadMoreMembers = async () => {
+    if (!storeId || !accessToken || moreBusy || memberPage >= memberTotalPages) return;
+    setMoreBusy(true);
+    setActionError('');
+    try {
+      const next = await fetchStoreMembers(storeId, accessToken, { page: memberPage + 1, limit: 20 });
+      setMoreMembers((previous) => {
+        const seen = new Set(previous.map((member) => member.id));
+        return [...previous, ...next.items.filter((member) => !seen.has(member.id))];
+      });
+      setMemberPage(next.page);
+      setMemberTotalPages(next.totalPages);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'تعذر تحميل بقية أعضاء الفريق.');
+    } finally {
+      setMoreBusy(false);
+    }
+  };
 
   const invite = async () => {
     if (!accessToken) return pushOnce('/login');
@@ -118,6 +147,8 @@ export default function StoreTeamScreen() {
           {myRole === 'OWNER' || member.role !== 'MANAGER' ? <PrimaryButton label="إزالة من الفريق" variant="danger" onPress={() => confirmAlert('إزالة العضو', 'سيُلغى وصول هذا العضو إلى المتجر. هل تريد المتابعة؟', [{ text: 'إلغاء', style: 'cancel' }, { text: 'إزالة', style: 'destructive', onPress: () => void act(() => removeStoreMember(storeId, member.id, accessToken, csrfToken)) }]) } /> : null}
         </> : null}
       </SectionCard>)}
+      {memberPage < memberTotalPages ? <PrimaryButton label={moreBusy ? 'جارٍ تحميل المزيد…' : 'تحميل المزيد من الأعضاء'} variant="secondary" busy={moreBusy} onPress={() => void loadMoreMembers()} /> : null}
+      <Text tone="muted">عرض {items.length} من {data?.total ?? items.length} عضو</Text>
     </> : null}
     {error ? <Notice>{error}</Notice> : null}
   </PageShell>;

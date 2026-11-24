@@ -113,12 +113,12 @@ const HomeSearchHeader = memo(function HomeSearchHeader({
         <AppIcon name="search" size={20} color={colors.muted} />
         <TextInput
           allowFontScaling
-          accessibilityLabel="ابحث عن إعلان"
+          accessibilityLabel="ابحث في الإعلانات والمنتجات والخدمات والمتاجر"
           maxFontSizeMultiplier={1.3}
           value={query}
           onChangeText={setQuery}
           onSubmitEditing={() => { submitSearch(); }}
-          placeholder="ابحث عن إعلان أو سلعة…"
+          placeholder="ابحث عن إعلان أو منتج أو خدمة أو متجر…"
           placeholderTextColor={colors.muted}
           returnKeyType="search"
           style={styles.searchInput}
@@ -504,8 +504,6 @@ export default function HomeScreen() {
   const {
     query,
     setQuery,
-    submittedSearch,
-    submitSearch,
     clearSearch,
     showFilters,
     setShowFilters,
@@ -527,6 +525,11 @@ export default function HomeScreen() {
     toggleFavorite,
   } = useHomeScreenState();
 
+  const submitHomeSearch = useCallback(() => {
+    const term = query.trim();
+    pushOnce(term ? `/search?q=${encodeURIComponent(term)}` : '/search');
+  }, [query]);
+
   const {
     ads,
     loading,
@@ -542,7 +545,7 @@ export default function HomeScreen() {
     loadMoreAds,
     markImageFailed,
   } = useHomeAds({
-    search: submittedSearch,
+    search: '',
     filters,
     sort: { sortBy, sortOrder },
   });
@@ -613,7 +616,7 @@ export default function HomeScreen() {
           isRestoring={isRestoring}
           query={query}
           onChangeQuery={setQuery}
-          onSubmit={submitSearch}
+          onSubmit={submitHomeSearch}
           onClear={clearSearch}
         />
       );
@@ -676,7 +679,7 @@ export default function HomeScreen() {
     );
   }, [
     ads, favoriteIds, failedImageIds, openAd, onToggleFavorite, markImageFailed, onCarouselEndReached,
-    user, isRestoring, query, setQuery, submitSearch, clearSearch,
+    user, isRestoring, query, setQuery, submitHomeSearch, clearSearch,
     showFilters, setShowFilters, cityInput, setCityInput, minPriceInput, setMinPriceInput, maxPriceInput, setMaxPriceInput,
     filterError, applyFilters, clearFilters, sortBy, setSortBy, setSortOrder,
     sectionsReady, sectionsVisible, sectionsRefreshKey, styles,

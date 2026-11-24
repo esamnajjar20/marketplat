@@ -21,7 +21,7 @@ import { fetchMyActiveStoreMemberships } from '@/features/commerce/store-managem
 import { fetchMyServiceProvider } from '@/features/services/providers.api';
 import { radius, spacing, typography, type ColorPalette, fontWeights, sizes, fontSizes } from '@/theme/tokens';
 import { useAppTheme } from '@/theme/ThemeProvider';
-import { DRAWER_ITEMS, getVisibleDrawerItems, getRouteAccess, getNavigationCapabilitiesRevision, subscribeNavigationCapabilities, resolveNavigationCapabilities, type DrawerSection, type NavigationCapabilities } from '@/lib/navigation-policy';
+import { DRAWER_ITEMS, getVisibleDrawerItems, getRouteAccess, getNavigationCapabilitiesRevision, subscribeNavigationCapabilities, resolveNavigationCapabilities, mergeNavigationCapabilitiesAfterFetch, type DrawerSection, type NavigationCapabilities } from '@/lib/navigation-policy';
 import { toAppHref } from '@/lib/typed-navigation';
 
 type MobileDrawerContextValue = {
@@ -109,11 +109,13 @@ function MobileDrawerOverlay({
     userId: string | null;
     status: 'idle' | 'loading' | 'ready' | 'partial' | 'unavailable';
     capabilities: NavigationCapabilities;
+    unknownCapabilities: NavigationCapabilities;
     fetchedAt: number;
   }>({
     userId: null,
     status: 'idle',
     capabilities: { sellerWorkspace: false, storeMembership: false, serviceProvider: false },
+    unknownCapabilities: { sellerWorkspace: false, storeMembership: false, serviceProvider: false },
     fetchedAt: 0,
   });
   const [capabilityReloadKey, setCapabilityReloadKey] = useState(0);
@@ -133,6 +135,7 @@ function MobileDrawerOverlay({
         userId: null,
         status: 'idle',
         capabilities: { sellerWorkspace: false, storeMembership: false, serviceProvider: false },
+        unknownCapabilities: { sellerWorkspace: false, storeMembership: false, serviceProvider: false },
         fetchedAt: 0,
       });
       return;
@@ -146,18 +149,36 @@ function MobileDrawerOverlay({
     }
     const force = revisionChanged || capabilityReloadKey !== lastReloadKeyRef.current;
     const cached = capabilityCacheRef.current;
-    if (!force && cached?.userId === user.id && Date.now() - cached.fetchedAt < 60_000) {
+    // Only a fully successful response is a reusable cache entry. Partial
+    // and unavailable results must be retried on the next drawer open.
+    if (
+      !force &&
+      cached?.userId === user.id &&
+      cached.status === 'ready' &&
+      Date.now() - cached.fetchedAt < 60_000
+    ) {
       setCapabilityState(cached);
       return;
     }
     lastReloadKeyRef.current = capabilityReloadKey;
+    const emptyCapabilities: NavigationCapabilities = {
+      sellerWorkspace: false,
+      storeMembership: false,
+      serviceProvider: false,
+    };
+    const previousCapabilities = cached?.userId === user.id
+      ? cached.capabilities
+      : emptyCapabilities;
     let active = true;
-    setCapabilityState((current) => ({
+    setCapabilityState({
       userId: user.id,
       status: 'loading',
-      capabilities: current.userId === user.id ? current.capabilities : { sellerWorkspace: false, storeMembership: false, serviceProvider: false },
-      fetchedAt: current.fetchedAt,
-    }));
+      capabilities: previousCapabilities,
+      unknownCapabilities: cached?.userId === user.id
+        ? cached.unknownCapabilities
+        : { sellerWorkspace: true, storeMembership: true, serviceProvider: true },
+      fetchedAt: cached?.userId === user.id ? cached.fetchedAt : 0,
+    });
 
     void Promise.allSettled([
       fetchMySellerProfile(accessToken, user.id),
@@ -169,14 +190,28 @@ function MobileDrawerOverlay({
       const memberships = membershipsResult.status === 'fulfilled' ? membershipsResult.value : [];
       const providerProfile = providerResult.status === 'fulfilled' ? providerResult.value : null;
       const failedCount = [sellerResult, membershipsResult, providerResult].filter((result) => result.status === 'rejected').length;
+      const resolvedCapabilities = resolveNavigationCapabilities({
+        hasSellerProfile: Boolean(sellerProfile),
+        activeStoreMembershipCount: memberships.length,
+        hasServiceProviderProfile: Boolean(providerProfile),
+      });
       const nextState = {
         userId: user.id,
         status: failedCount === 3 ? 'unavailable' as const : failedCount > 0 ? 'partial' as const : 'ready' as const,
-        capabilities: resolveNavigationCapabilities({
-          hasSellerProfile: Boolean(sellerProfile),
-          activeStoreMembershipCount: memberships.length,
-          hasServiceProviderProfile: Boolean(providerProfile),
-        }),
+        capabilities: mergeNavigationCapabilitiesAfterFetch(
+          previousCapabilities,
+          resolvedCapabilities,
+          {
+            sellerProfile: sellerResult.status === 'rejected',
+            storeMemberships: membershipsResult.status === 'rejected',
+            serviceProvider: providerResult.status === 'rejected',
+          },
+        ),
+        unknownCapabilities: {
+          sellerWorkspace: sellerResult.status === 'rejected' || membershipsResult.status === 'rejected',
+          storeMembership: membershipsResult.status === 'rejected',
+          serviceProvider: providerResult.status === 'rejected',
+        },
         fetchedAt: Date.now(),
       };
       capabilityCacheRef.current = nextState;
@@ -186,7 +221,8 @@ function MobileDrawerOverlay({
       const nextState = {
         userId: user.id,
         status: 'unavailable' as const,
-        capabilities: { sellerWorkspace: false, storeMembership: false, serviceProvider: false },
+        capabilities: previousCapabilities,
+        unknownCapabilities: { sellerWorkspace: true, storeMembership: true, serviceProvider: true },
         fetchedAt: Date.now(),
       };
       capabilityCacheRef.current = nextState;
@@ -195,6 +231,14 @@ function MobileDrawerOverlay({
 
     return () => { active = false; };
   }, [accessToken, capabilityReloadKey, capabilityRevision, isRestoring, open, user]);
+  const hasCurrentCapabilityState = Boolean(user?.id) && capabilityState.userId === user.id;
+  const capabilityStatus = hasCurrentCapabilityState
+    ? capabilityState.status
+    : user ? 'loading' : 'idle';
+  const currentCapabilities = hasCurrentCapabilityState ? capabilityState.capabilities : undefined;
+  const unknownCapabilities = hasCurrentCapabilityState
+    ? capabilityState.unknownCapabilities
+    : { sellerWorkspace: true, storeMembership: true, serviceProvider: true };
   const drawerWidth = Math.min(screenWidth * 0.86, 360);
   // Anchor to the logical start edge: right in RTL, left in LTR.
   const isRTL = true;
@@ -366,29 +410,33 @@ function MobileDrawerOverlay({
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-              {capabilityState.status === 'loading' ? (
+              {capabilityStatus === 'loading' ? (
                 <Text style={[styles.capabilityHint, { textAlign: 'right' }]}>جارٍ التحقق من أدوات الحساب…</Text>
               ) : null}
-              {(capabilityState.status === 'partial' || capabilityState.status === 'unavailable') ? (
+              {(capabilityStatus === 'partial' || capabilityStatus === 'unavailable') ? (
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => setCapabilityReloadKey((value) => value + 1)}
                   style={[styles.capabilityRetry, isRTL ? styles.rowRTL : styles.rowLTR]}
                 >
                   <AppIcon name="refresh" size={16} color={palette.brand} />
-                  <Text style={styles.capabilityHint}>تعذر التحقق من بعض الصلاحيات — إعادة المحاولة</Text>
+                  <Text style={styles.capabilityHint}>تعذر التحقق من الصلاحيات؛ أعد المحاولة. قد تتطلب مساحات العمل صلاحية حساب.</Text>
                 </Pressable>
               ) : null}
               {sections.map((section) => {
-                const activeCapabilities = capabilityState.status === 'ready' || capabilityState.status === 'partial'
-                  ? capabilityState.capabilities
-                  : undefined;
-                const items = getVisibleDrawerItems(Boolean(user), activeCapabilities)
+                const capabilitiesConfirmed = capabilityStatus === 'ready';
+                const activeCapabilities = currentCapabilities;
+                const items = getVisibleDrawerItems(Boolean(user), activeCapabilities, {
+                  // Keep only destinations whose capability is unknown visible
+                  // during loading/partial failure. Confirmed negative results
+                  // stay hidden. Route and API authorization remain authoritative.
+                  unknownCapabilities: Boolean(user) ? unknownCapabilities : undefined,
+                })
                   .filter((item) => item.section === section)
-                  .map((item) => item.path === '/seller-profile' && !activeCapabilities?.sellerWorkspace
+                  .map((item) => item.path === '/seller-profile' && capabilitiesConfirmed && !activeCapabilities?.sellerWorkspace
                     ? { ...item, label: 'ابدأ البيع' }
                     : item)
-                  .map((item) => item.path === '/service-provider-profile' && !activeCapabilities?.serviceProvider
+                  .map((item) => item.path === '/service-provider-profile' && capabilitiesConfirmed && !activeCapabilities?.serviceProvider
                     ? { ...item, label: 'تفعيل ملف مقدم الخدمة' }
                     : item);
                 if (!items.length) return null;

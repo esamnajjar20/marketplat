@@ -3,8 +3,7 @@ import { AppText as Text } from '@/components/ui/AppText';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
-import { useAsyncResource } from '@/hooks/useAsyncResource';
-
+import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { pushOnce } from '@/lib/navigation';
 import { fetchOpenRequests, type MarketplaceRequest } from '@/features/requests/requests.api';
 import {
@@ -20,7 +19,6 @@ import {
 } from '@/components/ui';
 import { spacing, typography } from '@/theme/tokens';
 import { AppFlashList } from '@/components/ui/AppFlashList';
-
 
 const typeLabel: Record<string, string> = {
   SERVICE: 'خدمة',
@@ -42,31 +40,42 @@ export default function RequestsScreen() {
   const [sort, setSort] = useState('newest');
 
   useEffect(() => {
-    const t = setTimeout(() => { setQApplied(q); setCityApplied(city); }, 350);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => {
+      setQApplied(q.trim());
+      setCityApplied(city.trim());
+    }, 350);
+    return () => clearTimeout(timer);
   }, [q, city]);
 
-  // دورة الجلب الموحّدة: الفلاتر المطبّقة هي هوية القائمة، فيُلغى الطلب القديم عند تغيّرها.
-  const resource = useAsyncResource<MarketplaceRequest[]>(
-    async () => (await fetchOpenRequests({ q: qApplied, city: cityApplied, type: type || undefined, sort })).items,
-    {
-      key: `${qApplied}|${cityApplied}|${type}|${sort}`,
-      tag: 'requests',
-      mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل الطلبات.'),
+  const list = usePaginatedList<MarketplaceRequest>({
+    key: `${qApplied}|${cityApplied}|${type}|${sort}`,
+    pageSize: 20,
+    fetchPage: async (page, signal) => {
+      const result = await fetchOpenRequests({
+        page,
+        limit: 20,
+        q: qApplied,
+        city: cityApplied,
+        type: type || undefined,
+        sort,
+        signal,
+      });
+      return { items: result.items, meta: { page: result.page, totalPages: result.totalPages, total: result.total } };
     },
-  );
-  const { loading, reload } = resource;
-  const items = resource.data ?? [];
-  const error = resource.error ?? '';
-  const load = useCallback(() => reload(), [reload]);
-  const softReload = useCallback(() => { void reload({ soft: true }); }, [reload]);
+    getItemKey: (item) => item.id,
+    mapError: (error) => error instanceof Error && error.message ? error.message : 'تعذر تحميل الطلبات.',
+  });
+
+  const retryInitial = useCallback(() => void list.retry(), [list.retry]);
+  const retryMore = useCallback(() => void list.retry(), [list.retry]);
 
   return (
     <PageShell title="طلبات السوق" scroll={false}>
-      <AppFlashList refreshControl={<BrandRefreshControl refreshing={resource.refreshing} onRefresh={softReload} />}
-        data={loading || error ? [] : items}
+      <AppFlashList
+        refreshControl={<BrandRefreshControl refreshing={list.refreshing} onRefresh={() => void list.refresh()} />}
+        data={list.items}
         keyExtractor={requestKeyExtractor}
-        contentContainerStyle={{ paddingBottom: spacing.x4l }}
+        contentContainerStyle={{ paddingBottom: spacing.x4l, paddingHorizontal: spacing.md }}
         ListHeaderComponent={
           <View style={{ gap: spacing.md, marginBottom: spacing.sm }}>
             <PrimaryButton label="+ إنشاء طلب جديد" onPress={() => pushOnce('/request-create')} />
@@ -96,12 +105,13 @@ export default function RequestsScreen() {
                 <Chip key={value} label={label} selected={sort === value} onPress={() => setSort(value)} />
               ))}
             </View>
-            {loading ? <LoadingState message="جاري تحميل الطلبات…" /> : null}
-            {error ? <ErrorState title="تعذر تحميل الطلبات" description={error} onAction={() => void load()} /> : null}
+            {list.loading && list.items.length === 0 ? <LoadingState message="جاري تحميل الطلبات…" /> : null}
+            {list.error && list.items.length === 0 ? <ErrorState title="تعذر تحميل الطلبات" description={list.error} onAction={retryInitial} /> : null}
+            {list.error && list.items.length > 0 ? <ErrorState title="تعذر تحديث الطلبات" description={list.error} onAction={retryInitial} /> : null}
           </View>
         }
         ListEmptyComponent={
-          !loading && !error ? (
+          !list.loading && !list.error ? (
             <EmptyState title="لا توجد طلبات" description="جرّب تغيير الفلاتر أو أنشئ طلبًا جديدًا." />
           ) : undefined
         }
@@ -122,7 +132,25 @@ export default function RequestsScreen() {
         )}
         ItemSeparatorComponent={RequestSeparator}
         ListFooterComponent={
-          !loading && items.length > 0 ? <Notice tone="muted">{items.length} طلب مفتوح</Notice> : undefined
+          list.items.length > 0 ? (
+            <View style={{ gap: spacing.sm, paddingTop: spacing.md, paddingBottom: spacing.xl }}>
+              {list.loadMoreError ? <ErrorState title="تعذر تحميل بقية الطلبات" description={list.loadMoreError} onAction={retryMore} /> : null}
+              {list.hasNextPage ? (
+                <PrimaryButton
+                  label={list.loadingMore ? 'جارٍ تحميل المزيد…' : list.loadMoreError ? 'إعادة المحاولة' : 'تحميل المزيد'}
+                  busy={list.loadingMore}
+                  disabled={list.loadingMore}
+                  variant="secondary"
+                  onPress={() => void (list.loadMoreError ? list.retry() : list.loadMore())}
+                />
+              ) : null}
+              <Notice tone="muted">
+                {list.totalCount > list.items.length
+                  ? `تعرض ${list.items.length} من أصل ${list.totalCount} طلب مفتوح`
+                  : `${list.totalCount || list.items.length} طلب مفتوح`}
+              </Notice>
+            </View>
+          ) : undefined
         }
       />
     </PageShell>

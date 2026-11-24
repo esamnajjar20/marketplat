@@ -4,14 +4,16 @@ import { AccessiblePressable as Pressable } from '@/components/AccessiblePressab
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { confirmAlert } from '@/lib/confirm';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/features/auth/AuthContext';
-import { fetchMyProducts, fetchMyStore, type ProductSummary } from '@/features/commerce/commerce.api';
-import { addProductToCollection, createCollection, deleteCollection, fetchMyCollections, fetchPublicCollectionProducts, removeProductFromCollection, updateCollection, type StoreCollection } from '@/features/commerce/store-management.api';
+import { fetchMyProducts, fetchMyStore, fetchStore, type ProductSummary } from '@/features/commerce/commerce.api';
+import { addProductToCollection, createCollection, deleteCollection, fetchMyCollections, fetchManagedCollectionProducts, removeProductFromCollection, updateCollection, type StoreCollection } from '@/features/commerce/store-management.api';
 import { Field, Notice, PageShell, PrimaryButton, SectionCard } from '@/components/ui';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 export default function StoreCollectionsScreen() {
   const { colors } = useAppTheme();
+  const routeParams = useLocalSearchParams<{ storeId?: string | string[] }>();
+  const storeIdParam = Array.isArray(routeParams.storeId) ? routeParams.storeId[0] : routeParams.storeId;
   const { accessToken, csrfToken } = useAuth();
   const [items, setItems] = useState<StoreCollection[]>([]);
   const [products, setProducts] = useState<ProductSummary[]>([]);
@@ -39,7 +41,7 @@ export default function StoreCollectionsScreen() {
       setLoading(true);
     setError('');
     try {
-      const [csR, psR, stR] = await Promise.allSettled([fetchMyCollections(accessToken), fetchMyProducts(accessToken), fetchMyStore(accessToken)]);
+      const [csR, psR, stR] = await Promise.allSettled([fetchMyCollections(accessToken, storeIdParam), fetchMyProducts(accessToken, '', { storeId: storeIdParam }), storeIdParam ? fetchStore(storeIdParam) : fetchMyStore(accessToken)]);
       if (csR.status === 'rejected')
         throw csR.reason;
       setItems(csR.value);
@@ -62,7 +64,7 @@ export default function StoreCollectionsScreen() {
       hasLoadedRef.current = true;
       setLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, storeIdParam]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -73,7 +75,7 @@ export default function StoreCollectionsScreen() {
     setError('');
     try {
       const next = await fetchMyProducts(accessToken, '', {
-        page: productsPage + 1, limit: 50
+        page: productsPage + 1, limit: 50, storeId: storeIdParam
       });
       setProducts(old => {
         const ids = new Set(old.map(p => p.id));
@@ -101,7 +103,7 @@ export default function StoreCollectionsScreen() {
     try {
       await createCollection({
         name: name.trim(), description: description.trim() || undefined
-      }, accessToken, csrfToken);
+      }, accessToken, csrfToken, storeIdParam);
       setName('');
       setDescription('');
       await load();
@@ -139,7 +141,7 @@ export default function StoreCollectionsScreen() {
     setCollectionLoading(collectionId);
     setError('');
     try {
-      const rows = await fetchPublicCollectionProducts(collectionId);
+      const rows = await fetchManagedCollectionProducts(collectionId, accessToken);
       setCollectionProducts(v => ({
         ...v, [collectionId]: rows
       }));
@@ -148,7 +150,7 @@ export default function StoreCollectionsScreen() {
       }));
     }
     catch (e) {
-      setError(e instanceof Error ? e.message : 'تعذر تحميل منتجات المجموعة. قد يلزم إظهار المجموعة أولًا.');
+      setError(e instanceof Error ? e.message : 'تعذر تحميل منتجات المجموعة للإدارة.');
     }
     finally {
       setCollectionLoading('');

@@ -10,15 +10,17 @@ import { AppImage } from '@/components/AppImage';
 
 import { pushOnce } from '@/lib/navigation';
 import { fetchProducts, type ProductSummary } from '@/features/commerce/commerce.api';
+import { getProductPricing } from '@/features/commerce/product-pricing';
 import { fontSizes, spacing, fontWeights, radius } from '@/theme/tokens';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
 import { AppFlashList } from '@/components/ui/AppFlashList';
 import { ListGapMd } from '@/components/ui/ListSeparator';
 
 function price(p: ProductSummary): string {
-  const value = Number(p.effectivePrice?.price ?? p.discountPrice ?? p.price);
-  return Number.isFinite(value)
-    ? formatMoney(value)
+  const value = getProductPricing(p).currentPrice;
+  const amount = Number(value);
+  return value != null && value !== '' && Number.isFinite(amount)
+    ? formatMoney(amount)
     : 'السعر عند التواصل';
 }
 
@@ -75,8 +77,8 @@ export default function PromotedScreen() {
                   <Text tone="ink" strong size={15} numberOfLines={2}>{item.name}</Text>
                   <Text tone="muted" size={12}>{item.store?.name || 'متجر'}</Text>
                   <Text style={{ color: colors.brand, fontWeight: fontWeights.bold }}>{price(item)}</Text>
-                  {(item.effectivePrice?.originalPrice != null || (item.discountPrice != null && Number(item.discountPrice) < Number(item.price))) ? <Text style={{ color: colors.muted, fontSize: fontSizes[12], textDecorationLine: 'line-through' }}>{formatMoney(Number(item.effectivePrice?.originalPrice ?? item.price))}</Text> : null}
-                  {item.discountPrice != null && Number.isFinite(Number(item.discountPrice)) && Number.isFinite(Number(item.price)) && Number(item.price) > 0 ? <Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: fontWeights.bold }}>خصم {Math.round((1 - Number(item.discountPrice) / Number(item.price)) * 100)}%</Text> : null}
+                  {getProductPricing(item).hasDiscount ? <Text style={{ color: colors.muted, fontSize: fontSizes[12], textDecorationLine: 'line-through' }}>{formatMoney(Number(getProductPricing(item).originalPrice))}</Text> : null}
+                  {getProductPricing(item).discountPercentage != null ? <Text style={{ color: colors.brand, fontSize: fontSizes[12], fontWeight: fontWeights.bold }}>خصم {getProductPricing(item).discountPercentage}%</Text> : null}
                   <Text style={{ color: colors.muted, fontSize: fontSizes[12] }}>{item.availability === 'OUT_OF_STOCK' ? 'غير متوفر' : 'عرض ترويجي'}</Text>
                 </View>
               </View>

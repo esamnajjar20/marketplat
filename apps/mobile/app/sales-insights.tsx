@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { BrandRefreshControl } from '@/components/ui/BrandRefreshControl';
 import { ScreenFrame } from '@/components/ui/ScreenFrame';
 import { useLocalSearchParams } from 'expo-router';
@@ -13,6 +13,7 @@ import { fetchSalesDashboard, fetchSalesReport, fetchSalesSmartInsights, type Sa
 import type { SalePaymentStatus } from '@/features/sales/sales.api';
 import { formatMoney, formatNumber, formatDate } from '@/lib/formatters';
 import { useAsyncResource } from '@/hooks/useAsyncResource';
+import { DatePickerField } from '@/components/ui/DatePickerField';
 
 type InsightsData = { dashboard: SalesDashboardData | null; report: SalesReportData | null; smart: SalesSmartInsightsData | null };
 import { fontSizes, radius, spacing, fontWeights, sizes, insets } from '@/theme/tokens';
@@ -50,6 +51,8 @@ export default function SalesInsightsScreen() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [status, setStatus] = useState<SalePaymentStatus | ''>('');
+  const [reportPage, setReportPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState<{
     from: string;
     to: string;
@@ -66,13 +69,13 @@ export default function SalesInsightsScreen() {
       const next: InsightsData = { dashboard: null, report: null, smart: null };
       if (mode === 'analytics' || mode === 'overview') next.dashboard = await fetchSalesDashboard(token, undefined, user.id);
       else if (mode === 'reports') next.report = await fetchSalesReport(token, {
-        from: appliedFilters.from || undefined, to: appliedFilters.to ? `${appliedFilters.to}T23:59:59.999` : undefined, status: appliedFilters.status || undefined, limit: 100
+        from: appliedFilters.from || undefined, to: appliedFilters.to ? `${appliedFilters.to}T23:59:59.999` : undefined, status: appliedFilters.status || undefined, page: reportPage, limit: 100
       }, undefined, user.id);
       else next.smart = await fetchSalesSmartInsights(token, undefined, user.id);
       return next;
     },
     {
-      key: `${user?.id ?? ''}|${mode}|${appliedFilters.from}|${appliedFilters.to}|${appliedFilters.status}`,
+      key: `${user?.id ?? ''}|${mode}|${appliedFilters.from}|${appliedFilters.to}|${appliedFilters.status}|${mode === 'reports' ? reportPage : 1}`,
       manual: isRestoring || !user?.id,
       tag: 'sales-insights',
       mapError: (e) => (e instanceof Error && e.message ? e.message : 'تعذر تحميل بيانات المبيعات.'),
@@ -84,6 +87,57 @@ export default function SalesInsightsScreen() {
   const smart = data?.smart ?? null;
   const error = actionError || resource.error || '';
   const load = useCallback((refresh = false) => reload(refresh ? { soft: true } : undefined), [reload]);
+  const exportCsv = useCallback(async () => {
+    const token = getAccessToken();
+    if (!token || !user?.id) {
+      Alert.alert('انتهت الجلسة', 'سجّل الدخول مجددًا لتصدير التقرير.');
+      return;
+    }
+    setExporting(true);
+    setActionError('');
+    try {
+      const filters = {
+        from: appliedFilters.from || undefined,
+        to: appliedFilters.to ? `${appliedFilters.to}T23:59:59.999` : undefined,
+        status: appliedFilters.status || undefined,
+        limit: 500,
+      };
+      const firstPage = await fetchSalesReport(token, { ...filters, page: 1 }, undefined, user.id);
+      const allRows = [...firstPage.rows];
+      let page = 2;
+      // Keep the native share-sheet payload bounded. Users can narrow the
+      // date range when the report exceeds the mobile export cap.
+      while (firstPage.totalCount && allRows.length < Math.min(firstPage.totalCount, 1000)) {
+        const next = await fetchSalesReport(token, { ...filters, page }, undefined, user.id);
+        allRows.push(...next.rows);
+        if (!next.hasMore || next.rows.length === 0 || allRows.length >= 1000) break;
+        page += 1;
+      }
+      if (!allRows.length) {
+        Alert.alert('لا توجد بيانات', 'لا توجد عمليات لتصديرها ضمن الفلاتر الحالية.');
+        return;
+      }
+      const cell = (value: unknown) => {
+        let text = String(value ?? '');
+        const numericValue = /^-?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text);
+        if (!numericValue && /^[\s\u0000-\u001f]*[=+\-@]/.test(text)) text = `'${text}`;
+        return `"${text.replace(/"/g, '""')}"`;
+      };
+      const headers = ['رقم الفاتورة', 'التاريخ', 'العميل', 'العملية', 'الكمية الصافية', 'الإيراد', 'التكلفة', 'الربح', 'المدفوع', 'المتبقي', 'المسترد', 'الحالة', 'العملة'];
+      const csvRows = allRows.map((row) => [row.invoiceNumber, row.soldAt, row.buyerName, row.title, row.quantity, row.revenue, row.cost, row.profit, row.paid, row.due, row.refunded, row.status, row.currency]);
+      const csv = `\uFEFF${[headers, ...csvRows].map((row) => row.map(cell).join(',')).join('\r\n')}`;
+      await Share.share({ title: 'تقرير المبيعات CSV', message: csv });
+      if ((firstPage.totalCount ?? allRows.length) > allRows.length) {
+        Alert.alert('تصدير جزئي', `تم تجهيز ${allRows.length} من أصل ${firstPage.totalCount} عملية. استخدم فترة زمنية أضيق لتصدير الباقي.`);
+      }
+    } catch (exportError) {
+      const message = exportError instanceof Error ? exportError.message : 'تعذر تجهيز ملف CSV.';
+      setActionError(message);
+      Alert.alert('تعذر التصدير', message);
+    } finally {
+      setExporting(false);
+    }
+  }, [getAccessToken, appliedFilters, user?.id]);
   if (isRestoring)
     return <ScreenFrame><LoadingState message="جارٍ استعادة الجلسة…"/></ScreenFrame>;
   if (!user)
@@ -94,15 +148,15 @@ export default function SalesInsightsScreen() {
   <ScrollView contentContainerStyle={styles.content} refreshControl={<BrandRefreshControl refreshing={refreshing} onRefresh={() => void load(true)}/>}>
    {loading ? <LoadingState message="جارٍ تحميل بيانات المبيعات…"/> : error ? <ErrorState title="تعذر تحميل البيانات" description={error} onAction={() => void load(true)}/> : null}
    {!loading && !error && (mode === 'analytics' || mode === 'overview') && dashboard ? <>
-    <SectionCard><Text style={styles.heading}>ملخص الأداء</Text><View style={styles.metrics}>
-     {metric('إجمالي الإيرادات', money(dashboard.summary.totalRevenue))}{metric('صافي الربح', money(dashboard.summary.netProfit))}{metric('المبالغ المحصّلة', money(dashboard.summary.totalPaid))}{metric('المبالغ المستحقة', money(dashboard.summary.totalDue), true)}{metric('عدد عمليات البيع', formatNumber(dashboard.summary.salesCount))}{metric('الكمية المباعة', formatNumber(dashboard.summary.quantity))}
+    <SectionCard><Text style={styles.heading}>ملخص الأداء · هذا الشهر</Text><View style={styles.metrics}>
+     {metric('إجمالي الإيرادات', money(dashboard.summary.totalRevenue))}{metric('صافي الربح', money(dashboard.summary.netProfit))}{metric('المبالغ المحصّلة', money(dashboard.summary.totalPaid))}{metric('المبالغ المستحقة لهذا الشهر', money(dashboard.summary.totalDue), true)}{metric('عدد عمليات البيع', formatNumber(dashboard.summary.salesCount))}{metric('الكمية الصافية بعد المرتجعات', formatNumber(dashboard.summary.quantity))}
     </View></SectionCard>
-    <SectionCard><Text style={styles.heading}>مقارنة الفترة السابقة</Text><View style={styles.metrics}>{metric('الإيراد الحالي', money(dashboard.compare.current.totalRevenue))}{metric('الإيراد السابق', money(dashboard.compare.previous.totalRevenue))}{metric('نسبة التغير', dashboard.compare.revenueChangePercentage == null ? 'غير متاح' : `${dashboard.compare.revenueChangePercentage.toFixed(1)}%`)}{metric('الديون المتأخرة', money(dashboard.debt.overdueDue), true)}</View></SectionCard>
-    <SectionCard><Text style={styles.heading}>أفضل المنتجات مبيعًا</Text>{dashboard.topProducts.length ? dashboard.topProducts.slice(0, 8).map((item, index) => <View key={`${item.productId ?? item.title}:${index}`} style={styles.row}><Text style={styles.rowMain}>{item.title}</Text><Text style={styles.rowMeta}>{formatNumber(item.quantity)} · {money(item.revenue)}</Text></View>) : <Text style={styles.muted}>لا توجد بيانات منتجات كافية.</Text>}</SectionCard>
-    <SectionCard><Text style={styles.heading}>المنتجات منخفضة المخزون</Text>{dashboard.lowStock.length ? dashboard.lowStock.slice(0, 8).map(item => <View key={item.id} style={styles.row}><Text style={styles.rowMain}>{item.name}</Text><Text style={styles.danger}>{item.stockQuantity ?? 'غير محدد'}</Text></View>) : <Text style={styles.muted}>لا توجد منتجات منخفضة المخزون.</Text>}</SectionCard>
+    <SectionCard><Text style={styles.heading}>مقارنة الفترة السابقة</Text><View style={styles.metrics}>{metric('الإيراد الحالي', money(dashboard.compare.current.totalRevenue))}{metric('الإيراد السابق', money(dashboard.compare.previous.totalRevenue))}{metric('نسبة التغير', dashboard.compare.revenueChangePercentage == null ? 'غير متاح' : `${dashboard.compare.revenueChangePercentage.toFixed(1)}%`)}{metric('الديون المتأخرة حاليًا', money(dashboard.debt.overdueDue), true)}</View></SectionCard>
+    <SectionCard><Text style={styles.heading}>أفضل المنتجات · كل الفترة</Text>{dashboard.topProducts.length ? dashboard.topProducts.slice(0, 8).map((item, index) => <View key={`${item.productId ?? item.title}:${index}`} style={styles.row}><Text style={styles.rowMain}>{item.title}</Text><Text style={styles.rowMeta}>{formatNumber(item.quantity)} · {money(item.revenue)}</Text></View>) : <Text style={styles.muted}>لا توجد بيانات منتجات كافية.</Text>}</SectionCard>
+    <SectionCard><Text style={styles.heading}>المنتجات منخفضة المخزون حاليًا</Text>{dashboard.lowStock.length ? dashboard.lowStock.slice(0, 8).map(item => <View key={item.id} style={styles.row}><Text style={styles.rowMain}>{item.name}</Text><Text style={styles.danger}>{item.stockQuantity ?? 'غير محدد'}</Text></View>) : <Text style={styles.muted}>لا توجد منتجات منخفضة المخزون.</Text>}</SectionCard>
    </> : null}
    {!loading && !error && mode === 'reports' ? <>
-    <SectionCard><Text style={styles.heading}>تصفية التقرير</Text><Text style={styles.label}>من تاريخ (YYYY-MM-DD)</Text><TextInput value={from} onChangeText={setFrom} placeholder="2026-01-01" placeholderTextColor={colors.muted} style={styles.input} autoCapitalize="none"/><Text style={styles.label}>إلى تاريخ (YYYY-MM-DD)</Text><TextInput value={to} onChangeText={setTo} placeholder="2026-12-31" placeholderTextColor={colors.muted} style={styles.input} autoCapitalize="none"/><Text style={styles.label}>حالة الدفع</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{STATUS.map(item => <Pressable accessibilityRole="button" key={item.value || 'all'} onPress={() => setStatus(item.value)} style={[styles.filter, status === item.value && styles.filterActive]}><Text style={[styles.filterText, status === item.value && styles.filterTextActive]}>{item.label}</Text></Pressable>)}</ScrollView><Pressable accessibilityRole="button" onPress={() => {
+    <SectionCard><Text style={styles.heading}>تصفية التقرير</Text><DatePickerField label="من تاريخ" value={from} onChange={setFrom} /><DatePickerField label="إلى تاريخ" value={to} onChange={setTo} /><Text style={styles.label}>حالة الدفع</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}>{STATUS.map(item => <Pressable accessibilityRole="button" key={item.value || 'all'} onPress={() => setStatus(item.value)} style={[styles.filter, status === item.value && styles.filterActive]}><Text style={[styles.filterText, status === item.value && styles.filterTextActive]}>{item.label}</Text></Pressable>)}</ScrollView><Pressable accessibilityRole="button" onPress={() => {
         const validDate = (value: string) => {
           if (!value)
             return true;
@@ -116,11 +170,12 @@ export default function SalesInsightsScreen() {
           return;
         }
         setActionError('');
+        setReportPage(1);
         setAppliedFilters({
           from, to, status
         });
       }} style={styles.primary}><Text style={styles.primaryText}>تطبيق الفلاتر</Text></Pressable></SectionCard>
-    {report ? <><SectionCard><Text style={styles.heading}>إجماليات التقرير</Text><View style={styles.metrics}>{metric('الإيراد', money(report.totals.revenue))}{metric('التكلفة', money(report.totals.cost))}{metric('الربح', money(report.totals.profit))}{metric('المدفوع', money(report.totals.paid))}{metric('المتبقي', money(report.totals.due), true)}{metric('المسترد', money(report.totals.refunded))}</View><Text style={styles.muted}>عرض {report.count} من أصل {report.totalCount ?? report.count} عملية.</Text></SectionCard><SectionCard><Text style={styles.heading}>تفاصيل العمليات</Text>{report.rows.length ? report.rows.map(row => <View key={row.id} style={styles.reportRow}><Text style={styles.rowMain}>{row.title}</Text><Text style={styles.rowMeta}>{row.buyerName} · {formatDate(row.soldAt, 'date')}</Text><View style={styles.rowBetween}><Text style={styles.rowMeta}>الإيراد {money(row.revenue)}</Text><Text style={styles.rowMeta}>الربح {money(row.profit)}</Text></View></View>) : <Text style={styles.muted}>لا توجد عمليات ضمن الفلاتر.</Text>}</SectionCard></> : null}
+    {report ? <><SectionCard><Text style={styles.heading}>إجماليات التقرير</Text><View style={styles.metrics}>{metric('الإيراد', money(report.totals.revenue))}{metric('التكلفة', money(report.totals.cost))}{metric('الربح', money(report.totals.profit))}{metric('المدفوع', money(report.totals.paid))}{metric('المتبقي', money(report.totals.due), true)}{metric('المسترد', money(report.totals.refunded))}</View><Text style={styles.muted}>الصفحة {report.page ?? reportPage} · عرض {report.count} عملية من أصل {report.totalCount ?? report.count} عملية.</Text><Pressable accessibilityRole="button" disabled={exporting} onPress={() => void exportCsv()} style={[styles.primary, exporting && { opacity: 0.6 }]}><Text style={styles.primaryText}>{exporting ? 'جارٍ تجهيز CSV…' : 'مشاركة التقرير بصيغة CSV'}</Text></Pressable><Text style={styles.muted}>تصدير الموبايل يشارك بيانات CSV كنص عبر قائمة المشاركة، وبحد أقصى 1000 عملية في المرة الواحدة.</Text></SectionCard><SectionCard><Text style={styles.heading}>تفاصيل العمليات</Text>{report.rows.length ? report.rows.map(row => <View key={row.id} style={styles.reportRow}><Text style={styles.rowMain}>{row.title}</Text><Text style={styles.rowMeta}>{row.buyerName} · {formatDate(row.soldAt, 'date')}</Text><View style={styles.rowBetween}><Text style={styles.rowMeta}>الإيراد {money(row.revenue)}</Text><Text style={styles.rowMeta}>الربح {money(row.profit)}</Text></View></View>) : <Text style={styles.muted}>لا توجد عمليات ضمن الفلاتر.</Text>}<View style={styles.rowBetween}>{reportPage > 1 ? <Pressable accessibilityRole="button" onPress={() => setReportPage((page) => Math.max(1, page - 1))} style={styles.filter}><Text style={styles.filterText}>الصفحة السابقة</Text></Pressable> : <View/>}{report.hasMore ? <Pressable accessibilityRole="button" onPress={() => setReportPage((page) => page + 1)} style={styles.filter}><Text style={styles.filterText}>الصفحة التالية</Text></Pressable> : null}</View></SectionCard></> : null}
    </> : null}
    {!loading && !error && mode === 'smart' && smart ? <>
     <SectionCard><Text style={styles.heading}>مؤشرات آخر {smart.periodDays} يومًا</Text><View style={styles.metrics}>{metric('الإيرادات', money(smart.kpis.revenue))}{metric('التغير', `${smart.kpis.revenueChange.toFixed(1)}%`)}{metric('عدد المبيعات', formatNumber(smart.kpis.orders))}{metric('متوسط الفاتورة', money(smart.kpis.averageTicket))}{metric('الديون المتأخرة', money(smart.kpis.overdueAmount), true)}{metric('مخزون منخفض', formatNumber(smart.kpis.lowStockProducts))}</View></SectionCard>

@@ -1,5 +1,5 @@
 import { useState, type Ref, type ComponentRef } from 'react';
-import { TextInput, View, type TextInputProps } from 'react-native';
+import { TextInput, View, type TextInputProps, type TextStyle, type ViewStyle, type StyleProp } from 'react-native';
 import { AppText as Text } from './AppText';
 import { useAppTheme } from '@/theme/ThemeProvider';
 import { useUIStyles } from './styles';
@@ -29,6 +29,11 @@ export function Field({
   textContentType,
   textAlign,
   inputRef,
+  inputStyle,
+  labelStyle,
+  containerStyle,
+  hint,
+  showCharacterCount = false,
 }: {
   label: string;
   value: string;
@@ -50,13 +55,18 @@ export function Field({
   textContentType?: TextInputProps['textContentType'];
   textAlign?: TextInputProps['textAlign'];
   inputRef?: Ref<TextInputHandle>;
+  inputStyle?: StyleProp<TextStyle>;
+  labelStyle?: StyleProp<TextStyle>;
+  containerStyle?: StyleProp<ViewStyle>;
+  hint?: string;
+  showCharacterCount?: boolean;
 }) {
   const [focused, setFocused] = useState(false);
   const s = useUIStyles();
   const { colors } = useAppTheme();
   return (
-    <View style={s.field}>
-      <Text style={s.label}>{label}</Text>
+    <View style={[s.field, containerStyle]}>
+      <Text style={[s.label, labelStyle]}>{label}</Text>
       <TextInput allowFontScaling maxFontSizeMultiplier={1.3}
         ref={inputRef}
         value={value}
@@ -86,8 +96,14 @@ export function Field({
         returnKeyType={returnKeyType}
         onSubmitEditing={onSubmitEditing}
         autoFocus={autoFocus}
-        style={[s.input, multiline && s.textarea, focused && s.inputFocused, !editable && s.inputDisabled, error && s.inputError]}
+        style={[s.input, inputStyle, multiline && s.textarea, focused && s.inputFocused, !editable && s.inputDisabled, error && s.inputError]}
       />
+      {hint || showCharacterCount ? (
+        <Text style={s.fieldHint}>
+          {hint ? `${hint}${showCharacterCount ? ' · ' : ''}` : ''}
+          {showCharacterCount && maxLength ? `${value.length}/${maxLength}` : ''}
+        </Text>
+      ) : null}
       {error ? <Text accessibilityRole="alert" accessibilityLiveRegion="polite" style={s.fieldError}>{error}</Text> : null}
     </View>
   );

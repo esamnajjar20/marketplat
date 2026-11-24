@@ -2,6 +2,7 @@
  * MarketPlat Design Tokens — UI/UX Refresh 2026-11
  * مصدر واحد للألوان، المسافات، الزوايا، الخطوط، والظلال.
  * لا تستخدم قيم hex أو أحجام خطوط مباشرة في الشاشات — مرّ من هنا.
+ * الخطوط: Native يستخدم خط النظام لتجنّب تضمين ملفات خطوط إضافية؛ انظر DESIGN-SYSTEM-AR.md.
  *
  * تحسين شامل:
  * - لوحة ألوان أدق مع تباين أفضل وعمق بصري
@@ -15,7 +16,7 @@ export const colors = {
   // نص — هوية سوق غزة الدافئة
   ink: '#241E19',
   inkSecondary: '#4A433A',
-  muted: '#6B6459',
+  muted: '#6B6358',
   mutedSoft: '#A39E94',
 
   // علامة تجارية: زيتوني غني
@@ -24,7 +25,7 @@ export const colors = {
   brandLight: '#5E9C73',
   // نص عالي التباين على brandSoft (WCAG AA)
   brandOnSoft: '#1F4D33',
-  brandSoft: '#E8F1EC',
+  brandSoft: '#E8F3EC',
   brandSoftActive: '#CFE0D5',
   brandMuted: '#5E9C73',
 
@@ -35,13 +36,13 @@ export const colors = {
   surfaceSecondary: '#F6F1E7',
 
   // حدود
-  border: '#E7E2DA',
+  border: '#E6E0D6',
   borderStrong: '#D4CFC6',
   borderSubtle: '#F0EBE3',
   // حدود أوضح لعناصر التحكم
   // 3:1 contrast against white/canvas surfaces for non-text controls.
   controlBorder: '#7E8C82',
-  focus: '#2F6B4A',
+  focus: '#397F56',
   focusRing: 'rgba(47, 107, 74, 0.28)',
 
   // Overlays للمحتوى فوق الوسائط
@@ -55,32 +56,32 @@ export const colors = {
 
   // تمييز: تيراكوتا دافئة
   accent: '#AD531F',
-  accentSoft: '#FBEEE6',
+  accentSoft: '#F8EDE7',
   accentBorder: '#F1D3C0',
 
   // حالات دلالية
-  danger: '#C53030',
-  dangerSoft: '#FEF2F2',
+  danger: '#C1443A',
+  dangerSoft: '#FBEAE9',
   dangerBorder: '#FECACA',
   dangerText: '#9B2C2C',
 
-  success: '#397F56',
+  success: '#3D7A54',
   successSoft: '#E8F1EC',
   successBorder: '#B8D9C4',
   successText: '#1F4D33',
 
-  info: '#1E4A7A',
-  infoSoft: '#EBF3FB',
+  info: '#265FD9',
+  infoSoft: '#E7ECF9',
   infoBorder: '#BFD4ED',
   infoText: '#1A3A5C',
 
-  warning: '#C05621',
+  warning: '#D19A3D',
   warningText: '#9C4221',
-  warningSoft: '#FFFAF0',
+  warningSoft: '#FAF0E1',
   warningBorder: '#FBD38D',
 
-  onBrand: '#FFFFFF',
-  onDanger: '#FFFFFF',
+  onBrand: '#FDFBF7',
+  onDanger: '#FDFBF7',
 
   // ثابت
   white: '#FFFFFF',
@@ -90,26 +91,26 @@ export const colors = {
 
 /** لوحة ألوان داكنة متوافقة مع مفاتيح الألوان الفاتحة. */
 export const darkColors: ColorPalette = {
-  ink: '#F3F0EA',
+  ink: '#F5F3EF',
   inkSecondary: '#E4DED4',
-  muted: '#B8B0A5',
+  muted: '#BDB5A8',
   mutedSoft: '#91897F',
-  brand: '#79BD92',
+  brand: '#67C18C',
   brandDark: '#B2DFC0',
   brandLight: '#91CFA6',
   brandOnSoft: '#C6E9D2',
-  brandSoft: '#203A2B',
+  brandSoft: '#1D3428',
   brandSoftActive: '#2B4B37',
   brandMuted: '#78B78E',
-  canvas: '#101512',
-  canvasElevated: '#171F1A',
-  surface: '#1B241E',
+  canvas: '#141A17',
+  canvasElevated: '#1D2520',
+  surface: '#191F1C',
   surfaceSecondary: '#222D26',
-  border: '#39463D',
+  border: '#323E38',
   borderStrong: '#536257',
   borderSubtle: '#2B372F',
   controlBorder: '#829B89',
-  focus: '#8ACAA0',
+  focus: '#67C18C',
   focusRing: 'rgba(138, 202, 160, 0.30)',
   mediaControlOverlay: 'rgba(25, 31, 27, 0.94)',
   mediaCounterOverlay: 'rgba(0, 0, 0, 0.68)',
@@ -118,27 +119,27 @@ export const darkColors: ColorPalette = {
   modalBackdrop: 'rgba(0, 0, 0, 0.68)',
   storyProgressTrack: 'rgba(255, 255, 255, 0.32)',
   storyNavigationOverlay: 'rgba(0, 0, 0, 0.36)',
-  accent: '#F0A47A',
-  accentSoft: '#3B291F',
+  accent: '#DA8E62',
+  accentSoft: '#3E291E',
   accentBorder: '#714B35',
-  danger: '#F27676',
-  dangerSoft: '#3A2223',
+  danger: '#BE4037',
+  dangerSoft: '#3E201D',
   dangerBorder: '#744143',
   dangerText: '#FFC0C0',
-  success: '#86C99A',
-  successSoft: '#203A2B',
+  success: '#50A570',
+  successSoft: '#1D3426',
   successBorder: '#426B4F',
   successText: '#C1E8CC',
-  info: '#8CB9E8',
-  infoSoft: '#1E3042',
+  info: '#678FE4',
+  infoSoft: '#1C2740',
   infoBorder: '#3B5C7A',
   infoText: '#C0DDF8',
-  warning: '#F0B36B',
+  warning: '#DAA64E',
   warningText: '#FFD19A',
-  warningSoft: '#3C2D1C',
+  warningSoft: '#40331C',
   warningBorder: '#76572E',
-  onBrand: '#173323',
-  onDanger: '#2A1212',
+  onBrand: '#101814',
+  onDanger: '#FBFAF8',
   white: '#FFFFFF',
   black: '#000000',
   transparent: 'transparent',
@@ -168,17 +169,18 @@ export const radius = {
   xl: 28,
   xxl: 32,
   pill: 999,
-  control: 12,
-  card: 16,
-  modal: 20,
+  control: 10,
+  card: 14,
+  modal: 16,
   shell: 20,
   hero: 24,
-  button: 14,
-  input: 12,
+  button: 10,
+  input: 10,
   chip: 20,
 } as const;
 
 /** أوزان الخط الموحّدة — لا تكتب '600'/'700' حرفيًا في الشاشات. */
+// Native uses the Android/iOS system font intentionally; Web uses Cairo for its web-specific brand rendering.
 export const fontWeights = {
   regular: '400',
   medium: '500',

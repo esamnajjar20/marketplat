@@ -57,6 +57,11 @@ export default function SettingsScreen() {
         if (typeof DEFAULT_PREFS[key] === 'boolean' && typeof value === 'boolean') merged[key] = value;
         if (typeof DEFAULT_PREFS[key] === 'string' && typeof value === 'string') merged[key] = value;
       }
+      // This is optional by design: do not inject a default here, because the
+      // first activation should pin the device's current timezone.
+      if (typeof saved.quietHoursTimeZone === 'string' && saved.quietHoursTimeZone.trim()) {
+        merged.quietHoursTimeZone = saved.quietHoursTimeZone;
+      }
       setPrefs(merged);
       setPreferencesLoaded(true);
     } catch (e) {

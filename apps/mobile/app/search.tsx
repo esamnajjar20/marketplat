@@ -4,8 +4,11 @@ import { formatMoney } from '@/lib/formatters';
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
 import { AppIcon } from '@/components/Icons';
+import { AppImage } from '@/components/AppImage';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui';
-import { fetchPublicCategories, flattenPublicCategories, type PublicCategory } from '@/features/categories/categories.api';
+import { fetchPublicCategories, flattenPublicCategories } from '@/features/categories/categories.api';
+import { fetchProductCategories } from '@/features/commerce/commerce.api';
+import { fetchServiceCategoryOptions } from '@/features/services/services.api';
 import { searchMarketplace, type SearchResult } from '@/features/discovery/discovery.api';
 import { normalizeNumericInput } from '@/lib/normalize-numeric-input';
 import { usePaginatedList } from '@/hooks/usePaginatedList';
@@ -73,6 +76,8 @@ function typeLabel(t: SearchResult['type']): string {
   }
 }
 
+type SearchCategoryOption = { id: string; name: string; nameAr?: string | null };
+
 type SearchFilters = {
   query: string;
   type: (typeof types)[number]['value'];
@@ -132,6 +137,8 @@ const SearchResultCard = memo(function SearchResultCard({
 }) {
   const { colors } = useAppTheme();
   const styles = useMemo(() => createThemeStyles(colors), [colors]);
+  const [imageFailed, setImageFailed] = useState(false);
+  useEffect(() => setImageFailed(false), [item.image]);
   const handlePress = useCallback(() => onOpen(item), [item, onOpen]);
   return (
     <Pressable
@@ -168,6 +175,22 @@ const SearchResultCard = memo(function SearchResultCard({
           </Text>
           <Text style={styles.resultCity}>{item.city || 'الموقع غير محدد'}</Text>
         </View>
+      </View>
+      <View style={styles.resultImageFrame}>
+        {item.image && !imageFailed ? (
+          <AppImage
+            uri={item.image}
+            variant="list"
+            style={styles.resultImage}
+            resizeMode="cover"
+            accessibilityLabel={`صورة ${item.title}`}
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <View style={styles.resultImagePlaceholder}>
+            <Text style={styles.resultImagePlaceholderText}>بدون صورة</Text>
+          </View>
+        )}
       </View>
       <AppIcon name="forward" size={20} color={colors.muted} />
     </Pressable>
@@ -218,7 +241,10 @@ export default function SearchScreen() {
       : '',
   );
   const [categoryId, setCategoryId] = useState(initialCategoryId || '');
-  const [categories, setCategories] = useState<PublicCategory[]>([]);
+  const [categories, setCategories] = useState<SearchCategoryOption[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [categoriesError, setCategoriesError] = useState('');
+  const [categoryRetry, setCategoryRetry] = useState(0);
   const [submittedFilters, setSubmittedFilters] = useState<SearchFilters | null>(null);
   const [validationError, setValidationError] = useState('');
   const initialSearchTriggered = useRef(false);
@@ -268,10 +294,37 @@ export default function SearchScreen() {
   const error = validationError || searchList.error || searchList.loadMoreError || '';
 
   useEffect(() => {
-    void fetchPublicCategories()
-      .then((result) => setCategories(flattenPublicCategories(result)))
-      .catch(() => setCategories([]));
-  }, []);
+    let active = true;
+    setCategories([]);
+    setCategoriesError('');
+    if (type === 'all' || type === 'stores') {
+      setCategoriesLoading(false);
+      return () => { active = false; };
+    }
+
+    setCategoriesLoading(true);
+    const request = type === 'ads'
+      ? fetchPublicCategories({ forceRefresh: categoryRetry > 0 }).then((items) => flattenPublicCategories(items))
+      : type === 'products'
+        ? fetchProductCategories()
+        : fetchServiceCategoryOptions();
+
+    void request
+      .then((items) => {
+        if (!active) return;
+        setCategories(items.map((item) => ({ id: item.id, name: item.name, nameAr: item.nameAr ?? null })));
+      })
+      .catch((error) => {
+        if (!active) return;
+        setCategories([]);
+        setCategoriesError(error instanceof Error && error.message ? error.message : 'تعذر تحميل تصنيفات هذا النوع.');
+      })
+      .finally(() => {
+        if (active) setCategoriesLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [type, categoryRetry]);
 
   const refreshSearchList = searchList.refresh;
 
@@ -288,6 +341,7 @@ export default function SearchScreen() {
     };
     const hasCriterion = Boolean(
       filters.query.trim() ||
+        filters.type !== 'all' ||
         filters.categoryId ||
         filters.city.trim() ||
         filters.minPrice.trim() ||
@@ -337,6 +391,7 @@ export default function SearchScreen() {
     if (
       !initialSearchTriggered.current &&
       (initialQ?.trim() ||
+        type !== 'all' ||
         initialCategoryId ||
         initialCity?.trim() ||
         initialMinPrice?.trim() ||
@@ -349,6 +404,7 @@ export default function SearchScreen() {
   }, [
     runSearch,
     initialQ,
+    type,
     initialCategoryId,
     initialCity,
     initialMinPrice,
@@ -442,7 +498,12 @@ export default function SearchScreen() {
             label={entry.label}
             selected={type === entry.value}
             filled
-            onPress={() => setType(entry.value)}
+            onPress={() => {
+              if (type === entry.value) return;
+              setType(entry.value);
+              setCategoryId('');
+              if (entry.value !== 'ads') setCondition('');
+            }}
           />
         ))}
       </View>
@@ -548,24 +609,32 @@ export default function SearchScreen() {
             </View>
           </View>
 
-          {categories.length > 0 ? (
+          {type === 'ads' || type === 'products' || type === 'services' ? (
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>التصنيف</Text>
-              <View style={styles.chipRow}>
-                <Chip
-                  label="الكل"
-                  selected={!categoryId}
-                  onPress={() => setCategoryId('')}
-                />
-                {categories.slice(0, 12).map((cat) => (
-                  <Chip
-                    key={cat.id}
-                    label={cat.nameAr || cat.name}
-                    selected={categoryId === cat.id}
-                    onPress={() => setCategoryId(cat.id)}
-                  />
-                ))}
-              </View>
+              <Text style={styles.fieldLabel}>تصنيفات {type === 'ads' ? 'الإعلانات' : type === 'products' ? 'المنتجات' : 'الخدمات'}</Text>
+              {categoriesLoading ? <Text style={styles.resultDesc}>جارٍ تحميل التصنيفات…</Text> : null}
+              {categoriesError ? (
+                <View style={styles.categoryError}>
+                  <Text style={styles.resultDesc}>{categoriesError}</Text>
+                  <Pressable accessibilityRole="button" onPress={() => setCategoryRetry((value) => value + 1)}>
+                    <Text style={styles.categoryRetry}>إعادة تحميل التصنيفات</Text>
+                  </Pressable>
+                </View>
+              ) : categories.length > 0 ? (
+                <View style={styles.chipRow}>
+                  <Chip label="الكل" selected={!categoryId} onPress={() => setCategoryId('')} />
+                  {categories.slice(0, 12).map((cat) => (
+                    <Chip
+                      key={cat.id}
+                      label={cat.nameAr || cat.name}
+                      selected={categoryId === cat.id}
+                      onPress={() => setCategoryId(cat.id)}
+                    />
+                  ))}
+                </View>
+              ) : !categoriesLoading ? (
+                <Text style={styles.resultDesc}>لا توجد تصنيفات متاحة لهذا النوع حاليًا.</Text>
+              ) : null}
             </View>
           ) : null}
 
@@ -588,7 +657,7 @@ export default function SearchScreen() {
               params: {
                 type,
                 q: query,
-                city,
+                city: type === 'ads' ? city : '',
                 minPrice,
                 maxPrice,
                 condition: type === 'ads' ? condition : '',
@@ -843,6 +912,8 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
     ...elevation.sm,
   },
   fieldGroup: { gap: spacing.sm },
+  categoryError: { gap: spacing.xs },
+  categoryRetry: { color: colors.brand, ...typography.captionStrong, textAlign: 'right' },
   fieldLabel: {
     ...typography.label,
     color: colors.ink,
@@ -907,9 +978,36 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   },
   resultBody: {
     flex: 1,
+    minWidth: 0,
     alignItems: 'flex-start',
     gap: spacing.xs,
   },
+  resultImageFrame: {
+    width: 84,
+    height: 84,
+    flexShrink: 0,
+    overflow: 'hidden',
+    borderRadius: radius.md,
+    backgroundColor: colors.brandSoft,
+  },
+  resultImage: {
+    width: '100%',
+    height: '100%',
+  },
+  resultImagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xs,
+  },
+  resultImagePlaceholderText: {
+    color: colors.brandOnSoft,
+    fontSize: fontSizes[10],
+    fontWeight: fontWeights.semibold,
+    textAlign: 'center',
+  },
+
   resultTop: {
     flexDirection: 'row',
     alignItems: 'center',

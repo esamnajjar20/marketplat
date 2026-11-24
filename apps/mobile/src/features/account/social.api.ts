@@ -6,7 +6,12 @@ export type PublicUser = {
   id: string; name?: string | null; city?: string | null; bio?: string | null; avatarUrl?: string | null;
   createdAt?: string; _count?: { ads?: number };
   followStats?: { followers?: number; following?: number };
-  sellerProfile?: { id?: string; displayName?: string | null; verified?: boolean; averageRating?: number | null; totalRatings?: number; suspended?: boolean; storeDetails?: { id: string; name?: string | null } | null; serviceProviderDetails?: { id: string; businessName?: string | null } | null } | null;
+  sellerProfile?: {
+    id?: string; displayName?: string | null; verified?: boolean; averageRating?: number | null; totalRatings?: number; suspended?: boolean;
+    _count?: { serviceReviews?: number };
+    storeDetails?: { id: string; name?: string | null; description?: string | null; logoUrl?: string | null; coverImageUrl?: string | null; city?: string | null; plan?: string | null; phone?: string | null; _count?: { followers?: number; products?: number } } | null;
+    serviceProviderDetails?: { id: string; businessName?: string | null; businessType?: string | null; logoUrl?: string | null; description?: string | null; serviceAreaCities?: string[]; availabilityStatus?: string; completedRequestsCount?: number } | null;
+  } | null;
 };
 export type PublicAd = { id: string; title: string; price: number | string | null; images?: string[]; city?: string; createdAt?: string };
 export type FollowListItem = { id: string; targetType: string; targetId: string; target?: { id: string; name?: string | null; avatarUrl?: string | null; city?: string | null } | null; follower?: { id: string; name?: string | null; avatarUrl?: string | null; city?: string | null } | null };
@@ -65,8 +70,8 @@ export async function fetchUserFollowList(id: string, mode: 'followers' | 'follo
   if (!Array.isArray(items)) throw new Error('استجابة قائمة المتابعة غير صالحة.');
   return { items, meta: response.meta?.pagination };
 }
-export async function fetchBlockedUsers(token: string, page = 1, limit = 50): Promise<{ items: BlockedUserItem[]; meta?: PaginationMeta }> {
-  const response = await apiRequest<Envelope<BlockedUserItem[]>>(`/api/v1/blocked-users?page=${page}&limit=${limit}`, { token });
+export async function fetchBlockedUsers(token: string, page = 1, limit = 50, signal?: AbortSignal): Promise<{ items: BlockedUserItem[]; meta?: PaginationMeta }> {
+  const response = await apiRequest<Envelope<BlockedUserItem[]>>(`/api/v1/blocked-users?page=${page}&limit=${limit}`, { token, signal });
   const items = unwrap(response, 'تعذر تحميل قائمة المستخدمين المحظورين.');
   if (!Array.isArray(items)) throw new Error('استجابة المستخدمين المحظورين غير صالحة.');
   return { items, meta: response.meta?.pagination };
@@ -96,5 +101,33 @@ export async function fetchMyReports(token: string, page = 1, limit = 20, signal
   const response = await apiRequest<Envelope<MyReport[]>>(`/api/v1/reports/me?page=${page}&limit=${limit}`, { token, signal });
   const items = unwrap(response, 'تعذر تحميل بلاغاتك.');
   if (!Array.isArray(items)) throw new Error('استجابة بلاغاتك غير صالحة.');
+  return { items, meta: response.meta?.pagination };
+}
+
+/** One authenticated request for all viewer-specific public-profile controls. */
+export type ProfileInteractionState = {
+  following: boolean;
+  online: boolean;
+  lastSeenAt: string | null;
+  isBlockedByMe: boolean;
+  interactionRestricted: boolean;
+};
+export async function fetchProfileInteractionState(id: string, token: string): Promise<ProfileInteractionState> {
+  const response = await apiRequest<Envelope<ProfileInteractionState>>(`/api/v1/users/${encodeURIComponent(id)}/profile-state`, { token });
+  return unwrap(response, 'تعذر التحقق من حالة الملف الشخصي.');
+}
+
+export type PublicSellerRating = {
+  id: string;
+  score: number;
+  comment?: string | null;
+  createdAt: string;
+  rater?: { id?: string; name?: string | null; avatarUrl?: string | null } | null;
+  ad?: { id?: string; title?: string | null } | null;
+};
+export async function fetchSellerRatings(id: string, page = 1, limit = 10): Promise<{ items: PublicSellerRating[]; meta?: PaginationMeta }> {
+  const response = await apiRequest<Envelope<PublicSellerRating[]>>(`/api/v1/sellers/${encodeURIComponent(id)}/ratings?page=${page}&limit=${limit}`);
+  const items = unwrap(response, 'تعذر تحميل تقييمات البائع.');
+  if (!Array.isArray(items)) throw new Error('استجابة تقييمات البائع غير صالحة.');
   return { items, meta: response.meta?.pagination };
 }

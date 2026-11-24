@@ -17,6 +17,7 @@ import { fetchProduct, type ProductSummary } from '@/features/commerce/commerce.
 import { createMarketplaceOrder } from '@/features/commerce/orders.api';
 import { enqueueMarketplaceOrder } from '@/storage/outbox-manager';
 import { formatMoney } from '@/lib/formatters';
+import { getProductPricing } from '@/features/commerce/product-pricing';
 
 const money = (value: unknown) => formatMoney(value);
 function makeKey() { return `mob-order-${Date.now()}-${secureRandomToken(8)}`; }
@@ -57,7 +58,7 @@ export default function OrderCheckoutScreen() {
   useEffect(() => { void load(); }, [load]);
   useEffect(() => { if (user?.name && !recipientName) setRecipientName(user.name); }, [user?.name, recipientName]);
 
-  const rawUnitPrice = product?.effectivePrice?.price ?? product?.effectivePrice?.amount ?? product?.discountPrice ?? product?.price;
+  const rawUnitPrice = product ? getProductPricing(product).currentPrice : null;
   const unitPrice = Number(rawUnitPrice);
   const validPrice = rawUnitPrice !== undefined && rawUnitPrice !== null && rawUnitPrice !== '' && Number.isFinite(unitPrice) && unitPrice >= 0;
   const maxQuantity = Math.max(1, Math.min(product?.stockQuantity ?? 100, 100));
@@ -145,9 +146,9 @@ export default function OrderCheckoutScreen() {
             <AppText style={styles.sectionTitle}>ملخص الطلب</AppText>
             <View style={styles.summaryRow}><AppText style={styles.muted}>طريقة الدفع</AppText><AppText style={styles.value}>الدفع عند الاستلام</AppText></View>
             <View style={styles.summaryRow}><AppText style={styles.muted}>قيمة المنتجات</AppText><AppText style={styles.value}>{money(total)}</AppText></View>
-            <View style={styles.summaryRow}><AppText style={styles.muted}>التوصيل</AppText><AppText style={styles.value}>يُحدَّد عند تأكيد الطلب</AppText></View>
+            <View style={styles.summaryRow}><AppText style={styles.muted}>التوصيل</AppText><AppText style={styles.value}>مجاني حاليًا</AppText></View>
             <View style={styles.divider}/>
-            <View style={styles.summaryRow}><AppText style={styles.totalLabel}>الإجمالي قبل رسوم التوصيل</AppText><AppText style={styles.total}>{money(total)}</AppText></View>
+            <View style={styles.summaryRow}><AppText style={styles.totalLabel}>الإجمالي النهائي</AppText><AppText style={styles.total}>{money(total)}</AppText></View>
             {error ? <Notice>{error}</Notice> : null}
             <PrimaryButton label="تأكيد الطلب" onPress={() => void submit()} busy={submitting} disabled={submitting || outOfStock || !validPrice} />
             <AppText style={styles.note}>لن يتم خصم مبلغ إلكتروني. سيؤكد المتجر توفر المنتج وتفاصيل التسليم.</AppText>

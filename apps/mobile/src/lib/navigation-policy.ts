@@ -19,6 +19,34 @@ export function resolveNavigationCapabilities(input: {
   };
 }
 
+/**
+ * Preserve the last confirmed positive capability when its source request
+ * fails. A network failure is unknown state, not evidence that access was
+ * revoked. The route/data layer must still enforce the actual permission.
+ */
+export function mergeNavigationCapabilitiesAfterFetch(
+  previous: NavigationCapabilities,
+  resolved: NavigationCapabilities,
+  failed: Readonly<{
+    sellerProfile: boolean;
+    storeMemberships: boolean;
+    serviceProvider: boolean;
+  }>,
+): NavigationCapabilities {
+  const sellerSourceFailed = failed.sellerProfile || failed.storeMemberships;
+  return {
+    sellerWorkspace: sellerSourceFailed
+      ? previous.sellerWorkspace || resolved.sellerWorkspace
+      : resolved.sellerWorkspace,
+    storeMembership: failed.storeMemberships
+      ? previous.storeMembership
+      : resolved.storeMembership,
+    serviceProvider: failed.serviceProvider
+      ? previous.serviceProvider
+      : resolved.serviceProvider,
+  };
+}
+
 let navigationCapabilitiesRevision = 0;
 const navigationCapabilitiesListeners = new Set<() => void>();
 
@@ -195,10 +223,11 @@ export function getRouteAccess(pathname: string): 'public' | 'authenticated' {
 export function getVisibleDrawerItems(
   isAuthenticated: boolean,
   capabilities?: NavigationCapabilities,
+  options: Readonly<{ unknownCapabilities?: Partial<NavigationCapabilities> }> = {},
 ) {
   return DRAWER_ITEMS.filter((item) => {
     if (!isAuthenticated && getRouteAccess(item.path) !== 'public') return false;
     if (!isAuthenticated || !item.capability) return true;
-    return capabilities?.[item.capability] === true;
+    return capabilities?.[item.capability] === true || options.unknownCapabilities?.[item.capability] === true;
   });
 }

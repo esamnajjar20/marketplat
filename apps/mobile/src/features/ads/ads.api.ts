@@ -1,7 +1,16 @@
 import { apiRequest } from '@/api/client';
 import { readPublicCache, readPublicCacheEntry, writePublicCache } from '@/storage/public-cache';
-import { cachePublicImages, prunePublicImageCache } from '@/storage/public-image-cache';
+import {
+  cachePublicImages,
+  prunePublicImageCache,
+  prunePublicImageCacheIfNeeded,
+} from '@/storage/public-image-cache';
 import { canUseStaleCacheAfterReadFailure } from '@/lib/offline-cache-policy';
+import {
+  applyCachedPublicAdImages,
+  getPublicAdImageCacheCandidates,
+  schedulePublicAdImageCaching,
+} from './public-ad-image-cache';
 
 /** Public ad-list shape returned by GET /api/v1/ads (description is omitted on list responses). */
 export type AdListItem = {
@@ -40,6 +49,7 @@ export type AdListResult = {
   items: AdListItem[];
   page: number;
   totalPages?: number;
+  total?: number;
 };
 
 type PublicAdsOptions = { page?: number; limit?: number; search?: string; categoryId?: string; storeId?: string; city?: string; minPrice?: number; maxPrice?: number; condition?: 'NEW' | 'USED' | 'REFURBISHED'; sortBy?: 'createdAt' | 'price' | 'views'; sortOrder?: 'asc' | 'desc'; signal?: AbortSignal };
@@ -107,32 +117,40 @@ export async function fetchPublicAds(options: PublicAdsOptions = {}): Promise<Ad
     items: response.data.filter((item) => Boolean(item && typeof item.id === 'string' && typeof item.title === 'string')),
     page: typeof pagination?.page === 'number' ? pagination.page : (options.page ?? 1),
     totalPages: typeof pagination?.totalPages === 'number' ? pagination.totalPages : undefined,
+    total: typeof pagination?.total === 'number' ? pagination.total : response.data.length,
   };
-  // Limit downloads across the entire page, not eight per card. The image cache
-  // has a finite disk budget; the first eight distinct URLs are opportunistically
-  // cached and the remaining URLs continue to work online.
-  const pageImageUris = result.items.flatMap((item) => item.images.filter((uri) => typeof uri === 'string'));
-  const cacheCandidates = pageImageUris.slice(0, 8);
-  const cachedCandidates = await cachePublicImages(cacheCandidates);
-  const cachedByRemoteUri = new Map<string, string>();
-  cacheCandidates.forEach((remoteUri, index) => {
-    const localUri = cachedCandidates[index];
-    if (localUri && localUri !== remoteUri) cachedByRemoteUri.set(remoteUri, localUri);
-  });
-  const cachedResult: AdListResult = {
-    ...result,
-    items: result.items.map((item) => ({
-      ...item,
-      images: item.images.map((uri) => cachedByRemoteUri.get(uri) ?? uri),
-    })),
-  };
-  await writePublicCache(cacheKey, cachedResult);
-  await prunePublicImageCache();
-  // Return the local-image-backed representation too, so the first online visit
-  // immediately primes the UI to use the durable image files where available.
-  return cachedResult;
+  // Persist and return the API page immediately. Image downloads and cache
+  // pruning are opportunistic background work: neither may delay list rendering
+  // or load-more pagination on a slow connection.
+  await writePublicCache(cacheKey, result);
+  schedulePublicAdImageCaching(() => cachePublicAdListImagesInBackground(cacheKey, result));
+  return result;
 }
 
+/** Cache list-sized images after the API result is already available to the UI. */
+async function cachePublicAdListImagesInBackground(cacheKey: string, snapshot: AdListResult): Promise<void> {
+  const candidates = getPublicAdImageCacheCandidates(snapshot.items);
+  if (candidates.length === 0) return;
+
+  const cachedUris = await cachePublicImages(candidates.map((candidate) => candidate.cacheUri));
+  const current = await readPublicCache<AdListResult>(cacheKey);
+  if (!current || !Array.isArray(current.items)) return;
+
+  const updatedItems = applyCachedPublicAdImages(current.items, candidates, cachedUris);
+  const changed = updatedItems.some((item, itemIndex) =>
+    item.images.some((uri, imageIndex) => uri !== current.items[itemIndex]?.images[imageIndex]),
+  );
+  if (changed) {
+    // Preserve any newer metadata/page contents written while image downloads ran.
+    await writePublicCache(cacheKey, { ...current, items: updatedItems });
+  }
+
+  // Pruning runs only after local image references have been persisted, and
+  // outside the fetchPublicAds critical path.
+  if (cachedUris.some((uri) => typeof uri === 'string' && uri.startsWith('file://'))) {
+    await prunePublicImageCacheIfNeeded();
+  }
+}
 
 /** Read a saved public ad detail without waiting for the network. */
 export async function getCachedAdDetail(id: string): Promise<AdDetail | null> {

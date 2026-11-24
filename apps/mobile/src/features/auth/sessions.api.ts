@@ -28,3 +28,15 @@ export async function revokeActiveSession(sessionId: string, token: string, csrf
   });
   if (!response || response.success !== true) throw new Error(response?.message || 'تعذر إنهاء الجلسة المحددة.');
 }
+
+export async function logoutAllSessions(token: string, csrfToken?: string | null): Promise<void> {
+  const response = await apiRequest<Envelope<unknown>>('/api/v1/auth/logout-all', {
+    method: 'POST',
+    token,
+    headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
+    body: JSON.stringify({}),
+  });
+  if (!response || response.success !== true) {
+    throw new Error(response?.message || 'تعذر تسجيل الخروج من جميع الأجهزة.');
+  }
+}
