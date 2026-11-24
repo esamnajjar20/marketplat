@@ -19,6 +19,7 @@
     "lint": "eslint \"app/**/*.{ts,tsx}\" \"src/**/*.{ts,tsx}\" --max-warnings=0 && node ./scripts/lint-mobile.mts",
     "verify:production-signing": "cd android && ./gradlew :app:verifyProductionSigning",
     "verify:a11y": "node ./scripts/verify-design-system-a11y.mts",
+    "verify:design-system-parity": "node ./scripts/verify-design-system-cross-platform.mts",
     "verify:navigation-policy": "node ./scripts/verify-navigation-policy.mts",
     "verify:phase4": "node ./scripts/verify-phase4-offline-security.mts",
     "verify:static": "node ./scripts/run-all-verifications.mts",
@@ -28,7 +29,8 @@
     "format": "prettier --write \"app/**/*.{ts,tsx}\" \"src/**/*.{ts,tsx}\"",
     "format:check": "prettier --check \"app/**/*.{ts,tsx}\" \"src/**/*.{ts,tsx}\"",
     "report:tokens": "node ./scripts/report-token-bypass.mts",
-    "analyze:bundle": "node ./scripts/analyze-bundle.mts"
+    "analyze:bundle": "node ./scripts/analyze-bundle.mts",
+    "build:bundle:ci": "expo export --platform all --output-dir ../../node_modules/.cache/marketplat-mobile-export"
   },
   "dependencies": {
     "@expo/dom-webview": "~58.0.2",

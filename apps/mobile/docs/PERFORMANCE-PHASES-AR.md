@@ -67,3 +67,11 @@ pnpm --filter @marketplat/mobile type-check && pnpm --filter @marketplat/mobile 
 - `seller-dashboard` → `useAsyncResource`؛ الفشل الجزئي (المتجر/الملف) جزء من البيانات لا خطأ شامل.
 - `sales-insights` → `useAsyncResource` بهوية (الحساب، الوضع، الفلاتر المطبّقة)؛ كل وضع يملأ حقله.
 - **المتبقي عمدًا:** `saved-payments`، `messages/[id]`، `offline-queue`، شاشات المحرّر والتفاصيل (`ads/[id]`، `stores/[id]`، `products/[id]`، `services/[id]`، `requests/[id]`، `orders/[id]`، `stories/[id]`، `service-requests*`)، `appointment-create`، `order-checkout`، `store-promotions`، `store-collections`، `settings`.
+
+
+## بوابة حجم الحزمة — المرحلة 13
+
+- `pnpm --filter @marketplat/mobile analyze:bundle` يبني Android Expo export ويقيس ملفات التوزيع، مع استبعاد ملفات source maps من الإجمالي.
+- سياسة الحدود في `apps/mobile/scripts/bundle-budget.json`: حد أقصى 8 MiB لحزمة JavaScript و60 MiB لإجمالي ملفات التصدير القابلة للتوزيع؛ يبدأ التحذير عند 85% من أي حد. تجاوز الحد يفشل الأمر.
+- هذه حدود مطلقة محافظة وليست baseline تاريخيًا مقاسًا؛ لا يُدّعى أن حجم الإصدار الحالي قد قيس في بيئة الفحص. يُنتج السكربت تقرير JSON في `apps/mobile/.bundle-analysis/`، وتُرفعه عملية بناء الموبايل في كل PR أو push ذي صلة.
+- إذا اقتربت الحزمة من الحد، افحص أكبر الملفات أولًا، وراجع الاستيرادات والاعتماديات قبل رفع الميزانية. لا ترفع الحد لمجرد إسكات فشل CI.

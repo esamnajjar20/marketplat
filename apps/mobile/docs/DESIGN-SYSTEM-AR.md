@@ -18,7 +18,7 @@ import { COPY } from '@/lib/copy';                                      // ال�
 ## Tokens
 | المجموعة | أمثلة |
 |----------|--------|
-| `colors` / `darkColors` | `ink`, `brand`, `canvas`, `danger`, `successSoft` |
+| `colors` / `darkColors` | `ink`, `brand`, `canvas`, `danger`, `dangerText`, `warningText`, `successSoft` |
 | `spacing` | `xs` 4 → `xxxl` 40 |
 | `radius` | `sm` 10 → `pill` |
 | `typography` / `fontSizes` / `fontWeights` | `title`, `body`, `caption`, `button` |
@@ -33,10 +33,10 @@ import { COPY } from '@/lib/copy';                                      // ال�
 
 ## القواعد
 1. **لا hex** خام في `app/` و`src/` (يفرضها ESLint و`lint-mobile.mts`).
-2. **حقول الإدخال عبر `Field`** عند وجود تسمية ظاهرة. `TextInput` الخام فقط لحقول البحث/الدردشة/الفلاتر الخاصة.
+2. **حقول الإدخال عبر `Field`** عند وجود تسمية ظاهرة. يدعم `Field` تخصيص `inputStyle` و`labelStyle` و`containerStyle`، ورسالة `hint` وعدّاد `showCharacterCount`. `TextInput` الخام فقط لحقول البحث/الدردشة/الفلاتر الخاصة أو الإدخال المتخصص داخل صف بيانات مضغوط.
 3. **لا `row-reverse`**: RTL أصلي (`forceRTL`) فالصفوف العادية تنعكس تلقائيًا. (النسخة السابقة من هذا الملف قالت العكس وكانت خاطئة.)
 4. **نصوص الأخطاء/إعادة المحاولة من `COPY`**: زر = «إعادة المحاولة» (`COPY.retryAction`)، رسالة = «حاول مرة أخرى.» (`COPY.tryAgain`).
-5. المسافات والزوايا من `spacing` و`radius` وليس أرقامًا مباشرة (تتبّع التقدّم: `pnpm report:tokens`).
+5. المسافات والزوايا من `spacing` و`radius` وليس أرقامًا مباشرة (تتبّع التقدّم: `pnpm report:tokens`). الأدوار المشتركة: control=10dp، card=14dp، modal=16dp، shell=20dp، hero=24dp.
 6. حالات التحميل/الفراغ/الخطأ عبر مكوّنات `ui` ولا تبنِ حالات محلية.
 7. الشريط السفلي يُخفى تلقائيًا في التفاصيل والمحررات (`navigation-policy.ts`).
 
@@ -48,3 +48,10 @@ pnpm install        # لتثبيت prettier
 pnpm format         # يعيد تنسيق app/ و src/
 pnpm format:check   # للتحقق
 ```
+
+
+## سياسة الخطوط والتكافؤ مع Web
+
+- Native يستخدم خط النظام على Android/iOS عمدًا، ولا يضمّن ملف Cairo إضافيًا ضمن التطبيق. الويب يستخدم Cairo Variable وIBM Plex Mono. هذا اختلاف منصّي موثق؛ المطلوب تكافؤ التسلسل البصري وارتفاعات السطر، لا فرض نفس ملف الخط على المنصتين.
+- ألوان الأدوار الأساسية في Light/Dark يجب أن تطابق خريطة Web في `frontend/docs/DESIGN-SYSTEM-AR.md`.
+- فحص التكافؤ: `pnpm verify:design-system-parity` أو `pnpm verify:static` من حزمة الموبايل.

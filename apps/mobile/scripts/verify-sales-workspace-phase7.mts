@@ -18,7 +18,9 @@ const checks = [
   ['sales insights route is protected', policy.includes("'/sales-insights'")],
   ['report filters are applied explicitly instead of fetching on each keystroke', screen.includes('appliedFilters') && screen.replace(/\s+/g, ' ').includes('setAppliedFilters({ from, to, status })')],
   ['report dates are validated as real calendar dates and ordered correctly', screen.includes('parsed.toISOString().slice(0, 10) === value') && screen.includes('from > to')],
-  ['CSV report endpoint exists in backend (native export UI remains a separate task)', routes.includes("'/reports.csv'")],
+  ['backend exposes CSV report endpoint', routes.includes("'/reports.csv'")],
+  ['mobile shares CSV content through the native share sheet with a bounded export cap', screen.includes('Share.share') && screen.includes('\\uFEFF') && screen.includes('allRows.length >= 1000')],
+  ['mobile reports paginate through API page and limit parameters', api.includes('page: String(Math.max(1, Math.trunc(filters.page ?? 1)))') && screen.includes('reportPage') && screen.includes('الصفحة التالية')],
 ];
 let failed = 0;
 for (const [label, ok] of checks) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`); if (!ok) failed++; }

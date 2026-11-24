@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "platform": "android",
+  "maxMainBundleBytes": 8388608,
+  "maxExportedPayloadBytes": 62914560,
+  "warningRatio": 0.85,
+  "measurement": "Expo export bytes excluding source-map files; this is a conservative absolute budget, not a measured historical baseline."
+}

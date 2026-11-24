@@ -59,8 +59,8 @@ const [tokens, productDetail, adDetail, storeDetail, search, savedSearchesPage, 
   read('apps/mobile/app.json'),
 ]);
 
-check('semantic colors match the canonical web HSL palette', tokens.includes("brand: '#397F56'") && tokens.includes("canvas: '#FDFCF9'") && tokens.includes("ink: '#241E19'") && tokens.includes("accent: '#AD531F'"));
-check('semantic spacing, radius, and light elevation tokens are present', tokens.includes('x4l: 48') && tokens.includes('x5l: 64') && tokens.includes('card: 16') && tokens.includes('modal: 20') && tokens.includes('shell: 20') && tokens.includes('sm: {') && tokens.includes('warningText'));
+check('semantic colors match the canonical web HSL palette', tokens.includes("brand: '#397F56'") && tokens.includes("canvas: '#FDFCF9'") && tokens.includes("ink: '#241E19'") && tokens.includes("muted: '#6B6358'") && tokens.includes("border: '#E6E0D6'") && tokens.includes("accent: '#AD531F'") && tokens.includes("danger: '#C1443A'") && tokens.includes("success: '#3D7A54'") && tokens.includes("warning: '#D19A3D'"));
+check('semantic spacing, radius, and light elevation tokens are present', tokens.includes('x4l: 48') && tokens.includes('x5l: 64') && tokens.includes('card: 14') && tokens.includes('modal: 16') && tokens.includes('shell: 20') && tokens.includes('sm: {') && tokens.includes('warningText'));
 check('native appearance follows the system by default with an in-app override', config.includes('"userInterfaceStyle": "automatic"'));
 check('product detail uses safe image gallery, favorite, attributes, ratings, and sharing', productDetail.includes('<MediaGallery') && productDetail.includes('<FavoriteButton') && productDetail.includes('<ProductAttributeList') && productDetail.includes('<RatingStars') && productDetail.includes('<ShareButton'));
 check('product recommendations are one query per detail and use shared ProductCard', productDetail.includes('fetchMixedRecommendations(8, accessToken)') && productDetail.includes('<ProductCard') && !productDetail.includes('recommendationCard:'));

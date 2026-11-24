@@ -16,6 +16,7 @@ const checks = {
   'borderRadius رقمي': /borderRadius:\s*\d+/g,
   'padding/margin رقمي': /\b(?:padding|margin)(?:Horizontal|Vertical|Top|Bottom)?:\s*\d+/g,
   'fontSize رقمي': /fontSize:\s*\d+/g,
+  'أبعاد/تموضع رقمية': /\b(?:width|height|minWidth|maxWidth|minHeight|maxHeight|top|bottom|start|end|gap|rowGap|columnGap):\s*\d+(?:\.\d+)?(?=\s*[,}])/g,
   'TextInput خام': /<TextInput\b/g,
   'style inline': /style=\{\{/g,
 };
