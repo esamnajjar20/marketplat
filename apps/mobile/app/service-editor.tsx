@@ -208,7 +208,7 @@ export default function ServiceEditorScreen() {
     } finally { setBusy(false); }
   };
 
-  const chip = (label: string, selected: boolean, onPress: () => void, key: string) => <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={{ minHeight: sizes.touchTarget, justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.control, backgroundColor: selected ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: selected ? colors.brand : colors.border }}><Text style={{ color: selected ? colors.brand : colors.ink, fontWeight: selected ? fontWeights.bold : fontWeights.normal }}>{label}</Text></Pressable>;
+  const chip = (label: string, selected: boolean, onPress: () => void, key: string) => <Pressable key={key} accessibilityRole="button" accessibilityState={{ selected }} onPress={onPress} style={{ minHeight: sizes.touchTarget, justifyContent: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.control, backgroundColor: selected ? colors.brandSoft : colors.surface, borderWidth: 1, borderColor: selected ? colors.brand : colors.border }}><Text style={{ color: selected ? colors.brand : colors.ink, fontWeight: selected ? fontWeights.bold : fontWeights.regular }}>{label}</Text></Pressable>;
 
   return <PageShell title={id ? 'تعديل الخدمة' : 'إضافة خدمة'}>
     <Text style={{ textAlign: 'right', fontSize: fontSizes[12], lineHeight: 20, color: colors.muted }}>أكمل معلومات المجال والخصائص والتسعير ومكان تقديم الخدمة، ثم راجعها قبل الحفظ.</Text>

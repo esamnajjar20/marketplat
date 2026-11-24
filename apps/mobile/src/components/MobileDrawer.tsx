@@ -231,7 +231,7 @@ function MobileDrawerOverlay({
 
     return () => { active = false; };
   }, [accessToken, capabilityReloadKey, capabilityRevision, isRestoring, open, user]);
-  const hasCurrentCapabilityState = Boolean(user?.id) && capabilityState.userId === user.id;
+  const hasCurrentCapabilityState = user?.id != null && capabilityState.userId === user.id;
   const capabilityStatus = hasCurrentCapabilityState
     ? capabilityState.status
     : user ? 'loading' : 'idle';

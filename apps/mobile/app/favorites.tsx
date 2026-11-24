@@ -73,7 +73,7 @@ function entityTitle(type: Exclude<FavoriteTab, 'ads'>, entity: FavoriteEntityRe
 
 function entityImage(type: Exclude<FavoriteTab, 'ads'>, entity: FavoriteEntityRecord['entity']): string | null {
   if (type === 'stores') return entity.logoUrl || entity.coverImageUrl || null;
-  return pickRemoteImageUri(entity.images);
+  return pickRemoteImageUri(entity.images) ?? null;
 }
 
 function entityMeta(type: Exclude<FavoriteTab, 'ads'>, entity: FavoriteEntityRecord['entity']): string {
@@ -194,7 +194,7 @@ export default function FavoritesScreen() {
         const pending = await listPendingFavoriteStates(user.id).catch(() => []);
         if (current !== requestSequence.current) return;
         const desiredState = new Map(pending.map((operation) => [operation.adId, operation.favorited]));
-        pageItems = result.items.filter((record) => desiredState.get(record.adId) !== false);
+        pageItems = result.items.filter((record) => 'adId' in record ? desiredState.get(record.adId) !== false : true) as typeof result.items;
       }
 
       setItems((existing) => {
@@ -293,7 +293,7 @@ export default function FavoritesScreen() {
   const openAd = useCallback((adId: string) => pushOnce(`/ads/${encodeURIComponent(adId)}`), []);
   const openEntity = useCallback((id: string) => {
     if (activeType === 'ads') return;
-    router.push(destination(activeType, id));
+    router.push(destination(activeType, id) as never);
   }, [activeType]);
 
   const renderItem = useCallback(({ item }: { item: FavoriteListItem }) => {

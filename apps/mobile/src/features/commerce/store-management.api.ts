@@ -32,7 +32,7 @@ export async function fetchStoreMembers(storeId: string, token: string, options:
   const items = unwrap(response, 'تعذر تحميل أعضاء المتجر.');
   if (!Array.isArray(items)) throw new Error('استجابة القائمة غير صالحة.');
   const pagination = response.meta?.pagination;
-  return { items, page: pagination?.page ?? page, limit: pagination?.limit ?? limit, total: pagination?.total ?? items.length, totalPages: pagination?.totalPages ?? page };
+  return { items, page: pagination?.page ?? page, limit, total: pagination?.total ?? items.length, totalPages: pagination?.totalPages ?? page };
 }
 export async function inviteStoreMember(storeId: string, email: string, role: StoreMember['role'], token: string, csrfToken?: string | null): Promise<StoreMember> { return unwrap(await apiRequest<Envelope<StoreMember>>(`/api/v1/stores/${encodeURIComponent(storeId)}/members`, { method: 'POST', token, headers: headers(csrfToken), body: JSON.stringify({ email, role }) }), 'تعذر إرسال الدعوة.'); }
 export async function updateStoreMemberRole(storeId: string, memberId: string, role: StoreMember['role'], token: string, csrfToken?: string | null): Promise<StoreMember> { return unwrap(await apiRequest<Envelope<StoreMember>>(`/api/v1/stores/${encodeURIComponent(storeId)}/members/${encodeURIComponent(memberId)}`, { method: 'PATCH', token, headers: headers(csrfToken), body: JSON.stringify({ role }) }), 'تعذر تعديل صلاحية العضو.'); }

@@ -132,7 +132,7 @@ export default function MySalesScreen() {
     }, [refreshList, loadSummary]);
     if (!user)
         return <PageShell title="مبيعاتي"><EmptyState title="مبيعاتي" description="سجّل الدخول لعرض سجل مبيعاتك." actionLabel="تسجيل الدخول" onAction={() => pushOnce('/login')}/></PageShell>;
-    return <ScreenFrame><AppHeader title="مبيعاتي"/><AppFlashList ItemSeparatorComponent={ListGapLg} data={list.items} keyExtractor={(sale) => sale.id} contentContainerStyle={s.content} refreshControl={<BrandRefreshControl refreshing={list.refreshing || refreshingSummary} onRefresh={() => void refreshAll()} />} ListHeaderComponent={<>
+    return <ScreenFrame><AppHeader title="مبيعاتي"/><AppFlashList ItemSeparatorComponent={ListGapLg} data={list.items} keyExtractor={(sale) => sale.id} renderItem={() => null} contentContainerStyle={s.content} refreshControl={<BrandRefreshControl refreshing={list.refreshing || refreshingSummary} onRefresh={() => void refreshAll()} />} ListHeaderComponent={<>
     
     <Text style={s.subtitle}>سجل عمليات البيع والمدفوعات والمبالغ المستحقة.</Text>
     <Text style={s.sectionTitle}>ملخص المبيعات</Text>

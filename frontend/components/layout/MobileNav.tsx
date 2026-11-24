@@ -143,7 +143,7 @@ function NavSection({
   onNavigate,
 }: {
   title?: string;
-  links: readonly { label: string; href: string; icon: React.ComponentType<{ className?: string }> }[];
+  links: readonly { label?: string | undefined; href: string; icon?: React.ComponentType<{ className?: string }> | undefined }[];
   pathname: string;
   onNavigate: () => void;
 }) {
@@ -171,7 +171,7 @@ function NavSection({
                     : 'text-foreground hover:bg-muted',
                 )}
               >
-                <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')} />
+                {Icon && <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')} />}
                 {label}
               </IntentPrefetchLink>
             </li>

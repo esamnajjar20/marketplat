@@ -36,7 +36,7 @@ export function useCreateSale() {
 export function useAddSalePayment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: { amount: number; method: import('@/types/sale.types').SaleTransferMethod; transferRef?: string; note?: string } }) => salesApi.addPayment(id, payload).then(r => r.data.data),
+    mutationFn: ({ id, payload }: { id: string; payload: { amount: number; method: import('@/types/sale.types').SaleTransferMethod; transferRef?: string; note?: string; offlineOperationId?: string } }) => salesApi.addPayment(id, payload).then(r => r.data.data),
     onSuccess: () => {
       // The sales root already covers the debts query and all sale summaries.
       void queryClient.invalidateQueries({ queryKey: queryKeys.sales.all() });

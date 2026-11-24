@@ -23,7 +23,7 @@ export const listingWithRelations = {
       },
     },
   },
-} as const;
+} satisfies Prisma.ServiceListingInclude;
 
 export type ServiceListingWithProvider = Prisma.ServiceListingGetPayload<{
   include: typeof listingWithRelations;

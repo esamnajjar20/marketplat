@@ -207,9 +207,9 @@ export default function InstallmentsScreen() {
               <Text tone="muted" strong>وسيلة الدفع الفعلية</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
                 {paymentMethods.map((method) => (
-                  <Press key={method.value} accessibilityRole="radio" accessibilityState={{ selected: (paymentMethodsById[item.id] ?? 'CASH') === method.value }} onPress={() => setPaymentMethodsById((old) => ({ ...old, [item.id]: method.value }))} style={{ borderWidth: 1, borderColor: (paymentMethodsById[item.id] ?? 'CASH') === method.value ? colors.brand : colors.border, backgroundColor: (paymentMethodsById[item.id] ?? 'CASH') === method.value ? colors.brandSoft : colors.surface, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }}>
+                  <Pressable key={method.value} accessibilityRole="radio" accessibilityState={{ selected: (paymentMethodsById[item.id] ?? 'CASH') === method.value }} onPress={() => setPaymentMethodsById((old) => ({ ...old, [item.id]: method.value }))} style={{ borderWidth: 1, borderColor: (paymentMethodsById[item.id] ?? 'CASH') === method.value ? colors.brand : colors.border, backgroundColor: (paymentMethodsById[item.id] ?? 'CASH') === method.value ? colors.brandSoft : colors.surface, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }}>
                     <Text tone={(paymentMethodsById[item.id] ?? 'CASH') === method.value ? 'brand' : 'ink'}>{method.label}</Text>
-                  </Press>
+                  </Pressable>
                 ))}
               </View>
               {(paymentMethodsById[item.id] ?? 'CASH') !== 'CASH' && (paymentMethodsById[item.id] ?? 'CASH') !== 'OTHER' ? <TextInput allowFontScaling maxFontSizeMultiplier={1.3}

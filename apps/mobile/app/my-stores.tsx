@@ -26,7 +26,7 @@ const MyStoreRow = memo(function MyStoreRow({ item }: { item: StoreMembership })
     {item.role === 'MANAGER' ? <>
       <PrimaryButton label="إدارة العروض" variant="secondary" onPress={() => router.push({ pathname: '/store-promotions', params: { storeId: item.store.id } })} />
       <PrimaryButton label="مجموعات المنتجات" variant="secondary" onPress={() => router.push({ pathname: '/store-collections', params: { storeId: item.store.id } })} />
-      <PrimaryButton label="إعدادات المتجر" variant="secondary" onPress={() => router.push({ pathname: '/store-settings', params: { storeId: item.store.id } })} />
+      <PrimaryButton label="إعدادات المتجر" variant="secondary" onPress={() => router.push({ pathname: '/store-settings' as never, params: { storeId: item.store.id } })} />
       <PrimaryButton label="فريق المتجر" variant="secondary" onPress={() => router.push({ pathname: '/store-team', params: { storeId: item.store.id } })} />
     </> : null}
   </SectionCard>;

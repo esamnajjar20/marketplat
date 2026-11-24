@@ -1,7 +1,7 @@
 const Sequencer = require('@jest/test-sequencer').default;
 
 class IntegrationFirstSequencer extends Sequencer {
-  sort(tests) {
+  sort(tests: Array<{ path: string }>) {
     return [...tests].sort((a, b) => {
       const aIntegration = a.path.includes(`${require('path').sep}integration${require('path').sep}`) ? 0 : 1;
       const bIntegration = b.path.includes(`${require('path').sep}integration${require('path').sep}`) ? 0 : 1;

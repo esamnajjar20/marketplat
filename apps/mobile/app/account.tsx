@@ -499,7 +499,7 @@ const createThemeStyles = (colors: ColorPalette) => StyleSheet.create({
   statQuickValue: {
     color: colors.ink,
     fontSize: fontSizes[20],
-    fontWeight: fontWeights.bold,
+    fontWeight: '700' as const,
     fontVariant: ['tabular-nums'],
   },
   quickItem: {

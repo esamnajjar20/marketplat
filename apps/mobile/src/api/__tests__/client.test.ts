@@ -339,9 +339,9 @@ describe('account-scoped offline cache extensions', () => {
     const error = await apiRequest('/api/v1/stories', { method: 'POST', token: 'token-a', body: '{}' }).catch((e) => e);
 
     expect(error).toBeInstanceOf(ApiError);
-    expect(error.code).toBe('OFFLINE');
+    expect((error as { code?: string }).code).toBe('OFFLINE');
     // Queue-backed screens enqueue on `status === undefined`; this must stay true.
-    expect(error.status).toBeUndefined();
+    expect((error as { status?: number }).status).toBeUndefined();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -353,6 +353,6 @@ describe('account-scoped offline cache extensions', () => {
 
     const error = await apiRequest('/api/v1/ads').catch((e) => e);
 
-    expect(error.code).not.toBe('OFFLINE');
+    expect((error as { code?: string }).code).not.toBe('OFFLINE');
   });
 });

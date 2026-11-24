@@ -367,7 +367,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
                       : 'text-foreground hover:bg-muted/60',
                   )}
                 >
-                  <link.icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                  {link.icon && <link.icon className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />}
                   {link.label}
                 </IntentPrefetchLink>
               </li>

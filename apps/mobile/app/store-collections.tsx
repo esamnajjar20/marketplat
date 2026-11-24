@@ -141,7 +141,8 @@ export default function StoreCollectionsScreen() {
     setCollectionLoading(collectionId);
     setError('');
     try {
-      const rows = await fetchManagedCollectionProducts(collectionId, accessToken);
+      if (!collectionId) throw new Error('Missing collection ID');
+      const rows = await fetchManagedCollectionProducts(collectionId!, accessToken!);
       setCollectionProducts(v => ({
         ...v, [collectionId]: rows
       }));

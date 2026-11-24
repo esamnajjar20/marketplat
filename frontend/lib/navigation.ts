@@ -228,7 +228,7 @@ export function navChildIsActive(
 
   // Keep browse-link state aligned with BottomNav and ExploreSheet, while
   // excluding private creation/account routes from their public sections.
-  if ((BROWSE_ROUTE_PATHS as readonly string[]).includes(childPath)) {
+  if (childPath && (BROWSE_ROUTE_PATHS as readonly string[]).includes(childPath)) {
     return isBrowseRouteActive(pathname, childPath);
   }
 

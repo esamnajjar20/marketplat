@@ -22,7 +22,8 @@ const savedKey = (item: SavedOfflineItem) => `${item.kind}:${item.id}`;
 
 const SavedRow = memo(function SavedRow({ item, onOpen, onRemove }: { item: SavedOfflineItem; onOpen: (item: SavedOfflineItem) => void; onRemove: (item: SavedOfflineItem) => void }) {
   const { colors } = useAppTheme();
-  const firstImage = pickRemoteImageUri(item.payload.images) ?? (Array.isArray(item.payload.images) ? item.payload.images.find((value): value is string => typeof value === 'string') : undefined);
+  const __rawImages = Array.isArray(item.payload.images) ? item.payload.images : undefined;
+  const firstImage = pickRemoteImageUri(__rawImages) ?? __rawImages?.find((value): value is string => typeof value === 'string');
   const description = typeof item.payload.description === 'string' ? item.payload.description : '';
   const price = item.payload.price === null || item.payload.price === undefined ? '' : String(item.payload.price);
   return (

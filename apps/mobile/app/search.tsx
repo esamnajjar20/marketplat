@@ -346,7 +346,7 @@ export default function SearchScreen() {
         filters.city.trim() ||
         filters.minPrice.trim() ||
         filters.maxPrice.trim() ||
-        (filters.type === 'ads' && filters.condition),
+        ((filters.type as string) === 'ads' && filters.condition),
     );
     if (!hasCriterion) {
       setValidationError('أدخل كلمة للبحث أو اختر تصنيفًا أو فلترًا أولًا.');
