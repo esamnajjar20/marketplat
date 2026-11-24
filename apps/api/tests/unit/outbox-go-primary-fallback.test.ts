@@ -4,6 +4,7 @@ import { join } from 'node:path';
 describe('Go-owned background workers with Express fallback', () => {
   const worker = readFileSync(join(__dirname, '../../src/shared/outbox/outbox.worker.ts'), 'utf8');
   const app = readFileSync(join(__dirname, '../../src/app.ts'), 'utf8');
+  const marketplaceOrders = readFileSync(join(__dirname, '../../src/modules/commerce/marketplace-orders/marketplace-orders.service.ts'), 'utf8');
 
   it('uses an authenticated, bounded status probe and falls back when Go is unavailable', () => {
     expect(worker).toContain('/internal/outbox/worker-status');
@@ -24,10 +25,21 @@ describe('Go-owned background workers with Express fallback', () => {
     expect(worker).toContain('pruneProcessedOutboxEvents()');
   });
 
-  it('keeps future unsupported event types on the Express consumer', () => {
+  it('keeps future unsupported event types, including marketplace orders, on the Express consumer', () => {
+    expect(worker).toContain('async function claimBatch(workerId: string, expressOnly = false)');
+    expect(worker).toContain("${expressOnly} = false");
+    expect(worker).toContain("'CACHE_GENERATION_BUMP'\n          )");
+    expect(worker).toContain("event.eventType === 'MARKETPLACE_ORDER_NOTIFICATION'");
+    expect(worker).toContain('processOutboxBatch(undefined, false, true)');
     expect(app).toContain('publish-outbox-notifications');
-    expect(worker).toContain('isGoOutboxPrimaryActive');
-    expect(worker).toContain('method: \'GET\'');
+  });
+
+  it('persists marketplace-order notification intent in the order transaction', () => {
+    expect(marketplaceOrders).toContain('await tx.outboxEvent.create');
+    expect(marketplaceOrders).toContain("eventType: 'MARKETPLACE_ORDER_NOTIFICATION'");
+    expect(marketplaceOrders).toContain('marketplace-order-created:${order.id}');
+    expect(marketplaceOrders).toContain('marketplace-order-status:${updatedOrder.id}:${updatedOrder.status}');
+    expect(marketplaceOrders).not.toContain('notificationEvents.onMarketplaceOrderCreated');
   });
 
   it('authenticates and bounds the Go-to-Express post-commit callback', () => {

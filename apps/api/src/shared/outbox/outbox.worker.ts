@@ -92,6 +92,51 @@ interface FollowedActivityPayload {
   data: Record<string, unknown>;
 }
 
+interface MarketplaceOrderNotificationPayload {
+  event: 'CREATED' | 'STATUS_CHANGED';
+  orderId: string;
+  buyerId: string;
+  sellerId: string;
+  actorId?: string;
+  storeName: string;
+  total?: string;
+  currency?: string;
+  status: string;
+}
+
+function parseMarketplaceOrderNotificationPayload(value: unknown): MarketplaceOrderNotificationPayload {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Marketplace-order notification payload must be an object');
+  }
+  const payload = value as Record<string, unknown>;
+  if (
+    !['CREATED', 'STATUS_CHANGED'].includes(String(payload.event)) ||
+    typeof payload.orderId !== 'string' || !payload.orderId ||
+    typeof payload.buyerId !== 'string' || !payload.buyerId ||
+    typeof payload.sellerId !== 'string' || !payload.sellerId ||
+    typeof payload.storeName !== 'string' || !payload.storeName ||
+    typeof payload.status !== 'string' || !payload.status
+  ) {
+    throw new Error('Marketplace-order notification payload is missing required fields');
+  }
+  if (payload.event === 'CREATED' && (typeof payload.total !== 'string' || typeof payload.currency !== 'string')) {
+    throw new Error('Marketplace-order creation payload is missing total/currency');
+  }
+  if (payload.event === 'STATUS_CHANGED' && (typeof payload.actorId !== 'string' || !payload.actorId)) {
+    throw new Error('Marketplace-order status payload is missing actorId');
+  }
+  return payload as unknown as MarketplaceOrderNotificationPayload;
+}
+
+function preferenceAllowsStoreUpdates(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return true;
+  const preferences = value as Record<string, unknown>;
+  return Object.prototype.hasOwnProperty.call(preferences, 'storeUpdates')
+    ? Boolean(preferences.storeUpdates)
+    : true;
+}
+
+
 function parseActivityPayload(value: unknown): ActivityPayload {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Outbox activity payload must be an object');
@@ -538,6 +583,116 @@ async function processSavedSearchMatchEvent(
   );
 }
 
+async function processMarketplaceOrderNotificationEvent(
+  event: OutboxEvent,
+  workerId: string,
+): Promise<void> {
+  const payload = parseMarketplaceOrderNotificationPayload(event.payload);
+  const statusCopy: Record<string, { title: string; label: string }> = {
+    CONFIRMED: { title: 'تم تأكيد طلبك', label: 'تم تأكيد الطلب' },
+    PROCESSING: { title: 'بدأ تجهيز الطلب', label: 'بدأ تجهيز الطلب' },
+    SHIPPED: { title: 'تم شحن الطلب', label: 'تم شحن الطلب' },
+    DELIVERED: { title: 'تم تسليم الطلب', label: 'تم تسليم الطلب' },
+    CANCELLED: { title: 'تم إلغاء الطلب', label: 'تم إلغاء الطلب' },
+  };
+
+  const recipients = payload.event === 'CREATED'
+    ? [
+        {
+          userId: payload.sellerId,
+          type: NotificationType.MARKETPLACE_ORDER_NEW,
+          title: 'طلب شراء جديد',
+          body: `استلم متجرك طلب شراء جديد بقيمة ${payload.total} ${payload.currency}`,
+          event: 'NEW',
+        },
+        {
+          userId: payload.buyerId,
+          type: NotificationType.MARKETPLACE_ORDER_UPDATE,
+          title: 'تم استلام طلبك',
+          body: `استلم متجر "${payload.storeName}" طلبك، ويمكنك متابعة حالته من التفاصيل`,
+          event: 'CREATED',
+        },
+      ]
+    : (() => {
+        const buyerIsRecipient = payload.actorId !== payload.buyerId;
+        const recipientId = buyerIsRecipient ? payload.buyerId : payload.sellerId;
+        const copy = statusCopy[payload.status] ?? { title: 'تحديث طلب الشراء', label: 'تم تحديث حالة الطلب' };
+        const body = buyerIsRecipient
+          ? `${copy.label} لدى متجر "${payload.storeName}". افتح تفاصيل الطلب لمتابعته.`
+          : `${copy.label} رقم ${payload.orderId}. افتح تفاصيل الطلب لمراجعته.`;
+        return [{
+          userId: recipientId,
+          type: NotificationType.MARKETPLACE_ORDER_UPDATE,
+          title: copy.title,
+          body,
+          event: payload.status,
+        }];
+      })();
+
+  const inserted = await prisma.$transaction(async tx => {
+    if (!(await tryAcquireOutboxExecutionLock(tx, event.id))) return [];
+    const recipientIds = Array.from(new Set(recipients.map(item => item.userId)));
+    const users = recipientIds.length
+      ? await tx.user.findMany({
+          where: { id: { in: recipientIds } },
+          select: { id: true, notificationPreferences: true },
+        })
+      : [];
+    const allowedIds = new Set(
+      users.filter(user => preferenceAllowsStoreUpdates(user.notificationPreferences)).map(user => user.id)
+    );
+    const eligible = recipients.filter(item => allowedIds.has(item.userId));
+    const notifications = eligible.length
+      ? await tx.notification.createManyAndReturn({
+          data: eligible.map(item => ({
+            userId: item.userId,
+            type: item.type,
+            title: item.title,
+            body: item.body,
+            data: {
+              orderId: payload.orderId,
+              status: payload.status,
+              event: item.event,
+            } as Prisma.InputJsonValue,
+            idempotencyKey: `outbox:${event.id}:recipient:${item.userId}`,
+          })),
+          skipDuplicates: true,
+          select: { id: true, userId: true, type: true, title: true, body: true, data: true },
+        })
+      : [];
+
+    if (notifications.length) {
+      await tx.notificationPushDispatch.createMany({
+        data: notifications.map(row => ({
+          notificationId: row.id,
+          userId: row.userId,
+          payload: {
+            title: row.title,
+            body: row.body,
+            url: `/orders/${payload.orderId}`,
+            tag: `marketplace-order-${payload.orderId}-${payload.status.toLowerCase()}`,
+            type: row.type,
+          } as unknown as Prisma.InputJsonValue,
+          idempotencyKey: `notification-push:${row.id}`,
+        })),
+        skipDuplicates: true,
+      });
+    }
+    const acknowledged = await tx.outboxEvent.updateMany({
+      where: { id: event.id, lockedBy: workerId, processedAt: null },
+      data: { processedAt: new Date(), lockedAt: null, lockedBy: null, lastError: null },
+    });
+    if (acknowledged.count !== 1) throw new Error('Outbox lease lost before marketplace-order notification acknowledgement');
+    return notifications;
+  });
+
+  await publishOutboxNotifications(
+    inserted.map(row => ({ ...row, data: row.data })),
+    event.id,
+    'Marketplace-order',
+  );
+}
+
 /**
  * Keep the active event lease alive during slow database/network work. The
  * conditional update is also a cheap ownership check; acknowledgement still
@@ -600,9 +755,10 @@ async function withLeaseHeartbeat<T>(
   }
 }
 
-async function claimBatch(workerId: string): Promise<OutboxEvent[]> {
-  // One atomic statement across workers. Expired leases make abandoned work
-  // claimable after a process crash; SKIP LOCKED prevents simultaneous claims.
+async function claimBatch(workerId: string, expressOnly = false): Promise<OutboxEvent[]> {
+  // One atomic statement across workers. When Go is primary, Express still
+  // claims event types outside Go's explicit allowlist so new event families
+  // cannot remain stranded until a Go deployment catches up.
   return prisma.$queryRaw<OutboxEvent[]>`
     WITH candidates AS (
       SELECT "id"
@@ -611,6 +767,15 @@ async function claimBatch(workerId: string): Promise<OutboxEvent[]> {
         AND "deadLetterAt" IS NULL
         AND "availableAt" <= NOW()
         AND ("lockedAt" IS NULL OR "lockedAt" < NOW() - (${LEASE_SECONDS} * INTERVAL '1 second'))
+        AND (
+          ${expressOnly} = false
+          OR "eventType" NOT IN (
+            'USER_ACTIVITY_RECORD',
+            'FOLLOWED_ACTIVITY_NOTIFICATION',
+            'SAVED_SEARCH_MATCH_NOTIFICATION',
+            'CACHE_GENERATION_BUMP'
+          )
+        )
       ORDER BY "createdAt" ASC
       LIMIT ${BATCH_SIZE}
       FOR UPDATE SKIP LOCKED
@@ -1604,9 +1769,10 @@ async function processCacheGenerationBumpEvent(
 
 export async function processOutboxBatch(
   workerId = `outbox-${process.pid}-${randomUUID()}`,
-  allowGoExecution = true
+  allowGoExecution = true,
+  expressOnly = false,
 ): Promise<number> {
-  const events = await claimBatch(workerId);
+  const events = await claimBatch(workerId, expressOnly);
   for (const event of events) {
     try {
       await withLeaseHeartbeat(event, workerId, async () => {
@@ -1616,6 +1782,8 @@ export async function processOutboxBatch(
           await processFollowedActivityEvent(event, workerId, allowGoExecution);
         else if (event.eventType === 'SAVED_SEARCH_MATCH_NOTIFICATION')
           await processSavedSearchMatchEvent(event, workerId, allowGoExecution);
+        else if (event.eventType === 'MARKETPLACE_ORDER_NOTIFICATION')
+          await processMarketplaceOrderNotificationEvent(event, workerId);
         else if (event.eventType === 'CACHE_GENERATION_BUMP')
           await processCacheGenerationBumpEvent(event, workerId, allowGoExecution);
         else if (event.eventType === 'EDGE_CACHE_PURGE')
@@ -1652,10 +1820,15 @@ export async function runOutboxWorker(shouldStop: () => boolean = () => false): 
     // Express must run its local handlers immediately. Do not proxy each event
     // back to the failed Go service and wait for its 95-second request timeout.
     const allowGoExecution = !primaryConfigured;
-    const count = goPrimaryActive ? 0 : await processOutboxBatch(undefined, allowGoExecution).catch(error => {
-      logger.error('Express Outbox fallback batch claim failed', { error });
-      return 0;
-    });
+    const count = goPrimaryActive
+      ? await processOutboxBatch(undefined, false, true).catch(error => {
+          logger.error('Express unsupported-event outbox claim failed', { error });
+          return 0;
+        })
+      : await processOutboxBatch(undefined, allowGoExecution).catch(error => {
+          logger.error('Express Outbox fallback batch claim failed', { error });
+          return 0;
+        });
     const goPushDispatchPrimaryActive = await isGoPushDispatchPrimaryActive();
     const pushDispatchCount = goPushDispatchPrimaryActive
       ? 0

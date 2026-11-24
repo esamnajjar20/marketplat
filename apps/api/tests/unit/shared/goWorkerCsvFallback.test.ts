@@ -117,6 +117,52 @@ describe('streamCsvWithGoFallback', () => {
     expect(fallback).toHaveBeenCalledTimes(1);
     expect(output.send).toHaveBeenCalledWith('id,reason\n1,spam');
   });
+  it('materializes async fallback output completely before sending CSV headers', async () => {
+    delete process.env.GO_WORKER_URL;
+    delete process.env.GO_WORKER_TOKEN;
+    const output = createExpressResponse();
+    const chunks: Buffer[] = [];
+    output.stream.on('data', chunk => chunks.push(Buffer.from(chunk)));
+    async function* fallbackRows() {
+      yield 'header\n';
+      yield '1,first\n';
+      yield '2,second';
+    }
+
+    const outcome = await streamCsvWithGoFallback({
+      jobName: 'seller-sales-csv',
+      path: '/internal/exports/sales.csv',
+      filename: 'sales-report.csv',
+      response: output.response,
+      runExpressFallback: async () => fallbackRows(),
+    });
+
+    expect(outcome).toBe('express');
+    expect(output.setHeader).toHaveBeenCalledWith('Content-Type', 'text/csv; charset=utf-8');
+    expect(Buffer.concat(chunks).toString('utf8')).toBe('header\n1,first\n2,second');
+  });
+
+  it('does not send CSV headers when a later fallback page fails', async () => {
+    delete process.env.GO_WORKER_URL;
+    delete process.env.GO_WORKER_TOKEN;
+    const output = createExpressResponse();
+    async function* fallbackRows() {
+      yield 'header\n';
+      throw new Error('second database page failed');
+    }
+
+    await expect(streamCsvWithGoFallback({
+      jobName: 'seller-sales-csv',
+      path: '/internal/exports/sales.csv',
+      filename: 'sales-report.csv',
+      response: output.response,
+      runExpressFallback: async () => fallbackRows(),
+    })).rejects.toThrow('second database page failed');
+
+    expect(output.setHeader).not.toHaveBeenCalled();
+    expect(output.send).not.toHaveBeenCalled();
+  });
+
   it('does not attempt Express fallback after the Go stream has started', async () => {
     process.env.GO_WORKER_URL = 'https://worker.example';
     process.env.GO_WORKER_TOKEN = 'secret';

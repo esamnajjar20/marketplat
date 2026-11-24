@@ -18,7 +18,7 @@ export const marketplaceOrdersService = {
       if (existing) return existing;
     }
     try {
-      return await prisma.$transaction(async tx => {
+      const createdOrder = await prisma.$transaction(async tx => {
         const buyer = await tx.user.findUnique({ where: { id: buyerId }, select: { isActive: true } });
         if (!buyer?.isActive) throw new ForbiddenError('Your account is not active.', 'ACCOUNT_INACTIVE');
         const ids = input.items.map(item => item.productId).sort();
@@ -100,8 +100,31 @@ export const marketplaceOrdersService = {
           }];
         });
         if (reservationMovements.length) await tx.stockMovement.createMany({ data: reservationMovements });
+
+        // Durable notification intent shares the order transaction. The outbox
+        // consumer creates in-app rows and push-dispatch rows idempotently.
+        await tx.outboxEvent.create({
+          data: {
+            eventType: 'MARKETPLACE_ORDER_NOTIFICATION',
+            aggregateType: 'MARKETPLACE_ORDER',
+            aggregateId: order.id,
+            ownerUserId: buyerId,
+            idempotencyKey: `marketplace-order-created:${order.id}`,
+            payload: {
+              event: 'CREATED',
+              orderId: order.id,
+              buyerId: order.buyerId,
+              sellerId: order.sellerId,
+              storeName: order.store.name,
+              total: String(order.total),
+              currency: order.currency,
+              status: 'PENDING',
+            },
+          },
+        });
         return order;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10000, timeout: 20000 });
+      return createdOrder;
     } catch (error) {
       if ((error as { code?: string })?.code === 'P2002' && input.idempotencyKey) {
         const existing = await marketplaceOrdersRepository.findByIdempotencyKey(buyerId, input.idempotencyKey);
@@ -125,7 +148,7 @@ export const marketplaceOrdersService = {
     return order;
   },
   updateStatus: async (userId: string, id: string, nextStatus: MarketplaceOrderStatus, sellerNote?: string | null) => {
-    return prisma.$transaction(async tx => {
+    const updatedOrder = await prisma.$transaction(async tx => {
       // Serialize every status transition for this order. In particular, two
       // concurrent cancellation requests must not both restore the reserved stock.
       const lockedOrder = await tx.$queryRaw<Array<{ id: string }>>(
@@ -175,7 +198,27 @@ export const marketplaceOrdersService = {
         const allowed: Record<string, string[]> = { PENDING: ['CONFIRMED'], CONFIRMED: ['PROCESSING'], PROCESSING: ['SHIPPED'], SHIPPED: ['DELIVERED'] };
         if (!(allowed[order.status] ?? []).includes(nextStatus)) throw new ConflictError('Invalid order status transition.', 'ORDER_INVALID_TRANSITION');
       }
-      return tx.marketplaceOrder.update({ where: { id }, data: { status: nextStatus, ...(sellerNote !== undefined ? { sellerNote } : {}), ...(nextStatus === 'CONFIRMED' ? { confirmedAt: new Date() } : {}), ...(nextStatus === 'SHIPPED' ? { shippedAt: new Date() } : {}), ...(nextStatus === 'DELIVERED' ? { deliveredAt: new Date(), paymentStatus: 'PAID' } : {}), ...(nextStatus === 'CANCELLED' ? { cancelledAt: new Date() } : {}) }, include: { items: true, store: { select: { id: true, name: true, logoUrl: true, city: true, phone: true } }, buyer: { select: { id: true, name: true, phone: true } }, seller: { select: { id: true, name: true, phone: true } } } });
+      const updatedOrder = await tx.marketplaceOrder.update({ where: { id }, data: { status: nextStatus, ...(sellerNote !== undefined ? { sellerNote } : {}), ...(nextStatus === 'CONFIRMED' ? { confirmedAt: new Date() } : {}), ...(nextStatus === 'SHIPPED' ? { shippedAt: new Date() } : {}), ...(nextStatus === 'DELIVERED' ? { deliveredAt: new Date(), paymentStatus: 'PAID' } : {}), ...(nextStatus === 'CANCELLED' ? { cancelledAt: new Date() } : {}) }, include: { items: true, store: { select: { id: true, name: true, logoUrl: true, city: true, phone: true } }, buyer: { select: { id: true, name: true, phone: true } }, seller: { select: { id: true, name: true, phone: true } } } });
+      await tx.outboxEvent.create({
+        data: {
+          eventType: 'MARKETPLACE_ORDER_NOTIFICATION',
+          aggregateType: 'MARKETPLACE_ORDER',
+          aggregateId: updatedOrder.id,
+          ownerUserId: userId,
+          idempotencyKey: `marketplace-order-status:${updatedOrder.id}:${updatedOrder.status}`,
+          payload: {
+            event: 'STATUS_CHANGED',
+            orderId: updatedOrder.id,
+            buyerId: updatedOrder.buyerId,
+            sellerId: updatedOrder.sellerId,
+            actorId: userId,
+            storeName: updatedOrder.store.name,
+            status: updatedOrder.status,
+          },
+        },
+      });
+      return updatedOrder;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    return updatedOrder;
   },
 };

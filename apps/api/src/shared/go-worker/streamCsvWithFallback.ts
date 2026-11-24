@@ -1,4 +1,8 @@
 import type { Response as ExpressResponse } from 'express';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web';
@@ -13,7 +17,7 @@ type StreamCsvWithFallbackOptions = {
   method?: 'GET' | 'POST';
   body?: Record<string, string | undefined>;
   response: ExpressResponse;
-  runExpressFallback: () => Promise<string>;
+  runExpressFallback: () => Promise<string | AsyncIterable<string>>;
   timeoutMs?: number;
 };
 
@@ -97,7 +101,31 @@ export async function streamCsvWithGoFallback({
   if (response.headersSent) {
     throw new Error(`${jobName} fallback cannot start after response headers were sent`);
   }
-  setCsvHeaders(response, filename);
-  response.status(200).send(csv);
-  return 'express';
+  if (typeof csv === 'string') {
+    setCsvHeaders(response, filename);
+    response.status(200).send(csv);
+    return 'express';
+  }
+
+  // Fully materialize streamed fallback output to a private temporary file
+  // before sending headers. A later database-page failure therefore returns
+  // an ordinary API error, never a truncated CSV that looks successful.
+  const temporaryDirectory = await mkdtemp(join(tmpdir(), 'marketplat-csv-'));
+  const temporaryFile = join(temporaryDirectory, filename);
+  try {
+    await pipeline(Readable.from(csv), createWriteStream(temporaryFile, { flags: 'wx' }));
+    if (response.headersSent) {
+      throw new Error(`${jobName} fallback cannot start after response headers were sent`);
+    }
+    setCsvHeaders(response, filename);
+    response.status(200);
+    await pipeline(createReadStream(temporaryFile), response);
+    return 'express';
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true }).catch(error => {
+      logger.warn(`[${jobName}] temporary CSV cleanup failed`, {
+        errorType: error instanceof Error ? error.name : 'unknown',
+      });
+    });
+  }
 }
