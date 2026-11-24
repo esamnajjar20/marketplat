@@ -36,11 +36,8 @@ jest.mock('../../src/modules/engagement/follows/follows.repository');
 jest.mock('../../src/modules/commerce/stores/store-reviews.repository');
 jest.mock('../../src/modules/identity/sellers/sellers.repository');
 jest.mock('../../src/shared/locks/storeLock');
-// STORE-ANALYTICS (Foundation v1): getMyStoreAnalytics pulls from these
-// two — mocked the same way every other cross-module repository
-// dependency in this file already is, so real Prisma calls (which
-// this file's manual prisma mock below doesn't define model methods
-// for) never execute.
+// Store analytics combines repository summaries with the MarketplaceOrder
+// aggregate mocked in the manual prisma client below; no database is used.
 jest.mock('../../src/modules/commerce/promotions/promotions.repository');
 jest.mock('../../src/modules/commerce/products/products.repository');
 jest.mock('../../src/modules/commerce/store-types/store-types.repository');
@@ -67,6 +64,7 @@ jest.mock('../../src/config/prisma', () => ({
     auditLog: { create: jest.fn().mockResolvedValue({}) },
     storeTypeField: { findMany: jest.fn().mockResolvedValue([]) },
     product: { count: jest.fn().mockResolvedValue(0) },
+    marketplaceOrder: { groupBy: jest.fn().mockResolvedValue([]) },
   },
 }));
 
@@ -95,6 +93,15 @@ const createInput = {
 };
 
 describe('storesService', () => {
+  it('resolves cross-module public references only for active, unsuspended stores', async () => {
+    (storesRepository.findActiveByIdWithSeller as jest.Mock).mockResolvedValue(mockStore);
+
+    const result = await storesService.findStoreForReference(storeId);
+
+    expect(result).toBe(mockStore);
+    expect(storesRepository.findActiveByIdWithSeller).toHaveBeenCalledWith(storeId);
+    expect(storesRepository.findByIdWithSeller).not.toHaveBeenCalled();
+  });
   beforeEach(() => {
     jest.clearAllMocks();
     // By default, run the wrapped callback straight through — most tests
@@ -836,7 +843,7 @@ describe('storesService', () => {
       );
     });
 
-    it('aggregates views, followers, promotions, and top products with no revenue/orders fields', async () => {
+    it('aggregates store checkout orders separately from the seller sales ledger', async () => {
       (storeFollowersRepository.countAnalyticsByStoreId as jest.Mock).mockResolvedValue({
         followers: 42,
         newFollowers7d: 5,
@@ -850,6 +857,16 @@ describe('storesService', () => {
         { id: 'p1', name: 'Phone', views: 90, images: ['https://x/img1.jpg'] },
         { id: 'p2', name: 'Case', views: 40, images: [] },
       ]);
+      (prisma.marketplaceOrder.groupBy as jest.Mock)
+        .mockResolvedValueOnce([
+          { status: 'PENDING', _count: { _all: 2 } },
+          { status: 'DELIVERED', _count: { _all: 1 } },
+        ])
+        .mockResolvedValueOnce([
+          { currency: 'ILS', status: 'PENDING', _sum: { total: 10 } },
+          { currency: 'ILS', status: 'CANCELLED', _sum: { total: 15 } },
+          { currency: 'USD', status: 'DELIVERED', _sum: { total: 20 } },
+        ]);
 
       const result = await storesService.getMyStoreAnalytics(userId);
 
@@ -861,15 +878,29 @@ describe('storesService', () => {
         activeProducts: 8,
         activePromotions: 1,
         promotionUses: 10,
+        orders: {
+          totalCount: 3,
+          byStatus: {
+            PENDING: 2, CONFIRMED: 0, PROCESSING: 0, SHIPPED: 0, DELIVERED: 1, CANCELLED: 0,
+          },
+          nonCancelledValueByCurrency: [{ currency: 'ILS', total: 10 }, { currency: 'USD', total: 20 }],
+          deliveredValueByCurrency: [{ currency: 'USD', total: 20 }],
+        },
         topProducts: [
           { id: 'p1', name: 'Phone', views: 90, image: 'https://x/img1.jpg' },
           { id: 'p2', name: 'Case', views: 40, image: null },
         ],
       });
-      // Explicit, not just an absent-key check — this is the whole
-      // point of the endpoint (see stores.service.ts's doc comment):
-      // no honest orders/revenue/conversion number exists yet.
-      expect(result).not.toHaveProperty('orders');
+      expect(prisma.marketplaceOrder.groupBy).toHaveBeenCalledTimes(2);
+      expect(prisma.marketplaceOrder.groupBy).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ by: ['status'], where: { storeId, sellerId: userId } })
+      );
+      expect(prisma.marketplaceOrder.groupBy).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ by: ['currency', 'status'], where: { storeId, sellerId: userId } })
+      );
+      // Checkout orders must not be folded into the separate SaleRecord ledger.
       expect(result).not.toHaveProperty('revenue');
       expect(result).not.toHaveProperty('conversionRate');
     });

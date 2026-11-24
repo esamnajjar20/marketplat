@@ -90,6 +90,19 @@ storesRouter.post(
   storesController.createStore
 );
 
+// Delegated store settings — MANAGER capability is enforced by the service.
+// Keep these multi-segment routes before the generic /:id route for clarity.
+storesRouter.get('/:id/settings', authenticate, CACHE.NONE, storesController.getManagedStoreSettings);
+storesRouter.patch('/:id/settings', authenticate, storesController.updateManagedStoreSettings);
+storesRouter.post(
+  '/:id/logo', authenticate, requireVerifiedEmail, storeImagesRateLimit, uploadMiddleware,
+  storesController.uploadManagedLogo
+);
+storesRouter.post(
+  '/:id/cover', authenticate, requireVerifiedEmail, storeImagesRateLimit, uploadMiddleware,
+  storesController.uploadManagedCover
+);
+
 // Members of a store — before generic /:id sub-routes that might conflict is fine;
 // path is /:id/members so must stay after /me/* only.
 storesRouter.get('/:id/members', authenticate, CACHE.NONE, storeMembersController.listMembers);

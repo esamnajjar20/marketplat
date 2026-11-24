@@ -48,3 +48,9 @@ export const collectionProductParamsSchema = z.object({
 export const storeIdParamSchema = z.object({
   params: z.object({ storeId: z.string().min(1, 'Store ID is required') }),
 });
+
+export const storeScopeQuerySchema = z.object({
+  query: z.object({ storeId: z.string().min(1).optional() }),
+});
+
+export type StoreScopeQuery = z.infer<typeof storeScopeQuerySchema>['query'];

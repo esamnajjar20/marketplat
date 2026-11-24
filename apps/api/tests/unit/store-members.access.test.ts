@@ -162,6 +162,28 @@ describe('requireStoreAccessForProducts (audit H1: members, not just owners)', (
     expect(sellersRepository.findByUserId).not.toHaveBeenCalled();
   });
 
+  it('blocks the owner fallback path when their own store is BLOCKED', async () => {
+    (sellersRepository.findByUserId as jest.Mock).mockResolvedValue({ id: 'me', suspended: false });
+    (storesRepository.findBySellerProfileId as jest.Mock).mockResolvedValue({ ...store, status: 'BLOCKED' });
+
+    await expect(requireStoreAccessForProducts(userId, 'manageProducts')).rejects.toMatchObject({
+      code: 'STORE_BLOCKED',
+    });
+  });
+
+  it('allows MANAGER but not EDITOR to use the delegated store-settings capability', async () => {
+    (storeMembersRepository.findActive as jest.Mock).mockResolvedValue(membership('MANAGER'));
+    await expect(requireStoreAccess(userId, store.id, 'manageStoreSettings')).resolves.toMatchObject({
+      kind: 'member',
+      role: 'MANAGER',
+    });
+
+    (storeMembersRepository.findActive as jest.Mock).mockResolvedValue(membership('EDITOR'));
+    await expect(requireStoreAccess(userId, store.id, 'manageStoreSettings')).rejects.toMatchObject({
+      code: 'STORE_ROLE_INSUFFICIENT',
+    });
+  });
+
   it('blocks capability writes to a BLOCKED store for owners and members', async () => {
     (storesRepository.findByIdForAccess as jest.Mock).mockResolvedValue({ ...accessStore, status: 'BLOCKED' });
     (storeMembersRepository.findActive as jest.Mock).mockResolvedValue(membership('MANAGER'));

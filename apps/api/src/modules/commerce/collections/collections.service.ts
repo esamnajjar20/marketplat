@@ -32,9 +32,9 @@ const generateUniqueCollectionSlug = async (storeId: string, name: string): Prom
 };
 
 const requireOwnCollection = async (userId: string, id: string): Promise<StoreCollection> => {
-  const store = await requireStoreAccessForProducts(userId, 'manageCollections');
   const collection = await collectionsRepository.findById(id);
   if (!collection) throw new NotFoundError('Collection not found', 'COLLECTION_NOT_FOUND');
+  const store = await requireStoreAccessForProducts(userId, 'manageCollections', collection.storeId);
   if (collection.storeId !== store.id) {
     throw new ForbiddenError('You do not own this collection.', 'NOT_YOUR_COLLECTION');
   }
@@ -44,9 +44,10 @@ const requireOwnCollection = async (userId: string, id: string): Promise<StoreCo
 export const collectionsService = {
   createCollection: async (
     userId: string,
-    input: CreateCollectionInput
+    input: CreateCollectionInput,
+    storeId?: string
   ): Promise<StoreCollection> => {
-    const store = await requireStoreAccessForProducts(userId, 'manageCollections');
+    const store = await requireStoreAccessForProducts(userId, 'manageCollections', storeId);
     const slug = await generateUniqueCollectionSlug(store.id, input.name);
 
     try {
@@ -71,8 +72,8 @@ export const collectionsService = {
     }
   },
 
-  getMyCollections: async (userId: string): Promise<StoreCollectionWithCount[]> => {
-    const store = await requireStoreAccessForProducts(userId, 'manageCollections');
+  getMyCollections: async (userId: string, storeId?: string): Promise<StoreCollectionWithCount[]> => {
+    const store = await requireStoreAccessForProducts(userId, 'manageCollections', storeId);
     return collectionsRepository.findByStoreId(store.id);
   },
 
@@ -104,8 +105,8 @@ export const collectionsService = {
     await collectionsRepository.delete(id);
   },
 
-  reorderCollections: async (userId: string, input: ReorderCollectionsInput): Promise<void> => {
-    const store = await requireStoreAccessForProducts(userId, 'manageCollections');
+  reorderCollections: async (userId: string, input: ReorderCollectionsInput, storeId?: string): Promise<void> => {
+    const store = await requireStoreAccessForProducts(userId, 'manageCollections', storeId);
     const owned = await collectionsRepository.findByStoreId(store.id);
     const ownedIds = new Set(owned.map(c => c.id));
 
@@ -153,6 +154,12 @@ export const collectionsService = {
   removeProduct: async (userId: string, collectionId: string, productId: string): Promise<void> => {
     await requireOwnCollection(userId, collectionId);
     await collectionsRepository.removeProduct(collectionId, productId);
+  },
+
+  getManageCollectionProducts: async (userId: string, collectionId: string): Promise<Product[]> => {
+    const collection = await requireOwnCollection(userId, collectionId);
+    const rows = await collectionsRepository.findAllProducts(collection.id);
+    return rows.map(row => row.product);
   },
 
   // --- Public (storefront) reads ---

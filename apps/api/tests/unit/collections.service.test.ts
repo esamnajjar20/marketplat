@@ -242,6 +242,21 @@ describe('collectionsService', () => {
     });
   });
 
+  describe('managed collection products', () => {
+    it('returns non-deleted memberships for a hidden collection', async () => {
+      const hiddenCollection = { ...collection, isActive: false };
+      const pausedProduct = { id: 'paused-product', status: 'PAUSED', storeId: 'store-1' };
+      (collectionsRepository.findById as jest.Mock).mockResolvedValue(hiddenCollection);
+      (collectionsRepository.findAllProducts as jest.Mock).mockResolvedValue([
+        { product: pausedProduct },
+      ]);
+
+      await expect(collectionsService.getManageCollectionProducts(userId, 'col-1')).resolves.toEqual([pausedProduct]);
+      expect(requireStoreAccessForProducts).toHaveBeenCalledWith(userId, 'manageCollections', 'store-1');
+      expect(collectionsRepository.findAllProducts).toHaveBeenCalledWith('col-1');
+    });
+  });
+
   describe('public reads', () => {
     it('getPublicCollections resolves store by id then slug', async () => {
       (storesRepository.findById as jest.Mock).mockResolvedValue(null);

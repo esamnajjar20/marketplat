@@ -112,14 +112,20 @@ export const productsService = {
     userId: string,
     input: CreateProductInput,
     files: Express.Multer.File[],
-    offlineOperationId?: string | null
+    offlineOperationId?: string | null,
+    storeId?: string
   ): Promise<Product> => {
+    const requestedStoreId = storeId ?? input.storeId;
     if (offlineOperationId) {
       const existing = await prisma.product.findUnique({
         where: { offlineOperationId },
       });
       if (existing) {
-        const store = await requireStoreAccessForProducts(userId, 'manageProducts');
+        const store = await requireStoreAccessForProducts(
+          userId,
+          'manageProducts',
+          requestedStoreId ?? existing.storeId
+        );
         if (existing.storeId !== store.id) {
           throw new BadRequestError(
             'Offline operation id already used by another store',
@@ -130,7 +136,7 @@ export const productsService = {
       }
     }
 
-    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts', requestedStoreId);
 
     if (store.status !== 'ACTIVE') {
       throw new ForbiddenError(
@@ -345,9 +351,10 @@ export const productsService = {
       status?: 'ACTIVE' | 'PAUSED' | 'DELETED';
       availability?: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
       search?: string;
+      storeId?: string;
     }
   ): Promise<PaginatedResult<Product>> => {
-    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts', query.storeId);
     const { products, total } = await productsRepository.findManyByStoreId(store.id, query);
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -434,9 +441,9 @@ export const productsService = {
     id: string,
     input: UpdateProductInput
   ): Promise<Product> => {
-    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
     const product = await productsRepository.findById(id);
     if (!product) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts', product.storeId);
     if (product.storeId !== store.id) {
       throw new ForbiddenError('You do not own this product.', 'NOT_YOUR_PRODUCT');
     }
@@ -580,9 +587,9 @@ export const productsService = {
     stockQuantity: number | null,
     reason = 'MANUAL_ADJUSTMENT'
   ): Promise<Product> => {
-    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
     const product = await productsRepository.findById(id);
     if (!product) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts', product.storeId);
     if (product.storeId !== store.id) {
       throw new ForbiddenError('You do not own this product.', 'NOT_YOUR_PRODUCT');
     }
@@ -663,9 +670,9 @@ export const productsService = {
   },
 
   deleteProduct: async (userId: string, id: string): Promise<void> => {
-    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
     const product = await productsRepository.findById(id);
     if (!product) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts', product.storeId);
     if (product.storeId !== store.id) {
       throw new ForbiddenError('You do not own this product.', 'NOT_YOUR_PRODUCT');
     }
@@ -700,7 +707,9 @@ export const productsService = {
     userId: string,
     files: Express.Multer.File[]
   ): Promise<Product> => {
-    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
+    const target = await productsRepository.findById(productId);
+    if (!target) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts', target.storeId);
     return productImageOperations.addImages(
       productId,
       product => product.storeId === store.id,
@@ -713,7 +722,9 @@ export const productsService = {
   // identically here — a product must always keep at least one image).
   // Delegates to the shared factory ().
   removeImage: async (productId: string, userId: string, imageUrl: string): Promise<Product> => {
-    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
+    const target = await productsRepository.findById(productId);
+    if (!target) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts', target.storeId);
     return productImageOperations.removeImage(
       productId,
       product => product.storeId === store.id,
@@ -729,7 +740,9 @@ export const productsService = {
     userId: string,
     orderedImages: string[]
   ): Promise<Product> => {
-    const store = await requireStoreAccessForProducts(userId, 'manageProducts');
+    const target = await productsRepository.findById(productId);
+    if (!target) throw new NotFoundError('Product not found', 'PRODUCT_NOT_FOUND');
+    const store = await requireStoreAccessForProducts(userId, 'manageProducts', target.storeId);
     return productImageOperations.reorderImages(
       productId,
       product => product.storeId === store.id,

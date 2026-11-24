@@ -140,6 +140,18 @@ export const collectionsRepository = {
       take: 500,
     }),
 
+
+  // Owner/manager membership view: unlike the public storefront query,
+  // include paused products so staff can see and remove old memberships
+  // while a collection is hidden or a product is temporarily unavailable.
+  findAllProducts: (collectionId: string) =>
+    prisma.storeCollectionProduct.findMany({
+      where: { collectionId, product: { status: { not: 'DELETED' } } },
+      include: { product: true },
+      orderBy: [{ sortOrder: 'asc' }, { addedAt: 'asc' }],
+      take: 500,
+    }),
+
   nextSortOrder: async (collectionId: string): Promise<number> => {
     const last = await prisma.storeCollectionProduct.findFirst({
       where: { collectionId },

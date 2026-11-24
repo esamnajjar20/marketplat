@@ -1,6 +1,6 @@
 import { reportBackgroundFailure } from '../../../shared/jobs/backgroundTask';
 import { prisma } from '../../../config/prisma';
-import { FavoriteEntityType, FollowTargetType } from '@prisma/client';
+import { FavoriteEntityType, FollowTargetType, MarketplaceOrderStatus } from '@prisma/client';
 import { StoreDetails, Prisma } from '@prisma/client';
 import { uploadStoreLogo, uploadStoreCover } from '../../../config/cloudinary';
 import {
@@ -48,6 +48,7 @@ import { storeTypesRepository } from '../store-types/store-types.repository';
 import { storeTypeFieldsService } from '../store-types/store-type-fields.service';
 import { badgesService } from '../../engagement/badges/badges.service';
 import { favoritesRepository } from '../../engagement/favorites/favorites.repository';
+import { requireStoreAccess } from './store-members.service';
 
 /** Bump when the public store-list response projection changes.
  * A new key prevents Redis from serving an older, wider cached payload.
@@ -63,6 +64,27 @@ const STORE_DIRECTORY_CACHE_VERSION = 2;
 // hasn't been set at all, so "unknown" isn't shown as "closed".
 const computeIsOpen = (workingHours: Prisma.JsonValue | null): boolean | null =>
   isOpenAt(workingHours);
+
+// Staff settings responses deliberately expose only editable store fields;
+// never serialize the StoreAccess row (which also carries owner relations).
+type ManagedStoreSettingsView = Pick<
+  StoreDetails,
+  'id' | 'name' | 'description' | 'city' | 'address' | 'phone' |
+  'logoUrl' | 'coverImageUrl' | 'workingHours' | 'latitude' | 'longitude'
+>;
+const toManagedStoreSettingsView = (store: StoreDetails): ManagedStoreSettingsView => ({
+  id: store.id,
+  name: store.name,
+  description: store.description,
+  city: store.city,
+  address: store.address,
+  phone: store.phone,
+  logoUrl: store.logoUrl,
+  coverImageUrl: store.coverImageUrl,
+  workingHours: store.workingHours,
+  latitude: store.latitude,
+  longitude: store.longitude,
+});
 
 // STORE-SLUG: bounded collision-retry — findBySlug then insert, not a
 // unique-constraint catch-and-retry, so the same helper can be reused
@@ -112,6 +134,12 @@ export interface StoreAnalytics {
   activeProducts: number;
   activePromotions: number;
   promotionUses: number;
+  orders: {
+    totalCount: number;
+    byStatus: Record<MarketplaceOrderStatus, number>;
+    nonCancelledValueByCurrency: { currency: string; total: number }[];
+    deliveredValueByCurrency: { currency: string; total: number }[];
+  };
   topProducts: { id: string; name: string; views: number; image: string | null }[];
 }
 
@@ -150,6 +178,9 @@ const requireOwnStore = async (userId: string): Promise<StoreDetails> => {
   const store = await storesRepository.findBySellerProfileId(sellerProfile.id);
   if (!store) {
     throw new BadRequestError('You need to create your store first.');
+  }
+  if (store.status === 'BLOCKED') {
+    throw new ForbiddenError('This store is blocked and cannot be managed.', 'STORE_BLOCKED');
   }
   return store;
 };
@@ -236,6 +267,90 @@ export const storesService = {
   // UNIFY-PAYMENTS-STORES: no paymentMethods handling here anymore —
   // UpdateStoreInput no longer carries that field (see
   // stores.validation.ts), so `input` forwards straight through.
+  getManagedStoreSettings: async (userId: string, storeId: string): Promise<ManagedStoreSettingsView> => {
+    const access = await requireStoreAccess(userId, storeId, 'manageStoreSettings');
+    return toManagedStoreSettingsView(access.store);
+  },
+
+  updateManagedStoreSettings: async (
+    userId: string,
+    storeId: string,
+    input: UpdateStoreInput
+  ): Promise<ManagedStoreSettingsView> => {
+    const access = await requireStoreAccess(userId, storeId, 'manageStoreSettings');
+    const store = access.store;
+    const updated = await storesRepository.update(store.id, input);
+    await bumpPublicListCache('stores');
+    activityService.record({ userId, ...activityTemplates.storeUpdated(updated.id, updated.name) });
+    return toManagedStoreSettingsView(updated);
+  },
+
+  uploadManagedLogo: async (
+    userId: string,
+    storeId: string,
+    file: Express.Multer.File
+  ): Promise<ManagedStoreSettingsView> => {
+    const access = await requireStoreAccess(userId, storeId, 'manageStoreSettings');
+    const store = access.store;
+    const { url, publicId } = await uploadStoreLogo(file.buffer);
+    let updated: StoreDetails;
+    try {
+      // Compensate only while the database still points at the old asset.
+      updated = await storesRepository.update(store.id, { logoUrl: url });
+    } catch (error) {
+      await cleanupUploadedImages([publicId]);
+      throw error;
+    }
+
+    // From this point on the new asset is committed and must never be deleted
+    // because an ancillary cache invalidation or old-asset cleanup failed.
+    await bumpPublicListCache('stores').catch(error =>
+      reportBackgroundFailure('stores.uploadManagedLogo.cache-invalidation', error)
+    );
+    if (store.logoUrl) {
+      const oldPublicId = extractCloudinaryPublicId(store.logoUrl);
+      if (oldPublicId) {
+        await deleteCloudinaryAsset(oldPublicId, 'image').catch(error =>
+          reportBackgroundFailure('stores.uploadManagedLogo.old-asset-cleanup', error)
+        );
+      }
+    }
+    return toManagedStoreSettingsView(updated);
+  },
+
+  uploadManagedCover: async (
+    userId: string,
+    storeId: string,
+    file: Express.Multer.File
+  ): Promise<ManagedStoreSettingsView> => {
+    const access = await requireStoreAccess(userId, storeId, 'manageStoreSettings');
+    const store = access.store;
+    const { url, publicId } = await uploadStoreCover(file.buffer);
+    let updated: StoreDetails;
+    try {
+      // Compensate only while the database still points at the old asset.
+      updated = await storesRepository.update(store.id, { coverImageUrl: url });
+    } catch (error) {
+      await cleanupUploadedImages([publicId]);
+      throw error;
+    }
+
+    // The replacement is committed; failures in cache/old-asset cleanup are
+    // observable but must not roll back the user-visible success or delete it.
+    await bumpPublicListCache('stores').catch(error =>
+      reportBackgroundFailure('stores.uploadManagedCover.cache-invalidation', error)
+    );
+    if (store.coverImageUrl) {
+      const oldPublicId = extractCloudinaryPublicId(store.coverImageUrl);
+      if (oldPublicId) {
+        await deleteCloudinaryAsset(oldPublicId, 'image').catch(error =>
+          reportBackgroundFailure('stores.uploadManagedCover.old-asset-cleanup', error)
+        );
+      }
+    }
+    return toManagedStoreSettingsView(updated);
+  },
+
   updateMyStore: async (userId: string, input: UpdateStoreInput): Promise<StoreDetails> => {
     const store = await requireOwnStore(userId);
 
@@ -381,7 +496,7 @@ export const storesService = {
   // resolve "who owns this store" for its self-report check — a store
   // has no userId column of its own, only sellerProfileId.
   findStoreForReference: async (storeId: string): Promise<StoreWithSeller | null> => {
-    return storesRepository.findByIdWithSeller(storeId);
+    return storesRepository.findActiveByIdWithSeller(storeId);
   },
 
   // Admin directory — see audit report issue #1: PENDING stores had no
@@ -680,25 +795,43 @@ export const storesService = {
   },
 
   // --- Analytics -------------------------------------------------------
-  //
-  // STORE-ANALYTICS (Foundation v1): deliberately excludes
-  // orders/revenue/conversion — this schema has no Order model at all,
-  // so there is no honest number to show for any of the three. Every
-  // metric below reads from data that already exists (StoreDetails.views,
-  // StoreFollower, Promotion.usageCount, Product.views) — no new
-  // tracking pipeline required for this first cut.
+  // MarketplaceOrder is the buyer checkout flow. It is intentionally kept
+  // separate from SaleRecord (the seller's independently entered ledger).
+  // Values are grouped by currency; cancelled orders are excluded from the
+  // value totals and delivered totals are labelled as order value, not cash
+  // collected or accounting revenue.
   getMyStoreAnalytics: async (userId: string): Promise<StoreAnalytics> => {
     const store = await requireOwnStore(userId);
     const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
-    const [followerSummary, activeProducts, promotionSummary, topProducts] = await Promise.all([
+    const orderWhere = { storeId: store.id, sellerId: userId };
+    const [followerSummary, activeProducts, promotionSummary, topProducts, orderStatuses, orderValueGroups] = await Promise.all([
       storeFollowersRepository.countAnalyticsByStoreId(store.id, since7d, since30d),
       storesRepository.countActiveProducts(store.id),
       promotionsRepository.getStoreAnalyticsSummary(store.id),
       productsRepository.findTopByStoreId(store.id, 5),
+      prisma.marketplaceOrder.groupBy({ by: ['status'], where: orderWhere, _count: { _all: true } }),
+      prisma.marketplaceOrder.groupBy({
+        by: ['currency', 'status'],
+        where: orderWhere,
+        _sum: { total: true },
+      }),
     ]);
     const { followers, newFollowers7d, newFollowers30d } = followerSummary;
+    const byStatus = Object.fromEntries(
+      Object.values(MarketplaceOrderStatus).map((status) => [status, 0])
+    ) as Record<MarketplaceOrderStatus, number>;
+    for (const row of orderStatuses) byStatus[row.status] = row._count._all;
+    const currencyTotals = new Map<string, { nonCancelled: number; delivered: number; hasNonCancelled: boolean; hasDelivered: boolean }>();
+    for (const row of orderValueGroups) {
+      const totals = currencyTotals.get(row.currency) ?? { nonCancelled: 0, delivered: 0, hasNonCancelled: false, hasDelivered: false };
+      const amount = Number(row._sum.total ?? 0);
+      if (row.status !== MarketplaceOrderStatus.CANCELLED) { totals.nonCancelled += amount; totals.hasNonCancelled = true; }
+      if (row.status === MarketplaceOrderStatus.DELIVERED) { totals.delivered += amount; totals.hasDelivered = true; }
+      currencyTotals.set(row.currency, totals);
+    }
+    const currencyRows = [...currencyTotals.entries()].sort(([a], [b]) => a.localeCompare(b));
 
     return {
       views: store.views,
@@ -708,6 +841,16 @@ export const storesService = {
       activeProducts,
       activePromotions: promotionSummary.find(row => row.status === 'ACTIVE')?._count._all ?? 0,
       promotionUses: promotionSummary.reduce((sum, row) => sum + (row._sum.usageCount ?? 0), 0),
+      orders: {
+        totalCount: Object.values(byStatus).reduce((total, count) => total + count, 0),
+        byStatus,
+        nonCancelledValueByCurrency: currencyRows
+          .filter(([, totals]) => totals.hasNonCancelled)
+          .map(([currency, totals]) => ({ currency, total: Math.round(totals.nonCancelled * 100) / 100 })),
+        deliveredValueByCurrency: currencyRows
+          .filter(([, totals]) => totals.hasDelivered)
+          .map(([currency, totals]) => ({ currency, total: Math.round(totals.delivered * 100) / 100 })),
+      },
       topProducts: topProducts.map(p => ({
         id: p.id,
         name: p.name,

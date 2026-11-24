@@ -6,6 +6,7 @@ import {
   updateStoreStatusSchema,
   createStoreReviewSchema,
   getStoreReviewsSchema,
+  workingHoursSchema,
 } from '../../src/modules/commerce/stores/stores.validation';
 
 describe('stores.validation', () => {
@@ -93,6 +94,18 @@ describe('stores.validation', () => {
     it('rejects a longitude out of range', () => {
       expect(() => createStoreSchema.parse({ body: { ...valid, longitude: 181 } })).toThrow();
       expect(() => createStoreSchema.parse({ body: { ...valid, longitude: -181 } })).toThrow();
+    });
+  });
+
+  describe('workingHoursSchema', () => {
+    const week = { sun: null, mon: null, tue: null, wed: null, thu: null, fri: null, sat: null };
+
+    it('accepts overnight hours that close on the following day', () => {
+      expect(() => workingHoursSchema.parse({ ...week, fri: { open: '20:00', close: '02:00' } })).not.toThrow();
+    });
+
+    it('rejects equal opening and closing times', () => {
+      expect(() => workingHoursSchema.parse({ ...week, fri: { open: '09:00', close: '09:00' } })).toThrow();
     });
   });
 

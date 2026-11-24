@@ -204,6 +204,14 @@ export const storesRepository = {
   findByIdWithSeller: (id: string): Promise<StoreWithSeller | null> =>
     prisma.storeDetails.findUnique({ where: { id }, include: storeWithSeller }),
 
+  // Cross-module public references (favorites/reports) must not resolve a
+  // pending or seller-suspended store as a public target.
+  findActiveByIdWithSeller: (id: string): Promise<StoreWithSeller | null> =>
+    prisma.storeDetails.findFirst({
+      where: { id, status: 'ACTIVE', sellerProfile: { suspended: false } },
+      include: storeWithSeller,
+    }),
+
   findPublicById: (id: string): Promise<StoreWithSellerAndCounts | null> =>
     prisma.storeDetails.findUnique({
       where: { id },

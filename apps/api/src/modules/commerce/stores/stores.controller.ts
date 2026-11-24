@@ -12,6 +12,7 @@ import {
   getStoreReviewsSchema,
   bulkUpdateStoreStatusSchema,
   updateStoreTypeSchema,
+  updateManagedStoreSettingsSchema,
 } from './stores.validation';
 import { successResponse } from '../../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/auth/requireUser';
@@ -36,6 +37,52 @@ export const storesController = {
       const user = requireUser(req);
       const store = await storesService.getMyStore(user.userId);
       res.status(200).json(successResponse('Store fetched', store));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  getManagedStoreSettings: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = storeIdSchema.parse({ params: req.params });
+      const store = await storesService.getManagedStoreSettings(user.userId, params.id);
+      res.status(200).json(successResponse('Store settings fetched', store));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  updateManagedStoreSettings: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params, body } = updateManagedStoreSettingsSchema.parse({ params: req.params, body: req.body });
+      const store = await storesService.updateManagedStoreSettings(user.userId, params.id, body);
+      res.status(200).json(successResponse('Store settings updated', store));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  uploadManagedLogo: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = storeIdSchema.parse({ params: req.params });
+      if (!req.file) throw new BadRequestError('No image file was attached', 'NO_FILE_ATTACHED');
+      const store = await storesService.uploadManagedLogo(user.userId, params.id, req.file);
+      res.status(200).json(successResponse('Store logo updated', store));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  uploadManagedCover: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = storeIdSchema.parse({ params: req.params });
+      if (!req.file) throw new BadRequestError('No image file was attached', 'NO_FILE_ATTACHED');
+      const store = await storesService.uploadManagedCover(user.userId, params.id, req.file);
+      res.status(200).json(successResponse('Store cover updated', store));
     } catch (error) {
       next(error);
     }
@@ -265,10 +312,8 @@ export const storesController = {
     }
   },
 
-  // STORE-ANALYTICS (Foundation v1): owner-only summary, same
-  // requireOwnStore gate every other /me write in this module goes
-  // through — see stores.service.ts's getMyStoreAnalytics doc comment
-  // for why Orders/Revenue/Conversion aren't in this response.
+  // Owner-only analytics. Checkout orders are summarized from
+  // MarketplaceOrder and remain separate from the SaleRecord ledger.
   getMyStoreAnalytics: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);

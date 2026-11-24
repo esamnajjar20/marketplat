@@ -31,6 +31,9 @@ export const createProductSchema = z.object({
       availability: z.nativeEnum(ProductAvailability).default('IN_STOCK'),
       stockQuantity: z.coerce.number().int().min(0).max(1000000).optional(),
       attributes: productAttributesSchema.optional(),
+      // Explicit scope for members who manage more than one store. The
+      // service uses this only for authorization; it is not a Product column.
+      storeId: z.string().min(1).optional(),
     })
     // Wholesale pricing is a pair — a minimum quantity with no price
     // (or vice versa) is a contradiction, not a valid partial state.
@@ -112,6 +115,7 @@ export const getMyProductsSchema = z.object({
     status: z.nativeEnum(ProductStatus).optional(),
     availability: z.nativeEnum(ProductAvailability).optional(),
     search: z.string().trim().min(1).max(200).optional(),
+    storeId: z.string().min(1).optional(),
   }),
 });
 

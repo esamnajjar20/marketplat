@@ -220,11 +220,14 @@ export const storeMembersService = {
             );
           }
 
-          const activeCount = await tx.storeMember.count({
-            where: { storeId: store.id, status: 'ACTIVE' },
+          // Pending invitations reserve seats. Count both pending and active
+          // memberships so an owner cannot overbook the plan by sending
+          // multiple invitations before invitees accept them.
+          const reservedSeats = await tx.storeMember.count({
+            where: { storeId: store.id, status: { in: ['PENDING', 'ACTIVE'] } },
           });
           const maxMembers = store.plan === 'FEATURED' ? 20 : 5;
-          if (activeCount >= maxMembers) {
+          if (reservedSeats >= maxMembers) {
             throw new BadRequestError(
               `This store has reached its member limit (${maxMembers}).`,
               'STORE_MEMBER_LIMIT'
@@ -256,10 +259,27 @@ export const storeMembersService = {
         'code' in e &&
         (e as { code?: string }).code === 'P2034'
       ) {
-        throw new ConflictError(
-          'An invitation is already pending for this user.',
-          'ALREADY_MEMBER'
-        );
+        const [existing, reservedSeats] = await Promise.all([
+          storeMembersRepository.findActiveOrPending(store.id, targetUser.id),
+          prisma.storeMember.count({
+            where: { storeId: store.id, status: { in: ['PENDING', 'ACTIVE'] } },
+          }),
+        ]);
+        if (existing) {
+          throw new ConflictError(
+            existing.status === 'PENDING'
+              ? 'An invitation is already pending for this user.'
+              : 'This user is already a member of the store.',
+            'ALREADY_MEMBER'
+          );
+        }
+        if (reservedSeats >= (store.plan === 'FEATURED' ? 20 : 5)) {
+          throw new BadRequestError(
+            `This store has reached its member limit (${store.plan === 'FEATURED' ? 20 : 5}).`,
+            'STORE_MEMBER_LIMIT'
+          );
+        }
+        throw new ConflictError('Store membership changed. Please retry the invitation.', 'STORE_MEMBER_CONFLICT');
       }
       throw e;
     }
@@ -289,21 +309,67 @@ export const storeMembersService = {
     return member;
   },
 
-  /** Invitee accepts a pending invitation. */
+  /** Invitee accepts a pending invitation without exceeding the plan seat cap. */
   acceptInvite: async (userId: string, memberId: string): Promise<StoreMember> => {
-    const member = await storeMembersRepository.findById(memberId);
-    if (!member) throw new NotFoundError('Invitation not found.', 'INVITE_NOT_FOUND');
-    if (member.userId !== userId) {
-      throw new ForbiddenError('This invitation is not for you.', 'INVITE_NOT_YOURS');
-    }
-    if (member.status !== 'PENDING') {
-      throw new BadRequestError(
-        `Invitation is already ${member.status.toLowerCase()}.`,
-        'INVITE_NOT_PENDING'
-      );
-    }
+    try {
+      return await prisma.$transaction(
+        async tx => {
+          const member = await tx.storeMember.findUnique({
+            where: { id: memberId },
+            include: { store: { select: { plan: true } } },
+          });
+          if (!member) throw new NotFoundError('Invitation not found.', 'INVITE_NOT_FOUND');
+          if (member.userId !== userId) {
+            throw new ForbiddenError('This invitation is not for you.', 'INVITE_NOT_YOURS');
+          }
+          if (member.status !== 'PENDING') {
+            throw new BadRequestError(
+              `Invitation is already ${member.status.toLowerCase()}.`,
+              'INVITE_NOT_PENDING'
+            );
+          }
 
-    return storeMembersRepository.accept(memberId);
+          // PENDING records already reserve capacity. The current invitation
+          // is included in this count, so it can become ACTIVE without
+          // consuming an additional seat. Legacy over-capacity stores are
+          // prevented from activating more members until seats are freed.
+          const reservedSeats = await tx.storeMember.count({
+            where: {
+              storeId: member.storeId,
+              status: { in: ['PENDING', 'ACTIVE'] },
+            },
+          });
+          const maxMembers = member.store.plan === 'FEATURED' ? 20 : 5;
+          if (reservedSeats > maxMembers) {
+            throw new BadRequestError(
+              `This store has reached its member limit (${maxMembers}). Ask the owner to free a seat or change the plan.`,
+              'STORE_MEMBER_LIMIT'
+            );
+          }
+
+          const updated = await tx.storeMember.updateMany({
+            where: { id: memberId, userId, status: 'PENDING' },
+            data: { status: 'ACTIVE', acceptedAt: new Date() },
+          });
+          if (updated.count !== 1) {
+            throw new ConflictError('This invitation has already changed.', 'INVITE_NOT_PENDING');
+          }
+          return tx.storeMember.findUniqueOrThrow({ where: { id: memberId } });
+        },
+        { isolationLevel: 'Serializable' }
+      );
+    } catch (error: unknown) {
+      if (
+        typeof error === 'object' && error !== null && 'code' in error &&
+        (error as { code?: string }).code === 'P2034'
+      ) {
+        throw new ConflictError(
+          'Store membership capacity changed. Refresh the invitation and try again.',
+          'STORE_MEMBER_CONFLICT'
+        );
+      }
+      throw error;
+    }
   },
 
   /** Change role. Owner can change anyone; MANAGER cannot promote to MANAGER. */
@@ -445,20 +511,27 @@ export const storeMembersService = {
  *   - membership on a store whose *owner* is suspended → ForbiddenError
  *     (staff must not write while the owning seller is suspended)
  *
- * Multi-store membership: products endpoints today have no storeId in
- * the body (they assume "the caller's one store"). If the user is a
- * product-capable member of more than one store and owns none, we pick
- * the earliest membership (invitedAt ASC) deterministically. A future
- * pass can thread storeId through product writes if multi-store staff
- * becomes common.
+ * Legacy callers may omit storeId and retain the deterministic owner/oldest
+ * membership fallback. Multi-store screens must pass an explicit store id;
+ * product-id mutations resolve the target product's store before calling
+ * this gate, so the authorization always matches the resource being changed.
  *
  * Usage in products.service.ts:
  *   const store = await requireStoreAccessForProducts(userId);
  */
 export const requireStoreAccessForProducts = async (
   userId: string,
-  capability: 'manageProducts' | 'managePromotions' | 'manageCollections' = 'manageProducts'
+  capability: 'manageProducts' | 'managePromotions' | 'manageCollections' = 'manageProducts',
+  storeIdOrSlug?: string
 ): Promise<StoreDetails> => {
+  // Explicit store context is mandatory for multi-store workflows. The
+  // central gate validates membership, role capability, owner suspension,
+  // and BLOCKED status for the exact store selected by the user.
+  if (storeIdOrSlug) {
+    const access = await requireStoreAccess(userId, storeIdOrSlug, capability);
+    return access.store;
+  }
+
   const sellerProfile = await sellersRepository.findByUserId(userId);
 
   // Owner path — same gates as requireOwnStore.
@@ -467,7 +540,12 @@ export const requireStoreAccessForProducts = async (
       throw new ForbiddenError('Your seller account has been suspended.', 'SELLER_SUSPENDED');
     }
     const ownStore = await storesRepository.findBySellerProfileId(sellerProfile.id);
-    if (ownStore) return ownStore;
+    if (ownStore) {
+      if (ownStore.status === 'BLOCKED') {
+        throw new ForbiddenError('This store is blocked and cannot be managed.', 'STORE_BLOCKED');
+      }
+      return ownStore;
+    }
   }
 
   // Staff path: active membership with the requested capability, oldest

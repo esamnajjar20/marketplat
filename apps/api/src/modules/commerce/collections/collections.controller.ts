@@ -7,6 +7,7 @@ import {
   reorderCollectionsSchema,
   collectionProductParamsSchema,
   storeIdParamSchema,
+  storeScopeQuerySchema,
 } from './collections.validation';
 import { successResponse } from '../../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/auth/requireUser';
@@ -16,7 +17,8 @@ export const collectionsController = {
     try {
       const user = requireUser(req);
       const { body } = createCollectionSchema.parse({ body: req.body });
-      const collection = await collectionsService.createCollection(user.userId, body);
+      const { query } = storeScopeQuerySchema.parse({ query: req.query });
+      const collection = await collectionsService.createCollection(user.userId, body, query.storeId);
       res.status(201).json(successResponse('Collection created', collection));
     } catch (error) {
       next(error);
@@ -26,7 +28,8 @@ export const collectionsController = {
   getMyCollections: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const collections = await collectionsService.getMyCollections(user.userId);
+      const { query } = storeScopeQuerySchema.parse({ query: req.query });
+      const collections = await collectionsService.getMyCollections(user.userId, query.storeId);
       res.status(200).json(successResponse('Collections fetched', collections));
     } catch (error) {
       next(error);
@@ -70,7 +73,8 @@ export const collectionsController = {
     try {
       const user = requireUser(req);
       const { body } = reorderCollectionsSchema.parse({ body: req.body });
-      await collectionsService.reorderCollections(user.userId, body);
+      const { query } = storeScopeQuerySchema.parse({ query: req.query });
+      await collectionsService.reorderCollections(user.userId, body, query.storeId);
       res.status(200).json(successResponse('Collections reordered'));
     } catch (error) {
       next(error);
@@ -106,6 +110,17 @@ export const collectionsController = {
       const { params } = storeIdParamSchema.parse({ params: req.params });
       const collections = await collectionsService.getPublicCollections(params.storeId);
       res.status(200).json(successResponse('Collections fetched', collections));
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  getManageCollectionProducts: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = collectionIdSchema.parse({ params: req.params });
+      const products = await collectionsService.getManageCollectionProducts(user.userId, params.id);
+      res.status(200).json(successResponse('Collection products fetched', products));
     } catch (error) {
       next(error);
     }

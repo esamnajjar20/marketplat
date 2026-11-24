@@ -19,6 +19,11 @@ const dayScheduleSchema = z
     open: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'open must be HH:mm'),
     close: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'close must be HH:mm'),
   })
+  .superRefine((schedule, ctx) => {
+    if (schedule && schedule.open === schedule.close) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'open and close cannot be equal for a single-day schedule', path: ['close'] });
+    }
+  })
   .nullable();
 
 export const workingHoursSchema = z.object({
@@ -70,6 +75,15 @@ export const updateStoreSchema = z.object({
 });
 
 export type UpdateStoreInput = z.infer<typeof updateStoreSchema>['body'];
+
+// MANAGER settings are deliberately limited to presentation/contact/hours.
+// Store type and dynamic attributes remain owner/admin-controlled to avoid
+// changing the store's classification from a delegated staff account.
+export const updateManagedStoreSettingsSchema = z.object({
+  params: z.object({ id: z.string().min(1, 'Store ID is required') }),
+  body: updateStoreSchema.shape.body.omit({ storeTypeId: true, attributes: true }),
+});
+export type UpdateManagedStoreSettingsInput = z.infer<typeof updateManagedStoreSettingsSchema>['body'];
 
 export const storeIdSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Store ID is required') }),

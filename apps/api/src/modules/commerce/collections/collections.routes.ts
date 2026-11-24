@@ -24,6 +24,14 @@ collectionsRouter.get(
   CACHE.SHORT,
   collectionsController.getPublicCollectionProducts
 );
+// Authenticated management read: permits hidden collections and includes
+// paused products, while the public endpoint above remains ACTIVE-only.
+collectionsRouter.get(
+  '/:id/manage-products',
+  authenticate,
+  CACHE.NONE,
+  collectionsController.getManageCollectionProducts
+);
 
 // Owner-only — enforced in collections.service.ts via
 // requireOwnStoreForProducts/requireOwnCollection, same convention as
