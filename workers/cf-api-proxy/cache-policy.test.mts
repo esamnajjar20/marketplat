@@ -2028,6 +2028,40 @@ const PUBLIC_LIVE = {
   assert.equal(allowed.headers.get('access-control-allow-origin'), 'https://marketplat.app');
 }
 
+/* ───────────── Express / Worker CORS preflight contract parity ───────────── */
+{
+  const apiCorsSource = fs.readFileSync(
+    new URL('../../apps/api/src/bootstrap/cors.ts', import.meta.url),
+    'utf8',
+  );
+  const apiHeadersMatch = apiCorsSource.match(/export const CORS_ALLOWED_HEADERS = \[([\s\S]*?)\];/);
+  assert.ok(apiHeadersMatch, 'Express must expose its explicit CORS allow-header contract');
+  const expressHeaders = Array.from(apiHeadersMatch[1].matchAll(/'([^']+)'/g), (match) => match[1].toLowerCase()).sort();
+  const requiredHeaders = ['x-request-id', 'idempotency-key', 'x-csrf-token', 'x-offline-op-id', 'last-event-id'];
+  for (const header of requiredHeaders) {
+    assert.ok(expressHeaders.includes(header), `Express CORS contract must include ${header}`);
+  }
+
+  const h = harness({ upstream: async () => json({ ok: true }) });
+  const preflight = await h.context.__worker.fetch(
+    new Request(`${EDGE}/api/v1/ads`, {
+      method: 'OPTIONS',
+      headers: {
+        origin: 'https://marketplat.app',
+        'access-control-request-method': 'POST',
+        'access-control-request-headers': expressHeaders.join(', '),
+      },
+    }),
+    { FRONTEND_ORIGIN: 'https://marketplat.app' },
+    { waitUntil() {} },
+  );
+  assert.equal(preflight.status, 204, 'Worker must answer browser preflight without proxying it');
+  assert.equal(preflight.headers.get('access-control-allow-origin'), 'https://marketplat.app');
+  const workerHeaders = (preflight.headers.get('access-control-allow-headers') || '')
+    .split(',').map((header) => header.trim().toLowerCase()).filter(Boolean).sort();
+  assert.deepEqual(workerHeaders, expressHeaders, 'Express and Cloudflare Worker must expose the same CORS allow-header contract');
+}
+
 /* ───────────── optional Analytics Engine metrics ───────────── */
 {
   const points: any[] = [];

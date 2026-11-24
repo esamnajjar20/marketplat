@@ -3075,7 +3075,7 @@ function corsHeaders(req: Request, env: Env): Record<string, string> {
   return {
     'access-control-allow-origin': resolveCorsOrigin(req, env),
     'access-control-allow-methods': 'GET, POST, PATCH, PUT, DELETE, OPTIONS',
-    'access-control-allow-headers': 'Content-Type, Authorization, X-Offline-Op-Id, If-None-Match, X-CSRF-Token, X-Requested-With, Accept, Origin, last-event-id',
+    'access-control-allow-headers': 'Content-Type, Authorization, X-Request-Id, X-CSRF-Token, X-Offline-Op-Id, Idempotency-Key, Last-Event-ID, If-None-Match, X-Requested-With, Accept',
     'access-control-allow-credentials': 'true',
     'access-control-max-age': '86400',
   };
