@@ -7,6 +7,9 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const ALLOWED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
 const downloadsInFlight = new Map<string, Promise<string>>();
 let pruneQueue: Promise<void> = Promise.resolve();
+let lastOpportunisticPruneAt = 0;
+let opportunisticPruneInFlight: Promise<void> | null = null;
+const OPPORTUNISTIC_PRUNE_INTERVAL_MS = 15 * 60 * 1000;
 
 function hash(value: string): string {
   // Stable, non-cryptographic key; URLs are identifiers, not secrets.
@@ -65,6 +68,25 @@ async function pruneOldImagesInternal(): Promise<void> {
 export function prunePublicImageCache(): Promise<void> {
   const task = pruneQueue.then(pruneOldImagesInternal, pruneOldImagesInternal);
   pruneQueue = task.catch(() => undefined);
+  return task;
+}
+
+/**
+ * Opportunistic list-image cleanup is throttled so pagination cannot enqueue a
+ * full directory scan after every page. Explicit save/offline flows keep using
+ * prunePublicImageCache() for immediate cleanup.
+ */
+export function prunePublicImageCacheIfNeeded(): Promise<void> {
+  if (opportunisticPruneInFlight) return opportunisticPruneInFlight;
+  const now = Date.now();
+  if (now - lastOpportunisticPruneAt < OPPORTUNISTIC_PRUNE_INTERVAL_MS) return Promise.resolve();
+
+  lastOpportunisticPruneAt = now;
+  const task = prunePublicImageCache();
+  opportunisticPruneInFlight = task;
+  void task.finally(() => {
+    if (opportunisticPruneInFlight === task) opportunisticPruneInFlight = null;
+  }).catch(() => undefined);
   return task;
 }
 

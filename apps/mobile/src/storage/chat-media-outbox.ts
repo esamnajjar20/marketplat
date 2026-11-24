@@ -60,6 +60,13 @@ export async function listDueChatMediaOutbox(ownerId: string, now = Date.now()):
 export async function acknowledgeChatMedia(operationId: string, ownerId: string): Promise<void> { const db = await database(); const row = await db.getFirstAsync<Row>('SELECT * FROM chat_media_outbox WHERE operation_id = ? AND owner_id = ?', operationId, ownerId); if (!row) return; await db.runAsync('DELETE FROM chat_media_outbox WHERE operation_id = ? AND owner_id = ?', operationId, ownerId); if (isOwnedMediaUri(row.uri)) await FileSystem.deleteAsync(row.uri, { idempotent: true }).catch(() => undefined); }
 export async function deferChatMedia(operationId: string, ownerId: string, error: unknown): Promise<void> { const db = await database(); const message = (error instanceof Error ? error.message : 'تعذرت مزامنة المرفق.').slice(0, 400); await db.runAsync('UPDATE chat_media_outbox SET next_attempt_at = ? + MIN(5000 * (1 << MIN(attempts, 10)), 3600000), attempts = attempts + 1, last_error = ? WHERE operation_id = ? AND owner_id = ?', Date.now(), message, operationId, ownerId); }
 export async function discardChatMedia(operationId: string, ownerId: string): Promise<void> { await acknowledgeChatMedia(operationId, ownerId); }
+/** Reset the retry schedule for one failed attachment owned by the active account. */
+export async function retryChatMedia(operationId: string, ownerId: string): Promise<boolean> {
+  if (!operationId.trim() || !ownerId.trim()) return false;
+  const db = await database();
+  const result = await db.runAsync('UPDATE chat_media_outbox SET attempts = 0, next_attempt_at = 0, last_error = NULL WHERE operation_id = ? AND owner_id = ?', operationId, ownerId);
+  return result.changes === 1;
+}
 
 /** Called by the sync worker when the server permanently rejects the media
  *  (400/404/422). Deletes immediately so the queue doesn't loop forever. */

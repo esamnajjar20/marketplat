@@ -116,12 +116,13 @@ export async function sendOutboxUpdateAd<T = unknown>(
     throw new Error('بيانات تعديل الإعلان يجب أن تكون كائنًا صالحًا.');
   }
   const raw = payload as Record<string, unknown>;
-  const allowed = new Set(['title', 'description', 'city', 'price', 'categoryId', 'isNegotiable', 'images']);
+  const allowed = new Set(['title', 'description', 'city', 'price', 'categoryId', 'isNegotiable', 'condition', 'images']);
   if (Object.keys(raw).some((key) => !allowed.has(key)) ||
       typeof raw.title !== 'string' || typeof raw.description !== 'string' ||
       typeof raw.city !== 'string' || typeof raw.isNegotiable !== 'boolean' ||
       (raw.price !== null && typeof raw.price !== 'number') ||
-      (raw.categoryId !== null && typeof raw.categoryId !== 'string')) {
+      (raw.categoryId !== null && typeof raw.categoryId !== 'string') ||
+      (raw.condition !== undefined && raw.condition !== null && !['NEW', 'USED', 'REFURBISHED'].includes(String(raw.condition)))) {
     throw new Error('بيانات التعديل لا تطابق عقد المزامنة الآمن؛ بقيت العملية محفوظة في الطابور.');
   }
   const images = raw.images === undefined ? [] : raw.images;
@@ -134,7 +135,7 @@ export async function sendOutboxUpdateAd<T = unknown>(
     throw new Error('قائمة صور التعديل غير صالحة؛ بقيت العملية محفوظة في الطابور.');
   }
   const body = { title: raw.title, description: raw.description, city: raw.city,
-    price: raw.price, categoryId: raw.categoryId, isNegotiable: raw.isNegotiable };
+    price: raw.price, categoryId: raw.categoryId, isNegotiable: raw.isNegotiable, ...(raw.condition !== undefined ? { condition: raw.condition } : {}) };
   const headers = { 'X-Offline-Op-Id': item.idempotencyKey, ...(csrfToken ? { 'X-CSRF-Token': csrfToken } : {}) };
   const response = await apiRequest<ApiEnvelope<T>>(`/api/v1/ads/${encodeURIComponent(item.resourceId)}`, {
     method: 'PATCH', body: JSON.stringify(body), timeoutMs: OUTBOX_REQUEST_TIMEOUT_MS, token, headers,

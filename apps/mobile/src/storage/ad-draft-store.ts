@@ -33,6 +33,8 @@ function validDraft(value: unknown): value is AdDraft {
   return typeof draft.title === 'string' && typeof draft.description === 'string'
     && typeof draft.price === 'string' && typeof draft.city === 'string'
     && typeof draft.categoryId === 'string' && typeof draft.isNegotiable === 'boolean'
+    && (draft.condition === undefined || ['', 'NEW', 'USED', 'REFURBISHED'].includes(String(draft.condition)))
+    && (draft.storeId === undefined || draft.storeId === null || typeof draft.storeId === 'string')
     && Array.isArray(draft.images) && draft.images.length <= 10
     && draft.images.every((image) => Boolean(image && typeof image.uri === 'string'
       && typeof image.fileName === 'string' && typeof image.mimeType === 'string'));
