@@ -5,11 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { notificationsApi } from '@/api/notifications.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-import {
-  useAuthStore,
-  selectIsAuthenticated,
-  selectHasAccessToken,
-} from '@/store/auth.store';
+import { useAuthStore, selectIsAuthenticated, selectHasAccessToken, selectIsAuthResolving } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 // import { pollingInterval } from '@/lib/polling'; // FIX: unused after disabling polling
 import {
@@ -89,6 +85,7 @@ export function useMyNotifications(params?: NotificationsQuery, options?: { enab
  * المحلية كلما نجح طلب جديد. */
 export function useUnreadNotificationCount() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const isAuthResolving = useAuthStore(selectIsAuthResolving);
   const hasToken = useAuthStore(selectHasAccessToken);
   const isOnline = useOnlineStatus();
   const queryClient = useQueryClient();
@@ -116,7 +113,9 @@ export function useUnreadNotificationCount() {
     queryFn: ({ signal }) => notificationsApi.getUnreadCount({ signal }).then((r) => r.data.data?.count ?? 0),
     staleTime: CACHE_TTL.notifications,
     // refetchInterval: () => pollingInterval(CACHE_TTL.notifications, 8, true), // FIX: Disabled polling to save server resources
-    enabled: isAuthenticated && (hasToken || !isOnline),
+    // HYDRATION-DEDUP: see useUnreadConversationCount for why.
+    refetchOnMount: false,
+    enabled: isAuthenticated && !isAuthResolving && (hasToken || !isOnline),
   });
 
   useEffect(() => {
