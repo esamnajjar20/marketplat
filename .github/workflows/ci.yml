@@ -1,11 +1,29 @@
 name: CI
 
-# FIX CI-MANUAL-01: كان يعمل تلقائيًا على كل push/pull_request — استهلك
-# دقائق Actions بلا ضرورة لتطوير فردي. الآن يدوي:
-# GitHub → Actions → CI → Run workflow.
-# db-backup.yml يُبقي cron اليومي (عملية تشغيلية حقيقية)،
-# وload-test.yml يدوي أصلاً.
+# Keep the main validation gate automatic for pull requests and main-branch
+# updates, while avoiding runs for documentation-only changes.
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/**'
+      - 'apps/api/**'
+      - 'apps/mobile/**'
+      - 'apps/go-worker/**'
+      - 'frontend/**'
+      - 'packages/**'
+      - 'workers/**'
+      - 'shared/**'
+      - 'tools/**'
+      - 'supabase/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'turbo.json'
+      - '.npmrc'
+  # Do not path-filter pull_request: GitHub can leave a required workflow
+  # check pending when the entire workflow is skipped by a paths filter.
+  pull_request:
   workflow_dispatch:
 
 # لو تم فتح push جديد لنفس الـ PR أثناء تشغيل نسخة سابقة، ألغِ القديمة
@@ -306,12 +324,13 @@ jobs:
           if-no-files-found: ignore
 
   # ─────────────────────────────────────────────────────────────
-  # E2E: Playwright ضد الـ stack الكامل (backend + frontend + db + redis).
-  # فشل اختبارات E2E يمنع الدمج لأن هذه الرحلات تمثل بوابة الإصدار.
+  # Critical E2E: run a stable, targeted set of browser journeys against
+  # the real API + PostgreSQL/Redis + frontend stack for every PR.
+  # The full exploratory suite remains available through workflow_dispatch.
   # ─────────────────────────────────────────────────────────────
   e2e:
-    if: false  # TEMP: E2E disabled 2026-10-14
-    name: E2E (Playwright)
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    name: Critical E2E (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -511,9 +530,14 @@ jobs:
           cat /tmp/frontend.log || true
           exit 1
 
-      - name: Run E2E tests
+      - name: Run browser journeys
         working-directory: frontend
-        run: npm run e2e
+        run: |
+          if [ "${{ github.event_name }}" = 'workflow_dispatch' ]; then
+            npm run e2e
+          else
+            npm run e2e:ci
+          fi
 
       - name: Upload Playwright report
         if: always()

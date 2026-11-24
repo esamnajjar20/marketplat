@@ -136,7 +136,6 @@ jobs:
           k6 run \
             -e TARGET="${{ inputs.target }}" \
             /tmp/load50k.js
-        continue-on-error: true
 
       - name: Publish to job summary
         if: always()

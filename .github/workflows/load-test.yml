@@ -209,7 +209,6 @@ jobs:
             -e DURATION="${{ inputs.duration }}" \
             --summary-export=/tmp/k6-export.json \
             /tmp/load.js
-        continue-on-error: true
 
       - name: Publish to job summary
         if: always()

@@ -9,16 +9,44 @@ const workspacePackages = [
   ['apps/mobile/package.json', '@marketplat/mobile'],
   ['packages/contracts/package.json', '@marketplat/contracts'],
   ['workers/cf-api-proxy/package.json', '@marketplat/cf-api-proxy'],
+  ['workers/keepalive-worker/package.json', 'marketplat-keepalive-worker'],
 ];
 const frontendPath = 'frontend/package.json';
 const taskTargets = {
-  'build:all': ['apps/api/package.json'],
-  'type-check:all': workspacePackages.map(([path]) => path),
-  'test:all': workspacePackages.map(([path]) => path),
-  'lint:all': ['apps/api/package.json'],
-  'dev:all': ['apps/api/package.json', 'apps/mobile/package.json'],
-  'test:worker': ['workers/cf-api-proxy/package.json'],
+  'build:all': [
+    [frontendPath, 'build'],
+    ['apps/api/package.json', 'build'],
+    ['apps/mobile/package.json', 'build:bundle:ci'],
+    ['workers/cf-api-proxy/package.json', 'build'],
+  ],
+  'type-check:all': [
+    [frontendPath, 'type-check'],
+    ['apps/api/package.json', 'type-check'],
+    ['apps/mobile/package.json', 'type-check'],
+    ['packages/contracts/package.json', 'type-check'],
+    ['workers/cf-api-proxy/package.json', 'type-check'],
+  ],
+  'test:all': [
+    [frontendPath, 'test'],
+    ['apps/api/package.json', 'test'],
+    ['apps/mobile/package.json', 'test:all'],
+    ['packages/contracts/package.json', 'test'],
+    ['workers/cf-api-proxy/package.json', 'test'],
+    ['workers/keepalive-worker/package.json', 'test'],
+  ],
+  'lint:all': [
+    [frontendPath, 'lint'],
+    ['apps/api/package.json', 'lint'],
+    ['apps/mobile/package.json', 'lint'],
+  ],
+  'dev:all': [
+    ['apps/api/package.json', 'dev'],
+    ['apps/mobile/package.json', 'dev'],
+  ],
+  'test:worker': [['workers/cf-api-proxy/package.json', 'test']],
 };
+const packageManifests = new Map();
+
 const errors = [];
 
 if (!existsSync(resolve(root, 'package.json'))) throw new Error('Run this verifier from the repository root.');
@@ -50,14 +78,13 @@ if (turbo) {
   }
 }
 
-const packages = new Map();
 for (const [path, expectedName] of workspacePackages) {
   if (!existsSync(resolve(root, path))) {
     errors.push(`Missing pnpm workspace package manifest: ${path}`);
     continue;
   }
   const pkg = readJson(path);
-  packages.set(path, pkg);
+  packageManifests.set(path, pkg);
   if (pkg.name !== expectedName) errors.push(`${path}: expected "${expectedName}", found "${pkg.name}".`);
 }
 
@@ -74,19 +101,53 @@ if (!existsSync(resolve(root, frontendPath))) {
       errors.push(`Root script "${script}" must invoke the standalone npm frontend via --prefix frontend.`);
     }
   }
+  packageManifests.set(frontendPath, frontend);
 }
 
-for (const [script, paths] of Object.entries(taskTargets)) {
+for (const [script, requiredTargets] of Object.entries(taskTargets)) {
   if (!rootPackage.scripts?.[script]) errors.push(`Root package.json: missing script "${script}".`);
-  const task = script === 'build:all' ? 'build'
-    : script === 'type-check:all' ? 'type-check'
-    : script === 'test:all' ? 'test'
-    : script === 'lint:all' ? 'lint'
-    : script === 'test:worker' ? 'test'
-    : 'dev';
-  for (const path of paths) {
-    const pkg = packages.get(path);
-    if (pkg && !pkg.scripts?.[task]) errors.push(`${path}: script "${task}" required by root script "${script}" is missing.`);
+  for (const [path, requiredScript] of requiredTargets) {
+    const pkg = packageManifests.get(path);
+    if (pkg && !pkg.scripts?.[requiredScript]) {
+      errors.push(`${path}: script "${requiredScript}" required by root script "${script}" is missing.`);
+    }
+  }
+}
+
+const aggregateScriptRequirements = {
+  'build:all': [
+    'npm --prefix frontend run build',
+    'pnpm --recursive --if-present run build',
+    'pnpm --filter @marketplat/mobile build:bundle:ci',
+    'make -C apps/go-worker build',
+  ],
+  'type-check:all': [
+    'npm --prefix frontend run type-check',
+    'pnpm --recursive --if-present run type-check',
+    'make -C apps/go-worker vet',
+  ],
+  'test:all': [
+    'npm --prefix frontend run test',
+    'pnpm --filter classifieds-platform-backend test',
+    'pnpm --filter @marketplat/mobile test:all',
+    'pnpm --filter @marketplat/contracts test',
+    'pnpm --filter @marketplat/cf-api-proxy test',
+    'pnpm --filter marketplat-keepalive-worker test',
+    'make -C apps/go-worker test',
+  ],
+  'lint:all': [
+    'npm --prefix frontend run lint',
+    'pnpm --recursive --if-present run lint',
+    'make -C apps/go-worker fmt-check',
+  ],
+  'verify:all': ['verify:workspace', 'lint:all', 'type-check:all', 'test:all', 'build:all'],
+};
+for (const [script, requiredFragments] of Object.entries(aggregateScriptRequirements)) {
+  const command = rootPackage.scripts?.[script] ?? '';
+  for (const fragment of requiredFragments) {
+    if (!command.includes(fragment)) {
+      errors.push(`Root script "${script}" does not include required target "${fragment}".`);
+    }
   }
 }
 
@@ -129,6 +190,42 @@ if (existsSync(resolve(root, ciWorkflowPath))) {
   if (!ciWorkflow.includes('node tools/verify-workspace.mts')) {
     errors.push(`${ciWorkflowPath}: run the workspace/Docker context verifier in CI.`);
   }
+  for (const event of ['push:', 'pull_request:', 'workflow_dispatch:']) {
+    if (!ciWorkflow.includes(event)) errors.push(`${ciWorkflowPath}: missing automatic/manual trigger "${event}".`);
+  }
+  for (const pathPattern of ["'apps/api/**'", "'apps/mobile/**'", "'frontend/**'", "'packages/**'", "'workers/**'"]) {
+    if (!ciWorkflow.includes(pathPattern)) errors.push(`${ciWorkflowPath}: push path filters are missing ${pathPattern}.`);
+  }
+  if (!ciWorkflow.includes('Do not path-filter pull_request')) {
+    errors.push(`${ciWorkflowPath}: pull_request must always create a workflow status for branch-protection compatibility.`);
+  }
+  if (ciWorkflow.includes('if: false')) errors.push(`${ciWorkflowPath}: an unconditional false guard disables a CI job.`);
+  if (!ciWorkflow.includes('npm run e2e:ci')) errors.push(`${ciWorkflowPath}: the critical browser E2E suite must run in CI.`);
+}
+const frontendPackage = packageManifests.get(frontendPath);
+const criticalE2ESpecs = [
+  'e2e/tests/marketplace-smoke.spec.ts',
+  'e2e/tests/auth-form-validation.spec.ts',
+  'e2e/tests/missing-business-journeys-mocked.spec.ts',
+];
+if (!frontendPackage?.scripts?.['e2e:ci']) {
+  errors.push('frontend/package.json: missing e2e:ci script.');
+} else {
+  for (const spec of criticalE2ESpecs) {
+    if (!frontendPackage.scripts['e2e:ci'].includes(spec)) {
+      errors.push(`frontend/package.json: e2e:ci is missing ${spec}.`);
+    }
+    if (!existsSync(resolve(root, 'frontend', spec))) {
+      errors.push(`Critical E2E spec is missing: frontend/${spec}.`);
+    }
+  }
+}
+if (!existsSync(resolve(root, 'apps/go-worker/Makefile')) || !readFileSync(resolve(root, 'apps/go-worker/Makefile'), 'utf8').includes('fmt-check:')) {
+  errors.push('apps/go-worker/Makefile: missing non-mutating fmt-check target required by lint:all.');
+}
+const rootGitIgnore = readFileSync(resolve(root, '.gitignore'), 'utf8');
+if (!rootGitIgnore.includes('apps/go-worker/bin/')) {
+  errors.push('.gitignore: Go worker build output apps/go-worker/bin/ must be ignored.');
 }
 const apiDockerfilePath = 'apps/api/Dockerfile';
 if (existsSync(resolve(root, apiDockerfilePath))) {
@@ -144,6 +241,6 @@ if (errors.length) {
 } else {
   console.log('Workspace bootstrap structure verified.');
   console.log('Standalone npm frontend and pnpm API/mobile/contracts/Worker workspace are correctly separated.');
-  console.log('Root web scripts target frontend/; recursive scripts include the frontend explicitly.');
-  console.log('This is a structural check; it does not prove install, build, or test success.');
+  console.log('Aggregate build/lint/type-check/test scripts cover Web, API, Mobile, Contracts, Cloudflare Worker, Keepalive Worker, and Go Worker.');
+  console.log('CI triggers and critical E2E coverage are configured; this remains a structural check, not proof of runtime build/test success.');
 }

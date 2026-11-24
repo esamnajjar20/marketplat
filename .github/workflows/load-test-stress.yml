@@ -311,7 +311,6 @@ jobs:
         run: |
           echo "🚨 Starting stress test — this will consume ~70% of daily quota"
           k6 run /tmp/k6-stress.js
-        continue-on-error: true
 
       - name: Publish summary
         if: always()

@@ -16,7 +16,13 @@ The API, web and mobile currently retain their local imports because the web `fr
 Run from the repository root:
 
 ```sh
-node --test packages/contracts/test/*.test.mjs
+pnpm --filter @marketplat/contracts test
+```
+
+The direct Node.js equivalent (from the repository root) is:
+
+```sh
+node --test packages/contracts/test/*.test.mts
 ```
 
 Do not replace endpoint-specific schemas or limits with the generic pagination schema. Cursor endpoints may omit offset-only totals; consumers must continue to use `nextCursor` where applicable.

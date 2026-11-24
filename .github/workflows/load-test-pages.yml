@@ -413,7 +413,6 @@ jobs:
           SELLER_IDS: ${{ needs.discover.outputs.seller_ids }}
           CATEGORY_SLUGS: ${{ needs.discover.outputs.category_slugs }}
         run: k6 run /tmp/k6-full.js
-        continue-on-error: true
 
       - name: Publish summary
         if: always()

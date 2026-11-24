@@ -175,7 +175,6 @@ jobs:
 
       - name: Run realistic k6
         run: k6 run -e TARGET="${{ inputs.target }}" /tmp/realistic.js
-        continue-on-error: true
 
       - name: Publish summary
         if: always()

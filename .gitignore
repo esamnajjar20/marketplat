@@ -104,3 +104,10 @@ Modelfile.fast
 # نسخ احتياطية ينشئها cleanup_dead_files.py
 cleanup-backup-*.zip
 _reorg/
+
+# Go worker build artifact
+apps/go-worker/bin/
+
+# Generated Android bundle-budget reports
+apps/mobile/dist-analyze/
+apps/mobile/.bundle-analysis/

@@ -214,7 +214,6 @@ jobs:
             -e P99="${{ inputs.p99_threshold }}" \
             -e ERR_RATE="${{ inputs.error_rate_threshold }}" \
             /tmp/load-dynamic.js
-        continue-on-error: true
 
       - name: Publish to job summary
         if: always()

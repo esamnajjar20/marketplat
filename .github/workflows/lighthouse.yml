@@ -1,12 +1,17 @@
 name: Lighthouse
 
-# Manual + weekly performance check of the deployed site. Budgets mirror the
-# Core Web Vitals "good" thresholds from the performance report.
+# Pull requests are measured against their own Next.js build. The weekly/manual
+# job remains a separate monitor for the deployed production site.
 on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.lighthouserc.json'
+      - '.github/workflows/lighthouse.yml'
   workflow_dispatch:
     inputs:
       url:
-        description: 'URL to audit'
+        description: 'URL to audit on the deployed site'
         required: false
         default: 'https://marketplat.esamnajjar6.workers.dev/'
   schedule:
@@ -16,23 +21,89 @@ permissions:
   contents: read
 
 jobs:
-  lighthouse:
+  lighthouse-preview:
+    if: ${{ github.event_name == 'pull_request' }}
+    name: Lighthouse (PR build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_PUBLIC_API_URL: http://127.0.0.1:5000
+      NEXT_PUBLIC_APP_URL: http://127.0.0.1:3000
+      NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: ci-placeholder
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22.18.0'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Build PR preview
+        working-directory: frontend
+        run: npm run build
+      - name: Start PR preview server
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run start -- --hostname 127.0.0.1 > "$RUNNER_TEMP/marketplat-next.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/marketplat-next.pid"
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null 2>&1; then
+              echo 'Next.js preview is ready.'
+              exit 0
+            fi
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/marketplat-next.log"
+          echo 'Next.js preview did not become ready within 120 seconds.'
+          exit 1
+      - name: Collect and assert Lighthouse (3 runs)
+        run: |
+          npx --yes @lhci/cli@0.14.0 collect --url=http://127.0.0.1:3000/ --numberOfRuns=3
+          npx --yes @lhci/cli@0.14.0 assert --config=.lighthouserc.json
+      - name: Upload PR Lighthouse report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: lighthouse-pr-report
+          path: .lighthouseci
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Stop preview server
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f "$RUNNER_TEMP/marketplat-next.pid" ]]; then
+            kill "$(cat "$RUNNER_TEMP/marketplat-next.pid")" 2>/dev/null || true
+          fi
+          if [[ -f "$RUNNER_TEMP/marketplat-next.log" ]]; then
+            tail -n 80 "$RUNNER_TEMP/marketplat-next.log"
+          fi
+
+  lighthouse-deployed:
+    if: ${{ github.event_name != 'pull_request' }}
+    name: Lighthouse (deployed site)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 22
+          node-version: '22.18.0'
       - name: Run Lighthouse CI (mobile, 3 runs)
         env:
           TARGET_URL: ${{ github.event.inputs.url || 'https://marketplat.esamnajjar6.workers.dev/' }}
         run: |
           npx --yes @lhci/cli@0.14.0 collect --url="$TARGET_URL" --numberOfRuns=3
           npx --yes @lhci/cli@0.14.0 assert --config=.lighthouserc.json
-      - name: Upload report
+      - name: Upload deployed-site report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: lighthouse-report
+          name: lighthouse-deployed-report
           path: .lighthouseci
+          if-no-files-found: warn
+          retention-days: 14

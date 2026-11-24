@@ -121,6 +121,18 @@ jobs:
       - name: Verify Expo SDK dependency compatibility
         run: pnpm --filter @marketplat/mobile exec expo install --check
 
+      - name: Analyze Android bundle and enforce size budgets
+        run: pnpm --filter @marketplat/mobile analyze:bundle
+
+      - name: Upload Android bundle analysis report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: marketplat-android-bundle-analysis
+          path: apps/mobile/.bundle-analysis/android-bundle-report.json
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Configure Firebase Android services (optional for Debug)
         env:
           FIREBASE_ANDROID_JSON_BASE64: ${{ secrets.MARKETPLAT_FIREBASE_ANDROID_JSON_BASE64 }}

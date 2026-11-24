@@ -28,10 +28,10 @@
     "test:mobile": "pnpm --filter @marketplat/mobile test",
     "build:apk:test": "pnpm --filter @marketplat/mobile build:apk:test",
     "verify:apk:test": "pnpm --filter @marketplat/mobile verify:apk:test",
-    "build:all": "npm --prefix frontend run build && pnpm --filter classifieds-platform-backend build",
-    "type-check:all": "npm --prefix frontend run type-check && pnpm --recursive --if-present run type-check",
-    "test:all": "npm --prefix frontend run test && pnpm --recursive --if-present run test",
-    "lint:all": "npm --prefix frontend run lint && pnpm --filter classifieds-platform-backend lint",
+    "build:all": "npm --prefix frontend run build && pnpm --recursive --if-present run build && pnpm --filter @marketplat/mobile build:bundle:ci && make -C apps/go-worker build",
+    "type-check:all": "npm --prefix frontend run type-check && pnpm --recursive --if-present run type-check && make -C apps/go-worker vet",
+    "test:all": "npm --prefix frontend run test && pnpm --filter classifieds-platform-backend test && pnpm --filter @marketplat/mobile test:all && pnpm --filter @marketplat/contracts test && pnpm --filter @marketplat/cf-api-proxy test && pnpm --filter marketplat-keepalive-worker test && make -C apps/go-worker test",
+    "lint:all": "npm --prefix frontend run lint && pnpm --recursive --if-present run lint && make -C apps/go-worker fmt-check",
     "dev:all": "node tools/dev-all.mts",
     "test:worker": "pnpm --filter @marketplat/cf-api-proxy test",
     "type-check:worker": "pnpm --filter @marketplat/cf-api-proxy type-check",
@@ -44,6 +44,7 @@
     "simulator:install": "npm --prefix tools/user-simulator install",
     "simulator:browser:install": "npm --prefix tools/user-simulator run install:browser",
     "simulator:start": "npm --prefix tools/user-simulator start",
-    "simulator:test": "npm --prefix tools/user-simulator test"
+    "simulator:test": "npm --prefix tools/user-simulator test",
+    "verify:all": "pnpm run verify:workspace && pnpm run lint:all && pnpm run type-check:all && pnpm run test:all && pnpm run build:all"
   }
 }
