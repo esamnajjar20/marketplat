@@ -58,22 +58,26 @@ function normalizeIpForKey(ip: string): string {
   const left = halves[0] ? halves[0].split(':') : [];
   const right = halves.length === 2 && halves[1] ? halves[1].split(':') : [];
   const missing = 8 - left.length - right.length;
-  const hextets = halves.length === 2
-    ? [...left, ...Array.from({ length: Math.max(0, missing) }, () => '0'), ...right]
-    : left;
+  const hextets =
+    halves.length === 2
+      ? [...left, ...Array.from({ length: Math.max(0, missing) }, () => '0'), ...right]
+      : left;
 
   if (hextets.length !== 8) return ip.toLowerCase();
 
   // Keep IPv4-mapped addresses in the same bucket as their IPv4 spelling,
   // including the fully-expanded IPv6 form.
-  if (hextets.slice(0, 5).every(part => Number.parseInt(part, 16) === 0)
-      && Number.parseInt(hextets[5], 16) === 0xffff) {
+  if (
+    hextets.slice(0, 5).every(part => Number.parseInt(part, 16) === 0) &&
+    Number.parseInt(hextets[5], 16) === 0xffff
+  ) {
     const high = Number.parseInt(hextets[6], 16);
     const low = Number.parseInt(hextets[7], 16);
     return `${high >>> 8}.${high & 0xff}.${low >>> 8}.${low & 0xff}`;
   }
 
-  return hextets.slice(0, 4)
+  return hextets
+    .slice(0, 4)
     .map(part => Number.parseInt(part, 16).toString(16))
     .join(':');
 }
@@ -107,7 +111,10 @@ const ONE_HOUR_MS = 60 * 60 * 1000;
 
 const bypassRateLimit = env.rateLimit.disabled;
 
-const noRateLimit = () => (_req: Request, _res: Response, next: NextFunction): void => next();
+const noRateLimit =
+  () =>
+  (_req: Request, _res: Response, next: NextFunction): void =>
+    next();
 
 /**
  * UPSTASH-SAVE-01: افتراضيًا MemoryStore (ذاكرة العملية) بدل Redis.
@@ -121,8 +128,7 @@ const noRateLimit = () => (_req: Request, _res: Response, next: NextFunction): v
 export const shouldUseRedisRateLimitStore = (
   hasDedicatedEndpoint: boolean,
   override: string | undefined
-): boolean =>
-  hasDedicatedEndpoint || override === 'true' || override === '1';
+): boolean => hasDedicatedEndpoint || override === 'true' || override === '1';
 
 const useRedisStore = shouldUseRedisRateLimitStore(
   Boolean(env.redisServices.rateLimitUrl),

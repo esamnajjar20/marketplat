@@ -36,7 +36,9 @@ export async function publishDurableNotifications(
     const recipientIds = Array.from(new Set(created.map(row => row.userId)));
     for (let offset = 0; offset < recipientIds.length; offset += 50) {
       await Promise.all(
-        recipientIds.slice(offset, offset + 50).map(userId => unreadNotificationsCache.invalidate(userId))
+        recipientIds
+          .slice(offset, offset + 50)
+          .map(userId => unreadNotificationsCache.invalidate(userId))
       );
     }
 
@@ -52,9 +54,10 @@ export async function publishDurableNotifications(
           notificationType: row.type,
           title: row.title,
           body: row.body,
-          data: row.data && typeof row.data === 'object' && !Array.isArray(row.data)
-            ? row.data as Record<string, unknown>
-            : null,
+          data:
+            row.data && typeof row.data === 'object' && !Array.isArray(row.data)
+              ? (row.data as Record<string, unknown>)
+              : null,
         },
       }));
       // Keep Redis/SSE concurrency bounded for jobs that can create thousands

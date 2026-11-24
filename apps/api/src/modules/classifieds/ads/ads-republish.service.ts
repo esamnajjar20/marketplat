@@ -236,7 +236,10 @@ export const adsRepublishService = {
             },
             err
           ).catch(error =>
-            reportBackgroundFailure('apps/api/src/modules/classifieds/ads/ads-republish.service.ts', error)
+            reportBackgroundFailure(
+              'apps/api/src/modules/classifieds/ads/ads-republish.service.ts',
+              error
+            )
           );
         });
 

@@ -26,10 +26,13 @@ function isNotificationRetentionResult(value: unknown): value is NotificationRet
   if (!value || typeof value !== 'object') return false;
   const result = value as Record<string, unknown>;
   return (
-    Number.isSafeInteger(result.deleted) && (result.deleted as number) >= 0 &&
-    Number.isSafeInteger(result.batches) && (result.batches as number) >= 0 &&
+    Number.isSafeInteger(result.deleted) &&
+    (result.deleted as number) >= 0 &&
+    Number.isSafeInteger(result.batches) &&
+    (result.batches as number) >= 0 &&
     result.retentionDays === RETENTION_DAYS &&
-    typeof result.cutoff === 'string' && Number.isFinite(Date.parse(result.cutoff))
+    typeof result.cutoff === 'string' &&
+    Number.isFinite(Date.parse(result.cutoff))
   );
 }
 
@@ -72,10 +75,13 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
     );
 
     if (!batch.acquired) {
-      logger.info('[notification-retention] Express fallback skipped because another runner owns the advisory lock', {
-        deleted,
-        batches,
-      });
+      logger.info(
+        '[notification-retention] Express fallback skipped because another runner owns the advisory lock',
+        {
+          deleted,
+          batches,
+        }
+      );
       return 'busy';
     }
 

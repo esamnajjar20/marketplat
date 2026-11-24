@@ -6,7 +6,10 @@
 import { prisma } from '../config/prisma';
 import { deleteImage } from '../config/cloudinary';
 import { logger } from '../shared/observability/logger';
-import { executeWithGoFallback, runAdvisoryLockedBatch } from '../shared/go-worker/executeWithFallback';
+import {
+  executeWithGoFallback,
+  runAdvisoryLockedBatch,
+} from '../shared/go-worker/executeWithFallback';
 
 const STORY_CLEANUP_LOCK_ID = 731904300n;
 const BATCH_SIZE = 50;
@@ -23,16 +26,23 @@ interface StoryCleanupResult {
   evaluatedAt: string;
 }
 
-interface ExpiredStoryCandidate { id: string; mediaPublicId: string | null }
+interface ExpiredStoryCandidate {
+  id: string;
+  mediaPublicId: string | null;
+}
 
 function isResult(value: unknown): value is StoryCleanupResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const result = value as Record<string, unknown>;
-  return ['scanned', 'deleted', 'mediaDeleteFailed', 'rowDeleteFailed', 'batches'].every(
-    key => Number.isSafeInteger(result[key]) && (result[key] as number) >= 0,
-  ) && typeof result.limitReached === 'boolean' &&
-    typeof result.evaluatedAt === 'string' && Number.isFinite(Date.parse(result.evaluatedAt)) &&
-    (result.deleted as number) <= (result.scanned as number);
+  return (
+    ['scanned', 'deleted', 'mediaDeleteFailed', 'rowDeleteFailed', 'batches'].every(
+      key => Number.isSafeInteger(result[key]) && (result[key] as number) >= 0
+    ) &&
+    typeof result.limitReached === 'boolean' &&
+    typeof result.evaluatedAt === 'string' &&
+    Number.isFinite(Date.parse(result.evaluatedAt)) &&
+    (result.deleted as number) <= (result.scanned as number)
+  );
 }
 
 async function deleteMediaWithBoundedConcurrency(rows: ExpiredStoryCandidate[]): Promise<string[]> {
@@ -47,10 +57,13 @@ async function deleteMediaWithBoundedConcurrency(rows: ExpiredStoryCandidate[]):
         try {
           await deleteImage(row.mediaPublicId);
         } catch (error) {
-          logger.warn('[cleanup-expired-stories] Cloudinary media deletion failed; story retained for retry', {
-            storyId: row.id,
-            error,
-          });
+          logger.warn(
+            '[cleanup-expired-stories] Cloudinary media deletion failed; story retained for retry',
+            {
+              storyId: row.id,
+              error,
+            }
+          );
           continue;
         }
       }
@@ -84,22 +97,36 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
           take: BATCH_SIZE,
           orderBy: [{ expiresAt: 'asc' }, { id: 'asc' }],
         });
-        if (rows.length === 0) return { scanned: 0, deleted: 0, mediaDeleteFailed: 0, attemptedIds: [] as string[] };
+        if (rows.length === 0)
+          return { scanned: 0, deleted: 0, mediaDeleteFailed: 0, attemptedIds: [] as string[] };
 
         const successfulIds = await deleteMediaWithBoundedConcurrency(rows);
         const failedCount = rows.length - successfulIds.length;
-        const result = successfulIds.length > 0
-          ? await tx.story.deleteMany({ where: { id: { in: successfulIds }, expiresAt: { lte: now } } })
-          : { count: 0 };
-        return { scanned: rows.length, deleted: result.count, mediaDeleteFailed: failedCount, attemptedIds: rows.map(row => row.id) };
+        const result =
+          successfulIds.length > 0
+            ? await tx.story.deleteMany({
+                where: { id: { in: successfulIds }, expiresAt: { lte: now } },
+              })
+            : { count: 0 };
+        return {
+          scanned: rows.length,
+          deleted: result.count,
+          mediaDeleteFailed: failedCount,
+          attemptedIds: rows.map(row => row.id),
+        };
       },
-      { transactionTimeoutMs: 90_000 },
+      { transactionTimeoutMs: 90_000 }
     );
 
     if (!batch.acquired) {
-      logger.info('[cleanup-expired-stories] Express fallback stopped; another runner owns the cleanup lock', {
-        scanned, deleted, batches,
-      });
+      logger.info(
+        '[cleanup-expired-stories] Express fallback stopped; another runner owns the cleanup lock',
+        {
+          scanned,
+          deleted,
+          batches,
+        }
+      );
       return 'busy';
     }
 
@@ -116,7 +143,12 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
   }
 
   logger.info('[cleanup-expired-stories] Express fallback completed', {
-    scanned, deleted, mediaDeleteFailed, batches, limitReached, evaluatedAt: now.toISOString(),
+    scanned,
+    deleted,
+    mediaDeleteFailed,
+    batches,
+    limitReached,
+    evaluatedAt: now.toISOString(),
   });
   return 'completed';
 }
@@ -130,15 +162,20 @@ async function main(): Promise<void> {
     runExpressFallback,
     onGoSuccess: async result => {
       if (result.mediaDeleteFailed > 0 || result.rowDeleteFailed > 0 || result.limitReached) {
-        logger.warn('[cleanup-expired-stories] cleanup left retryable rows or reached its per-run ceiling', result);
+        logger.warn(
+          '[cleanup-expired-stories] cleanup left retryable rows or reached its per-run ceiling',
+          result
+        );
       }
     },
   });
 }
 
-main().catch(error => {
-  logger.error('[cleanup-expired-stories] job failed', { error });
-  process.exitCode = 1;
-}).finally(async () => {
-  await prisma.$disconnect();
-});
+main()
+  .catch(error => {
+    logger.error('[cleanup-expired-stories] job failed', { error });
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

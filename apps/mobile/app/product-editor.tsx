@@ -102,6 +102,7 @@ export default function ProductEditorScreen() {
                 setStoreTypeFieldsError(fieldError instanceof Error ? fieldError.message : 'تعذر تحميل خصائص نوع المتجر.');
             }
             if (user?.id) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- TODO: replace with proper type
                 const saved = await loadEntityFormDraft<Record<string, any>>(String(user.id), 'product-form', id || 'new').catch(() => null);
                 const d = saved?.draft;
                 if (d && d.version === 1) {

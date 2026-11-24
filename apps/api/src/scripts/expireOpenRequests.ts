@@ -19,9 +19,12 @@ function isRequestExpiryResult(value: unknown): value is RequestExpiryResult {
   if (!value || typeof value !== 'object') return false;
   const result = value as Record<string, unknown>;
   return (
-    Number.isSafeInteger(result.expired) && (result.expired as number) >= 0 &&
-    Number.isSafeInteger(result.batches) && (result.batches as number) >= 0 &&
-    typeof result.evaluatedAt === 'string' && Number.isFinite(Date.parse(result.evaluatedAt))
+    Number.isSafeInteger(result.expired) &&
+    (result.expired as number) >= 0 &&
+    Number.isSafeInteger(result.batches) &&
+    (result.batches as number) >= 0 &&
+    typeof result.evaluatedAt === 'string' &&
+    Number.isFinite(Date.parse(result.evaluatedAt))
   );
 }
 
@@ -31,8 +34,11 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
   let batches = 0;
 
   for (;;) {
-    const batch = await runAdvisoryLockedBatch(prisma, OPEN_REQUEST_EXPIRY_LOCK_ID, async tx => {
-      const rows = await tx.$queryRaw<{ id: string }[]>`
+    const batch = await runAdvisoryLockedBatch(
+      prisma,
+      OPEN_REQUEST_EXPIRY_LOCK_ID,
+      async tx => {
+        const rows = await tx.$queryRaw<{ id: string }[]>`
         WITH due AS (
           SELECT id
           FROM "requests"
@@ -50,14 +56,19 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
           AND request."status" = 'OPEN'
         RETURNING request.id
       `;
-      return rows.length;
-    }, { transactionTimeoutMs: 20_000 });
+        return rows.length;
+      },
+      { transactionTimeoutMs: 20_000 }
+    );
 
     if (!batch.acquired) {
-      logger.info('[expire-open-requests] Express fallback skipped because another runner owns the advisory lock', {
-        expired,
-        batches,
-      });
+      logger.info(
+        '[expire-open-requests] Express fallback skipped because another runner owns the advisory lock',
+        {
+          expired,
+          batches,
+        }
+      );
       return 'busy';
     }
 

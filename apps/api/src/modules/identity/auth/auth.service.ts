@@ -327,7 +327,9 @@ export const authService = {
         ip,
         userAgent,
         details: { emailAttempts, reason: 'no_such_account' },
-      }).catch(error => reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error));
+      }).catch(error =>
+        reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error)
+      );
 
       if (emailAttempts >= MAX_EMAIL_ATTEMPTS) {
         await tokenStore.lockAccount(normalizedEmail, LOCKOUT_DURATION);
@@ -352,7 +354,9 @@ export const authService = {
         ip,
         userAgent,
         details: { emailAttempts },
-      }).catch(error => reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error));
+      }).catch(error =>
+        reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error)
+      );
 
       if (emailAttempts >= MAX_EMAIL_ATTEMPTS) {
         await tokenStore.lockAccount(normalizedEmail, LOCKOUT_DURATION);
@@ -398,7 +402,9 @@ export const authService = {
       ip,
       userAgent,
       sessionId,
-    }).catch(error => reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error)
+    );
 
     return result;
   },
@@ -495,7 +501,9 @@ export const authService = {
         userId: user.id,
         sessionId: payload.sessionId,
         details: { provider: 'google', source: 'settings' },
-      }).catch(error => reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error));
+      }).catch(error =>
+        reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error)
+      );
     });
   },
 
@@ -632,7 +640,9 @@ export const authService = {
         userAgent,
         sessionId,
         details: { provider: 'google' },
-      }).catch(error => reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error));
+      }).catch(error =>
+        reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error)
+      );
 
       return result;
     });
@@ -857,7 +867,9 @@ export const authService = {
       event: AuditEvent.SESSION_REVOKED,
       userId,
       sessionId: targetSessionId,
-    }).catch(error => reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error)
+    );
   },
 
   getSessions: async (userId: string, currentSessionId: string) =>
@@ -953,7 +965,9 @@ export const authService = {
       ip: 'unknown',
       userAgent: 'unknown',
       details: { provider: 'google' },
-    }).catch(error => reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error)
+    );
 
     return { alreadyVerified: false };
   },
@@ -1001,7 +1015,9 @@ export const authService = {
       ip: 'unknown',
       userAgent: 'unknown',
       details: { action: 'password_reset_via_google', provider: 'google' },
-    }).catch(error => reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error)
+    );
 
     return token;
   },
@@ -1217,7 +1233,9 @@ export const authService = {
     auditLog({
       event: AuditEvent.EMAIL_VERIFIED,
       userId: record.userId,
-    }).catch(error => reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('apps/api/src/modules/identity/auth/auth.service.ts', error)
+    );
   },
 
   /**

@@ -5,8 +5,17 @@ import {
 } from '../shared/search/searchCacheWhitelist';
 
 const BUILT_IN_TERMS = new Set([
-  'سيارة', 'هاتف', 'لابتوب', 'شقة', 'غرفة', 'كرسي',
-  'ثلاجة', 'غسالة', 'تكييف', 'سباك', 'كهربائي',
+  'سيارة',
+  'هاتف',
+  'لابتوب',
+  'شقة',
+  'غرفة',
+  'كرسي',
+  'ثلاجة',
+  'غسالة',
+  'تكييف',
+  'سباك',
+  'كهربائي',
 ]);
 const WORKER_TERM_LIMIT = 500;
 const AVAILABLE_CUSTOM_TERMS = WORKER_TERM_LIMIT - BUILT_IN_TERMS.size;
@@ -53,9 +62,13 @@ async function main(): Promise<void> {
     .slice(0, AVAILABLE_CUSTOM_TERMS);
 
   console.log(`Search window: ${days} days; minimum frequency: ${minCount}`);
-  console.log(`Eligible reviewed candidates: ${selected.length}/${AVAILABLE_CUSTOM_TERMS} custom terms`);
+  console.log(
+    `Eligible reviewed candidates: ${selected.length}/${AVAILABLE_CUSTOM_TERMS} custom terms`
+  );
   console.log('Counts are aggregated; user IDs, sessions and source records are not exported.');
-  console.log('Review each phrase before adding it: common names or sensitive phrases may still appear.');
+  console.log(
+    'Review each phrase before adding it: common names or sensitive phrases may still appear.'
+  );
   console.log('\nTerm | Searches');
   for (const item of selected) console.log(`${item.term} | ${item.count}`);
   console.log('\nCandidate Worker variable (copy only after manual review):');
@@ -64,7 +77,10 @@ async function main(): Promise<void> {
 
 main()
   .catch(error => {
-    console.error('Failed to export search cache candidates:', error instanceof Error ? error.message : error);
+    console.error(
+      'Failed to export search cache candidates:',
+      error instanceof Error ? error.message : error
+    );
     process.exitCode = 1;
   })
   .finally(async () => {

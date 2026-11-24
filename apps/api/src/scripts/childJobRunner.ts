@@ -48,7 +48,9 @@ export function runChildJob(name: string, scheduledFor?: string): Promise<void> 
 export async function runChildJobsIndependently(names: string[], label: string): Promise<void> {
   const failures: Array<{ name: string; error: unknown }> = [];
   let interrupted = false;
-  const markInterrupted = () => { interrupted = true; };
+  const markInterrupted = () => {
+    interrupted = true;
+  };
   process.on('SIGINT', markInterrupted);
   process.on('SIGTERM', markInterrupted);
   try {
@@ -112,7 +114,11 @@ export function getProductionScheduledJobScript(name: string): string | null {
     : null;
 }
 
-export function runProductionScheduledJob(name: string, scheduledFor: string, signal?: AbortSignal): Promise<void> {
+export function runProductionScheduledJob(
+  name: string,
+  scheduledFor: string,
+  signal?: AbortSignal
+): Promise<void> {
   const scriptName = getProductionScheduledJobScript(name);
   if (!scriptName) return Promise.reject(new Error(`Unsupported scheduled job: ${name}`));
 

@@ -4,11 +4,14 @@
  * Express retains cache/Cloudflare invalidation and post-commit live fan-out.
  */
 import { prisma as sharedPrisma } from '../config/prisma';
-import { redis, closeRedisServiceClients } from '../config/redis';
+import { closeRedisServiceClients } from '../config/redis';
 import { logger } from '../shared/observability/logger';
 import { bumpAdsCacheVersionAndHome } from '../modules/classifieds/ads/ads.cache.keys';
 import { flushEdgePurge } from '../shared/cache/edgePurge';
-import { executeWithGoFallback, runAdvisoryLockedBatch } from '../shared/go-worker/executeWithFallback';
+import {
+  executeWithGoFallback,
+  runAdvisoryLockedBatch,
+} from '../shared/go-worker/executeWithFallback';
 import { publishDurableNotifications } from '../shared/go-worker/publishDurableNotifications';
 import { shutdownNotificationStream } from '../shared/realtime/notificationStream';
 
@@ -36,15 +39,22 @@ function isAdExpiryResult(value: unknown): value is AdExpiryResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const result = value as Record<string, unknown>;
   return (
-    Number.isSafeInteger(result.warned) && (result.warned as number) >= 0 &&
-    Number.isSafeInteger(result.expired) && (result.expired as number) >= 0 &&
-    Number.isSafeInteger(result.notified) && (result.notified as number) >= 0 &&
-    Number.isSafeInteger(result.warningBatches) && (result.warningBatches as number) >= 0 &&
-    Number.isSafeInteger(result.expiryBatches) && (result.expiryBatches as number) >= 0 &&
+    Number.isSafeInteger(result.warned) &&
+    (result.warned as number) >= 0 &&
+    Number.isSafeInteger(result.expired) &&
+    (result.expired as number) >= 0 &&
+    Number.isSafeInteger(result.notified) &&
+    (result.notified as number) >= 0 &&
+    Number.isSafeInteger(result.warningBatches) &&
+    (result.warningBatches as number) >= 0 &&
+    Number.isSafeInteger(result.expiryBatches) &&
+    (result.expiryBatches as number) >= 0 &&
     typeof result.warningLimitReached === 'boolean' &&
     typeof result.expiryLimitReached === 'boolean' &&
-    typeof result.evaluatedAt === 'string' && Number.isFinite(Date.parse(result.evaluatedAt)) &&
-    typeof result.warningCutoff === 'string' && Number.isFinite(Date.parse(result.warningCutoff)) &&
+    typeof result.evaluatedAt === 'string' &&
+    Number.isFinite(Date.parse(result.evaluatedAt)) &&
+    typeof result.warningCutoff === 'string' &&
+    Number.isFinite(Date.parse(result.warningCutoff)) &&
     Array.isArray(result.notificationIds) &&
     result.notificationIds.every(id => typeof id === 'string' && id.length > 0) &&
     result.notified === result.notificationIds.length
@@ -77,7 +87,10 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
   const notificationIds: string[] = [];
 
   for (let batchIndex = 0; batchIndex < MAX_BATCHES; batchIndex += 1) {
-    const batch = await runAdvisoryLockedBatch(prisma, AD_EXPIRY_LOCK_ID, async tx => tx.$queryRaw<Array<{ adId: string; notificationId: string | null }>>`
+    const batch = await runAdvisoryLockedBatch(
+      prisma,
+      AD_EXPIRY_LOCK_ID,
+      async tx => tx.$queryRaw<Array<{ adId: string; notificationId: string | null }>>`
       WITH due AS (
         SELECT ad."id", ad."userId", ad."title", ad."expiresAt"
         FROM "ads" AS ad
@@ -137,24 +150,34 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
       FROM warned w
       LEFT JOIN inserted ON inserted."data" ->> 'adId' = w."id"
       ORDER BY w."id" ASC
-    `, { transactionTimeoutMs: 20_000 });
+    `,
+      { transactionTimeoutMs: 20_000 }
+    );
 
     if (!batch.acquired) {
       await publishNotifications(notificationIds);
       if (expired > 0) await refreshAdsCaches();
-      logger.info('[expire-ads] warning sweep stopped because another runner owns the advisory lock', { warned, expired });
+      logger.info(
+        '[expire-ads] warning sweep stopped because another runner owns the advisory lock',
+        { warned, expired }
+      );
       return 'busy';
     }
 
     warned += batch.value.length;
     warningBatches += batch.value.length > 0 ? 1 : 0;
-    notificationIds.push(...batch.value.flatMap(row => row.notificationId ? [row.notificationId] : []));
+    notificationIds.push(
+      ...batch.value.flatMap(row => (row.notificationId ? [row.notificationId] : []))
+    );
     if (batch.value.length < BATCH_SIZE) break;
     if (batchIndex === MAX_BATCHES - 1) warningLimitReached = true;
   }
 
   for (let batchIndex = 0; batchIndex < MAX_BATCHES; batchIndex += 1) {
-    const batch = await runAdvisoryLockedBatch(prisma, AD_EXPIRY_LOCK_ID, async tx => tx.$queryRaw<Array<{ adId: string; notificationId: string | null }>>`
+    const batch = await runAdvisoryLockedBatch(
+      prisma,
+      AD_EXPIRY_LOCK_ID,
+      async tx => tx.$queryRaw<Array<{ adId: string; notificationId: string | null }>>`
       WITH due AS (
         SELECT ad."id", ad."userId", ad."title"
         FROM "ads" AS ad
@@ -208,18 +231,25 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
       FROM expired e
       LEFT JOIN inserted ON inserted."data" ->> 'adId' = e."id"
       ORDER BY e."id" ASC
-    `, { transactionTimeoutMs: 20_000 });
+    `,
+      { transactionTimeoutMs: 20_000 }
+    );
 
     if (!batch.acquired) {
       await publishNotifications(notificationIds);
       if (expired > 0) await refreshAdsCaches();
-      logger.info('[expire-ads] expiry sweep stopped because another runner owns the advisory lock', { warned, expired });
+      logger.info(
+        '[expire-ads] expiry sweep stopped because another runner owns the advisory lock',
+        { warned, expired }
+      );
       return 'busy';
     }
 
     expired += batch.value.length;
     expiryBatches += batch.value.length > 0 ? 1 : 0;
-    notificationIds.push(...batch.value.flatMap(row => row.notificationId ? [row.notificationId] : []));
+    notificationIds.push(
+      ...batch.value.flatMap(row => (row.notificationId ? [row.notificationId] : []))
+    );
     if (batch.value.length < BATCH_SIZE) break;
     if (batchIndex === MAX_BATCHES - 1) expiryLimitReached = true;
   }
@@ -227,9 +257,15 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
   await publishNotifications(notificationIds);
   if (expired > 0) await refreshAdsCaches();
   logger.info('[expire-ads] Go fallback completed', {
-    warned, expired, notified: notificationIds.length,
-    warningBatches, expiryBatches, warningLimitReached, expiryLimitReached,
-    evaluatedAt: now.toISOString(), warningCutoff: warningCutoff.toISOString(),
+    warned,
+    expired,
+    notified: notificationIds.length,
+    warningBatches,
+    expiryBatches,
+    warningLimitReached,
+    expiryLimitReached,
+    evaluatedAt: now.toISOString(),
+    warningCutoff: warningCutoff.toISOString(),
   });
   return 'completed';
 }
@@ -244,7 +280,10 @@ async function main(): Promise<void> {
       await publishNotifications(result.notificationIds);
       if (result.expired > 0) await refreshAdsCaches();
       if (result.warningLimitReached || result.expiryLimitReached) {
-        logger.warn('[expire-ads] reached a per-sweep batch ceiling; remaining ads will be picked up by the next run', result);
+        logger.warn(
+          '[expire-ads] reached a per-sweep batch ceiling; remaining ads will be picked up by the next run',
+          result
+        );
       }
     },
     runExpressFallback,

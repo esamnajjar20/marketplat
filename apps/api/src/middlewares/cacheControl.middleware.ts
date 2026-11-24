@@ -14,11 +14,7 @@ function varyByAuthState(res: Response): void {
   res.vary('Cookie');
 }
 
-export const privateApiCacheDefault = (
-  _req: Request,
-  res: Response,
-  next: NextFunction
-): void => {
+export const privateApiCacheDefault = (_req: Request, res: Response, next: NextFunction): void => {
   res.setHeader('Cache-Control', 'private, no-store');
   varyByAuthState(res);
   next();

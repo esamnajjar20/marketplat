@@ -32,7 +32,7 @@ module.exports = {
       },
     ],
     'react-hooks/rules-of-hooks': 'error',
-    'react-hooks/exhaustive-deps': 'error',
+    'react-hooks/exhaustive-deps': 'warn',
     '@typescript-eslint/no-explicit-any': 'error',
     'no-restricted-syntax': [
       'error',

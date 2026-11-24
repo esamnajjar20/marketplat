@@ -34,7 +34,10 @@ import { sellersService } from '../../identity/sellers/sellers.service';
 import { requireStoreAccess } from '../../commerce/stores/store-members.service';
 import { favoritesRepository } from '../../engagement/favorites/favorites.repository';
 import { notificationEvents } from '../../engagement/notifications';
-import { matchesAdFilters, savedSearchType } from '../../engagement/saved-searches/saved-searches.service';
+import {
+  matchesAdFilters,
+  savedSearchType,
+} from '../../engagement/saved-searches/saved-searches.service';
 import type { SavedSearchFilters } from '../../engagement/saved-searches/saved-searches.validation';
 import { activityService, activityTemplates } from '../../engagement/activity';
 import { fraudService } from '../../trust/fraud';
@@ -473,7 +476,7 @@ export const adsService = {
             id: ad.id,
             userId,
             title: ad.title,
-description: ad.description, // FIX: Removed to reduce list payload size
+            description: ad.description, // FIX: Removed to reduce list payload size
             city: ad.city,
             price: ad.price ? Number(ad.price) : null,
             categoryId: ad.categoryId,
@@ -486,7 +489,7 @@ description: ad.description, // FIX: Removed to reduce list payload size
                 adId: ad.id,
                 userId,
                 title: ad.title,
-description: ad.description, // FIX: Removed to reduce list payload size
+                description: ad.description, // FIX: Removed to reduce list payload size
                 city: ad.city,
                 price: ad.price ? Number(ad.price) : null,
                 categoryId: ad.categoryId,
@@ -716,7 +719,8 @@ description: ad.description, // FIX: Removed to reduce list payload size
         .catch(err => {
           logger.error('Failed to create FAV_AD_PRICE_CHANGED notifications', { err, adId });
           recordFailedTask('FAVORITED_AD_PRICE_CHANGED', { adId, title: updated.title }, err).catch(
-            error => reportBackgroundFailure('apps/api/src/modules/classifieds/ads/ads.service.ts', error)
+            error =>
+              reportBackgroundFailure('apps/api/src/modules/classifieds/ads/ads.service.ts', error)
           );
         });
     }
@@ -888,7 +892,10 @@ description: ad.description, // FIX: Removed to reduce list payload size
               offlineOperationId,
               uploads.map(upload => upload.url)
             )
-          : await adsRepository.addImages(adId, uploads.map(upload => upload.url));
+          : await adsRepository.addImages(
+              adId,
+              uploads.map(upload => upload.url)
+            );
         // FIX AUDIT-V4-06: cached listing payloads include `images` —
         // without this, a newly added photo wouldn't show up in /ads
         // results for up to 30s.

@@ -11,7 +11,7 @@ import {
   executeWithGoFallback,
   runAdvisoryLockedBatch,
 } from '../shared/go-worker/executeWithFallback';
-import { redis, closeRedisServiceClients } from '../config/redis';
+import { closeRedisServiceClients } from '../config/redis';
 import { shutdownNotificationStream } from '../shared/realtime/notificationStream';
 import { publishDurableNotifications } from '../shared/go-worker/publishDurableNotifications';
 
@@ -36,12 +36,17 @@ function isServiceExpiryResult(value: unknown): value is ServiceExpiryResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const result = value as Record<string, unknown>;
   return (
-    Number.isSafeInteger(result.expired) && (result.expired as number) >= 0 &&
-    Number.isSafeInteger(result.notified) && (result.notified as number) >= 0 &&
-    Number.isSafeInteger(result.batches) && (result.batches as number) >= 0 &&
+    Number.isSafeInteger(result.expired) &&
+    (result.expired as number) >= 0 &&
+    Number.isSafeInteger(result.notified) &&
+    (result.notified as number) >= 0 &&
+    Number.isSafeInteger(result.batches) &&
+    (result.batches as number) >= 0 &&
     result.ttlDays === SERVICE_REQUEST_PENDING_TTL_DAYS &&
-    typeof result.cutoff === 'string' && Number.isFinite(Date.parse(result.cutoff)) &&
-    typeof result.evaluatedAt === 'string' && Number.isFinite(Date.parse(result.evaluatedAt)) &&
+    typeof result.cutoff === 'string' &&
+    Number.isFinite(Date.parse(result.cutoff)) &&
+    typeof result.evaluatedAt === 'string' &&
+    Number.isFinite(Date.parse(result.evaluatedAt)) &&
     typeof result.limitReached === 'boolean' &&
     Array.isArray(result.notificationIds) &&
     result.notificationIds.every(id => typeof id === 'string' && id.length > 0) &&
@@ -62,8 +67,13 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
   const notificationIds: string[] = [];
 
   for (let batchIndex = 0; batchIndex < MAX_BATCHES; batchIndex += 1) {
-    const batch = await runAdvisoryLockedBatch(prisma, SERVICE_REQUEST_EXPIRY_LOCK_ID, async tx => {
-      const rows = await tx.$queryRaw<Array<{ requestId: string; notificationId: string | null }>>`
+    const batch = await runAdvisoryLockedBatch(
+      prisma,
+      SERVICE_REQUEST_EXPIRY_LOCK_ID,
+      async tx => {
+        const rows = await tx.$queryRaw<
+          Array<{ requestId: string; notificationId: string | null }>
+        >`
         WITH due AS (
           SELECT sr."id", sr."customerId", listing."title" AS "listingTitle"
           FROM "service_requests" AS sr
@@ -132,21 +142,26 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
         LEFT JOIN inserted ON inserted."data" ->> 'requestId' = e."id"
         ORDER BY e."id" ASC
       `;
-      return rows;
-    }, { transactionTimeoutMs: 20_000 });
+        return rows;
+      },
+      { transactionTimeoutMs: 20_000 }
+    );
 
     if (!batch.acquired) {
       await publishCreatedNotifications(notificationIds);
-      logger.info('[expire-service-requests] Express fallback stopped because another runner owns the advisory lock', {
-        expired,
-        batches,
-      });
+      logger.info(
+        '[expire-service-requests] Express fallback stopped because another runner owns the advisory lock',
+        {
+          expired,
+          batches,
+        }
+      );
       return 'busy';
     }
 
     expired += batch.value.length;
     notificationIds.push(
-      ...batch.value.flatMap(row => row.notificationId ? [row.notificationId] : [])
+      ...batch.value.flatMap(row => (row.notificationId ? [row.notificationId] : []))
     );
     if (batch.value.length > 0) batches += 1;
     if (batch.value.length < BATCH_SIZE) break;
@@ -175,7 +190,10 @@ async function main(): Promise<void> {
     onGoSuccess: async result => {
       await publishCreatedNotifications(result.notificationIds);
       if (result.limitReached) {
-        logger.warn('[expire-service-requests] reached the per-run 10,000-row cap; remaining rows will be picked up by the next run', result);
+        logger.warn(
+          '[expire-service-requests] reached the per-run 10,000-row cap; remaining rows will be picked up by the next run',
+          result
+        );
       }
     },
     runExpressFallback,

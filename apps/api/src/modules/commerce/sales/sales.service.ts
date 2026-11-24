@@ -23,7 +23,10 @@ import { ConflictError } from '../../../shared/errors/ConflictError';
 
 const roundMoney = (n: number) => Math.round(n * 100) / 100;
 
-const buildSalesReportWhere = (userId: string, query: ReportQuery): Prisma.SaleRecordWhereInput => ({
+const buildSalesReportWhere = (
+  userId: string,
+  query: ReportQuery
+): Prisma.SaleRecordWhereInput => ({
   sellerId: userId,
   ...(query.storeId ? { storeId: query.storeId } : {}),
   ...(query.status ? { paymentStatus: query.status } : {}),
@@ -65,40 +68,43 @@ const salesReportSelect = {
 
 type SalesReportSale = Prisma.SaleRecordGetPayload<{ select: typeof salesReportSelect }>;
 
-const mapSalesReportRows = (sales: SalesReportSale[]) => sales.map(sale => {
-  const cost = sale.items.reduce(
-    (sum, item) =>
-      sum +
-      (item.costPrice === null
-        ? 0
-        : Number(item.costPrice) * Math.max(item.quantity - item.returnedQuantity, 0)),
-    0
-  );
-  const revenue = Number(sale.totalPrice) - Number(sale.refundedAmount);
-  return {
-    id: sale.id,
-    invoiceNumber: sale.invoiceNumber,
-    soldAt: sale.soldAt,
-    buyerName: sale.buyerName,
-    buyerPhone: sale.buyerPhone,
-    storeName: sale.store?.name ?? null,
-    title: sale.entityTitle,
-    quantity: sale.items.reduce(
-      (sum, item) => sum + Math.max(item.quantity - item.returnedQuantity, 0),
+const mapSalesReportRows = (sales: SalesReportSale[]) =>
+  sales.map(sale => {
+    const cost = sale.items.reduce(
+      (sum, item) =>
+        sum +
+        (item.costPrice === null
+          ? 0
+          : Number(item.costPrice) * Math.max(item.quantity - item.returnedQuantity, 0)),
       0
-    ),
-    revenue: roundMoney(revenue),
-    cost: roundMoney(cost),
-    profit: roundMoney(revenue - cost),
-    paid: roundMoney(Number(sale.paidAmount)),
-    due: roundMoney(Number(sale.dueAmount)),
-    refunded: roundMoney(Number(sale.refundedAmount)),
-    status: sale.paymentStatus,
-    currency: sale.currency,
-  };
-});
+    );
+    const revenue = Number(sale.totalPrice) - Number(sale.refundedAmount);
+    return {
+      id: sale.id,
+      invoiceNumber: sale.invoiceNumber,
+      soldAt: sale.soldAt,
+      buyerName: sale.buyerName,
+      buyerPhone: sale.buyerPhone,
+      storeName: sale.store?.name ?? null,
+      title: sale.entityTitle,
+      quantity: sale.items.reduce(
+        (sum, item) => sum + Math.max(item.quantity - item.returnedQuantity, 0),
+        0
+      ),
+      revenue: roundMoney(revenue),
+      cost: roundMoney(cost),
+      profit: roundMoney(revenue - cost),
+      paid: roundMoney(Number(sale.paidAmount)),
+      due: roundMoney(Number(sale.dueAmount)),
+      refunded: roundMoney(Number(sale.refundedAmount)),
+      status: sale.paymentStatus,
+      currency: sale.currency,
+    };
+  });
 const sameDate = (left: Date | null | undefined, right: Date | null | undefined) =>
-  left == null || right == null ? left == null && right == null : left.getTime() === right.getTime();
+  left == null || right == null
+    ? left == null && right == null
+    : left.getTime() === right.getTime();
 
 const paymentOperationMatches = (
   existing: {
@@ -149,10 +155,7 @@ const computeStatus = (total: number, paid: number, dueDate?: Date | null): Sale
   return paid > 0 ? 'PARTIAL' : 'UNPAID';
 };
 
-const getPeriodStart = (
-  end: Date,
-  period: 'day' | 'week' | 'month' | 'year'
-): Date => {
+const getPeriodStart = (end: Date, period: 'day' | 'week' | 'month' | 'year'): Date => {
   const start = new Date(end);
   if (period === 'day') start.setDate(start.getDate() - 1);
   if (period === 'week') start.setDate(start.getDate() - 7);
@@ -547,9 +550,11 @@ export const salesService = {
       : await ensureEntityOwnership(userId, input);
     const costTracking = await salesService.getCostSettings(userId);
     const effectiveCostPrice = costTracking.enabled ? entity.costPrice : null;
-    const total = pos?.total ?? (manualItems
-      ? roundMoney(manualItems.reduce((sum, item) => sum + item.lineTotal, 0))
-      : roundMoney(input.unitPrice * input.quantity));
+    const total =
+      pos?.total ??
+      (manualItems
+        ? roundMoney(manualItems.reduce((sum, item) => sum + item.lineTotal, 0))
+        : roundMoney(input.unitPrice * input.quantity));
     const initialPaid = roundMoney(input.payment?.amount ?? input.paidAmount ?? 0);
     if (initialPaid > total)
       throw new BadRequestError('Paid amount cannot exceed total.', 'PAYMENT_EXCEEDS_TOTAL');
@@ -562,9 +567,8 @@ export const salesService = {
         const status = computeStatus(total, initialPaid, input.dueDate);
         const manualQuantity = manualItems?.reduce((sum, item) => sum + item.quantity, 0);
         const saleQuantity = pos?.quantity ?? manualQuantity ?? input.quantity;
-        const saleUnitPrice = pos || manualItems
-          ? roundMoney(total / Math.max(1, saleQuantity))
-          : input.unitPrice;
+        const saleUnitPrice =
+          pos || manualItems ? roundMoney(total / Math.max(1, saleQuantity)) : input.unitPrice;
         const saleCostPrice =
           pos && costTracking.enabled
             ? (() => {
@@ -688,7 +692,7 @@ export const salesService = {
           await tx.saleItem.create({
             data: {
               saleId: sale.id,
-              productId: input.entityType === 'PRODUCT' ? input.entityId ?? null : null,
+              productId: input.entityType === 'PRODUCT' ? (input.entityId ?? null) : null,
               entityType: input.entityType,
               entityId: input.entityId ?? null,
               title: input.entityTitle,

@@ -145,7 +145,9 @@ export async function bumpGeneration(
       // Timeout only (no circuit breaker): an invalidation must still be
       // attempted while the breaker is open, otherwise entries written before
       // the outage could be read as fresh after the breaker closes.
-      await withCacheTimeout(() => cacheClient().set(genKey, newToken(), 'EX', GENERATION_TTL_SECONDS));
+      await withCacheTimeout(() =>
+        cacheClient().set(genKey, newToken(), 'EX', GENERATION_TTL_SECONDS)
+      );
       const elapsedSeconds = Number(process.hrtime.bigint() - startedAt) / 1_000_000_000;
       cacheMetrics.record('generation', 'generation_bump_ok');
       cacheMetrics.observeDuration('generation', 'generation_bump_ok', elapsedSeconds);

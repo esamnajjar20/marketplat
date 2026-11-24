@@ -28,12 +28,15 @@ export async function publicCacheInvalidation(
     // event still purges the edge. When purging is not configured this is a no-op.
     purgeIntentId = await createEdgePurgeIntent(tags);
   } catch (error) {
-    logger.error('Could not persist required public-cache invalidation intent; mutation was not started', {
-      method: req.method,
-      path: req.path,
-      tags,
-      error,
-    });
+    logger.error(
+      'Could not persist required public-cache invalidation intent; mutation was not started',
+      {
+        method: req.method,
+        path: req.path,
+        tags,
+        error,
+      }
+    );
     sendApiError(
       req,
       res,

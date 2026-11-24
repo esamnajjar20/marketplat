@@ -279,7 +279,10 @@ export const storeMembersService = {
             'STORE_MEMBER_LIMIT'
           );
         }
-        throw new ConflictError('Store membership changed. Please retry the invitation.', 'STORE_MEMBER_CONFLICT');
+        throw new ConflictError(
+          'Store membership changed. Please retry the invitation.',
+          'STORE_MEMBER_CONFLICT'
+        );
       }
       throw e;
     }
@@ -294,7 +297,10 @@ export const storeMembersService = {
         role: input.role,
       },
     }).catch(error =>
-      reportBackgroundFailure('apps/api/src/modules/commerce/stores/store-members.service.ts', error)
+      reportBackgroundFailure(
+        'apps/api/src/modules/commerce/stores/store-members.service.ts',
+        error
+      )
     );
 
     // FIX (audit #21): implemented — see notifications.service.ts's
@@ -303,7 +309,10 @@ export const storeMembersService = {
     void notificationEvents
       .onStoreMemberInvited(targetUser.id, store.id, member.id, store.name)
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/commerce/stores/store-members.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/commerce/stores/store-members.service.ts',
+          error
+        )
       );
 
     return member;
@@ -360,7 +369,9 @@ export const storeMembersService = {
       );
     } catch (error: unknown) {
       if (
-        typeof error === 'object' && error !== null && 'code' in error &&
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
         (error as { code?: string }).code === 'P2034'
       ) {
         throw new ConflictError(
@@ -450,7 +461,10 @@ export const storeMembersService = {
         wasSelf: isSelf,
       },
     }).catch(error =>
-      reportBackgroundFailure('apps/api/src/modules/commerce/stores/store-members.service.ts', error)
+      reportBackgroundFailure(
+        'apps/api/src/modules/commerce/stores/store-members.service.ts',
+        error
+      )
     );
   },
 
@@ -478,7 +492,17 @@ export const storeMembersService = {
     return prisma.storeMember.findMany({
       where: { userId, status: StoreMemberStatus.ACTIVE },
       include: {
-        store: { select: { id: true, name: true, slug: true, status: true, city: true, logoUrl: true, coverImageUrl: true } },
+        store: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            status: true,
+            city: true,
+            logoUrl: true,
+            coverImageUrl: true,
+          },
+        },
       },
       orderBy: { invitedAt: 'asc' },
     });

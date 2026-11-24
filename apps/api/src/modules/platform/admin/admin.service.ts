@@ -797,7 +797,9 @@ export const adminService = {
       event: AuditEventType.ADMIN_AD_DELETED, // closest existing event; details carry product
       userId: adminUserId,
       details: { productId, status, reason: reason ?? null, kind: 'product' },
-    }).catch(error => reportBackgroundFailure('apps/api/src/modules/platform/admin/admin.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('apps/api/src/modules/platform/admin/admin.service.ts', error)
+    );
     return updated;
   },
 
@@ -860,7 +862,9 @@ export const adminService = {
       event: AuditEventType.ADMIN_AD_DELETED,
       userId: adminUserId,
       details: { listingId, status, reason: reason ?? null, kind: 'service_listing' },
-    }).catch(error => reportBackgroundFailure('apps/api/src/modules/platform/admin/admin.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('apps/api/src/modules/platform/admin/admin.service.ts', error)
+    );
     return updated;
   },
 
@@ -1408,7 +1412,9 @@ export const adminService = {
         reason: reason ?? null,
         kind: 'open-request',
       },
-    }).catch(error => reportBackgroundFailure('apps/api/src/modules/platform/admin/admin.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('apps/api/src/modules/platform/admin/admin.service.ts', error)
+    );
 
     return updated;
   },

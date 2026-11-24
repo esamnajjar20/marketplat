@@ -4,7 +4,10 @@ import { getPaginationParams } from '../../../shared/http/pagination';
 import { isPrismaError } from '../../../shared/db/prismaErrors';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { decodeMessageCursor, encodeMessageCursor } from '../../../shared/http/messageCursor';
-import { extractCloudinaryPublicId, queueCloudinaryAssetCleanup } from '../../../shared/media/cloudinaryHelpers';
+import {
+  extractCloudinaryPublicId,
+  queueCloudinaryAssetCleanup,
+} from '../../../shared/media/cloudinaryHelpers';
 
 export type ConversationWithRelations = Prisma.ConversationGetPayload<{
   include: {
@@ -415,12 +418,8 @@ export const messagesRepository = {
         data: { deletedAt: new Date() },
       });
       const assets: Array<{ publicId: string; resourceType: 'image' | 'video' | 'raw' }> = [];
-      const imagePublicId = deleted.imageUrl
-        ? extractCloudinaryPublicId(deleted.imageUrl)
-        : null;
-      const audioPublicId = deleted.audioUrl
-        ? extractCloudinaryPublicId(deleted.audioUrl)
-        : null;
+      const imagePublicId = deleted.imageUrl ? extractCloudinaryPublicId(deleted.imageUrl) : null;
+      const audioPublicId = deleted.audioUrl ? extractCloudinaryPublicId(deleted.audioUrl) : null;
       const filePublicId = deleted.fileUrl
         ? extractCloudinaryPublicId(deleted.fileUrl, { preserveExtension: true })
         : null;
@@ -500,7 +499,9 @@ export const messagesRepository = {
     // full conversation COUNT for every newest-window and older-history request.
     const [rows, total] = await Promise.all([
       rowsPromise,
-      query.cursor || query.before ? Promise.resolve(null) : prisma.message.count({ where: { conversationId } }),
+      query.cursor || query.before
+        ? Promise.resolve(null)
+        : prisma.message.count({ where: { conversationId } }),
     ]);
 
     const hasMore = rows.length > limit;

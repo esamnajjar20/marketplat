@@ -370,7 +370,7 @@ export const authController = {
           JSON.stringify({ challenge: mobileOAuth.challenge, result }),
           'EX',
           90,
-          'NX',
+          'NX'
         );
         if (stored !== 'OK') throw new Error('Unable to create native OAuth handoff ticket');
         await cleanupMobileOAuth();
@@ -420,7 +420,10 @@ export const authController = {
   mobileGoogleExchange: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { body } = mobileGoogleExchangeSchema.parse({ body: req.body });
-      const challenge = crypto.createHash('sha256').update(body.verifier, 'utf8').digest('base64url');
+      const challenge = crypto
+        .createHash('sha256')
+        .update(body.verifier, 'utf8')
+        .digest('base64url');
       const ticketHash = crypto.createHash('sha256').update(body.ticket, 'utf8').digest('hex');
       const ticketKey = `auth:google:mobile-ticket:${ticketHash}`;
       const consumeScript = `
@@ -437,13 +440,16 @@ export const authController = {
       }
       const payload = JSON.parse(raw) as {
         challenge?: string;
-        result?: { tokens?: { accessToken?: string; refreshToken?: string }; user?: { id?: string } };
+        result?: {
+          tokens?: { accessToken?: string; refreshToken?: string };
+          user?: { id?: string };
+        };
       };
       if (
-        payload.challenge !== challenge
-        || typeof payload.result?.tokens?.accessToken !== 'string'
-        || typeof payload.result.tokens.refreshToken !== 'string'
-        || typeof payload.result.user?.id !== 'string'
+        payload.challenge !== challenge ||
+        typeof payload.result?.tokens?.accessToken !== 'string' ||
+        typeof payload.result.tokens.refreshToken !== 'string' ||
+        typeof payload.result.user?.id !== 'string'
       ) {
         throw new UnauthorizedError('Google sign-in ticket is invalid');
       }
@@ -451,7 +457,7 @@ export const authController = {
         res,
         200,
         'Google login successful',
-        payload.result as unknown as { tokens: { accessToken: string; refreshToken: string } },
+        payload.result as unknown as { tokens: { accessToken: string; refreshToken: string } }
       );
     } catch (error) {
       next(error);

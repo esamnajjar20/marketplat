@@ -21,7 +21,6 @@ if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
 }
 
-
 // Record low-cardinality database metrics without exposing SQL or bound values.
 // Set DB_QUERY_METRICS_ENABLED=0 only for emergency rollback; metrics are
 // enabled by default in development and production.

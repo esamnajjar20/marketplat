@@ -31,7 +31,7 @@ const utcMidnight = (value: Date): Date =>
 // events so an arbitrary [from,to) request keeps its exact inclusive/exclusive
 // timestamp boundaries.
 const fullUtcDayRange = (from: Date, to: Date): { start: Date; end: Date } => {
-  let start = utcMidnight(from);
+  const start = utcMidnight(from);
   if (start.getTime() !== from.getTime()) {
     start.setUTCDate(start.getUTCDate() + 1);
   }
@@ -75,7 +75,7 @@ export const analyticsRepository = {
   countByEvent: async (from: Date, to: Date): Promise<EventCount[]> => {
     return runWithQueryTimeout(async tx => {
       const { start, end } = fullUtcDayRange(from, to);
-      const useRollups = start < end && await hasDailyRollupTables(tx);
+      const useRollups = start < end && (await hasDailyRollupTables(tx));
       const rows = useRollups
         ? await tx.$queryRaw<Array<{ event: AnalyticsEventType; count: bigint }>>`
             WITH counts AS (
@@ -111,7 +111,7 @@ export const analyticsRepository = {
   trendByEvent: async (from: Date, to: Date, bucket: 'day' | 'week'): Promise<TrendPoint[]> => {
     return runWithQueryTimeout(async tx => {
       const { start, end } = fullUtcDayRange(from, to);
-      const useRollups = start < end && await hasDailyRollupTables(tx);
+      const useRollups = start < end && (await hasDailyRollupTables(tx));
       const rows = useRollups
         ? await tx.$queryRaw<Array<{ bucket: Date; event: AnalyticsEventType; count: bigint }>>`
             WITH points AS (
@@ -150,7 +150,7 @@ export const analyticsRepository = {
   topCategories: async (from: Date, to: Date, limit = 20): Promise<CategoryBrowseCount[]> => {
     return runWithQueryTimeout(async tx => {
       const { start, end } = fullUtcDayRange(from, to);
-      const useRollups = start < end && await hasDailyRollupTables(tx);
+      const useRollups = start < end && (await hasDailyRollupTables(tx));
       const rows = useRollups
         ? await tx.$queryRaw<Array<{ categoryId: string; count: bigint }>>`
             WITH category_counts AS (

@@ -13,7 +13,11 @@ function nextSoftTtlMs(): number {
 }
 
 function profileCacheKeys(userId: string) {
-  const base = canonicalCacheKey(PROFILE_CACHE_DOMAIN.namespace, PROFILE_CACHE_DOMAIN.scope as CanonicalScope, { userId });
+  const base = canonicalCacheKey(
+    PROFILE_CACHE_DOMAIN.namespace,
+    PROFILE_CACHE_DOMAIN.scope as CanonicalScope,
+    { userId }
+  );
   return {
     key: `${base}:payload`,
     hardGenKey: `${base}:generation`,
@@ -41,10 +45,7 @@ export async function getCachedUserProfileWithStatus<T>(
   });
 }
 
-export async function getCachedUserProfile<T>(
-  userId: string,
-  build: () => Promise<T>
-): Promise<T> {
+export async function getCachedUserProfile<T>(userId: string, build: () => Promise<T>): Promise<T> {
   return (await getCachedUserProfileWithStatus(userId, build)).value;
 }
 

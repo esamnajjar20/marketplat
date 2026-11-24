@@ -82,7 +82,11 @@ export const storeMembersController = {
     }
   },
 
-  listMyActiveMemberships: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  listMyActiveMemberships: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
       const memberships = await storeMembersService.listMyActiveMemberships(user.userId);

@@ -44,6 +44,8 @@ const eslintConfig = [
     'backup*/**',
     // Receipt page is hand-minified.
     'app/(protected)/account/sales/**/receipt/page.tsx',
+    // Internal audit scripts (bundle-report, cache-layer-audit, ...).
+    'scripts/**',
   ]),
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
 
@@ -51,6 +53,14 @@ const eslintConfig = [
 
   {
     rules: {
+    // Modern TS: prefer @ts-expect-error with description. 25 legacy @ts-ignore remain.
+    '@typescript-eslint/ban-ts-comment': 'warn',
+    // Legacy files still use require(); migrate later.
+    '@typescript-eslint/no-require-imports': 'warn',
+
+    // TODO(ci): 132 real patterns flagged by 5.2.0. Fix incrementally, then flip to 'error'.
+    'react-hooks/set-state-in-effect': 'warn',
+
       // TypeScript
       '@typescript-eslint/no-explicit-any': 'warn',  // TODO: fix incrementally
       '@typescript-eslint/no-unused-vars': [
@@ -79,8 +89,7 @@ const eslintConfig = [
       'react-hooks/exhaustive-deps': 'warn',
 
       // Enable diagnostics without making the existing baseline block CI.
-      // Promote each rule to error only after its reported violations are fixed.
-      'react-hooks/set-state-in-effect': 'warn',
+      // Promote each rule to error only after its reported violations are fixed.,
       'react-hooks/static-components': 'warn',
       'react-hooks/purity': 'warn',
       'react-hooks/refs': 'warn',
@@ -166,5 +175,6 @@ const eslintConfig = [
     },
   },
 ];
+
 
 export default eslintConfig;

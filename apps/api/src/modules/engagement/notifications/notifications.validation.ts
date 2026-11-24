@@ -131,7 +131,16 @@ export const getNotificationsSchema = z.object({
      * تُحوَّل في الخدمة إلى قائمة types.
      */
     category: z
-      .enum(['messages', 'favorites', 'stores', 'services', 'orders', 'following', 'system', 'sales'])
+      .enum([
+        'messages',
+        'favorites',
+        'stores',
+        'services',
+        'orders',
+        'following',
+        'system',
+        'sales',
+      ])
       .optional(),
   }),
 });

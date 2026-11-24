@@ -7,7 +7,12 @@ export const installmentsController = {
   overview: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const u = requireUser(req);
-      res.json(successResponse('Installments overview fetched', await installmentsService.overview(u.userId)));
+      res.json(
+        successResponse(
+          'Installments overview fetched',
+          await installmentsService.overview(u.userId)
+        )
+      );
     } catch (e) {
       next(e);
     }
@@ -42,7 +47,14 @@ export const installmentsController = {
       res.json(
         successResponse(
           'Installment paid',
-          await installmentsService.pay(u.userId, p.params.id, p.body.amount, p.body.offlineOperationId, p.body.method, p.body.transferRef)
+          await installmentsService.pay(
+            u.userId,
+            p.params.id,
+            p.body.amount,
+            p.body.offlineOperationId,
+            p.body.method,
+            p.body.transferRef
+          )
         )
       );
     } catch (e) {

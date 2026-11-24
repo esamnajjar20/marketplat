@@ -34,7 +34,6 @@ export const authRouter = Router();
 const mobileOAuthFlowKey = (flowId: string) => `auth:google:mobile-flow:${flowId}`;
 const MOBILE_PKCE_CHALLENGE = /^[A-Za-z0-9_-]{43}$/;
 
-
 /**
  * guards both /auth/google endpoints when Google OAuth
  * credentials aren't configured (env.googleOAuth.isConfigured is
@@ -245,10 +244,20 @@ authRouter.get(
           sendApiError(req, res, 400, ErrorCode.BAD_REQUEST, 'Unsupported native OAuth purpose');
           return;
         }
-        const challenge = typeof req.query.code_challenge === 'string' ? req.query.code_challenge : '';
-        const challengeMethod = typeof req.query.code_challenge_method === 'string' ? req.query.code_challenge_method : '';
+        const challenge =
+          typeof req.query.code_challenge === 'string' ? req.query.code_challenge : '';
+        const challengeMethod =
+          typeof req.query.code_challenge_method === 'string'
+            ? req.query.code_challenge_method
+            : '';
         if (challengeMethod !== 'S256' || !MOBILE_PKCE_CHALLENGE.test(challenge)) {
-          sendApiError(req, res, 400, ErrorCode.BAD_REQUEST, 'A valid PKCE code challenge is required');
+          sendApiError(
+            req,
+            res,
+            400,
+            ErrorCode.BAD_REQUEST,
+            'A valid PKCE code challenge is required'
+          );
           return;
         }
         const flowId = crypto.randomBytes(32).toString('hex');

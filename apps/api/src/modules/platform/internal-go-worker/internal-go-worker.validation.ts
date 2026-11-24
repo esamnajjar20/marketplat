@@ -97,7 +97,10 @@ export function parseOutboxNotificationsRequest(
       type: value.type,
       title: value.title,
       body: value.body,
-      data: value.data === null || value.data === undefined ? null : (value.data as Record<string, unknown>),
+      data:
+        value.data === null || value.data === undefined
+          ? null
+          : (value.data as Record<string, unknown>),
     });
   }
 
@@ -106,7 +109,9 @@ export function parseOutboxNotificationsRequest(
 
 // ── publish-durable-notifications ────────────────────────────────────
 
-export function parseDurableNotificationsRequest(body: unknown): Validated<{ notificationIds: string[] }> {
+export function parseDurableNotificationsRequest(
+  body: unknown
+): Validated<{ notificationIds: string[] }> {
   if (
     !isRecord(body) ||
     !hasOnlyKeys(body, ['notificationIds']) ||
@@ -152,7 +157,14 @@ export interface PushTargetRequest {
 
 const PUSH_TOP_LEVEL_KEYS = ['channel', 'userId', 'targetId', 'payload'] as const;
 const PUSH_PAYLOAD_KEYS = [
-  'title', 'body', 'url', 'tag', 'image', 'type', 'urgent', 'bypassQuietHours',
+  'title',
+  'body',
+  'url',
+  'tag',
+  'image',
+  'type',
+  'urgent',
+  'bypassQuietHours',
 ] as const;
 
 export function parsePushTargetRequest(body: unknown): Validated<PushTargetRequest> {
@@ -164,7 +176,9 @@ export function parsePushTargetRequest(body: unknown): Validated<PushTargetReque
 
   const optionalString = (key: string, max: number): boolean => {
     const value = payload[key];
-    return value === undefined || value === null || (typeof value === 'string' && value.length <= max);
+    return (
+      value === undefined || value === null || (typeof value === 'string' && value.length <= max)
+    );
   };
   const requiredString = (key: string, max: number): boolean => {
     const value = payload[key];

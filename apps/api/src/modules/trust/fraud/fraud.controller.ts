@@ -16,8 +16,16 @@ export const fraudController = {
   /** POST /admin/fraud/monitor/scan — bounded read-only Go-first abuse-pattern scan. */
   runMonitorScan: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body) || Object.keys(req.body).length !== 0) {
-        throw new BadRequestError('Fraud monitor scan accepts an empty JSON object only', 'INVALID_FRAUD_MONITOR_REQUEST');
+      if (
+        !req.body ||
+        typeof req.body !== 'object' ||
+        Array.isArray(req.body) ||
+        Object.keys(req.body).length !== 0
+      ) {
+        throw new BadRequestError(
+          'Fraud monitor scan accepts an empty JSON object only',
+          'INVALID_FRAUD_MONITOR_REQUEST'
+        );
       }
       const report = await fraudMonitorService.scan();
       res.status(200).json(successResponse('Fraud monitor scan completed', report));

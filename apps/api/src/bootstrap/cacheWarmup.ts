@@ -1,4 +1,7 @@
-import { ensureHomepageFresh, HOME_KEEPWARM_MAX_AGE_MS } from '../modules/discovery/home/home.cache';
+import {
+  ensureHomepageFresh,
+  HOME_KEEPWARM_MAX_AGE_MS,
+} from '../modules/discovery/home/home.cache';
 import { HOME_CITIES } from '../modules/discovery/home/home.validation';
 import { categoriesService } from '../modules/classifieds/categories/categories.service';
 import { productCategoriesService } from '../modules/commerce/product-categories/product-categories.service';
@@ -18,7 +21,10 @@ import {
   WARMED_STORES_DEFAULT_QUERY,
   WARMED_STORES_HOME_QUERY,
 } from '../shared/cache/warmedListQueries';
-import { cacheWarmupTasksTotal, cacheWarmupTaskDurationSeconds } from '../shared/observability/metrics';
+import {
+  cacheWarmupTasksTotal,
+  cacheWarmupTaskDurationSeconds,
+} from '../shared/observability/metrics';
 import { productsService } from '../modules/commerce/products/products.service';
 import { storesService } from '../modules/commerce/stores/stores.service';
 import { serviceListingsService } from '../modules/services/service-listings/service-listings.service';
@@ -86,7 +92,6 @@ async function isCacheUnderPressure(): Promise<boolean> {
     return false;
   }
 }
-
 
 export interface WarmupTask {
   name: string;
@@ -172,7 +177,6 @@ export const WARMUP_TASKS: ReadonlyArray<WarmupTask> = [
   ...HOME_CITIES.map(city => homeTask(city)),
 ];
 
-
 export async function warmPublicCaches(
   tasks: ReadonlyArray<WarmupTask> = WARMUP_TASKS,
   pauseMs = 0
@@ -188,7 +192,9 @@ export async function warmPublicCaches(
     : orderedTasks;
   if (underPressure) {
     logger.warn('[cache-warmup] cache memory >= 85%; skipping low-priority warmup tasks', {
-      skipped: orderedTasks.filter(task => (task.priority ?? 0) < MIN_WARMUP_PRIORITY_UNDER_PRESSURE).map(task => task.name),
+      skipped: orderedTasks
+        .filter(task => (task.priority ?? 0) < MIN_WARMUP_PRIORITY_UNDER_PRESSURE)
+        .map(task => task.name),
       retained: eligibleTasks.map(task => task.name),
     });
   }

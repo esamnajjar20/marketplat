@@ -48,17 +48,19 @@ function isAllowedMediaContentType(kind: 'image' | 'audio' | 'file', value: stri
 }
 
 function encodeRfc5987FileName(value: string): string {
-  return encodeURIComponent(value).replace(/[!'()*]/g, (character) =>
-    `%${character.charCodeAt(0).toString(16).toUpperCase()}`,
+  return encodeURIComponent(value).replace(
+    /[!'()*]/g,
+    character => `%${character.charCodeAt(0).toString(16).toUpperCase()}`
   );
 }
 
 function getSafeMediaContentType(
   kind: 'image' | 'audio' | 'file',
   storedType: string,
-  remoteType: string | null,
+  remoteType: string | null
 ): string {
-  if (isAllowedMediaContentType(kind, storedType)) return storedType.split(';', 1)[0]!.trim().toLowerCase();
+  if (isAllowedMediaContentType(kind, storedType))
+    return storedType.split(';', 1)[0]!.trim().toLowerCase();
   if (remoteType && isAllowedMediaContentType(kind, remoteType)) {
     return remoteType.split(';', 1)[0]!.trim().toLowerCase();
   }
@@ -189,7 +191,13 @@ export const conversationsController = {
       );
       const trustedUrl = parseTrustedCloudinaryMediaUrl(asset.url, env.cloudinary.cloudName);
       if (!trustedUrl) {
-        sendApiError(req, res, 404, ErrorCode.MESSAGE_MEDIA_PROVIDER_UNSUPPORTED, 'Message media provider is not supported');
+        sendApiError(
+          req,
+          res,
+          404,
+          ErrorCode.MESSAGE_MEDIA_PROVIDER_UNSUPPORTED,
+          'Message media provider is not supported'
+        );
         return;
       }
       if (asset.fileSize !== null && asset.fileSize > MAX_MESSAGE_MEDIA_BYTES) {
@@ -221,9 +229,10 @@ export const conversationsController = {
       }
 
       const contentLengthHeader = remote.headers.get('content-length');
-      const declaredLength = contentLengthHeader && /^\d+$/.test(contentLengthHeader)
-        ? Number(contentLengthHeader)
-        : null;
+      const declaredLength =
+        contentLengthHeader && /^\d+$/.test(contentLengthHeader)
+          ? Number(contentLengthHeader)
+          : null;
       if (declaredLength !== null && declaredLength > MAX_MESSAGE_MEDIA_BYTES) {
         clearTimeout(timeout);
         await remote.body.cancel().catch(() => undefined);
@@ -231,16 +240,23 @@ export const conversationsController = {
         return;
       }
 
-      const contentType = getSafeMediaContentType(kind, asset.mimeType, remote.headers.get('content-type'));
+      const contentType = getSafeMediaContentType(
+        kind,
+        asset.mimeType,
+        remote.headers.get('content-type')
+      );
       const safeFileName = (asset.fileName || `message-${messageId}`)
         .replace(/[\u0000-\u001f\u007f\/\\"]/g, '_')
         .slice(0, 180);
       res.status(200);
       res.setHeader('Content-Type', contentType);
       res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('Content-Disposition', kind === 'file'
-        ? `attachment; filename="download"; filename*=UTF-8''${encodeRfc5987FileName(safeFileName)}`
-        : 'inline');
+      res.setHeader(
+        'Content-Disposition',
+        kind === 'file'
+          ? `attachment; filename="download"; filename*=UTF-8''${encodeRfc5987FileName(safeFileName)}`
+          : 'inline'
+      );
 
       const reader = remote.body.getReader();
       let sentBytes = 0;
@@ -257,7 +273,13 @@ export const conversationsController = {
           if (sentBytes > MAX_MESSAGE_MEDIA_BYTES) {
             await reader.cancel().catch(() => undefined);
             if (!res.headersSent) {
-              sendApiError(req, res, 413, ErrorCode.BAD_REQUEST, 'Media file exceeds the allowed size');
+              sendApiError(
+                req,
+                res,
+                413,
+                ErrorCode.BAD_REQUEST,
+                'Media file exceeds the allowed size'
+              );
             } else {
               res.destroy();
             }
@@ -265,9 +287,18 @@ export const conversationsController = {
           }
           if (!res.write(Buffer.from(chunk.value))) {
             await new Promise<void>((resolve, reject) => {
-              const onDrain = () => { cleanup(); resolve(); };
-              const onError = (error: Error) => { cleanup(); reject(error); };
-              const onClose = () => { cleanup(); reject(new Error('Client disconnected while streaming media')); };
+              const onDrain = () => {
+                cleanup();
+                resolve();
+              };
+              const onError = (error: Error) => {
+                cleanup();
+                reject(error);
+              };
+              const onClose = () => {
+                cleanup();
+                reject(new Error('Client disconnected while streaming media'));
+              };
               const cleanup = () => {
                 res.off('drain', onDrain);
                 res.off('error', onError);
@@ -499,14 +530,11 @@ export const conversationsController = {
         res.status(201).json(successResponse('Voice message sent', message));
       } catch (err) {
         const publicId = uploaded.publicId;
-        if (publicId)
-          await deleteCloudinaryAsset(publicId, 'video');
+        if (publicId) await deleteCloudinaryAsset(publicId, 'video');
         throw err;
       }
     } catch (error) {
       next(error);
     }
   },
-
-
 };

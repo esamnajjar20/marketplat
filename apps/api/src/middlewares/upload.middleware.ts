@@ -37,7 +37,7 @@ const runWithDistributedMediaSlot = (
   req: Request,
   res: Response,
   next: NextFunction,
-  run: (callback: (error?: unknown) => void) => void,
+  run: (callback: (error?: unknown) => void) => void
 ): void => {
   let releaseLease: (() => Promise<void>) | undefined;
   let settled = false;
@@ -59,40 +59,46 @@ const runWithDistributedMediaSlot = (
   res.once('finish', cleanup);
   res.once('close', cleanup);
 
-  void acquireMediaUploadLease().then(lease => {
-    if (!lease) {
-      cleanup();
-      next(new ServiceUnavailableError(
-        'Media upload capacity is temporarily full. Please retry shortly.',
-        'MEDIA_UPLOAD_CAPACITY',
-      ));
-      return;
-    }
+  void acquireMediaUploadLease()
+    .then(lease => {
+      if (!lease) {
+        cleanup();
+        next(
+          new ServiceUnavailableError(
+            'Media upload capacity is temporarily full. Please retry shortly.',
+            'MEDIA_UPLOAD_CAPACITY'
+          )
+        );
+        return;
+      }
 
-    if (settled || res.destroyed || res.writableEnded) {
-      void lease.release().catch(error => {
-        logger.error('Failed to release late distributed media upload lease', {
-          error: error instanceof Error ? error.message : 'unknown Redis error',
+      if (settled || res.destroyed || res.writableEnded) {
+        void lease.release().catch(error => {
+          logger.error('Failed to release late distributed media upload lease', {
+            error: error instanceof Error ? error.message : 'unknown Redis error',
+          });
         });
-      });
-      return;
-    }
-    releaseLease = () => lease.release();
+        return;
+      }
+      releaseLease = () => lease.release();
 
-    run(error => {
-      if (error) next(error);
-      else next();
+      run(error => {
+        if (error) next(error);
+        else next();
+      });
+    })
+    .catch(error => {
+      cleanup();
+      logger.error('Distributed media upload semaphore unavailable', {
+        error: error instanceof Error ? error.message : 'unknown Redis error',
+      });
+      next(
+        new ServiceUnavailableError(
+          'Media upload service is temporarily unavailable. Please retry shortly.',
+          'MEDIA_UPLOAD_COORDINATION_UNAVAILABLE'
+        )
+      );
     });
-  }).catch(error => {
-    cleanup();
-    logger.error('Distributed media upload semaphore unavailable', {
-      error: error instanceof Error ? error.message : 'unknown Redis error',
-    });
-    next(new ServiceUnavailableError(
-      'Media upload service is temporarily unavailable. Please retry shortly.',
-      'MEDIA_UPLOAD_COORDINATION_UNAVAILABLE',
-    ));
-  });
 };
 
 const verifyFileContent = (req: Request, res: Response, next: NextFunction): void => {
@@ -232,7 +238,10 @@ export const uploadMultipleMiddleware = (req: Request, res: Response, next: Next
             return done(new BadRequestError('Each file must be less than 5MB', 'FILE_TOO_LARGE'));
           if (uploadErr.code === 'LIMIT_UNEXPECTED_FILE' || uploadErr.code === 'LIMIT_FILE_COUNT')
             return done(
-              new BadRequestError(`Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`, 'TOO_MANY_FILES')
+              new BadRequestError(
+                `Maximum ${MAX_IMAGES_PER_ENTITY} images allowed`,
+                'TOO_MANY_FILES'
+              )
             );
           if (uploadErr.code === 'LIMIT_FIELD_COUNT')
             return done(new BadRequestError('Too many form fields', 'TOO_MANY_FORM_FIELDS'));
@@ -279,25 +288,25 @@ export const uploadAudioMiddleware = (req: Request, res: Response, next: NextFun
     return;
   }
   runWithDistributedMediaSlot(req, res, next, done => {
-  audioUpload.single('audio')(req, res, (err: unknown) => {
-    if (err instanceof multer.MulterError) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        done(new BadRequestError('Voice message is too large', 'FILE_TOO_LARGE'));
+    audioUpload.single('audio')(req, res, (err: unknown) => {
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          done(new BadRequestError('Voice message is too large', 'FILE_TOO_LARGE'));
+          return;
+        }
+        done(new BadRequestError(err.message, 'INVALID_AUDIO_TYPE'));
         return;
       }
-      done(new BadRequestError(err.message, 'INVALID_AUDIO_TYPE'));
-      return;
-    }
-    if (err instanceof BadRequestError) {
-      done(err);
-      return;
-    }
-    if (err instanceof Error) {
-      done(new BadRequestError(err.message, 'INVALID_AUDIO_TYPE'));
-      return;
-    }
-    done();
-  });
+      if (err instanceof BadRequestError) {
+        done(err);
+        return;
+      }
+      if (err instanceof Error) {
+        done(new BadRequestError(err.message, 'INVALID_AUDIO_TYPE'));
+        return;
+      }
+      done();
+    });
   });
 };
 
@@ -350,20 +359,20 @@ export const uploadMessageFileMiddleware = (
     return;
   }
   runWithDistributedMediaSlot(req, res, next, done => {
-  messageFileUpload.single('file')(req, res, (err: unknown) => {
-    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
-      done(new BadRequestError('الملف كبير جدًا (الحد 15 ميغابايت)', 'FILE_TOO_LARGE'));
-      return;
-    }
-    if (err instanceof BadRequestError) {
-      done(err);
-      return;
-    }
-    if (err instanceof Error) {
-      done(new BadRequestError(err.message, 'INVALID_FILE_TYPE'));
-      return;
-    }
-    done();
-  });
+    messageFileUpload.single('file')(req, res, (err: unknown) => {
+      if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+        done(new BadRequestError('الملف كبير جدًا (الحد 15 ميغابايت)', 'FILE_TOO_LARGE'));
+        return;
+      }
+      if (err instanceof BadRequestError) {
+        done(err);
+        return;
+      }
+      if (err instanceof Error) {
+        done(new BadRequestError(err.message, 'INVALID_FILE_TYPE'));
+        return;
+      }
+      done();
+    });
   });
 };

@@ -53,7 +53,8 @@ export const internalGoWorkerController = {
         scheduledFor,
         error: error instanceof Error ? error.message : String(error),
       });
-      if (!res.headersSent && !res.destroyed) res.status(500).json({ error: 'scheduled job failed' });
+      if (!res.headersSent && !res.destroyed)
+        res.status(500).json({ error: 'scheduled job failed' });
     } finally {
       req.off('aborted', abortOnDisconnect);
       res.off('close', abortOnDisconnect);
@@ -78,7 +79,9 @@ export const internalGoWorkerController = {
     const invalidations = await Promise.allSettled(
       recipientIds.map(userId => unreadNotificationsCache.invalidate(userId))
     );
-    const invalidationFailures = invalidations.filter(result => result.status === 'rejected').length;
+    const invalidationFailures = invalidations.filter(
+      result => result.status === 'rejected'
+    ).length;
     if (invalidationFailures > 0) {
       logger.warn('Go outbox callback unread-cache invalidation partially failed', {
         eventId,

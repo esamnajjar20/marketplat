@@ -118,7 +118,6 @@ export function cancelPendingHomeRewarm(): void {
   lastCityRewarmCompleted = true;
 }
 
-
 async function rewarmAfterInvalidation(): Promise<void> {
   const epoch = (rewarmEpoch += 1);
   try {

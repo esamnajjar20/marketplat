@@ -140,7 +140,6 @@ export const collectionsRepository = {
       take: 500,
     }),
 
-
   // Owner/manager membership view: unlike the public storefront query,
   // include paused products so staff can see and remove old memberships
   // while a collection is hidden or a product is temporarily unavailable.

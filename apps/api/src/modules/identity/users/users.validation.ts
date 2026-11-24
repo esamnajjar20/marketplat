@@ -149,7 +149,6 @@ export type UpdateNotificationPreferencesInput = z.infer<
   typeof updateNotificationPreferencesSchema
 >['body'];
 
-
 /** Re-authentication is mandatory before an irreversible account deletion. */
 export const deleteMeWithReauthSchema = z.object({
   body: z.object({

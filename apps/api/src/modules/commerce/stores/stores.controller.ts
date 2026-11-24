@@ -42,7 +42,11 @@ export const storesController = {
     }
   },
 
-  getManagedStoreSettings: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getManagedStoreSettings: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
       const { params } = storeIdSchema.parse({ params: req.params });
@@ -53,10 +57,17 @@ export const storesController = {
     }
   },
 
-  updateManagedStoreSettings: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  updateManagedStoreSettings: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
-      const { params, body } = updateManagedStoreSettingsSchema.parse({ params: req.params, body: req.body });
+      const { params, body } = updateManagedStoreSettingsSchema.parse({
+        params: req.params,
+        body: req.body,
+      });
       const store = await storesService.updateManagedStoreSettings(user.userId, params.id, body);
       res.status(200).json(successResponse('Store settings updated', store));
     } catch (error) {
@@ -131,11 +142,19 @@ export const storesController = {
     }
   },
 
-  getPublicStorePageData: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getPublicStorePageData: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const { params } = storeIdSchema.parse({ params: req.params });
       const trackView = req.query.trackView === 'true';
-      const pageData = await storesService.getPublicStorePageData(params.id, req.user?.userId, trackView);
+      const pageData = await storesService.getPublicStorePageData(
+        params.id,
+        req.user?.userId,
+        trackView
+      );
       res.status(200).json(successResponse('Store page data fetched', pageData));
     } catch (error) {
       next(error);

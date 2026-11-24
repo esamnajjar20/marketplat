@@ -21,7 +21,11 @@ const dayScheduleSchema = z
   })
   .superRefine((schedule, ctx) => {
     if (schedule && schedule.open === schedule.close) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'open and close cannot be equal for a single-day schedule', path: ['close'] });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'open and close cannot be equal for a single-day schedule',
+        path: ['close'],
+      });
     }
   })
   .nullable();
@@ -83,7 +87,9 @@ export const updateManagedStoreSettingsSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Store ID is required') }),
   body: updateStoreSchema.shape.body.omit({ storeTypeId: true, attributes: true }),
 });
-export type UpdateManagedStoreSettingsInput = z.infer<typeof updateManagedStoreSettingsSchema>['body'];
+export type UpdateManagedStoreSettingsInput = z.infer<
+  typeof updateManagedStoreSettingsSchema
+>['body'];
 
 export const storeIdSchema = z.object({
   params: z.object({ id: z.string().min(1, 'Store ID is required') }),

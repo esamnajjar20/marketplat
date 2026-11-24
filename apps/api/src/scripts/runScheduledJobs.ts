@@ -86,7 +86,11 @@ async function markScheduledJobCompleted(name: string, dateKey: string): Promise
   `;
 }
 
-async function markScheduledJobFailed(name: string, dateKey: string, error: unknown): Promise<void> {
+async function markScheduledJobFailed(
+  name: string,
+  dateKey: string,
+  error: unknown
+): Promise<void> {
   const message = (error instanceof Error ? error.message : String(error)).slice(0, 2_000);
   await prisma.$executeRaw`
     UPDATE "scheduled_job_runs"
@@ -106,9 +110,10 @@ async function main(): Promise<void> {
   }
 
   const now = getGazaTime();
-  const dueJobs = JOBS
-    .map(job => ({ job, scheduledFor: scheduledDate(job, now) }))
-    .filter((entry): entry is { job: ScheduledJobDefinition; scheduledFor: string } => entry.scheduledFor !== null);
+  const dueJobs = JOBS.map(job => ({ job, scheduledFor: scheduledDate(job, now) })).filter(
+    (entry): entry is { job: ScheduledJobDefinition; scheduledFor: string } =>
+      entry.scheduledFor !== null
+  );
 
   if (dueJobs.length === 0) {
     console.log(
@@ -117,7 +122,9 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.log(`[cron] Due jobs: ${dueJobs.map(({ job, scheduledFor }) => `${job.name} [${scheduledFor}]`).join(', ')}`);
+  console.log(
+    `[cron] Due jobs: ${dueJobs.map(({ job, scheduledFor }) => `${job.name} [${scheduledFor}]`).join(', ')}`
+  );
 
   const failures: string[] = [];
   for (const { job, scheduledFor } of dueJobs) {
@@ -125,12 +132,16 @@ async function main(): Promise<void> {
     try {
       claimed = await claimScheduledJob(job.name, scheduledFor);
     } catch (error) {
-      failures.push(`${job.name}: scheduler claim failed (${error instanceof Error ? error.message : String(error)})`);
+      failures.push(
+        `${job.name}: scheduler claim failed (${error instanceof Error ? error.message : String(error)})`
+      );
       console.error(`[cron] Could not claim ${job.name}`, error);
       continue;
     }
     if (!claimed) {
-      console.log(`[cron] Skip ${job.name} [${scheduledFor}] — already completed or owned by another runner`);
+      console.log(
+        `[cron] Skip ${job.name} [${scheduledFor}] — already completed or owned by another runner`
+      );
       continue;
     }
 

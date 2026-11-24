@@ -43,7 +43,6 @@ function bumpGen(userId: string): void {
   }
 }
 
-
 export interface CachedUser {
   id: string;
   role: string;
@@ -189,7 +188,11 @@ export const userCache = {
   set: async (user: CachedUser): Promise<void> => {
     l1Set(user);
     try {
-      await redis.setex(getUserCacheKey(user.id), ttlWithJitter(BASE_TTL, JITTER), JSON.stringify(user));
+      await redis.setex(
+        getUserCacheKey(user.id),
+        ttlWithJitter(BASE_TTL, JITTER),
+        JSON.stringify(user)
+      );
     } catch (err) {
       logger.warn('userCache.set failed', { userId: user.id, err });
     }
@@ -212,9 +215,7 @@ export const userCache = {
     // Publish only after the delete attempt has settled, preserving the
     // original cross-worker ordering. Even if DEL fails, publication still
     // clears remote L1 entries and the error remains visible in logs.
-    const publish = await Promise.allSettled([
-      redis.publish(INVALIDATION_CHANNEL, userId),
-    ]);
+    const publish = await Promise.allSettled([redis.publish(INVALIDATION_CHANNEL, userId)]);
 
     for (const result of [authDelete, profileGeneration, ...publish]) {
       if (result.status === 'rejected') {

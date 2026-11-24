@@ -88,7 +88,9 @@ healthRouter.get('/health/outbox', async (req: Request, res: Response) => {
   }
   const now = Date.now();
   if (outboxProbeCache && now - outboxProbeCache.at < OUTBOX_PROBE_CACHE_MS) {
-    res.status(outboxProbeCache.status).json({ ...outboxProbeCache.body, requestId: req.requestId });
+    res
+      .status(outboxProbeCache.status)
+      .json({ ...outboxProbeCache.body, requestId: req.requestId });
     return;
   }
   try {
@@ -102,7 +104,10 @@ healthRouter.get('/health/outbox', async (req: Request, res: Response) => {
           availableAt: { lte: dueNow },
           // Same claimability test as the worker: unlocked or lease expired. A slow event held under a
           // live lease must not flip the probe to degraded while the worker is healthy.
-          OR: [{ lockedAt: null }, { lockedAt: { lt: new Date(now - OUTBOX_LEASE_SECONDS * 1_000) } }],
+          OR: [
+            { lockedAt: null },
+            { lockedAt: { lt: new Date(now - OUTBOX_LEASE_SECONDS * 1_000) } },
+          ],
         },
         orderBy: { availableAt: 'asc' },
         select: { availableAt: true },

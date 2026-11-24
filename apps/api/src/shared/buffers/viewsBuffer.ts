@@ -4,7 +4,11 @@ import { prisma } from '../../config/prisma';
 import { logger } from '../observability/logger';
 import { env } from '../../config/env';
 import crypto from 'crypto';
-import { executeWithGoFallback, runAdvisoryLockedBatch, type GoWorkerOutcome } from '../go-worker/executeWithFallback';
+import {
+  executeWithGoFallback,
+  runAdvisoryLockedBatch,
+  type GoWorkerOutcome,
+} from '../go-worker/executeWithFallback';
 
 const VIEWS_PREFIX = 'views_buffer:';
 const VIEWS_INFLIGHT_KEY = 'views_buffer:inflight';
@@ -28,8 +32,8 @@ function isViewsFlushResult(value: unknown): value is {
 } {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const result = value as Record<string, unknown>;
-  return ['keysScanned', 'adsUpdated', 'viewsApplied', 'keysRestored'].every(key =>
-    typeof result[key] === 'number' && Number.isFinite(result[key])
+  return ['keysScanned', 'adsUpdated', 'viewsApplied', 'keysRestored'].every(
+    key => typeof result[key] === 'number' && Number.isFinite(result[key])
   );
 }
 
@@ -103,31 +107,37 @@ async function applyPendingViewBatch(batch: PendingViewBatch): Promise<void> {
       if (!item || typeof item !== 'object') throw new Error('increment must be an object');
       const value = item as Record<string, unknown>;
       if (
-        typeof value.adId !== 'string' || value.adId.length === 0 ||
-        !Number.isSafeInteger(value.count) || (value.count as number) <= 0
-      ) throw new Error('increment has invalid adId/count');
+        typeof value.adId !== 'string' ||
+        value.adId.length === 0 ||
+        !Number.isSafeInteger(value.count) ||
+        (value.count as number) <= 0
+      )
+        throw new Error('increment has invalid adId/count');
       return { adId: value.adId, count: value.count as number };
     });
   } catch (error) {
     // Do not delete malformed inflight data automatically. It is durable and
     // must be inspected rather than silently discarded as lost view counts.
-    throw new Error(`Invalid pending view batch ${batch.id}: ${error instanceof Error ? error.message : 'invalid payload'}`);
+    throw new Error(
+      `Invalid pending view batch ${batch.id}: ${error instanceof Error ? error.message : 'invalid payload'}`
+    );
   }
 
-  await prisma.$transaction(async tx => {
-    const inserted = await tx.$queryRaw<Array<{ id: string }>>`
+  await prisma.$transaction(
+    async tx => {
+      const inserted = await tx.$queryRaw<Array<{ id: string }>>`
       INSERT INTO "view_buffer_flush_batches" ("id", "adCount", "viewsCount")
       VALUES (${batch.id}, ${increments.length}, ${increments.reduce((sum, item) => sum + item.count, 0)}::bigint)
       ON CONFLICT ("id") DO NOTHING
       RETURNING "id"
     `;
 
-    // The receipt and view increments commit together. If COMMIT succeeds but
-    // its response is lost, retrying this same Redis batch sees the receipt and
-    // skips the increment instead of double-counting it.
-    if (inserted.length === 0 || increments.length === 0) return;
+      // The receipt and view increments commit together. If COMMIT succeeds but
+      // its response is lost, retrying this same Redis batch sees the receipt and
+      // skips the increment instead of double-counting it.
+      if (inserted.length === 0 || increments.length === 0) return;
 
-    await tx.$executeRaw`
+      await tx.$executeRaw`
       WITH increments AS (
         SELECT * FROM jsonb_to_recordset(${JSON.stringify(increments)}::jsonb)
           AS x("adId" text, "count" bigint)
@@ -137,7 +147,9 @@ async function applyPendingViewBatch(batch: PendingViewBatch): Promise<void> {
       FROM increments
       WHERE ad."id" = increments."adId" AND ad."status" <> 'DELETED'
     `;
-  }, { maxWait: 5_000, timeout: 20_000 });
+    },
+    { maxWait: 5_000, timeout: 20_000 }
+  );
 
   // Acknowledgement happens only after the DB transaction commits. If Redis
   // executes HDEL but its reply is lost, the receipt remains as a harmless
@@ -222,8 +234,11 @@ export const viewsBuffer = {
             MAX_KEYS_PER_FLUSH_BATCH
           )) as [string, string[]];
           cursor = nextCursor;
-          const counterKeys = keys.filter((key: string) =>
-            key.startsWith(VIEWS_PREFIX) && key !== VIEWS_INFLIGHT_KEY && key.length > VIEWS_PREFIX.length
+          const counterKeys = keys.filter(
+            (key: string) =>
+              key.startsWith(VIEWS_PREFIX) &&
+              key !== VIEWS_INFLIGHT_KEY &&
+              key.length > VIEWS_PREFIX.length
           );
           if (counterKeys.length === 0) continue;
 
@@ -250,9 +265,13 @@ export const viewsBuffer = {
 
         // Pick up any batches whose HDEL acknowledgement was ambiguous.
         await processPendingViewBatches();
-        if (totalBatches > 0) logger.debug('Views flushed from durable Redis batches', { totalBatches, totalViews });
+        if (totalBatches > 0)
+          logger.debug('Views flushed from durable Redis batches', { totalBatches, totalViews });
       } catch (error) {
-        logger.error('Views buffer flush failed; durable inflight batches were retained for retry', error);
+        logger.error(
+          'Views buffer flush failed; durable inflight batches were retained for retry',
+          error
+        );
         throw error;
       }
     })();
@@ -268,7 +287,9 @@ export const viewsBuffer = {
   startFlushTimer: (): void => {
     if (flushTimer) return;
     flushTimer = setInterval(() => {
-      flushUsingWorker().catch(error => reportBackgroundFailure('apps/api/src/shared/buffers/viewsBuffer.ts', error));
+      flushUsingWorker().catch(error =>
+        reportBackgroundFailure('apps/api/src/shared/buffers/viewsBuffer.ts', error)
+      );
     }, FLUSH_INTERVAL);
     flushTimer.unref();
     logger.info(`Views buffer flush timer started (every ${FLUSH_INTERVAL / 1000}s)`);

@@ -8,7 +8,7 @@ import { logger } from '../shared/observability/logger';
 import { env } from '../config/env';
 import { bumpAdsCacheVersion } from '../modules/classifieds/ads/ads.cache.keys';
 import { flushEdgePurge } from '../shared/cache/edgePurge';
-import { redis, closeRedisServiceClients } from '../config/redis';
+import { closeRedisServiceClients } from '../config/redis';
 import {
   executeWithGoFallback,
   runAdvisoryLockedBatch,
@@ -33,10 +33,14 @@ function isStaleBoostResult(value: unknown): value is StaleBoostResult {
   if (!value || typeof value !== 'object') return false;
   const result = value as Record<string, unknown>;
   return (
-    Number.isSafeInteger(result.candidates) && (result.candidates as number) >= 0 &&
-    Number.isSafeInteger(result.updated) && (result.updated as number) >= 0 &&
-    Number.isSafeInteger(result.batches) && (result.batches as number) >= 0 &&
-    typeof result.olderThan === 'string' && Number.isFinite(Date.parse(result.olderThan)) &&
+    Number.isSafeInteger(result.candidates) &&
+    (result.candidates as number) >= 0 &&
+    Number.isSafeInteger(result.updated) &&
+    (result.updated as number) >= 0 &&
+    Number.isSafeInteger(result.batches) &&
+    (result.batches as number) >= 0 &&
+    typeof result.olderThan === 'string' &&
+    Number.isFinite(Date.parse(result.olderThan)) &&
     result.staleBoostDays === STALE_BOOST_DAYS &&
     result.dryRun === DRY_RUN
   );
@@ -64,20 +68,23 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
   let firstBatch = true;
 
   for (;;) {
-    const batch = await runAdvisoryLockedBatch(prisma, STALE_BOOST_DEMOTION_LOCK_ID, async tx => {
-      if (firstBatch) {
-        const counts = await tx.$queryRaw<Array<{ count: bigint }>>`
+    const batch = await runAdvisoryLockedBatch(
+      prisma,
+      STALE_BOOST_DEMOTION_LOCK_ID,
+      async tx => {
+        if (firstBatch) {
+          const counts = await tx.$queryRaw<Array<{ count: bigint }>>`
           SELECT COUNT(*)::bigint AS count
           FROM "ads"
           WHERE "status" = 'ACTIVE'
             AND "updatedAt" < ${olderThan}
             AND ("isFeatured" = TRUE OR "isPinned" = TRUE)
         `;
-        candidates = Number(counts[0]?.count ?? 0n);
-      }
-      if (DRY_RUN || candidates === 0) return 0;
+          candidates = Number(counts[0]?.count ?? 0n);
+        }
+        if (DRY_RUN || candidates === 0) return 0;
 
-      const rows = await tx.$queryRaw<{ id: string }[]>`
+        const rows = await tx.$queryRaw<{ id: string }[]>`
         WITH stale AS (
           SELECT id
           FROM "ads"
@@ -97,16 +104,21 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
           AND ad."status" = 'ACTIVE'
         RETURNING ad.id
       `;
-      firstBatch = false;
-      return rows.length;
-    }, { transactionTimeoutMs: 20_000 });
+        firstBatch = false;
+        return rows.length;
+      },
+      { transactionTimeoutMs: 20_000 }
+    );
 
     if (!batch.acquired) {
-      logger.info('[demote-stale-boosts] Express fallback skipped because another runner owns the advisory lock', {
-        candidates,
-        updated,
-        batches,
-      });
+      logger.info(
+        '[demote-stale-boosts] Express fallback skipped because another runner owns the advisory lock',
+        {
+          candidates,
+          updated,
+          batches,
+        }
+      );
       return 'busy';
     }
 

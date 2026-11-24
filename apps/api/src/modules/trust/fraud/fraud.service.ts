@@ -1,5 +1,8 @@
 import { reportBackgroundFailure } from '../../../shared/jobs/backgroundTask';
-import { bumpAdsCacheVersion, bumpAdsCacheVersionAndHome } from '../../classifieds/ads/ads.cache.keys';
+import {
+  bumpAdsCacheVersion,
+  bumpAdsCacheVersionAndHome,
+} from '../../classifieds/ads/ads.cache.keys';
 import { fraudRepository } from './fraud.repository';
 import { NotFoundError } from '../../../shared/errors/NotFoundError';
 import { env } from '../../../config/env';
@@ -214,7 +217,11 @@ export const fraudService = {
 
           if (flaggedForReview) {
             // Flagged ads are filtered from public lists: purge so it vanishes now.
-            await bumpAdsCacheVersionAndHome({ adId: input.id, city: input.city ?? null, kind: 'hide' });
+            await bumpAdsCacheVersionAndHome({
+              adId: input.id,
+              city: input.city ?? null,
+              kind: 'hide',
+            });
             logger.warn('Ad auto-flagged for fraud review', {
               adId: input.id,
               userId: input.userId,
@@ -338,7 +345,9 @@ export const fraudService = {
       event: AuditEvent.ADMIN_FRAUD_SIGNAL_REVIEWED,
       userId: adminUserId,
       details: { signalId, signalType: existing.type, adId: existing.adId ?? undefined },
-    }).catch(error => reportBackgroundFailure('apps/api/src/modules/trust/fraud/fraud.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('apps/api/src/modules/trust/fraud/fraud.service.ts', error)
+    );
 
     return updated;
   },
@@ -352,7 +361,9 @@ export const fraudService = {
       event: AuditEvent.ADMIN_FRAUD_SIGNAL_REVIEWED,
       userId: adminUserId,
       details: { adId, action: 'cleared_flag' },
-    }).catch(error => reportBackgroundFailure('apps/api/src/modules/trust/fraud/fraud.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('apps/api/src/modules/trust/fraud/fraud.service.ts', error)
+    );
   },
 
   /** Manual flag — see FraudSignalType.MANUAL_ADMIN_FLAG's doc comment in schema.prisma. */
@@ -382,6 +393,8 @@ export const fraudService = {
       event: AuditEvent.ADMIN_FRAUD_MANUAL_FLAG,
       userId: adminUserId,
       details: { adId, reason: input.reason, targetUserId: input.userId ?? undefined },
-    }).catch(error => reportBackgroundFailure('apps/api/src/modules/trust/fraud/fraud.service.ts', error));
+    }).catch(error =>
+      reportBackgroundFailure('apps/api/src/modules/trust/fraud/fraud.service.ts', error)
+    );
   },
 };

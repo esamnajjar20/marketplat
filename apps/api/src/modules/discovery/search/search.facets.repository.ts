@@ -45,7 +45,7 @@ const PRICE_BUCKETS: { value: string; label: string; min?: number; max?: number 
  * existing repository already prefers $queryRaw for the UNION path.
  */
 export async function facetsFromAds(
-  query: SearchFacetsQuery,
+  query: SearchFacetsQuery
 ): Promise<Pick<SearchFacetsResponse, 'cities' | 'conditions' | 'categories' | 'total'>> {
   // Base where — omit city when aggregating cities, etc.
   const baseWhere: Record<string, unknown> = {
@@ -98,16 +98,16 @@ export async function facetsFromAds(
   ]);
 
   const cities: FacetBucket[] = cityGroups
-    .filter((g) => Boolean(g.city))
-    .map((g) => ({
+    .filter(g => Boolean(g.city))
+    .map(g => ({
       value: g.city,
       label: g.city,
       count: g._count._all,
     }));
 
   const conditions: FacetBucket[] = conditionGroups
-    .filter((g) => g.condition != null)
-    .map((g) => ({
+    .filter(g => g.condition != null)
+    .map(g => ({
       value: g.condition as string,
       label: g.condition as string, // map via CONDITION labels on the client
       count: g._count._all,
@@ -115,8 +115,8 @@ export async function facetsFromAds(
 
   // category labels: join Category table or resolve on the client from cached categories
   const categories: FacetBucket[] = categoryGroups
-    .filter((g) => g.categoryId != null)
-    .map((g) => ({
+    .filter(g => g.categoryId != null)
+    .map(g => ({
       value: g.categoryId as string,
       label: g.categoryId as string,
       count: g._count._all,
@@ -125,13 +125,11 @@ export async function facetsFromAds(
   return { cities, conditions, categories, total };
 }
 
-export async function computePriceRangeFacets(
-  query: SearchFacetsQuery,
-): Promise<FacetBucket[]> {
+export async function computePriceRangeFacets(query: SearchFacetsQuery): Promise<FacetBucket[]> {
   // Parallel count per bucket; for production consider a single
   // FILTER (WHERE …) SQL aggregation.
   const results = await Promise.all(
-    PRICE_BUCKETS.map(async (b) => {
+    PRICE_BUCKETS.map(async b => {
       if (b.value === 'any') {
         return { value: b.value, label: b.label, count: -1 }; // filled by total
       }
@@ -157,7 +155,7 @@ export async function computePriceRangeFacets(
       if (query.condition) where.condition = query.condition;
       const count = await prisma.ad.count({ where });
       return { value: b.value, label: b.label, count };
-    }),
+    })
   );
   return results;
 }
@@ -172,8 +170,8 @@ export const searchFacetsRepository = {
       computePriceRangeFacets(query),
     ]);
 
-    const priceWithTotal = priceRanges.map((p) =>
-      p.value === 'any' ? { ...p, count: core.total } : p,
+    const priceWithTotal = priceRanges.map(p =>
+      p.value === 'any' ? { ...p, count: core.total } : p
     );
 
     return {

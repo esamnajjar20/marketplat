@@ -19,7 +19,9 @@ export const publicSalesStatsController = {
         throw new NotFoundError('Store not found.', 'STORE_NOT_FOUND');
       // A fully refunded sale is not counted as a completed public sale.
       // Partially refunded sales remain counted; zero-value sales remain valid.
-      const [aggregate] = await prisma.$queryRaw<Array<{ totalSales: bigint; lastSaleAt: Date | null }>>`
+      const [aggregate] = await prisma.$queryRaw<
+        Array<{ totalSales: bigint; lastSaleAt: Date | null }>
+      >`
         SELECT COUNT(*)::bigint AS "totalSales", MAX("soldAt") AS "lastSaleAt"
         FROM "sale_records"
         WHERE "storeId" = ${store.id}

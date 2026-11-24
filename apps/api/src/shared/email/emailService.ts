@@ -85,7 +85,6 @@ interface SendEmailOptions {
 // immediately rather than silently degrading.
 const EMAIL_RETRY_DELAYS_MS = [500, 1500];
 
-
 /**
  * HTTPS-based send via Resend. See the
  * RENDER-SMTP-BLOCK-01 marker inside sendEmail for the full rationale

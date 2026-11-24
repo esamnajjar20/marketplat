@@ -264,9 +264,14 @@ export const requestsService = {
     offlineOperationId?: string | null
   ): Promise<RequestOffer> => {
     if (offlineOperationId) {
-      const existingOperation = await prisma.requestOffer.findUnique({ where: { offlineOperationId } });
+      const existingOperation = await prisma.requestOffer.findUnique({
+        where: { offlineOperationId },
+      });
       if (existingOperation) {
-        if (existingOperation.requestId !== requestId || existingOperation.offererUserId !== userId) {
+        if (
+          existingOperation.requestId !== requestId ||
+          existingOperation.offererUserId !== userId
+        ) {
           throw new ConflictError('Offline operation id already used', 'OFFLINE_OP_ID_CONFLICT');
         }
         return existingOperation;

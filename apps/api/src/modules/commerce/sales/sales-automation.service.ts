@@ -78,7 +78,10 @@ export const salesAutomationService = {
     const now = new Date();
     const soon = new Date(now.getTime() + 3 * DAY);
     const inactiveBefore = new Date(now.getTime() - 60 * DAY);
-    const lowStockAlertsAllowed = await notificationsService.userAllowsPreference(userId, 'lowStockAlerts');
+    const lowStockAlertsAllowed = await notificationsService.userAllowsPreference(
+      userId,
+      'lowStockAlerts'
+    );
     const [lowStock, overdueSales, upcomingInstallments, inactiveCustomers, monthSummary] =
       await Promise.all([
         lowStockAlertsAllowed
@@ -95,7 +98,9 @@ export const salesAutomationService = {
               orderBy: { stockQuantity: 'asc' },
               take: 25,
             })
-          : Promise.resolve([] as Array<{ id: string; name: string; stockQuantity: number | null }>),
+          : Promise.resolve(
+              [] as Array<{ id: string; name: string; stockQuantity: number | null }>
+            ),
         prisma.saleRecord.findMany({
           where: {
             sellerId: userId,

@@ -64,8 +64,7 @@ export type LiveStreamEvent =
       conversationId: string;
       messageId: string;
       deletedAt: string;
-    }
-;
+    };
 
 /** @deprecated alias — prefer LiveStreamEvent */
 export type NotificationLiveEvent = LiveStreamEvent;

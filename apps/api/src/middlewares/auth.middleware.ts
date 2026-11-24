@@ -123,7 +123,9 @@ export const authenticate = async (
     // Update lastSeen async — fire and forget, never blocks response
     tokenStore
       .updateSessionLastSeen(payload.userId, payload.sessionId)
-      .catch(error => reportBackgroundFailure('apps/api/src/middlewares/auth.middleware.ts', error));
+      .catch(error =>
+        reportBackgroundFailure('apps/api/src/middlewares/auth.middleware.ts', error)
+      );
 
     next();
   } catch (error) {

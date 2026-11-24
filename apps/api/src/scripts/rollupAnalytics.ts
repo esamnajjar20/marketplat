@@ -1,7 +1,10 @@
 import { prisma } from '../config/prisma';
 import { env } from '../config/env';
 import { logger } from '../shared/observability/logger';
-import { executeWithGoFallback, runAdvisoryLockedBatch } from '../shared/go-worker/executeWithFallback';
+import {
+  executeWithGoFallback,
+  runAdvisoryLockedBatch,
+} from '../shared/go-worker/executeWithFallback';
 
 const LOCK_ID = 731904302n; // Must match analyticsrollup.AdvisoryLockID in Go.
 const BACKFILL_DAYS = 14;
@@ -24,11 +27,25 @@ function isRollupResult(value: unknown): value is RollupResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const result = value as Record<string, unknown>;
   const nonNegativeInt = (item: unknown) => Number.isSafeInteger(item) && (item as number) >= 0;
-  return typeof result.windowStart === 'string' && Number.isFinite(Date.parse(result.windowStart)) &&
-    typeof result.windowEnd === 'string' && Number.isFinite(Date.parse(result.windowEnd)) &&
-    ['plannedDays', 'rebuiltDays', 'skippedDays', 'sourceEvents', 'rollupRows', 'prunedDays', 'prunedRows'].every(key => nonNegativeInt(result[key])) &&
-    Array.isArray(result.processedDays) && result.processedDays.every(day => typeof day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(day)) &&
-    (result.rebuiltDays as number) + (result.skippedDays as number) <= (result.plannedDays as number);
+  return (
+    typeof result.windowStart === 'string' &&
+    Number.isFinite(Date.parse(result.windowStart)) &&
+    typeof result.windowEnd === 'string' &&
+    Number.isFinite(Date.parse(result.windowEnd)) &&
+    [
+      'plannedDays',
+      'rebuiltDays',
+      'skippedDays',
+      'sourceEvents',
+      'rollupRows',
+      'prunedDays',
+      'prunedRows',
+    ].every(key => nonNegativeInt(result[key])) &&
+    Array.isArray(result.processedDays) &&
+    result.processedDays.every(day => typeof day === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(day)) &&
+    (result.rebuiltDays as number) + (result.skippedDays as number) <=
+      (result.plannedDays as number)
+  );
 }
 
 function utcMidnight(date: Date): Date {
@@ -39,11 +56,16 @@ function dayKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-async function rebuildDay(day: Date): Promise<{ status: 'rebuilt' | 'busy'; sourceEvents: bigint; rollupRows: number }> {
+async function rebuildDay(
+  day: Date
+): Promise<{ status: 'rebuilt' | 'busy'; sourceEvents: bigint; rollupRows: number }> {
   const key = dayKey(day);
-  const result = await runAdvisoryLockedBatch(prisma, LOCK_ID, async tx => {
-    await tx.$executeRaw`DELETE FROM "analytics_event_daily_rollups" WHERE "bucketDate" = ${key}::date`;
-    const rows = await tx.$queryRaw<Array<{ eventCount: bigint }>>`
+  const result = await runAdvisoryLockedBatch(
+    prisma,
+    LOCK_ID,
+    async tx => {
+      await tx.$executeRaw`DELETE FROM "analytics_event_daily_rollups" WHERE "bucketDate" = ${key}::date`;
+      const rows = await tx.$queryRaw<Array<{ eventCount: bigint }>>`
       INSERT INTO "analytics_event_daily_rollups"
         ("bucketDate", "event", "categoryId", "eventCount", "updatedAt")
       SELECT ${key}::date,
@@ -61,8 +83,8 @@ async function rebuildDay(day: Date): Promise<{ status: 'rebuilt' | 'busy'; sour
                     ELSE '' END
       RETURNING "eventCount"
     `;
-    const sourceEvents = rows.reduce((sum, row) => sum + row.eventCount, 0n);
-    await tx.$executeRaw`
+      const sourceEvents = rows.reduce((sum, row) => sum + row.eventCount, 0n);
+      await tx.$executeRaw`
       INSERT INTO "analytics_rollup_days" ("bucketDate", "sourceEventCount", "rollupRowCount", "computedAt")
       VALUES (${key}::date, ${sourceEvents}, ${rows.length}, NOW())
       ON CONFLICT ("bucketDate") DO UPDATE
@@ -70,10 +92,16 @@ async function rebuildDay(day: Date): Promise<{ status: 'rebuilt' | 'busy'; sour
           "rollupRowCount" = EXCLUDED."rollupRowCount",
           "computedAt" = NOW()
     `;
-    return { sourceEvents, rollupRows: rows.length };
-  }, { transactionTimeoutMs: 20_000 });
+      return { sourceEvents, rollupRows: rows.length };
+    },
+    { transactionTimeoutMs: 20_000 }
+  );
   return result.acquired
-    ? { status: 'rebuilt', sourceEvents: result.value.sourceEvents, rollupRows: result.value.rollupRows }
+    ? {
+        status: 'rebuilt',
+        sourceEvents: result.value.sourceEvents,
+        rollupRows: result.value.rollupRows,
+      }
     : { status: 'busy', sourceEvents: 0n, rollupRows: 0 };
 }
 
@@ -103,7 +131,11 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
   };
 
   let missing = 0;
-  for (let day = new Date(windowStart); day < today && missing < BACKFILL_DAYS; day.setUTCDate(day.getUTCDate() + 1)) {
+  for (
+    let day = new Date(windowStart);
+    day < today && missing < BACKFILL_DAYS;
+    day.setUTCDate(day.getUTCDate() + 1)
+  ) {
     if (!completed.has(dayKey(day))) {
       add(new Date(day));
       missing += 1;

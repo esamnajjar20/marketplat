@@ -82,21 +82,22 @@ export const criticalRedisServiceClients: Redis[] = [
  * and Docker deployments. Cache data is reconstructible, so an evicting
  * maxmemory policy is appropriate here, never for sessions/limits/queues.
  */
-const cacheRedisFromHost: Redis | null = !env.redisServices.cacheUrl && env.redisCache
-  ? new Redis({
-      ...commonOptions,
-      host: env.redisCache.host,
-      port: env.redisCache.port,
-      username: env.redisCache.username,
-      password: env.redisCache.password,
-      tls: env.redisCache.tls ? {} : undefined,
-      maxRetriesPerRequest: 1,
-    })
-  : null;
+const cacheRedisFromHost: Redis | null =
+  !env.redisServices.cacheUrl && env.redisCache
+    ? new Redis({
+        ...commonOptions,
+        host: env.redisCache.host,
+        port: env.redisCache.port,
+        username: env.redisCache.username,
+        password: env.redisCache.password,
+        tls: env.redisCache.tls ? {} : undefined,
+        maxRetriesPerRequest: 1,
+      })
+    : null;
 
 export const cacheRedis: Redis = env.redisServices.cacheUrl
   ? createServiceClient(env.redisServices.cacheUrl, 'cache', 1)
-  : cacheRedisFromHost ?? redis;
+  : (cacheRedisFromHost ?? redis);
 
 if (cacheRedisFromHost) {
   cacheRedisFromHost.on('connect', () => logger.info('✅ Redis (cache) connected'));
@@ -130,14 +131,7 @@ export function createBullMqConnection(role: 'producer' | 'worker'): Redis {
 }
 
 export type RedisLogicalServiceKey =
-  | 'core'
-  | 'cache'
-  | 'sessions'
-  | 'rateLimit'
-  | 'pubSub'
-  | 'queue'
-  | 'presence'
-  | 'buffer';
+  'core' | 'cache' | 'sessions' | 'rateLimit' | 'pubSub' | 'queue' | 'presence' | 'buffer';
 
 export interface RedisLogicalServiceHealth {
   key: RedisLogicalServiceKey;
@@ -156,12 +150,32 @@ const logicalServices: Array<{
 }> = [
   { key: 'core', label: 'Redis الأساسي', client: redis, dedicated: false },
   { key: 'cache', label: 'الكاش', client: cacheRedis, dedicated: cacheRedis !== redis },
-  { key: 'sessions', label: 'الجلسات والرموز', client: sessionRedis, dedicated: sessionRedis !== redis },
-  { key: 'rateLimit', label: 'تحديد المعدل', client: rateLimitRedis, dedicated: rateLimitRedis !== redis },
-  { key: 'pubSub', label: 'Pub/Sub والإشعارات', client: pubSubRedis, dedicated: pubSubRedis !== redis },
+  {
+    key: 'sessions',
+    label: 'الجلسات والرموز',
+    client: sessionRedis,
+    dedicated: sessionRedis !== redis,
+  },
+  {
+    key: 'rateLimit',
+    label: 'تحديد المعدل',
+    client: rateLimitRedis,
+    dedicated: rateLimitRedis !== redis,
+  },
+  {
+    key: 'pubSub',
+    label: 'Pub/Sub والإشعارات',
+    client: pubSubRedis,
+    dedicated: pubSubRedis !== redis,
+  },
   { key: 'queue', label: 'الطوابير', client: queueRedis, dedicated: queueRedis !== redis },
   { key: 'presence', label: 'الحضور', client: presenceRedis, dedicated: presenceRedis !== redis },
-  { key: 'buffer', label: 'مخازن Go / Activity / Views', client: bufferRedis, dedicated: bufferRedis !== redis },
+  {
+    key: 'buffer',
+    label: 'مخازن Go / Activity / Views',
+    client: bufferRedis,
+    dedicated: bufferRedis !== redis,
+  },
 ];
 
 /**

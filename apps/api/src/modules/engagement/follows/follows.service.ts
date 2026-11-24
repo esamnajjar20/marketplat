@@ -186,7 +186,7 @@ export const followsService = {
     if (input.targetType === FollowTargetType.STORE) {
       let action: 'followed' | 'unfollowed';
       try {
-        action = await prisma.$transaction(async (tx) => {
+        action = await prisma.$transaction(async tx => {
           const key = {
             followerId_targetType_targetId: {
               followerId,
@@ -218,10 +218,18 @@ export const followsService = {
         // Its transaction also commits the StoreFollower row, so the
         // unique collision is a successful idempotent outcome here.
         if (isPrismaError(err, 'P2002')) {
-          return { action: 'followed' as const, targetType: input.targetType, targetId: input.targetId };
+          return {
+            action: 'followed' as const,
+            targetType: input.targetType,
+            targetId: input.targetId,
+          };
         }
         if (isPrismaError(err, 'P2025')) {
-          return { action: 'unfollowed' as const, targetType: input.targetType, targetId: input.targetId };
+          return {
+            action: 'unfollowed' as const,
+            targetType: input.targetType,
+            targetId: input.targetId,
+          };
         }
         throw err;
       }
@@ -257,7 +265,10 @@ export const followsService = {
       void notificationEvents
         .onNewFollower(input.targetId, followerId)
         .catch(error =>
-          reportBackgroundFailure('apps/api/src/modules/engagement/follows/follows.service.ts', error)
+          reportBackgroundFailure(
+            'apps/api/src/modules/engagement/follows/follows.service.ts',
+            error
+          )
         );
     }
     return { action: 'followed' as const, targetType: input.targetType, targetId: input.targetId };
@@ -387,7 +398,8 @@ export const followsService = {
     // revalidated too because their status can change after the follow.
     const followedStorePredicates: Prisma.StoreDetailsWhereInput[] = [];
     if (storeIds.length) followedStorePredicates.push({ id: { in: storeIds } });
-    if (userIds.length) followedStorePredicates.push({ sellerProfile: { userId: { in: userIds } } });
+    if (userIds.length)
+      followedStorePredicates.push({ sellerProfile: { userId: { in: userIds } } });
     const [eligibleStores, followedProviders] = await Promise.all([
       followedStorePredicates.length
         ? prisma.storeDetails.findMany({
@@ -402,7 +414,11 @@ export const followsService = {
       userIds.length
         ? prisma.serviceProviderDetails.findMany({
             where: {
-              sellerProfile: { suspended: false, user: { isActive: true }, userId: { in: userIds } },
+              sellerProfile: {
+                suspended: false,
+                user: { isActive: true },
+                userId: { in: userIds },
+              },
             },
             select: { id: true },
           })
@@ -424,7 +440,12 @@ export const followsService = {
         {
           OR: [
             { storeId: null },
-            { store: { status: 'ACTIVE', sellerProfile: { suspended: false, user: { isActive: true } } } },
+            {
+              store: {
+                status: 'ACTIVE',
+                sellerProfile: { suspended: false, user: { isActive: true } },
+              },
+            },
           ],
         },
       ],

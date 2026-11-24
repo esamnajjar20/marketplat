@@ -68,8 +68,10 @@ async function withRetry(
   }
 }
 
-
-async function runShutdownStep(label: string, operation: () => Promise<unknown> | unknown): Promise<void> {
+async function runShutdownStep(
+  label: string,
+  operation: () => Promise<unknown> | unknown
+): Promise<void> {
   try {
     await operation();
   } catch (error) {
@@ -317,7 +319,10 @@ const bootstrap = async (): Promise<void> => {
           await runShutdownStep('prisma-disconnect', () => prisma.$disconnect());
           await runShutdownStep('redis-quit', closeRedisServiceClients);
         } catch (cleanupError) {
-          logger.error('Unexpected cleanup orchestration failure after uncaughtException', cleanupError);
+          logger.error(
+            'Unexpected cleanup orchestration failure after uncaughtException',
+            cleanupError
+          );
         } finally {
           clearTimeout(forceExitTimer);
           process.exit(1);

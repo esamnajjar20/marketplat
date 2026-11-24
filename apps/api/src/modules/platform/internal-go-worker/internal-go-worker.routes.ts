@@ -12,7 +12,11 @@ export const internalGoWorkerRouter = Router();
 
 const requireToken = requireGoWorkerToken();
 
-internalGoWorkerRouter.post('/run-scheduled-job', requireToken, internalGoWorkerController.runScheduledJob);
+internalGoWorkerRouter.post(
+  '/run-scheduled-job',
+  requireToken,
+  internalGoWorkerController.runScheduledJob
+);
 internalGoWorkerRouter.post(
   '/publish-outbox-notifications',
   requireToken,
@@ -28,4 +32,8 @@ internalGoWorkerRouter.get(
   requireGoWorkerToken({ unauthorizedBody: 'ready' }),
   internalGoWorkerController.pushAdapterHealth
 );
-internalGoWorkerRouter.post('/send-push-target', requireToken, internalGoWorkerController.sendPushTarget);
+internalGoWorkerRouter.post(
+  '/send-push-target',
+  requireToken,
+  internalGoWorkerController.sendPushTarget
+);

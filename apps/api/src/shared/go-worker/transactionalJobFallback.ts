@@ -1,8 +1,5 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
-import {
-  executeWithGoFallback,
-  runAdvisoryLockedBatch,
-} from './executeWithFallback';
+import { executeWithGoFallback, runAdvisoryLockedBatch } from './executeWithFallback';
 import { logger } from '../observability/logger';
 
 interface TransactionalJobOptions<TResult> {
@@ -50,9 +47,12 @@ export async function executeTransactionalJobWithGoFallback<TResult>(
         try {
           await options.onExpressFallbackSuccess(result.value);
         } catch (error) {
-          logger.error(`[${options.jobName}] Express post-commit hook failed; database job remains completed`, {
-            errorType: error instanceof Error ? error.name : 'unknown',
-          });
+          logger.error(
+            `[${options.jobName}] Express post-commit hook failed; database job remains completed`,
+            {
+              errorType: error instanceof Error ? error.name : 'unknown',
+            }
+          );
         }
       }
       return 'completed';

@@ -26,7 +26,7 @@ import { paginationQuerySchema } from '../../../shared/http/pagination';
 
 async function* streamCompleteSalesCsv(
   userId: string,
-  query: import('./sales.validation').ReportQuery,
+  query: import('./sales.validation').ReportQuery
 ): AsyncGenerator<string> {
   // Keep fallback memory bounded: fetch and emit a page before requesting the next.
   const batchSize = 500;
@@ -272,7 +272,10 @@ export const salesController = {
       // working; totals stay exact because they are aggregated over every match.
       const boundedQuery = { ...query, limit: Math.min(query.limit, SALES_REPORT_JSON_MAX_LIMIT) };
       res.json(
-        successResponse('Sales report fetched', await salesService.report(user.userId, boundedQuery))
+        successResponse(
+          'Sales report fetched',
+          await salesService.report(user.userId, boundedQuery)
+        )
       );
     } catch (e) {
       next(e);
@@ -365,7 +368,8 @@ export const salesController = {
         const isNumber = (candidate: unknown): candidate is number =>
           typeof candidate === 'number' && Number.isFinite(candidate);
         return (
-          typeof result.generatedAt === 'string' && Number.isFinite(Date.parse(result.generatedAt)) &&
+          typeof result.generatedAt === 'string' &&
+          Number.isFinite(Date.parse(result.generatedAt)) &&
           result.periodDays === 30 &&
           Boolean(kpis) &&
           isNumber(kpis?.revenue) &&

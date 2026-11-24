@@ -20,14 +20,16 @@ export const activityController = {
         activityService.getMyActivity(user.userId, { limit: 8 }),
         sellersService.getMyAttention(user.userId),
       ]);
-      res.status(200).json(successResponse('Dashboard overview fetched', {
-        activity: activityResult.status === 'fulfilled' ? activityResult.value : null,
-        attention: attentionResult.status === 'fulfilled' ? attentionResult.value : null,
-        failures: {
-          activity: activityResult.status === 'rejected',
-          attention: attentionResult.status === 'rejected',
-        },
-      }));
+      res.status(200).json(
+        successResponse('Dashboard overview fetched', {
+          activity: activityResult.status === 'fulfilled' ? activityResult.value : null,
+          attention: attentionResult.status === 'fulfilled' ? attentionResult.value : null,
+          failures: {
+            activity: activityResult.status === 'rejected',
+            attention: attentionResult.status === 'rejected',
+          },
+        })
+      );
     } catch (error) {
       next(error);
     }

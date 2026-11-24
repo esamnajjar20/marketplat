@@ -10,7 +10,12 @@ export const blockedUsersRouter = Router();
 // publicly listable (same posture as favorites/conversations).
 blockedUsersRouter.get('/', authenticate, CACHE.NONE, blockedUsersController.getMyBlockedUsers);
 // A profile action needs one user's status, not the caller's full block list.
-blockedUsersRouter.get('/:userId/status', authenticate, CACHE.NONE, blockedUsersController.getStatus);
+blockedUsersRouter.get(
+  '/:userId/status',
+  authenticate,
+  CACHE.NONE,
+  blockedUsersController.getStatus
+);
 blockedUsersRouter.post(
   '/:userId',
   authenticate,
@@ -18,4 +23,9 @@ blockedUsersRouter.post(
   blockedUsersController.toggleBlock
 );
 // Explicit, idempotent unblock avoids a stale client accidentally re-blocking.
-blockedUsersRouter.delete('/:userId', authenticate, userBlockRateLimit, blockedUsersController.unblock);
+blockedUsersRouter.delete(
+  '/:userId',
+  authenticate,
+  userBlockRateLimit,
+  blockedUsersController.unblock
+);

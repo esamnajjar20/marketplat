@@ -47,7 +47,8 @@ export const blockedUsersService = {
   },
 
   unblock: async (blockerId: string, blockedId: string): Promise<{ action: 'unblocked' }> => {
-    if (blockerId === blockedId) throw new ForbiddenError('You cannot unblock yourself.', 'CANNOT_UNBLOCK_SELF');
+    if (blockerId === blockedId)
+      throw new ForbiddenError('You cannot unblock yourself.', 'CANNOT_UNBLOCK_SELF');
     try {
       await blockedUsersRepository.delete(blockerId, blockedId);
     } catch (err) {
@@ -73,10 +74,8 @@ export const blockedUsersService = {
   },
 
   /** Batch status for the other parties in one page of conversations. */
-  getBlockedIdsByBlocker: (
-    blockerId: string,
-    blockedIds: string[],
-  ): Promise<string[]> => blockedUsersRepository.findBlockedIdsByBlocker(blockerId, blockedIds),
+  getBlockedIdsByBlocker: (blockerId: string, blockedIds: string[]): Promise<string[]> =>
+    blockedUsersRepository.findBlockedIdsByBlocker(blockerId, blockedIds),
 
   /** Shared by conversations.service to gate startFromAd/sendMessage —
    * true if either party has blocked the other. */

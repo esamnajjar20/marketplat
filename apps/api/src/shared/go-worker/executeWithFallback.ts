@@ -93,7 +93,9 @@ export async function executeWithGoFallback<TResult>(
       });
 
       if (response.status === 409) {
-        logger.info(`[${options.jobName}] Go worker reports job already running; duplicate skipped`);
+        logger.info(
+          `[${options.jobName}] Go worker reports job already running; duplicate skipped`
+        );
         return 'busy';
       }
 
@@ -113,16 +115,21 @@ export async function executeWithGoFallback<TResult>(
             try {
               await options.onGoSuccess(result);
             } catch (error) {
-              logger.error(`[${options.jobName}] post-success hook failed; Go job remains completed`, {
-                errorType: error instanceof Error ? error.name : 'unknown',
-              });
+              logger.error(
+                `[${options.jobName}] post-success hook failed; Go job remains completed`,
+                {
+                  errorType: error instanceof Error ? error.name : 'unknown',
+                }
+              );
             }
           }
           logger.info(`[${options.jobName}] Go worker completed`, result);
           return 'go';
         }
 
-        logger.warn(`[${options.jobName}] Go worker returned an invalid success payload; using Express fallback`);
+        logger.warn(
+          `[${options.jobName}] Go worker returned an invalid success payload; using Express fallback`
+        );
       } else {
         // A non-409 response is not proof that Go did not partially execute.
         // The Express fallback's shared advisory lock is the final safety gate.
@@ -146,9 +153,7 @@ export async function executeWithGoFallback<TResult>(
   return fallbackOutcome === 'busy' ? 'busy' : 'express';
 }
 
-export type AdvisoryBatchResult<T> =
-  | { acquired: false }
-  | { acquired: true; value: T };
+export type AdvisoryBatchResult<T> = { acquired: false } | { acquired: true; value: T };
 
 /**
  * Execute exactly one bounded Express fallback batch while holding a

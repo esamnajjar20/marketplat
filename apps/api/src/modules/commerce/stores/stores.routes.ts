@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import { storesController } from './stores.controller';
-import { authenticate, optionalAuthenticateWithUserLookup } from '../../../middlewares/auth.middleware';
+import {
+  authenticate,
+  optionalAuthenticateWithUserLookup,
+} from '../../../middlewares/auth.middleware';
 import { requireVerifiedEmail } from '../../../middlewares/requireVerifiedEmail.middleware';
 import { requireAdmin } from '../../../middlewares/admin.middleware';
 import { CACHE } from '../../../middlewares/cacheControl.middleware';
@@ -92,14 +95,27 @@ storesRouter.post(
 
 // Delegated store settings — MANAGER capability is enforced by the service.
 // Keep these multi-segment routes before the generic /:id route for clarity.
-storesRouter.get('/:id/settings', authenticate, CACHE.NONE, storesController.getManagedStoreSettings);
+storesRouter.get(
+  '/:id/settings',
+  authenticate,
+  CACHE.NONE,
+  storesController.getManagedStoreSettings
+);
 storesRouter.patch('/:id/settings', authenticate, storesController.updateManagedStoreSettings);
 storesRouter.post(
-  '/:id/logo', authenticate, requireVerifiedEmail, storeImagesRateLimit, uploadMiddleware,
+  '/:id/logo',
+  authenticate,
+  requireVerifiedEmail,
+  storeImagesRateLimit,
+  uploadMiddleware,
   storesController.uploadManagedLogo
 );
 storesRouter.post(
-  '/:id/cover', authenticate, requireVerifiedEmail, storeImagesRateLimit, uploadMiddleware,
+  '/:id/cover',
+  authenticate,
+  requireVerifiedEmail,
+  storeImagesRateLimit,
+  uploadMiddleware,
   storesController.uploadManagedCover
 );
 
@@ -132,7 +148,12 @@ storesRouter.delete(
 
 // Combined public store-page payload. Soft auth adds viewer-only flags
 // when a valid session is available; CACHE.NONE prevents cross-user cache leaks.
-storesRouter.get('/:id/page-data', optionalAuthenticateWithUserLookup, CACHE.NONE, storesController.getPublicStorePageData);
+storesRouter.get(
+  '/:id/page-data',
+  optionalAuthenticateWithUserLookup,
+  CACHE.NONE,
+  storesController.getPublicStorePageData
+);
 
 // Public store page (legacy/detail consumers)
 storesRouter.get('/:id', CACHE.STATIC_DETAIL, storesController.getPublicStore);

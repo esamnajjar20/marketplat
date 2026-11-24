@@ -19,9 +19,11 @@ const FRAUD_MONITOR_ADVISORY_LOCK_ID = 731904303n;
 // Prisma.raw below. No caller-controlled SQL or filter values are accepted.
 const CHECKS = [
   {
-    code: 'REPORTER_BURST', severity: 'warning',
+    code: 'REPORTER_BURST',
+    severity: 'warning',
     title: 'حساب يرسل بلاغات كثيرة خلال يوم',
-    description: 'حساب أرسل 8 بلاغات معلّقة على 5 أهداف مختلفة على الأقل خلال آخر 24 ساعة. قد يكون نمط إساءة استخدام أو نشاط مراجعة مشروع؛ يلزم فحص بشري.',
+    description:
+      'حساب أرسل 8 بلاغات معلّقة على 5 أهداف مختلفة على الأقل خلال آخر 24 ساعة. قد يكون نمط إساءة استخدام أو نشاط مراجعة مشروع؛ يلزم فحص بشري.',
     entityType: 'reporter',
     query: `SELECT r."userId" AS "id", COUNT(*)::bigint AS "reportCount",
       COUNT(DISTINCT (r."targetType", r."targetId"))::bigint AS "targetCount"
@@ -31,9 +33,11 @@ const CHECKS = [
       HAVING COUNT(*) >= 8 AND COUNT(DISTINCT (r."targetType", r."targetId")) >= 5`,
   },
   {
-    code: 'REPORT_TARGET_BURST', severity: 'warning',
+    code: 'REPORT_TARGET_BURST',
+    severity: 'warning',
     title: 'تجمّع بلاغات سريع حول هدف واحد',
-    description: 'خمسة مُبلّغين مختلفين على الأقل أرسلوا بلاغات معلّقة حول الهدف نفسه خلال فترة لا تتجاوز ساعتين من آخر 6 ساعات. هذا مؤشر مراجعة وليس دليلًا على التنسيق.',
+    description:
+      'خمسة مُبلّغين مختلفين على الأقل أرسلوا بلاغات معلّقة حول الهدف نفسه خلال فترة لا تتجاوز ساعتين من آخر 6 ساعات. هذا مؤشر مراجعة وليس دليلًا على التنسيق.',
     entityType: 'reported_target',
     query: `WITH pending_reports AS MATERIALIZED (
         SELECT r."targetType", r."targetId", r."userId", r."createdAt"
@@ -64,9 +68,11 @@ const CHECKS = [
       FROM ranked_windows WHERE "windowRank" = 1`,
   },
   {
-    code: 'NEW_ACCOUNT_REPORT_BURST', severity: 'warning',
+    code: 'NEW_ACCOUNT_REPORT_BURST',
+    severity: 'warning',
     title: 'حساب حديث يرسل عدة بلاغات',
-    description: 'حساب أُنشئ خلال آخر 48 ساعة وأرسل 3 بلاغات معلّقة على أهداف مختلفة على الأقل خلال آخر 24 ساعة. حداثة الحساب وحدها لا تُعد مخالفة.',
+    description:
+      'حساب أُنشئ خلال آخر 48 ساعة وأرسل 3 بلاغات معلّقة على أهداف مختلفة على الأقل خلال آخر 24 ساعة. حداثة الحساب وحدها لا تُعد مخالفة.',
     entityType: 'reporter',
     query: `SELECT r."userId" AS "id", COUNT(*)::bigint AS "reportCount",
       COUNT(DISTINCT (r."targetType", r."targetId"))::bigint AS "targetCount",
@@ -79,9 +85,11 @@ const CHECKS = [
       HAVING COUNT(*) >= 3 AND COUNT(DISTINCT (r."targetType", r."targetId")) >= 3`,
   },
   {
-    code: 'REPEATED_UNREVIEWED_FRAUD_SIGNALS', severity: 'warning',
+    code: 'REPEATED_UNREVIEWED_FRAUD_SIGNALS',
+    severity: 'warning',
     title: 'تكرار إشارات احتيال غير مراجعة لحساب',
-    description: 'ست إشارات احتيال غير مراجعة أو أكثر مرتبطة بالحساب خلال آخر 24 ساعة. قد تنتج عدة إشارات من إعلان واحد؛ راجع التفاصيل قبل اتخاذ أي إجراء.',
+    description:
+      'ست إشارات احتيال غير مراجعة أو أكثر مرتبطة بالحساب خلال آخر 24 ساعة. قد تنتج عدة إشارات من إعلان واحد؛ راجع التفاصيل قبل اتخاذ أي إجراء.',
     entityType: 'user',
     query: `SELECT fs."userId" AS "id", COUNT(*)::bigint AS "signalCount",
       COUNT(DISTINCT fs."adId")::bigint AS "adCount",
@@ -101,21 +109,25 @@ async function runExpressFraudMonitorScan(): Promise<FraudMonitorScanReport> {
   const scannedAt = new Date(startedAt).toISOString();
   const checks: FraudMonitorCheckResult[] = [];
 
-  await prisma.$transaction(async tx => {
-    // Mark the transaction read-only before its first query, then take the
-    // same transaction-scoped lock as Go. This prevents fallback from
-    // duplicating a Go scan after a network timeout or an already-running 409.
-    await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY');
-    const lockRows = await tx.$queryRaw<Array<{ locked: boolean }>>(Prisma.sql`
+  await prisma.$transaction(
+    async tx => {
+      // Mark the transaction read-only before its first query, then take the
+      // same transaction-scoped lock as Go. This prevents fallback from
+      // duplicating a Go scan after a network timeout or an already-running 409.
+      await tx.$executeRawUnsafe('SET TRANSACTION READ ONLY');
+      const lockRows = await tx.$queryRaw<Array<{ locked: boolean }>>(Prisma.sql`
       SELECT pg_try_advisory_xact_lock(${FRAUD_MONITOR_ADVISORY_LOCK_ID}) AS locked
     `);
-    if (lockRows[0]?.locked !== true) {
-      throw new ConflictError('Fraud monitor scan is already running', 'FRAUD_MONITOR_ALREADY_RUNNING');
-    }
-    await tx.$executeRawUnsafe("SET LOCAL statement_timeout = '12s'");
+      if (lockRows[0]?.locked !== true) {
+        throw new ConflictError(
+          'Fraud monitor scan is already running',
+          'FRAUD_MONITOR_ALREADY_RUNNING'
+        );
+      }
+      await tx.$executeRawUnsafe("SET LOCAL statement_timeout = '12s'");
 
-    for (const definition of CHECKS) {
-      const rows = await tx.$queryRaw<AggregateRow[]>(Prisma.sql`
+      for (const definition of CHECKS) {
+        const rows = await tx.$queryRaw<AggregateRow[]>(Prisma.sql`
         WITH findings AS MATERIALIZED (${Prisma.raw(definition.query)})
         SELECT COUNT(*)::bigint AS "count",
           COALESCE((
@@ -124,36 +136,38 @@ async function runExpressFraudMonitorScan(): Promise<FraudMonitorScanReport> {
           ), '[]'::jsonb) AS "samples"
         FROM findings
       `);
-      const row = rows[0];
-      const count = Number(row?.count ?? 0n);
-      if (!Number.isSafeInteger(count) || count < 0) {
-        throw new Error(`fraud monitor returned an unsafe count for ${definition.code}`);
-      }
-      const rawSamples = Array.isArray(row?.samples) ? row.samples : [];
-      const samples: FraudMonitorSample[] = [];
-      for (const sample of rawSamples.slice(0, SAMPLE_LIMIT)) {
-        if (!sample || typeof sample !== 'object' || Array.isArray(sample)) continue;
-        const sampleRow = sample as Record<string, unknown>;
-        if (typeof sampleRow.id === 'string' && sampleRow.id.length > 0) {
-          samples.push(sampleRow as FraudMonitorSample);
+        const row = rows[0];
+        const count = Number(row?.count ?? 0n);
+        if (!Number.isSafeInteger(count) || count < 0) {
+          throw new Error(`fraud monitor returned an unsafe count for ${definition.code}`);
         }
-      }
+        const rawSamples = Array.isArray(row?.samples) ? row.samples : [];
+        const samples: FraudMonitorSample[] = [];
+        for (const sample of rawSamples.slice(0, SAMPLE_LIMIT)) {
+          if (!sample || typeof sample !== 'object' || Array.isArray(sample)) continue;
+          const sampleRow = sample as Record<string, unknown>;
+          if (typeof sampleRow.id === 'string' && sampleRow.id.length > 0) {
+            samples.push(sampleRow as FraudMonitorSample);
+          }
+        }
 
-      checks.push({
-        code: definition.code,
-        severity: definition.severity,
-        title: definition.title,
-        description: definition.description,
-        entityType: definition.entityType,
-        count,
-        samples,
-      });
+        checks.push({
+          code: definition.code,
+          severity: definition.severity,
+          title: definition.title,
+          description: definition.description,
+          entityType: definition.entityType,
+          count,
+          samples,
+        });
+      }
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
+      maxWait: 5_000,
+      timeout: 20_000,
     }
-  }, {
-    isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead,
-    maxWait: 5_000,
-    timeout: 20_000,
-  });
+  );
 
   const bySeverity = { critical: 0, warning: 0, info: 0 };
   for (const check of checks) bySeverity[check.severity] += check.count;
@@ -191,7 +205,12 @@ export interface FraudMonitorHistoryRun {
   bySeverity: { critical: number; warning: number; info: number };
   attempts: number;
   failureCode: string | null;
-  checks: Array<{ code: string; severity: 'critical' | 'warning' | 'info'; count: number; sampleCount: number }>;
+  checks: Array<{
+    code: string;
+    severity: 'critical' | 'warning' | 'info';
+    count: number;
+    sampleCount: number;
+  }>;
 }
 
 export interface FraudMonitorHistoryResponse {
@@ -205,15 +224,24 @@ export interface FraudMonitorHistoryResponse {
   }>;
 }
 
-export function buildFraudMonitorChanges(runs: FraudMonitorHistoryRun[]): FraudMonitorHistoryResponse['changes'] {
+export function buildFraudMonitorChanges(
+  runs: FraudMonitorHistoryRun[]
+): FraudMonitorHistoryResponse['changes'] {
   const successful = runs.filter(run => run.status === 'COMPLETED');
   const latestChecks = new Map(successful[0]?.checks.map(check => [check.code, check.count]) ?? []);
-  const previousChecks = new Map(successful[1]?.checks.map(check => [check.code, check.count]) ?? []);
+  const previousChecks = new Map(
+    successful[1]?.checks.map(check => [check.code, check.count]) ?? []
+  );
   const codes = new Set([...latestChecks.keys(), ...previousChecks.keys()]);
   return [...codes].sort().map(code => {
     const latestCount = latestChecks.get(code) ?? 0;
     const previousCount = previousChecks.get(code) ?? null;
-    return { code, latestCount, previousCount, delta: previousCount === null ? null : latestCount - previousCount };
+    return {
+      code,
+      latestCount,
+      previousCount,
+      delta: previousCount === null ? null : latestCount - previousCount,
+    };
   });
 }
 
@@ -236,9 +264,12 @@ async function claimScanRun(trigger: ScanTrigger, scheduledFor?: string): Promis
     return { id: rows[0].id, alreadyCompleted: false };
   }
 
-  if (!scheduledFor || !/^\d{4}-\d{2}-\d{2}$/.test(scheduledFor) ||
-      Number.isNaN(Date.parse(`${scheduledFor}T00:00:00.000Z`)) ||
-      new Date(`${scheduledFor}T00:00:00.000Z`).toISOString().slice(0, 10) !== scheduledFor) {
+  if (
+    !scheduledFor ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(scheduledFor) ||
+    Number.isNaN(Date.parse(`${scheduledFor}T00:00:00.000Z`)) ||
+    new Date(`${scheduledFor}T00:00:00.000Z`).toISOString().slice(0, 10) !== scheduledFor
+  ) {
     throw new Error('A valid Asia/Gaza scheduled date is required for fraud monitoring');
   }
 
@@ -266,7 +297,10 @@ async function claimScanRun(trigger: ScanTrigger, scheduledFor?: string): Promis
   `);
   if (existing[0]?.status === 'COMPLETED') return { id: null, alreadyCompleted: true };
   if (existing[0]?.status === 'RUNNING') {
-    throw new ConflictError('Fraud monitor scheduled scan is already running', 'FRAUD_MONITOR_ALREADY_RUNNING');
+    throw new ConflictError(
+      'Fraud monitor scheduled scan is already running',
+      'FRAUD_MONITOR_ALREADY_RUNNING'
+    );
   }
   throw new Error('Could not claim scheduled fraud monitor history run');
 }
@@ -274,7 +308,7 @@ async function claimScanRun(trigger: ScanTrigger, scheduledFor?: string): Promis
 async function markScanRunFailed(
   id: string,
   startedAt: number,
-  failureCode: 'SCAN_FAILED' | 'HISTORY_WRITE_FAILED',
+  failureCode: 'SCAN_FAILED' | 'HISTORY_WRITE_FAILED'
 ): Promise<void> {
   await prisma.$executeRaw(Prisma.sql`
     UPDATE "fraud_monitor_scan_runs"
@@ -288,19 +322,20 @@ async function markScanRunFailed(
 async function persistSuccessfulScan(
   id: string,
   report: FraudMonitorScanReport,
-  executionPath: ExecutionPath,
+  executionPath: ExecutionPath
 ): Promise<void> {
   const counts = report.bySeverity;
-  await prisma.$transaction(async tx => {
-    for (const check of report.checks) {
-      await tx.$executeRaw(Prisma.sql`
+  await prisma.$transaction(
+    async tx => {
+      for (const check of report.checks) {
+        await tx.$executeRaw(Prisma.sql`
         INSERT INTO "fraud_monitor_check_snapshots"
           ("scanRunId", "checkCode", "severity", "findingCount", "sampleCount")
         VALUES (${id}::uuid, ${check.code}, ${check.severity}, ${BigInt(check.count)}, ${check.samples.length})
       `);
-    }
+      }
 
-    const updated = await tx.$executeRaw(Prisma.sql`
+      const updated = await tx.$executeRaw(Prisma.sql`
       UPDATE "fraud_monitor_scan_runs"
       SET "status" = 'COMPLETED', "executionPath" = ${executionPath},
           "completedAt" = NOW(), "durationMillis" = ${report.durationMillis},
@@ -309,18 +344,26 @@ async function persistSuccessfulScan(
           "infoCount" = ${BigInt(counts.info)}, "failureCode" = NULL
       WHERE "id" = ${id}::uuid AND "status" = 'RUNNING'
     `);
-    if (updated !== 1) throw new Error('Fraud monitor history run lost its RUNNING claim');
-  }, {
-    isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
-    maxWait: 5_000,
-    timeout: 10_000,
-  });
+      if (updated !== 1) throw new Error('Fraud monitor history run lost its RUNNING claim');
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+      maxWait: 5_000,
+      timeout: 10_000,
+    }
+  );
 }
 
-async function executeAndRecordScan(trigger: ScanTrigger, scheduledFor?: string): Promise<FraudMonitorScanReport | null> {
+async function executeAndRecordScan(
+  trigger: ScanTrigger,
+  scheduledFor?: string
+): Promise<FraudMonitorScanReport | null> {
   const run = await claimScanRun(trigger, scheduledFor);
   if (run.alreadyCompleted) {
-    logger.info('[fraud-monitor] scheduled scan already has a completed history record; skipping duplicate', { scheduledFor });
+    logger.info(
+      '[fraud-monitor] scheduled scan already has a completed history record; skipping duplicate',
+      { scheduledFor }
+    );
     return null;
   }
 
@@ -335,15 +378,23 @@ async function executeAndRecordScan(trigger: ScanTrigger, scheduledFor?: string)
       validateResult: isFraudMonitorScanReport,
       timeoutMs: 25_000,
       runExpressFallback: runExpressFraudMonitorScan,
-      onGoSuccess: () => { executionPath = 'GO'; },
-      onExpressFallbackSuccess: () => { executionPath = 'EXPRESS'; },
+      onGoSuccess: () => {
+        executionPath = 'GO';
+      },
+      onExpressFallbackSuccess: () => {
+        executionPath = 'EXPRESS';
+      },
     });
     scanCompleted = true;
     await persistSuccessfulScan(run.id, report, executionPath);
     return report;
   } catch (error) {
     try {
-      await markScanRunFailed(run.id, startedAt, scanCompleted ? 'HISTORY_WRITE_FAILED' : 'SCAN_FAILED');
+      await markScanRunFailed(
+        run.id,
+        startedAt,
+        scanCompleted ? 'HISTORY_WRITE_FAILED' : 'SCAN_FAILED'
+      );
     } catch (historyError) {
       logger.error('[fraud-monitor] could not persist failed scan state', {
         errorType: historyError instanceof Error ? historyError.name : 'unknown',
@@ -378,13 +429,23 @@ export const fraudMonitorService = {
   },
 
   getHistory: async (): Promise<FraudMonitorHistoryResponse> => {
-    const rows = await prisma.$queryRaw<Array<{
-      id: string; trigger: string; status: string; executionPath: string | null;
-      startedAt: Date; completedAt: Date | null; durationMillis: number | null;
-      findingCount: bigint | number | string; criticalCount: bigint | number | string;
-      warningCount: bigint | number | string; infoCount: bigint | number | string;
-      attempts: number; failureCode: string | null;
-    }>>(Prisma.sql`
+    const rows = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        trigger: string;
+        status: string;
+        executionPath: string | null;
+        startedAt: Date;
+        completedAt: Date | null;
+        durationMillis: number | null;
+        findingCount: bigint | number | string;
+        criticalCount: bigint | number | string;
+        warningCount: bigint | number | string;
+        infoCount: bigint | number | string;
+        attempts: number;
+        failureCode: string | null;
+      }>
+    >(Prisma.sql`
       SELECT "id"::text AS "id", "trigger", "status", "executionPath",
         "startedAt", "completedAt", "durationMillis", "findingCount",
         "criticalCount", "warningCount", "infoCount", "attempts", "failureCode"
@@ -394,10 +455,18 @@ export const fraudMonitorService = {
     `);
 
     const completedIds = rows.filter(row => row.status === 'COMPLETED').map(row => row.id);
-    const checkRows = completedIds.length === 0 ? [] : await prisma.$queryRaw<Array<{
-      scanRunId: string; checkCode: string; severity: 'critical' | 'warning' | 'info';
-      findingCount: bigint | number | string; sampleCount: number;
-    }>>(Prisma.sql`
+    const checkRows =
+      completedIds.length === 0
+        ? []
+        : await prisma.$queryRaw<
+            Array<{
+              scanRunId: string;
+              checkCode: string;
+              severity: 'critical' | 'warning' | 'info';
+              findingCount: bigint | number | string;
+              sampleCount: number;
+            }>
+          >(Prisma.sql`
       SELECT "scanRunId"::text AS "scanRunId", "checkCode", "severity", "findingCount", "sampleCount"
       FROM "fraud_monitor_check_snapshots"
       WHERE "scanRunId" IN (${Prisma.join(completedIds.map(id => Prisma.sql`${id}::uuid`))})
@@ -407,7 +476,12 @@ export const fraudMonitorService = {
     const checksByRun = new Map<string, FraudMonitorHistoryRun['checks']>();
     for (const row of checkRows) {
       const values = checksByRun.get(row.scanRunId) ?? [];
-      values.push({ code: row.checkCode, severity: row.severity, count: toSafeCount(row.findingCount), sampleCount: row.sampleCount });
+      values.push({
+        code: row.checkCode,
+        severity: row.severity,
+        count: toSafeCount(row.findingCount),
+        sampleCount: row.sampleCount,
+      });
       checksByRun.set(row.scanRunId, values);
     }
 

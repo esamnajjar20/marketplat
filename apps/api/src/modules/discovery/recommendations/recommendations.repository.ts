@@ -41,7 +41,10 @@ import { StoreWithSeller, storeWithSeller } from '../../commerce/stores/stores.r
 // unbounded. Only the most recent entries matter for a "don't re-suggest"
 // heuristic, so each source is capped (newest first).
 const RECOMMENDATION_EXCLUSION_LIMIT = 500;
-const newestExclusions = { orderBy: { createdAt: 'desc' as const }, take: RECOMMENDATION_EXCLUSION_LIMIT };
+const newestExclusions = {
+  orderBy: { createdAt: 'desc' as const },
+  take: RECOMMENDATION_EXCLUSION_LIMIT,
+};
 
 const recommendationAdSelect = {
   id: true,

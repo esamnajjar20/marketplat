@@ -56,7 +56,9 @@ export async function requestJsonWithGoIdempotentFallback<TResult>(
           logger.info(`[${options.jobName}] Go worker completed idempotent write`);
           return result;
         }
-        logger.warn(`[${options.jobName}] Go worker returned an invalid write response; using Express fallback`);
+        logger.warn(
+          `[${options.jobName}] Go worker returned an invalid write response; using Express fallback`
+        );
       } else {
         // Do not leave an unread response body occupying a pooled connection.
         await response.body?.cancel().catch(() => undefined);

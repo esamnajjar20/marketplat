@@ -104,25 +104,38 @@ interface MarketplaceOrderNotificationPayload {
   status: string;
 }
 
-function parseMarketplaceOrderNotificationPayload(value: unknown): MarketplaceOrderNotificationPayload {
+function parseMarketplaceOrderNotificationPayload(
+  value: unknown
+): MarketplaceOrderNotificationPayload {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Marketplace-order notification payload must be an object');
   }
   const payload = value as Record<string, unknown>;
   if (
     !['CREATED', 'STATUS_CHANGED'].includes(String(payload.event)) ||
-    typeof payload.orderId !== 'string' || !payload.orderId ||
-    typeof payload.buyerId !== 'string' || !payload.buyerId ||
-    typeof payload.sellerId !== 'string' || !payload.sellerId ||
-    typeof payload.storeName !== 'string' || !payload.storeName ||
-    typeof payload.status !== 'string' || !payload.status
+    typeof payload.orderId !== 'string' ||
+    !payload.orderId ||
+    typeof payload.buyerId !== 'string' ||
+    !payload.buyerId ||
+    typeof payload.sellerId !== 'string' ||
+    !payload.sellerId ||
+    typeof payload.storeName !== 'string' ||
+    !payload.storeName ||
+    typeof payload.status !== 'string' ||
+    !payload.status
   ) {
     throw new Error('Marketplace-order notification payload is missing required fields');
   }
-  if (payload.event === 'CREATED' && (typeof payload.total !== 'string' || typeof payload.currency !== 'string')) {
+  if (
+    payload.event === 'CREATED' &&
+    (typeof payload.total !== 'string' || typeof payload.currency !== 'string')
+  ) {
     throw new Error('Marketplace-order creation payload is missing total/currency');
   }
-  if (payload.event === 'STATUS_CHANGED' && (typeof payload.actorId !== 'string' || !payload.actorId)) {
+  if (
+    payload.event === 'STATUS_CHANGED' &&
+    (typeof payload.actorId !== 'string' || !payload.actorId)
+  ) {
     throw new Error('Marketplace-order status payload is missing actorId');
   }
   return payload as unknown as MarketplaceOrderNotificationPayload;
@@ -135,7 +148,6 @@ function preferenceAllowsStoreUpdates(value: unknown): boolean {
     ? Boolean(preferences.storeUpdates)
     : true;
 }
-
 
 function parseActivityPayload(value: unknown): ActivityPayload {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -250,7 +262,6 @@ function preferenceAllowsSavedSearch(value: unknown): boolean {
     : true;
 }
 
-
 interface GoOutboxNotification {
   id: string;
   userId: string;
@@ -270,17 +281,26 @@ interface GoOutboxResult {
 function isGoOutboxNotification(value: unknown): value is GoOutboxNotification {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const row = value as Record<string, unknown>;
-  return typeof row.id === 'string' && typeof row.userId === 'string' &&
-    typeof row.type === 'string' && typeof row.title === 'string' &&
+  return (
+    typeof row.id === 'string' &&
+    typeof row.userId === 'string' &&
+    typeof row.type === 'string' &&
+    typeof row.title === 'string' &&
     typeof row.body === 'string' &&
-    (row.data === null || (typeof row.data === 'object' && !Array.isArray(row.data)));
+    (row.data === null || (typeof row.data === 'object' && !Array.isArray(row.data)))
+  );
 }
 
 function isGoOutboxResult(value: unknown, event: OutboxEvent): value is GoOutboxResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const row = value as Record<string, unknown>;
-  return row.eventId === event.id && row.eventType === event.eventType && row.processed === true &&
-    Array.isArray(row.created) && row.created.every(isGoOutboxNotification);
+  return (
+    row.eventId === event.id &&
+    row.eventType === event.eventType &&
+    row.processed === true &&
+    Array.isArray(row.created) &&
+    row.created.every(isGoOutboxNotification)
+  );
 }
 
 /**
@@ -343,7 +363,8 @@ async function isGoOutboxPrimaryActive(): Promise<boolean> {
     }
     const payload: unknown = await response.json().catch(() => undefined);
     goOutboxPrimaryCached =
-      typeof payload === 'object' && payload !== null &&
+      typeof payload === 'object' &&
+      payload !== null &&
       (payload as Record<string, unknown>).enabled === true;
     return goOutboxPrimaryCached;
   } catch {
@@ -387,7 +408,8 @@ async function isGoPushDispatchPrimaryActive(): Promise<boolean> {
     }
     const payload: unknown = await response.json().catch(() => undefined);
     goPushDispatchPrimaryCached =
-      typeof payload === 'object' && payload !== null &&
+      typeof payload === 'object' &&
+      payload !== null &&
       (payload as Record<string, unknown>).enabled === true;
     return goPushDispatchPrimaryCached;
   } catch {
@@ -419,23 +441,32 @@ async function tryExecuteOutboxEventInGo(
     if (response.ok) {
       const result: unknown = await response.json().catch(() => undefined);
       if (isGoOutboxResult(result, event)) return result;
-      logger.warn('Go outbox processor returned an invalid success payload; checking durable event state', {
-        eventId: event.id,
-        eventType: event.eventType,
-      });
+      logger.warn(
+        'Go outbox processor returned an invalid success payload; checking durable event state',
+        {
+          eventId: event.id,
+          eventType: event.eventType,
+        }
+      );
     } else {
-      logger.warn('Go outbox processor failed; checking durable event state before Express fallback', {
-        eventId: event.id,
-        eventType: event.eventType,
-        status: response.status,
-      });
+      logger.warn(
+        'Go outbox processor failed; checking durable event state before Express fallback',
+        {
+          eventId: event.id,
+          eventType: event.eventType,
+          status: response.status,
+        }
+      );
     }
   } catch (error) {
-    logger.warn('Go outbox processor unavailable; checking durable event state before Express fallback', {
-      eventId: event.id,
-      eventType: event.eventType,
-      errorType: error instanceof Error ? error.name : 'unknown',
-    });
+    logger.warn(
+      'Go outbox processor unavailable; checking durable event state before Express fallback',
+      {
+        eventId: event.id,
+        eventType: event.eventType,
+        errorType: error instanceof Error ? error.name : 'unknown',
+      }
+    );
   }
 
   const state = await prisma.outboxEvent.findUnique({
@@ -444,12 +475,13 @@ async function tryExecuteOutboxEventInGo(
   });
   if (!state) throw new Error(`Outbox event ${event.id} disappeared while processing`);
   if (state.processedAt) {
-    const created = event.eventType === 'USER_ACTIVITY_RECORD'
-      ? []
-      : await prisma.notification.findMany({
-          where: { idempotencyKey: { startsWith: `outbox:${event.id}:` } },
-          select: { id: true, userId: true, type: true, title: true, body: true, data: true },
-        });
+    const created =
+      event.eventType === 'USER_ACTIVITY_RECORD'
+        ? []
+        : await prisma.notification.findMany({
+            where: { idempotencyKey: { startsWith: `outbox:${event.id}:` } },
+            select: { id: true, userId: true, type: true, title: true, body: true, data: true },
+          });
     return {
       eventId: event.id,
       eventType: event.eventType,
@@ -485,10 +517,12 @@ async function publishOutboxNotifications(
           data: asPlainObject(row.data),
         },
       }))
-    ).catch(error => logger.warn(`${label} outbox SSE publish failed after durable commit`, {
-      eventId,
-      error,
-    }));
+    ).catch(error =>
+      logger.warn(`${label} outbox SSE publish failed after durable commit`, {
+        eventId,
+        error,
+      })
+    );
   } catch (error) {
     logger.warn(`${label} outbox SSE publish failed after durable commit`, { eventId, error });
   }
@@ -585,7 +619,7 @@ async function processSavedSearchMatchEvent(
 
 async function processMarketplaceOrderNotificationEvent(
   event: OutboxEvent,
-  workerId: string,
+  workerId: string
 ): Promise<void> {
   const payload = parseMarketplaceOrderNotificationPayload(event.payload);
   const statusCopy: Record<string, { title: string; label: string }> = {
@@ -596,38 +630,44 @@ async function processMarketplaceOrderNotificationEvent(
     CANCELLED: { title: 'تم إلغاء الطلب', label: 'تم إلغاء الطلب' },
   };
 
-  const recipients = payload.event === 'CREATED'
-    ? [
-        {
-          userId: payload.sellerId,
-          type: NotificationType.MARKETPLACE_ORDER_NEW,
-          title: 'طلب شراء جديد',
-          body: `استلم متجرك طلب شراء جديد بقيمة ${payload.total} ${payload.currency}`,
-          event: 'NEW',
-        },
-        {
-          userId: payload.buyerId,
-          type: NotificationType.MARKETPLACE_ORDER_UPDATE,
-          title: 'تم استلام طلبك',
-          body: `استلم متجر "${payload.storeName}" طلبك، ويمكنك متابعة حالته من التفاصيل`,
-          event: 'CREATED',
-        },
-      ]
-    : (() => {
-        const buyerIsRecipient = payload.actorId !== payload.buyerId;
-        const recipientId = buyerIsRecipient ? payload.buyerId : payload.sellerId;
-        const copy = statusCopy[payload.status] ?? { title: 'تحديث طلب الشراء', label: 'تم تحديث حالة الطلب' };
-        const body = buyerIsRecipient
-          ? `${copy.label} لدى متجر "${payload.storeName}". افتح تفاصيل الطلب لمتابعته.`
-          : `${copy.label} رقم ${payload.orderId}. افتح تفاصيل الطلب لمراجعته.`;
-        return [{
-          userId: recipientId,
-          type: NotificationType.MARKETPLACE_ORDER_UPDATE,
-          title: copy.title,
-          body,
-          event: payload.status,
-        }];
-      })();
+  const recipients =
+    payload.event === 'CREATED'
+      ? [
+          {
+            userId: payload.sellerId,
+            type: NotificationType.MARKETPLACE_ORDER_NEW,
+            title: 'طلب شراء جديد',
+            body: `استلم متجرك طلب شراء جديد بقيمة ${payload.total} ${payload.currency}`,
+            event: 'NEW',
+          },
+          {
+            userId: payload.buyerId,
+            type: NotificationType.MARKETPLACE_ORDER_UPDATE,
+            title: 'تم استلام طلبك',
+            body: `استلم متجر "${payload.storeName}" طلبك، ويمكنك متابعة حالته من التفاصيل`,
+            event: 'CREATED',
+          },
+        ]
+      : (() => {
+          const buyerIsRecipient = payload.actorId !== payload.buyerId;
+          const recipientId = buyerIsRecipient ? payload.buyerId : payload.sellerId;
+          const copy = statusCopy[payload.status] ?? {
+            title: 'تحديث طلب الشراء',
+            label: 'تم تحديث حالة الطلب',
+          };
+          const body = buyerIsRecipient
+            ? `${copy.label} لدى متجر "${payload.storeName}". افتح تفاصيل الطلب لمتابعته.`
+            : `${copy.label} رقم ${payload.orderId}. افتح تفاصيل الطلب لمراجعته.`;
+          return [
+            {
+              userId: recipientId,
+              type: NotificationType.MARKETPLACE_ORDER_UPDATE,
+              title: copy.title,
+              body,
+              event: payload.status,
+            },
+          ];
+        })();
 
   const inserted = await prisma.$transaction(async tx => {
     if (!(await tryAcquireOutboxExecutionLock(tx, event.id))) return [];
@@ -639,7 +679,9 @@ async function processMarketplaceOrderNotificationEvent(
         })
       : [];
     const allowedIds = new Set(
-      users.filter(user => preferenceAllowsStoreUpdates(user.notificationPreferences)).map(user => user.id)
+      users
+        .filter(user => preferenceAllowsStoreUpdates(user.notificationPreferences))
+        .map(user => user.id)
     );
     const eligible = recipients.filter(item => allowedIds.has(item.userId));
     const notifications = eligible.length
@@ -682,14 +724,15 @@ async function processMarketplaceOrderNotificationEvent(
       where: { id: event.id, lockedBy: workerId, processedAt: null },
       data: { processedAt: new Date(), lockedAt: null, lockedBy: null, lastError: null },
     });
-    if (acknowledged.count !== 1) throw new Error('Outbox lease lost before marketplace-order notification acknowledgement');
+    if (acknowledged.count !== 1)
+      throw new Error('Outbox lease lost before marketplace-order notification acknowledgement');
     return notifications;
   });
 
   await publishOutboxNotifications(
     inserted.map(row => ({ ...row, data: row.data })),
     event.id,
-    'Marketplace-order',
+    'Marketplace-order'
   );
 }
 
@@ -1687,7 +1730,10 @@ async function processEdgeCachePurgeEvent(event: OutboxEvent, workerId: string):
     !Array.isArray(rawTags) ||
     rawTags.length < 1 ||
     rawTags.length > 100 ||
-    !rawTags.every(tag => typeof tag === 'string' && tag.length > 0 && tag.length <= 256 && /^[\x21-\x7E]+$/.test(tag))
+    !rawTags.every(
+      tag =>
+        typeof tag === 'string' && tag.length > 0 && tag.length <= 256 && /^[\x21-\x7E]+$/.test(tag)
+    )
   ) {
     throw new Error('Edge-cache purge outbox payload contains invalid tags');
   }
@@ -1770,7 +1816,7 @@ async function processCacheGenerationBumpEvent(
 export async function processOutboxBatch(
   workerId = `outbox-${process.pid}-${randomUUID()}`,
   allowGoExecution = true,
-  expressOnly = false,
+  expressOnly = false
 ): Promise<number> {
   const events = await claimBatch(workerId, expressOnly);
   for (const event of events) {
@@ -1814,7 +1860,8 @@ export async function runOutboxWorker(shouldStop: () => boolean = () => false): 
   let lastRetentionRunAt = 0;
   let idleStreak = 0;
   while (!shouldStop()) {
-    const primaryConfigured = process.env.GO_WORKER_OUTBOX_PRIMARY_ENABLED?.trim().toLowerCase() === 'true';
+    const primaryConfigured =
+      process.env.GO_WORKER_OUTBOX_PRIMARY_ENABLED?.trim().toLowerCase() === 'true';
     const goPrimaryActive = await isGoOutboxPrimaryActive();
     // When primary mode is configured but Go reports unavailable/ineligible,
     // Express must run its local handlers immediately. Do not proxy each event
@@ -1849,11 +1896,14 @@ export async function runOutboxWorker(shouldStop: () => boolean = () => false): 
         await pruneProcessedOutboxEvents()
           .then(deletedCount => {
             if (deletedCount > 0) {
-              logger.info('Express fallback pruned processed outbox rows while preserving idempotency keys', {
-                deletedCount,
-                retentionDays: OUTBOX_PROCESSED_RETENTION_MS / (24 * 60 * 60 * 1_000),
-                batchLimit: OUTBOX_RETENTION_BATCH_SIZE,
-              });
+              logger.info(
+                'Express fallback pruned processed outbox rows while preserving idempotency keys',
+                {
+                  deletedCount,
+                  retentionDays: OUTBOX_PROCESSED_RETENTION_MS / (24 * 60 * 60 * 1_000),
+                  batchLimit: OUTBOX_RETENTION_BATCH_SIZE,
+                }
+              );
             }
           })
           .catch(error => {

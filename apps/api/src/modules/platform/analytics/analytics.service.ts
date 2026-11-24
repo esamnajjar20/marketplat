@@ -62,22 +62,39 @@ export const analyticsService = {
     // Normalize IDs once before either implementation runs. They are sent to
     // Go and retained by the Express fallback, so a lost worker response is
     // safe: both writers contend on the same existing analytics_events PK.
-    const events = input.events.map(event => ({ ...event, eventId: event.eventId ?? randomUUID() }));
+    const events = input.events.map(event => ({
+      ...event,
+      eventId: event.eventId ?? randomUUID(),
+    }));
     try {
       await requestJsonWithGoIdempotentFallback({
         jobName: 'analytics-ingest',
         path: '/internal/analytics/events',
         body: { userId, events },
         idempotencyKey: createHash('sha256')
-          .update(events.map(event => event.eventId).sort().join('\0'))
+          .update(
+            events
+              .map(event => event.eventId)
+              .sort()
+              .join('\0')
+          )
           .digest('hex'),
         timeoutMs: 1_500,
-        validateResult: (value): value is { accepted: number; inserted: number; duplicates: number } => {
+        validateResult: (
+          value
+        ): value is { accepted: number; inserted: number; duplicates: number } => {
           if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
           const result = value as Record<string, unknown>;
-          return ['accepted', 'inserted', 'duplicates'].every(key =>
-            typeof result[key] === 'number' && Number.isSafeInteger(result[key]) && (result[key] as number) >= 0
-          ) && (result.inserted as number) + (result.duplicates as number) === (result.accepted as number);
+          return (
+            ['accepted', 'inserted', 'duplicates'].every(
+              key =>
+                typeof result[key] === 'number' &&
+                Number.isSafeInteger(result[key]) &&
+                (result[key] as number) >= 0
+            ) &&
+            (result.inserted as number) + (result.duplicates as number) ===
+              (result.accepted as number)
+          );
         },
         runExpressFallback: async () => {
           await analyticsRepository.createMany(events, userId);
@@ -100,7 +117,12 @@ export const analyticsService = {
       range: { from: string; to: string; bucket: 'day' | 'week' };
       totals: Record<string, number>;
       trend: Array<{ bucket: string; event: AnalyticsEventType; count: number }>;
-      topCategories: Array<{ categoryId: string; count: number; name: string | null; nameAr: string | null }>;
+      topCategories: Array<{
+        categoryId: string;
+        count: number;
+        name: string | null;
+        nameAr: string | null;
+      }>;
       searchToContact: { searchSessions: number; contactSessions: number; conversionRate: number };
       signupFunnel: { startedSessions: number; completedSessions: number; conversionRate: number };
     };
@@ -113,32 +135,71 @@ export const analyticsService = {
       const topCategories = result.topCategories;
       const searchToContact = result.searchToContact;
       const signupFunnel = result.signupFunnel;
-      const validDate = (item: unknown) => typeof item === 'string' && Number.isFinite(Date.parse(item));
+      const validDate = (item: unknown) =>
+        typeof item === 'string' && Number.isFinite(Date.parse(item));
       const isObject = (item: unknown): item is Record<string, unknown> =>
         Boolean(item) && typeof item === 'object' && !Array.isArray(item);
 
-      if (!isObject(range) || !validDate(range.from) || !validDate(range.to) || range.bucket !== bucket) return false;
-      if (Date.parse(range.from as string) !== from.getTime() || Date.parse(range.to as string) !== to.getTime()) return false;
-      if (!isObject(totals) || !Object.values(AnalyticsEventType).every(event =>
-        typeof totals[event] === 'number' && Number.isFinite(totals[event]) && (totals[event] as number) >= 0
-      )) return false;
+      if (
+        !isObject(range) ||
+        !validDate(range.from) ||
+        !validDate(range.to) ||
+        range.bucket !== bucket
+      )
+        return false;
+      if (
+        Date.parse(range.from as string) !== from.getTime() ||
+        Date.parse(range.to as string) !== to.getTime()
+      )
+        return false;
+      if (
+        !isObject(totals) ||
+        !Object.values(AnalyticsEventType).every(
+          event =>
+            typeof totals[event] === 'number' &&
+            Number.isFinite(totals[event]) &&
+            (totals[event] as number) >= 0
+        )
+      )
+        return false;
       if (!Array.isArray(trend) || !Array.isArray(topCategories)) return false;
       if (!isObject(searchToContact) || !isObject(signupFunnel)) return false;
 
       const supportedEvents = new Set<string>(Object.values(AnalyticsEventType));
-      return trend.every(item => isObject(item) && validDate(item.bucket) &&
-        typeof item.event === 'string' && supportedEvents.has(item.event) &&
-        typeof item.count === 'number' && Number.isFinite(item.count) && item.count >= 0) &&
-        topCategories.every(item => isObject(item) && typeof item.categoryId === 'string' &&
-          typeof item.count === 'number' && Number.isFinite(item.count) && item.count >= 0 &&
-          (item.name === null || typeof item.name === 'string') &&
-          (item.nameAr === null || typeof item.nameAr === 'string')) &&
-        ['searchSessions', 'contactSessions', 'conversionRate'].every(key =>
-          typeof searchToContact[key] === 'number' && Number.isFinite(searchToContact[key] as number) &&
-          (searchToContact[key] as number) >= 0) &&
-        ['startedSessions', 'completedSessions', 'conversionRate'].every(key =>
-          typeof signupFunnel[key] === 'number' && Number.isFinite(signupFunnel[key] as number) &&
-          (signupFunnel[key] as number) >= 0);
+      return (
+        trend.every(
+          item =>
+            isObject(item) &&
+            validDate(item.bucket) &&
+            typeof item.event === 'string' &&
+            supportedEvents.has(item.event) &&
+            typeof item.count === 'number' &&
+            Number.isFinite(item.count) &&
+            item.count >= 0
+        ) &&
+        topCategories.every(
+          item =>
+            isObject(item) &&
+            typeof item.categoryId === 'string' &&
+            typeof item.count === 'number' &&
+            Number.isFinite(item.count) &&
+            item.count >= 0 &&
+            (item.name === null || typeof item.name === 'string') &&
+            (item.nameAr === null || typeof item.nameAr === 'string')
+        ) &&
+        ['searchSessions', 'contactSessions', 'conversionRate'].every(
+          key =>
+            typeof searchToContact[key] === 'number' &&
+            Number.isFinite(searchToContact[key] as number) &&
+            (searchToContact[key] as number) >= 0
+        ) &&
+        ['startedSessions', 'completedSessions', 'conversionRate'].every(
+          key =>
+            typeof signupFunnel[key] === 'number' &&
+            Number.isFinite(signupFunnel[key] as number) &&
+            (signupFunnel[key] as number) >= 0
+        )
+      );
     };
 
     const summary = await requestJsonWithGoFallback({
@@ -148,27 +209,31 @@ export const analyticsService = {
       timeoutMs: 7_000,
       validateResult: isSummaryPayload,
       runExpressFallback: async () => {
-        const [eventCounts, trend, topCategories, searchToContact, signupFunnel] = await Promise.all([
-          analyticsRepository.countByEvent(from, to),
-          analyticsRepository.trendByEvent(from, to, bucket),
-          analyticsRepository.topCategories(from, to),
-          analyticsRepository.searchToContactSessions(from, to),
-          analyticsRepository.signupFunnelSessions(from, to),
-        ]);
+        const [eventCounts, trend, topCategories, searchToContact, signupFunnel] =
+          await Promise.all([
+            analyticsRepository.countByEvent(from, to),
+            analyticsRepository.trendByEvent(from, to, bucket),
+            analyticsRepository.topCategories(from, to),
+            analyticsRepository.searchToContactSessions(from, to),
+            analyticsRepository.signupFunnelSessions(from, to),
+          ]);
         const categoryRows = await prisma.category.findMany({
           where: { id: { in: topCategories.map(c => c.categoryId) } },
           select: { id: true, name: true, nameAr: true },
         });
         const categoryById = new Map(categoryRows.map(c => [c.id, c]));
-        const totals = Object.fromEntries(Object.values(AnalyticsEventType).map(e => [e, 0])) as Record<
-          AnalyticsEventType,
-          number
-        >;
+        const totals = Object.fromEntries(
+          Object.values(AnalyticsEventType).map(e => [e, 0])
+        ) as Record<AnalyticsEventType, number>;
         for (const { event, count } of eventCounts) totals[event] = count;
         return {
           range: { from: from.toISOString(), to: to.toISOString(), bucket },
           totals,
-          trend: trend.map(point => ({ bucket: point.bucket.toISOString(), event: point.event, count: point.count })),
+          trend: trend.map(point => ({
+            bucket: point.bucket.toISOString(),
+            event: point.event,
+            count: point.count,
+          })),
           topCategories: topCategories.map(category => ({
             categoryId: category.categoryId,
             count: category.count,
@@ -178,14 +243,18 @@ export const analyticsService = {
           searchToContact: {
             searchSessions: searchToContact.searchSessions,
             contactSessions: searchToContact.contactSessions,
-            conversionRate: searchToContact.searchSessions === 0 ? 0 :
-              searchToContact.contactSessions / searchToContact.searchSessions,
+            conversionRate:
+              searchToContact.searchSessions === 0
+                ? 0
+                : searchToContact.contactSessions / searchToContact.searchSessions,
           },
           signupFunnel: {
             startedSessions: signupFunnel.startedSessions,
             completedSessions: signupFunnel.completedSessions,
-            conversionRate: signupFunnel.startedSessions === 0 ? 0 :
-              signupFunnel.completedSessions / signupFunnel.startedSessions,
+            conversionRate:
+              signupFunnel.startedSessions === 0
+                ? 0
+                : signupFunnel.completedSessions / signupFunnel.startedSessions,
           },
         };
       },

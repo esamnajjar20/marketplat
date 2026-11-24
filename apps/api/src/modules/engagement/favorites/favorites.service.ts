@@ -191,24 +191,44 @@ export const favoritesService = {
     performToggle(userId, 'AD', adId),
 
   /** Idempotent desired-state write for offline replay; unlike toggle, retrying this cannot invert state. */
-  setFavoriteState: async (userId: string, adId: string, favorited: boolean): Promise<{ action: 'added' | 'removed'; isFavorited: boolean }> => {
+  setFavoriteState: async (
+    userId: string,
+    adId: string,
+    favorited: boolean
+  ): Promise<{ action: 'added' | 'removed'; isFavorited: boolean }> => {
     const entity = await resolveEntity('AD', adId);
     if (!entity) throw new NotFoundError(NOT_FOUND_BY_TYPE.AD.message, NOT_FOUND_BY_TYPE.AD.code);
     const existing = await favoritesRepository.findByUserAndEntity(userId, 'AD', adId);
     if (favorited) {
       if (!existing) {
         let inserted = true;
-        try { await favoritesRepository.create(userId, 'AD', adId); }
-        catch (err) { if (isPrismaError(err, 'P2002')) inserted = false; else throw err; }
-        if (inserted) activityService.record({ userId, ...activityTemplates.favoriteAdded(TO_ACTIVITY_ENTITY_TYPE.AD, adId, entity.title) });
+        try {
+          await favoritesRepository.create(userId, 'AD', adId);
+        } catch (err) {
+          if (isPrismaError(err, 'P2002')) inserted = false;
+          else throw err;
+        }
+        if (inserted)
+          activityService.record({
+            userId,
+            ...activityTemplates.favoriteAdded(TO_ACTIVITY_ENTITY_TYPE.AD, adId, entity.title),
+          });
       }
       return { action: 'added', isFavorited: true };
     }
     if (existing) {
       let deleted = true;
-      try { await favoritesRepository.delete(userId, 'AD', adId); }
-      catch (err) { if (isPrismaError(err, 'P2025')) deleted = false; else throw err; }
-      if (deleted) activityService.record({ userId, ...activityTemplates.favoriteRemoved(TO_ACTIVITY_ENTITY_TYPE.AD, adId, entity.title) });
+      try {
+        await favoritesRepository.delete(userId, 'AD', adId);
+      } catch (err) {
+        if (isPrismaError(err, 'P2025')) deleted = false;
+        else throw err;
+      }
+      if (deleted)
+        activityService.record({
+          userId,
+          ...activityTemplates.favoriteRemoved(TO_ACTIVITY_ENTITY_TYPE.AD, adId, entity.title),
+        });
     }
     return { action: 'removed', isFavorited: false };
   },
@@ -228,7 +248,7 @@ export const favoritesService = {
     userId: string,
     entityType: FavoriteEntityType,
     entityId: string,
-    favorited: boolean,
+    favorited: boolean
   ): Promise<{ action: 'added' | 'removed'; isFavorited: boolean }> => {
     const entity = await resolveEntity(entityType, entityId);
     if (!entity) {
@@ -248,7 +268,11 @@ export const favoritesService = {
         if (inserted) {
           activityService.record({
             userId,
-            ...activityTemplates.favoriteAdded(TO_ACTIVITY_ENTITY_TYPE[entityType], entityId, entity.title),
+            ...activityTemplates.favoriteAdded(
+              TO_ACTIVITY_ENTITY_TYPE[entityType],
+              entityId,
+              entity.title
+            ),
           });
         }
       }
@@ -266,7 +290,11 @@ export const favoritesService = {
       if (deleted) {
         activityService.record({
           userId,
-          ...activityTemplates.favoriteRemoved(TO_ACTIVITY_ENTITY_TYPE[entityType], entityId, entity.title),
+          ...activityTemplates.favoriteRemoved(
+            TO_ACTIVITY_ENTITY_TYPE[entityType],
+            entityId,
+            entity.title
+          ),
         });
       }
     }

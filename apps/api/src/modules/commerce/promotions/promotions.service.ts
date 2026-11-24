@@ -39,7 +39,10 @@ const syncStatus = (promotion: Promotion, now: Date): Promotion => {
     promotionsRepository
       .update(promotion.id, { status: resolved })
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/commerce/promotions/promotions.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/commerce/promotions/promotions.service.ts',
+          error
+        )
       );
     return { ...promotion, status: resolved };
   }
@@ -110,7 +113,11 @@ const computeEffectivePrice = (product: Product, promotion: Promotion | null): E
 };
 
 export const promotionsService = {
-  createPromotion: async (userId: string, input: CreatePromotionInput, storeId?: string): Promise<Promotion> => {
+  createPromotion: async (
+    userId: string,
+    input: CreatePromotionInput,
+    storeId?: string
+  ): Promise<Promotion> => {
     const store = await requireStoreAccessForProducts(userId, 'managePromotions', storeId);
 
     const product = await productsRepository.findById(input.productId);

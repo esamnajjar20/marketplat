@@ -22,7 +22,10 @@ import { buildPaginationMeta } from '../../../shared/http/pagination';
 import { PaginatedResult } from '../../../shared/types/pagination.types';
 import { auditLog, AuditEvent } from '../../../shared/audit/auditLog';
 import { blockedUsersService } from '../../trust/blocked-users';
-import { hidePublicEntities, ALL_PUBLIC_LIST_NAMESPACES } from '../../../shared/cache/publicListCache';
+import {
+  hidePublicEntities,
+  ALL_PUBLIC_LIST_NAMESPACES,
+} from '../../../shared/cache/publicListCache';
 import { bumpAdsCacheHard } from '../../classifieds/ads/ads.cache.keys';
 
 export const sellersService = {

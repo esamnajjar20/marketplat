@@ -21,7 +21,7 @@ function StatTile({
   value,
   warn,
 }: {
-  icon: ComponentType<{ className?: string }>;  // eslint-disable-line
+  icon: ComponentType<{ className?: string }>;   
   label: string;
   value: string;
   warn?: boolean;

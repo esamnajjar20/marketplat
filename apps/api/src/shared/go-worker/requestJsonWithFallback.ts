@@ -50,7 +50,9 @@ export async function requestJsonWithGoFallback<TResult>(
           options.onGoSuccess?.(result);
           return result;
         }
-        logger.warn(`[${options.jobName}] Go worker returned an invalid response; using Express fallback`);
+        logger.warn(
+          `[${options.jobName}] Go worker returned an invalid response; using Express fallback`
+        );
       } else {
         logger.warn(`[${options.jobName}] Go worker returned a failure; using Express fallback`, {
           status: response.status,

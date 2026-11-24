@@ -46,36 +46,34 @@ export interface DistributedSemaphoreLease {
  */
 export async function acquireMediaUploadLease(): Promise<DistributedSemaphoreLease | null> {
   const token = randomUUID();
-  const acquired = Number(await redis.eval(
-    ACQUIRE_SCRIPT,
-    1,
-    MEDIA_UPLOAD_SEMAPHORE_KEY,
-    token,
-    Date.now(),
-    LEASE_MS,
-    MEDIA_UPLOAD_GLOBAL_CONCURRENCY,
-  ));
-
-  if (acquired !== 1) return null;
-
-  let released = false;
-  const heartbeat = setInterval(() => {
-    void redis.eval(
-      EXTEND_SCRIPT,
+  const acquired = Number(
+    await redis.eval(
+      ACQUIRE_SCRIPT,
       1,
       MEDIA_UPLOAD_SEMAPHORE_KEY,
       token,
       Date.now(),
       LEASE_MS,
-    ).then(result => {
-      if (Number(result) !== 1) {
-        logger.error('Distributed media upload lease was lost', { token });
-      }
-    }).catch(error => {
-      logger.error('Could not renew distributed media upload lease', {
-        error: error instanceof Error ? error.message : 'unknown Redis error',
+      MEDIA_UPLOAD_GLOBAL_CONCURRENCY
+    )
+  );
+
+  if (acquired !== 1) return null;
+
+  let released = false;
+  const heartbeat = setInterval(() => {
+    void redis
+      .eval(EXTEND_SCRIPT, 1, MEDIA_UPLOAD_SEMAPHORE_KEY, token, Date.now(), LEASE_MS)
+      .then(result => {
+        if (Number(result) !== 1) {
+          logger.error('Distributed media upload lease was lost', { token });
+        }
+      })
+      .catch(error => {
+        logger.error('Could not renew distributed media upload lease', {
+          error: error instanceof Error ? error.message : 'unknown Redis error',
+        });
       });
-    });
   }, HEARTBEAT_MS);
   heartbeat.unref();
 

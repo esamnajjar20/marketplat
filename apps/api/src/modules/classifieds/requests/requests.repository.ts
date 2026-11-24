@@ -248,7 +248,12 @@ export const requestOffersRepository = {
   create: (
     requestId: string,
     offererUserId: string,
-    data: { price: number; message?: string; meta?: Prisma.InputJsonValue; offlineOperationId?: string | null }
+    data: {
+      price: number;
+      message?: string;
+      meta?: Prisma.InputJsonValue;
+      offlineOperationId?: string | null;
+    }
   ): Promise<RequestOffer> =>
     prisma.requestOffer.create({
       data: {
@@ -263,7 +268,12 @@ export const requestOffersRepository = {
 
   update: (
     id: string,
-    data: { price: number; message?: string; meta?: Prisma.InputJsonValue; offlineOperationId?: string | null }
+    data: {
+      price: number;
+      message?: string;
+      meta?: Prisma.InputJsonValue;
+      offlineOperationId?: string | null;
+    }
   ): Promise<RequestOffer> =>
     prisma.requestOffer.update({
       where: { id },

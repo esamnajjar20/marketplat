@@ -11,7 +11,8 @@ import { getGoWorkerBaseUrl, getGoWorkerToken } from './goWorkerConfig';
 
 type StreamCsvWithFallbackOptions = {
   jobName: 'admin-users-csv' | 'admin-reports-csv' | 'seller-sales-csv';
-  path: '/internal/exports/users.csv' | '/internal/exports/reports.csv' | '/internal/exports/sales.csv';
+  path:
+    '/internal/exports/users.csv' | '/internal/exports/reports.csv' | '/internal/exports/sales.csv';
   filename: 'users.csv' | 'reports.csv' | 'sales-report.csv';
   query?: Record<string, string | undefined>;
   method?: 'GET' | 'POST';
@@ -64,9 +65,15 @@ export async function streamCsvWithGoFallback({
         method,
         redirect: 'error',
         headers: requestHeaders,
-        body: body ? JSON.stringify(Object.fromEntries(
-          Object.entries(body).filter((entry): entry is [string, string] => entry[1] !== undefined)
-        )) : undefined,
+        body: body
+          ? JSON.stringify(
+              Object.fromEntries(
+                Object.entries(body).filter(
+                  (entry): entry is [string, string] => entry[1] !== undefined
+                )
+              )
+            )
+          : undefined,
         signal: AbortSignal.timeout(timeoutMs),
       });
 

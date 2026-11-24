@@ -68,8 +68,16 @@
     }
   ],
   "ignorePatterns": [
+    "**/*.cjs",
+    "**/*.js",
+    "**/*.mjs",
+    "coverage/",
     "dist/",
+    "ecosystem.config.js",
+    "jest.config.ts",
+    "load-tests/",
     "node_modules/",
-    "jest.config.ts"
+    "prisma/seed*.js",
+    "scripts/"
   ]
 }

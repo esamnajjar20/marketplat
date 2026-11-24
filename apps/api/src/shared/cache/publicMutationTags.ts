@@ -5,13 +5,38 @@
  */
 const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 const RESERVED_SEGMENTS = new Set([
-  'me', 'search', 'featured', 'ranking', 'suggestions', 'categories',
-  'types', 'availability', 'nearby', 'stats', 'analytics', 'bulk',
+  'me',
+  'search',
+  'featured',
+  'ranking',
+  'suggestions',
+  'categories',
+  'types',
+  'availability',
+  'nearby',
+  'stats',
+  'analytics',
+  'bulk',
 ]);
 const NON_PUBLIC_CONTENT_ACTIONS = new Set([
-  'follow', 'unfollow', 'favorite', 'favorites', 'like', 'likes',
-  'view', 'views', 'click', 'clicks', 'impression', 'impressions',
-  'tracking', 'track', 'share', 'shares', 'members', 'memberships',
+  'follow',
+  'unfollow',
+  'favorite',
+  'favorites',
+  'like',
+  'likes',
+  'view',
+  'views',
+  'click',
+  'clicks',
+  'impression',
+  'impressions',
+  'tracking',
+  'track',
+  'share',
+  'shares',
+  'members',
+  'memberships',
   'member-invites',
 ]);
 const SAFE_ENTITY_ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -27,14 +52,31 @@ const TAGS_BY_RESOURCE: Record<string, readonly string[]> = {
   sales: ['route:public'],
   'store-types': ['route:store-types', 'route:stores', 'route:home', 'route:search'],
   'service-listings': ['route:service-listings', 'route:home', 'route:search'],
-  'service-providers': ['route:service-providers', 'route:service-listings', 'route:badges', 'route:home', 'route:search'],
-  'service-categories': ['route:service-categories', 'route:service-listings', 'route:home', 'route:search'],
+  'service-providers': [
+    'route:service-providers',
+    'route:service-listings',
+    'route:badges',
+    'route:home',
+    'route:search',
+  ],
+  'service-categories': [
+    'route:service-categories',
+    'route:service-listings',
+    'route:home',
+    'route:search',
+  ],
   'service-types': ['route:service-types', 'route:service-listings', 'route:home', 'route:search'],
   // The open public request feed is cached by the API Worker/D1 tier. Every
   // lifecycle mutation must invalidate it, including offer creation/acceptance.
   requests: ['route:requests'],
   categories: ['route:categories', 'route:ads', 'route:products', 'route:home', 'route:search'],
-  'product-categories': ['route:product-categories', 'route:products', 'route:ads', 'route:home', 'route:search'],
+  'product-categories': [
+    'route:product-categories',
+    'route:products',
+    'route:ads',
+    'route:home',
+    'route:search',
+  ],
 };
 
 const ENTITY_TAG_PREFIX_BY_RESOURCE: Record<string, string> = {
@@ -55,7 +97,12 @@ const ENTITY_TAG_PREFIX_BY_RESOURCE: Record<string, string> = {
  */
 export function publicMutationCacheTags(method: string, originalUrl: string): string[] {
   if (!MUTATION_METHODS.has(method.toUpperCase())) return [];
-  if (typeof originalUrl !== 'string' || !originalUrl.startsWith('/') || originalUrl.startsWith('//')) return [];
+  if (
+    typeof originalUrl !== 'string' ||
+    !originalUrl.startsWith('/') ||
+    originalUrl.startsWith('//')
+  )
+    return [];
 
   let segments: string[];
   try {
@@ -90,7 +137,7 @@ export function publicMutationCacheTags(method: string, originalUrl: string): st
   const trailingSegments = segments.slice(entityIndex + (candidateId ? 1 : 0));
   // User-specific counters, follows and member management do not alter the
   // public catalog. Avoid invalidating public lists for ordinary engagement.
-  if (trailingSegments.some((segment) => NON_PUBLIC_CONTENT_ACTIONS.has(segment.toLowerCase()))) {
+  if (trailingSegments.some(segment => NON_PUBLIC_CONTENT_ACTIONS.has(segment.toLowerCase()))) {
     return [];
   }
 

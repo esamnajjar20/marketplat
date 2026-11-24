@@ -51,7 +51,10 @@ async function deletePasswordResetBatch(tx: Prisma.TransactionClient, now: Date)
   return rows.length;
 }
 
-async function deleteEmailVerificationBatch(tx: Prisma.TransactionClient, now: Date): Promise<number> {
+async function deleteEmailVerificationBatch(
+  tx: Prisma.TransactionClient,
+  now: Date
+): Promise<number> {
   const rows = await tx.$queryRaw<{ id: string }[]>`
     WITH doomed AS (
       SELECT id
@@ -83,10 +86,13 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
     });
 
     if (!batch.acquired) {
-      logger.info('[auth-token-retention] Express fallback skipped because another runner owns the advisory lock', {
-        deleted,
-        batches,
-      });
+      logger.info(
+        '[auth-token-retention] Express fallback skipped because another runner owns the advisory lock',
+        {
+          deleted,
+          batches,
+        }
+      );
       return 'busy';
     }
 
@@ -99,7 +105,8 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
     if (
       batch.value.passwordResetCount < BATCH_SIZE &&
       batch.value.emailVerificationCount < BATCH_SIZE
-    ) break;
+    )
+      break;
   }
 
   logger.info('[auth-token-retention] Express fallback completed', {

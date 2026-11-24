@@ -19,13 +19,21 @@ type Result = {
 function isResult(value: unknown): value is Result {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const row = value as Record<string, unknown>;
-  const countKeys = ['candidatesScanned', 'eventsClaimed', 'notificationsCreated', 'pushDispatchesCreated'];
-  return row.lockAcquired === true &&
+  const countKeys = [
+    'candidatesScanned',
+    'eventsClaimed',
+    'notificationsCreated',
+    'pushDispatchesCreated',
+  ];
+  return (
+    row.lockAcquired === true &&
     countKeys.every(key => Number.isSafeInteger(row[key]) && (row[key] as number) >= 0) &&
     (row.eventsClaimed as number) === (row.notificationsCreated as number) &&
     (row.notificationsCreated as number) === (row.pushDispatchesCreated as number) &&
-    Array.isArray(row.notificationIds) && row.notificationIds.every(id => typeof id === 'string') &&
-    row.notificationIds.length === row.notificationsCreated;
+    Array.isArray(row.notificationIds) &&
+    row.notificationIds.every(id => typeof id === 'string') &&
+    row.notificationIds.length === row.notificationsCreated
+  );
 }
 
 async function publishCommittedNotifications(result: Result): Promise<void> {
@@ -50,7 +58,9 @@ async function main(): Promise<void> {
   });
 }
 
-main().catch(error => {
-  logger.error('[inventoryMonitor] scheduled run failed', { error });
-  process.exitCode = 1;
-}).finally(async () => prisma.$disconnect());
+main()
+  .catch(error => {
+    logger.error('[inventoryMonitor] scheduled run failed', { error });
+    process.exitCode = 1;
+  })
+  .finally(async () => prisma.$disconnect());

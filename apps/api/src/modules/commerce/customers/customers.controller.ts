@@ -26,7 +26,10 @@ export const customersController = {
       const user = requireUser(req);
       const { query } = listCustomersSchema.parse({ query: req.query });
       res.json(
-        successResponse('Customer overview fetched', await customersService.overview(user.userId, query))
+        successResponse(
+          'Customer overview fetched',
+          await customersService.overview(user.userId, query)
+        )
       );
     } catch (e) {
       next(e);

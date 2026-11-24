@@ -48,21 +48,27 @@ export function buildSalesReportCsvHeader(): string {
 }
 
 export function buildSalesReportCsvRows(rows: SalesReportCsvRow[]): string {
-  return rows.map(row => [
-    row.invoiceNumber,
-    row.soldAt.toISOString(),
-    row.buyerName,
-    row.storeName,
-    row.title,
-    row.quantity,
-    money(row.revenue),
-    money(row.cost),
-    money(row.profit),
-    money(row.paid),
-    money(row.due),
-    money(row.refunded),
-    row.status,
-  ].map(escapeCsvCell).join(',')).join('\n');
+  return rows
+    .map(row =>
+      [
+        row.invoiceNumber,
+        row.soldAt.toISOString(),
+        row.buyerName,
+        row.storeName,
+        row.title,
+        row.quantity,
+        money(row.revenue),
+        money(row.cost),
+        money(row.profit),
+        money(row.paid),
+        money(row.due),
+        money(row.refunded),
+        row.status,
+      ]
+        .map(escapeCsvCell)
+        .join(',')
+    )
+    .join('\n');
 }
 
 export function buildSalesReportCsv(rows: SalesReportCsvRow[]): string {

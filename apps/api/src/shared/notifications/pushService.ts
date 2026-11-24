@@ -314,7 +314,9 @@ export const pushService = {
     // whole function's own contract with ITS callers.
     void fcmPushService
       .notifyUser(userId, payload)
-      .catch(error => reportBackgroundFailure('apps/api/src/shared/notifications/pushService.ts', error));
+      .catch(error =>
+        reportBackgroundFailure('apps/api/src/shared/notifications/pushService.ts', error)
+      );
 
     // wraps the whole body (not just the per-subscription
     // sendNotification below, which already had its own try/catch) so

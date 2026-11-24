@@ -55,7 +55,11 @@ export const usersController = {
     }
   },
 
-  getProfileInteractionState: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getProfileInteractionState: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const viewer = requireUser(req);
       const { params } = getUserByIdSchema.parse({ params: req.params });

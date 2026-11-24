@@ -1,5 +1,8 @@
 import { reportBackgroundFailure } from '../../../shared/jobs/backgroundTask';
-import { bumpAdsCacheVersion, bumpAdsCacheVersionAndHome } from '../../classifieds/ads/ads.cache.keys';
+import {
+  bumpAdsCacheVersion,
+  bumpAdsCacheVersionAndHome,
+} from '../../classifieds/ads/ads.cache.keys';
 import { reportsRepository, ReportWithDetails } from './reports.repository';
 import { adsService } from '../../classifieds/ads/ads.service'; // A-01: use service facade, not repository
 import { usersService } from '../../identity/users'; // FEAT-REPORT-USER-STORE: target-exists check for USER reports

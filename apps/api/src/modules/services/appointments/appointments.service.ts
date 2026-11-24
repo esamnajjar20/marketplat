@@ -281,11 +281,8 @@ export const appointmentsService = {
       const recipient = isCustomer
         ? linkedRequest.listing.provider.sellerProfile.userId
         : linkedRequest.customerId;
-      const kind = status === 'CANCELLED'
-        ? 'cancelled'
-        : status === 'COMPLETED'
-          ? 'completed'
-          : 'no_show';
+      const kind =
+        status === 'CANCELLED' ? 'cancelled' : status === 'COMPLETED' ? 'completed' : 'no_show';
       notificationEvents
         .onAppointmentChanged(
           recipient,

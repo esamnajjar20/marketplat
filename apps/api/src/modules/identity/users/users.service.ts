@@ -5,7 +5,10 @@ import { UpdateProfileInput, UpdateNotificationPreferencesInput } from './users.
 import { NotFoundError } from '../../../shared/errors/NotFoundError';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { userCache } from '../../../shared/cache/userCache';
-import { getCachedUserProfile, getCachedUserProfileWithStatus } from '../../../shared/cache/userProfileCache';
+import {
+  getCachedUserProfile,
+  getCachedUserProfileWithStatus,
+} from '../../../shared/cache/userProfileCache';
 import { tokenStore } from '../../../shared/auth/tokenStore';
 import { getTokenRemainingTTL } from '../../../shared/auth/jwt';
 import { auditLog, AuditEvent } from '../../../shared/audit/auditLog';
@@ -464,8 +467,7 @@ export const usersService = {
       // Best-effort: delete the previous avatar now that the new one is saved.
       if (user.avatarUrl) {
         const oldPublicId = extractCloudinaryPublicId(user.avatarUrl);
-        if (oldPublicId)
-          await deleteCloudinaryAsset(oldPublicId, 'image');
+        if (oldPublicId) await deleteCloudinaryAsset(oldPublicId, 'image');
       }
 
       return updated;

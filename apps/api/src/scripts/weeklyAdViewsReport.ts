@@ -5,24 +5,38 @@ import { runWeeklyViewsExpressFallback } from '../shared/go-worker/scheduledJobF
 
 const LOCK_ID = 731904286n;
 
-type Result = { kind: 'ads'; notificationsCreated: number; baselinesAdvanced: number; ownersConsidered: number; runKey: string };
+type Result = {
+  kind: 'ads';
+  notificationsCreated: number;
+  baselinesAdvanced: number;
+  ownersConsidered: number;
+  runKey: string;
+};
 const isResult = (value: unknown): value is Result => {
   if (!value || typeof value !== 'object') return false;
   const row = value as Record<string, unknown>;
-  return row.kind === 'ads' && Number.isSafeInteger(row.notificationsCreated) &&
-    Number.isSafeInteger(row.baselinesAdvanced) && Number.isSafeInteger(row.ownersConsidered) &&
-    typeof row.runKey === 'string';
+  return (
+    row.kind === 'ads' &&
+    Number.isSafeInteger(row.notificationsCreated) &&
+    Number.isSafeInteger(row.baselinesAdvanced) &&
+    Number.isSafeInteger(row.ownersConsidered) &&
+    typeof row.runKey === 'string'
+  );
 };
 
 async function main(): Promise<void> {
   await executeTransactionalJobWithGoFallback(prisma, {
-    jobName: 'weekly-ad-views', path: '/internal/jobs/weekly-ad-views', lockId: LOCK_ID,
+    jobName: 'weekly-ad-views',
+    path: '/internal/jobs/weekly-ad-views',
+    lockId: LOCK_ID,
     validateResult: isResult,
     runExpressFallback: tx => runWeeklyViewsExpressFallback(tx, 'ads'),
   });
 }
 
-main().catch(error => {
-  logger.error('[weeklyAdViewsReport] run failed', { error });
-  process.exitCode = 1;
-}).finally(async () => prisma.$disconnect());
+main()
+  .catch(error => {
+    logger.error('[weeklyAdViewsReport] run failed', { error });
+    process.exitCode = 1;
+  })
+  .finally(async () => prisma.$disconnect());

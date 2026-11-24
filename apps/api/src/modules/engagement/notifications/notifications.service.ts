@@ -492,7 +492,10 @@ async function fanOutSameContentNotification(
       ...(pushImage ? { image: pushImage } : {}),
     })
     .catch(error =>
-      reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+      reportBackgroundFailure(
+        'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+        error
+      )
     );
   return notificationsRepository.createMany(
     recipients.map(userId => ({ userId, type, title, body, data }))
@@ -574,28 +577,33 @@ export const notificationEvents = {
       },
     ] as const;
 
-    const results = await Promise.allSettled(events.map(async event => {
-      if (!(await userAllowsPref(event.userId, 'storeUpdates'))) return;
-      const data = { orderId: input.orderId, status: 'PENDING', event: event.event };
-      await notificationsRepository.create({
-        userId: event.userId,
-        type: event.type,
-        title: event.title,
-        body: event.body,
-        data,
-      });
-      void pushService
-        .notifyUser(event.userId, {
+    const results = await Promise.allSettled(
+      events.map(async event => {
+        if (!(await userAllowsPref(event.userId, 'storeUpdates'))) return;
+        const data = { orderId: input.orderId, status: 'PENDING', event: event.event };
+        await notificationsRepository.create({
+          userId: event.userId,
+          type: event.type,
           title: event.title,
           body: event.body,
-          url: `/orders/${input.orderId}`,
-          tag: `marketplace-order-${input.orderId}-${event.event.toLowerCase()}`,
-          type: event.type,
-        })
-        .catch(error =>
-          reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
-        );
-    }));
+          data,
+        });
+        void pushService
+          .notifyUser(event.userId, {
+            title: event.title,
+            body: event.body,
+            url: `/orders/${input.orderId}`,
+            tag: `marketplace-order-${input.orderId}-${event.event.toLowerCase()}`,
+            type: event.type,
+          })
+          .catch(error =>
+            reportBackgroundFailure(
+              'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+              error
+            )
+          );
+      })
+    );
     for (const result of results) {
       if (result.status === 'rejected') {
         reportBackgroundFailure(
@@ -624,14 +632,23 @@ export const notificationEvents = {
       DELIVERED: { title: 'تم تسليم الطلب', label: 'تم تسليم الطلب' },
       CANCELLED: { title: 'تم إلغاء الطلب', label: 'تم إلغاء الطلب' },
     };
-    const copy = statusCopy[input.status] ?? { title: 'تحديث طلب الشراء', label: 'تم تحديث حالة الطلب' };
+    const copy = statusCopy[input.status] ?? {
+      title: 'تحديث طلب الشراء',
+      label: 'تم تحديث حالة الطلب',
+    };
     const buyerIsRecipient = recipientId === input.buyerId;
     const body = buyerIsRecipient
       ? `${copy.label} لدى متجر "${input.storeName}". افتح تفاصيل الطلب لمتابعته.`
       : `${copy.label} رقم ${input.orderId}. افتح تفاصيل الطلب لمراجعته.`;
     const data = { orderId: input.orderId, status: input.status, event: input.status };
     const type = NotificationType.MARKETPLACE_ORDER_UPDATE;
-    await notificationsRepository.create({ userId: recipientId, type, title: copy.title, body, data });
+    await notificationsRepository.create({
+      userId: recipientId,
+      type,
+      title: copy.title,
+      body,
+      data,
+    });
     void pushService
       .notifyUser(recipientId, {
         title: copy.title,
@@ -641,7 +658,10 @@ export const notificationEvents = {
         type,
       })
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
       );
   },
   /** Seller-facing lifecycle warning, emitted once per ad. */
@@ -664,7 +684,10 @@ export const notificationEvents = {
         type: 'AD_EXPIRING_SOON',
       })
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
       );
   },
 
@@ -683,7 +706,10 @@ export const notificationEvents = {
         type: 'AD_EXPIRED',
       })
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
       );
   },
 
@@ -717,7 +743,10 @@ export const notificationEvents = {
         type: 'MODERATION_REPORT_RECEIVED',
       })
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
       );
     return notificationsRepository.createMany(
       userIds.map(userId => ({
@@ -759,7 +788,10 @@ export const notificationEvents = {
         type: 'MODERATION_DECISION',
       })
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
       );
     return notificationsRepository.createMany(
       input.userIds.map(userId => ({
@@ -841,7 +873,10 @@ export const notificationEvents = {
         type: 'NEW_MESSAGE',
       })
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
       );
     return row;
   },
@@ -980,7 +1015,10 @@ export const notificationEvents = {
         })
       )
     ).catch(error =>
-      reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+      reportBackgroundFailure(
+        'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+        error
+      )
     );
     return notificationsRepository.createMany(
       matches.map(({ userId, savedSearchId, label }) => ({
@@ -1091,7 +1129,10 @@ export const notificationEvents = {
         type: 'STORE_MEMBER_INVITED',
       })
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
       );
     return notificationsRepository.create({
       userId: targetUserId,
@@ -1122,7 +1163,10 @@ export const notificationEvents = {
         type: 'NEW_REQUEST_OFFER',
       })
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
       );
     return notificationsRepository.create({
       userId: customerId,
@@ -1152,7 +1196,10 @@ export const notificationEvents = {
         type: 'REQUEST_OFFER_ACCEPTED',
       })
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
       );
     return notificationsRepository.create({
       userId: offererUserId,
@@ -1185,7 +1232,10 @@ export const notificationEvents = {
         type: 'SERVICE_REQUEST_NEW',
       })
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
       );
     return notificationsRepository.create({
       userId: providerUserId,
@@ -1220,7 +1270,10 @@ export const notificationEvents = {
         type: 'SERVICE_REQUEST_UPDATE',
       })
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
       );
     return notificationsRepository.create({
       userId: recipientUserId,
@@ -1254,7 +1307,10 @@ export const notificationEvents = {
         type: 'SERVICE_REQUEST_UPDATE',
       })
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
       );
     return notificationsRepository.create({
       userId: customerUserId,
@@ -1281,20 +1337,43 @@ export const notificationEvents = {
     const copyByRole = {
       customer: {
         booked: { title: 'تم حجز موعد', body: `تم تحديد موعد لطلبك "${listingTitle}" — ${when}` },
-        cancelled: { title: 'تم إلغاء الموعد', body: `أُلغي الموعد المحدد لطلبك "${listingTitle}" (${when})` },
-        completed: { title: 'اكتمل الموعد', body: `أكد مقدم الخدمة إتمام موعد طلبك "${listingTitle}" (${when})` },
-        no_show: { title: 'تم تسجيل عدم الحضور', body: `سجّل مقدم الخدمة عدم حضورك لموعد "${listingTitle}" (${when})` },
+        cancelled: {
+          title: 'تم إلغاء الموعد',
+          body: `أُلغي الموعد المحدد لطلبك "${listingTitle}" (${when})`,
+        },
+        completed: {
+          title: 'اكتمل الموعد',
+          body: `أكد مقدم الخدمة إتمام موعد طلبك "${listingTitle}" (${when})`,
+        },
+        no_show: {
+          title: 'تم تسجيل عدم الحضور',
+          body: `سجّل مقدم الخدمة عدم حضورك لموعد "${listingTitle}" (${when})`,
+        },
       },
       provider: {
-        booked: { title: 'حجز العميل موعدًا', body: `حدد العميل موعدًا لطلب الخدمة "${listingTitle}" — ${when}` },
-        cancelled: { title: 'ألغى العميل الموعد', body: `ألغى العميل الموعد المرتبط بطلب الخدمة "${listingTitle}" (${when})` },
-        completed: { title: 'تم تحديث الموعد', body: `تم تحديث موعد الخدمة "${listingTitle}" إلى مكتمل (${when})` },
-        no_show: { title: 'تم تسجيل عدم الحضور', body: `تم تسجيل عدم حضور العميل لموعد "${listingTitle}" (${when})` },
+        booked: {
+          title: 'حجز العميل موعدًا',
+          body: `حدد العميل موعدًا لطلب الخدمة "${listingTitle}" — ${when}`,
+        },
+        cancelled: {
+          title: 'ألغى العميل الموعد',
+          body: `ألغى العميل الموعد المرتبط بطلب الخدمة "${listingTitle}" (${when})`,
+        },
+        completed: {
+          title: 'تم تحديث الموعد',
+          body: `تم تحديث موعد الخدمة "${listingTitle}" إلى مكتمل (${when})`,
+        },
+        no_show: {
+          title: 'تم تسجيل عدم الحضور',
+          body: `تم تسجيل عدم حضور العميل لموعد "${listingTitle}" (${when})`,
+        },
       },
     } as const;
     const copy = copyByRole[recipientRole][kind];
     const { title, body } = copy;
-    const eventTag = appointmentId ? `appointment-${appointmentId}-${kind}` : `service-request-${requestId}-${kind}`;
+    const eventTag = appointmentId
+      ? `appointment-${appointmentId}-${kind}`
+      : `service-request-${requestId}-${kind}`;
     void pushService
       .notifyUser(recipientUserId, {
         title,
@@ -1304,7 +1383,10 @@ export const notificationEvents = {
         type: 'APPOINTMENT_UPDATE',
       })
       .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
       );
     return notificationsRepository.create({
       userId: recipientUserId,

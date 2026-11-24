@@ -19,21 +19,24 @@ const WEEKLY_CONFIG = {
     title: 'تقرير مشاهدات إعلاناتك الأسبوعي',
     singular: 'حصل إعلانك على مشاهدة جديدة هذا الأسبوع',
     plural: (n: number) => `حصلت إعلاناتك على ${n} مشاهدة جديدة هذا الأسبوع`,
-    url: '/dashboard', tag: 'weekly-ad-views-report',
+    url: '/dashboard',
+    tag: 'weekly-ad-views-report',
   },
   stores: {
     type: 'WEEKLY_STORE_VIEWS_REPORT',
     title: 'تقرير مشاهدات متجرك الأسبوعي',
     singular: 'حصل متجرك على مشاهدة جديدة هذا الأسبوع',
     plural: (n: number) => `حصل متجرك على ${n} مشاهدة جديدة هذا الأسبوع`,
-    url: '/my-store?tab=analytics', tag: 'weekly-store-views-report',
+    url: '/my-store?tab=analytics',
+    tag: 'weekly-store-views-report',
   },
   services: {
     type: 'WEEKLY_SERVICE_VIEWS_REPORT',
     title: 'تقرير مشاهدات خدماتك الأسبوعي',
     singular: 'حصلت خدماتك على مشاهدة جديدة هذا الأسبوع',
     plural: (n: number) => `حصلت خدماتك على ${n} مشاهدة جديدة هذا الأسبوع`,
-    url: '/my-services?tab=analytics', tag: 'weekly-service-views-report',
+    url: '/my-services?tab=analytics',
+    tag: 'weekly-service-views-report',
   },
 } as const;
 
@@ -114,11 +117,12 @@ export async function runWeeklyViewsExpressFallback(
     const totalDelta = Number(row.totalDelta);
     if (totalDelta <= 0 || row.entityIds.length !== row.viewSnapshots.length) continue;
     const body = totalDelta === 1 ? config.singular : config.plural(totalDelta);
-    const data = kind === 'ads'
-      ? { totalDelta, adCount: Number(row.itemCount) }
-      : kind === 'stores'
-        ? { totalDelta, storeId: row.entityId }
-        : { totalDelta, providerId: row.entityId };
+    const data =
+      kind === 'ads'
+        ? { totalDelta, adCount: Number(row.itemCount) }
+        : kind === 'stores'
+          ? { totalDelta, storeId: row.entityId }
+          : { totalDelta, providerId: row.entityId };
     const created = await createNotificationAndDispatch(tx, {
       userId: row.userId,
       type: config.type,
@@ -205,7 +209,8 @@ export async function runSalesNotificationExpressFallback(
   const rows: Array<Record<string, unknown>> = [];
 
   if (job === 'daily-reminder') {
-    rows.push(...await tx.$queryRaw<Array<Record<string, unknown>>>`
+    rows.push(
+      ...(await tx.$queryRaw<Array<Record<string, unknown>>>`
       SELECT u."id" AS "userId", 'لم تسجّل مبيعات اليوم'::text AS "title",
         'لم تسجّل مبيعة اليوم. هل تريد تسجيل عملية بيع الآن؟'::text AS "body",
         ('marketplat:sales-daily:' || ${dayStart.toISOString().slice(0, 10)} || ':' || u."id") AS "idempotencyKey"
@@ -216,9 +221,11 @@ export async function runSalesNotificationExpressFallback(
           AND sr."soldAt" >= ${dayStart} AND sr."soldAt" < ${dayEnd})
         AND NOT EXISTS (SELECT 1 FROM "notifications" n WHERE n."userId" = u."id"
           AND n."type" = 'SALES_DAILY_REMINDER' AND n."title" = 'لم تسجّل مبيعات اليوم' AND n."createdAt" >= ${dayStart})
-    `);
+    `)
+    );
   } else if (job === 'debt-reminder') {
-    rows.push(...await tx.$queryRaw<Array<Record<string, unknown>>>`
+    rows.push(
+      ...(await tx.$queryRaw<Array<Record<string, unknown>>>`
       WITH limited AS (
         SELECT sr."id", sr."sellerId", sr."buyerName", sr."dueAmount", sr."customerId", sr."dueDate"
         FROM "sale_records" sr WHERE sr."dueAmount" > 0 AND sr."dueDate" < ${new Date(now.getTime() - 30 * 86400000)}
@@ -236,9 +243,11 @@ export async function runSalesNotificationExpressFallback(
         CASE WHEN "customerId" IS NULL THEN NULL ELSE jsonb_build_object('customerId', "customerId") END AS "data",
         ('marketplat:sales-debt:' || ${weekStart.toISOString().slice(0, 10)} || ':' || "sellerId") AS "idempotencyKey"
       FROM chosen
-    `);
+    `)
+    );
   } else if (job === 'overdue-installments') {
-    rows.push(...await tx.$queryRaw<Array<Record<string, unknown>>>`
+    rows.push(
+      ...(await tx.$queryRaw<Array<Record<string, unknown>>>`
       WITH limited AS (
         SELECT si."id" AS "installmentId", si."saleId", si."installmentNo", si."dueDate",
           sr."sellerId", sr."buyerName", sr."invoiceNumber"
@@ -259,9 +268,11 @@ export async function runSalesNotificationExpressFallback(
         jsonb_build_object('installmentId', "installmentId", 'saleId', "saleId") AS "data",
         ('marketplat:sales-overdue-installment:' || ${dayStart.toISOString().slice(0, 10)} || ':' || "sellerId") AS "idempotencyKey"
       FROM chosen
-    `);
+    `)
+    );
   } else {
-    rows.push(...await tx.$queryRaw<Array<Record<string, unknown>>>`
+    rows.push(
+      ...(await tx.$queryRaw<Array<Record<string, unknown>>>`
       WITH totals AS (
         SELECT sr."sellerId", COUNT(*)::bigint AS sale_count,
           COALESCE(SUM(sr."totalPrice" - sr."refundedAmount"), 0)::numeric AS revenue
@@ -276,19 +287,28 @@ export async function runSalesNotificationExpressFallback(
       WHERE COALESCE((u."notificationPreferences" ->> 'weeklySalesReport')::boolean, TRUE) = TRUE
         AND NOT EXISTS (SELECT 1 FROM "notifications" n WHERE n."userId" = t."sellerId"
           AND n."type" = 'SALES_WEEKLY_REPORT' AND n."title" = 'تقرير مبيعاتك الأسبوعي' AND n."createdAt" >= ${dayStart})
-    `);
+    `)
+    );
   }
 
   let notificationsCreated = 0;
   for (const row of rows) {
     const created = await createNotificationAndDispatch(tx, {
       userId: String(row.userId),
-      type: job === 'daily-reminder' ? 'SALES_DAILY_REMINDER'
-        : job === 'debt-reminder' ? 'SALES_DEBT_REMINDER'
-          : job === 'overdue-installments' ? 'SALES_OVERDUE_INSTALLMENT' : 'SALES_WEEKLY_REPORT',
+      type:
+        job === 'daily-reminder'
+          ? 'SALES_DAILY_REMINDER'
+          : job === 'debt-reminder'
+            ? 'SALES_DEBT_REMINDER'
+            : job === 'overdue-installments'
+              ? 'SALES_OVERDUE_INSTALLMENT'
+              : 'SALES_WEEKLY_REPORT',
       title: String(row.title),
       body: String(row.body),
-      data: row.data && typeof row.data === 'object' ? row.data as Record<string, unknown> : undefined,
+      data:
+        row.data && typeof row.data === 'object'
+          ? (row.data as Record<string, unknown>)
+          : undefined,
       idempotencyKey: String(row.idempotencyKey),
       url: '/account/sales',
     });
@@ -316,13 +336,15 @@ export type InventoryMonitorBatchResult = {
 export async function runInventoryMonitorExpressFallback(
   tx: Prisma.TransactionClient
 ): Promise<InventoryMonitorBatchResult> {
-  const rows = await tx.$queryRaw<Array<{
-    candidatesScanned: bigint;
-    eventsClaimed: bigint;
-    notificationsCreated: bigint;
-    pushDispatchesCreated: bigint;
-    notificationIdsJson: string;
-  }>>`
+  const rows = await tx.$queryRaw<
+    Array<{
+      candidatesScanned: bigint;
+      eventsClaimed: bigint;
+      notificationsCreated: bigint;
+      pushDispatchesCreated: bigint;
+      notificationIdsJson: string;
+    }>
+  >`
     WITH candidates AS MATERIALIZED (
       SELECT p."id" AS "productId", p."name" AS "productName",
         p."stockQuantity" AS "stockQuantity", sp."userId" AS "userId"
@@ -396,14 +418,25 @@ export async function runInventoryMonitorExpressFallback(
   const eventsClaimed = Number(row.eventsClaimed);
   const notificationsCreated = Number(row.notificationsCreated);
   const pushDispatchesCreated = Number(row.pushDispatchesCreated);
-  if (![candidatesScanned, eventsClaimed, notificationsCreated, pushDispatchesCreated].every(Number.isSafeInteger) ||
-    candidatesScanned < 0 || eventsClaimed < 0 || notificationsCreated < 0 || pushDispatchesCreated < 0 ||
-    eventsClaimed !== notificationsCreated || notificationsCreated !== pushDispatchesCreated) {
+  if (
+    ![candidatesScanned, eventsClaimed, notificationsCreated, pushDispatchesCreated].every(
+      Number.isSafeInteger
+    ) ||
+    candidatesScanned < 0 ||
+    eventsClaimed < 0 ||
+    notificationsCreated < 0 ||
+    pushDispatchesCreated < 0 ||
+    eventsClaimed !== notificationsCreated ||
+    notificationsCreated !== pushDispatchesCreated
+  ) {
     throw new Error('inventory monitor fallback produced inconsistent counters');
   }
   const notificationIds: unknown = JSON.parse(row.notificationIdsJson);
-  if (!Array.isArray(notificationIds) || notificationIds.some(id => typeof id !== 'string') ||
-    notificationIds.length !== notificationsCreated) {
+  if (
+    !Array.isArray(notificationIds) ||
+    notificationIds.some(id => typeof id !== 'string') ||
+    notificationIds.length !== notificationsCreated
+  ) {
     throw new Error('inventory monitor fallback returned invalid notification IDs');
   }
   return {

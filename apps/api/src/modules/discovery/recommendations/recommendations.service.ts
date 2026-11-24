@@ -11,7 +11,10 @@ import { adsService } from '../../classifieds/ads/ads.service';
 import { productsService } from '../../commerce/products/products.service';
 import { serviceListingsService } from '../../services/service-listings/service-listings.service';
 import { AdListRow } from '../../classifieds/ads/ads.repository';
-import { ProductWithStore, ProductWithStoreLite } from '../../commerce/products/products.repository';
+import {
+  ProductWithStore,
+  ProductWithStoreLite,
+} from '../../commerce/products/products.repository';
 import { ServiceListingWithProvider } from '../../services/service-listings/service-listings.repository';
 import { StoreWithSeller } from '../../commerce/stores/stores.repository';
 import { verifyAccessToken } from '../../../shared/auth/jwt';

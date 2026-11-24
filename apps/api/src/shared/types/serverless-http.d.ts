@@ -8,7 +8,10 @@ declare module 'serverless-http' {
   }
 
   interface ServerlessHandler {
-    (event: Record<string, unknown>, context?: Record<string, unknown>): Promise<{
+    (
+      event: Record<string, unknown>,
+      context?: Record<string, unknown>
+    ): Promise<{
       statusCode?: number;
       headers?: Record<string, string | number | string[] | undefined>;
       body?: string;

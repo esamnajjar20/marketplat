@@ -233,7 +233,9 @@ export const productsRepository = {
       // concurrent adjustments both record the same stale previous quantity.
       const lockedRows = await tx.$queryRaw<
         Array<{ id: string; storeId: string; stockQuantity: number | null; status: string }>
-      >(Prisma.sql`SELECT "id", "storeId", "stockQuantity", "status" FROM "products" WHERE "id" = ${id} FOR UPDATE`);
+      >(
+        Prisma.sql`SELECT "id", "storeId", "stockQuantity", "status" FROM "products" WHERE "id" = ${id} FOR UPDATE`
+      );
       const current = lockedRows[0];
       if (!current || current.storeId !== storeId || current.status === 'DELETED')
         throw new Error('PRODUCT_NOT_FOUND');
@@ -247,17 +249,24 @@ export const productsRepository = {
       const finalPrice = data.price ?? Number(currentProduct.price);
       const finalDiscountPrice =
         data.discountPrice === undefined
-          ? currentProduct.discountPrice == null ? null : Number(currentProduct.discountPrice)
+          ? currentProduct.discountPrice == null
+            ? null
+            : Number(currentProduct.discountPrice)
           : data.discountPrice;
       const finalWholesalePrice =
         data.wholesalePrice === undefined
-          ? currentProduct.wholesalePrice == null ? null : Number(currentProduct.wholesalePrice)
+          ? currentProduct.wholesalePrice == null
+            ? null
+            : Number(currentProduct.wholesalePrice)
           : data.wholesalePrice;
       const finalWholesaleMinQty =
         data.wholesaleMinQty === undefined ? currentProduct.wholesaleMinQty : data.wholesaleMinQty;
 
       if (finalDiscountPrice !== null && finalDiscountPrice >= finalPrice) {
-        throw new BadRequestError('discountPrice must be less than price', 'INVALID_DISCOUNT_PRICE');
+        throw new BadRequestError(
+          'discountPrice must be less than price',
+          'INVALID_DISCOUNT_PRICE'
+        );
       }
       if ((finalWholesalePrice !== null) !== (finalWholesaleMinQty !== null)) {
         throw new BadRequestError(
@@ -292,19 +301,21 @@ export const productsRepository = {
     // Keep the stock totals and diagnostic counters on one database snapshot.
     // A movement mismatch is reported only when a movement exists; products
     // predating the movement ledger are not falsely marked as corrupt.
-    const [summary] = await prisma.$queryRaw<Array<{
-      totalProducts: bigint;
-      trackedProducts: bigint;
-      inStock: bigint;
-      limited: bigint;
-      outOfStock: bigint;
-      totalUnits: bigint;
-      lowStockTrackedProducts: bigint;
-      zeroStockTrackedProducts: bigint;
-      negativeStockProducts: bigint;
-      availabilityMismatchProducts: bigint;
-      movementMismatchProducts: bigint;
-    }>>`
+    const [summary] = await prisma.$queryRaw<
+      Array<{
+        totalProducts: bigint;
+        trackedProducts: bigint;
+        inStock: bigint;
+        limited: bigint;
+        outOfStock: bigint;
+        totalUnits: bigint;
+        lowStockTrackedProducts: bigint;
+        zeroStockTrackedProducts: bigint;
+        negativeStockProducts: bigint;
+        availabilityMismatchProducts: bigint;
+        movementMismatchProducts: bigint;
+      }>
+    >`
       WITH scoped_products AS MATERIALIZED (
         SELECT p."id", p."stockQuantity", p."availability"
         FROM "products" p

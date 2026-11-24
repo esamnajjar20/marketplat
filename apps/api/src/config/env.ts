@@ -283,14 +283,18 @@ const envSchema = z.object({
   // Cloudflare Worker and this API service. Blank values disable this target.
   NEXT_CACHE_REVALIDATION_URL: z.preprocess(
     value => (typeof value === 'string' ? value.trim() || undefined : value),
-    z.string().url().refine(
-      value => new URL(value).protocol === 'https:',
-      'NEXT_CACHE_REVALIDATION_URL must use HTTPS',
-    ).optional(),
+    z
+      .string()
+      .url()
+      .refine(
+        value => new URL(value).protocol === 'https:',
+        'NEXT_CACHE_REVALIDATION_URL must use HTTPS'
+      )
+      .optional()
   ),
   NEXT_CACHE_REVALIDATION_SECRET: z.preprocess(
     value => (typeof value === 'string' ? value.trim() || undefined : value),
-    z.string().min(32).optional(),
+    z.string().min(32).optional()
   ),
   // previously there was no cap on how many active ads
   // a single user could have simultaneously. Combined with no per-user
@@ -317,11 +321,11 @@ const envSchema = z.object({
   // simulator continue to boot normally.
   USER_SIMULATOR_RUNNER_URL: z.preprocess(
     value => (typeof value === 'string' ? value.trim() || undefined : value),
-    z.string().url().optional(),
+    z.string().url().optional()
   ),
   USER_SIMULATOR_RUNNER_TOKEN: z.preprocess(
     value => (typeof value === 'string' ? value.trim() || undefined : value),
-    z.string().min(32).optional(),
+    z.string().min(32).optional()
   ),
   SENTRY_DSN: z.string().url().optional(),
   SENTRY_TRACES_SAMPLE_RATE: z
@@ -486,7 +490,8 @@ const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['USER_SIMULATOR_RUNNER_URL'],
-      message: 'USER_SIMULATOR_RUNNER_URL and USER_SIMULATOR_RUNNER_TOKEN must be configured together',
+      message:
+        'USER_SIMULATOR_RUNNER_URL and USER_SIMULATOR_RUNNER_TOKEN must be configured together',
     });
   }
   if (data.NODE_ENV === 'production' && data.USER_SIMULATOR_RUNNER_URL) {
@@ -534,7 +539,9 @@ const envSchemaWithRedisCheck = envSchema.superRefine((data, ctx) => {
         data.REDIS_RATE_LIMIT_URL,
         data.REDIS_QUEUE_URL,
         data.REDIS_BUFFER_URL,
-      ].filter((value): value is string => Boolean(value)).map(redisServerIdentityFromUrl),
+      ]
+        .filter((value): value is string => Boolean(value))
+        .map(redisServerIdentityFromUrl),
     ];
     if (statefulRedisServers.includes(cacheServerIdentity)) {
       ctx.addIssue({
@@ -945,7 +952,10 @@ export const env = {
         (_env.EDGE_WORKER_PURGE_TOKEN ?? '').trim().length >= 32
       ) ||
         Boolean((_env.CF_PURGE_ZONE_ID ?? '').trim() && (_env.CF_PURGE_API_TOKEN ?? '').trim()) ||
-        Boolean((_env.NEXT_CACHE_REVALIDATION_URL ?? '').trim() && (_env.NEXT_CACHE_REVALIDATION_SECRET ?? '').trim())),
+        Boolean(
+          (_env.NEXT_CACHE_REVALIDATION_URL ?? '').trim() &&
+          (_env.NEXT_CACHE_REVALIDATION_SECRET ?? '').trim()
+        )),
   },
   ads: {
     maxPerUser: parseInt(_env.MAX_ADS_PER_USER, 10),

@@ -60,7 +60,9 @@ const performCheck = async (): Promise<HealthStatus> => {
   try {
     const [dbOk, redisChecks] = await Promise.all([
       checkOkWithTimeout(() => prisma.$queryRaw`SELECT 1`),
-      Promise.all(criticalRedisServiceClients.map(client => checkOkWithTimeout(() => client.ping()))),
+      Promise.all(
+        criticalRedisServiceClients.map(client => checkOkWithTimeout(() => client.ping()))
+      ),
     ]);
     const redisOk = redisChecks.every(Boolean);
 

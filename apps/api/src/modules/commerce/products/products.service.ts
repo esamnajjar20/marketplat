@@ -78,15 +78,22 @@ export type ProductWithEffectivePrice<T> = T & { effectivePrice: EffectivePrice 
  * never send private account holder names or account numbers to anonymous
  * clients. Keep only the display-safe id/kind/label fields in public payloads.
  */
-function sanitizePublicProductPaymentMethods<T extends { store: { sellerProfile: { paymentMethods?: unknown } | null } | null }>(product: T): T {
+function sanitizePublicProductPaymentMethods<
+  T extends { store: { sellerProfile: { paymentMethods?: unknown } | null } | null },
+>(product: T): T {
   if (!product.store) return product;
   const profile = product.store.sellerProfile;
   if (!profile) return product;
   const methods = Array.isArray(profile.paymentMethods)
-    ? profile.paymentMethods.flatMap((value) => {
+    ? profile.paymentMethods.flatMap(value => {
         if (!value || typeof value !== 'object' || Array.isArray(value)) return [];
         const row = value as Record<string, unknown>;
-        if (typeof row.id !== 'string' || typeof row.kind !== 'string' || typeof row.label !== 'string') return [];
+        if (
+          typeof row.id !== 'string' ||
+          typeof row.kind !== 'string' ||
+          typeof row.label !== 'string'
+        )
+          return [];
         return [{ id: row.id, kind: row.kind, label: row.label }];
       })
     : [];
@@ -284,7 +291,10 @@ export const productsService = {
           notificationEvents.onStoreNewProduct(followerIds, store.id, store.name, product.name)
         )
         .catch(error =>
-          reportBackgroundFailure('apps/api/src/modules/commerce/products/products.service.ts', error)
+          reportBackgroundFailure(
+            'apps/api/src/modules/commerce/products/products.service.ts',
+            error
+          )
         );
 
       void followsService
@@ -301,7 +311,10 @@ export const productsService = {
           }
         )
         .catch(error =>
-          reportBackgroundFailure('apps/api/src/modules/commerce/products/products.service.ts', error)
+          reportBackgroundFailure(
+            'apps/api/src/modules/commerce/products/products.service.ts',
+            error
+          )
         );
 
       // PLATFORM-WIDE-01: notify saved-search owners (type 'products')
@@ -336,7 +349,10 @@ export const productsService = {
           categoryId: product.categoryId,
         })
         .catch(error =>
-          reportBackgroundFailure('apps/api/src/modules/commerce/products/products.service.ts', error)
+          reportBackgroundFailure(
+            'apps/api/src/modules/commerce/products/products.service.ts',
+            error
+          )
         );
     }
 
@@ -574,7 +590,10 @@ export const productsService = {
           )
         )
         .catch(error =>
-          reportBackgroundFailure('apps/api/src/modules/commerce/products/products.service.ts', error)
+          reportBackgroundFailure(
+            'apps/api/src/modules/commerce/products/products.service.ts',
+            error
+          )
         );
     }
 
@@ -621,7 +640,10 @@ export const productsService = {
           )
         )
         .catch(error =>
-          reportBackgroundFailure('apps/api/src/modules/commerce/products/products.service.ts', error)
+          reportBackgroundFailure(
+            'apps/api/src/modules/commerce/products/products.service.ts',
+            error
+          )
         );
     }
 
@@ -634,17 +656,30 @@ export const productsService = {
       if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
       const row = value as Record<string, unknown>;
       const countKeys = [
-        'totalProducts', 'trackedProducts', 'untrackedProducts', 'inStock', 'limited', 'outOfStock',
-        'lowStockTrackedProducts', 'zeroStockTrackedProducts', 'negativeStockProducts',
-        'availabilityMismatchProducts', 'movementMismatchProducts',
+        'totalProducts',
+        'trackedProducts',
+        'untrackedProducts',
+        'inStock',
+        'limited',
+        'outOfStock',
+        'lowStockTrackedProducts',
+        'zeroStockTrackedProducts',
+        'negativeStockProducts',
+        'availabilityMismatchProducts',
+        'movementMismatchProducts',
       ];
-      if (!countKeys.every(key => Number.isSafeInteger(row[key]) && (row[key] as number) >= 0)) return false;
+      if (!countKeys.every(key => Number.isSafeInteger(row[key]) && (row[key] as number) >= 0))
+        return false;
       if (!Number.isSafeInteger(row.totalUnits)) return false;
-      return (row.totalProducts as number) === (row.trackedProducts as number) + (row.untrackedProducts as number) &&
-        (row.totalProducts as number) === (row.inStock as number) + (row.limited as number) + (row.outOfStock as number) &&
+      return (
+        (row.totalProducts as number) ===
+          (row.trackedProducts as number) + (row.untrackedProducts as number) &&
+        (row.totalProducts as number) ===
+          (row.inStock as number) + (row.limited as number) + (row.outOfStock as number) &&
         (row.lowStockTrackedProducts as number) <= (row.trackedProducts as number) &&
         (row.zeroStockTrackedProducts as number) <= (row.trackedProducts as number) &&
-        (row.negativeStockProducts as number) <= (row.trackedProducts as number);
+        (row.negativeStockProducts as number) <= (row.trackedProducts as number)
+      );
     };
     return requestJsonWithGoFallback<StockSummary>({
       jobName: 'inventory-stock-summary',
@@ -683,9 +718,7 @@ export const productsService = {
     await Promise.all(
       product.images.map(imageUrl => {
         const publicId = extractCloudinaryPublicId(imageUrl);
-        return publicId
-          ? deleteCloudinaryAsset(publicId, 'image')
-          : undefined;
+        return publicId ? deleteCloudinaryAsset(publicId, 'image') : undefined;
       })
     );
 

@@ -145,4 +145,3 @@ conversationsRouter.patch(
   sendMessageRateLimit,
   conversationsController.setFlags
 );
-

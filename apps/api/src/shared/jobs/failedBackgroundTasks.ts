@@ -1,7 +1,10 @@
 import { prisma } from '../../config/prisma';
 import { logger } from '../observability/logger';
 import { Prisma } from '@prisma/client';
-import { backgroundTaskFailuresTotal, backgroundTaskFailurePersistenceTotal } from '../observability/metrics';
+import {
+  backgroundTaskFailuresTotal,
+  backgroundTaskFailurePersistenceTotal,
+} from '../observability/metrics';
 
 /**
  * / M-012 — silent-failure safety net for fire-and-forget

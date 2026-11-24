@@ -256,16 +256,19 @@ export const conversationsService = {
   getConversationById: async (
     userId: string,
     id: string
-  ): Promise<NonNullable<Awaited<ReturnType<typeof conversationsRepository.findByIdForUser>>> & {
-    isBlockedByMe: boolean;
-    otherPartyPresence: { online: boolean; lastSeenAt: string | null };
-  }> => {
+  ): Promise<
+    NonNullable<Awaited<ReturnType<typeof conversationsRepository.findByIdForUser>>> & {
+      isBlockedByMe: boolean;
+      otherPartyPresence: { online: boolean; lastSeenAt: string | null };
+    }
+  > => {
     const conversation = await conversationsRepository.findByIdForUser(id, userId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
     assertParty(conversation, userId);
     if (conversation.mySettings?.deletedAt)
       throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
-    const otherPartyId = conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId;
+    const otherPartyId =
+      conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId;
     // The thread header needs both the viewer's block state and the other
     // participant's presence. Resolve them together so ChatWindow does not
     // issue a second /users/presence request after loading the conversation.
@@ -300,7 +303,7 @@ export const conversationsService = {
       archivedOnly: query.archivedOnly,
       role: query.role,
     });
-    const otherPartyIds = conversations.map((conversation) =>
+    const otherPartyIds = conversations.map(conversation =>
       conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId
     );
     const blockedIds = new Set(
@@ -308,10 +311,9 @@ export const conversationsService = {
     );
 
     return {
-      items: conversations.map((conversation) => {
-        const otherPartyId = conversation.buyerId === userId
-          ? conversation.sellerId
-          : conversation.buyerId;
+      items: conversations.map(conversation => {
+        const otherPartyId =
+          conversation.buyerId === userId ? conversation.sellerId : conversation.buyerId;
         return { ...conversation, isBlockedByMe: blockedIds.has(otherPartyId) };
       }),
       meta: buildPaginationMeta(total, query.page ?? 1, query.limit ?? 20),
@@ -731,7 +733,6 @@ export const conversationsService = {
     });
   },
 
-
   getMedia: async (userId: string, conversationId: string, limit = 100): Promise<Message[]> => {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
@@ -822,7 +823,12 @@ export const conversationsService = {
     query: { page?: number; limit?: number; before?: string; cursor?: boolean }
   ): Promise<{
     items: Message[];
-    meta: Partial<PaginatedResult<Message>['meta']> & { limit: number; nextCursor: string | null; hasNextPage: boolean; hasPrevPage: boolean };
+    meta: Partial<PaginatedResult<Message>['meta']> & {
+      limit: number;
+      nextCursor: string | null;
+      hasNextPage: boolean;
+      hasPrevPage: boolean;
+    };
   }> => {
     const conversation = await conversationsRepository.findById(conversationId);
     if (!conversation) throw new NotFoundError('Conversation not found', 'CONVERSATION_NOT_FOUND');
@@ -843,7 +849,10 @@ export const conversationsService = {
       void notificationsService
         .markConversationNotificationsRead(userId, conversationId)
         .catch(error =>
-          reportBackgroundFailure('apps/api/src/modules/engagement/conversations/conversations.service.ts', error)
+          reportBackgroundFailure(
+            'apps/api/src/modules/engagement/conversations/conversations.service.ts',
+            error
+          )
         );
     }
 

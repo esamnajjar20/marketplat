@@ -19,7 +19,9 @@ function normalizeHeaders(input: unknown): Record<string, string> {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return {};
 
   const source = input as Record<string, unknown>;
-  const connectionValue = Object.entries(source).find(([name]) => name.toLowerCase() === 'connection')?.[1];
+  const connectionValue = Object.entries(source).find(
+    ([name]) => name.toLowerCase() === 'connection'
+  )?.[1];
   const connectionTokens = String(connectionValue ?? '')
     .split(',')
     .map(value => value.trim().toLowerCase())
@@ -55,7 +57,7 @@ function normalizeQueryString(query: unknown): string {
 
 function serializeRequestBody(
   req: Record<string, unknown>,
-  method: string,
+  method: string
 ): { body: string | undefined; isBase64Encoded: boolean } {
   if (method === 'GET' || method === 'HEAD') {
     return { body: undefined, isBase64Encoded: false };
@@ -112,12 +114,17 @@ export default async function ({ req, res, log, error }: any) {
     const response = await expressHandler(event, {});
     const rawStatus = response?.statusCode;
     const statusCode =
-      typeof rawStatus === 'number' && Number.isInteger(rawStatus) && rawStatus >= 100 && rawStatus <= 599
+      typeof rawStatus === 'number' &&
+      Number.isInteger(rawStatus) &&
+      rawStatus >= 100 &&
+      rawStatus <= 599
         ? rawStatus
         : 200;
     const responseHeaders = normalizeHeaders(response?.headers);
     const responseBody = response?.body == null ? '' : String(response.body);
-    const outputBody = response?.isBase64Encoded ? Buffer.from(responseBody, 'base64') : responseBody;
+    const outputBody = response?.isBase64Encoded
+      ? Buffer.from(responseBody, 'base64')
+      : responseBody;
 
     // Appwrite's response helper owns the final HTTP response serialization.
     return res.send(outputBody, statusCode, responseHeaders);

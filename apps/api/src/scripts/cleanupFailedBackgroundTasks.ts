@@ -27,10 +27,13 @@ function isFailedTaskRetentionResult(value: unknown): value is FailedTaskRetenti
   if (!value || typeof value !== 'object') return false;
   const result = value as Record<string, unknown>;
   return (
-    Number.isSafeInteger(result.deleted) && (result.deleted as number) >= 0 &&
-    Number.isSafeInteger(result.batches) && (result.batches as number) >= 0 &&
+    Number.isSafeInteger(result.deleted) &&
+    (result.deleted as number) >= 0 &&
+    Number.isSafeInteger(result.batches) &&
+    (result.batches as number) >= 0 &&
     result.retentionDays === RETENTION_DAYS &&
-    typeof result.cutoff === 'string' && Number.isFinite(Date.parse(result.cutoff))
+    typeof result.cutoff === 'string' &&
+    Number.isFinite(Date.parse(result.cutoff))
   );
 }
 
@@ -65,10 +68,13 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
     );
 
     if (!batch.acquired) {
-      logger.info('[failed-task-retention] Express fallback skipped because another runner owns the advisory lock', {
-        deleted,
-        batches,
-      });
+      logger.info(
+        '[failed-task-retention] Express fallback skipped because another runner owns the advisory lock',
+        {
+          deleted,
+          batches,
+        }
+      );
       return 'busy';
     }
 
@@ -96,7 +102,9 @@ async function logUnresolvedBacklog(): Promise<void> {
 
   logger.info('[failed-task-retention] unresolved backlog', {
     unresolvedTotal,
-    unresolvedByType: Object.fromEntries(unresolvedByType.map(row => [row.taskType, row._count._all])),
+    unresolvedByType: Object.fromEntries(
+      unresolvedByType.map(row => [row.taskType, row._count._all])
+    ),
   });
 }
 

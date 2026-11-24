@@ -118,14 +118,14 @@ export const isWorkerCachePurgeEnabled = (): boolean => {
 export const isEdgePurgeEnabled = (): boolean => {
   const cfg = config();
   return Boolean(
-    cfg?.enabled && (
-      isZonePurgeConfigured(cfg) ||
-      (cfg.workerPurgeUrl && typeof cfg.workerPurgeToken === 'string' && cfg.workerPurgeToken.trim().length >= MIN_WORKER_PURGE_TOKEN_LENGTH) ||
-      (cfg.nextRevalidationUrl && cfg.nextRevalidationSecret)
-    )
+    cfg?.enabled &&
+    (isZonePurgeConfigured(cfg) ||
+      (cfg.workerPurgeUrl &&
+        typeof cfg.workerPurgeToken === 'string' &&
+        cfg.workerPurgeToken.trim().length >= MIN_WORKER_PURGE_TOKEN_LENGTH) ||
+      (cfg.nextRevalidationUrl && cfg.nextRevalidationSecret))
   );
 };
-
 
 type PurgeResult = 'success' | 'retry' | 'blocked';
 
@@ -142,7 +142,10 @@ async function retryPurgeTarget(
       lastError = new Error(result.detail || `${label} purge HTTP ${result.status}`);
       // Permanent authentication/validation errors will not get better by retrying.
       if (result.status >= 400 && result.status < 500 && result.status !== 429) {
-        logger.error(`${label} purge rejected permanently; tags retained for slower retry`, { status: result.status, tags });
+        logger.error(`${label} purge rejected permanently; tags retained for slower retry`, {
+          status: result.status,
+          tags,
+        });
         return 'blocked';
       }
     } catch (error) {
@@ -161,85 +164,116 @@ async function postPurge(tags: string[]): Promise<PurgeResult> {
 
   // The native Workers Cache is the real edge cache for this workers.dev host.
   if (isWorkerCachePurgeEnabled()) {
-    jobs.push(retryPurgeTarget('Workers Cache', async () => {
-      const res = await fetch(cfg.workerPurgeUrl!, {
-        method: 'POST',
-        headers: {
-          'x-purge-token': cfg.workerPurgeToken!,
-          'content-type': 'application/json',
+    jobs.push(
+      retryPurgeTarget(
+        'Workers Cache',
+        async () => {
+          const res = await fetch(cfg.workerPurgeUrl!, {
+            method: 'POST',
+            headers: {
+              'x-purge-token': cfg.workerPurgeToken!,
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({ tags }),
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+          });
+          const payload = (
+            typeof res.json === 'function' ? await res.json().catch(() => null) : null
+          ) as { ok?: boolean; error?: string } | null;
+          return {
+            ok: res.ok,
+            status: res.status,
+            accepted: payload?.ok === true,
+            detail: payload?.error
+              ? `Workers Cache purge rejected: ${payload.error}`
+              : `Workers Cache purge HTTP ${res.status}`,
+          };
         },
-        body: JSON.stringify({ tags }),
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-      const payload = (typeof res.json === 'function' ? await res.json().catch(() => null) : null) as { ok?: boolean; error?: string } | null;
-      return {
-        ok: res.ok,
-        status: res.status,
-        accepted: payload?.ok === true,
-        detail: payload?.error ? `Workers Cache purge rejected: ${payload.error}` : `Workers Cache purge HTTP ${res.status}`,
-      };
-    }, tags));
+        tags
+      )
+    );
   }
 
   // Next.js Data Cache invalidation. This shares the same coalesced tag batch
   // as the Worker purge, but uses an HMAC-signed webhook so the Route Handler
   // never accepts unauthenticated cache invalidation requests.
   if (cfg.nextRevalidationUrl && cfg.nextRevalidationSecret) {
-    jobs.push(retryPurgeTarget('Next.js Data Cache', async () => {
-      const timestamp = Math.floor(Date.now() / 1000).toString();
-      const body = JSON.stringify({ tags });
-      const signature = createHmac('sha256', cfg.nextRevalidationSecret!)
-        .update(`${timestamp}.${body}`)
-        .digest('hex');
-      const res = await fetch(cfg.nextRevalidationUrl!, {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-          'x-marketplat-timestamp': timestamp,
-          'x-marketplat-signature': `sha256=${signature}`,
+    jobs.push(
+      retryPurgeTarget(
+        'Next.js Data Cache',
+        async () => {
+          const timestamp = Math.floor(Date.now() / 1000).toString();
+          const body = JSON.stringify({ tags });
+          const signature = createHmac('sha256', cfg.nextRevalidationSecret!)
+            .update(`${timestamp}.${body}`)
+            .digest('hex');
+          const res = await fetch(cfg.nextRevalidationUrl!, {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              'x-marketplat-timestamp': timestamp,
+              'x-marketplat-signature': `sha256=${signature}`,
+            },
+            body,
+            signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+          });
+          const payload = (
+            typeof res.json === 'function' ? await res.json().catch(() => null) : null
+          ) as { ok?: boolean; error?: string } | null;
+          return {
+            ok: res.ok,
+            status: res.status,
+            accepted: payload?.ok === true,
+            detail: payload?.error
+              ? `Next.js cache revalidation rejected: ${payload.error}`
+              : `Next.js cache revalidation HTTP ${res.status}`,
+          };
         },
-        body,
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-      const payload = (typeof res.json === 'function' ? await res.json().catch(() => null) : null) as { ok?: boolean; error?: string } | null;
-      return {
-        ok: res.ok,
-        status: res.status,
-        accepted: payload?.ok === true,
-        detail: payload?.error ? `Next.js cache revalidation rejected: ${payload.error}` : `Next.js cache revalidation HTTP ${res.status}`,
-      };
-    }, tags));
+        tags
+      )
+    );
   }
 
   // Keep the zone purge for optional custom-domain Cache API / CDN caches.
   if (isZonePurgeConfigured(cfg)) {
-    jobs.push(retryPurgeTarget('Cloudflare Zone', async () => {
-      const res = await fetch(
-        `https://api.cloudflare.com/client/v4/zones/${encodeURIComponent(cfg!.zoneId!)}/purge_cache`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${cfg!.apiToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ tags }),
-          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-        }
-      );
-      const payload = (typeof res.json === 'function' ? await res.json().catch(() => null) : null) as { success?: boolean; errors?: unknown[] } | null;
-      return {
-        ok: res.ok,
-        status: res.status,
-        accepted: payload?.success === true,
-        detail: payload?.success === false
-          ? `Cloudflare purge rejected: ${JSON.stringify(payload.errors ?? [])}`
-          : `Cloudflare purge HTTP ${res.status}`,
-      };
-    }, tags));
+    jobs.push(
+      retryPurgeTarget(
+        'Cloudflare Zone',
+        async () => {
+          const res = await fetch(
+            `https://api.cloudflare.com/client/v4/zones/${encodeURIComponent(cfg!.zoneId!)}/purge_cache`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${cfg!.apiToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ tags }),
+              signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+            }
+          );
+          const payload = (
+            typeof res.json === 'function' ? await res.json().catch(() => null) : null
+          ) as { success?: boolean; errors?: unknown[] } | null;
+          return {
+            ok: res.ok,
+            status: res.status,
+            accepted: payload?.success === true,
+            detail:
+              payload?.success === false
+                ? `Cloudflare purge rejected: ${JSON.stringify(payload.errors ?? [])}`
+                : `Cloudflare purge HTTP ${res.status}`,
+          };
+        },
+        tags
+      )
+    );
   }
 
   if (!jobs.length) {
-    logger.error('Edge purge is enabled but no purge destination is configured; tags retained for retry');
+    logger.error(
+      'Edge purge is enabled but no purge destination is configured; tags retained for retry'
+    );
     return 'blocked';
   }
   const results = await Promise.all(jobs);
@@ -260,7 +294,10 @@ export async function createEdgePurgeIntent(tags: readonly string[]): Promise<st
   const uniqueTags = [...new Set(tags)];
   if (
     uniqueTags.length > 30 ||
-    uniqueTags.some(tag => typeof tag !== 'string' || tag.length < 1 || tag.length > 256 || !/^[\x21-\x7E]+$/.test(tag))
+    uniqueTags.some(
+      tag =>
+        typeof tag !== 'string' || tag.length < 1 || tag.length > 256 || !/^[\x21-\x7E]+$/.test(tag)
+    )
   ) {
     throw new Error('Invalid edge cache purge intent tags');
   }
@@ -306,7 +343,10 @@ export async function deliverEdgePurgeTags(tags: readonly string[]): Promise<voi
   if (
     uniqueTags.length === 0 ||
     uniqueTags.length > 100 ||
-    uniqueTags.some(tag => typeof tag !== 'string' || tag.length < 1 || tag.length > 256 || !/^[\x21-\x7E]+$/.test(tag))
+    uniqueTags.some(
+      tag =>
+        typeof tag !== 'string' || tag.length < 1 || tag.length > 256 || !/^[\x21-\x7E]+$/.test(tag)
+    )
   ) {
     throw new Error('Invalid durable edge cache purge payload');
   }
@@ -398,9 +438,13 @@ export function purgeReferenceKv(): void {
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   })
     .then(async res => {
-      const payload = (typeof res.json === 'function' ? await res.json().catch(() => null) : null) as { ok?: boolean } | null;
+      const payload = (
+        typeof res.json === 'function' ? await res.json().catch(() => null) : null
+      ) as { ok?: boolean } | null;
       if (!res.ok || payload?.ok !== true) {
-        logger.warn(`Edge KV purge rejected (HTTP ${res.status}; response=${JSON.stringify(payload)})`);
+        logger.warn(
+          `Edge KV purge rejected (HTTP ${res.status}; response=${JSON.stringify(payload)})`
+        );
       }
     })
     .catch(error => logger.warn('Edge KV purge failed', error));
@@ -415,7 +459,11 @@ export function purgeReferenceKv(): void {
  *   adsDetail    3600s   edit/status/remove paths purge the matching `ad:<id>` tag
  *   staticDetail  600s   product/store/service/provider writes purge route + entity tags
  */
-export const EDGE_PURGE_SHARED_MAX_AGE = { adsList: 600, adsDetail: 3600, staticDetail: 600 } as const;
+export const EDGE_PURGE_SHARED_MAX_AGE = {
+  adsList: 600,
+  adsDetail: 3600,
+  staticDetail: 600,
+} as const;
 
 export function purgeAwareSharedMaxAge(
   kind: keyof typeof EDGE_PURGE_SHARED_MAX_AGE,

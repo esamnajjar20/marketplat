@@ -16,7 +16,6 @@ const L1 = new Map<string, { count: number; exp: number }>();
 export const getUnreadNotificationsCacheKey = (userId: string): string =>
   `${UNREAD_COUNT_CACHE_PREFIX}${userId}`;
 
-
 function l1Get(userId: string): number | null {
   const hit = L1.get(userId);
   if (!hit) return null;
@@ -114,7 +113,11 @@ export const unreadNotificationsCache = {
   set: async (userId: string, count: number): Promise<void> => {
     l1Set(userId, count);
     try {
-      await redis.setex(getUnreadNotificationsCacheKey(userId), ttlWithJitter(BASE_TTL, JITTER), String(count));
+      await redis.setex(
+        getUnreadNotificationsCacheKey(userId),
+        ttlWithJitter(BASE_TTL, JITTER),
+        String(count)
+      );
     } catch (err) {
       logger.warn('unreadNotificationsCache.set failed', { userId, err });
     }

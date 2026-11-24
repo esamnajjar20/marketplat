@@ -24,14 +24,11 @@ export const searchFacetsQuerySchema = z.object({
       lng: z.coerce.number().min(-180).max(180).optional(),
       radius: z.coerce.number().min(0.5).max(100).default(10),
     })
-    .refine(
-      (q) =>
-        q.minPrice === undefined ||
-        q.maxPrice === undefined ||
-        q.minPrice <= q.maxPrice,
-      { message: 'minPrice must not exceed maxPrice', path: ['minPrice'] },
-    )
-    .refine((q) => (q.lat === undefined) === (q.lng === undefined), {
+    .refine(q => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, {
+      message: 'minPrice must not exceed maxPrice',
+      path: ['minPrice'],
+    })
+    .refine(q => (q.lat === undefined) === (q.lng === undefined), {
       message: 'lat and lng must be provided together',
       path: ['lat'],
     }),

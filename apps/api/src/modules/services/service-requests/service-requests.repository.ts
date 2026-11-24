@@ -95,7 +95,9 @@ export const serviceRequestsRepository = {
   // transition that won the race is never sent a false expiry notification.
   // respondedAt remains NULL to preserve the system-expiry marker.
   expirePendingBatch: async (ids: string[], cutoff: Date): Promise<string[]> => {
-    const uniqueIds = Array.from(new Set(ids.filter(id => typeof id === 'string' && id.length > 0)));
+    const uniqueIds = Array.from(
+      new Set(ids.filter(id => typeof id === 'string' && id.length > 0))
+    );
     if (uniqueIds.length === 0) return [];
 
     const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`

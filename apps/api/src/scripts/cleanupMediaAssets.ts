@@ -6,7 +6,10 @@
 import { prisma } from '../config/prisma';
 import { deleteMedia } from '../config/cloudinary';
 import { logger } from '../shared/observability/logger';
-import { executeWithGoFallback, runAdvisoryLockedBatch } from '../shared/go-worker/executeWithFallback';
+import {
+  executeWithGoFallback,
+  runAdvisoryLockedBatch,
+} from '../shared/go-worker/executeWithFallback';
 
 const MEDIA_CLEANUP_LOCK_ID = 731904302n;
 const BATCH_SIZE = 30;
@@ -17,7 +20,14 @@ const LEASE_MS = 2 * 60 * 1000;
 const RETAIN_COMPLETED_DAYS = 30;
 
 type ResourceType = 'image' | 'video' | 'raw';
-interface CleanupJob { id: string; publicId: string; resourceType: ResourceType; attempts: number; leaseToken: string; recovered: boolean; }
+interface CleanupJob {
+  id: string;
+  publicId: string;
+  resourceType: ResourceType;
+  attempts: number;
+  leaseToken: string;
+  recovered: boolean;
+}
 interface CleanupResult {
   scanned: number;
   deleted: number;
@@ -38,25 +48,48 @@ function isResourceType(value: unknown): value is ResourceType {
 function isResult(value: unknown): value is CleanupResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const result = value as Record<string, unknown>;
-  const counters = ['scanned', 'deleted', 'retried', 'deadLettered', 'recoveredLeases', 'leaseLost', 'prunedCompleted', 'batches'];
-  return counters.every(key => Number.isSafeInteger(result[key]) && (result[key] as number) >= 0)
-    && typeof result.limitReached === 'boolean'
-    && typeof result.evaluatedAt === 'string'
-    && Number.isFinite(Date.parse(result.evaluatedAt))
-    && (result.deleted as number) + (result.retried as number) + (result.deadLettered as number) + (result.leaseLost as number) <= (result.scanned as number);
+  const counters = [
+    'scanned',
+    'deleted',
+    'retried',
+    'deadLettered',
+    'recoveredLeases',
+    'leaseLost',
+    'prunedCompleted',
+    'batches',
+  ];
+  return (
+    counters.every(key => Number.isSafeInteger(result[key]) && (result[key] as number) >= 0) &&
+    typeof result.limitReached === 'boolean' &&
+    typeof result.evaluatedAt === 'string' &&
+    Number.isFinite(Date.parse(result.evaluatedAt)) &&
+    (result.deleted as number) +
+      (result.retried as number) +
+      (result.deadLettered as number) +
+      (result.leaseLost as number) <=
+      (result.scanned as number)
+  );
 }
 
 function backoffMs(attempt: number): number {
   let delay = 5 * 60 * 1000;
-  for (let index = 1; index < Math.max(1, attempt) && delay < 24 * 60 * 60 * 1000; index += 1) delay *= 2;
+  for (let index = 1; index < Math.max(1, attempt) && delay < 24 * 60 * 60 * 1000; index += 1)
+    delay *= 2;
   return Math.min(delay, 24 * 60 * 60 * 1000);
 }
 
 async function runExpressFallback(): Promise<'completed' | 'busy'> {
   const totals: CleanupResult = {
-    scanned: 0, deleted: 0, retried: 0, deadLettered: 0,
-    recoveredLeases: 0, leaseLost: 0, prunedCompleted: 0,
-    batches: 0, limitReached: false, evaluatedAt: new Date().toISOString(),
+    scanned: 0,
+    deleted: 0,
+    retried: 0,
+    deadLettered: 0,
+    recoveredLeases: 0,
+    leaseLost: 0,
+    prunedCompleted: 0,
+    batches: 0,
+    limitReached: false,
+    evaluatedAt: new Date().toISOString(),
   };
 
   for (let batchIndex = 0; batchIndex < MAX_BATCHES; batchIndex += 1) {
@@ -107,9 +140,15 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
             }
           }
         };
-        await Promise.all(Array.from({ length: Math.min(DELETE_CONCURRENCY, jobs.length) }, worker));
+        await Promise.all(
+          Array.from({ length: Math.min(DELETE_CONCURRENCY, jobs.length) }, worker)
+        );
 
-        let deleted = 0, retried = 0, deadLettered = 0, leaseLost = 0, recoveredLeases = 0;
+        let deleted = 0,
+          retried = 0,
+          deadLettered = 0,
+          leaseLost = 0,
+          recoveredLeases = 0;
         for (const outcome of outcomes) {
           const { job, error } = outcome;
           if (job.recovered) recoveredLeases += 1;
@@ -153,11 +192,16 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
           )
         `;
         return {
-          scanned: jobs.length, deleted, retried, deadLettered, leaseLost,
-          recoveredLeases, prunedCompleted: pruned,
+          scanned: jobs.length,
+          deleted,
+          retried,
+          deadLettered,
+          leaseLost,
+          recoveredLeases,
+          prunedCompleted: pruned,
         };
       },
-      { transactionTimeoutMs: 90_000 },
+      { transactionTimeoutMs: 90_000 }
     );
 
     if (!batch.acquired) return 'busy';
@@ -188,9 +232,11 @@ async function main(): Promise<void> {
   });
 }
 
-main().catch(error => {
-  logger.error('[cleanup-media-assets] job failed', { error });
-  process.exitCode = 1;
-}).finally(async () => {
-  await prisma.$disconnect();
-});
+main()
+  .catch(error => {
+    logger.error('[cleanup-media-assets] job failed', { error });
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });

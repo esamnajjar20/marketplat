@@ -87,10 +87,12 @@ export const salesRepository = {
       // Quantity is net of returned units, matching the top-products and
       // report semantics. Keep a sale-level fallback for legacy records
       // created before line items were persisted.
-      prisma.$queryRaw<Array<{
-        totalCost: Prisma.Decimal | number | string | null;
-        netQuantity: bigint | number | string | null;
-      }>>`
+      prisma.$queryRaw<
+        Array<{
+          totalCost: Prisma.Decimal | number | string | null;
+          netQuantity: bigint | number | string | null;
+        }>
+      >`
         WITH item_totals AS (
           SELECT
             si."saleId",
@@ -291,12 +293,14 @@ export const salesRepository = {
 
   topCustomers: async (sellerId: string, limit: number) => {
     const safeLimit = Math.min(100, Math.max(1, Math.trunc(Number.isFinite(limit) ? limit : 5)));
-    const rows = await prisma.$queryRaw<Array<{
-      customerId: string;
-      buyerName: string;
-      totalSpent: Prisma.Decimal;
-      saleCount: bigint;
-    }>>`
+    const rows = await prisma.$queryRaw<
+      Array<{
+        customerId: string;
+        buyerName: string;
+        totalSpent: Prisma.Decimal;
+        saleCount: bigint;
+      }>
+    >`
       SELECT
         sr."customerId" AS "customerId",
         COALESCE(MAX(c."name"), MAX(sr."buyerName")) AS "buyerName",

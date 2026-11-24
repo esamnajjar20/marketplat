@@ -34,7 +34,7 @@ export default function FloatingDebugConsole() {
     setHistIdx(-1);
     setInput('');
     try {
-      // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
+       
       const fn = new Function('return (' + code + ')');
       const result = await fn();
       let out: string;

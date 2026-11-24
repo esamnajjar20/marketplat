@@ -4,7 +4,11 @@ import { prisma } from '../../../config/prisma';
 import { logger } from '../../../shared/observability/logger';
 import crypto from 'crypto';
 import type { CreateActivityInput } from './activity.repository';
-import { executeWithGoFallback, runAdvisoryLockedBatch, type GoWorkerOutcome } from '../../../shared/go-worker/executeWithFallback';
+import {
+  executeWithGoFallback,
+  runAdvisoryLockedBatch,
+  type GoWorkerOutcome,
+} from '../../../shared/go-worker/executeWithFallback';
 
 // activityService.record() used to call
 // activityRepository.create() directly — one INSERT per user action
@@ -60,11 +64,13 @@ let flushInFlight: Promise<void> | null = null;
 let workerFlushInFlight: Promise<GoWorkerOutcome> | null = null;
 const ACTIVITY_BUFFER_LOCK_ID = 731904294n;
 
-function isActivityFlushResult(value: unknown): value is { popped: number; inserted: number; invalid: number; requeued: number } {
+function isActivityFlushResult(
+  value: unknown
+): value is { popped: number; inserted: number; invalid: number; requeued: number } {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const result = value as Record<string, unknown>;
-  return ['popped', 'inserted', 'invalid', 'requeued'].every(key =>
-    typeof result[key] === 'number' && Number.isFinite(result[key])
+  return ['popped', 'inserted', 'invalid', 'requeued'].every(
+    key => typeof result[key] === 'number' && Number.isFinite(result[key])
   );
 }
 
@@ -253,10 +259,12 @@ export const activityBuffer = {
   startFlushTimer: (): void => {
     if (flushTimer) return;
     flushTimer = setInterval(() => {
-      flushUsingWorker()
-        .catch(error =>
-          reportBackgroundFailure('apps/api/src/modules/engagement/activity/activity.buffer.ts', error)
-        );
+      flushUsingWorker().catch(error =>
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/activity/activity.buffer.ts',
+          error
+        )
+      );
     }, FLUSH_INTERVAL);
     flushTimer.unref(); // don't keep process alive
     logger.info(`Activity buffer flush timer started (every ${FLUSH_INTERVAL / 1000}s)`);

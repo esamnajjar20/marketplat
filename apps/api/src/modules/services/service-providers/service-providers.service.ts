@@ -114,7 +114,7 @@ async function getServiceProviderAnalyticsFor(
     averageRating: rating.avg,
     reviewCount: rating.count,
     revenue,
-    topListings: topListings.map((listing) => ({
+    topListings: topListings.map(listing => ({
       id: listing.id,
       title: listing.title,
       views: listing.views,
@@ -358,8 +358,7 @@ export const serviceProvidersService = {
       await bumpPublicListCache('service-providers');
       if (details.logoUrl) {
         const oldPublicId = extractCloudinaryPublicId(details.logoUrl);
-        if (oldPublicId)
-          await deleteCloudinaryAsset(oldPublicId, 'image');
+        if (oldPublicId) await deleteCloudinaryAsset(oldPublicId, 'image');
       }
       return updated;
     } catch (error) {

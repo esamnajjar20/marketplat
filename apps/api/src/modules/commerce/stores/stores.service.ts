@@ -8,7 +8,12 @@ import {
   cleanupUploadedImages,
   deleteCloudinaryAsset,
 } from '../../../shared/media/cloudinaryHelpers';
-import { storesRepository, StoreWithSeller, StoreWithSellerAndCounts, StoreDirectoryRow } from './stores.repository';
+import {
+  storesRepository,
+  StoreWithSeller,
+  StoreWithSellerAndCounts,
+  StoreDirectoryRow,
+} from './stores.repository';
 import { storeFollowersRepository, StoreFollowerWithStore } from './store-followers.repository';
 import { followsRepository } from '../../engagement/follows/follows.repository';
 import { storeReviewsRepository, StoreReviewWithRater } from './store-reviews.repository';
@@ -69,8 +74,17 @@ const computeIsOpen = (workingHours: Prisma.JsonValue | null): boolean | null =>
 // never serialize the StoreAccess row (which also carries owner relations).
 type ManagedStoreSettingsView = Pick<
   StoreDetails,
-  'id' | 'name' | 'description' | 'city' | 'address' | 'phone' |
-  'logoUrl' | 'coverImageUrl' | 'workingHours' | 'latitude' | 'longitude'
+  | 'id'
+  | 'name'
+  | 'description'
+  | 'city'
+  | 'address'
+  | 'phone'
+  | 'logoUrl'
+  | 'coverImageUrl'
+  | 'workingHours'
+  | 'latitude'
+  | 'longitude'
 >;
 const toManagedStoreSettingsView = (store: StoreDetails): ManagedStoreSettingsView => ({
   id: store.id,
@@ -121,9 +135,11 @@ const findPublicStoreView = async (idOrSlug: string): Promise<StorePublicView> =
 };
 
 const recordPublicStoreView = (storeId: string): void => {
-  storesRepository.incrementViews(storeId).catch(error =>
-    reportBackgroundFailure('apps/api/src/modules/commerce/stores/stores.service.ts', error)
-  );
+  storesRepository
+    .incrementViews(storeId)
+    .catch(error =>
+      reportBackgroundFailure('apps/api/src/modules/commerce/stores/stores.service.ts', error)
+    );
 };
 
 export interface StoreAnalytics {
@@ -156,7 +172,9 @@ async function getPublicStorePageData(idOrSlug: string, viewerId?: string, track
     viewerId
       ? Promise.all([
           followsRepository.find(viewerId, FollowTargetType.STORE, store.id).then(Boolean),
-          favoritesRepository.findByUserAndEntity(viewerId, FavoriteEntityType.STORE, store.id).then(Boolean),
+          favoritesRepository
+            .findByUserAndEntity(viewerId, FavoriteEntityType.STORE, store.id)
+            .then(Boolean),
         ]).then(([isFollowing, isFavorited]) => ({ isFollowing, isFavorited }))
       : Promise.resolve(null),
   ]);
@@ -267,7 +285,10 @@ export const storesService = {
   // UNIFY-PAYMENTS-STORES: no paymentMethods handling here anymore —
   // UpdateStoreInput no longer carries that field (see
   // stores.validation.ts), so `input` forwards straight through.
-  getManagedStoreSettings: async (userId: string, storeId: string): Promise<ManagedStoreSettingsView> => {
+  getManagedStoreSettings: async (
+    userId: string,
+    storeId: string
+  ): Promise<ManagedStoreSettingsView> => {
     const access = await requireStoreAccess(userId, storeId, 'manageStoreSettings');
     return toManagedStoreSettingsView(access.store);
   },
@@ -410,8 +431,7 @@ export const storesService = {
       await bumpPublicListCache('stores');
       if (store.logoUrl) {
         const oldPublicId = extractCloudinaryPublicId(store.logoUrl);
-        if (oldPublicId)
-          await deleteCloudinaryAsset(oldPublicId, 'image');
+        if (oldPublicId) await deleteCloudinaryAsset(oldPublicId, 'image');
       }
       return updated;
     } catch (error) {
@@ -429,8 +449,7 @@ export const storesService = {
       await bumpPublicListCache('stores');
       if (store.coverImageUrl) {
         const oldPublicId = extractCloudinaryPublicId(store.coverImageUrl);
-        if (oldPublicId)
-          await deleteCloudinaryAsset(oldPublicId, 'image');
+        if (oldPublicId) await deleteCloudinaryAsset(oldPublicId, 'image');
       }
       return updated;
     } catch (error) {
@@ -465,7 +484,7 @@ export const storesService = {
       async () => {
         const { stores, total } = await storesRepository.findMany(query);
         return { stores, meta: buildPaginationMeta(total, page, limit) };
-      },
+      }
     );
   },
 
@@ -483,7 +502,7 @@ export const storesService = {
           stores,
           meta: buildPaginationMeta(total, 1, limit),
         };
-      },
+      }
     );
   },
 
@@ -806,12 +825,23 @@ export const storesService = {
     const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
     const orderWhere = { storeId: store.id, sellerId: userId };
-    const [followerSummary, activeProducts, promotionSummary, topProducts, orderStatuses, orderValueGroups] = await Promise.all([
+    const [
+      followerSummary,
+      activeProducts,
+      promotionSummary,
+      topProducts,
+      orderStatuses,
+      orderValueGroups,
+    ] = await Promise.all([
       storeFollowersRepository.countAnalyticsByStoreId(store.id, since7d, since30d),
       storesRepository.countActiveProducts(store.id),
       promotionsRepository.getStoreAnalyticsSummary(store.id),
       productsRepository.findTopByStoreId(store.id, 5),
-      prisma.marketplaceOrder.groupBy({ by: ['status'], where: orderWhere, _count: { _all: true } }),
+      prisma.marketplaceOrder.groupBy({
+        by: ['status'],
+        where: orderWhere,
+        _count: { _all: true },
+      }),
       prisma.marketplaceOrder.groupBy({
         by: ['currency', 'status'],
         where: orderWhere,
@@ -820,15 +850,29 @@ export const storesService = {
     ]);
     const { followers, newFollowers7d, newFollowers30d } = followerSummary;
     const byStatus = Object.fromEntries(
-      Object.values(MarketplaceOrderStatus).map((status) => [status, 0])
+      Object.values(MarketplaceOrderStatus).map(status => [status, 0])
     ) as Record<MarketplaceOrderStatus, number>;
     for (const row of orderStatuses) byStatus[row.status] = row._count._all;
-    const currencyTotals = new Map<string, { nonCancelled: number; delivered: number; hasNonCancelled: boolean; hasDelivered: boolean }>();
+    const currencyTotals = new Map<
+      string,
+      { nonCancelled: number; delivered: number; hasNonCancelled: boolean; hasDelivered: boolean }
+    >();
     for (const row of orderValueGroups) {
-      const totals = currencyTotals.get(row.currency) ?? { nonCancelled: 0, delivered: 0, hasNonCancelled: false, hasDelivered: false };
+      const totals = currencyTotals.get(row.currency) ?? {
+        nonCancelled: 0,
+        delivered: 0,
+        hasNonCancelled: false,
+        hasDelivered: false,
+      };
       const amount = Number(row._sum.total ?? 0);
-      if (row.status !== MarketplaceOrderStatus.CANCELLED) { totals.nonCancelled += amount; totals.hasNonCancelled = true; }
-      if (row.status === MarketplaceOrderStatus.DELIVERED) { totals.delivered += amount; totals.hasDelivered = true; }
+      if (row.status !== MarketplaceOrderStatus.CANCELLED) {
+        totals.nonCancelled += amount;
+        totals.hasNonCancelled = true;
+      }
+      if (row.status === MarketplaceOrderStatus.DELIVERED) {
+        totals.delivered += amount;
+        totals.hasDelivered = true;
+      }
       currencyTotals.set(row.currency, totals);
     }
     const currencyRows = [...currencyTotals.entries()].sort(([a], [b]) => a.localeCompare(b));
@@ -846,10 +890,16 @@ export const storesService = {
         byStatus,
         nonCancelledValueByCurrency: currencyRows
           .filter(([, totals]) => totals.hasNonCancelled)
-          .map(([currency, totals]) => ({ currency, total: Math.round(totals.nonCancelled * 100) / 100 })),
+          .map(([currency, totals]) => ({
+            currency,
+            total: Math.round(totals.nonCancelled * 100) / 100,
+          })),
         deliveredValueByCurrency: currencyRows
           .filter(([, totals]) => totals.hasDelivered)
-          .map(([currency, totals]) => ({ currency, total: Math.round(totals.delivered * 100) / 100 })),
+          .map(([currency, totals]) => ({
+            currency,
+            total: Math.round(totals.delivered * 100) / 100,
+          })),
       },
       topProducts: topProducts.map(p => ({
         id: p.id,

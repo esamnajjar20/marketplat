@@ -71,7 +71,7 @@ export const storiesRepository = {
       ORDER BY ranked."userId" ASC, ranked."createdAt" ASC, ranked."id" ASC
     `;
     if (ranked.length === 0) return [];
-    const ids = ranked.map((row) => row.id);
+    const ids = ranked.map(row => row.id);
     const rows = await prisma.story.findMany({
       where: { id: { in: ids } },
       include: {
@@ -79,8 +79,8 @@ export const storiesRepository = {
         _count: { select: { views: true } },
       },
     });
-    const byId = new Map(rows.map((story) => [story.id, story]));
-    return ids.flatMap((id) => {
+    const byId = new Map(rows.map(story => [story.id, story]));
+    return ids.flatMap(id => {
       const story = byId.get(id);
       return story ? [story] : [];
     });

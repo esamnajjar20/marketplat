@@ -51,7 +51,10 @@ export const appointmentsRepository = {
   findById: (id: string): Promise<Appointment | null> =>
     prisma.appointment.findUnique({ where: { id } }),
 
-  updateStatus: async (id: string, status: 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'): Promise<Appointment> => {
+  updateStatus: async (
+    id: string,
+    status: 'COMPLETED' | 'CANCELLED' | 'NO_SHOW'
+  ): Promise<Appointment> => {
     // Compare-and-set prevents two concurrent requests from both transitioning
     // the same appointment after each has read SCHEDULED.
     const result = await prisma.appointment.updateMany({

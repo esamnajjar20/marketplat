@@ -36,7 +36,7 @@ async function createStoryWithinUserLimit(userId: string, data: Prisma.StoryCrea
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       return await prisma.$transaction(
-        async (tx) => {
+        async tx => {
           const activeCount = await tx.story.count({
             where: { userId, expiresAt: { gt: new Date() } },
           });
@@ -159,7 +159,8 @@ export const storiesService = {
     // one SELECT per story (N+1). Public stories and the owner's own stories
     // remain visible without a follow lookup.
     const interactionBlocked = Boolean(
-      viewerId && viewerId !== userId &&
+      viewerId &&
+      viewerId !== userId &&
       (await blockedUsersService.isBlockedEitherDirection(viewerId, userId))
     );
     const followsAuthor = Boolean(
@@ -198,8 +199,7 @@ export const storiesService = {
       throw new NotFoundError('Story not found', 'STORY_NOT_FOUND');
     const result = await storiesRepository.delete(storyId, userId);
     if (!result.count) throw new NotFoundError('Story not found', 'STORY_NOT_FOUND');
-    if (story.mediaPublicId)
-      await deleteCloudinaryAsset(story.mediaPublicId, 'image');
+    if (story.mediaPublicId) await deleteCloudinaryAsset(story.mediaPublicId, 'image');
   },
 
   viewers: async (userId: string, storyId: string) => {

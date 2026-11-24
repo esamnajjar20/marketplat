@@ -550,7 +550,10 @@ export const serviceRequestsService = {
       // PostgreSQL RETURNING gives the exact winners, preserving the race
       // guard: rows answered between the read and update are not notified.
       const expiredIds = new Set(
-        await serviceRequestsRepository.expirePendingBatch(stale.map(row => row.id), cutoff)
+        await serviceRequestsRepository.expirePendingBatch(
+          stale.map(row => row.id),
+          cutoff
+        )
       );
       const progressed = expiredIds.size;
       expired += progressed;

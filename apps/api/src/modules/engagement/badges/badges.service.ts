@@ -1,4 +1,7 @@
-import { storesRepository, StoreWithSellerAndCounts } from '../../commerce/stores/stores.repository';
+import {
+  storesRepository,
+  StoreWithSellerAndCounts,
+} from '../../commerce/stores/stores.repository';
 import { storeReviewsRepository } from '../../commerce/stores/store-reviews.repository';
 import { serviceProvidersRepository } from '../../services/service-providers/service-providers.repository';
 import { serviceListingsRepository } from '../../services/service-listings/service-listings.repository';

@@ -4,9 +4,12 @@
  * Express fallback shares the exact advisory lock and SQL semantics.
  */
 import { prisma } from '../config/prisma';
-import { redis, closeRedisServiceClients } from '../config/redis';
+import { closeRedisServiceClients } from '../config/redis';
 import { logger } from '../shared/observability/logger';
-import { executeWithGoFallback, runAdvisoryLockedBatch } from '../shared/go-worker/executeWithFallback';
+import {
+  executeWithGoFallback,
+  runAdvisoryLockedBatch,
+} from '../shared/go-worker/executeWithFallback';
 import { publishDurableNotifications } from '../shared/go-worker/publishDurableNotifications';
 import { shutdownNotificationStream } from '../shared/realtime/notificationStream';
 
@@ -29,18 +32,34 @@ interface PromotionLifecycleResult {
   notificationIds: string[];
 }
 
-interface PromotionBatchRow { promotionId: string; notificationId: string | null }
+interface PromotionBatchRow {
+  promotionId: string;
+  notificationId: string | null;
+}
 
 function isResult(value: unknown): value is PromotionLifecycleResult {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const result = value as Record<string, unknown>;
-  const counts = ['started', 'expiring', 'expired', 'notified', 'startedBatches', 'expiringBatches', 'expiredBatches'];
-  return counts.every(key => Number.isSafeInteger(result[key]) && (result[key] as number) >= 0) &&
+  const counts = [
+    'started',
+    'expiring',
+    'expired',
+    'notified',
+    'startedBatches',
+    'expiringBatches',
+    'expiredBatches',
+  ];
+  return (
+    counts.every(key => Number.isSafeInteger(result[key]) && (result[key] as number) >= 0) &&
     typeof result.limitReached === 'boolean' &&
-    typeof result.evaluatedAt === 'string' && Number.isFinite(Date.parse(result.evaluatedAt)) &&
-    typeof result.warningCutoff === 'string' && Number.isFinite(Date.parse(result.warningCutoff)) &&
-    Array.isArray(result.notificationIds) && result.notificationIds.every(id => typeof id === 'string' && id.length > 0) &&
-    result.notified === result.notificationIds.length;
+    typeof result.evaluatedAt === 'string' &&
+    Number.isFinite(Date.parse(result.evaluatedAt)) &&
+    typeof result.warningCutoff === 'string' &&
+    Number.isFinite(Date.parse(result.warningCutoff)) &&
+    Array.isArray(result.notificationIds) &&
+    result.notificationIds.every(id => typeof id === 'string' && id.length > 0) &&
+    result.notified === result.notificationIds.length
+  );
 }
 
 const STARTED_BATCH_SQL = String.raw`
@@ -266,7 +285,7 @@ async function runFallbackPhase(
   phase: 'started' | 'expiring' | 'expired',
   query: string,
   args: unknown[],
-  notificationIds: string[],
+  notificationIds: string[]
 ): Promise<{ processed: number; batches: number; limitReached: boolean; busy: boolean }> {
   const processedPromotions = new Set<string>();
   let batches = 0;
@@ -277,10 +296,13 @@ async function runFallbackPhase(
       prisma,
       PROMOTION_LIFECYCLE_LOCK_ID,
       tx => tx.$queryRawUnsafe<PromotionBatchRow[]>(query, ...args),
-      { transactionTimeoutMs: 30_000 },
+      { transactionTimeoutMs: 30_000 }
     );
     if (!batch.acquired) {
-      logger.info(`[promotion-lifecycle] Express fallback stopped; another runner owns the lock`, { phase, processed: processedPromotions.size });
+      logger.info(`[promotion-lifecycle] Express fallback stopped; another runner owns the lock`, {
+        phase,
+        processed: processedPromotions.size,
+      });
       return { processed: processedPromotions.size, batches, limitReached, busy: true };
     }
 
@@ -302,26 +324,47 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
   const warningCutoff = new Date(now.getTime() + WARNING_WINDOW_HOURS * 60 * 60 * 1_000);
   const notificationIds: string[] = [];
 
-  const started = await runFallbackPhase('started', STARTED_BATCH_SQL, [now, BATCH_SIZE], notificationIds);
+  const started = await runFallbackPhase(
+    'started',
+    STARTED_BATCH_SQL,
+    [now, BATCH_SIZE],
+    notificationIds
+  );
   if (started.busy) {
     await publishNotifications(notificationIds);
     return 'busy';
   }
-  const expiring = await runFallbackPhase('expiring', EXPIRING_BATCH_SQL, [now, warningCutoff, BATCH_SIZE], notificationIds);
+  const expiring = await runFallbackPhase(
+    'expiring',
+    EXPIRING_BATCH_SQL,
+    [now, warningCutoff, BATCH_SIZE],
+    notificationIds
+  );
   if (expiring.busy) {
     await publishNotifications(notificationIds);
     return 'busy';
   }
-  const expired = await runFallbackPhase('expired', EXPIRED_BATCH_SQL, [now, BATCH_SIZE], notificationIds);
+  const expired = await runFallbackPhase(
+    'expired',
+    EXPIRED_BATCH_SQL,
+    [now, BATCH_SIZE],
+    notificationIds
+  );
   await publishNotifications(notificationIds);
   if (expired.busy) return 'busy';
 
   const limitReached = started.limitReached || expiring.limitReached || expired.limitReached;
   logger.info('[promotion-lifecycle] Express fallback completed', {
-    started: started.processed, expiring: expiring.processed, expired: expired.processed,
-    notified: notificationIds.length, startedBatches: started.batches,
-    expiringBatches: expiring.batches, expiredBatches: expired.batches,
-    limitReached, evaluatedAt: now.toISOString(), warningCutoff: warningCutoff.toISOString(),
+    started: started.processed,
+    expiring: expiring.processed,
+    expired: expired.processed,
+    notified: notificationIds.length,
+    startedBatches: started.batches,
+    expiringBatches: expiring.batches,
+    expiredBatches: expired.batches,
+    limitReached,
+    evaluatedAt: now.toISOString(),
+    warningCutoff: warningCutoff.toISOString(),
   });
   return 'completed';
 }
@@ -336,7 +379,10 @@ async function main(): Promise<void> {
     onGoSuccess: async result => {
       await publishNotifications(result.notificationIds);
       if (result.limitReached) {
-        logger.warn('[promotion-lifecycle] reached a per-phase batch ceiling; remaining promotions will be picked up by the next 15-minute run', result);
+        logger.warn(
+          '[promotion-lifecycle] reached a per-phase batch ceiling; remaining promotions will be picked up by the next 15-minute run',
+          result
+        );
       }
     },
   });

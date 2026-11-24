@@ -19,14 +19,14 @@ export const blockedUsersRepository = {
    * or issuing one query per conversation.
    */
   findBlockedIdsByBlocker: async (blockerId: string, blockedIds: string[]): Promise<string[]> => {
-    const uniqueIds = [...new Set(blockedIds)].filter((id) => id !== blockerId);
+    const uniqueIds = [...new Set(blockedIds)].filter(id => id !== blockerId);
     if (uniqueIds.length === 0) return [];
 
     const rows = await prisma.userBlock.findMany({
       where: { blockerId, blockedId: { in: uniqueIds } },
       select: { blockedId: true },
     });
-    return rows.map((row) => row.blockedId);
+    return rows.map(row => row.blockedId);
   },
 
   create: (blockerId: string, blockedId: string): Promise<UserBlock> =>

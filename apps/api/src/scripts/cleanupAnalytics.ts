@@ -25,10 +25,13 @@ function isAnalyticsRetentionResult(value: unknown): value is AnalyticsRetention
   if (!value || typeof value !== 'object') return false;
   const result = value as Record<string, unknown>;
   return (
-    Number.isSafeInteger(result.deleted) && (result.deleted as number) >= 0 &&
-    Number.isSafeInteger(result.batches) && (result.batches as number) >= 0 &&
+    Number.isSafeInteger(result.deleted) &&
+    (result.deleted as number) >= 0 &&
+    Number.isSafeInteger(result.batches) &&
+    (result.batches as number) >= 0 &&
     result.retentionDays === env.analytics.retentionDays &&
-    typeof result.cutoff === 'string' && Number.isFinite(Date.parse(result.cutoff))
+    typeof result.cutoff === 'string' &&
+    Number.isFinite(Date.parse(result.cutoff))
   );
 }
 
@@ -42,14 +45,19 @@ function isAnalyticsRetentionResult(value: unknown): value is AnalyticsRetention
 async function runExpressFallback(): Promise<'completed' | 'busy'> {
   const now = new Date();
   const cutoff = new Date(now.getTime() - env.analytics.retentionDays * 24 * 60 * 60 * 1_000);
-  const rollupWindowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const rollupWindowStart = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())
+  );
   rollupWindowStart.setUTCDate(rollupWindowStart.getUTCDate() - env.analytics.retentionDays);
   let deleted = 0;
   let batches = 0;
 
   for (;;) {
-    const batch = await runAdvisoryLockedBatch(prisma, ANALYTICS_RETENTION_LOCK_ID, async tx => {
-      const rows = await tx.$queryRaw<{ id: string }[]>`
+    const batch = await runAdvisoryLockedBatch(
+      prisma,
+      ANALYTICS_RETENTION_LOCK_ID,
+      async tx => {
+        const rows = await tx.$queryRaw<{ id: string }[]>`
         WITH doomed AS (
           SELECT e.id
           FROM "analytics_events" e
@@ -70,14 +78,19 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
         WHERE e.id = doomed.id
         RETURNING e.id
       `;
-      return rows.length;
-    }, { transactionTimeoutMs: 60_000 });
+        return rows.length;
+      },
+      { transactionTimeoutMs: 60_000 }
+    );
 
     if (!batch.acquired) {
-      logger.info('[analytics-retention] Express fallback skipped because another runner owns the advisory lock', {
-        deleted,
-        batches,
-      });
+      logger.info(
+        '[analytics-retention] Express fallback skipped because another runner owns the advisory lock',
+        {
+          deleted,
+          batches,
+        }
+      );
       return 'busy';
     }
 

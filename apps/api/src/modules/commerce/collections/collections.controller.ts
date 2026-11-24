@@ -18,7 +18,11 @@ export const collectionsController = {
       const user = requireUser(req);
       const { body } = createCollectionSchema.parse({ body: req.body });
       const { query } = storeScopeQuerySchema.parse({ query: req.query });
-      const collection = await collectionsService.createCollection(user.userId, body, query.storeId);
+      const collection = await collectionsService.createCollection(
+        user.userId,
+        body,
+        query.storeId
+      );
       res.status(201).json(successResponse('Collection created', collection));
     } catch (error) {
       next(error);
@@ -115,7 +119,11 @@ export const collectionsController = {
     }
   },
 
-  getManageCollectionProducts: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  getManageCollectionProducts: async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
     try {
       const user = requireUser(req);
       const { params } = collectionIdSchema.parse({ params: req.params });

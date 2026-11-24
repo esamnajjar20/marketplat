@@ -213,7 +213,9 @@ export const recordPrismaQuery = (
  * registered. The returned finalizer is idempotent and safe to call on finish
  * or close paths without double-counting a request.
  */
-export const createDatabaseRequestMetricsFinalizer = (): ((labels: DatabaseRequestLabels) => void) => {
+export const createDatabaseRequestMetricsFinalizer = (): ((
+  labels: DatabaseRequestLabels
+) => void) => {
   const context = requestContext.getStore();
   let finalized = false;
 

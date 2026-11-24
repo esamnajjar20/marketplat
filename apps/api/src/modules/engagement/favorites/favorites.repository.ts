@@ -139,12 +139,13 @@ const SERVICE_LISTING_CONFIG: EntityConfig<ServiceListingWithProvider> = {
 
 // Closed whitelist used by countByUserIdAndType's raw join. Keep in sync with
 // each matching *_CONFIG.fetchActive visibility rule above.
-const ACTIVE_COUNT_TARGETS: Record<FavoriteEntityType, { table: string; excludedStatus?: string }> = {
-  AD: { table: '"ads"', excludedStatus: 'DELETED' },
-  PRODUCT: { table: '"products"', excludedStatus: 'DELETED' },
-  STORE: { table: '"store_details"' },
-  SERVICE_LISTING: { table: '"service_listings"', excludedStatus: 'DELETED' },
-};
+const ACTIVE_COUNT_TARGETS: Record<FavoriteEntityType, { table: string; excludedStatus?: string }> =
+  {
+    AD: { table: '"ads"', excludedStatus: 'DELETED' },
+    PRODUCT: { table: '"products"', excludedStatus: 'DELETED' },
+    STORE: { table: '"store_details"' },
+    SERVICE_LISTING: { table: '"service_listings"', excludedStatus: 'DELETED' },
+  };
 
 /**
  * `FROM favorites f JOIN <entity table> t WHERE ...` for one user + type,
@@ -280,7 +281,9 @@ export const favoritesRepository = {
       // Window total is unavailable when the requested page is past the end;
       // only then pay for a separate COUNT so `total` stays accurate.
       if (skip === 0) return { favorites: [], total: 0 };
-      const [{ count } = { count: 0 }] = await prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+      const [{ count } = { count: 0 }] = await prisma.$queryRaw<
+        Array<{ count: number }>
+      >(Prisma.sql`
         SELECT COUNT(*)::int AS count
         ${filter}
       `);

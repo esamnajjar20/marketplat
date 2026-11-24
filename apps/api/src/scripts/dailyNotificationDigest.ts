@@ -31,9 +31,12 @@ function isNotificationDigestResult(value: unknown): value is NotificationDigest
   if (!value || typeof value !== 'object') return false;
   const result = value as Record<string, unknown>;
   return (
-    Number.isSafeInteger(result.digestsCreated) && (result.digestsCreated as number) >= 0 &&
-    Number.isSafeInteger(result.rowsMarkedRead) && (result.rowsMarkedRead as number) >= 0 &&
-    Number.isSafeInteger(result.batches) && (result.batches as number) >= 0
+    Number.isSafeInteger(result.digestsCreated) &&
+    (result.digestsCreated as number) >= 0 &&
+    Number.isSafeInteger(result.rowsMarkedRead) &&
+    (result.rowsMarkedRead as number) >= 0 &&
+    Number.isSafeInteger(result.batches) &&
+    (result.batches as number) >= 0
   );
 }
 
@@ -179,17 +182,22 @@ async function runExpressFallback(): Promise<'completed' | 'busy'> {
   let batches = 0;
 
   for (;;) {
-    const batch = await runAdvisoryLockedBatch(prisma, NOTIFICATION_DIGEST_LOCK_ID, tx =>
-      processDigestBatch(tx, lastUserId, now),
+    const batch = await runAdvisoryLockedBatch(
+      prisma,
+      NOTIFICATION_DIGEST_LOCK_ID,
+      tx => processDigestBatch(tx, lastUserId, now),
       { transactionTimeoutMs: 60_000 }
     );
 
     if (!batch.acquired) {
-      logger.info('[notification-digest] Express fallback stopped because another runner owns the advisory lock', {
-        digestsCreated,
-        rowsMarkedRead,
-        batches,
-      });
+      logger.info(
+        '[notification-digest] Express fallback stopped because another runner owns the advisory lock',
+        {
+          digestsCreated,
+          rowsMarkedRead,
+          batches,
+        }
+      );
       return 'busy';
     }
 

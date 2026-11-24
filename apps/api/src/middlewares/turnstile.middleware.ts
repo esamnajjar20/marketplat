@@ -15,9 +15,13 @@ export type TurnstileFetch = typeof fetch;
 
 export function createTurnstileMiddleware(
   getSecret: () => string | undefined = () => process.env.TURNSTILE_SECRET_KEY,
-  fetchImpl: TurnstileFetch = (...args) => fetch(...args),
+  fetchImpl: TurnstileFetch = (...args) => fetch(...args)
 ) {
-  return async function verifyTurnstile(req: Request, res: Response, next: NextFunction): Promise<void> {
+  return async function verifyTurnstile(
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const token = typeof body.turnstileToken === 'string' ? body.turnstileToken : '';
     delete body.turnstileToken;

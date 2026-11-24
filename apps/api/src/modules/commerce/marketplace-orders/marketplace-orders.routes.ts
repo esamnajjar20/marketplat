@@ -10,4 +10,8 @@ marketplaceOrdersRouter.post('/', createProductRateLimit, marketplaceOrdersContr
 marketplaceOrdersRouter.get('/mine', CACHE.NONE, marketplaceOrdersController.listMine);
 marketplaceOrdersRouter.get('/seller', CACHE.NONE, marketplaceOrdersController.listForStore);
 marketplaceOrdersRouter.get('/:id', CACHE.NONE, marketplaceOrdersController.getById);
-marketplaceOrdersRouter.patch('/:id/status', createProductRateLimit, marketplaceOrdersController.updateStatus);
+marketplaceOrdersRouter.patch(
+  '/:id/status',
+  createProductRateLimit,
+  marketplaceOrdersController.updateStatus
+);

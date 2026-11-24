@@ -25,7 +25,13 @@ export const productsController = {
         (req.headers['X-Offline-Op-Id'] as string | undefined) ||
         null;
       const storeId = typeof req.query.storeId === 'string' ? req.query.storeId : undefined;
-      const product = await productsService.createProduct(user.userId, body, files, offlineOpId, storeId);
+      const product = await productsService.createProduct(
+        user.userId,
+        body,
+        files,
+        offlineOpId,
+        storeId
+      );
       res.status(201).json(successResponse('Product created', product));
     } catch (error) {
       next(error);

@@ -1,5 +1,9 @@
 import { uploadImage } from '../../config/cloudinary';
-import { extractCloudinaryPublicId, cleanupUploadedImages, deleteCloudinaryAsset } from './cloudinaryHelpers';
+import {
+  extractCloudinaryPublicId,
+  cleanupUploadedImages,
+  deleteCloudinaryAsset,
+} from './cloudinaryHelpers';
 import { NotFoundError } from '../errors/NotFoundError';
 import { ForbiddenError } from '../errors/ForbiddenError';
 import { BadRequestError } from '../errors/BadRequestError';

@@ -87,7 +87,12 @@ function parseMemoryInfo(infoText: string): { usedBytes: number; maxBytes: numbe
 
   const usedBytes = Number(usedMatch[1]);
   const maxBytes = Number(maxMatch[1]);
-  if (!Number.isSafeInteger(usedBytes) || usedBytes < 0 || !Number.isSafeInteger(maxBytes) || maxBytes < 0) {
+  if (
+    !Number.isSafeInteger(usedBytes) ||
+    usedBytes < 0 ||
+    !Number.isSafeInteger(maxBytes) ||
+    maxBytes < 0
+  ) {
     throw new Error('Redis INFO memory response contains invalid memory values');
   }
 
