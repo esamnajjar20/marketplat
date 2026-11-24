@@ -46,8 +46,16 @@ vi.mock('@/components/layout/UserMenu', () => ({
   UserMenu: () => <div data-testid="user-menu" />,
 }));
 
-vi.mock('@/components/layout/MobileNav', () => ({
-  MobileNav: () => <div data-testid="mobile-nav" />,
+vi.mock('@/components/layout/LazyHeaderParts', () => ({
+  LazyMobileNav: ({ hideTrigger }: { hideTrigger?: boolean }) => (
+    <>
+      {!hideTrigger && <button type="button" aria-label="افتح القائمة">القائمة</button>}
+      <div data-testid="mobile-nav-drawer-controller" />
+    </>
+  ),
+  LazyUserMenu: () => <div data-testid="user-menu" />,
+  LazyNotificationBell: () => <div data-testid="notification-bell" />,
+  LazyMessagesLink: () => <div data-testid="messages-link" />,
 }));
 
 // NotificationBell (useMyNotifications/useUnreadNotificationCount, both
@@ -111,12 +119,26 @@ describe('PublicHeader', () => {
     expect(screen.getAllByTestId('search-bar')).toHaveLength(2);
   });
 
-  it('renders the mobile nav trigger', () => {
+  it('hides the header menu trigger when the public BottomNav owns the menu entry', () => {
     mockAuthState(false);
     render(<PublicHeader />);
 
-    // PERF-BUNDLE-HEADER-01: the hamburger is a light inline trigger; the heavy
-    // drawer (MobileNav) is only loaded after the first open.
+    expect(screen.queryByRole('button', { name: 'افتح القائمة' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('mobile-nav-drawer-controller')).toBeInTheDocument();
+  });
+
+  it('keeps the header menu trigger for signed-in users because BottomNav shows their account link', async () => {
+    mockAuthState(true);
+    render(<PublicHeader />);
+
+    expect(await screen.findByRole('button', { name: 'افتح القائمة' })).toBeInTheDocument();
+    expect(screen.getByTestId('mobile-nav-drawer-controller')).toBeInTheDocument();
+  });
+
+  it('shows the header menu trigger on authentication pages without BottomNav', () => {
+    mockAuthState(false);
+    render(<PublicHeader showMenuTrigger />);
+
     expect(screen.getByRole('button', { name: 'افتح القائمة' })).toBeInTheDocument();
   });
 

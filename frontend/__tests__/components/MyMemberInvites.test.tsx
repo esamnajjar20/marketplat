@@ -5,25 +5,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MyMemberInvites } from '@/components/stores/MyMemberInvites';
 import { useMyMemberInvites } from '@/hooks/queries/useStoreMembers';
-import { useAcceptStoreMemberInvite } from '@/hooks/mutations/useStoreMemberMutations';
+import { useAcceptStoreMemberInvite, useRejectStoreMemberInvite } from '@/hooks/mutations/useStoreMemberMutations';
 
 vi.mock('@/hooks/queries/useStoreMembers', () => ({
   useMyMemberInvites: vi.fn(),
 }));
 vi.mock('@/hooks/mutations/useStoreMemberMutations', () => ({
-  useAcceptStoreMemberInvite: vi.fn(() => ({
-    mutate: vi.fn(),
-    isPending: false,
-  })),
+  useAcceptStoreMemberInvite: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useRejectStoreMemberInvite: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
 
 // TODO(2026-10-16): un-skip after updating loading-state assertions to match unified loading system (1f2c898a)
 describe('MyMemberInvites', () => {
   beforeEach(() => {
-    vi.mocked(useAcceptStoreMemberInvite).mockReturnValue({
-      mutate: vi.fn(),
-      isPending: false,
-    } as never);
+    vi.mocked(useAcceptStoreMemberInvite).mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+    vi.mocked(useRejectStoreMemberInvite).mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
   });
 
   it('shows loading', () => {
@@ -52,6 +48,7 @@ describe('MyMemberInvites', () => {
       data: [
         {
           id: 'inv1',
+          storeId: 's1',
           role: 'EDITOR',
           store: { id: 's1', name: 'متجر الأمل', logoUrl: null },
         },

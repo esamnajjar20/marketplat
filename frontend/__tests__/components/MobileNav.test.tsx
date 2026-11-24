@@ -18,6 +18,14 @@ import { useAuthStore } from '@/store/auth.store';
 import { useLogout } from '@/hooks/mutations/useAuthMutations';
 import { useMySellerProfile, useIsSeller } from '@/hooks/queries/useSellers';
 
+const { mockUsePathname } = vi.hoisted(() => ({ mockUsePathname: vi.fn(() => '/dashboard') }));
+vi.mock('next/navigation', () => ({
+  usePathname: () => mockUsePathname(),
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn(), back: vi.fn() }),
+  redirect: vi.fn(),
+}));
+
 vi.mock('@/hooks/mutations/useAuthMutations', () => ({
   useLogout: vi.fn(),
 }));
@@ -65,6 +73,7 @@ describe('MobileNav', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUsePathname.mockReturnValue('/dashboard');
     // Drawer content is deferred via requestIdleCallback / 1200ms timeout.
     vi.stubGlobal('requestIdleCallback', (cb: () => void) => {
       cb();
@@ -83,6 +92,32 @@ describe('MobileNav', () => {
       await renderNav();
       expect(screen.getByRole('link', { name: 'تسجيل الدخول' })).toBeInTheDocument();
       expect(screen.getByRole('link', { name: 'إنشاء حساب' })).toBeInTheDocument();
+    });
+
+    it('marks the current browse destination in the drawer, including entity detail routes', async () => {
+      mockUsePathname.mockReturnValue('/products/product-123');
+      await renderNav();
+      const productsLink = screen.getByRole('link', { name: 'المنتجات' });
+      expect(productsLink).toHaveAttribute('aria-current', 'page');
+      expect(productsLink).toHaveClass('bg-primary/10');
+    });
+
+    it('does not mark the public requests link active on a private requests sub-route', async () => {
+      mockUsePathname.mockReturnValue('/requests/me');
+      await renderNav();
+      expect(screen.getByRole('link', { name: 'سوق الطلبات' })).not.toHaveAttribute('aria-current', 'page');
+    });
+
+    it('does not mark public browse links active on ad creation routes', async () => {
+      mockUsePathname.mockReturnValue('/ads/create');
+      await renderNav();
+      expect(screen.getByRole('link', { name: 'الإعلانات' })).not.toHaveAttribute('aria-current', 'page');
+    });
+
+    it('uses at least 44px targets for browse rows and the drawer close control', async () => {
+      await renderNav();
+      expect(screen.getByRole('link', { name: 'المنتجات' })).toHaveClass('min-h-11');
+      expect(screen.getByRole('button', { name: 'أغلق القائمة' })).toHaveClass('min-h-11', 'min-w-11');
     });
 
     it('does not show authenticated-only links or a logout button', async () => {

@@ -10,6 +10,7 @@ const protectedRoutes = [
   '/my-store',
   '/my-services',
   '/ads/create',
+  '/orders',
   '/account/sales',
   '/account/customers',
 ];

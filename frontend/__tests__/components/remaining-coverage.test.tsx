@@ -269,10 +269,17 @@ describe('MyStoreAnalytics', () => {
       data: {
         views: 10,
         followers: 2,
+        newFollowers7d: 1,
         newFollowers30d: 1,
         activeProducts: 3,
         activePromotions: 0,
         promotionUses: 0,
+        orders: {
+          totalCount: 0,
+          byStatus: { PENDING: 0, CONFIRMED: 0, PROCESSING: 0, SHIPPED: 0, DELIVERED: 0, CANCELLED: 0 },
+          nonCancelledValueByCurrency: [],
+          deliveredValueByCurrency: [],
+        },
         topProducts: [],
       },
       isLoading: false,

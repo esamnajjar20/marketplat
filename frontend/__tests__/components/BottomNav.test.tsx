@@ -43,6 +43,7 @@ describe('BottomNav', () => {
     expect(screen.getByRole('button', { name: /استكشاف/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /الرسائل/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /القائمة/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /القائمة/ })).toHaveAttribute('id', 'mobile-nav-toggle');
   });
 
   it('does not render a plain "البحث" link anymore', () => {
@@ -79,6 +80,27 @@ describe('BottomNav', () => {
     render(<BottomNav />);
     expect(screen.getByRole('button', { name: /استكشاف/ }).getAttribute('aria-current')).toBe('page');
   });
+
+  it.each([
+    '/ads',
+    '/ads/ad-123',
+    '/requests',
+    '/requests/request-123',
+    '/sellers/ranking',
+    '/products/product-123',
+  ])('marks "استكشاف" active for its browse destination %s', (pathname) => {
+    mockUsePathname.mockReturnValue(pathname);
+    render(<BottomNav />);
+    expect(screen.getByRole('button', { name: /استكشاف/ }).getAttribute('aria-current')).toBe('page');
+  });
+
+  it.each(['/requests/me', '/requests/offers', '/requests/new', '/ads/create'])(
+    'does not mark Explore active on private workflow route %s', (pathname) => {
+      mockUsePathname.mockReturnValue(pathname);
+      render(<BottomNav />);
+      expect(screen.getByRole('button', { name: /استكشاف/ }).getAttribute('aria-current')).toBeNull();
+    },
+  );
 
   it('does not mark "استكشاف" active on unrelated pages', () => {
     mockUsePathname.mockReturnValue('/messages');

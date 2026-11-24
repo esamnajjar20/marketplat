@@ -9,6 +9,7 @@ import {
   useInviteStoreMember,
   useUpdateStoreMemberRole,
   useRemoveStoreMember,
+  useRejectStoreMemberInvite,
 } from '@/hooks/mutations/useStoreMemberMutations';
 import { storeMembersApi } from '@/api/store-members.api';
 import { toast } from 'sonner';
@@ -79,4 +80,14 @@ describe('useStoreMemberMutations', () => {
     expect(storeMembersApi.remove).toHaveBeenCalledWith('s1', 'm1');
     expect(toast.success).toHaveBeenCalled();
   });
+});
+
+
+it('reject invitation removes the pending membership and invalidates invite state', async () => {
+  const { result } = renderHook(() => useRejectStoreMemberInvite(), { wrapper });
+  await act(async () => {
+    await result.current.mutateAsync({ storeId: 's1', memberId: 'm-pending' });
+  });
+  expect(storeMembersApi.remove).toHaveBeenCalledWith('s1', 'm-pending');
+  expect(toast.success).toHaveBeenCalledWith('تم رفض الدعوة');
 });

@@ -5,8 +5,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { setupUser } from '@/test-support/user-event';
 import { CollectionProductsManager } from '@/components/stores/CollectionProductsManager';
-import { useCollection, useCollectionProducts } from '@/hooks/queries/useCollections';
-import { useMyProducts } from '@/hooks/queries/useProducts';
+import { useCollection, useManageCollectionProducts } from '@/hooks/queries/useCollections';
+import { useInfiniteMyProducts } from '@/hooks/queries/useProducts';
 import {
   useAddProductToCollection,
   useRemoveProductFromCollection,
@@ -14,11 +14,11 @@ import {
 
 vi.mock('@/hooks/queries/useCollections', () => ({
   useCollection: vi.fn(),
-  useCollectionProducts: vi.fn(),
+  useManageCollectionProducts: vi.fn(),
 }));
 
 vi.mock('@/hooks/queries/useProducts', () => ({
-  useMyProducts: vi.fn(),
+  useInfiniteMyProducts: vi.fn(),
 }));
 
 vi.mock('@/hooks/mutations/useCollectionMutations', () => ({
@@ -51,7 +51,7 @@ describe('CollectionProductsManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (useCollection as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: { id: 'c1', name: 'مجموعة' },
+      data: { id: 'c1', storeId: 'store-1', name: 'مجموعة' },
       isLoading: false,
     });
     (useAddProductToCollection as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -67,63 +67,71 @@ describe('CollectionProductsManager', () => {
   });
 
   it('shows collection name in the heading', () => {
-    (useCollectionProducts as ReturnType<typeof vi.fn>).mockReturnValue({
+    (useManageCollectionProducts as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [],
       isLoading: false,
       isError: false,
       refetch: mockRefetch,
     });
-    (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: { items: [] },
-      isLoading: false,
+    (useInfiniteMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { pages: [{ items: [] }] },
+      isLoading: false, isError: false, hasNextPage: false, isFetchingNextPage: false,
+      fetchNextPage: vi.fn(), refetch: vi.fn(),
     });
     render(<CollectionProductsManager collectionId="c1" />);
     expect(screen.getByText(/منتجات: مجموعة/)).toBeInTheDocument();
+    expect(useInfiniteMyProducts).toHaveBeenCalledWith(
+      { status: 'ACTIVE', limit: 50, storeId: 'store-1' },
+      { enabled: true },
+    );
   });
 
   it('shows error with retry', async () => {
-    (useCollectionProducts as ReturnType<typeof vi.fn>).mockReturnValue({
+    (useManageCollectionProducts as ReturnType<typeof vi.fn>).mockReturnValue({
       data: undefined,
       isLoading: false,
       isError: true,
       refetch: mockRefetch,
     });
-    (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: { items: [] },
-      isLoading: false,
+    (useInfiniteMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { pages: [{ items: [] }] },
+      isLoading: false, isError: false, hasNextPage: false, isFetchingNextPage: false,
+      fetchNextPage: vi.fn(), refetch: vi.fn(),
     });
     const user = setupUser();
     render(<CollectionProductsManager collectionId="c1" />);
     expect(screen.getByText('حدث خطأ أثناء تحميل المنتجات')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'إعادة المحاولة' }));
+    await user.click(screen.getByRole('button', { name: 'إعادة تحميل عضويات المجموعة' }));
     expect(mockRefetch).toHaveBeenCalled();
   });
 
   it('shows empty state when store has no active products', () => {
-    (useCollectionProducts as ReturnType<typeof vi.fn>).mockReturnValue({
+    (useManageCollectionProducts as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [],
       isLoading: false,
       isError: false,
       refetch: mockRefetch,
     });
-    (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: { items: [] },
-      isLoading: false,
+    (useInfiniteMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { pages: [{ items: [] }] },
+      isLoading: false, isError: false, hasNextPage: false, isFetchingNextPage: false,
+      fetchNextPage: vi.fn(), refetch: vi.fn(),
     });
     render(<CollectionProductsManager collectionId="c1" />);
     expect(screen.getByText('لا توجد منتجات نشطة')).toBeInTheDocument();
   });
 
   it('adds a product that is not yet a member', async () => {
-    (useCollectionProducts as ReturnType<typeof vi.fn>).mockReturnValue({
+    (useManageCollectionProducts as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [],
       isLoading: false,
       isError: false,
       refetch: mockRefetch,
     });
-    (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: { items: [product] },
-      isLoading: false,
+    (useInfiniteMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { pages: [{ items: [product] }] },
+      isLoading: false, isError: false, hasNextPage: false, isFetchingNextPage: false,
+      fetchNextPage: vi.fn(), refetch: vi.fn(),
     });
     const user = setupUser();
     render(<CollectionProductsManager collectionId="c1" />);
@@ -133,15 +141,16 @@ describe('CollectionProductsManager', () => {
   });
 
   it('removes a product that is already a member', async () => {
-    (useCollectionProducts as ReturnType<typeof vi.fn>).mockReturnValue({
+    (useManageCollectionProducts as ReturnType<typeof vi.fn>).mockReturnValue({
       data: [product],
       isLoading: false,
       isError: false,
       refetch: mockRefetch,
     });
-    (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: { items: [product] },
-      isLoading: false,
+    (useInfiniteMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: { pages: [{ items: [product] }] },
+      isLoading: false, isError: false, hasNextPage: false, isFetchingNextPage: false,
+      fetchNextPage: vi.fn(), refetch: vi.fn(),
     });
     const user = setupUser();
     render(<CollectionProductsManager collectionId="c1" />);

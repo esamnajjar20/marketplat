@@ -30,13 +30,18 @@ function read(rel: string) {
 }
 
 const css = read('app/globals.css');
-const aliasNames = [...css.matchAll(/--(legacy-[a-z0-9-]+):/g)].map((m) => m[1]);
-const rootAliasBlock = css.match(/\/\* Legacy palette bridge:[\s\S]*?\n:root \{([\s\S]*?)\n\}\n\.dark \{/)?.[1] ?? '';
-const darkAliasBlock = css.match(/\n\.dark \{([\s\S]*?)\n\}\n\n\/\*\*\n \* Single source for BottomNav/s)?.[1] ?? '';
-const uniqueAliases = [...new Set(aliasNames)];
-check('all legacy UI palette variables have light and dark values',
-  uniqueAliases.length >= 40 && uniqueAliases.every((name) => rootAliasBlock.includes(`--${name}:`) && darkAliasBlock.includes(`--${name}:`)),
-  `${uniqueAliases.length} semantic aliases; all ${uniqueAliases.length} declared in both themes`);
+const semanticAliasBlock = css.match(/\/\* Canonical semantic color aliases[\s\S]*?\n:root \{([\s\S]*?)\n\}/)?.[1] ?? '';
+const semanticAliasNames = [...semanticAliasBlock.matchAll(/--(color-[a-z0-9-]+):/g)].map((m) => m[1]);
+const lightThemeBlock = css.match(/:root \{([\s\S]*?)\n  \}/)?.[1] ?? '';
+const darkThemeBlock = css.match(/\n  \.dark \{([\s\S]*?)\n  \}/)?.[1] ?? '';
+const semanticAliasesAreThemeReactive = semanticAliasNames.length >= 25
+  && semanticAliasBlock.includes('var(--')
+  && semanticAliasNames.every((name) => !css.includes(`--legacy-${name.replace(/^color-/, '')}:`));
+const themeHasSemanticSources = ['--background:', '--foreground:', '--primary:', '--destructive:', '--warning:', '--accent:', '--border:']
+  .every((token) => lightThemeBlock.includes(token) && darkThemeBlock.includes(token));
+check('semantic UI palette aliases resolve through both Light and Dark themes',
+  semanticAliasesAreThemeReactive && themeHasSemanticSources,
+  `${semanticAliasNames.length} canonical aliases are theme-reactive; source tokens exist in Light and Dark themes`);
 
 const publicLayout = read('app/(public)/layout.tsx');
 const protectedLayout = read('app/(protected)/layout.tsx');
@@ -58,7 +63,12 @@ check('sticky CTA clearance is at route end, after related content',
 const wideMinWidthFiles = uiFiles.filter((file) => /min-w-\[(?:[4-9]\d{2}|\d{4,})px\]/.test(fs.readFileSync(file, 'utf8')));
 const uncontainedWideFiles = wideMinWidthFiles.filter((file) => {
   const source = fs.readFileSync(file, 'utf8');
-  return !/overflow-x-auto|overflow-auto|overflow-hidden|\bhidden\b/.test(source);
+  // AdminTableFrame owns the scroll wrapper, so the consumer table must not
+  // duplicate overflow classes in every feature-specific table component.
+  const delegatesToSharedScrollableTable = /<AdminTableFrame\b/.test(source)
+    && read('components/admin/AdminTableFrame.tsx').includes('overflow-x-auto');
+  return !delegatesToSharedScrollableTable
+    && !/overflow-x-auto|overflow-auto|overflow-hidden|\bhidden\b/.test(source);
 });
 check('wide tables/charts are horizontally scrollable or replaced on mobile', uncontainedWideFiles.length === 0,
   `${wideMinWidthFiles.length} wide-layout source files inspected; ${uncontainedWideFiles.length} lack overflow handling`);
@@ -89,16 +99,16 @@ const primaryBadPairs = [];
 for (const file of uiFiles) {
   const source = fs.readFileSync(file, 'utf8');
   for (const line of source.split('\n')) {
-    if (line.includes('bg-[var(--legacy-primary)]') && line.includes('text-white')) primaryBadPairs.push(path.relative(root, file));
-    if (line.includes('bg-[var(--legacy-accent-strong)]') && line.includes('text-white')) primaryBadPairs.push(path.relative(root, file));
-    if (line.includes('bg-[var(--legacy-warning-strong)]') && line.includes('text-white')) primaryBadPairs.push(path.relative(root, file));
+    if (line.includes('bg-[var(--color-primary)]') && line.includes('text-white')) primaryBadPairs.push(path.relative(root, file));
+    if (line.includes('bg-[var(--color-accent)]') && line.includes('text-white')) primaryBadPairs.push(path.relative(root, file));
+    if (line.includes('bg-[var(--color-warning)]') && line.includes('text-white')) primaryBadPairs.push(path.relative(root, file));
   }
 }
 check('semantic background/text pairs preserve dark-mode contrast', primaryBadPairs.length === 0, primaryBadPairs.length ? `contrast pairs remain in ${primaryBadPairs.join(', ')}` : 'primary/accent/warning CTA text uses matching foreground tokens');
 
 const legacyHex = /#(?:EAE3D6|1F4D33|6B6459|397F56|E8F1EC|4A433A|F6F1E7|9B2118|CFE0D5|FBF0D9|FBF9F4|F0EADF|FBE9E7|2A241D|7A4B07|F1C9C4|8F3F14|FBEEE6|D9D1C3|B3261E|D9962B|F4F9F6|C47A0A|FDFBF7|F6E7DB|9B2C2C|A39E94|EBD7A8|5A3705|E3EEF5|EFEADF|F1D3A8|5E9C73|EDE7DC|E8E2D6|E8A8A0|FDF6F5|F1D3C0|7A4B2A|AD531F)\b/i;
 const stalePaletteFiles = uiFiles.filter((file) => {
-  if (/FloatingDebugConsole|DownloadStoreCatalogButton|ShareAdQrDialog|debug\/|app\/manifest\.ts|app\/icon-(?:192|512|512-maskable)\//.test(file)) return false;
+  if (/FloatingDebugConsole|DownloadStoreCatalogButton|ShareAdQrDialog|debug\/|app\/manifest\.ts|app\/icon\.tsx|app\/icon-(?:192|512|512-maskable)\//.test(file)) return false;
   return legacyHex.test(fs.readFileSync(file, 'utf8'));
 });
 check('legacy page-specific palette is routed through semantic theme variables', stalePaletteFiles.length === 0, stalePaletteFiles.length ? `${stalePaletteFiles.length} UI source files still contain legacy colors: ${stalePaletteFiles.map((f) => path.relative(root, f)).join(', ')}` : 'old hardcoded warm palette removed from app and UI components; branded manifest/icons excluded');
