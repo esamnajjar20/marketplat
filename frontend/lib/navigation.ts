@@ -30,19 +30,25 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
+import { BROWSE_ROUTE_PATHS, isBrowseRouteActive } from '@/lib/browse-routes';
 
-/** Public discovery — used in mobile drawers (+ ExploreSheet mirrors this). */
-export const BROWSE_LINKS = [
-  { label: 'الرئيسية', href: ROUTES.home, icon: Home },
-  { label: 'البحث', href: ROUTES.search, icon: Search },
-  { label: 'الإعلانات', href: ROUTES.ads, icon: ListOrdered },
-  { label: 'المنتجات', href: ROUTES.products, icon: Package },
-  { label: 'الخدمات', href: ROUTES.services, icon: Wrench },
-  { label: 'سوق الطلبات', href: ROUTES.requests, icon: ClipboardList },
-  { label: 'المتاجر', href: ROUTES.stores, icon: Store },
-  { label: 'مقدمو الخدمة', href: ROUTES.serviceProviders, icon: Users },
-  { label: 'أفضل البائعين', href: ROUTES.sellersRanking, icon: Trophy },
-] as const;
+/** Public discovery links; href values come from the shared lightweight browse-route registry. */
+const BROWSE_LINK_METADATA: Record<string, { label: string; icon: typeof Home }> = {
+  [ROUTES.home]: { label: 'الرئيسية', icon: Home },
+  [ROUTES.search]: { label: 'البحث', icon: Search },
+  [ROUTES.ads]: { label: 'الإعلانات', icon: ListOrdered },
+  [ROUTES.products]: { label: 'المنتجات', icon: Package },
+  [ROUTES.services]: { label: 'الخدمات', icon: Wrench },
+  [ROUTES.requests]: { label: 'سوق الطلبات', icon: ClipboardList },
+  [ROUTES.stores]: { label: 'المتاجر', icon: Store },
+  [ROUTES.serviceProviders]: { label: 'مقدمو الخدمة', icon: Users },
+  [ROUTES.sellersRanking]: { label: 'أفضل البائعين', icon: Trophy },
+} as const;
+
+export const BROWSE_LINKS = BROWSE_ROUTE_PATHS.map((href) => ({
+  href,
+  ...BROWSE_LINK_METADATA[href],
+}));
 
 /** Secondary personal activity — not primary destinations. */
 export const SALES_GROUP = {
@@ -220,20 +226,13 @@ export function navChildIsActive(
     return want === have;
   }
 
-  if (pathname === child.href) return true;
-
-  // /requests is the market feed; do not mark it active on account sub-routes
-  // (/requests/me, /offers, /new) which have their own nav children.
-  if (child.href === ROUTES.requests) {
-    if (
-      pathname.startsWith('/requests/me') ||
-      pathname.startsWith('/requests/offers') ||
-      pathname.startsWith('/requests/new')
-    ) {
-      return false;
-    }
-    return pathname.startsWith('/requests/');
+  // Keep browse-link state aligned with BottomNav and ExploreSheet, while
+  // excluding private creation/account routes from their public sections.
+  if ((BROWSE_ROUTE_PATHS as readonly string[]).includes(childPath)) {
+    return isBrowseRouteActive(pathname, childPath);
   }
+
+  if (pathname === child.href) return true;
 
   return pathname.startsWith(`${child.href}/`);
 }

@@ -111,14 +111,14 @@ export function CompleteProfileForm() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="اسمك الكامل"
-          className="h-12 rounded-2xl border-[var(--legacy-border)]"
+          className="h-12 rounded-2xl border-[var(--color-border)]"
           autoComplete="name"
         />
       </FormField>
 
       <FormField label="المدينة" htmlFor="city" error={fieldError('city')} required>
         <Select value={city} onValueChange={setCity}>
-          <SelectTrigger id="city" className="h-12 rounded-2xl border-[var(--legacy-border)]">
+          <SelectTrigger id="city" className="h-12 rounded-2xl border-[var(--color-border)]">
             <SelectValue placeholder="اختر مدينتك" />
           </SelectTrigger>
           <SelectContent>

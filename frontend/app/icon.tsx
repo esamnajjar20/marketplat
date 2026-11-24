@@ -28,7 +28,8 @@ export default function Icon() {
           alignItems: 'center',
           justifyContent: 'center',
           background: '#2F5D45',
-          color: 'var(--legacy-background-pale)',
+          // Static Satori-generated favicon: intentionally independent of runtime CSS/theme variables.
+          color: '#FDFBF7',
           fontSize: 20,
           fontWeight: 700,
           borderRadius: 6,

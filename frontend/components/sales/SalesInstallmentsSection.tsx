@@ -57,7 +57,7 @@ function InstallmentRow({
         <span
           className={cn(
             'inline-flex h-6 shrink-0 items-center rounded-full px-2.5 text-2xs-tight font-bold',
-            overdue ? 'bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]' : 'bg-[var(--legacy-warning-soft)] text-[var(--legacy-warning-text)]',
+            overdue ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger)]' : 'bg-[var(--color-warning-soft)] text-[var(--color-warning-text)]',
           )}
         >
           {overdue ? 'متأخر' : 'قادم'}

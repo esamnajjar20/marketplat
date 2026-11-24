@@ -27,9 +27,9 @@ type Props = {
 };
 
 function riskBarColor(score: number): string {
-  if (score >= 70) return 'var(--legacy-danger-strong)';
-  if (score >= 40) return 'var(--legacy-warning-strong)';
-  return 'var(--legacy-primary)';
+  if (score >= 70) return 'var(--color-danger)';
+  if (score >= 40) return 'var(--color-warning)';
+  return 'var(--color-primary)';
 }
 
 /** Design-matched action button: height 30px, radius 8px */
@@ -51,9 +51,9 @@ function ActionBtn({
       onClick={onClick}
       className={cn(
         'inline-flex h-[30px] items-center justify-center gap-1 rounded-lg px-2.5 text-xs font-bold transition-colors disabled:opacity-50',
-        variant === 'outline' && 'border border-[var(--legacy-primary-border)] bg-card text-[var(--legacy-primary-deep)] hover:bg-primary-soft',
-        variant === 'danger' && 'border border-[var(--legacy-danger-border)] bg-card text-[var(--legacy-danger)] hover:bg-[var(--legacy-danger-soft)]',
-        variant === 'success' && 'border border-[var(--legacy-primary-border)] bg-card text-[var(--legacy-primary-deep)] hover:bg-primary-soft',
+        variant === 'outline' && 'border border-[var(--color-primary-border)] bg-card text-[var(--color-primary-strong)] hover:bg-primary-soft',
+        variant === 'danger' && 'border border-[var(--color-danger-border)] bg-card text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]',
+        variant === 'success' && 'border border-[var(--color-primary-border)] bg-card text-[var(--color-primary-strong)] hover:bg-primary-soft',
       )}
     >
       {children}
@@ -72,7 +72,7 @@ export const AdminFraudRow = memo(function AdminFraudRow({
   const score = ad.riskScore ?? 0;
   return (
     <Fragment>
-      <tr className="border-b border-[var(--legacy-muted-surface)] transition-colors hover:bg-[var(--legacy-card-soft)] [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
+      <tr className="border-b border-[var(--color-surface-muted)] transition-colors hover:bg-[var(--color-surface-soft)] [content-visibility:auto] [contain-intrinsic-size:auto_56px]">
         <td className="p-3 max-w-xs">
           <IntentPrefetchLink
             prefetch={false}
@@ -84,16 +84,16 @@ export const AdminFraudRow = memo(function AdminFraudRow({
             <ExternalLink className="h-3 w-3 shrink-0 text-primary" />
             <span className="truncate">{ad.title}</span>
           </IntentPrefetchLink>
-          <span className="text-xs text-[var(--legacy-muted-text)]">
+          <span className="text-xs text-[var(--color-text-muted)]">
             {ad.price == null ? '—' : formatPrice(Number(ad.price))}
           </span>
         </td>
-        <td className="p-3 hidden sm:table-cell text-sm-tight text-[var(--legacy-foreground-warm)]">
+        <td className="p-3 hidden sm:table-cell text-sm-tight text-[var(--color-text-primary)]">
           {ad.user?.name ?? '—'}
         </td>
         <td className="p-3">
           <div className="flex items-center gap-2">
-            <span className="relative h-2 w-16 overflow-hidden rounded-full bg-[var(--legacy-border)]">
+            <span className="relative h-2 w-16 overflow-hidden rounded-full bg-[var(--color-border)]">
               <i
                 className="absolute inset-y-0 start-0 rounded-full"
                 style={{ width: `${Math.min(100, score)}%`, background: riskBarColor(score) }}
@@ -102,7 +102,7 @@ export const AdminFraudRow = memo(function AdminFraudRow({
             <span className="text-sm-tight font-extrabold tabular-nums">{score}</span>
           </div>
         </td>
-        <td className="p-3 hidden lg:table-cell text-xs text-[var(--legacy-muted-text)]">
+        <td className="p-3 hidden lg:table-cell text-xs text-[var(--color-text-muted)]">
           <HydrationSafeRelativeTime date={ad.createdAt} />
         </td>
         <td className="p-3">
@@ -121,9 +121,9 @@ export const AdminFraudRow = memo(function AdminFraudRow({
         </td>
       </tr>
       {expanded && (
-        <tr className="bg-[var(--legacy-page-surface)]">
+        <tr className="bg-[var(--color-page)]">
           <td colSpan={5} className="p-0">
-            <div className="border-b border-[var(--legacy-muted-surface)] px-3.5 py-3">
+            <div className="border-b border-[var(--color-surface-muted)] px-3.5 py-3">
               <AdSignalsPanel adId={ad.id} />
             </div>
           </td>

@@ -228,11 +228,7 @@ export function useMyStore(options?: { enabled?: boolean }) {
   return query;
 }
 
-/**
- * GET /stores/me/analytics — owner-only. See StoreAnalytics's doc
- * comment (types/store.types.ts) for why there's no orders/revenue/
- * conversion field: this backend has no Order model yet.
- */
+/** GET /stores/me/analytics — owner-only. Checkout orders are exposed as a separate aggregate from SaleRecord. */
 export function useMyStoreAnalytics() {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
   const hasToken = useAuthStore(selectHasAccessToken);

@@ -52,7 +52,7 @@ export function AdCategoryChips() {
           'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-bold transition-colors',
           !activeId
             ? 'border-primary bg-primary text-primary-foreground'
-            : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:border-primary/40 dark:border-border dark:bg-card dark:text-foreground',
+            : 'border-[var(--color-border)] bg-card text-[var(--color-text-primary)] hover:border-primary/40 dark:border-border dark:bg-card dark:text-foreground',
         )}
       >
         الكل
@@ -69,7 +69,7 @@ export function AdCategoryChips() {
               'inline-flex h-8 shrink-0 items-center rounded-full border px-3 text-xs font-bold transition-colors',
               selected
                 ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:border-primary/40 dark:border-border dark:bg-card dark:text-foreground',
+                : 'border-[var(--color-border)] bg-card text-[var(--color-text-primary)] hover:border-primary/40 dark:border-border dark:bg-card dark:text-foreground',
             )}
           >
             {cat.nameAr || cat.name}

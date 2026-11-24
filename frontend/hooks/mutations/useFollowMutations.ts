@@ -29,7 +29,7 @@ export function useToggleFollow() {
         if (viewerId) {
           queryClient.setQueryData(
             queryKeys.users.profileState(vars.targetId, viewerId),
-            (current: { following: boolean; online: boolean; lastSeenAt: string | null } | undefined) =>
+            (current: { following: boolean; online: boolean; lastSeenAt: string | null; interactionRestricted?: boolean } | undefined) =>
               current ? { ...current, following: data.action === 'followed' } : current,
           );
         }

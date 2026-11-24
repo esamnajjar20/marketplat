@@ -183,25 +183,25 @@ export default function RequestDetailPage() {
 
       {/* Value summary — soft beige tiles matching design */}
       <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
-        <div className="rounded-xl bg-[var(--legacy-surface)] p-2.5 text-center sm:p-3">
-          <p className="text-2xs-tight text-[var(--legacy-muted-text)]">الميزانية</p>
+        <div className="rounded-xl bg-[var(--color-surface)] p-2.5 text-center sm:p-3">
+          <p className="text-2xs-tight text-[var(--color-text-muted)]">الميزانية</p>
           <p className="mt-0.5 text-card-title font-extrabold tabular-nums text-foreground">
             {budget ?? 'مفتوحة'}
           </p>
         </div>
-        <div className="rounded-xl bg-[var(--legacy-surface)] p-2.5 text-center sm:p-3">
-          <p className="text-2xs-tight text-[var(--legacy-muted-text)]">العروض</p>
+        <div className="rounded-xl bg-[var(--color-surface)] p-2.5 text-center sm:p-3">
+          <p className="text-2xs-tight text-[var(--color-text-muted)]">العروض</p>
           <p className="mt-0.5 text-card-title font-extrabold">{offersCount}</p>
         </div>
-        <div className="rounded-xl bg-[var(--legacy-surface)] p-2.5 text-center sm:p-3">
-          <p className="text-2xs-tight text-[var(--legacy-muted-text)]">المدينة</p>
+        <div className="rounded-xl bg-[var(--color-surface)] p-2.5 text-center sm:p-3">
+          <p className="text-2xs-tight text-[var(--color-text-muted)]">المدينة</p>
           <p className="mt-0.5 text-card-title font-extrabold">{request.city ?? '—'}</p>
         </div>
       </div>
 
       {request.description && (
-        <div className="rounded-xl bg-[var(--legacy-surface)] px-3.5 py-3">
-          <p className="whitespace-pre-wrap text-sm-tight leading-[1.9] text-[var(--legacy-foreground-warm)]">
+        <div className="rounded-xl bg-[var(--color-surface)] px-3.5 py-3">
+          <p className="whitespace-pre-wrap text-sm-tight leading-[1.9] text-[var(--color-text-primary)]">
             {request.description}
           </p>
         </div>
@@ -243,8 +243,8 @@ export default function RequestDetailPage() {
       )}
 
       {!isAuthenticated && request.status === 'OPEN' && !isOwner && (
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--legacy-primary-border)] bg-[var(--legacy-primary-soft)] p-3.5">
-          <span className="text-sm-tight font-bold text-[var(--legacy-primary-deep)]">سجّل الدخول لتقديم عرض على هذا الطلب</span>
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] p-3.5">
+          <span className="text-sm-tight font-bold text-[var(--color-primary-strong)]">سجّل الدخول لتقديم عرض على هذا الطلب</span>
           <Button asChild className="h-9 shrink-0 rounded-xl text-sm font-bold">
             <IntentPrefetchLink href={loginHref} prefetch={false}>تسجيل الدخول</IntentPrefetchLink>
           </Button>
@@ -252,7 +252,7 @@ export default function RequestDetailPage() {
       )}
 
       {!isOwner && request.status !== 'OPEN' && (
-        <div className="rounded-xl border border-[var(--legacy-warning-border)] bg-[var(--legacy-warning-soft)] px-3.5 py-3 text-sm-tight leading-relaxed text-[var(--legacy-warning-deep)]">
+        <div className="rounded-xl border border-[var(--color-warning-border)] bg-[var(--color-warning-soft)] px-3.5 py-3 text-sm-tight leading-relaxed text-[var(--color-warning-text)]">
           ⚠ هذا الطلب لم يعد مفتوحًا لاستقبال عروض جديدة.
         </div>
       )}
@@ -275,8 +275,8 @@ export default function RequestDetailPage() {
         >
           <div className="mx-auto flex max-w-3xl items-center gap-2.5">
             <div className="min-w-0 flex-1">
-              <div className="text-2xs-tight text-[var(--legacy-muted-text)]">الميزانية</div>
-              <b className="text-card-title font-extrabold text-[var(--legacy-primary-deep)] tabular-nums">
+              <div className="text-2xs-tight text-[var(--color-text-muted)]">الميزانية</div>
+              <b className="text-card-title font-extrabold text-[var(--color-primary-strong)] tabular-nums">
                 {budget ?? 'مفتوحة'}
               </b>
             </div>

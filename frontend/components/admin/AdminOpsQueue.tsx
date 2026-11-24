@@ -57,7 +57,7 @@ export function AdminOpsQueue() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center rounded-card border border-[var(--legacy-border)] bg-card py-10">
+      <div className="flex justify-center rounded-card border border-[var(--color-border)] bg-card py-10">
         <LoadingSpinner />
       </div>
     );
@@ -74,7 +74,7 @@ export function AdminOpsQueue() {
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-card-title font-extrabold tracking-tight">طابور العمل</h2>
         {total > 0 && (
-          <span className="inline-flex h-[22px] items-center rounded-full bg-[var(--legacy-warning-soft)] px-2 text-2xs-tight font-bold text-[var(--legacy-warning-text)]">
+          <span className="inline-flex h-[22px] items-center rounded-full bg-[var(--color-warning-soft)] px-2 text-2xs-tight font-bold text-[var(--color-warning-text)]">
             {formatNumber(total)} عنصر يحتاج مراجعة
           </span>
         )}
@@ -86,7 +86,7 @@ export function AdminOpsQueue() {
           return (
             <div
               key={key}
-              className="flex flex-col rounded-card border border-[var(--legacy-border)] bg-[var(--legacy-page-surface)] p-3 shadow-[0_1px_3px_rgba(42,36,29,0.05)]"
+              className="flex flex-col rounded-card border border-[var(--color-border)] bg-[var(--color-page)] p-3 shadow-[0_1px_3px_rgba(42,36,29,0.05)]"
             >
               <div className="flex items-center gap-2.5">
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-card text-primary">
@@ -97,12 +97,12 @@ export function AdminOpsQueue() {
                 </span>
               </div>
               <p className="mt-2 text-sm-tight font-bold">{label}</p>
-              <p className="mt-0.5 text-xs text-[var(--legacy-muted-text)]">{hint}</p>
+              <p className="mt-0.5 text-xs text-[var(--color-text-muted)]">{hint}</p>
               <IntentPrefetchLink
                 clientQueryNavigation
                 href={href}
                 className={cn(
-                  'mt-2 inline-flex h-[30px] w-fit items-center justify-center rounded-lg border border-[var(--legacy-primary-border)] bg-card px-2.5 text-xs font-bold text-[var(--legacy-primary-deep)]',
+                  'mt-2 inline-flex h-[30px] w-fit items-center justify-center rounded-lg border border-[var(--color-primary-border)] bg-card px-2.5 text-xs font-bold text-[var(--color-primary-strong)]',
                   'hover:bg-primary-soft transition-colors',
                 )} prefetch={false}
               >

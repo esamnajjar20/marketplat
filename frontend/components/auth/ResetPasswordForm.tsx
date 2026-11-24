@@ -12,6 +12,7 @@ import { FormField } from '@/components/shared/forms/FormField';
 import { ROUTES } from '@/lib/constants';
 import { toast } from 'sonner';
 import { parseApiError } from '@/lib/errorParser';
+import { getPasswordPolicyError } from '../../../shared/password-policy';
 
 interface Props { token: string; }
 
@@ -50,7 +51,7 @@ export function ResetPasswordForm({ token }: Props) {
   function validate() {
     const e: typeof errors = {};
     if (!password)            e.password = 'كلمة المرور مطلوبة';
-    else if (password.length < 8) e.password = 'كلمة المرور 8 أحرف على الأقل';
+    else e.password = getPasswordPolicyError(password) ?? undefined;
     if (!confirm)             e.confirm  = 'تأكيد كلمة المرور مطلوب';
     else if (confirm !== password) e.confirm = 'كلمتا المرور غير متطابقتين';
     setErrors(e);
@@ -60,7 +61,7 @@ export function ResetPasswordForm({ token }: Props) {
 
   // UX-FIX: mirrors validate()'s required-field rules read-only.
   const isFormIncomplete =
-    !password || password.length < 8 || !confirm || confirm !== password;
+    !password || Boolean(getPasswordPolicyError(password)) || !confirm || confirm !== password;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

@@ -140,7 +140,7 @@ function DrawerDisclosureGroup({
                   onClick={onNavigate}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'flex h-10 items-center border-inline-start-2 ms-3 pe-3 ps-3 text-sm transition-colors',
+                    'flex h-11 items-center border-inline-start-2 ms-3 pe-3 ps-3 text-sm transition-colors',
                     isActive
                       ? 'rounded-e-[10px] border-primary bg-primary/10 font-extrabold text-primary'
                       : 'border-border font-semibold text-foreground hover:bg-muted/60',
@@ -256,7 +256,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
         <button type="button"
           id={TOGGLE_ID}
           onClick={toggle}
-          className="rounded p-2 hover:bg-muted lg:hidden"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 hover:bg-muted lg:hidden"
           aria-label={isOpen ? 'أغلق القائمة' : 'افتح القائمة'}
           aria-expanded={isOpen}
           aria-controls={NAV_ID}
@@ -333,7 +333,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
           <button type="button"
             ref={closeButtonRef}
             onClick={close}
-            className="min-h-10 min-w-10 rounded-lg p-2 text-primary hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-h-11 min-w-11 rounded-lg p-2 text-primary hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="أغلق القائمة"
           >
             <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -346,7 +346,7 @@ export function ProtectedMobileNav({ hideTrigger = false }: { hideTrigger?: bool
           type="button"
           onClick={() => setShowBrowse((value) => !value)}
           aria-expanded={showBrowse}
-          className="mt-6 flex w-full items-center gap-2 rounded-md px-3 py-2 text-xs font-medium text-primary hover:bg-muted"
+          className="mt-6 flex min-h-11 w-full items-center gap-2 rounded-md px-3 text-xs font-medium text-primary hover:bg-muted"
         >
           <span className="flex-1 text-start">استكشاف</span>
           {showBrowse ? <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" /> : <ChevronLeft className="h-3.5 w-3.5" aria-hidden="true" />}

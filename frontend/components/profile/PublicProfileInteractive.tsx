@@ -114,11 +114,27 @@ export function PublicProfileAvatar({ user }: { user: PublicUser }) {
 
 export function PublicProfileFollowAction({ user }: { user: PublicUser }) {
   const currentUserId = useAuthStore((state) => state.user?.id ?? null);
-  const { data: profileState } = useProfileInteractionState(user.id, currentUserId !== user.id);
-  const isFollowing = profileState?.following ?? false;
+  const authenticated = useAuthStore((state) => state.isAuthenticated);
+  const { data: profileState, isLoading, isFetching, isError, refetch } = useProfileInteractionState(user.id, currentUserId !== user.id);
+  const isFollowing = profileState?.following === true;
   const toggleFollow = useToggleFollow();
 
-  if (currentUserId === user.id) return null;
+  if (currentUserId === user.id || profileState?.interactionRestricted) return null;
+
+  const statePending = Boolean(authenticated && currentUserId !== user.id && !profileState);
+  if (statePending) {
+    return (
+      <button
+        type="button"
+        disabled={isFetching}
+        onClick={() => { void refetch(); }}
+        className="flex h-[46px] flex-[1.4] items-center justify-center rounded-card border border-border bg-muted text-card-title font-bold opacity-70 disabled:cursor-wait"
+        aria-busy={isLoading}
+      >
+        {isError ? 'إعادة التحقق من المتابعة' : isLoading ? 'جارٍ التحقق…' : 'جارٍ تحميل الحالة…'}
+      </button>
+    );
+  }
 
   return (
     <button
@@ -134,6 +150,15 @@ export function PublicProfileFollowAction({ user }: { user: PublicUser }) {
 }
 
 export function PublicProfileMessageActions({ user }: { user: PublicUser }) {
+  const currentUserId = useAuthStore((state) => state.user?.id ?? null);
+  const authenticated = useAuthStore((state) => state.isAuthenticated);
+  const { data: profileState, isLoading, isFetching, isError, refetch } = useProfileInteractionState(user.id, currentUserId !== user.id);
+  if (profileState?.interactionRestricted) {
+    return <span role="status" className="flex h-[46px] flex-1 items-center justify-center rounded-card border border-border bg-muted px-3 text-sm text-muted-foreground">التفاعل غير متاح</span>;
+  }
+  if (authenticated && currentUserId !== user.id && !profileState) {
+    return <button type="button" disabled={isFetching} onClick={() => { void refetch(); }} className="flex h-[46px] flex-1 items-center justify-center rounded-card border border-border bg-muted px-3 text-sm text-muted-foreground disabled:cursor-wait" aria-busy={isLoading}>{isError ? 'إعادة التحقق من الإتاحة' : 'جارٍ التحقق من الإتاحة…'}</button>;
+  }
   return (
     <>
       <MessageUserButtonGate

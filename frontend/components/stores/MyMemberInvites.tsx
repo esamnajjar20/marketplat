@@ -5,13 +5,13 @@
  * Can be shown on /my-store/members or a dedicated notifications area.
  */
 
-import { Building2, Check, AlertTriangle } from 'lucide-react';
+import { Building2, Check, X, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { Badge } from '@/components/shared/ui/Badge';
 import { SafeImg } from '@/components/shared/ui/SafeImg';
 import { LoadingSpinner } from '@/components/shared/feedback/LoadingSpinner';
 import { useMyMemberInvites } from '@/hooks/queries/useStoreMembers';
-import { useAcceptStoreMemberInvite } from '@/hooks/mutations/useStoreMemberMutations';
+import { useAcceptStoreMemberInvite, useRejectStoreMemberInvite } from '@/hooks/mutations/useStoreMemberMutations';
 import type { StoreMember, StoreMemberRole } from '@/types/store-member.types';
 
 const ROLE_LABELS: Record<StoreMemberRole, string> = {
@@ -22,6 +22,7 @@ const ROLE_LABELS: Record<StoreMemberRole, string> = {
 
 function InviteCard({ invite }: { invite: StoreMember }) {
   const accept = useAcceptStoreMemberInvite();
+  const reject = useRejectStoreMemberInvite();
   const storeName = invite.store?.name ?? 'متجر';
   const logo = invite.store?.logoUrl;
 
@@ -44,7 +45,7 @@ function InviteCard({ invite }: { invite: StoreMember }) {
       <Button
         size="sm"
         className="gap-1.5"
-        disabled={accept.isPending}
+        disabled={accept.isPending || reject.isPending}
         onClick={() => accept.mutate(invite.id)}
       >
         {accept.isPending ? (
@@ -53,6 +54,16 @@ function InviteCard({ invite }: { invite: StoreMember }) {
           <Check className="h-4 w-4" />
         )}
         قبول
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        className="gap-1.5"
+        disabled={accept.isPending || reject.isPending}
+        onClick={() => reject.mutate({ storeId: invite.storeId, memberId: invite.id })}
+      >
+        {reject.isPending ? <LoadingSpinner className="h-4 w-4" /> : <X className="h-4 w-4" />}
+        رفض
       </Button>
     </div>
   );

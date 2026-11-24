@@ -8,6 +8,7 @@ import { useServiceCategories } from '@/hooks/queries/useServiceCategories';
 import { useProductCategories } from '@/hooks/queries/useProductCategories';
 import { useCategories } from '@/hooks/queries/useCategories';
 import { useFormDraft, readFormDraft } from '@/hooks/useFormDraft';
+import { useFormDraftAttachments } from '@/hooks/useFormDraftAttachments';
 import { FormDraftStatus } from '@/components/shared/forms/FormDraftStatus';
 import { PublishMutationErrorNotice } from '@/components/shared/forms/PublishMutationErrorNotice';
 import { CreateFormLayout } from '@/components/shared/forms/CreateFormLayout';
@@ -204,6 +205,13 @@ export function CreateRequestForm() {
     { type, categoryId, title, description, city, budgetMin, budgetMax, step, expiresInDays },
     { enabled: !offlineDraftId },
   );
+  const {
+    attachmentError,
+    isSavingAttachments,
+    savedAttachmentCount,
+    clearAttachments,
+    retrySaveAttachments,
+  } = useFormDraftAttachments('open-request:create', files, setFiles, { enabled: !offlineDraftId });
 
   useEffect(() => {
     if (!offlineDraftId) {
@@ -353,6 +361,7 @@ export function CreateRequestForm() {
         onSuccess: () => {
           clearDraft();
           setFiles([]);
+          void clearAttachments();
         },
         onSettled: () => {
           isSubmittingRef.current = false;
@@ -498,6 +507,9 @@ export function CreateRequestForm() {
           <div className="space-y-1.5">
             <p className="text-sm font-medium">صور (اختياري، حتى 5)</p>
             <ImageUpload value={files} onChange={setFiles} maxFiles={5} />
+            {isSavingAttachments ? <p className="text-xs text-muted-foreground">جارٍ حفظ صور المسودة محليًا…</p> : null}
+            {savedAttachmentCount > 0 ? <p className="text-xs text-muted-foreground">تم حفظ {savedAttachmentCount} صور لاستعادتها عند العودة إلى النموذج.</p> : null}
+            {attachmentError ? <div role="alert" className="flex flex-wrap items-center gap-2 text-xs text-destructive"><span>{attachmentError}</span><button type="button" className="underline" onClick={retrySaveAttachments}>إعادة محاولة الحفظ</button></div> : null}
           </div>
         </div>
       )}

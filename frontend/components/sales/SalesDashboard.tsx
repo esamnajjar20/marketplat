@@ -32,7 +32,7 @@ function StatTile({
         <span
           className={cn(
             'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
-            warn ? 'bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]' : 'bg-primary/10 text-primary',
+            warn ? 'bg-[var(--color-danger-soft)] text-[var(--color-danger)]' : 'bg-primary/10 text-primary',
           )}
         >
           <Icon className="h-4 w-4" />
@@ -83,7 +83,7 @@ export function SalesDashboard() {
         <StatTile icon={TrendingUp} label="إيرادات الشهر" value={formatMoney(data.summary.totalRevenue)} />
         <StatTile icon={Wallet} label="الربح الصافي" value={formatMoney(data.summary.netProfit)} />
         <StatTile icon={CheckCircle2} label="المدفوع" value={formatMoney(paid)} />
-        <StatTile icon={AlertTriangle} label="الديون" value={formatMoney(data.debt.totalDue)} warn />
+        <StatTile icon={AlertTriangle} label="الديون الحالية" value={formatMoney(data.debt.totalDue)} warn />
       </div>
 
       {change !== null && (
@@ -124,8 +124,8 @@ export function SalesDashboard() {
       <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
         <section className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-extrabold">أفضل المنتجات</h3>
-            <span className="text-2xs-tight text-muted-foreground">حسب الإيراد</span>
+            <h3 className="text-sm font-extrabold">أفضل المنتجات · كل الفترة</h3>
+            <span className="text-2xs-tight text-muted-foreground">حسب الإيراد الصافي</span>
           </div>
           <div className="space-y-2">
             {data.topProducts.map((x, i) => (
@@ -148,7 +148,7 @@ export function SalesDashboard() {
 
         <section className="rounded-2xl border border-border/70 bg-card p-3.5 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-extrabold">تنبيهات المخزون</h3>
+            <h3 className="text-sm font-extrabold">تنبيهات المخزون الحالي</h3>
             <Package className="h-4 w-4 text-primary" />
           </div>
           <div className="space-y-2">

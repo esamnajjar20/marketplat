@@ -156,7 +156,7 @@ export const ServiceListingCard = memo(function ServiceListingCard({
               href={detailHref}
               prefetch={false}
               className={cn(
-                'inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-[var(--legacy-border)] bg-card px-4 text-xs font-bold text-primary transition-colors hover:border-primary/40 dark:border-border dark:bg-card',
+                'inline-flex h-9 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] bg-card px-4 text-xs font-bold text-primary transition-colors hover:border-primary/40 dark:border-border dark:bg-card',
                 CARD_FOCUS,
               )}
             >

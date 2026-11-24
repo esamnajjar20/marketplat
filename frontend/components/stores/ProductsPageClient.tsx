@@ -56,7 +56,7 @@ export function ProductsPageClient({ initialPage, initialPageUpdatedAt, searchPa
     <ListPageShell
       title="المنتجات"
       description={`تصفح منتجات المتاجر في ${APP_NAME}`}
-      className="bg-[var(--legacy-page-surface)] dark:bg-background"
+      className="bg-[var(--color-page)] dark:bg-background"
       toolbar={
         <div className="flex w-full flex-col gap-3">
           <div className="min-w-0 w-full">

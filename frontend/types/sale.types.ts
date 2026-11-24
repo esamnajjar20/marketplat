@@ -49,6 +49,7 @@ export interface SalePayment {
 export interface SaleReturnRecord {
   id: string;
   saleId: string;
+  itemId: string | null;
   quantity: number;
   refundAmount: string;
   reason: 'DAMAGED' | 'WRONG_ITEM' | 'NOT_LIKED' | 'LATE' | 'OTHER';

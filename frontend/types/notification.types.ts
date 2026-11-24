@@ -30,6 +30,8 @@ export type NotificationType =
   | 'SERVICE_REQUEST_NEW'
   | 'SERVICE_REQUEST_UPDATE'
   | 'APPOINTMENT_UPDATE'
+  | 'MARKETPLACE_ORDER_NEW'
+  | 'MARKETPLACE_ORDER_UPDATE'
   | 'AD_EXPIRING_SOON'
   | 'AD_EXPIRED'
   | 'MODERATION_REPORT_RECEIVED'
@@ -52,10 +54,12 @@ export interface NotificationData {
   broadcastId?: string;
   quoteId?: string;
   requestId?: string;
+  orderId?: string;
   offerId?: string;
   status?: string;
   memberId?: string;
-  event?: 'started' | 'expiring' | 'expired';
+  /** Event discriminator varies by notification family (orders, promotions, ads, etc.). */
+  event?: string;
   reportId?: string;
   targetType?: string;
   targetId?: string;
@@ -84,7 +88,7 @@ export interface NotificationsQuery {
   /** نوع إشعار واحد */
   type?: NotificationType;
   /** فئة الواجهة: messages | favorites | stores | services | system */
-  category?: 'messages' | 'favorites' | 'stores' | 'services' | 'system' | 'sales';
+  category?: 'messages' | 'favorites' | 'stores' | 'services' | 'orders' | 'system' | 'sales';
 }
 
 /** سجل جهاز واحد مسجَّل لاستلام الإشعارات الخارجية — GET /notifications/devices. */

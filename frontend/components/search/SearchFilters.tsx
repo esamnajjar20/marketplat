@@ -55,7 +55,7 @@ export function SearchFilters() {
   }
 
   return (
-    <div className="space-y-4 rounded-2xl border border-[var(--legacy-border)] bg-card p-4 dark:border-border dark:bg-card">
+    <div className="space-y-4 rounded-2xl border border-[var(--color-border)] bg-card p-4 dark:border-border dark:bg-card">
       <div className="flex items-center gap-2 text-sm font-semibold">
         <SlidersHorizontal className="h-4 w-4" aria-hidden />
         تصفية النتائج

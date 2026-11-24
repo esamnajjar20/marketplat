@@ -16,7 +16,7 @@
  * deliberately excludes 'AD'.
  */
 import type { ProductWithStore } from './product.types';
-import type { StoreWithSeller } from './store.types';
+import type { StoreDirectoryItem } from './store.types';
 import type { ServiceListingWithProvider } from './service.types';
 
 /** The three entity kinds PR3 wires up on the frontend. */
@@ -62,5 +62,5 @@ export interface FavoriteEntityRecord<T> {
 }
 
 export type FavoriteProductRecord = FavoriteEntityRecord<ProductWithStore>;
-export type FavoriteStoreRecord = FavoriteEntityRecord<StoreWithSeller>;
+export type FavoriteStoreRecord = FavoriteEntityRecord<StoreDirectoryItem>;
 export type FavoriteServiceRecord = FavoriteEntityRecord<ServiceListingWithProvider>;

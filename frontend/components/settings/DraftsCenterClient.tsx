@@ -249,13 +249,13 @@ function DraftRow({
     draft.status === 'synced' ? 100 : isFailed ? 0 : draft.status === 'pending_sync' ? 85 : 55;
 
   return (
-    <li className="rounded-2xl border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
+    <li className="rounded-2xl border border-[var(--color-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] dark:border-border dark:bg-card">
       <div className="flex items-start justify-between gap-2">
         <span
           className={`rounded-full px-2.5 py-0.5 text-2xs font-bold ${
             isFailed
               ? 'bg-destructive/10 text-destructive'
-              : 'bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary-deep)] dark:bg-primary/15 dark:text-primary'
+              : 'bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)] dark:bg-primary/15 dark:text-primary'
           }`}
         >
           {isFailed ? 'فشل الإرسال' : kind}
@@ -269,9 +269,9 @@ function DraftRow({
         <p className="mt-1 line-clamp-2 text-xs text-destructive">{draft.lastError}</p>
       ) : null}
       <div className="mt-3 flex items-center gap-2">
-        <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--legacy-warm-border)] dark:bg-muted">
+        <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-[var(--color-border)] dark:bg-muted">
           <div
-            className={`h-full rounded-full ${isFailed ? 'bg-destructive' : 'bg-[var(--legacy-primary)]'}`}
+            className={`h-full rounded-full ${isFailed ? 'bg-destructive' : 'bg-[var(--color-primary)]'}`}
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -285,13 +285,13 @@ function DraftRow({
           onClick={onDelete}
           disabled={busy}
           aria-label="حذف المسودة"
-          className="h-10 w-10 shrink-0 rounded-xl border-[var(--legacy-border)] p-0 dark:border-border"
+          className="h-10 w-10 shrink-0 rounded-xl border-[var(--color-border)] p-0 dark:border-border"
         >
           <Trash2 className="h-4 w-4 text-muted-foreground" />
         </Button>
         <Button
           asChild
-          className="h-10 min-w-0 flex-1 rounded-full bg-[var(--legacy-primary)] text-sm font-bold text-primary-foreground hover:bg-[var(--legacy-primary)]/90"
+          className="h-10 min-w-0 flex-1 rounded-full bg-[var(--color-primary)] text-sm font-bold text-primary-foreground hover:bg-[var(--color-primary)]/90"
           disabled={busy}
         >
           <IntentPrefetchLink href={resumeHref} prefetch={false}>{isFailed ? 'إعادة المحاولة' : 'متابعة التعديل'}</IntentPrefetchLink>

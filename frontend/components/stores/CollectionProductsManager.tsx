@@ -1,13 +1,14 @@
 'use client';
 
+import { useMemo } from 'react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { SafeImage } from '@/components/shared/ui/SafeImage';
-import { ArrowRight, Check, Package, AlertTriangle } from 'lucide-react';
+import { ArrowRight, Check, Package, AlertTriangle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/shared/ui/Button';
 import { EmptyState } from '@/components/shared/feedback/EmptyState';
 import { AdListItemSkeleton } from '@/components/shared/skeletons/AdListItemSkeleton';
-import { useCollection, useCollectionProducts } from '@/hooks/queries/useCollections';
-import { useMyProducts } from '@/hooks/queries/useProducts';
+import { useCollection, useManageCollectionProducts } from '@/hooks/queries/useCollections';
+import { useInfiniteMyProducts } from '@/hooks/queries/useProducts';
 import {
   useAddProductToCollection,
   useRemoveProductFromCollection,
@@ -20,32 +21,31 @@ interface Props {
   collectionId: string;
 }
 
-/**
- * COLLECTIONS (P1): owner-facing membership manager for one
- * collection — every ACTIVE product in the store, toggle-able in/out
- * of this collection. Reads `useCollectionProducts` (the public
- * endpoint's ACTIVE-only membership list, see collections.repository.ts's
- * findVisibleProducts) rather than a dedicated "all members incl.
- * paused" owner endpoint, since the backend doesn't expose one — a
- * PAUSED product an owner previously added simply won't show as
- * checked here until it's reactivated, which matches what a buyer
- * would see on the storefront tab anyway.
- */
+/** Owner-facing membership manager: hidden collections and paused members are kept manageable. */
 export function CollectionProductsManager({ collectionId }: Props) {
-  const { data: collection, isLoading: collectionLoading } = useCollection(collectionId);
-  const { data: memberProducts, isLoading: membersLoading, isError, refetch } =
-    useCollectionProducts(collectionId);
-  const { data: allProductsPage, isLoading: productsLoading } = useMyProducts({
-    status: 'ACTIVE',
-    limit: 100,
-  });
+  const { data: collection, isLoading: collectionLoading, isError: collectionError, refetch: refetchCollection } = useCollection(collectionId);
+  const { data: memberProducts, isLoading: membersLoading, isError: membersError, refetch } =
+    useManageCollectionProducts(collectionId);
+  const productsQuery = useInfiniteMyProducts(
+    { status: 'ACTIVE', limit: 50, ...(collection?.storeId ? { storeId: collection.storeId } : {}) },
+    { enabled: Boolean(collection?.storeId) },
+  );
+  const productsLoading = productsQuery.isLoading;
+  const productsError = productsQuery.isError;
 
   const addProduct = useAddProductToCollection(collectionId);
   const removeProduct = useRemoveProductFromCollection(collectionId);
 
   const isLoading = collectionLoading || membersLoading || productsLoading;
-  const products = allProductsPage?.items ?? [];
+  const products = useMemo(() => {
+    const activeProducts = productsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+    const all = new Map<string, (typeof activeProducts)[number]>();
+    for (const product of activeProducts) all.set(product.id, product);
+    for (const product of memberProducts ?? []) all.set(product.id, product as (typeof activeProducts)[number]);
+    return Array.from(all.values());
+  }, [productsQuery.data, memberProducts]);
   const memberIds = new Set((memberProducts ?? []).map((p) => p.id));
+  const hasLoadMore = Boolean(productsQuery.hasNextPage);
 
   function toggle(productId: string) {
     if (memberIds.has(productId)) {
@@ -72,13 +72,15 @@ export function CollectionProductsManager({ collectionId }: Props) {
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => <AdListItemSkeleton key={i} />)}
         </div>
-      ) : isError ? (
+      ) : collectionError || membersError || productsError ? (
         <div className="flex flex-col items-center gap-3 py-12 text-center">
           <AlertTriangle className="h-10 w-10 text-muted-foreground" />
           <p className="text-destructive">حدث خطأ أثناء تحميل المنتجات</p>
-          <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">
-            إعادة المحاولة
-          </button>
+          <div className="flex items-center gap-3">
+            {collectionError ? <button type="button" onClick={() => void refetchCollection()} className="text-sm text-primary hover:underline">إعادة تحميل بيانات المجموعة</button> : null}
+            {membersError ? <button type="button" onClick={() => refetch()} className="text-sm text-primary hover:underline">إعادة تحميل عضويات المجموعة</button> : null}
+            {productsError ? <button type="button" onClick={() => void productsQuery.refetch()} className="text-sm text-primary hover:underline">إعادة تحميل المنتجات</button> : null}
+          </div>
         </div>
       ) : products.length === 0 ? (
         <EmptyState
@@ -129,6 +131,14 @@ export function CollectionProductsManager({ collectionId }: Props) {
               </button>
             );
           })}
+          {hasLoadMore ? (
+            <div className="flex justify-center pt-2">
+              <Button type="button" variant="outline" disabled={productsQuery.isFetchingNextPage} onClick={() => void productsQuery.fetchNextPage()} className="gap-2">
+                {productsQuery.isFetchingNextPage ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                تحميل المزيد من المنتجات
+              </Button>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

@@ -41,14 +41,15 @@ interface Props {
   showSearch?: boolean;
   /**
    * When true, show the MobileNav hamburger in the header.
-   * Default false: (public)/(protected) mount BottomNav which owns
-   * the "القائمة" entry. Auth layout has no BottomNav — must pass true
-   * or guests on /login lose all access to the drawer on mobile.
+   * Default false for guests: the public BottomNav owns their "القائمة"
+   * entry. Auth layout has no BottomNav, so it opts in explicitly. Signed-in
+   * users retain the header trigger because BottomNav replaces "القائمة"
+   * with the direct "حسابي" destination for them.
    */
   showMenuTrigger?: boolean;
 }
 
-export function PublicHeader({ showSearch = true, showMenuTrigger: _showMenuTrigger = false }: Props = {}) {
+export function PublicHeader({ showSearch = true, showMenuTrigger = false }: Props = {}) {
   // HYDRATION-SAFE: `mounted` becomes true only after the first commit,
     // so the first client render matches the server (anonymous). Zustand
     // persist rehydrates synchronously, so `isHydrated` alone is not enough.
@@ -115,7 +116,7 @@ export function PublicHeader({ showSearch = true, showMenuTrigger: _showMenuTrig
       <div className="flex h-14 items-center gap-2 border-b border-border bg-background px-3 lg:hidden">
         {/* Keep the menu trigger on the same RTL edge as the protected header. */}
         <div className="flex shrink-0 items-center gap-1">
-          <MobileNav />
+          <MobileNav hideTrigger={!showMenuTrigger && !isAuthenticated} />
           <IntentPrefetchLink prefetch={false} href={ROUTES.home} className="shrink-0">
             <Logo size="sm" />
           </IntentPrefetchLink>

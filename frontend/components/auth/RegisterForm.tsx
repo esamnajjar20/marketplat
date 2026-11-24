@@ -18,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { GoogleAuthButton } from '@/components/auth/GoogleAuthButton';
 import { AuthDivider } from '@/components/auth/AuthDivider';
 import { ROUTES, CITIES } from '@/lib/constants';
+import { getPasswordPolicyError } from '../../../shared/password-policy';
 
 interface Errors {
   name?: string; email?: string; password?: string; confirmPassword?: string; phone?: string;
@@ -78,7 +79,7 @@ export function RegisterForm() {
     if (!email.trim())   e.email    = 'البريد الإلكتروني مطلوب';
     else if (!/\S+@\S+\.\S+/.test(email)) e.email = 'بريد إلكتروني غير صالح';
     if (!password)       e.password = 'كلمة المرور مطلوبة';
-    else if (password.length < 8) e.password = 'كلمة المرور 8 أحرف على الأقل';
+    else e.password = getPasswordPolicyError(password) ?? undefined;
     if (!confirmPassword)              e.confirmPassword = 'تأكيد كلمة المرور مطلوب';
     else if (confirmPassword !== password) e.confirmPassword = 'كلمتا المرور غير متطابقتين';
     // UX-03 FIX: was /^[0-9+]{9,15}$/ — allowed '+' anywhere/multiple times
@@ -110,7 +111,7 @@ export function RegisterForm() {
     !name.trim() ||
     !email.trim() ||
     !password ||
-    password.length < 8 ||
+    Boolean(getPasswordPolicyError(password)) ||
     !confirmPassword ||
     confirmPassword !== password;
 
@@ -204,7 +205,7 @@ export function RegisterForm() {
           of the form so it doesn't look out of place beside them. */}
       <FormField label="المدينة" htmlFor="city" hint="اختياري">
         <Select value={city} onValueChange={setCity}>
-          <SelectTrigger id="city" className="h-12 rounded-2xl border-[var(--legacy-border)]">
+          <SelectTrigger id="city" className="h-12 rounded-2xl border-[var(--color-border)]">
             <SelectValue placeholder="اختر مدينتك" />
           </SelectTrigger>
           <SelectContent>
@@ -223,9 +224,9 @@ export function RegisterForm() {
 
       <GoogleAuthButton label="التسجيل باستخدام Google" />
 
-      <p className="text-center text-sm-tight text-[var(--legacy-muted-text)]">
+      <p className="text-center text-sm-tight text-[var(--color-text-muted)]">
         لديك حساب بالفعل؟{' '}
-        <IntentPrefetchLink href={loginHref} className="font-bold text-[var(--legacy-primary-deep)] hover:underline" prefetch={false}>تسجيل الدخول</IntentPrefetchLink>
+        <IntentPrefetchLink href={loginHref} className="font-bold text-[var(--color-primary-strong)] hover:underline" prefetch={false}>تسجيل الدخول</IntentPrefetchLink>
       </p>
     </form>
   );

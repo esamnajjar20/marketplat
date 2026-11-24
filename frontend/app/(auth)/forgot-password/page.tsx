@@ -19,14 +19,14 @@ export default function ForgotPasswordPage() {
     <div className="space-y-6">
       <div className="flex flex-col items-center text-center">
         <AuthBrand />
-        <h1 className="text-[28px] font-extrabold tracking-tight text-[var(--legacy-primary-deep)] sm:text-[32px]">
+        <h1 className="text-[28px] font-extrabold tracking-tight text-[var(--color-primary-strong)] sm:text-[32px]">
           نسيت كلمة المرور؟
         </h1>
-        <p className="mt-2 max-w-sm text-sm leading-relaxed text-[var(--legacy-muted-text)]">
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-[var(--color-text-muted)]">
           أدخل بريدك الإلكتروني وسنرسل لك رابطاً لإعادة تعيين كلمة المرور.
         </p>
       </div>
-      <div className="rounded-2xl border border-[var(--legacy-border)] bg-card p-5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] sm:p-7">
+      <div className="rounded-2xl border border-[var(--color-border)] bg-card p-5 shadow-[0_1px_3px_rgba(42,36,29,0.06)] sm:p-7">
         <Suspense fallback={<SuspenseFallback />}>
           <ForgotPasswordForm />
         </Suspense>

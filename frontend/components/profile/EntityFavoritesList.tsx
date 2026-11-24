@@ -20,7 +20,7 @@ import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
 import { ROUTES } from '@/lib/constants';
 import type { FavoriteEntityKind } from '@/types/favorite.types';
 import type { ProductWithStore } from '@/types/product.types';
-import type { StoreWithSeller } from '@/types/store.types';
+import type { StoreDirectoryItem } from '@/types/store.types';
 import type { ServiceListingWithProvider } from '@/types/service.types';
 
 import { Spinner } from '@/components/ui/spinner';
@@ -33,7 +33,7 @@ interface Props {
  * `type: FavoriteEntityKind` alone (it's a runtime value, not a type
  * discriminant), so left unannotated T silently defaults to `unknown`.
  */
-type FavoriteEntity = ProductWithStore | StoreWithSeller | ServiceListingWithProvider;
+type FavoriteEntity = ProductWithStore | StoreDirectoryItem | ServiceListingWithProvider;
 
 const EMPTY_COPY: Record<FavoriteEntityKind, { title: string; description: string; cta: string; href: string }> = {
   PRODUCT: {
@@ -334,7 +334,7 @@ function EntityCard({
       return <ProductCard product={product} storeId={product.store.id} context="favorites" />;
     }
     case 'STORE':
-      return <StoreCard store={entity as StoreWithSeller} context="favorites" />;
+      return <StoreCard store={entity as StoreDirectoryItem} context="favorites" />;
     case 'SERVICE_LISTING':
       return <ServiceListingCard listing={entity as ServiceListingWithProvider} context="favorites" />;
   }

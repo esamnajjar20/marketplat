@@ -11,14 +11,7 @@ import { getThumbnailUrl } from '@/lib/cloudinary';
 import type { ParsedError } from '@/lib/errorParser';
 import { formatNumber } from '@/lib/formatters';
 
-/**
- * STORE-ANALYTICS (Foundation v1): deliberately no orders/revenue/
- * conversion tile — see StoreAnalytics's doc comment
- * (types/store.types.ts) and stores.service.ts's getMyStoreAnalytics
- * on the backend for why: this schema has no Order model yet, so
- * there's no honest number to show. Every tile here reads from data
- * that already existed before this endpoint.
- */
+/** Store checkout orders are reported separately from the seller's SaleRecord ledger. */
 export function MyStoreAnalytics() {
   const { data: analytics, isLoading, isError, error, refetch } = useMyStoreAnalytics();
 
@@ -66,11 +59,46 @@ export function MyStoreAnalytics() {
         <StatCard icon={Package} label="منتجات نشطة" value={analytics.activeProducts} />
         <StatCard icon={Tag} label="عروض نشطة" value={analytics.activePromotions} />
         <StatCard icon={TrendingUp} label="استخدامات العروض" value={analytics.promotionUses} />
+        <StatCard icon={Package} label="طلبات المتجر · كل الفترة" value={analytics.orders?.totalCount ?? '—'} />
       </div>
+
+      {analytics.orders ? <Card>
+        <CardHeader>
+          <CardTitle className="text-base">حالات طلبات المتجر · كل الفترة</CardTitle>
+          <p className="text-xs text-muted-foreground">هذه طلبات شراء عبر المتجر، وليست سجلات المبيعات اليدوية. القيم المعروضة ليست مبالغ محصّلة.</p>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {([
+              ['قيد الانتظار', analytics.orders.byStatus?.PENDING ?? 0],
+              ['مؤكدة', analytics.orders.byStatus?.CONFIRMED ?? 0],
+              ['قيد التجهيز', analytics.orders.byStatus?.PROCESSING ?? 0],
+              ['تم الشحن', analytics.orders.byStatus?.SHIPPED ?? 0],
+              ['تم التسليم', analytics.orders.byStatus?.DELIVERED ?? 0],
+              ['ملغاة', analytics.orders.byStatus?.CANCELLED ?? 0],
+            ] as const).map(([label, value]) => (
+              <div key={label} className="rounded-lg bg-muted/40 p-3">
+                <p className="text-xl font-bold tabular-nums">{formatNumber(value)}</p>
+                <p className="text-xs text-muted-foreground">{label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2 border-t border-border pt-3">
+            <p className="text-sm font-semibold">قيمة الطلبات غير الملغاة حسب العملة</p>
+            {analytics.orders.nonCancelledValueByCurrency?.length ? analytics.orders.nonCancelledValueByCurrency.map((row) => (
+              <p key={row.currency} className="text-sm tabular-nums">{row.total.toLocaleString(undefined, { maximumFractionDigits: 2 })} {row.currency}</p>
+            )) : <p className="text-sm text-muted-foreground">لا توجد طلبات بعد.</p>}
+            <p className="pt-1 text-sm font-semibold">قيمة الطلبات المسلّمة حسب العملة</p>
+            {analytics.orders.deliveredValueByCurrency?.length ? analytics.orders.deliveredValueByCurrency.map((row) => (
+              <p key={row.currency} className="text-sm tabular-nums">{row.total.toLocaleString(undefined, { maximumFractionDigits: 2 })} {row.currency}</p>
+            )) : <p className="text-sm text-muted-foreground">لا توجد طلبات مسلّمة بعد.</p>}
+          </div>
+        </CardContent>
+      </Card> : <p className="rounded-xl border border-border p-3 text-sm text-muted-foreground">مؤشرات طلبات الشراء غير متاحة من إصدار الخادم الحالي.</p>}
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">الأكثر مشاهدة</CardTitle>
+          <CardTitle className="text-base">الأكثر مشاهدة · كل الفترة</CardTitle>
         </CardHeader>
         <CardContent>
           {analytics.topProducts.length === 0 ? (

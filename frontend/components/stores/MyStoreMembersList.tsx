@@ -246,6 +246,7 @@ export function MyStoreMembersList() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const [confirmBulkRemove, setConfirmBulkRemove] = useState(false);
+  const [memberPage, setMemberPage] = useState(1);
   const {
     data: store,
     isLoading: storeLoading,
@@ -261,7 +262,7 @@ export function MyStoreMembersList() {
     isLoading: membersLoading,
     isError: membersError,
     refetch: refetchMembers,
-  } = useStoreMembers(storeId);
+  } = useStoreMembers(storeId, { page: memberPage, limit: 20 });
 
   if (storeLoading) {
     return (
@@ -350,7 +351,7 @@ export function MyStoreMembersList() {
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-muted-foreground" />
             <h2 className="text-sm font-extrabold">أعضاء الفريق</h2>
-            <Badge variant="secondary">{items.length}</Badge>
+            <Badge variant="secondary">{membersPage?.meta?.total ?? items.length}</Badge>
           </div>
           {items.length > 0 && (
             <Button
@@ -390,6 +391,13 @@ export function MyStoreMembersList() {
                 }}
               />
             ))}
+          </div>
+        )}
+        {(membersPage?.meta?.totalPages ?? 1) > 1 && (
+          <div className="flex items-center justify-between gap-3 rounded-xl border border-border/70 p-3 text-sm">
+            <Button type="button" size="sm" variant="outline" disabled={memberPage <= 1 || membersLoading} onClick={() => setMemberPage((page) => Math.max(1, page - 1))}>السابق</Button>
+            <span className="text-muted-foreground">صفحة {membersPage?.meta?.page ?? memberPage} من {membersPage?.meta?.totalPages ?? 1}</span>
+            <Button type="button" size="sm" variant="outline" disabled={memberPage >= (membersPage?.meta?.totalPages ?? 1) || membersLoading} onClick={() => setMemberPage((page) => Math.min(membersPage?.meta?.totalPages ?? page, page + 1))}>التالي</Button>
           </div>
         )}
       </section>

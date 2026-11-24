@@ -49,3 +49,17 @@ export function useCollectionProducts(id: string) {
     enabled: Boolean(id),
   });
 }
+
+
+/** Owner/manager collection editor read; supports hidden collections and paused member products. */
+export function useManageCollectionProducts(id: string) {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated);
+  const hasAccessToken = useAuthStore(selectHasAccessToken);
+  const isAuthResolving = useAuthStore(selectIsAuthResolving);
+  return useQuery({
+    queryKey: queryKeys.collections.manageProducts(id),
+    queryFn: ({ signal }) => collectionsApi.getManageCollectionProducts(id, { signal }).then((r) => r.data.data ?? []),
+    staleTime: CACHE_TTL.myAds,
+    enabled: Boolean(id) && isAuthenticated && hasAccessToken && !isAuthResolving,
+  });
+}

@@ -35,7 +35,7 @@ export function SalesDebtsSection() {
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
         <div className="rounded-2xl border border-border/70 bg-card p-3 shadow-sm">
           <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-danger-soft)] text-[var(--color-danger)]">
               <AlertTriangle className="h-4 w-4" />
             </span>
             <span className="text-2xs-tight text-muted-foreground">إجمالي الدين</span>

@@ -60,7 +60,7 @@ export function GoogleAuthButton({ label = 'المتابعة باستخدام Go
     // (not an XHR), because only a real navigation can carry the
     // backend's Set-Cookie response headers through Google's redirect
     // chain back to this origin.
-    <Button asChild variant="outline" className="h-12 w-full gap-2 rounded-2xl border-[var(--legacy-border)] font-bold">
+    <Button asChild variant="outline" className="h-12 w-full gap-2 rounded-2xl border-[var(--color-border)] font-bold">
       <a href={`${API_BASE_URL}/auth/google`}>
         <GoogleIcon />
         {label}

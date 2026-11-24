@@ -46,6 +46,8 @@ export const TYPE_ICON: Record<NotificationType, LucideIcon> = {
   SERVICE_REQUEST_NEW: Wrench,
   SERVICE_REQUEST_UPDATE: Wrench,
   APPOINTMENT_UPDATE: CalendarClock,
+  MARKETPLACE_ORDER_NEW: ClipboardList,
+  MARKETPLACE_ORDER_UPDATE: ClipboardList,
   AD_EXPIRING_SOON: CalendarClock,
   AD_EXPIRED: CalendarClock,
   MODERATION_REPORT_RECEIVED: ShieldAlert,
@@ -78,6 +80,8 @@ export const TYPE_LABEL: Record<NotificationType, string> = {
   SERVICE_REQUEST_NEW: 'طلب خدمة جديد',
   SERVICE_REQUEST_UPDATE: 'تحديث طلب خدمة',
   APPOINTMENT_UPDATE: 'موعد',
+  MARKETPLACE_ORDER_NEW: 'طلب شراء جديد',
+  MARKETPLACE_ORDER_UPDATE: 'تحديث طلب شراء',
   AD_EXPIRING_SOON: 'إعلان يقترب من الانتهاء',
   AD_EXPIRED: 'انتهاء إعلان',
   MODERATION_REPORT_RECEIVED: 'بلاغ جديد',
@@ -95,6 +99,7 @@ export type NotificationCategoryId =
   | 'favorites'
   | 'stores'
   | 'services'
+  | 'orders'
   | 'system'
   | 'sales';
 
@@ -133,6 +138,11 @@ export const NOTIFICATION_CATEGORIES: {
       'SERVICE_REQUEST_UPDATE',
       'APPOINTMENT_UPDATE',
     ],
+  },
+  {
+    id: 'orders',
+    label: 'طلبات المنتجات',
+    types: ['MARKETPLACE_ORDER_NEW', 'MARKETPLACE_ORDER_UPDATE'],
   },
   {
     id: 'system',
@@ -227,6 +237,9 @@ export function hrefFor(notification: HrefSource): string | null {
   }
   if (notification.type === 'PROMOTION') {
     return ROUTES.home;
+  }
+  if (notification.type === 'MARKETPLACE_ORDER_NEW' || notification.type === 'MARKETPLACE_ORDER_UPDATE') {
+    return d?.orderId ? `/orders/${d.orderId}` : '/orders';
   }
   if (notification.type.startsWith('SALES_')) {
     if (d?.saleId) return `/account/sales/${d.saleId}/receipt`;

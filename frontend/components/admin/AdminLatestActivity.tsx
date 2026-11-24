@@ -69,14 +69,14 @@ export function AdminLatestActivity() {
   }
 
   return (
-    <section className="rounded-card border border-[var(--legacy-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
+    <section className="rounded-card border border-[var(--color-border)] bg-card p-3.5 shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
       <h2 className="text-card-title font-extrabold">أحدث النشاط</h2>
       {isLoading ? (
         <div className="flex justify-center py-8">
           <LoadingSpinner size="sm" />
         </div>
       ) : items.length === 0 ? (
-        <p className="mt-4 text-center text-sm-tight text-[var(--legacy-muted-text)]">لا يوجد نشاط حديث</p>
+        <p className="mt-4 text-center text-sm-tight text-[var(--color-text-muted)]">لا يوجد نشاط حديث</p>
       ) : (
         <div className="mt-3 flex flex-col gap-2.5">
           {items.slice(0, 5).map((item) => {
@@ -86,14 +86,14 @@ export function AdminLatestActivity() {
                 key={item.id}
                 clientQueryNavigation
                 href={item.href}
-                className="flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm-tight transition-colors hover:bg-[var(--legacy-surface)]" prefetch={false}
+                className="flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-sm-tight transition-colors hover:bg-[var(--color-surface)]" prefetch={false}
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--legacy-surface)] text-primary">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-surface)] text-primary">
                   <Icon className="h-4 w-4" strokeWidth={1.8} />
                 </span>
                 <span className="min-w-0 flex-1 truncate font-medium">{item.label}</span>
                 {item.at ? (
-                  <span className="shrink-0 text-xs text-[var(--legacy-muted-text)]">
+                  <span className="shrink-0 text-xs text-[var(--color-text-muted)]">
                     <HydrationSafeRelativeTime date={item.at} />
                   </span>
                 ) : null}

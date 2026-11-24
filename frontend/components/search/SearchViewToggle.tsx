@@ -1,9 +1,9 @@
 'use client';
 
-import { List, Map as MapIcon } from 'lucide-react';
+import { Grid2X2, List } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type SearchViewMode = 'list' | 'map';
+export type SearchViewMode = 'list' | 'grid';
 
 interface Props {
   value: SearchViewMode;
@@ -41,17 +41,17 @@ export function SearchViewToggle({ value, onChange, className }: Props) {
       </button>
       <button
         type="button"
-        onClick={() => onChange('map')}
-        aria-pressed={value === 'map'}
+        onClick={() => onChange('grid')}
+        aria-pressed={value === 'grid'}
         className={cn(
           'inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 transition-colors',
-          value === 'map'
+          value === 'grid'
             ? 'bg-primary text-primary-foreground'
             : 'text-muted-foreground hover:text-foreground'
         )}
       >
-        <MapIcon className="h-3.5 w-3.5" aria-hidden />
-        خريطة
+        <Grid2X2 className="h-3.5 w-3.5" aria-hidden />
+        شبكة
       </button>
     </div>
   );

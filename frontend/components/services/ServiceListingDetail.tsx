@@ -24,6 +24,7 @@ import {
   DETAIL_PANEL_PADDED,
   DETAIL_SECTION_TITLE,
   TAG_AVAILABLE,
+  TAG_WARNING,
   TAG_OUT,
   TAG_MUTED,
   STICKY_BAR,
@@ -110,10 +111,14 @@ export function ServiceListingDetail({ listing, action }: Props) {
               <p className="text-lg font-semibold text-primary">
                 {formatServicePrice(listing.pricingType, listing.price)}
               </p>
-              {listing.provider.availabilityStatus === 'UNAVAILABLE' ? (
+              {listing.provider.availabilityStatus === 'AVAILABLE' ? (
+                <span className={TAG_AVAILABLE}>متاح الآن</span>
+              ) : listing.provider.availabilityStatus === 'BUSY' ? (
+                <span className={TAG_WARNING}>مشغول حاليًا</span>
+              ) : listing.provider.availabilityStatus === 'UNAVAILABLE' ? (
                 <span className={TAG_OUT}>غير متاح حاليًا</span>
               ) : (
-                <span className={TAG_AVAILABLE}>متاح الآن</span>
+                <span className={TAG_MUTED}>حالة التوفر غير محددة</span>
               )}
               {listing.provider.sellerProfile?.verified && (
                 <span className={TAG_AVAILABLE}>

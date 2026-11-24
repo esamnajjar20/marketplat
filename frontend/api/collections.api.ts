@@ -60,4 +60,8 @@ export const collectionsApi = {
   /** GET /collections/:id/products — public, active products only. */
   getPublicCollectionProducts: (id: string, config?: ApiRequestConfig) =>
     apiClient.get<ApiResponse<CollectionProducts>>(`/collections/${id}/products`, config),
+
+  /** GET /collections/:id/manage-products — owner/manager view, includes paused memberships. */
+  getManageCollectionProducts: (id: string, config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<CollectionProducts>>(`/collections/${id}/manage-products`, config),
 };

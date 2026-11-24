@@ -62,6 +62,9 @@ export function DeleteAccountSection() {
         سيتم إلغاء تفعيل حسابك بشكل دائم وإخفاء جميع إعلاناتك النشطة، وسيتم
         تسجيل خروجك من جميع الأجهزة. لا يمكن التراجع عن هذا الإجراء.
       </p>
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        إذا أنشأت حسابك باستخدام Google فقط ولم تضف كلمة مرور محلية، فإن إعادة توثيق Google مطلوبة قبل الحذف، وهذا المسار غير متاح بعد. لا تحاول استخدام كلمة مرور Google هنا.
+      </p>
       <div className="flex justify-start">
         <Button variant="destructive" className="rounded-xl font-bold" onClick={handleOpen}>
           حذف حسابي

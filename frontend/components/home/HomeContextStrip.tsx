@@ -59,7 +59,14 @@ export function HomeContextStrip({ className }: { className?: string }) {
   }, [open, city]);
 
   if (!isReady) {
-    return <div className={cn('container mx-auto max-w-7xl px-3 sm:px-4', className)} />;
+    return (
+      <section
+        className={cn('container mx-auto max-w-7xl px-3 sm:px-4', className)}
+        aria-hidden="true"
+      >
+        <div className="h-[3.625rem] rounded-2xl border border-border/40 bg-muted/35" />
+      </section>
+    );
   }
 
   return (

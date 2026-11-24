@@ -55,6 +55,8 @@ export const ROUTES = {
   conversationDetail: (id: string) => `/messages/${id}`,
   dashboard:     '/dashboard',
   sales:               '/account/sales',
+  orders:              '/orders',
+  marketplaceOrder:    (id: string) => `/orders/${id}`,
   salesSales:          '/account/sales?tab=sales',
   salesCustomers:      '/account/sales?tab=customers',
   salesDebts:          '/account/sales?tab=debts',

@@ -266,6 +266,7 @@ export const queryKeys = {
     // (/store/:storeId vs /me, /:id) and must not share a cache entry.
     forStore: (storeId: string) => ['collections', 'store', storeId] as const,
     products: (id: string)      => ['collections', id, 'products'] as const,
+    manageProducts: (id: string) => ['collections', id, 'manage-products'] as const,
   },
 
   // ── Store / provider badges (P1) ────────────────────────────────

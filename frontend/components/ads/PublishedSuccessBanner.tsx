@@ -40,7 +40,7 @@ export function PublishedSuccessBanner() {
           </Button>
         }
         secondaryAction={
-          <Button asChild variant="outline" className="h-11 w-full rounded-xl border-[var(--legacy-border)] font-bold">
+          <Button asChild variant="outline" className="h-11 w-full rounded-xl border-[var(--color-border)] font-bold">
             <IntentPrefetchLink href={ROUTES.myAds} prefetch={false}>إعلاناتي</IntentPrefetchLink>
           </Button>
         }

@@ -14,7 +14,7 @@ function StatusPill({ ok }: { ok: boolean }) {
     <span
       className={cn(
         'inline-flex h-[22px] items-center gap-1 rounded-full px-2 text-2xs-tight font-bold',
-        ok ? 'bg-[var(--legacy-primary-soft)] text-[var(--legacy-primary-deep)]' : 'bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]',
+        ok ? 'bg-[var(--color-primary-soft)] text-[var(--color-primary-strong)]' : 'bg-[var(--color-danger-soft)] text-[var(--color-danger)]',
       )}
     >
       {ok ? <CheckCircle2 className="h-3 w-3" /> : <AlertTriangle className="h-3 w-3" />}
@@ -111,7 +111,7 @@ export function AdminSystemHealth() {
 
       <div className="grid gap-3 sm:grid-cols-2">
         {/* DB */}
-        <div className="rounded-card border border-[var(--legacy-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)] shadow-sm">
+        <div className="rounded-card border border-[var(--color-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)] shadow-sm">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
@@ -137,7 +137,7 @@ export function AdminSystemHealth() {
         </div>
 
         {/* Redis */}
-        <div className="rounded-card border border-[var(--legacy-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)] shadow-sm">
+        <div className="rounded-card border border-[var(--color-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)] shadow-sm">
           <div className="flex items-start justify-between gap-2">
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-muted">
@@ -177,7 +177,7 @@ export function AdminSystemHealth() {
       </div>
 
       {Array.isArray(data.redisServices) && data.redisServices.length > 0 && (
-        <section className="rounded-card border border-[var(--legacy-border)] bg-card p-4 shadow-sm" aria-labelledby="redis-services-title">
+        <section className="rounded-card border border-[var(--color-border)] bg-card p-4 shadow-sm" aria-labelledby="redis-services-title">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
               <h2 id="redis-services-title" className="font-semibold">توزيع خدمات Redis</h2>
@@ -191,7 +191,7 @@ export function AdminSystemHealth() {
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {data.redisServices.filter((service) => service.key !== 'core').map((service) => (
-              <div key={service.key} className="min-w-0 rounded-xl border border-[var(--legacy-border)] bg-background p-3">
+              <div key={service.key} className="min-w-0 rounded-xl border border-[var(--color-border)] bg-background p-3">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-sm font-semibold">{service.label}</p>
                   <StatusPill ok={service.ok} />
@@ -215,12 +215,12 @@ export function AdminSystemHealth() {
 
       {data.runtime && (
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-card border border-[var(--legacy-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
+          <div className="rounded-card border border-[var(--color-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
             <div className="flex items-center gap-2 text-sm text-muted-foreground"><Gauge className="h-4 w-4" /> مدة تشغيل الخادم</div>
             <p className="mt-2 text-lg font-semibold">{formatUptime(data.runtime.uptimeSeconds)}</p>
             <p className="mt-1 text-xs text-muted-foreground">منذ آخر إعادة تشغيل لعملية Node.js</p>
           </div>
-          <div className="rounded-card border border-[var(--legacy-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
+          <div className="rounded-card border border-[var(--color-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
             <div className="flex items-center gap-2 text-sm text-muted-foreground"><Cpu className="h-4 w-4" /> ذاكرة Heap المستخدمة</div>
             <p className="mt-2 text-lg font-semibold">{formatBytes(data.runtime.memoryHeapUsedBytes)}</p>
             <p className="mt-1 text-xs text-muted-foreground">من أصل {formatBytes(data.runtime.memoryHeapTotalBytes)} مخصصة للـ Heap</p>
@@ -233,12 +233,12 @@ export function AdminSystemHealth() {
               </p>
             </>}
           </div>
-          <div className="rounded-card border border-[var(--legacy-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
+          <div className="rounded-card border border-[var(--color-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
             <div className="flex items-center gap-2 text-sm text-muted-foreground"><Server className="h-4 w-4" /> ذاكرة العملية (RSS)</div>
             <p className="mt-2 text-lg font-semibold">{formatBytes(data.runtime.memoryRssBytes)}</p>
             <p className="mt-1 text-xs text-muted-foreground">تشمل الذاكرة المقيمة للعملية، وليست حد ذاكرة الحاوية</p>
           </div>
-          <div className="rounded-card border border-[var(--legacy-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
+          <div className="rounded-card border border-[var(--color-border)] bg-card p-4 shadow-[0_1px_3px_rgba(42,36,29,0.05)]">
             <div className="flex items-center gap-2 text-sm text-muted-foreground"><Info className="h-4 w-4" /> بيئة التشغيل</div>
             <p className="mt-2 text-lg font-semibold">{data.runtime.environment === 'production' ? 'إنتاج' : data.runtime.environment === 'test' ? 'اختبار' : data.runtime.environment === 'development' ? 'تطوير' : data.runtime.environment}</p>
             <p className="mt-1 text-xs text-muted-foreground">Node.js {data.runtime.nodeVersion}</p>

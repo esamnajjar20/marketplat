@@ -12,10 +12,10 @@ import { formatMoney } from '@/lib/formatters';
 
 function debtBadge(due: number, overdue?: boolean) {
   if (overdue || due > 0 && overdue) {
-    return { label: 'متأخر', className: 'bg-[var(--legacy-danger-soft)] text-[var(--legacy-danger)]' };
+    return { label: 'متأخر', className: 'bg-[var(--color-danger-soft)] text-[var(--color-danger)]' };
   }
   if (due > 0) {
-    return { label: 'عليه دين', className: 'bg-[var(--legacy-warning-soft)] text-[var(--legacy-warning-text)]' };
+    return { label: 'عليه دين', className: 'bg-[var(--color-warning-soft)] text-[var(--color-warning-text)]' };
   }
   return { label: 'بدون دين', className: 'bg-primary/10 text-primary' };
 }

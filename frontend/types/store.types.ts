@@ -170,7 +170,7 @@ export type StoreDirectoryItem = Pick<StoreDetails, 'id' | 'name' | 'logoUrl' | 
   storeType: Pick<StoreType, 'id' | 'slug' | 'nameAr' | 'icon' | 'labels' | 'presentation'>;
 };
 
-/** Full store + seller shape retained for detail, favorites and owner-related surfaces. */
+/** Full store + seller shape retained for detail and owner-related surfaces. Favorites use StoreDirectoryItem. */
 export type StoreWithSeller = StoreDetails & {
   sellerProfile: SellerProfile;
 };
@@ -235,11 +235,10 @@ export type UpdateStorePayload = Partial<{
   attributes?: StoreAttributes;
 }>;
 
-/** GET /stores/me/analytics — owner-only. No orders/revenue/conversion:
- * this backend has no Order model yet, so those numbers don't exist to
- * report. Every field here reads from data that already existed before
- * this endpoint (StoreDetails.views, StoreFollower, Promotion.usageCount,
- * Product.views). */
+/** GET /stores/me/analytics — owner-only. MarketplaceOrder metrics are
+ * checkout-order counts/value grouped separately from SaleRecord, which is
+ * the seller's independently entered sales ledger. Currency values are never
+ * combined across currencies; cancelled orders are excluded from totals. */
 export interface StoreAnalytics {
   views: number;
   followers: number;
@@ -248,6 +247,12 @@ export interface StoreAnalytics {
   activeProducts: number;
   activePromotions: number;
   promotionUses: number;
+  orders: {
+    totalCount: number;
+    byStatus: Record<'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED', number>;
+    nonCancelledValueByCurrency: { currency: string; total: number }[];
+    deliveredValueByCurrency: { currency: string; total: number }[];
+  };
   topProducts: { id: string; name: string; views: number; image: string | null }[];
 }
 

@@ -54,6 +54,7 @@
 
     --destructive: 4.4 53.8% 49.2%;
     --destructive-foreground: 40 60% 98%;
+    --destructive-text: 0 55.8% 39%;
     --destructive-soft: 4 72% 95%;
 
     --success: 142.6 33.3% 35.9%;
@@ -62,6 +63,7 @@
 
     --warning: 37.7 61.7% 52.9%;
     --warning-foreground: 33.3 15.8% 11.2%;
+    --warning-text: 16.1 65.1% 37.1%;
     --warning-soft: 38 70% 93%;
 
     --rating: 37.7 61.7% 52.9%;
@@ -105,7 +107,7 @@
      *   rounded-sm  → nested menu items
      *   rounded-md  → buttons, inputs, badges (--radius)
      *   rounded-lg  → dialogs
-     *   rounded-xl  → content cards
+     *   rounded-card → content cards (--radius-card)
      *   rounded-2xl → hero / large shells only
      */
     --radius: 0.6rem;
@@ -154,6 +156,7 @@
 
     --destructive: 4 55% 48%;
     --destructive-foreground: 40 30% 98%;
+    --destructive-text: 0 100% 87.6%;
     --destructive-soft: 4 36% 18%;
 
     --success: 143 35% 48%;
@@ -162,6 +165,7 @@
 
     --warning: 38 65% 58%;
     --warning-foreground: 33 16% 11%;
+    --warning-text: 32.7 100% 80.2%;
     --warning-soft: 38 40% 18%;
 
     --rating: 38 65% 58%;
@@ -209,90 +213,39 @@
   }
 }
 
-/* Legacy palette bridge: existing page-specific colors follow the active theme. */
+/* Canonical semantic color aliases for CSS utilities and inline styles.
+ * These resolve through the active theme tokens, so one declaration serves Light and Dark.
+ */
 :root {
-  --legacy-border: #EAE3D6;
-  --legacy-primary-deep: #1F4D33;
-  --legacy-muted-text: #6B6459;
-  --legacy-primary: #397F56;
-  --legacy-primary-soft: #E8F1EC;
-  --legacy-foreground-warm: #4A433A;
-  --legacy-surface: #F6F1E7;
-  --legacy-danger: #9B2118;
-  --legacy-primary-border: #CFE0D5;
-  --legacy-warning-soft: #FBF0D9;
-  --legacy-page-surface: #FBF9F4;
-  --legacy-muted-surface: #F0EADF;
-  --legacy-danger-soft: #FBE9E7;
-  --legacy-ink: #2A241D;
-  --legacy-warning-text: #7A4B07;
-  --legacy-danger-border: #F1C9C4;
-  --legacy-accent: #8F3F14;
-  --legacy-accent-soft: #FBEEE6;
-  --legacy-border-strong: #D9D1C3;
-  --legacy-danger-strong: #B3261E;
-  --legacy-rating: #D9962B;
-  --legacy-card-soft: #F4F9F6;
-  --legacy-warning-strong: #C47A0A;
-  --legacy-background-pale: #FDFBF7;
-  --legacy-accent-soft-2: #F6E7DB;
-  --legacy-danger-text: #9B2C2C;
-  --legacy-muted-soft: #A39E94;
-  --legacy-warning-border: #EBD7A8;
-  --legacy-warning-deep: #5A3705;
-  --legacy-info-soft: #E3EEF5;
-  --legacy-neutral-soft: #EFEADF;
-  --legacy-warning-soft-strong: #F1D3A8;
-  --legacy-primary-mid: #5E9C73;
-  --legacy-warm-border: #EDE7DC;
-  --legacy-switch-off: #E8E2D6;
-  --legacy-danger-border-strong: #E8A8A0;
-  --legacy-danger-surface: #FDF6F5;
-  --legacy-accent-border: #F1D3C0;
-  --legacy-accent-deep: #7A4B2A;
-  --legacy-accent-strong: #AD531F;
-}
-.dark {
-  --legacy-border: hsl(var(--border));
-  --legacy-primary-deep: hsl(var(--primary));
-  --legacy-muted-text: hsl(var(--muted-foreground));
-  --legacy-primary: hsl(var(--primary));
-  --legacy-primary-soft: hsl(var(--primary-soft));
-  --legacy-foreground-warm: hsl(var(--foreground));
-  --legacy-surface: hsl(var(--surface-1));
-  --legacy-danger: hsl(4 70% 68%);
-  --legacy-primary-border: hsl(var(--border));
-  --legacy-warning-soft: hsl(var(--warning-soft));
-  --legacy-page-surface: hsl(var(--background));
-  --legacy-muted-surface: hsl(var(--surface-2));
-  --legacy-danger-soft: hsl(var(--destructive-soft));
-  --legacy-ink: hsl(var(--foreground));
-  --legacy-warning-text: hsl(var(--warning));
-  --legacy-danger-border: hsl(var(--destructive) / 0.4);
-  --legacy-accent: hsl(var(--accent));
-  --legacy-accent-soft: hsl(var(--accent-soft));
-  --legacy-border-strong: hsl(var(--border));
-  --legacy-danger-strong: hsl(4 70% 68%);
-  --legacy-rating: hsl(var(--rating));
-  --legacy-card-soft: hsl(var(--surface-1));
-  --legacy-warning-strong: hsl(var(--warning));
-  --legacy-background-pale: hsl(var(--background));
-  --legacy-accent-soft-2: hsl(var(--accent-soft));
-  --legacy-danger-text: hsl(4 70% 68%);
-  --legacy-muted-soft: hsl(var(--muted-foreground));
-  --legacy-warning-border: hsl(var(--warning) / 0.45);
-  --legacy-warning-deep: hsl(var(--warning));
-  --legacy-info-soft: hsl(var(--info-soft));
-  --legacy-neutral-soft: hsl(var(--surface-2));
-  --legacy-warning-soft-strong: hsl(var(--warning-soft));
-  --legacy-primary-mid: hsl(var(--primary-muted));
-  --legacy-warm-border: hsl(var(--border));
-  --legacy-switch-off: hsl(var(--muted));
-  --legacy-danger-border-strong: hsl(var(--destructive) / 0.5);
-  --legacy-danger-surface: hsl(var(--destructive-soft));
-  --legacy-accent-border: hsl(var(--accent) / 0.35);
-  --legacy-accent-deep: hsl(var(--accent));
-  --legacy-accent-strong: hsl(var(--accent));
+  --color-border: hsl(var(--border));
+  --color-border-strong: hsl(var(--border));
+  --color-text-primary: hsl(var(--foreground));
+  --color-text-muted: hsl(var(--muted-foreground));
+  --color-text-subtle: hsl(var(--muted-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-strong: hsl(var(--primary));
+  --color-primary-muted: hsl(var(--primary-muted));
+  --color-primary-soft: hsl(var(--primary-soft));
+  --color-primary-border: hsl(var(--border));
+  --color-surface: hsl(var(--surface-1));
+  --color-surface-muted: hsl(var(--surface-2));
+  --color-surface-soft: hsl(var(--surface-1));
+  --color-page: hsl(var(--background));
+  --color-danger: hsl(var(--destructive));
+  --color-danger-text: hsl(var(--destructive-text));
+  --color-danger-soft: hsl(var(--destructive-soft));
+  --color-danger-border: hsl(var(--destructive) / 0.4);
+  --color-danger-border-strong: hsl(var(--destructive) / 0.5);
+  --color-warning: hsl(var(--warning));
+  --color-warning-text: hsl(var(--warning-text));
+  --color-warning-soft: hsl(var(--warning-soft));
+  --color-warning-border: hsl(var(--warning) / 0.45);
+  --color-accent: hsl(var(--accent));
+  --color-accent-soft: hsl(var(--accent-soft));
+  --color-accent-border: hsl(var(--accent) / 0.35);
+  --color-rating: hsl(var(--rating));
+  --color-info-soft: hsl(var(--info-soft));
+  --color-switch-off: hsl(var(--muted));
 }
 
 @layer base {

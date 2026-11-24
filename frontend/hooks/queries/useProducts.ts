@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 import { useOfflineListSeed } from '@/lib/useOfflineListSeed';
 import { productsApi } from '@/api/products.api';
 import { queryKeys } from '@/lib/queryKeys';
@@ -148,6 +148,19 @@ export function useMyProducts(params?: ProductsQuery, options?: { enabled?: bool
     queryFn: ({ signal }) => productsApi.getMine(params, { signal }).then((r) => r.data.data as MyProductsPage),
     staleTime: CACHE_TTL.myAds,
     placeholderData: keepPreviousData,
+    enabled: options?.enabled ?? true,
+  });
+}
+
+
+/** GET /products/me with cursor-like page progression for large owner lists. */
+export function useInfiniteMyProducts(params: Omit<ProductsQuery, 'page'>, options?: { enabled?: boolean }) {
+  return useInfiniteQuery<MyProductsPage>({
+    queryKey: ['products', 'me', 'infinite', params],
+    initialPageParam: 1,
+    queryFn: ({ pageParam, signal }) => productsApi.getMine({ ...params, page: Number(pageParam) }, { signal }).then((r) => r.data.data as MyProductsPage),
+    getNextPageParam: (lastPage) => lastPage.meta.hasNextPage ? lastPage.meta.page + 1 : undefined,
+    staleTime: CACHE_TTL.myAds,
     enabled: options?.enabled ?? true,
   });
 }

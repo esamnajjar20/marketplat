@@ -127,34 +127,34 @@ export function RequestsPageClient({ params: initialParams }: { params: OpenRequ
       : undefined;
 
   return (
-    <div className="min-h-[50vh] bg-[var(--legacy-page-surface)] pb-0 dark:bg-background md:pb-10">
+    <div className="min-h-[50vh] bg-[var(--color-page)] pb-0 dark:bg-background md:pb-10">
       <div className="container mx-auto max-w-7xl space-y-4 px-3 pt-5 sm:px-4 sm:pt-7">
         {/* Hero — design mockup */}
-        <div className="rounded-2xl border border-[var(--legacy-primary-border)] bg-[var(--legacy-primary-soft)] p-4 dark:border-primary/20 dark:bg-primary/10 sm:p-5">
-          <p className="text-2xs-tight font-bold text-[var(--legacy-primary)] dark:text-primary">سوق الطلبات</p>
+        <div className="rounded-2xl border border-[var(--color-primary-border)] bg-[var(--color-primary-soft)] p-4 dark:border-primary/20 dark:bg-primary/10 sm:p-5">
+          <p className="text-2xs-tight font-bold text-[var(--color-primary)] dark:text-primary">سوق الطلبات</p>
           <h1 className="mt-0.5 text-xl font-extrabold leading-snug tracking-tight text-foreground sm:text-2xl">
             اطلب ما تحتاجه — وقدّم عرضك
           </h1>
-          <p className="mt-1 max-w-xl text-xs leading-relaxed text-[var(--legacy-foreground-warm)] dark:text-muted-foreground sm:text-sm">
+          <p className="mt-1 max-w-xl text-xs leading-relaxed text-[var(--color-text-primary)] dark:text-muted-foreground sm:text-sm">
             تصفّح الطلبات المفتوحة للخدمات والمنتجات والإيجار، وقدّم عرضك مباشرة لصاحب الطلب.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <IntentPrefetchLink
               href={ROUTES.requestNew}
-              className="inline-flex h-10 flex-[1.4] items-center justify-center gap-1.5 rounded-full bg-[var(--legacy-primary)] px-4 text-sm font-bold text-primary-foreground shadow-sm transition-opacity hover:opacity-95 sm:flex-none" prefetch={false}
+              className="inline-flex h-10 flex-[1.4] items-center justify-center gap-1.5 rounded-full bg-[var(--color-primary)] px-4 text-sm font-bold text-primary-foreground shadow-sm transition-opacity hover:opacity-95 sm:flex-none" prefetch={false}
             >
               <Plus className="h-4 w-4" aria-hidden />
               أضف طلبًا
             </IntentPrefetchLink>
             <IntentPrefetchLink
               href={ROUTES.myOpenRequests}
-              className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[var(--legacy-primary-border)] bg-card px-4 text-sm font-bold text-[var(--legacy-primary-deep)] dark:border-border dark:bg-card dark:text-primary sm:flex-none" prefetch={false}
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[var(--color-primary-border)] bg-card px-4 text-sm font-bold text-[var(--color-primary-strong)] dark:border-border dark:bg-card dark:text-primary sm:flex-none" prefetch={false}
             >
               طلباتي
             </IntentPrefetchLink>
             <IntentPrefetchLink
               href={ROUTES.myOpenRequestOffers}
-              className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[var(--legacy-primary-border)] bg-card px-4 text-sm font-bold text-[var(--legacy-primary-deep)] dark:border-border dark:bg-card dark:text-primary sm:flex-none" prefetch={false}
+              className="inline-flex h-10 flex-1 items-center justify-center rounded-full border border-[var(--color-primary-border)] bg-card px-4 text-sm font-bold text-[var(--color-primary-strong)] dark:border-border dark:bg-card dark:text-primary sm:flex-none" prefetch={false}
             >
               عروضي
             </IntentPrefetchLink>
@@ -163,7 +163,7 @@ export function RequestsPageClient({ params: initialParams }: { params: OpenRequ
 
         {/* Type tabs */}
         <div
-          className="flex gap-1 overflow-x-auto border-b border-[var(--legacy-border)] dark:border-border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex gap-1 overflow-x-auto border-b border-[var(--color-border)] dark:border-border [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           role="tablist"
           aria-label="تصفية حسب النوع"
         >
@@ -179,7 +179,7 @@ export function RequestsPageClient({ params: initialParams }: { params: OpenRequ
                 className={cn(
                   'inline-flex h-10 shrink-0 items-center gap-1.5 border-b-2 px-3 text-sm-tight font-semibold transition-colors',
                   active
-                    ? 'border-[var(--legacy-primary)] font-extrabold text-[var(--legacy-primary-deep)] dark:border-primary dark:text-primary'
+                    ? 'border-[var(--color-primary)] font-extrabold text-[var(--color-primary-strong)] dark:border-primary dark:text-primary'
                     : 'border-transparent text-muted-foreground hover:text-foreground',
                 )}
               >

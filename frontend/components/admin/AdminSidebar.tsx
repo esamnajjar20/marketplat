@@ -113,7 +113,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
               // Design match: ~34px height, rounded-[9px], active = soft green + extrabold
               'flex min-h-11 items-center gap-2.5 rounded-[9px] px-2.5 py-1.5 text-sm-tight font-semibold transition-[background-color,color] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ',
               isActive
-                ? 'bg-primary-soft text-[var(--legacy-primary-deep)] font-extrabold'
+                ? 'bg-primary-soft text-[var(--color-primary-strong)] font-extrabold'
                 : 'text-foreground hover:bg-muted/80',
             )}
           >
@@ -231,7 +231,7 @@ function MobileDrawer() {
               className="absolute inset-0 bg-foreground/50 backdrop-blur-[2px]"
               onClick={() => setOpen(false)}
             />
-            <div ref={panelRef} className="absolute inset-y-0 [inset-inline-start:0] [inset-inline-end:auto] z-[101] box-border h-full w-[min(18rem,100vw)] max-w-[100vw] overflow-y-auto border-e border-[var(--legacy-border)] bg-card text-right shadow-xl" dir="rtl">
+            <div ref={panelRef} className="absolute inset-y-0 [inset-inline-start:0] [inset-inline-end:auto] z-[101] box-border h-full w-[min(18rem,100vw)] max-w-[100vw] overflow-y-auto border-e border-[var(--color-border)] bg-card text-right shadow-xl" dir="rtl">
               <button type="button"
                 onClick={() => setOpen(false)}
                 className="absolute top-3 end-3 z-[102] flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"

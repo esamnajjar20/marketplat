@@ -10,6 +10,7 @@ import { useChangePassword } from '@/hooks/mutations/useAuthMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { toast } from 'sonner';
 import { API_BASE_URL, APP_NAME } from '@/lib/constants';
+import { getPasswordPolicyError } from '../../../shared/password-policy';
 
 interface Errors { current?: string; newPass?: string; confirm?: string; }
 
@@ -76,21 +77,18 @@ export function SecuritySettingsForm() {
   const [confirm,  setConfirm]  = useState('');
   const [errors,   setErrors]   = useState<Errors>({});
   const changePassword = useChangePassword();
+  const newPasswordPolicyError = newPass ? getPasswordPolicyError(newPass) : null;
 
   function validate() {
     const e: Errors = {};
     if (!current)                   e.current = 'أدخل كلمة المرور الحالية';
     if (!newPass)                   e.newPass = 'أدخل كلمة المرور الجديدة';
-    else if (newPass.length < 8)    e.newPass = '8 أحرف على الأقل';
+    else if (getPasswordPolicyError(newPass)) e.newPass = getPasswordPolicyError(newPass) ?? undefined;
     else if (newPass === current)   e.newPass = 'كلمة المرور الجديدة يجب أن تختلف عن الحالية';
     if (confirm !== newPass)        e.confirm = 'كلمتا المرور غير متطابقتين';
     setErrors(e);
     return Object.keys(e).length === 0;
   }
-
-  // UX-FIX: mirrors validate()'s required-field rules read-only.
-  const isFormIncomplete =
-    !current || !newPass || newPass.length < 8 || newPass === current || confirm !== newPass;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -165,10 +163,14 @@ export function SecuritySettingsForm() {
           required
           error={errors.newPass}
           hint={
-            <span className={cn('inline-flex items-center gap-1', newPass.length >= 8 && 'text-success')}>
-              {newPass.length >= 8 && <Check className="h-3.5 w-3.5" />}
-              8 أحرف على الأقل
-            </span>
+            newPasswordPolicyError ? (
+              <span className="text-destructive">{newPasswordPolicyError}</span>
+            ) : (
+              <span className={cn('inline-flex items-center gap-1', newPass.length >= 8 && 'text-success')}>
+                {newPass.length >= 8 && <Check className="h-3.5 w-3.5" />}
+                8–100 حرفًا، وتجنب كلمات المرور الشائعة
+              </span>
+            )
           }
         >
           <PasswordInput
@@ -195,7 +197,7 @@ export function SecuritySettingsForm() {
         <Button
           type="submit"
           className="h-12 w-full rounded-xl text-base font-bold"
-          disabled={isFormIncomplete}
+          disabled={changePassword.isPending}
           loading={changePassword.isPending}
           loadingText="جارٍ التغيير…"
         >

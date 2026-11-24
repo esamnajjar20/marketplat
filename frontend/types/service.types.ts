@@ -130,9 +130,9 @@ export type ServiceProviderPublic = Omit<ServiceProviderDetails, 'contactPhone' 
  * GET /service-providers/me/analytics — owner-only dashboard. Mirrors
  * StoreAnalytics's shape (types/store.types.ts) — same "views /
  * pipeline counts / top items" structure adapted to what a provider
- * has instead of a store's followers/promotions. Unlike
- * StoreAnalytics, `revenue` is included here since ServiceRequest.
- * agreedPrice is a real, existing field (no Order model needed).
+ * has instead of a store's followers/promotions. Service revenue is
+ * based on ServiceRequest.agreedPrice and remains separate from store
+ * checkout-order values and the seller's SaleRecord ledger.
  */
 export interface ServiceProviderAnalytics {
   totalViews: number;

@@ -139,10 +139,12 @@ function ThemeRow() {
 function NavSection({
   title,
   links,
+  pathname,
   onNavigate,
 }: {
   title?: string;
   links: readonly { label: string; href: string; icon: React.ComponentType<{ className?: string }> }[];
+  pathname: string;
   onNavigate: () => void;
 }) {
   return (
@@ -151,21 +153,30 @@ function NavSection({
         <p className="px-3 pb-1 text-xs font-medium text-muted-foreground">{title}</p>
       )}
       <ul className="flex flex-col gap-1">
-        {links.map(({ label, href, icon: Icon }) => (
-          <li key={href}>
-            <IntentPrefetchLink
-              href={href}
-              // FIX RSC-PREFETCH-STORM-01: mapped mobile-drawer destinations stay
-              // out of viewport prefetch; IntentPrefetchLink warms on intent.
-              prefetch={false}
-              onClick={onNavigate}
-              className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-foreground hover:bg-muted"
-            >
-              <Icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-              {label}
-            </IntentPrefetchLink>
-          </li>
-        ))}
+        {links.map(({ label, href, icon: Icon }) => {
+          const isActive = navChildIsActive(pathname, { href });
+          return (
+            <li key={href}>
+              <IntentPrefetchLink
+                href={href}
+                // FIX RSC-PREFETCH-STORM-01: mapped mobile-drawer destinations stay
+                // out of viewport prefetch; IntentPrefetchLink warms on intent.
+                prefetch={false}
+                onClick={onNavigate}
+                aria-current={isActive ? 'page' : undefined}
+                className={cn(
+                  'flex min-h-11 items-center gap-3 rounded-md px-3 text-base font-medium transition-colors',
+                  isActive
+                    ? 'bg-primary/10 font-extrabold text-primary'
+                    : 'text-foreground hover:bg-muted',
+                )}
+              >
+                <Icon className={cn('h-4 w-4 shrink-0', isActive ? 'text-primary' : 'text-muted-foreground')} />
+                {label}
+              </IntentPrefetchLink>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
@@ -204,7 +215,7 @@ function DisclosureGroup({
         onClick={() => setIsOpen((v) => !v)}
         aria-expanded={isOpen}
         className={cn(
-          'flex w-full items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-foreground transition-colors',
+          'flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-base font-medium text-foreground transition-colors',
           isAnyChildActive && !isOpen ? 'bg-muted' : 'hover:bg-muted/60',
         )}
       >
@@ -225,7 +236,7 @@ function DisclosureGroup({
                   onClick={onNavigate}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'flex h-10 items-center border-inline-start-2 ms-3 pe-3 ps-3 text-sm transition-colors',
+                    'flex h-11 items-center border-inline-start-2 ms-3 pe-3 ps-3 text-sm transition-colors',
                     isActive ? 'rounded-e-[10px] border-primary bg-primary/10 font-extrabold text-primary' : 'border-border font-semibold text-foreground hover:bg-muted/60',
                   )} prefetch={false}
                 >
@@ -354,7 +365,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
       <button type="button"
         id={TOGGLE_ID}
         onClick={toggleMobileNav}
-        className="rounded p-2 hover:bg-muted"
+        className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg p-2 hover:bg-muted"
         aria-label={isMobileNavOpen ? 'أغلق القائمة' : 'افتح القائمة'}
         aria-expanded={isMobileNavOpen}
         aria-controls={NAV_ID}
@@ -444,7 +455,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
               <button type="button"
                 ref={closeButtonRef}
                 onClick={closeMobileNav}
-                className="min-h-10 min-w-10 shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="min-h-11 min-w-11 shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 aria-label="أغلق القائمة"
               >
                 <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -455,17 +466,17 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            <NavSection title="تصفح" links={BROWSE_LINKS} onNavigate={closeMobileNav} />
+            <NavSection title="تصفح" links={BROWSE_LINKS} pathname={pathname} onNavigate={closeMobileNav} />
             {isAuthenticated ? (
               <>
-                <NavSection title="حسابك" links={AUTH_ACCOUNT_LINKS} onNavigate={closeMobileNav} />
+                <NavSection title="حسابك" links={AUTH_ACCOUNT_LINKS} pathname={pathname} onNavigate={closeMobileNav} />
 
                 {/* SELLER-GATE: "أضف إعلانك"/"إعلاناتي" moved out of
                     AUTH_ACCOUNT_LINKS above — both require a
                     SellerProfile server-side. Same isSeller gate as
                     STORE_GROUP below. */}
                 {isSeller && (
-                  <NavSection links={SELLER_ACCOUNT_LINKS} onNavigate={closeMobileNav} />
+                  <NavSection links={SELLER_ACCOUNT_LINKS} pathname={pathname} onNavigate={closeMobileNav} />
                 )}
 
                 {/* SELLER-CTA: mirrors ProtectedSidebar/ProtectedMobileNav/
@@ -577,7 +588,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
                         <IntentPrefetchLink
                           href={ROUTES.admin.dashboard}
                           onClick={closeMobileNav}
-                          className="flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-foreground hover:bg-muted" prefetch={false}
+                          className="flex min-h-11 items-center gap-3 rounded-md px-3 text-base font-medium text-foreground hover:bg-muted" prefetch={false}
                         >
                           <Shield className="h-4 w-4 shrink-0 text-muted-foreground" />
                           لوحة الإدارة
@@ -592,7 +603,7 @@ export function MobileNav({ hideTrigger = false }: { hideTrigger?: boolean } = {
               </>
             ) : (
               <>
-                <NavSection title="حسابك" links={GUEST_ACCOUNT_LINKS} onNavigate={closeMobileNav} />
+                <NavSection title="حسابك" links={GUEST_ACCOUNT_LINKS} pathname={pathname} onNavigate={closeMobileNav} />
                 <div className="border-t pt-3">
                   <ThemeRow />
                 </div>

@@ -77,6 +77,7 @@ import {
   User,
   ExternalLink,
   Store,
+  ShoppingBag,
 } from 'lucide-react';
 import { cn }         from '@/lib/utils';
 import { ROUTES }     from '@/lib/constants';
@@ -93,6 +94,7 @@ import { useMyStore } from '@/hooks/queries/useStores';
 const NAV_ITEMS = [
   { label: 'لوحة التحكم', href: ROUTES.dashboard, icon: LayoutDashboard },
   { label: 'الرسائل',     href: ROUTES.messages,  icon: MessageSquare },
+  { label: 'طلبات المنتجات', href: ROUTES.orders, icon: ShoppingBag },
 ] as const;
 
 // NAV-DEDUP: SETTINGS_GROUP / SERVICES_GROUP / STORE_GROUP moved to

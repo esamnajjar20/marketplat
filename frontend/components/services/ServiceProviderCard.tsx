@@ -162,7 +162,7 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
               {skills.map((s, i) => (
                 <span
                   key={i}
-                  className="inline-flex h-6 items-center rounded-full bg-[var(--legacy-surface)] px-2 text-2xs-tight font-bold text-[var(--legacy-foreground-warm)]"
+                  className="inline-flex h-6 items-center rounded-full bg-[var(--color-surface)] px-2 text-2xs-tight font-bold text-[var(--color-text-primary)]"
                 >
                   {s.nameAr || s.name}
                 </span>
@@ -189,7 +189,7 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
         <IntentPrefetchLink
           href={profileHref}
           prefetch={false}
-          className="inline-flex h-10 flex-1 items-center justify-center rounded-full bg-[var(--legacy-primary)] px-3 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex h-10 flex-1 items-center justify-center rounded-full bg-[var(--color-primary)] px-3 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           عرض الملف
         </IntentPrefetchLink>
@@ -199,7 +199,7 @@ export const ServiceProviderCard = memo(function ServiceProviderCard({ provider,
             onClick={handleContact}
             disabled={!providerUserId || isAuthResolving || startConversation.isPending}
             aria-busy={isAuthResolving || startConversation.isPending}
-            className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-[var(--legacy-border)] bg-card px-3 text-sm font-bold text-[var(--legacy-primary-deep)] transition-colors hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-60 dark:border-border dark:bg-card dark:text-primary"
+            className="inline-flex h-10 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-full border border-[var(--color-border)] bg-card px-3 text-sm font-bold text-[var(--color-primary-strong)] transition-colors hover:border-primary/40 disabled:cursor-not-allowed disabled:opacity-60 dark:border-border dark:bg-card dark:text-primary"
           >
             <MessageCircle className="h-4 w-4" aria-hidden />
             {isAuthResolving ? 'جارٍ التحقق…' : startConversation.isPending ? 'جارٍ فتح المحادثة…' : 'تواصل'}

@@ -231,10 +231,10 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
               </div>
               <IntentPrefetchLink
                 href={ROUTES.favorites}
-                className="flex items-center justify-between rounded-2xl border border-[var(--legacy-border)] bg-card px-3 py-3 dark:border-border dark:bg-card" prefetch={false}
+                className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-card px-3 py-3 dark:border-border dark:bg-card" prefetch={false}
               >
                 <span className="flex items-center gap-2">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-primary" aria-hidden>
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary-soft)] text-primary" aria-hidden>
                     ♥
                   </span>
                   <span>
@@ -242,14 +242,14 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
                     <span className="text-xs text-muted-foreground">متاح دون إنترنت</span>
                   </span>
                 </span>
-                <span className="rounded-full border border-[var(--legacy-border)] px-3 py-1.5 text-xs font-bold text-[var(--legacy-primary-deep)]">فتح</span>
+                <span className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-bold text-[var(--color-primary-strong)]">فتح</span>
               </IntentPrefetchLink>
               <IntentPrefetchLink
                 href={ROUTES.offline.hub}
-                className="flex items-center justify-between rounded-2xl border border-[var(--legacy-border)] bg-card px-3 py-3 dark:border-border dark:bg-card" prefetch={false}
+                className="flex items-center justify-between rounded-2xl border border-[var(--color-border)] bg-card px-3 py-3 dark:border-border dark:bg-card" prefetch={false}
               >
                 <span className="flex items-center gap-2">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--legacy-primary-soft)] text-primary" aria-hidden>
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-primary-soft)] text-primary" aria-hidden>
                     📴
                   </span>
                   <span>
@@ -257,7 +257,7 @@ export function SearchResults({ pageSize = 10 }: { pageSize?: number }) {
                     <span className="text-xs text-muted-foreground">الجاهزية والمزامنة والمساحة</span>
                   </span>
                 </span>
-                <span className="rounded-full border border-[var(--legacy-border)] px-3 py-1.5 text-xs font-bold text-[var(--legacy-primary-deep)]">فتح</span>
+                <span className="rounded-full border border-[var(--color-border)] px-3 py-1.5 text-xs font-bold text-[var(--color-primary-strong)]">فتح</span>
               </IntentPrefetchLink>
             </div>
           }

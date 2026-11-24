@@ -101,7 +101,7 @@ function Podium({ top3 }: { top3: RankRow[] }) {
   const slots = [
     { row: third, place: 3, ring: 'border-accent/30 bg-accent/10', badge: 'bg-accent text-accent-foreground' },
     { row: first, place: 1, ring: 'border-warning/35 bg-warning/10', badge: 'bg-warning text-warning-foreground' },
-    { row: second, place: 2, ring: 'border-[var(--legacy-border-strong)] bg-muted/70', badge: 'bg-muted text-muted-foreground' },
+    { row: second, place: 2, ring: 'border-[var(--color-border-strong)] bg-muted/70', badge: 'bg-muted text-muted-foreground' },
   ] as const;
 
   return (
@@ -224,7 +224,7 @@ export function SellersRankingList({
       )}
 
       {isError && data === undefined && (
-        <div className="rounded-card border border-[var(--legacy-danger-border)] bg-card px-4 py-4 text-center">
+        <div className="rounded-card border border-[var(--color-danger-border)] bg-card px-4 py-4 text-center">
           <p className="text-sm font-bold text-destructive">تعذّر تحميل الترتيب.</p>
           <button
             type="button"
@@ -264,7 +264,7 @@ export function SellersRankingList({
                     </div>
                     <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                       <span className="inline-flex items-center gap-0.5 font-bold text-foreground">
-                        <Star className="h-3 w-3 fill-[var(--legacy-warning-strong)] text-[var(--legacy-warning-strong)]" />
+                        <Star className="h-3 w-3 fill-[var(--color-warning)] text-[var(--color-warning)]" />
                         {r.averageRating.toFixed(1)}
                         <span className="font-normal text-muted-foreground">({r.totalRatings})</span>
                       </span>

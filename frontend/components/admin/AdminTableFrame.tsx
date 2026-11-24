@@ -15,10 +15,10 @@ import { cn } from '@/lib/utils';
  * Static class strings on purpose — Tailwind's scanner must see them verbatim.
  */
 export const ADMIN_THEAD_CLASS =
-  'bg-[var(--legacy-surface)] text-xs font-bold text-[var(--legacy-foreground-warm)]';
+  'bg-[var(--color-surface)] text-xs font-bold text-[var(--color-text-primary)]';
 
 const STICKY_BASE =
-  '[&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-[var(--legacy-surface)] [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)]';
+  '[&_th:last-child]:sticky [&_th:last-child]:end-0 [&_th:last-child]:z-10 [&_th:last-child]:bg-[var(--color-surface)] [&_td:last-child]:sticky [&_td:last-child]:end-0 [&_td:last-child]:z-10 [&_td:last-child]:shadow-[-6px_0_8px_-6px_rgba(0,0,0,0.12)]';
 const STICKY_BG = {
   background: '[&_td:last-child]:bg-background',
   card: '[&_td:last-child]:bg-card',

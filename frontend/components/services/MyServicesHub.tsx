@@ -110,7 +110,7 @@ function HubBody({
       </section>
 
       {hasAnalytics && needsAttention > 0 && (
-        <div className="flex items-center gap-2 rounded-2xl border border-[var(--legacy-warning-soft-strong)] bg-[var(--legacy-warning-soft)] px-3.5 py-3 text-sm-tight font-bold text-[var(--legacy-warning-text)]">
+        <div className="flex items-center gap-2 rounded-2xl border border-[var(--color-warning-soft)] bg-[var(--color-warning-soft)] px-3.5 py-3 text-sm-tight font-bold text-[var(--color-warning-text)]">
           <AlertTriangle className="h-4 w-4 shrink-0" />
           لديك {formatNumber(needsAttention)} عناصر تحتاج إلى متابعة.
         </div>
@@ -127,7 +127,7 @@ function HubBody({
         <section className="space-y-2.5">
           <h2 className="text-sm font-extrabold">يحتاج إلى إجراء</h2>
           <div className="flex items-center gap-3 rounded-2xl border border-border/70 bg-card p-2.5 shadow-sm">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--legacy-warning-soft)] text-[var(--legacy-warning-text)]">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--color-warning-soft)] text-[var(--color-warning-text)]">
               <Inbox className="h-4 w-4" />
             </span>
             <div className="min-w-0 flex-1">

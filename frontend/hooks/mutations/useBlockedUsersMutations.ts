@@ -28,10 +28,20 @@ export function useToggleUserBlock() {
       // Keep the combined public-profile header cache in sync as well;
       // it now owns the block button's initial state and avoids a second GET.
       const profileStateKey = queryKeys.users.profileState(userId, viewerId ?? 'anonymous');
-      queryClient.setQueryData<{ following: boolean; online: boolean; lastSeenAt: string | null; isBlockedByMe: boolean }>(
-        profileStateKey,
-        (current) => current ? { ...current, isBlockedByMe } : current,
-      );
+      queryClient.setQueryData<{
+        following: boolean;
+        online: boolean;
+        lastSeenAt: string | null;
+        isBlockedByMe: boolean;
+        interactionRestricted: boolean;
+      }>(profileStateKey, (current) => current ? {
+        ...current,
+        isBlockedByMe,
+        // A new outgoing block guarantees restriction. Unblocking only
+        // removes our side; the target may still have blocked the viewer.
+        interactionRestricted: isBlockedByMe ? true : current.interactionRestricted,
+      } : current);
+      void queryClient.invalidateQueries({ queryKey: profileStateKey });
       queryClient.invalidateQueries({ queryKey: queryKeys.blockedUsers.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.conversations.mineRoot() });
       toast.success(data?.action === 'blocked' ? 'تم حظر المستخدم' : 'تم إلغاء حظر المستخدم');

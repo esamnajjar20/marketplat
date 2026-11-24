@@ -72,3 +72,19 @@ export function useAcceptStoreMemberInvite() {
     onError: toastMutationError,
   });
 }
+
+
+/** Reject the current user's pending invitation by leaving/removing its pending membership. */
+export function useRejectStoreMemberInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ storeId, memberId }: { storeId: string; memberId: string }) =>
+      storeMembersApi.remove(storeId, memberId).then((r) => r.data.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores.memberInvites() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stores.all() });
+      toast.success('تم رفض الدعوة');
+    },
+    onError: toastMutationError,
+  });
+}

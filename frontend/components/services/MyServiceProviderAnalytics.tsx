@@ -30,7 +30,7 @@ function StatTile({
         <span
           className={cn(
             'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl',
-            accent ? 'bg-[var(--legacy-warning-soft)] text-[var(--legacy-warning-text)]' : 'bg-primary/10 text-primary',
+            accent ? 'bg-[var(--color-warning-soft)] text-[var(--color-warning-text)]' : 'bg-primary/10 text-primary',
           )}
         >
           <Icon className="h-4 w-4" />
@@ -100,7 +100,7 @@ export function MyServiceProviderAnalytics() {
         ))}
       </div>
       <p className="text-xs leading-relaxed text-muted-foreground">
-        النافذة الزمنية تؤثر على الطلبات المكتملة والإيرادات. المشاهدات والخدمات النشطة تبقى إجمالية.
+        الفترة المختارة تؤثر على الطلبات المكتملة/الملغاة والإيرادات فقط. المشاهدات والخدمات النشطة والطلبات المعلقة والمواعيد القادمة ومتوسط التقييم وعدد التقييمات وقائمة الأكثر مشاهدة هي بيانات تراكمية أو حالة حالية ولا تتغير بتغيير الفترة.
       </p>
       {isFetching && isPlaceholderData && (
         <p className="text-xs text-muted-foreground" role="status" aria-live="polite">
@@ -108,18 +108,18 @@ export function MyServiceProviderAnalytics() {
         </p>
       )}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 sm:gap-3">
-        <StatTile icon={Eye} label="مشاهدات الخدمات" value={formatNumber(analytics.totalViews)} />
-        <StatTile icon={ListChecks} label="خدمات نشطة" value={formatNumber(analytics.activeListings)} />
-        <StatTile icon={Clock} label="طلبات معلّقة" value={formatNumber(analytics.pendingRequests)} />
-        <StatTile icon={CheckCircle2} label="طلبات مكتملة" value={formatNumber(analytics.completedRequests)} />
+        <StatTile icon={Eye} label="مشاهدات الخدمات · كل الفترة" value={formatNumber(analytics.totalViews)} />
+        <StatTile icon={ListChecks} label="خدمات نشطة حاليًا" value={formatNumber(analytics.activeListings)} />
+        <StatTile icon={Clock} label="طلبات معلّقة حاليًا" value={formatNumber(analytics.pendingRequests)} />
+        <StatTile icon={CheckCircle2} label="طلبات مكتملة خلال الفترة" value={formatNumber(analytics.completedRequests)} />
         <StatTile
           icon={TrendingUp}
-          label="معدّل الإنجاز"
-          value={analytics.fulfillmentRate !== null ? `${analytics.fulfillmentRate.toFixed(0)}%` : '—'}
+          label="معدّل الإنجاز خلال الفترة"
+          value={analytics.fulfillmentRate !== null ? `${analytics.fulfillmentRate.toFixed(1)}%` : '—'}
         />
         <StatTile
           icon={CalendarClock}
-          label="مواعيد قادمة"
+          label="مواعيد قادمة حاليًا"
           value={formatNumber(analytics.upcomingAppointments)}
         />
         <StatTile
@@ -128,12 +128,13 @@ export function MyServiceProviderAnalytics() {
           value={analytics.averageRating !== null ? analytics.averageRating.toFixed(1) : '—'}
           accent
         />
-        <StatTile icon={Wallet} label="الإيرادات" value={formatPrice(analytics.revenue)} />
+        <StatTile icon={Star} label="عدد التقييمات" value={formatNumber(analytics.reviewCount)} />
+        <StatTile icon={Wallet} label="الإيرادات خلال الفترة" value={formatPrice(analytics.revenue)} />
       </div>
 
       <Card className="rounded-2xl border-border/70 shadow-sm">
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-extrabold">الأكثر مشاهدة</CardTitle>
+          <CardTitle className="text-sm font-extrabold">الأكثر مشاهدة · كل الفترة</CardTitle>
         </CardHeader>
         <CardContent>
           {analytics.topListings.length === 0 ? (

@@ -183,7 +183,7 @@ export const AdminStoresTable = memo(function AdminStoresTable() {
             'inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-bold transition-colors',
             featureRequested
               ? 'border-primary bg-primary text-primary-foreground'
-              : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:bg-muted/50',
+              : 'border-[var(--color-border)] bg-card text-[var(--color-text-primary)] hover:bg-muted/50',
           )}
         >
           <Star className="h-3.5 w-3.5" aria-hidden />
@@ -200,7 +200,7 @@ export const AdminStoresTable = memo(function AdminStoresTable() {
                 'inline-flex h-8 items-center rounded-full border px-3 text-xs font-bold transition-colors',
                 isActive
                   ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-[var(--legacy-border)] bg-card text-[var(--legacy-foreground-warm)] hover:bg-muted/50',
+                  : 'border-[var(--color-border)] bg-card text-[var(--color-text-primary)] hover:bg-muted/50',
               )}
             >
               {tab.label}

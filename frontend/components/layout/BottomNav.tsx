@@ -8,6 +8,7 @@ import { UserAvatar } from '@/components/shared/UserAvatar';
 import { useUIStore } from '@/store/ui.store';
 import { useAuthStore, selectHydratedIsAuthenticated, selectHydratedUser } from '@/store/auth.store';
 import { ROUTES } from '@/lib/constants';
+import { BROWSE_ROUTE_PATHS, isBrowseRouteActive } from '@/lib/browse-routes';
 import { cn } from '@/lib/utils';
 import { LazyCreateSheet, LazyExploreSheet } from '@/components/layout/LazySheets';
 import { useQueuedRequestCount } from '@/hooks/useQueuedRequestCount';
@@ -111,14 +112,14 @@ export function BottomNav() {
   const homeItem = { label: 'الرئيسية', href: ROUTES.home, icon: Home } as const;
   const messagesItem = { label: 'الرسائل', href: ROUTES.messages, icon: MessageCircle } as const;
 
-  // "استكشاف" reads as active on any of the destinations its own sheet
-  // links to (see ExploreSheet), not just /search itself — otherwise
-  // landing on /stores or /service-providers via a direct link would
-  // leave the whole bottom bar showing no active tab at all.
-  const EXPLORE_ACTIVE_PREFIXES = [
-    ROUTES.search, ROUTES.products, ROUTES.services, ROUTES.stores, ROUTES.serviceProviders,
-  ] as const;
-  const isExploreActive = EXPLORE_ACTIVE_PREFIXES.some((href) => pathname.startsWith(href));
+  // Keep the Explore tab in sync with the canonical routes used by
+  // ExploreSheet and the public drawer. This deliberately includes
+  // /ads, /requests and /sellers/ranking, which were previously omitted.
+  // The shared matcher applies route-boundary rules and avoids marking
+  // /requests/me or /requests/offers as the public market feed.
+  const isExploreActive = BROWSE_ROUTE_PATHS.some(
+    (href) => href !== ROUTES.home && isBrowseRouteActive(pathname, href),
+  );
 
   function renderItem({ label, href, icon: Icon }: {
     label: string; href: string; icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean; strokeWidth?: number }>;
@@ -244,6 +245,7 @@ export function BottomNav() {
         <div className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center">
           <button
             type="button"
+            id="mobile-nav-toggle"
             onClick={toggleMobileNav}
             aria-label="فتح القائمة"
             aria-expanded={mobileNavOpen}
