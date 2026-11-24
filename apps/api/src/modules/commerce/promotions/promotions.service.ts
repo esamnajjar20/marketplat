@@ -47,9 +47,9 @@ const syncStatus = (promotion: Promotion, now: Date): Promotion => {
 };
 
 const requireOwnPromotion = async (userId: string, id: string): Promise<Promotion> => {
-  const store = await requireStoreAccessForProducts(userId, 'managePromotions');
   const promotion = await promotionsRepository.findById(id);
   if (!promotion) throw new NotFoundError('Promotion not found', 'PROMOTION_NOT_FOUND');
+  const store = await requireStoreAccessForProducts(userId, 'managePromotions', promotion.storeId);
   if (promotion.storeId !== store.id) {
     throw new ForbiddenError('You do not own this promotion.', 'NOT_YOUR_PROMOTION');
   }
@@ -110,8 +110,8 @@ const computeEffectivePrice = (product: Product, promotion: Promotion | null): E
 };
 
 export const promotionsService = {
-  createPromotion: async (userId: string, input: CreatePromotionInput): Promise<Promotion> => {
-    const store = await requireStoreAccessForProducts(userId, 'managePromotions');
+  createPromotion: async (userId: string, input: CreatePromotionInput, storeId?: string): Promise<Promotion> => {
+    const store = await requireStoreAccessForProducts(userId, 'managePromotions', storeId);
 
     const product = await productsRepository.findById(input.productId);
     if (!product || product.status === 'DELETED') {
@@ -154,8 +154,8 @@ export const promotionsService = {
     }
   },
 
-  getStorePromotions: async (userId: string): Promise<Promotion[]> => {
-    const store = await requireStoreAccessForProducts(userId, 'managePromotions');
+  getStorePromotions: async (userId: string, storeId?: string): Promise<Promotion[]> => {
+    const store = await requireStoreAccessForProducts(userId, 'managePromotions', storeId);
     const promotions = await promotionsRepository.findByStoreId(store.id);
     const now = new Date();
     return promotions.map(p => syncStatus(p, now));

@@ -4,6 +4,7 @@ import {
   createPromotionSchema,
   updatePromotionSchema,
   promotionIdSchema,
+  getPromotionsSchema,
 } from './promotions.validation';
 import { successResponse } from '../../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/auth/requireUser';
@@ -13,7 +14,9 @@ export const promotionsController = {
     try {
       const user = requireUser(req);
       const { body } = createPromotionSchema.parse({ body: req.body });
-      const promotion = await promotionsService.createPromotion(user.userId, body);
+      const { query } = getPromotionsSchema.parse({ query: req.query });
+      const storeId = query.storeId;
+      const promotion = await promotionsService.createPromotion(user.userId, body, storeId);
       res.status(201).json(successResponse('Promotion created', promotion));
     } catch (error) {
       next(error);
@@ -27,7 +30,8 @@ export const promotionsController = {
   getMyPromotions: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const promotions = await promotionsService.getStorePromotions(user.userId);
+      const { query } = getPromotionsSchema.parse({ query: req.query });
+      const promotions = await promotionsService.getStorePromotions(user.userId, query.storeId);
       res.status(200).json(successResponse('Promotions fetched', promotions));
     } catch (error) {
       next(error);

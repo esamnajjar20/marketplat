@@ -75,6 +75,7 @@ const PROTECTED_PREFIXES = [
   '/ads/create',
   '/dashboard',
   '/account',
+  '/orders',
   '/favorites',
   '/messages',
   '/my-ads',
