@@ -548,6 +548,102 @@ const unreadMessageCount = (data: unknown): number => {
 };
 
 export const notificationEvents = {
+  /** Notify both parties after a fresh marketplace product order is committed. */
+  onMarketplaceOrderCreated: async (input: {
+    orderId: string;
+    buyerId: string;
+    sellerId: string;
+    storeName: string;
+    total: number | string;
+    currency: string;
+  }): Promise<void> => {
+    const events = [
+      {
+        userId: input.sellerId,
+        type: NotificationType.MARKETPLACE_ORDER_NEW,
+        title: 'طلب شراء جديد',
+        body: `استلم متجرك طلب شراء جديد بقيمة ${input.total} ${input.currency}`,
+        event: 'NEW',
+      },
+      {
+        userId: input.buyerId,
+        type: NotificationType.MARKETPLACE_ORDER_UPDATE,
+        title: 'تم استلام طلبك',
+        body: `استلم متجر "${input.storeName}" طلبك، ويمكنك متابعة حالته من التفاصيل`,
+        event: 'CREATED',
+      },
+    ] as const;
+
+    const results = await Promise.allSettled(events.map(async event => {
+      if (!(await userAllowsPref(event.userId, 'storeUpdates'))) return;
+      const data = { orderId: input.orderId, status: 'PENDING', event: event.event };
+      await notificationsRepository.create({
+        userId: event.userId,
+        type: event.type,
+        title: event.title,
+        body: event.body,
+        data,
+      });
+      void pushService
+        .notifyUser(event.userId, {
+          title: event.title,
+          body: event.body,
+          url: `/orders/${input.orderId}`,
+          tag: `marketplace-order-${input.orderId}-${event.event.toLowerCase()}`,
+          type: event.type,
+        })
+        .catch(error =>
+          reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+        );
+    }));
+    for (const result of results) {
+      if (result.status === 'rejected') {
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          result.reason
+        );
+      }
+    }
+  },
+
+  /** Notify the other party whenever a marketplace order changes state. */
+  onMarketplaceOrderChanged: async (input: {
+    orderId: string;
+    buyerId: string;
+    sellerId: string;
+    actorId: string;
+    status: string;
+    storeName: string;
+  }): Promise<void> => {
+    const recipientId = input.actorId === input.buyerId ? input.sellerId : input.buyerId;
+    if (!(await userAllowsPref(recipientId, 'storeUpdates'))) return;
+    const statusCopy: Record<string, { title: string; label: string }> = {
+      CONFIRMED: { title: 'تم تأكيد طلبك', label: 'تم تأكيد الطلب' },
+      PROCESSING: { title: 'بدأ تجهيز الطلب', label: 'بدأ تجهيز الطلب' },
+      SHIPPED: { title: 'تم شحن الطلب', label: 'تم شحن الطلب' },
+      DELIVERED: { title: 'تم تسليم الطلب', label: 'تم تسليم الطلب' },
+      CANCELLED: { title: 'تم إلغاء الطلب', label: 'تم إلغاء الطلب' },
+    };
+    const copy = statusCopy[input.status] ?? { title: 'تحديث طلب الشراء', label: 'تم تحديث حالة الطلب' };
+    const buyerIsRecipient = recipientId === input.buyerId;
+    const body = buyerIsRecipient
+      ? `${copy.label} لدى متجر "${input.storeName}". افتح تفاصيل الطلب لمتابعته.`
+      : `${copy.label} رقم ${input.orderId}. افتح تفاصيل الطلب لمراجعته.`;
+    const data = { orderId: input.orderId, status: input.status, event: input.status };
+    const type = NotificationType.MARKETPLACE_ORDER_UPDATE;
+    await notificationsRepository.create({ userId: recipientId, type, title: copy.title, body, data });
+    void pushService
+      .notifyUser(recipientId, {
+        title: copy.title,
+        body,
+        url: `/orders/${input.orderId}`,
+        tag: `marketplace-order-${input.orderId}-${input.status.toLowerCase()}`,
+        type,
+      })
+      .catch(error =>
+        reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
+      );
+  },
   /** Seller-facing lifecycle warning, emitted once per ad. */
   onAdExpiringSoon: async (
     userId: string,
@@ -1170,39 +1266,52 @@ export const notificationEvents = {
     });
   },
 
-  /** Customer is told an appointment tied to their request was booked
-   * or cancelled by the provider. */
+  /** Notify the other party about an appointment lifecycle transition. */
   onAppointmentChanged: async (
-    customerUserId: string,
+    recipientUserId: string,
     requestId: string,
     listingTitle: string,
-    kind: 'booked' | 'cancelled',
-    scheduledStart: Date
+    kind: 'booked' | 'cancelled' | 'completed' | 'no_show',
+    scheduledStart: Date,
+    recipientRole: 'customer' | 'provider' = 'customer',
+    appointmentId?: string
   ) => {
-    if (!(await userAllowsPref(customerUserId, 'serviceQuotes'))) return null;
+    if (!(await userAllowsPref(recipientUserId, 'serviceQuotes'))) return null;
     const when = formatGazaDateTime(scheduledStart);
-    const title = kind === 'booked' ? 'تم حجز موعد' : 'تم إلغاء الموعد';
-    const body =
-      kind === 'booked'
-        ? `تم تحديد موعد لطلبك "${listingTitle}" — ${when}`
-        : `أُلغي الموعد المحدد لطلبك "${listingTitle}" (${when})`;
+    const copyByRole = {
+      customer: {
+        booked: { title: 'تم حجز موعد', body: `تم تحديد موعد لطلبك "${listingTitle}" — ${when}` },
+        cancelled: { title: 'تم إلغاء الموعد', body: `أُلغي الموعد المحدد لطلبك "${listingTitle}" (${when})` },
+        completed: { title: 'اكتمل الموعد', body: `أكد مقدم الخدمة إتمام موعد طلبك "${listingTitle}" (${when})` },
+        no_show: { title: 'تم تسجيل عدم الحضور', body: `سجّل مقدم الخدمة عدم حضورك لموعد "${listingTitle}" (${when})` },
+      },
+      provider: {
+        booked: { title: 'حجز العميل موعدًا', body: `حدد العميل موعدًا لطلب الخدمة "${listingTitle}" — ${when}` },
+        cancelled: { title: 'ألغى العميل الموعد', body: `ألغى العميل الموعد المرتبط بطلب الخدمة "${listingTitle}" (${when})` },
+        completed: { title: 'تم تحديث الموعد', body: `تم تحديث موعد الخدمة "${listingTitle}" إلى مكتمل (${when})` },
+        no_show: { title: 'تم تسجيل عدم الحضور', body: `تم تسجيل عدم حضور العميل لموعد "${listingTitle}" (${when})` },
+      },
+    } as const;
+    const copy = copyByRole[recipientRole][kind];
+    const { title, body } = copy;
+    const eventTag = appointmentId ? `appointment-${appointmentId}-${kind}` : `service-request-${requestId}-${kind}`;
     void pushService
-      .notifyUser(customerUserId, {
+      .notifyUser(recipientUserId, {
         title,
         body,
         url: `/service-requests/${requestId}`,
-        tag: `service-request-${requestId}`,
+        tag: eventTag,
         type: 'APPOINTMENT_UPDATE',
       })
       .catch(error =>
         reportBackgroundFailure('apps/api/src/modules/engagement/notifications/notifications.service.ts', error)
       );
     return notificationsRepository.create({
-      userId: customerUserId,
+      userId: recipientUserId,
       type: 'APPOINTMENT_UPDATE',
       title,
       body,
-      data: { requestId },
+      data: { requestId, ...(appointmentId ? { appointmentId } : {}), status: kind.toUpperCase() },
     });
   },
 };

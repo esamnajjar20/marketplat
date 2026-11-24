@@ -5,6 +5,7 @@ import { usersService } from '../../src/modules/identity/users';
 import { storesService } from '../../src/modules/commerce/stores';
 import { NotFoundError } from '../../src/shared/errors/NotFoundError';
 import { BadRequestError } from '../../src/shared/errors/BadRequestError';
+import { notificationEvents } from '../../src/modules/engagement/notifications/notifications.service';
 
 jest.mock('../../src/modules/trust/reports/reports.repository');
 jest.mock('../../src/modules/classifieds/ads/ads.service');
@@ -27,7 +28,7 @@ const mockReport = {
   reason: 'SCAM',
   status: 'PENDING',
   user: { id: 'reporter-1' },
-  ad: { userId: 'owner-1' },
+  ad: { id: 'ad-1', title: 'Test ad', userId: 'owner-1' },
 };
 
 describe('ReportsService', () => {
@@ -209,6 +210,44 @@ describe('ReportsService', () => {
 
       const result = await reportsService.updateReportStatus('report-1', { status: 'RESOLVED' });
       expect(result.status).toBe('RESOLVED');
+    });
+  });
+
+  describe('bulkUpdateReportStatus', () => {
+    it('notifies only successfully updated reports and never exposes moderator notes', async () => {
+      const second = {
+        ...mockReport,
+        id: 'report-2',
+        userId: 'reporter-2',
+        user: { id: 'reporter-2' },
+        targetType: 'USER',
+        targetId: 'target-2',
+        ad: null,
+      };
+      (reportsRepository.updateManyStatus as jest.Mock).mockResolvedValue({
+        updated: [mockReport, second],
+        failed: [{ id: 'missing', reason: 'Report not found' }],
+      });
+
+      const result = await reportsService.bulkUpdateReportStatus({
+        reportIds: ['report-1', 'report-2', 'missing'],
+        status: 'RESOLVED',
+      } as any);
+
+      expect(result.updated).toHaveLength(2);
+      expect(result.failed).toHaveLength(1);
+      expect(notificationEvents.onModerationDecision).toHaveBeenCalledTimes(2);
+      expect(notificationEvents.onModerationDecision).toHaveBeenCalledWith(expect.objectContaining({
+        userIds: ['reporter-1', 'owner-1'],
+        reportId: 'report-1',
+        targetTitle: 'Test ad',
+        status: 'RESOLVED',
+      }));
+      expect(notificationEvents.onModerationDecision).toHaveBeenCalledWith(expect.objectContaining({
+        userIds: ['reporter-2'],
+        reportId: 'report-2',
+      }));
+      expect(JSON.stringify((notificationEvents.onModerationDecision as jest.Mock).mock.calls)).not.toContain('moderator note');
     });
   });
 

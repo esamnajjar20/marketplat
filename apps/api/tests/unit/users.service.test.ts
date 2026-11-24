@@ -11,6 +11,7 @@ import { uploadAvatar, deleteImage } from '../../src/config/cloudinary';
 import { extractCloudinaryPublicId, cleanupUploadedImages } from '../../src/shared/media/cloudinaryHelpers';
 import { presence } from '../../src/shared/realtime/presence';
 import { followsService } from '../../src/modules/engagement/follows/follows.service';
+import { blockedUsersService } from '../../src/modules/trust/blocked-users';
 import jwt from 'jsonwebtoken';
 
 jest.mock('../../src/modules/identity/users/users.repository');
@@ -29,6 +30,12 @@ jest.mock('../../src/shared/realtime/presence', () => ({
 }));
 jest.mock('../../src/modules/engagement/follows/follows.service', () => ({
   followsService: { status: jest.fn() },
+}));
+jest.mock('../../src/modules/trust/blocked-users', () => ({
+  blockedUsersService: {
+    isBlockedBy: jest.fn().mockResolvedValue(false),
+    isBlockedEitherDirection: jest.fn().mockResolvedValue(false),
+  },
 }));
 
 const mockUser = {
@@ -60,6 +67,8 @@ describe('UsersService', () => {
         following: true,
         online: true,
         lastSeenAt: null,
+        isBlockedByMe: false,
+        interactionRestricted: false,
       });
       expect(followsService.status).toHaveBeenCalledWith('viewer-1', expect.anything(), 'profile-2');
       expect(presence.getPresence).toHaveBeenCalledWith(['profile-2']);
@@ -70,9 +79,24 @@ describe('UsersService', () => {
         following: false,
         online: false,
         lastSeenAt: null,
+        isBlockedByMe: false,
+        interactionRestricted: false,
       });
       expect(followsService.status).not.toHaveBeenCalled();
       expect(presence.getPresence).not.toHaveBeenCalled();
+      expect(blockedUsersService.isBlockedEitherDirection).not.toHaveBeenCalled();
+    });
+
+    it('returns a direction-neutral restriction when the profile owner blocked the viewer', async () => {
+      (followsService.status as jest.Mock).mockResolvedValue(true);
+      (presence.getPresence as jest.Mock).mockResolvedValue({});
+      (blockedUsersService.isBlockedBy as jest.Mock).mockResolvedValue(false);
+      (blockedUsersService.isBlockedEitherDirection as jest.Mock).mockResolvedValue(true);
+
+      await expect(usersService.getProfileInteractionState('viewer-1', 'profile-2')).resolves.toMatchObject({
+        isBlockedByMe: false,
+        interactionRestricted: true,
+      });
     });
   });
 

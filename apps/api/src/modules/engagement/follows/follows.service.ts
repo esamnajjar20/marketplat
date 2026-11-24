@@ -2,7 +2,6 @@ import { reportBackgroundFailure } from '../../../shared/jobs/backgroundTask';
 import { FollowTargetType, NotificationType, Prisma } from '@prisma/client';
 import { prisma } from '../../../config/prisma';
 import { followsRepository } from './follows.repository';
-import { storeFollowersRepository } from '../../commerce/stores/store-followers.repository';
 import { MAX_FEED_PAGE, ToggleFollowInput } from './follows.validation';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
@@ -179,19 +178,62 @@ const hydrateFollowItems = async (
 export const followsService = {
   toggle: async (followerId: string, input: ToggleFollowInput) => {
     await targetExists(input.targetType, input.targetId, followerId);
+
+    // Store follows are represented in two read models for historical API
+    // compatibility. Keep both rows in one transaction. Upsert repairs a
+    // stale secondary-only row when following; deleting the secondary row
+    // on unfollow also clears any stale counterpart.
+    if (input.targetType === FollowTargetType.STORE) {
+      let action: 'followed' | 'unfollowed';
+      try {
+        action = await prisma.$transaction(async (tx) => {
+          const key = {
+            followerId_targetType_targetId: {
+              followerId,
+              targetType: FollowTargetType.STORE,
+              targetId: input.targetId,
+            },
+          };
+          const existing = await tx.follow.findUnique({ where: key, select: { id: true } });
+          if (existing) {
+            await tx.follow.delete({ where: key });
+            await tx.storeFollower.deleteMany({
+              where: { userId: followerId, storeId: input.targetId },
+            });
+            return 'unfollowed';
+          }
+
+          await tx.follow.create({
+            data: { followerId, targetType: FollowTargetType.STORE, targetId: input.targetId },
+          });
+          await tx.storeFollower.upsert({
+            where: { userId_storeId: { userId: followerId, storeId: input.targetId } },
+            create: { userId: followerId, storeId: input.targetId },
+            update: {},
+          });
+          return 'followed';
+        });
+      } catch (err) {
+        // A concurrent request may have committed the same follow first.
+        // Its transaction also commits the StoreFollower row, so the
+        // unique collision is a successful idempotent outcome here.
+        if (isPrismaError(err, 'P2002')) {
+          return { action: 'followed' as const, targetType: input.targetType, targetId: input.targetId };
+        }
+        if (isPrismaError(err, 'P2025')) {
+          return { action: 'unfollowed' as const, targetType: input.targetType, targetId: input.targetId };
+        }
+        throw err;
+      }
+      return { action, targetType: input.targetType, targetId: input.targetId };
+    }
+
     const existing = await followsRepository.find(followerId, input.targetType, input.targetId);
     if (existing) {
       try {
         await followsRepository.delete(followerId, input.targetType, input.targetId);
       } catch (err) {
         if (!isPrismaError(err, 'P2025')) throw err;
-      }
-      if (input.targetType === FollowTargetType.STORE) {
-        try {
-          await storeFollowersRepository.delete(followerId, input.targetId);
-        } catch (err) {
-          if (!isPrismaError(err, 'P2025')) throw err;
-        }
       }
       return {
         action: 'unfollowed' as const,
@@ -209,13 +251,6 @@ export const followsService = {
         targetType: input.targetType,
         targetId: input.targetId,
       };
-    }
-    if (input.targetType === FollowTargetType.STORE) {
-      try {
-        await storeFollowersRepository.create(followerId, input.targetId);
-      } catch (err) {
-        if (!isPrismaError(err, 'P2002')) throw err;
-      }
     }
 
     if (input.targetType === FollowTargetType.USER) {
@@ -346,25 +381,34 @@ export const followsService = {
       followsService.getFollowedTargetIds(followerId, FollowTargetType.CATEGORY),
     ]);
 
-    // Resolve the followed users' seller/provider profiles in batches to avoid
-    // an N+1 query for each followed person.
-    const [followedStores, followedProviders] = await Promise.all([
-      userIds.length
+    // Resolve followed stores/providers in batches and apply the same
+    // visibility gates as public discovery: active owning user, unsuspended
+    // seller profile, and an active store. Directly followed stores are
+    // revalidated too because their status can change after the follow.
+    const followedStorePredicates: Prisma.StoreDetailsWhereInput[] = [];
+    if (storeIds.length) followedStorePredicates.push({ id: { in: storeIds } });
+    if (userIds.length) followedStorePredicates.push({ sellerProfile: { userId: { in: userIds } } });
+    const [eligibleStores, followedProviders] = await Promise.all([
+      followedStorePredicates.length
         ? prisma.storeDetails.findMany({
-            where: { sellerProfile: { userId: { in: userIds } } },
+            where: {
+              status: 'ACTIVE',
+              sellerProfile: { suspended: false, user: { isActive: true } },
+              OR: followedStorePredicates,
+            },
             select: { id: true },
           })
         : [],
       userIds.length
         ? prisma.serviceProviderDetails.findMany({
-            where: { sellerProfile: { userId: { in: userIds } } },
+            where: {
+              sellerProfile: { suspended: false, user: { isActive: true }, userId: { in: userIds } },
+            },
             select: { id: true },
           })
         : [],
     ]);
-    const allStoreIds = Array.from(
-      new Set([...storeIds, ...followedStores.map(store => store.id)])
-    );
+    const allStoreIds = eligibleStores.map(store => store.id);
     const providerIds = followedProviders.map(provider => provider.id);
     const categoryIds = { AD: [] as string[], PRODUCT: [] as string[], SERVICE: [] as string[] };
     for (const target of categoryTargetIds) {
@@ -374,6 +418,16 @@ export const followsService = {
 
     const adsWhere: Prisma.AdWhereInput = {
       status: 'ACTIVE',
+      flaggedForReview: false,
+      sellerProfile: { suspended: false, user: { isActive: true } },
+      AND: [
+        {
+          OR: [
+            { storeId: null },
+            { store: { status: 'ACTIVE', sellerProfile: { suspended: false, user: { isActive: true } } } },
+          ],
+        },
+      ],
       OR: [
         ...(userIds.length ? [{ userId: { in: userIds } }] : []),
         ...(allStoreIds.length ? [{ storeId: { in: allStoreIds } }] : []),
@@ -382,6 +436,7 @@ export const followsService = {
     };
     const productsWhere: Prisma.ProductWhereInput = {
       status: 'ACTIVE',
+      store: { status: 'ACTIVE', sellerProfile: { suspended: false, user: { isActive: true } } },
       OR: [
         ...(allStoreIds.length ? [{ storeId: { in: allStoreIds } }] : []),
         ...(categoryIds.PRODUCT.length ? [{ categoryId: { in: categoryIds.PRODUCT } }] : []),
@@ -389,6 +444,7 @@ export const followsService = {
     };
     const servicesWhere: Prisma.ServiceListingWhereInput = {
       status: 'ACTIVE',
+      provider: { sellerProfile: { suspended: false, user: { isActive: true } } },
       OR: [
         ...(providerIds.length ? [{ providerId: { in: providerIds } }] : []),
         ...(categoryIds.SERVICE.length ? [{ categoryId: { in: categoryIds.SERVICE } }] : []),

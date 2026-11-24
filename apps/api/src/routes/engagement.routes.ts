@@ -18,8 +18,8 @@ export function registerEngagementRoutes(router: Router): void {
   router.use('/saved-searches', savedSearchesRouter);
   // BADGES (P1): computed, not stored — see badges.types.ts's
   // computeBadges. Only VERIFIED/HIGHLY_RATED/POPULAR/NEW_STORE are
-  // implemented; TOP_SELLER and FAST_RESPONSE were dropped from this
-  // pass, no Order model or response-time tracking exists to back them.
+  // implemented; TOP_SELLER is not yet wired to checkout/sales metrics,
+  // and FAST_RESPONSE still requires response-time tracking.
   router.use('/badges', badgesRouter);
   // Gap #10 ("نشاطي"): a user's own cross-module activity timeline — its
   // own repository-backed module (not folded into users.routes.ts),

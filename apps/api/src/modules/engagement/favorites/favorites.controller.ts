@@ -36,6 +36,27 @@ export const favoritesController = {
   // toggleFavorite above, for POST /favorites/:entityType/:entityId
   // (products/stores/services — see favorites.validation.ts's URL
   // param mapping).
+  setFavoriteEntityState: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const user = requireUser(req);
+      const { params } = favoriteEntitySchema.parse({ params: req.params });
+      const favorited = req.body?.favorited;
+      if (typeof favorited !== 'boolean') {
+        res.status(400).json({ success: false, message: 'favorited must be a boolean.' });
+        return;
+      }
+      const result = await favoritesService.setFavoriteEntityState(
+        user.userId,
+        params.entityType,
+        params.entityId,
+        favorited,
+      );
+      res.status(200).json(successResponse('Favorite state saved', result));
+    } catch (error) {
+      next(error);
+    }
+  },
+
   toggleFavoriteEntity: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);

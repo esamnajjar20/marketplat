@@ -175,7 +175,9 @@ export const appointmentsService = {
               linkedRequest.id,
               linkedRequest.listing.title,
               'booked',
-              appointment.scheduledStart
+              appointment.scheduledStart,
+              'customer',
+              appointment.id
             )
             .catch(err =>
               logger.error('Failed to create APPOINTMENT_UPDATE notification', {
@@ -191,7 +193,9 @@ export const appointmentsService = {
               linkedRequest.id,
               linkedRequest.listing.title,
               'booked',
-              appointment.scheduledStart
+              appointment.scheduledStart,
+              'provider',
+              appointment.id
             )
             .catch(err =>
               logger.error('Failed to notify provider of customer appointment booking', {
@@ -264,35 +268,40 @@ export const appointmentsService = {
     }
     const updated = await appointmentsRepository.updateStatus(id, status);
 
-    // Gap #10: only CANCELLED maps onto an activity type — COMPLETED/
-    // NO_SHOW aren't in the task's 22-type list, so they're left
-    // unlogged here rather than inventing types beyond what was asked
-    // for. Fire-and-forget, see createAppointment's own comment above.
     if (status === 'CANCELLED') {
       activityService.record({
         userId,
         ...activityTemplates.appointmentCancelled(updated.id, updated.scheduledStart),
       });
+    }
 
-      if (linkedRequest) {
-        const recipient = isCustomer
-          ? linkedRequest.listing.provider.sellerProfile.userId
-          : linkedRequest.customerId;
-        notificationEvents
-          .onAppointmentChanged(
-            recipient,
-            linkedRequest.id,
-            linkedRequest.listing.title,
-            'cancelled',
-            updated.scheduledStart
-          )
-          .catch(err =>
-            logger.error('Failed to create APPOINTMENT_UPDATE notification', {
-              err,
-              appointmentId: updated.id,
-            })
-          );
-      }
+    // Notify the other party for every request-linked lifecycle transition,
+    // using recipient-role copy so provider and customer messages are accurate.
+    if (linkedRequest) {
+      const recipient = isCustomer
+        ? linkedRequest.listing.provider.sellerProfile.userId
+        : linkedRequest.customerId;
+      const kind = status === 'CANCELLED'
+        ? 'cancelled'
+        : status === 'COMPLETED'
+          ? 'completed'
+          : 'no_show';
+      notificationEvents
+        .onAppointmentChanged(
+          recipient,
+          linkedRequest.id,
+          linkedRequest.listing.title,
+          kind,
+          updated.scheduledStart,
+          isCustomer ? 'provider' : 'customer',
+          updated.id
+        )
+        .catch(err =>
+          logger.error('Failed to create APPOINTMENT_UPDATE notification', {
+            err,
+            appointmentId: updated.id,
+          })
+        );
     }
 
     return updated;

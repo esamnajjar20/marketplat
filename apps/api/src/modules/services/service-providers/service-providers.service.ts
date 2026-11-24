@@ -47,9 +47,9 @@ import { PaginatedResult } from '../../../shared/types/pagination.types';
 // "views / pipeline counts / top items" structure) adapted to what a
 // provider actually has instead of a store's followers/promotions —
 // pendingRequests/upcomingAppointments are the provider's equivalent
-// of "things needing my attention", revenue is real here (unlike
-// StoreAnalytics, which omits it for lack of an Order model) since
-// ServiceRequest.agreedPrice already exists.
+// of "things needing my attention". ServiceRequest.agreedPrice is used
+// for the provider revenue KPI; store checkout orders remain a separate
+// MarketplaceOrder aggregate and are not folded into the SaleRecord ledger.
 export interface ServiceProviderAnalytics {
   totalViews: number;
   activeListings: number;
@@ -61,7 +61,7 @@ export interface ServiceProviderAnalytics {
   reviewCount: number;
   revenue: number;
   topListings: { id: string; title: string; views: number; image: string | null }[];
-  /** Window used for completedRequests + revenue; views/pending stay snapshot. */
+  /** Window used for completedRequests + revenue; remaining metrics are current or all-time snapshots. */
   period: '7d' | '30d' | 'all';
 }
 
@@ -70,6 +70,10 @@ async function getServiceProviderAnalyticsFor(
   providerId: string,
   period: '7d' | '30d' | 'all' = 'all'
 ): Promise<ServiceProviderAnalytics> {
+  // Only terminal request counts and revenue use the selected period.
+  // Views, active listings, pending requests, upcoming appointments, ratings,
+  // and top listings are current or all-time snapshots and are intentionally
+  // not filtered by this date window.
   const since =
     period === '7d'
       ? new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)

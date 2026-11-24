@@ -65,6 +65,31 @@ describe('followsService.getFollowingFeed', () => {
     expect(res.meta.total).toBe(7);
   });
 
+  it('revalidates followed entities against public-discovery visibility rules', async () => {
+    await followsService.getFollowingFeed('me', 1, 10);
+
+    const storeWhere = (prisma.storeDetails.findMany as jest.Mock).mock.calls[0][0].where;
+    expect(storeWhere).toMatchObject({
+      status: 'ACTIVE',
+      sellerProfile: { suspended: false, user: { isActive: true } },
+    });
+    expect((prisma.serviceProviderDetails.findMany as jest.Mock).mock.calls[0][0].where).toMatchObject({
+      sellerProfile: { suspended: false, user: { isActive: true }, userId: { in: ['u1'] } },
+    });
+    expect((prisma.ad.findMany as jest.Mock).mock.calls[0][0].where).toMatchObject({
+      status: 'ACTIVE', flaggedForReview: false,
+      sellerProfile: { suspended: false, user: { isActive: true } },
+    });
+    expect((prisma.product.findMany as jest.Mock).mock.calls[0][0].where).toMatchObject({
+      status: 'ACTIVE',
+      store: { status: 'ACTIVE', sellerProfile: { suspended: false, user: { isActive: true } } },
+    });
+    expect((prisma.serviceListing.findMany as jest.Mock).mock.calls[0][0].where).toMatchObject({
+      status: 'ACTIVE',
+      provider: { sellerProfile: { suspended: false, user: { isActive: true } } },
+    });
+  });
+
   it('rejects pages beyond the supported depth instead of silently clamping', async () => {
     await expect(followsService.getFollowingFeed('me', MAX_FEED_PAGE + 1, 20)).rejects.toThrow(/cannot exceed/);
     expect(prisma.ad.findMany).not.toHaveBeenCalled();

@@ -38,6 +38,12 @@ export const CORS_ALLOWED_HEADERS = [
   'X-Offline-Op-Id',
   'Idempotency-Key',
   'Last-Event-ID',
+  // Keep conditional requests and legacy XHR clients compatible with the edge
+  // Worker; the parity test in workers/cf-api-proxy/cache-policy.test.mts
+  // verifies this list matches the Worker preflight response.
+  'If-None-Match',
+  'X-Requested-With',
+  'Accept',
 ];
 
 export const corsMiddleware = cors({

@@ -245,10 +245,9 @@ export const serviceRequestsRepository = {
 
   // ANALYTICS: revenue is only ever a fact once a request is COMPLETED
   // and only ever what was actually agreed (agreedPrice), never the
-  // provider's opening quotedPrice — same "don't show a number that
-  // isn't real yet" reasoning as StoreAnalytics omitting revenue
-  // entirely where no Order model exists. This one does exist here
-  // (ServiceRequest.agreedPrice), so it's included.
+  // provider's opening quotedPrice. Store checkout order totals and
+  // seller-entered SaleRecord totals are separate commerce ledgers; this
+  // KPI is the agreed amount from completed service requests only.
   sumRevenueByProviderId: async (providerId: string, since?: Date): Promise<number> => {
     const result = await prisma.serviceRequest.aggregate({
       where: {

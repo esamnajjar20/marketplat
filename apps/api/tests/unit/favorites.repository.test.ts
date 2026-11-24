@@ -16,6 +16,7 @@ jest.mock('../../src/config/prisma', () => ({
     ad: {
       findMany: jest.fn(),
     },
+    storeDetails: { findMany: jest.fn() },
     $queryRaw: jest.fn(),
   },
 }));
@@ -141,14 +142,38 @@ describe('favoritesRepository', () => {
       expect(sql.values).toEqual(expect.arrayContaining([userId, 'AD', 'DELETED']));
     });
 
-    it('uses the entity-specific table and excluded status for other types', async () => {
+    it('counts only ACTIVE stores with an unsuspended seller profile', async () => {
       (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ count: 0 }]);
 
       await favoritesRepository.countByUserIdAndType(userId, 'STORE');
 
       const sql = (prisma.$queryRaw as jest.Mock).mock.calls[0][0];
-      expect(sql.strings.join('?')).toContain('"store_details"');
-      expect(sql.values).toEqual(expect.arrayContaining(['STORE', 'BLOCKED']));
+      const queryText = sql.strings.join('?');
+      expect(queryText).toContain('"store_details"');
+      expect(queryText).toContain('"seller_profiles"');
+      expect(queryText).toContain('"suspended" = false');
+      expect(sql.values).toEqual(expect.arrayContaining([userId, 'STORE', 'ACTIVE']));
+      expect(sql.values).not.toContain('BLOCKED');
+    });
+
+    it('fetches only public store card fields and excludes pending or suspended stores', async () => {
+      (prisma.$queryRaw as jest.Mock).mockResolvedValue([{
+        id: 'fav-store-1', userId, entityType: 'STORE', entityId: 'store-1',
+        listId: null, createdAt: new Date('2026-01-01'), total: 1,
+      }]);
+      (prisma.storeDetails.findMany as jest.Mock).mockResolvedValue([{
+        id: 'store-1', name: 'Public Store', status: 'ACTIVE', sellerProfile: { id: 'seller-1' },
+      }]);
+
+      const result = await favoritesRepository.findManyByUserId(userId, { type: 'store' });
+
+      expect(result.favorites).toHaveLength(1);
+      expect(prisma.storeDetails.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: { in: ['store-1'] }, status: 'ACTIVE', sellerProfile: { suspended: false } },
+        select: expect.objectContaining({
+          sellerProfile: { select: { id: true, verified: true, averageRating: true, totalRatings: true } },
+        }),
+      }));
     });
 
     it('returns 0 when the query yields no row', async () => {

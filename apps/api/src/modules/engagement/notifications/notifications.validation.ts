@@ -42,6 +42,8 @@ const notificationTypeEnum = z.enum([
   'SERVICE_REQUEST_NEW',
   'SERVICE_REQUEST_UPDATE',
   'APPOINTMENT_UPDATE',
+  'MARKETPLACE_ORDER_NEW',
+  'MARKETPLACE_ORDER_UPDATE',
   'AD_EXPIRING_SOON',
   'AD_EXPIRED',
   'MODERATION_REPORT_RECEIVED',
@@ -75,6 +77,7 @@ export const NOTIFICATION_CATEGORY_TYPES = {
   // notifications by 'services' should see an offer on their open
   // request. (T780 — service-broadcast quote types removed with the
   // ServiceBroadcast feature.)
+  orders: ['MARKETPLACE_ORDER_NEW', 'MARKETPLACE_ORDER_UPDATE'],
   services: [
     'NEW_REQUEST_OFFER',
     'REQUEST_OFFER_ACCEPTED',
@@ -128,7 +131,7 @@ export const getNotificationsSchema = z.object({
      * تُحوَّل في الخدمة إلى قائمة types.
      */
     category: z
-      .enum(['messages', 'favorites', 'stores', 'services', 'following', 'system', 'sales'])
+      .enum(['messages', 'favorites', 'stores', 'services', 'orders', 'following', 'system', 'sales'])
       .optional(),
   }),
 });

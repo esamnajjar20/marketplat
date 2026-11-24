@@ -125,6 +125,45 @@ describe('FavoritesService', () => {
     });
   });
 
+  describe('setFavoriteEntityState', () => {
+    it('sets a PRODUCT favorite to true idempotently instead of toggling it', async () => {
+      (productsService.findProductForReference as jest.Mock).mockResolvedValue(mockProduct);
+      (favoritesRepository.findByUserAndEntity as jest.Mock)
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ id: 'fav-1' });
+      (favoritesRepository.create as jest.Mock).mockResolvedValue(undefined);
+
+      const first = await favoritesService.setFavoriteEntityState('user-1', 'PRODUCT', 'product-1', true);
+      const retry = await favoritesService.setFavoriteEntityState('user-1', 'PRODUCT', 'product-1', true);
+
+      expect(first).toEqual({ action: 'added', isFavorited: true });
+      expect(retry).toEqual({ action: 'added', isFavorited: true });
+      expect(favoritesRepository.create).toHaveBeenCalledTimes(1);
+      expect(favoritesRepository.delete).not.toHaveBeenCalled();
+    });
+
+    it('sets a SERVICE_LISTING favorite to false idempotently', async () => {
+      (serviceListingsService.findServiceListingForReference as jest.Mock).mockResolvedValue(mockListing);
+      (favoritesRepository.findByUserAndEntity as jest.Mock)
+        .mockResolvedValueOnce({ id: 'fav-1' })
+        .mockResolvedValueOnce(null);
+      (favoritesRepository.delete as jest.Mock).mockResolvedValue(undefined);
+
+      const first = await favoritesService.setFavoriteEntityState('user-1', 'SERVICE_LISTING', 'listing-1', false);
+      const retry = await favoritesService.setFavoriteEntityState('user-1', 'SERVICE_LISTING', 'listing-1', false);
+
+      expect(first).toEqual({ action: 'removed', isFavorited: false });
+      expect(retry).toEqual({ action: 'removed', isFavorited: false });
+      expect(favoritesRepository.delete).toHaveBeenCalledTimes(1);
+      expect(favoritesRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('rejects a desired-state write when the target entity does not exist', async () => {
+      (storesService.findStoreForReference as jest.Mock).mockResolvedValue(null);
+      await expect(favoritesService.setFavoriteEntityState('user-1', 'STORE', 'missing', true)).rejects.toThrow(NotFoundError);
+    });
+  });
+
   describe('getMyFavorites', () => {
     it('returns paginated favorites, mapped back to the legacy { adId, ad } wire shape', async () => {
       (favoritesRepository.findManyByUserId as jest.Mock).mockResolvedValue({

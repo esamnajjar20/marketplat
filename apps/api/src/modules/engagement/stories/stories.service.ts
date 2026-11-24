@@ -1,4 +1,4 @@
-import { FollowTargetType, StoryVisibility } from '@prisma/client';
+import { FollowTargetType, Prisma, StoryVisibility } from '@prisma/client';
 import { prisma } from '../../../config/prisma';
 import { uploadImage } from '../../../config/cloudinary';
 import { storiesRepository } from './stories.repository';
@@ -7,6 +7,8 @@ import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { followsService } from '../follows/follows.service';
 import { deleteCloudinaryAsset } from '../../../shared/media/cloudinaryHelpers';
+import { blockedUsersService } from '../../trust/blocked-users/blocked-users.service';
+import { isPrismaError } from '../../../shared/db/prismaErrors';
 
 const STORY_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_ACTIVE_STORIES = 20;
@@ -17,10 +19,43 @@ async function canView(
   story: { userId: string; visibility: StoryVisibility },
   viewerId: string | null
 ) {
+  // PUBLIC visibility remains public by product policy. Blocks restrict
+  // follower-only content and interactions, not explicitly public stories.
   if (story.visibility === StoryVisibility.PUBLIC) return true;
   if (!viewerId) return false;
   if (story.userId === viewerId) return true;
+  if (await blockedUsersService.isBlockedEitherDirection(viewerId, story.userId)) return false;
   return followsService.status(viewerId, FollowTargetType.USER, story.userId);
+}
+
+async function createStoryWithinUserLimit(userId: string, data: Prisma.StoryCreateInput) {
+  // A count-then-create check at READ COMMITTED can be passed by two
+  // concurrent requests. SERIALIZABLE makes the predicate read part of
+  // the transaction's conflict detection; retry serialization conflicts
+  // so the loser observes the committed count and receives the limit error.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(
+        async (tx) => {
+          const activeCount = await tx.story.count({
+            where: { userId, expiresAt: { gt: new Date() } },
+          });
+          if (activeCount >= MAX_ACTIVE_STORIES) {
+            throw new BadRequestError(
+              `You can have at most ${MAX_ACTIVE_STORIES} active stories`,
+              'STORY_LIMIT_REACHED'
+            );
+          }
+          return tx.story.create({ data });
+        },
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      );
+    } catch (error) {
+      if (isPrismaError(error, 'P2034') && attempt < 2) continue;
+      throw error;
+    }
+  }
+  throw new BadRequestError('Unable to reserve a story slot. Please retry.', 'STORY_LIMIT_RETRY');
 }
 
 function shapeStory(story: any, viewerId: string) {
@@ -50,20 +85,11 @@ export const storiesService = {
     if (!file && !text)
       throw new BadRequestError('Story must contain an image or text', 'STORY_CONTENT_REQUIRED');
 
-    const activeCount = await prisma.story.count({
-      where: { userId, expiresAt: { gt: new Date() } },
-    });
-    if (activeCount >= MAX_ACTIVE_STORIES)
-      throw new BadRequestError(
-        `You can have at most ${MAX_ACTIVE_STORIES} active stories`,
-        'STORY_LIMIT_REACHED'
-      );
-
     let uploaded: { url: string; publicId: string } | null = null;
     let storyPersisted = false;
     try {
       if (file) uploaded = await uploadImage(file.buffer, 'stories');
-      const story = await storiesRepository.create({
+      const story = await createStoryWithinUserLimit(userId, {
         user: { connect: { id: userId } },
         mediaUrl: uploaded?.url,
         mediaPublicId: uploaded?.publicId,
@@ -86,21 +112,19 @@ export const storiesService = {
   },
 
   feed: async (userId: string) => {
-    const followed = await followsService.getFollowedTargetIds(userId, FollowTargetType.USER);
-    const followedSet = new Set(followed);
-    const userIds = Array.from(new Set([userId, ...followed]));
-    const rows = await storiesRepository.listActiveForUsers(userIds);
+    // SQL joins the follow graph to active stories and excludes either-way
+    // blocks before selecting the 50 most recently active authors. The app
+    // never loads every followed ID or every block row for this feed.
+    const feedAuthorIds = await storiesRepository.listActiveAuthorIdsForFeed(userId, 50);
+    const rows = await storiesRepository.listActiveForUsers(feedAuthorIds, 20);
     const viewed = await prisma.storyView.findMany({
       where: { viewerId: userId, storyId: { in: rows.map(r => r.id) } },
       select: { storyId: true },
     });
     const viewedIds = new Set(viewed.map(v => v.storyId));
-    const stories = rows.filter(
-      story =>
-        story.userId === userId ||
-        story.visibility === StoryVisibility.PUBLIC ||
-        followedSet.has(story.userId)
-    );
+    // The repository has already scoped authors to the viewer and eligible,
+    // unblocked follows. Both PUBLIC and FOLLOWERS stories are valid in feed.
+    const stories = rows;
     const groups = new Map<string, any>();
     for (const story of stories) {
       const current = groups.get(story.userId) ?? {
@@ -134,9 +158,14 @@ export const storiesService = {
     // identical for all private stories. Resolve it once instead of issuing
     // one SELECT per story (N+1). Public stories and the owner's own stories
     // remain visible without a follow lookup.
+    const interactionBlocked = Boolean(
+      viewerId && viewerId !== userId &&
+      (await blockedUsersService.isBlockedEitherDirection(viewerId, userId))
+    );
     const followsAuthor = Boolean(
       viewerId &&
       viewerId !== userId &&
+      !interactionBlocked &&
       (await followsService.status(viewerId, FollowTargetType.USER, userId))
     );
     const visible = rows.filter(

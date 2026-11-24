@@ -8,7 +8,7 @@ import {
   productWithRelationsLite,
   ProductWithStoreLite,
 } from '../../commerce/products/products.repository';
-import { StoreWithSeller, storeWithSeller } from '../../commerce/stores/stores.repository';
+import { StoreDirectoryRow, storeDirectorySelect } from '../../commerce/stores/stores.repository';
 import {
   ServiceListingWithProvider,
   listingWithRelations,
@@ -70,7 +70,7 @@ export type FavoriteAdEntity = Prisma.AdGetPayload<{ select: typeof adSelect }>;
 // select, so a favorited product's card always matches what every
 // other cross-module read of a product already returns.
 export type FavoriteEntity =
-  FavoriteAdEntity | ProductWithStore | StoreWithSeller | ServiceListingWithProvider;
+  FavoriteAdEntity | ProductWithStore | StoreDirectoryRow | ServiceListingWithProvider;
 
 export type FavoriteListRow = {
   id: string;
@@ -79,21 +79,21 @@ export type FavoriteListRow = {
   entityId: string;
   listId: string | null;
   createdAt: Date;
-  entity: FavoriteEntity | null; // null if the referenced entity was hard-deleted (or, for STORE, BLOCKED) after favoriting
+  entity: FavoriteEntity | null; // null if the referenced entity was deleted or is no longer publicly visible
 };
 
 // FEAT-FAVORITE-POLYMORPHIC PR2: what "still active/visible" means
 // differs per entity type — Ad/Product/ServiceListing all soft-delete
 // via status: 'DELETED' (a SOLD ad, or a PAUSED product/listing, is
-// still shown — same as the pre-PR1 behavior for ads), while
-// StoreDetails has no DELETED state at all, only BLOCKED (see
-// StoreStatus's own enum — PENDING/ACTIVE/BLOCKED), so a BLOCKED
-// store is the equivalent "don't show this anymore" state for stores.
+// still shown — same as the pre-PR1 behavior for ads). A StoreDetails row is
+// public only when ACTIVE and its seller profile is not suspended; PENDING
+// stores must never appear in public favorites. Store payloads use the same
+// minimal projection as directory cards, not the full SellerProfile record.
 //
-// fetchActive pulls the full card shape for one page of the list endpoint.
+// fetchActive pulls the public card shape for one page of the list endpoint.
 // Counting and pagination do NOT go through it: they run in SQL via
 // activeFavoritesFilter/ACTIVE_COUNT_TARGETS below, which must apply the same
-// "not DELETED / not BLOCKED" rule as each fetchActive.
+// visibility rule as each fetchActive.
 type EntityConfig<T> = {
   fetchActive: (ids: string[]) => Promise<T[]>;
   getId: (entity: T) => string;
@@ -119,11 +119,11 @@ const PRODUCT_CONFIG: EntityConfig<ProductWithStoreLite> = {
   getId: e => e.id,
 };
 
-const STORE_CONFIG: EntityConfig<StoreWithSeller> = {
+const STORE_CONFIG: EntityConfig<StoreDirectoryRow> = {
   fetchActive: ids =>
     prisma.storeDetails.findMany({
-      where: { id: { in: ids }, status: { not: 'BLOCKED' } },
-      include: storeWithSeller,
+      where: { id: { in: ids }, status: 'ACTIVE', sellerProfile: { suspended: false } },
+      select: storeDirectorySelect,
     }),
   getId: e => e.id,
 };
@@ -138,17 +138,18 @@ const SERVICE_LISTING_CONFIG: EntityConfig<ServiceListingWithProvider> = {
 };
 
 // Closed whitelist used by countByUserIdAndType's raw join. Keep in sync with
-// the `status: { not: ... }` filter of the matching *_CONFIG.fetchActive above.
-const ACTIVE_COUNT_TARGETS: Record<FavoriteEntityType, { table: string; excludedStatus: string }> = {
+// each matching *_CONFIG.fetchActive visibility rule above.
+const ACTIVE_COUNT_TARGETS: Record<FavoriteEntityType, { table: string; excludedStatus?: string }> = {
   AD: { table: '"ads"', excludedStatus: 'DELETED' },
   PRODUCT: { table: '"products"', excludedStatus: 'DELETED' },
-  STORE: { table: '"store_details"', excludedStatus: 'BLOCKED' },
+  STORE: { table: '"store_details"' },
   SERVICE_LISTING: { table: '"service_listings"', excludedStatus: 'DELETED' },
 };
 
 /**
  * `FROM favorites f JOIN <entity table> t WHERE ...` for one user + type,
- * keeping only favorites whose entity is still "active". Favorite.entityId is
+ * keeping only favorites whose entity is still publicly visible. Store visibility
+ * additionally checks the seller profile suspension flag. Favorite.entityId is
  * polymorphic (no FK), so it is joined by hand. The unique index
  * (userId, entityType, entityId) guarantees one row per entity, so COUNT(*)
  * equals the number of distinct active entities. Table names come only from
@@ -160,12 +161,22 @@ const activeFavoritesFilter = (
   listId?: string
 ): Prisma.Sql => {
   const target = ACTIVE_COUNT_TARGETS[entityType];
+  const visibilityFilter =
+    entityType === 'STORE'
+      ? Prisma.sql`AND t."status"::text = ${'ACTIVE'}
+          AND EXISTS (
+            SELECT 1
+            FROM "seller_profiles" sp
+            WHERE sp."id" = t."sellerProfileId"
+              AND sp."suspended" = false
+          )`
+      : Prisma.sql`AND t."status"::text <> ${target.excludedStatus}`;
   return Prisma.sql`
     FROM "favorites" f
     JOIN ${Prisma.raw(target.table)} t ON t."id" = f."entityId"
     WHERE f."userId" = ${userId}
       AND f."entityType" = ${entityType}::"FavoriteEntityType"
-      AND t."status"::text <> ${target.excludedStatus}
+      ${visibilityFilter}
       ${listId ? Prisma.sql`AND f."listId" = ${listId}` : Prisma.empty}`;
 };
 
@@ -253,8 +264,8 @@ export const favoritesRepository = {
     // PERF: the active-only filter, ordering, pagination and total are all done
     // in ONE SQL query (join on the entity table + COUNT(*) OVER()), so memory
     // and DB work are O(page) instead of O(all of the user's favorites).
-    // Because soft-deleted/blocked entities are excluded *before* LIMIT/OFFSET,
-    // a page is never short and `total` always counts active favorites only
+    // Because deleted/non-public entities are excluded *before* LIMIT/OFFSET,
+    // a page is never short and `total` always counts visible favorites only
     // (same guarantees as the previous in-memory slicing: FAV-PAGINATION-SHORT-PAGE).
     // `id DESC` is a tie-breaker so equal createdAt values paginate stably.
     const pageRows = await prisma.$queryRaw<Array<FavoritePageRow>>(Prisma.sql`

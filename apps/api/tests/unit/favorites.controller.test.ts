@@ -24,6 +24,29 @@ describe('favoritesController', () => {
     expect(favoritesService.toggleFavorite).toHaveBeenCalledWith('u1', 'ad-1');
   });
 
+  it('setFavoriteEntityState validates the desired state and returns 200', async () => {
+    (favoritesService.setFavoriteEntityState as jest.Mock).mockResolvedValue({ action: 'added', isFavorited: true });
+    const res = mockResponse();
+    await favoritesController.setFavoriteEntityState(
+      mockRequest({ params: { entityType: 'products', entityId: 'product-1' }, body: { favorited: true } }),
+      res,
+      mockNext(),
+    );
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(favoritesService.setFavoriteEntityState).toHaveBeenCalledWith('u1', 'PRODUCT', 'product-1', true);
+  });
+
+  it('rejects a non-boolean desired favorite state', async () => {
+    const res = mockResponse();
+    await favoritesController.setFavoriteEntityState(
+      mockRequest({ params: { entityType: 'products', entityId: 'product-1' }, body: { favorited: 'yes' } }),
+      res,
+      mockNext(),
+    );
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(favoritesService.setFavoriteEntityState).not.toHaveBeenCalled();
+  });
+
   it('toggleFavorite returns removed message', async () => {
     (favoritesService.toggleFavorite as jest.Mock).mockResolvedValue({ action: 'removed' });
     const res = mockResponse();

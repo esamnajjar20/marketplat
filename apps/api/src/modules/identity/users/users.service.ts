@@ -53,12 +53,19 @@ export const usersService = {
    */
   getProfileInteractionState: async (viewerId: string, profileUserId: string) => {
     if (viewerId === profileUserId) {
-      return { following: false, online: false, lastSeenAt: null as string | null, isBlockedByMe: false };
+      return {
+        following: false,
+        online: false,
+        lastSeenAt: null as string | null,
+        isBlockedByMe: false,
+        interactionRestricted: false,
+      };
     }
-    const [following, presenceById, isBlockedByMe] = await Promise.all([
+    const [following, presenceById, isBlockedByMe, interactionRestricted] = await Promise.all([
       followsService.status(viewerId, FollowTargetType.USER, profileUserId),
       presence.getPresence([profileUserId]),
       blockedUsersService.isBlockedBy(viewerId, profileUserId),
+      blockedUsersService.isBlockedEitherDirection(viewerId, profileUserId),
     ]);
     const profilePresence = presenceById[profileUserId];
     return {
@@ -66,6 +73,9 @@ export const usersService = {
       online: profilePresence?.online ?? false,
       lastSeenAt: profilePresence?.lastSeenAt ?? null,
       isBlockedByMe,
+      // Deliberately direction-neutral: never disclose which party created
+      // the block, only that social interaction is unavailable.
+      interactionRestricted,
     };
   },
 

@@ -5,20 +5,29 @@ import { analyzeSearchQuery } from '../../../shared/search/searchQueryIntelligen
 import { GetServiceListingsQuery } from './service-listings.validation';
 import { MAX_IMAGES_PER_ENTITY } from '../../../config/limits';
 
-export type ServiceListingWithProvider = Prisma.ServiceListingGetPayload<{
-  include: {
-    provider: { include: { sellerProfile: true } };
-    category: { select: { id: true; name: true; nameAr: true } };
-  };
-}>;
-
 // FEAT-FAVORITE-POLYMORPHIC PR2: exported so favorites.repository.ts
 // reuses the same ServiceListingWithProvider include shape rather
-// than a second definition.
+// than a second definition. The detail endpoint includes the same
+// public LISTING fields that the browse projection already exposes.
 export const listingWithRelations = {
   provider: { include: { sellerProfile: true } },
   category: { select: { id: true, name: true, nameAr: true } },
+  serviceType: {
+    select: {
+      id: true,
+      slug: true,
+      nameAr: true,
+      fields: {
+        where: { isActive: true, scope: 'LISTING' },
+        orderBy: [{ sortOrder: 'asc' }, { key: 'asc' }],
+      },
+    },
+  },
 } as const;
+
+export type ServiceListingWithProvider = Prisma.ServiceListingGetPayload<{
+  include: typeof listingWithRelations;
+}>;
 
 /** SLOW-NET public list omits long description. */
 const serviceListingListSelect = {

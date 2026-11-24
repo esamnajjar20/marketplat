@@ -31,6 +31,26 @@ const TARGET_LABEL: Record<ReportTargetType, string> = {
   SERVICE_LISTING: 'service listing',
 };
 
+function notifyModerationDecision(report: ReportWithDetails, status: string): void {
+  // Internal moderator notes are intentionally never copied into a user
+  // notification. A report's reporter always receives the result; for AD
+  // reports, the ad owner receives the same neutral outcome notice.
+  const recipients = new Set<string>([report.user.id]);
+  if (report.targetType === 'AD' && report.ad?.userId) recipients.add(report.ad.userId);
+  void notificationEvents
+    .onModerationDecision({
+      userIds: [...recipients],
+      reportId: report.id,
+      targetType: report.targetType,
+      targetId: report.targetId,
+      status,
+      targetTitle: report.ad?.title ?? TARGET_LABEL[report.targetType],
+    })
+    .catch(error =>
+      reportBackgroundFailure('apps/api/src/modules/trust/reports/reports.service.ts', error)
+    );
+}
+
 // FEAT-REPORT-USER-STORE: shared by both createReport (AD, existing
 // route) and createTargetReport (USER/STORE, new route) — one place
 // that (a) confirms the target actually exists, (b) blocks self-reports,
@@ -203,22 +223,7 @@ export const reportsService = {
     if (!report) throw new NotFoundError('Report not found');
     const updated = await reportsRepository.updateStatus(id, input.status);
 
-    // The reporter always gets the outcome. For AD reports the owner also gets
-    // a neutral review-result notice; no internal moderation notes are exposed.
-    const recipients = new Set<string>([report.user.id]);
-    if (report.targetType === 'AD' && report.ad?.userId) recipients.add(report.ad.userId);
-    void notificationEvents
-      .onModerationDecision({
-        userIds: [...recipients],
-        reportId: report.id,
-        targetType: report.targetType,
-        targetId: report.targetId,
-        status: input.status,
-        targetTitle: report.ad?.title ?? TARGET_LABEL[report.targetType],
-      })
-      .catch(error =>
-        reportBackgroundFailure('apps/api/src/modules/trust/reports/reports.service.ts', error)
-      );
+    notifyModerationDecision(updated, input.status);
 
     // A resolved/dismissed AD is safe to surface again only when the moderator
     // explicitly clears the review flag; changing report status alone must not
@@ -235,6 +240,12 @@ export const reportsService = {
   // result instead of a single opaque pass/fail.
   bulkUpdateReportStatus: async (
     input: BulkUpdateReportStatusInput
-  ): Promise<{ updated: ReportWithDetails[]; failed: { id: string; reason: string }[] }> =>
-    reportsRepository.updateManyStatus(input.reportIds, input.status),
+  ): Promise<{ updated: ReportWithDetails[]; failed: { id: string; reason: string }[] }> => {
+    const result = await reportsRepository.updateManyStatus(input.reportIds, input.status);
+    // Preserve partial-success semantics: only rows that actually committed
+    // receive decision notifications. Notification failures remain background
+    // failures and never roll back moderation decisions.
+    result.updated.forEach(report => notifyModerationDecision(report, input.status));
+    return result;
+  },
 };

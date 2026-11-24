@@ -58,6 +58,12 @@ favoritesRouter.get(
   authenticate,
   favoritesController.checkFavoritedEntity
 );
+favoritesRouter.put(
+  '/:entityType/:entityId/state',
+  authenticate,
+  favoritesRateLimit,
+  favoritesController.setFavoriteEntityState
+);
 favoritesRouter.post(
   '/:entityType/:entityId',
   authenticate,
