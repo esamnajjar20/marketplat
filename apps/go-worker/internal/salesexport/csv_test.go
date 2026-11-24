@@ -7,6 +7,7 @@ import (
 	"database/sql/driver"
 	"encoding/csv"
 	"errors"
+	"fmt"
 	"io"
 	"net/url"
 	"strings"
@@ -21,13 +22,12 @@ func TestParseOptionsAcceptsSellerScopedFilters(t *testing.T) {
 		"status":  {"PARTIAL"},
 		"from":    {"2026-01-01T00:00:00.000Z"},
 		"to":      {"2026-01-31T23:59:59.999Z"},
-		"limit":   {"5000"},
 	}
 	options, err := ParseOptions(values)
 	if err != nil {
 		t.Fatalf("ParseOptions returned error: %v", err)
 	}
-	if options.SellerID != "seller-1" || options.StoreID != "store-1" || options.Status != "PARTIAL" || options.Limit != 5000 {
+	if options.SellerID != "seller-1" || options.StoreID != "store-1" || options.Status != "PARTIAL" {
 		t.Fatalf("unexpected options: %#v", options)
 	}
 }
@@ -36,7 +36,6 @@ func TestParseOptionsRejectsInvalidOrUnboundedInput(t *testing.T) {
 	cases := []url.Values{
 		{"storeId": {"store-1"}},
 		{"userId": {"seller-1"}, "status": {"UNKNOWN"}},
-		{"userId": {"seller-1"}, "limit": {"5001"}},
 		{"userId": {"seller-1"}, "from": {"not-a-date"}},
 	}
 	for index, values := range cases {
@@ -83,9 +82,11 @@ func TestDateFormattingUsesUTC(t *testing.T) {
 }
 
 type fixtureConnector struct {
-	query string
-	args  []driver.NamedValue
-	rows  driver.Rows
+	query      string
+	args       []driver.NamedValue
+	rows       driver.Rows
+	rowPages   []driver.Rows
+	queryCount int
 }
 
 func (c *fixtureConnector) Connect(context.Context) (driver.Conn, error) {
@@ -112,18 +113,36 @@ func (c *fixtureConn) Begin() (driver.Tx, error) {
 func (c *fixtureConn) QueryContext(_ context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
 	c.connector.query = query
 	c.connector.args = append([]driver.NamedValue(nil), args...)
+	c.connector.queryCount++
+	if len(c.connector.rowPages) > 0 {
+		index := c.connector.queryCount - 1
+		if index < len(c.connector.rowPages) {
+			return c.connector.rowPages[index], nil
+		}
+		return &fixtureRows{columns: []string{}}, nil
+	}
 	return c.connector.rows, nil
 }
 
 type fixtureRows struct {
-	columns []string
-	values  []driver.Value
-	sent    bool
+	columns   []string
+	values    []driver.Value
+	allValues [][]driver.Value
+	index     int
+	sent      bool
 }
 
 func (r *fixtureRows) Columns() []string { return r.columns }
 func (r *fixtureRows) Close() error      { return nil }
 func (r *fixtureRows) Next(destination []driver.Value) error {
+	if len(r.allValues) > 0 {
+		if r.index >= len(r.allValues) {
+			return io.EOF
+		}
+		copy(destination, r.allValues[r.index])
+		r.index++
+		return nil
+	}
 	if r.sent {
 		return io.EOF
 	}
@@ -135,8 +154,9 @@ func (r *fixtureRows) Next(destination []driver.Value) error {
 func TestWriteCSVStreamsSellerScopedReportAndKeepsNegativeProfit(t *testing.T) {
 	fixture := &fixtureConnector{
 		rows: &fixtureRows{
-			columns: []string{"invoice", "soldAt", "buyer", "store", "title", "quantity", "revenue", "cost", "profit", "paid", "due", "refunded", "status"},
+			columns: []string{"id", "invoice", "soldAt", "buyer", "store", "title", "quantity", "revenue", "cost", "profit", "paid", "due", "refunded", "status"},
 			values: []driver.Value{
+				"sale-1",
 				"INV-1",
 				time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC),
 				`=HYPERLINK("https://example.invalid")`,
@@ -165,7 +185,6 @@ func TestWriteCSVStreamsSellerScopedReportAndKeepsNegativeProfit(t *testing.T) {
 		Status:   "PAID",
 		From:     &from,
 		To:       &to,
-		Limit:    5000,
 	})
 	if err != nil {
 		t.Fatalf("WriteCSV returned error: %v", err)
@@ -173,7 +192,8 @@ func TestWriteCSVStreamsSellerScopedReportAndKeepsNegativeProfit(t *testing.T) {
 
 	if !strings.Contains(fixture.query, `sale."sellerId" = $1`) ||
 		!strings.Contains(fixture.query, `WITH selected_sales AS MATERIALIZED`) ||
-		!strings.Contains(fixture.query, `LEFT JOIN LATERAL`) {
+		!strings.Contains(fixture.query, `LEFT JOIN LATERAL`) ||
+		!strings.Contains(fixture.query, `ORDER BY sale."soldAt" DESC, sale."id" DESC`) {
 		t.Fatalf("query is missing seller scoping or bounded item aggregation: %s", fixture.query)
 	}
 	if got, want := len(fixture.args), 6; got != want {
@@ -199,5 +219,48 @@ func TestWriteCSVStreamsSellerScopedReportAndKeepsNegativeProfit(t *testing.T) {
 	}
 	if got, want := parsed[1][3], "متجر, تجريبي"; got != want {
 		t.Fatalf("quoted store name = %q, want %q", got, want)
+	}
+}
+
+func TestWriteCSVContinuesBeyondFirstFiveThousandRowsWithKeysetCursor(t *testing.T) {
+	columns := []string{"id", "invoice", "soldAt", "buyer", "store", "title", "quantity", "revenue", "cost", "profit", "paid", "due", "refunded", "status"}
+	stamp := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
+	firstPage := &fixtureRows{columns: columns}
+	for index := 5000; index >= 1; index-- {
+		firstPage.allValues = append(firstPage.allValues, []driver.Value{
+			fmt.Sprintf("sale-%05d", index), "", stamp, "Buyer", "Store", "Item", int64(1),
+			"10.00", "1.00", "9.00", "10.00", "0.00", "0.00", "PAID",
+		})
+	}
+	secondPage := &fixtureRows{columns: columns, allValues: [][]driver.Value{{
+		"sale-00000", "INV-LAST", stamp.Add(-time.Hour), "Buyer", "Store", "Last", int64(1),
+		"10.00", "1.00", "9.00", "10.00", "0.00", "0.00", "PAID",
+	}}}
+	fixture := &fixtureConnector{rowPages: []driver.Rows{firstPage, secondPage}}
+	db := sql.OpenDB(fixture)
+	defer db.Close()
+
+	var output bytes.Buffer
+	if err := WriteCSV(context.Background(), db, &output, Options{SellerID: "seller-1"}); err != nil {
+		t.Fatalf("WriteCSV returned error: %v", err)
+	}
+	if fixture.queryCount != 2 {
+		t.Fatalf("query count = %d, want 2 pages", fixture.queryCount)
+	}
+	if !strings.Contains(fixture.query, `(sale."soldAt", sale."id") < ($2, $3)`) {
+		t.Fatalf("second query is missing the composite keyset cursor: %s", fixture.query)
+	}
+	if got := fixture.args[2].Value; got != "sale-00001" {
+		t.Fatalf("cursor id = %#v, want last id from first page", got)
+	}
+	parsed, err := csv.NewReader(strings.NewReader(strings.TrimPrefix(output.String(), "\uFEFF"))).ReadAll()
+	if err != nil {
+		t.Fatalf("CSV could not be parsed: %v", err)
+	}
+	if len(parsed) != 5002 {
+		t.Fatalf("CSV records = %d, want header plus 5,001 rows", len(parsed))
+	}
+	if parsed[len(parsed)-1][0] != "INV-LAST" {
+		t.Fatalf("last exported invoice = %q, want INV-LAST", parsed[len(parsed)-1][0])
 	}
 }

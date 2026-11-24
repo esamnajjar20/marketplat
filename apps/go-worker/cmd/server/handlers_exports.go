@@ -41,7 +41,6 @@ func (s *server) exportSalesCSV(w http.ResponseWriter, r *http.Request) {
 		Status  string `json:"status"`
 		From    string `json:"from"`
 		To      string `json:"to"`
-		Limit   string `json:"limit"`
 	}
 	decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8*1024))
 	decoder.DisallowUnknownFields()
@@ -60,22 +59,25 @@ func (s *server) exportSalesCSV(w http.ResponseWriter, r *http.Request) {
 		"status":  {payload.Status},
 		"from":    {payload.From},
 		"to":      {payload.To},
-		"limit":   {payload.Limit},
 	}
 	options, err := salesexport.ParseOptions(values)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid sales export parameters"})
 		return
 	}
-	s.streamCSV(w, r, "sales-report.csv", func(ctx context.Context, dst io.Writer) error {
+	s.streamCSVWithTimeout(w, r, "sales-report.csv", 60*time.Second, func(ctx context.Context, dst io.Writer) error {
 		return salesexport.WriteCSV(ctx, s.db, dst, options)
 	})
 }
 
-// streamCSV completes the bounded database query into a temporary file
+// streamCSV completes bounded database batches into a temporary file
 // before sending response headers. This lets Express safely fall back if Go's
 // DB query fails, without ever mixing two partial CSV bodies in one response.
 func (s *server) streamCSV(w http.ResponseWriter, r *http.Request, filename string, writeCSV csvWriter) {
+	s.streamCSVWithTimeout(w, r, filename, 13*time.Second, writeCSV)
+}
+
+func (s *server) streamCSVWithTimeout(w http.ResponseWriter, r *http.Request, filename string, timeout time.Duration, writeCSV csvWriter) {
 	if !authorized(r, s.token) {
 		writeError(w, http.StatusUnauthorized, "unauthorized")
 		return
@@ -91,7 +93,7 @@ func (s *server) streamCSV(w http.ResponseWriter, r *http.Request, filename stri
 	defer os.Remove(filePath)
 	defer file.Close()
 
-	ctx, cancel := context.WithTimeout(r.Context(), 13*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), timeout)
 	defer cancel()
 	buffered := bufio.NewWriterSize(file, 32*1024)
 	if err := writeCSV(ctx, buffered); err != nil {

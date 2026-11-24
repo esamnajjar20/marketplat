@@ -1,6 +1,5 @@
 package main
 
-
 // PostgreSQL advisory-lock identifiers. They are shared with the Express
 // fallback implementations, so a value must never be reused or renumbered:
 // the Go worker and Express rely on the same ID to guarantee that only one

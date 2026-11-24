@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-const MaxExportLimit = 5000
+const BatchSize = 5000
 
 type queryer interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
@@ -26,7 +26,6 @@ type Options struct {
 	Status   string
 	From     *time.Time
 	To       *time.Time
-	Limit    int
 }
 
 // ParseOptions validates the internal export query. User-facing validation is
@@ -36,7 +35,6 @@ func ParseOptions(values url.Values) (Options, error) {
 		SellerID: strings.TrimSpace(values.Get("userId")),
 		StoreID:  strings.TrimSpace(values.Get("storeId")),
 		Status:   strings.TrimSpace(values.Get("status")),
-		Limit:    MaxExportLimit,
 	}
 	if options.SellerID == "" || len(options.SellerID) > 128 {
 		return Options{}, fmt.Errorf("userId is required")
@@ -48,13 +46,6 @@ func ParseOptions(values url.Values) (Options, error) {
 	case "", "PAID", "PARTIAL", "UNPAID", "OVERDUE":
 	default:
 		return Options{}, fmt.Errorf("invalid status")
-	}
-	if raw := strings.TrimSpace(values.Get("limit")); raw != "" {
-		limit, err := strconv.Atoi(raw)
-		if err != nil || limit < 1 || limit > MaxExportLimit {
-			return Options{}, fmt.Errorf("limit must be between 1 and %d", MaxExportLimit)
-		}
-		options.Limit = limit
 	}
 	if raw := strings.TrimSpace(values.Get("from")); raw != "" {
 		parsed, err := time.Parse(time.RFC3339Nano, raw)
@@ -76,22 +67,20 @@ func ParseOptions(values url.Values) (Options, error) {
 	return options, nil
 }
 
-// WriteCSV streams at most 5,000 seller-owned sale records. Item quantities
-// and costs intentionally mirror salesService.report: returned quantities are
-// excluded, null item costs contribute zero, and revenue excludes refunds.
+// WriteCSV streams every seller-owned sale record in deterministic keyset pages.
+// The database only holds one 5,000-row page at a time; the export is not capped
+// at that page size. A (soldAt,id) cursor prevents duplicates or gaps when many
+// records share the same timestamp.
 func WriteCSV(ctx context.Context, db queryer, dst io.Writer, options Options) error {
 	if options.SellerID == "" {
 		return fmt.Errorf("seller ID is required")
 	}
-	if options.Limit < 1 || options.Limit > MaxExportLimit {
-		return fmt.Errorf("limit must be between 1 and %d", MaxExportLimit)
-	}
 
-	args := []any{options.SellerID}
+	baseArgs := []any{options.SellerID}
 	conditions := []string{`sale."sellerId" = $1`}
 	addCondition := func(expression string, value any) {
-		args = append(args, value)
-		conditions = append(conditions, fmt.Sprintf(expression, len(args)))
+		baseArgs = append(baseArgs, value)
+		conditions = append(conditions, fmt.Sprintf(expression, len(baseArgs)))
 	}
 	if options.StoreID != "" {
 		addCondition(`sale."storeId" = $%d`, options.StoreID)
@@ -105,47 +94,6 @@ func WriteCSV(ctx context.Context, db queryer, dst io.Writer, options Options) e
 	if options.To != nil {
 		addCondition(`sale."soldAt" <= $%d`, *options.To)
 	}
-	args = append(args, options.Limit)
-	limitPlaceholder := len(args)
-
-	query := `
-		WITH selected_sales AS MATERIALIZED (
-			SELECT sale.*
-			FROM "sale_records" AS sale
-			WHERE ` + strings.Join(conditions, " AND ") + `
-			ORDER BY sale."soldAt" DESC, sale."id" DESC
-			LIMIT $` + strconv.Itoa(limitPlaceholder) + `
-		)
-		SELECT
-			COALESCE(sale."invoiceNumber", ''),
-			sale."soldAt",
-			sale."buyerName",
-			COALESCE(store."name", ''),
-			sale."entityTitle",
-			COALESCE(item_totals."quantity", 0),
-			ROUND(sale."totalPrice" - sale."refundedAmount", 2)::text,
-			COALESCE(item_totals."cost", 0)::numeric(30,2)::text,
-			ROUND((sale."totalPrice" - sale."refundedAmount") - COALESCE(item_totals."cost", 0), 2)::text,
-			sale."paidAmount"::numeric(12,2)::text,
-			sale."dueAmount"::numeric(12,2)::text,
-			sale."refundedAmount"::numeric(12,2)::text,
-			sale."paymentStatus"::text
-		FROM selected_sales AS sale
-		LEFT JOIN "store_details" AS store ON store."id" = sale."storeId"
-		LEFT JOIN LATERAL (
-			SELECT
-				COALESCE(SUM(GREATEST(item."quantity" - item."returnedQuantity", 0)), 0)::bigint AS "quantity",
-				COALESCE(SUM(COALESCE(item."costPrice", 0) * GREATEST(item."quantity" - item."returnedQuantity", 0)), 0) AS "cost"
-			FROM "sale_items" AS item
-			WHERE item."saleId" = sale."id"
-		) AS item_totals ON TRUE
-		ORDER BY sale."soldAt" DESC, sale."id" DESC`
-
-	rows, err := db.QueryContext(ctx, query, args...)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
 
 	if _, err := io.WriteString(dst, "\uFEFF"); err != nil {
 		return err
@@ -157,34 +105,102 @@ func WriteCSV(ctx context.Context, db queryer, dst io.Writer, options Options) e
 		return err
 	}
 
-	for rows.Next() {
-		var invoice, buyer, store, title, revenue, cost, profit, paid, due, refunded, status string
-		var soldAt time.Time
-		var quantity int64
-		if err := rows.Scan(&invoice, &soldAt, &buyer, &store, &title, &quantity,
-			&revenue, &cost, &profit, &paid, &due, &refunded, &status); err != nil {
+	var lastSoldAt time.Time
+	var lastID string
+	for {
+		args := append([]any(nil), baseArgs...)
+		pageConditions := append([]string(nil), conditions...)
+		if lastID != "" {
+			args = append(args, lastSoldAt, lastID)
+			pageConditions = append(pageConditions, fmt.Sprintf(
+				`(sale."soldAt", sale."id") < ($%d, $%d)`, len(args)-1, len(args),
+			))
+		}
+		args = append(args, BatchSize)
+		limitPlaceholder := len(args)
+		query := `
+			WITH selected_sales AS MATERIALIZED (
+				SELECT sale.*
+				FROM "sale_records" AS sale
+				WHERE ` + strings.Join(pageConditions, " AND ") + `
+				ORDER BY sale."soldAt" DESC, sale."id" DESC
+				LIMIT $` + strconv.Itoa(limitPlaceholder) + `
+			)
+			SELECT
+				sale."id",
+				COALESCE(sale."invoiceNumber", ''),
+				sale."soldAt",
+				sale."buyerName",
+				COALESCE(store."name", ''),
+				sale."entityTitle",
+				COALESCE(item_totals."quantity", 0),
+				ROUND(sale."totalPrice" - sale."refundedAmount", 2)::text,
+				COALESCE(item_totals."cost", 0)::numeric(30,2)::text,
+				ROUND((sale."totalPrice" - sale."refundedAmount") - COALESCE(item_totals."cost", 0), 2)::text,
+				sale."paidAmount"::numeric(12,2)::text,
+				sale."dueAmount"::numeric(12,2)::text,
+				sale."refundedAmount"::numeric(12,2)::text,
+				sale."paymentStatus"::text
+			FROM selected_sales AS sale
+			LEFT JOIN "store_details" AS store ON store."id" = sale."storeId"
+			LEFT JOIN LATERAL (
+				SELECT
+					COALESCE(SUM(GREATEST(item."quantity" - item."returnedQuantity", 0)), 0)::bigint AS "quantity",
+					COALESCE(SUM(COALESCE(item."costPrice", 0) * GREATEST(item."quantity" - item."returnedQuantity", 0)), 0) AS "cost"
+				FROM "sale_items" AS item
+				WHERE item."saleId" = sale."id"
+			) AS item_totals ON TRUE
+			ORDER BY sale."soldAt" DESC, sale."id" DESC`
+
+		rows, err := db.QueryContext(ctx, query, args...)
+		if err != nil {
 			return err
 		}
-		values := []string{
-			invoice,
-			soldAt.UTC().Format("2006-01-02T15:04:05.000Z"),
-			buyer,
-			store,
-			title,
-			strconv.FormatInt(quantity, 10),
-			revenue,
-			cost,
-			profit,
-			paid,
-			due,
-			refunded,
-			status,
+		pageCount := 0
+		for rows.Next() {
+			var id, invoice, buyer, store, title, revenue, cost, profit, paid, due, refunded, status string
+			var soldAt time.Time
+			var quantity int64
+			if err := rows.Scan(&id, &invoice, &soldAt, &buyer, &store, &title, &quantity,
+				&revenue, &cost, &profit, &paid, &due, &refunded, &status); err != nil {
+				rows.Close()
+				return err
+			}
+			values := []string{
+				invoice,
+				soldAt.UTC().Format("2006-01-02T15:04:05.000Z"),
+				buyer,
+				store,
+				title,
+				strconv.FormatInt(quantity, 10),
+				revenue,
+				cost,
+				profit,
+				paid,
+				due,
+				refunded,
+				status,
+			}
+			if err := writeRow(dst, &wroteRow, values); err != nil {
+				rows.Close()
+				return err
+			}
+			lastSoldAt = soldAt
+			lastID = id
+			pageCount++
 		}
-		if err := writeRow(dst, &wroteRow, values); err != nil {
-			return err
+		rowsErr := rows.Err()
+		closeErr := rows.Close()
+		if rowsErr != nil {
+			return rowsErr
+		}
+		if closeErr != nil {
+			return closeErr
+		}
+		if pageCount < BatchSize {
+			return nil
 		}
 	}
-	return rows.Err()
 }
 
 func writeRow(dst io.Writer, wroteRow *bool, values []string) error {

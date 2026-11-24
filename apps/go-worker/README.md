@@ -416,7 +416,7 @@ Maintenance jobs run on the same pinned database connection that owns their advi
 
 Go writes each CSV to a temporary file first. If the DB query or file generation fails before HTTP streaming begins, Express can still return the existing Prisma export. No fallback is attempted after streaming starts, because sending a second CSV body would corrupt the download.
 
-These endpoints are not public API routes. Keep them behind the worker Bearer token; the public admin routes must continue to enforce `requireMinRole(ROLES.ADMIN)` in Express. The worker applies the same column order, descending `createdAt` ordering, 5,000-row limit, CSV escaping, and formula-injection prefix as the Express fallback. CSV output is not cached. The API proxy timeout is 15 seconds; Go cancels export queries after 13 seconds.
+These endpoints are not public API routes. Keep them behind the worker Bearer token; the public admin routes must continue to enforce `requireMinRole(ROLES.ADMIN)` in Express. The worker applies the same column order, deterministic descending `soldAt`/ID ordering, seller scope, CSV escaping, and formula-injection prefix as the Express fallback. Sales CSV exports are complete rather than capped at one 5,000-row page: Go fetches bounded 5,000-row keyset batches, while Express fallback pages through the full filtered result set in 500-row batches. CSV output is not cached. The sales export worker deadline is 60 seconds and the API-to-worker request timeout is 9 minutes; other admin CSV exports retain their shorter default deadline.
 
 
 ## Phase 6 — workload offload and fallback
@@ -425,7 +425,7 @@ Phase 6 extends the worker beyond retention and reports. The following routes ar
 
 | Workload | Go endpoint | Frequency / behaviour |
 |---|---|---|
-| Seller sales CSV export | `POST /internal/exports/sales.csv` | Express authenticates and validates seller filters, then streams a bounded (max 5,000 rows) Go-generated CSV; Express Prisma fallback remains available |
+| Seller sales CSV export | `POST /internal/exports/sales.csv` | Express authenticates and validates seller filters, then streams the complete matching report through 5,000-row keyset pages; Express Prisma fallback remains available |
 | Weekly ad/store/service view reports | `/internal/jobs/weekly-ad-views`, `/weekly-store-views`, `/weekly-service-views` | scheduled; creates notification + durable push-dispatch and advances exact view snapshots in one transaction |
 | Seller response metrics | `/internal/jobs/seller-response-metrics` | scheduled; set-based CTE/UPDATE over the rolling 90-day window |
 | Daily sales reminder, overdue debt, overdue installments, weekly sales report | `/internal/jobs/sales-daily-reminder`, `/sales-debt-reminder`, `/sales-overdue-installments`, `/weekly-sales-report` | scheduled; idempotent notification + push-dispatch writes in one transaction |
