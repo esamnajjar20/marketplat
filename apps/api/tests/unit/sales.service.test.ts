@@ -11,6 +11,8 @@ jest.mock('../../src/modules/commerce/stores/store-members.service');
 jest.mock('../../src/config/prisma', () => ({
   prisma: {
     saleRecord: { findFirst: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), count: jest.fn() },
+    salePayment: { findUnique: jest.fn() },
+    saleReturn: { findUnique: jest.fn() },
     product: { findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn() },
     ad: { findUnique: jest.fn() },
     serviceListing: { findUnique: jest.fn() },
@@ -32,6 +34,8 @@ jest.mock('../../src/config/prisma', () => ({
 const tx = {
   customer: { findFirst: jest.fn(), create: jest.fn(), update: jest.fn() },
   saleRecord: { update: jest.fn(), findUnique: jest.fn(), findMany: jest.fn(), aggregate: jest.fn(), delete: jest.fn() },
+  salePayment: { findUnique: jest.fn() },
+  saleReturn: { findUnique: jest.fn() },
   stockMovement: { create: jest.fn() },
   product: { update: jest.fn() },
   saleInstallment: { createMany: jest.fn() },
@@ -281,6 +285,95 @@ describe('salesService', () => {
     expect(salesRepository.delete).toHaveBeenCalledWith(tx, 'sale-1');
   });
 
+  it('replays a general sale payment with the same operation ID and payload without creating another payment', async () => {
+    const sale = {
+      id: 'sale-1', sellerId: 'user-1', customerId: null, totalPrice: 100,
+      refundedAmount: 0, paidAmount: 20, dueAmount: 80, dueDate: null, items: [],
+    };
+    (salesRepository.findById as jest.Mock).mockResolvedValue(sale);
+    (tx.$queryRaw as jest.Mock).mockResolvedValue([{ id: 'sale-1' }]);
+    (tx.saleRecord.findUnique as jest.Mock).mockResolvedValue(sale);
+    tx.salePayment.findUnique.mockResolvedValue({
+      saleId: 'sale-1', amount: 20, method: 'CASH', transferRef: null,
+      paidAt: new Date('2026-11-23T10:00:00.000Z'), note: null,
+    });
+    (salesRepository.findByIdTx as jest.Mock).mockResolvedValue({ id: 'sale-1', paidAmount: 20 });
+
+    await expect(salesService.addPayment('user-1', 'sale-1', {
+      amount: 20, method: 'CASH', offlineOperationId: 'sale-payment-op-001',
+    })).resolves.toEqual({ id: 'sale-1', paidAmount: 20 });
+
+    expect(salesRepository.addPayment).not.toHaveBeenCalled();
+    expect(tx.saleRecord.update).not.toHaveBeenCalled();
+  });
+
+  it('rejects reusing a general sale payment operation ID with different payment data', async () => {
+    const sale = {
+      id: 'sale-1', sellerId: 'user-1', customerId: null, totalPrice: 100,
+      refundedAmount: 0, paidAmount: 20, dueAmount: 80, dueDate: null, items: [],
+    };
+    (salesRepository.findById as jest.Mock).mockResolvedValue(sale);
+    (tx.$queryRaw as jest.Mock).mockResolvedValue([{ id: 'sale-1' }]);
+    (tx.saleRecord.findUnique as jest.Mock).mockResolvedValue(sale);
+    tx.salePayment.findUnique.mockResolvedValue({
+      saleId: 'sale-1', amount: 20, method: 'CASH', transferRef: null,
+      paidAt: new Date('2026-11-23T10:00:00.000Z'), note: null,
+    });
+
+    await expect(salesService.addPayment('user-1', 'sale-1', {
+      amount: 25, method: 'CASH', offlineOperationId: 'sale-payment-op-001',
+    })).rejects.toMatchObject({ code: 'PAYMENT_OPERATION_CONFLICT' });
+    expect(salesRepository.addPayment).not.toHaveBeenCalled();
+  });
+
+  it('persists the offline operation ID when creating a general sale payment', async () => {
+    const sale = {
+      id: 'sale-1', sellerId: 'user-1', customerId: null, totalPrice: 100,
+      refundedAmount: 0, paidAmount: 20, dueAmount: 80, dueDate: null, items: [],
+    };
+    (salesRepository.findById as jest.Mock).mockResolvedValue(sale);
+    (tx.$queryRaw as jest.Mock).mockResolvedValue([{ id: 'sale-1' }]);
+    (tx.saleRecord.findUnique as jest.Mock).mockResolvedValue(sale);
+    tx.salePayment.findUnique.mockResolvedValue(null);
+    (salesRepository.findByIdTx as jest.Mock).mockResolvedValue({ id: 'sale-1', paidAmount: 30 });
+
+    await salesService.addPayment('user-1', 'sale-1', {
+      amount: 10, method: 'CASH', offlineOperationId: 'sale-payment-op-002',
+    });
+
+    expect(salesRepository.addPayment).toHaveBeenCalledWith(tx, expect.objectContaining({
+      offlineOperationId: 'sale-payment-op-002', sale: { connect: { id: 'sale-1' } }, amount: 10,
+    }));
+  });
+
+  it('replays a sale return with the same operation ID and rejects changed payloads', async () => {
+    const sale = {
+      id: 'sale-1', sellerId: 'user-1', customerId: null, totalPrice: 100,
+      refundedAmount: 10, paidAmount: 100, dueDate: null,
+      items: [{ id: 'item-1', entityType: 'FREE', productId: null, quantity: 2,
+        returnedQuantity: 1, lineTotal: 100, returns: [{ quantity: 1, refundAmount: 10, restockedToInventory: false }] }],
+    };
+    (salesRepository.findById as jest.Mock).mockResolvedValue(sale);
+    (tx.$queryRaw as jest.Mock).mockResolvedValue([{ id: 'sale-1' }]);
+    (tx.saleRecord.findUnique as jest.Mock).mockResolvedValue(sale);
+    tx.saleReturn.findUnique.mockResolvedValue({
+      saleId: 'sale-1', itemId: 'item-1', quantity: 1, refundAmount: 10,
+      reason: 'OTHER', reasonNote: null, restockedToInventory: false,
+    });
+    (salesRepository.findByIdTx as jest.Mock).mockResolvedValue({ id: 'sale-1' });
+
+    await expect(salesService.addReturn('user-1', 'sale-1', {
+      itemId: 'item-1', quantity: 1, refundAmount: 10, reason: 'OTHER',
+      restockedToInventory: false, offlineOperationId: 'sale-return-op-001',
+    })).resolves.toEqual({ id: 'sale-1' });
+    await expect(salesService.addReturn('user-1', 'sale-1', {
+      itemId: 'item-1', quantity: 1, refundAmount: 15, reason: 'OTHER',
+      restockedToInventory: false, offlineOperationId: 'sale-return-op-001',
+    })).rejects.toMatchObject({ code: 'RETURN_OPERATION_CONFLICT' });
+    expect(salesRepository.addReturn).not.toHaveBeenCalled();
+    expect(tx.saleItem.update).not.toHaveBeenCalled();
+  });
+
   it('rejects a refund above the proportional value of the returned item quantity', async () => {
     const sale = {
       id: 'sale-1', sellerId: 'user-1', storeId: null, customerId: null,
@@ -346,6 +439,45 @@ describe('salesService', () => {
 describe('salesService.report', () => {
   beforeEach(() => jest.clearAllMocks());
 
+  it('counts the full export scope once using the seller and all requested filters', async () => {
+    (prisma.saleRecord.count as jest.Mock).mockResolvedValue(1501);
+
+    await expect(salesService.reportExportCount('seller-1', {
+      page: 1,
+      limit: 500,
+      storeId: 'store-1',
+      status: 'PAID',
+    } as any)).resolves.toBe(1501);
+
+    expect(prisma.saleRecord.count).toHaveBeenCalledWith({
+      where: { sellerId: 'seller-1', storeId: 'store-1', paymentStatus: 'PAID' },
+    });
+  });
+
+  it('fetches export pages without rerunning the expensive full-report aggregates', async () => {
+    (prisma.saleRecord.findMany as jest.Mock).mockResolvedValue([
+      {
+        id: 'sale-1', invoiceNumber: 'INV-1', soldAt: new Date('2026-10-05T10:00:00.000Z'),
+        buyerName: 'Customer', buyerPhone: null, entityTitle: 'Item', totalPrice: 100,
+        refundedAmount: 10, paidAmount: 90, dueAmount: 0, paymentStatus: 'PAID', currency: 'ILS',
+        store: { name: 'Store' },
+        items: [{ title: 'Item', quantity: 2, returnedQuantity: 1, unitPrice: 50, lineTotal: 100, costPrice: 20 }],
+      },
+    ]);
+
+    const rows = await salesService.reportExportRows('seller-1', {
+      page: 3, limit: 500, storeId: 'store-1', status: 'PAID',
+    } as any);
+
+    expect(prisma.saleRecord.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { sellerId: 'seller-1', storeId: 'store-1', paymentStatus: 'PAID' },
+      skip: 1000,
+      take: 500,
+    }));
+    expect(salesRepository.reportTotals).not.toHaveBeenCalled();
+    expect(rows[0]).toMatchObject({ id: 'sale-1', quantity: 1, revenue: 90, cost: 20, profit: 70 });
+  });
+
   it('returns the capped rows but takes totals from the full-set aggregate, not from the rows', async () => {
     (prisma.saleRecord.findMany as jest.Mock).mockResolvedValue([
       {
@@ -376,14 +508,16 @@ describe('salesService.report', () => {
     };
     (salesRepository.reportTotals as jest.Mock).mockResolvedValue(fullSetTotals);
 
-    const result = await salesService.report('user-1', { limit: 500 } as any);
+    const result = await salesService.report('user-1', { page: 2, limit: 500 } as any);
 
-    expect(prisma.saleRecord.findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 500 }));
+    expect(prisma.saleRecord.findMany).toHaveBeenCalledWith(expect.objectContaining({ skip: 500, take: 500 }));
     expect(prisma.saleRecord.count).not.toHaveBeenCalled();
     expect(salesRepository.reportTotals).toHaveBeenCalledWith('user-1', expect.objectContaining({ limit: 500 }));
     expect(result.rows).toHaveLength(1);
     expect(result.count).toBe(1);
     expect(result.totalCount).toBe(1200);
+    expect(result.page).toBe(2);
+    expect(result.limit).toBe(500);
     expect(result.hasMore).toBe(true);
     // Not the sum of the one returned row (100 / 60 / 40).
     expect(result.totals).toEqual({

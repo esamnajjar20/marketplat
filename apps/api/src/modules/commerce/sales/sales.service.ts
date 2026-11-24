@@ -4,7 +4,6 @@ import { userCache } from '../../../shared/cache/userCache';
 import { Prisma, SalePaymentStatus } from '@prisma/client';
 import { salesRepository } from './sales.repository';
 import { invoicesService } from './invoices.service';
-import { notificationsService } from '../../engagement/notifications/notifications.service';
 import { customersService } from '../customers/customers.service';
 import { requireStoreAccess } from '../stores/store-members.service';
 import {
@@ -15,6 +14,7 @@ import {
   ReturnSaleInput,
   UpdateCostSettingsInput,
   UpdateProductCostInput,
+  ReportQuery,
 } from './sales.validation';
 import { NotFoundError } from '../../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
@@ -22,6 +22,125 @@ import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { ConflictError } from '../../../shared/errors/ConflictError';
 
 const roundMoney = (n: number) => Math.round(n * 100) / 100;
+
+const buildSalesReportWhere = (userId: string, query: ReportQuery): Prisma.SaleRecordWhereInput => ({
+  sellerId: userId,
+  ...(query.storeId ? { storeId: query.storeId } : {}),
+  ...(query.status ? { paymentStatus: query.status } : {}),
+  ...(query.from || query.to
+    ? {
+        soldAt: {
+          ...(query.from ? { gte: query.from } : {}),
+          ...(query.to ? { lte: query.to } : {}),
+        },
+      }
+    : {}),
+});
+
+const salesReportSelect = {
+  id: true,
+  invoiceNumber: true,
+  soldAt: true,
+  buyerName: true,
+  buyerPhone: true,
+  entityTitle: true,
+  totalPrice: true,
+  refundedAmount: true,
+  paidAmount: true,
+  dueAmount: true,
+  paymentStatus: true,
+  currency: true,
+  store: { select: { name: true } },
+  items: {
+    select: {
+      title: true,
+      quantity: true,
+      returnedQuantity: true,
+      unitPrice: true,
+      lineTotal: true,
+      costPrice: true,
+    },
+  },
+} satisfies Prisma.SaleRecordSelect;
+
+type SalesReportSale = Prisma.SaleRecordGetPayload<{ select: typeof salesReportSelect }>;
+
+const mapSalesReportRows = (sales: SalesReportSale[]) => sales.map(sale => {
+  const cost = sale.items.reduce(
+    (sum, item) =>
+      sum +
+      (item.costPrice === null
+        ? 0
+        : Number(item.costPrice) * Math.max(item.quantity - item.returnedQuantity, 0)),
+    0
+  );
+  const revenue = Number(sale.totalPrice) - Number(sale.refundedAmount);
+  return {
+    id: sale.id,
+    invoiceNumber: sale.invoiceNumber,
+    soldAt: sale.soldAt,
+    buyerName: sale.buyerName,
+    buyerPhone: sale.buyerPhone,
+    storeName: sale.store?.name ?? null,
+    title: sale.entityTitle,
+    quantity: sale.items.reduce(
+      (sum, item) => sum + Math.max(item.quantity - item.returnedQuantity, 0),
+      0
+    ),
+    revenue: roundMoney(revenue),
+    cost: roundMoney(cost),
+    profit: roundMoney(revenue - cost),
+    paid: roundMoney(Number(sale.paidAmount)),
+    due: roundMoney(Number(sale.dueAmount)),
+    refunded: roundMoney(Number(sale.refundedAmount)),
+    status: sale.paymentStatus,
+    currency: sale.currency,
+  };
+});
+const sameDate = (left: Date | null | undefined, right: Date | null | undefined) =>
+  left == null || right == null ? left == null && right == null : left.getTime() === right.getTime();
+
+const paymentOperationMatches = (
+  existing: {
+    saleId: string;
+    amount: Prisma.Decimal | number | string;
+    method: string;
+    transferRef: string | null;
+    paidAt: Date;
+    note: string | null;
+  },
+  saleId: string,
+  input: AddPaymentInput
+) =>
+  existing.saleId === saleId &&
+  roundMoney(Number(existing.amount)) === roundMoney(input.amount) &&
+  existing.method === input.method &&
+  (existing.transferRef ?? null) === (input.transferRef ?? null) &&
+  (existing.note ?? null) === (input.note ?? null) &&
+  (input.paidAt === undefined || sameDate(existing.paidAt, input.paidAt));
+
+const returnOperationMatches = (
+  existing: {
+    saleId: string;
+    itemId: string | null;
+    quantity: number;
+    refundAmount: Prisma.Decimal | number | string;
+    reason: string;
+    reasonNote: string | null;
+    restockedToInventory: boolean;
+  },
+  saleId: string,
+  itemId: string,
+  input: ReturnSaleInput
+) =>
+  existing.saleId === saleId &&
+  existing.itemId === itemId &&
+  existing.quantity === input.quantity &&
+  roundMoney(Number(existing.refundAmount)) === roundMoney(input.refundAmount) &&
+  existing.reason === input.reason &&
+  (existing.reasonNote ?? null) === (input.reasonNote ?? null) &&
+  existing.restockedToInventory === input.restockedToInventory;
+
 const computeStatus = (total: number, paid: number, dueDate?: Date | null): SalePaymentStatus => {
   const due = roundMoney(Math.max(total - paid, 0));
   if (due <= 0) return 'PAID';
@@ -772,144 +891,232 @@ export const salesService = {
 
   addPayment: async (userId: string, id: string, input: AddPaymentInput) => {
     await salesService.getById(userId, id); // authorization check before entering the transaction
-    return prisma.$transaction(async tx => {
-      const sale = await lockSaleForUpdate(tx, id);
-      if (sale.sellerId !== userId) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
-      if (input.amount > Number(sale.dueAmount))
-        throw new BadRequestError(
-          'Payment exceeds the remaining due amount.',
-          'PAYMENT_EXCEEDS_DUE'
+    try {
+      return await prisma.$transaction(async tx => {
+        const sale = await lockSaleForUpdate(tx, id);
+        if (sale.sellerId !== userId) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
+
+        // The sale lock serializes retries for this sale. Check the operation ID
+        // before validating the now-reduced balance, otherwise a legitimate
+        // replay would be rejected as an overpayment instead of being idempotent.
+        if (input.offlineOperationId) {
+          const existing = await tx.salePayment.findUnique({
+            where: { offlineOperationId: input.offlineOperationId },
+          });
+          if (existing) {
+            if (!paymentOperationMatches(existing, id, input)) {
+              throw new ConflictError(
+                'This operation ID was already used for a different payment.',
+                'PAYMENT_OPERATION_CONFLICT'
+              );
+            }
+            return salesRepository.findByIdTx(tx, id);
+          }
+        }
+
+        if (input.amount > Number(sale.dueAmount))
+          throw new BadRequestError(
+            'Payment exceeds the remaining due amount.',
+            'PAYMENT_EXCEEDS_DUE'
+          );
+        await salesRepository.addPayment(tx, {
+          ...(input.offlineOperationId ? { offlineOperationId: input.offlineOperationId } : {}),
+          sale: { connect: { id } },
+          amount: input.amount,
+          method: input.method,
+          transferRef: input.transferRef,
+          paidAt: input.paidAt,
+          note: input.note,
+        });
+        const paid = roundMoney(Number(sale.paidAmount) + input.amount);
+        const due = roundMoney(
+          Math.max(Number(sale.totalPrice) - Number(sale.refundedAmount) - paid, 0)
         );
-      await salesRepository.addPayment(tx, {
-        sale: { connect: { id } },
-        amount: input.amount,
-        method: input.method,
-        transferRef: input.transferRef,
-        paidAt: input.paidAt,
-        note: input.note,
+        const status = computeStatus(
+          Number(sale.totalPrice) - Number(sale.refundedAmount),
+          paid,
+          sale.dueDate
+        );
+        await tx.saleRecord.update({
+          where: { id },
+          data: { paidAmount: paid, dueAmount: due, paymentStatus: status },
+        });
+        if (sale.customerId) await recomputeCustomer(tx, userId, sale.customerId);
+        return salesRepository.findByIdTx(tx, id);
       });
-      const paid = roundMoney(Number(sale.paidAmount) + input.amount);
-      const due = roundMoney(
-        Math.max(Number(sale.totalPrice) - Number(sale.refundedAmount) - paid, 0)
-      );
-      const status = computeStatus(
-        Number(sale.totalPrice) - Number(sale.refundedAmount),
-        paid,
-        sale.dueDate
-      );
-      await tx.saleRecord.update({
-        where: { id },
-        data: { paidAmount: paid, dueAmount: due, paymentStatus: status },
-      });
-      if (sale.customerId) await recomputeCustomer(tx, userId, sale.customerId);
-      return salesRepository.findByIdTx(tx, id);
-    });
+    } catch (error) {
+      // The unique operation ID is global across SalePayment rows. A concurrent
+      // request on another sale may win the insert; resolve that race explicitly.
+      if (input.offlineOperationId && (error as { code?: string } | null)?.code === 'P2002') {
+        const existing = await prisma.salePayment.findUnique({
+          where: { offlineOperationId: input.offlineOperationId },
+        });
+        if (existing) {
+          if (!paymentOperationMatches(existing, id, input)) {
+            throw new ConflictError(
+              'This operation ID was already used for a different payment.',
+              'PAYMENT_OPERATION_CONFLICT'
+            );
+          }
+          return salesRepository.findById(id);
+        }
+      }
+      throw error;
+    }
   },
 
   addReturn: async (userId: string, id: string, input: ReturnSaleInput) => {
     await salesService.getById(userId, id); // authorization check before entering the transaction
-    return prisma.$transaction(async tx => {
-      const sale = await lockSaleForUpdate(tx, id);
-      if (sale.sellerId !== userId) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
-      const item = input.itemId
-        ? sale.items.find(i => i.id === input.itemId)
-        : sale.items.length === 1
-          ? sale.items[0]
-          : null;
-      if (!item)
-        throw new BadRequestError(
-          'itemId is required when returning from a multi-item sale.',
-          'RETURN_ITEM_REQUIRED'
-        );
-      if (item.returnedQuantity + input.quantity > item.quantity)
-        throw new BadRequestError(
-          'Returned quantity exceeds sold quantity.',
-          'RETURN_QUANTITY_EXCEEDED'
-        );
-      const remainingRefundable = roundMoney(Number(sale.totalPrice) - Number(sale.refundedAmount));
-      if (input.refundAmount > remainingRefundable)
-        throw new BadRequestError(
-          'Refund exceeds the remaining sale value.',
-          'REFUND_EXCEEDS_SALE'
-        );
+    try {
+      return await prisma.$transaction(async tx => {
+        const sale = await lockSaleForUpdate(tx, id);
+        if (sale.sellerId !== userId) throw new NotFoundError('Sale not found.', 'SALE_NOT_FOUND');
+        const item = input.itemId
+          ? sale.items.find(i => i.id === input.itemId)
+          : sale.items.length === 1
+            ? sale.items[0]
+            : null;
+        if (!item)
+          throw new BadRequestError(
+            'itemId is required when returning from a multi-item sale.',
+            'RETURN_ITEM_REQUIRED'
+          );
 
-      // Bound refunds by the sold value of the quantity being returned, not only
-      // by the remaining total sale value. Use lineTotal so POS discounts are
-      // respected. The cumulative ceiling grows with cumulative returned units,
-      // preventing a single-unit return from refunding the whole multi-unit line.
-      const priorItemRefunds = roundMoney(
-        (item.returns ?? []).reduce((sum, returned) => sum + Number(returned.refundAmount ?? 0), 0)
-      );
-      const cumulativeReturnedQuantity = item.returnedQuantity + input.quantity;
-      const cumulativeItemRefundCeiling = roundMoney(
-        (Number(item.lineTotal) * cumulativeReturnedQuantity) / item.quantity
-      );
-      const remainingItemRefundable = roundMoney(
-        Math.max(cumulativeItemRefundCeiling - priorItemRefunds, 0)
-      );
-      if (input.refundAmount > remainingItemRefundable) {
-        throw new BadRequestError(
-          'Refund exceeds the refundable value of the returned item quantity.',
-          'REFUND_EXCEEDS_ITEM_VALUE'
-        );
-      }
+        // Resolve a replay before checking cumulative returned quantity or
+        // refundable balance: both have already changed after the first commit.
+        if (input.offlineOperationId) {
+          const existing = await tx.saleReturn.findUnique({
+            where: { offlineOperationId: input.offlineOperationId },
+          });
+          if (existing) {
+            if (!returnOperationMatches(existing, id, item.id, input)) {
+              throw new ConflictError(
+                'This operation ID was already used for a different return.',
+                'RETURN_OPERATION_CONFLICT'
+              );
+            }
+            return salesRepository.findByIdTx(tx, id);
+          }
+        }
 
-      let movementId: string | undefined;
-      if (input.restockedToInventory && item.entityType === 'PRODUCT' && item.productId) {
-        const product = await lockProduct(tx, item.productId, { allowDeleted: true });
-        if (product.stockQuantity !== null) {
-          const next = product.stockQuantity + input.quantity;
-          const movement = await tx.stockMovement.create({
-            data: {
-              productId: product.id,
-              storeId: product.storeId,
-              changedByUserId: userId,
-              previousQuantity: product.stockQuantity,
-              newQuantity: next,
-              delta: input.quantity,
-              reason: `RETURN:${sale.id}:${item.id}`,
-            },
+        if (item.returnedQuantity + input.quantity > item.quantity)
+          throw new BadRequestError(
+            'Returned quantity exceeds sold quantity.',
+            'RETURN_QUANTITY_EXCEEDED'
+          );
+        const remainingRefundable = roundMoney(
+          Number(sale.totalPrice) - Number(sale.refundedAmount)
+        );
+        if (input.refundAmount > remainingRefundable) {
+          throw new BadRequestError(
+            'Refund exceeds the remaining sale value.',
+            'REFUND_EXCEEDS_SALE'
+          );
+        }
+
+        // Bound refunds by the sold value of the quantity being returned, not
+        // only by the remaining total sale value. Use lineTotal so POS discounts
+        // are respected and a partial return cannot refund the full line value.
+        const priorItemRefunds = roundMoney(
+          (item.returns ?? []).reduce(
+            (sum, returned) => sum + Number(returned.refundAmount ?? 0),
+            0
+          )
+        );
+        const cumulativeReturnedQuantity = item.returnedQuantity + input.quantity;
+        const cumulativeItemRefundCeiling = roundMoney(
+          (Number(item.lineTotal) * cumulativeReturnedQuantity) / item.quantity
+        );
+        const remainingItemRefundable = roundMoney(
+          Math.max(cumulativeItemRefundCeiling - priorItemRefunds, 0)
+        );
+        if (input.refundAmount > remainingItemRefundable) {
+          throw new BadRequestError(
+            'Refund exceeds the refundable value of the returned item quantity.',
+            'REFUND_EXCEEDS_ITEM_VALUE'
+          );
+        }
+
+        let movementId: string | undefined;
+        if (input.restockedToInventory && item.entityType === 'PRODUCT' && item.productId) {
+          const product = await lockProduct(tx, item.productId, { allowDeleted: true });
+          if (product.stockQuantity !== null) {
+            const next = product.stockQuantity + input.quantity;
+            const movement = await tx.stockMovement.create({
+              data: {
+                productId: product.id,
+                storeId: product.storeId,
+                changedByUserId: userId,
+                previousQuantity: product.stockQuantity,
+                newQuantity: next,
+                delta: input.quantity,
+                reason: `RETURN:${sale.id}:${item.id}`,
+              },
+            });
+            movementId = movement.id;
+            await tx.product.update({
+              where: { id: product.id },
+              data: {
+                stockQuantity: next,
+                availability: availabilityForStock(next),
+              },
+            });
+          }
+        }
+        await salesRepository.addReturn(tx, {
+          ...(input.offlineOperationId ? { offlineOperationId: input.offlineOperationId } : {}),
+          sale: { connect: { id } },
+          item: { connect: { id: item.id } },
+          quantity: input.quantity,
+          refundAmount: input.refundAmount,
+          reason: input.reason,
+          reasonNote: input.reasonNote,
+          restockedToInventory: input.restockedToInventory,
+          ...(movementId ? { stockMovement: { connect: { id: movementId } } } : {}),
+        });
+        await tx.saleItem.update({
+          where: { id: item.id },
+          data: { returnedQuantity: { increment: input.quantity } },
+        });
+        const refunded = roundMoney(Number(sale.refundedAmount) + input.refundAmount);
+        const due = roundMoney(
+          Math.max(Number(sale.totalPrice) - Number(sale.paidAmount) - refunded, 0)
+        );
+        const status = computeStatus(
+          Number(sale.totalPrice) - refunded,
+          Number(sale.paidAmount),
+          sale.dueDate
+        );
+        await tx.saleRecord.update({
+          where: { id },
+          data: { refundedAmount: refunded, dueAmount: due, paymentStatus: status },
+        });
+        if (sale.customerId) await recomputeCustomer(tx, userId, sale.customerId);
+        return salesRepository.findByIdTx(tx, id);
+      });
+    } catch (error) {
+      if (input.offlineOperationId && (error as { code?: string } | null)?.code === 'P2002') {
+        const existing = await prisma.saleReturn.findUnique({
+          where: { offlineOperationId: input.offlineOperationId },
+        });
+        if (existing) {
+          const saleSnapshot = await prisma.saleRecord.findUnique({
+            where: { id },
+            select: { items: { select: { id: true } } },
           });
-          movementId = movement.id;
-          await tx.product.update({
-            where: { id: product.id },
-            data: {
-              stockQuantity: next,
-              availability: availabilityForStock(next),
-            },
-          });
+          const resolvedItemId =
+            input.itemId ?? (saleSnapshot?.items.length === 1 ? saleSnapshot.items[0].id : '');
+          if (!returnOperationMatches(existing, id, resolvedItemId, input)) {
+            throw new ConflictError(
+              'This operation ID was already used for a different return.',
+              'RETURN_OPERATION_CONFLICT'
+            );
+          }
+          return salesRepository.findById(id);
         }
       }
-      await salesRepository.addReturn(tx, {
-        sale: { connect: { id } },
-        item: { connect: { id: item.id } },
-        quantity: input.quantity,
-        refundAmount: input.refundAmount,
-        reason: input.reason,
-        reasonNote: input.reasonNote,
-        restockedToInventory: input.restockedToInventory,
-        ...(movementId ? { stockMovement: { connect: { id: movementId } } } : {}),
-      });
-      await tx.saleItem.update({
-        where: { id: item.id },
-        data: { returnedQuantity: { increment: input.quantity } },
-      });
-      const refunded = roundMoney(Number(sale.refundedAmount) + input.refundAmount);
-      const due = roundMoney(
-        Math.max(Number(sale.totalPrice) - Number(sale.paidAmount) - refunded, 0)
-      );
-      const status = computeStatus(
-        Number(sale.totalPrice) - refunded,
-        Number(sale.paidAmount),
-        sale.dueDate
-      );
-      await tx.saleRecord.update({
-        where: { id },
-        data: { refundedAmount: refunded, dueAmount: due, paymentStatus: status },
-      });
-      if (sale.customerId) await recomputeCustomer(tx, userId, sale.customerId);
-      return salesRepository.findByIdTx(tx, id);
-    });
+      throw error;
+    }
   },
   summary: async (userId: string, period: 'day' | 'week' | 'month' | 'year') => {
     const end = new Date();
@@ -988,94 +1195,46 @@ export const salesService = {
     const compare = buildComparison('month', summary, previousSummary);
     return { summary, compare, debt, topProducts: top[0], topCustomers: top[1], lowStock };
   },
-  report: async (userId: string, query: import('./sales.validation').ReportQuery) => {
-    const where: Prisma.SaleRecordWhereInput = {
-      sellerId: userId,
-      ...(query.storeId ? { storeId: query.storeId } : {}),
-      ...(query.status ? { paymentStatus: query.status } : {}),
-      ...(query.from || query.to
-        ? {
-            soldAt: {
-              ...(query.from ? { gte: query.from } : {}),
-              ...(query.to ? { lte: query.to } : {}),
-            },
-          }
-        : {}),
-    };
+  report: async (userId: string, query: ReportQuery) => {
+    const where = buildSalesReportWhere(userId, query);
     const [sales, reportTotals] = await Promise.all([
       prisma.saleRecord.findMany({
         where,
         orderBy: [{ soldAt: 'desc' }, { id: 'desc' }],
+        skip: (query.page - 1) * query.limit,
         take: query.limit,
-        select: {
-          id: true,
-          invoiceNumber: true,
-          soldAt: true,
-          buyerName: true,
-          buyerPhone: true,
-          entityTitle: true,
-          totalPrice: true,
-          refundedAmount: true,
-          paidAmount: true,
-          dueAmount: true,
-          paymentStatus: true,
-          currency: true,
-          store: { select: { name: true } },
-          items: {
-            select: {
-              title: true,
-              quantity: true,
-              returnedQuantity: true,
-              unitPrice: true,
-              lineTotal: true,
-              costPrice: true,
-            },
-          },
-        },
+        select: salesReportSelect,
       }),
       // Count and totals cover every matching sale, not only the capped rows.
       salesRepository.reportTotals(userId, query),
     ]);
     const { count: totalCount, ...totals } = reportTotals;
-    const rows = sales.map(sale => {
-      const cost = sale.items.reduce(
-        (sum, item) =>
-          sum +
-          (item.costPrice === null
-            ? 0
-            : Number(item.costPrice) * Math.max(item.quantity - item.returnedQuantity, 0)),
-        0
-      );
-      const revenue = Number(sale.totalPrice) - Number(sale.refundedAmount);
-      return {
-        id: sale.id,
-        invoiceNumber: sale.invoiceNumber,
-        soldAt: sale.soldAt,
-        buyerName: sale.buyerName,
-        buyerPhone: sale.buyerPhone,
-        storeName: sale.store?.name ?? null,
-        title: sale.entityTitle,
-        quantity: sale.items.reduce(
-          (sum, item) => sum + Math.max(item.quantity - item.returnedQuantity, 0),
-          0
-        ),
-        revenue: roundMoney(revenue),
-        cost: roundMoney(cost),
-        profit: roundMoney(revenue - cost),
-        paid: roundMoney(Number(sale.paidAmount)),
-        due: roundMoney(Number(sale.dueAmount)),
-        refunded: roundMoney(Number(sale.refundedAmount)),
-        status: sale.paymentStatus,
-        currency: sale.currency,
-      };
-    });
+    const rows = mapSalesReportRows(sales);
     return {
       rows,
       count: rows.length,
       totalCount,
-      hasMore: totalCount > rows.length,
+      page: query.page,
+      limit: query.limit,
+      hasMore: totalCount > query.page * query.limit,
       totals,
     };
+  },
+
+  /** Count the complete CSV scope once; export pages must not repeat expensive report aggregates. */
+  reportExportCount: (userId: string, query: ReportQuery) =>
+    prisma.saleRecord.count({ where: buildSalesReportWhere(userId, query) }),
+
+  /** Fetch one bounded CSV page without recomputing dashboard/report totals. */
+  reportExportRows: async (userId: string, query: ReportQuery) => {
+    const sales = await prisma.saleRecord.findMany({
+      where: buildSalesReportWhere(userId, query),
+      orderBy: [{ soldAt: 'desc' }, { id: 'desc' }],
+      skip: (query.page - 1) * query.limit,
+      take: query.limit,
+      select: salesReportSelect,
+    });
+    return mapSalesReportRows(sales);
   },
   debtSummary: async (userId: string) => {
     const now = new Date();

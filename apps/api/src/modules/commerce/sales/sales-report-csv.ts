@@ -43,8 +43,12 @@ function money(value: number): string {
   return Number.isFinite(value) ? value.toFixed(2) : '0.00';
 }
 
-export function buildSalesReportCsv(rows: SalesReportCsvRow[]): string {
-  const body = rows.map(row => [
+export function buildSalesReportCsvHeader(): string {
+  return headers.map(escapeCsvCell).join(',');
+}
+
+export function buildSalesReportCsvRows(rows: SalesReportCsvRow[]): string {
+  return rows.map(row => [
     row.invoiceNumber,
     row.soldAt.toISOString(),
     row.buyerName,
@@ -58,7 +62,10 @@ export function buildSalesReportCsv(rows: SalesReportCsvRow[]): string {
     money(row.due),
     money(row.refunded),
     row.status,
-  ]);
+  ].map(escapeCsvCell).join(',')).join('\n');
+}
 
-  return `\uFEFF${[headers, ...body].map(row => row.map(escapeCsvCell).join(',')).join('\n')}`;
+export function buildSalesReportCsv(rows: SalesReportCsvRow[]): string {
+  const body = buildSalesReportCsvRows(rows);
+  return `\uFEFF${buildSalesReportCsvHeader()}${body ? `\n${body}` : ''}`;
 }

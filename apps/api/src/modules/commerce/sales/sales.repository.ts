@@ -82,18 +82,32 @@ export const salesRepository = {
           refundedAmount: true,
           paidAmount: true,
           dueAmount: true,
-          quantity: true,
         },
       }),
-      prisma.$queryRaw<Array<{ totalCost: Prisma.Decimal | number | string | null }>>`
-        SELECT COALESCE(
-          SUM(
-            COALESCE(si."costPrice", 0) * GREATEST(si."quantity" - si."returnedQuantity", 0)
-          ),
-          0
-        ) AS "totalCost"
-        FROM "sale_items" si
-        INNER JOIN "sale_records" sr ON sr."id" = si."saleId"
+      // Quantity is net of returned units, matching the top-products and
+      // report semantics. Keep a sale-level fallback for legacy records
+      // created before line items were persisted.
+      prisma.$queryRaw<Array<{
+        totalCost: Prisma.Decimal | number | string | null;
+        netQuantity: bigint | number | string | null;
+      }>>`
+        WITH item_totals AS (
+          SELECT
+            si."saleId",
+            SUM(GREATEST(si."quantity" - si."returnedQuantity", 0))::bigint AS "netQuantity",
+            SUM(COALESCE(si."costPrice", 0) * GREATEST(si."quantity" - si."returnedQuantity", 0)) AS "totalCost"
+          FROM "sale_items" si
+          INNER JOIN "sale_records" sr ON sr."id" = si."saleId"
+          WHERE sr."sellerId" = ${sellerId}
+            AND sr."soldAt" >= ${from}
+            AND sr."soldAt" < ${to}
+          GROUP BY si."saleId"
+        )
+        SELECT
+          COALESCE(SUM(COALESCE(it."totalCost", 0)), 0) AS "totalCost",
+          COALESCE(SUM(CASE WHEN it."saleId" IS NULL THEN sr."quantity" ELSE it."netQuantity" END), 0)::bigint AS "netQuantity"
+        FROM "sale_records" sr
+        LEFT JOIN item_totals it ON it."saleId" = sr."id"
         WHERE sr."sellerId" = ${sellerId}
           AND sr."soldAt" >= ${from}
           AND sr."soldAt" < ${to}
@@ -105,7 +119,7 @@ export const salesRepository = {
     const totalRefunded = Number(sales._sum.refundedAmount ?? 0);
     return {
       salesCount: sales._count._all,
-      quantity: sales._sum.quantity ?? 0,
+      quantity: Number(itemCostRows[0]?.netQuantity ?? 0),
       totalRevenue: Math.round(totalRevenue * 100) / 100,
       totalCost: Math.round(totalCost * 100) / 100,
       netProfit: Math.round((totalRevenue - totalCost) * 100) / 100,

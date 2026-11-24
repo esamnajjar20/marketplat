@@ -1,5 +1,5 @@
 import { prisma } from '../../../config/prisma';
-import { InstallmentStatus, Prisma } from '@prisma/client';
+import { InstallmentStatus, Prisma, SaleTransferMethod } from '@prisma/client';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { NotFoundError } from '../../../shared/errors/NotFoundError';
 import { ConflictError } from '../../../shared/errors/ConflictError';
@@ -57,8 +57,16 @@ export const installmentsService = {
       status: refreshStatus(r.status, r.dueDate, Number(r.paidAmount ?? 0), Number(r.amount)),
     }));
   },
-  pay: async (sellerId: string, id: string, amount: number, offlineOperationId?: string) => {
+  pay: async (
+    sellerId: string,
+    id: string,
+    amount: number,
+    offlineOperationId?: string,
+    method: SaleTransferMethod = 'OTHER',
+    transferRef?: string
+  ) => {
     const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+    const normalizedTransferRef = transferRef?.trim() || null;
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new BadRequestError(
         'Installment payment must be positive.',
@@ -97,7 +105,8 @@ export const installmentsService = {
           if (
             existingPayment.saleId !== sale.id ||
             roundMoney(Number(existingPayment.amount)) !== roundMoney(amount) ||
-            existingPayment.method !== 'OTHER' ||
+            existingPayment.method !== method ||
+            (existingPayment.transferRef ?? null) !== normalizedTransferRef ||
             (existingPayment.note ?? null) !== paymentNote
           ) {
             throw new ConflictError(
@@ -139,7 +148,8 @@ export const installmentsService = {
           ...(offlineOperationId ? { offlineOperationId } : {}),
           saleId: sale.id,
           amount,
-          method: 'OTHER',
+          method,
+          transferRef: normalizedTransferRef,
           note: paymentNote,
         },
       });
@@ -215,7 +225,8 @@ export const installmentsService = {
           if (
             existingPayment.saleId === currentInstallment.saleId &&
             roundMoney(Number(existingPayment.amount)) === roundMoney(amount) &&
-            existingPayment.method === 'OTHER' &&
+            existingPayment.method === method &&
+            (existingPayment.transferRef ?? null) === normalizedTransferRef &&
             (existingPayment.note ?? null) === expectedNote
           ) return currentInstallment;
           throw new ConflictError(

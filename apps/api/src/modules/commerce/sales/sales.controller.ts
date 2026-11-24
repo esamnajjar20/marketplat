@@ -4,7 +4,7 @@ import { salesAutomationService } from './sales-automation.service';
 import { salesInsightsService } from './sales-insights.service';
 import { requestJsonWithGoFallback } from '../../../shared/go-worker/requestJsonWithFallback';
 import { streamCsvWithGoFallback } from '../../../shared/go-worker/streamCsvWithFallback';
-import { buildSalesReportCsv } from './sales-report-csv';
+import { buildSalesReportCsvHeader, buildSalesReportCsvRows } from './sales-report-csv';
 import {
   createSaleSchema,
   updateSaleSchema,
@@ -23,6 +23,24 @@ import {
 import { successResponse } from '../../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/auth/requireUser';
 import { paginationQuerySchema } from '../../../shared/http/pagination';
+
+async function* streamCompleteSalesCsv(
+  userId: string,
+  query: import('./sales.validation').ReportQuery,
+): AsyncGenerator<string> {
+  // Keep fallback memory bounded: fetch and emit a page before requesting the next.
+  const batchSize = 500;
+  const totalCount = await salesService.reportExportCount(userId, query);
+  let page = 1;
+  yield `\uFEFF${buildSalesReportCsvHeader()}\n`;
+  while ((page - 1) * batchSize < totalCount) {
+    const rows = await salesService.reportExportRows(userId, { ...query, page, limit: batchSize });
+    if (rows.length === 0) break;
+    const body = buildSalesReportCsvRows(rows);
+    if (body) yield `${body}\n`;
+    page += 1;
+  }
+}
 
 export const salesController = {
   costSettings: async (req: Request, res: Response, next: NextFunction) => {
@@ -264,6 +282,9 @@ export const salesController = {
     try {
       const user = requireUser(req);
       const { query } = reportQuerySchema.parse({ query: req.query });
+      // CSV is a full filtered export. The Express fallback pages through all
+      // matching rows and streams each batch instead of silently exporting only
+      // the first page or building the entire export in memory.
       await streamCsvWithGoFallback({
         jobName: 'seller-sales-csv',
         path: '/internal/exports/sales.csv',
@@ -276,12 +297,9 @@ export const salesController = {
           to: query.to?.toISOString(),
           storeId: query.storeId,
           status: query.status,
-          limit: String(query.limit),
         },
-        runExpressFallback: async () => {
-          const report = await salesService.report(user.userId, query);
-          return buildSalesReportCsv(report.rows);
-        },
+        timeoutMs: 9 * 60_000,
+        runExpressFallback: async () => streamCompleteSalesCsv(user.userId, query),
       });
     } catch (e) {
       next(e);

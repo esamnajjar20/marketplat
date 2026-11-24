@@ -69,14 +69,13 @@ describe('salesRepository.summary', () => {
         refundedAmount: 5,
         paidAmount: 50,
         dueAmount: 45,
-        quantity: 10,
       },
     });
-    (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ totalCost: 12.345 }]);
+    (prisma.$queryRaw as jest.Mock).mockResolvedValue([{ totalCost: 12.345, netQuantity: 8n }]);
 
     await expect(salesRepository.summary('seller-1', from, to)).resolves.toEqual({
       salesCount: 4,
-      quantity: 10,
+      quantity: 8,
       totalRevenue: 95,
       totalCost: 12.35,
       netProfit: 82.65,
@@ -92,6 +91,7 @@ describe('salesRepository.summary', () => {
     const [queryTemplate, ...values] = (prisma.$queryRaw as jest.Mock).mock.calls[0];
     expect(queryTemplate.join('')).toContain('FROM "sale_items" si');
     expect(queryTemplate.join('')).toContain('GREATEST(si."quantity" - si."returnedQuantity", 0)');
+    expect(queryTemplate.join('')).toContain('THEN sr."quantity" ELSE it."netQuantity"');
     expect(values).toEqual(['seller-1', from, to]);
     expect(prisma.saleItem.findMany).not.toHaveBeenCalled();
   });

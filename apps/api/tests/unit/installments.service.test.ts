@@ -69,7 +69,7 @@ describe('installmentsService.pay', () => {
       data: { paidAmount: 50, dueAmount: 30, paymentStatus: 'PARTIAL' },
     });
     expect(tx.salePayment.create).toHaveBeenCalledWith({
-      data: { saleId: 'sale-1', amount: 20, method: 'OTHER', note: 'INSTALLMENT:1' },
+      data: { saleId: 'sale-1', amount: 20, method: 'OTHER', transferRef: null, note: 'INSTALLMENT:1' },
     });
   });
 
@@ -79,7 +79,7 @@ describe('installmentsService.pay', () => {
     expect(tx.salePayment.create).toHaveBeenCalledWith({
       data: {
         offlineOperationId: 'installment-op-123',
-        saleId: 'sale-1', amount: 20, method: 'OTHER', note: 'INSTALLMENT:1',
+        saleId: 'sale-1', amount: 20, method: 'OTHER', transferRef: null, note: 'INSTALLMENT:1',
       },
     });
   });
@@ -105,6 +105,30 @@ describe('installmentsService.pay', () => {
       .rejects.toMatchObject({ code: 'PAYMENT_OPERATION_CONFLICT' });
     expect(tx.salePayment.create).not.toHaveBeenCalled();
     expect(tx.saleInstallment.update).not.toHaveBeenCalled();
+  });
+
+  it('stores the selected installment payment method and normalized transfer reference', async () => {
+    await installmentsService.pay('seller-1', 'installment-1', 20, 'installment-op-palpay', 'PALPAY', '  PP-REF-7788  ');
+
+    expect(tx.salePayment.create).toHaveBeenCalledWith({
+      data: {
+        offlineOperationId: 'installment-op-palpay',
+        saleId: 'sale-1', amount: 20, method: 'PALPAY', transferRef: 'PP-REF-7788',
+        note: 'INSTALLMENT:1',
+      },
+    });
+  });
+
+  it('treats whitespace-only transfer references as null on idempotent installment retries', async () => {
+    tx.salePayment.findUnique.mockResolvedValue({
+      id: 'payment-existing', offlineOperationId: 'installment-op-no-ref', saleId: 'sale-1',
+      amount: 20, method: 'PALPAY', transferRef: null, note: 'INSTALLMENT:1',
+    });
+
+    await expect(installmentsService.pay(
+      'seller-1', 'installment-1', 20, 'installment-op-no-ref', 'PALPAY', '   '
+    )).resolves.toEqual(installment);
+    expect(tx.salePayment.create).not.toHaveBeenCalled();
   });
 
   it('closes remaining installments once the net sale balance is fully paid', async () => {
