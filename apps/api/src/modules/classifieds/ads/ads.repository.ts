@@ -494,7 +494,26 @@ export const adsRepository = {
       );
     }
     if (newImages.length === 0) {
-      return prisma.ad.findUniqueOrThrow({ where: { id } });
+      return prisma.ad.findUniqueOrThrow({
+        where: { id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              city: true,
+              avatarUrl: true,
+            },
+          },
+          category: {
+            select: {
+              id: true,
+              name: true,
+              nameAr: true,
+            },
+          },
+        },
+      });
     }
     const safeMaxImages =
       Number.isInteger(maxImages) && maxImages > 0 && maxImages <= MAX_IMAGES_PER_ENTITY

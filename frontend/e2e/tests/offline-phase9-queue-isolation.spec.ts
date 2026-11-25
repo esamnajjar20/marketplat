@@ -50,9 +50,16 @@ test('offline create request queues stable operation identity and owner without 
         });
       } finally { db.close(); }
     }, OP_ID);
-    expect(queued[0].operationId).toBe(OP_ID);
-    expect(queued[0].ownerUserId).toBe(OWNER_ID);
-    expect(queued[0].needsAuth).toBe(true);
+    const queuedItem = queued[0];
+
+    expect(queuedItem).toBeDefined();
+    if (!queuedItem) {
+      throw new Error("Expected a queued operation, but none was found");
+    }
+
+    expect(queuedItem.operationId).toBe(OP_ID);
+    expect(queuedItem.ownerUserId).toBe(OWNER_ID);
+    expect(queuedItem.needsAuth).toBe(true);
     expect(JSON.stringify(queued[0]?.headers ?? {}).toLowerCase()).not.toContain('authorization');
 
     const id = queued[0]?.id;
