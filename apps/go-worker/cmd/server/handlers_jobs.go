@@ -70,23 +70,25 @@ func (s *server) runWeeklySalesReport(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) runActivityBufferFlush(w http.ResponseWriter, r *http.Request) {
 	s.runLockedSQLJob(w, r, activityBufferLockID, "activity buffer flush", func(ctx context.Context, conn *sql.Conn) (any, error) {
-		redisConn, err := rediswire.Dial(ctx, s.redisConfig)
+		redisConn, err := s.redisPool.Acquire(ctx)
 		if err != nil {
 			return nil, err
 		}
-		defer redisConn.Close()
-		return activitybuffer.Flush(ctx, conn, redisConn)
+		result, flushErr := activitybuffer.Flush(ctx, conn, redisConn)
+		s.redisPool.Release(redisConn, flushErr == nil)
+		return result, flushErr
 	})
 }
 
 func (s *server) runViewsBufferFlush(w http.ResponseWriter, r *http.Request) {
 	s.runLockedSQLJob(w, r, viewsBufferLockID, "views buffer flush", func(ctx context.Context, conn *sql.Conn) (any, error) {
-		redisConn, err := rediswire.Dial(ctx, s.redisConfig)
+		redisConn, err := s.redisPool.Acquire(ctx)
 		if err != nil {
 			return nil, err
 		}
-		defer redisConn.Close()
-		return viewsbuffer.Flush(ctx, conn, redisConn)
+		result, flushErr := viewsbuffer.Flush(ctx, conn, redisConn)
+		s.redisPool.Release(redisConn, flushErr == nil)
+		return result, flushErr
 	})
 }
 

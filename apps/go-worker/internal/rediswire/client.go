@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -329,4 +330,116 @@ func firstEnv(names ...string) string {
 		}
 	}
 	return ""
+}
+
+// Pool reuses a small bounded set of authenticated Redis connections. Conn is
+// intentionally not concurrency-safe, so each acquired connection has one owner.
+type Pool struct {
+	config    *Config
+	available chan *Conn
+	slots     chan struct{}
+	closed    chan struct{}
+	once      sync.Once
+	mu        sync.Mutex
+}
+
+// NewPool creates a lazy pool; connections are opened only when first needed.
+func NewPool(cfg *Config, maxConnections int) *Pool {
+	if maxConnections < 1 {
+		maxConnections = 1
+	}
+	return &Pool{
+		config: cfg, available: make(chan *Conn, maxConnections),
+		slots: make(chan struct{}, maxConnections), closed: make(chan struct{}),
+	}
+}
+
+// Acquire returns an exclusive connection, waiting for capacity when needed.
+func (p *Pool) Acquire(ctx context.Context) (*Conn, error) {
+	if p == nil || p.config == nil {
+		return nil, errors.New("Redis is not configured")
+	}
+	select {
+	case <-p.closed:
+		return nil, errors.New("Redis pool is closed")
+	default:
+	}
+	select {
+	case conn := <-p.available:
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		select {
+		case <-p.closed:
+			_ = conn.Close()
+			<-p.slots
+			return nil, errors.New("Redis pool is closed")
+		default:
+			return conn, nil
+		}
+	case p.slots <- struct{}{}:
+		conn, err := Dial(ctx, p.config)
+		if err != nil {
+			<-p.slots
+			return nil, err
+		}
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		select {
+		case <-p.closed:
+			_ = conn.Close()
+			<-p.slots
+			return nil, errors.New("Redis pool is closed")
+		default:
+			return conn, nil
+		}
+	case <-p.closed:
+		return nil, errors.New("Redis pool is closed")
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+}
+
+// Release returns a healthy connection to the pool. Connections involved in
+// any command error are discarded because protocol state may be uncertain.
+func (p *Pool) Release(conn *Conn, healthy bool) {
+	if p == nil || conn == nil {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	select {
+	case <-p.closed:
+		_ = conn.Close()
+		<-p.slots
+		return
+	default:
+	}
+	if !healthy {
+		_ = conn.Close()
+		<-p.slots
+		return
+	}
+	p.available <- conn
+}
+
+// Close prevents new acquisitions and closes all idle connections. Active
+// connections are closed when their owners release them.
+func (p *Pool) Close() {
+	if p == nil {
+		return
+	}
+	p.once.Do(func() {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		close(p.closed)
+		for {
+			select {
+			case conn := <-p.available:
+				_ = conn.Close()
+				<-p.slots
+			default:
+				return
+			}
+		}
+	})
 }

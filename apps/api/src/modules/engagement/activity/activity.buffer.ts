@@ -1,3 +1,4 @@
+import { withDistributedLease } from '../../../shared/jobs/distributedLease';
 import { reportBackgroundFailure } from '../../../shared/jobs/backgroundTask';
 import { bufferRedis as redis } from '../../../config/redis';
 import { prisma } from '../../../config/prisma';
@@ -259,12 +260,18 @@ export const activityBuffer = {
   startFlushTimer: (): void => {
     if (flushTimer) return;
     flushTimer = setInterval(() => {
-      flushUsingWorker().catch(error =>
-        reportBackgroundFailure(
-          'apps/api/src/modules/engagement/activity/activity.buffer.ts',
-          error
-        )
-      );
+      withDistributedLease(
+        redis,
+        'marketplat:lease:activity-buffer-flush',
+        () => flushUsingWorker(),
+        { ttlMs: 15_000, renewEveryMs: 5_000 }
+      )
+        .catch(error =>
+          reportBackgroundFailure(
+            'apps/api/src/modules/engagement/activity/activity.buffer.ts',
+            error
+          )
+        );
     }, FLUSH_INTERVAL);
     flushTimer.unref(); // don't keep process alive
     logger.info(`Activity buffer flush timer started (every ${FLUSH_INTERVAL / 1000}s)`);

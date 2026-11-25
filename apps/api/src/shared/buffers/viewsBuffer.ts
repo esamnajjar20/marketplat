@@ -1,3 +1,4 @@
+import { withDistributedLease } from '../jobs/distributedLease';
 import { reportBackgroundFailure } from '../jobs/backgroundTask';
 import { bufferRedis as redis } from '../../config/redis';
 import { prisma } from '../../config/prisma';
@@ -287,7 +288,12 @@ export const viewsBuffer = {
   startFlushTimer: (): void => {
     if (flushTimer) return;
     flushTimer = setInterval(() => {
-      flushUsingWorker().catch(error =>
+      withDistributedLease(
+        redis,
+        'marketplat:lease:views-buffer-flush',
+        () => flushUsingWorker(),
+        { ttlMs: 15_000, renewEveryMs: 5_000 }
+      ).catch(error =>
         reportBackgroundFailure('apps/api/src/shared/buffers/viewsBuffer.ts', error)
       );
     }, FLUSH_INTERVAL);

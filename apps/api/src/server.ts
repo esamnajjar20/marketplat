@@ -143,9 +143,13 @@ const bootstrap = async (): Promise<void> => {
       );
     }
 
-    checkConnectionCapacity(env.database.url);
     await withRetry('Database (Postgres)', () => prisma.$connect());
     logger.info('✅ Database connected');
+    const postgresSettings = await prisma.$queryRaw<Array<{ max_connections: string }>>`
+      SELECT setting AS max_connections FROM pg_settings WHERE name = 'max_connections'
+    `;
+    const actualMaxConnections = Number(postgresSettings[0]?.max_connections);
+    checkConnectionCapacity(env.database.url, actualMaxConnections);
     for (const [index, client] of criticalRedisServiceClients.entries()) {
       const serviceLabel = index === 0 ? 'Redis (core)' : `Redis (critical service ${index + 1})`;
       await withRetry(serviceLabel, () => client.ping());

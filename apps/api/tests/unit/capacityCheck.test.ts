@@ -13,17 +13,20 @@ import { logger } from '../../src/shared/observability/logger';
  */
 describe('checkConnectionCapacity', () => {
   const originalPm2Instances = process.env.PM2_INSTANCES;
+  const originalDbPoolInstances = process.env.DB_POOL_INSTANCES;
 
   afterEach(() => {
     jest.restoreAllMocks();
     if (originalPm2Instances === undefined) delete process.env.PM2_INSTANCES;
     else process.env.PM2_INSTANCES = originalPm2Instances;
+    if (originalDbPoolInstances === undefined) delete process.env.DB_POOL_INSTANCES;
+    else process.env.DB_POOL_INSTANCES = originalDbPoolInstances;
   });
 
   it('warns when connection_limit is absent from DATABASE_URL', () => {
     const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
 
-    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db');
+    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db', 20);
 
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('no explicit connection_limit'));
   });
@@ -34,8 +37,8 @@ describe('checkConnectionCapacity', () => {
     const infoSpy = jest.spyOn(logger, 'info').mockImplementation(() => logger);
 
     // 2 instances × connection_limit=10 = 20, well under the
-    // (200 - 20 margin) = 180 threshold.
-    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db?connection_limit=10');
+    // (200 - 6 margin) = 194 threshold.
+    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db?connection_limit=10', 200);
 
     expect(warnSpy).not.toHaveBeenCalled();
     expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('capacity check passed'));
@@ -45,8 +48,8 @@ describe('checkConnectionCapacity', () => {
     process.env.PM2_INSTANCES = '10';
     const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
 
-    // 10 instances × connection_limit=20 = 200, exceeds (200 - 20) = 180.
-    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db?connection_limit=20');
+    // 10 instances × connection_limit=20 = 200, exceeds (200 - 6) = 194.
+    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db?connection_limit=20', 200);
 
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('may exceed'),
@@ -54,26 +57,36 @@ describe('checkConnectionCapacity', () => {
     );
   });
 
-  it('falls back to os.cpus().length when PM2_INSTANCES is unset — the same value PM2 itself uses to resolve "max"', () => {
+  it('uses the same two-worker default as ecosystem.config.js when PM2_INSTANCES is unset', () => {
     delete process.env.PM2_INSTANCES;
-    jest.spyOn(os, 'cpus').mockReturnValue(new Array(16).fill({}) as os.CpuInfo[]);
     const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
 
-    // 16 (mocked cpu count) × connection_limit=20 = 320, well over threshold.
-    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db?connection_limit=20');
+    // 2 default PM2 workers × connection_limit=20 = 40, below 194.
+    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db?connection_limit=20', 200);
+
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+
+  it('uses DB_POOL_INSTANCES to account for Node processes across separate API services', () => {
+    delete process.env.PM2_INSTANCES;
+    process.env.DB_POOL_INSTANCES = '8';
+    const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
+
+    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db?connection_limit=2', 20);
 
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('may exceed'),
-      expect.objectContaining({ instances: 16 }),
+      expect.objectContaining({ instances: 8, connectionLimit: 2, estimatedTotal: 16 })
     );
   });
 
-  it('ignores a non-numeric PM2_INSTANCES value and falls back to os.cpus().length', () => {
+  it('uses CPU count only when PM2_INSTANCES is explicitly max', () => {
     process.env.PM2_INSTANCES = 'max';
     jest.spyOn(os, 'cpus').mockReturnValue(new Array(4).fill({}) as os.CpuInfo[]);
     const infoSpy = jest.spyOn(logger, 'info').mockImplementation(() => logger);
 
-    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db?connection_limit=5');
+    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db?connection_limit=5', 200);
 
     expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('4 instances'));
   });
@@ -81,14 +94,14 @@ describe('checkConnectionCapacity', () => {
   it('treats a malformed DATABASE_URL as "no connection_limit" rather than throwing', () => {
     const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
 
-    expect(() => checkConnectionCapacity('not a valid url')).not.toThrow();
+    expect(() => checkConnectionCapacity('not a valid url', 20)).not.toThrow();
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('no explicit connection_limit'));
   });
 
   it('treats a non-numeric connection_limit value as absent rather than producing NaN math', () => {
     const warnSpy = jest.spyOn(logger, 'warn').mockImplementation(() => logger);
 
-    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db?connection_limit=abc');
+    checkConnectionCapacity('postgresql://user:pass@localhost:5432/db?connection_limit=abc', 20);
 
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('no explicit connection_limit'));
   });

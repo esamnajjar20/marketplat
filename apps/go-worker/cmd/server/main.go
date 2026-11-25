@@ -41,6 +41,7 @@ func run() int {
 	defer db.Close()
 
 	s := newServer(cfg, db, logger)
+	defer s.redisPool.Close()
 	httpServer := s.newHTTPServer(cfg.Addr)
 	logger.Info("MarketPlat Go worker listening", "addr", cfg.Addr, "retentionDays", cfg.RetentionDays, "batchSize", cfg.BatchSize, "outboxEnabled", cfg.OutboxEnabled, "pushDispatchEnabled", cfg.PushDispatchEnabled, "searchIndexEnabled", cfg.SearchIndexEnabled)
 

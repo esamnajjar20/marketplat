@@ -19,6 +19,7 @@ type server struct {
 	db                  *sql.DB
 	load                *loadtracker.Tracker
 	redisConfig         *rediswire.Config
+	redisPool           *rediswire.Pool
 	cacheRedisConfig    *rediswire.Config
 	token               string
 	apiBaseURL          string
@@ -39,6 +40,7 @@ func newServer(cfg config, db *sql.DB, logger *slog.Logger) *server {
 		db:                  db,
 		load:                loadtracker.New(),
 		redisConfig:         cfg.Redis,
+		redisPool:           rediswire.NewPool(cfg.Redis, 2),
 		cacheRedisConfig:    cfg.CacheRedis,
 		token:               cfg.Token,
 		apiBaseURL:          cfg.APIBaseURL,
