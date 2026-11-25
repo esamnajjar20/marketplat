@@ -1,4 +1,4 @@
-import { searchRepository } from '../../src/modules/discovery/search/search.repository';
+import { perBranchLimit, searchRepository } from '../../src/modules/discovery/search/search.repository';
 import { prisma } from '../../src/config/prisma';
 import type { SearchQuery } from '../../src/modules/discovery/search/search.validation';
 
@@ -16,6 +16,13 @@ const baseQuery: SearchQuery = {
 
 describe('searchRepository', () => {
   beforeEach(() => jest.clearAllMocks());
+
+  it('retains enough rows per branch for deep pages without a fixed 500-row ceiling', () => {
+    expect(perBranchLimit(0, 50)).toBe(50);
+    expect(perBranchLimit(450, 50)).toBe(500);
+    expect(perBranchLimit(500, 50)).toBe(550);
+    expect(perBranchLimit(9_950, 50)).toBe(10_000);
+  });
 
   describe('search', () => {
     it('issues one rows query and one count query per call (both against the same UNION), and returns them combined', async () => {

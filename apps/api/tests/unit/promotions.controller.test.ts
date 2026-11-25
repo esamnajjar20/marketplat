@@ -39,11 +39,28 @@ describe('promotionsController', () => {
     );
   });
 
-  it('getMyPromotions returns 200', async () => {
-    (promotionsService.getStorePromotions as jest.Mock).mockResolvedValue([]);
+  it('getMyPromotions returns a bounded page and its pagination metadata', async () => {
+    const pagination = {
+      total: 1,
+      page: 1,
+      limit: 50,
+      totalPages: 1,
+      hasNextPage: false,
+      hasPrevPage: false,
+    };
+    (promotionsService.getStorePromotions as jest.Mock).mockResolvedValue({
+      items: [{ id: 'promo-1' }],
+      pagination,
+    });
     const res = mockResponse();
     await promotionsController.getMyPromotions(mockRequest(), res, mockNext());
     expect(res.status).toHaveBeenCalledWith(200);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [{ id: 'promo-1' }],
+        meta: { pagination },
+      })
+    );
   });
 
   it('getPromotionById returns 200', async () => {

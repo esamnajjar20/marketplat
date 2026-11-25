@@ -31,8 +31,10 @@ export const promotionsController = {
     try {
       const user = requireUser(req);
       const { query } = getPromotionsSchema.parse({ query: req.query });
-      const promotions = await promotionsService.getStorePromotions(user.userId, query.storeId);
-      res.status(200).json(successResponse('Promotions fetched', promotions));
+      const result = await promotionsService.getStorePromotions(user.userId, query.storeId, query);
+      res.status(200).json(
+        successResponse('Promotions fetched', result.items, { pagination: result.pagination })
+      );
     } catch (error) {
       next(error);
     }

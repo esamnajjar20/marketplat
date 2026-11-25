@@ -39,15 +39,25 @@ export const storeFollowersRepository = {
     return { follows, total };
   },
 
-  /** Used only to fan out STORE_NEW_PRODUCT notifications when a store
-   * publishes a new product — same role as
-   * favoritesRepository.findUserIdsByAdId. */
-  findUserIdsByStoreId: async (storeId: string): Promise<string[]> => {
-    const followers = await prisma.storeFollower.findMany({
-      where: { storeId },
-      select: { userId: true },
-    });
-    return followers.map(f => f.userId);
+  /**
+   * Stream follower IDs in bounded keyset pages for notification fan-out.
+   * The stable primary-key cursor avoids materializing every follower in Node.
+   */
+  async *findUserIdsByStoreId(storeId: string, batchSize = 500): AsyncGenerator<string[]> {
+    const size = Math.min(500, Math.max(1, Math.trunc(batchSize) || 500));
+    let cursor: string | undefined;
+    while (true) {
+      const rows = await prisma.storeFollower.findMany({
+        where: { storeId, ...(cursor ? { id: { gt: cursor } } : {}) },
+        orderBy: { id: 'asc' },
+        take: size,
+        select: { id: true, userId: true },
+      });
+      if (rows.length === 0) return;
+      yield rows.map(row => row.userId);
+      cursor = rows[rows.length - 1].id;
+      if (rows.length < size) return;
+    }
   },
 
   countByStoreId: (storeId: string): Promise<number> =>

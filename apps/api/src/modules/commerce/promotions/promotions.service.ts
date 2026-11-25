@@ -1,6 +1,7 @@
 import { reportBackgroundFailure } from '../../../shared/jobs/backgroundTask';
 import { Promotion, Product } from '@prisma/client';
 import { promotionsRepository } from './promotions.repository';
+import { buildPaginationMeta } from '../../../shared/http/pagination';
 import { productsRepository } from '../products/products.repository';
 import { requireStoreAccessForProducts } from '../stores/store-members.service';
 import { CreatePromotionInput, UpdatePromotionInput } from './promotions.validation';
@@ -9,18 +10,10 @@ import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { ConflictError } from '../../../shared/errors/ConflictError';
 
 // PROMO-1: status is derived from (startsAt, endsAt, now) rather than
-// trusted from whatever was last written — a promotion created with a
-// future startsAt is SCHEDULED at creation time and should read as
-// ACTIVE once that time passes, with no separate write required for
-// every promotion on every clock tick. resolveStatus is called on
-// every read/write path (so an individual product's price is always
-// correct even between sweeps), and — as of
-// myPromotionsExpiring.ts also runs promotionsRepository's
-// findDueForActivation/findDueForExpiry as a scheduled sweep (same
-// invocation model as weeklyAdViewsReport.ts) so the stored `status`
-// column itself gets corrected on a schedule too, not just read
-// lazily; see that script for the full status-transition + lifecycle-
-// notification logic.
+// trusted from whatever was last written. The Go-first lifecycle worker
+// persists scheduled transitions in bounded SQL batches using row locks
+// (FOR UPDATE SKIP LOCKED); this resolver remains a read-time safeguard
+// between sweeps and for requests that encounter stale persisted status.
 const resolveStatus = (promotion: Promotion, now: Date): Promotion['status'] => {
   if (promotion.status === 'CANCELLED' || promotion.status === 'DRAFT') return promotion.status;
   if (promotion.maxUses !== null && promotion.usageCount >= promotion.maxUses) return 'EXPIRED';
@@ -161,11 +154,18 @@ export const promotionsService = {
     }
   },
 
-  getStorePromotions: async (userId: string, storeId?: string): Promise<Promotion[]> => {
+  getStorePromotions: async (
+    userId: string,
+    storeId?: string,
+    query: { page?: number; limit?: number } = {}
+  ) => {
     const store = await requireStoreAccessForProducts(userId, 'managePromotions', storeId);
-    const promotions = await promotionsRepository.findByStoreId(store.id);
+    const result = await promotionsRepository.findByStoreId(store.id, query);
     const now = new Date();
-    return promotions.map(p => syncStatus(p, now));
+    return {
+      items: result.promotions.map(p => syncStatus(p, now)),
+      pagination: buildPaginationMeta(result.total, query.page ?? 1, query.limit ?? 50),
+    };
   },
 
   getPromotionById: async (userId: string, id: string): Promise<Promotion> => {

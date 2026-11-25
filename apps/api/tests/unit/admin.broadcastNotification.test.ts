@@ -33,7 +33,7 @@ describe('adminController.broadcastNotification', () => {
       'عرض خاص',
       'خصم اليوم'
     );
-    expect(adminService.getAllActiveUserIds).not.toHaveBeenCalled();
+    expect(adminService.iterateActiveUserIdBatches).not.toHaveBeenCalled();
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ success: true, data: { recipientCount: 2 } })
@@ -46,14 +46,19 @@ describe('adminController.broadcastNotification', () => {
     });
     const res = mockResponse();
     const next = mockNext();
-    (adminService.getAllActiveUserIds as jest.Mock).mockResolvedValue(['u1', 'u2', 'u3']);
+    (adminService.iterateActiveUserIdBatches as jest.Mock).mockReturnValue((async function* () { yield ['u1', 'u2', 'u3']; })());
     (notificationsService.broadcastPromotion as jest.Mock).mockResolvedValue(3);
 
     await adminController.broadcastNotification(req, res, next);
 
-    expect(adminService.getAllActiveUserIds).toHaveBeenCalled();
+    expect(adminService.iterateActiveUserIdBatches).toHaveBeenCalled();
+    const recipientSource = (notificationsService.broadcastPromotion as jest.Mock).mock.calls[0][0];
+    expect(typeof recipientSource[Symbol.asyncIterator]).toBe('function');
+    const batches: string[][] = [];
+    for await (const batch of recipientSource as AsyncIterable<string[]>) batches.push(batch);
+    expect(batches).toEqual([['u1', 'u2', 'u3']]);
     expect(notificationsService.broadcastPromotion).toHaveBeenCalledWith(
-      ['u1', 'u2', 'u3'],
+      expect.anything(),
       'عرض',
       'نص'
     );

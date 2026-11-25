@@ -17,9 +17,10 @@
     "build": "node scripts/generate-build-id.mts && next build && node scripts/generate-warming-manifest.mts",
     "build:cf": "node scripts/generate-build-id.mts && next build && node scripts/generate-warming-manifest.mts && opennextjs-cloudflare build --dangerouslyUseUnsupportedNextVersion",
     "start": "next start",
-    "lint": "eslint .",
-    "type-check": "tsc --noEmit",
+    "lint": "eslint . --ext .js,.jsx,.mjs,.cjs,.ts,.tsx,.mts,.cts",
+    "type-check": "next typegen && tsc --noEmit",
     "type-check:e2e": "tsc --noEmit -p e2e/tsconfig.json",
+    "type-check:scripts": "tsc --noEmit -p ../tsconfig.scripts.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -125,7 +126,8 @@
     "network:phase3-audit": "node scripts/http-request-phase3-audit.mts && node scripts/network-request-monitor-audit.mts",
     "network:phase6-audit": "node scripts/http-request-phase6-audit.mts && node scripts/fetch-client-csrf-audit.mts && node scripts/http-request-phase3-audit.mts && node scripts/network-request-monitor-audit.mts && node scripts/request-dedup-concurrency-audit.mts && node scripts/query-abort-signal-phase2-audit.cts && node scripts/export-http-request-inventory.cts",
     "perf:home-first-render-audit": "node scripts/home-first-render-performance-audit.mts",
-    "e2e:ci": "playwright test e2e/tests/marketplace-smoke.spec.ts e2e/tests/auth-form-validation.spec.ts e2e/tests/missing-business-journeys-mocked.spec.ts"
+    "e2e:ci": "playwright test e2e/tests/marketplace-smoke.spec.ts e2e/tests/auth-form-validation.spec.ts e2e/tests/missing-business-journeys-mocked.spec.ts",
+    "type-check:tests": "tsc --noEmit -p tsconfig.tests.json"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
@@ -173,6 +175,8 @@
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.72.2",
+    "@typescript-eslint/parser": "^8.72.2",
     "@vitejs/plugin-react": "^4.3.0",
     "@vitest/coverage-v8": "^2.1.9",
     "autoprefixer": "^10.4.0",

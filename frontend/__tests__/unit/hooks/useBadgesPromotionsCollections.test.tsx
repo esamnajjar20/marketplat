@@ -25,7 +25,7 @@ describe('badges/promotions/collections queries', () => {
   it('loads store badges and related queries', async () => {
     (badgesApi.getStoreBadges as any).mockResolvedValue({ data: { data: [{ id: 'b1' }] } });
     (badgesApi.getProviderBadges as any).mockResolvedValue({ data: { data: [] } });
-    (promotionsApi.getMine as any).mockResolvedValue({ data: { data: [] } });
+    (promotionsApi.getMine as any).mockResolvedValue({ data: { data: [], meta: { pagination: { page: 1, limit: 50, total: 0, totalPages: 0, hasNextPage: false, hasPrevPage: false } } } });
     (promotionsApi.getById as any).mockResolvedValue({ data: { data: { id: 'p1' } } });
     (collectionsApi.getMine as any).mockResolvedValue({ data: { data: [] } });
     (collectionsApi.getById as any).mockResolvedValue({ data: { data: { id: 'c1' } } });

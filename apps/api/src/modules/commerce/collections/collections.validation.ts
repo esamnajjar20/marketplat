@@ -32,7 +32,12 @@ export const collectionIdSchema = z.object({
 // list, not N individual sortOrder ).
 export const reorderCollectionsSchema = z.object({
   body: z.object({
-    orderedIds: z.array(z.string().min(1)).min(1, 'orderedIds must not be empty'),
+    // Keep bulk reorder work bounded. 1,000 IDs fits comfortably within
+    // the API's 50KB JSON body limit while preventing unbounded validation.
+    orderedIds: z
+      .array(z.string().min(1))
+      .min(1, 'orderedIds must not be empty')
+      .max(1000, 'At most 1,000 collections can be reordered at once'),
   }),
 });
 

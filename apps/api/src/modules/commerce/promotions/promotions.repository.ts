@@ -1,5 +1,6 @@
 import { prisma } from '../../../config/prisma';
 import { Prisma, Promotion, PromotionStatus, DiscountType } from '@prisma/client';
+import { getPaginationParams } from '../../../shared/http/pagination';
 
 export const promotionsRepository = {
   create: (data: {
@@ -66,18 +67,25 @@ export const promotionsRepository = {
       _sum: { usageCount: true },
     }),
 
-  findByStoreId: (storeId: string): Promise<Promotion[]> =>
-    // bound the store-promotions query.
-    // No real store approaches 500 promotions, but an unbounded
-    // findMany on a table with an ever-growing history is one
-    // accidental admin script away from loading tens of thousands
-    // of rows in one call.
-    prisma.promotion.findMany({
-      where: { storeId },
-      orderBy: { createdAt: 'desc' },
-      take: 500,
-    }),
+  findByStoreId: async (
+    storeId: string,
+    query: { page?: number; limit?: number } = {}
+  ): Promise<{ promotions: Promotion[]; total: number }> => {
+    const { skip, take } = getPaginationParams({ page: query.page ?? 1, limit: query.limit ?? 50 });
+    const where: Prisma.PromotionWhereInput = { storeId };
+    const [promotions, total] = await Promise.all([
+      prisma.promotion.findMany({
+        where,
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take,
+      }),
+      prisma.promotion.count({ where }),
+    ]);
+    return { promotions, total };
+  },
 
+  /** @deprecated No production callers. Do not use for unbounded history reads; use a bounded, scoped query. */
   findByProductId: (productId: string): Promise<Promotion[]> =>
     prisma.promotion.findMany({ where: { productId }, orderBy: { createdAt: 'desc' } }),
 
@@ -97,17 +105,19 @@ export const promotionsRepository = {
       where: { productId: { in: productIds }, status: { in: ['SCHEDULED', 'ACTIVE'] } },
     }),
 
-  // Used by the status-transition sweep (previously unscheduled — now
-  // run by myPromotionsExpiring.ts, PROMO-1 ): promotions whose
-  // window start/end has passed but whose stored status hasn't caught
-  // up yet.
+  // Legacy, unbounded helpers retained for compatibility/tests only. The
+  // active lifecycle worker uses SQL batches with FOR UPDATE SKIP LOCKED.
+  // Do not wire these methods into a cron or production bulk-processing path.
+  /** @deprecated Use the bounded lifecycle worker. */
   findDueForActivation: (now: Date): Promise<Promotion[]> =>
     prisma.promotion.findMany({ where: { status: 'SCHEDULED', startsAt: { lte: now } } }),
 
+  /** @deprecated Use the bounded lifecycle worker. */
   findDueForExpiry: (now: Date): Promise<Promotion[]> =>
     prisma.promotion.findMany({ where: { status: 'ACTIVE', endsAt: { lte: now } } }),
 
-  // PROMO-1 (): promotions whose window ends within the next
+  /** @deprecated Use the bounded lifecycle worker. */
+  // Finds promotions whose window ends within the next
   // `windowHours` and haven't already been warned about it
   // (expiryWarnedAt IS NULL) — see that column's schema.prisma doc
   // comment for the idempotency reasoning. Deliberately excludes rows

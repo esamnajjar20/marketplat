@@ -20,6 +20,7 @@ import { NotFoundError } from '../../../shared/errors/NotFoundError';
 import { ForbiddenError } from '../../../shared/errors/ForbiddenError';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
 import { ConflictError } from '../../../shared/errors/ConflictError';
+import { buildPaginationMeta, getPaginationParams } from '../../../shared/http/pagination';
 
 const roundMoney = (n: number) => Math.round(n * 100) / 100;
 
@@ -481,25 +482,47 @@ export const salesService = {
     return { enabled: user.salesCostTrackingEnabled };
   },
 
-  listCostProducts: async (userId: string) => {
-    return prisma.product.findMany({
-      where: {
-        status: { not: 'DELETED' },
-        store: { sellerProfile: { userId } },
-      },
-      select: {
-        id: true,
-        storeId: true,
-        name: true,
-        price: true,
-        costPrice: true,
-        stockQuantity: true,
-        availability: true,
-        images: true,
-        store: { select: { id: true, name: true } },
-      },
-      orderBy: [{ updatedAt: 'desc' }, { name: 'asc' }],
-    });
+  listCostProducts: async (
+    userId: string,
+    query: { page?: number; limit?: number; q?: string } = {}
+  ) => {
+    const { page = 1, limit = 50, q } = query;
+    const { skip, take } = getPaginationParams({ page, limit });
+    const search = q?.trim();
+    const where: Prisma.ProductWhereInput = {
+      status: { not: 'DELETED' },
+      store: { sellerProfile: { userId } },
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: 'insensitive' } },
+              { store: { name: { contains: search, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
+    };
+    const [items, total] = await Promise.all([
+      prisma.product.findMany({
+        where,
+        select: {
+          id: true,
+          storeId: true,
+          name: true,
+          price: true,
+          costPrice: true,
+          stockQuantity: true,
+          availability: true,
+          // The cost table renders text/value only; loading every image URL
+          // for every row added needless response and heap pressure.
+          store: { select: { id: true, name: true } },
+        },
+        orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+        skip,
+        take,
+      }),
+      prisma.product.count({ where }),
+    ]);
+    return { items, pagination: buildPaginationMeta(total, page, limit) };
   },
 
   updateProductCost: async (userId: string, productId: string, input: UpdateProductCostInput) => {

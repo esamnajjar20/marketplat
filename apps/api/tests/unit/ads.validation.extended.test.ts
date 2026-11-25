@@ -4,6 +4,8 @@ import {
   getAdsSchema,
   getMyAdsSchema,
   adIdSchema,
+  removeAdImageSchema,
+  reorderAdImagesSchema,
   searchAdsSchema,
 } from '../../src/modules/classifieds/ads/ads.validation';
 
@@ -164,6 +166,49 @@ describe('ads.validation — additional coverage', () => {
 
     it('rejects an empty id param', () => {
       expect(() => adIdSchema.parse({ params: { id: '' } })).toThrow();
+    });
+  });
+
+  describe('removeAdImageSchema', () => {
+    it('accepts a valid route id and absolute image URL', () => {
+      expect(() => removeAdImageSchema.parse({
+        params: { id: 'ad-1' },
+        body: { imageUrl: 'https://cdn.example.test/ad.jpg' },
+      })).not.toThrow();
+    });
+
+    it('rejects an invalid image URL', () => {
+      expect(() => removeAdImageSchema.parse({
+        params: { id: 'ad-1' },
+        body: { imageUrl: 'not-a-url' },
+      })).toThrow();
+    });
+  });
+
+  describe('reorderAdImagesSchema', () => {
+    const images = Array.from({ length: 20 }, (_, index) =>
+      `https://cdn.example.test/ad-${index + 1}.jpg`
+    );
+
+    it('accepts between 1 and 20 valid image URLs', () => {
+      expect(() => reorderAdImagesSchema.parse({
+        params: { id: 'ad-1' },
+        body: { images },
+      })).not.toThrow();
+    });
+
+    it('rejects an empty image list', () => {
+      expect(() => reorderAdImagesSchema.parse({
+        params: { id: 'ad-1' },
+        body: { images: [] },
+      })).toThrow();
+    });
+
+    it('rejects more than 20 image URLs', () => {
+      expect(() => reorderAdImagesSchema.parse({
+        params: { id: 'ad-1' },
+        body: { images: [...images, 'https://cdn.example.test/ad-21.jpg'] },
+      })).toThrow();
     });
   });
 

@@ -15,10 +15,13 @@
     "test:web": "npm --prefix frontend run test",
     "test:api": "pnpm --filter classifieds-platform-backend test",
     "type-check:web": "npm --prefix frontend run type-check",
+    "type-check:web:e2e": "npm --prefix frontend run type-check:e2e",
+    "type-check:scripts": "npm --prefix frontend run type-check:scripts",
     "type-check:api": "pnpm --filter classifieds-platform-backend type-check",
     "lint:web": "npm --prefix frontend run lint",
     "lint:api": "pnpm --filter classifieds-platform-backend lint",
     "verify:workspace": "node tools/verify-workspace.mts",
+    "verify:prisma-layout": "node tools/verify-prisma-layout.mts",
     "test:contracts": "pnpm --filter @marketplat/contracts test",
     "type-check:contracts": "pnpm --filter @marketplat/contracts type-check",
     "dev:mobile": "pnpm --filter @marketplat/mobile dev",
@@ -29,9 +32,9 @@
     "build:apk:test": "pnpm --filter @marketplat/mobile build:apk:test",
     "verify:apk:test": "pnpm --filter @marketplat/mobile verify:apk:test",
     "build:all": "npm --prefix frontend run build && pnpm --recursive --if-present run build && pnpm --filter @marketplat/mobile build:bundle:ci && make -C apps/go-worker build",
-    "type-check:all": "npm --prefix frontend run type-check && pnpm --recursive --if-present run type-check && make -C apps/go-worker vet",
+    "type-check:all": "npm --prefix frontend run type-check && npm --prefix frontend run type-check:e2e && npm --prefix frontend run type-check:tests && npm --prefix frontend run type-check:scripts && pnpm --recursive --if-present run type-check && make -C apps/go-worker vet && pnpm run verify:type-suppressions",
     "test:all": "npm --prefix frontend run test && pnpm --filter classifieds-platform-backend test && pnpm --filter @marketplat/mobile test:all && pnpm --filter @marketplat/contracts test && pnpm --filter @marketplat/cf-api-proxy test && pnpm --filter marketplat-keepalive-worker test && make -C apps/go-worker test",
-    "lint:all": "npm --prefix frontend run lint && pnpm --recursive --if-present run lint && make -C apps/go-worker fmt-check",
+    "lint:all": "npm --prefix frontend run lint && pnpm --recursive --if-present run lint && make -C apps/go-worker fmt-check && pnpm run verify:type-suppressions",
     "dev:all": "node tools/dev-all.mts",
     "test:worker": "pnpm --filter @marketplat/cf-api-proxy test",
     "type-check:worker": "pnpm --filter @marketplat/cf-api-proxy type-check",
@@ -45,6 +48,9 @@
     "simulator:browser:install": "npm --prefix tools/user-simulator run install:browser",
     "simulator:start": "npm --prefix tools/user-simulator start",
     "simulator:test": "npm --prefix tools/user-simulator test",
-    "verify:all": "pnpm run verify:workspace && pnpm run lint:all && pnpm run type-check:all && pnpm run test:all && pnpm run build:all"
+    "verify:all": "pnpm run verify:workspace && pnpm run verify:prisma-layout && pnpm run lint:all && pnpm run type-check:all && pnpm run test:all && pnpm run build:all",
+    "verify:type-suppressions": "node tools/check-type-suppressions.mjs",
+    "lint": "pnpm run lint:all",
+    "type-check": "pnpm run type-check:all"
   }
 }

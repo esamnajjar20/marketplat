@@ -13,6 +13,18 @@ import type { Product, ServiceListing } from '@prisma/client';
 jest.mock('../../src/modules/engagement/saved-searches/saved-searches.repository');
 jest.mock('../../src/modules/engagement/notifications');
 
+function mockMatchingBatches(...batches: any[][]) {
+  (savedSearchesRepository.iterateAllForMatching as jest.Mock).mockReturnValue(
+    (async function* () {
+      for (const batch of batches) if (batch.length > 0) yield batch;
+    })()
+  );
+}
+
+function mockMatchingSearches(rows: any[] = []) {
+  mockMatchingBatches(rows);
+}
+
 const { matchesAdFilters, matchesProductFilters, matchesServiceFilters } = __testables__;
 // Back-compat alias so the existing ad-matching test block below (all
 // written against the old shared-name `matchesFilters`) didn't need
@@ -226,7 +238,7 @@ describe('savedSearchesService', () => {
 
     it('excludes the ad author\'s own saved searches from matching', async () => {
       const ownSearch = { ...otherUserSearch, userId: 'seller-1' };
-      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([ownSearch]);
+      mockMatchingSearches([ownSearch]);
 
       await savedSearchEvents.onAdCreated(baseAd);
 
@@ -234,9 +246,7 @@ describe('savedSearchesService', () => {
     });
 
     it('notifies matched saved searches and marks them notified', async () => {
-      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([
-        otherUserSearch,
-      ]);
+      mockMatchingSearches([otherUserSearch]);
       (notificationEvents.onSavedSearchMatched as jest.Mock).mockResolvedValue({ count: 1 });
       (savedSearchesRepository.markNotified as jest.Mock).mockResolvedValue({ count: 1 });
 
@@ -251,7 +261,7 @@ describe('savedSearchesService', () => {
 
     it('does nothing when no saved search matches', async () => {
       const nonMatching = { ...otherUserSearch, filters: { city: 'Ramallah' } };
-      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([nonMatching]);
+      mockMatchingSearches([nonMatching]);
 
       await savedSearchEvents.onAdCreated(baseAd);
 
@@ -260,11 +270,24 @@ describe('savedSearchesService', () => {
     });
 
     it('does not call markNotified when there are no candidates at all', async () => {
-      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([]);
+      mockMatchingSearches([]);
 
       await savedSearchEvents.onAdCreated(baseAd);
 
       expect(savedSearchesRepository.markNotified).not.toHaveBeenCalled();
+    });
+
+    it('processes every matching page without a platform-wide hard ceiling', async () => {
+      const secondSearch = { ...otherUserSearch, id: 'search-2', label: 'iPhone models' };
+      mockMatchingBatches([otherUserSearch], [secondSearch]);
+      (notificationEvents.onSavedSearchMatched as jest.Mock).mockResolvedValue({ count: 1 });
+      (savedSearchesRepository.markNotified as jest.Mock).mockResolvedValue({ count: 1 });
+
+      await savedSearchEvents.onAdCreated(baseAd);
+
+      expect(notificationEvents.onSavedSearchMatched).toHaveBeenCalledTimes(2);
+      expect(savedSearchesRepository.markNotified).toHaveBeenNthCalledWith(1, ['search-1']);
+      expect(savedSearchesRepository.markNotified).toHaveBeenNthCalledWith(2, ['search-2']);
     });
 
     // PLATFORM-WIDE-01: a saved search of type 'products'/'services'
@@ -277,10 +300,7 @@ describe('savedSearchesService', () => {
         id: 'search-2',
         filters: { q: 'iPhone', type: 'services' },
       };
-      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([
-        productTypeSearch,
-        serviceTypeSearch,
-      ]);
+      mockMatchingSearches([productTypeSearch, serviceTypeSearch]);
 
       await savedSearchEvents.onAdCreated(baseAd);
 
@@ -374,7 +394,7 @@ describe('savedSearchesService', () => {
 
     it("excludes the store owner's own saved searches from matching", async () => {
       const ownSearch = { ...productTypeSearch, userId: 'owner-1' };
-      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([ownSearch]);
+      mockMatchingSearches([ownSearch]);
 
       await savedSearchEvents.onProductCreated(baseProduct, 'owner-1');
 
@@ -383,7 +403,7 @@ describe('savedSearchesService', () => {
 
     it('excludes saved searches of a different type (ads/services)', async () => {
       const adTypeSearch = { ...productTypeSearch, filters: { q: 'iPhone', type: 'ads' } };
-      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([adTypeSearch]);
+      mockMatchingSearches([adTypeSearch]);
 
       await savedSearchEvents.onProductCreated(baseProduct, 'owner-1');
 
@@ -391,9 +411,7 @@ describe('savedSearchesService', () => {
     });
 
     it('notifies matched saved searches and marks them notified', async () => {
-      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([
-        productTypeSearch,
-      ]);
+      mockMatchingSearches([productTypeSearch]);
       (notificationEvents.onSavedSearchMatched as jest.Mock).mockResolvedValue({ count: 1 });
       (savedSearchesRepository.markNotified as jest.Mock).mockResolvedValue({ count: 1 });
 
@@ -427,7 +445,7 @@ describe('savedSearchesService', () => {
 
     it("excludes the provider's own saved searches from matching", async () => {
       const ownSearch = { ...serviceTypeSearch, userId: 'owner-1' };
-      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([ownSearch]);
+      mockMatchingSearches([ownSearch]);
 
       await savedSearchEvents.onServiceListingCreated(baseListing, 'owner-1');
 
@@ -435,9 +453,7 @@ describe('savedSearchesService', () => {
     });
 
     it('notifies matched saved searches and marks them notified', async () => {
-      (savedSearchesRepository.findAllForMatching as jest.Mock).mockResolvedValue([
-        serviceTypeSearch,
-      ]);
+      mockMatchingSearches([serviceTypeSearch]);
       (notificationEvents.onSavedSearchMatched as jest.Mock).mockResolvedValue({ count: 1 });
       (savedSearchesRepository.markNotified as jest.Mock).mockResolvedValue({ count: 1 });
 

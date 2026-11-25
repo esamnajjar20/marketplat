@@ -54,15 +54,34 @@ export async function assertLegacyDataPreserved(
     if (!Number.isFinite(oldCount) || !Number.isFinite(newCount) || oldCount !== newCount) {
       throw new Error(`SQLCipher migration verification failed: row count mismatch in ${table.name}`);
     }
-    const [legacyRows, encryptedRows] = await Promise.all([
-      legacyDb.getAllAsync<Record<string, unknown>>(`SELECT * FROM ${identifier}`),
-      encryptedDb.getAllAsync<Record<string, unknown>>(`SELECT * FROM ${identifier}`),
-    ]);
-    const oldSignatures = legacyRows.map(rowSignature).sort();
-    const newSignatures = encryptedRows.map(rowSignature).sort();
-    if (oldSignatures.length !== newSignatures.length
-      || oldSignatures.some((signature, index) => signature !== newSignatures[index])) {
-      throw new Error(`SQLCipher migration verification failed: row content mismatch in ${table.name}`);
+    // Compare in bounded, deterministic batches. Reading entire tables into JS memory
+    // made a migration proportional to the largest local cache/outbox table.
+    const columns = await legacyDb.getAllAsync<{ name: string }>(`PRAGMA table_info(${identifier})`);
+    const orderedColumns = columns.map((column) => `"${column.name.replace(/"/g, '""')}"`);
+    if (orderedColumns.length === 0) {
+      throw new Error(`SQLCipher migration verification failed: table ${table.name} has no readable columns`);
+    }
+    const orderBy = orderedColumns.join(', ');
+    const batchSize = 250;
+    for (let offset = 0; offset < oldCount; offset += batchSize) {
+      const [legacyRows, encryptedRows] = await Promise.all([
+        legacyDb.getAllAsync<Record<string, unknown>>(
+          `SELECT * FROM ${identifier} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
+          batchSize,
+          offset,
+        ),
+        encryptedDb.getAllAsync<Record<string, unknown>>(
+          `SELECT * FROM ${identifier} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
+          batchSize,
+          offset,
+        ),
+      ]);
+      const oldSignatures = legacyRows.map(rowSignature);
+      const newSignatures = encryptedRows.map(rowSignature);
+      if (oldSignatures.length !== newSignatures.length
+        || oldSignatures.some((signature, index) => signature !== newSignatures[index])) {
+        throw new Error(`SQLCipher migration verification failed: row content mismatch in ${table.name}`);
+      }
     }
   }
 }

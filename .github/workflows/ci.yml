@@ -17,6 +17,7 @@ on:
       - 'tools/**'
       - 'supabase/**'
       - 'package.json'
+      - 'tsconfig.scripts.json'
       - 'pnpm-lock.yaml'
       - 'pnpm-workspace.yaml'
       - 'turbo.json'
@@ -288,8 +289,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Type-check
+      - name: Type-check application
         run: npm run type-check
+
+      - name: Type-check Playwright E2E sources
+        run: npm run type-check:e2e
+
+      - name: Type-check frontend unit test sources
+        run: npm run type-check:tests
 
       # test بالفعل يعادل "vitest run" في package.json (يعمل مرة واحدة
       # ويخرج، بلا watch-mode)، فـ "-- --run" زائد عن الحاجة ويُحذف.
@@ -609,3 +616,37 @@ jobs:
           tags: marketplat-${{ matrix.service }}:ci
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  # Repository-wide .mts/.cts type-check needs both dependency trees:
+  # pnpm workspace packages (API/contracts/workers) and the standalone npm
+  # frontend (which supplies the TypeScript compiler and its own dependencies).
+  # Running it in the frontend-only job would miss workspace module resolution.
+  scripts-type-check:
+    name: Repository scripts (TypeScript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2 # v4
+        with:
+          version: 10.18.0
+          run_install: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install pnpm workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install standalone frontend dependencies
+        run: npm ci --prefix frontend --prefer-offline --no-audit --no-fund
+
+      - name: Type-check repository Node scripts
+        run: npm --prefix frontend run type-check:scripts

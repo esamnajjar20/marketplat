@@ -6,12 +6,13 @@ import {
   getAdsSchema,
   getMyAdsSchema,
   adIdSchema,
+  removeAdImageSchema,
+  reorderAdImagesSchema,
   searchAdsSchema,
 } from './ads.validation';
 import { successResponse } from '../../../shared/types/api-response.types';
 import { requireUser } from '../../../shared/auth/requireUser';
 import { BadRequestError } from '../../../shared/errors/BadRequestError';
-import { z } from 'zod';
 
 export const adsController = {
   createAd: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -152,9 +153,11 @@ export const adsController = {
   removeImage: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const { params } = adIdSchema.parse({ params: req.params });
-      const { imageUrl } = z.object({ imageUrl: z.string().url() }).parse(req.body);
-      const ad = await adsService.removeImage(params.id, user.userId, user.role, imageUrl);
+      const { params, body } = removeAdImageSchema.parse({
+        params: req.params,
+        body: req.body,
+      });
+      const ad = await adsService.removeImage(params.id, user.userId, user.role, body.imageUrl);
       res.status(200).json(successResponse('Image removed', ad));
     } catch (error) {
       next(error);
@@ -165,9 +168,11 @@ export const adsController = {
   reorderImages: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const user = requireUser(req);
-      const { params } = adIdSchema.parse({ params: req.params });
-      const { images } = z.object({ images: z.array(z.string().url()).min(1) }).parse(req.body);
-      const ad = await adsService.reorderImages(params.id, user.userId, user.role, images);
+      const { params, body } = reorderAdImagesSchema.parse({
+        params: req.params,
+        body: req.body,
+      });
+      const ad = await adsService.reorderImages(params.id, user.userId, user.role, body.images);
       res.status(200).json(successResponse('Images reordered', ad));
     } catch (error) {
       next(error);

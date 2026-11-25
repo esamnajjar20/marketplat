@@ -30,6 +30,9 @@ export default function StorePromotionsScreen() {
   const storeId = Array.isArray(routeParams.storeId) ? routeParams.storeId[0] : routeParams.storeId;
   const { getAccessToken, csrfToken, isRestoring } = useAuth();
   const [items, setItems] = useState<StorePromotion[]>([]);
+  const [promotionsPage, setPromotionsPage] = useState(1);
+  const [promotionsTotalPages, setPromotionsTotalPages] = useState(1);
+  const [loadingMorePromotions, setLoadingMorePromotions] = useState(false);
   const hasLoadedRef = useRef(false);
   const [products, setProducts] = useState<ProductSummary[]>([]);
   const [productsPage, setProductsPage] = useState(1);
@@ -61,7 +64,9 @@ export default function StorePromotionsScreen() {
       const [aR, pR] = await Promise.allSettled([fetchMyPromotions(token, storeId), fetchMyProducts(token, '', { storeId })]);
       if (aR.status === 'rejected')
         throw aR.reason;
-      setItems(aR.value);
+      setItems(aR.value.items);
+      setPromotionsPage(aR.value.page);
+      setPromotionsTotalPages(aR.value.totalPages);
       if (pR.status === 'fulfilled') {
         setProducts(pR.value.items);
         setProductsPage(pR.value.page);
@@ -85,6 +90,25 @@ export default function StorePromotionsScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+  const loadMorePromotions = async () => {
+    const token = getAccessToken();
+    if (!token || loadingMorePromotions || promotionsPage >= promotionsTotalPages) return;
+    setLoadingMorePromotions(true);
+    setError('');
+    try {
+      const next = await fetchMyPromotions(token, storeId, promotionsPage + 1);
+      setItems(current => {
+        const ids = new Set(current.map(item => item.id));
+        return [...current, ...next.items.filter(item => !ids.has(item.id))];
+      });
+      setPromotionsPage(next.page);
+      setPromotionsTotalPages(next.totalPages);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'تعذر تحميل المزيد من العروض.');
+    } finally {
+      setLoadingMorePromotions(false);
+    }
+  };
   const loadMoreProducts = async () => {
     const token = getAccessToken();
     if (!token || loadingMoreProducts || productsPage >= productsTotalPages)
@@ -181,5 +205,5 @@ export default function StorePromotionsScreen() {
           setError(e instanceof Error ? e.message : 'تعذر إلغاء العرض.');
         }
       }
-    }])}/> : null}</SectionCard>)}</>}{error ? <Notice>{error}</Notice> : null}</PageShell>;
+    }])}/> : null}</SectionCard>)}{promotionsPage < promotionsTotalPages ? <PrimaryButton label={loadingMorePromotions ? 'جارٍ تحميل العروض…' : 'تحميل المزيد من العروض'} variant="secondary" busy={loadingMorePromotions} disabled={loadingMorePromotions} onPress={() => void loadMorePromotions()}/> : null}</>}{error ? <Notice>{error}</Notice> : null}</PageShell>;
 }

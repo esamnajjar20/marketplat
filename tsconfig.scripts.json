@@ -2,18 +2,38 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "ES2023",
-    "lib": ["ES2023"],
+    "lib": [
+      "ES2023"
+    ],
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "typeRoots": [
+      "./node_modules/@types",
+      "./frontend/node_modules/@types",
+      "./apps/api/node_modules/@types",
+      "./apps/mobile/node_modules/@types",
+      "./workers/cf-api-proxy/node_modules/@types"
+    ]
   },
-  "include": ["**/*.mts", "**/*.cts"],
-  "exclude": ["**/node_modules", "**/dist", "**/.next", "**/.expo", "workers/cf-api-proxy/dist"]
+  "include": [
+    "**/*.mts",
+    "**/*.cts"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/dist",
+    "**/.next",
+    "**/.expo",
+    "workers/cf-api-proxy/dist"
+  ]
 }

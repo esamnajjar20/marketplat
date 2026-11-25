@@ -9,6 +9,20 @@ import {
   queueCloudinaryAssetCleanup,
 } from '../../../shared/media/cloudinaryHelpers';
 
+function isUnorderedPairUniqueViolation(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: unknown; meta?: unknown; message?: unknown };
+  const diagnosticParts = [String(candidate.message ?? '')];
+  try {
+    diagnosticParts.push(JSON.stringify(candidate.meta ?? {}));
+  } catch {
+    // Some driver metadata can contain non-serializable values; the message
+    // remains a useful fallback and this predicate must never mask the DB error.
+  }
+  return (candidate.code === '23505' || candidate.code === 'P2010') &&
+    diagnosticParts.join(' ').includes('conversations_unordered_pair_key');
+}
+
 export type ConversationWithRelations = Prisma.ConversationGetPayload<{
   include: {
     ad: { select: { id: true; title: true; images: true; status: true } };
@@ -77,17 +91,13 @@ const conversationWithRelations = {
 
 export const conversationsRepository = {
   /**
-   * FEAT-CONV-DEDUP: the conversation's identity is the (buyerId,
-   * sellerId) *pair* of users — not which of the two is stored in
-   * which column. A thread A opens by messaging B's ad (buyerId: A,
-   * sellerId: B) must be the same thread B later reopens by messaging
-   * A's ad (buyerId: B, sellerId: A) or A's profile directly. The DB's
-   * own @@unique([buyerId, sellerId]) only dedupes one exact ordering
-   * (see that index's schema comment), so every lookup here checks
-   * both orderings — whichever one exists, if any, is the canonical
-   * conversation for this pair. Always a findFirst, never findUnique:
-   * even though at most one row can match, Postgres has no single
-   * index that covers "either ordering" as one unique key.
+   * FEAT-CONV-DEDUP: a conversation belongs to the unordered pair of
+   * participants, not to the direction in which they first contacted
+   * each other. The PostgreSQL expression unique index on
+   * LEAST(buyerId, sellerId), GREATEST(buyerId, sellerId) enforces that
+   * invariant; this OR lookup finds the canonical directional row.
+   * Prisma cannot address the expression index through findUnique, so
+   * findFirst is intentional.
    */
   findByUserPair: (userAId: string, userBId: string): Promise<Conversation | null> =>
     prisma.conversation.findFirst({
@@ -143,9 +153,10 @@ export const conversationsRepository = {
    * pair of users if one exists (either direction — see
    * findByUserPair), otherwise create one. Concurrent callers can both
    * pass the initial lookup and race into create() — the DB's
-   * @@unique([buyerId, sellerId]) then rejects whichever insert loses
-   * the race with P2002, which is caught here and turned into a
-   * refetch-and-return-existing instead of a user-facing error. Same
+   * exact-direction @@unique and the raw unordered-pair expression
+   * index reject concurrent duplicates. The latter may surface as a
+   * PostgreSQL 23505/P2010 error; both are caught here and turned into
+   * a refetch-and-return-existing instead of a user-facing error. Same
    * idempotent-create shape already used elsewhere in this codebase
    * (see blocked-users.service.ts's toggleBlock).
    *
@@ -168,10 +179,11 @@ export const conversationsRepository = {
     // thread. Insert keeps SEMANTIC roles: buyerId = initiator / customer,
     // sellerId = listing owner / provider. Do NOT alphabetize — metrics
     // jobs (updateSellerResponseMetrics) and trust UI depend on those
-    // meanings. Same-order races are covered by @@unique + P2002; reverse-
-    // order concurrent inserts remain rare and are cleaned by the merge
-    // migration. A future LEAST/GREATEST unique index can harden this
-    // without rewriting column semantics.
+    // meanings. Database uniqueness is enforced for both exact order
+    // (@@unique) and unordered pairs (the LEAST/GREATEST expression
+    // index installed by the integrity migration). If concurrent
+    // opposite-direction inserts race, the losing request refetches the
+    // canonical thread in the catch block below.
     const existing = await conversationsRepository.findByUserPair(buyerId, sellerId);
     if (existing) {
       await conversationsRepository.ensureUserSettings(existing.id, [buyerId, sellerId]);
@@ -181,7 +193,7 @@ export const conversationsRepository = {
     try {
       return await conversationsRepository.create(buyerId, sellerId, context);
     } catch (err) {
-      if (!isPrismaError(err, 'P2002')) throw err;
+      if (!isPrismaError(err, 'P2002') && !isUnorderedPairUniqueViolation(err)) throw err;
       const winner = await conversationsRepository.findByUserPair(buyerId, sellerId);
       if (winner) {
         await conversationsRepository.ensureUserSettings(winner.id, [buyerId, sellerId]);

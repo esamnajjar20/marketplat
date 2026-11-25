@@ -159,6 +159,17 @@ describe('appointmentsService', () => {
       );
     });
 
+    it('maps a PostgreSQL exclusion-constraint race to TIME_SLOT_ALREADY_BOOKED', async () => {
+      (appointmentsRepository.findOverlapping as jest.Mock).mockResolvedValue(null);
+      (appointmentsRepository.create as jest.Mock).mockRejectedValue(
+        Object.assign(new Error('conflicting key violates exclusion constraint'), { code: '23P01' })
+      );
+
+      await expect(appointmentsService.createAppointment(userId, input)).rejects.toMatchObject({
+        code: 'TIME_SLOT_ALREADY_BOOKED',
+      });
+    });
+
     it('does not notify anyone for a direct booking with no requestId', async () => {
       (appointmentsRepository.findOverlapping as jest.Mock).mockResolvedValue(null);
       (appointmentsRepository.create as jest.Mock).mockResolvedValue(mockAppointment);

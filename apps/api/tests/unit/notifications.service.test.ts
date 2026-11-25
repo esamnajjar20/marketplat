@@ -150,7 +150,7 @@ describe('notificationsService', () => {
       expect(result).toBe(2);
     });
 
-    it('sends the push AFTER the in-app rows are written, one slice at a time', async () => {
+    it('awaits each push after inserting its bounded notification slice', async () => {
       const order: string[] = [];
       (prisma.user.findMany as jest.Mock).mockImplementation(
         async ({ where }: { where: { id: { in: string[] } } }) =>
@@ -166,14 +166,13 @@ describe('notificationsService', () => {
 
       const ids = Array.from({ length: 600 }, (_, i) => `u${i}`);
       const total = await notificationsService.broadcastPromotion(ids, 'عنوان', 'نص');
-      await new Promise((r) => setImmediate(r)); // let the un-awaited push chain drain
 
       expect(total).toBe(600);
       const at = (e: string) => order.indexOf(e);
       // each slice's push comes after that slice's rows...
       expect(at('push:500')).toBeGreaterThan(at('createMany:500'));
       expect(at('push:100')).toBeGreaterThan(at('createMany:100'));
-      // ...and slice pushes never overlap/reorder (serialized chain)
+      // ...and each page's push completes before the next page is read.
       expect(at('push:100')).toBeGreaterThan(at('push:500'));
     });
   });

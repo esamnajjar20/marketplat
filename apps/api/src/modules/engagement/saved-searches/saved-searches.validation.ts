@@ -19,9 +19,9 @@ export const savedSearchTypeSchema = z.enum(['ads', 'products', 'services']).def
 // PLATFORM-WIDE-01: `city` and `condition` stay ad-only in practice —
 // neither Product nor ServiceListing carries a city or condition column
 // directly (city would need a join through StoreDetails/
-// ServiceProviderDetails, out of scope for the same reason
-// findAllForMatching's own doc comment gives for staying in-Node rather
-// than pushing matching into SQL), so matchesFilters below only reads
+// ServiceProviderDetails, so the match predicates stay in the service
+// layer while the repository streams records in bounded pages;
+// matchesFilters below only reads
 // them when type === 'ads'. Left un-rejected here (rather than a
 // refine() forbidding them for other types) so the schema doesn't need
 // to change again if city/condition matching for products/services is

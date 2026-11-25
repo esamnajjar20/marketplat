@@ -321,11 +321,24 @@ export const favoritesRepository = {
    * this is the compatibility-layer boundary those call sites depend
    * on — renaming it buys nothing PR1/PR2 need and just adds churn to
    * ads.service.ts. */
-  findUserIdsByAdId: async (adId: string): Promise<string[]> => {
-    const favorites = await prisma.favorite.findMany({
-      where: { entityType: 'AD', entityId: adId },
-      select: { userId: true },
-    });
-    return favorites.map(f => f.userId);
+  async *findUserIdsByAdId(adId: string, batchSize = 500): AsyncGenerator<string[]> {
+    const size = Math.min(500, Math.max(1, Math.trunc(batchSize) || 500));
+    let cursor: string | undefined;
+    while (true) {
+      const rows = await prisma.favorite.findMany({
+        where: {
+          entityType: 'AD',
+          entityId: adId,
+          ...(cursor ? { id: { gt: cursor } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: size,
+        select: { id: true, userId: true },
+      });
+      if (rows.length === 0) return;
+      yield rows.map(row => row.userId);
+      cursor = rows[rows.length - 1].id;
+      if (rows.length < size) return;
+    }
   },
 };

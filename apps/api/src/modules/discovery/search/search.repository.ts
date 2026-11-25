@@ -150,13 +150,13 @@ function boundingBoxSql(
 // distance_km being NULL on every row (a search with no geo at all)
 // is not a case this ordering needs to handle specially.
 const SORT_ORDER_BY_SQL: Record<SearchQuery['sort'], Prisma.Sql> = {
-  relevance: Prisma.sql`rank DESC, created_at DESC`,
-  rating: Prisma.sql`rating DESC, rank DESC, created_at DESC`,
-  newest: Prisma.sql`created_at DESC`,
-  views: Prisma.sql`views DESC, rank DESC, created_at DESC`,
-  price_asc: Prisma.sql`NULLIF(price, '')::numeric ASC NULLS LAST, rank DESC, created_at DESC`,
-  price_desc: Prisma.sql`NULLIF(price, '')::numeric DESC NULLS LAST, rank DESC, created_at DESC`,
-  distance: Prisma.sql`distance_km ASC NULLS LAST, rank DESC, created_at DESC`,
+  relevance: Prisma.sql`rank DESC, created_at DESC, type ASC, id ASC`,
+  rating: Prisma.sql`rating DESC, rank DESC, created_at DESC, type ASC, id ASC`,
+  newest: Prisma.sql`created_at DESC, type ASC, id ASC`,
+  views: Prisma.sql`views DESC, rank DESC, created_at DESC, type ASC, id ASC`,
+  price_asc: Prisma.sql`NULLIF(price, '')::numeric ASC NULLS LAST, rank DESC, created_at DESC, type ASC, id ASC`,
+  price_desc: Prisma.sql`NULLIF(price, '')::numeric DESC NULLS LAST, rank DESC, created_at DESC, type ASC, id ASC`,
+  distance: Prisma.sql`distance_km ASC NULLS LAST, rank DESC, created_at DESC, type ASC, id ASC`,
 };
 
 // soft boost for entity types implied
@@ -199,22 +199,18 @@ function buildOrderBySql(
 // table, this means pulling every active row from every table into
 // memory before discarding all but `take` of them.
 //
-// Each branch is now wrapped with the SAME ORDER BY the outer query
-// uses and a LIMIT of its own — `skip + take` rows is enough for any
-// single branch to guarantee correctness (the page being requested
-// can contain at most `skip + take` rows total from any one branch,
-// since it's already sorted the same way outer query will re-sort the
-// combined set), multiplied by a small safety factor and capped at a
-// hard ceiling so a pathological page/limit combination can't make
-// the per-branch limit unbounded again. The final ORDER BY/OFFSET/
-// LIMIT on the combined result is unchanged and still produces
-// identical results to the unlimited version — this only prunes rows
-// that could never appear on the requested page in the first place.
-const PER_BRANCH_LIMIT_SAFETY_FACTOR = 2;
-const PER_BRANCH_LIMIT_CEILING = 500;
-
-function perBranchLimit(skip: number, take: number): number {
-  return Math.min((skip + take) * PER_BRANCH_LIMIT_SAFETY_FACTOR, PER_BRANCH_LIMIT_CEILING);
+// Each branch is wrapped with the SAME deterministic ORDER BY as the
+// outer query. Keeping the first `skip + take` rows from every branch is
+// sufficient: no row ranked after K in one branch can enter the global
+// first K after UNION ALL. A fixed ceiling would break this proof and
+// silently truncate deep pages, so the branch limit is exactly K.
+export function perBranchLimit(skip: number, take: number): number {
+  // Keep exactly the first K rows from each branch, where K is the
+  // requested global offset plus page size. Any row ranked below K in
+  // one branch cannot enter the global first K after UNION/ORDER BY.
+  // Do not apply a fixed ceiling here: it silently truncates valid deep
+  // pages when a single branch dominates the global result set.
+  return skip + take;
 }
 
 // arabic_normalize() on both sides (index + query).
@@ -703,19 +699,10 @@ export const searchRepository = {
 
     const orderBySql = buildOrderBySql(sort, preferredTypes);
 
-    // cap what each branch can contribute to the *result
-    // rows* before the UNION ALL — see perBranchLimit's own comment
-    // above for why `skip + take` (with a safety factor and hard
-    // ceiling) is enough to keep the returned page identical to the
-    // unlimited version. The COUNT query below deliberately does NOT
-    // use this same limited union — capping rows before UNION ALL is
-    // safe for "which rows appear on this page" (they're sorted first,
-    // so only rows that could never appear on the page get dropped)
-    // but would make `total` wrong the moment any branch has more
-    // matches than the per-branch cap. COUNT(*) never materializes
-    // full rows regardless of table size, so leaving it unlimited
-    // doesn't reintroduce the memory-blowup problem this for —
-    // only the row-fetching side needed the limit.
+    // Cap each branch at the global window (skip + take) before UNION.
+    // The independent COUNT query remains exact for API compatibility;
+    // it transfers one aggregate row to Node but still scans matching DB
+    // entries and therefore is not constant-time for broad searches.
     const branchLimit = perBranchLimit(skip, take);
     const limitedBranches = branches.map(
       b =>

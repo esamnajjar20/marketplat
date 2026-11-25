@@ -9,6 +9,8 @@
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { FlatCompat } from '@eslint/eslintrc';
+import tsParser from '@typescript-eslint/parser';
+import tsPlugin from '@typescript-eslint/eslint-plugin';
 import { globalIgnores } from 'eslint/config';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -44,12 +46,37 @@ const eslintConfig = [
     'backup*/**',
     // Receipt page is hand-minified.
     'app/(protected)/account/sales/**/receipt/page.tsx',
-    // Internal audit scripts (bundle-report, cache-layer-audit, ...).
-    'scripts/**',
   ]),
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
 
-
+  // Type-aware linting for application, unit-test, and E2E TypeScript.
+  // Each file is resolved through the TSConfig that actually includes it;
+  // this catches async bugs and unsafe `any` flows beyond plain syntax lint.
+  {
+    files: ['**/*.{ts,tsx}'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: ['./tsconfig.json', './tsconfig.tests.json', './e2e/tsconfig.json'],
+        tsconfigRootDir: __dirname,
+        sourceType: 'module',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tsPlugin,
+    },
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'warn',
+      '@typescript-eslint/no-misused-promises': 'warn',
+      '@typescript-eslint/await-thenable': 'warn',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
+      '@typescript-eslint/no-unsafe-assignment': 'warn',
+      '@typescript-eslint/no-unsafe-argument': 'warn',
+      '@typescript-eslint/no-unsafe-call': 'warn',
+      '@typescript-eslint/no-unsafe-member-access': 'warn',
+      '@typescript-eslint/no-unsafe-return': 'warn',
+    },
+  },
 
   {
     rules: {
@@ -109,13 +136,13 @@ const eslintConfig = [
     },
   },
 
-  // scripts/ contains audit tools and generators that intentionally:
+  // Audit tools and generators are linted with targeted allowances:
   //   - use console.* for user-visible output
   //   - use `import()` type syntax for dynamic typing
   //   - use require() in .cjs (CommonJS)
   //   - keep some variables for side effects
   {
-    files: ['scripts/**/*.{js,mjs,cjs,ts}'],
+    files: ['scripts/**/*.{js,mjs,cjs,ts,tsx,mts,cts}'],
     rules: {
       'no-console': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
@@ -129,6 +156,30 @@ const eslintConfig = [
           caughtErrors: 'none',
         },
       ],
+    },
+  },
+
+
+  {
+    files: ['scripts/**/*.{mts,cts}'],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        project: ['../tsconfig.scripts.json'],
+        tsconfigRootDir: __dirname,
+        sourceType: 'module',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tsPlugin,
+    },
+    rules: {
+      // These rules use the TypeScript program and identify async/control-flow bugs
+      // in standalone tools that were previously excluded from ESLint entirely.
+      '@typescript-eslint/no-floating-promises': 'warn',
+      '@typescript-eslint/no-misused-promises': 'warn',
+      '@typescript-eslint/await-thenable': 'warn',
+      '@typescript-eslint/no-unnecessary-type-assertion': 'warn',
     },
   },
 

@@ -2,33 +2,22 @@ import { adminService } from '../../src/modules/platform/admin/admin.service';
 import { prisma } from '../../src/config/prisma';
 import { createTestUser } from '../helpers/auth.helper';
 
-/**
- * Uses the real (unmocked) prisma client via createTestUser, same
- * approach as admin.service.test.ts's own getStats/getAllUsers suites —
- * getAllActiveUserIds is a straightforward findMany + map with no
- * business logic worth mocking around, and testing it against a real
- * isActive filter is more convincing than asserting a mocked where
- * clause matches what the implementation happens to pass.
- */
-describe('adminService.getAllActiveUserIds', () => {
-  it('returns only the ids of active users, excluding deactivated ones', async () => {
-    const active1 = await createTestUser({ email: `active1-${Date.now()}@example.com` });
-    const active2 = await createTestUser({ email: `active2-${Date.now()}@example.com` });
-    const inactive = await createTestUser({ email: `inactive-${Date.now()}@example.com` });
+describe('adminService.iterateActiveUserIdBatches', () => {
+  it('yields stable keyset batches and excludes inactive users', async () => {
+    const marker = Date.now();
+    const active1 = await createTestUser({ email: `batch-active1-${marker}@example.com` });
+    const active2 = await createTestUser({ email: `batch-active2-${marker}@example.com` });
+    const inactive = await createTestUser({ email: `batch-inactive-${marker}@example.com` });
     await prisma.user.update({ where: { id: inactive.id }, data: { isActive: false } });
 
-    const result = await adminService.getAllActiveUserIds();
+    const batches: string[][] = [];
+    for await (const batch of adminService.iterateActiveUserIdBatches(1)) batches.push(batch);
+    const ids = batches.flat();
 
-    expect(result).toEqual(expect.arrayContaining([active1.id, active2.id]));
-    expect(result).not.toContain(inactive.id);
-  });
-
-  it('returns an empty array when there are no active users', async () => {
-    const onlyUser = await createTestUser({ email: `solo-${Date.now()}@example.com` });
-    await prisma.user.update({ where: { id: onlyUser.id }, data: { isActive: false } });
-
-    const result = await adminService.getAllActiveUserIds();
-
-    expect(result).not.toContain(onlyUser.id);
+    expect(ids).toEqual([...ids].sort());
+    expect(ids).toContain(active1.id);
+    expect(ids).toContain(active2.id);
+    expect(ids).not.toContain(inactive.id);
+    expect(batches.every(batch => batch.length === 1)).toBe(true);
   });
 });

@@ -137,9 +137,9 @@ func run(ctx context.Context, db *sql.DB, request Request, cacheConfig *rediswir
 	case UserActivityEvent:
 		err = processUserActivity(ctx, tx, event)
 	case SavedSearchMatchEvent:
-		result.Created, err = processSavedSearchMatch(ctx, tx, event)
+		err = processSavedSearchMatch(ctx, tx, event)
 	case FollowedActivityEvent:
-		result.Created, err = processFollowedActivity(ctx, tx, event)
+		err = processFollowedActivity(ctx, tx, event)
 	case CacheGenerationBumpEvent:
 		err = processCacheGenerationBump(ctx, tx, event, cacheConfig)
 	default:
@@ -220,13 +220,13 @@ func processUserActivity(ctx context.Context, tx *sql.Tx, event eventRow) error 
 	return nil
 }
 
-func processSavedSearchMatch(ctx context.Context, tx *sql.Tx, event eventRow) ([]Notification, error) {
+func processSavedSearchMatch(ctx context.Context, tx *sql.Tx, event eventRow) error {
 	var payload savedSearchPayload
 	if err := json.Unmarshal(event.Payload, &payload); err != nil {
-		return nil, fmt.Errorf("decode saved-search payload: %w", err)
+		return fmt.Errorf("decode saved-search payload: %w", err)
 	}
 	if payload.AdID == "" || payload.AdTitle == "" || len(payload.AdTitle) > 2000 || len(payload.Matches) > 5000 {
-		return nil, errors.New("saved-search payload is invalid")
+		return errors.New("saved-search payload is invalid")
 	}
 	seen := make(map[string]struct{}, len(payload.Matches))
 	uniqueMatches := make([]struct {
@@ -236,7 +236,7 @@ func processSavedSearchMatch(ctx context.Context, tx *sql.Tx, event eventRow) ([
 	}, 0, len(payload.Matches))
 	for _, match := range payload.Matches {
 		if match.UserID == "" || match.SavedSearchID == "" {
-			return nil, errors.New("saved-search match is missing userId or savedSearchId")
+			return errors.New("saved-search match is missing userId or savedSearchId")
 		}
 		key := match.UserID + "\x00" + match.SavedSearchID
 		if _, exists := seen[key]; exists {
@@ -247,10 +247,11 @@ func processSavedSearchMatch(ctx context.Context, tx *sql.Tx, event eventRow) ([
 	}
 	encoded, err := json.Marshal(uniqueMatches)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	rows, err := tx.QueryContext(ctx, `
+	var insertedCount int64
+	err = tx.QueryRowContext(ctx, `
 		WITH matches AS (
 			SELECT DISTINCT m."userId", m."savedSearchId", m."label"
 			FROM jsonb_to_recordset($1::jsonb) AS m("userId" text, "savedSearchId" text, "label" text)
@@ -278,15 +279,12 @@ func processSavedSearchMatch(ctx context.Context, tx *sql.Tx, event eventRow) ([
 			ON CONFLICT ("idempotencyKey") DO NOTHING
 			RETURNING "id"
 		)
-		SELECT i."id", i."userId", i."type", i."title", i."body", i."data" FROM inserted i
-	`, string(encoded), payload.AdID, event.ID, payload.AdTitle)
+		SELECT COUNT(*) FROM inserted i
+	`, string(encoded), payload.AdID, event.ID, payload.AdTitle).Scan(&insertedCount)
 	if err != nil {
-		return nil, fmt.Errorf("insert saved-search notifications: %w", err)
+		return fmt.Errorf("insert saved-search notifications: %w", err)
 	}
-	created, err := scanNotifications(rows)
-	if err != nil {
-		return nil, err
-	}
+	_ = insertedCount // durable rows are replayed by Express in bounded batches after commit.
 
 	searchIDs := make([]string, 0, len(uniqueMatches))
 	for _, match := range uniqueMatches {
@@ -294,33 +292,34 @@ func processSavedSearchMatch(ctx context.Context, tx *sql.Tx, event eventRow) ([
 	}
 	if len(searchIDs) > 0 {
 		if _, err := tx.ExecContext(ctx, `UPDATE "saved_searches" SET "lastNotifiedAt" = NOW() WHERE "id" = ANY($1::text[])`, searchIDs); err != nil {
-			return nil, fmt.Errorf("update saved-search notification timestamps: %w", err)
+			return fmt.Errorf("update saved-search notification timestamps: %w", err)
 		}
 	}
-	return created, nil
+	return nil
 }
 
-func processFollowedActivity(ctx context.Context, tx *sql.Tx, event eventRow) ([]Notification, error) {
+func processFollowedActivity(ctx context.Context, tx *sql.Tx, event eventRow) error {
 	var payload followedPayload
 	if err := json.Unmarshal(event.Payload, &payload); err != nil {
-		return nil, fmt.Errorf("decode followed-activity payload: %w", err)
+		return fmt.Errorf("decode followed-activity payload: %w", err)
 	}
 	if len(payload.Targets) == 0 || len(payload.Targets) > 10 || payload.Title == "" || payload.Body == "" || len(payload.Body) > 500 ||
 		!oneOf(payload.Type, "FOLLOWED_USER_ACTIVITY", "FOLLOWED_STORE_ACTIVITY", "FOLLOWED_CATEGORY_ACTIVITY") ||
 		len(payload.Data) == 0 || !json.Valid(payload.Data) {
-		return nil, errors.New("followed-activity payload is invalid")
+		return errors.New("followed-activity payload is invalid")
 	}
 	for _, target := range payload.Targets {
 		if !oneOf(target.TargetType, "USER", "STORE", "CATEGORY") || target.TargetID == "" {
-			return nil, errors.New("followed-activity target is invalid")
+			return errors.New("followed-activity target is invalid")
 		}
 	}
 	encoded, err := json.Marshal(payload.Targets)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	rows, err := tx.QueryContext(ctx, `
+	var insertedCount int64
+	err = tx.QueryRowContext(ctx, `
 		WITH targets AS (
 			SELECT DISTINCT t."targetType", t."targetId"
 			FROM jsonb_to_recordset($1::jsonb) AS t("targetType" text, "targetId" text)
@@ -347,36 +346,13 @@ func processFollowedActivity(ctx context.Context, tx *sql.Tx, event eventRow) ([
 			ON CONFLICT ("idempotencyKey") DO NOTHING
 			RETURNING "id"
 		)
-		SELECT i."id", i."userId", i."type", i."title", i."body", i."data" FROM inserted i
-	`, string(encoded), event.ID, payload.Type, payload.Title, payload.Body, string(payload.Data), event.AggregateID)
+		SELECT COUNT(*) FROM inserted i
+	`, string(encoded), event.ID, payload.Type, payload.Title, payload.Body, string(payload.Data), event.AggregateID).Scan(&insertedCount)
 	if err != nil {
-		return nil, fmt.Errorf("insert followed-activity notifications: %w", err)
+		return fmt.Errorf("insert followed-activity notifications: %w", err)
 	}
-	created, err := scanNotifications(rows)
-	if err != nil {
-		return nil, err
-	}
-	return created, nil
-}
-
-func scanNotifications(rows *sql.Rows) ([]Notification, error) {
-	defer rows.Close()
-	created := make([]Notification, 0)
-	for rows.Next() {
-		var item Notification
-		var data []byte
-		if err := rows.Scan(&item.ID, &item.UserID, &item.Type, &item.Title, &item.Body, &data); err != nil {
-			return nil, err
-		}
-		if len(data) > 0 {
-			item.Data = append(json.RawMessage(nil), data...)
-		}
-		created = append(created, item)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return created, nil
+	_ = insertedCount // durable rows are replayed by Express in bounded batches after commit.
+	return nil
 }
 
 func oneOf(value string, allowed ...string) bool {

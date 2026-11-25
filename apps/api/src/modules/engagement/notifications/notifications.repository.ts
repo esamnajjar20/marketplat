@@ -17,6 +17,7 @@ import { pushSubscriptionsRepository } from '../../../shared/notifications/pushS
 import { fcmDeviceTokensRepository } from '../../../shared/notifications/fcmDeviceTokensRepository';
 import { maybeScheduleEmailFallback } from '../../../shared/email/emailFallbackScheduler';
 import { asPlainObject } from '../../../shared/utils/asPlainObject';
+import { logger } from '../../../shared/observability/logger';
 
 export interface CreateNotificationInput {
   userId: string;
@@ -74,69 +75,73 @@ export const notificationsRepository = {
    * doesn't return the created rows (fine here: nothing reads them back
    * immediately after a broadcast). */
   createMany: async (inputs: CreateNotificationInput[]): Promise<Prisma.BatchPayload> => {
-    // Prisma 5.22/PostgreSQL supports createManyAndReturn, so the bulk insert
-    // stays one DB operation while SSE can carry the real persisted notification
-    // id for every created row. This keeps reconnect/dedup semantics aligned with
-    // the durable row instead of emitting id-less bulk events.
-    const created = await prisma.notification.createManyAndReturn({
-      data: inputs,
-      select: {
-        id: true,
-        userId: true,
-        type: true,
-        title: true,
-        body: true,
-        data: true,
-      },
-    });
-    const result = { count: created.length };
-    // invalidate every distinct recipient's cached
-    // count, not just re-fetch — Set de-dupes since a broadcast/fan-out
-    // list is not guaranteed unique-per-user (see onSavedSearchMatched's
-    // own comment: one user can appear twice for two different matches).
-    // Best-effort in parallel; unreadNotificationsCache itself swallows
-    // individual Redis failures, so one failed invalidation can't block
-    // or fail the others.
-    const recipientIds = Array.from(new Set(inputs.map(i => i.userId)));
-
-    // bound concurrent
-    // invalidation. Each invalidate is now a Redis DEL + PUBLISH (see
-    // the unreadNotificationsCache Pub/Sub fix), so an unbounded
-    // Promise.all over recipientIds meant an admin broadcast to 100K
-    // users issued 200K Redis commands in a single tick — saturating
-    // the Valkey connection, stalling the Node event loop, and
-    // pressuring the plan's command quota. 50 concurrent invalidations
-    // per batch keeps the pipeline warm without flooding. Remaining
-    // entries drain in subsequent batches before createMany returns,
-    // so no cache entry is left stale by the time the response goes out.
+    // Keep INSERT RETURNING, cache invalidation, and SSE publication bounded.
+    // The service fan-out path already streams 500 recipients at a time; this
+    // repository guard also protects admin/internal callers that pass a large
+    // array directly.
+    const BATCH_SIZE = 500;
     const INVALIDATE_CONCURRENCY = 50;
-    for (let i = 0; i < recipientIds.length; i += INVALIDATE_CONCURRENCY) {
-      await Promise.all(
-        recipientIds
-          .slice(i, i + INVALIDATE_CONCURRENCY)
-          .map(userId => unreadNotificationsCache.invalidate(userId))
-      );
+    let totalCreated = 0;
+
+    for (let offset = 0; offset < inputs.length; offset += BATCH_SIZE) {
+      const batch = inputs.slice(offset, offset + BATCH_SIZE);
+      if (batch.length === 0) continue;
+
+      const created = await prisma.notification.createManyAndReturn({
+        data: batch,
+        select: {
+          id: true,
+          userId: true,
+          type: true,
+          title: true,
+          body: true,
+          data: true,
+        },
+      });
+      totalCreated += created.length;
+
+      const recipientIds = Array.from(new Set(batch.map(input => input.userId)));
+      for (let i = 0; i < recipientIds.length; i += INVALIDATE_CONCURRENCY) {
+        const results = await Promise.allSettled(
+          recipientIds
+            .slice(i, i + INVALIDATE_CONCURRENCY)
+            .map(userId => unreadNotificationsCache.invalidate(userId))
+        );
+        const failures = results.filter(result => result.status === 'rejected').length;
+        if (failures > 0) {
+          // Notification rows are already durable. Cache invalidation is a
+          // best-effort hint and must not truncate the remaining fan-out.
+          logger.warn('Notification fan-out cache invalidation partially failed', {
+            batchSize: Math.min(INVALIDATE_CONCURRENCY, recipientIds.length - i),
+            failures,
+          });
+        }
+      }
+
+      // Publish one bounded page at a time; no whole-event notification
+      // result array is retained while the remaining inserts are performed.
+      await publishNotificationEventsToMany(
+        created.map(notification => ({
+          userId: notification.userId,
+          event: {
+            type: 'notification' as const,
+            action: 'created' as const,
+            notificationId: notification.id,
+            notificationType: notification.type,
+            title: notification.title,
+            body: notification.body,
+            data: asPlainObject(notification.data),
+          },
+        }))
+      ).catch(error => {
+        logger.warn('Notification fan-out SSE publication failed after durable insert', {
+          batchSize: created.length,
+          error,
+        });
+      });
     }
 
-    // Publish the rows returned by the DB so each live event carries the
-    // notification id actually stored in PostgreSQL. The stream helper keeps
-    // the existing bounded replay behavior for large fan-outs.
-    void publishNotificationEventsToMany(
-      created.map(notification => ({
-        userId: notification.userId,
-        event: {
-          type: 'notification' as const,
-          action: 'created' as const,
-          notificationId: notification.id,
-          notificationType: notification.type,
-          title: notification.title,
-          body: notification.body,
-          data: asPlainObject(notification.data),
-        },
-      }))
-    );
-
-    return result;
+    return { count: totalCreated };
   },
 
   findManyForUser: async (

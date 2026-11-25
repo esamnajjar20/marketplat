@@ -212,40 +212,36 @@ export const notificationsService = {
    * the controller resolves "all active users" into a concrete id list
    * before calling this, it isn't a magic empty-array meaning.
    */
-  broadcastPromotion: async (userIds: string[], title: string, body: string): Promise<number> => {
-    if (userIds.length === 0) return 0;
-
-    // Process broadcasts in 500-user slices to bound query size, memory use,
-    // and transaction duration while allowing completed slices to remain.
-    const BROADCAST_CHUNK_SIZE = 500;
-    const unique = Array.from(new Set(userIds));
+  broadcastPromotion: async (
+    userIds: FanOutRecipientSource,
+    title: string,
+    body: string
+  ): Promise<number> => {
     let totalCreated = 0;
-    // Serialize push fan-out per slice to avoid multiplying concurrent
-    // outbound work for large broadcasts.
-    let pushChain: Promise<void> = Promise.resolve();
 
-    for (let i = 0; i < unique.length; i += BROADCAST_CHUNK_SIZE) {
-      const slice = unique.slice(i, i + BROADCAST_CHUNK_SIZE);
-      const recipients = await filterUserIdsByPref(slice, 'promotions');
+    // Both explicit lists and the "all active users" iterator flow through
+    // the same bounded pipeline. The iterator is keyset-paged in the admin
+    // service, so the broadcast never loads the whole user table in memory.
+    for await (const batch of recipientBatches(userIds)) {
+      const recipients = await filterUserIdsByPref(Array.from(new Set(batch)), 'promotions');
       if (recipients.length === 0) continue;
 
-      // In-app rows first, then push (a push never refers to a row that
-      // failed to insert). Web Push + FCM stay fire-and-forget.
       const result = await notificationsRepository.createMany(
         recipients.map(userId => ({ userId, type: 'PROMOTION' as const, title, body }))
       );
       totalCreated += result.count;
 
-      pushChain = pushChain
-        .then(() =>
-          pushService.notifyUsers(recipients, {
-            title,
-            body,
-            url: '/notifications',
-            tag: 'platform-promotion',
-            type: 'PROMOTION',
-          })
-        )
+      // Apply backpressure: finish the current page's push dispatch before
+      // reading the next database page. Failures are logged, not propagated,
+      // because in-app notification rows have already been committed.
+      await pushService
+        .notifyUsers(recipients, {
+          title,
+          body,
+          url: '/notifications',
+          tag: 'platform-promotion',
+          type: 'PROMOTION',
+        })
         .catch(error =>
           reportBackgroundFailure(
             'apps/api/src/modules/engagement/notifications/notifications.service.ts',
@@ -254,7 +250,6 @@ export const notificationsService = {
         );
     }
 
-    void pushChain;
     return totalCreated;
   },
 
@@ -470,8 +465,27 @@ export const notificationsService = {
 // covers the "same content for everyone" shape; onSavedSearchMatched's
 // per-recipient variant is left inline since collapsing it in here
 // would just move the branching rather than remove it.
+type FanOutRecipientSource = string[] | AsyncIterable<string[]>;
+const NOTIFICATION_FAN_OUT_BATCH_SIZE = 500;
+
+async function* recipientBatches(source: FanOutRecipientSource): AsyncGenerator<string[]> {
+  if (typeof (source as AsyncIterable<string[]>)[Symbol.asyncIterator] === 'function') {
+    for await (const batch of source as AsyncIterable<string[]>) {
+      for (let offset = 0; offset < batch.length; offset += NOTIFICATION_FAN_OUT_BATCH_SIZE) {
+        const chunk = batch.slice(offset, offset + NOTIFICATION_FAN_OUT_BATCH_SIZE);
+        if (chunk.length > 0) yield chunk;
+      }
+    }
+    return;
+  }
+  const ids = Array.from(new Set(source as string[]));
+  for (let offset = 0; offset < ids.length; offset += NOTIFICATION_FAN_OUT_BATCH_SIZE) {
+    yield ids.slice(offset, offset + NOTIFICATION_FAN_OUT_BATCH_SIZE);
+  }
+}
+
 async function fanOutSameContentNotification(
-  userIds: string[],
+  userIds: FanOutRecipientSource,
   type: NotificationType,
   content: { title: string; body: string; data: Prisma.InputJsonValue },
   pushUrl: string,
@@ -479,27 +493,43 @@ async function fanOutSameContentNotification(
   prefKey?: PrefKey,
   pushImage?: string
 ): Promise<{ count: number }> {
-  const recipients = prefKey ? await filterUserIdsByPref(userIds, prefKey) : userIds;
-  if (recipients.length === 0) return { count: 0 };
   const { title, body, data } = content;
-  void pushService
-    .notifyUsers(recipients, {
-      title,
-      body,
-      url: pushUrl,
-      tag: pushTag,
-      type,
-      ...(pushImage ? { image: pushImage } : {}),
-    })
-    .catch(error =>
-      reportBackgroundFailure(
-        'apps/api/src/modules/engagement/notifications/notifications.service.ts',
-        error
-      )
+  let totalCreated = 0;
+
+  // Process one bounded recipient page at a time. Preference reads, push
+  // requests, inserts, cache invalidations and SSE publication therefore
+  // remain bounded even for stores/ads with very large audiences.
+  for await (const batch of recipientBatches(userIds)) {
+    const uniqueBatch = Array.from(new Set(batch));
+    const recipients = prefKey ? await filterUserIdsByPref(uniqueBatch, prefKey) : uniqueBatch;
+    if (recipients.length === 0) continue;
+
+    const inserted = await notificationsRepository.createMany(
+      recipients.map(userId => ({ userId, type, title, body, data }))
     );
-  return notificationsRepository.createMany(
-    recipients.map(userId => ({ userId, type, title, body, data }))
-  );
+    totalCreated += inserted.count;
+
+    // Wait for this bounded push slice before pulling the next recipient
+    // page. This applies backpressure instead of accumulating one detached
+    // network fan-out promise for every page of a very large audience.
+    await pushService
+      .notifyUsers(recipients, {
+        title,
+        body,
+        url: pushUrl,
+        tag: pushTag,
+        type,
+        ...(pushImage ? { image: pushImage } : {}),
+      })
+      .catch(error =>
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
+      );
+  }
+
+  return { count: totalCreated };
 }
 
 type ServiceRequestActor = 'customer' | 'provider';
@@ -885,7 +915,7 @@ export const notificationEvents = {
    * that has at least one favoriter — one notification per favoriter,
    * fanned out via createMany. */
   onFavoritedAdPriceChanged: (
-    favoriterUserIds: string[],
+    favoriterUserIds: FanOutRecipientSource,
     adId: string,
     adTitle: string,
     imageUrl?: string
@@ -908,7 +938,7 @@ export const notificationEvents = {
    * SellerProfile stat bump, guarded the same way: only on that exact
    * transition, never re-fired on a later no-op update). */
   onFavoritedAdSold: (
-    favoriterUserIds: string[],
+    favoriterUserIds: FanOutRecipientSource,
     adId: string,
     adTitle: string,
     imageUrl?: string
@@ -954,13 +984,17 @@ export const notificationEvents = {
     entity: { type: 'ad' | 'product' | 'service'; id: string; title: string }
   ): Promise<{ count: number }> => {
     if (matches.length === 0) return { count: 0 };
-    const allowedIds = new Set(
-      await filterUserIdsByPref(
-        matches.map(m => m.userId),
+    // Bound preference queries and push bursts for broad search matches.
+    const allowedIds = new Set<string>();
+    const distinctUserIds = Array.from(new Set(matches.map(match => match.userId)));
+    for (let offset = 0; offset < distinctUserIds.length; offset += NOTIFICATION_FAN_OUT_BATCH_SIZE) {
+      const allowed = await filterUserIdsByPref(
+        distinctUserIds.slice(offset, offset + NOTIFICATION_FAN_OUT_BATCH_SIZE),
         'savedSearch'
-      )
-    );
-    matches = matches.filter(m => allowedIds.has(m.userId));
+      );
+      for (const id of allowed) allowedIds.add(id);
+    }
+    matches = matches.filter(match => allowedIds.has(match.userId));
     if (matches.length === 0) return { count: 0 };
 
     const { url, entityData, title } = ((): {
@@ -1004,31 +1038,37 @@ export const notificationEvents = {
     // some deployments configure it to crash). Same contract as the
     // other handlers: push failure must never affect the notification
     // row we are about to write.
-    void Promise.all(
-      matches.map(({ userId, savedSearchId, label }) =>
-        pushService.notifyUser(userId, {
-          title,
-          body: `"${entity.title}" يطابق بحثك المحفوظ "${label}"`,
-          url,
-          tag: `saved-search-${savedSearchId}`,
-          type: 'SAVED_SEARCH_MATCH',
-        })
-      )
-    ).catch(error =>
-      reportBackgroundFailure(
-        'apps/api/src/modules/engagement/notifications/notifications.service.ts',
-        error
-      )
-    );
-    return notificationsRepository.createMany(
-      matches.map(({ userId, savedSearchId, label }) => ({
+    let totalCreated = 0;
+    for (let offset = 0; offset < matches.length; offset += NOTIFICATION_FAN_OUT_BATCH_SIZE) {
+      const batch = matches.slice(offset, offset + NOTIFICATION_FAN_OUT_BATCH_SIZE);
+      const notificationInputs = batch.map(({ userId, savedSearchId, label }) => ({
         userId,
         type: 'SAVED_SEARCH_MATCH' as const,
         title,
         body: `"${entity.title}" يطابق بحثك المحفوظ "${label}"`,
         data: { ...entityData, savedSearchId },
-      }))
-    );
+      }));
+      totalCreated += (await notificationsRepository.createMany(notificationInputs)).count;
+      // Persist first, then send this page's push work and wait before the
+      // next page. One 500-match group is the maximum in-flight fan-out.
+      await Promise.all(
+        batch.map(({ userId, savedSearchId, label }) =>
+          pushService.notifyUser(userId, {
+            title,
+            body: `"${entity.title}" يطابق بحثك المحفوظ "${label}"`,
+            url,
+            tag: `saved-search-${savedSearchId}`,
+            type: 'SAVED_SEARCH_MATCH',
+          })
+        )
+      ).catch(error =>
+        reportBackgroundFailure(
+          'apps/api/src/modules/engagement/notifications/notifications.service.ts',
+          error
+        )
+      );
+    }
+    return { count: totalCreated };
   },
 
   /** products.service.ts's createProduct calls this after a new product
@@ -1036,7 +1076,7 @@ export const notificationEvents = {
    * createMany. Same shape as onFavoritedAdPriceChanged, just keyed by
    * store follow instead of ad favorite. */
   onStoreNewProduct: (
-    followerUserIds: string[],
+    followerUserIds: FanOutRecipientSource,
     storeId: string,
     storeName: string,
     productName: string
@@ -1061,7 +1101,7 @@ export const notificationEvents = {
    * schema.prisma doc comment for why this is a separate type from
    * that one. */
   onStorePromotionStarted: (
-    followerUserIds: string[],
+    followerUserIds: FanOutRecipientSource,
     storeId: string,
     productName: string,
     promotionTitle: string,
@@ -1090,7 +1130,7 @@ export const notificationEvents = {
    * this frontend (only /my-store/products/:id/edit, owner-only), same
    * constraint onStorePromotionStarted above is already working within. */
   onStoreProductRestocked: (
-    followerUserIds: string[],
+    followerUserIds: FanOutRecipientSource,
     storeId: string,
     productId: string,
     productName: string

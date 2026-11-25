@@ -1,5 +1,5 @@
 'use client';
-import { queryOptions, useQuery, keepPreviousData } from '@tanstack/react-query';
+import { queryOptions, useQuery, useInfiniteQuery, keepPreviousData } from '@tanstack/react-query';
 import { salesApi } from '@/api/sales.api';
 import { queryKeys, type SalesListQueryParams } from '@/lib/queryKeys';
 import type { SalesPage } from '@/types/sale.types';
@@ -69,8 +69,26 @@ export function useSalesCostSettings(enabled = true) {
   });
 }
 
-export function useSalesCostProducts(enabled = true) {
-  return useQuery({ queryKey: queryKeys.sales.costProducts(), queryFn: ({ signal }) => salesApi.costProducts({ signal }).then(r => r.data.data ?? []), enabled, staleTime: 5 * 60_000 });
+export function useSalesCostProducts(enabled = true, search = '') {
+  return useInfiniteQuery({
+    queryKey: queryKeys.sales.costProducts(search),
+    initialPageParam: 1,
+    queryFn: async ({ signal, pageParam }) => {
+      const response = await salesApi.costProducts(
+        { page: pageParam, limit: 50, ...(search ? { q: search } : {}) },
+        { signal }
+      );
+      const pagination = response.data.meta?.pagination;
+      if (!Array.isArray(response.data.data) || !pagination) {
+        throw new Error('Invalid cost-products response: expected rows and pagination metadata.');
+      }
+      return { items: response.data.data, pagination };
+    },
+    getNextPageParam: lastPage =>
+      lastPage.pagination.hasNextPage ? lastPage.pagination.page + 1 : undefined,
+    enabled,
+    staleTime: 5 * 60_000,
+  });
 }
 
 export function useDebtSummary() {

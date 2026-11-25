@@ -314,3 +314,12 @@ export type ReportQuery = z.infer<typeof reportQuerySchema>['query'];
 
 // Phase 10-11 endpoints intentionally require no client parameters: all data is
 // scoped to the authenticated seller and the service owns the thresholds.
+
+export const costProductsQuerySchema = z.object({
+  query: z.object({
+    page: z.coerce.number().int().min(1).max(1000).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    q: z.string().trim().max(100).optional(),
+  }),
+});
+export type CostProductsQuery = z.infer<typeof costProductsQuerySchema>['query'];

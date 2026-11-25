@@ -13,7 +13,7 @@ import type { ApiRequestConfig } from './requestConfig';
  *     the "cancel" naming in promotions.service.ts.
  */
 import { apiClient } from './client';
-import type { ApiResponse } from '@/types/api.types';
+import type { ApiResponse, PaginationMeta } from '@/types/api.types';
 import type {
   Promotion,
   CreatePromotionPayload,
@@ -25,8 +25,11 @@ export const promotionsApi = {
   create: (payload: CreatePromotionPayload) =>
     apiClient.post<ApiResponse<Promotion>>('/promotions', payload),
 
-  /** GET /promotions/me — caller's own store's promotions (not paginated — MVP list size). */
-  getMine: (config?: ApiRequestConfig) => apiClient.get<ApiResponse<Promotion[]>>('/promotions/me', config),
+  /** GET /promotions/me — bounded, paginated store-owner promotion history. */
+  getMine: (params?: { page?: number; limit?: number }, config?: ApiRequestConfig) =>
+    apiClient.get<ApiResponse<Promotion[]> & { meta?: { pagination?: PaginationMeta } }>(
+      '/promotions/me', { ...config, params }
+    ),
 
   /** GET /promotions/:id */
   getById: (id: string, config?: ApiRequestConfig) => apiClient.get<ApiResponse<Promotion>>(`/promotions/${id}`, config),

@@ -21,6 +21,8 @@ const taskTargets = {
   ],
   'type-check:all': [
     [frontendPath, 'type-check'],
+    [frontendPath, 'type-check:e2e'],
+    [frontendPath, 'type-check:scripts'],
     ['apps/api/package.json', 'type-check'],
     ['apps/mobile/package.json', 'type-check'],
     ['packages/contracts/package.json', 'type-check'],
@@ -53,6 +55,7 @@ if (!existsSync(resolve(root, 'package.json'))) throw new Error('Run this verifi
 const rootPackage = readJson('package.json');
 if (rootPackage.private !== true) errors.push('Root package must remain private.');
 if (!existsSync(resolve(root, 'pnpm-workspace.yaml'))) errors.push('Missing pnpm-workspace.yaml.');
+if (!existsSync(resolve(root, 'tsconfig.scripts.json'))) errors.push('Missing repository-wide tsconfig.scripts.json.');
 if (!existsSync(resolve(root, 'pnpm-lock.yaml'))) errors.push('Missing pnpm-lock.yaml.');
 if (!existsSync(resolve(root, 'turbo.json'))) errors.push('Missing turbo.json.');
 
@@ -93,10 +96,10 @@ if (!existsSync(resolve(root, frontendPath))) {
 } else {
   const frontend = readJson(frontendPath);
   if (frontend.name !== 'marketplat') errors.push(`${frontendPath}: expected package name "marketplat".`);
-  for (const task of ['dev', 'build', 'test', 'type-check', 'lint']) {
+  for (const task of ['dev', 'build', 'test', 'type-check', 'type-check:e2e', 'type-check:scripts', 'lint']) {
     if (!frontend.scripts?.[task]) errors.push(`${frontendPath}: missing required script "${task}".`);
   }
-  for (const script of ['dev:web', 'build:web', 'test:web', 'type-check:web', 'lint:web']) {
+  for (const script of ['dev:web', 'build:web', 'test:web', 'type-check:web', 'type-check:web:e2e', 'lint:web']) {
     if (!rootPackage.scripts?.[script]?.includes('npm --prefix frontend')) {
       errors.push(`Root script "${script}" must invoke the standalone npm frontend via --prefix frontend.`);
     }
@@ -123,6 +126,8 @@ const aggregateScriptRequirements = {
   ],
   'type-check:all': [
     'npm --prefix frontend run type-check',
+    'npm --prefix frontend run type-check:e2e',
+    'npm --prefix frontend run type-check:scripts',
     'pnpm --recursive --if-present run type-check',
     'make -C apps/go-worker vet',
   ],
@@ -140,7 +145,7 @@ const aggregateScriptRequirements = {
     'pnpm --recursive --if-present run lint',
     'make -C apps/go-worker fmt-check',
   ],
-  'verify:all': ['verify:workspace', 'lint:all', 'type-check:all', 'test:all', 'build:all'],
+  'verify:all': ['verify:workspace', 'verify:prisma-layout', 'lint:all', 'type-check:all', 'test:all', 'build:all'],
 };
 for (const [script, requiredFragments] of Object.entries(aggregateScriptRequirements)) {
   const command = rootPackage.scripts?.[script] ?? '';
@@ -149,6 +154,10 @@ for (const [script, requiredFragments] of Object.entries(aggregateScriptRequirem
       errors.push(`Root script "${script}" does not include required target "${fragment}".`);
     }
   }
+}
+
+if (rootPackage.scripts?.['verify:prisma-layout'] !== 'node tools/verify-prisma-layout.mts') {
+  errors.push('Root package.json: verify:prisma-layout must invoke tools/verify-prisma-layout.mts.');
 }
 
 if (!rootPackage.scripts?.['dev:all']?.includes('tools/dev-all.mts')) {
@@ -201,6 +210,12 @@ if (existsSync(resolve(root, ciWorkflowPath))) {
   }
   if (ciWorkflow.includes('if: false')) errors.push(`${ciWorkflowPath}: an unconditional false guard disables a CI job.`);
   if (!ciWorkflow.includes('npm run e2e:ci')) errors.push(`${ciWorkflowPath}: the critical browser E2E suite must run in CI.`);
+  for (const command of ['npm run type-check:e2e', 'npm --prefix frontend run type-check:scripts']) {
+    if (!ciWorkflow.includes(command)) errors.push(`${ciWorkflowPath}: missing TypeScript validation step \"${command}\".`);
+  }
+  if (!ciWorkflow.includes("'tsconfig.scripts.json'")) {
+    errors.push(`${ciWorkflowPath}: push path filters must include tsconfig.scripts.json.`);
+  }
 }
 const frontendPackage = packageManifests.get(frontendPath);
 const criticalE2ESpecs = [

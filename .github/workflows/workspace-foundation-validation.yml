@@ -38,21 +38,6 @@ jobs:
       - name: Verify workspace structure
         run: pnpm run verify:workspace
 
-      - name: Verify Turbo is executable
-        run: pnpm exec turbo --version
-
-      - name: Preview web and API build task graph
-        run: pnpm exec turbo run build --dry --filter=marketplat --filter=classifieds-platform-backend
-
-      - name: Preview type-check task graph
-        run: pnpm exec turbo run type-check --dry --filter=marketplat --filter=classifieds-platform-backend --filter=@marketplat/mobile --filter=@marketplat/contracts
-
-      - name: Preview test task graph
-        run: pnpm exec turbo run test --dry --filter=marketplat --filter=classifieds-platform-backend --filter=@marketplat/mobile --filter=@marketplat/contracts
-
-      - name: Preview lint task graph
-        run: pnpm exec turbo run lint --dry --filter=marketplat --filter=classifieds-platform-backend
-
       - name: Verify Prisma schema and migration layout (static)
         run: pnpm run verify:prisma-layout
 

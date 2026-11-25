@@ -78,13 +78,40 @@ describe('savedSearchesRepository', () => {
     });
   });
 
-  describe('findAllForMatching', () => {
-    it('queries all saved searches unfiltered, ordered oldest-first, capped at the hard matching ceiling', async () => {
+  describe('iterateAllForMatching', () => {
+    it('streams every saved-search row in stable keyset pages with a snapshot cutoff', async () => {
+      const snapshotAt = new Date('2026-11-24T12:00:00.000Z');
+      (prisma.savedSearch.findMany as jest.Mock)
+        .mockResolvedValueOnce([{ id: 'a' }, { id: 'b' }])
+        .mockResolvedValueOnce([{ id: 'c' }]);
+
+      const batches: Array<Array<{ id: string }>> = [];
+      for await (const batch of savedSearchesRepository.iterateAllForMatching(snapshotAt, 2)) {
+        batches.push(batch as unknown as Array<{ id: string }>);
+      }
+
+      expect(batches.flat().map(row => row.id)).toEqual(['a', 'b', 'c']);
+      expect(prisma.savedSearch.findMany).toHaveBeenNthCalledWith(1, {
+        where: { createdAt: { lte: snapshotAt } },
+        orderBy: { id: 'asc' },
+        take: 2,
+      });
+      expect(prisma.savedSearch.findMany).toHaveBeenNthCalledWith(2, {
+        where: { createdAt: { lte: snapshotAt }, id: { gt: 'b' } },
+        orderBy: { id: 'asc' },
+        take: 2,
+      });
+    });
+
+    it('clamps the configured page size to a safe range', async () => {
       (prisma.savedSearch.findMany as jest.Mock).mockResolvedValue([]);
-      await savedSearchesRepository.findAllForMatching();
+      for await (const _batch of savedSearchesRepository.iterateAllForMatching(new Date(), 50000)) {
+        // No rows expected.
+      }
       expect(prisma.savedSearch.findMany).toHaveBeenCalledWith({
-        orderBy: { createdAt: 'asc' },
-        take: 5000,
+        where: { createdAt: { lte: expect.any(Date) } },
+        orderBy: { id: 'asc' },
+        take: 1000,
       });
     });
   });

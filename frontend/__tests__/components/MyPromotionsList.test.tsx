@@ -34,6 +34,9 @@ vi.mock('@/hooks/queries/useProducts', () => ({
 
 const mockCancelMutate = vi.fn();
 const mockRefetch = vi.fn();
+const mockFetchNextPage = vi.fn();
+const emptyPromotionPages = { pages: [{ items: [], pagination: { page: 1, totalPages: 1, hasNextPage: false } }], pageParams: [1] };
+const promotionPages = (items: Promotion[]) => ({ pages: [{ items, pagination: { page: 1, totalPages: 1, hasNextPage: false } }], pageParams: [1] });
 
 const basePromotion: Promotion = {
   id: 'promo-1',
@@ -92,7 +95,7 @@ describe('MyPromotionsList', () => {
 
   it('shows an empty state when there are no promotions', () => {
     (useMyPromotions as ReturnType<typeof vi.fn>).mockReturnValue({
-      data: [], isLoading: false, isError: false, refetch: mockRefetch,
+      data: emptyPromotionPages, isLoading: false, isError: false, refetch: mockRefetch, hasNextPage: false, fetchNextPage: mockFetchNextPage, isFetchingNextPage: false,
     });
     render(<MyPromotionsList />);
     expect(screen.getByText('لا توجد عروض')).toBeInTheDocument();
@@ -101,7 +104,7 @@ describe('MyPromotionsList', () => {
   describe('rendering a promotion row', () => {
     it('shows the title, product name, and percentage discount label', () => {
       (useMyPromotions as ReturnType<typeof vi.fn>).mockReturnValue({
-        data: [basePromotion], isLoading: false, isError: false, refetch: mockRefetch,
+        data: promotionPages([basePromotion]), isLoading: false, isError: false, refetch: mockRefetch, hasNextPage: false, fetchNextPage: mockFetchNextPage, isFetchingNextPage: false,
       });
       render(<MyPromotionsList />);
 
@@ -113,8 +116,8 @@ describe('MyPromotionsList', () => {
 
     it('shows a fixed-amount discount as a formatted price, not a percentage', () => {
       (useMyPromotions as ReturnType<typeof vi.fn>).mockReturnValue({
-        data: [{ ...basePromotion, discountType: 'FIXED_AMOUNT', discountValue: '30' }],
-        isLoading: false, isError: false, refetch: mockRefetch,
+        data: promotionPages([{ ...basePromotion, discountType: 'FIXED_AMOUNT', discountValue: '30' }]),
+        isLoading: false, isError: false, refetch: mockRefetch, hasNextPage: false, fetchNextPage: mockFetchNextPage, isFetchingNextPage: false,
       });
       render(<MyPromotionsList />);
 
@@ -124,7 +127,7 @@ describe('MyPromotionsList', () => {
     it('falls back to "منتج محذوف" when the product is not found in the owner\'s product list', () => {
       (useMyProducts as ReturnType<typeof vi.fn>).mockReturnValue({ data: { items: [] } });
       (useMyPromotions as ReturnType<typeof vi.fn>).mockReturnValue({
-        data: [basePromotion], isLoading: false, isError: false, refetch: mockRefetch,
+        data: promotionPages([basePromotion]), isLoading: false, isError: false, refetch: mockRefetch, hasNextPage: false, fetchNextPage: mockFetchNextPage, isFetchingNextPage: false,
       });
       render(<MyPromotionsList />);
 
@@ -135,7 +138,7 @@ describe('MyPromotionsList', () => {
   describe('cancel action availability', () => {
     it.each(['ACTIVE', 'SCHEDULED'] as const)('shows a cancel button for %s promotions', (status) => {
       (useMyPromotions as ReturnType<typeof vi.fn>).mockReturnValue({
-        data: [{ ...basePromotion, status }], isLoading: false, isError: false, refetch: mockRefetch,
+        data: promotionPages([{ ...basePromotion, status }]), isLoading: false, isError: false, refetch: mockRefetch, hasNextPage: false, fetchNextPage: mockFetchNextPage, isFetchingNextPage: false,
       });
       render(<MyPromotionsList />);
       expect(screen.getByText('إلغاء')).toBeInTheDocument();
@@ -143,7 +146,7 @@ describe('MyPromotionsList', () => {
 
     it.each(['EXPIRED', 'CANCELLED', 'DRAFT'] as const)('hides the cancel button for %s promotions', (status) => {
       (useMyPromotions as ReturnType<typeof vi.fn>).mockReturnValue({
-        data: [{ ...basePromotion, status }], isLoading: false, isError: false, refetch: mockRefetch,
+        data: promotionPages([{ ...basePromotion, status }]), isLoading: false, isError: false, refetch: mockRefetch, hasNextPage: false, fetchNextPage: mockFetchNextPage, isFetchingNextPage: false,
       });
       render(<MyPromotionsList />);
       expect(screen.queryByText('إلغاء')).not.toBeInTheDocument();
@@ -153,7 +156,7 @@ describe('MyPromotionsList', () => {
   describe('cancel flow', () => {
     it('calls cancelPromotion.mutate with the promotion id after confirming', async () => {
       (useMyPromotions as ReturnType<typeof vi.fn>).mockReturnValue({
-        data: [basePromotion], isLoading: false, isError: false, refetch: mockRefetch,
+        data: promotionPages([basePromotion]), isLoading: false, isError: false, refetch: mockRefetch, hasNextPage: false, fetchNextPage: mockFetchNextPage, isFetchingNextPage: false,
       });
       const user = setupUser();
       render(<MyPromotionsList />);

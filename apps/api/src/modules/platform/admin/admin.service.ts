@@ -717,17 +717,34 @@ export const adminService = {
 
   // --- Notifications (Epic 6) ---
 
-  /** Resolves the "كل المستخدمين" broadcast option to a concrete id
-   * list before calling notificationsService.broadcastPromotion — kept
-   * as an explicit resolution step (rather than letting the service
-   * accept an implicit "everyone" sentinel) so the actual recipient set
-   * is always a real array the caller can log/audit, never a magic
-   * value whose size isn't visible until it's already sent. Only
-   * isActive users — a disabled account has no reason to receive one. */
-  getAllActiveUserIds: async (): Promise<string[]> => {
-    const users = await prisma.user.findMany({ where: { isActive: true }, select: { id: true } });
-    return users.map(u => u.id);
+  /**
+   * Streams active user IDs in stable keyset pages for admin broadcasts.
+   * This avoids materializing the entire user table in the API process.
+   * The cursor is the unique primary key, so rows are neither skipped nor
+   * repeated while the scan advances. Only users active when their page is
+   * read are included; explicit recipient lists remain supported separately.
+   */
+  iterateActiveUserIdBatches: async function* (batchSize = 500): AsyncGenerator<string[]> {
+    const take = Math.max(1, Math.min(1000, Math.floor(batchSize) || 500));
+    let cursor: string | undefined;
+
+    while (true) {
+      const users = await prisma.user.findMany({
+        where: {
+          isActive: true,
+          ...(cursor ? { id: { gt: cursor } } : {}),
+        },
+        select: { id: true },
+        orderBy: { id: 'asc' },
+        take,
+      });
+      if (users.length === 0) return;
+      yield users.map(user => user.id);
+      cursor = users[users.length - 1]!.id;
+      if (users.length < take) return;
+    }
   },
+
 
   /**
    * Ops queue counts for the admin dashboard / sidebar badges —

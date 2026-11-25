@@ -34,11 +34,6 @@ import { sellersService } from '../../identity/sellers/sellers.service';
 import { requireStoreAccess } from '../../commerce/stores/store-members.service';
 import { favoritesRepository } from '../../engagement/favorites/favorites.repository';
 import { notificationEvents } from '../../engagement/notifications';
-import {
-  matchesAdFilters,
-  savedSearchType,
-} from '../../engagement/saved-searches/saved-searches.service';
-import type { SavedSearchFilters } from '../../engagement/saved-searches/saved-searches.validation';
 import { activityService, activityTemplates } from '../../engagement/activity';
 import { fraudService } from '../../trust/fraud';
 import { prisma } from '../../../config/prisma';
@@ -323,47 +318,39 @@ export const adsService = {
                 },
               },
             });
-            // Match saved searches and persist their notification intent in the
-            // same transaction as the ad. This replaces the former post-commit
-            // fire-and-forget matcher, which could silently lose alerts on crash.
-            const savedSearches = await tx.savedSearch.findMany({
-              orderBy: { createdAt: 'asc' },
-              take: 5000,
-            });
-            if (savedSearches.length === 5000) {
-              logger.warn(
-                'Saved-search outbox matching reached its 5000-row ceiling; older searches were matched first',
-                {
+            // A durable scan event replaces the old in-transaction 5,000-row
+            // materialization. The worker keyset-pages all searches after commit,
+            // checkpointing its cursor in this outbox row in the same transaction
+            // as each notification batch. Ad creation therefore stays bounded and
+            // a worker restart cannot permanently skip searches beyond a fixed cap.
+            const databaseClock = await tx.$queryRaw<Array<{ snapshotAt: Date }>>`
+              SELECT clock_timestamp() AS "snapshotAt"
+            `;
+            if (!databaseClock[0]?.snapshotAt) {
+              throw new Error('Unable to capture the database snapshot time for saved-search matching');
+            }
+            await tx.outboxEvent.create({
+              data: {
+                eventType: 'SAVED_SEARCH_MATCH_SCAN',
+                aggregateType: 'AD',
+                aggregateId: created.id,
+                ownerUserId: userId,
+                idempotencyKey: `saved-search-match-scan:ad-created:${created.id}`,
+                payload: {
                   adId: created.id,
-                }
-              );
-            }
-            const matchingSavedSearches = savedSearches.filter(
-              search =>
-                search.userId !== created.userId &&
-                savedSearchType(search) === 'ads' &&
-                matchesAdFilters(created, search.filters as unknown as SavedSearchFilters)
-            );
-            if (matchingSavedSearches.length > 0) {
-              await tx.outboxEvent.create({
-                data: {
-                  eventType: 'SAVED_SEARCH_MATCH_NOTIFICATION',
-                  aggregateType: 'AD',
-                  aggregateId: created.id,
-                  ownerUserId: userId,
-                  idempotencyKey: `saved-search-match:ad-created:${created.id}`,
-                  payload: {
-                    adId: created.id,
-                    adTitle: created.title,
-                    matches: matchingSavedSearches.map(search => ({
-                      userId: search.userId,
-                      savedSearchId: search.id,
-                      label: search.label,
-                    })),
-                  },
+                  adTitle: created.title,
+                  ownerUserId: created.userId,
+                  title: created.title,
+                  description: created.description,
+                  city: created.city,
+                  categoryId: created.categoryId,
+                  condition: created.condition,
+                  price: created.price === null ? null : String(created.price),
+                  snapshotAt: databaseClock[0].snapshotAt.toISOString(),
+                  cursor: null,
                 },
-              });
-            }
+              },
+            });
             // Durable follower-notification intent is committed atomically with
             // the ad. The worker persists recipient rows and acknowledges this
             // event in one transaction; push/SSE are best-effort after commit.
@@ -706,15 +693,12 @@ export const adsService = {
     // dropped. Now also persists a FailedBackgroundTask record with
     // enough payload to retry the fan-out later.
     if (input.price !== undefined && Number(input.price) !== Number(ad.price)) {
-      favoritesRepository
-        .findUserIdsByAdId(adId)
-        .then(userIds =>
-          notificationEvents.onFavoritedAdPriceChanged(
-            userIds,
-            adId,
-            updated.title,
-            updated.images?.[0]
-          )
+      notificationEvents
+        .onFavoritedAdPriceChanged(
+          favoritesRepository.findUserIdsByAdId(adId),
+          adId,
+          updated.title,
+          updated.images?.[0]
         )
         .catch(err => {
           logger.error('Failed to create FAV_AD_PRICE_CHANGED notifications', { err, adId });
@@ -735,10 +719,12 @@ export const adsService = {
     // nullable sellerProfileId), so reusing justSold here would silently
     // skip notifying favoriters for the majority of ads.
     if (justTransitionedToSold) {
-      favoritesRepository
-        .findUserIdsByAdId(adId)
-        .then(userIds =>
-          notificationEvents.onFavoritedAdSold(userIds, adId, updated.title, updated.images?.[0])
+      notificationEvents
+        .onFavoritedAdSold(
+          favoritesRepository.findUserIdsByAdId(adId),
+          adId,
+          updated.title,
+          updated.images?.[0]
         )
         .catch(err => {
           logger.error('Failed to create FAV_AD_SOLD notifications', { err, adId });

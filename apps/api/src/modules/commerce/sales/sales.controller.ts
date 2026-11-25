@@ -17,6 +17,7 @@ import {
   topSchema,
   updateCostSettingsSchema,
   updateProductCostSchema,
+  costProductsQuerySchema,
   reportQuerySchema,
   SALES_REPORT_JSON_MAX_LIMIT,
 } from './sales.validation';
@@ -73,11 +74,12 @@ export const salesController = {
   costProducts: async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = requireUser(req);
+      const { query } = costProductsQuerySchema.parse({ query: req.query });
+      const result = await salesService.listCostProducts(user.userId, query);
       res.json(
-        successResponse(
-          'Sales cost products fetched',
-          await salesService.listCostProducts(user.userId)
-        )
+        successResponse('Sales cost products fetched', result.items, {
+          pagination: result.pagination,
+        })
       );
     } catch (e) {
       next(e);

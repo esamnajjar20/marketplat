@@ -144,7 +144,7 @@ export const queryKeys = {
     debtOverview: (page = 1, limit = 20) => ['sales', 'debts', 'overview', { page, limit }] as const,
     compare: (period: string) => ['sales', 'compare', period] as const,
     costSettings: () => ['sales', 'cost-settings'] as const,
-    costProducts: () => ['sales', 'cost-products'] as const,
+    costProducts: (q = '') => ['sales', 'cost-products', q] as const,
     dashboard: () => ['sales', 'dashboard'] as const,
     report: (params?: Parameters<typeof salesApi.report>[0]) => ['sales', 'report', params ?? {}] as const,
     smartInsights: () => ['sales', 'smart-insights'] as const,

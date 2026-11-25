@@ -241,7 +241,7 @@ export const sellersRepository = {
           rater: { select: { id: true, name: true, avatarUrl: true } },
           ad: { select: { id: true, title: true } },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip,
         take,
       }),

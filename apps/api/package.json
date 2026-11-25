@@ -1,21 +1,21 @@
 {
   "name": "classifieds-platform-backend",
   "version": "3.0.0",
-  "description": "Classifieds & Marketplace Platform \u2014 Backend API",
+  "description": "Classifieds & Marketplace Platform — Backend API",
   "license": "UNLICENSED",
   "main": "dist/server.js",
   "engines": {
-    "node": ">=20 <25"
+    "node": ">=22.18 <25"
   },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "type-check": "tsc --noEmit -p tsconfig.test.json",
-    "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
-    "format": "prettier --write src/**/*.ts",
-    "format:check": "prettier --check src/**/*.ts",
+    "lint": "eslint --ext .ts,.mts \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mts\"",
+    "lint:fix": "eslint --ext .ts,.mts \"src/**/*.ts\" \"tests/**/*.ts\" \"scripts/**/*.mts\" --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
     "test": "NODE_ENV=test jest",
     "test:watch": "NODE_ENV=test jest --watch",
     "test:coverage": "NODE_ENV=test jest --coverage",

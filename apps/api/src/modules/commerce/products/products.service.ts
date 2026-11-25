@@ -285,10 +285,12 @@ export const productsService = {
       // Fire-and-forget fan-out to everyone following this store — a
       // notification failing here must never fail product creation, same
       // convention as every other notificationEvents caller.
-      storeFollowersRepository
-        .findUserIdsByStoreId(store.id)
-        .then(followerIds =>
-          notificationEvents.onStoreNewProduct(followerIds, store.id, store.name, product.name)
+      notificationEvents
+        .onStoreNewProduct(
+          storeFollowersRepository.findUserIdsByStoreId(store.id),
+          store.id,
+          store.name,
+          product.name
         )
         .catch(error =>
           reportBackgroundFailure(
@@ -579,15 +581,12 @@ export const productsService = {
     // in-stock product never re-fires this. Fire-and-forget, same
     // convention as onStoreNewProduct above.
     if (product.availability === 'OUT_OF_STOCK' && updated.availability !== 'OUT_OF_STOCK') {
-      storeFollowersRepository
-        .findUserIdsByStoreId(store.id)
-        .then(followerIds =>
-          notificationEvents.onStoreProductRestocked(
-            followerIds,
-            store.id,
-            updated.id,
-            updated.name
-          )
+      notificationEvents
+        .onStoreProductRestocked(
+          storeFollowersRepository.findUserIdsByStoreId(store.id),
+          store.id,
+          updated.id,
+          updated.name
         )
         .catch(error =>
           reportBackgroundFailure(
@@ -629,15 +628,12 @@ export const productsService = {
     });
 
     if (product.availability === 'OUT_OF_STOCK' && updated.availability !== 'OUT_OF_STOCK') {
-      storeFollowersRepository
-        .findUserIdsByStoreId(store.id)
-        .then(followerIds =>
-          notificationEvents.onStoreProductRestocked(
-            followerIds,
-            store.id,
-            updated.id,
-            updated.name
-          )
+      notificationEvents
+        .onStoreProductRestocked(
+          storeFollowersRepository.findUserIdsByStoreId(store.id),
+          store.id,
+          updated.id,
+          updated.name
         )
         .catch(error =>
           reportBackgroundFailure(

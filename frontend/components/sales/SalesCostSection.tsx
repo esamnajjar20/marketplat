@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Save, Search, Power, CircleDollarSign } from 'lucide-react';
 import { Input } from '@/components/shared/ui/Input';
 import { Button } from '@/components/shared/ui/Button';
@@ -8,20 +8,29 @@ import { useSalesCostProducts, useSalesCostSettings } from '@/hooks/queries/useS
 import { useUpdateProductCost, useUpdateSalesCostSettings } from '@/hooks/mutations/useSaleMutations';
 import { formatMoney } from '@/lib/formatters';
 
+function useDebouncedValue(value: string, delayMs: number): string {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+  return debounced;
+}
+
 export function SalesCostSection() {
+  const [search, setSearch] = useState('');
   const settings = useSalesCostSettings();
   const enabled = settings.data?.enabled ?? true;
-  const products = useSalesCostProducts(enabled);
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
+  const products = useSalesCostProducts(enabled, debouncedSearch);
   const updateSettings = useUpdateSalesCostSettings();
   const updateCost = useUpdateProductCost();
-  const [search, setSearch] = useState('');
   const [drafts, setDrafts] = useState<Record<string, string>>({});
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLocaleLowerCase('ar');
-    if (!q) return products.data ?? [];
-    return (products.data ?? []).filter((p) => `${p.name} ${p.store.name}`.toLocaleLowerCase('ar').includes(q));
-  }, [products.data, search]);
+  const filtered = useMemo(
+    () => products.data?.pages.flatMap(page => page.items) ?? [],
+    [products.data]
+  );
 
   const save = (productId: string, current: string | null) => {
     const raw = drafts[productId] ?? (current ?? '');
@@ -62,7 +71,8 @@ export function SalesCostSection() {
             <div><h3 className="font-semibold">تكلفة المنتجات</h3><p className="text-sm text-muted-foreground">تعديل التكلفة هنا لا يغير تكلفة المبيعات السابقة.</p></div>
             <div className="relative w-full sm:w-72"><Search className="pointer-events-none absolute end-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="ابحث عن منتج أو متجر" className="pe-9" /></div>
           </div>
-          {products.isLoading ? <div className="rounded-xl border p-8 text-center text-sm text-muted-foreground">جاري تحميل المنتجات…</div> : products.isError ? <div className="rounded-xl border p-8 text-center text-sm text-destructive">تعذر تحميل تكاليف المنتجات.</div> : filtered.length === 0 ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">لا توجد منتجات مطابقة.</div> : <div className="overflow-hidden rounded-2xl border"><div className="divide-y">{filtered.map((product: any) => { const value = drafts[product.id] ?? (product.costPrice ?? ''); return <div key={product.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="truncate font-medium">{product.name}</div><div className="mt-1 text-xs text-muted-foreground">{product.store.name} · سعر البيع {formatMoney(Number(product.price))}</div></div><div className="flex items-center gap-2 sm:w-64"><Input dir="ltr" inputMode="decimal" type="number" min="0" step="0.01" value={value} onChange={(e) => setDrafts((prev) => ({ ...prev, [product.id]: e.target.value }))} placeholder="بدون تكلفة" aria-label={`تكلفة ${product.name}`} /><Button size="icon" aria-label={`حفظ تكلفة ${product.name}`} onClick={() => save(product.id, product.costPrice)} loading={updateCost.isPending}><Save className="h-4 w-4" /></Button></div></div>; })}</div></div>}
+          {products.isLoading ? <div className="rounded-xl border p-8 text-center text-sm text-muted-foreground">جاري تحميل المنتجات…</div> : products.isError ? <div className="rounded-xl border p-8 text-center text-sm text-destructive">تعذر تحميل تكاليف المنتجات.</div> : filtered.length === 0 ? <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">لا توجد منتجات مطابقة.</div> : <div className="overflow-hidden rounded-2xl border"><div className="divide-y">{filtered.map((product) => { const value = drafts[product.id] ?? (product.costPrice ?? ''); return <div key={product.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="truncate font-medium">{product.name}</div><div className="mt-1 text-xs text-muted-foreground">{product.store.name} · سعر البيع {formatMoney(Number(product.price))}</div></div><div className="flex items-center gap-2 sm:w-64"><Input dir="ltr" inputMode="decimal" type="number" min="0" step="0.01" value={value} onChange={(e) => setDrafts((prev) => ({ ...prev, [product.id]: e.target.value }))} placeholder="بدون تكلفة" aria-label={`تكلفة ${product.name}`} /><Button size="icon" aria-label={`حفظ تكلفة ${product.name}`} onClick={() => save(product.id, product.costPrice)} loading={updateCost.isPending}><Save className="h-4 w-4" /></Button></div></div>; })}</div></div>}
+          {products.hasNextPage && <div className="flex justify-center"><Button variant="outline" onClick={() => void products.fetchNextPage()} loading={products.isFetchingNextPage}>تحميل المزيد</Button></div>}
         </>
       )}
     </section>

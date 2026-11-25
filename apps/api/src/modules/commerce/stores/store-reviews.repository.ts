@@ -29,7 +29,7 @@ export const storeReviewsRepository = {
       prisma.storeReview.findMany({
         where,
         include: { rater: { select: { id: true, name: true, avatarUrl: true } } },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip,
         take,
       }),

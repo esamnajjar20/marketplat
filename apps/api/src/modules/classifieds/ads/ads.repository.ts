@@ -4,6 +4,7 @@ import { analyzeSearchQuery } from '../../../shared/search/searchQueryIntelligen
 import { AdStatus, Prisma } from '@prisma/client';
 import { CreateAdInput, UpdateAdInput, GetAdsQuery, AdSortField } from './ads.validation';
 import { MAX_IMAGES_PER_ENTITY } from '../../../config/limits';
+import { BadRequestError } from '../../../shared/errors/BadRequestError';
 
 export type AdWithAuthor = Prisma.AdGetPayload<{
   include: {
@@ -483,25 +484,27 @@ export const adsRepository = {
     newImages: string[],
     maxImages = MAX_IMAGES_PER_ENTITY
   ): Promise<AdWithAuthor> => {
-    // maxImages is interpolated
-    // directly into the SQL as `LIMIT ${safeMaxImages}` below — it cannot
-    // be a bound parameter without restructuring the whole statement,
-    // and a future caller passing an attacker-controlled number would
-    // be a SQL injection vector. Every current call site uses the
-    // module constant, but the guard here means this function can
-    // never become an injection sink even if that changes. The 100 cap
-    // is generous (MAX_IMAGES_PER_ENTITY is 10) and matches the same
-    // "trust nothing that lands in the SQL string" discipline as
-    // queryTimeout.ts's safeTimeoutMs.
+    // Enforce the dynamic SQL bounds at the repository boundary. The number
+    // of bound image placeholders is capped by MAX_IMAGES_PER_ENTITY; the
+    // SQL LIMIT is separately capped by the validated safeMaxImages value.
+    if (newImages.length > MAX_IMAGES_PER_ENTITY) {
+      throw new BadRequestError(
+        `A maximum of ${MAX_IMAGES_PER_ENTITY} images may be added at once.`,
+        'TOO_MANY_IMAGES'
+      );
+    }
+    if (newImages.length === 0) {
+      return prisma.ad.findUniqueOrThrow({ where: { id } });
+    }
     const safeMaxImages =
-      Number.isInteger(maxImages) && maxImages > 0 && maxImages <= 100
+      Number.isInteger(maxImages) && maxImages > 0 && maxImages <= MAX_IMAGES_PER_ENTITY
         ? maxImages
         : MAX_IMAGES_PER_ENTITY;
     const placeholders = newImages.map((_, i) => `$${i + 2}`).join(', ');
 
     // RAWUNSAFE-SAFETY-NOTE-01: same pattern as service-listings —
     // only the placeholder COUNT is interpolated (bounded by
-    // safeMaxImages), all values are bound parameters.
+    // MAX_IMAGES_PER_ENTITY), all values are bound parameters.
     await prisma.$executeRawUnsafe(
       `UPDATE "ads"
        SET "images" = (

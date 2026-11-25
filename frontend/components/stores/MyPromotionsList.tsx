@@ -50,7 +50,9 @@ function discountLabel(promotion: Promotion): string {
 export function MyPromotionsList() {
   const searchParams = useSearchParams();
   const productIdFromUrl = searchParams.get('productId') ?? undefined;
-  const { data: promotions, isLoading, isError, refetch } = useMyPromotions();
+  const promotionsQuery = useMyPromotions();
+  const promotions = promotionsQuery.data?.pages.flatMap(page => page.items) ?? [];
+  const { isLoading, isError, refetch } = promotionsQuery;
   // Needed to resolve productId -> product name for display, since
   // promotions.api.ts's list endpoint returns the bare Promotion shape
   // (no nested product — see promotions.controller.ts) and there is no
@@ -61,7 +63,7 @@ export function MyPromotionsList() {
   // disabled until the seller actually opens the form.
   const { data: productsPage } = useMyProducts(
     { limit: 100 },
-    { enabled: (promotions?.length ?? 0) > 0 },
+    { enabled: promotions.length > 0 },
   );
   const products = productsPage?.items ?? [];
 
@@ -144,7 +146,7 @@ export function MyPromotionsList() {
     );
   }
 
-  const items = promotions ?? [];
+  const items = promotions;
 
   return (
     <div className="space-y-4 lg:space-y-5">
@@ -260,6 +262,18 @@ export function MyPromotionsList() {
               </div>
             );
           })}
+        </div>
+      )}
+      {promotionsQuery.hasNextPage && (
+        <div className="flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => { void promotionsQuery.fetchNextPage(); }}
+            loading={promotionsQuery.isFetchingNextPage}
+          >
+            تحميل المزيد
+          </Button>
         </div>
       )}
 

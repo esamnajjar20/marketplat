@@ -1,20 +1,12 @@
 import { Prisma, SavedSearch } from '@prisma/client';
 import { prisma } from '../../../config/prisma';
-import { logger } from '../../../shared/observability/logger';
 import type { SavedSearchFilters } from './saved-searches.validation';
 
-// findAllForMatching had no cap at all — with
-// MAX_SAVED_SEARCHES_PER_USER (saved-searches.service.ts) bounding rows
-// per user but no bound across users, this grows unbounded with the
-// user base. A full scheduled/batched matcher redesign (per the scale
-// note on savedSearchEvents.onAdCreated) is out of scope for a targeted
-// risks the current real-time notification behavior. This is a
-// deliberately blunt safety net, not a redesign: a hard application-level
-// ceiling so a single onAdCreated call can never pull an unbounded
-// result set, with a log warning when it's actually hit so growth past
-// this point gets noticed and prioritized rather than silently capping
-// matches forever.
-const HARD_MATCHING_CEILING = 5000;
+// Saved-search matching is performed in Node because the match rules vary by
+// listing kind and are intentionally kept in the service layer. Read the rows
+// through a stable keyset stream rather than materializing a platform-wide
+// array. The snapshot cutoff excludes searches created after this scan starts.
+const MATCHING_BATCH_SIZE = 500;
 
 export const savedSearchesRepository = {
   findManyByUserId: (userId: string): Promise<SavedSearch[]> =>
@@ -42,30 +34,31 @@ export const savedSearchesRepository = {
     prisma.savedSearch.deleteMany({ where: { id, userId } }),
 
   /**
-   * All saved searches across all users, for matching against a single
-   * newly created ad. See savedSearches.service.ts's onAdCreated for
-   * why in-Node filtering (vs. pushing the match into SQL) is the right
-   * tradeoff at current scale.
-   *
-   * capped at HARD_MATCHING_CEILING as a safety net, not
-   * a design decision — see that constant's comment. Ordered by
-   * createdAt so, if the ceiling is ever actually hit, older saved
-   * searches (statistically the most likely to still be relevant/active)
-   * are the ones kept rather than an arbitrary DB-order slice.
+   * Stream every saved search in bounded primary-key pages. Snapshotting the
+   * creation cutoff makes the scan finite even while users create new searches;
+   * a later event will consider those newer rows. Updates/deletes remain
+   * naturally visible at the moment each page is read.
    */
-  findAllForMatching: async (): Promise<SavedSearch[]> => {
-    const rows = await prisma.savedSearch.findMany({
-      orderBy: { createdAt: 'asc' },
-      take: HARD_MATCHING_CEILING,
-    });
-    if (rows.length === HARD_MATCHING_CEILING) {
-      logger.warn(
-        `savedSearchesRepository.findAllForMatching hit HARD_MATCHING_CEILING (${HARD_MATCHING_CEILING}) — ` +
-          'saved-search volume has outgrown the in-Node matching approach; newer saved searches beyond ' +
-          'this cap are not being matched against new ads. Needs a scheduled/batched matcher redesign.'
-      );
+  async *iterateAllForMatching(
+    snapshotAt: Date = new Date(),
+    batchSize = MATCHING_BATCH_SIZE
+  ): AsyncGenerator<SavedSearch[]> {
+    const take = Math.max(1, Math.min(1000, Math.floor(batchSize) || MATCHING_BATCH_SIZE));
+    let cursor: string | undefined;
+    while (true) {
+      const rows = await prisma.savedSearch.findMany({
+        where: {
+          createdAt: { lte: snapshotAt },
+          ...(cursor ? { id: { gt: cursor } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take,
+      });
+      if (rows.length === 0) return;
+      yield rows;
+      cursor = rows[rows.length - 1]!.id;
+      if (rows.length < take) return;
     }
-    return rows;
   },
 
   markNotified: (ids: string[]): Promise<Prisma.BatchPayload> =>

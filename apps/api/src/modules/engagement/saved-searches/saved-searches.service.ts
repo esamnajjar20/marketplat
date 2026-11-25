@@ -143,102 +143,72 @@ export const savedSearchesService = {
 };
 
 /**
- * Event-triggered matcher — called from ads.service.ts's createAd, same
- * fire-and-forget contract as notifications.service.ts's
- * notificationEvents (never awaited inline with the ad-creation
- * transaction; a matching failure must never fail ad creation itself).
- *
- * Scale note: this loads every SavedSearch row and filters in Node
- * rather than pushing the match down into a SQL WHERE clause. That's
- * the right tradeoff at this project's current size (saved searches are
- * a new, low-volume feature; MAX_SAVED_SEARCHES_PER_USER bounds rows
- * per user) and it keeps matchesFilters as one readable, testable
- * function instead of hand-built dynamic SQL. If saved-search volume
- * grows large enough for this to matter, the a scheduled/batched
- * matcher (or a proper search index) — not a change to this function's
- * logic, just to when/how often it runs.
- *
- * PLATFORM-WIDE-01: onProductCreated/onServiceListingCreated below
- * follow the exact same shape — load once, filter to this event's
- * type (a saved search of type 'products' is structurally never a
- * candidate for a new ad, and vice versa), exclude the actor's own
- * listing, match, notify, mark notified. Kept as three near-identical
- * functions rather than one generic entity-matcher: each already reads
- * a differently-shaped row (AdWithAuthor / ProductWithStore /
- * ServiceListingWithProvider) with its own matches*Filters function, so
- * a shared abstraction would mostly be indirection without removing
- * real duplication.
+ * Event-triggered matcher — called after a new ad/product/service listing is
+ * published. Search rules remain in Node for clarity, while the repository
+ * streams saved searches in stable, bounded pages so platform growth cannot
+ * truncate matching or materialize the full search table in memory.
  */
 export const savedSearchEvents = {
   onAdCreated: async (ad: AdWithAuthor): Promise<void> => {
-    const searches = await savedSearchesRepository.findAllForMatching();
-    // A seller's own saved search matching their own new ad would be a
-    // confusing, useless notification ("your search matched the ad you
-    // just posted") — exclude it the same way SellerCard/conversations
-    // already treat "acting on your own ad" as a no-op case elsewhere.
-    //
-    // PLATFORM-WIDE-01: also filters to type 'ads' (or no type at all —
-    // rows saved before this field existed) so a products/services
-    // saved search is never even passed to matchesAdFilters.
-    const candidates = searches.filter(s => s.userId !== ad.userId && savedSearchType(s) === 'ads');
+    const snapshotAt = new Date();
+    for await (const searches of savedSearchesRepository.iterateAllForMatching(snapshotAt)) {
+      const matched = searches.filter(
+        search =>
+          search.userId !== ad.userId &&
+          savedSearchType(search) === 'ads' &&
+          matchesAdFilters(ad, search.filters as unknown as SavedSearchFilters)
+      );
+      if (matched.length === 0) continue;
 
-    const matched = candidates.filter(s =>
-      matchesAdFilters(ad, s.filters as unknown as SavedSearchFilters)
-    );
-    if (matched.length === 0) return;
-
-    await notificationEvents.onSavedSearchMatched(
-      matched.map(s => ({ userId: s.userId, savedSearchId: s.id, label: s.label })),
-      { type: 'ad', id: ad.id, title: ad.title }
-    );
-    await savedSearchesRepository.markNotified(matched.map(s => s.id));
+      const ids = matched.map(search => search.id);
+      await notificationEvents.onSavedSearchMatched(
+        matched.map(search => ({ userId: search.userId, savedSearchId: search.id, label: search.label })),
+        { type: 'ad', id: ad.id, title: ad.title }
+      );
+      await savedSearchesRepository.markNotified(ids);
+    }
   },
 
-  /** PLATFORM-WIDE-01: products.service.ts's createProduct calls this
-   * after a new product is published. `ownerUserId` is passed in
-   * explicitly (the acting caller in createProduct, i.e. the store
-   * owner) rather than derived from a store/sellerProfile include on
-   * `product` — Product itself carries no userId (it's owned by a
-   * store, not directly by a user), and createProduct already has the
-   * owner's userId in scope, so no extra include/query is needed just
-   * to exclude their own saved searches. */
+  /** The owner is excluded, and only product searches are evaluated. */
   onProductCreated: async (product: Product, ownerUserId: string): Promise<void> => {
-    const searches = await savedSearchesRepository.findAllForMatching();
-    const candidates = searches.filter(
-      s => s.userId !== ownerUserId && savedSearchType(s) === 'products'
-    );
+    const snapshotAt = new Date();
+    for await (const searches of savedSearchesRepository.iterateAllForMatching(snapshotAt)) {
+      const matched = searches.filter(
+        search =>
+          search.userId !== ownerUserId &&
+          savedSearchType(search) === 'products' &&
+          matchesProductFilters(product, search.filters as unknown as SavedSearchFilters)
+      );
+      if (matched.length === 0) continue;
 
-    const matched = candidates.filter(s =>
-      matchesProductFilters(product, s.filters as unknown as SavedSearchFilters)
-    );
-    if (matched.length === 0) return;
-
-    await notificationEvents.onSavedSearchMatched(
-      matched.map(s => ({ userId: s.userId, savedSearchId: s.id, label: s.label })),
-      { type: 'product', id: product.id, title: product.name }
-    );
-    await savedSearchesRepository.markNotified(matched.map(s => s.id));
+      const ids = matched.map(search => search.id);
+      await notificationEvents.onSavedSearchMatched(
+        matched.map(search => ({ userId: search.userId, savedSearchId: search.id, label: search.label })),
+        { type: 'product', id: product.id, title: product.name }
+      );
+      await savedSearchesRepository.markNotified(ids);
+    }
   },
 
-  /** PLATFORM-WIDE-01: service-listings.service.ts's createServiceListing
-   * calls this after a new listing is published. Same ownerUserId
-   * reasoning as onProductCreated above. */
+  /** Only service searches are evaluated for a newly published service listing. */
   onServiceListingCreated: async (listing: ServiceListing, ownerUserId: string): Promise<void> => {
-    const searches = await savedSearchesRepository.findAllForMatching();
-    const candidates = searches.filter(
-      s => s.userId !== ownerUserId && savedSearchType(s) === 'services'
-    );
+    const snapshotAt = new Date();
+    for await (const searches of savedSearchesRepository.iterateAllForMatching(snapshotAt)) {
+      const matched = searches.filter(
+        search =>
+          search.userId !== ownerUserId &&
+          savedSearchType(search) === 'services' &&
+          matchesServiceFilters(listing, search.filters as unknown as SavedSearchFilters)
+      );
+      if (matched.length === 0) continue;
 
-    const matched = candidates.filter(s =>
-      matchesServiceFilters(listing, s.filters as unknown as SavedSearchFilters)
-    );
-    if (matched.length === 0) return;
-
-    await notificationEvents.onSavedSearchMatched(
-      matched.map(s => ({ userId: s.userId, savedSearchId: s.id, label: s.label })),
-      { type: 'service', id: listing.id, title: listing.title }
-    );
-    await savedSearchesRepository.markNotified(matched.map(s => s.id));
+      const ids = matched.map(search => search.id);
+      await notificationEvents.onSavedSearchMatched(
+        matched.map(search => ({ userId: search.userId, savedSearchId: search.id, label: search.label })),
+        { type: 'service', id: listing.id, title: listing.title }
+      );
+      await savedSearchesRepository.markNotified(ids);
+    }
   },
 };
 

@@ -576,15 +576,17 @@ export const adminController = {
    * Epic 6: POST /admin/notifications/broadcast — the only trigger for
    * PROMOTION notifications; see notifications.service.ts's
    * broadcastPromotion doc comment. `allUsers: true` resolves to every
-   * active user id via adminService.getAllActiveUserIds instead of
-   * requiring the caller to enumerate them — `userIds` is still
+   * active users via a stable, bounded keyset iterator instead of
+   * materializing the entire user table — `userIds` is still
    * required by the schema even in that case, but is ignored in favor
    * of the resolved list when allUsers is set.
    */
   broadcastNotification: async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { body } = broadcastNotificationSchema.parse({ body: req.body });
-      const userIds = body.allUsers ? await adminService.getAllActiveUserIds() : body.userIds;
+      const userIds = body.allUsers
+        ? adminService.iterateActiveUserIdBatches()
+        : body.userIds;
       const count = await notificationsService.broadcastPromotion(userIds, body.title, body.body);
       res.status(200).json(successResponse('Broadcast sent', { recipientCount: count }));
     } catch (error) {

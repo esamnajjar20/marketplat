@@ -141,6 +141,26 @@ export const adIdSchema = z.object({
   }),
 });
 
+// Image mutations share the same route-id validation and enforce a bounded
+// payload before any service/database work is performed.
+export const removeAdImageSchema = z.object({
+  params: z.object({
+    id: z.string().min(1, 'Ad ID is required'),
+  }),
+  body: z.object({
+    imageUrl: z.string().url(),
+  }),
+});
+
+export const reorderAdImagesSchema = z.object({
+  params: z.object({
+    id: z.string().min(1, 'Ad ID is required'),
+  }),
+  body: z.object({
+    images: z.array(z.string().url()).min(1).max(20),
+  }),
+});
+
 export type CreateAdInput = z.infer<typeof createAdSchema>['body'];
 export type UpdateAdInput = z.infer<typeof updateAdSchema>['body'];
 export type GetAdsQuery = z.infer<typeof getAdsSchema>['query'];

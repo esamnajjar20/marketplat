@@ -24,6 +24,23 @@ import {
   workingWindowUtc,
 } from '../../../shared/utils/marketTime';
 
+const APPOINTMENT_OVERLAP_CONSTRAINT = 'appointments_no_scheduled_overlap_excl';
+
+function isAppointmentOverlapConstraintError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const candidate = error as { code?: unknown; meta?: unknown; message?: unknown };
+  if (candidate.code === '23P01') return true;
+  if (candidate.code !== 'P2004' && candidate.code !== 'P2010') return false;
+  let meta = '';
+  try {
+    meta = JSON.stringify(candidate.meta ?? {});
+  } catch {
+    // Driver metadata is best-effort diagnostics; never hide the original DB error.
+  }
+  const diagnostic = `${String(candidate.message ?? '')} ${meta}`;
+  return diagnostic.includes(APPOINTMENT_OVERLAP_CONSTRAINT) || diagnostic.includes('23P01');
+}
+
 const requireOwnProvider = async (userId: string) => {
   const sellerProfile = await sellersRepository.findByUserId(userId);
   if (!sellerProfile) throw new BadRequestError('You need a seller profile first.');
@@ -151,8 +168,17 @@ export const appointmentsService = {
           scheduledEnd: input.scheduledEnd,
           notes: input.notes,
         });
-      } catch (error: any) {
-        if (error?.code === 'P2002' && input.requestId) {
+      } catch (error: unknown) {
+        if (isAppointmentOverlapConstraintError(error)) {
+          throw new ConflictError('This time slot is already booked', 'TIME_SLOT_ALREADY_BOOKED');
+        }
+        if (
+          input.requestId &&
+          typeof error === 'object' &&
+          error !== null &&
+          'code' in error &&
+          error.code === 'P2002'
+        ) {
           throw new ConflictError(
             'This service request already has an appointment.',
             'REQUEST_ALREADY_SCHEDULED'

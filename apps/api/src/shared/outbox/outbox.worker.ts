@@ -21,6 +21,7 @@ import { bumpGeneration } from '../cache/swrCache';
 import { deliverEdgePurgeTags } from '../cache/edgePurge';
 import { asPlainObject } from '../utils/asPlainObject';
 import { getGoWorkerBaseUrl, getGoWorkerToken } from '../go-worker/goWorkerConfig';
+import { matchesSearchQuery } from '../search/searchTextMatch';
 
 // Claim one event at a time: leasing a batch and then processing it serially lets
 // later events' leases expire while they wait behind a slow high-fan-out event.
@@ -193,6 +194,8 @@ function parseFollowedActivityPayload(value: unknown): FollowedActivityPayload {
   ] as string[];
   if (
     !Array.isArray(payload.targets) ||
+    payload.targets.length === 0 ||
+    payload.targets.length > 10 ||
     !payload.targets.every(target => {
       if (!target || typeof target !== 'object' || Array.isArray(target)) return false;
       const item = target as Record<string, unknown>;
@@ -205,7 +208,7 @@ function parseFollowedActivityPayload(value: unknown): FollowedActivityPayload {
     })
   )
     throw new Error('Followed-activity outbox targets are invalid');
-  if (typeof payload.title !== 'string' || !payload.title || typeof payload.body !== 'string') {
+  if (typeof payload.title !== 'string' || !payload.title || typeof payload.body !== 'string' || payload.body.length > 500) {
     throw new Error('Followed-activity outbox title/body are invalid');
   }
   if (typeof payload.type !== 'string' || !notificationTypes.includes(payload.type)) {
@@ -223,6 +226,57 @@ interface SavedSearchMatchPayload {
   matches: Array<{ userId: string; savedSearchId: string; label: string }>;
 }
 
+interface SavedSearchMatchScanPayload {
+  adId: string;
+  adTitle: string;
+  ownerUserId: string;
+  title: string;
+  description: string;
+  city: string | null;
+  categoryId: string | null;
+  condition: string | null;
+  price: string | null;
+  snapshotAt: string;
+  cursor: string | null;
+}
+
+function parseSavedSearchMatchScanPayload(value: unknown): SavedSearchMatchScanPayload {
+  const payload = asPlainObject(value);
+  if (
+    !payload ||
+    typeof payload.adId !== 'string' || !payload.adId ||
+    typeof payload.adTitle !== 'string' || !payload.adTitle ||
+    typeof payload.ownerUserId !== 'string' || !payload.ownerUserId ||
+    typeof payload.title !== 'string' ||
+    typeof payload.description !== 'string' ||
+    (payload.city !== null && typeof payload.city !== 'string') ||
+    (payload.categoryId !== null && typeof payload.categoryId !== 'string') ||
+    (payload.condition !== null && typeof payload.condition !== 'string') ||
+    (payload.price !== null && typeof payload.price !== 'string') ||
+    typeof payload.snapshotAt !== 'string' || Number.isNaN(Date.parse(payload.snapshotAt)) ||
+    (payload.cursor !== null && typeof payload.cursor !== 'string')
+  ) {
+    throw new Error('Saved-search scan outbox payload is invalid');
+  }
+  return payload as unknown as SavedSearchMatchScanPayload;
+}
+
+function savedSearchMatchesAd(filtersValue: unknown, ad: SavedSearchMatchScanPayload): boolean {
+  const filters = asPlainObject(filtersValue) ?? {};
+  if (filters.type !== undefined && filters.type !== 'ads') return false;
+  if (typeof filters.q === 'string' && filters.q &&
+      !matchesSearchQuery([ad.title, ad.description], filters.q)) return false;
+  if (typeof filters.city === 'string' && filters.city &&
+      (ad.city ?? '').toLocaleLowerCase() !== filters.city.toLocaleLowerCase()) return false;
+  if (typeof filters.categoryId === 'string' && filters.categoryId !== ad.categoryId) return false;
+  if (typeof filters.condition === 'string' && filters.condition !== ad.condition) return false;
+
+  const price = ad.price === null ? null : Number(ad.price);
+  if (typeof filters.minPrice === 'number' && (price === null || price < filters.minPrice)) return false;
+  if (typeof filters.maxPrice === 'number' && (price === null || price > filters.maxPrice)) return false;
+  return true;
+}
+
 function parseSavedSearchMatchPayload(value: unknown): SavedSearchMatchPayload {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Saved-search outbox payload must be an object');
@@ -238,6 +292,8 @@ function parseSavedSearchMatchPayload(value: unknown): SavedSearchMatchPayload {
   }
   if (
     !Array.isArray(payload.matches) ||
+    payload.matches.length > 5000 ||
+    payload.adTitle.length > 2000 ||
     !payload.matches.every(match => {
       if (!match || typeof match !== 'object' || Array.isArray(match)) return false;
       const row = match as Record<string, unknown>;
@@ -298,8 +354,8 @@ function isGoOutboxResult(value: unknown, event: OutboxEvent): value is GoOutbox
     row.eventId === event.id &&
     row.eventType === event.eventType &&
     row.processed === true &&
-    Array.isArray(row.created) &&
-    row.created.every(isGoOutboxNotification)
+    (row.created === undefined ||
+      (Array.isArray(row.created) && row.created.every(isGoOutboxNotification)))
   );
 }
 
@@ -475,18 +531,13 @@ async function tryExecuteOutboxEventInGo(
   });
   if (!state) throw new Error(`Outbox event ${event.id} disappeared while processing`);
   if (state.processedAt) {
-    const created =
-      event.eventType === 'USER_ACTIVITY_RECORD'
-        ? []
-        : await prisma.notification.findMany({
-            where: { idempotencyKey: { startsWith: `outbox:${event.id}:` } },
-            select: { id: true, userId: true, type: true, title: true, body: true, data: true },
-          });
+    // Notification replay is performed by the caller with keyset batches;
+    // do not materialize a potentially very large event fan-out here.
     return {
       eventId: event.id,
       eventType: event.eventType,
       processed: true,
-      created: created.map(row => ({ ...row, data: row.data })),
+      created: [],
     };
   }
   if (state.lockedBy !== workerId) {
@@ -528,6 +579,34 @@ async function publishOutboxNotifications(
   }
 }
 
+async function publishOutboxEventNotificationsByEvent(
+  eventId: string,
+  label: string
+): Promise<void> {
+  const BATCH_SIZE = 500;
+  const prefix = `outbox:${eventId}:`;
+  let cursor: string | undefined;
+  while (true) {
+    const rows = await prisma.notification.findMany({
+      where: {
+        idempotencyKey: {
+          startsWith: prefix,
+          ...(cursor ? { gt: cursor } : {}),
+        },
+      },
+      // idempotencyKey is unique and indexed; using it as the cursor avoids
+      // repeatedly sorting all rows for the event by an unrelated primary key.
+      orderBy: { idempotencyKey: 'asc' },
+      take: BATCH_SIZE,
+      select: { id: true, idempotencyKey: true, userId: true, type: true, title: true, body: true, data: true },
+    });
+    if (rows.length === 0) return;
+    await publishOutboxNotifications(rows, eventId, label);
+    cursor = rows[rows.length - 1].idempotencyKey ?? undefined;
+    if (rows.length < BATCH_SIZE) return;
+  }
+}
+
 async function processSavedSearchMatchEvent(
   event: OutboxEvent,
   workerId: string,
@@ -536,68 +615,74 @@ async function processSavedSearchMatchEvent(
   const payload = parseSavedSearchMatchPayload(event.payload);
   const goResult = allowGoExecution ? await tryExecuteOutboxEventInGo(event, workerId) : null;
   if (goResult) {
-    await publishOutboxNotifications(goResult.created, event.id, 'Saved-search');
+    await publishOutboxEventNotificationsByEvent(event.id, 'Saved-search');
     return;
   }
-  const created = await prisma.$transaction(async tx => {
-    if (!(await tryAcquireOutboxExecutionLock(tx, event.id))) return [];
+  const processed = await prisma.$transaction(async tx => {
+    if (!(await tryAcquireOutboxExecutionLock(tx, event.id))) return false;
     const userIds = Array.from(new Set(payload.matches.map(match => match.userId)));
-    const users = userIds.length
-      ? await tx.user.findMany({
-          where: { id: { in: userIds } },
-          select: { id: true, notificationPreferences: true },
-        })
-      : [];
-    const allowed = new Set(
-      users
-        .filter(user => preferenceAllowsSavedSearch(user.notificationPreferences))
-        .map(user => user.id)
-    );
+    const allowed = new Set<string>();
+    // Keep preference reads bounded even if a valid saved-search event carries
+    // the maximum supported number of matches.
+    for (let offset = 0; offset < userIds.length; offset += 500) {
+      const users = await tx.user.findMany({
+        where: { id: { in: userIds.slice(offset, offset + 500) } },
+        select: { id: true, notificationPreferences: true },
+      });
+      for (const user of users) {
+        if (preferenceAllowsSavedSearch(user.notificationPreferences)) allowed.add(user.id);
+      }
+    }
+
     const eligibleMatches = payload.matches.filter(match => allowed.has(match.userId));
     const title = 'إعلان جديد يطابق بحثك المحفوظ';
-    const inserted = eligibleMatches.length
-      ? await tx.notification.createManyAndReturn({
-          data: eligibleMatches.map(match => ({
-            userId: match.userId,
-            type: NotificationType.SAVED_SEARCH_MATCH,
-            title,
-            body: `\"${payload.adTitle}\" يطابق بحثك المحفوظ \"${match.label}\"`,
-            data: {
-              adId: payload.adId,
-              savedSearchId: match.savedSearchId,
-            } as Prisma.InputJsonValue,
-            idempotencyKey: `outbox:${event.id}:saved-search:${match.savedSearchId}:recipient:${match.userId}`,
-          })),
+    for (let offset = 0; offset < eligibleMatches.length; offset += 500) {
+      const batch = eligibleMatches.slice(offset, offset + 500);
+      const inserted = batch.length
+        ? await tx.notification.createManyAndReturn({
+            data: batch.map(match => ({
+              userId: match.userId,
+              type: NotificationType.SAVED_SEARCH_MATCH,
+              title,
+              body: `\"${payload.adTitle}\" يطابق بحثك المحفوظ \"${match.label}\"`,
+              data: {
+                adId: payload.adId,
+                savedSearchId: match.savedSearchId,
+              } as Prisma.InputJsonValue,
+              idempotencyKey: `outbox:${event.id}:saved-search:${match.savedSearchId}:recipient:${match.userId}`,
+            })),
+            skipDuplicates: true,
+            select: { id: true, userId: true, type: true, title: true, body: true, data: true },
+          })
+        : [];
+      if (inserted.length) {
+        await tx.notificationPushDispatch.createMany({
+          data: inserted.map(row => {
+            const data = asPlainObject(row.data);
+            const savedSearchId = data?.savedSearchId ? String(data.savedSearchId) : event.id;
+            const pushPayload: PushPayload = {
+              title: row.title,
+              body: row.body,
+              url: data?.adId ? `/ads/${String(data.adId)}` : '/',
+              tag: `saved-search-${savedSearchId}`,
+              type: row.type,
+            };
+            return {
+              notificationId: row.id,
+              userId: row.userId,
+              payload: pushPayload as unknown as Prisma.InputJsonValue,
+              idempotencyKey: `notification-push:${row.id}`,
+            };
+          }),
           skipDuplicates: true,
-          select: { id: true, userId: true, type: true, title: true, body: true, data: true },
-        })
-      : [];
-    if (inserted.length) {
-      await tx.notificationPushDispatch.createMany({
-        data: inserted.map(row => {
-          const data = asPlainObject(row.data);
-          const savedSearchId = data?.savedSearchId ? String(data.savedSearchId) : event.id;
-          const pushPayload: PushPayload = {
-            title: row.title,
-            body: row.body,
-            url: data?.adId ? `/ads/${String(data.adId)}` : '/',
-            tag: `saved-search-${savedSearchId}`,
-            type: row.type,
-          };
-          return {
-            notificationId: row.id,
-            userId: row.userId,
-            payload: pushPayload as unknown as Prisma.InputJsonValue,
-            idempotencyKey: `notification-push:${row.id}`,
-          };
-        }),
-        skipDuplicates: true,
-      });
+        });
+      }
     }
+
     const searchIds = Array.from(new Set(payload.matches.map(match => match.savedSearchId)));
-    if (searchIds.length) {
+    for (let offset = 0; offset < searchIds.length; offset += 500) {
       await tx.savedSearch.updateMany({
-        where: { id: { in: searchIds } },
+        where: { id: { in: searchIds.slice(offset, offset + 500) } },
         data: { lastNotifiedAt: new Date() },
       });
     }
@@ -607,14 +692,121 @@ async function processSavedSearchMatchEvent(
     });
     if (acknowledged.count !== 1)
       throw new Error('Outbox lease lost before saved-search acknowledgement');
-    return inserted;
-  });
+    return true;
+  }, { maxWait: 10_000, timeout: 120_000 });
 
-  await publishOutboxNotifications(
-    created.map(row => ({ ...row, data: row.data })),
-    event.id,
-    'Saved-search'
-  );
+  if (processed) await publishOutboxEventNotificationsByEvent(event.id, 'Saved-search');
+}
+
+/**
+ * Durable keyset scan for saved searches. Each 500-row page advances the
+ * outbox payload cursor in the same DB transaction as its notifications and
+ * push-dispatch records. A crash resumes from the last committed cursor.
+ */
+async function processSavedSearchMatchScanEvent(
+  event: OutboxEvent,
+  workerId: string
+): Promise<void> {
+  while (true) {
+    const result = await prisma.$transaction(async tx => {
+      const current = await tx.outboxEvent.findFirst({
+        where: { id: event.id, lockedBy: workerId, processedAt: null },
+        select: { payload: true },
+      });
+      if (!current) return { owned: false, complete: true };
+
+      const payload = parseSavedSearchMatchScanPayload(current.payload);
+      const snapshotAt = new Date(payload.snapshotAt);
+      const searches = await tx.savedSearch.findMany({
+        where: {
+          createdAt: { lte: snapshotAt },
+          ...(payload.cursor ? { id: { gt: payload.cursor } } : {}),
+        },
+        orderBy: { id: 'asc' },
+        take: 500,
+        select: { id: true, userId: true, label: true, filters: true },
+      });
+      const matching = searches.filter(
+        search => search.userId !== payload.ownerUserId && savedSearchMatchesAd(search.filters, payload)
+      );
+
+      if (matching.length > 0) {
+        const userIds = Array.from(new Set(matching.map(search => search.userId)));
+        const users = await tx.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, notificationPreferences: true },
+        });
+        const allowed = new Set(
+          users.filter(user => preferenceAllowsSavedSearch(user.notificationPreferences)).map(user => user.id)
+        );
+        const eligible = matching.filter(search => allowed.has(search.userId));
+        const inserted = eligible.length
+          ? await tx.notification.createManyAndReturn({
+              data: eligible.map(search => ({
+                userId: search.userId,
+                type: NotificationType.SAVED_SEARCH_MATCH,
+                title: 'إعلان جديد يطابق بحثك المحفوظ',
+                body: `"${payload.adTitle}" يطابق بحثك المحفوظ "${search.label}"`,
+                data: { adId: payload.adId, savedSearchId: search.id } as Prisma.InputJsonValue,
+                idempotencyKey: `outbox:${event.id}:saved-search:${search.id}:recipient:${search.userId}`,
+              })),
+              skipDuplicates: true,
+              select: { id: true, userId: true, type: true, title: true, body: true, data: true },
+            })
+          : [];
+
+        if (inserted.length > 0) {
+          await tx.notificationPushDispatch.createMany({
+            data: inserted.map(row => {
+              const data = asPlainObject(row.data);
+              const savedSearchId = data?.savedSearchId ? String(data.savedSearchId) : event.id;
+              const pushPayload: PushPayload = {
+                title: row.title,
+                body: row.body,
+                url: data?.adId ? `/ads/${String(data.adId)}` : '/',
+                tag: `saved-search-${savedSearchId}`,
+                type: row.type,
+              };
+              return {
+                notificationId: row.id,
+                userId: row.userId,
+                payload: pushPayload as unknown as Prisma.InputJsonValue,
+                idempotencyKey: `notification-push:${row.id}`,
+              };
+            }),
+            skipDuplicates: true,
+          });
+        }
+
+        // Preserve the established behavior: a matching search is marked as
+        // considered even when the recipient has opted out of this notification.
+        await tx.savedSearch.updateMany({
+          where: { id: { in: matching.map(search => search.id) } },
+          data: { lastNotifiedAt: new Date() },
+        });
+      }
+
+      const complete = searches.length < 500;
+      const nextPayload: SavedSearchMatchScanPayload = {
+        ...payload,
+        cursor: searches.length ? searches[searches.length - 1]!.id : payload.cursor,
+      };
+      const update = await tx.outboxEvent.updateMany({
+        where: { id: event.id, lockedBy: workerId, processedAt: null },
+        data: complete
+          ? { payload: nextPayload as unknown as Prisma.InputJsonValue, processedAt: new Date(), lockedAt: null, lockedBy: null, lastError: null }
+          : { payload: nextPayload as unknown as Prisma.InputJsonValue },
+      });
+      if (update.count !== 1) throw new Error('Saved-search scan outbox lease was lost before checkpoint');
+      return { owned: true, complete };
+    }, { maxWait: 10_000, timeout: 30_000 });
+
+    if (!result.owned) return;
+    if (result.complete) {
+      await publishOutboxEventNotificationsByEvent(event.id, 'Saved-search scan');
+      return;
+    }
+  }
 }
 
 async function processMarketplaceOrderNotificationEvent(
@@ -882,62 +1074,70 @@ async function processFollowedActivityEvent(
   const payload = parseFollowedActivityPayload(event.payload);
   const goResult = allowGoExecution ? await tryExecuteOutboxEventInGo(event, workerId) : null;
   if (goResult) {
-    await publishOutboxNotifications(goResult.created, event.id, 'Followed-activity');
+    await publishOutboxEventNotificationsByEvent(event.id, 'Followed-activity');
     return;
   }
-  const created = await prisma.$transaction(async tx => {
-    if (!(await tryAcquireOutboxExecutionLock(tx, event.id))) return [];
-    const targetConditions = payload.targets.map(target => ({
-      targetType: target.targetType,
-      targetId: target.targetId,
-    }));
-    const followers = targetConditions.length
-      ? await tx.follow.findMany({ where: { OR: targetConditions }, select: { followerId: true } })
-      : [];
-    const candidateIds = Array.from(new Set(followers.map(row => row.followerId)));
-    const users = candidateIds.length
-      ? await tx.user.findMany({
-          where: { id: { in: candidateIds } },
-          select: { id: true, notificationPreferences: true },
-        })
-      : [];
-    const allowedIds = users
-      .filter(user => preferenceAllowsFollowUpdates(user.notificationPreferences))
-      .map(user => user.id);
+  const processed = await prisma.$transaction(async tx => {
+    if (!(await tryAcquireOutboxExecutionLock(tx, event.id))) return false;
+    const targetPredicate = Prisma.join(
+      payload.targets.map(target => Prisma.sql`("targetType" = ${target.targetType} AND "targetId" = ${target.targetId})`),
+      ' OR ',
+    );
+    let cursor: string | undefined;
+    while (true) {
+      const followers = await tx.$queryRaw<Array<{ followerId: string }>>`
+        SELECT DISTINCT "followerId"
+        FROM "follows"
+        WHERE (${targetPredicate})
+          AND (${cursor ? Prisma.sql`"followerId" > ${cursor}` : Prisma.sql`TRUE`})
+        ORDER BY "followerId" ASC
+        LIMIT 500
+      `;
+      if (followers.length === 0) break;
+      cursor = followers[followers.length - 1].followerId;
+      const candidateIds = followers.map(row => row.followerId);
+      const users = await tx.user.findMany({
+        where: { id: { in: candidateIds } },
+        select: { id: true, notificationPreferences: true },
+      });
+      const allowedIds = users
+        .filter(user => preferenceAllowsFollowUpdates(user.notificationPreferences))
+        .map(user => user.id);
 
-    // Notification rows and event acknowledgement commit together. A worker
-    // crash cannot leave a committed notification with an unacknowledged event,
-    // and the unique per-recipient key is a second line of defence on retries.
-    const inserted = allowedIds.length
-      ? await tx.notification.createManyAndReturn({
-          data: allowedIds.map(userId => ({
-            userId,
-            type: payload.type,
-            title: payload.title,
-            body: payload.body,
-            data: payload.data as Prisma.InputJsonValue,
-            idempotencyKey: `outbox:${event.id}:recipient:${userId}`,
+      // Each insert and push-dispatch write is capped at 500 rows. The whole
+      // event and acknowledgement still share one transaction for retry safety.
+      const inserted = allowedIds.length
+        ? await tx.notification.createManyAndReturn({
+            data: allowedIds.map(userId => ({
+              userId,
+              type: payload.type,
+              title: payload.title,
+              body: payload.body,
+              data: payload.data as Prisma.InputJsonValue,
+              idempotencyKey: `outbox:${event.id}:recipient:${userId}`,
+            })),
+            skipDuplicates: true,
+            select: { id: true, userId: true, type: true, title: true, body: true, data: true },
+          })
+        : [];
+      if (inserted.length) {
+        await tx.notificationPushDispatch.createMany({
+          data: inserted.map(row => ({
+            notificationId: row.id,
+            userId: row.userId,
+            payload: {
+              title: row.title,
+              body: row.body,
+              url: '/?feed=following',
+              tag: `followed-activity-${event.aggregateId}`,
+              type: row.type,
+            } as unknown as Prisma.InputJsonValue,
+            idempotencyKey: `notification-push:${row.id}`,
           })),
           skipDuplicates: true,
-          select: { id: true, userId: true, type: true, title: true, body: true, data: true },
-        })
-      : [];
-    if (inserted.length) {
-      await tx.notificationPushDispatch.createMany({
-        data: inserted.map(row => ({
-          notificationId: row.id,
-          userId: row.userId,
-          payload: {
-            title: row.title,
-            body: row.body,
-            url: '/?feed=following',
-            tag: `followed-activity-${event.aggregateId}`,
-            type: row.type,
-          } as unknown as Prisma.InputJsonValue,
-          idempotencyKey: `notification-push:${row.id}`,
-        })),
-        skipDuplicates: true,
-      });
+        });
+      }
+      if (followers.length < 500) break;
     }
     const acknowledged = await tx.outboxEvent.updateMany({
       where: { id: event.id, lockedBy: workerId, processedAt: null },
@@ -945,14 +1145,10 @@ async function processFollowedActivityEvent(
     });
     if (acknowledged.count !== 1)
       throw new Error('Outbox lease lost before notification acknowledgement');
-    return inserted;
-  });
+    return true;
+  }, { maxWait: 10_000, timeout: 120_000 });
 
-  await publishOutboxNotifications(
-    created.map(row => ({ ...row, data: row.data })),
-    event.id,
-    'Followed-activity'
-  );
+  if (processed) await publishOutboxEventNotificationsByEvent(event.id, 'Followed-activity');
 }
 
 interface NotificationPushDispatchRow {
@@ -968,7 +1164,7 @@ function parsePushDispatchPayload(value: unknown): PushPayload {
     throw new Error('Notification push dispatch payload must be an object');
   }
   const payload = value as Record<string, unknown>;
-  if (typeof payload.title !== 'string' || !payload.title || typeof payload.body !== 'string') {
+  if (typeof payload.title !== 'string' || !payload.title || typeof payload.body !== 'string' || payload.body.length > 500) {
     throw new Error('Notification push dispatch payload is missing title/body');
   }
   for (const key of ['url', 'tag', 'image', 'type'] as const) {
@@ -1828,6 +2024,8 @@ export async function processOutboxBatch(
           await processFollowedActivityEvent(event, workerId, allowGoExecution);
         else if (event.eventType === 'SAVED_SEARCH_MATCH_NOTIFICATION')
           await processSavedSearchMatchEvent(event, workerId, allowGoExecution);
+        else if (event.eventType === 'SAVED_SEARCH_MATCH_SCAN')
+          await processSavedSearchMatchScanEvent(event, workerId);
         else if (event.eventType === 'MARKETPLACE_ORDER_NOTIFICATION')
           await processMarketplaceOrderNotificationEvent(event, workerId);
         else if (event.eventType === 'CACHE_GENERATION_BUMP')

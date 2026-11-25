@@ -97,13 +97,12 @@ model UserActivity {
   createdAt      DateTime            @default(now())
   user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Powers the two real query shapes activity.repository.ts runs:
-  // "my timeline, newest first" and "my timeline filtered to one type,
-  // newest first". No separate [userId, createdAt]-only index is
-  // needed alongside it — Postgres can use a composite index's leading
-  // column(s) alone, so [userId, type, createdAt] already serves an
-  // unfiltered query on just [userId, createdAt] too.
-  @@index([userId, type, createdAt])
+  // Match the actual timeline query shapes. The unfiltered list needs
+  // createdAt immediately after userId; putting type in the middle does
+  // not provide a global newest-first order when type is not filtered.
+  // The second index serves the narrower userId + type query.
+  @@index([userId, createdAt, id])
+  @@index([userId, type, createdAt, id])
   @@map("user_activities")
 }
 
@@ -361,7 +360,10 @@ model Favorite {
 
   @@unique([userId, entityType, entityId])
   @@index([userId])
-  @@index([entityType, entityId])
+  @@index([userId, entityType, createdAt, id])
+  @@index([userId, entityType, listId, createdAt, id])
+  // Fan-out pages scan every favorite for one entity in id order.
+  @@index([entityType, entityId, id])
   @@index([listId])
   @@map("favorites")
 }
@@ -586,7 +588,9 @@ model SellerRating {
   sellerProfile   SellerProfile @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
 
   @@unique([sellerProfileId, raterId, adId])
-  @@index([sellerProfileId])
+  @@index([sellerProfileId, createdAt, id])
+  @@index([raterId])
+  @@index([adId])
   @@map("seller_ratings")
 }
 
@@ -803,6 +807,9 @@ model Appointment {
   provider       ServiceProviderDetails @relation(fields: [providerId], references: [id], onDelete: Cascade)
   request        ServiceRequest?        @relation(fields: [requestId], references: [id])
 
+  // The raw SQL migration also adds an exclusion constraint over the
+  // [scheduledStart, scheduledEnd) range for SCHEDULED rows. This B-tree
+  // index remains useful for the overlap/range lookup's provider filter.
   @@index([providerId, scheduledStart, scheduledEnd])
   @@map("appointments")
 }
@@ -819,7 +826,8 @@ model ServiceReview {
   request         ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
   sellerProfile   SellerProfile  @relation(fields: [sellerProfileId], references: [id], onDelete: Cascade)
 
-  @@index([sellerProfileId])
+  @@index([sellerProfileId, createdAt, id])
+  @@index([raterId])
   @@map("service_reviews")
 }
 
@@ -1073,6 +1081,7 @@ model StoreMember {
   // Supports paginated team listing filtered by store/status and sorted by createdAt.
   @@index([storeId, status, createdAt])
   @@index([userId, status])
+  @@index([invitedById])
   @@map("store_members")
 }
 
@@ -1127,6 +1136,9 @@ model Product {
   orderItems         MarketplaceOrderItem[]
 
   @@index([storeId, status])
+  // Seller cost management lists products by store, newest updates first.
+  // This supports that bounded query without an avoidable per-store sort.
+  @@index([storeId, updatedAt, id])
   @@index([categoryId, status])
   @@index([status, createdAt])
   @@map("products")
@@ -1143,7 +1155,7 @@ model StockMovement {
   reason           String   @db.VarChar(120)
   createdAt        DateTime @default(now())
 
-  product      Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product      Product     @relation(fields: [productId], references: [id], onDelete: Restrict)
   saleRecord   SaleRecord? @relation("SaleStockMovement")
   saleItem     SaleItem?   @relation("SaleItemStockMovement")
   returnRecord SaleReturn? @relation("ReturnStockMovement")
@@ -1194,7 +1206,8 @@ model Promotion {
   @@index([storeId, status])
   // Supports the seller-facing history query (storeId + createdAt DESC)
   // without sorting the full promotion history on every page visit.
-  @@index([storeId, createdAt])
+  // Stable seller-facing history ordering, including the id tie-breaker.
+  @@index([storeId, createdAt, id])
   @@index([productId, startsAt, endsAt])
   @@map("promotions")
 }
@@ -1332,7 +1345,7 @@ model Follow {
   follower User @relation("FollowFollower", fields: [followerId], references: [id], onDelete: Cascade)
 
   @@unique([followerId, targetType, targetId])
-  @@index([targetType, targetId])
+  @@index([targetType, targetId, followerId])
   @@index([followerId, createdAt])
   @@map("follows")
 }
@@ -1346,7 +1359,8 @@ model StoreFollower {
   store     StoreDetails @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@unique([userId, storeId])
-  @@index([storeId])
+  // Supports keyset notification fan-out ordered by StoreFollower.id.
+  @@index([storeId, id])
   @@map("store_followers")
 }
 
@@ -1365,7 +1379,8 @@ model StoreReview {
   // uniqueness since a store review isn't tied to a single transaction
   // record the way a completed ServiceRequest is.
   @@unique([sellerProfileId, raterId])
-  @@index([sellerProfileId])
+  @@index([sellerProfileId, createdAt, id])
+  @@index([raterId])
   @@map("store_reviews")
 }
 
@@ -1373,7 +1388,8 @@ model Conversation {
   id               String                    @id @default(cuid())
   // FEAT-CONV-DEDUP: adId is initial-context only — which ad/listing
   // the thread happened to start from — and is deliberately NOT part
-  // of the identity key below anymore. See @@unique([buyerId, sellerId]).
+  // of the identity key anymore. See the @@unique pair key and the
+  // raw unordered-pair expression index added by the integrity migration.
   adId             String?
   // CHAT-LINK: lets a service request's own detail page offer a
   // "تواصل" entry point into a real thread instead of only a phone
@@ -1381,8 +1397,10 @@ model Conversation {
   // @unique (a ServiceRequest has exactly one customer and one
   // provider, so at most one thread can legitimately be "for" it) but
   // no longer part of the conversation's identity key either — see
-  // @@unique([buyerId, sellerId]) below, which is now the sole
-  // identity for a thread between two users.
+  // @@unique([buyerId, sellerId]) plus the raw LEAST/GREATEST
+  // expression unique index installed by migration
+  // 20261124170000_database_integrity_query_hardening enforce one
+  // thread per unordered participant pair.
   serviceRequestId String?                   @unique
   buyerId          String
   sellerId         String
@@ -1410,6 +1428,7 @@ model Conversation {
   // conversations.repository.ts's create() for the P2002-then-refetch
   // handling this requires.
   @@unique([buyerId, sellerId])
+  @@index([adId])
   @@index([buyerId, updatedAt])
   @@index([sellerId, updatedAt])
   @@map("conversations")
@@ -1529,8 +1548,8 @@ model Notification {
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   pushDispatches NotificationPushDispatch[]
 
-  @@index([userId, createdAt])
-  @@index([userId, readAt])
+  @@index([userId, createdAt, id])
+  @@index([userId, readAt, createdAt, id])
   @@map("notifications")
 }
 

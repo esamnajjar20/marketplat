@@ -142,6 +142,22 @@ describe('conversationsRepository', () => {
       expect(prisma.conversation.findFirst).toHaveBeenCalledTimes(2);
     });
 
+    it('refetches the canonical conversation after the unordered-pair expression index rejects a reverse-direction race', async () => {
+      (prisma.conversation.findFirst as jest.Mock).mockResolvedValueOnce(null);
+      const conflictError = Object.assign(
+        new Error('duplicate key violates unique constraint conversations_unordered_pair_key'),
+        { code: '23505', meta: { constraint: 'conversations_unordered_pair_key' } }
+      );
+      (prisma.conversation.create as jest.Mock).mockRejectedValue(conflictError);
+      const winner = { id: 'conv-winner', buyerId: sellerId, sellerId: buyerId };
+      (prisma.conversation.findFirst as jest.Mock).mockResolvedValueOnce(winner);
+
+      const result = await conversationsRepository.findOrCreate(buyerId, sellerId, { adId });
+
+      expect(result).toEqual(winner);
+      expect(prisma.conversation.findFirst).toHaveBeenCalledTimes(2);
+    });
+
     it('rethrows a P2002 conflict if the refetch somehow still finds nothing', async () => {
       (prisma.conversation.findFirst as jest.Mock).mockResolvedValue(null);
       const conflictError = new Prisma.PrismaClientKnownRequestError('Unique constraint failed', {

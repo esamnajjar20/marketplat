@@ -16,10 +16,17 @@ module.exports = {
     'android/**',
     '.expo/**',
     'assets/**',
-    'scripts/**',
     '**/*.d.ts',
   ],
   rules: {
+    '@typescript-eslint/no-unused-vars': [
+      'warn',
+      {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      },
+    ],
     'no-restricted-imports': [
       'error',
       {
@@ -48,8 +55,18 @@ module.exports = {
       rules: { 'no-restricted-syntax': 'off' },
     },
     {
-      files: ['**/__tests__/**/*.{ts,tsx}', '**/*.test.{ts,tsx}'],
+      files: ['**/__tests__/**/*.{ts,tsx,mts,cts}', '**/*.test.{ts,tsx,mts,cts}'],
       rules: { '@typescript-eslint/no-explicit-any': 'off' },
+    },
+    {
+      files: ['scripts/**/*.{mts,cts}'],
+      rules: {
+        'no-console': 'off',
+        '@typescript-eslint/no-explicit-any': 'warn',
+        'no-restricted-syntax': 'off',
+        'react-hooks/rules-of-hooks': 'off',
+        'react-hooks/exhaustive-deps': 'off',
+      },
     },
   ],
 };
