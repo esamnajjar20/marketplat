@@ -48,6 +48,7 @@ import { SessionRestoreStalled } from '@/components/shared/SessionRestoreStalled
 import { useAuthRestoreRetry } from '@/hooks/useAuthRestoreRetry';
 import { signalNavigationStart } from '@/components/shared/NavigationProgress';
 import { ROUTES }           from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 export default function ProtectedLayout({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore(selectIsAuthenticated);
@@ -206,7 +207,12 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
     // itself. min-w-0 at each level lets children's own overflow
     // handling (Timeline's overflow-x-auto overscroll-x-contain) actually take effect
     // instead of being bypassed by an ancestor refusing to shrink.
-    <div className="flex min-h-screen min-h-dvh min-w-0 flex-col">
+    <div className={cn(
+      'flex min-h-screen min-h-dvh min-w-0 flex-col',
+      // A conversation is a viewport-bound workspace, not a page that may
+      // grow with its contents. Prevent document scrolling behind the thread.
+      isConversationThread && 'h-dvh min-h-0 overflow-hidden',
+    )}>
       {/* PERF-04: ThemedToaster (sonner) — only on protected routes. */}
       <ThemedToaster />
       {/* Phase 5: hide site chrome inside an open conversation (WhatsApp-style). */}
@@ -227,7 +233,10 @@ export default function ProtectedLayout({ children }: { children: React.ReactNod
           id="main-content"
           tabIndex={-1}
           className={isImmersiveTask
-            ? 'flex min-h-0 min-w-0 flex-1 flex-col p-0'
+            ? cn(
+                'flex min-h-0 min-w-0 flex-1 flex-col p-0',
+                isConversationThread && 'overflow-hidden',
+              )
             : 'protected-main min-w-0 flex-1 px-4 py-4 pb-20 md:p-6 md:pb-6 lg:p-8'}
         >
           {isImmersiveTask ? (

@@ -58,7 +58,7 @@ export default function MessagesLayout({ children }: { children: React.ReactNode
 
   const heightClass = isInboxRoute
     ? '-mb-20 h-[calc(100dvh-4rem)] md:mb-0 md:h-[calc(100dvh-6.5rem)] lg:h-[calc(100dvh-7rem)]'
-    : 'h-[100dvh] min-h-0';
+    : 'h-full min-h-0';
 
   return (
     <div className={cn('flex min-h-0 flex-col overflow-hidden md:flex-row md:gap-0 md:rounded-xl md:border md:border-border md:bg-card md:shadow-sm', heightClass)}>
@@ -78,7 +78,7 @@ export default function MessagesLayout({ children }: { children: React.ReactNode
         )}
       </aside>
 
-      <div className={cn('min-w-0 md:flex-1 md:min-h-0', isInboxRoute ? 'hidden md:block' : 'flex h-full flex-col')}>
+      <div className={cn('min-w-0 md:flex-1 md:min-h-0', isInboxRoute ? 'hidden md:block' : 'flex h-full min-h-0 flex-col overflow-hidden')}>
         {children}
       </div>
     </div>

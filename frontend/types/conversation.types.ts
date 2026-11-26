@@ -139,4 +139,6 @@ export interface MessagesQuery {
   limit?: number;
   /** Opaque cursor for loading the next older message window. */
   before?: string;
+  /** Skip the full-thread COUNT when the caller only needs the next cursor. */
+  cursor?: boolean;
 }

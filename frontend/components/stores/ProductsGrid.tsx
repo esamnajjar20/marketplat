@@ -2,7 +2,6 @@
 
 import { QueryRetryCard } from '@/components/shared/feedback/QueryRetryCard';
 
-import dynamic from 'next/dynamic';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import { ProductCard } from './ProductCard';
@@ -46,11 +45,6 @@ import { Skeleton } from '@/components/shared/ui/Skeleton';
  * ownerless in this cross-store view — StoreProducts.tsx doesn't need
  * this same treatment since it's already scoped to one store's page.
  */
-const SaveSearchButton = dynamic(
-  () => import('@/components/ads/SaveSearchButton').then((module) => module.SaveSearchButton),
-  { ssr: false, loading: () => null },
-);
-
 interface ProductsGridProps {
   initialPage?: BrowsePage<ProductWithStore> | null;
   initialPageUpdatedAt?: number;
@@ -181,24 +175,17 @@ export function ProductsGrid({ initialPage, initialPageUpdatedAt, searchParams: 
     <PullToRefresh onRefresh={() => refetch()}>
       <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={false} />
       <div className="space-y-4">
-      {/* Toolbar — same "count on the left, save-search on the right"
-          pattern as ads/SearchResults.tsx. queryParamKey="search"
-          because this page's free-text param is `search`, not `q` (see
-          SaveSearchButton's own doc comment for why that differs by
-          page). */}
-      <div className="space-y-1.5">
-      <BrowseCityHint />
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="min-w-0 text-sm-tight font-extrabold text-foreground">
-          {total > 0 ? `${total} منتج` : 'لا توجد نتائج'}
-          {search && <> بحثاً عن «<span className="font-medium">{search}</span>»</>}
-        </p>
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-          <SaveSearchButton type="products" queryParamKey="search" />
-          <ListViewToggle value={view} searchParamsString={serializeBrowseSearchParams(searchParams)} />
+        {/* Directory toolbar; saved searches are managed from the search page. */}
+        <div className="space-y-1.5">
+          <BrowseCityHint />
+          <div className="flex items-center justify-between">
+            <p className="min-w-0 text-sm-tight font-extrabold text-foreground">
+              {total > 0 ? `${total} منتج` : 'لا توجد نتائج'}
+              {search && <> بحثاً عن «<span className="font-medium">{search}</span>»</>}
+            </p>
+            <ListViewToggle value={view} searchParamsString={serializeBrowseSearchParams(searchParams)} />
+          </div>
         </div>
-      </div>
-      </div>
 
       {items.length === 0 ? (
         <EmptyState

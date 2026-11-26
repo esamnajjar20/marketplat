@@ -94,7 +94,7 @@ export function MessageImageViewer({ images, initialIndex, open, onOpenChange }:
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-[min(94vh,900px)] w-[min(96vw,1200px)] max-w-none border-0 bg-black/95 p-0 text-white shadow-2xl [&>button]:hidden">
+      <DialogContent className="h-[min(94dvh,900px)] max-h-[94dvh] w-[min(96vw,1200px)] max-w-none border-0 bg-black/95 p-0 text-white shadow-2xl outline-none [&>button]:hidden">
         <DialogTitle className="sr-only">عارض الصور</DialogTitle>
         <div className="relative flex h-full min-h-0 flex-col">
           <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between gap-2 bg-gradient-to-b from-black/75 to-transparent p-3 pb-8">
@@ -106,7 +106,6 @@ export function MessageImageViewer({ images, initialIndex, open, onOpenChange }:
               <span className="min-w-12 text-center text-xs tabular-nums">{Math.round(scale * 100)}%</span>
               <button type="button" onClick={() => zoom(SCALE_STEP)} disabled={scale >= MAX_SCALE} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-35" aria-label="تكبير"><Plus className="h-4 w-4" /></button>
               <button type="button" onClick={resetView} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black" aria-label="إعادة ضبط"><RotateCcw className="h-4 w-4" /></button>
-              <a href={current.imageUrl} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black" aria-label="فتح الصورة"><span className="text-sm">↗</span></a>
               <a href={current.imageUrl} download className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black" aria-label="تنزيل الصورة"><Download className="h-4 w-4" /></a>
               <button type="button" onClick={() => onOpenChange(false)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-full p-2 hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black" aria-label="إغلاق"><X className="h-4 w-4" /></button>
             </div>

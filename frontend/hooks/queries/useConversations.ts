@@ -12,7 +12,6 @@ import {
   selectUser,
 } from '@/store/auth.store';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
-// import { pollingInterval } from '@/lib/polling'; // FIX: unused after disabling polling
 import type { ConversationsQuery, MessagesQuery, ConversationListItem } from '@/types/conversation.types';
 import type { PaginatedResponse } from '@/types/api.types';
 import {
@@ -57,7 +56,8 @@ export function useMyConversations(params?: ConversationsQuery) {
     staleTime: CACHE_TTL.conversations,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    // refetchInterval: () => pollingInterval(CACHE_TTL.conversations, 6), // FIX: Disabled polling to save server resources
+    // Live message previews arrive over SSE. No periodic inbox polling is
+    // needed; explicit mutations and a reconnect/resync update the cache.
     // أونلاين: فقط مع توكن. أوفلاين: شغّل queryFn لإرجاع الكاش المحلي.
     enabled: isAuthenticated && (hasToken || !isOnline),
   });
@@ -212,14 +212,12 @@ export function useUnreadConversationCount() {
     // the ?? could only fire if someone renamed/deleted it,
     // silently falling back to a different semantic TTL.
     staleTime: CACHE_TTL.conversationUnreadCount,
-    // refetchInterval: () => // FIX: Disabled polling to save server resources
-      // pollingInterval(CACHE_TTL.conversationUnreadCount, 3), // FIX: Disabled polling
     // HYDRATION-DEDUP: ProtectedSidebar and MessagesLink (desktop) and
     // BottomNav (mobile) all mount this hook on protected routes.
-    // Without this flag each one fetched independently before the cache
-    // had a value, showing unread-count x2 on every load. The
-    // refetchInterval below still refreshes the value periodically; the
-    // /notifications SSE channel still invalidates on new messages.
+    // Without this flag each mounted navigation surface can trigger an
+    // unnecessary immediate duplicate request. The cached count remains
+    // available while offline; a refresh is explicit or caused by cache
+    // invalidation when a relevant event is received.
     refetchOnMount: false,
     enabled: isAuthenticated && (hasToken || !isOnline),
   });

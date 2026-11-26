@@ -31,7 +31,6 @@ vi.mock('@/components/stores/ProductCard', () => ({
 }));
 vi.mock('@/components/shared/skeletons', () => ({ ProductCardSkeleton: () => <div data-testid="skeleton" /> }));
 vi.mock('@/components/shared/ui/Pagination', () => ({ Pagination: ({ totalPages }: { totalPages: number }) => <div data-testid="pagination">pages:{totalPages}</div> }));
-vi.mock('@/components/ads/SaveSearchButton', () => ({ SaveSearchButton: () => null }));
 
 const mockRefetch = vi.fn();
 const mockFetchNextPage = vi.fn();
@@ -92,6 +91,7 @@ describe('ProductsGrid', () => {
     mockQuery({ data: { pages: [page([product], { totalPages: 1, total: 42, page: 1, hasNextPage: false })] } });
     renderGrid();
     expect(screen.getByText(/42 منتج/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /حفظ البحث/ })).not.toBeInTheDocument();
   });
 
   it('shows the empty state when total is zero', () => {

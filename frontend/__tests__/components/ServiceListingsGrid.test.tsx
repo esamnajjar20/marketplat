@@ -25,7 +25,6 @@ vi.mock('@/hooks/useNetworkPolicy', () => ({
 vi.mock('@/components/services/ServiceListingCard', () => ({
   ServiceListingCard: ({ listing }: { listing: { id: string; title: string } }) => <div data-testid="listing-card">{listing.title}</div>,
 }));
-vi.mock('@/components/ads/SaveSearchButton', () => ({ SaveSearchButton: () => null }));
 vi.mock('@/components/shared/list/ListViewToggle', () => ({ ListViewToggle: () => null }));
 
 function makeListing(overrides: Partial<ServiceListingWithProvider> = {}): ServiceListingWithProvider {
@@ -106,6 +105,7 @@ describe('ServiceListingsGrid', () => {
     renderGrid();
     expect(screen.getAllByTestId('listing-card')).toHaveLength(2);
     expect(screen.getByText('2 خدمة')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /حفظ البحث/ })).not.toBeInTheDocument();
   });
 
   it('echoes the search term in the result summary', () => {

@@ -15,6 +15,7 @@ const checks = [
   ['conversation pin/archive/mute uses authenticated API mutations', /setConversationFlags\(/.test(inbox) && /mutedUntil/.test(inbox)],
   ['thread search is local and does not fetch per keystroke', /const visibleMessages = normalizedSearch/.test(thread)],
   ['image attachments use image picker and the existing server route', /launchImageLibraryAsync/.test(thread) && /queueAndTryMedia\('image'/.test(thread) && /sendChatImage\(/.test(mediaSync) && /field === 'image' \? 'image'/.test(api)],
+  ['chat images use a thumbnail in the message list and open the original in an in-app viewer', /variant="list"/.test(messageRow) && /imagePreviewOpen/.test(messageRow) && /setImagePreviewOpen\(true\)/.test(messageRow) && /<Modal[\s\S]*imagePreviewBackdrop/.test(messageRow)],
   ['message pin and star use existing server endpoints', /setMessageMark/.test(thread) && /messages\/\$\{encodeURIComponent\(messageId\)\}\/\$\{suffix\}/.test(api)],
   ['message deletion is confirmed before mutation', /confirmAlert\('حذف الرسالة؟'/.test(thread) && /deleteChatMessage\(/.test(thread)],
   ['typing indicator and API calls are removed', !/signalChatTyping|partyTyping|typingTimer/.test(thread) && !/signalChatTyping/.test(api)],
@@ -23,6 +24,7 @@ const checks = [
   ['image upload rejects oversized local files and unsupported MIME types', /5 \* 1024 \* 1024/.test(thread) && /image\/jpeg','image\/png','image\/webp/.test(thread)],
   ['received audio plays in the conversation and files open in the in-app browser', /useAudioPlayer/.test(thread) && /onPlayAudio=\{playChatAudio\}/.test(thread) && /تشغيل الرسالة الصوتية/.test(messageRow) && /WebBrowser\.openBrowserAsync/.test(messageRow) && /isAllowedMediaUrl/.test(messageRow)],
   ['conversation list can show validated participant avatars', /other\?\.avatarUrl/.test(read('../src/features/messaging/ConversationListItem.tsx')) && /isAllowedMediaUrl\(other\?\.avatarUrl\)/.test(read('../src/features/messaging/ConversationListItem.tsx')) && /<Avatar\b/.test(read('../src/features/messaging/ConversationListItem.tsx'))],
+  ['message inbox and thread use reduced first-page sizes for weak connections', /limit: '20'/.test(api) && /limit: '30'/.test(api)],
 ];
 let failed = 0;
 for (const [label, ok] of checks) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`); if (!ok) failed++; }

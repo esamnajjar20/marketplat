@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { usersApi } from '@/api/users.api';
 import { queryKeys } from '@/lib/queryKeys';
 import { CACHE_TTL } from '@/lib/constants';
-// import { pollingInterval } from '@/lib/polling'; // FIX: unused after disabling polling
 import {
   useAuthStore,
   selectIsAuthenticated,
@@ -31,7 +30,6 @@ export function usePresence(userIds: string[], enabled = true) {
     queryKey: queryKeys.presence.bulk(userIds),
     queryFn: ({ signal }) => usersApi.getPresence(userIds, { signal }).then((r) => r.data.data),
     staleTime: CACHE_TTL.presence,
-    // refetchInterval: () => pollingInterval(CACHE_TTL.presence, 3), // FIX: Disabled polling to save server resources
     // Avoid an extra immediate fetch merely because a long-lived protected
     // page regained focus; reconnect/online changes still refresh normally.
     refetchOnWindowFocus: false,

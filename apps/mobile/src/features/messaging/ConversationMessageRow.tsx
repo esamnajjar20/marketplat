@@ -1,7 +1,7 @@
 import { AppText as Text } from '@/components/ui/AppText';
 import { AccessiblePressable as Pressable } from '@/components/AccessiblePressable';
-import { memo, useMemo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { memo, useMemo, useState } from 'react';
+import { Modal, StyleSheet, View } from 'react-native';
 import { AppImage } from '@/components/AppImage';
 import { AppIcon } from '@/components/Icons';
 import type { ChatMessage } from '@/features/messaging/messaging.api';
@@ -48,6 +48,7 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
   audioBuffering = false,
 }: Props) {
   const { colors } = useAppTheme();
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const pending = message.id.startsWith('pending-');
   const permanentlyFailed = pending
@@ -67,83 +68,145 @@ const ConversationMessageRow = memo(function ConversationMessageRow({
           : 'رسالة');
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`رسالة من ${isMine ? 'أنت' : 'الطرف الآخر'}: ${body}`}
-      accessibilityHint="اضغط مطولًا لعرض خيارات الرسالة"
-      onLongPress={() => onLongPress(message)}
-      delayLongPress={350}
-      style={[styles.bubble, isMine ? styles.mine : styles.theirs]}
-    >
-      {safeImageUrl ? (
-        <AppImage uri={safeImageUrl} resizeMode="cover" style={styles.messageImage} accessibilityLabel="صورة مرفقة في المحادثة" />
-      ) : null}
-
-      {message.audioUrl && !message.deletedAt ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="تشغيل الرسالة الصوتية"
-          style={styles.mediaAction}
-          onPress={() => {
-            if (!isAllowedMediaUrl(message.audioUrl)) {
-              showToast('رابط مرفق غير موثوق', 'رفض التطبيق تشغيل هذا الرابط لأن مصدره غير مسموح.', 'warning');
-              return;
-            }
-            onPlayAudio(message.audioUrl);
-          }}
-        >
-          <View style={styles.mediaActionContent}><AppIcon name={playingAudioUrl === message.audioUrl ? 'pause' : 'play'} size={17} color={colors.brandOnSoft} /><Text style={styles.mediaActionText}>{audioBuffering && playingAudioUrl === message.audioUrl ? 'جارٍ تحميل الصوت…' : playingAudioUrl === message.audioUrl ? 'إيقاف / متابعة الصوت' : 'تشغيل الرسالة الصوتية'}</Text></View>
-        </Pressable>
-      ) : null}
-
-      {message.fileUrl && !message.deletedAt ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="فتح الملف المرفق"
-          style={styles.mediaAction}
-          onPress={() => {
-            if (!isAllowedMediaUrl(message.fileUrl)) {
-              showToast('رابط مرفق غير موثوق', 'رفض التطبيق فتح هذا الرابط لأن مصدره غير مسموح.', 'warning');
-              return;
-            }
-            void WebBrowser.openBrowserAsync(message.fileUrl).catch(() => {
-              showToast('تعذر فتح الملف', 'تحقق من الاتصال وحاول مرة أخرى.', 'error');
-            });
-          }}
-        >
-          <View style={styles.mediaActionContent}><AppIcon name="file" size={17} color={colors.brandOnSoft} /><Text style={styles.mediaActionText}>معاينة الملف داخل التطبيق</Text></View>
-        </Pressable>
-      ) : null}
-
-      <Text style={[styles.messageText, isMine && styles.mineText]}>{body}</Text>
-      <View style={styles.metadataRow}>
-        <Text style={[styles.time, isMine && styles.mineTime]}>{formatMessageTime(message.createdAt)}</Text>
-        {message.isPinned ? <AppIcon name="pin" size={12} color={isMine ? colors.onBrand : colors.muted} /> : null}
-        {message.isStarredByMe ? <AppIcon name="star" size={12} color={isMine ? colors.onBrand : colors.muted} /> : null}
-        {pending ? <Text style={[styles.time, isMine && styles.mineTime]}>{permanentlyFailed ? 'تعذّر الإرسال' : 'بانتظار المزامنة'}</Text> : null}
-      </View>
-
-      {permanentlyFailed ? (
-        <View style={styles.failedActions}>
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`رسالة من ${isMine ? 'أنت' : 'الطرف الآخر'}: ${body}`}
+        accessibilityHint="اضغط مطولًا لعرض خيارات الرسالة"
+        onLongPress={() => onLongPress(message)}
+        delayLongPress={350}
+        style={[styles.bubble, isMine ? styles.mine : styles.theirs]}
+      >
+        {safeImageUrl ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="إعادة محاولة إرسال الرسالة"
-            style={styles.failedActionButton}
-            onPress={() => onRetry(message)}
+            accessibilityLabel="معاينة الصورة بالحجم الكامل"
+            accessibilityHint="يفتح الصورة داخل المحادثة"
+            onPress={() => setImagePreviewOpen(true)}
           >
-            <Text style={styles.failedAction}>إعادة المحاولة</Text>
+            <AppImage
+              uri={safeImageUrl}
+              resizeMode="cover"
+              variant="list"
+              style={styles.messageImage}
+              accessibilityLabel="صورة مرفقة في المحادثة"
+            />
           </Pressable>
+        ) : null}
+
+        {message.audioUrl && !message.deletedAt ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="حذف الرسالة الفاشلة من قائمة الإرسال"
-            style={styles.failedActionButton}
-            onPress={() => onDiscard(message)}
+            accessibilityLabel="تشغيل الرسالة الصوتية"
+            style={styles.mediaAction}
+            onPress={() => {
+              if (!isAllowedMediaUrl(message.audioUrl)) {
+                showToast('رابط مرفق غير موثوق', 'رفض التطبيق تشغيل هذا الرابط لأن مصدره غير مسموح.', 'warning');
+                return;
+              }
+              onPlayAudio(message.audioUrl);
+            }}
           >
-            <Text style={styles.failedDelete}>حذف</Text>
+            <View style={styles.mediaActionContent}>
+              <AppIcon
+                name={playingAudioUrl === message.audioUrl ? 'pause' : 'play'}
+                size={17}
+                color={colors.brandOnSoft}
+              />
+              <Text style={styles.mediaActionText}>
+                {audioBuffering && playingAudioUrl === message.audioUrl
+                  ? 'جارٍ تحميل الصوت…'
+                  : playingAudioUrl === message.audioUrl
+                    ? 'إيقاف / متابعة الصوت'
+                    : 'تشغيل الرسالة الصوتية'}
+              </Text>
+            </View>
           </Pressable>
+        ) : null}
+
+        {message.fileUrl && !message.deletedAt ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="فتح الملف المرفق"
+            style={styles.mediaAction}
+            onPress={() => {
+              if (!isAllowedMediaUrl(message.fileUrl)) {
+                showToast('رابط مرفق غير موثوق', 'رفض التطبيق فتح هذا الرابط لأن مصدره غير مسموح.', 'warning');
+                return;
+              }
+              void WebBrowser.openBrowserAsync(message.fileUrl).catch(() => {
+                showToast('تعذر فتح الملف', 'تحقق من الاتصال وحاول مرة أخرى.', 'error');
+              });
+            }}
+          >
+            <View style={styles.mediaActionContent}>
+              <AppIcon name="file" size={17} color={colors.brandOnSoft} />
+              <Text style={styles.mediaActionText}>معاينة الملف داخل التطبيق</Text>
+            </View>
+          </Pressable>
+        ) : null}
+
+        <Text style={[styles.messageText, isMine && styles.mineText]}>{body}</Text>
+        <View style={styles.metadataRow}>
+          <Text style={[styles.time, isMine && styles.mineTime]}>{formatMessageTime(message.createdAt)}</Text>
+          {message.isPinned ? <AppIcon name="pin" size={12} color={isMine ? colors.onBrand : colors.muted} /> : null}
+          {message.isStarredByMe ? <AppIcon name="star" size={12} color={isMine ? colors.onBrand : colors.muted} /> : null}
+          {pending ? (
+            <Text style={[styles.time, isMine && styles.mineTime]}>
+              {permanentlyFailed ? 'تعذّر الإرسال' : 'بانتظار المزامنة'}
+            </Text>
+          ) : null}
         </View>
-      ) : null}
-    </Pressable>
+
+        {permanentlyFailed ? (
+          <View style={styles.failedActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="إعادة محاولة إرسال الرسالة"
+              style={styles.failedActionButton}
+              onPress={() => onRetry(message)}
+            >
+              <Text style={styles.failedAction}>إعادة المحاولة</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="حذف الرسالة الفاشلة من قائمة الإرسال"
+              style={styles.failedActionButton}
+              onPress={() => onDiscard(message)}
+            >
+              <Text style={styles.failedDelete}>حذف</Text>
+            </Pressable>
+          </View>
+        ) : null}
+      </Pressable>
+
+      <Modal
+        visible={imagePreviewOpen && Boolean(safeImageUrl)}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setImagePreviewOpen(false)}
+      >
+        <View style={styles.imagePreviewBackdrop}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="إغلاق معاينة الصورة"
+            onPress={() => setImagePreviewOpen(false)}
+            style={styles.imagePreviewClose}
+          >
+            <Text style={styles.imagePreviewCloseText}>×</Text>
+          </Pressable>
+          {safeImageUrl ? (
+            <AppImage
+              uri={safeImageUrl}
+              resizeMode="contain"
+              style={styles.imagePreview}
+              accessibilityLabel="الصورة بالحجم الكامل"
+            />
+          ) : null}
+        </View>
+      </Modal>
+    </>
   );
 });
 
@@ -199,6 +262,34 @@ function createStyles(colors: import('@/theme/tokens').ColorPalette) {
     height: 160,
     borderRadius: radius.control,
     backgroundColor: colors.borderSubtle ?? colors.border,
+  },
+  imagePreviewBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.fullscreenBackdrop,
+  },
+  imagePreview: {
+    width: '100%',
+    height: '84%',
+  },
+  imagePreviewClose: {
+    position: 'absolute',
+    top: spacing.x4l,
+    end: spacing.lg,
+    zIndex: 2,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.mediaCloseOverlay,
+  },
+  imagePreviewCloseText: {
+    color: colors.white,
+    fontSize: fontSizes[30],
+    lineHeight: 34,
   },
   mediaAction: {
     minHeight: 44,

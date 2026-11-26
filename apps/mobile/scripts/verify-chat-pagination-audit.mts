@@ -10,8 +10,9 @@ const backendService = readFileSync(new URL('../../api/src/modules/engagement/co
 const validation = readFileSync(new URL('../../api/src/modules/engagement/conversations/conversations.validation.ts', import.meta.url), 'utf8');
 
 assert.match(api, /cursor: 'true'/, 'mobile message pages must opt into cursor-only metadata');
+assert.match(api, /new URLSearchParams\(\{ limit: '30', cursor: 'true' \}\)/, 'mobile chat should fetch a reduced first message page');
 assert.match(validation, /cursor: z\.preprocess/, 'API must validate the cursor-mode flag');
-assert.match(backendRepository, /query\.cursor \|\| query\.before \? Promise\.resolve\(null\)/, 'cursor navigation must avoid full-thread COUNT queries');
+assert.match(backendRepository, /query\.cursor\s*\|\|\s*query\.before\s*\?\s*Promise\.resolve\(null\)/, 'cursor navigation must avoid full-thread COUNT queries');
 assert.match(backendService, /query\.before\s*\?\s*Promise\.resolve\(\{ count: 0 \}\)/, 'older history pages must not update all read receipts');
 assert.match(backendService, /if \(!query\.before\)/, 'notification-read side effects must be limited to newest-window requests');
 assert.match(cache, /PRIMARY KEY \(owner_id, conversation_id, message_id\)/, 'cached messages must be isolated by account and conversation');

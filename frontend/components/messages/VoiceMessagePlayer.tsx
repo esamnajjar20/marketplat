@@ -33,14 +33,16 @@ export function VoiceMessagePlayer({ src, variant = 'theirs', className, onError
   const [playing, setPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
   const [current, setCurrent] = useState(0);
-  const [loading, setLoading] = useState(true);
+  // Do not fetch audio metadata for every voice note while rendering a page.
+  // Start the request only after the user explicitly presses Play.
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
   useEffect(() => {
     setPlaying(false);
     setDuration(0);
     setCurrent(0);
-    setLoading(true);
+    setLoading(false);
     setError(false);
   }, [src]);
 
@@ -50,8 +52,10 @@ export function VoiceMessagePlayer({ src, variant = 'theirs', className, onError
     if (playing) {
       el.pause();
     } else {
+      setLoading(true);
       void el.play().catch(() => {
         setError(true);
+        setLoading(false);
         onError?.();
       });
     }
@@ -90,7 +94,7 @@ export function VoiceMessagePlayer({ src, variant = 'theirs', className, onError
       <audio
         ref={audioRef}
         src={src}
-        preload="metadata"
+        preload="none"
         onLoadedMetadata={(e) => {
           if (Number.isFinite(e.currentTarget.duration)) setDuration(e.currentTarget.duration);
           setLoading(false);

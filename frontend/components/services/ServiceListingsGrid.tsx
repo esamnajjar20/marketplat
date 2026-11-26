@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils';
 import { ListViewToggle } from '@/components/shared/list/ListViewToggle';
 import { Button } from '@/components/shared/ui/Button';
 
-import dynamic from 'next/dynamic';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Search } from 'lucide-react';
 import IntentPrefetchLink from '@/components/navigation/IntentPrefetchLink';
@@ -31,11 +30,6 @@ import { canonicalBrowseSearchParams, getBrowseNumber, getBrowseParam, parseBrow
 import { useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
-
-const SaveSearchButton = dynamic(
-  () => import('@/components/ads/SaveSearchButton').then((module) => module.SaveSearchButton),
-  { ssr: false, loading: () => null },
-);
 
 interface ServiceListingsGridProps {
   initialPage?: BrowsePage<ServiceListingWithProvider> | null;
@@ -134,14 +128,13 @@ export function ServiceListingsGrid({ initialPage, initialPageUpdatedAt, searchP
       {/* SLOW-NET phase4 */}
       <ListDataStatus isFetching={isFetching} hasData={Boolean(data)} isPlaceholderData={false} />
       <div className="space-y-4">
-      {/* Toolbar — queryParamKey="search" for the same reason as
-          ProductsGrid.tsx (see SaveSearchButton's own doc comment). */}
+      {/* Directory toolbar; saved searches are managed from the search page. */}
       <div className="flex items-center justify-between">
         <p className="text-sm-tight font-extrabold text-foreground">
           {total > 0 ? `${total} خدمة` : 'لا توجد نتائج'}
           {search && <> بحثاً عن «<span className="font-medium">{search}</span>»</>}
         </p>
-        <div className="flex items-center gap-2"><SaveSearchButton type="services" queryParamKey="search" /><ListViewToggle value={view} searchParamsString={serializeBrowseSearchParams(searchParams)} /></div>
+        <ListViewToggle value={view} searchParamsString={serializeBrowseSearchParams(searchParams)} />
       </div>
 
       {items.length === 0 ? (

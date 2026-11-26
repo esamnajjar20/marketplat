@@ -7,6 +7,7 @@ const read = (path: string) => readFileSync(resolve(root, path), 'utf8');
 const sidebar = read('components/layout/ProtectedSidebar.tsx');
 const bottomNav = read('components/layout/BottomNav.tsx');
 const protectedLayout = read('app/(protected)/layout.tsx');
+const messagesLayout = read('app/(protected)/messages/layout.tsx');
 const publicLayout = read('app/(public)/layout.tsx');
 const packageJson = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
 const adminSidebar = read('components/admin/AdminSidebar.tsx');
@@ -23,6 +24,9 @@ const checks = [
   ['mobile navigation respects reduced motion', /motion-reduce:transition-none/.test(bottomNav)],
   ['protected shell reserves mobile bottom-nav space', /pb-20 md:p-6 md:pb-6/.test(protectedLayout)],
   ['conversation thread avoids bottom-nav overlap', /isConversationThread\s*\|\|/.test(protectedLayout) && /\{!isImmersiveTask && <BottomNav \/>\}/.test(protectedLayout)],
+  ['conversation thread constrains the protected shell to one dynamic viewport', /isConversationThread\s*\?\s*'flex h-dvh min-h-0 min-w-0 flex-col overflow-hidden'/.test(protectedLayout)],
+  ['immersive main and content wrappers clip overflow while retaining flex scrolling', /isImmersiveTask[\s\S]*?'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-0'/.test(protectedLayout) && /flex min-h-0 flex-1 flex-col overflow-hidden/.test(protectedLayout)],
+  ['conversation layout fills its parent instead of adding a second viewport height', /: 'h-full min-h-0'/.test(messagesLayout) && !/h-\[100dvh\]/.test(messagesLayout)],
   ['protected shell includes skip-link target', /id="main-content"/.test(protectedLayout)],
   ['public shell includes main-content skip-link target', /id="main-content"/.test(publicLayout)],
   ['admin sidebar links keep 44px targets on desktop and mobile', /min-h-11[^'\"]*text-(?:sm-tight|\[13px\])/.test(adminSidebar) && !/md:min-h-\[34px\]/.test(adminSidebar)],

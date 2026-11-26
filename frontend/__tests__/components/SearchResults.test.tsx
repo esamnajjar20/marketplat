@@ -32,10 +32,6 @@ vi.mock('@/hooks/queries/useCategories', () => ({
   useCategories: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 
-vi.mock('@/components/ads/SaveSearchButton', () => ({
-  SaveSearchButton: () => null,
-}));
-
 let mockSearchParams = new URLSearchParams();
 vi.mock('next/navigation', () => ({
   useSearchParams: () => mockSearchParams,
@@ -71,6 +67,7 @@ describe('SearchResults', () => {
     // fired if the bug were still present.
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(adsApi.searchAds).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: /حفظ البحث/ })).not.toBeInTheDocument();
   });
 
   // FIX PERF-04 — the core regression guard.

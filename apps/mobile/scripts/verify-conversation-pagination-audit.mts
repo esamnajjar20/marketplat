@@ -6,7 +6,7 @@ const api = readFileSync(new URL('../src/features/messaging/messaging.api.ts', i
 const screen = readFileSync(new URL('../app/messages.tsx', import.meta.url), 'utf8');
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
 assert.match(api, /export async function fetchConversationsPage/);
-assert.match(api, /new URLSearchParams\(\{ page: String\(safePage\), limit: '50' \}\)/, 'conversation requests must send the requested page');
+assert.match(api, /new URLSearchParams\(\{ page: String\(safePage\), limit: '20' \}\)/, 'conversation inbox should load a small first page and paginate on demand');
 assert.match(api, /pagination\?\.totalPages/, 'pagination metadata must determine whether another page exists');
 assert.match(api, /hasMore: currentPage < totalPages/, 'page API should expose a reliable hasMore flag');
 assert.match(screen, /const loadMore = useCallback/);

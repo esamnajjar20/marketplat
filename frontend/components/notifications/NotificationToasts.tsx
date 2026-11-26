@@ -2,7 +2,8 @@
 
 /**
  * Critical notification toasts.
- * Prefer live SSE events; still safe if stream is down (poll still updates badge).
+ * Prefer live SSE events. Cached notification state remains available while
+ * disconnected and reconnect/resync restores missed server state.
  */
 
 import { useCallback } from 'react';

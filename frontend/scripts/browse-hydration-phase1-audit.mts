@@ -35,7 +35,9 @@ const checks = [
   ['products grid does not call useSearchParams during its initial render', 'components/stores/ProductsGrid.tsx', "getBrowseParam(searchParams, 'search')"],
   ['stores grid does not call useSearchParams during its initial render', 'components/stores/StoresGrid.tsx', "getBrowseParam(searchParams, 'search')"],
   ['services grid does not call useSearchParams during its initial render', 'components/services/ServiceListingsGrid.tsx', "getBrowseParam(searchParams, 'search')"],
-  ['URL-dependent save-search control remains isolated from SSR', 'components/services/ServiceListingsGrid.tsx', 'ssr: false, loading: () => null'],
+  ['products browse grid does not expose save search', 'components/stores/ProductsGrid.tsx', 'SaveSearchButton'],
+  ['services browse grid does not expose save search', 'components/services/ServiceListingsGrid.tsx', 'SaveSearchButton'],
+  ['ads browse results does not expose save search', 'components/ads/SearchResults.tsx', 'SaveSearchButton'],
   ['URL-dependent empty-search suggestions remain isolated from SSR', 'components/ads/SearchResults.tsx', 'const EmptySearchSuggestions = dynamic('],
   ['search URL widgets retain their explicit client-only boundary', 'components/search/SearchPageClient.tsx', 'ssr: false'],
 ];
@@ -44,6 +46,10 @@ let failed = 0;
 for (const [label, file, needle] of checks) {
   const content = read(file);
   let ok = content.includes(needle);
+
+  if (label.endsWith('does not expose save search')) {
+    ok = !content.includes(needle);
+  }
 
   if (label === 'server browse fetch has a bounded SSR timeout') {
     ok = ok && content.includes('new AbortController()') && content.includes('setTimeout(() => controller.abort(), timeoutMs)');

@@ -8,6 +8,7 @@ import { getThumbnailUrl } from '@/lib/cloudinary';
 import { splitMessageBody } from '@/lib/messageUtils';
 import { conversationsApi } from '@/api/conversations.api';
 import { Spinner } from '@/components/ui/spinner';
+import { MessageImageViewer } from './MessageImageViewer';
 import type { DisplayMessage } from './messageTypes';
 
 const VoiceMessagePlayer = dynamic(
@@ -20,6 +21,7 @@ const MediaDownloadButton = dynamic(
 type Props = { message: DisplayMessage; conversationId: string; isMine: boolean };
 
 export const MessageMedia = memo(function MessageMedia({ message, conversationId, isMine }: Props) {
+  const [imagePreviewOpen, setImagePreviewOpen] = useState(false);
   const [filePreviewOpen, setFilePreviewOpen] = useState(false);
   const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const [filePreviewLoading, setFilePreviewLoading] = useState(false);
@@ -109,14 +111,34 @@ export const MessageMedia = memo(function MessageMedia({ message, conversationId
       )}
       {message.audioUrl && <div className="mb-2"><VoiceMessagePlayer src={message.audioUrl} variant={isMine ? 'mine' : 'theirs'} /><MediaDownloadButton conversationId={conversationId} messageId={message.id} kind="audio" label="تحميل التسجيل" className="mt-1" /></div>}
       {message.imageUrl && (
-        <div className="mb-2 space-y-1.5">
-          <a href={message.imageUrl} target="_blank" rel="noopener noreferrer" className="block overflow-hidden rounded-xl" onClick={(e) => e.stopPropagation()} aria-label="فتح الصورة بالحجم الكامل">
-            <SafeImg src={getThumbnailUrl(message.imageUrl, 480, 360)} alt="صورة مرفقة" className="max-h-56 max-w-full object-cover" />
-          </a>
+        <div className="mb-2 max-w-full space-y-1.5">
+          <button
+            type="button"
+            className="block max-w-full cursor-zoom-in overflow-hidden rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            onClick={(event) => {
+              event.stopPropagation();
+              setImagePreviewOpen(true);
+            }}
+            aria-label="معاينة الصورة بالحجم الكامل"
+            title="اضغط لعرض الصورة بالحجم الكامل"
+          >
+            <SafeImg
+              src={getThumbnailUrl(message.imageUrl, 480, 360)}
+              alt="صورة مرفقة"
+              className="block h-auto max-h-56 max-w-full object-contain"
+            />
+          </button>
           <div className="flex items-center gap-1">
-            <a href={message.imageUrl} target="_blank" rel="noopener noreferrer" className="rounded-lg px-2 py-1 text-xs font-medium text-primary hover:bg-muted" onClick={(e) => e.stopPropagation()}>فتح الصورة</a>
             <MediaDownloadButton conversationId={conversationId} messageId={message.id} kind="image" fileName={undefined} label="تحميل الصورة" className="h-8 min-h-8 px-2" />
           </div>
+          {imagePreviewOpen && (
+            <MessageImageViewer
+              images={[{ id: message.id, imageUrl: message.imageUrl, alt: 'صورة مرفقة في المحادثة' }]}
+              initialIndex={0}
+              open
+              onOpenChange={setImagePreviewOpen}
+            />
+          )}
         </div>
       )}
       {message.fileUrl && (

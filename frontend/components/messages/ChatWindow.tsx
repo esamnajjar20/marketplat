@@ -37,7 +37,9 @@ import type { Conversation, Message } from '@/types/conversation.types';
 
 import { Spinner } from '@/components/ui/spinner';
 import { safeStorageGet, safeStorageSet } from '@/lib/browserStorage';
-const MESSAGES_PAGE_SIZE = 50;
+// A smaller first page reduces the first response and the amount of DOM work
+// on constrained mobile devices. Older messages remain available on demand.
+const MESSAGES_PAGE_SIZE = 30;
 const MessageMediaGallery = dynamic(
   () => import('./MessageMediaGallery').then((module) => module.MessageMediaGallery),
   {
@@ -107,7 +109,6 @@ function otherParty(conversation: Conversation, userId: string | undefined) {
 export function ChatWindow({ conversationId }: Props) {
   const router = useRouter();
   const user = useAuthStore(selectUser);
-  const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [confirmBlockOpen, setConfirmBlockOpen] = useState(false);
   const [showSafetyTip, setShowSafetyTip] = useState(false);
@@ -126,6 +127,9 @@ export function ChatWindow({ conversationId }: Props) {
     isFetching: messagesFetching,
   } = useMessages(conversationId, {
     limit: MESSAGES_PAGE_SIZE,
+    // The inbox uses cursor pagination; the initial page does not need the
+    // full-thread COUNT query just to discover whether older rows exist.
+    cursor: true,
   });
   const party = conversation ? otherParty(conversation, user?.id) : null;
   const isBlocked = useIsUserBlocked(party?.id ?? '', {
@@ -377,7 +381,11 @@ export function ChatWindow({ conversationId }: Props) {
     const grew = total > prevLiveCountRef.current;
     prevLiveCountRef.current = total;
     if (isNearBottomRef.current) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      // Scroll only the message pane. scrollIntoView() also scrolls ancestor
+      // containers (including the document) on some mobile browsers, which
+      // can move the conversation context/header out of view and leave a gap.
+      const container = scrollRef.current;
+      if (container) container.scrollTop = container.scrollHeight;
       setShowJumpToLatest(false);
     } else if (grew) {
       // FIX CHAT-JUMP-LATEST-01: user is reading history — offer a control
@@ -517,7 +525,7 @@ export function ChatWindow({ conversationId }: Props) {
         <button
           type="button"
           onClick={() => safeBack(router, ROUTES.messages, signalNavigationStart)}
-          className="lg:hidden flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted active:bg-muted/80"
+          className="md:hidden flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted active:bg-muted/80"
           aria-label="رجوع للمحادثات"
         >
           <ChevronRight className="h-5 w-5" />
@@ -598,7 +606,7 @@ export function ChatWindow({ conversationId }: Props) {
 
       <div
         ref={scrollRef}
-        className="relative min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain touch-pan-y bg-surface-1/50 px-3 py-3 sm:px-4 sm:py-4 [scrollbar-gutter:stable]"
+        className="relative flex min-h-0 flex-1 flex-col gap-3 overflow-x-hidden overflow-y-auto overscroll-contain touch-pan-y bg-surface-1/50 px-3 py-3 sm:px-4 sm:py-4"
         role="log"
         aria-relevant="additions"
         aria-label="سجل الرسائل"
@@ -659,7 +667,6 @@ export function ChatWindow({ conversationId }: Props) {
             })}
           </>
         )}
-        <div ref={bottomRef} />
         {showJumpToLatest && (
           <div className="sticky bottom-2 z-10 flex justify-center pointer-events-none">
             <Button
@@ -670,7 +677,8 @@ export function ChatWindow({ conversationId }: Props) {
               onClick={() => {
                 isNearBottomRef.current = true;
                 setShowJumpToLatest(false);
-                bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+                const container = scrollRef.current;
+                if (container) container.scrollTop = container.scrollHeight;
               }}
               aria-label="الانتقال إلى أحدث الرسائل"
             >
@@ -683,7 +691,7 @@ export function ChatWindow({ conversationId }: Props) {
 
       <div className="native-chat-composer shrink-0">
         <MessageInput conversationId={conversationId} disabled={isBlocked} />
-        </div>
+      </div>
 
       <ConfirmDialog
         open={confirmBlockOpen}

@@ -5,6 +5,7 @@ import { useSendMessage } from '@/hooks/mutations/useConversationMutations';
 import { parseApiError } from '@/lib/errorParser';
 import { newOfflineOperationId } from '@/lib/offlineOperationId';
 import { sendConversationMessage } from '@/lib/sendConversationMessage';
+import { compressImageForPublish } from '@/lib/imageOffline';
 import {
   saveMessageDraft,
   clearMessageDraft,
@@ -334,9 +335,20 @@ export function MessageInput({ conversationId, disabled }: Props) {
       setUploading(true);
       setUploadKind('image');
       try {
+        // Large phone photos are costly on slow links. Compress only sizeable
+        // still images before both online upload and offline queueing; keep GIF
+        // animation intact and fall back to the original if compression fails.
+        let uploadImage = imageFile;
+        if (imageFile.type.toLowerCase() !== 'image/gif') {
+          try {
+            uploadImage = await compressImageForPublish(imageFile);
+          } catch {
+            uploadImage = imageFile;
+          }
+        }
         const sentMessage = await sendConversationMessage(
           conversationId,
-          { kind: 'image', file: imageFile, body: trimmed },
+          { kind: 'image', file: uploadImage, body: trimmed },
           newOfflineOperationId(),
         );
         cacheSentMessage(sentMessage);
@@ -429,7 +441,7 @@ export function MessageInput({ conversationId, disabled }: Props) {
       {uploading && (
         <div role="status" aria-live="polite" className="flex items-center gap-2 border-b bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
           <Spinner size="sm" className="text-primary" />
-          <span>{uploadKind === 'audio' ? 'جاري رفع التسجيل الصوتي…' : uploadKind === 'image' ? 'جاري رفع الصورة…' : uploadKind === 'file' ? 'جاري رفع الملف…' : 'جاري الإرسال…'}</span>
+          <span>{uploadKind === 'audio' ? 'جاري رفع التسجيل الصوتي…' : uploadKind === 'image' ? 'جاري تجهيز الصورة وإرسالها…' : uploadKind === 'file' ? 'جاري رفع الملف…' : 'جاري الإرسال…'}</span>
         </div>
       )}
       {attachmentFile && <div className="mb-2 flex items-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xs"><Paperclip className="h-4 w-4 text-primary"/><span className="min-w-0 flex-1 truncate">{attachmentFile.name}</span><button type="button" onClick={clearAttachment} disabled={composerBusy} className="rounded-full p-1 hover:bg-background" aria-label="إزالة الملف"><X className="h-4 w-4"/></button></div>}

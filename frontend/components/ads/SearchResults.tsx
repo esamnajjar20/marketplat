@@ -38,10 +38,6 @@ import type { BrowsePage } from '@/types/browse.types';
 import { SSR_BROWSE_PAGE_SIZE } from '@/lib/browseSearchParams';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 
-const SaveSearchButton = dynamic(
-  () => import('@/components/ads/SaveSearchButton').then((module) => module.SaveSearchButton),
-  { ssr: false, loading: () => null },
-);
 const EmptySearchSuggestions = dynamic(
   () => import('@/components/search/EmptySearchSuggestions').then((module) => module.EmptySearchSuggestions),
   { ssr: false, loading: () => null },
@@ -254,7 +250,6 @@ export function SearchResults({ categorySlug, initialPage, initialPageUpdatedAt,
           {q && <> بحثاً عن «<span className="font-medium">{q}</span>»</>}
         </p>
         <div className="flex items-center gap-2">
-          <SaveSearchButton />
           <div className="flex gap-1" role="group" aria-label="طريقة العرض">
             <button type="button" onClick={() => setView('grid')}
               aria-label="عرض شبكي" aria-pressed={view === 'grid'}

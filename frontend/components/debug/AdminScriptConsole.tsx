@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   Activity, ChevronDown, ChevronUp, Code2, Copy, Database, Gauge,
   Info, Layers, Network, Play, RotateCcw, Terminal, X,
@@ -78,6 +79,8 @@ function readStorage(storage: Storage): Array<{ key: string; value: string }> {
 }
 
 export function AdminScriptConsole() {
+  const pathname = usePathname();
+  const isConversationRoute = pathname === '/messages' || pathname.startsWith('/messages/');
   const role = useAuthStore((state) => state.user?.role ?? null);
   const authenticated = useAuthStore((state) => state.isAuthenticated);
   const hydrated = useAuthStore((state) => state.isHydrated);
@@ -159,6 +162,10 @@ export function AdminScriptConsole() {
       window.removeEventListener('developer-tools-setting-changed', onSettingChange);
     };
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (isConversationRoute) setOpen(false);
+  }, [isConversationRoute, pathname]);
 
   useEffect(() => {
     if (!isAdmin || !enabled) return;
@@ -347,8 +354,8 @@ export function AdminScriptConsole() {
 
   return (
     <>
-      {!open && <button type="button" onClick={() => setOpen(true)} title="فتح أدوات المطوّر (Ctrl+Shift+K)" aria-label="فتح أدوات المطوّر" className="fixed bottom-[calc(var(--bottom-nav-offset)+1.5rem)] left-4 z-[9998] inline-flex h-11 items-center gap-2 rounded-full border border-amber-400/60 bg-slate-950 px-4 text-sm font-semibold text-amber-200 shadow-xl hover:bg-slate-900 md:bottom-4"><Terminal className="h-4 w-4" /> DevTools</button>}
-      {open && (
+      {!open && !isConversationRoute && <button type="button" onClick={() => setOpen(true)} title="فتح أدوات المطوّر (Ctrl+Shift+K)" aria-label="فتح أدوات المطوّر" className="fixed bottom-[calc(var(--bottom-nav-offset)+1.5rem)] left-4 z-[9998] inline-flex h-11 items-center gap-2 rounded-full border border-amber-400/60 bg-slate-950 px-4 text-sm font-semibold text-amber-200 shadow-xl hover:bg-slate-900 md:bottom-4"><Terminal className="h-4 w-4" /> DevTools</button>}
+      {open && !isConversationRoute && (
         <section aria-label="أدوات المطوّر" className={`fixed bottom-[calc(var(--bottom-nav-offset)+1rem)] left-3 z-[9999] flex max-h-[calc(100dvh-var(--bottom-nav-offset)-2.5rem)] flex-col overflow-hidden rounded-xl border border-amber-400/50 bg-slate-950 text-slate-100 shadow-2xl md:bottom-3 md:max-h-[92dvh] ${expanded ? 'h-full w-[min(1240px,calc(100vw-24px))] md:h-[92dvh]' : 'h-[min(700px,100%)] w-[min(900px,calc(100vw-24px))] md:h-[min(700px,86dvh)]'}`} dir="ltr">
           <header className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-700 bg-slate-900 px-3 py-2">
             <div className="flex min-w-0 items-center gap-2">
