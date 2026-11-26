@@ -87,6 +87,7 @@ export function createHyperdriveProbeWorker(createClient: ProbeDatabaseClientFac
       const startedAt = Date.now();
       try {
         await client.connect();
+        const connectDurationMs = Date.now() - startedAt;
 
         const queryStartedAt = Date.now();
         const result = await client.query('SELECT 1::int AS ok');
@@ -106,6 +107,7 @@ export function createHyperdriveProbeWorker(createClient: ProbeDatabaseClientFac
           ok: true,
           database: 'reachable',
           probe: 'read-only',
+          connectDurationMs,
           queryDurationMs,
           totalDurationMs: Date.now() - startedAt,
         });

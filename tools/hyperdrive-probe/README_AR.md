@@ -97,6 +97,26 @@ curl -X POST \
 - لا توجد أسرار في logs أو Worker response أو Git.
 - يعاد الاختبار بعد restart/تحديث إعداد Hyperdrive للتأكد من الاستقرار.
 
+## المرحلة الثانية: قياس الأداء والتزامن
+
+بعد نجاح الاتصال الفعلي، استخدم `PHASE2-BENCHMARK-AR.md` لتشغيل اختبار HTTP محدود ومتدرج. الأداة الافتراضية تختبر مستويات تزامن 1 و2 و5، وتنفذ `SELECT 1` فقط دون أي كتابة. تسجل زمن HTTP وزمن `connect` وزمن الاستعلام والمئينات ومعدل الأخطاء في تقرير JSON محلي داخل `reports/`.
+
+قبل التشغيل:
+
+```bash
+npm ci
+npm run check
+npm run deploy
+export HYPERDRIVE_PROBE_URL='https://<worker-subdomain>.workers.dev/__internal/db-probe'
+export HYPERDRIVE_PROBE_TOKEN='ضع-الرمز-محلياً-في-بيئة-الطرفية'
+npm run benchmark
+unset HYPERDRIVE_PROBE_TOKEN HYPERDRIVE_PROBE_URL
+```
+
+لا ترفع حدود التزامن قبل مراجعة نتائج التشغيل الافتراضي ومؤشرات الاتصالات في Aiven. هذه الأداة لا تقارن الاتصال المباشر بـ Hyperdrive ولا تثبت تحسن أداء خدمات Express/Go الإنتاجية.
+
+التفاصيل: [`PHASE2-BENCHMARK-AR.md`](./PHASE2-BENCHMARK-AR.md).
+
 ## لماذا لا يوجد Prisma هنا؟
 
 نسخة `apps/api` في المستودع تستخدم `prisma` و`@prisma/client` بإصدار 5.22.0 ومولّد `prisma-client-js` مع محرك الاعتيادي. توثيق Prisma الحالي يوصي لمسار Worker الخالي من محرك Rust باستخدام `engineType = "client"` وDriver Adapter، ويذكر أن هذا المسار أصبح GA ابتداءً من Prisma 6.16. لذلك لا نعيد استخدام Client الحالي في Worker ولا نرقّي Prisma على مستوى المستودع ضمن اختبار الاتصالات. بعد نجاح المسبار نقرر ترقية محكومة أو فصل طبقة DB Worker/adapter بخطة واختبارات مستقلة.

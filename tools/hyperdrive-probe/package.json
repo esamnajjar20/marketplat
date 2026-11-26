@@ -11,8 +11,9 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "type-check": "tsc --noEmit -p tsconfig.json",
-    "test": "node --experimental-strip-types --test src/*.test.mts",
-    "check": "npm run type-check && npm test"
+    "test": "node --experimental-strip-types --test src/*.test.mts scripts/*.test.mjs",
+    "check": "npm run type-check && npm test",
+    "benchmark": "node scripts/benchmark.mjs"
   },
   "dependencies": {
     "pg": "^8.16.3"

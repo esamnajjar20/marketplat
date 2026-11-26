@@ -4,3 +4,6 @@ node_modules/
 wrangler.local.jsonc
 coverage/
 dist/
+
+# Generated Hyperdrive benchmark results (keep reports local unless explicitly reviewed).
+reports/*.json

@@ -76,11 +76,21 @@ test('database probe executes only SELECT 1 and closes the request client', asyn
     return client;
   });
   const response = await worker.fetch(authorizedRequest(), env);
-  const payload = await response.json() as { ok: boolean; database: string; probe: string };
+  const payload = await response.json() as {
+    ok: boolean;
+    database: string;
+    probe: string;
+    connectDurationMs: number;
+    queryDurationMs: number;
+    totalDurationMs: number;
+  };
   assert.equal(response.status, 200);
   assert.equal(payload.ok, true);
   assert.equal(payload.database, 'reachable');
   assert.equal(payload.probe, 'read-only');
+  assert.equal(typeof payload.connectDurationMs, 'number');
+  assert.equal(typeof payload.queryDurationMs, 'number');
+  assert.equal(typeof payload.totalDurationMs, 'number');
   assert.equal(receivedConnectionString, env.HYPERDRIVE.connectionString);
   assert.deepEqual(calls, ['connect', 'SELECT 1::int AS ok', 'end']);
 });

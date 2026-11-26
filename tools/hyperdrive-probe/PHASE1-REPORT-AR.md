@@ -21,3 +21,15 @@
 ## القبول
 
 تعد المرحلة الأولى جاهزة للتفعيل بعد تثبيت الحزم، تشغيل الاختبارات، إنشاء Hyperdrive، ربط `HYPERDRIVE`، إضافة Worker Secret، ونشر العامل. لا تعتبر ناجحة في الاتصال حتى يرجع endpoint المحمي `200` من بيئة Cloudflare الفعلية.
+
+## تحديث الحالة — 26 نوفمبر 2026
+
+تم إنشاء مورد Hyperdrive وربط Binding باسم `HYPERDRIVE` في `wrangler.jsonc`، ونُشر Worker باسم `marketplat-hyperdrive-probe`. نجح اختبار الاتصال الفعلي الذي نفذه مالك المشروع من بيئة Cloudflare:
+
+- HTTP status: `200`.
+- `database`: `reachable`.
+- `probe`: `read-only`.
+- `queryDurationMs`: `160`.
+- `totalDurationMs`: `183`.
+
+هذا يثبت نجاح طلب `SELECT 1` عبر Hyperdrive في وقت الاختبار، لكنه لا يثبت بعد انخفاض عدد الاتصالات أو تحسن أداء خدمات الإنتاج. قياس التزامن والاتصالات موثق في `PHASE2-BENCHMARK-AR.md`.
