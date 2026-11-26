@@ -14,7 +14,7 @@ const offererSelect = {
   avatarUrl: true,
 } as const;
 
-const requestDetailInclude = {
+const requestDetailInclude = Prisma.validator<Prisma.RequestInclude>()({
   serviceType: { select: { id: true, slug: true, nameAr: true, icon: true } },
   customer: { select: { id: true, name: true, avatarUrl: true } },
   _count: {
@@ -49,9 +49,9 @@ const requestDetailInclude = {
   acceptedOffer: {
     include: { offerer: { select: offererSelect } },
   },
-} as const;
+});
 
-const requestListInclude = {
+const requestListInclude = Prisma.validator<Prisma.RequestInclude>()({
   serviceType: { select: { id: true, slug: true, nameAr: true, icon: true } },
   customer: { select: { id: true, name: true, avatarUrl: true } },
   _count: {
@@ -70,7 +70,7 @@ const requestListInclude = {
       },
     },
   },
-} as const;
+});
 
 export type RequestWithRelations = Prisma.RequestGetPayload<{
   include: typeof requestDetailInclude;

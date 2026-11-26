@@ -5,7 +5,7 @@ import { cache }               from 'react';
 import { PublicProfileHeader } from '@/components/profile/PublicProfileHeader';
 import { ProfileTabsSection }  from '@/components/profile/ProfileTabsSection';
 import { PublicProfileBlocked } from '@/components/profile/PublicProfileBlocked';
-import { fetchServerApi, isPublicAccountBlockedError, ServerApiHttpError } from '@/lib/server/serverApiFetch';
+import { fetchServerApi, isPublicAccountBlockedError } from '@/lib/server/serverApiFetch';
 import { buildMetadata }       from '@/lib/seo';
 import type { PublicUser }     from '@/types/user.types';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';

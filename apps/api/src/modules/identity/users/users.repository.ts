@@ -76,7 +76,7 @@ const safeUserSelect = {
 // stores.service.ts's own getPublicStore has no such gate today, but a
 // pending store has no business appearing on a public profile before an
 // admin has approved it) shouldn't surface here.
-const publicUserSelect = {
+const publicUserSelect = Prisma.validator<Prisma.UserSelect>()({
   id: true,
   name: true,
   city: true,
@@ -168,7 +168,7 @@ const publicUserSelect = {
       },
     },
   },
-} as const;
+});
 
 // Derived directly from publicUserSelect (Prisma.UserGetPayload) rather
 // than hand-written, so this type can never drift from what the query
@@ -205,7 +205,7 @@ export const usersRepository = {
   findPublicById: async (id: string): Promise<(PublicUser & { isActive: boolean }) | null> =>
     prisma.user.findUnique({
       where: { id },
-      select: { ...publicUserSelect, isActive: true } as const,
+      select: Prisma.validator<Prisma.UserSelect>()({ ...publicUserSelect, isActive: true }),
     }),
 
   findByPhone: async (phone: string): Promise<SafeUser | null> =>

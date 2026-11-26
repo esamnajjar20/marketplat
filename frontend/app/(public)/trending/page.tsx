@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import { buildMetadata } from '@/lib/seo';
 import { HydrationBoundary, dehydrate } from '@tanstack/react-query';
 import { getQueryClient } from '@/lib/queryClient';
@@ -9,7 +9,7 @@ import type { MixedRecommendations } from '@/api/recommendations.api';
 import { APP_NAME } from '@/lib/constants';
 import { Skeleton } from '@/components/shared/ui/Skeleton';
 
-const SuggestionsPageClient = dynamic(
+const SuggestionsPageClient = nextDynamic(
   () =>
     import('@/components/suggestions/SuggestionsPageClient').then(
       (module) => module.SuggestionsPageClient,

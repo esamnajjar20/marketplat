@@ -214,3 +214,38 @@ export async function fetchMyFollowedStores(token: string, page = 1, limit = 20,
   const params = new URLSearchParams({ page: String(page), limit: String(limit) });
   return pageFrom(await apiRequest<Envelope<FollowedStoreRow[]>>(`/api/v1/stores/me/followed?${params}`, { token, signal }), 'تعذر تحميل المتاجر التي تتابعها.', page);
 }
+
+export async function updateProduct(
+  id: string,
+  input: Partial<{
+    categoryId: string;
+    name: string;
+    description: string;
+    price: number;
+    availability: 'IN_STOCK' | 'LIMITED' | 'OUT_OF_STOCK';
+    stockQuantity: number | null;
+    discountPrice: number | null;
+    wholesalePrice: number | null;
+    wholesaleMinQty: number | null;
+    costPrice: number | null;
+    attributes: Record<string, string | number | boolean>;
+    status: string;
+  }>,
+  token: string,
+  csrfToken?: string | null
+): Promise<ProductSummary> {
+  const updated = dataOf(
+    await apiRequest<Envelope<ProductSummary>>(
+      `/api/v1/products/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        token,
+        headers: csrfToken ? { 'X-CSRF-Token': csrfToken } : undefined,
+        body: JSON.stringify(input),
+      }
+    ),
+    'تعذر تحديث المنتج.'
+  );
+  await invalidateProductCaches(id);
+  return updated;
+}
