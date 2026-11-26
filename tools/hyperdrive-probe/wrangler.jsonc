@@ -1,9 +1,16 @@
 {
-  "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "marketplat-hyperdrive-probe",
-  "main": "worker.ts",
-  "compatibility_date": "2026-11-26",
-  "compatibility_flags": ["nodejs_compat"],
-  "workers_dev": true,
-  "hyperdrive": []
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "marketplat-hyperdrive-probe",
+	"main": "worker.ts",
+	"compatibility_date": "2026-11-26",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"workers_dev": true,
+	"hyperdrive": [
+		{
+			"binding": "HYPERDRIVE",
+			"id": "4d238f05c69042e9ab92829a2c770110"
+		}
+	]
 }

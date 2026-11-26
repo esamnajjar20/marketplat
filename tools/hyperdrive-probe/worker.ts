@@ -16,7 +16,9 @@ const worker = createHyperdriveProbeWorker((connectionString) => {
   });
 
   return {
-    connect: () => client.connect(),
+    connect: async () => {
+      await client.connect();
+    },
     query: async (statement: string) => {
       const result = await client.query(statement);
       return { rows: result.rows as readonly unknown[] };
